@@ -428,20 +428,24 @@ export const MapForecastOverlay = ({
   }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, effectiveExactPointStatus, effectiveExactPointResponse]);
 
   useEffect(() => {
-    if (effectiveExactPointResponse && activeModel === 'GFS' && activeLayer === 'waves' && timeOffsetHours === 0) {
-      recordTruthStage('infoboxDisplay', {
-        model: activeModel,
-        domain: 'marine',
-        layer: activeLayer,
-        valid_time: effectiveExactPointResponse.valid_time || effectiveExactPointResponse.validTime,
-        run_time: effectiveExactPointResponse.run_time || effectiveExactPointResponse.runTime,
-        product_id: effectiveExactPointResponse.product_id || effectiveExactPointResponse.productId,
-        is_dynamic_viewport_product: effectiveExactPointResponse.is_dynamic_viewport_product,
-        coverage_scope: effectiveExactPointResponse.coverage_scope,
-        requested_bbox: effectiveExactPointResponse.requested_bbox,
-        served_bbox: effectiveExactPointResponse.served_bbox,
-        truthTag: effectiveExactPointResponse.truthTag
-      }, 'MapForecastOverlay.js', 'effectiveExactPointResponse useEffect');
+    if (effectiveExactPointResponse && timeOffsetHours === 0) {
+      const isGfsWaves = activeModel === 'GFS' && activeLayer === 'waves';
+      const isWind = activeLayer === 'wind';
+      if (isGfsWaves || isWind) {
+        recordTruthStage('infoboxDisplay', {
+          model: activeModel,
+          domain: isWind ? 'wind' : 'marine',
+          layer: activeLayer,
+          valid_time: effectiveExactPointResponse.valid_time || effectiveExactPointResponse.validTime,
+          run_time: effectiveExactPointResponse.run_time || effectiveExactPointResponse.runTime,
+          product_id: effectiveExactPointResponse.product_id || effectiveExactPointResponse.productId,
+          is_dynamic_viewport_product: effectiveExactPointResponse.is_dynamic_viewport_product,
+          coverage_scope: effectiveExactPointResponse.coverage_scope,
+          requested_bbox: effectiveExactPointResponse.requested_bbox,
+          served_bbox: effectiveExactPointResponse.served_bbox,
+          truthTag: effectiveExactPointResponse.truthTag
+        }, 'MapForecastOverlay.js', 'effectiveExactPointResponse useEffect');
+      }
     }
   }, [effectiveExactPointResponse, activeModel, activeLayer, timeOffsetHours]);
 

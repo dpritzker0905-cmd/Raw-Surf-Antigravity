@@ -1,10 +1,12 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 
-function getLayerTruth(layerId, rasterVisible) {
+function getLayerTruth(layerId, rasterVisible, windData, marineData) {
   const layer = LAYER_REGISTRY[layerId];
   if (!layer) return "OFF";
-  if (layer.type === "raster" || layer.type === "particle") return rasterVisible ? "LOADED" : "LOADING";
+  if (layer.type === "raster") return rasterVisible ? "LOADED" : "LOADING";
+  if (layer.type === "particle") return (windData && windData.vectors && windData.vectors.length > 0) ? "LOADED" : "LOADING";
+  if (layer.type === "marine") return (marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0) ? "LOADED" : "LOADING";
   return "OFF";
 }
 
@@ -275,10 +277,10 @@ var TruthOverlay = ({ activeLayers, activeRenderType, marineData, windData, trut
               <span style={{ color: '#94a3b8' }}>Raster Source:</span>
               <span style={{
                 fontWeight: 600,
-                color: getLayerTruth(activeLayer, rasterVisible) === 'LOADED' ? '#10b981' : 
-                       getLayerTruth(activeLayer, rasterVisible) === 'LOADING' ? '#fbbf24' : '#64748b'
+                color: getLayerTruth(activeLayer, rasterVisible, windData, marineData) === 'LOADED' ? '#10b981' : 
+                       getLayerTruth(activeLayer, rasterVisible, windData, marineData) === 'LOADING' ? '#fbbf24' : '#64748b'
                }}>
-                {getLayerTruth(activeLayer, rasterVisible)}
+                {getLayerTruth(activeLayer, rasterVisible, windData, marineData)}
               </span>
             </div>
           </div>

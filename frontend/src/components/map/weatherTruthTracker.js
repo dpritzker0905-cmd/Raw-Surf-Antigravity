@@ -142,8 +142,10 @@ export function recordTruthStage(stageName, data, file, functionName) {
   const boundsHash = truthTag.boundsHash;
   const traceId = truthTag.traceId;
 
-  // Auto-set activeTraceId for GFS waves live
-  if (truthTag.model === "GFS" && truthTag.layer === "waves") {
+  // Auto-set activeTraceId for GFS waves live or any wind model layer
+  const isGfsWaves = truthTag.model === "GFS" && truthTag.layer === "waves";
+  const isWindLayer = truthTag.layer === "wind";
+  if (isGfsWaves || isWindLayer) {
     if (!trace.activeTraceId || stageName === "backendResponse" || stageName === "orchestratorCommit") {
       trace.activeTraceId = traceId;
     }
@@ -159,11 +161,11 @@ export function recordTruthStage(stageName, data, file, functionName) {
   let mismatchFromPrevious = false;
   let mismatchReason = null;
 
-  if (truthTag.model === "GFS" && truthTag.layer === "waves") {
+  if (isGfsWaves || isWindLayer) {
     const previousStages = trace.stages.filter(s => 
       s.truthTag && 
-      s.truthTag.model === "GFS" && 
-      s.truthTag.layer === "waves" &&
+      s.truthTag.model === truthTag.model && 
+      s.truthTag.layer === truthTag.layer &&
       s.truthTag.valid_time === truthTag.valid_time
     );
     if (previousStages.length > 0) {

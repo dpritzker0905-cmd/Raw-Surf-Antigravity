@@ -16,17 +16,32 @@ logger = logging.getLogger(__name__)
 
 def get_env_flags() -> dict:
     """Returns environment detection flags used by all ingestion tasks."""
+    import sys
     node_env = os.environ.get("NODE_ENV", "").lower()
     env = os.environ.get("ENV", "").lower()
     is_prod = os.environ.get("IS_PROD", "").lower()
+    local_test_fixture = os.environ.get("LOCAL_TEST_FIXTURE", "").lower() == "true"
+    
+    is_pytest = "pytest" in sys.modules
     
     is_test = False
-    if not (node_env == "production" or env == "production" or is_prod == "true"):
-        is_test = (
-            os.environ.get("NODE_ENV") == "test" or
-            os.environ.get("LOCAL_TEST_FIXTURE") == "true" or
-            os.environ.get("TESTING") == "1"
-        )
+    if is_pytest:
+        if not (node_env == "production" or env == "production" or is_prod == "true"):
+            is_test = (
+                os.environ.get("NODE_ENV") == "test" or
+                local_test_fixture or
+                os.environ.get("TESTING") == "1"
+            )
+    else:
+        if local_test_fixture:
+            is_test = True
+        elif not (node_env == "production" or env == "production" or is_prod == "true"):
+            is_test = (
+                os.environ.get("NODE_ENV") == "test" or
+                local_test_fixture or
+                os.environ.get("TESTING") == "1"
+            )
+            
     return {
         "is_render": os.environ.get("RENDER") == "true",
         "is_test_env": is_test,

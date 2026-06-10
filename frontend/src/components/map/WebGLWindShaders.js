@@ -18,7 +18,7 @@ uniform sampler2D u_wind;         // wind field texture (RG = u, BA = v)
 uniform vec2 u_wind_min;          // min u,v values for decoding
 uniform vec2 u_wind_max;          // max u,v values for decoding
 uniform vec2 u_wind_res;          // wind grid resolution (cols, rows)
-uniform vec2 u_speed_scale;       // scale-invariant speed scale
+uniform float u_speed_scale;      // scale-invariant speed scale (float for Mercator)
 uniform float u_rand_seed;        // per-frame random seed for respawn
 uniform float u_drop_rate;        // base particle drop rate
 uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
@@ -50,47 +50,99 @@ float rand(vec2 co) {
   return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
 }
 
-vec2 lookupWind(vec2 uv) {
-  vec4 color = texture2D(u_wind, uv);
-  // Decode from [0,1] range back to actual wind values
-  return mix(u_wind_min, u_wind_max, vec2(color.r, color.g));
+float mercatorYToLat(float y) {
+  float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
+  return atan(sinhVal) * 180.0 / 3.141592653589793;
+}
+
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
 }
 
 void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
 
+  // Convert global Mercator coordinates to geographic lng/lat
+  float lng = pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(pos.y);
+
+  // Map to local texture coordinate of u_wind
+  float tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  }
+  float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
+  vec2 tex_uv = vec2(tex_u, tex_v);
+
   // Lookup wind at this position
-  vec2 wind = lookupWind(pos);
+  vec4 windData = texture2D(u_wind, tex_uv);
+  vec2 wind = mix(u_wind_min, u_wind_max, vec2(windData.r, windData.g));
   float speed = length(wind);
 
-  // Advect: move particle by wind velocity (normalized to [0,1] space)
-  // v3.11.1: Mercator latitude correction cos(lat) prevents polar distortion
-  float lat_deg = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
-  float lat_rad = lat_deg * 3.141592653589793 / 180.0;
+  // Negate y for Mercator convention (+y is South, wind.y/v is Northward)
+  vec2 windMerc = vec2(wind.x, -wind.y);
+
+  // Advect: move particle by wind velocity (both components scaled by 1/merc_scale)
+  float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
-  vec2 offset = vec2(wind.x / merc_scale, wind.y) * u_speed_scale;
-  pos = pos + offset;
+  vec2 offset = (windMerc / merc_scale) * u_speed_scale;
+  vec2 nextPos = pos + offset;
+
+  // Wrap X and clamp Y
+  nextPos.x = fract(nextPos.x);
+  nextPos.y = clamp(nextPos.y, 0.001, 0.999);
+
+  // Check out of bounds for next position
+  float next_lng = nextPos.x * 360.0 - 180.0;
+  float next_lat = mercatorYToLat(nextPos.y);
+  float next_tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    next_tex_u = mod(next_lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+  }
+  float next_tex_v = (next_lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
 
   // Respawn logic: randomly drop particles (more likely when slow)
-  vec2 seed = (pos + v_uv) * u_rand_seed;
+  vec2 seed = (nextPos + v_uv) * u_rand_seed;
   float dropRate = u_drop_rate + speed * u_drop_rate_bump;
   float drop = step(1.0 - dropRate, rand(seed));
 
-  // Random new position for respawned particles
-  vec2 newPos = vec2(rand(seed + 1.3), rand(seed + 2.1));
-
-  // Out of bounds: drop if regional grid and exits bounding box, otherwise wrap X and drop Y
-  float oobX = step(1.0, pos.x) + step(0.0, -pos.x);
-  float oobY = step(1.0, pos.y) + step(0.0, -pos.y);
-  if (u_edgeFeatherEnabled > 0.5) {
-    drop = max(drop, step(0.5, oobX + oobY));
-  } else {
-    pos.x = fract(pos.x);
-    drop = max(drop, step(0.5, oobY));
+  // If regional grid and exits bounding box, drop it
+  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
+                next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  if (isOob) {
+    drop = 1.0;
   }
 
-  pos = mix(pos, newPos, drop);
+  // Also drop if it exits global Mercator bounds vertically
+  float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
+  drop = max(drop, step(0.5, oobY));
+
+  // Random new position for respawned particles (within the data bounds, uniform in Web Mercator)
+  vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
+  float spanX = u_dataBounds_min.x > u_dataBounds_max.x
+    ? (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x
+    : u_dataBounds_max.x - u_dataBounds_min.x;
+  float randLng = u_dataBounds_min.x > u_dataBounds_max.x
+    ? mod(u_dataBounds_min.x + randVal.x * spanX + 180.0, 360.0) - 180.0
+    : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+
+  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  float randY = mix(mercMinY, mercMaxY, randVal.y);
+  vec2 newPos = vec2((randLng + 180.0) / 360.0, randY);
+
+  pos = mix(nextPos, newPos, drop);
+  pos.y = clamp(pos.y, 0.001, 0.999);
+
   gl_FragColor = encodePos(pos);
 }`;
 
@@ -117,6 +169,17 @@ vec2 decodePos(vec4 color) {
   );
 }
 
+float mercatorYToLat(float y) {
+  float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
+  return atan(sinhVal) * 180.0 / 3.141592653589793;
+}
+
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
+}
+
 void main() {
   // Particle UV in state texture
   float col = mod(a_index, u_particles_res);
@@ -126,23 +189,27 @@ void main() {
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
 
-  // Convert [0,1] to [lng, lat] then apply world-copy offset
-  float east = u_dataBounds_max.x < u_dataBounds_min.x ? u_dataBounds_max.x + 360.0 : u_dataBounds_max.x;
-  float lng = mix(u_dataBounds_min.x, east, pos.x);
-  if (lng > 180.0) {
-    lng -= 360.0;
+  // Convert global Mercator coordinates to geographic lng/lat
+  float lng = pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(pos.y);
+
+  // Map to local texture coordinate of u_wind
+  float tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+  } else {
+    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
   }
-  lng += u_lng_offset;
-  float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, pos.y);
+  float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
+  vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Speed for coloring
-  vec4 windColor = texture2D(u_wind, pos);
+  vec4 windColor = texture2D(u_wind, tex_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
   v_speed = length(wind);
 
-  // Edge feathering: compute tex_u/tex_v from particle position in wind grid
-  float tex_u = pos.x;
-  float tex_v = pos.y;
+  // Edge feathering: compute edgeFade from particle position in wind grid
   float edgeFade = 1.0;
   if (u_edgeFeatherEnabled > 0.5) {
     float distToEdgeX = min(tex_u, 1.0 - tex_u);
@@ -152,19 +219,17 @@ void main() {
   }
   v_alpha = edgeFade;
 
-  // Convert to Mercator for MapLibre
-  float x = (lng + 180.0) / 360.0;
-  float clampedLat = clamp(lat, -85.051129, 85.051129);
-  float y = (1.0 - log(tan(radians(clampedLat)) + 1.0 / cos(radians(clampedLat))) / 3.141592653589793) / 2.0;
+  // Convert to Web Mercator and apply world-copy offset
+  float x = pos.x + u_lng_offset / 360.0;
+  float y = pos.y;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
-  // v3.13.5: Close-zoom density enhancement — larger particles at high zoom
-  // for +20% visual density at the 3 closest zoom levels (≥8)
-  float zoomBoost = u_zoom >= 8.0 ? 1.2 : 1.0;
-  gl_PointSize = v_speed < 0.5 ? 0.0 : (2.0 + clamp(v_speed / 8.0, 0.0, 3.0)) * zoomBoost * edgeFade;
+  // v3.14.0: Speed-proportional sizing and zoom scaling for premium thickness
+  float zoomBoost = u_zoom >= 8.0 ? 1.25 : 1.0;
+  gl_PointSize = v_speed < 0.5 ? 0.0 : (3.5 + clamp(v_speed / 6.0, 0.0, 5.0)) * zoomBoost * edgeFade;
 }`;
 
 export const DRAW_FS = `precision mediump float;
@@ -173,9 +238,17 @@ varying float v_alpha;
 uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
 void main() {
+  // Turn square points into beautiful, soft, anti-aliased circles
+  vec2 localCoord = gl_PointCoord - 0.5;
+  float dist = length(localCoord);
+  if (dist > 0.5) discard;
+  
+  // Smooth anti-aliasing edge softening
+  float soft = smoothstep(0.5, 0.25, dist);
+  
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
-  float alpha = color.a * v_alpha;
+  float alpha = color.a * v_alpha * soft;
   gl_FragColor = vec4(color.rgb * alpha, alpha);
 }`;
 

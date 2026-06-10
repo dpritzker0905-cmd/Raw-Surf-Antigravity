@@ -172,6 +172,9 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
       if (gl && dataToApply?.vectors?.length) {
         try {
           engine.setWindData(gl, dataToApply);
+          if (typeof engine.reinitParticles === 'function') {
+            engine.reinitParticles(gl);
+          }
           pendingDataRef.current = null;
           mapInstance.triggerRepaint();
         } catch (e) {
@@ -241,7 +244,30 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
 
     try {
       console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
+      
+      const oldBounds = engine._windData?.bounds;
+      const newBounds = data.bounds;
+      let boundsChanged = false;
+      if (!oldBounds && newBounds) {
+        boundsChanged = true;
+      } else if (oldBounds && newBounds) {
+        const dw = Math.abs((newBounds.east - newBounds.west) - (oldBounds.east - oldBounds.west));
+        const dh = Math.abs((newBounds.north - newBounds.south) - (oldBounds.north - oldBounds.south));
+        const dx = Math.abs(newBounds.west - oldBounds.west);
+        const dy = Math.abs(newBounds.south - oldBounds.south);
+        if (dw > 2.0 || dh > 2.0 || dx > 2.0 || dy > 2.0) {
+          boundsChanged = true;
+        }
+      }
+
       engine.setWindData(gl, data);
+
+      if (boundsChanged) {
+        if (typeof engine.reinitParticles === 'function') {
+          engine.reinitParticles(gl);
+        }
+      }
+
       pendingDataRef.current = null;
       mapInstance.triggerRepaint();
     } catch (e) {

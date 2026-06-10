@@ -520,9 +520,9 @@ class PointResolutionService:
             if waves_prod:
                 res = self.sampler.sample_point(waves_prod, lat, lng)
                 waves_data[dt] = {
-                    "wave_height": res.speed,
-                    "wave_direction": res.direction,
-                    "wave_period": res.period
+                    "wave_height": res.point.speed,
+                    "wave_direction": res.point.direction,
+                    "wave_period": res.point.period
                 }
             else:
                 cache_misses = True
@@ -532,8 +532,8 @@ class PointResolutionService:
             if swell_prod:
                 res = self.sampler.sample_point(swell_prod, lat, lng)
                 swell_data[dt] = {
-                    "swell_height": res.speed,
-                    "swell_direction": res.direction
+                    "swell_height": res.point.speed,
+                    "swell_direction": res.point.direction
                 }
             else:
                 cache_misses = True

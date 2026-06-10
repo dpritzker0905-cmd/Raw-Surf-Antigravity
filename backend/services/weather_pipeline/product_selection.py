@@ -43,6 +43,16 @@ def bbox_intersection_area(req_w: float, req_s: float, req_e: float, req_n: floa
             total_area += _intersect_standard_boxes(r, c)
     return total_area
 
+def get_bbox_area(west: float, south: float, east: float, north: float) -> float:
+    """
+    Calculates the total coverage area of a bounding box, supporting antimeridian crossing.
+    """
+    boxes = _split_bbox(west, south, east, north)
+    area = 0.0
+    for w, s, e, n in boxes:
+        area += (e - w) * (n - s)
+    return area
+
 def _select_best_from_list(
     candidates: List[Tuple[Any, float]],
     req_w: Optional[float] = None,
@@ -52,7 +62,8 @@ def _select_best_from_list(
 ) -> Optional[Any]:
     """
     Selects the best product from a single list of candidates.
-    Matches by largest intersection area and breaks ties with smallest time diff.
+    Matches by largest intersection area, breaking ties with smallest coverage area,
+    and then with smallest time diff.
     """
     best_item = None
     best_diff = float("inf")
@@ -63,14 +74,22 @@ def _select_best_from_list(
             # We have a requested bounding box
             intersection_area = bbox_intersection_area(req_w, req_s, req_e, req_n, p.coverage)
             if intersection_area > 0.0:
-                if intersection_area > best_intersection:
+                if intersection_area > best_intersection + 0.0001:
                     best_intersection = intersection_area
                     best_diff = diff
                     best_item = p
                 elif abs(intersection_area - best_intersection) < 0.0001:
-                    if diff < best_diff:
+                    # Tie in intersection area
+                    cov_area = get_bbox_area(p.coverage.west, p.coverage.south, p.coverage.east, p.coverage.north)
+                    best_cov_area = get_bbox_area(best_item.coverage.west, best_item.coverage.south, best_item.coverage.east, best_item.coverage.north)
+                    if cov_area < best_cov_area - 0.0001:
+                        best_intersection = intersection_area
                         best_diff = diff
                         best_item = p
+                    elif abs(cov_area - best_cov_area) < 0.0001:
+                        if diff < best_diff:
+                            best_diff = diff
+                            best_item = p
         else:
             # No bounding box requested, match purely on time difference
             if diff < best_diff:

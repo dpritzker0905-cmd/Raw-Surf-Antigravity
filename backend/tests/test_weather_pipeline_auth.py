@@ -9,6 +9,7 @@ def test_ingestion_endpoints_admin_auth():
         "/api/weather/ingest",
         "/api/weather/ingest_euro_wind_direct",
         "/api/weather/ingest_icon_wind_direct",
+        "/api/weather/ingest_gfs_wind_global_direct",
         "/api/weather/ingest_copernicus",
         "/api/weather/ingest_gfs_pressure_direct",
         "/api/weather/ingest_icon_pressure_direct",

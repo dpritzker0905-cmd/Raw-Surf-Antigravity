@@ -160,11 +160,17 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
   );
 
   if (isViewportEnabled) {
+    const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
+    const snapW = Math.floor(west / tileSize) * tileSize;
+    const snapS = Math.floor(south / tileSize) * tileSize;
+    const snapE = Math.ceil(east / tileSize) * tileSize;
+    const snapN = Math.ceil(north / tileSize) * tileSize;
+
     const r = v => Number(v).toFixed(2);
-    const selectedTileId = `viewport_${r(west)}_${r(south)}_${r(east)}_${r(north)}`;
+    const selectedTileId = `viewport_${r(snapW)}_${r(snapS)}_${r(snapE)}_${r(snapN)}`;
     return {
       isInside: true,
-      clampedBbox: { west, south, east, north },
+      clampedBbox: { west: snapW, south: snapS, east: snapE, north: snapN },
       fallbackReason: null,
       coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
       selectedTileId,

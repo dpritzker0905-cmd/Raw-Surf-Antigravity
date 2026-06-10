@@ -18,7 +18,7 @@ const MODEL_MAP = {
   ICON: 'dwd_icon',
 };
 
-const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 10, ICON: 7 };
+const MODEL_FORECAST_DAYS = { GFS: 16, EURO: 14, ICON: 7 };
 
 const WEATHER_VARS = [
   'precipitation',
@@ -74,6 +74,16 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
   const fetchForecast = useCallback(async () => {
     if (!latitude || !longitude || !enabled) return;
+
+    const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    if (MARINE_LAYERS.includes(activeLayer)) {
+      setForecastData(null);
+      setMarineData(null);
+      setCurrentWeather(null);
+      setIsStale(false);
+      setIsLoading(false);
+      return;
+    }
 
     // v7.14.5: Startup and scrubbing stability gates
     const isMapBooted = typeof window !== 'undefined' && window.__MAP_BOOTSTRAPPED__ === true;
@@ -153,20 +163,82 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       const validTimeStr = targetDt.toISOString();
       const fetchPromise = (async () => {
         try {
-          const windUrl = `${POINT_URL}?model=${activeModel}&domain=wind&layer=wind&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
-          const pressureUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=pressure&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
-          const precipUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=precipitation&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+          let windUrl = `${POINT_URL}?model=${activeModel}&domain=wind&layer=wind&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+          let pressureUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=pressure&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
+          let precipUrl = `${POINT_URL}?model=${activeModel}&domain=weather&layer=precipitation&lat=${latitude}&lng=${longitude}&valid_time=${validTimeStr}`;
 
-          // Fetch each endpoint with catch handlers to prevent a single failing request from failing the whole chain
-          const [windRes, pressRes, precipRes] = await Promise.all([
-            fetch(windUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err })),
-            fetch(pressureUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err })),
-            fetch(precipUrl, { signal: controller.signal }).catch(err => ({ ok: false, error: err }))
-          ]);
+          let gridProductId = null;
+          let gridBbox = null;
+          if (typeof window !== 'undefined') {
+            const diag = window.__WIND_PROJECTION_DIAG__ || window.__MARINE_PROJECTION_DIAG__;
+            if (diag) {
+              gridProductId = diag.productId || diag.gridProductId || null;
+              gridBbox = diag.requested_bbox || diag.backendRequestBbox || null;
+            }
+          }
+          if (!gridBbox && typeof window !== 'undefined' && window.map) {
+            try {
+              const b = window.map.getBounds();
+              gridBbox = `${b.getWest().toFixed(4)},${b.getSouth().toFixed(4)},${b.getEast().toFixed(4)},${b.getNorth().toFixed(4)}`;
+            } catch (e) {
+              gridBbox = null;
+            }
+          }
 
-          // We require at least one successful fetch to construct the stitched forecast
-          if (!windRes.ok && !pressRes.ok && !precipRes.ok) {
-            throw new Error(`All backend point API fetches failed. Wind: ${windRes.status || 'failed'}, Pressure: ${pressRes.status || 'failed'}, Precip: ${precipRes.status || 'failed'}`);
+          if (gridProductId) {
+            const pId = encodeURIComponent(gridProductId);
+            windUrl += `&grid_product_id=${pId}`;
+            pressureUrl += `&grid_product_id=${pId}`;
+            precipUrl += `&grid_product_id=${pId}`;
+          }
+          if (gridBbox) {
+            const bboxStr = encodeURIComponent(gridBbox);
+            windUrl += `&grid_bbox=${bboxStr}`;
+            pressureUrl += `&grid_bbox=${bboxStr}`;
+            precipUrl += `&grid_bbox=${bboxStr}`;
+          }
+
+          const fetchQueue = [];
+          let windRes = { ok: false };
+          let pressRes = { ok: false };
+          let precipRes = { ok: false };
+
+          if (activeLayer === 'wind') {
+            fetchQueue.push(
+              fetch(windUrl, { signal: controller.signal })
+                .then(r => { windRes = r; })
+                .catch(err => { windRes = { ok: false, error: err }; })
+            );
+          } else if (activeLayer === 'pressure') {
+            fetchQueue.push(
+              fetch(pressureUrl, { signal: controller.signal })
+                .then(r => { pressRes = r; })
+                .catch(err => { pressRes = { ok: false, error: err }; })
+            );
+          } else if (activeLayer === 'precipitation' || activeLayer === 'rain') {
+            fetchQueue.push(
+              fetch(precipUrl, { signal: controller.signal })
+                .then(r => { precipRes = r; })
+                .catch(err => { precipRes = { ok: false, error: err }; })
+            );
+          } else {
+            // Default fallback if activeLayer is not recognized but it is not a marine layer
+            fetchQueue.push(
+              fetch(windUrl, { signal: controller.signal }).then(r => { windRes = r; }).catch(err => { windRes = { ok: false, error: err }; }),
+              fetch(pressureUrl, { signal: controller.signal }).then(r => { pressRes = r; }).catch(err => { pressRes = { ok: false, error: err }; }),
+              fetch(precipUrl, { signal: controller.signal }).then(r => { precipRes = r; }).catch(err => { precipRes = { ok: false, error: err }; })
+            );
+          }
+
+          await Promise.all(fetchQueue);
+
+          const isAtLeastOneOk = (activeLayer === 'wind' && windRes.ok) ||
+                                 (activeLayer === 'pressure' && pressRes.ok) ||
+                                 ((activeLayer === 'precipitation' || activeLayer === 'rain') && precipRes.ok) ||
+                                 (!['wind', 'pressure', 'precipitation', 'rain'].includes(activeLayer) && (windRes.ok || pressRes.ok || precipRes.ok));
+
+          if (!isAtLeastOneOk) {
+            throw new Error(`Backend point API fetch failed for active layer ${activeLayer}. Wind: ${windRes.status || 'failed'}, Pressure: ${pressRes.status || 'failed'}, Precip: ${precipRes.status || 'failed'}`);
           }
 
           const [windJson, pressJson, precipJson] = await Promise.all([

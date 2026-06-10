@@ -218,6 +218,8 @@ async def run_background_cache_population():
                 await asyncio.sleep(15.0)
                 logger.info("[lifespan] Running GFS wind grid pre-population...")
                 await scheduler.ingest_gfs_wind_pilot()
+                logger.info("[lifespan] Running GFS wind global grid pre-population...")
+                await scheduler.ingest_gfs_wind_global()
                 gc.collect()
             
             logger.info("[lifespan] Background cache pre-population completed successfully!")

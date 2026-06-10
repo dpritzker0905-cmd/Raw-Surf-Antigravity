@@ -16,6 +16,7 @@ import {
   PILOT_COVERAGE
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { recordTruthStage } from './weatherTruthTracker';
 
 export const windPointCache = new BoundedPointCache(50, 30000);
 
@@ -47,7 +48,7 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     console.warn(`[Backend Weather Service] Wind grid is not renderable. mappedVectors=${mappedVectors.length}, nonzeroCount=${nonzeroCount}`);
   }
 
-  return {
+  const result = {
     vectors: mappedVectors,
     bounds: json.grid.bounds || snappedBounds,
     cols: json.grid.cols,
@@ -57,8 +58,37 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     hourOffset,
     provider: json.provider || 'backend-weather-service',
     nonzeroCount,
-    renderable
+    renderable,
+    // Preserved metadata fields
+    truthTag: json.truthTag || null,
+    productId: json.product_id || null,
+    product_id: json.product_id || null,
+    is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+    coverage_scope: json.coverage_scope || null,
+    requested_bbox: json.requested_bbox || null,
+    served_bbox: json.served_bbox || null,
+    run_time: json.run_time || null,
+    valid_time: json.valid_time || null
   };
+
+  if (typeof window !== 'undefined' && hourOffset === 0) {
+    recordTruthStage('mappedGrid', {
+      model: json.model || 'GFS',
+      domain: 'wind',
+      layer: 'wind',
+      valid_time: json.valid_time,
+      run_time: json.run_time,
+      product_id: json.product_id,
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product,
+      coverage_scope: json.coverage_scope,
+      requested_bbox: json.requested_bbox,
+      served_bbox: json.served_bbox,
+      grid: json.grid,
+      truthTag: json.truthTag
+    }, 'backendWindServiceClient.js', 'mapNormalizedWindGridToWebGL');
+  }
+
+  return result;
 }
 
 // Wind Diagnostics Telemetry Initializer
@@ -221,6 +251,17 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
     url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
   }
 
+  if (hourOffset === 0) {
+    recordTruthStage('pointRequest', {
+      model,
+      domain: 'wind',
+      layer: 'wind',
+      valid_time: validTimeStr,
+      grid_product_id: gridProductId,
+      truthTag: window.__WEATHER_TRUTH_TRACE__?.stages?.find(s => s.stage === 'webglRender')?.truthTag
+    }, 'backendWindServiceClient.js', 'fetchBackendExactWindPoint');
+  }
+
   if (inFlightWindPointRequests.has(url)) {
     return inFlightWindPointRequests.get(url);
   }
@@ -233,6 +274,17 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
       }
       const json = await res.json();
       
+      if (hourOffset === 0) {
+        recordTruthStage('pointResponse', {
+          model,
+          domain: 'wind',
+          layer: 'wind',
+          valid_time: json.valid_time || validTimeStr,
+          product_id: json.product_id,
+          truthTag: json.truthTag
+        }, 'backendWindServiceClient.js', 'fetchBackendExactWindPoint');
+      }
+
       const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
       const data = {
         hourly: {
@@ -250,7 +302,13 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
         apiModel: model === 'ICON' ? 'dwd_icon' : (model === 'EURO' ? 'ecmwf_ifs' : 'gfs_seamless'),
         provider: json.provider || provider,
         source: 'network',
-        status: json.status || json.coverage_status || 'exact_success'
+        status: json.status || json.coverage_status || 'exact_success',
+        // Preserved metadata fields
+        truthTag: json.truthTag || null,
+        gridPointParity: json.gridPointParity || null,
+        mismatchReason: json.mismatchReason || null,
+        product_id: json.product_id || null,
+        productId: json.product_id || null
       };
 
       const details = {
@@ -397,7 +455,6 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   if (inFlightWindRequests.has(url)) {
     return inFlightWindRequests.get(url);
   }
-
   const promise = (async () => {
     try {
       const res = await fetch(url, { signal });
@@ -405,6 +462,22 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
         throw new Error(`Backend returned HTTP ${res.status}`);
       }
       const json = await res.json();
+      if (typeof window !== 'undefined' && hourOffset === 0) {
+        recordTruthStage('backendResponse', {
+          model: json.model || model,
+          domain: 'wind',
+          layer: 'wind',
+          valid_time: json.valid_time,
+          run_time: json.run_time,
+          product_id: json.product_id,
+          is_dynamic_viewport_product: json.is_dynamic_viewport_product,
+          coverage_scope: json.coverage_scope,
+          requested_bbox: json.requested_bbox,
+          served_bbox: json.served_bbox,
+          grid: json.grid,
+          truthTag: json.truthTag
+        }, 'backendWindServiceClient.js', 'fetchBackendWindGrid');
+      }
       const result = mapNormalizedWindGridToWebGL(json, clampedBbox, hourOffset);
       result.source = model;
 

@@ -124,12 +124,18 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
     expect(onRender).toBeDefined();
 
-    // Simulate 60 FPS (approx 16.6ms per frame) for 3 seconds
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // Simulate 60 FPS (approx 16.6ms per frame) for 7 seconds
     // Each second has ~60 frames
-    for (let sec = 0; sec < 3; sec++) {
+    for (let sec = 0; sec < 7; sec++) {
       for (let f = 0; f < 60; f++) {
         currentTime += 16.6;
         onRender();
@@ -140,7 +146,7 @@ describe('useWebGLGuardrail', () => {
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
   });
 
-  it('triggers wind fallback when wind layer FPS is consistently low (< 30) for 3 seconds', () => {
+  it('triggers wind fallback when wind layer FPS is consistently low (< 30) for 6 seconds', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
 
@@ -155,11 +161,17 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
 
-    // Simulate 15 FPS (approx 66.7ms per frame) for 3 seconds
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // Simulate 15 FPS (approx 66.7ms per frame) for 7 seconds
     // Each second has 15 frames
-    for (let sec = 0; sec < 3; sec++) {
+    for (let sec = 0; sec < 7; sec++) {
       // 15 frames per second
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
@@ -172,7 +184,7 @@ describe('useWebGLGuardrail', () => {
     expect(WeatherTelemetry.emit).toHaveBeenCalledWith('FPS_drop_detected', expect.any(Object));
   });
 
-  it('triggers marine fallback when waves layer FPS is consistently low (< 30) for 3 seconds', () => {
+  it('triggers marine fallback when waves layer FPS is consistently low (< 30) for 6 seconds', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
 
@@ -187,10 +199,16 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
 
-    // Simulate 15 FPS (approx 66.7ms per frame) for 3 seconds
-    for (let sec = 0; sec < 3; sec++) {
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // Simulate 15 FPS (approx 66.7ms per frame) for 7 seconds
+    for (let sec = 0; sec < 7; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
@@ -216,12 +234,18 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
+
+    // Flush the delta >= 2000 gate
+    onRender();
 
     // Simulate 1 frame every 3 seconds (3000ms delta)
     // Even though it is technically < 30 FPS, the delta-time gate of 2000ms
     // should reset the tracking to avoid false performance drop detection
-    for (let i = 0; i < 5; i++) {
+    for (let i = 0; i < 10; i++) {
       currentTime += 3000;
       onRender();
     }
@@ -245,11 +269,17 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
 
-    // Simulate 1 FPS (1000ms delta) for 3 seconds
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // Simulate 1 FPS (1000ms delta) for 7 seconds
     // Since 1000ms < 2000ms, it is not filtered by the delta-time gate.
-    for (let sec = 0; sec < 3; sec++) {
+    for (let sec = 0; sec < 7; sec++) {
       currentTime += 1000;
       onRender();
     }
@@ -272,11 +302,17 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
     const handleVisibilityChange = docEventListeners['visibilitychange'];
 
-    // 2 seconds of low FPS
-    for (let sec = 0; sec < 2; sec++) {
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // 5 seconds of low FPS
+    for (let sec = 0; sec < 5; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
@@ -286,17 +322,19 @@ describe('useWebGLGuardrail', () => {
     // Now user hides/restores the tab, triggering visibilitychange
     handleVisibilityChange();
 
-    // 1 more second of low FPS
-    for (let f = 0; f < 15; f++) {
-      currentTime += 66.7;
-      onRender();
+    // 2 more seconds of low FPS
+    for (let sec = 0; sec < 2; sec++) {
+      for (let f = 0; f < 15; f++) {
+        currentTime += 66.7;
+        onRender();
+      }
     }
 
     // Should NOT have triggered fallback yet because counters were reset
     expect(setWebglWindFailed).not.toHaveBeenCalled();
 
-    // Another 2 seconds of low FPS (total 3 seconds since reset) should trigger it
-    for (let sec = 0; sec < 2; sec++) {
+    // Another 5 seconds of low FPS (total 7 seconds since reset) should trigger it
+    for (let sec = 0; sec < 5; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
@@ -321,7 +359,13 @@ describe('useWebGLGuardrail', () => {
       })
     );
 
+    // Advance past grace period
+    currentTime += 11000;
+
     const onRender = eventListeners['render'];
+
+    // Flush the delta >= 2000 gate
+    onRender();
 
     // Mock document.hidden = true
     Object.defineProperty(document, 'hidden', {
@@ -329,8 +373,8 @@ describe('useWebGLGuardrail', () => {
       get: () => true,
     });
 
-    // Run low FPS frames
-    for (let i = 0; i < 45; i++) {
+    // Run low FPS frames (simulate 7 seconds)
+    for (let i = 0; i < 105; i++) {
       currentTime += 66.7;
       onRender();
     }

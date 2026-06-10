@@ -35,6 +35,7 @@ import {
   encodeWindTexture,
   initParticleTexture
 } from './WebGLWindUtils';
+import { recordTruthStage } from './weatherTruthTracker';
 
 // --- Exported Constructor (var/function TDZ-immune) ---
 
@@ -122,10 +123,9 @@ WebGLWindEngine.prototype.init = function(gl) {
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
-  // v3.9.8: Create color ramp LUT texture (theme-aware)
-  var rampData = generateRampData(this._maxWindSpeed, null, 'dark');
-  this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
-  this._currentTheme = 'dark';
+  // v3.9.8: Color ramp LUT texture is initialized dynamically on first render to match active theme
+  this._colorRamp = null;
+  this._currentTheme = null;
   this._initialized = true;
   console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles');
 };
@@ -134,17 +134,82 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return;
   if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
   this._windData = encodeWindTexture(gl, windGrid);
+  if (this._windData) {
+    this._windData.truthTag = windGrid.truthTag;
+    this._windData.windGrid = windGrid;
+  }
+
+  const model = windGrid.truthTag?.model || 'GFS';
+  const layer = windGrid.truthTag?.layer || 'wind';
+  const hourOffset = windGrid.hourOffset || 0;
+
+  if (hourOffset === 0) {
+    recordTruthStage('webglUpload', {
+      model,
+      domain: 'wind',
+      layer,
+      valid_time: windGrid.valid_time || windGrid.validTime,
+      run_time: windGrid.run_time || windGrid.runTime,
+      product_id: windGrid.productId || windGrid.product_id,
+      is_dynamic_viewport_product: windGrid.is_dynamic_viewport_product,
+      coverage_scope: windGrid.coverage_scope,
+      requested_bbox: windGrid.requested_bbox,
+      served_bbox: windGrid.served_bbox,
+      grid: windGrid,
+      truthTag: windGrid.truthTag
+    }, 'WebGLWindEngine.js', 'setWindData');
+  }
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
   if (!this._initialized || !this._windData) return;
-  // Update color ramp when theme changes
-  if (theme && theme !== this._currentTheme) {
-    this._currentTheme = theme;
-    var rampData = generateRampData(this._maxWindSpeed, null, theme);
+
+  const windGrid = this._windData?.windGrid;
+  if (windGrid) {
+    const model = windGrid.truthTag?.model || 'GFS';
+    const layer = windGrid.truthTag?.layer || 'wind';
+    const hourOffset = windGrid.hourOffset || 0;
+
+    if (hourOffset === 0) {
+      recordTruthStage('webglRender', {
+        model,
+        domain: 'wind',
+        layer,
+        valid_time: windGrid.valid_time || windGrid.validTime,
+        run_time: windGrid.run_time || windGrid.runTime,
+        product_id: windGrid.productId || windGrid.product_id,
+        is_dynamic_viewport_product: windGrid.is_dynamic_viewport_product,
+        coverage_scope: windGrid.coverage_scope,
+        requested_bbox: windGrid.requested_bbox,
+        served_bbox: windGrid.served_bbox,
+        grid: windGrid,
+        truthTag: this._windData.truthTag
+      }, 'WebGLWindEngine.js', 'render');
+
+      recordTruthStage('animationFrame', {
+        model,
+        domain: 'wind',
+        layer,
+        valid_time: windGrid.valid_time || windGrid.validTime,
+        run_time: windGrid.run_time || windGrid.runTime,
+        product_id: windGrid.productId || windGrid.product_id,
+        is_dynamic_viewport_product: windGrid.is_dynamic_viewport_product,
+        coverage_scope: windGrid.coverage_scope,
+        requested_bbox: windGrid.requested_bbox,
+        served_bbox: windGrid.served_bbox,
+        grid: windGrid,
+        truthTag: this._windData.truthTag
+      }, 'WebGLWindEngine.js', 'render');
+    }
+  }
+  // Update color ramp when theme changes or if texture is not yet created
+  var activeTheme = theme || 'dark';
+  if (activeTheme !== this._currentTheme || !this._colorRamp) {
+    this._currentTheme = activeTheme;
+    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
     if (this._colorRamp) gl.deleteTexture(this._colorRamp);
     this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
-    console.log('[WebGLWind] Color ramp updated for theme:', theme);
+    console.log('[WebGLWind] Color ramp updated for theme:', activeTheme);
   }
   if (!matrix || !matrix.length) {
     if (this._renderLogged === undefined) {
@@ -269,7 +334,6 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;
-  const baseScale = this.speedFactor * Math.pow(0.55, Math.max(0, z - 6)) * 0.05; // Normalizing 0.40 speedFactor to correct coordinate step sizes
   const bounds = this._windData.bounds;
   const isRegionalGrid = (bounds.east - bounds.west < 359.9);
   const edgeFeatherVal = isRegionalGrid ? 1.0 : 0.0;
@@ -278,18 +342,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       ? 'partial_regional_coverage'
       : 'full_coverage';
   }
-  const crossesAntimeridian = bounds.west > bounds.east;
-  const lngSpan = Math.max(0.01, crossesAntimeridian 
-    ? (bounds.east + 360.0) - bounds.west 
-    : bounds.east - bounds.west);
-  const latSpan = Math.max(0.01, Math.abs(bounds.north - bounds.south));
-  const speedScaleX = Math.max(1.0e-5, baseScale / lngSpan);
-  const speedScaleY = Math.max(1.0e-5, baseScale / latSpan);
+  // v3.14.0: Calibrate advection speed continuously across zoom levels for uniform screen-space velocity
+  const stableSpeedScale = Math.max(1.0e-7, this.speedFactor * Math.pow(0.5, z) * 0.0025);
 
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
   if (this.frameCount === 1) {
-    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = [${speedScaleX.toFixed(6)}, ${speedScaleY.toFixed(6)}] | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | ${this.particleRes * this.particleRes} particles`);
+    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = ${stableSpeedScale.toFixed(8)} | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | ${this.particleRes * this.particleRes} particles`);
   }
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
@@ -329,7 +388,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_wind_res'), 1, 1);
-  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), speedScaleX, speedScaleY);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate_bump'), this.dropRateBump);
@@ -588,7 +647,7 @@ WebGLWindEngine.prototype.dispose = function(gl) {
  * to prevent stale trails from persisting across layer switches.
  */
 WebGLWindEngine.prototype.clearBuffers = function(gl) {
-  if (!gl || !this._initialized) return;
+  if (!gl || !this._initialized || !this.screenA || !this.screenB) return;
   try {
     gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
     gl.clearColor(0, 0, 0, 0);
@@ -601,4 +660,14 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
   } catch (e) {
     console.warn('[WebGLWind] clearBuffers error:', e.message);
   }
+};
+
+WebGLWindEngine.prototype.reinitParticles = function(gl) {
+  if (!gl || !this._initialized) return;
+  this.clearBuffers(gl);
+  if (this.particleStateA) gl.deleteTexture(this.particleStateA);
+  if (this.particleStateB) gl.deleteTexture(this.particleStateB);
+  this.particleStateA = initParticleTexture(gl, this.particleRes);
+  this.particleStateB = initParticleTexture(gl, this.particleRes);
+  console.log('[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
 };

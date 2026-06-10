@@ -7,6 +7,7 @@ import {
 } from './marineControllerUtils';
 import { getBackendWindFlag, fetchBackendWindGrid, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
 import { createFallbackSafeZeroGrid } from './marineControllerCache';
+import { recordTruthStage } from './weatherTruthTracker';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
@@ -152,6 +153,9 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const cached = WIND_CACHE.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) { // 10 minutes TTL
       console.log(`[Backend Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
+      if (hourOffset === 0) {
+        recordTruthStage('cacheRead', cached.data, 'windController.js', 'fetchWindData');
+      }
       return cached.data;
     }
 
@@ -170,6 +174,9 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
           if (containsLng && containsLat) {
             console.log(`[Backend Contained Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
+            if (hourOffset === 0) {
+              recordTruthStage('cacheRead', entry.data, 'windController.js', 'fetchWindData');
+            }
             return entry.data;
           }
         }
@@ -184,6 +191,9 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       
       if (result && result.renderable) {
         WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+        if (hourOffset === 0) {
+          recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
+        }
         // Also populate windHourlyCache for timeline scrubs fallback
         windHourlyCache = {
           hash: tileId,
@@ -208,5 +218,23 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 
   console.warn(`[Fallback] Backend wind redirects failed for model=${resolvedModel}, hour=${hourOffset}. Returning conformed safe zero grid.`);
-  return extractWindAtOffset(windHourlyCache, hourOffset) || createFallbackSafeZeroGrid(resolvedModel, 'backend_fetch_failed');
+  const targetBounds = viewportBounds || snappedBounds;
+  if (isContainedInWindCache(targetBounds, resolvedModel)) {
+    const cachedData = extractWindAtOffset(windHourlyCache, hourOffset);
+    if (cachedData) {
+      return cachedData;
+    }
+  }
+
+  return {
+    vectors: [{ lat: (targetBounds.south + targetBounds.north) / 2, lng: (targetBounds.west + targetBounds.east) / 2, speed: 0, direction: 0, u: 0, v: 0 }],
+    bounds: targetBounds,
+    cols: 1,
+    rows: 1,
+    stale: true,
+    source: resolvedModel,
+    hourOffset,
+    renderable: false,
+    nonzeroCount: 0
+  };
 }

@@ -33,6 +33,7 @@ export function useWebGLGuardrail({
   useEffect(() => {
     if (!mapInstance) return;
 
+    const mountTime = performance.now();
     let frameCount = 0;
     let lastTime = performance.now();
     let lastFrameTime = performance.now();
@@ -57,6 +58,14 @@ export function useWebGLGuardrail({
       if (delta >= 2000) {
         frameCount = 0;
         lastTime = now;
+        return;
+      }
+
+      // v3.9.5: Add grace period of 10 seconds to allow shader compilation and map initialization
+      if (now - mountTime < 10000) {
+        frameCount = 0;
+        lastTime = now;
+        lowFpsCount = 0;
         return;
       }
 
@@ -86,6 +95,11 @@ export function useWebGLGuardrail({
         }
 
         if (fps < 30) {
+          if (typeof window !== 'undefined' && window.__DISABLE_WEBGL_GUARDRAIL__ === true) {
+            frameCount = 0;
+            lowFpsCount = 0;
+            return;
+          }
           console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 30: ${fps} FPS`);
           
           // Log to console & telemetry
@@ -96,8 +110,8 @@ export function useWebGLGuardrail({
           });
 
           lowFpsCount++;
-          if (lowFpsCount >= 3) {
-            console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 3 consecutive seconds. Triggering local rendering fallback overrides.`);
+          if (lowFpsCount >= 6) {
+            console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 6 consecutive seconds. Triggering local rendering fallback overrides.`);
             
             if (hasWind) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Wind layer');

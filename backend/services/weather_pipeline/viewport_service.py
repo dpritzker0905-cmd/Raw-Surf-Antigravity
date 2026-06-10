@@ -339,6 +339,9 @@ class ViewportService:
             days_diff = (target_dt - datetime.now(timezone.utc)).days + 2
             forecast_days = max(2, min(16, days_diff))
 
+            # For GFS Wind, respect the safer 2.5s batch delay, otherwise use 0.1s
+            inter_delay = 2.5 if (model.upper() == "GFS" and domain == "wind") else 0.1
+
             # Fetch via OpenMeteoProvider
             raw_data = await self.provider.fetch_grid(
                 model=model,
@@ -348,7 +351,7 @@ class ViewportService:
                 resolution=resolution,
                 forecast_days=forecast_days,
                 precomputed_coords=(lats_coords, lons_coords),
-                inter_batch_delay=0.1
+                inter_batch_delay=inter_delay
             )
 
             if not raw_data:
@@ -448,12 +451,14 @@ class ViewportService:
                     tmp_filepath = filepath.with_suffix(".tmp")
                     
                     product_json_bytes = this_normalized_product.model_dump_json().encode("utf-8")
-                    def save_and_upload(filepath, tmp_filepath, product_json_bytes, this_viewport_filename, store):
+                    def save_to_disk(filepath, tmp_filepath, product_json_bytes):
                         with open(tmp_filepath, "wb") as f:
                             f.write(product_json_bytes)
                         os.replace(tmp_filepath, filepath)
-                        store._upload_to_supabase(this_viewport_filename, product_json_bytes)
-                    await asyncio.to_thread(save_and_upload, filepath, tmp_filepath, product_json_bytes, this_viewport_filename, self.store)
+                    await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
+                    
+                    # Offload Supabase upload to a background task to prevent blocking the web thread
+                    asyncio.create_task(asyncio.to_thread(self.store._upload_to_supabase, this_viewport_filename, product_json_bytes))
 
                     # Register in Dynamic Product Index
                     self.dynamic_index.add_product(

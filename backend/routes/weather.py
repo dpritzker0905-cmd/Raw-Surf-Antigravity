@@ -63,6 +63,10 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             logger.info("[Manual Ingestion] Staggering GFS Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_gfs_wind_pilot()
+
+            logger.info("[Manual Ingestion] Staggering GFS Wind Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_gfs_wind_global()
             
             logger.info("[Manual Ingestion] Staggering Copernicus Ingestion by 15s...")
             await asyncio.sleep(15.0)
@@ -159,6 +163,16 @@ async def ingest_icon_wind_direct(admin=Depends(get_current_admin)):
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_icon_wind_pilot()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_gfs_wind_global_direct")
+async def ingest_gfs_wind_global_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_gfs_wind_global()
         return {"status": "success" if success else "failed"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -389,8 +403,10 @@ async def get_grid(
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
         product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
 
-    # Attach truthTag for GFS marine waves
-    if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
+    # Attach truthTag for GFS marine waves and all wind forecast models
+    is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
+    is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
+    if is_gfs_marine_waves or is_wind:
         if isinstance(product, NormalizedProduct):
             product.truthTag = compute_truth_tag(
                 model=product.model,
@@ -438,7 +454,9 @@ async def get_point(
         grid_bbox=grid_bbox
     )
 
-    if model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves":
+    is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")
+    is_wind = (domain.lower() == "wind" and layer.lower() == "wind")
+    if is_gfs_marine_waves or is_wind:
         sampled_product_id = None
         source = None
         

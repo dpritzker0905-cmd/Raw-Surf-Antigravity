@@ -191,6 +191,45 @@ class WeatherPipelineScheduler:
 
         return total_saved > 0
 
+    async def ingest_gfs_wind_global(self) -> bool:
+        """
+        Ingests GFS wind grid forecast globally at a coarse resolution.
+        Fetches 48 hours of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting GFS Wind Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 2.5
+
+        logger.info("[Pipeline Scheduler] Ingesting GFS Wind globally at resolution 2.5")
+        results = await self._fetch_or_mock(
+            "GFS", "wind", "wind", global_region, resolution, 2,
+            env["is_test_env"],
+            lambda: generate_mock_wind_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+        if not results:
+            return False
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="GFS", provider="open-meteo", domain="wind", layer="wind",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] GFS wind global_coarse"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind global coarse grid files.")
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
     async def ingest_gfs_pressure_pilot(self) -> bool:
         """
         Stage 6D Pilot: Ingests GFS pressure grid forecast for Florida/East Coast.

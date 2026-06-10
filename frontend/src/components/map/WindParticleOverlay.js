@@ -15,6 +15,7 @@
  */
 import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
+import { sampleRamp, THEME_RAMPS } from './WindColorRamp';
 
 // --- SINGLETON GUARD ---
 var ACTIVE_WIND_ENGINES = new Set();
@@ -126,27 +127,16 @@ function getRenderLng(lng, centerLng) {
 }
 
 /**
- * Ventusky-style wind color: white/light trails with speed-based brightness.
- * Higher wind speeds = brighter, more opaque white.
- * Low speeds = faint, ghostly trails.
+ * Dynamically sample the wind speed color ramp matching the WebGL engine.
  */
 function getWindColor(speed, alpha, theme) {
-  var intensity = Math.min(1.0, speed / 30);
-  var r, g, b;
-  if (theme === 'dark') {
-    r = Math.round(147 - intensity * 141);
-    g = Math.round(51 + intensity * 131);
-    b = Math.round(234 - intensity * 22);
-  } else if (theme === 'beach') {
-    r = Math.round(249 + intensity * 6);
-    g = Math.round(115 + intensity * 128);
-    b = Math.round(22 + intensity * 177);
-  } else {
-    r = Math.round(148 - intensity * 97);
-    g = Math.round(163 - intensity * 98);
-    b = Math.round(184 - intensity * 99);
-  }
-  return 'rgba(' + r + ',' + g + ',' + b + ',' + alpha.toFixed(3) + ')';
+  var ramp = THEME_RAMPS[theme] || THEME_RAMPS.dark;
+  var color = sampleRamp(ramp, speed);
+  var r = Math.round(color[0] * 255);
+  var g = Math.round(color[1] * 255);
+  var b = Math.round(color[2] * 255);
+  var a = alpha;
+  return 'rgba(' + r + ',' + g + ',' + b + ',' + a.toFixed(3) + ')';
 }
 
 /** Spawn particle at random viewport position with optional grid-stratified placement */
