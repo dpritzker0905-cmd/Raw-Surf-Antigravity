@@ -685,8 +685,7 @@ def test_query_bbox_clamped_snapped(mock_weather_setup):
     # Checked row lat=24.0: first >= 179.0, then < 179.0 (wrapped)
     lons_am = [v["lng"] for v in vectors_am if v["lat"] == 24.0]
     expected_lons_gfs = [
-        179.0, 179.5, 180.0,
-        -179.5, -179.0
+        179.0, 179.25, 179.5, 179.75, 180.0, -179.75, -179.5, -179.25, -179.0
     ]
     assert lons_am == expected_lons_gfs
 
@@ -708,7 +707,7 @@ def test_query_bbox_clamped_snapped(mock_weather_setup):
         
     lons_euro = [v["lng"] for v in vectors_euro if v["lat"] == 24.0]
     expected_lons_euro = [
-        179.0, 180.0, -179.0
+        179.0, 179.25, 179.5, 179.75, 180.0, -179.75, -179.5, -179.25, -179.0
     ]
     assert lons_euro == expected_lons_euro
 
