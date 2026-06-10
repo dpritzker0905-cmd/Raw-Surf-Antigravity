@@ -108,8 +108,8 @@ export const MapForecastOverlay = ({
   const getBiasAdjustedLocal = (val, variableType) => getBiasAdjusted(val, variableType, activeModel, timeOffsetHours);
 
   // --- Grid-Truth Synchronization Upgrade ---
-  const lat = selectedSpot?.latitude || longPressLocation?.lat;
-  const lng = selectedSpot?.longitude || longPressLocation?.lng;
+  const lat = selectedSpot?.latitude || longPressLocation?.lat || defaultSnappedLat;
+  const lng = selectedSpot?.longitude || longPressLocation?.lng || defaultSnappedLng;
 
   // v6.2: Validate exactPoint still matches current point/model.
   const isExactPointValid = checkIsExactPointValid({
@@ -164,6 +164,8 @@ export const MapForecastOverlay = ({
 
   const sampledPressure = sampleValueFromDecodedTiles(lat, lng, 'pressure_msl', timeOffsetHours, activeModel);
   const sampledRain = sampleValueFromDecodedTiles(lat, lng, 'precipitation', timeOffsetHours, activeModel);
+  const sampledCloudCover = sampleValueFromDecodedTiles(lat, lng, 'cloud_cover', timeOffsetHours, activeModel);
+  const sampledVisibility = sampleValueFromDecodedTiles(lat, lng, 'visibility', timeOffsetHours, activeModel);
 
   const liveWind = currentWeather;
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
@@ -384,6 +386,8 @@ export const MapForecastOverlay = ({
     sampledWind,
     sampledRain,
     sampledPressure,
+    sampledCloudCover,
+    sampledVisibility,
     mToFt,
     degToCompass,
     getClampedValue,
@@ -466,7 +470,9 @@ export const MapForecastOverlay = ({
     return computeHeatmapStatus({ activeModel, activeLayer, renderMarineData });
   }, [renderMarineData, activeModel, activeLayer]);
 
-  if (cards.length === 0 && !isLoading) return null;
+  if (cards.length === 0 && !isLoading) {
+    cards.push({ icon: MapPin, label: 'Data', value: 'No data', color: 'text-gray-400' });
+  }
 
   const modelLabel = { GFS: 'GFS', EURO: 'ECMWF', ICON: 'ICON' }[activeModel] || activeModel;
 

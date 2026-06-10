@@ -214,6 +214,7 @@ var MapPageContent = () => {
     enabled: true,
     isExplicit: !!(selectedSpot || longPressLocation),
     timeOffsetHours,
+    activeLayer: activeLayers[0] || 'waves',
   });
 
   const handleUpgradeClick = useCallback(() => {

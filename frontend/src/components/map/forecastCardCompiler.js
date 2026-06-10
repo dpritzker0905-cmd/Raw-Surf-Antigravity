@@ -1,4 +1,4 @@
-import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer } from 'lucide-react';
+import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer, Cloud, Eye } from 'lucide-react';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -58,6 +58,8 @@ export function compileForecastCards({
   sampledWind,
   sampledRain,
   sampledPressure,
+  sampledCloudCover,
+  sampledVisibility,
   mToFt,
   degToCompass,
   getClampedValue,
@@ -66,7 +68,7 @@ export function compileForecastCards({
 }) {
   const cards = [];
 
-  if (activeLayer === 'rain' || activeLayer === 'radar') {
+  if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
     const hasSnow = snowfall != null && snowfall > 0;
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
     const isSnowOnly = hasSnow && !hasRain;
@@ -115,8 +117,35 @@ export function compileForecastCards({
     }
   }
 
-  if (activeLayer === 'pressure') {
+  if (activeLayer === 'pressure' || activeLayer === 'pressure_msl' || activeLayer === 'msl_pressure') {
     cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa` : '--', color: 'text-rose-400' });
+  }
+
+  if (activeLayer === 'satellite' || activeLayer === 'cloud_cover') {
+    const cloudVal = sampledCloudCover?.value;
+    const value = cloudVal != null ? `${Math.round(cloudVal)}%` : (isLoading ? 'Loading' : '--');
+    cards.push({ icon: Cloud, label: 'Cloud Cover', value, color: 'text-sky-300' });
+  }
+
+  if (activeLayer === 'fog' || activeLayer === 'visibility') {
+    const visVal = sampledVisibility?.value;
+    let value = '--';
+    if (visVal != null) {
+      if (visVal < 1000) {
+        value = 'Dense Fog (<1km)';
+      } else if (visVal < 5000) {
+        value = 'Moderate Fog';
+      } else if (visVal < 10000) {
+        value = 'Light Fog';
+      } else if (visVal >= 20000) {
+        value = 'Clear';
+      } else {
+        value = `Clear (${Math.round(visVal / 1000)} km)`;
+      }
+    } else if (isLoading) {
+      value = 'Loading';
+    }
+    cards.push({ icon: Eye, label: 'Visibility', value, color: 'text-gray-300' });
   }
 
   if (activeLayer === 'waves') {

@@ -62,7 +62,7 @@ const forecastCache = new Map();
 const inFlightRequests = new Map();
 const CACHE_TTL = 120_000; // 2 minutes
 
-export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false, timeOffsetHours = 0 }) => {
+export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS', enabled = true, isExplicit = false, timeOffsetHours = 0, activeLayer = 'waves' }) => {
   const [forecastData, setForecastData] = useState(null);
   const [marineData, setMarineData] = useState(null);
   const [currentWeather, setCurrentWeather] = useState(null);
@@ -521,27 +521,30 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
       inFlightRequests.delete(fetchKey);
       setIsLoading(false);
     }
-  }, [latitude, longitude, activeModel, enabled, isExplicit, timeOffsetHours]);
+  }, [latitude, longitude, activeModel, enabled, isExplicit, timeOffsetHours, activeLayer]);
 
   // v3.12.5: Fast debounce for model switches (500ms), 300ms for explicit spots/markers, 3s for pan
   const prevModelRef = useRef(activeModel);
   const prevCoordsRef = useRef({ latitude, longitude });
+  const prevLayerRef = useRef(activeLayer);
 
   useEffect(() => {
     clearTimeout(debounceRef.current);
     const isModelSwitch = prevModelRef.current !== activeModel;
+    const isLayerSwitch = prevLayerRef.current !== activeLayer;
     
     prevModelRef.current = activeModel;
     prevCoordsRef.current = { latitude, longitude };
+    prevLayerRef.current = activeLayer;
 
-    const useFastDebounce = isExplicit || isModelSwitch;
+    const useFastDebounce = isExplicit || isModelSwitch || isLayerSwitch;
     const debounceDuration = useFastDebounce ? 50 : 2500;
 
     debounceRef.current = setTimeout(() => {
       fetchForecast();
     }, debounceDuration);
     return () => clearTimeout(debounceRef.current);
-  }, [fetchForecast, isExplicit, activeModel, latitude, longitude, timeOffsetHours]);
+  }, [fetchForecast, isExplicit, activeModel, latitude, longitude, timeOffsetHours, activeLayer]);
 
   useEffect(() => {
     return () => {

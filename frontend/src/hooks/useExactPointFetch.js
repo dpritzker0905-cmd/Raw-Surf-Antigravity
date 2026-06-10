@@ -26,6 +26,7 @@ export function useExactPointFetch({
   const [exactPoint, setExactPoint] = useState(null);
   const [estimateTrigger, setEstimateTrigger] = useState(0);
   const exactPointFetchRef = useRef(null);
+  const prevLayerRef = useRef(activeLayer);
 
   const isEuroComponentLayer = activeModel === 'EURO' && ['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer);
 
@@ -54,6 +55,8 @@ export function useExactPointFetch({
 
   useEffect(() => {
     prevPointKeyRef.current = currentPointKey;
+    const isLayerSwitch = prevLayerRef.current !== activeLayer;
+    prevLayerRef.current = activeLayer;
 
     if (!pointLat || !pointLng || !isExactPointRequired) {
       setExactPointResponse(null);
@@ -115,7 +118,7 @@ export function useExactPointFetch({
     exactPointFetchRef.current = token;
 
     const controller = new AbortController();
-    const debounceTime = isUserExplicitSelection ? 200 : 3000;
+    const debounceTime = (isUserExplicitSelection || isLayerSwitch) ? 200 : 3000;
 
     const timeoutId = setTimeout(() => {
       if (token.cancelled) return;
