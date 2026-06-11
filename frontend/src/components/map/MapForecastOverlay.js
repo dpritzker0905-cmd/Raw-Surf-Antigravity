@@ -158,7 +158,7 @@ export const MapForecastOverlay = ({
     const u = sampledWindU.value;
     const v = sampledWindV.value;
     const speed = Math.sqrt(u * u + v * v);
-    const direction = (Math.atan2(u, v) * 180 / Math.PI + 360) % 360;
+    const direction = (Math.atan2(-u, -v) * 180 / Math.PI + 360) % 360;
     sampledWind = { value: speed, direction };
   }
 

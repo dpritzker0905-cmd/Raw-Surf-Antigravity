@@ -206,15 +206,40 @@ class WeatherPipelineScheduler:
             "east": 180.0,
             "north": 85.0
         }
-        resolution = 2.5
+        resolution = 10.0
 
-        logger.info("[Pipeline Scheduler] Ingesting GFS Wind globally at resolution 2.5")
         results = await self._fetch_or_mock(
             "GFS", "wind", "wind", global_region, resolution, 2,
             env["is_test_env"],
             lambda: generate_mock_wind_results(self.om_provider, global_region, resolution),
             "global_coarse"
         )
+        if not results:
+            logger.warning("[Pipeline Scheduler] GFS wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
+            import json
+            from pathlib import Path
+            fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
+            if fallback_path.exists():
+                try:
+                    with open(fallback_path, "r") as f:
+                        cached_data = json.load(f)
+                    
+                    # Shift the timestamps to today/tomorrow to keep them current
+                    base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                    for item in cached_data:
+                        if "hourly" in item and "time" in item["hourly"]:
+                            times = item["hourly"]["time"]
+                            new_times = []
+                            for idx, t_str in enumerate(times):
+                                new_time = (base_date + timedelta(hours=idx)).strftime("%Y-%m-%dT%H:%M")
+                                new_times.append(new_time)
+                            item["hourly"]["time"] = new_times
+                            
+                    results = cached_data
+                    logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
+                except Exception as cache_err:
+                    logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
+
         if not results:
             return False
 

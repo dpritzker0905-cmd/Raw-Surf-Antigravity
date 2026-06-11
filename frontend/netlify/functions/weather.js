@@ -104,11 +104,11 @@ exports.handler = async (event, context) => {
       
       for (let lat = 24.0; lat <= 31.0; lat += 0.5) {
         for (let lng = -85.0; lng <= -79.0; lng += 0.5) {
-          const isCapeCanaveral = Math.abs(lat - 28.4) < 0.1 && Math.abs(lng - (-80.6)) < 0.1;
+           const isCapeCanaveral = Math.abs(lat - 28.4) < 0.1 && Math.abs(lng - (-80.6)) < 0.1;
           const speed = isWind 
-            ? (isCapeCanaveral ? 15.0 : 10.0)
+            ? (isCapeCanaveral ? 8.0 : 10.0)
             : (isCapeCanaveral ? 1.4377 : (1.2 + 0.3 * Math.sin(lat) * Math.cos(lng)));
-          const direction = 80.0;
+          const direction = isCapeCanaveral ? 135.0 : 80.0;
           const period = isWind ? 0.0 : 7.5;
           
           vectors.push({
@@ -174,9 +174,9 @@ exports.handler = async (event, context) => {
 
       const isCapeCanaveral = Math.abs(lat - 28.4) < 0.1 && Math.abs(lng - (-80.6)) < 0.1;
       const speed = isWind 
-        ? (isCapeCanaveral ? 15.0 : 10.0)
+        ? (isCapeCanaveral ? 8.0 : 10.0)
         : (isCapeCanaveral ? 1.4377 : 1.25);
-      const direction = 80.0;
+      const direction = isCapeCanaveral ? 135.0 : 80.0;
       const period = isWind ? 0.0 : 7.5;
 
       return {

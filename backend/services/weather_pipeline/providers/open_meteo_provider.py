@@ -46,6 +46,10 @@ def generate_mock_open_meteo_response(lats: list, lons: list, hourly_vars_str: s
     
     variables = hourly_vars_str.split(",")
     
+    # Storm center parameters (e.g. moving storm in North Atlantic)
+    storm_lat_start = 25.0
+    storm_lon_start = -60.0
+    
     results = []
     for lat, lon in zip(lats, lons):
         # Generate mock values for this point
@@ -53,22 +57,88 @@ def generate_mock_open_meteo_response(lats: list, lons: list, hourly_vars_str: s
             "time": time_strings
         }
         
-        # Smooth spatial variations using trigonometry
         lat_rad = math.radians(lat)
         lon_rad = math.radians(lon)
+        lat_deg = lat
+        lon_deg = lon
         
+        # Calculate base planetary wind parameters for this latitude
+        if abs(lat_deg) < 30.0:
+            # NE trades in NH (45-90 deg), SE trades in SH (90-135 deg)
+            planet_dir = 90.0 - 45.0 * (lat_deg / 30.0)
+            planet_speed = 12.0 + 4.0 * math.cos(lat_rad * 3.0)
+        elif abs(lat_deg) < 60.0:
+            # NH westerlies (SW, ~225 deg), SH westerlies (NW, ~315 deg)
+            pct = (abs(lat_deg) - 30.0) / 30.0
+            start_dir = 45.0 if lat_deg >= 0.0 else 135.0
+            target_dir = 225.0 if lat_deg >= 0.0 else 315.0
+            planet_dir = start_dir + (target_dir - start_dir) * pct
+            planet_speed = 15.0 + 7.0 * math.sin(pct * math.pi)
+        else:
+            # Polar easterlies
+            pct = (abs(lat_deg) - 60.0) / 30.0
+            start_dir = 225.0 if lat_deg >= 0.0 else 315.0
+            target_dir = 90.0 - 45.0 * (lat_deg / 90.0)
+            planet_dir = start_dir + (target_dir - start_dir) * pct
+            planet_speed = 8.0 + 4.0 * math.cos(pct * math.pi / 2.0)
+            
         for var in variables:
             values = []
             for h in range(hours_count):
-                t_factor = math.sin(h / 6.0)
-                if "height" in var or "swell" in var:
-                    val = 1.2 + 0.4 * math.sin(lat_rad * 3 + lon_rad * 2) + 0.2 * t_factor
+                t_factor = math.sin(h / 12.0)
+                
+                # Model storm center moving eastward and northward over time
+                storm_lat = storm_lat_start + 1.5 * (h / 24.0)
+                storm_lon = storm_lon_start + 4.0 * (h / 24.0)
+                if storm_lon > 180.0:
+                    storm_lon -= 360.0
+                
+                # Distance and angle to storm center
+                dx = lon_deg - storm_lon
+                # Handle antimeridian wrapping
+                if dx > 180.0:
+                    dx -= 360.0
+                elif dx < -180.0:
+                    dx += 360.0
+                dy = lat_deg - storm_lat
+                dist = math.sqrt(dx*dx + dy*dy)
+                
+                # Storm influence decays exponentially with distance
+                storm_weight = math.exp(-dist / 12.0)
+                
+                # In NH (lat > 0), low pressure is counter-clockwise (cyclonic).
+                # NH: tangent direction is atan2(dy, dx) + pi/2 + inflow
+                # SH: low pressure is clockwise (anticyclonic).
+                # SH: tangent direction is atan2(dy, dx) - pi/2 - inflow
+                is_nh = lat_deg >= 0
+                spiral_inflow = math.radians(20.0)
+                if is_nh:
+                    tangent_rad = math.atan2(dy, dx) + math.pi/2.0 + spiral_inflow
+                else:
+                    tangent_rad = math.atan2(dy, dx) - math.pi/2.0 - spiral_inflow
+                
+                storm_dir = (math.degrees(tangent_rad)) % 360.0
+                
+                # Storm speed profile: calm eye, peak winds at radius of maximum winds, decay
+                # Peak winds at dist = 2.5 degrees
+                storm_speed = 45.0 * (dist / 2.5) * math.exp(-dist / 4.0)
+                
+                # Blend planetary winds with local storm vortex
+                final_dir = (1.0 - storm_weight) * planet_dir + storm_weight * storm_dir
+                # Add some temporal variance
+                final_dir = (final_dir + 15.0 * t_factor) % 360.0
+                
+                final_speed = (1.0 - storm_weight) * planet_speed + storm_weight * storm_speed
+                final_speed = max(2.0, final_speed + 3.0 * t_factor)
+                
+                if "direction" in var:
+                    val = final_dir
                 elif "speed" in var or "wind" in var:
-                    val = 15.0 + 5.0 * math.sin(lat_rad * 2 - lon_rad * 3) + 3.0 * t_factor
-                elif "direction" in var:
-                    val = 180.0 + 45.0 * math.cos(lat_rad + lon_rad) + 10.0 * t_factor
+                    val = final_speed
                 elif "period" in var:
-                    val = 7.0 + 2.0 * math.sin(lat_rad - lon_rad) + 1.0 * t_factor
+                    val = 7.0 + 3.0 * math.sin(lat_rad - lon_rad) + 1.5 * t_factor
+                elif "height" in var or "swell" in var:
+                    val = 0.5 + 0.08 * final_speed + 0.3 * math.sin(lat_rad * 3 + lon_rad * 2)
                 else:
                     val = 1.0 + 0.1 * t_factor
                 values.append(round(max(0.01, val), 2))
@@ -239,27 +309,44 @@ class OpenMeteoProvider:
 
         async with httpx.AsyncClient() as client:
             try:
-                # Coordinate batch chunking of size 100 to prevent HTTP 414 URI Too Long errors on large grids
-                # and avoid rate limiting.
-                batch_size = 100
+                # Coordinate batch chunking to prevent HTTP 414 URI Too Long errors on large grids.
+                # Netlify proxy uses JSON POST now, so we can use a larger batch size (800) to minimize request count and avoid rate limits.
+                batch_size = 800 if use_proxy else 1000
                 aggregated_results = []
 
                 for i in range(0, len(lats), batch_size):
                     batch_lats = lats[i:i + batch_size]
                     batch_lons = lons[i:i + batch_size]
                     
-                    query_params = {
-                        "latitude": ",".join(f"{lat:.4f}" for lat in batch_lats),
-                        "longitude": ",".join(f"{lon:.4f}" for lon in batch_lons),
-                        "forecast_days": str(forecast_days),
-                        "hourly": params["hourly"]
-                    }
-                    
                     if use_proxy:
-                        query_params["type"] = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
-                        request_url = proxy_url
+                        proxy_type = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
+                        hourly_val = params["hourly"]
+                        if isinstance(hourly_val, str):
+                            hourly_val = hourly_val.split(",")
+                        
+                        payload = {
+                            "type": proxy_type,
+                            "body": {
+                                "latitude": batch_lats,
+                                "longitude": batch_lons,
+                                "forecast_days": int(forecast_days),
+                                "hourly": hourly_val
+                            }
+                        }
+                        if "models" in params:
+                            models_val = params["models"]
+                            if isinstance(models_val, str):
+                                models_val = models_val.split(",")
+                            payload["body"]["models"] = models_val
+                        if "wind_speed_unit" in params:
+                            payload["body"]["wind_speed_unit"] = params["wind_speed_unit"]
                     else:
-                        request_url = url
+                        query_params = {
+                            "latitude": ",".join(f"{lat:.4f}" for lat in batch_lats),
+                            "longitude": ",".join(f"{lon:.4f}" for lon in batch_lons),
+                            "forecast_days": str(forecast_days),
+                            "hourly": params["hourly"]
+                        }
                         if "models" in params:
                             query_params["models"] = params["models"]
                         if "wind_speed_unit" in params:
@@ -268,7 +355,11 @@ class OpenMeteoProvider:
                     max_retries = 3
                     response = None
                     for attempt in range(1, max_retries + 2):
-                        response = await client.get(request_url, params=query_params, timeout=45.0)
+                        if use_proxy:
+                            response = await client.post(proxy_url, json=payload, timeout=45.0)
+                        else:
+                            response = await client.post(url, data=query_params, timeout=45.0)
+
                         if response.status_code == 429:
                             retry_delay = 2.0 * attempt
                             if attempt > max_retries:
@@ -290,9 +381,10 @@ class OpenMeteoProvider:
                         # Open-Meteo returns a single dictionary if it's only 1 point, wrap in a list
                         aggregated_results.append(data)
 
-                    # Increase delay to 1.2s to fully respect Open-Meteo rate limits during background ingestion
-                    # For wind grids, increase the delay to 2.5s to be safe
-                    delay = inter_batch_delay if inter_batch_delay is not None else (2.5 if domain == "wind" else 1.2)
+                    # Tighter inter-batch delay (0.5s for wind, 0.2s for marine) for direct POSTing
+                    delay = inter_batch_delay if inter_batch_delay is not None else (
+                        (2.5 if domain == "wind" else 1.2) if use_proxy else (0.5 if domain == "wind" else 0.2)
+                    )
                     if i + batch_size < len(lats):
                         await asyncio.sleep(delay)
 
@@ -413,8 +505,27 @@ class OpenMeteoProvider:
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
 
         if use_proxy:
-            params["type"] = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
-            request_url = proxy_url
+            proxy_type = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
+            hourly_val = params.get("hourly", [])
+            if isinstance(hourly_val, str):
+                hourly_val = hourly_val.split(",")
+            
+            payload = {
+                "type": proxy_type,
+                "body": {
+                    "latitude": [float(lat)],
+                    "longitude": [float(lng)],
+                    "forecast_days": int(params.get("forecast_days", 7)),
+                    "hourly": hourly_val
+                }
+            }
+            if "models" in params:
+                models_val = params["models"]
+                if isinstance(models_val, str):
+                    models_val = models_val.split(",")
+                payload["body"]["models"] = models_val
+            if "wind_speed_unit" in params:
+                payload["body"]["wind_speed_unit"] = params["wind_speed_unit"]
         else:
             request_url = url
 
@@ -423,7 +534,10 @@ class OpenMeteoProvider:
                 max_retries = 3
                 response = None
                 for attempt in range(1, max_retries + 2):
-                    response = await client.get(request_url, params=params, timeout=15.0)
+                    if use_proxy:
+                        response = await client.post(proxy_url, json=payload, timeout=15.0)
+                    else:
+                        response = await client.get(request_url, params=params, timeout=15.0)
                     if response.status_code == 429:
                         retry_delay = 2.0 * attempt
                         if attempt > max_retries:
@@ -435,6 +549,8 @@ class OpenMeteoProvider:
 
                 response.raise_for_status()
                 result_json = response.json()
+                if isinstance(result_json, list) and len(result_json) > 0:
+                    result_json = result_json[0]
                 self._POINT_CACHE[cache_key] = (now + self._CACHE_TTL_SEC, result_json)
                 return result_json
             except Exception as e:
