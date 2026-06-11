@@ -169,7 +169,7 @@ class WeatherPipelineScheduler:
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Wind for region: {region_id}")
 
             results = await self._fetch_or_mock(
-                "GFS", "wind", "wind", region, resolution, 2,
+                "GFS", "wind", "wind", region, resolution, 14,
                 env["is_test_env"],
                 lambda: generate_mock_wind_results(self.om_provider, region, resolution),
                 region_id
@@ -209,7 +209,7 @@ class WeatherPipelineScheduler:
         resolution = 10.0
 
         results = await self._fetch_or_mock(
-            "GFS", "wind", "wind", global_region, resolution, 2,
+            "GFS", "wind", "wind", global_region, resolution, 14,
             env["is_test_env"],
             lambda: generate_mock_wind_results(self.om_provider, global_region, resolution),
             "global_coarse"
@@ -224,16 +224,31 @@ class WeatherPipelineScheduler:
                     with open(fallback_path, "r") as f:
                         cached_data = json.load(f)
                     
-                    # Shift the timestamps to today/tomorrow to keep them current
+                    # Shift and extend the timestamps to cover 14 days (336 hours)
                     base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
                     for item in cached_data:
                         if "hourly" in item and "time" in item["hourly"]:
-                            times = item["hourly"]["time"]
+                            orig_speed = item["hourly"].get("wind_speed_10m", [])
+                            orig_direction = item["hourly"].get("wind_direction_10m", [])
+                            
                             new_times = []
-                            for idx, t_str in enumerate(times):
-                                new_time = (base_date + timedelta(hours=idx)).strftime("%Y-%m-%dT%H:%M")
+                            new_speed = []
+                            new_direction = []
+                            
+                            # Generate 14 days of forecast (336 hours)
+                            for hour_idx in range(14 * 24):
+                                new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
                                 new_times.append(new_time)
+                                
+                                # Wrap around the cached hourly data
+                                if orig_speed:
+                                    new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                                if orig_direction:
+                                    new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                                    
                             item["hourly"]["time"] = new_times
+                            item["hourly"]["wind_speed_10m"] = new_speed
+                            item["hourly"]["wind_direction_10m"] = new_direction
                             
                     results = cached_data
                     logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
