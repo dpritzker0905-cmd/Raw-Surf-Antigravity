@@ -214,7 +214,7 @@ var MapPageContent = () => {
     enabled: true,
     isExplicit: !!(selectedSpot || longPressLocation),
     timeOffsetHours,
-    activeLayer: activeLayers[0] || 'waves',
+    activeLayer: activeLayers[0],
   });
 
   const handleUpgradeClick = useCallback(() => {
@@ -647,13 +647,13 @@ var MapPageContent = () => {
 
 
  {/* Forecast Data Overlay shows Open-Meteo data when layer active */}
-      {(activeLayers.length > 0 || selectedSpot || longPressLocation) && (
+      {activeLayers.length > 0 && (activeLayers.length > 0 || selectedSpot || longPressLocation) && (
         <MapForecastOverlay
           forecastData={forecastData}
           marineData={forecastMarineData}
           renderMarineData={renderMarineData}
           currentWeather={currentWeather}
-          activeLayer={activeLayers[0] || 'waves'}
+          activeLayer={activeLayers[0]}
           activeModel={activeModel}
           timeOffsetHours={timeOffsetHours}
           isLoading={forecastLoading}

@@ -363,7 +363,8 @@ class PointResolutionService:
 
         elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
             try:
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                point_forecast_days = {"ICON": 5, "EURO": 15, "GFS": 16}.get(model.upper(), 2)
+                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
                 if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                     from services.weather_pipeline.normalizer import WeatherNormalizer
                     times = raw_point["hourly"]["time"]
