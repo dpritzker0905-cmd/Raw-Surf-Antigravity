@@ -13,11 +13,13 @@ import {
   getBackendIconMarineFlag,
   fetchBackendExactPoint,
   getBackendWindFlag,
-  fetchBackendExactWindPoint,
   getBackendCopernicusFlag,
   fetchBackendExactCopernicusPoint,
   getSharedValidTime
 } from './backendWeatherServiceClient';
+import {
+  fetchBackendExactWindPoint
+} from './backendWindServiceClient';
 import {
   getBackendPressureFlag,
   fetchBackendExactPressurePoint
