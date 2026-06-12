@@ -109,7 +109,42 @@ def select_best_candidate(
     """
     Finds the best product from candidates.
     Strictly prioritizes authoritative candidates before estimated candidates.
+    For global/wide queries, filters out non-global candidates if at least one global product exists.
     """
+    # Identify wide/global requests (longitude span > 180 or latitude span > 90)
+    is_global_request = False
+    if req_w is not None and req_s is not None and req_e is not None and req_n is not None:
+        if req_w <= req_e:
+            lon_span = req_e - req_w
+        else:
+            lon_span = 360.0 - (req_w - req_e)
+        lat_span = req_n - req_s
+        if lon_span > 180.0 or lat_span > 90.0:
+            is_global_request = True
+
+    if is_global_request:
+        # Check if there is at least one global product in either list.
+        # A global product is one with coverage longitude span >= 350.0.
+        def is_global_product(p: Any) -> bool:
+            if not hasattr(p, "coverage") or p.coverage is None:
+                return False
+            west = getattr(p.coverage, "west", None)
+            east = getattr(p.coverage, "east", None)
+            if west is None or east is None:
+                return False
+            if west <= east:
+                span = east - west
+            else:
+                span = 360.0 - (west - east)
+            return span >= 350.0
+
+        has_global = any(is_global_product(p) for p, _ in authoritative_candidates) or \
+                     any(is_global_product(p) for p, _ in estimated_candidates)
+        
+        if has_global:
+            authoritative_candidates = [(p, diff) for p, diff in authoritative_candidates if is_global_product(p)]
+            estimated_candidates = [(p, diff) for p, diff in estimated_candidates if is_global_product(p)]
+
     best_item = _select_best_from_list(authoritative_candidates, req_w, req_s, req_e, req_n)
     if best_item:
         return best_item

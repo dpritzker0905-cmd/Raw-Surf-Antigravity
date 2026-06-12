@@ -345,9 +345,9 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "upstream_provider": "open-meteo",
         "upstream_model": "dwd_icon",
         "source_dataset": "dwd_icon",
-        "native_horizon_hours": 168,
-        "estimated_horizon_hours": 0,
-        "max_forecast_hours": 168,
+        "native_horizon_hours": 120,
+        "estimated_horizon_hours": 216,
+        "max_forecast_hours": 336,
         "cadence_hours": 1,
         "update_frequency": "12h",
         "supports_grid": True,
@@ -357,7 +357,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "DWD ICON global weather model. Serves wind speed, direction, and gusts.",
+        "source_docs_note": "DWD ICON global weather model. Native 5-day (120h) wind forecast; beyond 120h is loop-extrapolated and marked estimated.",
         "fallback_sources": []
     },
     # EURO Wind

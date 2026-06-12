@@ -19,6 +19,14 @@ def ingest_marine_forecast_task():
         loop.run_until_complete(ingest_global_model('wind'))
         loop.run_until_complete(ingest_global_model('marine'))
         
+        # Run conformed global weather pipeline jobs (e.g. conformed global ICON wind)
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        from services.weather_pipeline.store import ProductStore
+        
+        store = ProductStore()
+        weather_scheduler = WeatherPipelineScheduler(store=store)
+        loop.run_until_complete(weather_scheduler.ingest_icon_wind_global())
+        
         loop.close()
         logger.info("[Scheduler] Successfully completed forecast ingestion.")
     except Exception as e:

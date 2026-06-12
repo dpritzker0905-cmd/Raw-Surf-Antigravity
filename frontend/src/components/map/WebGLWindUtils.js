@@ -93,23 +93,27 @@ export function encodeWindTexture(gl, windGrid) {
 
   let minU = Infinity, maxU = -Infinity;
   let minV = Infinity, maxV = -Infinity;
+  let maxSpeed = 0;
 
   for (const v of vectors) {
     if (v.u < minU) minU = v.u;
     if (v.u > maxU) maxU = v.u;
     if (v.v < minV) minV = v.v;
     if (v.v > maxV) maxV = v.v;
+    if (v.speed > maxSpeed) maxSpeed = v.speed;
   }
 
   if (maxU === minU) { maxU = minU + 1; }
   if (maxV === minV) { maxV = minV + 1; }
+  // Sane floor: avoid division by zero; sane ceiling: keep storm values visible
+  const effectiveMaxSpeed = Math.max(5, Math.min(maxSpeed, 120));
 
   const data = new Uint8Array(cols * rows * 4);
   for (let i = 0; i < vectors.length; i++) {
     const v = vectors[i];
     const nu = (v.u - minU) / (maxU - minU);
     const nv = (v.v - minV) / (maxV - minV);
-    const speed = Math.min(1.0, v.speed / 40);
+    const speed = Math.min(1.0, v.speed / effectiveMaxSpeed);
     data[i * 4 + 0] = Math.floor(nu * 255);
     data[i * 4 + 1] = Math.floor(nv * 255);
     data[i * 4 + 2] = Math.floor(speed * 255);
@@ -117,17 +121,11 @@ export function encodeWindTexture(gl, windGrid) {
   }
 
   const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
-  const isGlobal = bounds && ((bounds.east - bounds.west >= 350.0) || windGrid.coverage_scope === 'global' || windGrid.coverage_scope === 'global_coarse');
-  if (isGlobal) {
-    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-    gl.bindTexture(gl.TEXTURE_2D, tex);
-    gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.REPEAT);
-    gl.bindTexture(gl.TEXTURE_2D, prevTex);
-  }
   return {
     texture: tex,
     uMin: [minU, minV],
     uMax: [maxU, maxV],
+    maxSpeed: effectiveMaxSpeed,
     bounds
   };
 }

@@ -156,7 +156,7 @@ const MapWebGL = ({
   });
 
   // Weather Engine: Decoupled weather analytics
-  const forecastDays = useMemo(() => resolveForecastWindow(userTier, activeModel), [userTier, activeModel]);
+  const forecastDays = useMemo(() => resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]), [userTier, activeModel, activeLayers]);
   const { windData, windRevision } = useWeatherEngine({
     activeLayers,
     mapInstance,

@@ -70,11 +70,10 @@ export function useWeatherState({ user }) {
     };
   }, []);
 
-  // --- Subscription-gated max forecast hours ---
   const maxHoursForUser = useMemo(() => {
-    const forecastDays = resolveForecastWindow(user, activeModel);
+    const forecastDays = resolveForecastWindow(user, activeModel, activeLayers && activeLayers[0]);
     return forecastDays * 24;
-  }, [user, activeModel, capabilitiesVersion]);
+  }, [user, activeModel, activeLayers, capabilitiesVersion]);
 
   const isLockedForecast = timeOffsetHours > maxHoursForUser;
 

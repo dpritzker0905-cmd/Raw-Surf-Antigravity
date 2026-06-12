@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
 from fastapi.responses import JSONResponse
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from deps.admin_auth import get_current_admin
 from typing import Optional, List
 import logging
@@ -83,6 +83,14 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             logger.info("[Manual Ingestion] Staggering EURO Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_euro_wind_pilot()
+
+            logger.info("[Manual Ingestion] Staggering EURO Wind Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_wind_global()
+
+            logger.info("[Manual Ingestion] Staggering ICON Wind Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_icon_wind_global()
             
             logger.info("[Manual Ingestion] Staggering GFS Pressure Ingestion by 15s...")
             await asyncio.sleep(15.0)
@@ -173,6 +181,26 @@ async def ingest_gfs_wind_global_direct(admin=Depends(get_current_admin)):
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
         success = await scheduler.ingest_gfs_wind_global()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_euro_wind_global_direct")
+async def ingest_euro_wind_global_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_euro_wind_global()
+        return {"status": "success" if success else "failed"}
+    except Exception as e:
+        return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_icon_wind_global_direct")
+async def ingest_icon_wind_global_direct(admin=Depends(get_current_admin)):
+    try:
+        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+        scheduler = WeatherPipelineScheduler(store=store)
+        success = await scheduler.ingest_icon_wind_global()
         return {"status": "success" if success else "failed"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
@@ -281,27 +309,50 @@ async def get_grid(
 
         is_regional = regional_span_lng < 350.0
 
-        if req_w is not None:
-            # Check requested bbox span
-            if req_w <= req_e:
-                req_span_lng = req_e - req_w
+        if is_regional:
+            if req_w is not None:
+                # Check requested bbox span
+                if req_w <= req_e:
+                    req_span_lng = req_e - req_w
+                else:
+                    req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                req_span_lat = abs(req_n - req_s)
+
+                # If requested viewport is wider than the regional tile, dynamic viewport must win.
+                is_wider_lng = req_span_lng > (regional_span_lng + 0.05)
+                is_wider_lat = req_span_lat > (regional_span_lat + 0.05)
+                is_wider = is_wider_lng or is_wider_lat
+                is_covered = is_bbox_covered_by(req_w, req_s, req_e, req_n, cov, margin=0.05)
+
+                if is_covered and not is_wider:
+                    use_manifest_product = True
             else:
-                req_span_lng = (180.0 - req_w) + (req_e + 180.0)
-            req_span_lat = abs(req_n - req_s)
-
-            # If requested viewport is wider than the regional tile, dynamic viewport must win.
-            is_wider_lng = req_span_lng > (regional_span_lng + 0.05)
-            is_wider_lat = req_span_lat > (regional_span_lat + 0.05)
-            is_wider = is_wider_lng or is_wider_lat
-            is_covered = is_bbox_covered_by(req_w, req_s, req_e, req_n, cov, margin=0.05)
-
-            if is_covered and not is_wider:
+                # If no bbox coordinates provided, serve manifest product by default
                 use_manifest_product = True
         else:
-            # If no bbox coordinates provided, serve manifest product by default
-            use_manifest_product = True
+            # It's a global conformed manifest product (regional_span_lng >= 350.0).
+            # If the user is requesting a global view (large span), directly serve this global manifest product.
+            if req_w is not None:
+                if req_w <= req_e:
+                    req_span_lng = req_e - req_w
+                else:
+                    req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                req_span_lat = abs(req_n - req_s)
+                if req_span_lng > 180.0 or req_span_lat > 90.0:
+                    use_manifest_product = True
+                elif model.upper() == "ICON" and domain.lower() == "wind":
+                    # Compute dynamic boundary for the maximum 5-day calendar forecast range of ICON
+                    today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    max_icon_wind_dynamic_dt = today_utc + timedelta(days=5)
+                    if target_dt >= max_icon_wind_dynamic_dt:
+                        use_manifest_product = True
+                else:
+                    # Zooms closer in: do NOT use the coarse global manifest product.
+                    use_manifest_product = False
+            else:
+                use_manifest_product = True
 
-        if is_regional and not use_manifest_product:
+        if not use_manifest_product:
             matching_manifest_item = None
 
     # Step-wise product resolution
@@ -324,7 +375,7 @@ async def get_grid(
                 product.requested_bbox_original = bbox
                 product.query_bbox = bbox
                 product.requested_bbox = bbox
-                if bbox and getattr(matching_manifest_item, "coverage_mode", None) != "global_tile":
+                if bbox and getattr(matching_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
@@ -333,6 +384,14 @@ async def get_grid(
     if not product:
         if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
             try:
+                # For ICON wind, do not attempt upstream fetch beyond the 5-day calendar limit.
+                if model.upper() == "ICON" and domain.lower() == "wind":
+                    today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                    max_icon_wind_dynamic_dt = today_utc + timedelta(days=5)
+                    if target_dt >= max_icon_wind_dynamic_dt:
+                        logger.info(f"[Grid Route] ICON wind beyond 5-day native horizon ({target_dt}). Skipping upstream fetch, falling back to manifest overlap.")
+                        raise Exception("ICON wind beyond native horizon - skip to manifest fallback")
+
                 product = await viewport_service.fetch_viewport_grid_upstream(
                     model=model, domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
                 )
@@ -349,6 +408,27 @@ async def get_grid(
                     ):
                         diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
                         if diff <= 3 * 3600:
+                            # Avoid matching a tiny regional product for a wide global/wide query
+                            cov = p.coverage
+                            if cov.west <= cov.east:
+                                p_span_lng = cov.east - cov.west
+                            else:
+                                p_span_lng = (180.0 - cov.west) + (cov.east + 180.0)
+                            p_is_regional = p_span_lng < 350.0
+
+                            is_wide_req = False
+                            if req_w is not None:
+                                if req_w <= req_e:
+                                    req_span_lng = req_e - req_w
+                                else:
+                                    req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                                req_span_lat = abs(req_n - req_s)
+                                if req_span_lng > 180.0 or req_span_lat > 90.0:
+                                    is_wide_req = True
+
+                            if is_wide_req and p_is_regional:
+                                continue
+
                             if req_w is not None:
                                 area = calculate_bbox_intersection_area(
                                     req_w, req_s, req_e, req_n,
@@ -382,18 +462,73 @@ async def get_grid(
                     product.requested_bbox_original = bbox
                     product.query_bbox = bbox
                     product.requested_bbox = bbox
-                    if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile":
+                    if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
                         product = filter_grid_to_bbox(product, bbox)
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                 else:
-                    # Step 7: Honest no_coverage/temporary_unavailable (raise the error)
+                    # Step 7: Honest no_coverage/temporary_unavailable (raise the error or return empty grid if wide request)
+                    is_wide_req = False
+                    if req_w is not None:
+                        if req_w <= req_e:
+                            req_span_lng = req_e - req_w
+                        else:
+                            req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                        req_span_lat = abs(req_n - req_s)
+                        if req_span_lng > 180.0 or req_span_lat > 90.0:
+                            is_wide_req = True
+
+                    if is_wide_req and domain.lower() != "wind":
+                        return JSONResponse(status_code=200, content={
+                            "model": model,
+                            "provider": "none",
+                            "domain": domain,
+                            "layer": layer,
+                            "run_time": datetime.now(timezone.utc).isoformat(),
+                            "valid_time": target_dt.isoformat(),
+                            "is_forecast_authoritative": False,
+                            "is_estimated": False,
+                            "grid": {
+                                "bounds": {
+                                    "west": -180.0, "south": -90.0, "east": 180.0, "north": 90.0
+                                },
+                                "cols": 0,
+                                "rows": 0,
+                                "vectors": [],
+                                "diagnostics": {
+                                    "nonzeroCount": 0,
+                                    "vectors_length": 0,
+                                    "renderable": False,
+                                    "gridMode": "none"
+                                }
+                            },
+                            "value_kind": "wind_speed" if domain.lower() == "wind" else "wave_height",
+                            "value_unit": "kn" if domain.lower() == "wind" else "m",
+                            "display_unit_hint": "kn" if domain.lower() == "wind" else "ft",
+                            "units": {
+                                "speed": "kn" if domain.lower() == "wind" else "m",
+                                "direction": "degrees",
+                                "period": "seconds"
+                            },
+                            "source_variables": [],
+                            "freshness_sec": 1800,
+                            "warnings": ["no_global_coverage"],
+                            "is_test_fixture": False,
+                            "status": "empty_fallback",
+                            "reason": "no_global_coverage",
+                            "source": "empty_fallback",
+                            "renderable": False
+                        })
+
                     if isinstance(dynamic_err, HTTPException):
                         raise dynamic_err
                     raise HTTPException(status_code=503, detail=f"Grid service temporarily unavailable: {dynamic_err}")
         else:
             # Dynamic viewport not enabled for this layer/model, return honest no-coverage
             return make_no_coverage_grid_response(model, layer, valid_time)
+
+    if product:
+        product.valid_time = target_dt
 
     # 4. Set diagnostics renderable property explicitly
     if product and product.grid:
@@ -498,9 +633,9 @@ async def get_point(
                     source_stage="sourceResponse"
                 )
 
-                # 2. Crop the product if grid_bbox is provided
+                # 2. Crop the product if grid_bbox is provided and not wind
                 cropped_product = product
-                if grid_bbox:
+                if grid_bbox and domain.lower() != "wind":
                     cropped_product = filter_grid_to_bbox(product, grid_bbox)
 
                 # 3. Compute cropped truth tag

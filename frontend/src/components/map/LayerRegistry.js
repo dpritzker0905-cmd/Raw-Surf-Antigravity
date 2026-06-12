@@ -345,7 +345,7 @@ function generateGfsDefaultTimes(baseTimeStr = referenceTime) {
 }
 
 const defaultTimesGfs = generateGfsDefaultTimes();         // GFS atmospheric / wave: hybrid 1h/3h interval, max 16 days (384h)
-const defaultTimesIconAtm = generateDefaultTimes(1, 120); // ICON atmospheric: 1h interval, max 5 days (120h)
+const defaultTimesIconAtm = generateDefaultTimes(1, 216); // ICON atmospheric: 1h interval, max 9 days (216h)
 const defaultTimesIconWav = generateDefaultTimes(3, 180); // ICON wave: 3h interval, max 7.5 days (180h)
 const defaultTimesEuro = generateDefaultTimes(3, 240);    // EURO atmospheric / wave: 3h interval, max 10 days (240h)
 

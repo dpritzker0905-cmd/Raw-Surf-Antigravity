@@ -121,16 +121,26 @@ export function validateModelAccess(model, user) {
 /**
  * Returns the number of allowed forecast days for the given user.
  */
-export function resolveForecastWindow(user, model = 'GFS') {
+export function resolveForecastWindow(user, model = 'GFS', activeLayer = null) {
   const tier = getUserTier(user);
   const rules = TIER_ACCESS[tier] || TIER_ACCESS.free;
   let allowedDays = rules.forecastDays;
 
   // Cross-reference with backend capabilities
   if (typeof window !== 'undefined' && window.__WEATHER_CAPABILITIES__) {
-    const caps = window.__WEATHER_CAPABILITIES__.filter(
+    let caps = window.__WEATHER_CAPABILITIES__.filter(
       c => c.model.toUpperCase() === model.toUpperCase()
     );
+    if (activeLayer) {
+      const layerLower = activeLayer.toLowerCase();
+      let layerCaps = caps.filter(c => c.layer.toLowerCase() === layerLower);
+      if (layerCaps.length === 0) {
+        layerCaps = caps.filter(c => c.domain.toLowerCase() === layerLower);
+      }
+      if (layerCaps.length > 0) {
+        caps = layerCaps;
+      }
+    }
     if (caps.length > 0) {
       const maxHours = Math.max(...caps.map(c => c.max_forecast_hours || 0));
       if (maxHours > 0) {

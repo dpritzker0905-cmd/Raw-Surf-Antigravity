@@ -1188,7 +1188,7 @@ def test_stage_6h1_requirements(tmp_path, monkeypatch):
 
     # In Hawaii (outside all tiles), it should fall back to point API
     # Mocking fetch_point to return successful Open-Meteo point payload
-    async def mock_fetch_point(self, model, domain, layer, lat, lng):
+    async def mock_fetch_point(self, model, domain, layer, lat, lng, *args, **kwargs):
         return {
             "latitude": lat,
             "longitude": lng,
@@ -1312,7 +1312,7 @@ def test_stage_6h2_requirements(tmp_path, monkeypatch):
     
     # 4. Outside-tile point fallback
     # Mocking fetch_point to return successful Open-Meteo marine point payload
-    async def mock_fetch_point_marine(self, model, domain, layer, lat, lng):
+    async def mock_fetch_point_marine(self, model, domain, layer, lat, lng, *args, **kwargs):
         return {
             "latitude": lat,
             "longitude": lng,

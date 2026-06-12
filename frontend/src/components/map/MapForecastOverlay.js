@@ -1,5 +1,5 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Lock, ChevronDown, MapPin } from 'lucide-react';
+import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   sampleFromMarineGrid,
@@ -580,12 +580,17 @@ export const MapForecastOverlay = ({
                   <span>Heatmap Loading...</span>
                 </div>
               )}
-              {STATUS_RENDERS[heatmapStatus] && (
-                <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] ${STATUS_RENDERS[heatmapStatus].color} font-semibold flex items-center gap-1.5`}>
-                  <Lock className={`w-3 h-3 ${STATUS_RENDERS[heatmapStatus].color}`} />
-                  <span>{STATUS_RENDERS[heatmapStatus].text}</span>
-                </div>
-              )}
+              {STATUS_RENDERS[heatmapStatus] && (() => {
+                const IconComponent = heatmapStatus === 'ready' ? Check 
+                  : ['zoom_too_low', 'no_copernicus_coverage', 'no_backend_coverage'].includes(heatmapStatus) ? Info 
+                  : AlertTriangle;
+                return (
+                  <div className={`pt-1.5 mt-1.5 border-t border-zinc-800/20 text-[9px] ${STATUS_RENDERS[heatmapStatus].color} font-semibold flex items-center gap-1.5`}>
+                    <IconComponent className={`w-3 h-3 ${STATUS_RENDERS[heatmapStatus].color}`} />
+                    <span>{STATUS_RENDERS[heatmapStatus].text}</span>
+                  </div>
+                );
+              })()}
             </>
           )}
         </div>

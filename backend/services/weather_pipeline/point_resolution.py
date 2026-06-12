@@ -106,8 +106,8 @@ class PointResolutionService:
             if not product or not product.grid or not product.grid.vectors:
                 return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
 
-            # Crop if grid_bbox is provided
-            if grid_bbox:
+            # Crop if grid_bbox is provided and not wind
+            if grid_bbox and domain.lower() != "wind":
                 product = filter_grid_to_bbox(product, grid_bbox)
 
             # Enforce bounds containment strictly (0.0001 snapping-tolerant margin, antimeridian aware)
@@ -118,6 +118,7 @@ class PointResolutionService:
 
             # Inside bounds - sample from product
             response = self.sampler.sample_point(product, lat, lng)
+            response.valid_time = target_dt
             response.product_id = grid_product_id
             response.source = "grid_file"
             response.coverage_status = "inside_served_bbox"
@@ -142,9 +143,10 @@ class PointResolutionService:
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
             if product:
-                if grid_bbox:
+                if grid_bbox and domain.lower() != "wind":
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                response.valid_time = target_dt
                 response.product_id = dynamic_match["product_id"]
                 response.source = "grid_file"
                 response.coverage_status = "inside_served_bbox"
@@ -193,9 +195,10 @@ class PointResolutionService:
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
             if product:
-                if grid_bbox:
+                if grid_bbox and domain.lower() != "wind":
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
+                response.valid_time = target_dt
                 response.product_id = matching_item.filename
                 response.source = "grid_file"
                 response.coverage_status = "inside_regional_tile"
@@ -208,7 +211,9 @@ class PointResolutionService:
         # 2c. Fallback to direct point query
         if domain.lower() == "wind" and layer.lower() == "wind":
             try:
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                # Use model-appropriate forecast_days for point fallback
+                point_forecast_days = {"ICON": 5, "EURO": 15, "GFS": 16}.get(model.upper(), 2)
+                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
                 if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                     from services.weather_pipeline.normalizer import WeatherNormalizer
                     times = raw_point["hourly"]["time"]

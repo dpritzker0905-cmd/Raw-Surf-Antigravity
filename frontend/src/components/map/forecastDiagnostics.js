@@ -10,6 +10,10 @@ import { isInCooldown } from './marineControllerUtils';
 export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineData }) {
   if (typeof window === 'undefined') return null;
   
+  if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
+    return null;
+  }
+  
   const statusDiag = window.__MARINE_HEATMAP_STATUS__;
   if (statusDiag?.status === 'no_copernicus_coverage') {
     return 'no_copernicus_coverage';
@@ -27,9 +31,6 @@ export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineDat
   // v7.12: Instantly check and show rate-limited status for any model in cooldown
   if (window.__MARINE_FETCH_DIAG__?.cooldownState === 'rate_limited' || isInCooldown('marine')) {
     return 'rate_limited';
-  }
-  if (activeModel !== 'EURO' || !['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-    return null;
   }
   
   const webglDiag = window.__WebGLMarineLayer_DIAG__;

@@ -1,6 +1,6 @@
 import pytest
 from datetime import datetime, timezone
-from tests.test_dynamic_viewport import mock_weather_setup, client
+from test_dynamic_viewport import mock_weather_setup, client
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 
 async def test_gfs_wind_global_ingestion(mock_weather_setup):

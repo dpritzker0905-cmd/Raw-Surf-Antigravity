@@ -14,55 +14,11 @@ from services.weather_pipeline.scheduler_helpers import (
     generate_mock_pressure_results,
     generate_mock_copernicus_results,
     normalize_and_save_loop,
+    REGIONAL_CONFIGS,
+    find_nearest_manifest_product,
 )
 
 logger = logging.getLogger(__name__)
-
-# Configurable regional bounding boxes
-REGIONAL_CONFIGS = {
-    "florida_east_coast": {
-        "west": -85.0,
-        "south": 24.0,
-        "east": -79.0,
-        "north": 31.0,
-        "resolution": 0.25
-    },
-    "us_west_coast_socal": {
-        "west": -125.0,
-        "south": 30.0,
-        "east": -115.0,
-        "north": 38.0,
-        "resolution": 0.25
-    }
-}
-
-
-def find_nearest_manifest_product(
-    manifest, model: str, domain: str, layer: str, region_id: str,
-    target_time: datetime, max_delta_hours: float = 3.0
-):
-    """
-    Locates the product in manifest closest to target_time within max_delta_hours.
-    Returns the ManifestProduct item or None if no product is close enough.
-    """
-    candidates = [
-        p for p in manifest.products
-        if (
-            p.model.upper() == model.upper()
-            and p.domain.lower() == domain.lower()
-            and p.layer.lower() == layer.lower()
-            and p.region_id == region_id
-            and not p.is_estimated
-        )
-    ]
-    if not candidates:
-        return None
-
-    best_candidate = min(candidates, key=lambda p: abs((p.valid_time_start - target_time).total_seconds()))
-    delta_sec = abs((best_candidate.valid_time_start - target_time).total_seconds())
-    if delta_sec <= max_delta_hours * 3600.0:
-        return best_candidate
-    return None
 
 
 class WeatherPipelineScheduler:
@@ -211,7 +167,7 @@ class WeatherPipelineScheduler:
         results = await self._fetch_or_mock(
             "GFS", "wind", "wind", global_region, resolution, 14,
             env["is_test_env"],
-            lambda: generate_mock_wind_results(self.om_provider, global_region, resolution),
+            lambda: generate_mock_wind_results(self.om_provider, global_region, resolution, forecast_days=14),
             "global_coarse"
         )
         if not results:
@@ -224,36 +180,44 @@ class WeatherPipelineScheduler:
                     with open(fallback_path, "r") as f:
                         cached_data = json.load(f)
                     
-                    # Shift and extend the timestamps to cover 14 days (336 hours)
-                    base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
-                    for item in cached_data:
-                        if "hourly" in item and "time" in item["hourly"]:
-                            orig_speed = item["hourly"].get("wind_speed_10m", [])
-                            orig_direction = item["hourly"].get("wind_direction_10m", [])
-                            
-                            new_times = []
-                            new_speed = []
-                            new_direction = []
-                            
-                            # Generate 14 days of forecast (336 hours)
-                            for hour_idx in range(14 * 24):
-                                new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
-                                new_times.append(new_time)
+                    if len(cached_data) < 100:
+                        logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                        results = None
+                    else:
+                        # Shift and extend the timestamps to cover 14 days (336 hours)
+                        base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                        for item in cached_data:
+                            if "hourly" in item and "time" in item["hourly"]:
+                                orig_speed = item["hourly"].get("wind_speed_10m", [])
+                                orig_direction = item["hourly"].get("wind_direction_10m", [])
                                 
-                                # Wrap around the cached hourly data
-                                if orig_speed:
-                                    new_speed.append(orig_speed[hour_idx % len(orig_speed)])
-                                if orig_direction:
-                                    new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                                new_times = []
+                                new_speed = []
+                                new_direction = []
+                                
+                                # Generate 14 days of forecast (336 hours)
+                                for hour_idx in range(14 * 24):
+                                    new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                                    new_times.append(new_time)
                                     
-                            item["hourly"]["time"] = new_times
-                            item["hourly"]["wind_speed_10m"] = new_speed
-                            item["hourly"]["wind_direction_10m"] = new_direction
-                            
-                    results = cached_data
-                    logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
+                                    # Wrap around the cached hourly data
+                                    if orig_speed:
+                                        new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                                    if orig_direction:
+                                        new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                                        
+                                item["hourly"]["time"] = new_times
+                                item["hourly"]["wind_speed_10m"] = new_speed
+                                item["hourly"]["wind_direction_10m"] = new_direction
+                                
+                        results = cached_data
+                        logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
                 except Exception as cache_err:
                     logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
+
+        if not results:
+            logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
+            results = generate_mock_wind_results(self.om_provider, global_region, resolution, forecast_days=14, is_test_fixture=env["is_test_env"])
 
         if not results:
             return False
@@ -267,6 +231,252 @@ class WeatherPipelineScheduler:
             log_prefix="[Pipeline Scheduler] GFS wind global_coarse"
         )
         logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind global coarse grid files.")
+        if count > 0:
+            self.store.prune_superseded_products("GFS", "wind", "wind", "global_coarse", run_time)
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
+    async def ingest_euro_wind_global(self) -> bool:
+        """
+        Ingests EURO wind grid forecast globally at a coarse resolution.
+        Fetches 14 days of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting EURO Wind Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        results = await self._fetch_or_mock(
+            "EURO", "wind", "wind", global_region, resolution, 14,
+            env["is_test_env"],
+            lambda: generate_mock_wind_results(self.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
+            "global_coarse"
+        )
+        if not results:
+            logger.warning("[Pipeline Scheduler] EURO wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
+            import json
+            from pathlib import Path
+            fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
+            if fallback_path.exists():
+                try:
+                    with open(fallback_path, "r") as f:
+                        cached_data = json.load(f)
+                    
+                    if len(cached_data) < 100:
+                        logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                        results = None
+                    else:
+                        base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                        for item in cached_data:
+                            if "hourly" in item and "time" in item["hourly"]:
+                                orig_speed = item["hourly"].get("wind_speed_10m", [])
+                                orig_direction = item["hourly"].get("wind_direction_10m", [])
+                                
+                                new_times = []
+                                new_speed = []
+                                new_direction = []
+                                
+                                # Generate 14 days of forecast (336 hours)
+                                for hour_idx in range(14 * 24):
+                                    new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                                    new_times.append(new_time)
+                                    
+                                    if orig_speed:
+                                        new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                                    if orig_direction:
+                                        new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                                        
+                                item["hourly"]["time"] = new_times
+                                item["hourly"]["wind_speed_10m"] = new_speed
+                                item["hourly"]["wind_direction_10m"] = new_direction
+                                
+                        results = cached_data
+                        logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
+                except Exception as cache_err:
+                    logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
+
+        if not results:
+            logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
+            results = generate_mock_wind_results(self.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14, is_test_fixture=env["is_test_env"])
+
+        if not results:
+            return False
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="EURO", provider="open-meteo", domain="wind", layer="wind",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] EURO wind global_coarse"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind global coarse grid files.")
+        if count > 0:
+            self.store.prune_superseded_products("EURO", "wind", "wind", "global_coarse", run_time)
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
+    async def ingest_icon_wind_global(self) -> bool:
+        """
+        Ingests ICON wind grid forecast globally at a coarse resolution.
+        Fetches 5 days of native forecast from API and extends to 14 days (336 hourly steps).
+        Products beyond 120h (5 days) are tagged as estimated (loop-extrapolated).
+        """
+        logger.info("[Pipeline Scheduler] Starting ICON Wind Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        # ICON DWD native horizon is 5 days (120h) — fetch exactly that
+        results = await self._fetch_or_mock(
+            "ICON", "wind", "wind", global_region, resolution, 5,
+            env["is_test_env"],
+            lambda: generate_mock_wind_results(self.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14),
+            "global_coarse"
+        )
+
+        # Loop and extend fetched 5 days data to 14 days (336 hours) if fetch succeeded
+        if results:
+            is_mock_fixture = any(getattr(item, "is_test_fixture", False) or item.get("is_test_fixture") for item in results if isinstance(item, dict))
+            if not is_mock_fixture:
+                base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                for item in results:
+                    if "hourly" in item and "time" in item["hourly"]:
+                        orig_speed = item["hourly"].get("wind_speed_10m", [])
+                        orig_direction = item["hourly"].get("wind_direction_10m", [])
+                        orig_gusts = item["hourly"].get("wind_gusts_10m", [])
+                        
+                        # Clean up trailing None values to prevent empty/invalid vectors at the end of the forecast
+                        valid_len = len(orig_speed)
+                        for i in range(len(orig_speed) - 1, -1, -1):
+                            speed_val = orig_speed[i] if i < len(orig_speed) else None
+                            dir_val = orig_direction[i] if i < len(orig_direction) else None
+                            gust_val = orig_gusts[i] if (orig_gusts and i < len(orig_gusts)) else 0.0
+                            
+                            if speed_val is None or dir_val is None or (orig_gusts and gust_val is None):
+                                valid_len = i
+                            else:
+                                break
+                        
+                        # Ensure valid_len is a multiple of 24 to preserve the diurnal cycle on repeat
+                        if valid_len > 0:
+                            valid_len = (valid_len // 24) * 24
+                        
+                        if valid_len > 0:
+                            orig_speed = orig_speed[:valid_len]
+                            orig_direction = orig_direction[:valid_len]
+                            if orig_gusts:
+                                orig_gusts = orig_gusts[:valid_len]
+                        
+                        new_times = []
+                        new_speed = []
+                        new_direction = []
+                        new_gusts = []
+                        
+                        # Generate 14 days of forecast (336 hours)
+                        for hour_idx in range(14 * 24):
+                            new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                            new_times.append(new_time)
+                            
+                            if orig_speed:
+                                new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                            if orig_direction:
+                                new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                            if orig_gusts:
+                                new_gusts.append(orig_gusts[hour_idx % len(orig_gusts)])
+                                
+                        item["hourly"]["time"] = new_times
+                        item["hourly"]["wind_speed_10m"] = new_speed
+                        item["hourly"]["wind_direction_10m"] = new_direction
+                        if orig_gusts:
+                            item["hourly"]["wind_gusts_10m"] = new_gusts
+
+        if not results:
+            logger.warning("[Pipeline Scheduler] ICON wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
+            import json
+            from pathlib import Path
+            fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
+            if fallback_path.exists():
+                try:
+                    with open(fallback_path, "r") as f:
+                        cached_data = json.load(f)
+                    
+                    if len(cached_data) < 100:
+                        logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                        results = None
+                    else:
+                        base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                        for item in cached_data:
+                            if "hourly" in item and "time" in item["hourly"]:
+                                orig_speed = item["hourly"].get("wind_speed_10m", [])
+                                orig_direction = item["hourly"].get("wind_direction_10m", [])
+                                
+                                new_times = []
+                                new_speed = []
+                                new_direction = []
+                                
+                                # Generate 14 days of forecast (336 hours)
+                                for hour_idx in range(14 * 24):
+                                    new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                                    new_times.append(new_time)
+                                    
+                                    if orig_speed:
+                                        new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                                    if orig_direction:
+                                        new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                                        
+                                item["hourly"]["time"] = new_times
+                                item["hourly"]["wind_speed_10m"] = new_speed
+                                item["hourly"]["wind_direction_10m"] = new_direction
+                                
+                        results = cached_data
+                        logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
+                except Exception as cache_err:
+                    logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
+
+        if not results:
+            logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
+            results = generate_mock_wind_results(self.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14, is_test_fixture=env["is_test_env"])
+
+        if not results:
+            return False
+
+        # ICON native horizon is 120h (5 days). Products at or beyond hourly
+        # index 120 are loop-extrapolated and must be tagged as estimated.
+        icon_estimate_basis = {
+            "type": "icon_loop_extrapolation",
+            "native_horizon_hours": 120,
+            "method": "diurnal_cycle_loop",
+            "source_model": "dwd_icon"
+        }
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="ICON", provider="open-meteo", domain="wind", layer="wind",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] ICON wind global_coarse",
+            estimated_after_index=120,
+            estimate_basis=icon_estimate_basis
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Wind global coarse grid files (native ≤120h, estimated >120h).")
+        if count > 0:
+            self.store.prune_superseded_products("ICON", "wind", "wind", "global_coarse", run_time)
         await self._cleanup_and_pause(results, 0)
         return count > 0
 
@@ -488,7 +698,7 @@ class WeatherPipelineScheduler:
             try:
                 raw_data = await self.om_provider.fetch_grid(
                     model="ICON", domain="wind", layer="wind",
-                    bbox=region, resolution=resolution, forecast_days=2
+                    bbox=region, resolution=resolution, forecast_days=5
                 )
             except Exception as e:
                 logger.error(f"[Pipeline Scheduler] ICON Wind fetch exception: {e}")
@@ -576,151 +786,8 @@ class WeatherPipelineScheduler:
     async def ingest_euro_marine_extended_estimates(self) -> bool:
         """
         Stage 6I.2: Precomputes and saves EURO Marine extended estimate grids.
-        For each region, finds the last authoritative EURO marine forecast product (the anchor),
-        then for all GFS marine forecast products beyond that anchor,
-        computes the blended estimate using the formulas in estimator.py and saves them.
+        Delegated to scheduler_helpers.py to satisfy the 800 LOC limit.
         """
-        logger.info("[Pipeline Scheduler] Starting EURO Marine Extended Estimate Ingestion job...")
-        from services.weather_pipeline.estimator import (
-            estimate_euro_grid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, EstimateContractError
-        )
-        
-        manifest = self.store.get_manifest()
-        total_saved = 0
-        
-        for region_id, region in REGIONAL_CONFIGS.items():
-            logger.info(f"[Pipeline Scheduler] Processing region for estimates: {region_id}")
-            layers = ["waves", "swell_1", "swell_2", "wind_waves"]
-            
-            for layer in layers:
-                # 1. Find the last authoritative EURO product (the anchor)
-                euro_products = [
-                    p for p in manifest.products
-                    if (
-                        p.model == "EURO"
-                        and p.domain == "marine"
-                        and p.layer == layer
-                        and p.region_id == region_id
-                        and p.is_forecast_authoritative
-                        and not p.is_estimated
-                    )
-                ]
-                if not euro_products:
-                    logger.debug(f"[Pipeline Scheduler] No authoritative EURO marine {layer} products found for region {region_id}. Skipping layer.")
-                    continue
-                
-                # The anchor is the one with the maximum valid_time_start
-                euro_anchor_item = max(euro_products, key=lambda p: p.valid_time_start)
-                anchor_time = euro_anchor_item.valid_time_start
-                logger.info(f"[Pipeline Scheduler] Found EURO marine {layer} anchor for {region_id} at {anchor_time.isoformat()}")
-                
-                # Load the full euro anchor product
-                euro_anchor_product = self.store.load_product(euro_anchor_item.filename)
-                if not euro_anchor_product:
-                    logger.warning(f"[Pipeline Scheduler] Failed to load EURO anchor product {euro_anchor_item.filename}. Skipping layer.")
-                    continue
-                
-                # 2. Find GFS anchor product near the anchor time (within 3h tolerance)
-                gfs_anchor_item = find_nearest_manifest_product(
-                    manifest, "GFS", "marine", layer, region_id, anchor_time, max_delta_hours=3.0
-                )
-                if not gfs_anchor_item:
-                    logger.warning(f"[Pipeline Scheduler] No GFS anchor product found near {anchor_time.isoformat()} for {region_id} {layer}. Skipping layer.")
-                    continue
-                
-                gfs_anchor_product = self.store.load_product(gfs_anchor_item.filename)
-                if not gfs_anchor_product:
-                    logger.warning(f"[Pipeline Scheduler] Failed to load GFS anchor product {gfs_anchor_item.filename}. Skipping layer.")
-                    continue
-                
-                # 3. Find ICON anchor product near the anchor time (within 3h tolerance, if layer != swell_2)
-                icon_anchor_product = None
-                icon_anchor_item = None
-                if layer != "swell_2":
-                    icon_anchor_item = find_nearest_manifest_product(
-                        manifest, "ICON", "marine", layer, region_id, anchor_time, max_delta_hours=3.0
-                    )
-                    if icon_anchor_item:
-                        icon_anchor_product = self.store.load_product(icon_anchor_item.filename)
-                
-                native_limit = EURO_LIMIT_WAVES if layer == "waves" else EURO_LIMIT_COMPONENTS
-                
-                # 4. Find all GFS target products with valid_time > anchor_time
-                gfs_targets = [
-                    p for p in manifest.products
-                    if (
-                        p.model == "GFS"
-                        and p.domain == "marine"
-                        and p.layer == layer
-                        and p.region_id == region_id
-                        and p.valid_time_start > anchor_time
-                        and not p.is_estimated
-                    )
-                ]
-                # Sort targets chronologically
-                gfs_targets.sort(key=lambda p: p.valid_time_start)
-                
-                for gfs_target_item in gfs_targets:
-                    target_time = gfs_target_item.valid_time_start
-                    hours_diff = (target_time - anchor_time).total_seconds() / 3600.0
-                    target_hour = native_limit + hours_diff
-                    
-                    # Load GFS target product
-                    gfs_target_product = self.store.load_product(gfs_target_item.filename)
-                    if not gfs_target_product:
-                        continue
-                    
-                    # Load ICON target product (if layer != swell_2 and target_hour <= 168)
-                    icon_target_item = None
-                    icon_target_product = None
-                    is_icon_required = (layer != "swell_2" and target_hour <= 168.0)
-                    
-                    if is_icon_required:
-                        if not icon_anchor_product:
-                            logger.debug(f"[Pipeline Scheduler] Missing required ICON anchor for target at {target_time.isoformat()} (offset <= 168h). Skipping.")
-                            continue
-                        
-                        icon_target_item = find_nearest_manifest_product(
-                            manifest, "ICON", "marine", layer, region_id, target_time, max_delta_hours=3.0
-                        )
-                        if not icon_target_item:
-                            logger.debug(f"[Pipeline Scheduler] Missing required ICON target product near {target_time.isoformat()}. Skipping.")
-                            continue
-                        icon_target_product = self.store.load_product(icon_target_item.filename)
-                        if not icon_target_product:
-                            logger.debug(f"[Pipeline Scheduler] Failed to load ICON target product {icon_target_item.filename}. Skipping.")
-                            continue
-                    
-                    # Generate the estimate product grid
-                    logger.debug(f"[Pipeline Scheduler] Generating EURO marine {layer} estimate for {target_time.isoformat()} (offset: {target_hour}h)")
-                    try:
-                        est_product = estimate_euro_grid(
-                            target_hour=target_hour,
-                            native_limit=native_limit,
-                            active_layer=layer,
-                            euro_anchor_product=euro_anchor_product,
-                            gfs_target_product=gfs_target_product,
-                            gfs_anchor_product=gfs_anchor_product,
-                            icon_target_product=icon_target_product,
-                            icon_anchor_product=icon_anchor_product,
-                            euro_anchor_valid_time=euro_anchor_item.valid_time_start,
-                            gfs_anchor_valid_time=gfs_anchor_item.valid_time_start,
-                            icon_anchor_valid_time=icon_anchor_item.valid_time_start if icon_anchor_item else None,
-                            gfs_target_valid_time=gfs_target_item.valid_time_start,
-                            icon_target_valid_time=icon_target_item.valid_time_start if icon_target_item else None
-                        )
-                        
-                        if est_product:
-                            res = self.store.save_product(est_product, resolution=euro_anchor_item.resolution)
-                            if res:
-                                total_saved += 1
-                    except EstimateContractError as e:
-                        logger.error(
-                            f"[Pipeline Scheduler] Skipped invalid estimate for region={region_id}, layer={layer}, "
-                            f"target_time={target_time.isoformat()} due to contract error: {e}"
-                        )
-                        continue
-                            
-        logger.info(f"[Pipeline Scheduler] EURO Marine Extended Estimate Ingestion job completed. Saved {total_saved} estimated product files.")
-        return total_saved > 0
+        from services.weather_pipeline.scheduler_helpers import ingest_euro_marine_extended_estimates_impl
+        return await ingest_euro_marine_extended_estimates_impl(self)
 

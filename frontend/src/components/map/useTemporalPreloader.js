@@ -61,15 +61,25 @@ export function useTemporalPreloader({ currentHour, activeLayers, mapInstance, a
         model = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
       } else if (variable === 'wind_u_component_10m') {
         model = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
-        if (model === 'dwd_icon' && currentHour > 115) {
+        if (model === 'dwd_icon' && currentHour > 216) {
           model = 'ncep_gfs013';
         } else if (model === 'ecmwf_ifs025' && currentHour > 228) {
           model = 'ncep_gfs013';
         }
       } else if (variable === 'precipitation' || variable === 'cloud_cover') {
         model = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+        if (model === 'dwd_icon' && currentHour > 216) {
+          model = 'ncep_gfs013';
+        } else if (model === 'ecmwf_ifs025' && currentHour > 228) {
+          model = 'ncep_gfs013';
+        }
       } else {
         model = OM_MODEL_MAP[activeModel] || 'ncep_gfs025';
+        if (model === 'dwd_icon' && currentHour > 216) {
+          model = 'ncep_gfs025';
+        } else if (model === 'ecmwf_ifs025' && currentHour > 228) {
+          model = 'ncep_gfs025';
+        }
       }
 
       // Use live metadata from shared cache

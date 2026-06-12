@@ -37,15 +37,21 @@ import {
 } from './WebGLWindUtils';
 import { recordTruthStage } from './weatherTruthTracker';
 
+function latToMercatorY(lat) {
+  var latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
+  var rad = latClamped * Math.PI / 180.0;
+  return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
+}
+
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
   // v3.13.4: Atmospheric transparency — continents must be clearly visible
   this.particleRes = 296; // 296² = 87,616 particles (~10% thinner than 330²)
   this.fadeOpacity = 0.965; // Faster trail decay — less cumulative opacity buildup
-  this.speedFactor = 0.32;  // Tuned: good correlation with real wind speeds
-  this.dropRate = 0.0015; // Particles live longer continuous streams
-  this.dropRateBump = 0.006;
+  this.speedFactor = 0.55;  // v3.19: Increased from 0.35 for faster, more dynamic glide and visible flow
+  this.dropRate = 0.002; // v3.15: Between original 0.0015 and aggressive 0.003
+  this.dropRateBump = 0.008; // v3.15: Between original 0.006 and aggressive 0.01
   this._initialized = false;
   this._windData = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
@@ -137,6 +143,21 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (this._windData) {
     this._windData.truthTag = windGrid.truthTag;
     this._windData.windGrid = windGrid;
+
+    // v3.16: Update _maxWindSpeed from actual GFS data, with sane bounds
+    // Floor of 10kn prevents all-calm grids from blowing up the ramp
+    // Ceiling of 80kn keeps hurricane-force winds from washing out variation
+    var dataMaxSpeed = this._windData.maxSpeed || 50;
+    var newMaxSpeed = Math.max(10, Math.min(dataMaxSpeed, 80));
+    if (newMaxSpeed !== this._maxWindSpeed) {
+      console.log('[WebGLWind] maxWindSpeed updated: ' + this._maxWindSpeed + ' -> ' + newMaxSpeed + ' kn (data max: ' + dataMaxSpeed + ')');
+      this._maxWindSpeed = newMaxSpeed;
+      // Force color ramp regeneration on next render by clearing cached ramp
+      if (this._colorRamp) {
+        gl.deleteTexture(this._colorRamp);
+        this._colorRamp = null;
+      }
+    }
   }
 
   const model = windGrid.truthTag?.model || 'GFS';
@@ -155,13 +176,14 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
       coverage_scope: windGrid.coverage_scope,
       requested_bbox: windGrid.requested_bbox,
       served_bbox: windGrid.served_bbox,
+      maxWindSpeed: this._maxWindSpeed,
       grid: windGrid,
       truthTag: windGrid.truthTag
     }, 'WebGLWindEngine.js', 'setWindData');
   }
 };
 
-WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets) {
+WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
   if (!this._initialized || !this._windData) return;
 
   const windGrid = this._windData?.windGrid;
@@ -203,7 +225,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     }
   }
   // Update color ramp when theme changes or if texture is not yet created
-  var activeTheme = theme || 'dark';
+  // v3.15: Use _currentTheme (set by setTheme) as fallback when theme param not passed
+  var activeTheme = theme || this._currentTheme || 'dark';
   if (activeTheme !== this._currentTheme || !this._colorRamp) {
     this._currentTheme = activeTheme;
     var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
@@ -231,18 +254,29 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     this._screenW = screenWidth; this._screenH = screenHeight;
   }
 
-  // v3.13: Clear trail FBOs during zoom transitions to prevent ghosting/smearing.
-  // Screen-space trails don't move with the map, so rapid zoom creates visual noise.
+  // v3.15: Clear trail FBOs during genuine zoom transitions only.
+  // Track camera center to distinguish zoom from pan (pan causes micro zoom jitter).
   var currentZoom = typeof zoom === 'number' ? zoom : 6;
   if (this._lastRenderZoom !== undefined) {
     var zoomDelta = Math.abs(currentZoom - this._lastRenderZoom);
+    // v3.15: Only clear on genuine zoom changes (> 0.15), not pan-induced float jitter.
+    // During panning, mapbox can report sub-0.01 zoom fluctuations that falsely trigger
+    // trail clears, causing the "grid flash" artifact.
     if (zoomDelta > 0.15) {
-      // Significant zoom change — clear trail buffers
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
-      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
-      gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
-      gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      // Additional guard: accumulate zoom delta across frames to filter jitter
+      this._zoomDeltaAccum = (this._zoomDeltaAccum || 0) + zoomDelta;
+      if (this._zoomDeltaAccum > 0.25) {
+        // Genuine zoom change — clear trail buffers
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenA.fbo);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, this.screenB.fbo);
+        gl.clearColor(0, 0, 0, 0); gl.clear(gl.COLOR_BUFFER_BIT);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+        this._zoomDeltaAccum = 0;
+      }
+    } else {
+      // Small delta — likely pan jitter, decay accumulator
+      this._zoomDeltaAccum = Math.max(0, (this._zoomDeltaAccum || 0) - 0.02);
     }
   }
   this._lastRenderZoom = currentZoom;
@@ -330,7 +364,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     }
 
   var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
-  var themeVal = theme === 'light' ? 1.0 : (theme === 'beach' ? 2.0 : 0.0);
+  // v3.15: Use _currentTheme when theme param not passed (standalone overlay path)
+  var effectiveTheme = theme || this._currentTheme || 'dark';
+  var themeVal = effectiveTheme === 'light' ? 1.0 : (effectiveTheme === 'beach' ? 2.0 : 0.0);
 
   // Compute scale-invariant advection step sizes
   const z = typeof zoom === 'number' ? zoom : 6;
@@ -348,13 +384,70 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const dataBoundsMinX = isRegionalGrid ? bounds.west : -180.0;
   const dataBoundsMaxX = isRegionalGrid ? bounds.east : 180.0;
 
-  // v3.14.0: Calibrate advection speed continuously across zoom levels for uniform screen-space velocity
-  const stableSpeedScale = Math.max(1.0e-7, this.speedFactor * Math.pow(0.5, z) * 0.0025);
+  // v3.23: Disable the minimum advection step clamp at high zooms (z > 6) since
+  // we use tile-relative coordinates. This prevents the wind animation from
+  // exploding in speed. Also, we scale the tile coordinate size to increase precision.
+  const stableSpeedScale = (z > 6.0)
+    ? (this.speedFactor * Math.pow(0.5, z) * 0.00025)
+    : Math.max(2.5e-6, this.speedFactor * Math.pow(0.5, z) * 0.00025);
+
+  // v3.22: Compute camera center and tile origin for high-precision advection
+  var vb = viewportBounds || [-180, -80, 180, 85];
+  var centerLng = (vb[0] + vb[2]) * 0.5;
+  if (vb[2] < vb[0]) {
+    centerLng = (vb[0] + vb[2] + 360) * 0.5;
+    if (centerLng > 180) centerLng -= 360;
+  }
+  var centerLat = (vb[1] + vb[3]) * 0.5;
+  var cx = (centerLng + 180.0) / 360.0;
+  var cy = latToMercatorY(centerLat);
+
+  var isHighZoom = z > 6.0;
+  var prevHighZoom = this._lastZoom > 6.0;
+  var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
+  this._lastZoom = z;
+
+  var tileOriginX = 0.0;
+  var tileOriginY = 0.0;
+  var tileWidth = 1.0;
+
+  if (isHighZoom) {
+    // v3.23: Use -3 instead of -5 so the tile is 8x larger than the screen instead of 32x.
+    // This increases tile-relative coordinate precision, preventing particles from freezing
+    // at low wind speeds.
+    var tileZoom = Math.max(0, Math.floor(z) - 3);
+    tileWidth = 1.0 / Math.pow(2.0, tileZoom);
+
+    // Initialize or drift check
+    if (this._tileCenterX === undefined || this._tileCenterY === undefined) {
+      this._tileCenterX = cx;
+      this._tileCenterY = cy;
+      this.reinitParticles(gl);
+    } else {
+      var dx = cx - this._tileCenterX;
+      var dy = cy - this._tileCenterY;
+      // Re-initialize particles when camera center drifts by more than 25% of the tile width
+      if (Math.abs(dx) > tileWidth * 0.25 || Math.abs(dy) > tileWidth * 0.25) {
+        this._tileCenterX = cx;
+        this._tileCenterY = cy;
+        this.reinitParticles(gl);
+      }
+    }
+    tileOriginX = this._tileCenterX - tileWidth * 0.5;
+    tileOriginY = this._tileCenterY - tileWidth * 0.5;
+  } else {
+    this._tileCenterX = undefined;
+    this._tileCenterY = undefined;
+  }
+
+  if (zoomStateChanged) {
+    this.reinitParticles(gl);
+  }
 
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
   if (this.frameCount === 1) {
-    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = ${stableSpeedScale.toFixed(8)} | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | ${this.particleRes * this.particleRes} particles`);
+    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = ${stableSpeedScale.toFixed(8)} | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | maxSpeed: ${this._maxWindSpeed} kn | ${this.particleRes * this.particleRes} particles`);
   }
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
@@ -369,8 +462,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind'), 0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), this._windData.uMin[0], this._windData.uMin[1]);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), this._windData.uMax[0], this._windData.uMax[1]);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), 0.36);
+  // v3.20: Theme-dynamic heatmap opacity for premium look per theme (increased contrast: light=0.65, beach=0.55, dark=0.48)
+  var heatmapOpacity = effectiveTheme === 'dark' ? 0.48 : (effectiveTheme === 'light' ? 0.65 : 0.55);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
@@ -414,6 +510,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), dataBoundsMinX, bounds.south);
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), dataBoundsMaxX, bounds.north);
+  // v3.16: Pass zoom and viewport bounds for viewport-biased respawning
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
+  gl.uniform4f(gl.getUniformLocation(this.advectProgram, 'u_viewport_bounds'), vb[0], vb[1], vb[2], vb[3]);
+  // v3.22: Bind tile origin and width for high zoom precision
+  gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
@@ -473,6 +575,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), dataBoundsMaxX, bnd.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z); // v3.13.5: close-zoom density boost
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+  // v3.22: Bind tile origin and width for high zoom precision
+  gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
 
   let drawDebugModeVal = 0.0;
   if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
@@ -703,3 +808,25 @@ WebGLWindEngine.prototype.reinitParticles = function(gl) {
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   console.log('[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
 };
+
+/**
+ * v3.15: setTheme — update color ramp texture when theme changes.
+ * Called by WebGLSynchronizedOverlay on mount and theme switches.
+ */
+WebGLWindEngine.prototype.setTheme = function(gl, theme) {
+  if (!gl || !this._initialized) return;
+  var activeTheme = theme || 'dark';
+  if (activeTheme !== this._currentTheme || !this._colorRamp) {
+    this._currentTheme = activeTheme;
+    var rampData = generateRampData(this._maxWindSpeed, null, activeTheme);
+    if (this._colorRamp) gl.deleteTexture(this._colorRamp);
+    this._colorRamp = createTexture(gl, gl.LINEAR, rampData, 256, 1);
+    console.log('[WebGLWind] Theme set to:', activeTheme);
+  }
+};
+
+/**
+ * v3.15: renderHeatmapAndParticles — alias for render().
+ * WebGLSynchronizedOverlay calls this method name (matches WebGLMarineEngine API).
+ */
+WebGLWindEngine.prototype.renderHeatmapAndParticles = WebGLWindEngine.prototype.render;

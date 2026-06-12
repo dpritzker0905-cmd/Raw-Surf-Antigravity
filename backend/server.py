@@ -1,3 +1,6 @@
+import platform
+platform._wmi = None
+
 import os
 import sys
 import subprocess
@@ -261,17 +264,20 @@ async def run_background_cache_population():
         and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
     )
     has_copernicus = has_product_conformed("EURO", "marine", "swell_1")
+    has_icon_wind = has_product_conformed("ICON", "wind", "wind", region_id="global_coarse")
     
     logger.info(
         f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, "
-        f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}"
+        f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}, "
+        f"ICON Wind Global={has_icon_wind}"
     )
     
     need_gfs_waves = not has_gfs_waves
     need_gfs_wind = not has_gfs_wind
     need_copernicus = not has_copernicus
+    need_icon_wind = not has_icon_wind
     
-    if need_gfs_waves or need_gfs_wind or need_copernicus:
+    if need_gfs_waves or need_gfs_wind or need_copernicus or need_icon_wind:
         logger.info("[lifespan] Incomplete cache detected. Triggering selective background pre-population...")
         try:
             from services.weather_pipeline.scheduler import WeatherPipelineScheduler
@@ -304,6 +310,14 @@ async def run_background_cache_population():
                 logger.info("[lifespan] Running GFS wind global grid pre-population...")
                 await scheduler.ingest_gfs_wind_global()
                 gc.collect()
+
+            # Step 4: Ingest ICON Wind if missing
+            if need_icon_wind:
+                logger.info("[lifespan] Staggering ICON wind global pre-population by 15s...")
+                await asyncio.sleep(15.0)
+                logger.info("[lifespan] Running ICON wind global grid pre-population...")
+                await scheduler.ingest_icon_wind_global()
+                gc.collect()
             
             logger.info("[lifespan] Background cache pre-population completed successfully!")
         except Exception as e:
@@ -328,17 +342,19 @@ async def lifespan(app: FastAPI):
     except Exception as q_err:
         logger.error(f"[lifespan] Startup Copernicus quarantine failed: {q_err}")
 
-    # Restore weather products from Supabase Storage L2 (durable across Render restarts)
-    try:
-        if not store:
-            store = ProductStore()
-        restored_count, restore_errors = store.restore_from_supabase()
-        logger.info(f"[lifespan] Weather L2 restore: {restored_count} products, {len(restore_errors)} errors")
-    except Exception as r_err:
-        logger.error(f"[lifespan] Weather L2 restore failed: {r_err}")
+    # Restore weather products from Supabase Storage L2 and start scheduler only if not testing
+    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1" or os.environ.get("TESTING") == "True"
+    if not is_testing:
+        try:
+            if not store:
+                store = ProductStore()
+            restored_count, restore_errors = store.restore_from_supabase()
+            logger.info(f"[lifespan] Weather L2 restore: {restored_count} products, {len(restore_errors)} errors")
+        except Exception as r_err:
+            logger.error(f"[lifespan] Weather L2 restore failed: {r_err}")
 
-    # Start background scheduler
-    start_scheduler()
+        # Start background scheduler
+        start_scheduler()
 
     # Trigger background cache pre-population check in a non-blocking way
     is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
@@ -558,4 +574,5 @@ async def stripe_webhook(request: Request):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8001)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)

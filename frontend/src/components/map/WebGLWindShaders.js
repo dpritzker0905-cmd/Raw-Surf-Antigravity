@@ -25,6 +25,10 @@ uniform float u_drop_rate_bump;   // speed-dependent drop rate increase
 uniform float u_edgeFeatherEnabled; // regional edge feather flag
 uniform vec2 u_dataBounds_min;    // regional bounds min [west, south]
 uniform vec2 u_dataBounds_max;    // regional bounds max [east, north]
+uniform float u_zoom;             // v3.16: current map zoom for viewport-biased respawn
+uniform vec4 u_viewport_bounds;   // v3.16: [west, south, east, north] in degrees
+uniform vec2 u_tile_origin;       // v3.22: local tile origin for high zoom precision
+uniform float u_tile_width;       // v3.22: local tile width for high zoom precision
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -64,10 +68,14 @@ float latToMercatorY(float lat) {
 void main() {
   vec4 encoded = texture2D(u_particles, v_uv);
   vec2 pos = decodePos(encoded);
+  
+  // v3.22: Resolve high-zoom coordinate resolution bottleneck.
+  // Use tile-relative coordinates [0, 1] when zoomed in (u_zoom > 6.0).
+  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
 
   // Convert global Mercator coordinates to geographic lng/lat
-  float lng = pos.x * 360.0 - 180.0;
-  float lat = mercatorYToLat(pos.y);
+  float lng = global_pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(global_pos.y);
 
   // Map to local texture coordinate of u_wind
   float tex_u;
@@ -92,23 +100,16 @@ void main() {
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   vec2 offset = (windMerc / merc_scale) * u_speed_scale;
-  vec2 nextPos = pos + offset;
-
-  // Wrap X and clamp Y
-  nextPos.x = fract(nextPos.x);
-  nextPos.y = clamp(nextPos.y, 0.001, 0.999);
-
-  // Check out of bounds for next position
-  float next_lng = nextPos.x * 360.0 - 180.0;
-  float next_lat = mercatorYToLat(nextPos.y);
-  float next_tex_u;
-  if (u_dataBounds_min.x > u_dataBounds_max.x) {
-    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-    next_tex_u = mod(next_lng - u_dataBounds_min.x, 360.0) / span;
+  
+  vec2 nextPos;
+  if (u_zoom > 6.0) {
+    nextPos = pos + (offset / u_tile_width);
+    nextPos = fract(nextPos);
   } else {
-    next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+    nextPos = pos + offset;
+    nextPos.x = fract(nextPos.x);
+    nextPos.y = clamp(nextPos.y, 0.001, 0.999);
   }
-  float next_tex_v = (next_lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
 
   // Respawn logic: randomly drop particles (more likely when slow)
   vec2 seed = (nextPos + v_uv) * u_rand_seed;
@@ -116,45 +117,67 @@ void main() {
   float drop = step(1.0 - dropRate, rand(seed));
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
-  bool isOob = (tex_v < 0.0 || tex_v > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0) ||
-               (u_edgeFeatherEnabled > 0.5 && (tex_u < 0.0 || tex_u > 1.0 || next_tex_u < 0.0 || next_tex_u > 1.0));
+  bool isOob = false;
+  if (u_zoom <= 6.0) {
+    isOob = (tex_v < 0.0 || tex_v > 1.0 || (nextPos.y < 0.001 || nextPos.y > 0.999)) ||
+            (u_edgeFeatherEnabled > 0.5 && (tex_u < 0.0 || tex_u > 1.0));
+  }
   if (isOob) {
     drop = 1.0;
   }
 
-  // Also drop if it exits global Mercator bounds vertically
-  float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
-  drop = max(drop, step(0.5, oobY));
-
   // Random new position for respawned particles
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
-  float randLng;
-  float randY;
+  vec2 newPos;
   
-  if (u_edgeFeatherEnabled > 0.5) {
-    // Regional grid spawn limits
-    float spanX = u_dataBounds_min.x > u_dataBounds_max.x
-      ? (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x
-      : u_dataBounds_max.x - u_dataBounds_min.x;
-    randLng = u_dataBounds_min.x > u_dataBounds_max.x
-      ? mod(u_dataBounds_min.x + randVal.x * spanX + 180.0, 360.0) - 180.0
-      : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
-      
-    float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-    float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-    randY = mix(mercMinY, mercMaxY, randVal.y);
+  if (u_zoom > 6.0) {
+    newPos = randVal;
   } else {
-    // Global grid: spawn particles uniformly across the entire globe
-    randLng = randVal.x * 360.0 - 180.0;
-    float mercMinY = latToMercatorY(85.0); // North limit
-    float mercMaxY = latToMercatorY(-80.0); // South limit
-    randY = mix(mercMinY, mercMaxY, randVal.y);
+    float randLng;
+    float randY;
+    if (u_edgeFeatherEnabled > 0.5) {
+      // Regional grid spawn limits
+      float spanX = u_dataBounds_min.x > u_dataBounds_max.x
+        ? (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x
+        : u_dataBounds_max.x - u_dataBounds_min.x;
+      randLng = u_dataBounds_min.x > u_dataBounds_max.x
+        ? mod(u_dataBounds_min.x + randVal.x * spanX + 180.0, 360.0) - 180.0
+        : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+        
+      float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+      float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+      randY = mix(mercMinY, mercMaxY, randVal.y);
+    } else {
+      // v3.16: Viewport-biased respawning for global grids
+      float vpWest  = u_viewport_bounds.x;
+      float vpSouth = u_viewport_bounds.y;
+      float vpEast  = u_viewport_bounds.z;
+      float vpNorth = u_viewport_bounds.w;
+      
+      float spawnChoice = rand(seed + 3.7);
+      float viewportBias = smoothstep(4.0, 7.0, u_zoom) * 0.25;
+      
+      if (spawnChoice < viewportBias && vpEast > vpWest) {
+        float padLng = (vpEast - vpWest) * 0.15;
+        float padLat = (vpNorth - vpSouth) * 0.15;
+        randLng = mix(vpWest - padLng, vpEast + padLng, randVal.x);
+        float vpMercN = latToMercatorY(clamp(vpNorth + padLat, -85.0, 85.0));
+        float vpMercS = latToMercatorY(clamp(vpSouth - padLat, -85.0, 85.0));
+        randY = mix(vpMercN, vpMercS, randVal.y);
+      } else {
+        randLng = randVal.x * 360.0 - 180.0;
+        float mercMinY = latToMercatorY(85.0);
+        float mercMaxY = latToMercatorY(-80.0);
+        randY = mix(mercMinY, mercMaxY, randVal.y);
+      }
+    }
+    newPos = vec2((randLng + 180.0) / 360.0, randY);
   }
   
-  vec2 newPos = vec2((randLng + 180.0) / 360.0, randY);
-
   pos = mix(nextPos, newPos, drop);
-  pos.y = clamp(pos.y, 0.001, 0.999);
+  if (u_zoom <= 6.0) {
+    pos.y = clamp(pos.y, 0.001, 0.999);
+  }
 
   gl_FragColor = encodePos(pos);
 }`;
@@ -167,6 +190,8 @@ uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south] in degrees
 uniform vec2 u_dataBounds_max;   // [east, north] in degrees
 uniform float u_lng_offset;      // world-copy offset: -360, 0, or +360
+uniform vec2 u_tile_origin;       // v3.22: local tile origin for high zoom precision
+uniform float u_tile_width;       // v3.22: local tile width for high zoom precision
 varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
@@ -195,18 +220,39 @@ float latToMercatorY(float lat) {
   return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
 }
 
+// Pseudo-random hash
+float rand(vec2 co) {
+  return fract(sin(dot(co, vec2(12.9898, 78.233))) * 43758.5453);
+}
+
 void main() {
   // Particle UV in state texture
   float col = mod(a_index, u_particles_res);
   float row = floor(a_index / u_particles_res);
   vec2 uv = (vec2(col, row) + 0.5) / u_particles_res;
 
+  // v3.20: Reduce particle density at higher zooms to prevent haze and keep landmasses visible
+  // Seed rand with uv to prevent GPU precision loss on high index values.
+  float p_rand = rand(uv + vec2(0.123, 0.456));
+  float keepRate = 1.0;
+  if (u_zoom > 4.0) {
+    keepRate = mix(1.0, 0.45, smoothstep(4.0, 8.0, u_zoom));
+  }
+  if (p_rand > keepRate) {
+    gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
+    return;
+  }
+
   vec4 encoded = texture2D(u_particles, uv);
   vec2 pos = decodePos(encoded);
+  
+  // v3.22: Resolve high-zoom coordinate resolution bottleneck.
+  // Use tile-relative coordinates [0, 1] when zoomed in (u_zoom > 6.0).
+  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
 
   // Convert global Mercator coordinates to geographic lng/lat
-  float lng = pos.x * 360.0 - 180.0;
-  float lat = mercatorYToLat(pos.y);
+  float lng = global_pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(global_pos.y);
 
   // Map to local texture coordinate of u_wind
   float tex_u;
@@ -235,16 +281,23 @@ void main() {
   v_alpha = edgeFade;
 
   // Convert to Web Mercator and apply world-copy offset
-  float x = pos.x + u_lng_offset / 360.0;
-  float y = pos.y;
+  float x = global_pos.x + u_lng_offset / 360.0;
+  float y = global_pos.y;
 
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
-  // v3.14.0: Speed-proportional sizing and zoom scaling for premium thickness
-  float zoomBoost = u_zoom >= 8.0 ? 1.25 : 1.0;
-  gl_PointSize = v_speed < 0.5 ? 0.0 : (3.5 + clamp(v_speed / 6.0, 0.0, 5.0)) * zoomBoost * edgeFade;
+  // v3.21: Speed-proportional base sizing with zoom-adaptive low-speed boost
+  // Calibrated to keep low-speed particles (<= 8.5 kts) highly visible at close zoom
+  float sizeBase = v_speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, v_speed);
+  float zoomBoost = 1.0 + smoothstep(5.0, 11.0, u_zoom) * 1.5;
+  
+  if (u_zoom > 7.0 && v_speed < 8.5) {
+    float speedBoost = smoothstep(8.5, 2.0, v_speed) * smoothstep(7.0, 11.0, u_zoom) * 1.5;
+    zoomBoost += speedBoost;
+  }
+  gl_PointSize = sizeBase * zoomBoost * edgeFade;
 
   // Debug mode colors
   if (u_debug_mode > 0.5) {
@@ -274,12 +327,23 @@ void main() {
   if (dist > 0.5) discard;
   
   // Smooth anti-aliasing edge softening
-  float soft = smoothstep(0.5, 0.25, dist);
+  float soft = smoothstep(0.5, 0.2, dist);
   
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
-  float alpha = color.a * v_alpha * soft;
-  gl_FragColor = vec4(color.rgb * alpha, alpha);
+  
+  // Enhance particle contrast over heatmaps:
+  // 1. Solid dark outline/rim (98% black) to separate particle from matching heatmap background
+  float rim = smoothstep(0.28, 0.46, dist);
+  vec3 rgb = mix(color.rgb, vec3(0.0), rim * 0.98);
+  
+  // 2. High-contrast bright core at the center (75% white) to make the particle pop
+  float core = smoothstep(0.18, 0.0, dist);
+  rgb = mix(rgb, vec3(1.0), core * 0.75);
+  
+  // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
+  float alpha = v_alpha * soft * color.a;
+  gl_FragColor = vec4(rgb * alpha, alpha);
 }`;
 
 export const HEATMAP_VS = `
@@ -314,34 +378,52 @@ uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_opacity;
 uniform float u_theme;
+uniform float u_max_speed;
 uniform float u_edgeFeatherEnabled;
 uniform float u_debug_mode;
 varying vec2 v_uv;
 
+// v3.15: Premium 7-stop Windy/Ventusky-grade color ramp per theme
 vec3 ramp(float t, float theme) {
-  vec3 calm;
-  vec3 breeze;
-  vec3 fresh;
-  vec3 gale;
+  // Dark theme: deep navy > teal > cyan > green-yellow > amber > hot red > white/magenta
+  // Light theme: pale ice > sky blue > medium blue > indigo > purple > rose > near-white
+  // Beach theme: deep sea > warm teal > seafoam > warm amber > tangerine > coral > cream
+  vec3 c0, c1, c2, c3, c4, c5, c6;
   if (theme > 1.5) {
-    calm = vec3(0.04, 0.45, 0.40);
-    breeze = vec3(0.05, 0.78, 0.70);
-    fresh = vec3(1.00, 0.68, 0.30);
-    gale = vec3(1.00, 0.95, 0.86);
+    // Beach: Warm sand -> tropical seafoam -> sunny lime -> amber -> tangerine -> coral -> sunset purple
+    c0 = vec3(0.92, 0.82, 0.60);  // warm sandy gold
+    c1 = vec3(0.30, 0.85, 0.75);  // bright tropical seafoam
+    c2 = vec3(0.65, 0.88, 0.35);  // sunny lime-yellow
+    c3 = vec3(0.95, 0.70, 0.20);  // warm amber
+    c4 = vec3(0.98, 0.45, 0.20);  // tangerine orange
+    c5 = vec3(0.90, 0.25, 0.40);  // deep coral/rose
+    c6 = vec3(0.60, 0.20, 0.65);  // sunset purple
   } else if (theme > 0.5) {
-    calm = vec3(0.78, 0.88, 0.95);
-    breeze = vec3(0.25, 0.70, 0.95);
-    fresh = vec3(0.18, 0.38, 0.90);
-    gale = vec3(0.96, 0.98, 1.00);
+    // Light: Mint green -> Lime green -> Warm yellow -> Vibrant orange -> Deep red -> Rich purple -> Deep violet
+    c0 = vec3(0.55, 0.82, 0.68);  // pale mint green
+    c1 = vec3(0.68, 0.85, 0.38);  // bright lime-green
+    c2 = vec3(0.92, 0.88, 0.30);  // warm yellow
+    c3 = vec3(0.96, 0.65, 0.15);  // vibrant orange
+    c4 = vec3(0.92, 0.32, 0.20);  // deep red
+    c5 = vec3(0.78, 0.18, 0.52);  // rich purple
+    c6 = vec3(0.55, 0.10, 0.65);  // deep violet
   } else {
-    calm = vec3(0.00, 0.04, 0.10);
-    breeze = vec3(0.00, 0.85, 1.00);
-    fresh = vec3(0.95, 0.12, 0.80);
-    gale = vec3(1.00, 1.00, 1.00);
+    // Dark: Rich blue-teal -> bright teal -> cyan -> green-yellow -> amber -> hot red -> white-magenta
+    c0 = vec3(0.05, 0.25, 0.42);  // richer blue-teal (better base visibility)
+    c1 = vec3(0.03, 0.48, 0.60);  // bright teal
+    c2 = vec3(0.05, 0.75, 0.90);  // vivid cyan
+    c3 = vec3(0.40, 0.85, 0.45);  // green-yellow
+    c4 = vec3(0.95, 0.72, 0.15);  // amber
+    c5 = vec3(0.95, 0.25, 0.18);  // hot red
+    c6 = vec3(1.00, 0.80, 0.90);  // white-magenta
   }
-  if (t < 0.45) return mix(calm, breeze, t / 0.45);
-  if (t < 0.78) return mix(breeze, fresh, (t - 0.45) / 0.33);
-  return mix(fresh, gale, (t - 0.78) / 0.22);
+  // 7 stops with smooth transitions across Beaufort-inspired thresholds
+  if (t < 0.12) return mix(c0, c1, smoothstep(0.0, 0.12, t));
+  if (t < 0.25) return mix(c1, c2, smoothstep(0.12, 0.25, t));
+  if (t < 0.42) return mix(c2, c3, smoothstep(0.25, 0.42, t));
+  if (t < 0.58) return mix(c3, c4, smoothstep(0.42, 0.58, t));
+  if (t < 0.78) return mix(c4, c5, smoothstep(0.58, 0.78, t));
+  return mix(c5, c6, smoothstep(0.78, 1.0, t));
 }
 
 void main() {
@@ -363,8 +445,16 @@ void main() {
   vec4 encoded = texture2D(u_wind, v_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   float speed = length(wind);
-  float t = clamp(speed / 45.0, 0.0, 1.0);
-  float alpha = u_opacity * smoothstep(0.4, 4.0, speed);
+  float t = clamp(speed / max(u_max_speed, 1.0), 0.0, 1.0);
+  // v3.20: Theme-aware dynamic alpha floor (0.45 for beach, 0.35 for light, 0.20 for dark)
+  // Ensures low wind speeds (0-7 mph) remain visible on all maps while scaling smoothly
+  float baseAlpha = 0.20;
+  if (u_theme > 1.5) {
+    baseAlpha = 0.45;
+  } else if (u_theme > 0.5) {
+    baseAlpha = 0.35;
+  }
+  float alpha = u_opacity * (baseAlpha + (1.0 - baseAlpha) * smoothstep(0.0, 10.0, speed));
   if (u_edgeFeatherEnabled > 0.5) {
     float edgeDistX = min(v_uv.x, 1.0 - v_uv.x);
     float edgeDistY = min(v_uv.y, 1.0 - v_uv.y);

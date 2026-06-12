@@ -4,13 +4,16 @@ Shared test fixtures for the Raw Surf backend test suite.
 Uses httpx.AsyncClient + ASGITransport for testing FastAPI async endpoints
 without needing a running server. This is the FastAPI 2025 recommended pattern.
 """
+import platform
+platform._wmi = None
+
 import os
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
 
 # Set test environment variables BEFORE importing the app
-os.environ.setdefault("DATABASE_URL", "postgresql://test:test@localhost:5432/rawsurf_test")
+os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///test_dev.db")
 os.environ.setdefault("JWT_SECRET", "test-secret-key-for-ci")
 os.environ.setdefault("SUPABASE_URL", "https://test.supabase.co")
 os.environ.setdefault("SUPABASE_SERVICE_KEY", "test-service-key")

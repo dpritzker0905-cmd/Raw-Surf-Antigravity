@@ -63,10 +63,15 @@ def test_clamp_and_normalize_bbox():
     assert s == -80.0
     assert n == 85.0
 
-    # Longitude wrapping
-    w, s, e, n = clamp_and_normalize_bbox(-200.0, 24.0, 200.0, 28.0)
+    # Longitude wrapping (where span is less than 360)
+    w, s, e, n = clamp_and_normalize_bbox(-200.0, 24.0, -100.0, 28.0)
     assert w == 160.0  # -200 + 360
-    assert e == -160.0 # 200 - 360
+    assert e == -100.0
+
+    # Longitude wrapping (global view clamp)
+    w, s, e, n = clamp_and_normalize_bbox(-200.0, 24.0, 200.0, 28.0)
+    assert w == -180.0
+    assert e == 180.0
 
 def test_generate_bbox_coords():
     # Normal box
@@ -180,6 +185,64 @@ def test_select_best_candidate():
         req_w=-83.0, req_s=25.0, req_e=-81.0, req_n=27.0
     )
     assert best.name == "auth_diff2"
+
+def test_select_best_candidate_estimated_fallback():
+    """Beyond 120h, ICON wind only has estimated products. Verify selection falls back."""
+    class MockProduct:
+        def __init__(self, name, is_estimated, west, south, east, north):
+            self.name = name
+            self.is_estimated = is_estimated
+            self.coverage = type('Cov', (), {'west': west, 'south': south, 'east': east, 'north': north})()
+
+    est_global = MockProduct("est_global_coarse", True, -180.0, -80.0, 180.0, 85.0)
+    
+    # Only estimated candidates — no authoritative beyond 120h
+    best = select_best_candidate(
+        authoritative_candidates=[],
+        estimated_candidates=[(est_global, 0.0)],
+        req_w=-180.0, req_s=-80.0, req_e=180.0, req_n=85.0
+    )
+    assert best is not None
+    assert best.name == "est_global_coarse"
+    assert best.is_estimated is True
+
+    # When authoritative exists, it wins even with worse time diff
+    auth_global = MockProduct("auth_global_coarse", False, -180.0, -80.0, 180.0, 85.0)
+    best = select_best_candidate(
+        authoritative_candidates=[(auth_global, 5400.0)],
+        estimated_candidates=[(est_global, 0.0)],
+        req_w=-180.0, req_s=-80.0, req_e=180.0, req_n=85.0
+    )
+    assert best.name == "auth_global_coarse"
+
+def test_select_best_candidate_global_wide_filtering():
+    """Verify that global queries select global estimated products over regional authoritative ones."""
+    class MockProduct:
+        def __init__(self, name, is_estimated, west, south, east, north):
+            self.name = name
+            self.is_estimated = is_estimated
+            self.coverage = type('Cov', (), {'west': west, 'south': south, 'east': east, 'north': north})()
+
+    auth_regional = MockProduct("auth_regional", False, -126.0, 30.0, -114.0, 38.0)
+    est_global = MockProduct("est_global", True, -180.0, -80.0, 180.0, 85.0)
+
+    # Global request (wide/global view) -> Should filter out auth_regional, returning est_global
+    best_global = select_best_candidate(
+        authoritative_candidates=[(auth_regional, 0.0)],
+        estimated_candidates=[(est_global, 0.0)],
+        req_w=-180.0, req_s=-80.0, req_e=180.0, req_n=85.0
+    )
+    assert best_global is not None
+    assert best_global.name == "est_global"
+
+    # Regional request -> Should select auth_regional due to authoritative priority
+    best_regional = select_best_candidate(
+        authoritative_candidates=[(auth_regional, 0.0)],
+        estimated_candidates=[(est_global, 0.0)],
+        req_w=-120.0, req_s=32.0, req_e=-118.0, req_n=36.0
+    )
+    assert best_regional is not None
+    assert best_regional.name == "auth_regional"
 
 def test_filter_grid_to_bbox_mutation_safety():
     bounds = CoverageBounds(west=-80.0, south=25.0, east=-78.0, north=27.0)

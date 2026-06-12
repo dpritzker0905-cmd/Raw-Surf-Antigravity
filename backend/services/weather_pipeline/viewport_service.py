@@ -165,7 +165,7 @@ class ViewportService:
                 # Update diagnostics in the response
                 if loaded_product.grid:
                     # Crop the loaded product to exact requested bbox bounds
-                    if cached_entry.get("coverage_scope") != "global_coarse":
+                    if cached_entry.get("coverage_scope") != "global_coarse" and domain.lower() != "wind":
                         loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
                     served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                     
@@ -259,7 +259,8 @@ class ViewportService:
                     fallback_product.fallbackReason = "upstream_rate_limited"
                     fallback_product.partial_coverage = False
                     
-                    fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                    if domain.lower() != "wind":
+                        fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
                     served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                     fallback_product.served_bbox = served_bbox
 
@@ -292,8 +293,12 @@ class ViewportService:
                     detail="Upstream weather API is temporarily unavailable (cached rate limit block)."
                 )
 
-        # Deduplicate concurrent requests in-flight (hour-independent)
-        request_dedup_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{bbox_key_str}"
+        # Calculate forecast days before deduplication to avoid missing slots on concurrent requests with different day spans
+        days_diff = (target_dt - datetime.now(timezone.utc)).days + 2
+        forecast_days = max(2, min(16, days_diff))
+
+        # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
+        request_dedup_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{bbox_key_str}_{forecast_days}"
         my_future = None
         is_fetcher = False
 
@@ -319,15 +324,67 @@ class ViewportService:
                     loaded_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
                     loaded_product.partial_coverage = False
                     loaded_product.stale = False
-                    loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                    if domain.lower() != "wind":
+                        loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
                     if loaded_product.grid and loaded_product.grid.bounds:
                         loaded_product.served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                     return loaded_product
                 else:
-                    raise Exception(f"Product not found in cache after wait: {my_viewport_filename}")
+                    logger.warning(f"[Dynamic Viewport] Waiter awoke but target product was not in cache: {my_viewport_filename}. Proceeding to self-heal and fetch.")
             except Exception as e:
-                logger.error(f"[Dynamic Viewport] Shared in-flight fetch failed: {e}")
-                raise HTTPException(status_code=504, detail="Upstream weather request failed (shared).")
+                logger.warning(f"[Dynamic Viewport] Shared in-flight fetch failed or raised exception: {e}. Proceeding to self-heal and fetch.")
+            
+            # Re-evaluate in-flight deduplication before fetching, since we are now entering the fetcher phase.
+            async with self.IN_FLIGHT_LOCK:
+                if request_dedup_key in self.IN_FLIGHT_REQUESTS:
+                    my_future = self.IN_FLIGHT_REQUESTS[request_dedup_key]
+                    is_fetcher = False
+                else:
+                    my_future = asyncio.Future()
+                    self.IN_FLIGHT_REQUESTS[request_dedup_key] = my_future
+                    is_fetcher = True
+            
+            # If another waiter also fell through and became the fetcher first, we wait on it.
+            if not is_fetcher:
+                logger.info(f"[Dynamic Viewport] Waiter sharing newly spawned self-heal fetcher for {request_dedup_key}")
+                try:
+                    await my_future
+                    my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
+                    my_viewport_filename = f"{my_cache_key}.json"
+                    loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+                    if loaded_product:
+                        loaded_product.cache_hit = "cache_hit"
+                        loaded_product.requested_bbox_original = bbox_str
+                        loaded_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+                        loaded_product.partial_coverage = False
+                        loaded_product.stale = False
+                        if domain.lower() != "wind":
+                            loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                        if loaded_product.grid and loaded_product.grid.bounds:
+                            loaded_product.served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
+                        return loaded_product
+                except Exception as inner_e:
+                    logger.error(f"[Dynamic Viewport] Waiter self-heal retry failed: {inner_e}")
+                
+                # If retry failed as well, try checking for stale cached fallback before raising 504.
+                fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
+                if fallback_product:
+                    logger.info(f"[Dynamic Viewport] Fallback (Self-Heal Waiter Failure): Found cached product {fallback_product.product_id}")
+                    fallback_product.cache_hit = "stale_cache_hit"
+                    fallback_product.requested_bbox_original = bbox_str
+                    fallback_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+                    fallback_product.requested_bbox = bbox_str
+                    fallback_product.is_dynamic_viewport_product = True
+                    fallback_product.stale = True
+                    fallback_product.staleReason = "upstream_request_failed"
+                    fallback_product.partial_coverage = False
+                    if domain.lower() != "wind":
+                        fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                    if fallback_product.grid and fallback_product.grid.bounds:
+                        fallback_product.served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
+                    return fallback_product
+                
+                raise HTTPException(status_code=504, detail="Upstream weather request failed (shared self-heal).")
 
         try:
             # We are the fetcher! Let's generate coordinates
@@ -335,8 +392,9 @@ class ViewportService:
             coord_count = len(lats_coords)
 
             # Safety step-up for coordinate count
+            coord_cap = 3000 if domain.lower() == "wind" else 800
             resolution_steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
-            while coord_count > 800 and resolution != 40.0:
+            while coord_count > coord_cap and resolution != 40.0:
                 idx = resolution_steps.index(resolution)
                 resolution = resolution_steps[min(len(resolution_steps) - 1, idx + 1)]
                 lats_coords, lons_coords = generate_bbox_coords(west, south, east, north, resolution)
@@ -345,8 +403,6 @@ class ViewportService:
             logger.info(f"[Dynamic Viewport] Fetching coordinates count: {coord_count} at resolution {resolution}°")
 
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
-            days_diff = (target_dt - datetime.now(timezone.utc)).days + 2
-            forecast_days = max(2, min(16, days_diff))
 
             # For GFS Wind, respect the safer 0.2s batch delay, otherwise use 0.1s
             inter_delay = 0.2 if (model.upper() == "GFS" and domain == "wind") else 0.1
@@ -414,6 +470,16 @@ class ViewportService:
 
                     if not this_normalized_product:
                         logger.warning(f"[Dynamic Viewport] Normalization failed for time: {t_str}")
+                        continue
+
+                    # Skip empty/non-renderable grids (missing/None data from upstream) to allow manifest/stale fallback
+                    is_empty_grid = False
+                    if this_normalized_product.grid and this_normalized_product.grid.vectors:
+                        if not any(v.speed > 0 for v in this_normalized_product.grid.vectors):
+                            is_empty_grid = True
+
+                    if is_empty_grid:
+                        logger.warning(f"[Dynamic Viewport] Normalization produced empty grid for time: {t_str}. Skipping save.")
                         continue
 
                     # Update conformed metadata
@@ -495,11 +561,12 @@ class ViewportService:
 
             # Acknowledge completion to shared listeners
             async with self.IN_FLIGHT_LOCK:
-                my_future.set_result(True)
+                if not my_future.done():
+                    my_future.set_result(True)
                 self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
 
-            # Return exact cropped product for the client's original bbox request if not global_coarse
-            if target_normalized_product.coverage_scope == "global_coarse":
+            # Return exact cropped product for the client's original bbox request if not global_coarse and not wind
+            if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
                 return target_normalized_product
             cropped_product = filter_grid_to_bbox(target_normalized_product, bbox_str)
             if cropped_product.grid and cropped_product.grid.bounds:
@@ -511,12 +578,13 @@ class ViewportService:
             async with self.IN_FLIGHT_LOCK:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
                     fut = self.IN_FLIGHT_REQUESTS[request_dedup_key]
-                    fut.set_exception(e)
-                    # Retrieve exception to suppress 'Future exception was never retrieved' log warnings
-                    try:
-                        fut.exception()
-                    except Exception:
-                        pass
+                    if not fut.done():
+                        fut.set_exception(e)
+                        # Retrieve exception to suppress 'Future exception was never retrieved' log warnings
+                        try:
+                            fut.exception()
+                        except Exception:
+                            pass
                     self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
 
             logger.warning(f"[Dynamic Viewport] Upstream fetch failed for {model} {layer}: {e}")
@@ -543,7 +611,8 @@ class ViewportService:
                 fallback_product.partial_coverage = False
                 
                 # Crop to requested bounds
-                fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                if domain.lower() != "wind":
+                    fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
                 served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                 fallback_product.served_bbox = served_bbox
 
@@ -626,7 +695,7 @@ class ViewportService:
         target_dt: datetime,
         bbox_str: Optional[str] = None
     ) -> Optional[NormalizedProduct]:
-        """Searches dynamic index and manifest for any product matching model/layer and target time."""
+        """Searches dynamic index and manifest for any product matching model/layer and target time, choosing the closest."""
         req_w, req_s, req_e, req_n = None, None, None, None
         if bbox_str:
             try:
@@ -675,16 +744,11 @@ class ViewportService:
                         best_item = item
                 except Exception:
                     continue
-                    
-        if best_item:
-            loaded = await asyncio.to_thread(self.store.load_product, best_item["product_id"])
-            if loaded:
-                return loaded
 
         # 2. Search Manifest (pruning for anomalous future-dated entries runs inside get_manifest())
         manifest = await asyncio.to_thread(self.store.get_manifest)
         best_manifest_item = None
-        min_diff = float("inf")
+        min_manifest_diff = float("inf")
         
         for p in manifest.products:
             if (
@@ -694,20 +758,32 @@ class ViewportService:
             ):
                 diff = abs(p.valid_time_start.timestamp() - target_ts)
                 # Allow up to 24 hours stale product fallback for rate limit
-                if diff < min_diff and diff <= 24 * 3600:
-                    # If bbox is specified, manifest fallback in Step 5 MUST fully cover the bbox.
+                if diff < min_manifest_diff and diff <= 24 * 3600:
+                    # If bbox is specified, manifest fallback MUST fully cover the bbox.
                     # Partial coverage falls back to Step 6 instead!
                     if req_w is not None:
                         if not is_bbox_covered_by(req_w, req_s, req_e, req_n, p.coverage, margin=0.05):
                             continue
-                    min_diff = diff
+                    min_manifest_diff = diff
                     best_manifest_item = p
-                    
+
+        # Compare best dynamic vs best manifest, serving the one with the smallest time difference
+        if best_item and (best_manifest_item is None or min_diff <= min_manifest_diff):
+            loaded = await asyncio.to_thread(self.store.load_product, best_item["product_id"])
+            if loaded:
+                return loaded
+
         if best_manifest_item:
             loaded = await asyncio.to_thread(self.store.load_product, best_manifest_item.filename)
             if loaded:
                 loaded.product_id = best_manifest_item.filename
                 return loaded
                 
+        # Fallback to loading dynamic index item if manifest loading failed
+        if best_item:
+            loaded = await asyncio.to_thread(self.store.load_product, best_item["product_id"])
+            if loaded:
+                return loaded
+
         return None
 

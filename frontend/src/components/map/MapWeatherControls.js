@@ -198,7 +198,7 @@ export var MapWeatherControls = ({
     return config;
   }, [theme]);
 
-  const maxForecastDays = resolveForecastWindow(userTier, activeModel);
+  const maxForecastDays = resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]);
   const maxForecastHours = maxForecastDays * 24;
   const isRadar = radarMode && radarFrames.length > 0;
 

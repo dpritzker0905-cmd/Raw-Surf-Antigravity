@@ -395,7 +395,7 @@ export function useOpenMeteoTileUrls({
           if (entry.omModel) return entry.omModel;
           if (variable === 'wind_u_component_10m') {
             const baseModel = WIND_MODEL_MAP[activeModel] || 'ncep_gfs013';
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 115) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 120) {
               return 'ncep_gfs013';
             }
             if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
@@ -409,7 +409,7 @@ export function useOpenMeteoTileUrls({
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {
             const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
-            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 115) {
+            if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 168) {
               return 'ncep_gfs013';
             }
             if (baseModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
@@ -420,7 +420,7 @@ export function useOpenMeteoTileUrls({
           if (targetModel === 'ecmwf_ifs025' && debouncedTimeOffsetHours > 228) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
-          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > 115) {
+          if (targetModel === 'dwd_icon' && debouncedTimeOffsetHours > 168) {
             return 'ncep_gfs025'; // Fallback to GFS atmospheric
           }
           return targetModel;

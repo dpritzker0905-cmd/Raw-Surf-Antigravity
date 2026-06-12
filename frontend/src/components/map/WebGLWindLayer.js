@@ -22,6 +22,7 @@ var LAYER_ID = 'webgl-wind-particles';
  */
 function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRef) {
   let errorCount = 0;
+  let lastErrorTime = 0; // v3.15: Track error time for recovery
   return {
     id: LAYER_ID,
     type: 'custom',
@@ -55,11 +56,13 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         } else if (matrixArg && typeof matrixArg === 'object') {
           // v5 style: Object with matrix properties
           // Our shader expects mercator [0,1] coords → clip space, which is defaultProjectionData.mainMatrix (= mercatorMatrix)
-          // modelViewProjectionMatrix is NOT suitable (it's in a different coordinate space)
-          _matrix = matrixArg.defaultProjectionData?.mainMatrix || matrixArg.mercatorMatrix || matrixArg.mainMatrix || matrixArg.modelViewProjectionMatrix;
+          // v3.15: NEVER use modelViewProjectionMatrix — it's in a different coordinate space and causes projection glitches
+          _matrix = matrixArg.defaultProjectionData?.mainMatrix || matrixArg.mercatorMatrix || matrixArg.mainMatrix;
           if (!_matrix || !_matrix.length) {
             // Fallback: search all values for a Float32Array/Float64Array of length 16
+            // but EXCLUDE modelViewProjectionMatrix which is in a different coordinate space
             for (var k in matrixArg) {
+              if (k === 'modelViewProjectionMatrix') continue; // v3.15: Skip — wrong coord space
               var v = matrixArg[k];
               if (v && (v instanceof Float32Array || v instanceof Float64Array) && v.length === 16) {
                 _matrix = v;
@@ -84,7 +87,8 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
       } else if (glOrArgs && typeof glOrArgs === 'object' && glOrArgs.gl) {
         // Pure v5 args-object style
         _gl = glOrArgs.gl;
-        _matrix = glOrArgs.defaultProjectionData?.mainMatrix || glOrArgs.modelViewProjectionMatrix || glOrArgs.matrix;
+        // v3.15: Never use modelViewProjectionMatrix — wrong coordinate space
+        _matrix = glOrArgs.defaultProjectionData?.mainMatrix || glOrArgs.mercatorMatrix || glOrArgs.matrix;
       } else {
         _gl = glOrArgs;
         _matrix = matrixArg;
@@ -93,7 +97,13 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
         this._renderLogged = true;
         console.log("[WebGLWindLayer] render init: matrix", _matrix?.constructor?.name, "len:", _matrix?.length, "active:", activeRef.current);
       }
-      if (!activeRef.current || errorCount > 3) {
+
+      // v3.15: Error recovery — reset count after 10s of no errors
+      if (errorCount > 0 && (Date.now() - lastErrorTime) > 10000) {
+        errorCount = 0;
+      }
+
+      if (!activeRef.current || errorCount > 5) {
         // v3.11.2r1: Clear FBOs when deactivated to prevent trail residue
         if (this._wasActive) {
           engine.clearBuffers(_gl);
@@ -137,17 +147,33 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
           console.warn('[WebGLWindLayer] Failed to calculate dynamic offsets:', boundsErr);
         }
 
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets);
+        // v3.16: Compute viewport bounds for viewport-biased particle respawning
+        let viewportBounds = null;
+        try {
+          const mapBounds = map.getBounds();
+          if (mapBounds) {
+            viewportBounds = [
+              mapBounds.getWest(),
+              mapBounds.getSouth(),
+              mapBounds.getEast(),
+              mapBounds.getNorth()
+            ];
+          }
+        } catch (vbErr) {
+          // Fallback: global bounds
+        }
+
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, worldOffsets, viewportBounds);
         // Request continuous repainting while active
         map.triggerRepaint();
       } catch (e) {
         errorCount++;
-        if (errorCount <= 3) {
-          console.warn(`[WebGLWind] Render error (${errorCount}/3):`, e.message);
+        lastErrorTime = Date.now();
+        if (errorCount <= 5) {
+          console.warn(`[WebGLWind] Render error (${errorCount}/5):`, e.message);
         }
-        if (errorCount === 3) {
-          console.error('[WebGLWind] Too many errors, disabling GPU particles. Canvas2D fallback active.');
-          if (onErrorRef.current) onErrorRef.current();
+        if (errorCount === 5) {
+          console.error('[WebGLWind] Too many errors, temporarily disabling GPU particles (will retry in 10s).');
         }
       }
     },

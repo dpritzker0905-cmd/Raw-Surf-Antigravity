@@ -109,6 +109,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return () => clearTimeout(t);
   }, [activeLayersKey]);
 
+  const hasMarineLayers = useMemo(() => {
+    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
+  }, [activeLayers]);
+
+  useEffect(() => {
+    if (!hasMarineLayers) {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_HEATMAP_STATUS__ = null;
+      }
+    }
+  }, [hasMarineLayers]);
+
   useEffect(() => {
     if (!mapInstance) return;
 

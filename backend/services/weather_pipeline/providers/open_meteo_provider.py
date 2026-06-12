@@ -5,6 +5,12 @@ import asyncio
 from typing import Dict, List, Any, Optional
 import math
 from datetime import datetime, timezone, timedelta
+from dotenv import load_dotenv
+from pathlib import Path
+
+# Load backend .env if it exists
+backend_dir = Path(__file__).resolve().parent.parent.parent.parent
+load_dotenv(backend_dir / '.env')
 
 logger = logging.getLogger(__name__)
 
@@ -210,7 +216,7 @@ class OpenMeteoProvider:
                 forecast_days = min(forecast_days, 16)
         else: # weather / wind
             if model.upper() == "ICON":
-                forecast_days = min(forecast_days, 7)
+                forecast_days = min(forecast_days, 5)
             elif model.upper() == "EURO":
                 forecast_days = min(forecast_days, 15)
             else:
@@ -297,7 +303,7 @@ class OpenMeteoProvider:
         )
 
         is_test = is_test_environment()
-        if is_test and not (model.upper() == "GFS" and domain == "wind"):
+        if is_test and not (model.upper() in ("GFS", "EURO", "ICON") and domain == "wind"):
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock grid immediately.")
             mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
             for item in mock_res:
@@ -310,8 +316,8 @@ class OpenMeteoProvider:
         async with httpx.AsyncClient() as client:
             try:
                 # Coordinate batch chunking to prevent HTTP 414 URI Too Long errors on large grids.
-                # Netlify proxy uses JSON POST now, so we can use a larger batch size (800) to minimize request count and avoid rate limits.
-                batch_size = 800 if use_proxy else 1000
+                # Netlify proxy uses JSON POST now, but we restrict the batch size to 100 to avoid Netlify's 10s function timeout.
+                batch_size = 100 if use_proxy else 1000
                 aggregated_results = []
 
                 for i in range(0, len(lats), batch_size):
@@ -381,9 +387,9 @@ class OpenMeteoProvider:
                         # Open-Meteo returns a single dictionary if it's only 1 point, wrap in a list
                         aggregated_results.append(data)
 
-                    # Tighter inter-batch delay (0.5s for wind, 0.2s for marine) for direct POSTing
+                    # Tighter inter-batch delay (0.8s for wind, 0.5s for marine) for proxy to prevent timeouts
                     delay = inter_batch_delay if inter_batch_delay is not None else (
-                        (2.5 if domain == "wind" else 1.2) if use_proxy else (0.5 if domain == "wind" else 0.2)
+                        (0.8 if domain == "wind" else 0.5) if use_proxy else (0.5 if domain == "wind" else 0.2)
                     )
                     if i + batch_size < len(lats):
                         await asyncio.sleep(delay)
@@ -425,7 +431,7 @@ class OpenMeteoProvider:
                 forecast_days = min(forecast_days, 16)
         else: # weather / wind
             if model.upper() == "ICON":
-                forecast_days = min(forecast_days, 7)
+                forecast_days = min(forecast_days, 5)
             elif model.upper() == "EURO":
                 forecast_days = min(forecast_days, 15)
             else:
@@ -493,7 +499,7 @@ class OpenMeteoProvider:
         )
 
         is_test = is_test_environment()
-        if is_test and not (model.upper() == "GFS" and domain == "wind"):
+        if is_test and not (model.upper() in ("GFS", "EURO", "ICON") and domain == "wind"):
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock point immediately.")
             mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
             if mock_res:

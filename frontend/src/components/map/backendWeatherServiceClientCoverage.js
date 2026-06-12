@@ -160,6 +160,24 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
   );
 
   if (isViewportEnabled) {
+    // v3.15: For WIND domain, always request global coverage.
+    // Wind particles must render across the entire map, so we need global data.
+    // The backend's viewport_service expands to global when span > 180° and uses
+    // coarse resolution (5°) for efficiency. Viewport-clipped wind grids cause
+    // visible rectangular edges when panning.
+    if (inferredDomain === 'wind') {
+      return {
+        isInside: true,
+        clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
+        fallbackReason: null,
+        coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+        selectedTileId: 'global_wind',
+        availableTileIds: REGIONAL_TILES.map(t => t.id),
+        rejectedTileIds: [],
+        tileFallbackReason: null
+      };
+    }
+
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
     const snapW = Math.floor(west / tileSize) * tileSize;
     const snapS = Math.floor(south / tileSize) * tileSize;

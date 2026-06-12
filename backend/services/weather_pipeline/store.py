@@ -157,27 +157,35 @@ class ProductStore:
         # Step 3: Write manifest to disk
         try:
             manifest = PipelineManifest.model_validate(manifest_data)
-            # Preserve existing local test fixtures if in test environment
-            if is_test_env and self.manifest_path.exists():
+            # Preserve existing local test fixtures and estimated products if in dev/test environment
+            node_env = os.environ.get("NODE_ENV", "").lower()
+            env = os.environ.get("ENV", "").lower()
+            is_prod = (node_env == "production" or env == "production" or os.environ.get("IS_PROD", "").lower() == "true")
+            is_dev_or_test = not is_prod
+
+            if is_dev_or_test and self.manifest_path.exists():
                 try:
                     with open(self.manifest_path, "r") as f:
                         local_data = json.load(f)
                     local_manifest = PipelineManifest.model_validate(local_data)
-                    local_tf_products = [
+                    local_tf_and_estimated = [
                         p for p in local_manifest.products
-                        if p.is_test_fixture
+                        if p.is_test_fixture or getattr(p, "is_estimated", False)
                     ]
-                    if local_tf_products:
-                        # Merge local test fixtures into downloaded manifest, avoiding duplicates
+                    if local_tf_and_estimated:
+                        # Merge local test fixtures and conformed estimated products into downloaded manifest, avoiding duplicates
                         existing_ids = {p.product_id for p in manifest.products if p.product_id}
                         existing_filenames = {p.filename for p in manifest.products if p.filename}
-                        for tf in local_tf_products:
+                        merged_count = 0
+                        for tf in local_tf_and_estimated:
                             tf_id = tf.product_id or tf.filename
                             if tf_id not in existing_ids and tf.filename not in existing_filenames:
                                 manifest.products.append(tf)
-                        logger.info(f"[Product Store] Merged {len(local_tf_products)} existing local test fixtures from disk manifest")
+                                merged_count += 1
+                        if merged_count > 0:
+                            logger.info(f"[Product Store] Merged {merged_count} existing local test fixtures / estimated products from disk manifest")
                 except Exception as merge_err:
-                    logger.warning(f"[Product Store] Failed to merge local test fixtures: {merge_err}")
+                    logger.warning(f"[Product Store] Failed to merge local test fixtures / estimated products: {merge_err}")
 
             # Filter out test fixtures from manifest in production
             if not is_test_env:
@@ -245,14 +253,37 @@ class ProductStore:
         if not self.manifest_path.exists():
             return PipelineManifest(last_manifest_update=datetime.now(timezone.utc), products=[])
         
-        try:
-            with open(self.manifest_path, "r") as f:
-                data = json.load(f)
-            # File is now closed, safe to overwrite manifest
-            manifest = PipelineManifest.model_validate(data)
-        except Exception as e:
-            logger.error(f"[Product Store] Manifest parse error: {e}")
-            return PipelineManifest(last_manifest_update=datetime.now(timezone.utc), products=[])
+        import time
+        retries = 5
+        last_err = None
+        manifest = None
+        for attempt in range(retries):
+            try:
+                with open(self.manifest_path, "r") as f:
+                    data = json.load(f)
+                manifest = PipelineManifest.model_validate(data)
+                break
+            except Exception as e:
+                last_err = e
+                time.sleep(0.05)
+        
+        if manifest is None:
+            logger.error(f"[Product Store] Manifest parse error after {retries} retries: {last_err}")
+            sb = _get_supabase_storage()
+            if sb:
+                try:
+                    logger.warning("[Product Store] Local manifest read/parse failed. Attempting fallback download from Supabase...")
+                    manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
+                    if manifest_bytes:
+                        data = json.loads(manifest_bytes.decode("utf-8"))
+                        manifest = PipelineManifest.model_validate(data)
+                        with open(self.manifest_path, "w") as f:
+                            f.write(manifest.model_dump_json(indent=2))
+                except Exception as sb_err:
+                    logger.error(f"[Product Store] Supabase manifest fallback download failed: {sb_err}")
+            
+            if manifest is None:
+                raise RuntimeError(f"Failed to load or parse manifest.json registry: {last_err}")
 
         # Dynamic self-healing: prune impossible future-dated products (>30 days in future)
         now = datetime.now(timezone.utc)
@@ -313,7 +344,8 @@ class ProductStore:
     def _save_manifest(self, manifest: PipelineManifest):
         """Atomically saves the manifest registry."""
         import time
-        tmp_path = self.manifest_path.with_suffix(".manifest.tmp")
+        import uuid
+        tmp_path = self.manifest_path.parent / f"manifest_{uuid.uuid4().hex}.tmp"
         try:
             with open(tmp_path, "w") as f:
                 f.write(manifest.model_dump_json(indent=2))
@@ -552,6 +584,55 @@ class ProductStore:
             self._upload_to_supabase("manifest.json", manifest_json)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
+
+    def prune_superseded_products(
+        self, model: str, domain: str, layer: str, region_id: str, latest_run_time: datetime
+    ):
+        """
+        Removes all manifest entries and files for the specified model/domain/layer/region
+        that have a run_time strictly older than latest_run_time.
+        """
+        manifest = self.get_manifest()
+        manifest.last_manifest_update = datetime.now(timezone.utc)
+
+        remaining_products = []
+        pruned_count = 0
+        for p in manifest.products:
+            region_match = (
+                p.region_id == region_id
+                or (region_id and p.region_id is None and getattr(p, "coverage_mode", None) == "global_tile")
+            )
+            if (
+                p.model.upper() == model.upper()
+                and p.domain.lower() == domain.lower()
+                and p.layer.lower() == layer.lower()
+                and region_match
+                and p.run_time < latest_run_time
+            ):
+                # Remove file from disk (L1)
+                filepath = self.cache_dir / p.filename
+                if filepath.exists():
+                    try:
+                        os.remove(filepath)
+                        logger.info(f"[Product Store] Pruned superseded product file: {p.filename}")
+                    except Exception as e:
+                        logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
+                # Remove from Supabase Storage (L2)
+                self._delete_from_supabase(p.filename)
+                pruned_count += 1
+            else:
+                remaining_products.append(p)
+
+        if pruned_count > 0:
+            manifest.products = remaining_products
+            self._save_manifest(manifest)
+            # Update manifest in Supabase after prune
+            try:
+                manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+                self._upload_to_supabase("manifest.json", manifest_json)
+                logger.info(f"[Product Store] Manifest L2 uploaded after pruning {pruned_count} superseded products.")
+            except Exception as e:
+                logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
 
     def validate_copernicus_product(
         self,
