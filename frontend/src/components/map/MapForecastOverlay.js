@@ -171,17 +171,18 @@ export const MapForecastOverlay = ({
   const rawWindSpeed = isLive && liveWind?.wind_speed_10m != null
     ? liveWind.wind_speed_10m : getClampedValue(wx.wind_speed_10m, currentHourIndex);
   const windSpeed = (isExactPointAuthority && activeLayer === 'wind')
-    ? (useExactPoint?.wind_speed_10m ?? (useGridFallback && sampledWind ? sampledWind.value : null))
+    ? (useExactPoint?.wind_speed_10m ?? sampledWind?.value ?? getBiasAdjustedLocal(rawWindSpeed, 'wind'))
     : (activeLayer === 'wind' && sampledWind)
       ? sampledWind.value
       : getBiasAdjustedLocal(rawWindSpeed, 'wind');
 
+  const fallbackWindDir = isLive && liveWind?.wind_direction_10m != null
+    ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex);
   const windDir = (isExactPointAuthority && activeLayer === 'wind')
-    ? (useExactPoint?.wind_direction_10m ?? (useGridFallback && sampledWind ? sampledWind.direction : null))
+    ? (useExactPoint?.wind_direction_10m ?? sampledWind?.direction ?? fallbackWindDir)
     : (activeLayer === 'wind' && sampledWind)
       ? sampledWind.direction
-      : (isLive && liveWind?.wind_direction_10m != null
-        ? liveWind.wind_direction_10m : getClampedValue(wx.wind_direction_10m, currentHourIndex));
+      : fallbackWindDir;
 
   const rawWindGusts = isLive && liveWind?.wind_gusts_10m != null
     ? liveWind.wind_gusts_10m : getClampedValue(wx.wind_gusts_10m, currentHourIndex);
