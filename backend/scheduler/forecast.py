@@ -26,6 +26,8 @@ def ingest_marine_forecast_task():
         store = ProductStore()
         weather_scheduler = WeatherPipelineScheduler(store=store)
         loop.run_until_complete(weather_scheduler.ingest_icon_wind_global())
+        loop.run_until_complete(weather_scheduler.ingest_gfs_marine_pilot())
+        loop.run_until_complete(weather_scheduler.ingest_gfs_marine_global())
         
         loop.close()
         logger.info("[Scheduler] Successfully completed forecast ingestion.")
