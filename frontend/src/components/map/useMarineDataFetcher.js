@@ -100,9 +100,16 @@ export function useMarineDataFetcher({
       updateMarineGridRef.current = updateMarineGrid;
 
       if (locks.isFetching) {
-        pendingMarineIntentRef.current = { source, model, layer, hour: timeOffset, timestamp: Date.now() };
-        logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
-        return;
+        if (isTimelineScrub) {
+          // Timeline scrubs take priority over in-flight fetches.
+          // The in-flight request will self-invalidate via the stale requestId check.
+          console.log(`[SCRUB] Overriding in-flight fetch for timeline scrub to +${timeOffset}h`);
+          locks.isFetching = false;
+        } else {
+          pendingMarineIntentRef.current = { source, model, layer, hour: timeOffset, timestamp: Date.now() };
+          logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
+          return;
+        }
       }
 
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;

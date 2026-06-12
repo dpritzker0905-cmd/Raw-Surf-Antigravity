@@ -274,6 +274,8 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     type: 'FeatureCollection',
     features: [],
     hourOffset,
+    tile_id: json.tile_id || json.region_id || null,
+    region_id: json.region_id || json.tile_id || null,
     grid: {
       vectors: mappedVectors,
       bounds: json.grid.bounds || snappedBounds,
@@ -296,6 +298,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       renderable,
       emptyGridWarning: !renderable ? "All vectors in grid are zero or null, or grid is empty" : null,
       productId: json.product_id || null,
+      region_id: json.region_id || json.tile_id || null,
       coverage_scope: json.coverage_scope || null,
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,

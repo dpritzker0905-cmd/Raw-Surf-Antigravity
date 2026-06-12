@@ -64,6 +64,8 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
     type: 'FeatureCollection',
     features: [],
     hourOffset,
+    tile_id: json.tile_id || json.region_id || null,
+    region_id: json.region_id || json.tile_id || null,
     grid: {
       vectors: mappedVectors,
       bounds: json.grid.bounds || snappedBounds,
@@ -85,6 +87,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       maxSpeed,
       renderable,
       productId: json.product_id || null,
+      region_id: json.region_id || json.tile_id || null,
       coverage_scope: json.coverage_scope || null,
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
