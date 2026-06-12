@@ -367,7 +367,6 @@ async def lifespan(app: FastAPI):
         if is_render:
             logger.info("[lifespan] Render deployment detected. Skipping memory-heavy background cache pre-population on startup to ensure container stability.")
         else:
-            import asyncio
             asyncio.create_task(run_background_cache_population())
 
     yield
