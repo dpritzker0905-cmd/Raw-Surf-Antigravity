@@ -81,6 +81,18 @@ export function useWebGLGuardrail({
         return;
       }
 
+      // Bypass monitoring if the user is currently timeline scrubbing or has scrubbed in the last 5 seconds
+      const isScrubbing = typeof window !== 'undefined' && (
+        window.isScrubbingTimeline === true ||
+        (window.lastScrubTime && (Date.now() - window.lastScrubTime < 5000))
+      );
+      if (isScrubbing) {
+        frameCount = 0;
+        lastTime = now;
+        lowFpsCount = 0;
+        return;
+      }
+
       frameCount++;
       const elapsed = now - lastTime;
 

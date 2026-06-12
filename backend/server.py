@@ -356,10 +356,14 @@ async def lifespan(app: FastAPI):
         # Start background scheduler
         start_scheduler()
 
-    # Trigger background cache pre-population check in a non-blocking way
+    # Trigger background cache pre-population check and prefetching in a non-blocking way
     is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
     is_render = os.environ.get("RENDER") == "true"
     if not is_testing:
+        # Start background prefetch of conformed products from L2 to L1
+        from services.weather_pipeline.prefetcher import prefetch_supabase_products
+        asyncio.create_task(prefetch_supabase_products())
+
         if is_render:
             logger.info("[lifespan] Render deployment detected. Skipping memory-heavy background cache pre-population on startup to ensure container stability.")
         else:

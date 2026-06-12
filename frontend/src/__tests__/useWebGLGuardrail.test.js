@@ -382,4 +382,61 @@ describe('useWebGLGuardrail', () => {
     // Should not trigger fallback since document is hidden
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
   });
+
+  it('does not trigger fallback when user is timeline scrubbing', () => {
+    const setWebglWindFailed = jest.fn();
+    const setWebglMarineFailed = jest.fn();
+
+    // Set timeline scrubbing to true
+    global.window.isScrubbingTimeline = true;
+
+    renderHook(() =>
+      useWebGLGuardrail({
+        mapInstance,
+        activeLayers: ['waves'],
+        setWebglWindFailed,
+        setWebglMarineFailed,
+        webglWindFailed: false,
+        webglMarineFailed: false,
+      })
+    );
+
+    // Advance past grace period
+    currentTime += 11000;
+
+    const onRender = eventListeners['render'];
+
+    // Flush the delta >= 2000 gate
+    onRender();
+
+    // Simulate 15 FPS (approx 66.7ms per frame) for 7 seconds
+    for (let sec = 0; sec < 7; sec++) {
+      for (let f = 0; f < 15; f++) {
+        currentTime += 66.7;
+        onRender();
+      }
+    }
+
+    // Should not trigger fallback since window.isScrubbingTimeline is true
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+
+    // Reset scrubbing, but set lastScrubTime to now
+    global.window.isScrubbingTimeline = false;
+    global.window.lastScrubTime = Date.now();
+
+    // Run another 7 seconds of low FPS
+    for (let sec = 0; sec < 7; sec++) {
+      for (let f = 0; f < 15; f++) {
+        currentTime += 66.7;
+        onRender();
+      }
+    }
+
+    // Still should not trigger fallback because Date.now() - lastScrubTime < 5000
+    expect(setWebglMarineFailed).not.toHaveBeenCalled();
+
+    // Cleanup globals
+    delete global.window.isScrubbingTimeline;
+    delete global.window.lastScrubTime;
+  });
 });
