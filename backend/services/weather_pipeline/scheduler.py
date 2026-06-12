@@ -81,7 +81,7 @@ class WeatherPipelineScheduler:
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
             results = await self._fetch_or_mock(
-                "GFS", "marine", "all_marine", region, resolution, 16,
+                "GFS", "marine", "all_marine", region, resolution, 8,
                 env["is_test_env"],
                 lambda: generate_mock_marine_results(self.om_provider, region, resolution),
                 region_id
@@ -256,10 +256,11 @@ class WeatherPipelineScheduler:
         }
         resolution = 10.0
 
+        forecast_days = 2 if env["is_test_env"] else 14
         results = await self._fetch_or_mock(
-            "GFS", "marine", "all_marine", global_region, resolution, 14,
+            "GFS", "marine", "all_marine", global_region, resolution, forecast_days,
             env["is_test_env"],
-            lambda: generate_mock_marine_results(self.om_provider, global_region, resolution, forecast_days=14),
+            lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
             "global_coarse"
         )
         if not results:

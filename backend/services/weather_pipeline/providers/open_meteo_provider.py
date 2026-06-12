@@ -315,9 +315,8 @@ class OpenMeteoProvider:
 
         async with httpx.AsyncClient() as client:
             try:
-                # Coordinate batch chunking to prevent HTTP 414 URI Too Long errors on large grids.
-                # Netlify proxy uses JSON POST now, but we restrict the batch size to 100 to avoid Netlify's 10s function timeout.
-                batch_size = 100 if use_proxy else 1000
+                # We restrict the batch size to 100 to avoid Netlify's 10s function timeout and direct API 429 rate limits.
+                batch_size = 100
                 aggregated_results = []
 
                 for i in range(0, len(lats), batch_size):
