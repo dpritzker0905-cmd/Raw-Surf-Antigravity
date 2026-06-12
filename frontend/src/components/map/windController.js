@@ -5,7 +5,8 @@ import {
   findClosestHourIndex, HOURLY_CACHE_TTL, hydrateCache,
   getSnapConfig, isViewportInsideCachedBounds
 } from './marineControllerUtils';
-import { getBackendWindFlag, fetchBackendWindGrid, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
+import { getBackendWindFlag, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
+import { fetchBackendWindGrid } from './backendWindServiceClient';
 import { createFallbackSafeZeroGrid } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
 

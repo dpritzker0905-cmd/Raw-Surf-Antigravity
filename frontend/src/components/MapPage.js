@@ -493,9 +493,11 @@ var MapPageContent = () => {
           }}
           onMapMoveEnd={(center) => setMapCenter(center)}
           onMapLongPress={(lngLat) => {
-            setLongPressLocation({ lat: lngLat.lat, lng: lngLat.lng });
-            setSelectedSpot(null);
-            setUnifiedDrawerOpen(false);
+            if (lngLat && typeof lngLat.lat === 'number' && typeof lngLat.lng === 'number') {
+              setLongPressLocation({ lat: lngLat.lat, lng: lngLat.lng });
+              setSelectedSpot(null);
+              setUnifiedDrawerOpen(false);
+            }
           }}
           longPressLocation={longPressLocation}
         />

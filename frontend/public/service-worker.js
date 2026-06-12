@@ -22,14 +22,27 @@ const OFFLINE_API_PATTERNS = [
   '/api/spots-in-bounds'
 ];
 
+// Helper to safely call caches.open, returning null on rejection
+async function safeOpenCache(name) {
+  try {
+    return await caches.open(name);
+  } catch (err) {
+    console.warn(`[ServiceWorker] CacheStorage open(${name}) failed:`, err);
+    return null;
+  }
+}
+
 // Install event - cache essential assets
 self.addEventListener('install', (event) => {
   console.log('[ServiceWorker] Install - caching static assets');
   event.waitUntil(
-    caches.open(CACHE_NAME).then((cache) => {
+    safeOpenCache(CACHE_NAME).then((cache) => {
+      if (!cache) return;
       return cache.addAll(STATIC_ASSETS).catch(err => {
         console.log('[ServiceWorker] Static cache failed (expected in dev):', err);
       });
+    }).catch(err => {
+      console.warn('[ServiceWorker] Install cache flow failed:', err);
     })
   );
   self.skipWaiting();
@@ -42,16 +55,22 @@ self.addEventListener('activate', (event) => {
     (async () => {
       // Enable navigation preload to prevent error flash during SW activation
       if (self.registration.navigationPreload) {
-        await self.registration.navigationPreload.enable();
+        try {
+          await self.registration.navigationPreload.enable();
+        } catch (e) { /* preload not supported or failed */ }
       }
       // Clean old caches
-      const keyList = await caches.keys();
-      await Promise.all(keyList.map((key) => {
-        if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME && key !== FEED_CACHE_NAME) {
-          console.log('[ServiceWorker] Removing old cache:', key);
-          return caches.delete(key);
-        }
-      }));
+      try {
+        const keyList = await caches.keys();
+        await Promise.all(keyList.map((key) => {
+          if (key !== CACHE_NAME && key !== SPOT_CACHE_NAME && key !== OFFLINE_CACHE_NAME && key !== GALLERY_CACHE_NAME && key !== FEED_CACHE_NAME) {
+            console.log('[ServiceWorker] Removing old cache:', key);
+            return caches.delete(key).catch(() => {});
+          }
+        }));
+      } catch (err) {
+        console.warn('[ServiceWorker] Activate cleaning caches failed:', err);
+      }
     })()
   );
   self.clients.claim();
@@ -94,22 +113,29 @@ self.addEventListener('fetch', (event) => {
         .then((response) => {
           // Clone the response for caching
           const responseClone = response.clone();
-          caches.open(SPOT_CACHE_NAME).then((cache) => {
+          safeOpenCache(SPOT_CACHE_NAME).then((cache) => {
+            if (!cache) return;
             try {
               cache.put(event.request, responseClone);
-              // Silenced: was logging on every request (10+/session)
             } catch (e) {
               // Clone failed during SW transition — ignore
             }
-          });
+          }).catch(() => {});
           return response;
         })
         .catch(async () => {
           // Network failed, try cache
           console.log('[ServiceWorker] Offline - serving from cache:', url.pathname);
-          const cachedResponse = await caches.match(event.request);
-          if (cachedResponse) {
-            return cachedResponse;
+          try {
+            const cache = await safeOpenCache(SPOT_CACHE_NAME);
+            if (cache) {
+              const cachedResponse = await cache.match(event.request);
+              if (cachedResponse) {
+                return cachedResponse;
+              }
+            }
+          } catch (e) {
+            console.warn('[ServiceWorker] Match failed:', e);
           }
           // Return offline response for spots
           return new Response(JSON.stringify({
@@ -129,7 +155,8 @@ self.addEventListener('fetch', (event) => {
   const isGalleryMedia = url.hostname.includes('supabase') && url.pathname.includes('/storage/');
   if (isGalleryMedia) {
     event.respondWith(
-      caches.open(GALLERY_CACHE_NAME).then(async (cache) => {
+      safeOpenCache(GALLERY_CACHE_NAME).then(async (cache) => {
+        if (!cache) return fetch(event.request);
         const cached = await cache.match(event.request);
         if (cached) {
           // Cache hit — serve from cache (works offline)
@@ -161,9 +188,16 @@ self.addEventListener('fetch', (event) => {
         try {
           return await fetch(event.request);
         } catch (e) {
-          const cached = await caches.match('/offline.html');
-          if (cached) return cached;
-          return caches.match('/index.html');
+          try {
+            const cache = await safeOpenCache(CACHE_NAME);
+            if (cache) {
+              const cached = await cache.match('/offline.html');
+              if (cached) return cached;
+              const indexCached = await cache.match('/index.html');
+              if (indexCached) return indexCached;
+            }
+          } catch (err) {}
+          return new Response('Offline', { status: 503, statusText: 'Offline' });
         }
       })()
     );
@@ -219,6 +253,8 @@ self.addEventListener('push', (event) => {
         { action: 'view', title: 'View' },
         { action: 'dismiss', title: 'Dismiss' }
       ]
+    }).catch(err => {
+      console.warn('[ServiceWorker] showNotification failed:', err);
     })
   );
 });
@@ -245,7 +281,7 @@ self.addEventListener('notificationclick', (event) => {
     targetUrl = '/notifications';
   }
 
-  // Handle action buttons
+  // Route action buttons
   if (event.action === 'view') {
     // Use the targetUrl determined above
   } else if (event.action === 'dismiss') {
@@ -279,6 +315,8 @@ self.addEventListener('pushsubscriptionchange', (event) => {
     }).then((subscription) => {
       // Re-send subscription to server
       console.log('[ServiceWorker] Re-subscribed:', subscription);
+    }).catch(err => {
+      console.warn('[ServiceWorker] Push subscription change re-subscribe failed:', err);
     })
   );
 });
@@ -290,7 +328,8 @@ self.addEventListener('message', (event) => {
   if (event.data && event.data.type === 'CACHE_SPOTS') {
     // Manually trigger caching of spot data
     event.waitUntil(
-      caches.open(SPOT_CACHE_NAME).then(async (cache) => {
+      safeOpenCache(SPOT_CACHE_NAME).then(async (cache) => {
+        if (!cache) throw new Error('CacheStorage not available');
         const spotsUrl = new URL('/api/surf-spots', self.location.origin);
         const response = await fetch(spotsUrl);
         if (response.ok) {
@@ -308,18 +347,31 @@ self.addEventListener('message', (event) => {
     event.waitUntil(
       caches.delete(SPOT_CACHE_NAME).then(() => {
         event.source.postMessage({ type: 'SPOT_CACHE_CLEARED', success: true });
+      }).catch(err => {
+        event.source.postMessage({ type: 'SPOT_CACHE_CLEARED', success: false, error: err.message });
       })
     );
   }
   
   if (event.data && event.data.type === 'GET_CACHE_STATUS') {
     event.waitUntil(
-      caches.open(SPOT_CACHE_NAME).then(async (cache) => {
+      safeOpenCache(SPOT_CACHE_NAME).then(async (cache) => {
+        if (!cache) {
+          event.source.postMessage({ type: 'CACHE_STATUS', count: 0, cached: false });
+          return;
+        }
         const keys = await cache.keys();
         event.source.postMessage({ 
           type: 'CACHE_STATUS', 
           count: keys.length,
           cached: keys.length > 0
+        });
+      }).catch(err => {
+        event.source.postMessage({ 
+          type: 'CACHE_STATUS', 
+          count: 0,
+          cached: false,
+          error: err.message
         });
       })
     );

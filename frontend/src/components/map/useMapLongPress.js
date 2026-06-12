@@ -14,7 +14,20 @@ export function useMapLongPress({ mapInstance, onMapLongPress }) {
     // Desktop: Context menu right click
     const handleContextMenu = (e) => {
       e.preventDefault();
-      if (longPressRef.current) longPressRef.current(e.lngLat);
+      if (e && e.lngLat) {
+        let lat = undefined;
+        let lng = undefined;
+        if (Array.isArray(e.lngLat)) {
+          lng = e.lngLat[0];
+          lat = e.lngLat[1];
+        } else if (typeof e.lngLat === 'object') {
+          lng = e.lngLat.lng !== undefined ? e.lngLat.lng : e.lngLat.lon;
+          lat = e.lngLat.lat;
+        }
+        if (longPressRef.current && typeof lat === 'number' && typeof lng === 'number' && !isNaN(lat) && !isNaN(lng)) {
+          longPressRef.current({ lat, lng });
+        }
+      }
     };
 
     mapInstance.on('contextmenu', handleContextMenu);
