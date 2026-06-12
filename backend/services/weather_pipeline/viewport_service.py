@@ -89,22 +89,17 @@ class ViewportService:
         Step 1 & 2: Checks dynamic product index for a fresh or stale cache hit.
         Returns the product if found (and triggers SWR if stale).
         """
-        # Parse and snap bounding box outward to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
+        # Parse and snap bounding box to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
         req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-        tileSize = 1.0 if model.upper() == "GFS" else 2.0
-        
-        snap_w = math.floor(req_w / tileSize) * tileSize
-        snap_s = math.floor(req_s / tileSize) * tileSize
-        snap_e = math.ceil(req_e / tileSize) * tileSize
-        snap_n = math.ceil(req_n / tileSize) * tileSize
-        
-        west, south, east, north = clamp_and_normalize_bbox(snap_w, snap_s, snap_e, snap_n)
-
-        # Calculate spans (taking into account antimeridian wrap)
-        if west <= east:
-            span_lng = east - west
-        else:
-            span_lng = (180.0 - west) + (east + 180.0)
+        t_sz = 1.0 if model.upper() == "GFS" else 2.0
+        west, south, east, north = clamp_and_normalize_bbox(
+            math.floor(req_w / t_sz) * t_sz,
+            math.floor(req_s / t_sz) * t_sz,
+            math.ceil(req_e / t_sz) * t_sz,
+            math.ceil(req_n / t_sz) * t_sz
+        )
+        # Spans (considering antimeridian wrap)
+        span_lng = (east - west) if west <= east else ((180.0 - west) + (east + 180.0))
         span_lat = abs(north - south)
 
         is_global_view = (span_lng > 180.0 or span_lat > 90.0)
@@ -206,22 +201,17 @@ class ViewportService:
         Step 4 & 5: Fetches viewport grid from upstream Open-Meteo, handling negative caching,
         in-flight request deduplication, and conformed stale fallback if upstream fails.
         """
-        # Parse and snap bounding box outward to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
+        # Parse and snap bounding box to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
         req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-        tileSize = 1.0 if model.upper() == "GFS" else 2.0
-        
-        snap_w = math.floor(req_w / tileSize) * tileSize
-        snap_s = math.floor(req_s / tileSize) * tileSize
-        snap_e = math.ceil(req_e / tileSize) * tileSize
-        snap_n = math.ceil(req_n / tileSize) * tileSize
-        
-        west, south, east, north = clamp_and_normalize_bbox(snap_w, snap_s, snap_e, snap_n)
-
-        # Calculate spans (taking into account antimeridian wrap)
-        if west <= east:
-            span_lng = east - west
-        else:
-            span_lng = (180.0 - west) + (east + 180.0)
+        t_sz = 1.0 if model.upper() == "GFS" else 2.0
+        west, south, east, north = clamp_and_normalize_bbox(
+            math.floor(req_w / t_sz) * t_sz,
+            math.floor(req_s / t_sz) * t_sz,
+            math.ceil(req_e / t_sz) * t_sz,
+            math.ceil(req_n / t_sz) * t_sz
+        )
+        # Spans (considering antimeridian wrap)
+        span_lng = (east - west) if west <= east else ((180.0 - west) + (east + 180.0))
         span_lat = abs(north - south)
 
         is_global_view = (span_lng > 180.0 or span_lat > 90.0)
@@ -420,7 +410,7 @@ class ViewportService:
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
 
             # Resolve delay overrides using env variables
-            env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.5"))
+            env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "1.2"))
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay

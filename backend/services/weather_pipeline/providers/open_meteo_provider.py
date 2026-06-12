@@ -310,8 +310,8 @@ class OpenMeteoProvider:
                 item["is_test_fixture"] = True
             return mock_res
 
-        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
-        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true" if os.environ.get("RENDER") == "true" else "false").lower() == "true")
+        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy")
 
         async with httpx.AsyncClient() as client:
             try:
@@ -366,7 +366,7 @@ class OpenMeteoProvider:
                             response = await client.post(url, data=query_params, timeout=45.0)
 
                         if response.status_code == 429:
-                            retry_delay = 2.0 * attempt
+                            retry_delay = 8.0 * attempt
                             if attempt > max_retries:
                                 raise RuntimeError(f"Hit rate limits (429) and exhausted all {max_retries} retries.")
                             logger.warning(f"[Open-Meteo Provider] Hit rate limits (429). Retrying in {retry_delay}s... (Attempt {attempt}/{max_retries})")
@@ -387,7 +387,7 @@ class OpenMeteoProvider:
                         aggregated_results.append(data)
 
                     # Resolve delay defaults using env variables
-                    env_marine_delay = float(os.environ.get("OPEN_METEO_MARINE_BATCH_DELAY_SEC", "0.8"))
+                    env_marine_delay = float(os.environ.get("OPEN_METEO_MARINE_BATCH_DELAY_SEC", "2.5"))
                     env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
                     delay = inter_batch_delay if inter_batch_delay is not None else (
@@ -509,8 +509,8 @@ class OpenMeteoProvider:
                 return mock_res[0]
             return None
 
-        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "false").lower() == "true")
-        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/api/weather-proxy")
+        use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true" if os.environ.get("RENDER") == "true" else "false").lower() == "true")
+        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy")
 
         if use_proxy:
             proxy_type = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")

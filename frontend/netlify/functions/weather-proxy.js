@@ -78,6 +78,8 @@ function getCircuitKey(provider, type, model, pointCount, hourly) {
 }
 
 function isCircuitOpen(provider, type, model, pointCount, hourly) {
+  // Grid/batch requests (pointCount > 1) bypass the circuit breaker to allow backend backoff/retry/delay logic
+  if (pointCount > 1) return false;
   const circuitKey = getCircuitKey(provider, type, model, pointCount, hourly);
   const circuitUntilMap = provider === 'copernicus' ? copernicusCircuitUntil : openMeteoCircuitUntil;
   const until = circuitUntilMap.get(circuitKey) || 0;
