@@ -42,3 +42,16 @@ async def auth_headers():
     In a full test suite, this would generate a real JWT token.
     """
     return {"Authorization": "Bearer test-token-for-smoke-tests"}
+
+
+@pytest.fixture(autouse=True)
+def clean_viewport_service_registries():
+    """Clears ViewportService's static/class-level registries to prevent cross-test loop leakage."""
+    try:
+        from services.weather_pipeline.viewport_service import ViewportService
+        ViewportService.IN_FLIGHT_REQUESTS.clear()
+        ViewportService.NEGATIVE_CACHE.clear()
+        ViewportService.ACTIVE_REVALIDATIONS.clear()
+    except Exception:
+        pass
+

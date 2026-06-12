@@ -306,12 +306,11 @@ class ViewportService:
             else:
                 forecast_days = 16
         else:
-            # Pre-clamp forecast_days for marine to improve deduplication key alignment
             if domain.lower() == "marine":
                 if model.upper() in ("ICON", "EURO"):
                     forecast_days = min(forecast_days, 7)
                 else:
-                    forecast_days = min(forecast_days, 16)
+                    forecast_days = min(forecast_days, 8)
 
         # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{bbox_key_str}_{forecast_days}"
@@ -420,8 +419,11 @@ class ViewportService:
 
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
 
-            # For GFS Wind, respect the safer 0.2s batch delay, otherwise use 0.1s
-            inter_delay = 0.2 if (model.upper() == "GFS" and domain == "wind") else 0.1
+            # Resolve delay overrides using env variables
+            env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.5"))
+            env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
+
+            inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
 
             # Fetch via OpenMeteoProvider
             raw_data = await self.provider.fetch_grid(
@@ -445,7 +447,22 @@ class ViewportService:
             if model.upper() == "ICON" and domain.lower() == "wind":
                 logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
                 from datetime import timedelta
-                base_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                orig_times = []
+                for item in raw_list:
+                    if "hourly" in item and "time" in item["hourly"] and item["hourly"]["time"]:
+                        orig_times = item["hourly"]["time"]
+                        break
+                base_date = None
+                if orig_times:
+                    try:
+                        first_time_str = orig_times[0]
+                        if not first_time_str.endswith("Z"):
+                            first_time_str += "Z"
+                        base_date = datetime.fromisoformat(first_time_str.replace("Z", "+00:00")).replace(minute=0, second=0, microsecond=0)
+                    except Exception as parse_err:
+                        logger.warning(f"[Dynamic Viewport] Failed to parse first time {orig_times[0]} for base_date: {parse_err}")
+                if not base_date:
+                    base_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
                 for item in raw_list:
                     if "hourly" in item and "time" in item["hourly"]:
                         orig_speed = item["hourly"].get("wind_speed_10m", [])

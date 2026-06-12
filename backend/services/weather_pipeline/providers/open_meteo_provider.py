@@ -386,9 +386,12 @@ class OpenMeteoProvider:
                         # Open-Meteo returns a single dictionary if it's only 1 point, wrap in a list
                         aggregated_results.append(data)
 
-                    # Tighter inter-batch delay (0.8s for wind, 0.5s for marine) for proxy to prevent timeouts
+                    # Resolve delay defaults using env variables
+                    env_marine_delay = float(os.environ.get("OPEN_METEO_MARINE_BATCH_DELAY_SEC", "0.8"))
+                    env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
+
                     delay = inter_batch_delay if inter_batch_delay is not None else (
-                        (0.8 if domain == "wind" else 0.5) if use_proxy else (0.5 if domain == "wind" else 0.2)
+                        env_marine_delay if domain == "marine" else env_wind_delay
                     )
                     if i + batch_size < len(lats):
                         await asyncio.sleep(delay)

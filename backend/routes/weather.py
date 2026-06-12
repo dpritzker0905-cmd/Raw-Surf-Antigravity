@@ -59,6 +59,10 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
         logger.info("[Manual Ingestion] Triggering GFS Marine, GFS Wind, & Copernicus Marine pilot ingestion...")
         try:
             await scheduler.ingest_gfs_marine_pilot()
+
+            logger.info("[Manual Ingestion] Staggering GFS Marine Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_gfs_marine_global()
             
             logger.info("[Manual Ingestion] Staggering GFS Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)

@@ -1,3 +1,4 @@
+import os
 import asyncio
 import logging
 from datetime import datetime, timezone, timedelta
@@ -80,8 +81,9 @@ class WeatherPipelineScheduler:
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
+            env_forecast_days = int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8"))
             results = await self._fetch_or_mock(
-                "GFS", "marine", "all_marine", region, resolution, 8,
+                "GFS", "marine", "all_marine", region, resolution, env_forecast_days,
                 env["is_test_env"],
                 lambda: generate_mock_marine_results(self.om_provider, region, resolution),
                 region_id
