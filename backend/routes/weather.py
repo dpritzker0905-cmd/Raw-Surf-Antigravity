@@ -384,13 +384,7 @@ async def get_grid(
     if not product:
         if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
             try:
-                # For ICON wind, do not attempt upstream fetch beyond the 5-day calendar limit.
-                if model.upper() == "ICON" and domain.lower() == "wind":
-                    today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                    max_icon_wind_dynamic_dt = today_utc + timedelta(days=5)
-                    if target_dt >= max_icon_wind_dynamic_dt:
-                        logger.info(f"[Grid Route] ICON wind beyond 5-day native horizon ({target_dt}). Skipping upstream fetch, falling back to manifest overlap.")
-                        raise Exception("ICON wind beyond native horizon - skip to manifest fallback")
+                # For ICON wind, dynamic viewport fetch is supported beyond 5-day limit by loop-extrapolation inside fetch_viewport_grid_upstream.
 
                 product = await viewport_service.fetch_viewport_grid_upstream(
                     model=model, domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
@@ -478,7 +472,7 @@ async def get_grid(
                         if req_span_lng > 180.0 or req_span_lat > 90.0:
                             is_wide_req = True
 
-                    if is_wide_req and domain.lower() != "wind":
+                    if is_wide_req:
                         return JSONResponse(status_code=200, content={
                             "model": model,
                             "provider": "none",

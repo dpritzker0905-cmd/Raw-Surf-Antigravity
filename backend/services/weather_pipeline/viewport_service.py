@@ -424,6 +424,60 @@ class ViewportService:
                 raise Exception("Upstream fetch returned empty data.")
 
             raw_list = raw_data if isinstance(raw_data, list) else [raw_data]
+
+            # Dynamically extend ICON wind to 14 days (336 hours) using diurnal loop extrapolation
+            if model.upper() == "ICON" and domain.lower() == "wind":
+                logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
+                from datetime import timedelta
+                base_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+                for item in raw_list:
+                    if "hourly" in item and "time" in item["hourly"]:
+                        orig_speed = item["hourly"].get("wind_speed_10m", [])
+                        orig_direction = item["hourly"].get("wind_direction_10m", [])
+                        orig_gusts = item["hourly"].get("wind_gusts_10m", [])
+                        
+                        valid_len = len(orig_speed)
+                        for i in range(len(orig_speed) - 1, -1, -1):
+                            speed_val = orig_speed[i] if i < len(orig_speed) else None
+                            dir_val = orig_direction[i] if i < len(orig_direction) else None
+                            gust_val = orig_gusts[i] if (orig_gusts and i < len(orig_gusts)) else 0.0
+                            
+                            if speed_val is None or dir_val is None or (orig_gusts and gust_val is None):
+                                valid_len = i
+                            else:
+                                break
+                        
+                        if valid_len > 0:
+                            valid_len = (valid_len // 24) * 24
+                        
+                        if valid_len > 0:
+                            orig_speed = orig_speed[:valid_len]
+                            orig_direction = orig_direction[:valid_len]
+                            if orig_gusts:
+                                orig_gusts = orig_gusts[:valid_len]
+                        
+                        new_times = []
+                        new_speed = []
+                        new_direction = []
+                        new_gusts = []
+                        
+                        for hour_idx in range(14 * 24):
+                            new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                            new_times.append(new_time)
+                            
+                            if orig_speed:
+                                new_speed.append(orig_speed[hour_idx % len(orig_speed)])
+                            if orig_direction:
+                                new_direction.append(orig_direction[hour_idx % len(orig_direction)])
+                            if orig_gusts:
+                                new_gusts.append(orig_gusts[hour_idx % len(orig_gusts)])
+                                
+                        item["hourly"]["time"] = new_times
+                        item["hourly"]["wind_speed_10m"] = new_speed
+                        item["hourly"]["wind_direction_10m"] = new_direction
+                        if orig_gusts:
+                            item["hourly"]["wind_gusts_10m"] = new_gusts
+
             first_point = raw_list[0]
             hourly = first_point.get("hourly", {})
             times = hourly.get("time", [])
@@ -467,6 +521,16 @@ class ViewportService:
                         coverage_mode="viewport",
                         region_id=f"viewport_{bbox_key_str}"
                     )
+
+                    if this_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and idx >= 120:
+                        this_normalized_product.is_estimated = True
+                        this_normalized_product.is_forecast_authoritative = False
+                        this_normalized_product.estimate_basis = {
+                            "type": "icon_loop_extrapolation",
+                            "native_horizon_hours": 120,
+                            "method": "diurnal_cycle_loop",
+                            "source_model": "dwd_icon"
+                        }
 
                     if not this_normalized_product:
                         logger.warning(f"[Dynamic Viewport] Normalization failed for time: {t_str}")
