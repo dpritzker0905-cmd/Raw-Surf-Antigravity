@@ -254,12 +254,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         };
         return;
       } else {
-        console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Clearing.`);
-        setMarineData(null);
+        console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
+        // DO NOT clear marineData — retain stale heatmap view while the deferred fetch loads
         marineFetchLocksRef.current.lastHash = null;
-        if (updateMarineGridRef.current) {
-          updateMarineGridRef.current('timeline_scrub');
-        }
+        enqueueMarineUpdate('timeline_scrub_deferred');
         return;
       }
     } else {

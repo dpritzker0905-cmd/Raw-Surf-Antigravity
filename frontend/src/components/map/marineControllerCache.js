@@ -322,3 +322,38 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
   if (isGlobalCached !== isGlobalViewport) return false;
   return isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
 }
+
+/**
+ * Checks if ANY cached entry exists for the given model/layer/viewport,
+ * regardless of hourOffset. Returns the cached entry or null.
+ * 
+ * This is useful for determining whether the backend likely has forecast data
+ * cached for this viewport (since the backend caches all hours from a single
+ * upstream fetch with the same bbox).
+ */
+export function getAnyHourCacheEntry(model, layer, bounds) {
+  const wanted = model || 'GFS';
+  const layerPart = _isAllVarModel(wanted) ? 'all' : (layer || 'waves');
+  const prefix = `${wanted}_${layerPart}_`;
+
+  for (const [key, entry] of _perModelHourCache.entries()) {
+    if (!key.startsWith(prefix)) continue;
+    if (Date.now() - entry.timestamp >= PER_MODEL_HOUR_CACHE_TTL) continue;
+    
+    if (bounds && entry.data?.grid?.bounds) {
+      const g = entry.data.grid;
+      const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+      const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+      const containsLng = ge < gw 
+        ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+        : ew >= gw && ee <= ge;
+      const containsLat = es >= gs && en <= gn;
+      if (containsLng && containsLat) {
+        return entry;
+      }
+    } else {
+      return entry;
+    }
+  }
+  return null;
+}

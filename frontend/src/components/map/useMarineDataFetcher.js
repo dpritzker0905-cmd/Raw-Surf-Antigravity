@@ -54,6 +54,7 @@ export function useMarineDataFetcher({
   const scheduledRef = useRef(false);
   const timeoutIdRef = useRef(null);
   const moveendDebounceRef = useRef({ timer: null });
+  const scrubDebounceRef = useRef(null);
 
   const getViewportHash = useCallback(() => {
     if (!mapInstance) return null;
@@ -433,6 +434,17 @@ export function useMarineDataFetcher({
   const enqueueMarineUpdate = useCallback((source) => {
     const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
     if (!isTimelineScrub && window.isScrubbingTimeline) return;
+
+    // Debounced scrub path: coalesce rapid scrub positions into a single fetch
+    if (source === 'timeline_scrub_deferred') {
+      clearTimeout(scrubDebounceRef.current);
+      scrubDebounceRef.current = setTimeout(() => {
+        scrubDebounceRef.current = null;
+        updateMarineGrid('timeline_scrub');
+      }, 350);
+      return;
+    }
+
     const now = Date.now();
     const locks = marineFetchLocksRef.current;
     if (locks.isFetching) {
@@ -495,6 +507,7 @@ export function useMarineDataFetcher({
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
       if (internalUpdateTimerRef.current) clearTimeout(internalUpdateTimerRef.current);
+      if (scrubDebounceRef.current) clearTimeout(scrubDebounceRef.current);
     };
   }, []);
 
