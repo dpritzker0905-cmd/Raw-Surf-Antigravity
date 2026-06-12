@@ -145,7 +145,21 @@ def select_best_candidate(
             authoritative_candidates = [(p, diff) for p, diff in authoritative_candidates if is_global_product(p)]
             estimated_candidates = [(p, diff) for p, diff in estimated_candidates if is_global_product(p)]
 
-    best_item = _select_best_from_list(authoritative_candidates, req_w, req_s, req_e, req_n)
-    if best_item:
-        return best_item
-    return _select_best_from_list(estimated_candidates, req_w, req_s, req_e, req_n)
+    # Step 1: Find best from each category
+    best_auth = _select_best_from_list(authoritative_candidates, req_w, req_s, req_e, req_n)
+    best_est = _select_best_from_list(estimated_candidates, req_w, req_s, req_e, req_n)
+
+    if best_auth and best_est:
+        # Find the time diffs for each winner
+        auth_diff = min(diff for p, diff in authoritative_candidates if p is best_auth)
+        est_diff = min(diff for p, diff in estimated_candidates if p is best_est)
+        # If estimated is a near-exact match (<=30 min) AND auth is significantly farther (>30 min),
+        # prefer the estimated product. This prevents stale overlapping auth products from
+        # overshadowing correct estimated products.
+        if est_diff <= 1800 and auth_diff > 1800:
+            return best_est
+        # Otherwise, prefer authoritative as usual
+        return best_auth
+    if best_auth:
+        return best_auth
+    return best_est

@@ -206,14 +206,22 @@ def test_select_best_candidate_estimated_fallback():
     assert best.name == "est_global_coarse"
     assert best.is_estimated is True
 
-    # When authoritative exists, it wins even with worse time diff
+    # When auth is far off (>30min) and estimated is exact match, estimated wins
     auth_global = MockProduct("auth_global_coarse", False, -180.0, -80.0, 180.0, 85.0)
     best = select_best_candidate(
         authoritative_candidates=[(auth_global, 5400.0)],
         estimated_candidates=[(est_global, 0.0)],
         req_w=-180.0, req_s=-80.0, req_e=180.0, req_n=85.0
     )
-    assert best.name == "auth_global_coarse"
+    assert best.name == "est_global_coarse"
+
+    # When auth is close (<30min), it still wins over estimated
+    best2 = select_best_candidate(
+        authoritative_candidates=[(auth_global, 600.0)],  # 10 min off
+        estimated_candidates=[(est_global, 0.0)],
+        req_w=-180.0, req_s=-80.0, req_e=180.0, req_n=85.0
+    )
+    assert best2.name == "auth_global_coarse"
 
 def test_select_best_candidate_global_wide_filtering():
     """Verify that global queries select global estimated products over regional authoritative ones."""

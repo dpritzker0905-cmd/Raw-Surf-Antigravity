@@ -193,6 +193,26 @@ class ProductStore:
                     p for p in manifest.products
                     if not p.is_test_fixture
                 ]
+
+            # Startup hygiene: Purge stale ICON wind AUTH products beyond native horizon.
+            # ICON wind native horizon is 120h. Any non-estimated product beyond that
+            # is a leftover from old ingestion runs and should not exist.
+            now_utc = datetime.now(timezone.utc)
+            icon_native_cutoff = now_utc + timedelta(hours=120)
+            pre_purge_count = len(manifest.products)
+            manifest.products = [
+                p for p in manifest.products
+                if not (
+                    p.model.upper() == "ICON"
+                    and p.domain.lower() == "wind"
+                    and p.layer.lower() == "wind"
+                    and not getattr(p, "is_estimated", False)
+                    and p.valid_time_start > icon_native_cutoff
+                )
+            ]
+            purged = pre_purge_count - len(manifest.products)
+            if purged > 0:
+                logger.info(f"[Product Store] Startup hygiene: Purged {purged} stale ICON wind AUTH products beyond 120h horizon")
             with open(self.manifest_path, "w") as f:
                 f.write(manifest.model_dump_json(indent=2))
             logger.info(f"[Product Store] Manifest restored to disk with {len(manifest.products)} entries")
