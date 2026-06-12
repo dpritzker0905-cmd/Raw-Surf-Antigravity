@@ -74,23 +74,86 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
 
   const _perModelHourCache = getPerModelHourCache();
 
-  if (!isBackendActive && _isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
-    try {
-      const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
-      if (reExtracted?.grid?.vectors?.length > 0) { hitData = reExtracted; cacheSource = 'raw_hourly_cache'; }
-    } catch (e) {}
-  }
-  if (!hitData) {
-    const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
-    let exact = null;
-    if (bounds) {
-      const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
-      const tileId = clampRes.selectedTileId || 'outside';
-      exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
-      if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-        const sig = exact.signature;
+  const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
+  let exact = null;
+  if (bounds) {
+    const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
+    const tileId = clampRes.selectedTileId || 'outside';
+    exact = _perModelHourCache.get(`${wanted}_${layerPart}_${tileId}_${wantedHour}`);
+    if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+      const sig = exact.signature;
+      if (sig) {
+        const g = exact.data?.grid || {};
+        const b = g.bounds || {};
+        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+        const provider = g.__gridProvider || g.provider || 'none';
+
+        if (sig.model === wanted &&
+            sig.layer === wantedLayer &&
+            sig.provider === provider &&
+            sig.hourOffset === wantedHour &&
+            sig.boundsStr === bStr &&
+            sig.cols === (g.cols || 0) &&
+            sig.rows === (g.rows || 0) &&
+            sig.vectorsLength === (g.vectors?.length || 0)) {
+          hitData = exact.data;
+          cacheSource = 'per_model_hour_cache_exact';
+        }
+      } else if (!isBackendActive) {
+        hitData = exact.data;
+        cacheSource = 'per_model_hour_cache_exact';
+      }
+    }
+
+    if (!hitData) {
+      // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
+      for (const [key, entry] of _perModelHourCache.entries()) {
+        if (key.startsWith(`${wanted}_${layerPart}_`) && key.endsWith(`_${wantedHour}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+          const g = entry.data?.grid;
+          if (g?.vectors?.length > 0 && g.bounds) {
+            const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+            const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+            const containsLng = ge < gw 
+              ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
+              : ew >= gw && ee <= ge;
+            const containsLat = es >= gs && en <= gn;
+
+            if (containsLng && containsLat) {
+              const sig = entry.signature;
+              if (sig) {
+                const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
+                const provider = g.__gridProvider || g.provider || 'none';
+
+                if (sig.model === wanted &&
+                    sig.layer === wantedLayer &&
+                    sig.provider === provider &&
+                    sig.hourOffset === wantedHour &&
+                    sig.boundsStr === bStr &&
+                    sig.cols === (g.cols || 0) &&
+                    sig.rows === (g.rows || 0) &&
+                    sig.vectorsLength === (g.vectors?.length || 0)) {
+                  hitData = entry.data;
+                  cacheSource = 'per_model_hour_cache_contained';
+                  break;
+                }
+              } else if (!isBackendActive) {
+                hitData = entry.data;
+                cacheSource = 'per_model_hour_cache_contained';
+                break;
+              }
+            }
+          }
+        }
+      }
+    }
+  } else {
+    const suffix = `_${wantedHour}`;
+    const prefix = `${wanted}_${layerPart}_`;
+    for (const [k, v] of _perModelHourCache.entries()) {
+      if (k.startsWith(prefix) && k.endsWith(suffix) && Date.now() - v.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+        const sig = v.signature;
         if (sig) {
-          const g = exact.data?.grid || {};
+          const g = v.data?.grid || {};
           const b = g.bounds || {};
           const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
           const provider = g.__gridProvider || g.provider || 'none';
@@ -103,90 +166,32 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
               sig.cols === (g.cols || 0) &&
               sig.rows === (g.rows || 0) &&
               sig.vectorsLength === (g.vectors?.length || 0)) {
-            hitData = exact.data;
-            cacheSource = 'per_model_hour_cache_exact';
-          }
-        } else if (!isBackendActive) {
-          hitData = exact.data;
-          cacheSource = 'per_model_hour_cache_exact';
-        }
-      }
-
-      if (!hitData) {
-        // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
-        for (const [key, entry] of _perModelHourCache.entries()) {
-          if (key.startsWith(`${wanted}_${layerPart}_`) && key.endsWith(`_${wantedHour}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-            const g = entry.data?.grid;
-            if (g?.vectors?.length > 0 && g.bounds) {
-              const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
-              const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
-              const containsLng = ge < gw 
-                ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
-                : ew >= gw && ee <= ge;
-              const containsLat = es >= gs && en <= gn;
-
-              if (containsLng && containsLat) {
-                const sig = entry.signature;
-                if (sig) {
-                  const bStr = g.bounds.west !== undefined ? `${g.bounds.west.toFixed(2)}:${g.bounds.south.toFixed(2)}:${g.bounds.east.toFixed(2)}:${g.bounds.north.toFixed(2)}` : 'none';
-                  const provider = g.__gridProvider || g.provider || 'none';
-
-                  if (sig.model === wanted &&
-                      sig.layer === wantedLayer &&
-                      sig.provider === provider &&
-                      sig.hourOffset === wantedHour &&
-                      sig.boundsStr === bStr &&
-                      sig.cols === (g.cols || 0) &&
-                      sig.rows === (g.rows || 0) &&
-                      sig.vectorsLength === (g.vectors?.length || 0)) {
-                    hitData = entry.data;
-                    cacheSource = 'per_model_hour_cache_contained';
-                    break;
-                  }
-                } else if (!isBackendActive) {
-                  hitData = entry.data;
-                  cacheSource = 'per_model_hour_cache_contained';
-                  break;
-                }
-              }
-            }
-          }
-        }
-      }
-    } else {
-      const suffix = `_${wantedHour}`;
-      const prefix = `${wanted}_${layerPart}_`;
-      for (const [k, v] of _perModelHourCache.entries()) {
-        if (k.startsWith(prefix) && k.endsWith(suffix) && Date.now() - v.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-          const sig = v.signature;
-          if (sig) {
-            const g = v.data?.grid || {};
-            const b = g.bounds || {};
-            const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
-            const provider = g.__gridProvider || g.provider || 'none';
-
-            if (sig.model === wanted &&
-                sig.layer === wantedLayer &&
-                sig.provider === provider &&
-                sig.hourOffset === wantedHour &&
-                sig.boundsStr === bStr &&
-                sig.cols === (g.cols || 0) &&
-                sig.rows === (g.rows || 0) &&
-                sig.vectorsLength === (g.vectors?.length || 0)) {
-              hitData = v.data;
-              cacheSource = 'per_model_hour_cache_prefix';
-              break;
-            }
-          } else if (!isBackendActive) {
             hitData = v.data;
             cacheSource = 'per_model_hour_cache_prefix';
             break;
           }
+        } else if (!isBackendActive) {
+          hitData = v.data;
+          cacheSource = 'per_model_hour_cache_prefix';
+          break;
         }
       }
     }
   }
-  if (!isBackendActive && !hitData && !_isAllVarModel(wanted)) {
+
+  // Fallback to raw_hourly_cache if still no data found
+  if (!hitData && _isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
+    try {
+      const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
+      if (reExtracted?.grid?.vectors?.length > 0) {
+        hitData = reExtracted;
+        cacheSource = 'raw_hourly_cache';
+      }
+    } catch (e) {}
+  }
+
+  // Fallback to nearest cached hour in perModelHourCache
+  if (!hitData && !_isAllVarModel(wanted)) {
     const prefix = `${wanted}_${wantedLayer}_`;
     let bestEntry = null, bestDiff = Infinity;
     for (const [key, entry] of _perModelHourCache.entries()) {
@@ -201,9 +206,11 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
       staleHour = true; cacheSource = 'per_model_hour_cache_nearest';
     }
   }
+
+  // Fallback to last known good marine
   const lastKnownGoodMarine = getLastKnownGoodMarine();
   const lastKnownGoodMarineModel = getLastKnownGoodMarineModel();
-  if (!isBackendActive && !hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
+  if (!hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
     if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service' || cachedProvider === 'test-fixture') {
       const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);

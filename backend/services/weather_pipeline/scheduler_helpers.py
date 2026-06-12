@@ -357,7 +357,14 @@ async def normalize_and_save_loop(
                 success_count += 1
                 del product
                 gc.collect()
-                await asyncio.sleep(0.0 if is_test_env else 0.2)
+                has_supabase = False
+                try:
+                    from services.weather_pipeline.store import _get_supabase_storage
+                    has_supabase = _get_supabase_storage() is not None
+                except Exception:
+                    pass
+                sleep_dur = 0.0 if (is_test_env or not has_supabase) else 0.2
+                await asyncio.sleep(sleep_dur)
         except Exception as e:
             logger.error(f"{log_prefix} Normalization error for {model} {layer} at hour index {idx}: {e}")
 

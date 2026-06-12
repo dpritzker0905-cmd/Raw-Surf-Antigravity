@@ -1,6 +1,8 @@
 import os
 import json
 import logging
+import threading
+from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List, Tuple
@@ -26,30 +28,30 @@ def is_test_environment() -> bool:
 
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
-_supabase_client = None
-_supabase_init_attempted = False
+_thread_local = threading.local()
+
+# Thread pools for background (fire-and-forget) L2 operations
+_upload_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supabase_upload")
+_manifest_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="supabase_manifest_upload")
 
 def _get_supabase_storage():
-    global _supabase_client, _supabase_init_attempted
-    if _supabase_client is not None:
-        return _supabase_client
-    if _supabase_init_attempted:
-        return None
+    if getattr(_thread_local, "supabase_client", None) is not None:
+        return _thread_local.supabase_client
     if os.environ.get("NODE_ENV") == "test" or os.environ.get("TESTING") == "1":
         return None
-    _supabase_init_attempted = True
     try:
         from supabase import create_client as _create_supabase_client
         url = os.environ.get("SUPABASE_URL", "")
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
         if not url or not key:
             return None
-        _supabase_client = _create_supabase_client(url, key)
-        try: _supabase_client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
+        client = _create_supabase_client(url, key)
+        try: client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
         except Exception: pass
-        return _supabase_client
+        _thread_local.supabase_client = client
+        return client
     except Exception as e:
-        logger.error(f"[Product Store] Supabase Storage init failed: {e}")
+        logger.error(f"[Product Store] Supabase Storage init failed on thread: {e}")
         return None
 
 
@@ -460,7 +462,7 @@ class ProductStore:
 
         # 2b. Upload product to Supabase Storage (L2 — fire-and-forget)
         if not is_tf:
-            self._upload_to_supabase(filename, product_json_bytes)
+            _upload_executor.submit(self._upload_to_supabase, filename, product_json_bytes)
 
         # 2. Update registration in master manifest
         is_test_env = is_test_environment()
@@ -519,9 +521,9 @@ class ProductStore:
         if not is_tf:
             try:
                 manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
-                self._upload_to_supabase("manifest.json", manifest_json)
+                _manifest_executor.submit(self._upload_to_supabase, "manifest.json", manifest_json)
             except Exception as e:
-                logger.warning(f"[Product Store] Manifest L2 upload failed: {e}")
+                logger.warning(f"[Product Store] Manifest L2 upload submit failed: {e}")
 
         return filename
 
@@ -592,7 +594,7 @@ class ProductStore:
                     except Exception as e:
                         logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
                 # Remove from Supabase Storage (L2)
-                self._delete_from_supabase(p.filename)
+                _upload_executor.submit(self._delete_from_supabase, p.filename)
             else:
                 remaining_products.append(p)
 
@@ -601,9 +603,9 @@ class ProductStore:
         # Update manifest in Supabase after prune
         try:
             manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
-            self._upload_to_supabase("manifest.json", manifest_json)
+            _manifest_executor.submit(self._upload_to_supabase, "manifest.json", manifest_json)
         except Exception as e:
-            logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
+            logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
 
     def prune_superseded_products(
         self, model: str, domain: str, layer: str, region_id: str, latest_run_time: datetime
@@ -638,7 +640,7 @@ class ProductStore:
                     except Exception as e:
                         logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
                 # Remove from Supabase Storage (L2)
-                self._delete_from_supabase(p.filename)
+                _upload_executor.submit(self._delete_from_supabase, p.filename)
                 pruned_count += 1
             else:
                 remaining_products.append(p)
@@ -649,10 +651,10 @@ class ProductStore:
             # Update manifest in Supabase after prune
             try:
                 manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
-                self._upload_to_supabase("manifest.json", manifest_json)
-                logger.info(f"[Product Store] Manifest L2 uploaded after pruning {pruned_count} superseded products.")
+                _manifest_executor.submit(self._upload_to_supabase, "manifest.json", manifest_json)
+                logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
             except Exception as e:
-                logger.warning(f"[Product Store] Manifest L2 upload after prune failed: {e}")
+                logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
 
     def validate_copernicus_product(
         self,
