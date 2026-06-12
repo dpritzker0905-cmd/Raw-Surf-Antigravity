@@ -472,7 +472,7 @@ async def get_grid(
                         if req_span_lng > 180.0 or req_span_lat > 90.0:
                             is_wide_req = True
 
-                    if is_wide_req:
+                    if is_wide_req and domain.lower() != "wind":
                         return JSONResponse(status_code=200, content={
                             "model": model,
                             "provider": "none",
