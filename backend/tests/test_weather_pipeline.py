@@ -1360,6 +1360,82 @@ def test_stage_6h2_requirements(tmp_path, monkeypatch):
     assert icon_swell2_point_json["point"]["interpolation_method"] == "unsupported"
 
 
+@pytest.mark.asyncio
+async def test_gfs_marine_ingestion_and_pruning(tmp_path, monkeypatch):
+    """
+    Test GFS Marine regional and global coarse ingestion and verify that
+    old forecast runs are correctly pruned.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    
+    # 1. Create isolated ProductStore
+    temp_store = ProductStore(cache_dir=tmp_path)
+    
+    # Initialize scheduler
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    
+    # 2. Mock env to test env so we use generated mock results
+    monkeypatch.setenv("NODE_ENV", "test")
+    
+    # 3. Save a dummy old product in store manifest to verify pruning
+    from services.weather_pipeline.schemas import ManifestProduct, CoverageBounds
+    from datetime import datetime, timezone, timedelta
+    
+    old_run = datetime.now(timezone.utc) - timedelta(hours=12)
+    dummy_cov = CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0)
+    
+    old_item = ManifestProduct(
+        model="GFS",
+        provider="open-meteo",
+        domain="marine",
+        layer="waves",
+        run_time=old_run,
+        valid_time_start=datetime.now(timezone.utc),
+        valid_time_end=datetime.now(timezone.utc),
+        resolution=10.0,
+        freshness_sec=1800,
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=dummy_cov,
+        filename="gfs_marine_waves_global_coarse_old.json",
+        region_id="global_coarse",
+        coverage_mode="global_tile",
+        tile_id="global_coarse",
+        product_id="gfs_marine_waves_global_coarse_old.json"
+    )
+    
+    # Write empty old file to disk to mock existence
+    with open(tmp_path / old_item.filename, "w") as f:
+        f.write("{}")
+        
+    manifest = temp_store.get_manifest()
+    manifest.products.append(old_item)
+    temp_store._save_manifest(manifest)
+    
+    # Verify it exists in manifest
+    assert len(temp_store.get_manifest().products) == 1
+    
+    # 4. Trigger global coarse waves ingestion
+    success = await scheduler.ingest_gfs_marine_global()
+    assert success is True
+    
+    # 5. Verify that:
+    # - New global GFS waves products are saved.
+    # - Old product is pruned (superseded).
+    new_manifest = temp_store.get_manifest()
+    products = new_manifest.products
+    
+    # Ensure old run is pruned
+    assert not any(p.filename == "gfs_marine_waves_global_coarse_old.json" for p in products)
+    assert not (tmp_path / "gfs_marine_waves_global_coarse_old.json").exists()
+    
+    # Ensure new waves products exist
+    waves_products = [p for p in products if p.model == "GFS" and p.domain == "marine" and p.region_id == "global_coarse"]
+    assert len(waves_products) > 0
+
+
+
 
 
 

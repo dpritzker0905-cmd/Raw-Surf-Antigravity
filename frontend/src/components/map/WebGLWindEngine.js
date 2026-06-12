@@ -640,7 +640,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
   // v3.13.4: Reduced to 0.48 — continents must be clearly visible
   // beneath the wind layer. Wind should feel atmospheric, not solid fog.
-  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 0.48);
+  // v3.24: Surgically increase opacity by 2.5% (+0.025 absolute) in mid-lower zooms (4.0 <= z <= 9.0)
+  // to improve contrast over map features like state names and major highways.
+  var finalOpacity = 0.48;
+  if (z >= 4.0 && z <= 9.0) {
+    finalOpacity = 0.505;
+  }
+  gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), finalOpacity);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
   var err4 = gl.getError();

@@ -104,6 +104,8 @@ class WeatherPipelineScheduler:
                 )
                 logger.info(f"[Pipeline Scheduler] Ingested {count} GFS {layer} products for region {region_id}.")
                 total_saved += count
+                if count > 0:
+                    self.store.prune_superseded_products("GFS", "marine", layer, region_id, run_time)
 
             await self._cleanup_and_pause(results)
 
@@ -235,6 +237,52 @@ class WeatherPipelineScheduler:
             self.store.prune_superseded_products("GFS", "wind", "wind", "global_coarse", run_time)
         await self._cleanup_and_pause(results, 0)
         return count > 0
+
+    async def ingest_gfs_marine_global(self) -> bool:
+        """
+        Ingests GFS waves grid forecast globally at a coarse resolution.
+        Fetches 14 days of forecasts in 3-hour increments for waves, swell_1, swell_2, and wind_waves.
+        """
+        logger.info("[Pipeline Scheduler] Starting GFS Marine Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        results = await self._fetch_or_mock(
+            "GFS", "marine", "all_marine", global_region, resolution, 14,
+            env["is_test_env"],
+            lambda: generate_mock_marine_results(self.om_provider, global_region, resolution, forecast_days=14),
+            "global_coarse"
+        )
+        if not results:
+            logger.error("[Pipeline Scheduler] GFS marine global_coarse fetch failed. Skipping.")
+            return False
+
+        layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+        for layer in layers:
+            count = await normalize_and_save_loop(
+                self.normalizer, self.store, results,
+                model="GFS", provider="open-meteo", domain="marine", layer=layer,
+                bbox=global_region, resolution=resolution, run_time=run_time,
+                region_id="global_coarse", coverage_mode="global_tile",
+                is_test_env=env["is_test_env"],
+                log_prefix=f"[Pipeline Scheduler] GFS {layer} global_coarse"
+            )
+            logger.info(f"[Pipeline Scheduler] Ingested {count} GFS {layer} global coarse grid files.")
+            total_saved += count
+            if count > 0:
+                self.store.prune_superseded_products("GFS", "marine", layer, "global_coarse", run_time)
+
+        await self._cleanup_and_pause(results, 0)
+        return total_saved > 0
 
     async def ingest_euro_wind_global(self) -> bool:
         """
