@@ -294,13 +294,15 @@ export const MapForecastOverlay = ({
           ? marineGridSample.period
           : rawSwell2Period;
 
+    const rawSwell2DirRaw = getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+    const rawSwell2Dir = rawSwell2DirRaw != null ? rawSwell2DirRaw : null;
     swell2Dir = isExactPointAuthority
       ? (useExactPoint?.secondary_swell_wave_direction ?? sampledSwell2?.direction ?? marineGridSample?.direction ?? rawSwell2Dir)
       : (activeLayer === 'swell_2' && sampledSwell2 && sampledSwell2.direction != null)
         ? sampledSwell2.direction
         : (activeLayer === 'swell_2' && marineGridSample?.direction != null)
           ? marineGridSample.direction
-          : getClampedValue(marine.secondary_swell_wave_direction, marineHourIndex);
+          : rawSwell2Dir;
   }
 
   // Wind waves — only show real data from models that support it (GFS, ICON)
