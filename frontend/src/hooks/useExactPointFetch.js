@@ -38,8 +38,8 @@ export function useExactPointFetch({
 
   // snapping key
   const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
-  const prevPointKeyRef = useRef(currentPointKey);
-  const isStale = currentPointKey !== prevPointKeyRef.current;
+  const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
+  const isStale = currentPointKey !== renderedPointKey;
 
   const effectiveExactPointResponse = isStale ? null : exactPointResponse;
   const effectiveExactPoint = isStale ? null : exactPoint;
@@ -54,7 +54,7 @@ export function useExactPointFetch({
   })();
 
   useEffect(() => {
-    prevPointKeyRef.current = currentPointKey;
+    setRenderedPointKey(currentPointKey);
     const isLayerSwitch = prevLayerRef.current !== activeLayer;
     prevLayerRef.current = activeLayer;
 
