@@ -252,6 +252,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           coverageRejected: false,
           timestamp: new Date().toISOString()
         };
+        enqueueMarineUpdate('cancel_scrub');
         return;
       } else {
         console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
@@ -317,6 +318,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               coverageRejected,
               timestamp: new Date().toISOString()
             };
+            enqueueMarineUpdate('cancel_scrub');
             return;
           }
         }
@@ -441,6 +443,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               
               setMarineData(cached);
               lastFetchedLayerRef.current = activeMarineLayer;
+              enqueueMarineUpdate('cancel_scrub');
               return;
             }
           }
@@ -467,7 +470,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               const vHash = getViewportHash();
               if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
 
-              setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer; return;
+              setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer; enqueueMarineUpdate('cancel_scrub'); return;
             }
           }
         } catch (e) { console.warn('[Marine] Cache remap failed:', e.message); }

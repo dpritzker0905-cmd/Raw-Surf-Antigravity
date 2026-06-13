@@ -119,95 +119,51 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
     background_tasks.add_task(run_jobs)
     return {"status": "ingestion_triggered"}
 
-@router.post("/ingest_gfs_pressure_direct")
-async def ingest_gfs_pressure_direct(admin=Depends(get_current_admin)):
+async def _run_ingest(func_name: str) -> dict:
     try:
         from services.weather_pipeline.scheduler import WeatherPipelineScheduler
         scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_gfs_pressure_pilot()
+        func = getattr(scheduler, func_name)
+        success = await func()
         return {"status": "success" if success else "failed"}
     except Exception as e:
         return {"status": "error", "detail": str(e)}
+
+@router.post("/ingest_gfs_pressure_direct")
+async def ingest_gfs_pressure_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_gfs_pressure_pilot")
 
 @router.post("/ingest_icon_pressure_direct")
 async def ingest_icon_pressure_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_icon_pressure_pilot()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_icon_pressure_pilot")
 
 @router.post("/ingest_euro_pressure_direct")
 async def ingest_euro_pressure_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_euro_pressure_pilot()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_euro_pressure_pilot")
 
 @router.post("/ingest_euro_wind_direct")
 async def ingest_euro_wind_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_euro_wind_pilot()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_euro_wind_pilot")
 
 @router.post("/ingest_euro_estimates_direct")
 async def ingest_euro_estimates_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_euro_marine_extended_estimates()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_euro_marine_extended_estimates")
 
 @router.post("/ingest_icon_wind_direct")
 async def ingest_icon_wind_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_icon_wind_pilot()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_icon_wind_pilot")
 
 @router.post("/ingest_gfs_wind_global_direct")
 async def ingest_gfs_wind_global_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_gfs_wind_global()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_gfs_wind_global")
 
 @router.post("/ingest_euro_wind_global_direct")
 async def ingest_euro_wind_global_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_euro_wind_global()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_euro_wind_global")
 
 @router.post("/ingest_icon_wind_global_direct")
 async def ingest_icon_wind_global_direct(admin=Depends(get_current_admin)):
-    try:
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        scheduler = WeatherPipelineScheduler(store=store)
-        success = await scheduler.ingest_icon_wind_global()
-        return {"status": "success" if success else "failed"}
-    except Exception as e:
-        return {"status": "error", "detail": str(e)}
+    return await _run_ingest("ingest_icon_wind_global")
 
 @router.get("/products")
 async def get_products():
@@ -227,24 +183,6 @@ async def get_products():
         "cache_dir": str(store.cache_dir)
     }
 
-def is_bbox_overlapping(w1: float, s1: float, e1: float, n1: float, cov) -> bool:
-    """Checks if requested bounding box overlaps with product coverage bounds."""
-    # Check latitude overlap
-    lat_overlap = not (n1 < cov.south or s1 > cov.north)
-    # Check longitude overlap
-    if cov.west <= cov.east:
-        if w1 <= e1:
-            lon_overlap = not (e1 < cov.west or w1 > cov.east)
-        else:
-            # Requested bbox crosses antimeridian
-            lon_overlap = not (cov.east < w1 and cov.west > e1)
-    else:
-        # cov crosses antimeridian
-        if w1 <= e1:
-            lon_overlap = not (e1 < cov.west and w1 > cov.east)
-        else:
-            lon_overlap = True # both cross antimeridian
-    return lat_overlap and lon_overlap
 
 def calculate_bbox_intersection_area(w1: float, s1: float, e1: float, n1: float, w2: float, s2: float, e2: float, n2: float) -> float:
     """Calculates the intersection area of two bounding boxes."""
@@ -260,7 +198,8 @@ async def get_grid(
     domain: str = Query(..., pattern="^(marine|wind|weather)$"),
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
-    bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter")
+    bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter"),
+    background_tasks: BackgroundTasks = None
 ):
     """
     GET /api/weather/grid
@@ -301,6 +240,7 @@ async def get_grid(
         authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
     )
 
+    manifest_preview_item = None
     use_manifest_product = False
     regional_span_lng = 0.0
     if matching_manifest_item:
@@ -357,6 +297,7 @@ async def get_grid(
                 use_manifest_product = True
 
         if not use_manifest_product:
+            manifest_preview_item = matching_manifest_item
             matching_manifest_item = None
 
     # Step-wise product resolution
@@ -383,6 +324,42 @@ async def get_grid(
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+
+    # Step 3.5: Fast manifest preview (SWR)
+    if not product and manifest_preview_item:
+        file_path = store.cache_dir / manifest_preview_item.filename
+        file_exists = await asyncio.to_thread(file_path.exists)
+        if file_exists:
+            logger.info(f"[Grid Route] Serving conformed manifest item {manifest_preview_item.filename} as instant SWR preview")
+            product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename)
+            if product and product.grid:
+                product.product_id = manifest_preview_item.filename
+                product.coverage_scope = "global_coarse" if regional_span_lng >= 350.0 else "regional"
+                product.partial_coverage = False
+                product.requested_bbox_original = bbox
+                product.query_bbox = bbox
+                product.requested_bbox = bbox
+                product.stale = True
+                product.staleReason = "swr_revalidation_pending"
+                if bbox and getattr(manifest_preview_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
+                    product = filter_grid_to_bbox(product, bbox)
+                if product.grid and product.grid.bounds:
+                    product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+                    reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+                    if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
+                        viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
+                        if background_tasks:
+                            background_tasks.add_task(
+                                viewport_service._revalidate_fetch,
+                                model, domain, layer, valid_time, target_dt, bbox, reval_key
+                            )
+                        else:
+                            asyncio.create_task(
+                                viewport_service._revalidate_fetch(
+                                    model, domain, layer, valid_time, target_dt, bbox, reval_key
+                                )
+                            )
 
     # Step 4 & 5: Upstream dynamic fetch & stale fallback
     if not product:

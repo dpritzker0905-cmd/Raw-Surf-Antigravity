@@ -439,6 +439,14 @@ export function useMarineDataFetcher({
   ]);
 
   const enqueueMarineUpdate = useCallback((source) => {
+    if (source === 'cancel_scrub') {
+      if (scrubDebounceRef.current) {
+        clearTimeout(scrubDebounceRef.current);
+        scrubDebounceRef.current = null;
+      }
+      return;
+    }
+
     const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
     if (!isTimelineScrub && window.isScrubbingTimeline) return;
 
