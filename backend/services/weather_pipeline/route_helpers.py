@@ -116,11 +116,11 @@ def generate_bbox_coords(w: float, s: float, e: float, n: float, res: float) -> 
         
     return lats_list, lons_list
 
-def choose_adaptive_resolution(span_lng: float, span_lat: float) -> float:
+def choose_adaptive_resolution(span_lng: float, span_lat: float, target_points: float = 400.0) -> float:
     """
     Selects adaptive resolution based on bounding box dimensions.
     """
-    est_res = math.sqrt((span_lng * span_lat) / 400.0)
+    est_res = math.sqrt((span_lng * span_lat) / target_points)
     if est_res <= 0.25:
         return 0.25
     elif est_res <= 0.5:

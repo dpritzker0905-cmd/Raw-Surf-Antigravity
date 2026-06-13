@@ -111,18 +111,18 @@ def select_best_candidate(
     Strictly prioritizes authoritative candidates before estimated candidates.
     For global/wide queries, filters out non-global candidates if at least one global product exists.
     """
-    # Identify wide/global requests (longitude span > 180 or latitude span > 90)
-    is_global_request = False
+    # Identify wide/global requests (longitude span > 15.0 or latitude span > 15.0)
+    is_wide_request = False
     if req_w is not None and req_s is not None and req_e is not None and req_n is not None:
         if req_w <= req_e:
             lon_span = req_e - req_w
         else:
             lon_span = 360.0 - (req_w - req_e)
         lat_span = req_n - req_s
-        if lon_span > 180.0 or lat_span > 90.0:
-            is_global_request = True
+        if lon_span > 15.0 or lat_span > 15.0:
+            is_wide_request = True
 
-    if is_global_request:
+    if is_wide_request:
         # Check if there is at least one global product in either list.
         # A global product is one with coverage longitude span >= 350.0.
         def is_global_product(p: Any) -> bool:

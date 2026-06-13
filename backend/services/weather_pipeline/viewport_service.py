@@ -232,7 +232,8 @@ class ViewportService:
         coverage_scope = "global_coarse" if is_global_view else "viewport"
 
         # Determine adaptive resolution
-        resolution = choose_adaptive_resolution(span_lng, span_lat)
+        target_pts = 200.0 if domain.lower() == "marine" else 400.0
+        resolution = choose_adaptive_resolution(span_lng, span_lat, target_pts)
 
         # Generate cache key and viewport filename
         time_str = target_dt.strftime("%Y%m%dT%H%M%SZ")
@@ -449,7 +450,7 @@ class ViewportService:
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
 
             # Resolve delay overrides using env variables
-            env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "1.2"))
+            env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.8"))
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay

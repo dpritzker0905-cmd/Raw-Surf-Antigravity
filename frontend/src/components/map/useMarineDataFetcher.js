@@ -88,6 +88,7 @@ export function useMarineDataFetcher({
     const timeOffset = timeOffsetRef.current;
     const zoom = mapInstance.getZoom();
     const locks = marineFetchLocksRef.current;
+    let requestId = 0;
 
     try {
       const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
@@ -124,7 +125,7 @@ export function useMarineDataFetcher({
       } catch (e) {
         // Fallback to global if getBounds fails (e.g., map not ready)
       }
-      const requestId = ++marineRequestIdRef.current;
+      requestId = ++marineRequestIdRef.current;
       
       if (getRemainingCooldown('marine') > 0 || isInCooldown('marine')) {
         console.warn('[Orchestrator] 429 rate limit active, skipping network fetch and entering cooldown fallback');
@@ -445,7 +446,7 @@ export function useMarineDataFetcher({
     } catch (err) {
       const isAbort = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort');
       console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
-      const isCurrentHour = fetchIntent.hour === timeOffsetRef.current;
+      const isCurrentHour = timeOffset === timeOffsetRef.current;
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
         setMarineData(null);
       } else {
@@ -499,7 +500,12 @@ export function useMarineDataFetcher({
     const locks = marineFetchLocksRef.current;
     if (locks.isFetching) {
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
-      logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current); return;
+      logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
+      console.log(`[Abort] Aborting active fetch in enqueueMarineUpdate for new source=${source}`);
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      return;
     }
 
     if (source === 'manual') locks.manualFetchActiveUntil = now + 1500;
