@@ -172,11 +172,15 @@ export function computeVectorDiffAndLog({ grid, prev, activeModel, activeLayers,
         prev.themeSig === themeSig &&
         prev.contentHash === contentHash) {
       
-      shouldSkip = true;
-      if (renderedDataHour !== requestedHour) {
-        skipReason = 'retained_previous_hour';
-      } else {
-        skipReason = hourChanged ? 'skipped_identical_content_across_hours' : 'duplicate_skipped';
+      // Only skip if we're re-uploading data for the SAME hour with identical content.
+      // NEVER skip when the hour has changed — even if the ocean data is numerically
+      // identical, the user explicitly requested a different forecast time.
+      // This was the root cause of the "heatmap freezes after scrubbing" bug:
+      // adjacent GFS marine hours often have identical wave vectors, causing
+      // shouldSkip=true and permanently freezing the heatmap at the first uploaded hour.
+      if (!hourChanged) {
+        shouldSkip = true;
+        skipReason = 'duplicate_skipped';
       }
     }
   }
