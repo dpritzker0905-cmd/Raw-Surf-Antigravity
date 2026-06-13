@@ -118,7 +118,16 @@ export function useMarineDataFetcher({
       if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming())) return;
 
       phase = 'pre_fetch';
-      const bounds = { west: -180, south: -85, east: 180, north: 85 };
+      // Use actual viewport bounds from the map instance, NOT hardcoded global bounds.
+      // Global bounds cause the backend to return a regional tile whose bounds create
+      // a visible rectangle of concentrated wave animations ("square congestion").
+      let bounds = { west: -180, south: -85, east: 180, north: 85 };
+      try {
+        const mb = mapInstance.getBounds();
+        bounds = { west: mb.getWest(), south: mb.getSouth(), east: mb.getEast(), north: mb.getNorth() };
+      } catch (e) {
+        // Fallback to global if getBounds fails (e.g., map not ready)
+      }
       const requestId = ++marineRequestIdRef.current;
       
       if (getRemainingCooldown('marine') > 0 || isInCooldown('marine')) {
@@ -381,6 +390,12 @@ export function useMarineDataFetcher({
         consecutiveFailuresRef.current = 0; locks.lastHash = viewportHash; locks.lastTime = Date.now();
         logPipelineEventHelper('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
         isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
+        // After a successful scrub-deferred fetch commits, reset the lastHash so that
+        // the next scrub position (which may also be a cache miss) can trigger a fetch
+        // without being blocked by the viewportHash deduplication window.
+        if (source === 'timeline_scrub' && timeOffsetRef.current !== fetchIntent.hour) {
+          locks.lastHash = null;
+        }
 
         setMarineData(prev => {
           const newSig = _marineDataSignature(data, layer);

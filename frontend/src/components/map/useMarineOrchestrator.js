@@ -252,7 +252,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           coverageRejected: false,
           timestamp: new Date().toISOString()
         };
-        enqueueMarineUpdate('cancel_scrub');
+        // Do NOT cancel pending deferred fetches — they protect against cache-miss hours
+        // that would otherwise never be fetched during rapid scrubbing sequences.
+        // The deferred fetch has its own staleness check to self-invalidate if stale.
         return;
       } else {
         console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
@@ -318,7 +320,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               coverageRejected,
               timestamp: new Date().toISOString()
             };
-            enqueueMarineUpdate('cancel_scrub');
+            // Do NOT cancel pending deferred fetches — same rationale as backend cache hit path.
             return;
           }
         }
@@ -504,6 +506,47 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }, 'useMarineOrchestrator.js', 'marineData useEffect');
     }
   }, [marineData, activeModel, activeMarineLayer, timeOffsetHours]);
+
+  // Scrub-settle safety net: After scrubbing ends, verify that the marineData
+  // matches the current timeOffsetHours. If not, trigger a fresh fetch.
+  // This catches edge cases where deferred fetches were lost during rapid scrub sequences.
+  const scrubSettleTimerRef = useRef(null);
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayersRef.current) return;
+
+    const checkScrubSettle = () => {
+      if (window.isScrubbingTimeline) return;
+      const currentHour = timeOffsetRef.current;
+      const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
+      const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
+      const noData = !marineData || !marineData.grid?.vectors?.length;
+
+      if (hourMismatch || noData) {
+        console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
+        marineFetchLocksRef.current.lastHash = null;
+        if (updateMarineGridRef.current) {
+          updateMarineGridRef.current('timeline_scrub');
+        }
+      }
+    };
+
+    // Listen for scrub-end via a lightweight interval that self-clears
+    let wasScrubbingRef = false;
+    const intervalId = setInterval(() => {
+      const isNowScrubbing = !!window.isScrubbingTimeline;
+      if (wasScrubbingRef && !isNowScrubbing) {
+        // Scrubbing just ended — delay slightly then verify
+        clearTimeout(scrubSettleTimerRef.current);
+        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 500);
+      }
+      wasScrubbingRef = isNowScrubbing;
+    }, 200);
+
+    return () => {
+      clearInterval(intervalId);
+      clearTimeout(scrubSettleTimerRef.current);
+    };
+  }, [mapInstance, marineData]);
 
   return { marineData };
 }
