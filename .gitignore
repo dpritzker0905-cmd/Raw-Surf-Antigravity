@@ -311,7 +311,11 @@ Graph-Tools/
 
 # Local databases and test output files
 *.db
+*.db-shm
+*.db-wal
 **/*.db
+**/*.db-shm
+**/*.db-wal
 frontend/*test_output*
 frontend/test_results.json
 frontend/*jest_output*
