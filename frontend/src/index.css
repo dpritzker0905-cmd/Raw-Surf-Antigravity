@@ -726,3 +726,41 @@ input[type="range"].appearance-none::-moz-range-track {
     height: 2.75rem !important; /* 44px */
   }
 }
+
+/* ============ MAP PAGE IMMERSIVE & MARKER OVERRIDES ============ */
+
+/* Immersive Mode style overrides */
+.immersive [data-testid="bottom-nav"], 
+.immersive .bottom-nav-container { 
+  transform: translateY(100%); 
+  opacity: 0; 
+  pointer-events: none !important; 
+} 
+.immersive .top-rail-container, 
+.immersive .top-rail-container *, 
+.immersive .right-controls-container, 
+.immersive .right-controls-container *, 
+.immersive .nearest-spot-card-container, 
+.immersive .nearest-spot-card-container * { 
+  pointer-events: none !important; 
+}
+
+/* Custom map markers and clusters */
+.custom-marker, 
+.custom-cluster-marker, 
+.marker-cluster div, 
+.marker-cluster-small, 
+.marker-cluster-medium, 
+.marker-cluster-large { 
+  background: transparent !important; 
+  border: none !important; 
+} 
+.photographer-marker .animate-ping { 
+  animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; 
+} 
+@keyframes ping { 
+  75%, 100% { 
+    transform: scale(1.5); 
+    opacity: 0; 
+  } 
+}

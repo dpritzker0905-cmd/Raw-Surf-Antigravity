@@ -154,3 +154,14 @@ export function initParticleTexture(gl, resolution) {
   }
   return createTexture(gl, gl.NEAREST, data, resolution, resolution);
 }
+
+export function safeDeleteTexture(gl, tex, engine) {
+  if (!tex || !gl) return;
+  if (engine) {
+    if (tex === engine.particleStateA || tex === engine.particleStateB) {
+      console.warn('[WebGLState] Safeguarded particle state texture from accidental deletion!');
+      return;
+    }
+  }
+  gl.deleteTexture(tex);
+}

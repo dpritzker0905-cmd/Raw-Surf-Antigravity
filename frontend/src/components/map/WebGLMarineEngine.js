@@ -15,6 +15,7 @@ import {
   HEATMAP_FS
 } from './WebGLMarineShaders';
 import { recordTruthStage } from './weatherTruthTracker';
+import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 
 import {
   createShader,
@@ -342,38 +343,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     themeVal = 2.0;
   }
 
-  // WebGL State Isolation Protocol
-  var prevProg = gl.getParameter(gl.CURRENT_PROGRAM);
-  var prevFBO = gl.getParameter(gl.FRAMEBUFFER_BINDING);
-  var prevBlend = gl.getParameter(gl.BLEND);
-  var prevActiveTex = gl.getParameter(gl.ACTIVE_TEXTURE);
-  var prevArrayBuffer = gl.getParameter(gl.ARRAY_BUFFER_BINDING);
-  var prevElementArrayBuffer = gl.getParameter(gl.ELEMENT_ARRAY_BUFFER_BINDING);
-  var prevViewport = gl.getParameter(gl.VIEWPORT);
-
-  var prevBlendSrcRGB = gl.getParameter(gl.BLEND_SRC_RGB);
-  var prevBlendDstRGB = gl.getParameter(gl.BLEND_DST_RGB);
-  var prevBlendSrcAlpha = gl.getParameter(gl.BLEND_SRC_ALPHA);
-  var prevBlendDstAlpha = gl.getParameter(gl.BLEND_DST_ALPHA);
-  var prevBlendEqRGB = gl.getParameter(gl.BLEND_EQUATION_RGB);
-  var prevBlendEqAlpha = gl.getParameter(gl.BLEND_EQUATION_ALPHA);
-
-  var prevDepthTest = gl.getParameter(gl.DEPTH_TEST);
-  var prevDepthWriteMask = gl.getParameter(gl.DEPTH_WRITEMASK);
-  var prevStencilTest = gl.getParameter(gl.STENCIL_TEST);
-  var prevScissorTest = gl.getParameter(gl.SCISSOR_TEST);
-  var prevColorMask = gl.getParameter(gl.COLOR_WRITEMASK);
-
-  var prevCullFace = gl.getParameter(gl.CULL_FACE);
-
-  var prevClearColor = null;
-  var prevAttribsEnabled = [];
-  var prevVAO = null;
-  var isWebGL2 = !!gl.bindVertexArray;
-  var prevTextures2D = [];
-  var prevTexturesCube = [];
-  var prevSamplers = [];
-
+  const webglState = captureWebGLState(gl);
   try {
     gl.disable(gl.CULL_FACE);
     gl.disable(gl.DEPTH_TEST);
@@ -384,49 +354,36 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.blendEquation(gl.FUNC_ADD);
 
     if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
-      prevClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE);
       gl.clearColor(0.05, 0.05, 0.08, 1.0);
       gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
     while (gl.getError() !== gl.NO_ERROR) {}
 
-    var maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
-    for (var i = 0; i < maxAttribs; i++) {
+    const maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
+    for (let i = 0; i < maxAttribs; i++) {
       try {
-        var enabled = gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-        prevAttribsEnabled.push(enabled);
-        if (enabled) {
+        if (gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED)) {
           gl.disableVertexAttribArray(i);
         }
-      } catch (e) {
-        prevAttribsEnabled.push(false);
-      }
+      } catch (e) {}
     }
 
-    var maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
-    for (var u = 0; u < maxUnits; u++) {
+    const maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
+    for (let u = 0; u < maxUnits; u++) {
       gl.activeTexture(gl.TEXTURE0 + u);
-      prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
       gl.bindTexture(gl.TEXTURE_2D, null);
       try {
-        prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
         gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-      } catch (e) {
-        prevTexturesCube.push(null);
-      }
-      if (isWebGL2) {
+      } catch (e) {}
+      if (webglState.isWebGL2) {
         try {
-          prevSamplers.push(gl.getParameter(gl.SAMPLER_BINDING));
           gl.bindSampler(u, null);
-        } catch (e) {
-          prevSamplers.push(null);
-        }
+        } catch (e) {}
       }
     }
 
-    if (isWebGL2) {
-      prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
+    if (webglState.isWebGL2) {
       gl.bindVertexArray(null);
     }
 
@@ -648,85 +605,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     this.particleStateA = this.particleStateB;
     this.particleStateB = tmp;
   } finally {
-    if (gl && !gl.isContextLost()) {
-      gl.bindBuffer(gl.ARRAY_BUFFER, prevArrayBuffer);
-      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, prevElementArrayBuffer);
-
-      if (isWebGL2 && gl.bindVertexArray) {
-        gl.bindVertexArray(prevVAO);
-      }
-
+    if (gl && !gl.isContextLost() && webglState) {
       if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
           gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
         } catch (e) {}
       }
-
-      gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
-      gl.useProgram(prevProg);
-      if (prevViewport) {
-        gl.viewport(prevViewport[0], prevViewport[1], prevViewport[2], prevViewport[3]);
-      }
-      for (var u = 0; u < prevTextures2D.length; u++) {
-        gl.activeTexture(gl.TEXTURE0 + u);
-        gl.bindTexture(gl.TEXTURE_2D, prevTextures2D[u]);
-        if (prevTexturesCube[u]) {
-          gl.bindTexture(gl.TEXTURE_CUBE_MAP, prevTexturesCube[u]);
-        }
-        if (isWebGL2 && prevSamplers[u] !== undefined) {
-          gl.bindSampler(u, prevSamplers[u]);
-        }
-      }
-
-      gl.activeTexture(prevActiveTex);
-      
-      for (var i = 0; i < prevAttribsEnabled.length; i++) {
-        try {
-          if (prevAttribsEnabled[i]) {
-            gl.enableVertexAttribArray(i);
-          } else {
-            gl.disableVertexAttribArray(i);
-          }
-        } catch (e) {}
-      }
-      
-      if (prevBlend) {
-        gl.enable(gl.BLEND);
-      } else {
-        gl.disable(gl.BLEND);
-      }
-      gl.blendFuncSeparate(prevBlendSrcRGB, prevBlendDstRGB, prevBlendSrcAlpha, prevBlendDstAlpha);
-      gl.blendEquationSeparate(prevBlendEqRGB, prevBlendEqAlpha);
-
-      if (prevDepthTest) {
-        gl.enable(gl.DEPTH_TEST);
-      } else {
-        gl.disable(gl.DEPTH_TEST);
-      }
-      gl.depthMask(prevDepthWriteMask);
-
-      if (prevStencilTest) {
-        gl.enable(gl.STENCIL_TEST);
-      } else {
-        gl.disable(gl.STENCIL_TEST);
-      }
-      if (prevScissorTest) {
-        gl.enable(gl.SCISSOR_TEST);
-      } else {
-        gl.disable(gl.SCISSOR_TEST);
-      }
-      gl.colorMask(prevColorMask[0], prevColorMask[1], prevColorMask[2], prevColorMask[3]);
-
-      if (prevCullFace) {
-        gl.enable(gl.CULL_FACE);
-      } else {
-        gl.disable(gl.CULL_FACE);
-      }
-
-      if (prevClearColor) {
-        gl.clearColor(prevClearColor[0], prevClearColor[1], prevClearColor[2], prevClearColor[3]);
-      }
+      restoreWebGLState(gl, webglState);
     }
 
     if (typeof window !== 'undefined' && window.__RAW_GPU__ && renderStart > 0) {

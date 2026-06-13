@@ -42,16 +42,11 @@ var MapPageContent = () => {
   const { user, refreshUser } = useAuth();
   const { getEffectiveRole } = usePersona();
 
-  // Refresh user profile on mount to get latest subscription_tier from backend
-  // (admin tier changes update DB but not localStorage until refresh)
+  // Refresh user profile and preload land GeoJSON on mount
   useEffect(() => {
     if (user?.id && user.id !== 'dev-mock-user-id') {
       refreshUser();
     }
-  }, []);
-
-  useEffect(() => {
-    // Eagerly preload land GeoJSON to prevent particle bunching on WebGL load
     getSharedLandGeoJSON().catch(err => {
       logger.warn('[MapPage] Failed to preload land GeoJSON:', err);
     });
@@ -476,10 +471,9 @@ var MapPageContent = () => {
 
   return (
     <div 
-      className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50]`}
+      className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50] ${isImmersiveMode ? 'immersive' : ''}`}
       data-testid="map-page-container"
     >
-      {isImmersiveMode && <style>{`[data-testid="bottom-nav"], .bottom-nav-container { transform: translateY(100%); opacity: 0; pointer-events: none !important; } .top-rail-container, .top-rail-container *, .right-controls-container, .right-controls-container *, .nearest-spot-card-container, .nearest-spot-card-container * { pointer-events: none !important; }`}</style>}
       {/* Map Container - Fill entire view */}
       <div className="absolute inset-0 z-0" data-testid="map-container">
         <MapWebGL 
@@ -730,8 +724,6 @@ var MapPageContent = () => {
           }}
         />
       )}
-
-      <style>{`.custom-marker, .custom-cluster-marker, .marker-cluster div, .marker-cluster-small, .marker-cluster-medium, .marker-cluster-large { background: transparent !important; border: none !important; } .photographer-marker .animate-ping { animation: ping 1.5s cubic-bezier(0, 0, 0.2, 1) infinite; } @keyframes ping { 75%, 100% { transform: scale(1.5); opacity: 0; } }`}</style>
 
       <UnifiedSpotDrawer
         spot={selectedSpot}

@@ -1,30 +1,19 @@
 import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
+import {
+  createShader,
+  createProgram,
+  unbindTexture,
+  bindTexture,
+  safeDeleteTexture
+} from './WebGLWindUtils';
 
-// --- WebGL Shader and Program Creation Utilities ---
-
-export function createShader(gl, type, source) {
-  const shader = gl.createShader(type);
-  gl.shaderSource(shader, source);
-  gl.compileShader(shader);
-  if (!gl.getShaderParameter(shader, gl.COMPILE_STATUS)) {
-    console.error('[WebGLMarine] Shader compile error:', gl.getShaderInfoLog(shader));
-    gl.deleteShader(shader);
-    return null;
-  }
-  return shader;
-}
-
-export function createProgram(gl, vs, fs) {
-  const prog = gl.createProgram();
-  gl.attachShader(prog, vs);
-  gl.attachShader(prog, fs);
-  gl.linkProgram(prog);
-  if (!gl.getProgramParameter(prog, gl.LINK_STATUS)) {
-    console.error('[WebGLMarine] Program link error:', gl.getProgramInfoLog(prog));
-    return null;
-  }
-  return prog;
-}
+export {
+  createShader,
+  createProgram,
+  unbindTexture,
+  bindTexture,
+  safeDeleteTexture
+};
 
 // --- Texture Lifecycle Utilities ---
 
@@ -67,35 +56,6 @@ export function createTexture(gl, filter, data, width, height) {
     window.__RAW_GPU__.gpuMemoryEstimate += width * height * 4;
   }
   return tex;
-}
-
-export function unbindTexture(gl, tex) {
-  if (!tex) return;
-  var prevActive = gl.getParameter(gl.ACTIVE_TEXTURE);
-  var maxUnits = Math.min(16, gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8);
-  for (var u = 0; u < maxUnits; u++) {
-    gl.activeTexture(gl.TEXTURE0 + u);
-    if (gl.getParameter(gl.TEXTURE_BINDING_2D) === tex) {
-      gl.bindTexture(gl.TEXTURE_2D, null);
-    }
-  }
-  gl.activeTexture(prevActive);
-}
-
-export function bindTexture(gl, tex, unit) {
-  gl.activeTexture(gl.TEXTURE0 + unit);
-  gl.bindTexture(gl.TEXTURE_2D, tex);
-}
-
-export function safeDeleteTexture(gl, tex, engine) {
-  if (!tex || !gl) return;
-  if (engine) {
-    if (tex === engine.particleStateA || tex === engine.particleStateB) {
-      console.warn('[WebGLMarineEngine] Safeguarded particle state texture from accidental deletion!');
-      return;
-    }
-  }
-  gl.deleteTexture(tex);
 }
 
 // --- Dynamic GFS Shoreline Extrapolation (In-painting Coastline) ---
