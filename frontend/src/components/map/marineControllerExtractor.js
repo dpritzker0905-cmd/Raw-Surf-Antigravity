@@ -4,8 +4,15 @@
 import { safeNum, getUV, findClosestHourIndex } from './marineControllerUtils';
 
 export function extractMarineAtOffset(cache, hourOffset, targetLayer) {
+  if (!cache) return null;
   const { results, points, gridSize, bounds } = cache;
-  const timeArray = results[0]?.hourly?.time;
+  if (!results || !points) {
+    if (cache.grid && cache.type === 'FeatureCollection') {
+      return cache;
+    }
+    return null;
+  }
+  const timeArray = results?.[0]?.hourly?.time;
   const targetMs = Date.now() + hourOffset * 3600000;
   const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
   

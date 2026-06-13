@@ -238,29 +238,36 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     }
   }
   if (hitData && wanted === 'GFS' && wantedLayer === 'waves' && wantedHour === 0) {
-    const timeArray = hitData.results?.[0]?.hourly?.time;
-    const targetMs = Date.now() + wantedHour * 3600000;
-    const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-    const validTimeStr = timeArray?.[idx]
-      ? new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').toISOString().replace(/\.\d{3}/, '')
-      : new Date().toISOString().replace(/\.\d{3}/, '');
+    try {
+      const isRaw = !!hitData.results;
+      const timeArray = isRaw ? hitData.results?.[0]?.hourly?.time : null;
+      const targetMs = Date.now() + wantedHour * 3600000;
+      const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
+      const validTimeStr = timeArray?.[idx]
+        ? new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').toISOString().replace(/\.\d{3}/, '')
+        : (hitData.validTime || hitData.valid_time || new Date().toISOString().replace(/\.\d{3}/, ''));
 
-    const extractedSlice = extractMarineAtOffset(hitData, wantedHour, wantedLayer);
+      const extractedGrid = isRaw 
+        ? extractMarineAtOffset(hitData, wantedHour, wantedLayer)?.grid 
+        : hitData.grid;
 
-    recordTruthStage('cacheRead', {
-      model: wanted,
-      domain: 'marine',
-      layer: wantedLayer,
-      valid_time: validTimeStr,
-      run_time: hitData.run_time || hitData.runTime,
-      product_id: hitData.product_id || hitData.productId,
-      is_dynamic_viewport_product: hitData.is_dynamic_viewport_product || hitData.grid?.is_dynamic_viewport_product,
-      coverage_scope: hitData.coverage_scope || hitData.grid?.coverage_scope,
-      requested_bbox: hitData.requested_bbox || hitData.grid?.requested_bbox,
-      served_bbox: hitData.served_bbox || hitData.grid?.served_bbox,
-      grid: extractedSlice?.grid,
-      truthTag: hitData.truthTag || hitData.grid?.truthTag
-    }, 'marineController.js', 'getModelSafeMarine');
+      recordTruthStage('cacheRead', {
+        model: wanted,
+        domain: 'marine',
+        layer: wantedLayer,
+        valid_time: validTimeStr,
+        run_time: hitData.run_time || hitData.runTime || hitData.grid?.run_time || hitData.grid?.runTime,
+        product_id: hitData.product_id || hitData.productId || hitData.grid?.productId || null,
+        is_dynamic_viewport_product: hitData.is_dynamic_viewport_product || hitData.grid?.is_dynamic_viewport_product || false,
+        coverage_scope: hitData.coverage_scope || hitData.grid?.coverage_scope || null,
+        requested_bbox: hitData.requested_bbox || hitData.grid?.requested_bbox || null,
+        served_bbox: hitData.served_bbox || hitData.grid?.served_bbox || null,
+        grid: extractedGrid,
+        truthTag: hitData.truthTag || hitData.grid?.truthTag || null
+      }, 'marineController.js', 'getModelSafeMarine');
+    } catch (e) {
+      console.warn('[Truth Tracker] Failed to record cacheRead truth stage:', e.message);
+    }
   }
 
   return hitData;

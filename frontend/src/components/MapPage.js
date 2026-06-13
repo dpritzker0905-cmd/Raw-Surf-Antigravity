@@ -184,8 +184,8 @@ var MapPageContent = () => {
   }, [setActiveModel, setTimeOffsetHours, toggleLayer]);
 
   // Snapped ocean/water coordinates to avoid querying land cells
-  const forecastLat = snappedCoordinates.lat;
-  const forecastLng = snappedCoordinates.lng;
+  const forecastLat = snappedCoordinates?.lat;
+  const forecastLng = snappedCoordinates?.lng;
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

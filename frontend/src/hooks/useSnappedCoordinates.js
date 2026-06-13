@@ -55,16 +55,8 @@ export function useSnappedCoordinates({ selectedSpot, longPressLocation, userLoc
       const nearest = findNearestSpotToCoord(userLocation.lat, userLocation.lng);
       if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'gps_snapped', name: nearest.name };
     }
-    if (mapCenter?.lat != null && mapCenter?.lng != null) {
-      const nearest = findNearestSpotToCoord(mapCenter.lat, mapCenter.lng);
-      if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'center_snapped', name: nearest.name };
-    }
-    if (ipLocation?.lat != null && ipLocation?.lng != null) {
-      const nearest = findNearestSpotToCoord(ipLocation.lat, ipLocation.lng);
-      if (nearest) return { lat: nearest.latitude, lng: nearest.longitude, source: 'ip_snapped', name: nearest.name };
-    }
-    return { lat: 37.4984, lng: -122.4975, source: 'fallback_mavericks', name: 'Mavericks' };
-  }, [selectedSpot, longPressLocation, userLocation, mapCenter, ipLocation, surfSpots, findNearestSpotToCoord]);
+    return null;
+  }, [selectedSpot, longPressLocation, userLocation, surfSpots, findNearestSpotToCoord]);
 
   return { snappedCoordinates, findNearestSpotToCoord };
 }

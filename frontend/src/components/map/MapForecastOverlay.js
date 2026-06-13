@@ -501,6 +501,26 @@ export const MapForecastOverlay = ({
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
 
+  if (pointLat == null || pointLng == null) {
+    return (
+      <div
+        className={`absolute ${
+          isImmersiveMode 
+            ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
+            : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
+        } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} w-[180px] p-3 text-center transition-all duration-300`}
+        data-testid="forecast-overlay"
+      >
+        <div className={`text-[10px] font-bold ${textClass}`}>
+          No Location Selected
+        </div>
+        <div className={`text-[9px] ${textMuted} mt-1 leading-normal`}>
+          Select a surf spot, set a marker, or enable GPS to view forecast data.
+        </div>
+      </div>
+    );
+  }
+
   return (
     <div
       className={`absolute ${
