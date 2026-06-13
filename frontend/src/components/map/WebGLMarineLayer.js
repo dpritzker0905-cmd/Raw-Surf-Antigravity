@@ -479,7 +479,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
   useEffect(() => {
     if (!mapInstance) return;
-    if (!active) return;
 
     const engine = new WebGLMarineEngine();
     engineRef.current = engine;
@@ -528,7 +527,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       engine.dispose(mapInstance.painter?.context?.gl);
       engineRef.current = null;
     };
-  }, [mapInstance, active]);
+  }, [mapInstance]);
 
   useEffect(() => {
     const engine = engineRef.current;
