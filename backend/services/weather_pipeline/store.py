@@ -848,48 +848,49 @@ class ProductStore:
                 return False, f"Estimated product domain must be marine, got {product.domain}"
             if product.layer.lower() not in ("waves", "swell_1", "swell_2", "wind_waves"):
                 return False, f"Estimated product layer must be waves/swell_1/swell_2/wind_waves, got {product.layer}"
-            if product.provider != "estimated":
-                return False, f"Estimated product provider must be estimated, got {product.provider}"
+            if product.provider not in ("estimated", "open-meteo", "gfs_estimated_fallback"):
+                return False, f"Estimated product provider must be estimated, open-meteo, or gfs_estimated_fallback, got {product.provider}"
             if not product.is_estimated:
                 return False, "Estimated product is_estimated must be True"
             if product.is_forecast_authoritative:
                 return False, "Estimated product is_forecast_authoritative must be False"
-            if product.source_dataset != "estimated_blend":
-                return False, f"Estimated product source_dataset must be estimated_blend, got {product.source_dataset}"
+            if product.source_dataset not in ("estimated_blend", "open_meteo_fallback", "gfs_estimated_fallback"):
+                return False, f"Estimated product source_dataset must be estimated_blend, open_meteo_fallback, or gfs_estimated_fallback, got {product.source_dataset}"
             
             basis = getattr(product, "estimate_basis", None)
             if not basis:
                 return False, "Estimated product missing estimate_basis"
             
             basis_type = basis.get("type") if isinstance(basis, dict) else getattr(basis, "type", None)
-            if basis_type not in ("euro_persistence_gfs_icon_blend", "euro_persistence_gfs_blend"):
+            if basis_type not in ("euro_persistence_gfs_icon_blend", "euro_persistence_gfs_blend", "open_meteo_fallback", "gfs_estimated_fallback"):
                 return False, f"Estimated product estimate_basis type must be allowed, got {basis_type}"
             
-            if not manifest:
-                manifest = self.get_manifest()
+            if basis_type not in ("open_meteo_fallback", "gfs_estimated_fallback"):
+                if not manifest:
+                    manifest = self.get_manifest()
+                    
+                manifest_ids = {p.product_id for p in manifest.products if p.product_id}
+                manifest_filenames = {p.filename for p in manifest.products if p.filename}
+                all_manifest_ids = manifest_ids.union(manifest_filenames)
                 
-            manifest_ids = {p.product_id for p in manifest.products if p.product_id}
-            manifest_filenames = {p.filename for p in manifest.products if p.filename}
-            all_manifest_ids = manifest_ids.union(manifest_filenames)
-            
-            source_keys = ["euro_anchor_product_id", "gfs_anchor_product_id", "gfs_target_product_id"]
-            if basis_type == "euro_persistence_gfs_icon_blend":
-                source_keys.extend(["icon_anchor_product_id", "icon_target_product_id"])
-                
-            for key in source_keys:
-                val = basis.get(key) if isinstance(basis, dict) else getattr(basis, key, None)
-                if not val:
-                    return False, f"Estimated product missing required basis key: {key}"
-                if val not in all_manifest_ids:
-                    return False, f"Estimated product source ID '{val}' for key '{key}' not found in manifest"
-                
-                src_entry = next((p for p in manifest.products if p.product_id == val or p.filename == val), None)
-                if src_entry:
-                    if src_entry.is_test_fixture or src_entry.provider == "test-fixture":
-                        if not is_test_env:
-                            return False, f"Source product '{val}' is a test fixture in a non-test environment"
-                else:
-                    return False, f"Source product '{val}' not found in manifest"
+                source_keys = ["euro_anchor_product_id", "gfs_anchor_product_id", "gfs_target_product_id"]
+                if basis_type == "euro_persistence_gfs_icon_blend":
+                    source_keys.extend(["icon_anchor_product_id", "icon_target_product_id"])
+                    
+                for key in source_keys:
+                    val = basis.get(key) if isinstance(basis, dict) else getattr(basis, key, None)
+                    if not val:
+                        return False, f"Estimated product missing required basis key: {key}"
+                    if val not in all_manifest_ids:
+                        return False, f"Estimated product source ID '{val}' for key '{key}' not found in manifest"
+                    
+                    src_entry = next((p for p in manifest.products if p.product_id == val or p.filename == val), None)
+                    if src_entry:
+                        if src_entry.is_test_fixture or src_entry.provider == "test-fixture":
+                            if not is_test_env:
+                                return False, f"Source product '{val}' is a test fixture in a non-test environment"
+                    else:
+                        return False, f"Source product '{val}' not found in manifest"
                     
             if is_tf and not is_test_env:
                 return False, "Estimated product itself is a test fixture in a non-test environment"

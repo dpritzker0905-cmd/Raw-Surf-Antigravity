@@ -353,6 +353,8 @@ async def normalize_and_save_loop(
                     product.is_estimated = True
                     product.is_forecast_authoritative = False
                     product.estimate_basis = estimate_basis
+                    if estimate_basis and isinstance(estimate_basis, dict) and "type" in estimate_basis:
+                        product.source_dataset = estimate_basis["type"]
                 
                 products_to_save.append((product, resolution))
                 await asyncio.sleep(0.01)
