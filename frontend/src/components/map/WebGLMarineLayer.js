@@ -551,22 +551,22 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
       const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
       const lastSig = lastUploadedGridRef.current;
-      const modelOrLayerOrHourChanged = lastSig.activeModel !== activeModelRef.current ||
-                                        lastSig.activeMarineLayer !== activeMarineLayer ||
-                                        lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
+      const modelOrLayerChanged = lastSig.activeModel !== activeModelRef.current ||
+                                   lastSig.activeMarineLayer !== activeMarineLayer;
+      const hourChanged = lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
-      if (window.isScrubbingTimeline && !modelOrLayerOrHourChanged) {
+      if (window.isScrubbingTimeline) {
         return;
       }
 
       const isFallbackSafeZero = data?.__provider === 'fallback_safe_zero' || data?.grid?.__provider === 'fallback_safe_zero';
 
-      if (isFallbackSafeZero && !modelOrLayerOrHourChanged) {
+      if (isFallbackSafeZero && !modelOrLayerChanged && !hourChanged) {
         runDiagnosticsUpdate('held_rate_limit');
         return;
       }
 
-      if (modelOrLayerOrHourChanged) {
+      if (modelOrLayerChanged) {
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {
@@ -574,7 +574,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
           sampleSum: 0, timestamp: 0, timeOffsetHours: 0
         };
-        runDiagnosticsUpdate('instant_clear');
+        runDiagnosticsUpdate('instant_clear_model_layer');
         if (mapInstance) mapInstance.triggerRepaint();
         return;
       }

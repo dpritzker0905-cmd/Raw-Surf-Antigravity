@@ -369,8 +369,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Fetching...`);
     marineFetchLocksRef.current.lastHash = null;
-    if (updateMarineGridRef.current) {
-      updateMarineGridRef.current('timeline_scrub');
+    if (window.isScrubbingTimeline) {
+      enqueueMarineUpdate('timeline_scrub_deferred');
+    } else {
+      if (updateMarineGridRef.current) {
+        updateMarineGridRef.current('timeline_scrub');
+      }
     }
   }, [timeOffsetHours, mapInstance]);
 
