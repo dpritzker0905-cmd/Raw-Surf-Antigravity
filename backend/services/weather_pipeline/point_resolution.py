@@ -102,12 +102,38 @@ class PointResolutionService:
 
         # ── PATH 1: Strict grid_product_id lookup ────────────────────────────
         if grid_product_id:
+            # Swap timestamp in grid_product_id filename to match valid_time_str (e.g. timeline scrubbing temporal parity)
+            import re
+            ts_match = re.search(r'\d{8}T\d{6}Z', grid_product_id)
+            if ts_match:
+                filename_ts = ts_match.group(0)
+                target_ts = target_dt.strftime("%Y%m%dT%H%M%SZ")
+                if filename_ts != target_ts:
+                    adjusted_grid_product_id = grid_product_id.replace(filename_ts, target_ts)
+                    file_path = self.store.cache_dir / adjusted_grid_product_id
+                    if file_path.exists():
+                        logger.info(f"[Point Resolution] Swapped grid_product_id from {grid_product_id} to {adjusted_grid_product_id} due to temporal mismatch during scrubbing.")
+                        grid_product_id = adjusted_grid_product_id
+                    else:
+                        logger.warning(f"[Point Resolution] Temporal mismatch: {adjusted_grid_product_id} not cached on disk. Suppressing strict grid lookup to allow dynamic/upstream fallback.")
+                        grid_product_id = None
+
+        if grid_product_id:
             product = await asyncio.to_thread(self.store.load_product, grid_product_id)
             if not product or not product.grid or not product.grid.vectors:
                 return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
 
+            # Let's ensure coverage_mode is set correctly!
+            if not getattr(product, "coverage_mode", None):
+                if "global_coarse" in grid_product_id:
+                    product.coverage_mode = "global_tile"
+                elif "florida" in grid_product_id:
+                    product.coverage_mode = "regional_tile"
+                else:
+                    product.coverage_mode = "viewport"
+
             # Crop if grid_bbox is provided and not wind
-            if grid_bbox and domain.lower() != "wind":
+            if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                 product = filter_grid_to_bbox(product, grid_bbox)
 
             # Enforce bounds containment strictly (0.0001 snapping-tolerant margin, antimeridian aware)
@@ -143,7 +169,10 @@ class PointResolutionService:
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
             if product:
-                if grid_bbox and domain.lower() != "wind":
+                # Ensure coverage_mode is set!
+                if not getattr(product, "coverage_mode", None):
+                    product.coverage_mode = dynamic_match.get("coverage_mode") or "viewport"
+                if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
                 response.valid_time = target_dt
@@ -195,7 +224,15 @@ class PointResolutionService:
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
             if product:
-                if grid_bbox and domain.lower() != "wind":
+                # Ensure coverage_mode is set!
+                if not getattr(product, "coverage_mode", None):
+                    product.coverage_mode = getattr(matching_item, "coverage_mode", None)
+                    if not product.coverage_mode:
+                        if "global_coarse" in matching_item.filename:
+                            product.coverage_mode = "global_tile"
+                        else:
+                            product.coverage_mode = "regional_tile"
+                if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) not in ("global_tile", "viewport"):
                     product = filter_grid_to_bbox(product, grid_bbox)
                 response = self.sampler.sample_point(product, lat, lng)
                 response.valid_time = target_dt
@@ -271,7 +308,9 @@ class PointResolutionService:
 
         elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in ("GFS", "ICON", "EURO"):
             try:
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng)
+                # Use model-appropriate forecast_days for point fallback
+                point_forecast_days = {"ICON": 7, "EURO": 10, "GFS": 16}.get(model.upper(), 2)
+                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
                 if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                     from services.weather_pipeline.normalizer import WeatherNormalizer
                     times = raw_point["hourly"]["time"]

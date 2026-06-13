@@ -415,7 +415,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const cached = getModelSafeMarine(activeModel, timeOffsetHours, activeMarineLayer, vpBounds);
         if (cached && cached.grid && !cached.__staleHour) {
           const prodId = cached.product_id || cached.productId;
-          const isRegional = prodId && (prodId.includes('florida_east_coast') || !cached.is_dynamic_viewport_product);
+          const regionId = cached.region_id || cached.regionId || cached.grid?.region_id || cached.grid?.regionId;
+          const coverageMode = cached.coverage_mode || cached.coverageMode || cached.grid?.coverage_mode || cached.grid?.coverageMode;
+          const isDynamic = !!(cached.is_dynamic_viewport_product || cached.isDynamicViewportProduct || cached.grid?.is_dynamic_viewport_product || cached.grid?.isDynamicViewportProduct);
+
+          const isRegional = prodId && (
+            prodId.includes('florida_east_coast') ||
+            coverageMode === 'regional_tile' ||
+            (regionId && regionId !== 'global_coarse' && !isDynamic)
+          );
           if (prodId && !isRegional) {
             const sig = _marineDataSignature(cached, activeMarineLayer);
             if (sig && sig !== lastCommittedSigRef.current) {

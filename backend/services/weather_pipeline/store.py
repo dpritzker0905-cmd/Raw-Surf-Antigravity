@@ -358,6 +358,13 @@ class ProductStore:
                     p.tile_id = "florida_east_coast"
                 if not p.coverage_mode:
                     p.coverage_mode = "regional_tile"
+            if not p.coverage_mode:
+                if p.filename and "global_coarse" in p.filename:
+                    p.coverage_mode = "global_tile"
+                else:
+                    cov = p.coverage
+                    span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
+                    p.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
             if not p.product_id:
                 p.product_id = p.filename
         return manifest
@@ -567,6 +574,13 @@ class ProductStore:
                         product.tile_id = "florida_east_coast"
                     if not product.coverage_mode:
                         product.coverage_mode = "regional_tile"
+                if not product.coverage_mode:
+                    if filename and "global_coarse" in filename:
+                        product.coverage_mode = "global_tile"
+                    else:
+                        cov = product.coverage
+                        span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
+                        product.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
                 if not product.product_id:
                     product.product_id = filename
                     

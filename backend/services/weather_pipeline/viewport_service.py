@@ -19,6 +19,16 @@ from services.weather_pipeline.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
+class FetchContext:
+    """
+    Context for in-flight dynamic viewport requests to deduplicate and share
+    raw fetched data and hour-specific processing results.
+    """
+    def __init__(self):
+        self.raw_fetch_future = asyncio.Future()
+        self.raw_list = None
+        self.hour_futures: Dict[datetime, asyncio.Future] = {}
+
 class ViewportService:
     """
     Service responsible for managing dynamic viewport bounding-box weather queries.
@@ -27,7 +37,7 @@ class ViewportService:
     """
     
     # Class-level registry for request deduplication
-    IN_FLIGHT_REQUESTS: Dict[str, asyncio.Future] = {}
+    IN_FLIGHT_REQUESTS: Dict[str, FetchContext] = {}
     IN_FLIGHT_LOCK = asyncio.Lock()
 
     # Class-level registry for active revalidation tasks (SWR)
@@ -300,29 +310,46 @@ class ViewportService:
                 if model.upper() in ("ICON", "EURO"):
                     forecast_days = min(forecast_days, 7)
                 else:
-                    forecast_days = min(forecast_days, 8)
+                    forecast_days = min(forecast_days, 16)
 
         # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{bbox_key_str}_{forecast_days}"
-        my_future = None
+        context = None
         is_fetcher = False
 
         async with self.IN_FLIGHT_LOCK:
             if request_dedup_key in self.IN_FLIGHT_REQUESTS:
-                my_future = self.IN_FLIGHT_REQUESTS[request_dedup_key]
+                context = self.IN_FLIGHT_REQUESTS[request_dedup_key]
+                is_fetcher = False
             else:
-                my_future = asyncio.Future()
-                self.IN_FLIGHT_REQUESTS[request_dedup_key] = my_future
+                context = FetchContext()
+                self.IN_FLIGHT_REQUESTS[request_dedup_key] = context
                 is_fetcher = True
 
         if not is_fetcher:
             logger.info(f"[Dynamic Viewport] Sharing in-flight request for {request_dedup_key}")
             try:
-                await my_future
-                # Waiter finished! Load the specific file for our target_dt from the cache.
+                # Wait for the fetcher to complete the raw API fetch
+                await context.raw_fetch_future
+                
+                # Check if this specific hour is already processed and cached
                 my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                 my_viewport_filename = f"{my_cache_key}.json"
+                
                 loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+                if not loaded_product:
+                    # Wait for this specific hour's processing to complete
+                    hour_fut = None
+                    async with self.IN_FLIGHT_LOCK:
+                        if target_dt in context.hour_futures:
+                            hour_fut = context.hour_futures[target_dt]
+                        else:
+                            hour_fut = asyncio.Future()
+                            context.hour_futures[target_dt] = hour_fut
+                    
+                    await hour_fut
+                    loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+                
                 if loaded_product:
                     loaded_product.cache_hit = "cache_hit"  # Shared from fetcher
                     loaded_product.requested_bbox_original = bbox_str
@@ -342,21 +369,33 @@ class ViewportService:
             # Re-evaluate in-flight deduplication before fetching, since we are now entering the fetcher phase.
             async with self.IN_FLIGHT_LOCK:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
-                    my_future = self.IN_FLIGHT_REQUESTS[request_dedup_key]
+                    context = self.IN_FLIGHT_REQUESTS[request_dedup_key]
                     is_fetcher = False
                 else:
-                    my_future = asyncio.Future()
-                    self.IN_FLIGHT_REQUESTS[request_dedup_key] = my_future
+                    context = FetchContext()
+                    self.IN_FLIGHT_REQUESTS[request_dedup_key] = context
                     is_fetcher = True
             
             # If another waiter also fell through and became the fetcher first, we wait on it.
             if not is_fetcher:
                 logger.info(f"[Dynamic Viewport] Waiter sharing newly spawned self-heal fetcher for {request_dedup_key}")
                 try:
-                    await my_future
+                    await context.raw_fetch_future
                     my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                     my_viewport_filename = f"{my_cache_key}.json"
+                    
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+                    if not loaded_product:
+                        hour_fut = None
+                        async with self.IN_FLIGHT_LOCK:
+                            if target_dt in context.hour_futures:
+                                hour_fut = context.hour_futures[target_dt]
+                            else:
+                                hour_fut = asyncio.Future()
+                                context.hour_futures[target_dt] = hour_fut
+                        await hour_fut
+                        loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+                        
                     if loaded_product:
                         loaded_product.cache_hit = "cache_hit"
                         loaded_product.requested_bbox_original = bbox_str
@@ -515,142 +554,142 @@ class ViewportService:
                 logger.error(f"[Dynamic Viewport] target_dt {target_dt} is not covered by the fetched times.")
                 raise Exception(f"target_dt {target_dt} is not covered by the fetched times.")
 
-            target_normalized_product = None
-
-            # Process and cache all times returned in the upstream API response
-            for idx, t_str in enumerate(times):
-                t_str_with_z = t_str if t_str.endswith("Z") else t_str + "Z"
-                try:
-                    dt = datetime.fromisoformat(t_str_with_z.replace("Z", "+00:00"))
-                except Exception as parse_err:
-                    logger.warning(f"[Dynamic Viewport] Failed to parse time string {t_str}: {parse_err}")
-                    continue
-
-                # Generate target time str and cache key for this specific hour
-                this_cache_key = build_dynamic_cache_key(model, domain, layer, dt, west, south, east, north)
-                this_viewport_filename = f"{this_cache_key}.json"
-
-                try:
-                    # Normalize raw data for this specific time
-                    this_normalized_product = self.normalizer.normalize(
-                        model=model,
-                        provider="open-meteo",
-                        domain=domain,
-                        layer=layer,
-                        raw_results=raw_list,
-                        bbox=bbox_dict,
-                        resolution=resolution,
-                        target_time=dt,
-                        coverage_mode="viewport",
-                        region_id=f"viewport_{bbox_key_str}"
-                    )
-
-                    if this_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and idx >= 120:
-                        this_normalized_product.is_estimated = True
-                        this_normalized_product.is_forecast_authoritative = False
-                        this_normalized_product.estimate_basis = {
-                            "type": "icon_loop_extrapolation",
-                            "native_horizon_hours": 120,
-                            "method": "diurnal_cycle_loop",
-                            "source_model": "dwd_icon"
-                        }
-
-                    if not this_normalized_product:
-                        logger.warning(f"[Dynamic Viewport] Normalization failed for time: {t_str}")
-                        continue
-
-                    # Skip empty/non-renderable grids (missing/None data from upstream) to allow manifest/stale fallback
-                    is_empty_grid = False
-                    if this_normalized_product.grid and this_normalized_product.grid.vectors:
-                        if not any(v.speed > 0 for v in this_normalized_product.grid.vectors):
-                            is_empty_grid = True
-
-                    if is_empty_grid:
-                        logger.warning(f"[Dynamic Viewport] Normalization produced empty grid for time: {t_str}. Skipping save.")
-                        continue
-
-                    # Update conformed metadata
-                    served_bbox_full = f"{this_normalized_product.grid.bounds.west},{this_normalized_product.grid.bounds.south},{this_normalized_product.grid.bounds.east},{this_normalized_product.grid.bounds.north}"
-                    
-                    this_normalized_product.product_id = this_viewport_filename
-                    this_normalized_product.is_dynamic_viewport_product = True
-                    this_normalized_product.cache_key = this_cache_key
-                    this_normalized_product.cache_hit = "cache_miss"
-                    this_normalized_product.requested_bbox = bbox_str
-                    this_normalized_product.served_bbox = served_bbox_full
-                    this_normalized_product.coverage_scope = coverage_scope
-                    this_normalized_product.coordinate_count = coord_count
-                    this_normalized_product.resolution = resolution
-                    this_normalized_product.requested_bbox_original = bbox_str
-                    this_normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
-                    this_normalized_product.partial_coverage = False
-                    this_normalized_product.stale = False
-
-                    # Populate diagnostics in the response
-                    if this_normalized_product.grid:
-                        this_normalized_product.grid.diagnostics = {
-                            "requested_bbox": bbox_str,
-                            "served_bbox": served_bbox_full,
-                            "coverage_scope": coverage_scope,
-                            "source_product_ids": ["open-meteo"],
-                            "cache_hit": "cache_miss",
-                            "provider": this_normalized_product.provider,
-                            "model": model,
-                            "domain": domain,
-                            "layer": layer,
-                            "valid_time": dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                            "nonzeroCount": this_normalized_product.grid.diagnostics.get("nonzeroCount", 0) if this_normalized_product.grid.diagnostics else 0,
-                            "vectorCount": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
-                            "vectors_length": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
-                            "gridMode": "rectangular",
-                            "renderable": len(this_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in this_normalized_product.grid.vectors),
-                            "stale": False,
-                            "partial_coverage": False
-                        }
-
-                    # Save to disk L1 cache and upload L2
-                    filepath = self.store.cache_dir / this_viewport_filename
-                    tmp_filepath = filepath.with_suffix(".tmp")
-                    
-                    product_json_bytes = this_normalized_product.model_dump_json().encode("utf-8")
-                    def save_to_disk(filepath, tmp_filepath, product_json_bytes):
-                        with open(tmp_filepath, "wb") as f:
-                            f.write(product_json_bytes)
-                        os.replace(tmp_filepath, filepath)
-                    await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
-                    
-                    # Offload Supabase upload to a background task to prevent blocking the web thread
-                    asyncio.create_task(asyncio.to_thread(self.store._upload_to_supabase, this_viewport_filename, product_json_bytes))
-
-                    # Register in Dynamic Product Index
-                    self.dynamic_index.add_product(
-                        product_id=this_viewport_filename,
-                        model=model,
-                        domain=domain,
-                        layer=layer,
-                        valid_time=dt,
-                        requested_bbox=bbox_str,
-                        served_bbox=served_bbox_full,
-                        coverage_scope=coverage_scope,
-                        resolution=resolution,
-                        cache_key=this_cache_key,
-                        source=this_normalized_product.provider
-                    )
-
-                    if idx == target_idx:
-                        target_normalized_product = this_normalized_product
-
-                except Exception as step_err:
-                    logger.error(f"[Dynamic Viewport] Failed to process time step {t_str}: {step_err}")
-
-            if target_normalized_product is None:
-                raise Exception("Did not successfully normalize target_dt product.")
-
-            # Acknowledge completion to shared listeners
+            # Store raw data and resolve raw fetch future
+            context.raw_list = raw_list
             async with self.IN_FLIGHT_LOCK:
-                if not my_future.done():
-                    my_future.set_result(True)
-                self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+                if not context.raw_fetch_future.done():
+                    context.raw_fetch_future.set_result(True)
+
+            # Process the specific target_dt synchronously and save to disk
+            target_t_str = times[target_idx]
+            target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
+            target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
+            
+            target_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt_actual, west, south, east, north)
+            target_viewport_filename = f"{target_cache_key}.json"
+
+            target_normalized_product = self.normalizer.normalize(
+                model=model,
+                provider="open-meteo",
+                domain=domain,
+                layer=layer,
+                raw_results=raw_list,
+                bbox=bbox_dict,
+                resolution=resolution,
+                target_time=target_dt_actual,
+                coverage_mode="viewport",
+                region_id=f"viewport_{bbox_key_str}"
+            )
+
+            if target_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and target_idx >= 120:
+                target_normalized_product.is_estimated = True
+                target_normalized_product.is_forecast_authoritative = False
+                target_normalized_product.estimate_basis = {
+                    "type": "icon_loop_extrapolation",
+                    "native_horizon_hours": 120,
+                    "method": "diurnal_cycle_loop",
+                    "source_model": "dwd_icon"
+                }
+
+            if not target_normalized_product:
+                raise Exception("Target product normalization returned None.")
+
+            is_empty_grid = False
+            if target_normalized_product.grid and target_normalized_product.grid.vectors:
+                if not any(v.speed > 0 for v in target_normalized_product.grid.vectors):
+                    is_empty_grid = True
+
+            if is_empty_grid:
+                raise Exception("Normalization produced empty grid for target hour.")
+
+            served_bbox_full = f"{target_normalized_product.grid.bounds.west},{target_normalized_product.grid.bounds.south},{target_normalized_product.grid.bounds.east},{target_normalized_product.grid.bounds.north}"
+
+            target_normalized_product.product_id = target_viewport_filename
+            target_normalized_product.is_dynamic_viewport_product = True
+            target_normalized_product.cache_key = target_cache_key
+            target_normalized_product.cache_hit = "cache_miss"
+            target_normalized_product.requested_bbox = bbox_str
+            target_normalized_product.served_bbox = served_bbox_full
+            target_normalized_product.coverage_scope = coverage_scope
+            target_normalized_product.coordinate_count = coord_count
+            target_normalized_product.resolution = resolution
+            target_normalized_product.requested_bbox_original = bbox_str
+            target_normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+            target_normalized_product.partial_coverage = False
+            target_normalized_product.stale = False
+
+            if target_normalized_product.grid:
+                target_normalized_product.grid.diagnostics = {
+                    "requested_bbox": bbox_str,
+                    "served_bbox": served_bbox_full,
+                    "coverage_scope": coverage_scope,
+                    "source_product_ids": ["open-meteo"],
+                    "cache_hit": "cache_miss",
+                    "provider": target_normalized_product.provider,
+                    "model": model,
+                    "domain": domain,
+                    "layer": layer,
+                    "valid_time": target_dt_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "nonzeroCount": target_normalized_product.grid.diagnostics.get("nonzeroCount", 0) if target_normalized_product.grid.diagnostics else 0,
+                    "vectorCount": len(target_normalized_product.grid.vectors) if target_normalized_product.grid.vectors else 0,
+                    "vectors_length": len(target_normalized_product.grid.vectors) if target_normalized_product.grid.vectors else 0,
+                    "gridMode": "rectangular",
+                    "renderable": len(target_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in target_normalized_product.grid.vectors),
+                    "stale": False,
+                    "partial_coverage": False
+                }
+
+            filepath = self.store.cache_dir / target_viewport_filename
+            tmp_filepath = filepath.with_suffix(".tmp")
+            
+            product_json_bytes = target_normalized_product.model_dump_json().encode("utf-8")
+            def save_to_disk(filepath, tmp_filepath, product_json_bytes):
+                with open(tmp_filepath, "wb") as f:
+                    f.write(product_json_bytes)
+                os.replace(tmp_filepath, filepath)
+            await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
+
+            self.dynamic_index.add_product(
+                product_id=target_viewport_filename,
+                model=model,
+                domain=domain,
+                layer=layer,
+                valid_time=target_dt_actual,
+                requested_bbox=bbox_str,
+                served_bbox=served_bbox_full,
+                coverage_scope=coverage_scope,
+                resolution=resolution,
+                cache_key=target_cache_key,
+                source=target_normalized_product.provider
+            )
+
+            # Resolve any future for target_dt
+            async with self.IN_FLIGHT_LOCK:
+                for d in (target_dt, target_dt_actual):
+                    fut = context.hour_futures.get(d)
+                    if fut and not fut.done():
+                        fut.set_result(True)
+
+            # Spawn background task to process all other times
+            asyncio.create_task(self._bg_process_remaining_hours(
+                context=context,
+                request_dedup_key=request_dedup_key,
+                model=model,
+                domain=domain,
+                layer=layer,
+                bbox_dict=bbox_dict,
+                resolution=resolution,
+                west=west,
+                south=south,
+                east=east,
+                north=north,
+                times=times,
+                target_idx=target_idx,
+                bbox_str=bbox_str,
+                coverage_scope=coverage_scope,
+                coord_count=coord_count,
+                bbox_key_str=bbox_key_str
+            ))
 
             # Return exact cropped product for the client's original bbox request if not global_coarse and not wind
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
@@ -664,14 +703,20 @@ class ViewportService:
             # Reject shared listeners
             async with self.IN_FLIGHT_LOCK:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
-                    fut = self.IN_FLIGHT_REQUESTS[request_dedup_key]
-                    if not fut.done():
-                        fut.set_exception(e)
-                        # Retrieve exception to suppress 'Future exception was never retrieved' log warnings
+                    ctx = self.IN_FLIGHT_REQUESTS[request_dedup_key]
+                    if not ctx.raw_fetch_future.done():
+                        ctx.raw_fetch_future.set_exception(e)
                         try:
-                            fut.exception()
+                            ctx.raw_fetch_future.exception()
                         except Exception:
                             pass
+                    for dt, fut in ctx.hour_futures.items():
+                        if not fut.done():
+                            fut.set_exception(e)
+                            try:
+                                fut.exception()
+                            except Exception:
+                                pass
                     self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
 
             logger.warning(f"[Dynamic Viewport] Upstream fetch failed for {model} {layer}: {e}")
@@ -731,6 +776,198 @@ class ViewportService:
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=504, detail=f"Viewport fetch failed: {str(e)}")
+
+    async def _bg_process_remaining_hours(
+        self,
+        context: FetchContext,
+        request_dedup_key: str,
+        model: str,
+        domain: str,
+        layer: str,
+        bbox_dict: dict,
+        resolution: float,
+        west: float,
+        south: float,
+        east: float,
+        north: float,
+        times: list,
+        target_idx: int,
+        bbox_str: str,
+        coverage_scope: str,
+        coord_count: int,
+        bbox_key_str: str
+    ):
+        """Asynchronously processes remaining forecast hours in the background, prioritizing waiters."""
+        try:
+            # Process remaining forecast hours
+            remaining_indices = [i for i in range(len(times)) if i != target_idx]
+            processed_indices = {target_idx}
+
+            while len(processed_indices) < len(times):
+                next_idx = None
+                
+                # Check for active waiters that are not processed yet
+                async with self.IN_FLIGHT_LOCK:
+                    for dt, fut in list(context.hour_futures.items()):
+                        if not fut.done():
+                            idx = WeatherNormalizer.find_closest_time_index(times, dt)
+                            if idx is not None and idx not in processed_indices:
+                                next_idx = idx
+                                break
+
+                # Fallback to sequential index
+                if next_idx is None:
+                    for idx in remaining_indices:
+                        if idx not in processed_indices:
+                            next_idx = idx
+                            break
+
+                if next_idx is None:
+                    break
+
+                processed_indices.add(next_idx)
+                t_str = times[next_idx]
+                
+                t_str_with_z = t_str if t_str.endswith("Z") else t_str + "Z"
+                try:
+                    dt = datetime.fromisoformat(t_str_with_z.replace("Z", "+00:00"))
+                except Exception as parse_err:
+                    logger.warning(f"[Dynamic Viewport BG] Failed to parse time string {t_str}: {parse_err}")
+                    continue
+
+                this_cache_key = build_dynamic_cache_key(model, domain, layer, dt, west, south, east, north)
+                this_viewport_filename = f"{this_cache_key}.json"
+
+                try:
+                    # Normalize raw data for this specific time
+                    this_normalized_product = self.normalizer.normalize(
+                        model=model,
+                        provider="open-meteo",
+                        domain=domain,
+                        layer=layer,
+                        raw_results=context.raw_list,
+                        bbox=bbox_dict,
+                        resolution=resolution,
+                        target_time=dt,
+                        coverage_mode="viewport",
+                        region_id=f"viewport_{bbox_key_str}"
+                    )
+
+                    if this_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and next_idx >= 120:
+                        this_normalized_product.is_estimated = True
+                        this_normalized_product.is_forecast_authoritative = False
+                        this_normalized_product.estimate_basis = {
+                            "type": "icon_loop_extrapolation",
+                            "native_horizon_hours": 120,
+                            "method": "diurnal_cycle_loop",
+                            "source_model": "dwd_icon"
+                        }
+
+                    if not this_normalized_product:
+                        continue
+
+                    is_empty_grid = False
+                    if this_normalized_product.grid and this_normalized_product.grid.vectors:
+                        if not any(v.speed > 0 for v in this_normalized_product.grid.vectors):
+                            is_empty_grid = True
+
+                    if is_empty_grid:
+                        continue
+
+                    served_bbox_full = f"{this_normalized_product.grid.bounds.west},{this_normalized_product.grid.bounds.south},{this_normalized_product.grid.bounds.east},{this_normalized_product.grid.bounds.north}"
+
+                    this_normalized_product.product_id = this_viewport_filename
+                    this_normalized_product.is_dynamic_viewport_product = True
+                    this_normalized_product.cache_key = this_cache_key
+                    this_normalized_product.cache_hit = "cache_miss"
+                    this_normalized_product.requested_bbox = bbox_str
+                    this_normalized_product.served_bbox = served_bbox_full
+                    this_normalized_product.coverage_scope = coverage_scope
+                    this_normalized_product.coordinate_count = coord_count
+                    this_normalized_product.resolution = resolution
+                    this_normalized_product.requested_bbox_original = bbox_str
+                    this_normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+                    this_normalized_product.partial_coverage = False
+                    this_normalized_product.stale = False
+
+                    if this_normalized_product.grid:
+                        this_normalized_product.grid.diagnostics = {
+                            "requested_bbox": bbox_str,
+                            "served_bbox": served_bbox_full,
+                            "coverage_scope": coverage_scope,
+                            "source_product_ids": ["open-meteo"],
+                            "cache_hit": "cache_miss",
+                            "provider": this_normalized_product.provider,
+                            "model": model,
+                            "domain": domain,
+                            "layer": layer,
+                            "valid_time": dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                            "nonzeroCount": this_normalized_product.grid.diagnostics.get("nonzeroCount", 0) if this_normalized_product.grid.diagnostics else 0,
+                            "vectorCount": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
+                            "vectors_length": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
+                            "gridMode": "rectangular",
+                            "renderable": len(this_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in this_normalized_product.grid.vectors),
+                            "stale": False,
+                            "partial_coverage": False
+                        }
+
+                    filepath = self.store.cache_dir / this_viewport_filename
+                    tmp_filepath = filepath.with_suffix(".tmp")
+                    
+                    product_json_bytes = this_normalized_product.model_dump_json().encode("utf-8")
+                    def save_to_disk(filepath, tmp_filepath, product_json_bytes):
+                        with open(tmp_filepath, "wb") as f:
+                            f.write(product_json_bytes)
+                        os.replace(tmp_filepath, filepath)
+                    await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
+
+                    self.dynamic_index.add_product(
+                        product_id=this_viewport_filename,
+                        model=model,
+                        domain=domain,
+                        layer=layer,
+                        valid_time=dt,
+                        requested_bbox=bbox_str,
+                        served_bbox=served_bbox_full,
+                        coverage_scope=coverage_scope,
+                        resolution=resolution,
+                        cache_key=this_cache_key,
+                        source=this_normalized_product.provider
+                    )
+
+                    # Resolve any future for this hour
+                    async with self.IN_FLIGHT_LOCK:
+                        fut = context.hour_futures.get(dt)
+                        if fut and not fut.done():
+                            fut.set_result(True)
+
+                except Exception as step_err:
+                    logger.error(f"[Dynamic Viewport BG] Failed to process time step {t_str}: {step_err}")
+                    async with self.IN_FLIGHT_LOCK:
+                        fut = context.hour_futures.get(dt)
+                        if fut and not fut.done():
+                            fut.set_exception(step_err)
+                            try:
+                                fut.exception()
+                            except Exception:
+                                pass
+
+                # Yield to the event loop
+                await asyncio.sleep(0.001)
+
+        except Exception as bg_err:
+            logger.error(f"[Dynamic Viewport BG] Unexpected error in background process: {bg_err}")
+        finally:
+            async with self.IN_FLIGHT_LOCK:
+                self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+                # Resolve any remaining outstanding futures so they don't hang
+                for dt, fut in list(context.hour_futures.items()):
+                    if not fut.done():
+                        fut.set_exception(Exception("Background task finished without processing this hour"))
+                        try:
+                            fut.exception()
+                        except Exception:
+                            pass
 
     async def fetch_viewport_grid(
         self,

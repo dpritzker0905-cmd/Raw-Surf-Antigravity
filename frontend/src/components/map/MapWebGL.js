@@ -152,7 +152,8 @@ const MapWebGL = ({
     theme,
     timeOffsetHours,
     userTier,
-    activeMarineLayer
+    activeMarineLayer,
+    webglMarineFailed
   });
 
   // Weather Engine: Decoupled weather analytics
@@ -656,7 +657,12 @@ const MapWebGL = ({
         </Source>
 
         {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC SLOTS */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster').map(layerKey => {
+        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
+          LAYER_REGISTRY[k].omVariable && (
+            LAYER_REGISTRY[k].type === 'raster' ||
+            (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
+          )
+        ).map(layerKey => {
           return [0, 1, 2].map(slotIdx => {
             const slotKey = `${layerKey}-slot-${slotIdx}`;
             const url = omTileUrls[slotKey];
@@ -665,8 +671,9 @@ const MapWebGL = ({
               ? activeSlots[layerKey] === slotIdx
               : (closestTimeIdx % 3) === slotIdx;
 
-            // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer
-            const isVisualRaster = activeLayers.includes(layerKey) && !['wind', 'waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey);
+            // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
+            const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
+            const isVisualRaster = activeLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
 
             return (
               <Source

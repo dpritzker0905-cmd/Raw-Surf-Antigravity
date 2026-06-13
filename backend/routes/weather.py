@@ -320,13 +320,17 @@ async def get_grid(
                 product.requested_bbox_original = bbox
                 product.query_bbox = bbox
                 product.requested_bbox = bbox
-                if bbox and getattr(matching_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
+                product.coverage_mode = getattr(matching_manifest_item, "coverage_mode", None)
+                if not product.coverage_mode:
+                    product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
+                if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
 
     # Step 3.5: Fast manifest preview (SWR)
-    if not product and manifest_preview_item:
+    from services.weather_pipeline.store import is_test_environment
+    if not product and manifest_preview_item and not is_test_environment():
         file_path = store.cache_dir / manifest_preview_item.filename
         file_exists = await asyncio.to_thread(file_path.exists)
         if file_exists:
@@ -334,14 +338,25 @@ async def get_grid(
             product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename)
             if product and product.grid:
                 product.product_id = manifest_preview_item.filename
-                product.coverage_scope = "global_coarse" if regional_span_lng >= 350.0 else "regional"
-                product.partial_coverage = False
+                product.coverage_mode = getattr(manifest_preview_item, "coverage_mode", None)
+                if not product.coverage_mode:
+                    product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
+                if regional_span_lng >= 350.0:
+                    product.coverage_scope = "global_coarse"
+                    product.partial_coverage = False
+                else:
+                    if use_manifest_product:
+                        product.coverage_scope = "regional"
+                        product.partial_coverage = False
+                    else:
+                        product.coverage_scope = "regional_partial"
+                        product.partial_coverage = True
                 product.requested_bbox_original = bbox
                 product.query_bbox = bbox
                 product.requested_bbox = bbox
                 product.stale = True
                 product.staleReason = "swr_revalidation_pending"
-                if bbox and getattr(manifest_preview_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
+                if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
@@ -610,7 +625,7 @@ async def get_point(
 
                 # 2. Crop the product if grid_bbox is provided and not wind
                 cropped_product = product
-                if grid_bbox and domain.lower() != "wind":
+                if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) != "global_tile":
                     cropped_product = filter_grid_to_bbox(product, grid_bbox)
 
                 # 3. Compute cropped truth tag

@@ -91,8 +91,8 @@ async def test_viewport_gfs_marine_forecast_days_cap(monkeypatch, tmp_path):
     )
     
     assert len(captured_forecast_days) > 0
-    # Capped to 8 days
-    assert captured_forecast_days[0] == 8
+    # Capped to 16 days
+    assert captured_forecast_days[0] == 16
 
 
 @pytest.mark.asyncio

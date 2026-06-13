@@ -741,6 +741,8 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
 var deleteAttachedShaders = function(gl, prog) {
   if (!gl || !prog) return;
   try {
+    if (gl.isContextLost && gl.isContextLost()) return;
+    if (!gl.isProgram(prog)) return;
     var shaders = gl.getAttachedShaders(prog);
     if (shaders) {
       for (var i = 0; i < shaders.length; i++) {
@@ -749,7 +751,11 @@ var deleteAttachedShaders = function(gl, prog) {
       }
     }
   } catch (e) {}
-  gl.deleteProgram(prog);
+  try {
+    if (gl.isProgram(prog)) {
+      gl.deleteProgram(prog);
+    }
+  } catch (e) {}
 };
 
 WebGLMarineEngine.prototype.dispose = function(gl) {

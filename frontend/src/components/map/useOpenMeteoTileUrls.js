@@ -30,7 +30,8 @@ export function useOpenMeteoTileUrls({
   theme,
   timeOffsetHours,
   userTier,
-  activeMarineLayer
+  activeMarineLayer,
+  webglMarineFailed
 }) {
   const [protocolReady, setProtocolReady] = useState(false);
   const [metadataRevision, setMetadataRevision] = useState(0);
@@ -383,7 +384,12 @@ export function useOpenMeteoTileUrls({
         catch (err) { console.error('[TRANSITION] LAYER_ACCESS_DENIED:', err.message); return; }
 
         const tasks = Object.keys(LAYER_REGISTRY)
-          .filter(k => LAYER_REGISTRY[k].omVariable && LAYER_REGISTRY[k].type === 'raster') // Strict isolation: visual raster layers only
+          .filter(k =>
+            LAYER_REGISTRY[k].omVariable && (
+              LAYER_REGISTRY[k].type === 'raster' ||
+              (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
+            )
+          ) // Strict isolation: visual raster/failed-marine layers only
           .map(k => ({
             layerKey: k,
             variable: LAYER_REGISTRY[k].omVariable,
@@ -582,7 +588,7 @@ export function useOpenMeteoTileUrls({
       controller.abort(); 
       if (rafRef.current) cancelAnimationFrame(rafRef.current); 
     };
-  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier]);
+  }, [activeModel, theme, debouncedTimeOffsetHours, activeLayers, fetchMetadata, metadataRevision, userTier, webglMarineFailed]);
 
   // NOTE: Imperative opacity/fade override removed. All raster paint properties
   // (raster-opacity, raster-fade-duration) are controlled EXCLUSIVELY via

@@ -170,7 +170,11 @@ export function useMarineDataFetcher({
           }
           return;
         }
-        setMarineData(null);
+        if (!window.isScrubbingTimeline) {
+          setMarineData(null);
+        } else {
+          console.log('[Marine] Cooldown hit during scrubbing, preserving stale data.');
+        }
         return;
       }
 
@@ -424,15 +428,24 @@ export function useMarineDataFetcher({
         clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
       } else {
         consecutiveFailuresRef.current += 1;
-        setMarineData(null);
+        if (!window.isScrubbingTimeline) {
+          setMarineData(null);
+        } else {
+          console.log('[Marine] Fetch returned empty or failed during scrubbing, preserving stale data.');
+        }
         if (isInCooldown('marine')) logPipelineEventHelper('rate_limit_429', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour });
         if (consecutiveFailuresRef.current >= 3 || ['cooldown_retry', 'delayed_retry'].includes(source)) return;
         const remaining = getRemainingCooldown('marine'), delay = remaining > 0 ? remaining + 3000 : 5000, retrySource = remaining > 0 ? 'cooldown_retry' : 'delayed_retry';
         cooldownRetryRef.current = setTimeout(() => { cooldownRetryRef.current = null; if (updateMarineGridRef.current && activeMarineLayersRef.current) updateMarineGridRef.current(retrySource); }, delay);
       }
     } catch (err) {
+      const isAbort = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort');
       console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
-      setMarineData(null);
+      if (!isAbort && !window.isScrubbingTimeline) {
+        setMarineData(null);
+      } else {
+        console.log(`[Marine] Fetch exception during scrubbing/abort (isAbort=${isAbort}), preserving stale data.`);
+      }
     } finally {
       locks.isFetching = false;
       if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;

@@ -107,7 +107,12 @@ export function useWebGLGuardrail({
         }
 
         if (fps < 30) {
-          if (typeof window !== 'undefined' && window.__DISABLE_WEBGL_GUARDRAIL__ === true) {
+          const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
+          const isLocalhost = typeof window !== 'undefined' &&
+            (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
+            !isTest;
+
+          if (typeof window !== 'undefined' && (window.__DISABLE_WEBGL_GUARDRAIL__ === true || isLocalhost)) {
             frameCount = 0;
             lowFpsCount = 0;
             return;
