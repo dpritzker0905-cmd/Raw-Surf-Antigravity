@@ -426,7 +426,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           );
           if (prodId && !isRegional) {
             const sig = _marineDataSignature(cached, activeMarineLayer);
-            if (sig && sig !== lastCommittedSigRef.current) {
+            if (sig) {
+              if (sig === lastCommittedSigRef.current) {
+                lastFetchedLayerRef.current = activeMarineLayer;
+                return;
+              }
               console.log(`[WEATHER_TRUTH] [Marine] Layer switch backend cache HIT for ${activeMarineLayer}: ${prodId}`);
               lastCommittedSigRef.current = sig;
               marineRevision.current += 1;
@@ -465,8 +469,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       } catch (e) {
         console.warn('[Marine] Backend cache switch lookup failed:', e.message);
       }
-      console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer}. Clearing.`);
-      setMarineData(null);
+      if (!window.isScrubbingTimeline) {
+        console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer}. Clearing.`);
+        setMarineData(null);
+      } else {
+        console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer} during scrubbing. Retaining stale.`);
+      }
     } else {
       if (activeModel !== 'EURO') {
         try {
@@ -475,7 +483,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
             if (remapped?.grid?.vectors?.length > 0) {
               const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
-              if (sig && sig !== lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: sig }); lastFetchedLayerRef.current = activeMarineLayer; return; }
+              if (sig && sig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: sig }); lastFetchedLayerRef.current = activeMarineLayer; return; }
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
               console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
               logPipelineEventHelper(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });

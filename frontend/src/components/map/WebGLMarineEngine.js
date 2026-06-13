@@ -196,6 +196,34 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   const oldWaveData = this._waveData;
   this._waveData = newWaveData;
 
+  // Compare old grid dimensions/bounds to check if they shifted
+  const oldGrid = oldWaveData?.waveGrid;
+  const boundsChanged = !oldGrid || !oldGrid.bounds || !waveGrid.bounds ||
+    waveGrid.bounds.west !== oldGrid.bounds.west ||
+    waveGrid.bounds.south !== oldGrid.bounds.south ||
+    waveGrid.bounds.east !== oldGrid.bounds.east ||
+    waveGrid.bounds.north !== oldGrid.bounds.north;
+  const dimsChanged = !oldGrid ||
+    waveGrid.cols !== oldGrid.cols ||
+    waveGrid.rows !== oldGrid.rows;
+
+  if (boundsChanged || dimsChanged) {
+    console.log('[WebGLMarineEngine] Resetting particle state textures due to grid shift/resize:', {
+      boundsChanged,
+      dimsChanged,
+      oldCols: oldGrid?.cols,
+      newCols: waveGrid.cols,
+      oldRows: oldGrid?.rows,
+      newRows: waveGrid.rows
+    });
+    // Delete existing particle textures first to prevent GPU memory leaks
+    if (this.particleStateA) gl.deleteTexture(this.particleStateA);
+    if (this.particleStateB) gl.deleteTexture(this.particleStateB);
+
+    this.particleStateA = initParticleTexture(gl, this.particleRes);
+    this.particleStateB = initParticleTexture(gl, this.particleRes);
+  }
+
   if (oldWaveData) {
     try {
       if (oldWaveData.u_waveTexture && oldWaveData.u_waveTexture !== this._residentWaveTex && (!newWaveData || oldWaveData.u_waveTexture !== newWaveData.u_waveTexture)) {
