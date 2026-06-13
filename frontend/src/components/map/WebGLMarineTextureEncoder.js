@@ -224,9 +224,10 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
 // --- Coordinate Projection and Land Mask Renderer ---
 
 export function renderMaskToCanvas(geojson, bounds) {
-  const dpr = (typeof window !== 'undefined') ? (window.devicePixelRatio || 1) : 1;
-  const width = Math.floor(2048 * dpr);
-  const height = Math.floor(1024 * dpr);
+  // Use a fixed resolution of 1024x512 to avoid massive rendering/memory overhead on high-DPI (Retina) screens.
+  // Linear filtering (gl.LINEAR) keeps the clipping completely smooth.
+  const width = 1024;
+  const height = 512;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
@@ -273,9 +274,48 @@ export function renderMaskToCanvas(geojson, bounds) {
     return [x, y];
   }
   
+  const isGlobalTarget = (east - west) >= 359.0;
+  
   geojson.features.forEach(feature => {
     const geom = feature.geometry;
     if (!geom) return;
+
+    // 1. Calculate & cache bounding box for this feature
+    if (!feature._bbox) {
+      let fWest = Infinity, fEast = -Infinity, fSouth = Infinity, fNorth = -Infinity;
+      const updateBBox = (pt) => {
+        const lng = pt[0];
+        const lat = pt[1];
+        if (lng < fWest) fWest = lng;
+        if (lng > fEast) fEast = lng;
+        if (lat < fSouth) fSouth = lat;
+        if (lat > fNorth) fNorth = lat;
+      };
+      if (geom.type === 'Polygon') {
+        geom.coordinates.forEach(ring => ring.forEach(updateBBox));
+      } else if (geom.type === 'MultiPolygon') {
+        geom.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(updateBBox)));
+      }
+      feature._bbox = { west: fWest, south: fSouth, east: fEast, north: fNorth };
+    }
+
+    // 2. Perform bounding box intersection check
+    if (!isGlobalTarget) {
+      const fb = feature._bbox;
+      const pad = 1.0;
+      const fCenter = (fb.west + fb.east) * 0.5;
+      const projectedFCenter = wrapLngRelative(fCenter, center);
+      const halfSpan = (fb.east - fb.west) * 0.5;
+      const fWestWrapped = projectedFCenter - halfSpan;
+      const fEastWrapped = projectedFCenter + halfSpan;
+      
+      const overlapX = (fWestWrapped <= wrappedEast + pad) && (fEastWrapped >= wrappedWest - pad);
+      const overlapY = (fb.south <= north + pad) && (fb.north >= south - pad);
+      
+      if (!overlapX || !overlapY) {
+        return; // Skip rendering this feature completely
+      }
+    }
     
     const drawPolygon = (coords) => {
       ctx.beginPath();
@@ -725,9 +765,8 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         gl.deleteTexture(engine._cachedMaskTex);
         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
           window.__RAW_GPU__.textureCount--;
-          const dpr = (typeof window !== 'undefined') ? (window.devicePixelRatio || 1) : 1;
-          const w = Math.floor(2048 * dpr);
-          const h = Math.floor(1024 * dpr);
+          const w = 1024;
+          const h = 512;
           window.__RAW_GPU__.gpuMemoryEstimate -= w * h * 4;
         }
         engine._cachedMaskTex = null;
