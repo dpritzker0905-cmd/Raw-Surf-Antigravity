@@ -456,7 +456,7 @@ class ViewportService:
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
 
             # Fetch via OpenMeteoProvider
-            fetch_model = "GFS" if (model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves")) else model
+            fetch_model = "GFS" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else model
             raw_data = await self.provider.fetch_grid(
                 model=fetch_model,
                 domain=domain,
@@ -593,7 +593,7 @@ class ViewportService:
                     "source_model": "dwd_icon"
                 }
 
-            if target_normalized_product and model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+            if target_normalized_product and model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
                 target_normalized_product.is_estimated = True
                 target_normalized_product.is_forecast_authoritative = False
                 target_normalized_product.provider = "gfs_estimated_fallback"
@@ -876,7 +876,7 @@ class ViewportService:
                             "source_model": "dwd_icon"
                         }
 
-                    if this_normalized_product and model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+                    if this_normalized_product and model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
                         this_normalized_product.is_estimated = True
                         this_normalized_product.is_forecast_authoritative = False
                         this_normalized_product.provider = "gfs_estimated_fallback"

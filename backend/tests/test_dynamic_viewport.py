@@ -285,8 +285,8 @@ def test_all_non_gfs_layers(mock_weather_setup):
         s_w, s_s, s_e, s_n = map(float, served_bbox.split(","))
         assert s_w < -85.0 or s_e > -79.0, f"{model} {domain} {layer} served_bbox {served_bbox} should be wider than Florida"
         
-        # provider/upstream_provider honesty (always open-meteo for viewport grid, except EURO swell/wind_waves fallbacks)
-        expected_provider = "gfs_estimated_fallback" if (model == "EURO" and layer in ("swell_1", "swell_2", "wind_waves")) else "open-meteo"
+        # provider/upstream_provider honesty (always open-meteo for viewport grid, except EURO waves/swell/wind_waves fallbacks)
+        expected_provider = "gfs_estimated_fallback" if (model == "EURO" and layer in ("waves", "swell_1", "swell_2", "wind_waves")) else "open-meteo"
         assert json_data["provider"] == expected_provider, f"{model} {domain} {layer} provider should be {expected_provider}"
         assert json_data["upstream_provider"] == "open-meteo", f"{model} {domain} {layer} upstream_provider should be open-meteo"
         
