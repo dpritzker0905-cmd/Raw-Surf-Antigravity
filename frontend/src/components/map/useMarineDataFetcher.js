@@ -95,6 +95,7 @@ export function useMarineDataFetcher({
       if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
       if (!activeMarineLayersRef.current) return;
       const viewportHash = getViewportHash();
+      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
       const bypassDedupe = !hasValidData || !isCorrectLayer;
