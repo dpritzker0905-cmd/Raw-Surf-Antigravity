@@ -287,6 +287,63 @@ class WeatherPipelineScheduler:
         await self._cleanup_and_pause(results, 0)
         return total_saved > 0
 
+    async def ingest_euro_marine_global(self) -> bool:
+        """
+        Ingests EURO waves grid forecast globally at a coarse resolution.
+        Fetches 7 days of forecasts in 3-hour increments for waves, swell_1, swell_2, and wind_waves.
+        Conforms them under provider='open-meteo' and marks them as is_estimated=True.
+        """
+        logger.info("[Pipeline Scheduler] Starting EURO Marine Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        forecast_days = 2 if env["is_test_env"] else 7
+        results = await self._fetch_or_mock(
+            "EURO", "marine", "all_marine", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+        if not results:
+            logger.error("[Pipeline Scheduler] EURO marine global_coarse fetch failed. Skipping.")
+            return False
+
+        # Conformed global coarse open-meteo products must be labeled as estimated to meet capabilities contract
+        euro_estimate_basis = {
+            "type": "open_meteo_fallback",
+            "method": "direct_global_fallback",
+            "source_model": "ecmwf_wam025"
+        }
+
+        layers = ["waves", "swell_1", "swell_2", "wind_waves"]
+        for layer in layers:
+            count = await normalize_and_save_loop(
+                self.normalizer, self.store, results,
+                model="EURO", provider="open-meteo", domain="marine", layer=layer,
+                bbox=global_region, resolution=resolution, run_time=run_time,
+                region_id="global_coarse", coverage_mode="global_tile",
+                is_test_env=env["is_test_env"],
+                log_prefix=f"[Pipeline Scheduler] EURO {layer} global_coarse",
+                estimated_after_index=0,
+                estimate_basis=euro_estimate_basis
+            )
+            logger.info(f"[Pipeline Scheduler] Ingested {count} EURO {layer} global coarse grid files.")
+            total_saved += count
+            if count > 0:
+                self.store.prune_superseded_products("EURO", "marine", layer, "global_coarse", run_time)
+
+        await self._cleanup_and_pause(results, 0)
+        return total_saved > 0
+
     async def ingest_euro_wind_global(self) -> bool:
         """
         Ingests EURO wind grid forecast globally at a coarse resolution.
@@ -624,14 +681,229 @@ class WeatherPipelineScheduler:
         logger.info(f"[Pipeline Scheduler] EURO Pressure Ingestion Job done! Saved {count} hourly grid files.")
         return count > 0
 
+    async def ingest_icon_marine_global(self) -> bool:
+        """
+        Ingests ICON waves grid forecast globally at a coarse resolution.
+        Fetches 7 days of forecasts in 3-hour increments for waves, swell_1, and wind_waves.
+        Swell 2 is unsupported and will not be ingested.
+        """
+        logger.info("[Pipeline Scheduler] Starting ICON Marine Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+        total_saved = 0
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        forecast_days = 2 if env["is_test_env"] else 7
+        results = await self._fetch_or_mock(
+            "ICON", "marine", "all_marine", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_icon_marine_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+        if not results:
+            logger.error("[Pipeline Scheduler] ICON marine global_coarse fetch failed. Skipping.")
+            return False
+
+        layers = ["waves", "swell_1", "wind_waves"]
+        for layer in layers:
+            count = await normalize_and_save_loop(
+                self.normalizer, self.store, results,
+                model="ICON", provider="open-meteo", domain="marine", layer=layer,
+                bbox=global_region, resolution=resolution, run_time=run_time,
+                region_id="global_coarse", coverage_mode="global_tile",
+                is_test_env=env["is_test_env"],
+                log_prefix=f"[Pipeline Scheduler] ICON {layer} global_coarse"
+            )
+            logger.info(f"[Pipeline Scheduler] Ingested {count} ICON {layer} global coarse grid files.")
+            total_saved += count
+            if count > 0:
+                self.store.prune_superseded_products("ICON", "marine", layer, "global_coarse", run_time)
+
+        await self._cleanup_and_pause(results, 0)
+        return total_saved > 0
+
+    async def ingest_gfs_pressure_global(self) -> bool:
+        """
+        Ingests GFS pressure grid forecast globally at a coarse resolution.
+        Fetches 16 days of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting GFS Pressure Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        forecast_days = 2 if env["is_test_env"] else 16
+        results = await self._fetch_or_mock(
+            "GFS", "weather", "pressure", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_pressure_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+        if not results:
+            return False
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="GFS", provider="open-meteo", domain="weather", layer="pressure",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] GFS pressure global_coarse"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Pressure global coarse grid files.")
+        if count > 0:
+            self.store.prune_superseded_products("GFS", "weather", "pressure", "global_coarse", run_time)
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
+    async def ingest_icon_pressure_global(self) -> bool:
+        """
+        Ingests ICON pressure grid forecast globally at a coarse resolution.
+        Fetches 5 days of native forecast from API and extends to 14 days (336 hourly steps).
+        Products beyond 120h (5 days) are tagged as estimated.
+        """
+        logger.info("[Pipeline Scheduler] Starting ICON Pressure Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        results = await self._fetch_or_mock(
+            "ICON", "weather", "pressure", global_region, resolution, 5,
+            env["is_test_env"],
+            lambda: generate_mock_pressure_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+
+        if results:
+            is_mock_fixture = any(getattr(item, "is_test_fixture", False) or item.get("is_test_fixture") for item in results if isinstance(item, dict))
+            if not is_mock_fixture:
+                base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
+                for item in results:
+                    if "hourly" in item and "time" in item["hourly"]:
+                        orig_pressure = item["hourly"].get("pressure_msl", [])
+                        
+                        valid_len = len(orig_pressure)
+                        for i in range(len(orig_pressure) - 1, -1, -1):
+                            p_val = orig_pressure[i] if i < len(orig_pressure) else None
+                            if p_val is None:
+                                valid_len = i
+                            else:
+                                break
+                        
+                        if valid_len > 0:
+                            valid_len = (valid_len // 24) * 24
+                        
+                        if valid_len > 0:
+                            orig_pressure = orig_pressure[:valid_len]
+                        
+                        new_times = []
+                        new_pressure = []
+                        
+                        for hour_idx in range(14 * 24):
+                            new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
+                            new_times.append(new_time)
+                            
+                            if orig_pressure:
+                                new_pressure.append(orig_pressure[hour_idx % len(orig_pressure)])
+                                
+                        item["hourly"]["time"] = new_times
+                        item["hourly"]["pressure_msl"] = new_pressure
+
+        if not results:
+            return False
+
+        icon_estimate_basis = {
+            "type": "icon_loop_extrapolation",
+            "native_horizon_hours": 120,
+            "method": "diurnal_cycle_loop",
+            "source_model": "dwd_icon"
+        }
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="ICON", provider="open-meteo", domain="weather", layer="pressure",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] ICON pressure global_coarse",
+            estimated_after_index=120,
+            estimate_basis=icon_estimate_basis
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Pressure global coarse grid files (native ≤120h, estimated >120h).")
+        if count > 0:
+            self.store.prune_superseded_products("ICON", "weather", "pressure", "global_coarse", run_time)
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
+    async def ingest_euro_pressure_global(self) -> bool:
+        """
+        Ingests EURO pressure grid forecast globally at a coarse resolution.
+        Fetches 14 days of forecasts in 3-hour increments.
+        """
+        logger.info("[Pipeline Scheduler] Starting EURO Pressure Global Coarse Ingestion job...")
+        env = get_env_flags()
+        run_time = datetime.now(timezone.utc)
+
+        global_region = {
+            "west": -180.0,
+            "south": -80.0,
+            "east": 180.0,
+            "north": 85.0
+        }
+        resolution = 10.0
+
+        forecast_days = 2 if env["is_test_env"] else 14
+        results = await self._fetch_or_mock(
+            "EURO", "weather", "pressure", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_pressure_results(self.om_provider, global_region, resolution),
+            "global_coarse"
+        )
+        if not results:
+            return False
+
+        count = await normalize_and_save_loop(
+            self.normalizer, self.store, results,
+            model="EURO", provider="open-meteo", domain="weather", layer="pressure",
+            bbox=global_region, resolution=resolution, run_time=run_time,
+            region_id="global_coarse", coverage_mode="global_tile",
+            is_test_env=env["is_test_env"],
+            log_prefix="[Pipeline Scheduler] EURO pressure global_coarse"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Pressure global coarse grid files.")
+        if count > 0:
+            self.store.prune_superseded_products("EURO", "weather", "pressure", "global_coarse", run_time)
+        await self._cleanup_and_pause(results, 0)
+        return count > 0
+
     async def ingest_copernicus_regional(self) -> bool:
         """
-        Stage 4 Ingestion: Scheduled fetch of Copernicus regional wave component layers.
+        Stage 4 Ingestion: Scheduled fetch of Copernicus regional wave component layers for all configured regions.
         """
         logger.info("[Pipeline Scheduler] Starting Copernicus Regional Ingestion job...")
         import os
         env = get_env_flags()
-        region = REGIONAL_CONFIGS["florida_east_coast"]
         layers = ["waves", "swell_1", "swell_2", "wind_waves"]
         run_time = datetime.now(timezone.utc)
         total_success = 0
@@ -641,40 +913,50 @@ class WeatherPipelineScheduler:
             os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD")
         )
 
-        for layer in layers:
-            results = None
-            res_to_save = 0.5
-            provider_name = "copernicus"
+        for region_id, region in REGIONAL_CONFIGS.items():
+            logger.info(f"[Pipeline Scheduler] Ingesting Copernicus Regional for region: {region_id}")
+            
+            # Swell 2 is not requested for SoCal
+            region_layers = ["waves", "swell_1", "wind_waves"] if region_id == "us_west_coast_socal" \
+                else layers
 
-            if has_credentials:
-                results = await self.cop_provider.fetch_grid(
-                    layer=layer, bbox=region, resolution=0.5,
-                    forecast_days=1 if os.environ.get("RENDER") == "true" else 3
+            for layer in region_layers:
+                results = None
+                res_to_save = 0.5
+                provider_name = "copernicus"
+
+                if has_credentials:
+                    results = await self.cop_provider.fetch_grid(
+                        layer=layer, bbox=region, resolution=0.5,
+                        forecast_days=1 if os.environ.get("RENDER") == "true" else 3
+                    )
+                    if results:
+                        results = results if isinstance(results, list) else [results]
+
+                if not results:
+                    if env["is_test_env"]:
+                        logger.info(f"[Pipeline Scheduler] Test environment active. Generating isolated mock Copernicus test fixture for {region_id}...")
+                        mock_res = 1.5
+                        res_to_save = mock_res
+                        provider_name = "test-fixture"
+                        results = generate_mock_copernicus_results(region, mock_res)
+                    else:
+                        logger.error(f"[Pipeline Scheduler] Copernicus Ingestion: failed to fetch grid for region: {region_id}, layer: {layer}. Skipping.")
+                        continue
+
+                count = await normalize_and_save_loop(
+                    self.normalizer, self.store, results,
+                    model="EURO", provider=provider_name, domain="marine", layer=layer,
+                    bbox=region, resolution=res_to_save, run_time=run_time,
+                    region_id=region_id, coverage_mode="regional_tile",
+                    is_test_env=env["is_test_env"],
+                    step=1,  # Save all frames, not just every 3rd
+                    log_prefix=f"[Pipeline Scheduler] Copernicus {layer} {region_id}"
                 )
-                if results:
-                    results = results if isinstance(results, list) else [results]
-
-            if not results:
-                if env["is_test_env"]:
-                    logger.info("[Pipeline Scheduler] Test environment active. Generating isolated mock Copernicus test fixture...")
-                    mock_res = 1.5
-                    res_to_save = mock_res
-                    provider_name = "test-fixture"
-                    results = generate_mock_copernicus_results(region, mock_res)
-                else:
-                    logger.error(f"[Pipeline Scheduler] Copernicus Ingestion: failed to fetch grid for layer: {layer}. Skipping.")
-                    continue
-
-            count = await normalize_and_save_loop(
-                self.normalizer, self.store, results,
-                model="EURO", provider=provider_name, domain="marine", layer=layer,
-                bbox=region, resolution=res_to_save, run_time=run_time,
-                is_test_env=env["is_test_env"],
-                step=1,  # Save all frames, not just every 3rd
-                log_prefix=f"[Pipeline Scheduler] Copernicus {layer}"
-            )
-            total_success += count
-            await self._cleanup_and_pause(results, 0)
+                total_success += count
+                if count > 0:
+                    self.store.prune_superseded_products("EURO", "marine", layer, region_id, run_time)
+                await self._cleanup_and_pause(results, 0)
 
         logger.info(f"[Pipeline Scheduler] Copernicus Ingestion Job completed! Saved {total_success} product files.")
         return total_success > 0

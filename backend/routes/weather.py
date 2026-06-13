@@ -80,6 +80,10 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             await asyncio.sleep(15.0)
             await scheduler.ingest_icon_marine_pilot()
 
+            logger.info("[Manual Ingestion] Staggering ICON Marine Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_icon_marine_global()
+
             logger.info("[Manual Ingestion] Staggering ICON Wind Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_icon_wind_pilot()
@@ -99,14 +103,30 @@ async def trigger_ingestion(background_tasks: BackgroundTasks, admin=Depends(get
             logger.info("[Manual Ingestion] Staggering GFS Pressure Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_gfs_pressure_pilot()
+
+            logger.info("[Manual Ingestion] Staggering GFS Pressure Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_gfs_pressure_global()
             
             logger.info("[Manual Ingestion] Staggering ICON Pressure Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_icon_pressure_pilot()
 
+            logger.info("[Manual Ingestion] Staggering ICON Pressure Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_icon_pressure_global()
+
             logger.info("[Manual Ingestion] Staggering EURO Pressure Ingestion by 15s...")
             await asyncio.sleep(15.0)
             await scheduler.ingest_euro_pressure_pilot()
+
+            logger.info("[Manual Ingestion] Staggering EURO Pressure Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_pressure_global()
+
+            logger.info("[Manual Ingestion] Staggering EURO Marine Global Ingestion by 15s...")
+            await asyncio.sleep(15.0)
+            await scheduler.ingest_euro_marine_global()
 
             logger.info("[Manual Ingestion] Staggering EURO Marine Extended Estimate Ingestion by 15s...")
             await asyncio.sleep(15.0)
@@ -164,6 +184,26 @@ async def ingest_euro_wind_global_direct(admin=Depends(get_current_admin)):
 @router.post("/ingest_icon_wind_global_direct")
 async def ingest_icon_wind_global_direct(admin=Depends(get_current_admin)):
     return await _run_ingest("ingest_icon_wind_global")
+
+@router.post("/ingest_euro_marine_global_direct")
+async def ingest_euro_marine_global_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_euro_marine_global")
+
+@router.post("/ingest_icon_marine_global_direct")
+async def ingest_icon_marine_global_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_icon_marine_global")
+
+@router.post("/ingest_gfs_pressure_global_direct")
+async def ingest_gfs_pressure_global_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_gfs_pressure_global")
+
+@router.post("/ingest_icon_pressure_global_direct")
+async def ingest_icon_pressure_global_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_icon_pressure_global")
+
+@router.post("/ingest_euro_pressure_global_direct")
+async def ingest_euro_pressure_global_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_euro_pressure_global")
 
 @router.get("/products")
 async def get_products():

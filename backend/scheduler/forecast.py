@@ -28,6 +28,11 @@ def ingest_marine_forecast_task():
         loop.run_until_complete(weather_scheduler.ingest_icon_wind_global())
         loop.run_until_complete(weather_scheduler.ingest_gfs_marine_pilot())
         loop.run_until_complete(weather_scheduler.ingest_gfs_marine_global())
+        loop.run_until_complete(weather_scheduler.ingest_euro_marine_global())
+        loop.run_until_complete(weather_scheduler.ingest_icon_marine_global())
+        loop.run_until_complete(weather_scheduler.ingest_gfs_pressure_global())
+        loop.run_until_complete(weather_scheduler.ingest_icon_pressure_global())
+        loop.run_until_complete(weather_scheduler.ingest_euro_pressure_global())
         
         loop.close()
         logger.info("[Scheduler] Successfully completed forecast ingestion.")
