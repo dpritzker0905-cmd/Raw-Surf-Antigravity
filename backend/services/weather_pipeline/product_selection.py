@@ -111,18 +111,8 @@ def select_best_candidate(
     Strictly prioritizes authoritative candidates before estimated candidates.
     For global/wide queries, filters out non-global candidates if at least one global product exists.
     """
-    # Identify wide/global requests (longitude span > 15.0 or latitude span > 15.0)
-    is_wide_request = False
+    # Identify wide/global requests or requests not fully covered by the best candidate
     if req_w is not None and req_s is not None and req_e is not None and req_n is not None:
-        if req_w <= req_e:
-            lon_span = req_e - req_w
-        else:
-            lon_span = 360.0 - (req_w - req_e)
-        lat_span = req_n - req_s
-        if lon_span > 15.0 or lat_span > 15.0:
-            is_wide_request = True
-
-    if is_wide_request:
         # Check if there is at least one global product in either list.
         # A global product is one with coverage longitude span >= 350.0.
         def is_global_product(p: Any) -> bool:
@@ -140,10 +130,33 @@ def select_best_candidate(
 
         has_global = any(is_global_product(p) for p, _ in authoritative_candidates) or \
                      any(is_global_product(p) for p, _ in estimated_candidates)
-        
+
         if has_global:
-            authoritative_candidates = [(p, diff) for p, diff in authoritative_candidates if is_global_product(p)]
-            estimated_candidates = [(p, diff) for p, diff in estimated_candidates if is_global_product(p)]
+            if req_w <= req_e:
+                lon_span = req_e - req_w
+            else:
+                lon_span = 360.0 - (req_w - req_e)
+            lat_span = req_n - req_s
+            is_wide_request = lon_span > 15.0 or lat_span > 15.0
+
+            should_force_global = is_wide_request
+
+            if not should_force_global:
+                # Find best candidate unfiltered to check if it covers the requested bbox
+                best_auth_unfiltered = _select_best_from_list(authoritative_candidates, req_w, req_s, req_e, req_n)
+                best_est_unfiltered = _select_best_from_list(estimated_candidates, req_w, req_s, req_e, req_n)
+                best_candidate_unfiltered = best_auth_unfiltered if best_auth_unfiltered else best_est_unfiltered
+
+                if best_candidate_unfiltered:
+                    from services.weather_pipeline.route_helpers import is_bbox_covered_by
+                    if not is_bbox_covered_by(req_w, req_s, req_e, req_n, best_candidate_unfiltered.coverage, margin=0.05):
+                        should_force_global = True
+                else:
+                    should_force_global = True
+
+            if should_force_global:
+                authoritative_candidates = [(p, diff) for p, diff in authoritative_candidates if is_global_product(p)]
+                estimated_candidates = [(p, diff) for p, diff in estimated_candidates if is_global_product(p)]
 
     # Step 1: Find best from each category
     best_auth = _select_best_from_list(authoritative_candidates, req_w, req_s, req_e, req_n)

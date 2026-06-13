@@ -358,6 +358,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}: ${err.message}.`);
     }
   }
@@ -369,6 +372,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('EURO', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}.`);
     }
   }
@@ -380,6 +386,9 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
       return result;
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}: ${err.message}.`);
     }
   }
