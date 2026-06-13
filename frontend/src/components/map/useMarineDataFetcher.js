@@ -95,9 +95,11 @@ export function useMarineDataFetcher({
       if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
       if (!activeMarineLayersRef.current) return;
       const viewportHash = getViewportHash();
-      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
+      const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
+      const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
+      const bypassDedupe = !hasValidData || !isCorrectLayer;
 
-      if (!isRetry && !isTimelineScrub && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
+      if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
       if (locks.lastHash !== viewportHash) { consecutiveFailuresRef.current = 0; marineRetryCountRef.current = 0; }
       updateMarineGridRef.current = updateMarineGrid;
 
@@ -524,7 +526,10 @@ export function useMarineDataFetcher({
 
     try {
       const viewportHash = getViewportHash();
-      if (locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
+      const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
+      const isCorrectLayer = marineData?.grid?.__componentLayer === (activeMarineLayerRef.current || 'waves');
+      const bypassDedupe = !hasValidData || !isCorrectLayer;
+      if (!bypassDedupe && locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
     } catch (e) {
       // ignore
     }

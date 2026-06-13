@@ -99,104 +99,16 @@ class ViewportService:
         Step 1 & 2: Checks dynamic product index for a fresh or stale cache hit.
         Returns the product if found (and triggers SWR if stale).
         """
-        # Parse and snap bounding box to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
-        req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
-        t_sz = 1.0 if model.upper() == "GFS" else 2.0
-        west, south, east, north = clamp_and_normalize_bbox(
-            math.floor(req_w / t_sz) * t_sz,
-            math.floor(req_s / t_sz) * t_sz,
-            math.ceil(req_e / t_sz) * t_sz,
-            math.ceil(req_n / t_sz) * t_sz
-        )
-        # Spans (considering antimeridian wrap)
-        span_lng = (east - west) if west <= east else ((180.0 - west) + (east + 180.0))
-        span_lat = abs(north - south)
-
-        is_global_view = (span_lng > 180.0 or span_lat > 90.0)
-        if is_global_view:
-            west, south, east, north = -180.0, -80.0, 180.0, 85.0
-            span_lng = 360.0
-            span_lat = 165.0
-        coverage_scope = "global_coarse" if is_global_view else "viewport"
-
-        # Determine adaptive resolution
-        resolution = choose_adaptive_resolution(span_lng, span_lat)
-
-        # Generate cache key and viewport filename
-        time_str = target_dt.strftime("%Y%m%dT%H%M%SZ")
-        cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
-        viewport_filename = f"{cache_key}.json"
-
-        # Check Dynamic Product Index
-        cached_entry = self.dynamic_index.find_product(
-            model=model, domain=domain, layer=layer, valid_time=target_dt, cache_key=cache_key
+        from services.weather_pipeline.viewport_helper import get_cached_dynamic_product_helper
+        return await get_cached_dynamic_product_helper(
+            service=self,
+            model=model,
+            domain=domain,
+            layer=layer,
+            target_dt=target_dt,
+            bbox_str=bbox_str
         )
 
-        if cached_entry:
-            loaded_product = await asyncio.to_thread(self.store.load_product, cached_entry["product_id"])
-            if loaded_product:
-                logger.info(f"[Dynamic Viewport] Cache HIT for {viewport_filename}")
-                loaded_product.resolution = cached_entry.get("resolution")
-                loaded_product.requested_bbox_original = bbox_str
-                loaded_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
-                loaded_product.partial_coverage = False
-                
-                is_stale_swr = False
-                # Check age for SWR background revalidation
-                created_at_str = cached_entry.get("created_at")
-                if created_at_str:
-                    try:
-                        created_at = datetime.fromisoformat(created_at_str.replace("Z", "+00:00"))
-                        age_sec = (datetime.now(timezone.utc) - created_at).total_seconds()
-                        if age_sec > 1800:  # 30 minutes
-                            is_stale_swr = True
-                            reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{time_str}_{cache_key}"
-                            if reval_key not in self.ACTIVE_REVALIDATIONS:
-                                self.ACTIVE_REVALIDATIONS.add(reval_key)
-                                logger.info(f"[Dynamic Viewport] SWR background revalidation triggered for {reval_key} (age: {age_sec:.1f}s)")
-                                asyncio.create_task(self._revalidate_fetch(
-                                    model, domain, layer, time_str, target_dt, bbox_str, reval_key
-                                ))
-                    except Exception as swr_err:
-                        logger.error(f"[Dynamic Viewport] SWR setup error: {swr_err}")
-                
-                loaded_product.cache_hit = "stale_cache_hit" if is_stale_swr else "cache_hit"
-                loaded_product.stale = is_stale_swr
-                if is_stale_swr:
-                    loaded_product.staleReason = "swr_revalidation_pending"
-                else:
-                    loaded_product.staleReason = None
-                
-                # Update diagnostics in the response
-                if loaded_product.grid:
-                    # Crop the loaded product to exact requested bbox bounds
-                    if cached_entry.get("coverage_scope") != "global_coarse" and domain.lower() != "wind":
-                        loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
-                    served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
-                    
-                    loaded_product.grid.diagnostics = {
-                        "requested_bbox": bbox_str,
-                        "served_bbox": served_bbox,
-                        "coverage_scope": cached_entry.get("coverage_scope", coverage_scope),
-                        "source_product_ids": [cached_entry["product_id"]],
-                        "cache_hit": "stale_cache_hit" if is_stale_swr else "cache_hit",
-                        "provider": loaded_product.provider,
-                        "model": model,
-                        "domain": domain,
-                        "layer": layer,
-                        "valid_time": target_dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                        "nonzeroCount": loaded_product.grid.diagnostics.get("nonzeroCount", 0) if loaded_product.grid.diagnostics else 0,
-                        "vectorCount": len(loaded_product.grid.vectors) if loaded_product.grid.vectors else 0,
-                        "vectors_length": len(loaded_product.grid.vectors) if loaded_product.grid.vectors else 0,
-                        "gridMode": "rectangular",
-                        "renderable": len(loaded_product.grid.vectors) > 0 and any(v.speed > 0 for v in loaded_product.grid.vectors),
-                        "stale": is_stale_swr,
-                        "staleReason": "swr_revalidation_pending" if is_stale_swr else None,
-                        "partial_coverage": False
-                    }
-                    loaded_product.served_bbox = served_bbox
-                return loaded_product
-        return None
 
     async def fetch_viewport_grid_upstream(
         self,
@@ -314,7 +226,8 @@ class ViewportService:
                     forecast_days = min(forecast_days, 16)
 
         # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
-        request_dedup_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{bbox_key_str}_{forecast_days}"
+        dedup_layer = "all_marine" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else layer
+        request_dedup_key = f"{model.lower()}_{domain.lower()}_{dedup_layer.lower()}_{bbox_key_str}_{forecast_days}"
         context = None
         is_fetcher = False
 
@@ -454,13 +367,13 @@ class ViewportService:
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
-
             # Fetch via OpenMeteoProvider
             fetch_model = "GFS" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else model
+            fetch_layer = "all_marine" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else layer
             raw_data = await self.provider.fetch_grid(
                 model=fetch_model,
                 domain=domain,
-                layer=layer,
+                layer=fetch_layer,
                 bbox=bbox_dict,
                 resolution=resolution,
                 forecast_days=forecast_days,
@@ -507,9 +420,9 @@ class ViewportService:
                             gust_val = orig_gusts[i] if (orig_gusts and i < len(orig_gusts)) else 0.0
                             
                             if speed_val is None or dir_val is None or (orig_gusts and gust_val is None):
-                                valid_len = i
+                                    valid_len = i
                             else:
-                                break
+                                    break
                         
                         if valid_len > 0:
                             valid_len = (valid_len // 24) * 24
@@ -567,114 +480,126 @@ class ViewportService:
             target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
             target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
             
-            target_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt_actual, west, south, east, north)
-            target_viewport_filename = f"{target_cache_key}.json"
+            is_euro_marine_fallback = (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"))
+            conjoined_layers = ("waves", "swell_1", "swell_2", "wind_waves") if is_euro_marine_fallback else (layer.lower(),)
+            target_normalized_product = None
 
-            target_normalized_product = self.normalizer.normalize(
-                model=model,
-                provider="open-meteo",
-                domain=domain,
-                layer=layer,
-                raw_results=raw_list,
-                bbox=bbox_dict,
-                resolution=resolution,
-                target_time=target_dt_actual,
-                coverage_mode="viewport",
-                region_id=f"viewport_{bbox_key_str}"
-            )
+            for target_layer in conjoined_layers:
+                target_cache_key = build_dynamic_cache_key(model, domain, target_layer, target_dt_actual, west, south, east, north)
+                target_viewport_filename = f"{target_cache_key}.json"
 
-            if target_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and target_idx >= 120:
-                target_normalized_product.is_estimated = True
-                target_normalized_product.is_forecast_authoritative = False
-                target_normalized_product.estimate_basis = {
-                    "type": "icon_loop_extrapolation",
-                    "native_horizon_hours": 120,
-                    "method": "diurnal_cycle_loop",
-                    "source_model": "dwd_icon"
-                }
+                normalized = self.normalizer.normalize(
+                    model=model,
+                    provider="open-meteo",
+                    domain=domain,
+                    layer=target_layer,
+                    raw_results=raw_list,
+                    bbox=bbox_dict,
+                    resolution=resolution,
+                    target_time=target_dt_actual,
+                    coverage_mode="viewport",
+                    region_id=f"viewport_{bbox_key_str}"
+                )
 
-            if target_normalized_product and model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
-                target_normalized_product.is_estimated = True
-                target_normalized_product.is_forecast_authoritative = False
-                target_normalized_product.provider = "gfs_estimated_fallback"
-                target_normalized_product.source_dataset = "gfs_estimated_fallback"
-                target_normalized_product.estimate_basis = {
-                    "type": "gfs_estimated_fallback",
-                    "method": "gfs_wave_fallback",
-                    "source_model": "ncep_gfswave025"
-                }
+                if normalized and model.upper() == "ICON" and domain.lower() == "wind" and target_idx >= 120:
+                    normalized.is_estimated = True
+                    normalized.is_forecast_authoritative = False
+                    normalized.estimate_basis = {
+                        "type": "icon_loop_extrapolation",
+                        "native_horizon_hours": 120,
+                        "method": "diurnal_cycle_loop",
+                        "source_model": "dwd_icon"
+                    }
 
-            if not target_normalized_product:
-                raise Exception("Target product normalization returned None.")
+                if normalized and model.upper() == "EURO" and target_layer in ("waves", "swell_1", "swell_2", "wind_waves"):
+                    normalized.is_estimated = True
+                    normalized.is_forecast_authoritative = False
+                    normalized.provider = "gfs_estimated_fallback"
+                    normalized.source_dataset = "gfs_estimated_fallback"
+                    normalized.estimate_basis = {
+                        "type": "gfs_estimated_fallback",
+                        "method": "gfs_wave_fallback",
+                        "source_model": "ncep_gfswave025"
+                    }
 
-            is_empty_grid = False
-            if target_normalized_product.grid and target_normalized_product.grid.vectors:
-                if not any(v.speed > 0 for v in target_normalized_product.grid.vectors):
-                    is_empty_grid = True
+                if not normalized:
+                    if target_layer == layer.lower():
+                        raise Exception("Target product normalization returned None.")
+                    continue
 
-            if is_empty_grid:
-                raise Exception("Normalization produced empty grid for target hour.")
+                is_empty_grid = False
+                if normalized.grid and normalized.grid.vectors:
+                    if not any(v.speed > 0 for v in normalized.grid.vectors):
+                        is_empty_grid = True
 
-            served_bbox_full = f"{target_normalized_product.grid.bounds.west},{target_normalized_product.grid.bounds.south},{target_normalized_product.grid.bounds.east},{target_normalized_product.grid.bounds.north}"
+                if is_empty_grid:
+                    if target_layer == layer.lower():
+                        raise Exception("Normalization produced empty grid for target hour.")
+                    continue
 
-            target_normalized_product.product_id = target_viewport_filename
-            target_normalized_product.is_dynamic_viewport_product = True
-            target_normalized_product.cache_key = target_cache_key
-            target_normalized_product.cache_hit = "cache_miss"
-            target_normalized_product.requested_bbox = bbox_str
-            target_normalized_product.served_bbox = served_bbox_full
-            target_normalized_product.coverage_scope = coverage_scope
-            target_normalized_product.coordinate_count = coord_count
-            target_normalized_product.resolution = resolution
-            target_normalized_product.requested_bbox_original = bbox_str
-            target_normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
-            target_normalized_product.partial_coverage = False
-            target_normalized_product.stale = False
+                served_bbox_full = f"{normalized.grid.bounds.west},{normalized.grid.bounds.south},{normalized.grid.bounds.east},{normalized.grid.bounds.north}"
 
-            if target_normalized_product.grid:
-                target_normalized_product.grid.diagnostics = {
-                    "requested_bbox": bbox_str,
-                    "served_bbox": served_bbox_full,
-                    "coverage_scope": coverage_scope,
-                    "source_product_ids": ["open-meteo"],
-                    "cache_hit": "cache_miss",
-                    "provider": target_normalized_product.provider,
-                    "model": model,
-                    "domain": domain,
-                    "layer": layer,
-                    "valid_time": target_dt_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                    "nonzeroCount": target_normalized_product.grid.diagnostics.get("nonzeroCount", 0) if target_normalized_product.grid.diagnostics else 0,
-                    "vectorCount": len(target_normalized_product.grid.vectors) if target_normalized_product.grid.vectors else 0,
-                    "vectors_length": len(target_normalized_product.grid.vectors) if target_normalized_product.grid.vectors else 0,
-                    "gridMode": "rectangular",
-                    "renderable": len(target_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in target_normalized_product.grid.vectors),
-                    "stale": False,
-                    "partial_coverage": False
-                }
+                normalized.product_id = target_viewport_filename
+                normalized.is_dynamic_viewport_product = True
+                normalized.cache_key = target_cache_key
+                normalized.cache_hit = "cache_miss"
+                normalized.requested_bbox = bbox_str
+                normalized.served_bbox = served_bbox_full
+                normalized.coverage_scope = coverage_scope
+                normalized.coordinate_count = coord_count
+                normalized.resolution = resolution
+                normalized.requested_bbox_original = bbox_str
+                normalized.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+                normalized.partial_coverage = False
+                normalized.stale = False
 
-            filepath = self.store.cache_dir / target_viewport_filename
-            tmp_filepath = filepath.with_suffix(".tmp")
-            
-            product_json_bytes = target_normalized_product.model_dump_json().encode("utf-8")
-            def save_to_disk(filepath, tmp_filepath, product_json_bytes):
-                with open(tmp_filepath, "wb") as f:
-                    f.write(product_json_bytes)
-                os.replace(tmp_filepath, filepath)
-            await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
+                if normalized.grid:
+                    normalized.grid.diagnostics = {
+                        "requested_bbox": bbox_str,
+                        "served_bbox": served_bbox_full,
+                        "coverage_scope": coverage_scope,
+                        "source_product_ids": ["open-meteo"],
+                        "cache_hit": "cache_miss",
+                        "provider": normalized.provider,
+                        "model": model,
+                        "domain": domain,
+                        "layer": target_layer,
+                        "valid_time": target_dt_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                        "nonzeroCount": normalized.grid.diagnostics.get("nonzeroCount", 0) if normalized.grid.diagnostics else 0,
+                        "vectorCount": len(normalized.grid.vectors) if normalized.grid.vectors else 0,
+                        "vectors_length": len(normalized.grid.vectors) if normalized.grid.vectors else 0,
+                        "gridMode": "rectangular",
+                        "renderable": len(normalized.grid.vectors) > 0 and any(v.speed > 0 for v in normalized.grid.vectors),
+                        "stale": False,
+                        "partial_coverage": False
+                    }
 
-            self.dynamic_index.add_product(
-                product_id=target_viewport_filename,
-                model=model,
-                domain=domain,
-                layer=layer,
-                valid_time=target_dt_actual,
-                requested_bbox=bbox_str,
-                served_bbox=served_bbox_full,
-                coverage_scope=coverage_scope,
-                resolution=resolution,
-                cache_key=target_cache_key,
-                source=target_normalized_product.provider
-            )
+                filepath = self.store.cache_dir / target_viewport_filename
+                tmp_filepath = filepath.with_suffix(".tmp")
+                
+                product_json_bytes = normalized.model_dump_json().encode("utf-8")
+                def save_to_disk(filepath, tmp_filepath, product_json_bytes):
+                    with open(tmp_filepath, "wb") as f:
+                        f.write(product_json_bytes)
+                    os.replace(tmp_filepath, filepath)
+                await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
+
+                self.dynamic_index.add_product(
+                    product_id=target_viewport_filename,
+                    model=model,
+                    domain=domain,
+                    layer=target_layer,
+                    valid_time=target_dt_actual,
+                    requested_bbox=bbox_str,
+                    served_bbox=served_bbox_full,
+                    coverage_scope=coverage_scope,
+                    resolution=resolution,
+                    cache_key=target_cache_key,
+                    source=normalized.provider
+                )
+
+                if target_layer == layer.lower():
+                    target_normalized_product = normalized
 
             # Resolve any future for target_dt
             async with self.IN_FLIGHT_LOCK:
@@ -684,7 +609,9 @@ class ViewportService:
                         fut.set_result(True)
 
             # Spawn background task to process all other times
-            asyncio.create_task(self._bg_process_remaining_hours(
+            from services.weather_pipeline.viewport_helper import bg_process_remaining_hours_helper
+            asyncio.create_task(bg_process_remaining_hours_helper(
+                service=self,
                 context=context,
                 request_dedup_key=request_dedup_key,
                 model=model,
@@ -790,208 +717,7 @@ class ViewportService:
                 raise e
             raise HTTPException(status_code=504, detail=f"Viewport fetch failed: {str(e)}")
 
-    async def _bg_process_remaining_hours(
-        self,
-        context: FetchContext,
-        request_dedup_key: str,
-        model: str,
-        domain: str,
-        layer: str,
-        bbox_dict: dict,
-        resolution: float,
-        west: float,
-        south: float,
-        east: float,
-        north: float,
-        times: list,
-        target_idx: int,
-        bbox_str: str,
-        coverage_scope: str,
-        coord_count: int,
-        bbox_key_str: str
-    ):
-        """Asynchronously processes remaining forecast hours in the background, prioritizing waiters."""
-        try:
-            # Process remaining forecast hours
-            remaining_indices = [i for i in range(len(times)) if i != target_idx]
-            processed_indices = {target_idx}
 
-            while len(processed_indices) < len(times):
-                next_idx = None
-                
-                # Check for active waiters that are not processed yet
-                async with self.IN_FLIGHT_LOCK:
-                    for dt, fut in list(context.hour_futures.items()):
-                        if not fut.done():
-                            idx = WeatherNormalizer.find_closest_time_index(times, dt)
-                            if idx is not None and idx not in processed_indices:
-                                next_idx = idx
-                                break
-
-                # Fallback to sequential index
-                if next_idx is None:
-                    for idx in remaining_indices:
-                        if idx not in processed_indices:
-                            next_idx = idx
-                            break
-
-                if next_idx is None:
-                    break
-
-                processed_indices.add(next_idx)
-                t_str = times[next_idx]
-                
-                t_str_with_z = t_str if t_str.endswith("Z") else t_str + "Z"
-                try:
-                    dt = datetime.fromisoformat(t_str_with_z.replace("Z", "+00:00"))
-                except Exception as parse_err:
-                    logger.warning(f"[Dynamic Viewport BG] Failed to parse time string {t_str}: {parse_err}")
-                    continue
-
-                this_cache_key = build_dynamic_cache_key(model, domain, layer, dt, west, south, east, north)
-                this_viewport_filename = f"{this_cache_key}.json"
-
-                try:
-                    # Normalize raw data for this specific time
-                    this_normalized_product = self.normalizer.normalize(
-                        model=model,
-                        provider="open-meteo",
-                        domain=domain,
-                        layer=layer,
-                        raw_results=context.raw_list,
-                        bbox=bbox_dict,
-                        resolution=resolution,
-                        target_time=dt,
-                        coverage_mode="viewport",
-                        region_id=f"viewport_{bbox_key_str}"
-                    )
-
-                    if this_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and next_idx >= 120:
-                        this_normalized_product.is_estimated = True
-                        this_normalized_product.is_forecast_authoritative = False
-                        this_normalized_product.estimate_basis = {
-                            "type": "icon_loop_extrapolation",
-                            "native_horizon_hours": 120,
-                            "method": "diurnal_cycle_loop",
-                            "source_model": "dwd_icon"
-                        }
-
-                    if this_normalized_product and model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
-                        this_normalized_product.is_estimated = True
-                        this_normalized_product.is_forecast_authoritative = False
-                        this_normalized_product.provider = "gfs_estimated_fallback"
-                        this_normalized_product.source_dataset = "gfs_estimated_fallback"
-                        this_normalized_product.estimate_basis = {
-                            "type": "gfs_estimated_fallback",
-                            "method": "gfs_wave_fallback",
-                            "source_model": "ncep_gfswave025"
-                        }
-
-                    if not this_normalized_product:
-                        continue
-
-                    is_empty_grid = False
-                    if this_normalized_product.grid and this_normalized_product.grid.vectors:
-                        if not any(v.speed > 0 for v in this_normalized_product.grid.vectors):
-                            is_empty_grid = True
-
-                    if is_empty_grid:
-                        continue
-
-                    served_bbox_full = f"{this_normalized_product.grid.bounds.west},{this_normalized_product.grid.bounds.south},{this_normalized_product.grid.bounds.east},{this_normalized_product.grid.bounds.north}"
-
-                    this_normalized_product.product_id = this_viewport_filename
-                    this_normalized_product.is_dynamic_viewport_product = True
-                    this_normalized_product.cache_key = this_cache_key
-                    this_normalized_product.cache_hit = "cache_miss"
-                    this_normalized_product.requested_bbox = bbox_str
-                    this_normalized_product.served_bbox = served_bbox_full
-                    this_normalized_product.coverage_scope = coverage_scope
-                    this_normalized_product.coordinate_count = coord_count
-                    this_normalized_product.resolution = resolution
-                    this_normalized_product.requested_bbox_original = bbox_str
-                    this_normalized_product.query_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
-                    this_normalized_product.partial_coverage = False
-                    this_normalized_product.stale = False
-
-                    if this_normalized_product.grid:
-                        this_normalized_product.grid.diagnostics = {
-                            "requested_bbox": bbox_str,
-                            "served_bbox": served_bbox_full,
-                            "coverage_scope": coverage_scope,
-                            "source_product_ids": ["open-meteo"],
-                            "cache_hit": "cache_miss",
-                            "provider": this_normalized_product.provider,
-                            "model": model,
-                            "domain": domain,
-                            "layer": layer,
-                            "valid_time": dt.strftime("%Y-%m-%dT%H:%M:%SZ"),
-                            "nonzeroCount": this_normalized_product.grid.diagnostics.get("nonzeroCount", 0) if this_normalized_product.grid.diagnostics else 0,
-                            "vectorCount": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
-                            "vectors_length": len(this_normalized_product.grid.vectors) if this_normalized_product.grid.vectors else 0,
-                            "gridMode": "rectangular",
-                            "renderable": len(this_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in this_normalized_product.grid.vectors),
-                            "stale": False,
-                            "partial_coverage": False
-                        }
-
-                    filepath = self.store.cache_dir / this_viewport_filename
-                    tmp_filepath = filepath.with_suffix(".tmp")
-                    
-                    product_json_bytes = this_normalized_product.model_dump_json().encode("utf-8")
-                    def save_to_disk(filepath, tmp_filepath, product_json_bytes):
-                        with open(tmp_filepath, "wb") as f:
-                            f.write(product_json_bytes)
-                        os.replace(tmp_filepath, filepath)
-                    await asyncio.to_thread(save_to_disk, filepath, tmp_filepath, product_json_bytes)
-
-                    self.dynamic_index.add_product(
-                        product_id=this_viewport_filename,
-                        model=model,
-                        domain=domain,
-                        layer=layer,
-                        valid_time=dt,
-                        requested_bbox=bbox_str,
-                        served_bbox=served_bbox_full,
-                        coverage_scope=coverage_scope,
-                        resolution=resolution,
-                        cache_key=this_cache_key,
-                        source=this_normalized_product.provider
-                    )
-
-                    # Resolve any future for this hour
-                    async with self.IN_FLIGHT_LOCK:
-                        fut = context.hour_futures.get(dt)
-                        if fut and not fut.done():
-                            fut.set_result(True)
-
-                except Exception as step_err:
-                    logger.error(f"[Dynamic Viewport BG] Failed to process time step {t_str}: {step_err}")
-                    async with self.IN_FLIGHT_LOCK:
-                        fut = context.hour_futures.get(dt)
-                        if fut and not fut.done():
-                            fut.set_exception(step_err)
-                            try:
-                                fut.exception()
-                            except Exception:
-                                pass
-
-                # Yield to the event loop
-                await asyncio.sleep(0.001)
-
-        except Exception as bg_err:
-            logger.error(f"[Dynamic Viewport BG] Unexpected error in background process: {bg_err}")
-        finally:
-            async with self.IN_FLIGHT_LOCK:
-                self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
-                # Resolve any remaining outstanding futures so they don't hang
-                for dt, fut in list(context.hour_futures.items()):
-                    if not fut.done():
-                        fut.set_exception(Exception("Background task finished without processing this hour"))
-                        try:
-                            fut.exception()
-                        except Exception:
-                            pass
 
     async def fetch_viewport_grid(
         self,
