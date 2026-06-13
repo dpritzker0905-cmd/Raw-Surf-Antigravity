@@ -357,7 +357,7 @@ class OpenMeteoProvider:
                         if "wind_speed_unit" in params:
                             query_params["wind_speed_unit"] = params["wind_speed_unit"]
 
-                    max_retries = 3
+                    max_retries = 5
                     response = None
                     for attempt in range(1, max_retries + 2):
                         if use_proxy:
@@ -539,7 +539,7 @@ class OpenMeteoProvider:
 
         async with httpx.AsyncClient() as client:
             try:
-                max_retries = 3
+                max_retries = 5
                 response = None
                 for attempt in range(1, max_retries + 2):
                     if use_proxy:

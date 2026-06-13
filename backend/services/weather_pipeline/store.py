@@ -534,6 +534,155 @@ class ProductStore:
 
         return filename
 
+    def save_products_batch(
+        self,
+        products_to_save: List[Tuple[NormalizedProduct, float]]
+    ) -> int:
+        """
+        Saves a batch of normalized grid products atomically on disk, uploads them to Supabase,
+        and registers them in the manifest in a single bulk operation.
+        """
+        if not products_to_save:
+            return 0
+
+        is_test_env = is_test_environment()
+        manifest = self.get_manifest()
+        manifest.last_manifest_update = datetime.now(timezone.utc)
+
+        # Build dictionary from existing manifest by unique slice key
+        dict_by_slice = {}
+        for p in manifest.products:
+            key = (
+                (p.model or "").upper(),
+                (p.provider or "").lower(),
+                (p.domain or "").lower(),
+                (p.layer or "").lower(),
+                p.valid_time_start,
+                p.region_id
+            )
+            dict_by_slice[key] = p
+
+        success_count = 0
+        has_non_tf = False
+
+        for product, resolution in products_to_save:
+            if not product or not product.grid:
+                logger.warning("[Product Store] Attempted to save empty or ungrid product in batch.")
+                continue
+
+            # Apply backward compatibility: Treat Florida coordinates as florida_east_coast if region not explicitly set
+            is_florida = (
+                abs(product.coverage.west - (-85.0)) < 0.1 and
+                abs(product.coverage.south - 24.0) < 0.1 and
+                abs(product.coverage.east - (-79.0)) < 0.1 and
+                abs(product.coverage.north - 31.0) < 0.1
+            )
+            if is_florida:
+                if not product.region_id:
+                    product.region_id = "florida_east_coast"
+                if not product.tile_id:
+                    product.tile_id = "florida_east_coast"
+                if not product.coverage_mode:
+                    product.coverage_mode = "regional_tile"
+
+            # Build consistent filename preventing collisions across regions
+            time_str = product.valid_time.strftime("%Y%m%dT%H%M%SZ")
+            region_suffix = f"_{product.region_id}" if product.region_id else ""
+            estimated_suffix = "_estimated" if getattr(product, "is_estimated", False) else ""
+            filename = f"{product.model.lower()}_{product.domain.lower()}_{product.layer.lower()}{region_suffix}_{time_str}{estimated_suffix}.json"
+            
+            # Ensure product_id is set to the saved filename
+            product.product_id = filename
+            
+            target_path = self.cache_dir / filename
+            tmp_path = target_path.with_suffix(".tmp")
+
+            # Double check test fixture guard before writing to disk
+            is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
+            if is_tf and not is_test_env:
+                logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
+                continue
+
+            try:
+                # 1. Write product data atomically to disk (L1)
+                product_json_bytes = product.model_dump_json().encode("utf-8")
+                with open(tmp_path, "wb") as f:
+                    f.write(product_json_bytes)
+                
+                # Retry loop to survive transient Windows file/antivirus locks
+                import time
+                retries = 5
+                for attempt in range(retries):
+                    try:
+                        os.replace(tmp_path, target_path)
+                        break
+                    except PermissionError as pe:
+                        if attempt == retries - 1:
+                            raise pe
+                        time.sleep(0.05)
+                logger.info(f"[Product Store] Atomic save complete in batch: {filename}")
+            except Exception as e:
+                logger.error(f"[Product Store] Product atomic save failed in batch for {filename}: {e}")
+                if tmp_path.exists():
+                    try: os.remove(tmp_path)
+                    except Exception: pass
+                continue
+
+            # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
+            if not is_tf:
+                _upload_executor.submit(self._upload_to_supabase, filename, product_json_bytes)
+                has_non_tf = True
+
+            # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
+            manifest_item = ManifestProduct(
+                model=product.model,
+                provider=product.provider,
+                domain=product.domain,
+                layer=product.layer,
+                run_time=product.run_time,
+                valid_time_start=product.valid_time,
+                valid_time_end=product.valid_time,
+                resolution=resolution,
+                freshness_sec=product.freshness_sec,
+                is_forecast_authoritative=product.is_forecast_authoritative,
+                is_estimated=getattr(product, "is_estimated", False),
+                estimate_basis=getattr(product, "estimate_basis", None),
+                coverage=product.coverage,
+                filename=filename,
+                is_test_fixture=is_tf,
+                source_dataset=getattr(product, "source_dataset", None),
+                upstream_provider=getattr(product, "upstream_provider", None),
+                upstream_model=getattr(product, "upstream_model", None),
+                region_id=product.region_id,
+                coverage_mode=product.coverage_mode,
+                tile_id=product.tile_id,
+                product_id=filename
+            )
+            
+            slice_key = (
+                (product.model or "").upper(),
+                (product.provider or "").lower(),
+                (product.domain or "").lower(),
+                (product.layer or "").lower(),
+                product.valid_time,
+                product.region_id
+            )
+            dict_by_slice[slice_key] = manifest_item
+            success_count += 1
+
+        manifest.products = list(dict_by_slice.values())
+        self._save_manifest(manifest)
+
+        # Upload updated manifest to Supabase (L2)
+        if has_non_tf:
+            try:
+                manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+                _manifest_executor.submit(self._upload_to_supabase, "manifest.json", manifest_json)
+            except Exception as e:
+                logger.warning(f"[Product Store] Manifest L2 upload submit failed in batch: {e}")
+
+        return success_count
+
     def load_product(self, filename: str) -> Optional[NormalizedProduct]:
         """Loads and returns a stored grid product by filename."""
         filepath = self.cache_dir / filename

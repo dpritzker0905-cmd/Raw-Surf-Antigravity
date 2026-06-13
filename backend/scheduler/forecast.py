@@ -16,25 +16,51 @@ def ingest_marine_forecast_task():
         loop = asyncio.new_event_loop()
         asyncio.set_event_loop(loop)
         
-        loop.run_until_complete(ingest_global_model('wind'))
-        loop.run_until_complete(ingest_global_model('marine'))
-        
-        # Run conformed global weather pipeline jobs (e.g. conformed global ICON wind)
-        from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-        from services.weather_pipeline.store import ProductStore
-        
-        store = ProductStore()
-        weather_scheduler = WeatherPipelineScheduler(store=store)
-        loop.run_until_complete(weather_scheduler.ingest_icon_wind_global())
-        loop.run_until_complete(weather_scheduler.ingest_gfs_marine_pilot())
-        loop.run_until_complete(weather_scheduler.ingest_gfs_marine_global())
-        loop.run_until_complete(weather_scheduler.ingest_euro_marine_global())
-        loop.run_until_complete(weather_scheduler.ingest_icon_marine_global())
-        loop.run_until_complete(weather_scheduler.ingest_gfs_pressure_global())
-        loop.run_until_complete(weather_scheduler.ingest_icon_pressure_global())
-        loop.run_until_complete(weather_scheduler.ingest_euro_pressure_global())
-        
+        async def run_jobs():
+            # Run legacy forecast ingesters
+            try:
+                logger.info("[Scheduler] Starting legacy wind ingestion...")
+                await ingest_global_model('wind')
+            except Exception as e:
+                logger.error(f"[Scheduler] Legacy wind ingestion failed: {e}", exc_info=True)
+
+            await asyncio.sleep(5.0)
+
+            try:
+                logger.info("[Scheduler] Starting legacy marine ingestion...")
+                await ingest_global_model('marine')
+            except Exception as e:
+                logger.error(f"[Scheduler] Legacy marine ingestion failed: {e}", exc_info=True)
+
+            # Run conformed global weather pipeline jobs
+            from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+            from services.weather_pipeline.store import ProductStore
+            
+            store = ProductStore()
+            weather_scheduler = WeatherPipelineScheduler(store=store)
+            
+            jobs = [
+                ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
+                ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
+                ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
+                ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global),
+                ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global),
+                ("GFS Pressure Global", weather_scheduler.ingest_gfs_pressure_global),
+                ("ICON Pressure Global", weather_scheduler.ingest_icon_pressure_global),
+                ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global)
+            ]
+
+            for name, job_func in jobs:
+                await asyncio.sleep(15.0)
+                logger.info(f"[Scheduler] Starting scheduled job: {name}")
+                try:
+                    await job_func()
+                    logger.info(f"[Scheduler] Completed scheduled job: {name}")
+                except Exception as e:
+                    logger.error(f"[Scheduler] Job '{name}' failed with error: {e}", exc_info=True)
+
+        loop.run_until_complete(run_jobs())
         loop.close()
         logger.info("[Scheduler] Successfully completed forecast ingestion.")
     except Exception as e:
-        logger.error(f"[Scheduler] Failed to ingest forecast: {e}")
+        logger.error(f"[Scheduler] Failed to ingest forecast: {e}", exc_info=True)

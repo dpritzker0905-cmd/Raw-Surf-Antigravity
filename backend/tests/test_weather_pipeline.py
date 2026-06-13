@@ -1782,6 +1782,98 @@ async def test_euro_pressure_global_ingestion(tmp_path, monkeypatch):
         assert p.is_estimated is True
 
 
+def test_save_products_batch(tmp_path):
+    """
+    Test save_products_batch in ProductStore and verify that multiple
+    products are saved, duplicates are updated/overwritten, and manifest is written once.
+    """
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.schemas import NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds
+    from datetime import datetime, timezone
+    
+    store = ProductStore(cache_dir=tmp_path)
+    
+    bounds = CoverageBounds(west=-80.0, south=24.0, east=-79.0, north=25.0)
+    vectors = [GridVector(lat=24.0, lng=-80.0, speed=10.0, direction=90.0, u=-10.0, v=0.0)]
+    grid = NormalizedGrid(bounds=bounds, cols=1, rows=1, vectors=vectors)
+    
+    product1 = NormalizedProduct(
+        model="GFS",
+        provider="test-fixture",
+        domain="marine",
+        layer="waves",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.fromisoformat("2026-06-01T12:00:00+00:00"),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["wave_height"],
+        freshness_sec=1800
+    )
+    
+    product2 = NormalizedProduct(
+        model="GFS",
+        provider="test-fixture",
+        domain="marine",
+        layer="waves",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.fromisoformat("2026-06-01T15:00:00+00:00"),
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["wave_height"],
+        freshness_sec=1800
+    )
+    
+    # Batch save products
+    count = store.save_products_batch([(product1, 1.0), (product2, 1.0)])
+    assert count == 2
+    
+    # Verify both files exist
+    manifest = store.get_manifest()
+    assert len(manifest.products) == 2
+    filenames = {p.filename for p in manifest.products}
+    assert any("20260601T120000Z" in f for f in filenames)
+    assert any("20260601T150000Z" in f for f in filenames)
+    
+    # Save a duplicate for the first product to verify overwrite / slice filtering
+    product1_new = NormalizedProduct(
+        model="GFS",
+        provider="test-fixture",
+        domain="marine",
+        layer="waves",
+        run_time=datetime.now(timezone.utc),
+        valid_time=datetime.fromisoformat("2026-06-01T12:00:00+00:00"),
+        is_forecast_authoritative=True,
+        is_estimated=True,  # Changed to estimated to distinguish
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["wave_height"],
+        freshness_sec=1800
+    )
+    
+    count2 = store.save_products_batch([(product1_new, 1.0)])
+    assert count2 == 1
+    
+    # Verify manifest still has 2 products and the duplicate was replaced
+    manifest2 = store.get_manifest()
+    assert len(manifest2.products) == 2
+    
+    replaced_product = next(p for p in manifest2.products if "20260601T120000Z" in p.filename)
+    assert replaced_product.is_estimated is True
+
+
 
 
 

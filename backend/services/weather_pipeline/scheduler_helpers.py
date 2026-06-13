@@ -322,7 +322,7 @@ async def normalize_and_save_loop(
         logger.error(f"{log_prefix} Payload missing hourly times array.")
         return 0
 
-    success_count = 0
+    products_to_save = []
     norm_kwargs = {
         "model": model, "provider": provider, "domain": domain, "layer": layer,
         "raw_results": results, "bbox": bbox, "resolution": resolution,
@@ -353,20 +353,20 @@ async def normalize_and_save_loop(
                     product.is_estimated = True
                     product.is_forecast_authoritative = False
                     product.estimate_basis = estimate_basis
-                store.save_product(product, resolution=resolution)
-                success_count += 1
-                del product
-                gc.collect()
-                has_supabase = False
-                try:
-                    from services.weather_pipeline.store import _get_supabase_storage
-                    has_supabase = _get_supabase_storage() is not None
-                except Exception:
-                    pass
-                sleep_dur = 0.0 if (is_test_env or not has_supabase) else 0.2
-                await asyncio.sleep(sleep_dur)
+                
+                products_to_save.append((product, resolution))
+                await asyncio.sleep(0.01)
         except Exception as e:
             logger.error(f"{log_prefix} Normalization error for {model} {layer} at hour index {idx}: {e}")
+
+    success_count = 0
+    if products_to_save:
+        try:
+            success_count = store.save_products_batch(products_to_save)
+        except Exception as e:
+            logger.error(f"{log_prefix} Failed to save batch of products: {e}", exc_info=True)
+        del products_to_save
+        gc.collect()
 
     return success_count
 
@@ -424,7 +424,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
     )
     
     manifest = scheduler.store.get_manifest()
-    total_saved = 0
+    products_to_save = []
     
     for region_id, region in REGIONAL_CONFIGS.items():
         logger.info(f"[Pipeline Scheduler] Processing region for estimates: {region_id}")
@@ -549,9 +549,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                     )
                     
                     if est_product:
-                        res = scheduler.store.save_product(est_product, resolution=euro_anchor_item.resolution)
-                        if res:
-                            total_saved += 1
+                        products_to_save.append((est_product, euro_anchor_item.resolution))
                 except EstimateContractError as e:
                     logger.error(
                         f"[Pipeline Scheduler] Skipped invalid estimate for region={region_id}, layer={layer}, "
@@ -559,6 +557,13 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                     )
                     continue
                         
+    total_saved = 0
+    if products_to_save:
+        try:
+            total_saved = scheduler.store.save_products_batch(products_to_save)
+        except Exception as e:
+            logger.error(f"[Pipeline Scheduler] Failed to save batch of estimated products: {e}", exc_info=True)
+            
     logger.info(f"[Pipeline Scheduler] EURO Marine Extended Estimate Ingestion job completed. Saved {total_saved} estimated product files.")
     return total_saved > 0
 
