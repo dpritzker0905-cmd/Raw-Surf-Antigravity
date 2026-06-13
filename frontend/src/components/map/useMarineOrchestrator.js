@@ -469,12 +469,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       } catch (e) {
         console.warn('[Marine] Backend cache switch lookup failed:', e.message);
       }
-      if (!window.isScrubbingTimeline) {
-        console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer}. Clearing.`);
-        setMarineData(null);
-      } else {
-        console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer} during scrubbing. Retaining stale.`);
-      }
+      console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer}. Retaining stale view while fetching.`);
     } else {
       if (activeModel !== 'EURO') {
         try {

@@ -24,6 +24,7 @@ export function useMarineDataFetcher({
 
   const marineRevision = useRef(0);
   const marineRequestIdRef = useRef(0);
+  const abortControllerRef = useRef(null);
   const activeMarineLayersRef = useRef(false);
   const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0 });
   const manualMarineTriggerRef = useRef(null);
@@ -100,16 +101,11 @@ export function useMarineDataFetcher({
       updateMarineGridRef.current = updateMarineGrid;
 
       if (locks.isFetching) {
-        if (isTimelineScrub) {
-          // Timeline scrubs take priority over in-flight fetches.
-          // The in-flight request will self-invalidate via the stale requestId check.
-          console.log(`[SCRUB] Overriding in-flight fetch for timeline scrub to +${timeOffset}h`);
-          locks.isFetching = false;
-        } else {
-          pendingMarineIntentRef.current = { source, model, layer, hour: timeOffset, timestamp: Date.now() };
-          logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
-          return;
+        console.log(`[Abort] Aborting in-flight fetch for new request source=${source}`);
+        if (abortControllerRef.current) {
+          abortControllerRef.current.abort();
         }
+        locks.isFetching = false;
       }
 
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
@@ -179,6 +175,12 @@ export function useMarineDataFetcher({
         return;
       }
 
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
+      abortControllerRef.current = new AbortController();
+      const signal = abortControllerRef.current.signal;
+
       locks.isFetching = true;
       if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
       const fetchIntent = { model, layer, hour: timeOffset };
@@ -214,7 +216,7 @@ export function useMarineDataFetcher({
         diagObj.fetchStarted.push(`${modelName}_h${targetHour}`);
         const promise = (async () => {
           try {
-            return await fetchMarineData(targetBounds, targetZoom, null, targetHour, false, modelName, targetLayer);
+            return await fetchMarineData(targetBounds, targetZoom, signal, targetHour, false, modelName, targetLayer);
           } catch (e) {
             return null;
           } finally { orchestratorInFlight.current.delete(requestKey); }
@@ -296,7 +298,7 @@ export function useMarineDataFetcher({
           if (getBackendCopernicusFlag()) {
             phase = 'standard_fetch_copernicus';
             try {
-              data = await fetchMarineData(bounds, zoom, null, timeOffset, false, model, layer);
+              data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
                if (!data || !data.grid || !data.grid.renderable) {
                 console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
                 const failureReason = data?.grid?.__failureReason || 'unavailable';
@@ -348,7 +350,7 @@ export function useMarineDataFetcher({
           }
         } else {
           phase = 'standard_fetch';
-          data = await fetchMarineData(bounds, zoom, null, timeOffset, false, model, layer);
+          data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
         }
       }
 
@@ -450,14 +452,16 @@ export function useMarineDataFetcher({
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }
     } finally {
-      locks.isFetching = false;
-      if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
-      const pending = pendingMarineIntentRef.current;
-      if (pending) {
-        pendingMarineIntentRef.current = null;
-        if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
-          setTimeout(() => enqueueMarineUpdateRef.current?.(pending.source + '_pending'), 50);
-        } else { logPipelineEventHelper('pending_intent_expired', pending); }
+      if (requestId === marineRequestIdRef.current) {
+        locks.isFetching = false;
+        if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
+        const pending = pendingMarineIntentRef.current;
+        if (pending) {
+          pendingMarineIntentRef.current = null;
+          if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
+            setTimeout(() => enqueueMarineUpdateRef.current?.(pending.source + '_pending'), 50);
+          } else { logPipelineEventHelper('pending_intent_expired', pending); }
+        }
       }
     }
   }, [
@@ -549,6 +553,9 @@ export function useMarineDataFetcher({
 
   useEffect(() => {
     return () => {
+      if (abortControllerRef.current) {
+        abortControllerRef.current.abort();
+      }
       if (cooldownRetryRef.current) clearTimeout(cooldownRetryRef.current);
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
