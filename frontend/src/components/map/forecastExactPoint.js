@@ -36,6 +36,19 @@ const RECENT_FAILED_TTL = 30000;
 const _inFlightExactPointRequests = new Map();
 const EXACT_POINT_CACHE_TTL = 10 * 60 * 1000;
 
+// v7.1: Periodic cleanup of expired failure entries to prevent unbounded Map growth
+setInterval(() => {
+  const now = Date.now();
+  for (const [key, ts] of _recentFailedRequests) {
+    if (now - ts > RECENT_FAILED_TTL) _recentFailedRequests.delete(key);
+  }
+  // Safety: cap in-flight requests to prevent orphaned promise accumulation
+  if (_inFlightExactPointRequests.size > 20) {
+    console.warn(`[ExactPoint] In-flight request map has ${_inFlightExactPointRequests.size} entries, clearing stale entries.`);
+    _inFlightExactPointRequests.clear();
+  }
+}, 60000);
+
 const MARINE_MODEL_LIMITS = {
   'ncep_gfswave025': 16,
   'gwam': 7,

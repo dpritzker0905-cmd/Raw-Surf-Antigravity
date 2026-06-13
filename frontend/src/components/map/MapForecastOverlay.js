@@ -405,6 +405,9 @@ export const MapForecastOverlay = ({
   });
 
   // v6.6: Console forensic log on activation / load
+  // v7.1: Forensic audit effect — stabilized deps to prevent flooding during scrubbing.
+  // Removed `cards` (new array each render) and `effectiveExactPoint` (object reference).
+  const forensicKey = `${pointLat}_${pointLng}_${activeModel}_${activeLayer}_${effectiveExactPointStatus}_${isExactPointAuthority}`;
   useEffect(() => {
     logForensicAudit({
       isExactPointRequired,
@@ -419,10 +422,12 @@ export const MapForecastOverlay = ({
       waveDir, swell1Dir, swell2Dir, windWaveDir,
       degToCompass
     });
-  }, [pointLat, pointLng, activeModel, activeLayer, effectiveExactPointStatus, effectiveExactPoint, cards, isExactPointAuthority, waveDir, swell1Dir, swell2Dir, windWaveDir]);
+  }, [forensicKey]);
 
   // v6E: Telemetry diagnostics for active pressure layer alignment
+  // v7.1: Pressure telemetry — stabilized deps. Only fire when pressure layer + key inputs change.
   useEffect(() => {
+    if (activeLayer !== 'pressure') return;
     logPressureTelemetryDiagnostics({
       activeLayer,
       isExactPointAuthority,
@@ -434,7 +439,7 @@ export const MapForecastOverlay = ({
       exactPointStatus: effectiveExactPointStatus,
       exactPointResponse: effectiveExactPointResponse
     });
-  }, [activeLayer, isExactPointAuthority, effectiveExactPointResponse, useExactPoint, timeOffsetHours, activeModel, pressure, effectiveExactPointStatus, effectiveExactPointResponse]);
+  }, [activeLayer, isExactPointAuthority, effectiveExactPointStatus, timeOffsetHours, activeModel]);
 
   useEffect(() => {
     if (effectiveExactPointResponse && timeOffsetHours === 0) {
@@ -459,7 +464,8 @@ export const MapForecastOverlay = ({
   }, [effectiveExactPointResponse, activeModel, activeLayer, timeOffsetHours]);
 
   // v6.6: Call external diagnostics helper to keep component extremely lightweight
-  if (typeof window !== 'undefined') {
+  // v7.1: Skip render-phase diagnostics during scrubbing to prevent flooding
+  if (typeof window !== 'undefined' && !isScrubbing) {
     const hasGfs = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'GFS', activeLayer, timeOffsetHours) : false;
     const hasIcon = (lat != null && lng != null) ? hasCacheForModel(lat, lng, 'ICON', activeLayer, timeOffsetHours) : false;
 
@@ -507,24 +513,10 @@ export const MapForecastOverlay = ({
   // v163: Show pin icon when displaying spot or long-press location
   const showPinIcon = !!(selectedSpot || longPressLocation);
 
+  // v7.1: Don't render the infobox at all when no location is selected.
+  // It will appear only after a user selects a surf spot, places a marker, or taps GPS.
   if (pointLat == null || pointLng == null) {
-    return (
-      <div
-        className={`absolute ${
-          isImmersiveMode 
-            ? (isTimelineCollapsed ? 'bottom-[80px]' : 'bottom-[170px]') 
-            : (isTimelineCollapsed ? 'bottom-[140px]' : 'bottom-[230px]')
-        } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} w-[180px] p-3 text-center transition-all duration-300`}
-        data-testid="forecast-overlay"
-      >
-        <div className={`text-[10px] font-bold ${textClass}`}>
-          No Location Selected
-        </div>
-        <div className={`text-[9px] ${textMuted} mt-1 leading-normal`}>
-          Select a surf spot, set a marker, or enable GPS to view forecast data.
-        </div>
-      </div>
-    );
+    return null;
   }
 
   return (

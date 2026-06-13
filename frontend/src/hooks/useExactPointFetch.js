@@ -36,10 +36,14 @@ export function useExactPointFetch({
     marineDataRef.current = marineData;
   }, [marineData]);
 
-  // snapping key
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
+  // v7.1: snapping key — EXCLUDES settledOffset because exact-point responses contain
+  // multi-day data. Hour selection happens at render time via selectExactPointHour.
+  // Including the offset here was causing the entire response to be marked stale on every
+  // scrub step, triggering redundant fetches that saturated the network queue.
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}`;
   const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
   const isStale = currentPointKey !== renderedPointKey;
+  const fetchGenRef = useRef(0);
 
   const effectiveExactPointResponse = isStale ? null : exactPointResponse;
   const effectiveExactPoint = isStale ? null : exactPoint;
@@ -115,6 +119,7 @@ export function useExactPointFetch({
     setExactPointStatus('exact_loading');
 
     if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;
+    const gen = ++fetchGenRef.current;
     const token = { cancelled: false };
     exactPointFetchRef.current = token;
 
@@ -122,7 +127,7 @@ export function useExactPointFetch({
     const debounceTime = (isUserExplicitSelection || isLayerSwitch) ? 200 : 3000;
 
     const timeoutId = setTimeout(() => {
-      if (token.cancelled) return;
+      if (token.cancelled || gen !== fetchGenRef.current) return;
 
       const fetchTimeoutId = setTimeout(() => {
         controller.abort();
@@ -130,7 +135,7 @@ export function useExactPointFetch({
 
       fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, settledOffset).then(data => {
         clearTimeout(fetchTimeoutId);
-        if (!token.cancelled) {
+        if (!token.cancelled && gen === fetchGenRef.current) {
           if (data) {
             if (data.status === 'timeout') {
               setExactPointStatus('exact_timeout');
@@ -150,7 +155,7 @@ export function useExactPointFetch({
         }
       }).catch(err => {
         clearTimeout(fetchTimeoutId);
-        if (!token.cancelled) {
+        if (!token.cancelled && gen === fetchGenRef.current) {
           if (err.name === 'AbortError') {
             setExactPointStatus('exact_timeout');
           } else {
@@ -165,7 +170,7 @@ export function useExactPointFetch({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, settledOffset, isScrubbing, isExactPointRequired, currentPointKey, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isExactPointRequired, selectedSpot, longPressLocation]);
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {
