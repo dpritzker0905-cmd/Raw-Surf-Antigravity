@@ -33,10 +33,10 @@ def test_dynamic_viewport_grid_success(mock_weather_setup):
 
     # Verify registered in dynamic index
     products = dynamic_idx._load_index()
-    assert len(products) == 1
-    assert products[0]["product_id"] == product_id
-    assert products[0]["model"] == "GFS"
-    assert products[0]["layer"] == "waves"
+    assert len(products) == 4
+    waves_prod = next(p for p in products if p["layer"] == "waves")
+    assert waves_prod["product_id"] == product_id
+    assert waves_prod["model"] == "GFS"
 
     # Query again, should be a cache hit
     response_cached = client.get(
@@ -468,7 +468,8 @@ def test_negative_cache_stale_fallback_success(mock_weather_setup, monkeypatch):
     
     # Let's confirm it's cached in the index
     items = dynamic_idx._load_index()
-    assert len(items) == 1
+    assert len(items) == 4
+    assert any(item["product_id"] == p1_id for item in items)
     
     # 2. Add a negative cache entry for a query 1 hour later (2026-06-02T13:00:00Z)
     from services.weather_pipeline.route_helpers import parse_bbox, clamp_and_normalize_bbox, build_dynamic_cache_key
@@ -525,8 +526,9 @@ def test_aged_dynamic_product_diagnostics(mock_weather_setup):
     # 2. Modify created_at to be 40 minutes in the past
     from datetime import timedelta
     items = dynamic_idx._load_index()
-    assert len(items) == 1
-    items[0]["created_at"] = (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat()
+    assert len(items) == 4
+    for item in items:
+        item["created_at"] = (datetime.now(timezone.utc) - timedelta(minutes=40)).isoformat()
     dynamic_idx._save_index(items)
     
     # 3. Query again to hit stale cache with SWR

@@ -244,8 +244,11 @@ async def bg_process_remaining_hours_helper(
         remaining_indices = [i for i in range(len(times)) if i != target_idx]
         processed_indices = {target_idx}
 
-        is_euro_marine_fallback = (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"))
-        conjoined_layers = ("waves", "swell_1", "swell_2", "wind_waves") if is_euro_marine_fallback else (layer.lower(),)
+        is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        if is_conjoined:
+            conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
+        else:
+            conjoined_layers = (layer.lower(),)
 
         while len(processed_indices) < len(times):
             next_idx = None

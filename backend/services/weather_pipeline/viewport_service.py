@@ -226,7 +226,8 @@ class ViewportService:
                     forecast_days = min(forecast_days, 16)
 
         # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
-        dedup_layer = "all_marine" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else layer
+        is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        dedup_layer = "all_marine" if is_conjoined else layer
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{dedup_layer.lower()}_{bbox_key_str}_{forecast_days}"
         context = None
         is_fetcher = False
@@ -368,8 +369,9 @@ class ViewportService:
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
             # Fetch via OpenMeteoProvider
-            fetch_model = "GFS" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else model
-            fetch_layer = "all_marine" if (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) else layer
+            is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            fetch_model = "GFS" if (model.upper() == "EURO" and is_conjoined) else model
+            fetch_layer = "all_marine" if is_conjoined else layer
             raw_data = await self.provider.fetch_grid(
                 model=fetch_model,
                 domain=domain,
@@ -480,8 +482,11 @@ class ViewportService:
             target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
             target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
             
-            is_euro_marine_fallback = (model.upper() == "EURO" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"))
-            conjoined_layers = ("waves", "swell_1", "swell_2", "wind_waves") if is_euro_marine_fallback else (layer.lower(),)
+            is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            if is_conjoined:
+                conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
+            else:
+                conjoined_layers = (layer.lower(),)
             target_normalized_product = None
 
             for target_layer in conjoined_layers:
