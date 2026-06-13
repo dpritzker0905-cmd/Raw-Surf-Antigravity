@@ -496,22 +496,27 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         }
       } else if (isEuro) {
         if (isWaves) {
-          if (gridProvider !== 'open-meteo') {
+          const validEuroWaveProviders = ['open-meteo', 'copernicus', 'backend-weather-service', 'estimated', 'test-fixture', 'gfs_estimated_fallback', 'gfs_estimated_backdrop'];
+          if (!validEuroWaveProviders.includes(gridProvider)) {
             isValid = false;
-            rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider} vs open-meteo`;
+            rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider}`;
           }
         } else {
-          // v7.0: Accept copernicus, gfs_estimated_backdrop, and gfs_estimated_fallback for EURO components
-          const validEuroProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback'];
-          if (!validEuroProviders.includes(gridProvider) || componentLayer !== activeMarineLayer) {
+          // v7.0: Accept copernicus, gfs_estimated_backdrop, gfs_estimated_fallback, and other backend/dev providers for EURO components
+          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
+          if (!validEuroComponentProviders.includes(gridProvider) || componentLayer !== activeMarineLayer) {
             isValid = false;
-            rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} vs copernicus/gfs_estimated or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
+            rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
         }
       } else {
-        if (gridProvider !== 'open-meteo') {
+        const validGfsIconProviders = ['open-meteo', 'backend-weather-service', 'estimated', 'test-fixture'];
+        if (!validGfsIconProviders.includes(gridProvider)) {
           isValid = false;
-          rejectionReason = `Non-EURO provider mismatch: gridProvider=${gridProvider} vs open-meteo`;
+          rejectionReason = `Non-EURO provider mismatch: gridProvider=${gridProvider}`;
+        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture') && componentLayer !== activeMarineLayer) {
+          isValid = false;
+          rejectionReason = `Non-EURO component layer mismatch: componentLayer=${componentLayer} vs ${activeMarineLayer}`;
         }
       }
     }

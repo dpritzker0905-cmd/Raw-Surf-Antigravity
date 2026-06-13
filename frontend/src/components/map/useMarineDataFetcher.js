@@ -109,6 +109,7 @@ export function useMarineDataFetcher({
         swrRetryCountRef.current = 0;
         clearTimeout(swrTimerRef.current);
         swrTimerRef.current = null;
+        locks.lastTime = 0; // Prevent 1200ms rate-limiter from blocking the fetch on layer/viewport switch
       }
 
       if (source !== 'swr_revalidation') {
@@ -213,8 +214,18 @@ export function useMarineDataFetcher({
         try {
           const cached = getModelSafeMarine(modelName, targetHour, targetLayer, targetBounds);
           if (cached?.grid?.vectors?.length > 0) {
-            diagObj.cacheHits.push(`${modelName}_h${targetHour}`);
-            return cached;
+            if (cached.stale || cached.grid?.stale) {
+              const sig = _marineDataSignature(cached, targetLayer);
+              if (sig && sig !== lastCommittedSigRef.current) {
+                lastCommittedSigRef.current = sig;
+                marineRevision.current += 1;
+                cached.__commitRevision = marineRevision.current;
+                setMarineData(cached);
+              }
+            } else {
+              diagObj.cacheHits.push(`${modelName}_h${targetHour}`);
+              return cached;
+            }
           }
         } catch (e) { console.warn('[safeLoadGrid] Cache read error:', e.message); }
 

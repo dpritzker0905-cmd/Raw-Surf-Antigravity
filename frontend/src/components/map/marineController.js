@@ -295,29 +295,36 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
-      const sig = exact.signature;
-      if (sig) {
-        const g = exact.data?.grid || {};
-        const b = g.bounds || {};
-        const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
-        const provider = g.__gridProvider || g.provider || 'none';
+      if (exact.data?.stale || exact.data?.grid?.stale) {
+        // Bypass stale cached preview to allow fresh fetch
+      } else {
+        const sig = exact.signature;
+        if (sig) {
+          const g = exact.data?.grid || {};
+          const b = g.bounds || {};
+          const bStr = b.west !== undefined ? `${b.west.toFixed(2)}:${b.south.toFixed(2)}:${b.east.toFixed(2)}:${b.north.toFixed(2)}` : 'none';
+          const provider = g.__gridProvider || g.provider || 'none';
 
-        if (sig.model === (model || 'GFS') &&
-            sig.layer === activeLayer &&
-            sig.provider === provider &&
-            sig.hourOffset === hourOffset &&
-            sig.boundsStr === bStr &&
-            sig.cols === (g.cols || 0) &&
-            sig.rows === (g.rows || 0) &&
-            sig.vectorsLength === (g.vectors?.length || 0)) {
-          _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
-          return exact.data;
+          if (sig.model === (model || 'GFS') &&
+              sig.layer === activeLayer &&
+              sig.provider === provider &&
+              sig.hourOffset === hourOffset &&
+              sig.boundsStr === bStr &&
+              sig.cols === (g.cols || 0) &&
+              sig.rows === (g.rows || 0) &&
+              sig.vectorsLength === (g.vectors?.length || 0)) {
+            _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
+            return exact.data;
+          }
         }
       }
     }
 
     for (const [key, entry] of _perModelHourCache.entries()) {
       if (key.startsWith(`${model || 'GFS'}_${layerPart}_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+        if (entry.data?.stale || entry.data?.grid?.stale) {
+          continue;
+        }
         const g = entry.data?.grid;
         if (g?.vectors?.length > 0 && g.bounds) {
           const ew = resolvedBounds.west, ee = resolvedBounds.east, es = bounds.south, en = bounds.north;
