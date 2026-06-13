@@ -119,7 +119,6 @@ const useMapActions = ({
 
   const handleCloseUnifiedDrawer = () => {
     setUnifiedDrawerOpen(false);
-    setSelectedSpot(null);
     setActiveShootersAtSpot([]);
     setLockedShooterCount(null);
   };

@@ -23,7 +23,7 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { FLORIDA_CENTER, isValidLatLng, truncateCoord, fitMapToAll } from './map/mapUtils';
+import { FLORIDA_CENTER, isValidLatLng, truncateCoord, fitMapToAll, getSharedLandGeoJSON } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
@@ -48,6 +48,13 @@ var MapPageContent = () => {
     if (user?.id && user.id !== 'dev-mock-user-id') {
       refreshUser();
     }
+  }, []);
+
+  useEffect(() => {
+    // Eagerly preload land GeoJSON to prevent particle bunching on WebGL load
+    getSharedLandGeoJSON().catch(err => {
+      logger.warn('[MapPage] Failed to preload land GeoJSON:', err);
+    });
   }, []);
   const { theme } = useTheme();
   const isLight = theme === 'light';
@@ -186,6 +193,17 @@ var MapPageContent = () => {
   // Snapped ocean/water coordinates to avoid querying land cells
   const forecastLat = snappedCoordinates?.lat;
   const forecastLng = snappedCoordinates?.lng;
+
+  // Clear selected spot and long-press location when changing weather layers
+  const prevLayersRef = useRef(activeLayers);
+  useEffect(() => {
+    const prev = prevLayersRef.current;
+    if (JSON.stringify(prev) !== JSON.stringify(activeLayers)) {
+      setSelectedSpot(null);
+      setLongPressLocation(null);
+    }
+    prevLayersRef.current = activeLayers;
+  }, [activeLayers, setSelectedSpot, setLongPressLocation]);
 
   useEffect(() => {
     if (typeof window !== 'undefined') {

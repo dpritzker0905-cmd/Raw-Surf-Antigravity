@@ -51,7 +51,6 @@ export const useMapState = () => {
    */
   const handleCloseUnifiedDrawer = useCallback(() => {
     setUnifiedDrawerOpen(false);
-    setSelectedSpot(null);
   }, []);
 
   /**

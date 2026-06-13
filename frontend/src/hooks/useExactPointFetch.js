@@ -76,8 +76,9 @@ export function useExactPointFetch({
       const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
       if (!isCached) {
         console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isDomainCooldownActive}`);
-        setExactPointResponse(null);
-        setExactPoint(null);
+        // Do not clear the exactPointResponse or exactPoint state to prevent visual flickering.
+        // Keeping the old hour offset values is safe since MapForecastOverlay will see the hour mismatch
+        // and fall back to the correct grid values in-memory.
         setExactPointStatus(isDomainCooldownActive ? 'rate_limited' : 'idle');
         return;
       }

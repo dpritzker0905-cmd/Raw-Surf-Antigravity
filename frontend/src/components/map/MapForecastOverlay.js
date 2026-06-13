@@ -132,9 +132,15 @@ export const MapForecastOverlay = ({
   
   // v6.9: Grid Fallback on Point Error: if exact point is loading, failed, timed out,
   // or has no coverage, but the visual/blended heatmap grid is valid, use the grid sample.
+  // v7.0: Also fall back to grid immediately during scrubbing or when point has null height to prevent flickering.
   const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
   const hasGridParity = typeof window !== 'undefined' && window.__MARINE_RENDER_HOUR_PARITY__?.parity === true;
-  const useGridFallback = isExactPointAuthority && !useExactPoint && hasGridParity && (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage');
+  const useGridFallback = isExactPointAuthority && (
+    isScrubbing ||
+    !useExactPoint ||
+    (useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null && useExactPoint.wind_speed_10m === null && useExactPoint.pressure_msl === null && useExactPoint.precipitation === null) ||
+    (hasGridParity && (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage'))
+  );
   
   const blockFallbacks = isExactPointAuthority && !useGridFallback;
 
