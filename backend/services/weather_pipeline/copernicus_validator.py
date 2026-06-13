@@ -245,6 +245,7 @@ def quarantine_invalid_copernicus_products_helper(store):
             remaining_products.append(p)
 
     if manifest_updated:
+        manifest.products = remaining_products
         store._save_manifest(manifest)
         logger.info("[Product Store] Updated manifest registry after quarantine scan.")
     else:

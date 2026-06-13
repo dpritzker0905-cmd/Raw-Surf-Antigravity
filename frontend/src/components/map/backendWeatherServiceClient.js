@@ -274,6 +274,8 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     type: 'FeatureCollection',
     features: [],
     hourOffset,
+    stale: json.stale || false,
+    staleReason: json.staleReason || null,
     tile_id: json.tile_id || json.region_id || null,
     region_id: json.region_id || json.tile_id || null,
     grid: {
@@ -305,7 +307,9 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
       validTime: json.valid_time || null,
       valid_time: json.valid_time || null,
-      truthTag: json.truthTag || null
+      truthTag: json.truthTag || null,
+      stale: json.stale || false,
+      staleReason: json.staleReason || null
     },
     validTime: json.valid_time || null,
     valid_time: json.valid_time || null,

@@ -36,6 +36,8 @@ export function useMarineDataFetcher({
   const lastInvocationRef = useRef({ source: null, time: 0 });
   const cooldownRetryRef = useRef(null);
   const marineRetryCountRef = useRef(0);
+  const swrTimerRef = useRef(null);
+  const swrRetryCountRef = useRef(0);
   const updateMarineGridRef = useRef(null);
   const enqueueMarineUpdateRef = useRef(null);
   const consecutiveFailuresRef = useRef(0);
@@ -95,13 +97,25 @@ export function useMarineDataFetcher({
       if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
       if (!activeMarineLayersRef.current) return;
       const viewportHash = getViewportHash();
-      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry';
+      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
-      const bypassDedupe = !hasValidData || !isCorrectLayer;
+      let bypassDedupe = !hasValidData || !isCorrectLayer || !!(marineData?.stale || marineData?.grid?.stale);
 
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
-      if (locks.lastHash !== viewportHash) { consecutiveFailuresRef.current = 0; marineRetryCountRef.current = 0; }
+      if (locks.lastHash !== viewportHash) {
+        consecutiveFailuresRef.current = 0;
+        marineRetryCountRef.current = 0;
+        swrRetryCountRef.current = 0;
+        clearTimeout(swrTimerRef.current);
+        swrTimerRef.current = null;
+      }
+
+      if (source !== 'swr_revalidation') {
+        clearTimeout(swrTimerRef.current);
+        swrTimerRef.current = null;
+        swrRetryCountRef.current = 0;
+      }
       updateMarineGridRef.current = updateMarineGrid;
 
       if (locks.isFetching) {
@@ -433,6 +447,26 @@ export function useMarineDataFetcher({
         });
         requestAnimationFrame(() => { isCommittingDataRef.current = false; });
         clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
+
+        if (data.stale || data.grid?.stale) {
+          if (swrRetryCountRef.current < 3) {
+            console.log(`[SWR] Committed stale/coarse grid. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in 1500ms`);
+            clearTimeout(swrTimerRef.current);
+            swrTimerRef.current = setTimeout(() => {
+              swrTimerRef.current = null;
+              swrRetryCountRef.current += 1;
+              if (activeMarineLayersRef.current) {
+                updateMarineGrid('swr_revalidation');
+              }
+            }, 1500);
+          } else {
+            console.warn('[SWR] Max revalidation retries reached (3), stopping polling.');
+          }
+        } else {
+          swrRetryCountRef.current = 0;
+          clearTimeout(swrTimerRef.current);
+          swrTimerRef.current = null;
+        }
       } else {
         consecutiveFailuresRef.current += 1;
         const isCurrentHour = fetchIntent.hour === timeOffsetRef.current;
@@ -529,7 +563,7 @@ export function useMarineDataFetcher({
       const viewportHash = getViewportHash();
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === (activeMarineLayerRef.current || 'waves');
-      const bypassDedupe = !hasValidData || !isCorrectLayer;
+      const bypassDedupe = !hasValidData || !isCorrectLayer || !!(marineData?.stale || marineData?.grid?.stale);
       if (!bypassDedupe && locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
     } catch (e) {
       // ignore
@@ -573,6 +607,7 @@ export function useMarineDataFetcher({
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
       if (internalUpdateTimerRef.current) clearTimeout(internalUpdateTimerRef.current);
       if (scrubDebounceRef.current) clearTimeout(scrubDebounceRef.current);
+      if (swrTimerRef.current) clearTimeout(swrTimerRef.current);
     };
   }, []);
 

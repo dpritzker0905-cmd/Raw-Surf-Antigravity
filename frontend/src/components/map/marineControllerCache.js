@@ -75,7 +75,13 @@ export function estimateRequestCost(type, model, pointCount, hourlyVarCount, for
   return pointCount * (timeBytes + varBytes + metadataBytes);
 }
 
-export function _isAllVarModel(model) { return (model || 'GFS') !== 'EURO'; }
+export function _isAllVarModel(model) {
+  const m = model || 'GFS';
+  if (m === 'EURO') return false;
+  if (m === 'GFS' && getBackendWeatherFlag()) return false;
+  if (m === 'ICON' && getBackendIconMarineFlag()) return false;
+  return true;
+}
 
 export function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
@@ -243,6 +249,9 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+      if (exact.data?.stale || exact.data?.grid?.stale) {
+        return false;
+      }
       const sig = exact.signature;
       if (sig) {
         const g = exact.data?.grid || {};
@@ -267,6 +276,9 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     if (bounds) {
       for (const [key, entry] of _perModelHourCache.entries()) {
         if (key.startsWith(`${model || 'GFS'}_${layerPart}_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
+          if (entry.data?.stale || entry.data?.grid?.stale) {
+            continue;
+          }
           const g = entry.data?.grid;
           if (g?.vectors?.length > 0 && g.bounds) {
             const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;

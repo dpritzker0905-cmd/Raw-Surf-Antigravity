@@ -64,6 +64,8 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
     type: 'FeatureCollection',
     features: [],
     hourOffset,
+    stale: json.stale || false,
+    staleReason: json.staleReason || null,
     tile_id: json.tile_id || json.region_id || null,
     region_id: json.region_id || json.tile_id || null,
     grid: {
@@ -91,7 +93,9 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       coverage_scope: json.coverage_scope || null,
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
-      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false
+      is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      stale: json.stale || false,
+      staleReason: json.staleReason || null
     }
   };
 }
