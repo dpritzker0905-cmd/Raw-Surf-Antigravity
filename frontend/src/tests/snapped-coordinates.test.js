@@ -81,13 +81,12 @@ describe('useSnappedCoordinates & Haversine Snapping logic (Pure JS Tests)', () 
     expect(snappedCoordinates.name).toBe('Spot Longitude Offset');
   });
 
-  test('falls back to Mavericks when all inputs are missing or invalid', () => {
+  test('returns null when all inputs are missing or invalid', () => {
     const { snappedCoordinates } = useSnappedCoordinates({
       surfSpots: mockSpots,
       userLocation: null,
     });
 
-    expect(snappedCoordinates.source).toBe('fallback_mavericks');
-    expect(snappedCoordinates.name).toBe('Mavericks');
+    expect(snappedCoordinates).toBeNull();
   });
 });

@@ -407,7 +407,7 @@ export const MapForecastOverlay = ({
   // v6.6: Console forensic log on activation / load
   // v7.1: Forensic audit effect — stabilized deps to prevent flooding during scrubbing.
   // Removed `cards` (new array each render) and `effectiveExactPoint` (object reference).
-  const forensicKey = `${pointLat}_${pointLng}_${activeModel}_${activeLayer}_${effectiveExactPointStatus}_${isExactPointAuthority}`;
+  const forensicKey = `${pointLat}_${pointLng}_${activeModel}_${activeLayer}_${effectiveExactPointStatus}_${isExactPointAuthority}_${blockFallbacks}`;
   useEffect(() => {
     logForensicAudit({
       isExactPointRequired,
@@ -420,7 +420,8 @@ export const MapForecastOverlay = ({
       cards,
       isExactPointAuthority,
       waveDir, swell1Dir, swell2Dir, windWaveDir,
-      degToCompass
+      degToCompass,
+      blockFallbacks
     });
   }, [forensicKey]);
 

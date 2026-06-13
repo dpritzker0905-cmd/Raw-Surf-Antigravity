@@ -522,6 +522,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       const noData = !marineData || !marineData.grid?.vectors?.length;
 
       if (hourMismatch || noData) {
+        const pending = window.__MARINE_FETCH_PENDING__;
+        const isAlreadyFetchingCurrentHour = pending && 
+          pending.hour === currentHour &&
+          pending.model === activeModelRef.current &&
+          pending.layer === (activeMarineLayerRef.current || 'waves');
+
+        if (isAlreadyFetchingCurrentHour) {
+          console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
+          return;
+        }
+
         console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
         marineFetchLocksRef.current.lastHash = null;
         if (updateMarineGridRef.current) {

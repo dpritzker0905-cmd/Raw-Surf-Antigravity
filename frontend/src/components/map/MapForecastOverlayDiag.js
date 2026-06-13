@@ -193,7 +193,8 @@ export function logForensicAudit({
   cards,
   isExactPointAuthority,
   waveDir, swell1Dir, swell2Dir, windWaveDir,
-  degToCompass
+  degToCompass,
+  blockFallbacks
 }) {
   if (isExactPointRequired && pointLat && pointLng) {
     console.log(`%c[Forensic Audit] Infobox display data source for ${activeLayer} (Model: ${activeModel})`, 'color: #06b6d4; font-weight: bold;');
@@ -205,9 +206,9 @@ export function logForensicAudit({
         direction: { displayedValue: cards.find(c => c.label === 'Dir' || c.label === degToCompass(waveDir || swell1Dir || swell2Dir || windWaveDir))?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' }
       });
     } else if (effectiveExactPointStatus === 'exact_loading') {
-      console.log('[Forensic Audit] Exact point is loading — fallbacks blocked.');
+      console.log(`[Forensic Audit] Exact point is loading — fallbacks ${blockFallbacks ? 'BLOCKED' : 'ACTIVE'}.`);
     } else {
-      console.log(`[Forensic Audit] Exact point failed/unavailable: ${effectiveExactPointStatus}`);
+      console.log(`[Forensic Audit] Exact point failed/unavailable: ${effectiveExactPointStatus} — fallbacks ${blockFallbacks ? 'BLOCKED' : 'ACTIVE'}.`);
     }
   }
 }
