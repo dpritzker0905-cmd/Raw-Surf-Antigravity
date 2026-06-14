@@ -130,13 +130,24 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     const onMoveEnd = () => {
       if (window.isScrubbingTimeline) return;
+
+      let b = null;
+      try {
+        b = mapInstance.getBounds();
+      } catch (e) {
+        return;
+      }
+      if (!b || Math.abs(b.getEast() - b.getWest()) < 0.01 || Math.abs(b.getNorth() - b.getSouth()) < 0.01) {
+        return; // Degenerate bounds, skip setting stable camera and return early
+      }
+
       const center = mapInstance.getCenter(), zoom = mapInstance.getZoom(), cameraHash = `${center.lng.toFixed(3)}:${center.lat.toFixed(3)}:${zoom.toFixed(2)}`;
       if (lastStableCameraRef.current === cameraHash) return;
       lastStableCameraRef.current = cameraHash;
 
       let isCached = false;
       try {
-        const b = mapInstance.getBounds(), bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+        const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
         isCached = isContainedInMarineCache(bounds, activeModelRef.current, timeOffsetRef.current, activeMarineLayerRef.current || 'waves');
       } catch (e) {
         isCached = false;
@@ -158,6 +169,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     mapInstance.on('sourcedata', onMapInternalUpdate);
     mapInstance.on('styledata', onMapInternalUpdate);
     mapInstance.on('moveend', onMoveEnd);
+    mapInstance.on('resize', onMoveEnd);
 
     const onLoad = () => {
       mapInstance.off('load', onLoad);
@@ -179,6 +191,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       mapInstance.off('sourcedata', onMapInternalUpdate);
       mapInstance.off('styledata', onMapInternalUpdate);
       mapInstance.off('moveend', onMoveEnd);
+      mapInstance.off('resize', onMoveEnd);
       mapInstance.off('load', onLoad);
       manualMarineTriggerRef.current = null;
     };
@@ -417,7 +430,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let vpBounds = null;
     try {
       const b = mapInstance.getBounds();
-      vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+      if (b && Math.abs(b.getEast() - b.getWest()) > 0.01 && Math.abs(b.getNorth() - b.getSouth()) > 0.01) {
+        vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+      }
     } catch (e) {
       vpBounds = null;
     }

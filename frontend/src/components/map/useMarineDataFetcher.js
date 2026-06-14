@@ -63,8 +63,15 @@ export function useMarineDataFetcher({
     if (!mapInstance) return null;
     try {
       const b = mapInstance.getBounds();
+      const west = b.getWest();
+      const east = b.getEast();
+      const south = b.getSouth();
+      const north = b.getNorth();
+      if (Math.abs(east - west) < 0.01 || Math.abs(north - south) < 0.01) {
+        return null;
+      }
       const q = v => Number(v).toFixed(2);
-      const bboxStr = `${q(b.getWest())},${q(b.getSouth())},${q(b.getEast())},${q(b.getNorth())}`;
+      const bboxStr = `${q(west)},${q(south)},${q(east)},${q(north)}`;
       return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}`;
     } catch (e) { return null; }
   }, [mapInstance, activeModelRef, activeMarineLayerRef, timeOffsetRef]);
@@ -97,6 +104,10 @@ export function useMarineDataFetcher({
       if (!isTimelineScrub && (window.isScrubbingTimeline || isCommittingDataRef.current)) return;
       if (!activeMarineLayersRef.current) return;
       const viewportHash = getViewportHash();
+      if (!viewportHash) {
+        console.log(`[Marine] Viewport bounds are degenerate or map not ready. Skipping fetch (source=${source}).`);
+        return;
+      }
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
