@@ -610,6 +610,7 @@ uniform float u_opacity;
 uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
+uniform float u_is_estimated;
 
 float getNonlinearT(float h) {
   // v4.1: Refined breakpoints — 0.5-1.5m gets 35% of color range for best open-ocean differentiation
@@ -676,6 +677,11 @@ void main() {
   vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
   float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
   float waveHeight = waveData.b * 10.0;
+  
+  float displayHeight = waveHeight;
+  if (u_is_estimated > 0.5 && waveHeight > 0.0) {
+    displayHeight = clamp(pow(waveHeight, 0.45) * 0.95, 0.0, 10.0);
+  }
 
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 1.5) { // 'uv' -> 1.0
@@ -749,12 +755,12 @@ void main() {
   vec3 shallowWaterShelfGlow = shallowWaterShelfGlowColor * shelfGlowFactor;
 
   // ── LAYER 4: THEMED WAVE HEATMAP COLORS & BASE BLENDING ──
-  vec3 waveColor = getThemedWaveColor(waveHeight, u_theme);
+  vec3 waveColor = getThemedWaveColor(displayHeight, u_theme);
   
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
   // while keeping volumetric shadows and reefs highlights fully intact.
-  float waveBlend = smoothstep(0.01, 0.8, waveHeight);
+  float waveBlend = smoothstep(0.01, 0.8, displayHeight);
   vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
   vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
   
@@ -767,7 +773,7 @@ void main() {
     directional = dot(normalize(swellDir), lightDir);
     directional = directional * 0.5 + 0.5; // [0,1] bias
     // v4.0: swellDir is now unit vector, scale by height for proportional lighting
-    directional *= smoothstep(0.2, 3.0, waveHeight);
+    directional *= smoothstep(0.1, 3.0, displayHeight);
   }
   vec3 directionalSwellLighting = vec3(0.03, 0.05, 0.08) * directional;
 

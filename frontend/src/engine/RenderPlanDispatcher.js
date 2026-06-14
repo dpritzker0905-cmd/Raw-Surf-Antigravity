@@ -501,7 +501,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           if (!validEuroWaveProviders.includes(gridProvider)) {
             isValid = false;
             rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider}`;
-          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
+          } else if (componentLayer !== activeMarineLayer) {
             isValid = false;
             rejectionReason = `EURO Waves component layer mismatch: componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
@@ -510,7 +510,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
             rejectionReason = `EURO Component provider mismatch: gridProvider=${gridProvider}`;
-          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
+          } else if (componentLayer !== activeMarineLayer) {
             isValid = false;
             rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }

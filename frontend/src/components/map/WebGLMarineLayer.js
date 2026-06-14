@@ -619,14 +619,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         if (isWaves) {
           if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && !isFallbackProvider) {
             isValid = false;
-          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
+          } else if (componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         } else {
           const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
-          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
+          } else if (componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         }
