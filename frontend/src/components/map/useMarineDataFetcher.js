@@ -166,6 +166,7 @@ export function useMarineDataFetcher({
         if (overlapRatio < 0.85) {
           console.log(`[Marine-Bounds-Clear] Overlap ratio is ${overlapRatio.toFixed(2)} (< 0.85). Clearing stale grid to prevent clamped rectangle.`);
           setMarineData(null);
+          lastCommittedSigRef.current = null;
         }
       }
 
@@ -214,6 +215,7 @@ export function useMarineDataFetcher({
         const isCurrentHour = timeOffset === timeOffsetRef.current;
         if (!window.isScrubbingTimeline && isCurrentHour) {
           setMarineData(null);
+          lastCommittedSigRef.current = null;
         } else {
           console.log(`[Marine] Cooldown hit during scrubbing/stale (isCurrentHour=${isCurrentHour}), preserving stale data.`);
         }
@@ -509,6 +511,7 @@ export function useMarineDataFetcher({
         const isCurrentHour = fetchIntent.hour === timeOffsetRef.current;
         if (!window.isScrubbingTimeline && isCurrentHour) {
           setMarineData(null);
+          lastCommittedSigRef.current = null;
         } else {
           console.log(`[Marine] Fetch returned empty/failed (isCurrentHour=${isCurrentHour}), preserving stale data.`);
         }
@@ -523,6 +526,7 @@ export function useMarineDataFetcher({
       const isCurrentHour = timeOffset === timeOffsetRef.current;
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
         setMarineData(null);
+        lastCommittedSigRef.current = null;
       } else {
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }

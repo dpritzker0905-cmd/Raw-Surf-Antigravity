@@ -116,6 +116,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!hasMarineLayers) {
       setMarineData(null);
+      lastCommittedSigRef.current = null;
       if (typeof window !== 'undefined') {
         window.__MARINE_HEATMAP_STATUS__ = null;
       }
@@ -389,6 +390,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     setMarineData(null);
+    lastCommittedSigRef.current = null;
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
     return () => clearTimeout(t);
@@ -399,6 +401,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
     setMarineData(null);
+    lastCommittedSigRef.current = null;
 
     let vpBounds = null;
     try {

@@ -292,11 +292,11 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
         };
         actualSource = "window_map";
       } catch (e) {
-        actualBounds = snappedBounds || PILOT_COVERAGE;
+        actualBounds = snappedBounds || bounds || { west: -180, south: -80, east: 180, north: 85 };
         actualSource = "fallback";
       }
     } else {
-      actualBounds = snappedBounds || PILOT_COVERAGE;
+      actualBounds = snappedBounds || bounds || { west: -180, south: -80, east: 180, north: 85 };
       actualSource = "fallback";
     }
   }
