@@ -652,3 +652,61 @@ def test_copernicus_provider_normalization_and_endpoints_waves(tmp_path, monkeyp
     assert point_payload["is_forecast_authoritative"] is True
     assert point_payload["is_estimated"] is False
 
+
+def test_euro_point_fallback_to_gfs(mock_weather_setup, monkeypatch):
+    """
+    Verify that when querying a EURO marine point forecast (e.g. swell_1) and 
+    Copernicus native fetch fails/is unavailable, it successfully falls back 
+    to GFS point data and returns is_estimated=True and provider="gfs_estimated_fallback".
+    """
+    store, dynamic_idx = mock_weather_setup
+
+    # Mock fetch_euro_marine to raise an exception, simulating no coverage or auth failure
+    from services import copernicus_marine_service
+    async def mock_fail_fetch_euro_marine(*args, **kwargs):
+        raise Exception("Simulated Copernicus fetch failure")
+    monkeypatch.setattr(copernicus_marine_service, "fetch_euro_marine", mock_fail_fetch_euro_marine)
+
+    # Enhance mock_fetch_point in OpenMeteoProvider to support swell_1
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    original_fetch_point = OpenMeteoProvider.fetch_point
+    async def mock_fetch_point_extended(self, model, domain, layer, lat, lng, forecast_days=2):
+        if model.upper() == "GFS" and layer == "swell_1":
+            return {
+                "latitude": lat,
+                "longitude": lng,
+                "hourly": {
+                    "time": ["2026-06-02T12:00:00Z"],
+                    "swell_wave_height": [2.2],
+                    "swell_wave_direction": [165.0],
+                    "swell_wave_period": [9.5]
+                }
+            }
+        # Fall back to conftest's mock_fetch_point if any
+        return await original_fetch_point(self, model, domain, layer, lat, lng, forecast_days)
+
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point_extended)
+
+    # Query point API for EURO swell_1
+    response = client.get(
+        "/api/weather/point?model=EURO&domain=marine&layer=swell_1&lat=28.29&lng=-80.61&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response.status_code == 200
+    payload = response.json()
+
+    # Assert GFS fallback metadata
+    assert payload["model"] == "EURO"
+    assert payload["provider"] == "gfs_estimated_fallback"
+    assert payload["upstream_provider"] == "gfs_estimated_fallback"
+    assert payload["is_forecast_authoritative"] is False
+    assert payload["is_estimated"] is True
+    assert payload["fallback_attempted"] is True
+    assert payload["fallback_reason"] == "copernicus_missing_fallback"
+    assert payload["upstream_model"] == "ncep_gfswave025"
+
+    # Assert conformed values
+    assert payload["point"]["speed"] == 2.2
+    assert payload["point"]["direction"] == 165.0
+    assert payload["point"]["period"] == 9.5
+
+

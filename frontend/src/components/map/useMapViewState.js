@@ -41,15 +41,19 @@ export function useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef }
       const targetZoom = effectiveLocation.source === 'gps' ? 12 : 9;
       const map = innerMapRef.current.getMap ? innerMapRef.current.getMap() : innerMapRef.current;
       if (map) {
-        const center = map.getCenter ? map.getCenter() : null;
-        const currentZoom = map.getZoom ? map.getZoom() : null;
-        if (center && typeof currentZoom === 'number') {
-          const latDiff = Math.abs(center.lat - effectiveLocation.lat);
-          const lngDiff = Math.abs(center.lng - effectiveLocation.lng);
-          const zoomDiff = Math.abs(currentZoom - targetZoom);
-          if (latDiff < 0.0001 && lngDiff < 0.0001 && zoomDiff < 0.01) {
-            return; // Already centered, skip flyTo to prevent entering moving/zooming state
+        try {
+          const center = map.getCenter ? map.getCenter() : null;
+          const currentZoom = map.getZoom ? map.getZoom() : null;
+          if (center && typeof currentZoom === 'number') {
+            const latDiff = Math.abs(center.lat - effectiveLocation.lat);
+            const lngDiff = Math.abs(center.lng - effectiveLocation.lng);
+            const zoomDiff = Math.abs(currentZoom - targetZoom);
+            if (latDiff < 0.0001 && lngDiff < 0.0001 && zoomDiff < 0.01) {
+              return; // Already centered, skip flyTo to prevent entering moving/zooming state
+            }
           }
+        } catch (e) {
+          // Ignore position/zoom query errors if map is not yet fully initialized/styled
         }
       }
       innerMapRef.current.flyTo({

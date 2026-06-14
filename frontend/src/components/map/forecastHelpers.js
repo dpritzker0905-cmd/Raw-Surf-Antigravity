@@ -277,7 +277,7 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
     if (activeLayer === 'waves') {
       if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated' && grid.__provider !== 'test-fixture' && grid.__provider !== 'gfs_estimated_fallback' && grid.__provider !== 'gfs_estimated_backdrop') return null;
     } else if (['swell_1', 'swell_2', 'wind_waves'].includes(activeLayer)) {
-      const validProviders = ['copernicus', 'estimated', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'test-fixture'];
+      const validProviders = ['copernicus', 'estimated', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'test-fixture', 'open-meteo', 'backend-weather-service'];
       const isValidProvider = validProviders.includes(grid.__gridProvider) &&
                               grid.__componentLayer === activeLayer;
       if (!isValidProvider) return null;

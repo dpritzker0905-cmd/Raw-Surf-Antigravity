@@ -310,26 +310,35 @@ class PointResolutionService:
             try:
                 # Use model-appropriate forecast_days for point fallback
                 point_forecast_days = {"ICON": 7, "EURO": 10, "GFS": 16}.get(model.upper(), 2)
+                is_fallback_active = False
                 if model.upper() == "EURO":
-                    from services.copernicus_marine_service import fetch_euro_marine
-                    if layer.lower() == "waves":
-                        variables = ["wave_height", "wave_direction", "wave_period"]
-                    elif layer.lower() == "swell_1":
-                        variables = ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
-                    elif layer.lower() == "swell_2":
-                        variables = ["secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period"]
-                    elif layer.lower() == "wind_waves":
-                        variables = ["wind_wave_height", "wind_wave_direction", "wind_wave_period"]
-                    else:
-                        variables = ["wave_height", "wave_direction", "wave_period"]
+                    try:
+                        from services.copernicus_marine_service import fetch_euro_marine
+                        if layer.lower() == "waves":
+                            variables = ["wave_height", "wave_direction", "wave_period"]
+                        elif layer.lower() == "swell_1":
+                            variables = ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
+                        elif layer.lower() == "swell_2":
+                            variables = ["secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period"]
+                        elif layer.lower() == "wind_waves":
+                            variables = ["wind_wave_height", "wind_wave_direction", "wind_wave_period"]
+                        else:
+                            variables = ["wave_height", "wave_direction", "wave_period"]
+                        
+                        raw_points = await fetch_euro_marine(
+                            latitudes=[lat],
+                            longitudes=[lng],
+                            forecast_days=3,
+                            variables=variables
+                        )
+                        raw_point = raw_points[0] if raw_points else None
+                    except Exception as ex:
+                        logger.warning(f"[Copernicus Point] Native fetch failed or unavailable: {ex}. Falling back to GFS point.")
+                        raw_point = None
                     
-                    raw_points = await fetch_euro_marine(
-                        latitudes=[lat],
-                        longitudes=[lng],
-                        forecast_days=3,
-                        variables=variables
-                    )
-                    raw_point = raw_points[0] if raw_points else None
+                    if not raw_point:
+                        is_fallback_active = True
+                        raw_point = await self.provider.fetch_point(model="GFS", domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=16)
                 else:
                     raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
                 
@@ -343,7 +352,7 @@ class PointResolutionService:
                         elif layer.lower() == "swell_1":
                             layer_vars = ("swell_wave_height", "swell_wave_direction", "swell_wave_period")
                         elif layer.lower() == "swell_2":
-                            if model.upper() == "ICON":
+                            if model.upper() == "ICON" or (model.upper() == "EURO" and is_fallback_active):
                                 layer_vars = ("swell_wave_height", "swell_wave_direction", "swell_wave_period")
                             else:
                                 layer_vars = ("secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period")
@@ -376,7 +385,7 @@ class PointResolutionService:
                             interpolation_method="direct_point_api"
                         )
                         
-                        if model.upper() == "GFS":
+                        if model.upper() == "GFS" or is_fallback_active:
                             upstream_model = "ncep_gfswave025"
                         elif model.upper() == "ICON":
                             upstream_model = "gwam"
@@ -396,13 +405,13 @@ class PointResolutionService:
                         
                         return NormalizedPointResponse(
                             model=model.upper(),
-                            provider="copernicus" if model.upper() == "EURO" else "open-meteo",
+                            provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             domain="marine",
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
                             valid_time=target_dt,
-                            is_forecast_authoritative=True,
-                            is_estimated=False,
+                            is_forecast_authoritative=False if is_fallback_active else True,
+                            is_estimated=is_fallback_active,
                             point=detail,
                             value_kind=value_kind,
                             value_unit=value_unit,
@@ -412,8 +421,8 @@ class PointResolutionService:
                             source="backend_direct_point",
                             coverage_status="outside_grid_tile",
                             fallback_attempted=True,
-                            fallback_reason="no_matching_grid_product",
-                            upstream_provider="copernicus" if model.upper() == "EURO" else "open-meteo",
+                            fallback_reason="copernicus_missing_fallback" if is_fallback_active else "no_matching_grid_product",
+                            upstream_provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             upstream_model=upstream_model,
                             units=units,
                             grid_parity=False,

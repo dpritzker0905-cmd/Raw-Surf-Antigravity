@@ -173,7 +173,8 @@ export function checkIsExactPointValid({
       effectiveExactPoint.provider === expectedExactProv ||
       (activeModel === 'EURO' && effectiveExactPoint.provider === 'copernicus') ||
       effectiveExactPoint.provider === 'backend-weather-service' ||
-      effectiveExactPoint.provider === 'test-fixture';
+      effectiveExactPoint.provider === 'test-fixture' ||
+      (activeModel === 'EURO' && ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo'].includes(effectiveExactPoint.provider));
       
     if (!isProviderMatch && !(activeModel === 'EURO' && activeLayer === 'waves')) {
       return false;

@@ -541,7 +541,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         lastUploadedGridRef.current = {
           activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-          sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
         runDiagnosticsUpdate('unsupported_layer');
         if (mapInstance) mapInstance.triggerRepaint();
@@ -571,7 +571,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         lastUploadedGridRef.current = {
           activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
           boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-          sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
         };
         runDiagnosticsUpdate('instant_clear_model_layer');
         if (mapInstance) mapInstance.triggerRepaint();
@@ -611,7 +611,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           lastUploadedGridRef.current = {
             activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
             boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-            sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+            sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
           };
           runDiagnosticsUpdate('forced_clear');
           if (mapInstance) mapInstance.triggerRepaint();
@@ -668,7 +668,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       lastUploadedGridRef.current = {
         activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
         boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-        sampleSum: 0, timestamp: 0, timeOffsetHours: 0
+        sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
       };
       runDiagnosticsUpdate(`intent_mismatch: model=${gridModel}`);
       if (mapInstance) mapInstance.triggerRepaint();
