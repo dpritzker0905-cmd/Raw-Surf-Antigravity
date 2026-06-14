@@ -178,6 +178,23 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       };
     }
 
+    // For marine heatmaps, if the viewport span is wide, request global coverage
+    // to prevent visible rectangular edges and clamping at zoomed-out views.
+    const spanLng = east < west ? (180 - west) + (east + 180) : east - west;
+    const spanLat = Math.abs(north - south);
+    if (spanLng > 80.0 || spanLat > 40.0) {
+      return {
+        isInside: true,
+        clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
+        fallbackReason: null,
+        coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+        selectedTileId: 'global_marine_coarse',
+        availableTileIds: REGIONAL_TILES.map(t => t.id),
+        rejectedTileIds: [],
+        tileFallbackReason: null
+      };
+    }
+
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
     const snapW = Math.floor(west / tileSize) * tileSize;
     const snapS = Math.floor(south / tileSize) * tileSize;
