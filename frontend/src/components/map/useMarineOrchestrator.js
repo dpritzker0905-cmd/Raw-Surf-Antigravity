@@ -22,6 +22,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => { if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
   const lastFetchedLayerRef = useRef(null);
+  const layerFetchTimeoutRef = useRef(null);
+  const modelFetchTimeoutRef = useRef(null);
+  const activationTimeoutRef = useRef(null);
+
+  useEffect(() => {
+    return () => {
+      if (layerFetchTimeoutRef.current) clearTimeout(layerFetchTimeoutRef.current);
+      if (modelFetchTimeoutRef.current) clearTimeout(modelFetchTimeoutRef.current);
+      if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
+    };
+  }, []);
 
   const {
     marineData,
@@ -93,7 +104,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (prevActiveLayersRef.current === activeLayersKey) return;
     prevActiveLayersRef.current = activeLayersKey;
     const hasMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayersKey.includes(l));
-    const t = setTimeout(() => {
+    if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
+    activationTimeoutRef.current = setTimeout(() => {
       const previouslyHadMarine = activeMarineLayersRef.current;
       activeMarineLayersRef.current = hasMarine;
       if (!hasMarine) {
@@ -105,8 +117,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         consecutiveFailuresRef.current = 0;
         manualMarineTriggerRef.current?.();
       }
+      activationTimeoutRef.current = null;
     }, 50);
-    return () => clearTimeout(t);
   }, [activeLayersKey]);
 
   const hasMarineLayers = useMemo(() => {
@@ -416,8 +428,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     setMarineData(null);
     lastCommittedSigRef.current = null;
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 100);
-    return () => clearTimeout(t);
+    if (modelFetchTimeoutRef.current) clearTimeout(modelFetchTimeoutRef.current);
+    modelFetchTimeoutRef.current = setTimeout(() => {
+      manualMarineTriggerRef.current?.();
+      modelFetchTimeoutRef.current = null;
+    }, 100);
   }, [activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
@@ -528,8 +543,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 100);
-    return () => clearTimeout(t);
+    if (layerFetchTimeoutRef.current) clearTimeout(layerFetchTimeoutRef.current);
+    layerFetchTimeoutRef.current = setTimeout(() => {
+      manualMarineTriggerRef.current?.();
+      layerFetchTimeoutRef.current = null;
+    }, 100);
   }, [activeMarineLayer, activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
