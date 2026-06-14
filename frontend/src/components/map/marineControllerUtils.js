@@ -21,7 +21,7 @@
 export var MARINE_GRID_CAPABILITIES = {
   GFS:  { waves: true, swell_1: true, swell_2: true, wind_waves: true },
   ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true },
-  EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true }
+  EURO: { waves: true, swell_1: false, swell_2: false, wind_waves: false }
 };
 
 export var MARINE_EXACT_CAPABILITIES = {

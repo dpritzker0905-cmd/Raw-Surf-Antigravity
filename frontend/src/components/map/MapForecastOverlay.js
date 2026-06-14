@@ -236,8 +236,11 @@ export const MapForecastOverlay = ({
         ? marineGridSample.direction
         : (isLive && marineCurrent.wave_direction != null ? marineCurrent.wave_direction : getClampedValue(marine.wave_direction, marineHourIndex));
   
+  const isLegacyEuroFallback = activeModel === 'EURO' && 
+    (marineData?.grid?.__gridProvider === 'open-meteo' || marineData?.grid?.__gridProvider === 'none');
+
   // v5.9.3: Model capability gate for swell_1 — prevents cross-model leaks
-  const swell1Supported = isLayerSupportedByModel(activeModel, 'swell_1');
+  const swell1Supported = isLayerSupportedByModel(activeModel, 'swell_1') && !isLegacyEuroFallback;
   let swell1Height, swell1Period, swell1Dir;
   if (!swell1Supported) {
     // Model doesn't support swell_1 decomposition — force all values null
@@ -273,7 +276,7 @@ export const MapForecastOverlay = ({
   }
   
   // v5.9.3: Model capability gate for swell_2
-  const swell2Supported = isLayerSupportedByModel(activeModel, 'swell_2');
+  const swell2Supported = isLayerSupportedByModel(activeModel, 'swell_2') && !isLegacyEuroFallback;
   let swell2Height, swell2Period, swell2Dir;
   const swell2ModelUnavailable = !swell2Supported;
   if (!swell2Supported) {
@@ -317,7 +320,7 @@ export const MapForecastOverlay = ({
   const rawWindWaveDir = getClampedValue(marine.wind_wave_direction, marineHourIndex);
 
   // v5.9.2: Check if wind_waves is supported by the active model
-  const windWavesSupported = isLayerSupportedByModel(activeModel, 'wind_waves');
+  const windWavesSupported = isLayerSupportedByModel(activeModel, 'wind_waves') && !isLegacyEuroFallback;
   let windWaveHeight, windWavePeriod, windWaveDir;
   if (!windWavesSupported) {
     // Model doesn't support wind_wave decomposition — no fake data
