@@ -115,11 +115,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
   useEffect(() => {
     if (!hasMarineLayers) {
+      setMarineData(null);
       if (typeof window !== 'undefined') {
         window.__MARINE_HEATMAP_STATUS__ = null;
       }
     }
-  }, [hasMarineLayers]);
+  }, [hasMarineLayers, setMarineData]);
 
   useEffect(() => {
     if (!mapInstance) return;
@@ -387,14 +388,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+    setMarineData(null);
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
     return () => clearTimeout(t);
-  }, [activeModel, mapInstance]);
+  }, [activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
+
+    setMarineData(null);
 
     let vpBounds = null;
     try {
@@ -486,7 +490,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               lastCommittedSigRef.current = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
               const vHash = getViewportHash();
               if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
-
+ 
               setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer; enqueueMarineUpdate('cancel_scrub'); return;
             }
           }
@@ -497,7 +501,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
     return () => clearTimeout(t);
-  }, [activeMarineLayer, activeModel, mapInstance]);
+  }, [activeMarineLayer, activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
     if (marineData && activeModel === 'GFS' && activeMarineLayer === 'waves' && timeOffsetHours === 0) {

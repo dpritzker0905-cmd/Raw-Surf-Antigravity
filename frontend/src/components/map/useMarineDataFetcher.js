@@ -143,6 +143,32 @@ export function useMarineDataFetcher({
       } catch (e) {
         // Fallback to global if getBounds fails (e.g., map not ready)
       }
+
+      if (marineData && marineData.grid && marineData.grid.bounds) {
+        const g = marineData.grid;
+        const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
+        const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+        
+        const intWest = Math.max(ew, gw);
+        const intEast = Math.min(ee, ge);
+        const intSouth = Math.max(es, gs);
+        const intNorth = Math.min(en, gn);
+        
+        let overlapRatio = 0;
+        if (intWest < intEast && intSouth < intNorth) {
+          const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
+          const viewportArea = (ee - ew) * (en - es);
+          if (viewportArea > 0) {
+            overlapRatio = intersectionArea / viewportArea;
+          }
+        }
+        
+        if (overlapRatio < 0.85) {
+          console.log(`[Marine-Bounds-Clear] Overlap ratio is ${overlapRatio.toFixed(2)} (< 0.85). Clearing stale grid to prevent clamped rectangle.`);
+          setMarineData(null);
+        }
+      }
+
       requestId = ++marineRequestIdRef.current;
       
       if (getRemainingCooldown('marine') > 0 || isInCooldown('marine')) {
