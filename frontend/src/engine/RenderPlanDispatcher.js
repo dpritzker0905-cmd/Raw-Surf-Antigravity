@@ -495,16 +495,22 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
           rejectionReason = `Estimated component layer mismatch: componentLayer=${componentLayer} vs activeMarineLayer=${activeMarineLayer}`;
         }
       } else if (isEuro) {
+        const isFallbackProvider = ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'].includes(gridProvider);
         if (isWaves) {
-          const validEuroWaveProviders = ['open-meteo', 'copernicus', 'backend-weather-service', 'estimated', 'test-fixture', 'gfs_estimated_fallback', 'gfs_estimated_backdrop'];
+          const validEuroWaveProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroWaveProviders.includes(gridProvider)) {
             isValid = false;
             rejectionReason = `EURO Waves provider mismatch: gridProvider=${gridProvider}`;
+          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
+            isValid = false;
+            rejectionReason = `EURO Waves component layer mismatch: componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
         } else {
-          // v7.0: Accept copernicus, gfs_estimated_backdrop, gfs_estimated_fallback, and other backend/dev providers for EURO components
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
-          if (!validEuroComponentProviders.includes(gridProvider) || (gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop' && componentLayer !== activeMarineLayer)) {
+          const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
+          if (!validEuroComponentProviders.includes(gridProvider)) {
+            isValid = false;
+            rejectionReason = `EURO Component provider mismatch: gridProvider=${gridProvider}`;
+          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
             isValid = false;
             rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }
@@ -536,7 +542,8 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
     const isModelMismatch = (field.model !== activeModel) || (gridModel !== 'unknown' && gridModel !== 'none' && gridModel !== activeModel);
     const isComponentMismatch = (gridProvider === 'copernicus' && componentLayer !== 'none' && componentLayer !== 'unknown' && componentLayer !== activeMarineLayer);
     const isLayerDisabled = !activeMarineLayer || activeMarineLayer === 'none';
-    const isHardMismatch = isModelMismatch || isComponentMismatch || isLayerDisabled;
+    const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
+    const isHardMismatch = (isModelMismatch || isComponentMismatch || isLayerDisabled) && !isTransitioning;
 
     try {
       const marineGrid = fieldToMarineGrid(field, activeMarineLayer);

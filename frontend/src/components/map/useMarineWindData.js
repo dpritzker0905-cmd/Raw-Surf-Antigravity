@@ -1,9 +1,14 @@
-import { useMemo } from 'react';
+import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 
 export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
+  const lastValidDataRef = useRef(null);
+
   return useMemo(() => {
-    if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
+    if (!marineData?.grid?.vectors || !activeMarineLayer) {
+      lastValidDataRef.current = null;
+      return null;
+    }
 
     // Verify viewport overlap ratio to prevent clamped regional grid rendering
     if (mapInstance && marineData?.grid?.bounds) {
@@ -40,6 +45,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
               };
               window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
             }
+            lastValidDataRef.current = null;
             return null;
           }
         } catch (e) {
@@ -69,6 +75,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
     const gridProvider = marineData.grid.__gridProvider || 'none';
     const isEuroComponent = activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
+    const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
 
     // 1. Cross-model mismatch check: if the grid source model does not match the active model, return null to clear visual buffers.
     if (gridModel !== activeModel) {
@@ -87,6 +94,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           timestamp: new Date().toISOString()
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
+      }
+      if (isTransitioning && lastValidDataRef.current) {
+        return lastValidDataRef.current;
       }
       return null;
     }
@@ -109,6 +119,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
+      if (isTransitioning && lastValidDataRef.current) {
+        return lastValidDataRef.current;
+      }
       return null;
     }
     
@@ -116,6 +129,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                              marineData?.grid?.__gridSupportsLayer === true &&
                              marineData?.grid?.__componentLayer === activeMarineLayer &&
                              (activeModel === 'EURO' || activeModel === 'ICON');
+
+    const isGridEstimated = marineData?.grid?.is_estimated || marineData?.grid?.isEstimated || marineData?.is_estimated || marineData?.isEstimated || false;
 
     // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
     // it MUST match the active model and component layer exactly.
@@ -127,10 +142,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                               ((['gfs_estimated_backdrop', 'gfs_estimated_fallback'].includes(marineData?.grid?.__gridProvider)) &&
                                marineData?.grid?.__gridSupportsLayer === true &&
                                activeModel === 'EURO') ||
-                              // v7.1: Accept legacy open-meteo fallback for EURO waves when backend is unavailable
-                              (marineData?.grid?.__gridProvider === 'open-meteo' &&
+                              // v7.1: Accept legacy open-meteo fallback for EURO waves/components when backend is unavailable
+                              ((['open-meteo', 'estimated'].includes(marineData?.grid?.__gridProvider)) &&
                                activeModel === 'EURO' &&
-                               activeMarineLayer === 'waves');
+                               (activeMarineLayer === 'waves' || isGridEstimated));
 
     // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
     // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
@@ -150,6 +165,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           timestamp: new Date().toISOString()
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
+      }
+      if (isTransitioning && lastValidDataRef.current) {
+        return lastValidDataRef.current;
       }
       return null;
     }
@@ -243,7 +261,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
     }
     
-    if (!res.__renderable) return null;
+    if (!res.__renderable) {
+      if (isTransitioning && lastValidDataRef.current) {
+        return lastValidDataRef.current;
+      }
+      return null;
+    }
+    lastValidDataRef.current = res;
     return res;
   }, [marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState]);
 }

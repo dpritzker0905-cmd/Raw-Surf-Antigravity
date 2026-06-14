@@ -579,7 +579,10 @@ export function useMarineDataFetcher({
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;
         locks.activeSource = null;
-        if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
+        if (typeof window !== 'undefined') {
+          window.__MARINE_FETCH_PENDING__ = null;
+          window.__MARINE_TRANSITIONING__ = false;
+        }
         const pending = pendingMarineIntentRef.current;
         if (pending) {
           pendingMarineIntentRef.current = null;

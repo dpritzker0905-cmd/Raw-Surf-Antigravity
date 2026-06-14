@@ -426,7 +426,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
-    setMarineData(null);
+    if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
     lastCommittedSigRef.current = null;
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     if (modelFetchTimeoutRef.current) clearTimeout(modelFetchTimeoutRef.current);
@@ -440,7 +440,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
-    setMarineData(null);
+    if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
     lastCommittedSigRef.current = null;
 
     let vpBounds = null;

@@ -615,17 +615,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           isValid = false;
         }
       } else if (isEuro) {
+        const isFallbackProvider = ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'].includes(gridProvider);
         if (isWaves) {
-          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && gridProvider !== 'open-meteo' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop') {
+          if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && !isFallbackProvider) {
             isValid = false;
-          } else if (gridProvider !== 'open-meteo' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop' && componentLayer !== activeMarineLayer) {
+          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         } else {
-          const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
+          const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
-          } else if (gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop' && componentLayer !== activeMarineLayer) {
+          } else if (!isFallbackProvider && componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         }
@@ -633,6 +634,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     if (!isValid) {
+      const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
+      if (isTransitioning) {
+        // Retain the current WebGL buffers during transition
+        return;
+      }
       console.log(`[WebGLMarine-Validate] Grid mismatch: model=${gridModel} vs ${activeModelRef.current}`);
       engine.clearBuffers(gl);
       lastUploadedSignatureRef.current = '';
