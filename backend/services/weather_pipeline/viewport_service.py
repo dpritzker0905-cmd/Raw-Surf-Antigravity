@@ -540,9 +540,9 @@ class ViewportService:
                         is_empty_grid = True
 
                 if is_empty_grid:
-                    if target_layer == layer.lower():
-                        raise Exception("Normalization produced empty grid for target hour.")
-                    continue
+                    logger.warning(f"[Dynamic Viewport] Normalization produced empty grid for target hour: model={model}, domain={domain}, layer={target_layer}. Allowing zero grid.")
+
+
 
                 served_bbox_full = f"{normalized.grid.bounds.west},{normalized.grid.bounds.south},{normalized.grid.bounds.east},{normalized.grid.bounds.north}"
 

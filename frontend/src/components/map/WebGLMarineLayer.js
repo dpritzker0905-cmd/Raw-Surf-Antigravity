@@ -301,7 +301,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
     const gridProvider = grid.grid?.__gridProvider || grid.__gridProvider || 'none';
     const componentLayer = grid.grid?.__componentLayer || grid.__componentLayer || 'none';
-    const boundsStr = grid.bounds ? `${grid.bounds.west.toFixed(2)}:${grid.bounds.south.toFixed(2)}:${grid.bounds.east.toFixed(2)}:${grid.bounds.north.toFixed(2)}` : 'none';
+    const actualBounds = grid.grid?.bounds || grid.bounds;
+    const boundsStr = actualBounds ? `${actualBounds.west.toFixed(2)}:${actualBounds.south.toFixed(2)}:${actualBounds.east.toFixed(2)}:${actualBounds.north.toFixed(2)}` : 'none';
+
 
     const geojsonSig = geojson ? `land_${geojson.features?.length || 0}` : 'no_land';
     const themeSig = themeRef.current || 'default_style';
@@ -416,7 +418,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       activeModel: activeModelRef.current,
       activeLayer: activeMarineLayer,
       timeOffsetHours: timeOffsetHoursRef.current,
-      bounds: grid.bounds ? { ...grid.bounds } : null,
+      bounds: actualBounds ? { ...actualBounds } : null,
       cols: grid.cols,
       rows: grid.rows,
       vectorCount: grid.vectors.length,

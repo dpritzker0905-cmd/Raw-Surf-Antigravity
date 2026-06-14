@@ -178,8 +178,10 @@ async def get_grid(
                 use_manifest_product = True
 
         if not use_manifest_product:
-            manifest_preview_item = matching_manifest_item
+            if not is_regional or is_covered:
+                manifest_preview_item = matching_manifest_item
             matching_manifest_item = None
+
 
     # Step-wise product resolution
     product = None

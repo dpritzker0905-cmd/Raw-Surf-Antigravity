@@ -328,7 +328,8 @@ async def bg_process_remaining_hours_helper(
                             is_empty_grid = True
 
                     if is_empty_grid:
-                        continue
+                        logger.warning(f"[Dynamic Viewport BG] Normalization produced empty grid: model={model}, domain={domain}, layer={target_layer}. Saving zero grid.")
+
 
                     served_bbox_full = f"{this_normalized_product.grid.bounds.west},{this_normalized_product.grid.bounds.south},{this_normalized_product.grid.bounds.east},{this_normalized_product.grid.bounds.north}"
 
