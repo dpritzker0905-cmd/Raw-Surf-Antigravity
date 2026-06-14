@@ -523,3 +523,25 @@ def test_stage_6h2_requirements(tmp_path, monkeypatch):
     icon_swell2_point_json = response_icon_swell2_point.json()
     assert icon_swell2_point_json["status"] == "unsupported"
     assert icon_swell2_point_json["point"]["interpolation_method"] == "unsupported"
+
+
+def test_client_diagnostics():
+    """
+    Test POST /api/weather/client-diagnostics endpoint.
+    """
+    payload = {
+        "timestamp": "2026-06-14T18:00:00Z",
+        "event_type": "TRUTH_VIOLATION_RASTER_OVERLAP",
+        "model": "EURO",
+        "layer": "waves",
+        "timeOffset": 24.0,
+        "fps": 58.0,
+        "memory": 128.0,
+        "correlationId": "test-cor-123",
+        "details": {"hint": "Multiple raster families visible"}
+    }
+    
+    response = client.post("/api/weather/client-diagnostics", json=payload)
+    assert response.status_code == 200
+    assert response.json()["status"] == "success"
+

@@ -11,7 +11,7 @@ import asyncio
 from services.weather_pipeline.store import ProductStore
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.schemas import (
-    NormalizedProduct, NormalizedPointResponse
+    NormalizedProduct, NormalizedPointResponse, ClientDiagnosticReport
 )
 from services.weather_pipeline.dynamic_index import DynamicProductIndex
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
@@ -633,6 +633,43 @@ async def get_capabilities():
     """
     from services.weather_pipeline.capabilities import get_weather_capabilities
     return get_weather_capabilities()
+
+@router.post("/client-diagnostics")
+async def post_client_diagnostics(report: ClientDiagnosticReport):
+    """
+    POST /api/weather/client-diagnostics
+    Receives and logs real-time client-side warnings, errors, and truth violations.
+    """
+    try:
+        details_str = f" | Details: {report.details}" if report.details else ""
+        log_msg = (
+            f"[CLIENT-DIAGNOSTIC] Type: {report.event_type} | "
+            f"Model: {report.model or 'N/A'} | Layer: {report.layer or 'N/A'} | "
+            f"TimeOffset: {report.timeOffset or 0}h | FPS: {report.fps or 60} | "
+            f"Memory: {report.memory or 0}MB | Correlation: {report.correlationId or 'none'}{details_str}"
+        )
+        
+        # Log via python logger
+        if "error" in report.event_type.lower() or "violation" in report.event_type.lower() or "fail" in report.event_type.lower():
+            logger.error(log_msg)
+        else:
+            logger.warning(log_msg)
+            
+        # Also append to diagnostics.log
+        from pathlib import Path
+        log_path = Path(__file__).parent.parent / "diagnostics.log"
+        formatted_time = report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+        
+        # Ensure directory exists
+        log_path.parent.mkdir(parents=True, exist_ok=True)
+        with open(log_path, "a", encoding="utf-8") as f:
+            f.write(f"[{formatted_time}] {log_msg}\n")
+            
+        return {"status": "success", "message": "Diagnostic report logged successfully"}
+    except Exception as e:
+        logger.error(f"Failed to log client diagnostic: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to save diagnostic: {str(e)}")
+
 
 @router.get("/diagnostics-log")
 async def get_diagnostics_log(admin=Depends(get_current_admin)):

@@ -40,6 +40,9 @@ def validate_copernicus_product_helper(
     if product.model.upper() != "EURO":
         return True, "Valid (Not a EURO/Copernicus product)"
 
+    if product.domain.lower() != "marine":
+        return True, "Valid (Not a marine product)"
+
     is_test_env = is_test_environment()
     is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
 

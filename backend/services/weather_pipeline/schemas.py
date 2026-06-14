@@ -178,3 +178,16 @@ class PipelineManifest(BaseModel):
     last_manifest_update: datetime
     products: List[ManifestProduct] = Field(default_factory=list)
 
+
+class ClientDiagnosticReport(BaseModel):
+    timestamp: datetime
+    event_type: str
+    model: Optional[str] = None
+    layer: Optional[str] = None
+    timeOffset: Optional[float] = None
+    fps: Optional[float] = None
+    memory: Optional[float] = None
+    correlationId: Optional[str] = None
+    details: Optional[Dict[str, Any]] = None
+
+

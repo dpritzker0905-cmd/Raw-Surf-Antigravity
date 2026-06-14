@@ -406,6 +406,12 @@ const MapWebGL = ({
         windData={windData}
         truthIssues={truthIssues}
         rasterVisible={rasterVisible}
+        activeModel={activeModel}
+        timeOffsetHours={timeOffsetHours}
+        simulationField={simulationField}
+        renderPlan={renderPlan}
+        simFrameIndex={simFrameIndex}
+        isTransitioning={isTransitioning}
       />
 
       <Map
