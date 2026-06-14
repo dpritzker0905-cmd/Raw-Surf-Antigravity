@@ -159,7 +159,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     mapInstance.on('styledata', onMapInternalUpdate);
     mapInstance.on('moveend', onMoveEnd);
 
-    if (activeMarineLayersRef.current) enqueueMarineUpdate('mount');
+    const onLoad = () => {
+      mapInstance.off('load', onLoad);
+      if (activeMarineLayersRef.current) enqueueMarineUpdate('load');
+    };
+
+    if (activeMarineLayersRef.current) {
+      if (mapInstance.loaded()) {
+        enqueueMarineUpdate('mount');
+      } else {
+        mapInstance.on('load', onLoad);
+      }
+    }
 
     return () => {
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
@@ -168,6 +179,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       mapInstance.off('sourcedata', onMapInternalUpdate);
       mapInstance.off('styledata', onMapInternalUpdate);
       mapInstance.off('moveend', onMoveEnd);
+      mapInstance.off('load', onLoad);
       manualMarineTriggerRef.current = null;
     };
   }, [mapInstance, enqueueMarineUpdate]);
