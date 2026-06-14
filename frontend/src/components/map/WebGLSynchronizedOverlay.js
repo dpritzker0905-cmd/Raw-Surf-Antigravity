@@ -135,15 +135,16 @@ export function WebGLSynchronizedOverlay({ mapInstance, activeLayers, windData, 
           cols: marineData.cols || marineData.grid?.cols,
           rows: marineData.rows || marineData.grid?.rows,
           vectors: rawVectors.map(v => {
-            const sub = v[activeMarine] || {};
+            const hasSub = activeMarine !== 'waves' && v[activeMarine];
+            const sub = hasSub ? v[activeMarine] : {};
             return {
               lat: v.lat,
               lng: v.lng,
-              u: sub.u || 0,
-              v: sub.v || 0,
-              speed: sub.speed || 0,
-              period: sub.period || 0,
-              isOcean: v.isOcean !== undefined ? v.isOcean : true
+              u: hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0),
+              v: hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0),
+              speed: hasSub && typeof sub.speed === 'number' ? sub.speed : (typeof v.speed === 'number' ? v.speed : 0),
+              period: hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0),
+              isOcean: hasSub && sub.isOcean !== undefined ? sub.isOcean : (v.isOcean !== undefined ? v.isOcean : true)
             };
           })
         };

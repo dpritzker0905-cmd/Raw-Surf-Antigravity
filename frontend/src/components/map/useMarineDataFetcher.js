@@ -642,7 +642,7 @@ export function useMarineDataFetcher({
     }
 
     if (source === 'manual') locks.manualFetchActiveUntil = now + 1500;
-    if (source.includes('moveend') && now < (locks.manualFetchActiveUntil || 0)) return;
+    if (source.includes('moveend') && !source.includes('_pending') && now < (locks.manualFetchActiveUntil || 0)) return;
 
     let isCached = false;
     try {
