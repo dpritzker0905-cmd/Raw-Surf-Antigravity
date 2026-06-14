@@ -220,8 +220,10 @@ class ViewportService:
                 forecast_days = 16
         else:
             if domain.lower() == "marine":
-                if model.upper() in ("ICON", "EURO"):
+                if model.upper() == "ICON":
                     forecast_days = min(forecast_days, 7)
+                elif model.upper() == "EURO":
+                    forecast_days = min(forecast_days, 12)
                 else:
                     forecast_days = min(forecast_days, 16)
 

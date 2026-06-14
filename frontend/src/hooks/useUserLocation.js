@@ -14,23 +14,21 @@ const CACHE_KEY = 'user_gps_location';
 const CACHE_AGE = 5 * 60 * 1000; // 5 min
 
 export const useUserLocation = () => {
-  const [userLocation, setUserLocation] = useState(null);
-  const [locationDenied, setLocationDenied] = useState(false);
-  const [gpsLoading, setGpsLoading] = useState(false);
-  const requestingRef = useRef(false);
-
-  // Load cache on mount
-  useEffect(() => {
+  const [userLocation, setUserLocation] = useState(() => {
     try {
       const cached = localStorage.getItem(CACHE_KEY);
       if (cached) {
         const { loc, time } = JSON.parse(cached);
         if (Date.now() - time < CACHE_AGE && loc?.lat && loc?.lng) {
-          setUserLocation(loc);
+          return loc;
         }
       }
-    } catch (e) { /* localStorage unavailable - run without cache */ }
-  }, []);
+    } catch (e) {}
+    return null;
+  });
+  const [locationDenied, setLocationDenied] = useState(false);
+  const [gpsLoading, setGpsLoading] = useState(false);
+  const requestingRef = useRef(false);
 
   // Save to cache
   const cache = useCallback((loc) => {

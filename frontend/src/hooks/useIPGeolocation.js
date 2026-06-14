@@ -13,7 +13,24 @@ const LAST_CITY_KEY = 'rawsurf_last_known_city';
 const LAST_COORDS_KEY = 'rawsurf_last_known_coords';
 
 export const useIPGeolocation = () => {
-  const [ipLocation, setIpLocation] = useState(null);
+  const [ipLocation, setIpLocation] = useState(() => {
+    try {
+      const stored = localStorage.getItem(LAST_COORDS_KEY);
+      const city = localStorage.getItem(LAST_CITY_KEY);
+      if (stored) {
+        const coords = JSON.parse(stored);
+        if (coords && typeof coords.lat === 'number' && typeof coords.lng === 'number') {
+          return {
+            lat: coords.lat,
+            lng: coords.lng,
+            city: city || 'Unknown',
+            source: 'ip_cached'
+          };
+        }
+      }
+    } catch (e) {}
+    return null;
+  });
   const [ipLoading, setIpLoading] = useState(false);
   const [ipError, setIpError] = useState(null);
   const [cityChanged, setCityChanged] = useState(false);

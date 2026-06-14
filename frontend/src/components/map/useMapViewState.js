@@ -2,9 +2,20 @@ import { useState, useCallback, useEffect, useRef } from 'react';
 import { FLORIDA_CENTER } from './mapUtils';
 
 export function useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef }) {
-  const [viewState, setViewState] = useState({
-    longitude: FLORIDA_CENTER.lng, latitude: FLORIDA_CENTER.lat,
-    zoom: 7, pitch: 0, bearing: 0
+  const [viewState, setViewState] = useState(() => {
+    if (effectiveLocation && typeof effectiveLocation.lng === 'number' && typeof effectiveLocation.lat === 'number') {
+      const zoom = effectiveLocation.source === 'gps' ? 12 : 9;
+      return {
+        longitude: effectiveLocation.lng,
+        latitude: effectiveLocation.lat,
+        zoom, pitch: 0, bearing: 0
+      };
+    }
+    return {
+      longitude: FLORIDA_CENTER.lng,
+      latitude: FLORIDA_CENTER.lat,
+      zoom: 7, pitch: 0, bearing: 0
+    };
   });
 
   const onMove = useCallback(evt => {
