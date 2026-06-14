@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { resolveForecastWindow } from '../components/map/LayerAccessResolver';
+import { resolveForecastWindow, getUserTier } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
 /**
@@ -75,7 +75,17 @@ export function useWeatherState({ user }) {
     return forecastDays * 24;
   }, [user, activeModel, activeLayers, capabilitiesVersion]);
 
-  const isLockedForecast = timeOffsetHours > maxHoursForUser;
+  const isLockedForecast = useMemo(() => {
+    if (getUserTier(user) === 'premium') return false;
+    return timeOffsetHours > maxHoursForUser;
+  }, [timeOffsetHours, maxHoursForUser, user]);
+
+  // Clamp timeOffsetHours if it exceeds the max allowed hours for the active model/layer
+  useEffect(() => {
+    if (timeOffsetHours > maxHoursForUser) {
+      setTimeOffsetHours(maxHoursForUser);
+    }
+  }, [maxHoursForUser, timeOffsetHours]);
 
   // --- Radar/Satellite frame animation ---
   useEffect(() => {
