@@ -410,7 +410,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.enable(gl.BLEND);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
@@ -589,7 +589,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
   // RGB-fade FBO has alpha=1.0, but screen shader outputs brightness-derived alpha.
   gl.useProgram(this.screenProgram);
-  gl.bindFramebuffer(gl.FRAMEBUFFER, prevFBO);
+  gl.bindFramebuffer(gl.FRAMEBUFFER, webglState.prevFBO);
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
