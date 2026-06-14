@@ -94,6 +94,7 @@ export function findClosestHourIndex(timeArray, targetMs) {
 
 // --- HOURLY DATA CACHE TTL ---
 export var HOURLY_CACHE_TTL = 60 * 60 * 1000; // 60 min (long cache to minimize API calls)
+export var PER_MODEL_HOUR_CACHE_TTL = 30 * 60 * 1000; // 30 min (caching window for backend hourly grids)
 
 // --- PERSISTENT CACHE (localStorage) ---
 // Survives page reloads eliminates 429s on revisit

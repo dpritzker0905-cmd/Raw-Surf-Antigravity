@@ -38,10 +38,23 @@ export function useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef }
   // Sync to effectiveLocation (GPS or Search results)
   useEffect(() => {
     if (effectiveLocation && innerMapRef.current) {
-      const zoom = effectiveLocation.source === 'gps' ? 12 : 9;
+      const targetZoom = effectiveLocation.source === 'gps' ? 12 : 9;
+      const map = innerMapRef.current.getMap ? innerMapRef.current.getMap() : innerMapRef.current;
+      if (map) {
+        const center = map.getCenter ? map.getCenter() : null;
+        const currentZoom = map.getZoom ? map.getZoom() : null;
+        if (center && typeof currentZoom === 'number') {
+          const latDiff = Math.abs(center.lat - effectiveLocation.lat);
+          const lngDiff = Math.abs(center.lng - effectiveLocation.lng);
+          const zoomDiff = Math.abs(currentZoom - targetZoom);
+          if (latDiff < 0.0001 && lngDiff < 0.0001 && zoomDiff < 0.01) {
+            return; // Already centered, skip flyTo to prevent entering moving/zooming state
+          }
+        }
+      }
       innerMapRef.current.flyTo({
         center: [effectiveLocation.lng, effectiveLocation.lat],
-        zoom
+        zoom: targetZoom
       });
     }
   }, [effectiveLocation, innerMapRef]);

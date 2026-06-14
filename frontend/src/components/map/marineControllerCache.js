@@ -2,7 +2,7 @@
 // Decomposed caching layer for marine weather data.
 
 import {
-  HOURLY_CACHE_TTL, persistCache, hydrateCache,
+  HOURLY_CACHE_TTL, PER_MODEL_HOUR_CACHE_TTL, persistCache, hydrateCache,
   isViewportInsideCachedBounds, findClosestHourIndex
 } from './marineControllerUtils';
 import {
@@ -63,7 +63,6 @@ export function getLastKnownGoodMarineModel() { return lastKnownGoodMarineModel;
 
 var _perModelHourCache = new Map();
 var PER_MODEL_HOUR_CACHE_MAX = 50;
-var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
 
 export function getPerModelHourCache() { return _perModelHourCache; }
 

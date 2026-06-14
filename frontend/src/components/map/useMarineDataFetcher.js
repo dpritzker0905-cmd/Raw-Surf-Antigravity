@@ -214,8 +214,12 @@ export function useMarineDataFetcher({
         }
         const isCurrentHour = timeOffset === timeOffsetRef.current;
         if (!window.isScrubbingTimeline && isCurrentHour) {
-          setMarineData(null);
-          lastCommittedSigRef.current = null;
+          setMarineData(prev => {
+            const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+            if (hasValidData) return prev;
+            lastCommittedSigRef.current = null;
+            return null;
+          });
         } else {
           console.log(`[Marine] Cooldown hit during scrubbing/stale (isCurrentHour=${isCurrentHour}), preserving stale data.`);
         }
@@ -510,8 +514,12 @@ export function useMarineDataFetcher({
         consecutiveFailuresRef.current += 1;
         const isCurrentHour = fetchIntent.hour === timeOffsetRef.current;
         if (!window.isScrubbingTimeline && isCurrentHour) {
-          setMarineData(null);
-          lastCommittedSigRef.current = null;
+          setMarineData(prev => {
+            const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+            if (hasValidData) return prev;
+            lastCommittedSigRef.current = null;
+            return null;
+          });
         } else {
           console.log(`[Marine] Fetch returned empty/failed (isCurrentHour=${isCurrentHour}), preserving stale data.`);
         }
@@ -525,8 +533,12 @@ export function useMarineDataFetcher({
       console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
       const isCurrentHour = timeOffset === timeOffsetRef.current;
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
-        setMarineData(null);
-        lastCommittedSigRef.current = null;
+        setMarineData(prev => {
+          const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+          if (hasValidData) return prev;
+          lastCommittedSigRef.current = null;
+          return null;
+        });
       } else {
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }

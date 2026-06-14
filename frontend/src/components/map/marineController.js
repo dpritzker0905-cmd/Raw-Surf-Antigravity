@@ -4,6 +4,7 @@
 import {
   findClosestHourIndex,
   HOURLY_CACHE_TTL,
+  PER_MODEL_HOUR_CACHE_TTL,
   getSnapConfig
 } from './marineControllerUtils';
 import {
@@ -56,8 +57,6 @@ export {
 };
 
 // --- CACHE & DEDUPLICATION CONFIG ---
-
-var PER_MODEL_HOUR_CACHE_TTL = 10 * 60 * 1000;
 
 /** getModelSafeMarine - returns safe model cached results */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
