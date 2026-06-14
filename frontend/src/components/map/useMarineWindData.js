@@ -126,7 +126,6 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                               // v7.0: Accept GFS estimated backdrop/fallback for EURO components (honest provenance)
                               ((['gfs_estimated_backdrop', 'gfs_estimated_fallback'].includes(marineData?.grid?.__gridProvider)) &&
                                marineData?.grid?.__gridSupportsLayer === true &&
-                               marineData?.grid?.__componentLayer === activeMarineLayer &&
                                activeModel === 'EURO') ||
                               // v7.1: Accept legacy open-meteo fallback for EURO waves when backend is unavailable
                               (marineData?.grid?.__gridProvider === 'open-meteo' &&

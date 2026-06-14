@@ -625,7 +625,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
             isValid = false;
-          } else if (componentLayer !== activeMarineLayer) {
+          } else if (gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop' && componentLayer !== activeMarineLayer) {
             isValid = false;
           }
         }

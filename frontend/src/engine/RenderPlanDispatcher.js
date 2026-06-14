@@ -504,7 +504,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         } else {
           // v7.0: Accept copernicus, gfs_estimated_backdrop, gfs_estimated_fallback, and other backend/dev providers for EURO components
           const validEuroComponentProviders = ['copernicus', 'gfs_estimated_backdrop', 'gfs_estimated_fallback', 'backend-weather-service', 'open-meteo', 'estimated', 'test-fixture'];
-          if (!validEuroComponentProviders.includes(gridProvider) || componentLayer !== activeMarineLayer) {
+          if (!validEuroComponentProviders.includes(gridProvider) || (gridProvider !== 'gfs_estimated_fallback' && gridProvider !== 'gfs_estimated_backdrop' && componentLayer !== activeMarineLayer)) {
             isValid = false;
             rejectionReason = `EURO Component mismatch: gridProvider=${gridProvider} or componentLayer=${componentLayer} vs ${activeMarineLayer}`;
           }

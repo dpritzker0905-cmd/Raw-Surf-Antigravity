@@ -433,7 +433,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     modelFetchTimeoutRef.current = setTimeout(() => {
       manualMarineTriggerRef.current?.();
       modelFetchTimeoutRef.current = null;
-    }, 100);
+    }, 20);
   }, [activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
@@ -548,7 +548,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     layerFetchTimeoutRef.current = setTimeout(() => {
       manualMarineTriggerRef.current?.();
       layerFetchTimeoutRef.current = null;
-    }, 100);
+    }, 20);
   }, [activeMarineLayer, activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {

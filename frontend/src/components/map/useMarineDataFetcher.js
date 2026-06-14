@@ -655,7 +655,7 @@ export function useMarineDataFetcher({
     requestAnimationFrame(() => {
       scheduledRef.current = false;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
-      const stableDelay = isCached ? 20 : 300;
+      const stableDelay = (isCached || source === 'manual' || source === 'timeline_scrub') ? 20 : 300;
       timeoutIdRef.current = setTimeout(() => {
         if (isTimelineScrub || (!mapInstance.isMoving() && !mapInstance.isZooming())) {
           updateMarineGrid(source);
