@@ -273,5 +273,12 @@ When working on weather simulation system features, follow these rules, tools, a
 * **Previous stable commits**: Focus on `b5bbaa7d` and `f5f6a3d` to audit changes.
 * **Regression archaeology**: Any regression notes, logs, or "archaeology" artifacts already in the repo.
 
+### 📊 Weather Simulation Diagnostics & HUD Rules
+* **Unified Diagnostics HUD (`TruthOverlay.js`)**: All client-side diagnostics (Truth Inspector, Events Trace logs, WebGL shader debug view toggles, and GPU/FCE Telemetry) must be integrated into this single tabbed HUD panel. Do not create separate floating debug panels.
+* **Events Trace Logging**: Any new weather event types (requests, loaded files, timeouts, fallbacks) must be routed to `WeatherTelemetry` in the frontend so they are visible in the HUD events log.
+* **Remote Violations Reporting**: When a critical layer violation or WebGL failure is detected by the client-side `useLayerTruthDiff` or HUD, it must be reported to the backend endpoint `POST /api/weather/client-diagnostics` for centralized server logging.
+* **Throttling Constraint**: Client-side reporting to the backend must be throttled to a minimum of 60 seconds per unique violation type to prevent flooding the server during rapid map rendering loops.
+
+
 
 
