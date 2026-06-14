@@ -399,7 +399,21 @@ export function useMarineDataFetcher({
               console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
               data = {
                 type: 'FeatureCollection', features: [], hourOffset: timeOffset,
-                grid: { vectors: [], bounds, cols: 0, rows: 0, timestamp: Date.now(), __sourceModel: 'EURO', __provider: 'backend-weather-service', __gridProvider: 'backend-weather-service', __componentLayer: layer, __gridSupportsLayer: false, renderable: false, provider: 'backend-weather-service' }
+                grid: {
+                  vectors: [],
+                  bounds,
+                  cols: 0,
+                  rows: 0,
+                  timestamp: Date.now(),
+                  __sourceModel: 'EURO',
+                  __provider: 'backend-weather-service',
+                  __gridProvider: 'backend-weather-service',
+                  __componentLayer: layer,
+                  __gridSupportsLayer: false,
+                  renderable: false,
+                  provider: 'backend-weather-service',
+                  emptyGridWarning: err.message || 'Copernicus grid fetch failed'
+                }
               };
             }
           } else {
@@ -416,7 +430,8 @@ export function useMarineDataFetcher({
                 provider: "none",
                 is_estimated: false,
                 fallbackReason: "backend_required_no_frontend_estimator",
-                renderable: false
+                renderable: false,
+                emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator"
               }
             };
           }

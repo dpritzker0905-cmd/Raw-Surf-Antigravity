@@ -128,9 +128,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                                marineData?.grid?.__gridSupportsLayer === true &&
                                marineData?.grid?.__componentLayer === activeMarineLayer &&
                                activeModel === 'EURO') ||
-                              // v7.1: Accept legacy open-meteo fallback for EURO components when backend is unavailable
+                              // v7.1: Accept legacy open-meteo fallback for EURO waves when backend is unavailable
                               (marineData?.grid?.__gridProvider === 'open-meteo' &&
-                               activeModel === 'EURO');
+                               activeModel === 'EURO' &&
+                               activeMarineLayer === 'waves');
 
     // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
     // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.

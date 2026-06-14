@@ -536,7 +536,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !gl) return;
 
-    if (!data?.vectors?.length) {
+    const isRenderable = data && data.vectors?.length > 0 && data.__renderable !== false;
+
+    if (!isRenderable) {
       if (data?.__unsupportedLayer === true) {
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
@@ -567,60 +569,27 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
-      if (modelOrLayerChanged) {
-        engine.clearBuffers(gl);
-        lastUploadedSignatureRef.current = '';
-        lastUploadedGridRef.current = {
-          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
-          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
-        };
-        runDiagnosticsUpdate('instant_clear_model_layer');
-        if (mapInstance) mapInstance.triggerRepaint();
-        return;
+      engine.clearBuffers(gl);
+      lastUploadedSignatureRef.current = '';
+      lastUploadedGridRef.current = {
+        activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+        boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+        sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
+      };
+
+      if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
+      window.__WEBGL_MARINE_CLEAR_COUNT__++;
+      if (window.__MARINE_PIPELINE_TRUTH__) {
+        window.__MARINE_PIPELINE_TRUTH__.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+        if (window.__MARINE_PIPELINE_TRUTH__.counters) {
+          window.__MARINE_PIPELINE_TRUTH__.counters.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+        }
       }
 
-
-      const clearTimer = setTimeout(() => {
-        if (window.__MARINE_FETCH_PENDING__) return;
-
-        const currentData = dataRef.current;
-        const currentActiveMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-        const currentModelOrLayerOrHourChanged = lastSig.activeModel !== activeModelRef.current ||
-                                                 lastSig.activeMarineLayer !== currentActiveMarineLayer ||
-                                                 lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
-        const currentFallback = currentData?.__provider === 'fallback_safe_zero' || currentData?.grid?.__provider === 'fallback_safe_zero';
-
-        if (currentFallback && !currentModelOrLayerOrHourChanged) {
-          return;
-        }
-
-        if (!currentData?.vectors?.length) {
-          engine.clearBuffers(gl);
-
-          if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
-          window.__WEBGL_MARINE_CLEAR_COUNT__++;
-
-          if (window.__MARINE_PIPELINE_TRUTH__) {
-            window.__MARINE_PIPELINE_TRUTH__.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
-            if (window.__MARINE_PIPELINE_TRUTH__.counters) {
-              window.__MARINE_PIPELINE_TRUTH__.counters.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
-            }
-          }
-
-          window.__WEBGL_MARINE_UPLOAD_REASON__ = 'forced_clear';
-          lastUploadedSignatureRef.current = '';
-          lastUploadedGridRef.current = {
-            activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
-            boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-            sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
-          };
-          runDiagnosticsUpdate('forced_clear');
-          if (mapInstance) mapInstance.triggerRepaint();
-        }
-      }, 2000);
-
-      return () => clearTimeout(clearTimer);
+      window.__WEBGL_MARINE_UPLOAD_REASON__ = 'forced_clear';
+      runDiagnosticsUpdate('forced_clear');
+      if (mapInstance) mapInstance.triggerRepaint();
+      return;
     }
 
     if (window.isScrubbingTimeline) {

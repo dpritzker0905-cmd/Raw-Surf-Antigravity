@@ -16,9 +16,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return activeLayers.find(l => MARINE_LAYERS.includes(l)) || null;
   }, [activeLayers]);
   const activeMarineLayerRef = useRef(activeMarineLayer);
+  const prevTimeOffsetRef = useRef(timeOffsetHours);
 
-  useEffect(() => { activeModelRef.current = activeModel; if (typeof window !== 'undefined') window.activeModel = activeModel; }, [activeModel]);
-  useEffect(() => { activeMarineLayerRef.current = activeMarineLayer; if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
+  // Synchronously update refs during render to prevent effect race conditions
+  activeModelRef.current = activeModel;
+  activeMarineLayerRef.current = activeMarineLayer;
+
+  useEffect(() => { if (typeof window !== 'undefined') window.activeModel = activeModel; }, [activeModel]);
+  useEffect(() => { if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
   useEffect(() => { if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
 
   const lastFetchedLayerRef = useRef(null);
@@ -66,6 +71,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     activeModelRef
   });
 
+  const hasMarineLayers = useMemo(() => {
+    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
+  }, [activeLayers]);
+  activeMarineLayersRef.current = hasMarineLayers;
+
   const hasActivatedRef = useRef(false);
 
   useEffect(() => {
@@ -104,26 +114,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (prevActiveLayersRef.current === activeLayersKey) return;
     prevActiveLayersRef.current = activeLayersKey;
     const hasMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayersKey.includes(l));
-    if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
-    activationTimeoutRef.current = setTimeout(() => {
-      const previouslyHadMarine = activeMarineLayersRef.current;
-      activeMarineLayersRef.current = hasMarine;
-      if (!hasMarine) {
-        hasActivatedRef.current = false;
-      } else if (!previouslyHadMarine && !hasActivatedRef.current) {
-        hasActivatedRef.current = true;
-        console.log('[Marine] Layer activated, triggering manual fetch...');
-        marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-        consecutiveFailuresRef.current = 0;
-        manualMarineTriggerRef.current?.();
-      }
-      activationTimeoutRef.current = null;
-    }, 50);
+    if (!hasMarine) {
+      hasActivatedRef.current = false;
+    } else if (!hasActivatedRef.current) {
+      hasActivatedRef.current = true;
+      console.log('[Marine] Layer activated, triggering manual fetch...');
+      marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
+      consecutiveFailuresRef.current = 0;
+      manualMarineTriggerRef.current?.();
+    }
   }, [activeLayersKey]);
-
-  const hasMarineLayers = useMemo(() => {
-    return ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
-  }, [activeLayers]);
 
   useEffect(() => {
     if (!hasMarineLayers) {
@@ -210,7 +210,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   }, [mapInstance, enqueueMarineUpdate]);
 
   useEffect(() => {
-    const prev = timeOffsetRef.current; timeOffsetRef.current = timeOffsetHours;
+    const prev = prevTimeOffsetRef.current; prevTimeOffsetRef.current = timeOffsetHours;
+    timeOffsetRef.current = timeOffsetHours;
     if (prev === timeOffsetHours) return;
     if (!mapInstance || !activeMarineLayersRef.current) return;
 
