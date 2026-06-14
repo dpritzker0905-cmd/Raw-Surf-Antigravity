@@ -73,6 +73,15 @@ const MapWebGL = ({
   const [webglWindFailed, setWebglWindFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true'));
   const [webglMarineFailed, setWebglMarineFailed] = useState(() => typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true'));
 
+  // Reset temporary WebGL failure flags when model or active layers change
+  useEffect(() => {
+    const forceWind = typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true');
+    const forceMarine = typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true');
+    
+    if (!forceWind) setWebglWindFailed(false);
+    if (!forceMarine) setWebglMarineFailed(false);
+  }, [activeModel, activeLayers]);
+
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
     if (onMapClick) onMapClick(e);
@@ -355,13 +364,21 @@ const MapWebGL = ({
     if (canvas) {
       onContextLost = (e) => {
         e.preventDefault();
-        console.warn('[MapWebGL] WebGL context lost detected!');
+        console.error('[MapWebGL] WebGL context lost detected! Triggering safety fallbacks.');
         WeatherTelemetry.trackWebGLContextLost();
+        setWebglWindFailed(true);
+        setWebglMarineFailed(true);
       };
 
       onContextRestored = () => {
-        console.log('[MapWebGL] WebGL context restored successfully!');
+        console.log('[MapWebGL] WebGL context restored successfully! Recovering WebGL renderers.');
         WeatherTelemetry.trackWebGLContextRestored();
+        
+        const forceWind = typeof window !== 'undefined' && (window.__FORCE_WIND_FALLBACK__ === true || localStorage.getItem('force_wind_fallback') === 'true');
+        const forceMarine = typeof window !== 'undefined' && (window.__FORCE_MARINE_FALLBACK__ === true || localStorage.getItem('force_marine_fallback') === 'true');
+        
+        if (!forceWind) setWebglWindFailed(false);
+        if (!forceMarine) setWebglMarineFailed(false);
       };
 
       canvas.addEventListener('webglcontextlost', onContextLost);

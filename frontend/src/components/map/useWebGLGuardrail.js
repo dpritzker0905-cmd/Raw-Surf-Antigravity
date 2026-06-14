@@ -40,11 +40,12 @@ export function useWebGLGuardrail({
     let lowFpsCount = 0;
 
     const onRender = () => {
-      // Guard against rendering while tab is hidden
-      if (typeof document !== 'undefined' && document.hidden) {
+      // Guard against rendering while tab is hidden or window lacks focus
+      if (typeof document !== 'undefined' && (document.hidden || !document.hasFocus())) {
         frameCount = 0;
         lastTime = performance.now();
         lastFrameTime = performance.now();
+        lowFpsCount = 0;
         return;
       }
 
@@ -93,6 +94,15 @@ export function useWebGLGuardrail({
         return;
       }
 
+      // Bypass monitoring if the map is moving or zooming
+      const isMoving = mapInstance.isMoving?.() || mapInstance.isZooming?.();
+      if (isMoving) {
+        frameCount = 0;
+        lastTime = now;
+        lowFpsCount = 0;
+        return;
+      }
+
       frameCount++;
       const elapsed = now - lastTime;
 
@@ -127,8 +137,8 @@ export function useWebGLGuardrail({
           });
 
           lowFpsCount++;
-          if (lowFpsCount >= 6) {
-            console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 6 consecutive seconds. Triggering local rendering fallback overrides.`);
+          if (lowFpsCount >= 12) {
+            console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides.`);
             
             if (hasMarine) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Marine layer');
@@ -143,8 +153,8 @@ export function useWebGLGuardrail({
       }
     };
 
-    const handleVisibilityChange = () => {
-      // Reset all frame rate tracking variables when tab is hidden or restored
+    const handleReset = () => {
+      // Reset all frame rate tracking variables when tab/window focus or visibility changes
       frameCount = 0;
       const now = performance.now();
       lastTime = now;
@@ -155,7 +165,11 @@ export function useWebGLGuardrail({
     mapInstance.on('render', onRender);
 
     if (typeof document !== 'undefined') {
-      document.addEventListener('visibilitychange', handleVisibilityChange);
+      document.addEventListener('visibilitychange', handleReset);
+    }
+    if (typeof window !== 'undefined') {
+      window.addEventListener('focus', handleReset);
+      window.addEventListener('blur', handleReset);
     }
 
     return () => {
@@ -167,7 +181,11 @@ export function useWebGLGuardrail({
         console.warn('[WebGLGuardrail] Failed to remove render listener:', err);
       }
       if (typeof document !== 'undefined') {
-        document.removeEventListener('visibilitychange', handleVisibilityChange);
+        document.removeEventListener('visibilitychange', handleReset);
+      }
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('focus', handleReset);
+        window.removeEventListener('blur', handleReset);
       }
     };
   }, [mapInstance]);
