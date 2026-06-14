@@ -395,10 +395,9 @@ const MapWebGL = ({
     }
     res.__nonzeroCount = nonzeroCount;
     res.__maxHeight = maxHeight;
-    // Check both local nonzero count AND upstream __renderable from extractMarineAtOffset
     const upstreamRenderable = marineData?.grid?.__renderable !== false;
-    if (nonzeroCount === 0 && res.vectors.length > 0) {
-      res.__renderBlockedReason = 'all_zero_active_layer';
+    if (res.vectors.length === 0) {
+      res.__renderBlockedReason = 'empty_vectors';
       res.__renderable = false;
     } else if (!upstreamRenderable) {
       res.__renderBlockedReason = marineData?.grid?.__noDataReason || 'upstream_not_renderable';

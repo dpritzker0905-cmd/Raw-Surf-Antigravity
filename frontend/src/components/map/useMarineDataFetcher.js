@@ -371,7 +371,7 @@ export function useMarineDataFetcher({
             phase = 'standard_fetch_copernicus';
             try {
               data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
-               if (!data || !data.grid || !data.grid.renderable) {
+               if (!data || !data.grid || (!data.grid.renderable && (!data.grid.vectors || data.grid.vectors.length === 0))) {
                 console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
                 const failureReason = data?.grid?.__failureReason || 'unavailable';
                 data = {

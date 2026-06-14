@@ -58,7 +58,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
 
   const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
   const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
-  const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
+  const renderable = mappedVectors.length > 0;
 
   return {
     type: 'FeatureCollection',

@@ -112,8 +112,8 @@ export function extractMarineAtOffset(cache, hourOffset, targetLayer) {
     const ld = gv[activeLayerFromCache];
     if (ld && ld.speed > 0) { activeLayerNonzero++; if (ld.speed > activeLayerMax) activeLayerMax = ld.speed; }
   }
-  const renderable = activeLayerNonzero > 0;
-  const noDataReason = !renderable ? (oceanMaskCount > 0 ? 'active_layer_zero_ocean_present' : 'no_ocean_data') : null;
+  const renderable = oceanMaskCount > 0;
+  const noDataReason = !renderable ? 'no_ocean_data' : null;
   return {
     type: 'FeatureCollection', features, hourOffset,
     valid_time: validTimeStr,

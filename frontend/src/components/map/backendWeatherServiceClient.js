@@ -285,11 +285,11 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
   const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
   
-  // A grid is renderable only if it has vectors and at least one non-zero speed vector
-  const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
+  // A grid is renderable only if it has vectors
+  const renderable = mappedVectors.length > 0;
 
   if (!renderable) {
-    console.warn(`[Backend Weather Service] Grid is not renderable. mappedVectors=${mappedVectors.length}, nonzeroCount=${nonzeroCount}`);
+    console.warn(`[Backend Weather Service] Grid is not renderable. mappedVectors=${mappedVectors.length}`);
   }
 
   const result = {
