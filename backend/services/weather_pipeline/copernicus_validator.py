@@ -120,6 +120,9 @@ def validate_copernicus_product_helper(
         if not (0 <= nonzero_count <= actual_len):
             return False, f"Grid diagnostics mismatch: nonzeroCount = {nonzero_count} must be between 0 and {actual_len}"
             
+        if product.layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and nonzero_count == 0:
+            return False, f"Estimated marine product cannot be empty (nonzeroCount == 0)"
+            
         return True, "Valid estimated product"
 
     # 2. Authoritative products validation
