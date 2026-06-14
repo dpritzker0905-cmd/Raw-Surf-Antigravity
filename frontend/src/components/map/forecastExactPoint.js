@@ -122,6 +122,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Precipitation Service] Precipitation point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
@@ -146,6 +149,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Pressure Service] Pressure point redirect failed. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
@@ -170,6 +176,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Point redirect failed for GFS ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
@@ -194,6 +203,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Wind point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
@@ -218,6 +230,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Copernicus point redirect failed: ${err.message}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
@@ -242,6 +257,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         return pointResult;
       }
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err;
+      }
       console.warn(`[Backend Weather Service] Point redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
   }
