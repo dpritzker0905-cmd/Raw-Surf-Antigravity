@@ -582,7 +582,7 @@ export function useMarineDataFetcher({
       scrubDebounceRef.current = setTimeout(() => {
         scrubDebounceRef.current = null;
         updateMarineGrid('timeline_scrub');
-      }, 350);
+      }, 150);
       return;
     }
 

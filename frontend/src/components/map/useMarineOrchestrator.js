@@ -397,14 +397,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
     if (lastFetchedModelRef.current === activeModel) return;
-    if (window.isScrubbingTimeline) return;
 
     lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
     setMarineData(null);
     lastCommittedSigRef.current = null;
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 100);
     return () => clearTimeout(t);
   }, [activeModel, mapInstance, setMarineData]);
 
@@ -514,7 +513,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 350);
+    const t = setTimeout(() => { manualMarineTriggerRef.current?.(); }, 100);
     return () => clearTimeout(t);
   }, [activeMarineLayer, activeModel, mapInstance, setMarineData]);
 
@@ -578,7 +577,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (wasScrubbingRef && !isNowScrubbing) {
         // Scrubbing just ended — delay slightly then verify
         clearTimeout(scrubSettleTimerRef.current);
-        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 500);
+        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 250);
       }
       wasScrubbingRef = isNowScrubbing;
     }, 200);
