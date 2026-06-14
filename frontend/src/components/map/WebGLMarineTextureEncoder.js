@@ -326,20 +326,21 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       };
     }
     // Check if it's already conformed/flat or if we need to pull from the nested activeLayer key
-    const sub = v[activeLayer] || {};
+    const hasSub = activeLayer !== 'waves' && v[activeLayer];
+    const sub = hasSub ? v[activeLayer] : {};
     
-    const u = typeof v.u === 'number' ? v.u : (typeof sub.u === 'number' ? sub.u : 0);
-    const v_val = typeof v.v === 'number' ? v.v : (typeof sub.v === 'number' ? sub.v : 0);
-    const speed = typeof v.speed === 'number' ? v.speed : (typeof sub.speed === 'number' ? sub.speed : 0);
-    const period = typeof v.period === 'number' ? v.period : (typeof sub.period === 'number' ? sub.period : 0);
-    const height = typeof v.height === 'number' ? v.height : (typeof sub.height === 'number' ? sub.height : (v.speed || sub.speed || 0));
+    const u = hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0);
+    const v_val = hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0);
+    const speed = hasSub && typeof sub.speed === 'number' ? sub.speed : (typeof v.speed === 'number' ? v.speed : 0);
+    const period = hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0);
+    const height = hasSub && typeof sub.height === 'number' ? sub.height : (typeof v.height === 'number' ? v.height : (hasSub ? sub.speed || 0 : v.speed || 0));
     
-    let direction = typeof v.direction === 'number' ? v.direction : (typeof sub.direction === 'number' ? sub.direction : undefined);
+    let direction = hasSub && typeof sub.direction === 'number' ? sub.direction : (typeof v.direction === 'number' ? v.direction : undefined);
     if (direction === undefined) {
       direction = (Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360;
     }
     
-    const isOcean = v.isOcean !== undefined ? v.isOcean : true;
+    const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean : (v.isOcean !== undefined ? v.isOcean : true);
     
     return {
       lat: v.lat || 0,

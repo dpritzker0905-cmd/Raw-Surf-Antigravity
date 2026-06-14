@@ -233,15 +233,37 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
 
   const zeroVec = { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
   const mappedVectors = json.grid.vectors.map(v => {
-    const u = v.u || 0;
-    const v_val = v.v || 0;
-    const speed = v.speed || 0;
-    const period = v.period || 0;
-    const height = v.height !== undefined ? v.height : speed;
-    const direction = v.direction !== undefined ? v.direction : ((Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360);
-    const isOcean = v.is_valid !== false;
+    const hasConjoined = !!(v.waves || v.swell_1 || v.swell_2 || v.wind_waves);
+    
+    let activeSource = v;
+    if (hasConjoined && v[layer]) {
+      activeSource = v[layer];
+    }
+    
+    const u = activeSource.u || 0;
+    const v_val = activeSource.v || 0;
+    const speed = activeSource.speed || 0;
+    const period = activeSource.period || 0;
+    const height = activeSource.height !== undefined ? activeSource.height : speed;
+    const direction = activeSource.direction !== undefined ? activeSource.direction : ((Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360);
+    const isOcean = activeSource.is_valid !== false && activeSource.isOcean !== false;
 
     const componentUV = { u, v: v_val, speed, period, height, direction, isOcean };
+
+    const getConjoinedLayer = (layerName) => {
+      if (v[layerName]) {
+        const sub = v[layerName];
+        const subU = sub.u || 0;
+        const subV = sub.v || 0;
+        const subSpeed = sub.speed || 0;
+        const subPeriod = sub.period || 0;
+        const subHeight = sub.height !== undefined ? sub.height : subSpeed;
+        const subDirection = sub.direction !== undefined ? sub.direction : ((Math.atan2(-subU, -subV) * 180 / Math.PI + 360) % 360);
+        const subIsOcean = sub.isOcean !== undefined ? sub.isOcean : (sub.is_valid !== false && isOcean);
+        return { u: subU, v: subV, speed: subSpeed, period: subPeriod, height: subHeight, direction: subDirection, isOcean: subIsOcean };
+      }
+      return layer === layerName ? componentUV : zeroVec;
+    };
 
     return {
       lat: v.lat,
@@ -253,10 +275,10 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       height,
       direction,
       isOcean,
-      waves: layer === 'waves' ? componentUV : zeroVec,
-      swell_1: layer === 'swell_1' ? componentUV : zeroVec,
-      swell_2: layer === 'swell_2' ? componentUV : zeroVec,
-      wind_waves: layer === 'wind_waves' ? componentUV : zeroVec
+      waves: getConjoinedLayer('waves'),
+      swell_1: getConjoinedLayer('swell_1'),
+      swell_2: getConjoinedLayer('swell_2'),
+      wind_waves: getConjoinedLayer('wind_waves')
     };
   });
 
