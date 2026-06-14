@@ -441,8 +441,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
 
     const isEstimated = waveGrid?.is_estimated || waveGrid?.isEstimated || false;
-    const isEuro = (waveGrid?.__sourceModel || 'GFS') === 'EURO';
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), (isEstimated || isEuro) ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), isEstimated ? 1.0 : 0.0);
 
     var heatmapOpacity;
     if (z <= 2) heatmapOpacity = 0.55;
