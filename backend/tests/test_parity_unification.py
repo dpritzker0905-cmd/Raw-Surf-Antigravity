@@ -32,8 +32,10 @@ async def test_point_resolution_service_resolve_spot_conditions(monkeypatch):
         provider=mock_provider
     )
     
-    # Monkeypatch find_cached_grid_product to always return None
-    monkeypatch.setattr(service, "find_cached_grid_product", lambda *args, **kwargs: None)
+    # Monkeypatch find_cached_grid_product to always return None (async def is required)
+    async def mock_find_cached(*args, **kwargs):
+        return None
+    monkeypatch.setattr(service, "find_cached_grid_product", mock_find_cached)
     
     # Mock provider fetch
     async def mock_fetch_point(*args, **kwargs):

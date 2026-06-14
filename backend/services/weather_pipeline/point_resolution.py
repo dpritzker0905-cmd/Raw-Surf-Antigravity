@@ -310,7 +310,29 @@ class PointResolutionService:
             try:
                 # Use model-appropriate forecast_days for point fallback
                 point_forecast_days = {"ICON": 7, "EURO": 10, "GFS": 16}.get(model.upper(), 2)
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
+                if model.upper() == "EURO":
+                    from services.copernicus_marine_service import fetch_euro_marine
+                    if layer.lower() == "waves":
+                        variables = ["wave_height", "wave_direction", "wave_period"]
+                    elif layer.lower() == "swell_1":
+                        variables = ["swell_wave_height", "swell_wave_direction", "swell_wave_period"]
+                    elif layer.lower() == "swell_2":
+                        variables = ["secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period"]
+                    elif layer.lower() == "wind_waves":
+                        variables = ["wind_wave_height", "wind_wave_direction", "wind_wave_period"]
+                    else:
+                        variables = ["wave_height", "wave_direction", "wave_period"]
+                    
+                    raw_points = await fetch_euro_marine(
+                        latitudes=[lat],
+                        longitudes=[lng],
+                        forecast_days=3,
+                        variables=variables
+                    )
+                    raw_point = raw_points[0] if raw_points else None
+                else:
+                    raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
+                
                 if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
                     from services.weather_pipeline.normalizer import WeatherNormalizer
                     times = raw_point["hourly"]["time"]
@@ -359,7 +381,7 @@ class PointResolutionService:
                         elif model.upper() == "ICON":
                             upstream_model = "gwam"
                         elif model.upper() == "EURO":
-                            upstream_model = "ecmwf_wam025"
+                            upstream_model = "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i"
                         else:
                             upstream_model = "gfs_seamless"
                             
@@ -374,7 +396,7 @@ class PointResolutionService:
                         
                         return NormalizedPointResponse(
                             model=model.upper(),
-                            provider="open-meteo",
+                            provider="copernicus" if model.upper() == "EURO" else "open-meteo",
                             domain="marine",
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
@@ -391,7 +413,7 @@ class PointResolutionService:
                             coverage_status="outside_grid_tile",
                             fallback_attempted=True,
                             fallback_reason="no_matching_grid_product",
-                            upstream_provider="open-meteo",
+                            upstream_provider="copernicus" if model.upper() == "EURO" else "open-meteo",
                             upstream_model=upstream_model,
                             units=units,
                             grid_parity=False,

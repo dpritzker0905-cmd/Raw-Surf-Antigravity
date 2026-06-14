@@ -666,14 +666,18 @@ class ViewportService:
 
             logger.warning(f"[Dynamic Viewport] Upstream fetch failed for {model} {layer}: {e}")
             
-            # Store failure in negative cache
-            err_msg = str(e).lower()
-            is_429 = "429" in err_msg or "rate limit" in err_msg or "too many requests" in err_msg
-            neg_ttl = 120 if is_429 else 60
-            now_ts = datetime.now(timezone.utc).timestamp()
-            self.NEGATIVE_CACHE[cache_key] = now_ts + neg_ttl
-            logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
-             # Step 5: Stale fallback (Dynamic or Manifest)
+            # Skip negative caching for cancellations, aborts, and client disconnects
+            err_cls, err_str = e.__class__.__name__.lower(), str(e).lower()
+            is_cancelled = isinstance(e, asyncio.CancelledError) or any(x in err_cls or x in err_str for x in ("cancel", "abort", "disconnect"))
+            if not is_cancelled:
+                is_429 = any(x in err_str for x in ("429", "rate limit", "too many requests"))
+                neg_ttl = 120 if is_429 else 60
+                self.NEGATIVE_CACHE[cache_key] = datetime.now(timezone.utc).timestamp() + neg_ttl
+                logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
+            else:
+                logger.info(f"[Dynamic Viewport] Request cancelled or aborted ({e}). Skipping negative cache registration.")
+            
+            # Step 5: Stale fallback (Dynamic or Manifest)
             fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
             if fallback_product:
                 logger.info(f"[Dynamic Viewport] Fallback: Found previous cached product {fallback_product.product_id} for stale return")
@@ -721,6 +725,7 @@ class ViewportService:
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=504, detail=f"Viewport fetch failed: {str(e)}")
+
 
 
 

@@ -315,8 +315,8 @@ class OpenMeteoProvider:
 
         async with httpx.AsyncClient() as client:
             try:
-                # We restrict the batch size to 100 to avoid Netlify's 10s function timeout and direct API 429 rate limits.
-                batch_size = 100
+                # We restrict the batch size to 500 to avoid excessive sequential HTTP request overhead, while still staying within safe limits.
+                batch_size = 500
                 aggregated_results = []
 
                 for i in range(0, len(lats), batch_size):
