@@ -1,9 +1,52 @@
 import { useMemo } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 
-export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours }) {
+export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
   return useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) return null;
+
+    // Verify viewport overlap ratio to prevent clamped regional grid rendering
+    if (mapInstance && marineData?.grid?.bounds) {
+      const g = marineData.grid;
+      const isGlobalGrid = Math.abs(g.bounds.east - g.bounds.west) >= 350;
+      if (!isGlobalGrid) {
+        try {
+          const mb = mapInstance.getBounds();
+          const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
+          const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+          
+          const intWest = Math.max(ew, gw);
+          const intEast = Math.min(ee, ge);
+          const intSouth = Math.max(es, gs);
+          const intNorth = Math.min(en, gn);
+          
+          let overlapRatio = 0;
+          if (intWest < intEast && intSouth < intNorth) {
+            const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
+            const viewportArea = (ee - ew) * (en - es);
+            if (viewportArea > 0) {
+              overlapRatio = intersectionArea / viewportArea;
+            }
+          }
+          if (overlapRatio < 0.85) {
+            if (typeof window !== 'undefined') {
+              window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
+                hasData: true,
+                hasGrid: true,
+                overlapRatio,
+                mismatch: true,
+                mismatchReason: `Viewport moved away from regional grid bounds (overlap: ${overlapRatio.toFixed(2)} < 0.85)`,
+                timestamp: new Date().toISOString()
+              };
+              window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
+            }
+            return null;
+          }
+        } catch (e) {
+          // ignore mapInstance getBounds errors
+        }
+      }
+    }
 
     if (marineData.__renderable === false || marineData.grid?.__renderable === false) {
       if (marineData.__unsupportedLayer || marineData.grid?.__unsupportedLayer) {
@@ -173,7 +216,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     }
 
     const gp = res.__gridProvider;
-    const isLayerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || (gp !== 'open-meteo' && gp !== 'none');
+    const isLayerSupported = layerSupported || (gp !== 'open-meteo' && gp !== 'none');
     if (!isLayerSupported) {
       res.__renderable = false;
       res.__renderBlockedReason = 'unsupported_model_layer';
@@ -202,5 +245,5 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     
     if (!res.__renderable) return null;
     return res;
-  }, [marineData, activeMarineLayer, activeModel, timeOffsetHours]);
+  }, [marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState]);
 }

@@ -236,7 +236,14 @@ const MapWebGL = ({
     return 'none';
   }, [activeLayers]);
 
-  const marineWindData = useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours });
+  const marineWindData = useMarineWindData({ 
+    marineData, 
+    activeMarineLayer, 
+    activeModel, 
+    timeOffsetHours, 
+    mapInstance, 
+    viewState 
+  });
 
   // Marine raster opacity is controlled declaratively via JSX paint props (single source of truth).
   // Removed v3.17 imperative setPaintProperty sync — it raced with JSX and could set opacity to 0.
