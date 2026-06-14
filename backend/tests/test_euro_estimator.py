@@ -402,3 +402,60 @@ def test_validation_and_quarantine(isolated_store):
     manifest = isolated_store.get_manifest()
     registered = [p for p in manifest.products if p.filename == filename]
     assert len(registered) == 0
+
+def test_point_estimate_blend(monkeypatch):
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    
+    t0 = datetime.now(timezone.utc)
+    t0_str = t0.strftime("%Y-%m-%dT%H:00Z")
+    
+    anchor_dt = t0 + timedelta(days=2)
+    anchor_str = anchor_dt.strftime("%Y-%m-%dT%H:00Z")
+    
+    target_dt = t0 + timedelta(days=4)
+    target_str = target_dt.strftime("%Y-%m-%dT%H:00Z")
+    
+    async def mock_fetch_euro_marine(*args, **kwargs):
+        return [{
+            "hourly": {
+                "time": [t0_str, anchor_str],
+                "swell_wave_height": [2.0, 2.0],
+                "swell_wave_direction": [90.0, 90.0],
+                "swell_wave_period": [8.0, 8.0]
+            }
+        }]
+        
+    async def mock_fetch_point(self, model, domain, layer, lat, lng, forecast_days):
+        if model == "GFS":
+            return {
+                "hourly": {
+                    "time": [t0_str, anchor_str, target_str],
+                    "swell_wave_height": [1.8, 1.8, 2.2],
+                    "swell_wave_direction": [180.0, 180.0, 180.0],
+                    "swell_wave_period": [8.0, 8.0, 10.0]
+                }
+            }
+        elif model == "ICON":
+            return {
+                "hourly": {
+                    "time": [t0_str, anchor_str, target_str],
+                    "swell_wave_height": [1.5, 1.5, 1.5],
+                    "swell_wave_direction": [90.0, 90.0, 90.0],
+                    "swell_wave_period": [8.0, 8.0, 8.0]
+                }
+            }
+        return None
+
+    monkeypatch.setattr("services.copernicus_marine_service.fetch_euro_marine", mock_fetch_euro_marine)
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point)
+    
+    response = client.get(
+        f"/api/weather/point?model=EURO&domain=marine&layer=swell_1&lat=28.4&lng=-80.6&valid_time={target_str}"
+    )
+    assert response.status_code == 200
+    res_json = response.json()
+    assert res_json["is_estimated"] is True
+    assert res_json["provider"] == "estimated"
+    assert "point_estimate_blend" in res_json["point"]["interpolation_method"]
+    assert res_json["point"]["speed"] > 0.0
+

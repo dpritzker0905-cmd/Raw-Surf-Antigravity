@@ -599,7 +599,10 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       apiModel: 'ecmwf_wam025',
       provider: json.provider || 'copernicus',
       source: 'network',
-      status: json.status || json.coverage_status || 'exact_success'
+      status: json.status || json.coverage_status || 'exact_success',
+      is_estimated: json.is_estimated || false,
+      estimate_basis: json.estimate_basis || null,
+      productId: json.product_id || null
     };
 
     const details = {

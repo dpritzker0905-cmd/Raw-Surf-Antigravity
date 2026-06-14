@@ -36,11 +36,10 @@ export function useExactPointFetch({
     marineDataRef.current = marineData;
   }, [marineData]);
 
-  // v7.1: snapping key — EXCLUDES settledOffset because exact-point responses contain
-  // multi-day data. Hour selection happens at render time via selectExactPointHour.
-  // Including the offset here was causing the entire response to be marked stale on every
-  // scrub step, triggering redundant fetches that saturated the network queue.
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}`;
+  // snapping key — Includes settledOffset to support backend redirect responses (which only return
+  // a single valid time). Since settledOffset changes only when scrubbing finishes or direct timeline
+  // click occurs, this prevents network queue saturation during scrubbing while ensuring correct data parity.
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
   const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
   const isStale = currentPointKey !== renderedPointKey;
   const fetchGenRef = useRef(0);
@@ -170,7 +169,7 @@ export function useExactPointFetch({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isExactPointRequired, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, settledOffset, isExactPointRequired, selectedSpot, longPressLocation]);
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {

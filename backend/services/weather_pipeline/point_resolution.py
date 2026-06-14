@@ -23,11 +23,8 @@ logger = logging.getLogger(__name__)
 
 def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
     """Safely retrieves the index element of list from dict_obj, returning default_val if missing or out of bounds."""
-    if not dict_obj:
-        return default_val
-    lst = dict_obj.get(key)
-    if isinstance(lst, list) and index < len(lst):
-        val = lst[index]
+    if dict_obj and isinstance(dict_obj.get(key), list) and index < len(dict_obj[key]):
+        val = dict_obj[key][index]
         return val if val is not None else default_val
     return default_val
 
@@ -65,19 +62,11 @@ class PointResolutionService:
 
     @staticmethod
     def deduce_grid_resolution(grid) -> float:
-        """
-        Deduces the coordinate resolution step from the unique sorted latitudes/longitudes
-        of a loaded NormalizedGrid.
-        """
-        if not grid or not grid.vectors:
-            return 0.0
+        if not grid or not grid.vectors: return 0.0
         lats = sorted(list(set(v.lat for v in grid.vectors)))
-        if len(lats) > 1:
-            return round(lats[1] - lats[0], 4)
+        if len(lats) > 1: return round(lats[1] - lats[0], 4)
         lons = sorted(list(set(v.lng for v in grid.vectors)))
-        if len(lons) > 1:
-            return round(lons[1] - lons[0], 4)
-        return 0.0
+        return round(lons[1] - lons[0], 4) if len(lons) > 1 else 0.0
 
     async def resolve_point(
         self,
@@ -346,6 +335,11 @@ class PointResolutionService:
                     from services.weather_pipeline.normalizer import WeatherNormalizer
                     times = raw_point["hourly"]["time"]
                     idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+                    if idx is None and model.upper() == "EURO" and not is_fallback_active:
+                        from services.weather_pipeline.estimator import resolve_euro_estimate_point
+                        est_res = await resolve_euro_estimate_point(self.provider, domain, layer, lat, lng, target_dt, raw_point)
+                        if est_res:
+                            return est_res
                     if idx is not None:
                         if layer.lower() == "waves":
                             layer_vars = ("wave_height", "wave_direction", "wave_period")

@@ -1,8 +1,11 @@
 import math
 import logging
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional, Dict, Any, List
-from services.weather_pipeline.schemas import NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds
+from services.weather_pipeline.schemas import (
+    NormalizedProduct, NormalizedGrid, GridVector, CoverageBounds,
+    NormalizedPointResponse, NormalizedPointDetail
+)
 
 logger = logging.getLogger(__name__)
 
@@ -468,3 +471,143 @@ def estimate_euro_grid(
     )
 
     return est_product
+
+def _extract_point_vals(raw_point: dict, layer: str, idx: int) -> dict:
+    if not raw_point or "hourly" not in raw_point:
+        return {"speed": 0.0, "direction": 0.0, "period": 0.0}
+    h = raw_point["hourly"]
+    l_map = {
+        "waves": ("wave_height", "wave_direction", "wave_period"),
+        "swell_1": ("swell_wave_height", "swell_wave_direction", "swell_wave_period"),
+        "swell_2": ("secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period"),
+        "wind_waves": ("wind_wave_height", "wind_wave_direction", "wind_wave_period")
+    }
+    speed_key, dir_key, per_key = l_map.get(layer.lower(), ("wave_height", "wave_direction", "wave_period"))
+    if layer.lower() == "swell_2" and speed_key not in h and "swell_wave_height" in h:
+        speed_key, dir_key, per_key = "swell_wave_height", "swell_wave_direction", "swell_wave_period"
+        
+    def get_val(key):
+        lst = h.get(key)
+        if isinstance(lst, list) and idx < len(lst):
+            val = lst[idx]
+            return val if val is not None else 0.0
+        return 0.0
+
+    return {
+        "speed": get_val(speed_key),
+        "direction": get_val(dir_key),
+        "period": get_val(per_key)
+    }
+
+async def resolve_euro_estimate_point(
+    provider_inst: Any,
+    domain: str,
+    layer: str,
+    lat: float,
+    lng: float,
+    target_dt: datetime,
+    raw_euro: dict
+) -> Optional[NormalizedPointResponse]:
+    from services.weather_pipeline.normalizer import WeatherNormalizer
+    euro_times = raw_euro["hourly"]["time"]
+    anchor_idx = len(euro_times) - 1
+    anchor_dt = datetime.fromisoformat(euro_times[anchor_idx].replace("Z", "+00:00"))
+    
+    gfs_raw = await provider_inst.fetch_point(model="GFS", domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=16)
+    if not gfs_raw or "hourly" not in gfs_raw or "time" not in gfs_raw["hourly"]:
+        return None
+    gfs_times = gfs_raw["hourly"]["time"]
+    gfs_anc_idx = WeatherNormalizer.find_closest_time_index(gfs_times, anchor_dt)
+    gfs_tgt_idx = WeatherNormalizer.find_closest_time_index(gfs_times, target_dt)
+    if gfs_anc_idx is None or gfs_tgt_idx is None:
+        return None
+        
+    euro_anc = _extract_point_vals(raw_euro, layer, anchor_idx)
+    gfs_anc = _extract_point_vals(gfs_raw, layer, gfs_anc_idx)
+    gfs_tgt = _extract_point_vals(gfs_raw, layer, gfs_tgt_idx)
+    
+    now_dt = datetime.now(timezone.utc)
+    target_hour = (target_dt - now_dt).total_seconds() / 3600.0
+    is_icon_valid = False
+    icon_anc, icon_tgt = None, None
+    
+    if layer.lower() != "swell_2" and target_hour <= 168.0:
+        try:
+            icon_raw = await provider_inst.fetch_point(model="ICON", domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=7)
+            if icon_raw and "hourly" in icon_raw and "time" in icon_raw["hourly"]:
+                icon_times = icon_raw["hourly"]["time"]
+                icon_anc_idx = WeatherNormalizer.find_closest_time_index(icon_times, anchor_dt)
+                icon_tgt_idx = WeatherNormalizer.find_closest_time_index(icon_times, target_dt)
+                if icon_anc_idx is not None and icon_tgt_idx is not None:
+                    is_icon_valid = True
+                    icon_anc = _extract_point_vals(icon_raw, layer, icon_anc_idx)
+                    icon_tgt = _extract_point_vals(icon_raw, layer, icon_tgt_idx)
+        except Exception:
+            pass
+            
+    native_limit = 240.0 if layer.lower() == "waves" else 72.0
+    w = get_estimate_weights(target_hour, native_limit, is_icon_valid)
+    w_persist, w_gfs, w_icon, confidence = w["persistence"], w["gfs"], w["icon"], w["confidence"]
+    w_icon_real = w_icon if is_icon_valid else 0.0
+    w_gfs_real = w_gfs + (w_icon if not is_icon_valid else 0.0)
+    
+    h_gfs_trend = max(0.0, euro_anc["speed"] + (gfs_tgt["speed"] - gfs_anc["speed"]))
+    p_gfs_trend = max(2.0, euro_anc["period"] + (gfs_tgt["period"] - gfs_anc["period"])) if gfs_anc["period"] > 0 else euro_anc["period"]
+    
+    h_icon_trend, p_icon_trend = 0.0, 0.0
+    if is_icon_valid and icon_anc and icon_tgt:
+        h_icon_trend = max(0.0, euro_anc["speed"] + (icon_tgt["speed"] - icon_anc["speed"]))
+        p_icon_trend = max(2.0, euro_anc["period"] + (icon_tgt["period"] - icon_anc["period"])) if icon_anc["period"] > 0 else euro_anc["period"]
+        
+    blended_height = max(0.0, w_persist * euro_anc["speed"] + w_gfs_real * h_gfs_trend + w_icon_real * h_icon_trend)
+    
+    periods = [euro_anc["period"], p_gfs_trend]
+    p_weights = [w_persist, w_gfs_real]
+    if is_icon_valid:
+        periods.append(p_icon_trend)
+        p_weights.append(w_icon_real)
+    blended_period = blend_period(periods, p_weights) or 0.0
+    
+    directions = [euro_anc["direction"], gfs_tgt["direction"]]
+    d_weights = [w_persist, w_gfs_real]
+    heights = [euro_anc["speed"], h_gfs_trend]
+    if is_icon_valid and icon_tgt:
+        directions.append(icon_tgt["direction"])
+        d_weights.append(w_icon_real)
+        heights.append(h_icon_trend)
+    blended_direction = blend_direction(heights, directions, d_weights)
+    
+    u, v = 0.0, 0.0
+    if blended_height > 0.0 and blended_direction is not None:
+        rad = blended_direction * math.pi / 180.0
+        u = -blended_height * math.sin(rad)
+        v = -blended_height * math.cos(rad)
+        
+    detail = NormalizedPointDetail(
+        requested_lat=lat, requested_lng=lng, sampled_lat=lat, sampled_lng=lng,
+        speed=round(blended_height, 4), direction=round(blended_direction, 2) if blended_direction is not None else 0.0,
+        u=round(u, 4), v=round(v, 4), period=round(blended_period, 2), gust=None,
+        interpolation_method="point_estimate_blend"
+    )
+    
+    estimate_basis = {
+        "type": "euro_persistence_gfs_icon_blend" if is_icon_valid else "euro_persistence_gfs_blend",
+        "target_valid_time": target_dt.isoformat(),
+        "layer": layer.lower(),
+        "native_limit_hours": int(native_limit),
+        "weights": {"persistence": round(w_persist, 4), "gfs": round(w_gfs_real, 4), "icon": round(w_icon_real, 4)},
+        "confidence": round(confidence, 4),
+        "euro_anchor_valid_time": anchor_dt.isoformat()
+    }
+    
+    return NormalizedPointResponse(
+        model="EURO", provider="estimated", domain="marine", layer=layer.lower(),
+        run_time=datetime.now(timezone.utc), valid_time=target_dt,
+        is_forecast_authoritative=False, is_estimated=True, point=detail,
+        value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+        source_variables=[layer.lower()], freshness_sec=1800, source="backend_direct_point",
+        coverage_status="outside_grid_tile", fallback_attempted=True, fallback_reason="copernicus_missing_fallback",
+        upstream_provider="estimated", upstream_model="cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+        estimate_basis=estimate_basis, units={"speed": "m", "direction": "degrees", "period": "seconds"},
+        grid_parity=False, gridParity=False
+    )
