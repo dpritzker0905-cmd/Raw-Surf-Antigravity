@@ -133,7 +133,7 @@ void main() {
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
                 next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
-  if (waveHeight < 0.1 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
+  if (waveHeight < 0.01 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
@@ -268,7 +268,7 @@ void main() {
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
-  if (!bypassDiscard && (waveHeight < 0.10 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -754,7 +754,7 @@ void main() {
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
   // while keeping volumetric shadows and reefs highlights fully intact.
-  float waveBlend = smoothstep(0.1, 0.8, waveHeight);
+  float waveBlend = smoothstep(0.01, 0.8, waveHeight);
   vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
   vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
   

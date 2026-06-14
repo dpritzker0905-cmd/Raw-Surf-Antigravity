@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
+import { API_BASE } from '../../lib/apiClient';
 
 function getLayerTruth(layerId, rasterVisible, windData, marineData) {
   const layer = LAYER_REGISTRY[layerId];
@@ -111,7 +112,7 @@ var TruthOverlay = ({
           }
         };
         
-        fetch('/api/weather/client-diagnostics', {
+        fetch(`${API_BASE}/weather/client-diagnostics`, {
           method: 'POST',
           headers: {
             'Content-Type': 'application/json'
