@@ -131,7 +131,13 @@ export function useMarineDataFetcher({
       updateMarineGridRef.current = updateMarineGrid;
 
       if (locks.isFetching) {
-        console.log(`[Abort] Aborting in-flight fetch for new request source=${source}`);
+        const activeSource = locks.activeSource || 'unknown';
+        const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
+        if (isHighPriority(activeSource) && !isHighPriority(source)) {
+          console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority update request (${source})`);
+          return;
+        }
+        console.log(`[Abort] Aborting in-flight fetch (${activeSource}) for new request source=${source}`);
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
@@ -174,8 +180,8 @@ export function useMarineDataFetcher({
           }
         }
         
-        if (overlapRatio < 0.85) {
-          console.log(`[Marine-Bounds-Clear] Overlap ratio is ${overlapRatio.toFixed(2)} (< 0.85). Clearing stale grid to prevent clamped rectangle.`);
+        if (overlapRatio < 0.15) {
+          console.log(`[Marine-Bounds-Clear] Overlap ratio is ${overlapRatio.toFixed(2)} (< 0.15). Clearing stale grid to prevent clamped rectangle.`);
           setMarineData(null);
           lastCommittedSigRef.current = null;
         }
@@ -244,6 +250,7 @@ export function useMarineDataFetcher({
       const signal = abortControllerRef.current.signal;
 
       locks.isFetching = true;
+      locks.activeSource = source;
       if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
       const fetchIntent = { model, layer, hour: timeOffset };
 
@@ -571,6 +578,7 @@ export function useMarineDataFetcher({
     } finally {
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;
+        locks.activeSource = null;
         if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = null;
         const pending = pendingMarineIntentRef.current;
         if (pending) {
@@ -617,7 +625,13 @@ export function useMarineDataFetcher({
     if (locks.isFetching) {
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
-      console.log(`[Abort] Aborting active fetch in enqueueMarineUpdate for new source=${source}`);
+      const activeSource = locks.activeSource || 'unknown';
+      const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
+      if (isHighPriority(activeSource) && !isHighPriority(source)) {
+        console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
+        return;
+      }
+      console.log(`[Abort] Aborting active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source}`);
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }

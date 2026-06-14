@@ -19,11 +19,7 @@ export function useMapViewState({ effectiveLocation, onMapMoveEnd, innerMapRef }
   });
 
   const onMove = useCallback(evt => {
-    const nextViewState = { ...evt.viewState };
-    if (nextViewState.zoom < 2.0) {
-      nextViewState.zoom = 2.0;
-    }
-    setViewState(nextViewState);
+    setViewState(evt.viewState);
   }, []);
 
   const moveEndTimerRef = useRef(null);
