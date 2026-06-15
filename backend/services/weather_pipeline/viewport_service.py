@@ -14,7 +14,7 @@ from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.route_helpers import (
     parse_bbox, clamp_and_normalize_bbox, generate_bbox_coords,
     choose_adaptive_resolution, build_dynamic_cache_key, filter_grid_to_bbox,
-    is_bbox_covered_by
+    is_bbox_covered_by, get_snapped_bbox
 )
 
 logger = logging.getLogger(__name__)
@@ -186,7 +186,7 @@ class ViewportService:
                     fallback_product.partial_coverage = False
 
                     if domain.lower() != "wind":
-                        fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                        fallback_product = filter_grid_to_bbox(fallback_product, get_snapped_bbox(bbox_str, model))
                     served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                     fallback_product.served_bbox = served_bbox
 
@@ -281,7 +281,7 @@ class ViewportService:
                     loaded_product.partial_coverage = False
                     loaded_product.stale = False
                     if domain.lower() != "wind":
-                        loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                        loaded_product = filter_grid_to_bbox(loaded_product, get_snapped_bbox(bbox_str, model))
                     if loaded_product.grid and loaded_product.grid.bounds:
                         loaded_product.served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                     return loaded_product
@@ -325,7 +325,7 @@ class ViewportService:
                         loaded_product.partial_coverage = False
                         loaded_product.stale = False
                         if domain.lower() != "wind":
-                            loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                            loaded_product = filter_grid_to_bbox(loaded_product, get_snapped_bbox(bbox_str, model))
                         if loaded_product.grid and loaded_product.grid.bounds:
                             loaded_product.served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                         return loaded_product
@@ -344,7 +344,7 @@ class ViewportService:
                     fallback_product.staleReason = "upstream_request_failed"
                     fallback_product.partial_coverage = False
                     if domain.lower() != "wind":
-                        fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                        fallback_product = filter_grid_to_bbox(fallback_product, get_snapped_bbox(bbox_str, model))
                     if fallback_product.grid and fallback_product.grid.bounds:
                         fallback_product.served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                     return fallback_product
@@ -628,7 +628,7 @@ class ViewportService:
 
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
                 return target_normalized_product
-            cropped_product = filter_grid_to_bbox(target_normalized_product, bbox_str)
+            cropped_product = filter_grid_to_bbox(target_normalized_product, get_snapped_bbox(bbox_str, model))
             if cropped_product.grid and cropped_product.grid.bounds:
                 cropped_product.served_bbox = f"{cropped_product.grid.bounds.west:.4f},{cropped_product.grid.bounds.south:.4f},{cropped_product.grid.bounds.east:.4f},{cropped_product.grid.bounds.north:.4f}"
             return cropped_product
@@ -678,7 +678,7 @@ class ViewportService:
                 fallback_product.partial_coverage = False
 
                 if domain.lower() != "wind":
-                    fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
+                    fallback_product = filter_grid_to_bbox(fallback_product, get_snapped_bbox(bbox_str, model))
                 served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                 fallback_product.served_bbox = served_bbox
 

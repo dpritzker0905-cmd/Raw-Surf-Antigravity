@@ -20,7 +20,7 @@ from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoPro
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, is_bbox_covered_by, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
-    compute_truth_tag
+    compute_truth_tag, get_snapped_bbox
 )
 from services.weather_pipeline.product_selection import select_best_candidate
 from services.weather_pipeline.viewport_service import ViewportService
@@ -211,7 +211,7 @@ async def get_grid(
                 if not product.coverage_mode:
                     product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
                 if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
-                    product = filter_grid_to_bbox(product, bbox)
+                    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
 
@@ -244,7 +244,7 @@ async def get_grid(
                 product.stale = True
                 product.staleReason = "swr_revalidation_pending"
                 if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
-                    product = filter_grid_to_bbox(product, bbox)
+                    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                 if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
@@ -340,7 +340,7 @@ async def get_grid(
                     product.query_bbox = bbox
                     product.requested_bbox = bbox
                     if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
-                        product = filter_grid_to_bbox(product, bbox)
+                        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
                     if product.grid and product.grid.bounds:
                         product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
                 else:
@@ -513,7 +513,7 @@ async def get_point(
                 # 2. Crop the product if grid_bbox is provided and not wind
                 cropped_product = product
                 if grid_bbox and domain.lower() != "wind" and getattr(product, "coverage_mode", None) != "global_tile":
-                    cropped_product = filter_grid_to_bbox(product, grid_bbox)
+                    cropped_product = filter_grid_to_bbox(product, get_snapped_bbox(grid_bbox, product.model))
 
                 # 3. Compute cropped truth tag
                 crop_truth_tag = compute_truth_tag(

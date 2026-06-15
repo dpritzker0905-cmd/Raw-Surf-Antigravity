@@ -605,3 +605,19 @@ def compute_truth_tag(
         "sourceStage": source_stage
     }
 
+
+def get_snapped_bbox(bbox_str: str, model: str) -> str:
+    """
+    Snaps raw client bbox bounds to model-specific tile grid boundaries (1.0 degree for GFS, 2.0 for others).
+    """
+    req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
+    t_sz = 1.0 if model.upper() == "GFS" else 2.0
+    west, south, east, north = clamp_and_normalize_bbox(
+        math.floor(req_w / t_sz) * t_sz,
+        math.floor(req_s / t_sz) * t_sz,
+        math.ceil(req_e / t_sz) * t_sz,
+        math.ceil(req_n / t_sz) * t_sz
+    )
+    return f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+
+

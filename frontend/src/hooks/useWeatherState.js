@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { resolveForecastWindow, getUserTier } from '../components/map/LayerAccessResolver';
+import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
 import logger from '../utils/logger';
 
 /**
@@ -26,6 +26,18 @@ export function useWeatherState({ user }) {
       logger.error('Failed to save activeModel to localStorage:', e);
     }
   }, [activeModel]);
+
+  const [capabilitiesVersion, setCapabilitiesVersion] = useState(0);
+
+  // Safety check to validate allowed models for the user tier
+  useEffect(() => {
+    const allowed = getAllowedModels(user);
+    if (allowed.length > 0 && !allowed.includes(activeModel)) {
+      const fallback = allowed.includes('GFS') ? 'GFS' : allowed[0];
+      logger.warn(`[useWeatherState] activeModel "${activeModel}" is not allowed for user tier, falling back to "${fallback}"`);
+      setActiveModel(fallback);
+    }
+  }, [user, activeModel, capabilitiesVersion]);
 
   const [activeLayers, setActiveLayers] = useState([]);
   const [timeOffsetHours, setTimeOffsetHours] = useState(0);
@@ -57,8 +69,6 @@ export function useWeatherState({ user }) {
   // --- Derived booleans ---
   const isRadarActive = activeLayers.includes('radar');
   const isRadarOrSat = isRadarActive; // Satellite IR discontinued
-
-  const [capabilitiesVersion, setCapabilitiesVersion] = useState(0);
 
   useEffect(() => {
     const handleCapabilities = () => {

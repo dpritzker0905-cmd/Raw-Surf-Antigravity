@@ -8,7 +8,8 @@ from typing import Optional, Dict, Any, List
 
 from services.weather_pipeline.route_helpers import (
     parse_bbox, is_bbox_covered_by, clamp_and_normalize_bbox,
-    choose_adaptive_resolution, build_dynamic_cache_key, filter_grid_to_bbox
+    choose_adaptive_resolution, build_dynamic_cache_key, filter_grid_to_bbox,
+    get_snapped_bbox
 )
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.normalizer import WeatherNormalizer
@@ -229,7 +230,7 @@ async def get_cached_dynamic_product_helper(
             
             if loaded_product.grid:
                 if cached_entry.get("coverage_scope") != "global_coarse" and domain.lower() != "wind":
-                    loaded_product = filter_grid_to_bbox(loaded_product, bbox_str)
+                    loaded_product = filter_grid_to_bbox(loaded_product, get_snapped_bbox(bbox_str, model))
                 served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                 
                 loaded_product.grid.diagnostics = {
