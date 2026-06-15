@@ -372,7 +372,7 @@ class ViewportService:
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
             # Fetch via OpenMeteoProvider
             is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-            fetch_model = "GFS" if (model.upper() == "EURO" and is_conjoined) else model
+            fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
             raw_data = await self.provider.fetch_grid(
                 model=fetch_model,
@@ -518,16 +518,6 @@ class ViewportService:
                         "source_model": "dwd_icon"
                     }
 
-                if normalized and model.upper() == "EURO" and target_layer in ("waves", "swell_1", "swell_2", "wind_waves"):
-                    normalized.is_estimated = True
-                    normalized.is_forecast_authoritative = False
-                    normalized.provider = "gfs_estimated_fallback"
-                    normalized.source_dataset = "gfs_estimated_fallback"
-                    normalized.estimate_basis = {
-                        "type": "gfs_estimated_fallback",
-                        "method": "gfs_wave_fallback",
-                        "source_model": "ncep_gfswave025"
-                    }
 
                 if not normalized:
                     if target_layer == layer.lower():

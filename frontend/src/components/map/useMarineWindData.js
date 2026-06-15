@@ -134,7 +134,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
     // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
     // it MUST match the active model and component layer exactly.
-    const hasCopernicusGrid = ((['copernicus', 'backend-weather-service', 'test-fixture'].includes(marineData?.grid?.__gridProvider)) &&
+    const hasCopernicusGrid = ((['copernicus', 'backend-weather-service', 'test-fixture', 'open-meteo'].includes(marineData?.grid?.__gridProvider)) &&
                               marineData?.grid?.__gridSupportsLayer === true &&
                               marineData?.grid?.__componentLayer === activeMarineLayer &&
                               activeModel === 'EURO') || hasEstimatedGrid ||

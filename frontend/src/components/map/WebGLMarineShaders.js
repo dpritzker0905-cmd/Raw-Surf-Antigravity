@@ -68,17 +68,17 @@ void main() {
   float tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
     float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / max(span, 0.0001);
   } else {
-    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+    tex_u = (lng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
   }
-  float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
+  float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Calculate Web Mercator mask coordinates
   float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - pos.y) / (mercMaxY - mercMinY);
+  float mask_v = (mercMaxY - pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(tex_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
@@ -109,13 +109,13 @@ void main() {
   float next_tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
     float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-    next_tex_u = mod(next_lng - u_dataBounds_min.x, 360.0) / span;
+    next_tex_u = mod(next_lng - u_dataBounds_min.x, 360.0) / max(span, 0.0001);
   } else {
-    next_tex_u = (next_lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+    next_tex_u = (next_lng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
   }
-  float next_tex_v = (next_lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
+  float next_tex_v = (next_lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   
-  float next_mask_v = (mercMaxY - nextPos.y) / (mercMaxY - mercMinY);
+  float next_mask_v = (mercMaxY - nextPos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 next_mask_uv = vec2(next_tex_u, next_mask_v);
   
   float nextOceanFlag = texture2D(u_oceanMaskTexture, next_mask_uv).r;
@@ -232,17 +232,17 @@ void main() {
   float tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
     float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / span;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / max(span, 0.0001);
   } else {
-    tex_u = (lng - u_dataBounds_min.x) / (u_dataBounds_max.x - u_dataBounds_min.x);
+    tex_u = (lng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
   }
-  float tex_v = (lat - u_dataBounds_min.y) / (u_dataBounds_max.y - u_dataBounds_min.y);
+  float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
   // Calculate Web Mercator mask coordinates
   float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - pos.y) / (mercMaxY - mercMinY);
+  float mask_v = (mercMaxY - pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(tex_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
@@ -593,7 +593,7 @@ void main() {
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
 
   float mask_u = a_grid_uv.x;
-  float mask_v = (mercMaxY - y) / (mercMaxY - mercMinY);
+  float mask_v = (mercMaxY - y) / max(mercMaxY - mercMinY, 0.0001);
   v_mask_uv = vec2(mask_u, mask_v);
 }
 `;

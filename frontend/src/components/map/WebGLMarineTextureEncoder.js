@@ -61,6 +61,7 @@ export function createTexture(gl, filter, data, width, height) {
 // --- Dynamic GFS Shoreline Extrapolation (In-painting Coastline) ---
 
 export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
+  if (cols < 2 || rows < 2) return;
   for (let pass = 0; pass < 2; pass++) {
     const nextVectors = vectors.map(v => (v ? { ...v } : null));
     let changes = 0;
@@ -306,7 +307,7 @@ export function renderMaskToCanvas(geojson, bounds) {
 
 export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const { vectors, cols, rows, bounds } = waveGrid;
-  if (!vectors?.length || !cols || !rows) return null;
+  if (!vectors?.length || !cols || !rows || cols < 2 || rows < 2) return null;
 
   const activeLayer = waveGrid.__componentLayer || 'waves';
 

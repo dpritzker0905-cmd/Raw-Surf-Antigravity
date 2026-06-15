@@ -191,6 +191,26 @@ class WeatherNormalizer:
             period_list = pt_hourly.get(p_key, []) if p_key else []
             gust_list = pt_hourly.get(gust_key, []) if gust_key else []
 
+            # Fallback estimation for missing marine component layers (e.g. ecmwf_wam025 swells)
+            if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+                if not speed_list or all(v is None for v in speed_list):
+                    wave_speed_list = pt_hourly.get("wave_height", [])
+                    wave_dir_list = pt_hourly.get("wave_direction", [])
+                    wave_period_list = pt_hourly.get("wave_period", [])
+                    
+                    if layer.lower() == "swell_1":
+                        speed_list = [v * 0.85 if v is not None else None for v in wave_speed_list]
+                        dir_list = wave_dir_list
+                        period_list = [v * 0.9 if v is not None else None for v in wave_period_list]
+                    elif layer.lower() == "swell_2":
+                        speed_list = [v * 0.35 if v is not None else None for v in wave_speed_list]
+                        dir_list = [(v + 40.0) % 360.0 if v is not None else None for v in wave_dir_list]
+                        period_list = [v * 0.7 if v is not None else None for v in wave_period_list]
+                    elif layer.lower() == "wind_waves":
+                        speed_list = [v * 0.45 if v is not None else None for v in wave_speed_list]
+                        dir_list = wave_dir_list
+                        period_list = [v * 0.6 if v is not None else None for v in wave_period_list]
+
             # Handle indexes out of bounds safely
             speed = speed_list[time_idx] if time_idx < len(speed_list) else None
             direction = dir_list[time_idx] if time_idx < len(dir_list) else None

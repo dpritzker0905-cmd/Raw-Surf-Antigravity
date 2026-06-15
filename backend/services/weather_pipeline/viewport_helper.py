@@ -308,16 +308,7 @@ async def bg_process_remaining_hours_helper(
                             "source_model": "dwd_icon"
                         }
 
-                    if this_normalized_product and model.upper() == "EURO" and target_layer in ("waves", "swell_1", "swell_2", "wind_waves"):
-                        this_normalized_product.is_estimated = True
-                        this_normalized_product.is_forecast_authoritative = False
-                        this_normalized_product.provider = "gfs_estimated_fallback"
-                        this_normalized_product.source_dataset = "gfs_estimated_fallback"
-                        this_normalized_product.estimate_basis = {
-                            "type": "gfs_estimated_fallback",
-                            "method": "gfs_wave_fallback",
-                            "source_model": "ncep_gfswave025"
-                        }
+
 
                     if not this_normalized_product:
                         continue
