@@ -55,6 +55,25 @@ async def find_any_cached_product_helper(
                         cand_bbox = item.get("served_bbox") or item.get("requested_bbox")
                         if cand_bbox:
                             cw, cs, ce, cn = parse_bbox(cand_bbox)
+                            
+                            # Check if the requested viewport is wide
+                            if req_w <= req_e:
+                                req_span_lng = req_e - req_w
+                            else:
+                                req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                            req_span_lat = abs(req_n - req_s)
+                            is_wide_req = req_span_lng > 15.0 or req_span_lat > 15.0
+                            
+                            # Check if candidate is regional
+                            if cw <= ce:
+                                cand_span_lng = ce - cw
+                            else:
+                                cand_span_lng = (180.0 - cw) + (ce + 180.0)
+                            cand_is_regional = cand_span_lng < 350.0
+                            
+                            if is_wide_req and cand_is_regional:
+                                continue
+                            
                             # Simple overlap check
                             lat_overlap = not (req_n < cs or req_s > cn)
                             if cw <= ce:
@@ -91,6 +110,24 @@ async def find_any_cached_product_helper(
                 # If bbox is specified, manifest fallback MUST fully cover the bbox.
                 # Partial coverage falls back to Step 6 instead!
                 if req_w is not None:
+                    # Check if the requested viewport is wide
+                    if req_w <= req_e:
+                        req_span_lng = req_e - req_w
+                    else:
+                        req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+                    req_span_lat = abs(req_n - req_s)
+                    is_wide_req = req_span_lng > 15.0 or req_span_lat > 15.0
+                    
+                    cov = p.coverage
+                    if cov.west <= cov.east:
+                        cand_span_lng = cov.east - cov.west
+                    else:
+                        cand_span_lng = (180.0 - cov.west) + (cov.east + 180.0)
+                    cand_is_regional = cand_span_lng < 350.0
+                    
+                    if is_wide_req and cand_is_regional:
+                        continue
+
                     if not is_bbox_covered_by(req_w, req_s, req_e, req_n, p.coverage, margin=0.05):
                         continue
                 min_manifest_diff = diff
