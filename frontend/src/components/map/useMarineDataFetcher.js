@@ -180,8 +180,13 @@ export function useMarineDataFetcher({
           }
         }
         
-        if (overlapRatio < 0.15) {
-          console.log(`[Marine-Bounds-Clear] Overlap ratio is ${overlapRatio.toFixed(2)} (< 0.15). Clearing stale grid to prevent clamped rectangle.`);
+        const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+        const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+        const vpHeight = en - es;
+        const gridHeight = gn - gs;
+
+        if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
+          console.log(`[Marine-Bounds-Clear] Grid is smaller than viewport or overlap is low (grid: ${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vp: ${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)}, overlap: ${overlapRatio.toFixed(2)}). Clearing stale grid to prevent clamped rectangle.`);
           setMarineData(null);
           lastCommittedSigRef.current = null;
         }

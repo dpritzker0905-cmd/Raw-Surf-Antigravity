@@ -104,6 +104,44 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       const map = mapRef.current;
       if (!map) return;
 
+      if (engine && engine._waveData && engine._waveData.waveGrid?.bounds) {
+        const bounds = engine._waveData.waveGrid.bounds;
+        const isGlobalGrid = Math.abs(bounds.east - bounds.west) >= 350;
+        if (!isGlobalGrid) {
+          try {
+            const mb = map.getBounds();
+            const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
+            const gw = bounds.west, ge = bounds.east, gs = bounds.south, gn = bounds.north;
+            
+            const intWest = Math.max(ew, gw);
+            const intEast = Math.min(ee, ge);
+            const intSouth = Math.max(es, gs);
+            const intNorth = Math.min(en, gn);
+            
+            let overlapRatio = 0;
+            if (intWest < intEast && intSouth < intNorth) {
+              const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
+              const viewportArea = (ee - ew) * (en - es);
+              if (viewportArea > 0) {
+                overlapRatio = intersectionArea / viewportArea;
+              }
+            }
+            const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+            const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+            const vpHeight = en - es;
+            const gridHeight = gn - gs;
+
+            if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
+              engine.clearBuffers(_gl);
+              this._wasActive = false;
+              return;
+            }
+          } catch (e) {
+            // ignore MapBounds errors
+          }
+        }
+      }
+
       try {
         const canvas = map.getCanvas();
         const zoom = map.getZoom();

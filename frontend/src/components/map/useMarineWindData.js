@@ -33,14 +33,21 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
               overlapRatio = intersectionArea / viewportArea;
             }
           }
-          if (overlapRatio < 0.15) {
+          const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+          const vpHeight = en - es;
+          const gridHeight = gn - gs;
+
+          if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
             if (typeof window !== 'undefined') {
               window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
                 hasData: true,
                 hasGrid: true,
                 overlapRatio,
                 mismatch: true,
-                mismatchReason: `Viewport moved away from regional grid bounds (overlap: ${overlapRatio.toFixed(2)} < 0.15)`,
+                mismatchReason: gridWidth < vpWidth || gridHeight < vpHeight
+                  ? `Grid is smaller than viewport (grid: ${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vp: ${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)})`
+                  : `Viewport moved away from regional grid bounds (overlap: ${overlapRatio.toFixed(2)} < 0.15)`,
                 timestamp: new Date().toISOString()
               };
               window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
