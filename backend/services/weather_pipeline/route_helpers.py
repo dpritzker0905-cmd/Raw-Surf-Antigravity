@@ -262,31 +262,73 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
     if not cloned_product.grid:
         return cloned_product
 
-    # Filter grid vectors
-    filtered_vectors = []
-    crosses_antimeridian = west > east
-    for v in cloned_product.grid.vectors:
-        # Check bounds containment
-        in_lat = south <= v.lat <= north
-        if crosses_antimeridian:
-            in_lng = (v.lng >= west or v.lng <= east)
-        else:
-            in_lng = west <= v.lng <= east
-        if in_lat and in_lng:
-            filtered_vectors.append(v)
+    # Get original grid vectors
+    orig_vectors = cloned_product.grid.vectors
+    if not orig_vectors:
+        cloned_product.grid.bounds = CoverageBounds(
+            west=west, south=south, east=east, north=north
+        )
+        cloned_product.grid.cols = 0
+        cloned_product.grid.rows = 0
+        cloned_product.grid.vectors = []
+        cloned_product.requested_bbox = bbox_str
+        cloned_product.served_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+        cloned_product.coverage = cloned_product.grid.bounds
+        return cloned_product
 
-    # Update grid bounds and dimension sizes dynamically
-    unique_lats = sorted(list(set(v.lat for v in filtered_vectors)))
+    # Determine grid resolution
+    res = cloned_product.resolution or 0.0
+    orig_lats = sorted(list(set(v.lat for v in orig_vectors)))
+    orig_lons = sorted(list(set(v.lng for v in orig_vectors)))
+    if res <= 0.0:
+        if len(orig_lats) > 1:
+            diffs_lat = [round(orig_lats[i+1] - orig_lats[i], 4) for i in range(len(orig_lats)-1)]
+            diffs_lat = [d for d in diffs_lat if d > 0]
+            if diffs_lat:
+                res = min(diffs_lat)
+        if res <= 0.0 and len(orig_lons) > 1:
+            diffs_lon = [round(orig_lons[i+1] - orig_lons[i], 4) for i in range(len(orig_lons)-1)]
+            diffs_lon = [d for d in diffs_lon if d > 0]
+            if diffs_lon:
+                res = min(diffs_lon)
+        if res <= 0.0:
+            res = 0.5  # fallback default resolution
+
+    ref_lat = orig_lats[0]
+    ref_lng = orig_lons[0]
+
+    # Generate unique_lats within [south, north]
+    k_lat_min = math.ceil((south - ref_lat - 0.0001) / res)
+    k_lat_max = math.floor((north - ref_lat + 0.0001) / res)
+    unique_lats = sorted([round(ref_lat + k * res, 4) for k in range(k_lat_min, k_lat_max + 1)])
+    # Ensure all lats are within clamp limits [-80, 85]
+    unique_lats = [lat for lat in unique_lats if -80.0 <= lat <= 85.0]
+
+    # Generate unique_lons within [west, east] (handling antimeridian crossing)
+    crosses_antimeridian = west > east
+    east_monotonic = east if not crosses_antimeridian else east + 360.0
+    
+    # Adjust ref_lng to be >= west in monotonic space
+    ref_lng_monotonic = ref_lng
+    while ref_lng_monotonic < west:
+        ref_lng_monotonic += 360.0
+    while ref_lng_monotonic >= west + 360.0:
+        ref_lng_monotonic -= 360.0
+
+    k_lon_min = math.ceil((west - ref_lng_monotonic - 0.0001) / res)
+    k_lon_max = math.floor((east_monotonic - ref_lng_monotonic + 0.0001) / res)
+    
+    raw_lons = [round(wrap_longitude(ref_lng_monotonic + k * res), 4) for k in range(k_lon_min, k_lon_max + 1)]
     
     if crosses_antimeridian:
         unique_lons = sorted(
-            list(set(v.lng for v in filtered_vectors)),
+            list(set(raw_lons)),
             key=lambda lng: (0, lng) if lng >= west else (1, lng)
         )
     else:
-        unique_lons = sorted(list(set(v.lng for v in filtered_vectors)))
+        unique_lons = sorted(list(set(raw_lons)))
 
-    if filtered_vectors and unique_lats and unique_lons:
+    if unique_lats and unique_lons:
         if crosses_antimeridian:
             actual_west = min([lng for lng in unique_lons if lng >= west], default=west)
             actual_east = max([lng for lng in unique_lons if lng <= east], default=east)
@@ -295,14 +337,16 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
             actual_east = max(unique_lons)
         actual_south = min(unique_lats)
         actual_north = max(unique_lats)
-        
+
         # Fill missing cells to maintain rectangular grid integrity
-        existing_map = {(v.lat, v.lng): v for v in filtered_vectors}
+        existing_map = {(round(v.lat, 4), round(v.lng, 4)): v for v in orig_vectors}
         final_vectors = []
         for lat in unique_lats:
             for lng in unique_lons:
-                if (lat, lng) in existing_map:
-                    final_vectors.append(existing_map[(lat, lng)])
+                lat_key = round(lat, 4)
+                lng_key = round(lng, 4)
+                if (lat_key, lng_key) in existing_map:
+                    final_vectors.append(existing_map[(lat_key, lng_key)])
                 else:
                     final_vectors.append(
                         GridVector(

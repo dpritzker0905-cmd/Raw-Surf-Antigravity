@@ -351,6 +351,7 @@ export function useOpenMeteoTileUrls({
     debouncedTimeOffsetHoursRef,
     closestTimeIdxRef,
     setIsTransitioning,
+    userTier,
   });
 
   // URL resolution logic

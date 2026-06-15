@@ -12,6 +12,7 @@ import {
   clearOpenMeteoCache,
 } from './mapUtils';
 import { LAYER_REGISTRY } from './LayerRegistry';
+import { validateModelAccess } from './LayerAccessResolver';
 
 // --- Shared Constants (also used by useOpenMeteoTileUrls) ---
 
@@ -70,6 +71,7 @@ export function useModelTransition({
   debouncedTimeOffsetHoursRef,
   closestTimeIdxRef,
   setIsTransitioning,
+  userTier,
 }) {
   const modelDebounceTimeoutRef = useRef(null);
   const lastProcessedModelRef = useRef(null);
@@ -83,6 +85,17 @@ export function useModelTransition({
     }
     
     if (!mapInstance) {
+      setIsTransitioning(false);
+      return;
+    }
+
+    // Validate model access before initiating transition
+    try {
+      if (userTier !== undefined) {
+        validateModelAccess(activeModel, userTier);
+      }
+    } catch (err) {
+      console.warn(`[TRANSITION] Model ${activeModel} is not permitted for this user tier. Skipping transition.`);
       setIsTransitioning(false);
       return;
     }
@@ -223,5 +236,5 @@ export function useModelTransition({
         clearTimeout(modelDebounceTimeoutRef.current);
       }
     };
-  }, [activeModel, mapInstance]);
+  }, [activeModel, mapInstance, userTier]);
 }
