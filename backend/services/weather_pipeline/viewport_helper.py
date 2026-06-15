@@ -397,15 +397,18 @@ async def bg_process_remaining_hours_helper(
             # Yield to the event loop
             await asyncio.sleep(0.001)
 
+    except asyncio.CancelledError:
+        logger.info(f"[Dynamic Viewport BG] Background task for {model} {domain} {layer} was cancelled.")
+        raise
     except Exception as bg_err:
         logger.error(f"[Dynamic Viewport BG] Unexpected error in background process: {bg_err}")
     finally:
-        async with service.IN_FLIGHT_LOCK:
-            service.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
-            for dt, fut in list(context.hour_futures.items()):
-                if not fut.done():
-                    fut.set_exception(Exception("Background task finished without processing this hour"))
-                    try:
-                        fut.exception()
-                    except Exception:
-                        pass
+        # Perform cleanup synchronously without lock to avoid CancelledError suppression
+        service.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+        for dt, fut in list(context.hour_futures.items()):
+            if not fut.done():
+                fut.set_exception(Exception("Background task finished without processing this hour"))
+                try:
+                    fut.exception()
+                except Exception:
+                    pass
