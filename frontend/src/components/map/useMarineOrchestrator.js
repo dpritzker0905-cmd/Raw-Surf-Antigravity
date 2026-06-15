@@ -464,7 +464,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       vpBounds = null;
     }
 
-    const curModel = activeModel || 'GFS';
+    const curModel = activeModelRef.current || 'GFS';
     const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
     const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
     const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';
@@ -472,7 +472,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     if (isBackendActive) {
       try {
-        const cached = getModelSafeMarine(activeModel, timeOffsetHours, activeMarineLayer, vpBounds);
+        const cached = getModelSafeMarine(activeModelRef.current, timeOffsetHours, activeMarineLayer, vpBounds);
         if (cached && cached.grid && !cached.__staleHour) {
           const prodId = cached.product_id || cached.productId;
           const regionId = cached.region_id || cached.regionId || cached.grid?.region_id || cached.grid?.regionId;
@@ -533,10 +533,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
       console.log(`[Marine] Layer switch backend cache MISS for ${activeMarineLayer}. Retaining stale view while fetching.`);
     } else {
-      if (activeModel !== 'EURO') {
+      if (activeModelRef.current !== 'EURO') {
         try {
           const cache = getMarineHourlyCache();
-          if (cache?.results?.length && cache.model === activeModel) {
+          if (cache?.results?.length && cache.model === activeModelRef.current) {
             const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
             if (remapped?.grid?.vectors?.length > 0) {
               const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
@@ -548,7 +548,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               }
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
               console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
-              logPipelineEventHelper(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
+              logPipelineEventHelper(evtType, { model: activeModelRef.current, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
               
               lastCommittedSigRef.current = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
               const vHash = getViewportHash();
@@ -570,7 +570,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       manualMarineTriggerRef.current?.();
       layerFetchTimeoutRef.current = null;
     }, 20);
-  }, [activeMarineLayer, activeModel, mapInstance, setMarineData]);
+  }, [activeMarineLayer, mapInstance, setMarineData]);
 
   useEffect(() => {
     if (marineData && activeModel === 'GFS' && activeMarineLayer === 'waves' && timeOffsetHours === 0) {
