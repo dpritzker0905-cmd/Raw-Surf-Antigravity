@@ -471,7 +471,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
-    var heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+    var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
     } else {
