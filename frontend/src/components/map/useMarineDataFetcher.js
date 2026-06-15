@@ -203,7 +203,7 @@ export function useMarineDataFetcher({
         }
 
         const isGlobalSupported = (model === 'GFS' || model === 'ICON' || (model === 'EURO' && layer === 'waves'));
-        const isViewportZoomedOut = vpWidth > 80.0 || vpHeight > 40.0;
+        const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
         let shouldClear = isGlobalSupported
           ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
           : (overlapWidth <= 0 || intSouth >= intNorth);
@@ -507,7 +507,7 @@ export function useMarineDataFetcher({
             const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
             const gw = data.grid.bounds.west, ge = data.grid.bounds.east;
             const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
-            if (vpWidth > 80.0 && gridWidth < 340.0) {
+            if (vpWidth > 15.0 && gridWidth < 340.0) {
               data.grid.__isAcceptableRegional = true;
             }
           }

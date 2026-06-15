@@ -250,7 +250,32 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     if (isBackendActive) {
       const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
-      if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour) {
+      
+      let isRegional = false;
+      if (cachedBackendData) {
+        const prodId = cachedBackendData.product_id || cachedBackendData.productId;
+        const regionId = cachedBackendData.region_id || cachedBackendData.regionId || cachedBackendData.grid?.region_id || cachedBackendData.grid?.regionId;
+        const coverageMode = cachedBackendData.coverage_mode || cachedBackendData.coverageMode || cachedBackendData.grid?.coverage_mode || cachedBackendData.grid?.coverageMode;
+        const isDynamic = !!(cachedBackendData.is_dynamic_viewport_product || cachedBackendData.isDynamicViewportProduct || cachedBackendData.grid?.is_dynamic_viewport_product || cachedBackendData.grid?.isDynamicViewportProduct);
+
+        isRegional = prodId && (
+          prodId.includes('florida_east_coast') ||
+          coverageMode === 'regional_tile' ||
+          (regionId && regionId !== 'global_coarse' && !isDynamic)
+        );
+      }
+
+      let vpWidth = 0;
+      let vpHeight = 0;
+      if (vpBounds) {
+        const ew = vpBounds.east, ew_w = vpBounds.west;
+        vpWidth = (ew < ew_w) ? (ew + 360) - ew_w : ew - ew_w;
+        vpHeight = Math.abs(vpBounds.north - vpBounds.south);
+      }
+      const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
+      const rejectRegionalCache = isViewportZoomedOut && isRegional;
+
+      if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
         extractedGrid = cachedBackendData.grid;
         const sig = _marineDataSignature(cachedBackendData, curLayer);
         if (sig && sig !== lastCommittedSigRef.current) {

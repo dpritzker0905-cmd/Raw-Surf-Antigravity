@@ -57,7 +57,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           const gridHeight = gn - gs;
 
           const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
-          const isViewportZoomedOut = vpWidth > 80.0 || vpHeight > 40.0;
+          const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
           let shouldReject = isGlobalSupported
             ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
             : (overlapWidth <= 0 || intSouth >= intNorth);

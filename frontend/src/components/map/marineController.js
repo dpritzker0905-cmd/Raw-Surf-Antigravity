@@ -5,7 +5,8 @@ import {
   findClosestHourIndex,
   HOURLY_CACHE_TTL,
   PER_MODEL_HOUR_CACHE_TTL,
-  getSnapConfig
+  getSnapConfig,
+  isViewportInsideCachedBounds
 } from './marineControllerUtils';
 import {
   getBackendWeatherFlag,
@@ -180,13 +181,27 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
 
   // Fallback to raw_hourly_cache if still no data found
   if (!hitData && _isAllVarModel(wanted) && marineHourlyCache?.results?.length && marineHourlyCache.model === wanted && isCacheMatch) {
-    try {
-      const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
-      if (reExtracted?.grid?.vectors?.length > 0) {
-        hitData = reExtracted;
-        cacheSource = 'raw_hourly_cache';
+    let boundsOk = true;
+    if (bounds) {
+      const isGlobalCached = !!marineHourlyCache.isGlobal;
+      const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
+      if (isGlobalCached !== isGlobalViewport) {
+        boundsOk = false;
+      } else if (marineHourlyCache.bounds) {
+        boundsOk = isViewportInsideCachedBounds(bounds, marineHourlyCache.bounds);
+      } else {
+        boundsOk = false;
       }
-    } catch (e) {}
+    }
+    if (boundsOk) {
+      try {
+        const reExtracted = extractMarineAtOffset(marineHourlyCache, wantedHour, wantedLayer);
+        if (reExtracted?.grid?.vectors?.length > 0) {
+          hitData = reExtracted;
+          cacheSource = 'raw_hourly_cache';
+        }
+      } catch (e) {}
+    }
   }
 
   // Fallback to nearest cached hour in perModelHourCache
@@ -212,11 +227,23 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   if (!hitData && lastKnownGoodMarine && (lastKnownGoodMarineModel || 'GFS') === wanted && (lastKnownGoodMarine?.grid?.__componentLayer || 'waves') === wantedLayer) {
     const cachedProvider = lastKnownGoodMarine.__provider || lastKnownGoodMarine?.grid?.provider || 'open-meteo';
     if (cachedProvider === 'open-meteo' || cachedProvider === 'estimated' || cachedProvider === 'backend-weather-service' || cachedProvider === 'test-fixture') {
-      const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);
-      if (diff <= 6) {
-        hitData = { ...lastKnownGoodMarine };
-        if (diff > 0) { hitData.__staleHour = true; hitData.__originalHour = lastKnownGoodMarine.hourOffset; staleHour = true; }
-        cacheSource = 'last_known_good';
+      let boundsOk = true;
+      if (bounds && lastKnownGoodMarine.grid?.bounds) {
+        const isGlobalCached = Math.abs(lastKnownGoodMarine.grid.bounds.east - lastKnownGoodMarine.grid.bounds.west) >= 350;
+        const isGlobalViewport = Math.abs(bounds.east - bounds.west) > 180 || Math.abs(bounds.north - bounds.south) > 90;
+        if (isGlobalCached !== isGlobalViewport) {
+          boundsOk = false;
+        } else {
+          boundsOk = isViewportInsideCachedBounds(bounds, lastKnownGoodMarine.grid.bounds);
+        }
+      }
+      if (boundsOk) {
+        const diff = Math.abs((lastKnownGoodMarine.hourOffset || 0) - wantedHour);
+        if (diff <= 6) {
+          hitData = { ...lastKnownGoodMarine };
+          if (diff > 0) { hitData.__staleHour = true; hitData.__originalHour = lastKnownGoodMarine.hourOffset; staleHour = true; }
+          cacheSource = 'last_known_good';
+        }
       }
     }
   }
