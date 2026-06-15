@@ -40,6 +40,9 @@ class ViewportService:
     IN_FLIGHT_REQUESTS: Dict[str, FetchContext] = {}
     IN_FLIGHT_LOCK = asyncio.Lock()
 
+    # Class-level registry for active background tasks to prevent resource exhaustion/crash
+    ACTIVE_BG_TASKS: Dict[str, asyncio.Task] = {}
+
     # Class-level registry for active revalidation tasks (SWR)
     ACTIVE_REVALIDATIONS = set()
 
@@ -606,8 +609,14 @@ class ViewportService:
                         fut.set_result(True)
 
             # Spawn background task to process all other times
+            bg_key = f"{model.lower()}_{domain.lower()}"
+            old_task = self.ACTIVE_BG_TASKS.get(bg_key)
+            if old_task and not old_task.done():
+                logger.info(f"[Dynamic Viewport] Canceling stale background task for {bg_key}")
+                old_task.cancel()
+
             from services.weather_pipeline.viewport_helper import bg_process_remaining_hours_helper
-            asyncio.create_task(bg_process_remaining_hours_helper(
+            task = asyncio.create_task(bg_process_remaining_hours_helper(
                 service=self,
                 context=context,
                 request_dedup_key=request_dedup_key,
@@ -627,6 +636,7 @@ class ViewportService:
                 coord_count=coord_count,
                 bbox_key_str=bbox_key_str
             ))
+            self.ACTIVE_BG_TASKS[bg_key] = task
 
             # Return exact cropped product for the client's original bbox request if not global_coarse and not wind
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
