@@ -25,7 +25,7 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
 
         results = await scheduler._fetch_or_mock(
             "GFS", "wind", "wind", region, resolution, 14,
-            env["is_test_env"],
+            False,
             lambda: generate_mock_wind_results(scheduler.om_provider, region, resolution),
             region_id
         )
@@ -63,7 +63,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
 
     results = await scheduler._fetch_or_mock(
         "GFS", "wind", "wind", global_region, resolution, 14,
-        env["is_test_env"],
+        False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14),
         "global_coarse"
     )
@@ -108,8 +108,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
 
     if not results:
-        logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
-        results = generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14, is_test_fixture=env["is_test_env"])
+        return False
 
     if not results:
         return False
@@ -145,7 +144,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
 
     results = await scheduler._fetch_or_mock(
         "EURO", "wind", "wind", global_region, resolution, 14,
-        env["is_test_env"],
+        False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
         "global_coarse"
     )
@@ -190,8 +189,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
 
     if not results:
-        logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
-        results = generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14, is_test_fixture=env["is_test_env"])
+        return False
 
     if not results:
         return False
@@ -227,7 +225,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
 
     results = await scheduler._fetch_or_mock(
         "ICON", "wind", "wind", global_region, resolution, 5,
-        env["is_test_env"],
+        False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14),
         "global_coarse"
     )
@@ -325,8 +323,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
 
     if not results:
-        logger.warning("[Pipeline Scheduler] Generating dynamic global mock grid fallback to prevent empty map.")
-        results = generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14, is_test_fixture=env["is_test_env"])
+        return False
 
     if not results:
         return False
@@ -378,13 +375,6 @@ async def ingest_icon_wind_pilot_impl(scheduler) -> bool:
         if raw_data:
             results = raw_data if isinstance(raw_data, list) else [raw_data]
             provider = "open-meteo"
-        elif env["is_test_env"]:
-            logger.warning(f"[Pipeline Scheduler] ICON Wind fetch failed for {region_id}. Injecting mock data...")
-            results = generate_mock_wind_results(
-                scheduler.om_provider, region, resolution,
-                speed_base=7.5, dir_base=110.0, include_gusts=True, gust_base=12.0
-            )
-            provider = "test-fixture"
         else:
             logger.error(f"[Pipeline Scheduler] ICON Wind fetch failed for {region_id}. Skipping.")
             continue
@@ -427,13 +417,6 @@ async def ingest_euro_wind_pilot_impl(scheduler) -> bool:
         if raw_data:
             results = raw_data if isinstance(raw_data, list) else [raw_data]
             provider = "open-meteo"
-        elif env["is_test_env"]:
-            logger.warning(f"[Pipeline Scheduler] EURO Wind fetch failed for {region_id}. Injecting mock data...")
-            results = generate_mock_wind_results(
-                scheduler.om_provider, region, resolution,
-                speed_base=6.5, dir_base=100.0, include_gusts=True, gust_base=10.0
-            )
-            provider = "test-fixture"
         else:
             logger.error(f"[Pipeline Scheduler] EURO Wind fetch failed for {region_id}. Skipping.")
             continue

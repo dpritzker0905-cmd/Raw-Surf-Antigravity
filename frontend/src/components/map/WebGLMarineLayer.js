@@ -629,7 +629,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
                                    lastSig.activeMarineLayer !== activeMarineLayer;
       const hourChanged = lastSig.timeOffsetHours !== timeOffsetHoursRef.current;
 
-      if (window.isScrubbingTimeline) {
+      const isScrubbing = window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500));
+      if (isScrubbing) {
         return;
       }
 
@@ -706,7 +707,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!isValid) {
       const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
-      if (isTransitioning) {
+      const isScrubbing = typeof window !== 'undefined' && (window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500)));
+      if (isTransitioning || isScrubbing) {
         // Retain the current WebGL buffers during transition
         return;
       }
