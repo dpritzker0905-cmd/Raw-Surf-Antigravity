@@ -160,7 +160,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
               : (overlapWidth <= 0 || intSouth >= intNorth);
 
             const g = engine._waveData?.waveGrid;
-            if (g && (g.__isAcceptableRegional || gridWidth < 340.0)) {
+            const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
+            if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
               shouldReject = overlapWidth <= 0 || intSouth >= intNorth;
             }
 
