@@ -256,7 +256,11 @@ class OpenMeteoProvider:
             params["models"] = api_model
             
             # Map layer variables
-            if layer == "waves":
+            if model.upper() == "EURO":
+                # ecmwf_wam025 only supports significant wave height, direction, and period.
+                # All swell partitions/wind waves must be estimated using the fallback in normalizer.py.
+                params["hourly"] = "wave_height,wave_direction,wave_period"
+            elif layer == "waves":
                 params["hourly"] = "wave_height,wave_direction,wave_period"
             elif layer == "swell_1":
                 params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
