@@ -163,7 +163,7 @@ async def get_grid(
                 else:
                     req_span_lng = (180.0 - req_w) + (req_e + 180.0)
                 req_span_lat = abs(req_n - req_s)
-                if req_span_lng > 180.0 or req_span_lat > 90.0:
+                if req_span_lng > 15.0 or req_span_lat > 15.0:
                     use_manifest_product = True
                 elif model.upper() == "ICON" and domain.lower() == "wind":
                     # Compute dynamic boundary for the maximum 5-day calendar forecast range of ICON
@@ -300,7 +300,7 @@ async def get_grid(
                                 else:
                                     req_span_lng = (180.0 - req_w) + (req_e + 180.0)
                                 req_span_lat = abs(req_n - req_s)
-                                if req_span_lng > 180.0 or req_span_lat > 90.0:
+                                if req_span_lng > 15.0 or req_span_lat > 15.0:
                                     is_wide_req = True
 
                             if is_wide_req and p_is_regional:
@@ -352,7 +352,7 @@ async def get_grid(
                         else:
                             req_span_lng = (180.0 - req_w) + (req_e + 180.0)
                         req_span_lat = abs(req_n - req_s)
-                        if req_span_lng > 180.0 or req_span_lat > 90.0:
+                        if req_span_lng > 15.0 or req_span_lat > 15.0:
                             is_wide_req = True
 
                     if is_wide_req and domain.lower() != "wind":

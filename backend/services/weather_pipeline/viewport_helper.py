@@ -2,6 +2,7 @@ import logging
 import asyncio
 import os
 import math
+import gc
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
@@ -284,6 +285,8 @@ async def bg_process_remaining_hours_helper(
                 this_cache_key = build_dynamic_cache_key(model, domain, target_layer, dt, west, south, east, north)
                 this_viewport_filename = f"{this_cache_key}.json"
 
+                this_normalized_product = None
+                product_json_bytes = None
                 try:
                     this_normalized_product = service.normalizer.normalize(
                         model=model,
@@ -308,8 +311,6 @@ async def bg_process_remaining_hours_helper(
                             "source_model": "dwd_icon"
                         }
 
-
-
                     if not this_normalized_product:
                         continue
 
@@ -320,7 +321,6 @@ async def bg_process_remaining_hours_helper(
 
                     if is_empty_grid:
                         logger.warning(f"[Dynamic Viewport BG] Normalization produced empty grid: model={model}, domain={domain}, layer={target_layer}. Saving zero grid.")
-
 
                     served_bbox_full = f"{this_normalized_product.grid.bounds.west},{this_normalized_product.grid.bounds.south},{this_normalized_product.grid.bounds.east},{this_normalized_product.grid.bounds.north}"
 
@@ -387,6 +387,9 @@ async def bg_process_remaining_hours_helper(
 
                 except Exception as step_err:
                     logger.error(f"[Dynamic Viewport BG] Failed to process time step {t_str} layer {target_layer}: {step_err}")
+                finally:
+                    this_normalized_product = None
+                    product_json_bytes = None
 
             # Resolve any future for this hour after processing conjoined layers
             async with service.IN_FLIGHT_LOCK:
@@ -396,6 +399,10 @@ async def bg_process_remaining_hours_helper(
 
             # Yield to the event loop
             await asyncio.sleep(0.001)
+
+            # Periodically force garbage collection to reclaim memory from Pydantic models
+            if next_idx % 10 == 0:
+                gc.collect()
 
     except asyncio.CancelledError:
         logger.info(f"[Dynamic Viewport BG] Background task for {model} {domain} {layer} was cancelled.")
@@ -412,3 +419,5 @@ async def bg_process_remaining_hours_helper(
                     fut.exception()
                 except Exception:
                     pass
+        # Force garbage collection when task finishes or is cancelled
+        gc.collect()

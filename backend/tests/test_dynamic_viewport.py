@@ -436,7 +436,7 @@ def test_dynamic_fetch_failure_regional_partial_fallback(mock_weather_setup, mon
     
     # 3. Query a bbox wider than Florida (should try dynamic fetch, fail, and then fallback to regional_partial)
     response = client.get(
-        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-86,23.5,-78.5,31.5"
     )
     assert response.status_code == 200
     json_data = response.json()
@@ -450,7 +450,7 @@ def test_dynamic_fetch_failure_regional_partial_fallback(mock_weather_setup, mon
     # 4. Now, if we remove the overlapping product, it should raise a 429/503/504 error
     store.manifest_path.unlink() # Delete manifest
     response_error = client.get(
-        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-86,23.5,-78.5,31.5"
     )
     assert response_error.status_code in (429, 503, 504)
 
@@ -673,7 +673,7 @@ def test_two_overlapping_regional_products_ranking(mock_weather_setup, monkeypat
     # Overlap area of B is larger, diff of B is smaller.
     # So Product B must be selected!
     response = client.get(
-        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-95,20,-70,35"
+        "/api/weather/grid?model=GFS&domain=marine&layer=waves&valid_time=2026-06-02T12:00:00Z&bbox=-86,23.5,-78.5,31.5"
     )
     assert response.status_code == 200
     json_data = response.json()

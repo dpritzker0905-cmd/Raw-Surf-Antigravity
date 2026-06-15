@@ -234,96 +234,128 @@ async def run_background_cache_population():
     import os
     logger.info("[lifespan] Starting background cache pre-population check...")
     
-    from services.weather_pipeline.store import ProductStore, is_test_environment
-    store = ProductStore()
-    manifest = store.get_manifest()
-    is_test_env = is_test_environment()
+    # Store original USE_WEATHER_PROXY env var and temporarily set it to "false" to bypass proxy during pre-population
+    orig_proxy = os.environ.get("USE_WEATHER_PROXY")
+    os.environ["USE_WEATHER_PROXY"] = "false"
     
-    cache_dir = ROOT_DIR / "uploads" / "weather_products"
-    disk_files = set(os.listdir(cache_dir)) if cache_dir.exists() else set()
-    
-    def has_product_conformed(model: str, domain: str, layer: str, region_id: Optional[str] = None) -> bool:
-        matching = [
-            p for p in manifest.products
-            if p.model.upper() == model.upper()
-            and p.domain.lower() == domain.lower()
-            and p.layer.lower() == layer.lower()
-            and (region_id is None or p.region_id == region_id)
-        ]
-        if not matching:
-            return False
-        if is_test_env:
-            return any(p.filename in disk_files for p in matching)
-        return True
+    try:
+        from services.weather_pipeline.store import ProductStore, is_test_environment
+        store = ProductStore()
+        manifest = store.get_manifest()
+        is_test_env = is_test_environment()
+        
+        cache_dir = ROOT_DIR / "uploads" / "weather_products"
+        disk_files = set(os.listdir(cache_dir)) if cache_dir.exists() else set()
+        
+        def has_product_conformed(model: str, domain: str, layer: str, region_id: Optional[str] = None) -> bool:
+            matching = [
+                p for p in manifest.products
+                if p.model.upper() == model.upper()
+                and p.domain.lower() == domain.lower()
+                and p.layer.lower() == layer.lower()
+                and (region_id is None or p.region_id == region_id)
+            ]
+            if not matching:
+                return False
+            if is_test_env:
+                return any(p.filename in disk_files for p in matching)
+            return True
 
-    has_gfs_waves = has_product_conformed("GFS", "marine", "waves")
-    # For GFS wind, we specifically need the global coarse wind product as well.
-    from typing import Optional
-    has_gfs_wind = (
-        has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
-        and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
-    )
-    has_copernicus = has_product_conformed("EURO", "marine", "swell_1")
-    has_icon_wind = has_product_conformed("ICON", "wind", "wind", region_id="global_coarse")
-    
-    logger.info(
-        f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, "
-        f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}, "
-        f"ICON Wind Global={has_icon_wind}"
-    )
-    
-    need_gfs_waves = not has_gfs_waves
-    need_gfs_wind = not has_gfs_wind
-    need_copernicus = not has_copernicus
-    need_icon_wind = not has_icon_wind
-    
-    if need_gfs_waves or need_gfs_wind or need_copernicus or need_icon_wind:
-        logger.info("[lifespan] Incomplete cache detected. Triggering selective background pre-population...")
-        try:
-            from services.weather_pipeline.scheduler import WeatherPipelineScheduler
-            from services.weather_pipeline.store import ProductStore
-            
-            store = ProductStore()
-            scheduler = WeatherPipelineScheduler(store=store)
-            
-            import gc
-            # Step 1: Ingest Copernicus Swell 1 if missing (run first when memory is at baseline before GFS object allocation)
-            if need_copernicus:
-                logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
-                await scheduler.ingest_copernicus_regional()
-                gc.collect()
-            
-            # Step 2: Ingest GFS Waves if missing
-            if need_gfs_waves:
-                logger.info("[lifespan] Staggering GFS waves pre-population by 15s...")
-                await asyncio.sleep(15.0)
-                logger.info("[lifespan] Running GFS waves grid pre-population...")
-                await scheduler.ingest_gfs_marine_pilot()
-                gc.collect()
-            
-            # Step 3: Ingest GFS Wind if missing
-            if need_gfs_wind:
-                logger.info("[lifespan] Staggering GFS wind pre-population by 15s...")
-                await asyncio.sleep(15.0)
-                logger.info("[lifespan] Running GFS wind grid pre-population...")
-                await scheduler.ingest_gfs_wind_pilot()
-                logger.info("[lifespan] Running GFS wind global grid pre-population...")
-                await scheduler.ingest_gfs_wind_global()
-                gc.collect()
+        has_gfs_waves = has_product_conformed("GFS", "marine", "waves")
+        has_gfs_waves_global = has_product_conformed("GFS", "marine", "waves", region_id="global_coarse")
+        # For GFS wind, we specifically need the global coarse wind product as well.
+        from typing import Optional
+        has_gfs_wind = (
+            has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
+            and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
+        )
+        has_copernicus = has_product_conformed("EURO", "marine", "swell_1")
+        has_icon_wind = has_product_conformed("ICON", "wind", "wind", region_id="global_coarse")
+        has_euro_wind_global = has_product_conformed("EURO", "wind", "wind", region_id="global_coarse")
+        
+        logger.info(
+            f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, GFS Waves Global={has_gfs_waves_global}, "
+            f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}, "
+            f"ICON Wind Global={has_icon_wind}, EURO Wind Global={has_euro_wind_global}"
+        )
+        
+        need_gfs_waves = not has_gfs_waves
+        need_gfs_waves_global = not has_gfs_waves_global
+        need_gfs_wind = not has_gfs_wind
+        need_copernicus = not has_copernicus
+        need_icon_wind = not has_icon_wind
+        need_euro_wind_global = not has_euro_wind_global
+        
+        if (need_gfs_waves or need_gfs_waves_global or need_gfs_wind or 
+                need_copernicus or need_icon_wind or need_euro_wind_global):
+            logger.info("[lifespan] Incomplete cache detected. Triggering selective background pre-population...")
+            try:
+                from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+                from services.weather_pipeline.store import ProductStore
+                
+                store = ProductStore()
+                scheduler = WeatherPipelineScheduler(store=store)
+                
+                import gc
+                # Step 1: Ingest Copernicus Swell 1 if missing (run first when memory is at baseline before GFS object allocation)
+                if need_copernicus:
+                    logger.info("[lifespan] Running Copernicus swell_1 grid pre-population...")
+                    await scheduler.ingest_copernicus_regional()
+                    gc.collect()
+                
+                # Step 2: Ingest GFS Waves if missing
+                if need_gfs_waves:
+                    logger.info("[lifespan] Staggering GFS waves pre-population by 15s...")
+                    await asyncio.sleep(15.0)
+                    logger.info("[lifespan] Running GFS waves grid pre-population...")
+                    await scheduler.ingest_gfs_marine_pilot()
+                    gc.collect()
 
-            # Step 4: Ingest ICON Wind if missing
-            if need_icon_wind:
-                logger.info("[lifespan] Staggering ICON wind global pre-population by 15s...")
-                await asyncio.sleep(15.0)
-                logger.info("[lifespan] Running ICON wind global grid pre-population...")
-                await scheduler.ingest_icon_wind_global()
-                gc.collect()
-            
-            logger.info("[lifespan] Background cache pre-population completed successfully!")
-        except Exception as e:
-            logger.error(f"[lifespan] Background cache pre-population failed: {e}")
-    else:
-        logger.info("[lifespan] Cache is fully populated. Background ingestion skipped.")
+                # Ingest GFS Waves Global if missing
+                if need_gfs_waves_global:
+                    logger.info("[lifespan] Staggering GFS waves global pre-population by 15s...")
+                    await asyncio.sleep(15.0)
+                    logger.info("[lifespan] Running GFS waves global grid pre-population...")
+                    await scheduler.ingest_gfs_marine_global()
+                    gc.collect()
+                
+                # Step 3: Ingest GFS Wind if missing
+                if need_gfs_wind:
+                    logger.info("[lifespan] Staggering GFS wind pre-population by 15s...")
+                    await asyncio.sleep(15.0)
+                    logger.info("[lifespan] Running GFS wind grid pre-population...")
+                    await scheduler.ingest_gfs_wind_pilot()
+                    logger.info("[lifespan] Running GFS wind global grid pre-population...")
+                    await scheduler.ingest_gfs_wind_global()
+                    gc.collect()
+
+                # Step 4: Ingest ICON Wind if missing
+                if need_icon_wind:
+                    logger.info("[lifespan] Staggering ICON wind global pre-population by 15s...")
+                    await asyncio.sleep(15.0)
+                    logger.info("[lifespan] Running ICON wind global grid pre-population...")
+                    await scheduler.ingest_icon_wind_global()
+                    gc.collect()
+
+                # Ingest EURO Wind Global if missing
+                if need_euro_wind_global:
+                    logger.info("[lifespan] Staggering EURO wind global pre-population by 15s...")
+                    await asyncio.sleep(15.0)
+                    logger.info("[lifespan] Running EURO wind global grid pre-population...")
+                    await scheduler.ingest_euro_wind_global()
+                    gc.collect()
+                
+                logger.info("[lifespan] Background cache pre-population completed successfully!")
+            except Exception as e:
+                logger.error(f"[lifespan] Background cache pre-population failed: {e}")
+        else:
+            logger.info("[lifespan] Cache is fully populated. Background ingestion skipped.")
+    finally:
+        # Restore original USE_WEATHER_PROXY env var
+        if orig_proxy is not None:
+            os.environ["USE_WEATHER_PROXY"] = orig_proxy
+        else:
+            os.environ.pop("USE_WEATHER_PROXY", None)
 
 
 @asynccontextmanager

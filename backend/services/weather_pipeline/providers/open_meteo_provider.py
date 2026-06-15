@@ -307,7 +307,7 @@ class OpenMeteoProvider:
         )
 
         is_test = is_test_environment()
-        if is_test and not (model.upper() in ("GFS", "EURO", "ICON") and domain == "wind"):
+        if is_test and domain != "wind":
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock grid immediately.")
             mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
             for item in mock_res:
@@ -406,7 +406,7 @@ class OpenMeteoProvider:
                 
             except Exception as e:
                 is_test = is_test_environment()
-                if is_test:
+                if is_test and domain != "wind":
                     logger.error(f"[Open-Meteo Provider] Upstream request failed: {e}. Generating conformed mock grid fallback.")
                     mock_res = generate_mock_open_meteo_response(lats, lons, params["hourly"], forecast_days)
                     for item in mock_res:
@@ -505,7 +505,7 @@ class OpenMeteoProvider:
         )
 
         is_test = is_test_environment()
-        if is_test and not (model.upper() in ("GFS", "EURO", "ICON") and domain == "wind"):
+        if is_test and domain != "wind":
             logger.info(f"[Open-Meteo Provider] LOCAL_TEST_FIXTURE is true. Returning conformed mock point immediately.")
             mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
             if mock_res:
@@ -567,7 +567,7 @@ class OpenMeteoProvider:
                 return result_json
             except Exception as e:
                 is_test = is_test_environment()
-                if is_test:
+                if is_test and domain != "wind":
                     logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Generating conformed mock point fallback.")
                     mock_res = generate_mock_open_meteo_response([lat], [lng], params["hourly"], forecast_days)
                     if mock_res:
