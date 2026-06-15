@@ -190,11 +190,17 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         // For unsupported grid layers (EURO swell/wind_waves), use the layer's own data
         // (zeroed from API) to avoid rendering a misleading heatmap.
         const hasFlat = v && typeof v.speed === 'number' && typeof v.u === 'number';
-        const layerData = hasFlat
-          ? v
-          : (layerSupported
-              ? (v[activeMarineLayer] || v['waves'])
-              : v[activeMarineLayer]); // no fallback — will be {u:0,v:0,speed:0}
+        const hasSubData = activeMarineLayer && v && v[activeMarineLayer];
+        
+        // Prioritize specific sub-layer data (e.g. swell_1, wind_waves) over top-level conjoined wave data
+        const layerData = hasSubData
+          ? v[activeMarineLayer]
+          : (hasFlat
+              ? v
+              : (layerSupported
+                  ? (v[activeMarineLayer] || v['waves'])
+                  : v[activeMarineLayer])); // no fallback — will be {u:0,v:0,speed:0}
+                  
         return {
           lat: v.lat,
           lng: v.lng,
@@ -202,7 +208,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           v: layerData?.v || 0,
           speed: layerData?.speed || 0,
           period: layerData?.period || 0,
-          isOcean: v.isOcean
+          height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
+          direction: layerData?.direction !== undefined ? layerData.direction : undefined,
+          isOcean: v.isOcean,
+          [activeMarineLayer]: layerData
         };
       })
     };

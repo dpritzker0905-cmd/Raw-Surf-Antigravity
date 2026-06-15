@@ -55,6 +55,9 @@ describe('useWebGLGuardrail', () => {
       configurable: true,
       get: () => false,
     });
+
+    // Mock document.hasFocus
+    jest.spyOn(document, 'hasFocus').mockImplementation(() => true);
   });
 
   afterEach(() => {
@@ -207,8 +210,8 @@ describe('useWebGLGuardrail', () => {
     // Flush the delta >= 2000 gate
     onRender();
 
-    // Simulate 15 FPS (approx 66.7ms per frame) for 7 seconds
-    for (let sec = 0; sec < 7; sec++) {
+    // Simulate 15 FPS (approx 66.7ms per frame) for 13 seconds
+    for (let sec = 0; sec < 13; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
@@ -277,9 +280,10 @@ describe('useWebGLGuardrail', () => {
     // Flush the delta >= 2000 gate
     onRender();
 
-    // Simulate 1 FPS (1000ms delta) for 7 seconds
+    // Simulate 15 FPS (approx 66.7ms per frame) but filter with delta-time gate? No, this is 1 FPS:
+    // Simulate 1 FPS (1000ms delta) for 13 seconds
     // Since 1000ms < 2000ms, it is not filtered by the delta-time gate.
-    for (let sec = 0; sec < 7; sec++) {
+    for (let sec = 0; sec < 13; sec++) {
       currentTime += 1000;
       onRender();
     }
@@ -311,8 +315,8 @@ describe('useWebGLGuardrail', () => {
     // Flush the delta >= 2000 gate
     onRender();
 
-    // 5 seconds of low FPS
-    for (let sec = 0; sec < 5; sec++) {
+    // 11 seconds of low FPS
+    for (let sec = 0; sec < 11; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
@@ -333,8 +337,8 @@ describe('useWebGLGuardrail', () => {
     // Should NOT have triggered fallback yet because counters were reset
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
 
-    // Another 5 seconds of low FPS (total 7 seconds since reset) should trigger it
-    for (let sec = 0; sec < 5; sec++) {
+    // Another 11 seconds of low FPS (total 13 seconds since reset) should trigger it
+    for (let sec = 0; sec < 11; sec++) {
       for (let f = 0; f < 15; f++) {
         currentTime += 66.7;
         onRender();
