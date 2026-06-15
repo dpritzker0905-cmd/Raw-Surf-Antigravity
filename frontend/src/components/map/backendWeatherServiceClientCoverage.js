@@ -182,7 +182,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // to prevent visible rectangular edges and clamping at zoomed-out views.
     const spanLng = east < west ? (180 - west) + (east + 180) : east - west;
     const spanLat = Math.abs(north - south);
-    if (spanLng > 80.0 || spanLat > 40.0) {
+    if (spanLng > 15.0 || spanLat > 15.0) {
       return {
         isInside: true,
         clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
