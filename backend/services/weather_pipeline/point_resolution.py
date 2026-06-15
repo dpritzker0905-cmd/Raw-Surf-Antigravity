@@ -153,7 +153,7 @@ class PointResolutionService:
         # ── PATH 2: Automatic matching sequence ─────────────────────────────
         # 2a. Check Dynamic Product Index first
         dynamic_match = self.dynamic_index.find_product_containing(
-            model=model, domain=domain, layer=layer, valid_time=target_dt, lat=lat, lng=lng
+            model=model, domain=domain, layer=layer, valid_time=target_dt, lat=lat, lng=lng, grid_bbox=grid_bbox
         )
         if dynamic_match:
             product = await asyncio.to_thread(self.store.load_product, dynamic_match["product_id"])
@@ -194,7 +194,7 @@ class PointResolutionService:
             ):
                 # Check point containment (0.0001 snapping-tolerant margin, antimeridian aware)
                 actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
+                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
                     t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
                     t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
                     diff = abs(t1.timestamp() - t2.timestamp())
@@ -204,11 +204,39 @@ class PointResolutionService:
                         else:
                             authoritative_candidates.append((p, diff))
 
-        matching_item = None
+        from services.weather_pipeline.product_selection import get_bbox_area
+
+        best_auth = None
+        best_est = None
         if authoritative_candidates:
-            matching_item = min(authoritative_candidates, key=lambda pair: pair[1])[0]
-        elif estimated_candidates:
-            matching_item = min(estimated_candidates, key=lambda pair: pair[1])[0]
+            best_auth = min(
+                authoritative_candidates,
+                key=lambda pair: (
+                    pair[1],
+                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
+                )
+            )
+        if estimated_candidates:
+            best_est = min(
+                estimated_candidates,
+                key=lambda pair: (
+                    pair[1],
+                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
+                )
+            )
+
+        matching_item = None
+        if best_auth and best_est:
+            auth_p, auth_diff = best_auth
+            est_p, est_diff = best_est
+            if est_diff <= 1800 and auth_diff > 1800:
+                matching_item = est_p
+            else:
+                matching_item = auth_p
+        elif best_auth:
+            matching_item = best_auth[0]
+        elif best_est:
+            matching_item = best_est[0]
 
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
@@ -397,6 +425,24 @@ class PointResolutionService:
                             "period": "seconds"
                         }
                         
+                        # Set is_estimated and estimate_basis matching normalizer conformed rules
+                        is_estimated = is_fallback_active
+                        est_basis = None
+                        if model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+                            is_estimated = True
+                            est_basis = {
+                                "type": "ecmwf_ifs_derived_fallback",
+                                "method": "wave_component_ratio_estimation",
+                                "source_model": "ecmwf_wam025"
+                            }
+                        elif is_fallback_active:
+                            is_estimated = True
+                            est_basis = {
+                                "type": "gfs_derived_fallback",
+                                "method": "wave_component_ratio_estimation",
+                                "source_model": "ncep_gfswave025"
+                            }
+
                         return NormalizedPointResponse(
                             model=model.upper(),
                             provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
@@ -404,8 +450,9 @@ class PointResolutionService:
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),
                             valid_time=target_dt,
-                            is_forecast_authoritative=False if is_fallback_active else True,
-                            is_estimated=is_fallback_active,
+                            is_forecast_authoritative=not is_estimated,
+                            is_estimated=is_estimated,
+                            estimate_basis=est_basis,
                             point=detail,
                             value_kind=value_kind,
                             value_unit=value_unit,
@@ -527,7 +574,7 @@ class PointResolutionService:
             ):
                 from services.weather_pipeline.route_helpers import is_inside_bounds, get_actual_grid_bounds
                 actual_cov = get_actual_grid_bounds(p.coverage, p.resolution)
-                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001) or model.upper() == "EURO":
+                if is_inside_bounds(lat, lng, actual_cov, margin=0.0001):
                     t1 = p.valid_time_start.replace(tzinfo=timezone.utc) if p.valid_time_start.tzinfo is None else p.valid_time_start
                     t2 = target_dt.replace(tzinfo=timezone.utc) if target_dt.tzinfo is None else target_dt
                     diff = abs(t1.timestamp() - t2.timestamp())
@@ -537,11 +584,39 @@ class PointResolutionService:
                         else:
                             authoritative_candidates.append((p, diff))
 
-        matching_item = None
+        from services.weather_pipeline.product_selection import get_bbox_area
+
+        best_auth = None
+        best_est = None
         if authoritative_candidates:
-            matching_item = min(authoritative_candidates, key=lambda pair: pair[1])[0]
-        elif estimated_candidates:
-            matching_item = min(estimated_candidates, key=lambda pair: pair[1])[0]
+            best_auth = min(
+                authoritative_candidates,
+                key=lambda pair: (
+                    pair[1],
+                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
+                )
+            )
+        if estimated_candidates:
+            best_est = min(
+                estimated_candidates,
+                key=lambda pair: (
+                    pair[1],
+                    get_bbox_area(pair[0].coverage.west, pair[0].coverage.south, pair[0].coverage.east, pair[0].coverage.north)
+                )
+            )
+
+        matching_item = None
+        if best_auth and best_est:
+            auth_p, auth_diff = best_auth
+            est_p, est_diff = best_est
+            if est_diff <= 1800 and auth_diff > 1800:
+                matching_item = est_p
+            else:
+                matching_item = auth_p
+        elif best_auth:
+            matching_item = best_auth[0]
+        elif best_est:
+            matching_item = best_est[0]
 
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)

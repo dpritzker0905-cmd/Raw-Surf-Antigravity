@@ -3,8 +3,8 @@ import { WeatherTelemetry } from './WeatherTelemetry';
 
 /**
  * useWebGLGuardrail hook monitors the map's render loop frame rate.
- * If the frame rate drops below 30 FPS while WebGL layers are active
- * for 3 consecutive seconds, it triggers the fallback to Canvas2D layers
+ * If the frame rate drops below 20 FPS while WebGL layers are active
+ * for 12 consecutive seconds, it triggers the fallback to Canvas2D layers
  * and emits a telemetry warning event.
  */
 export function useWebGLGuardrail({
@@ -116,7 +116,7 @@ export function useWebGLGuardrail({
           window.__MAP_RENDER_FPS__ = fps;
         }
 
-        if (fps < 30) {
+        if (fps < 20) {
           const isTest = typeof process !== 'undefined' && process.env?.NODE_ENV === 'test';
           const isLocalhost = typeof window !== 'undefined' &&
             (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') &&
@@ -127,7 +127,7 @@ export function useWebGLGuardrail({
             lowFpsCount = 0;
             return;
           }
-          console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 30: ${fps} FPS`);
+          console.warn(`[WebGLGuardrail] Warning: MapWebGL render FPS dropped below 20: ${fps} FPS`);
           
           // Log to console & telemetry
           WeatherTelemetry.emit('FPS_drop_detected', { 
@@ -138,7 +138,7 @@ export function useWebGLGuardrail({
 
           lowFpsCount++;
           if (lowFpsCount >= 12) {
-            console.error(`[WebGLGuardrail] Frame rate consistently below 30 FPS (${fps} FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides.`);
+            console.error(`[WebGLGuardrail] Frame rate consistently below 20 FPS (${fps} FPS) for 12 consecutive seconds. Triggering local rendering fallback overrides.`);
             
             if (hasMarine) {
               console.warn('[WebGLGuardrail] Triggering fallback override for WebGL Marine layer');

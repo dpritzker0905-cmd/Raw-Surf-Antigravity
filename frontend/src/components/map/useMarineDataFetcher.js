@@ -10,6 +10,24 @@ const DISPLAY_ICON_MAX_HOURS = 168;
 import { isInCooldown } from './marineControllerUtils';
 import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
 
+function getLongitudinalOverlap(w1, e1, w2, e2) {
+  const norm = lng => ((lng % 360) + 360) % 360;
+  const nw1 = norm(w1), ne1 = norm(e1);
+  const nw2 = norm(w2), ne2 = norm(e2);
+  const getSegments = (s, e) => s <= e ? [[s, e]] : [[s, 360], [0, e]];
+  const segs1 = getSegments(nw1, ne1);
+  const segs2 = getSegments(nw2, ne2);
+  let overlap = 0;
+  for (const seg1 of segs1) {
+    for (const seg2 of segs2) {
+      const start = Math.max(seg1[0], seg2[0]);
+      const end = Math.min(seg1[1], seg2[1]);
+      if (start < end) overlap += (end - start);
+    }
+  }
+  return overlap;
+}
+
 export function useMarineDataFetcher({
   mapInstance,
   activeLayers,
@@ -166,27 +184,36 @@ export function useMarineDataFetcher({
         const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
         const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
         
-        const intWest = Math.max(ew, gw);
-        const intEast = Math.min(ee, ge);
-        const intSouth = Math.max(es, gs);
-        const intNorth = Math.min(en, gn);
-        
-        let overlapRatio = 0;
-        if (intWest < intEast && intSouth < intNorth) {
-          const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
-          const viewportArea = (ee - ew) * (en - es);
-          if (viewportArea > 0) {
-            overlapRatio = intersectionArea / viewportArea;
-          }
-        }
-        
         const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
         const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
         const vpHeight = en - es;
         const gridHeight = gn - gs;
 
-        if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
-          console.log(`[Marine-Bounds-Clear] Grid is smaller than viewport or overlap is low (grid: ${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vp: ${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)}, overlap: ${overlapRatio.toFixed(2)}). Clearing stale grid to prevent clamped rectangle.`);
+        const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
+        const intSouth = Math.max(es, gs);
+        const intNorth = Math.min(en, gn);
+        
+        let overlapRatio = 0;
+        if (overlapWidth > 0 && intSouth < intNorth) {
+          const intersectionArea = overlapWidth * (intNorth - intSouth);
+          const viewportArea = vpWidth * (en - es);
+          if (viewportArea > 0) {
+            overlapRatio = intersectionArea / viewportArea;
+          }
+        }
+
+        const isGlobalSupported = (model === 'GFS' || model === 'ICON' || (model === 'EURO' && layer === 'waves'));
+        const isViewportZoomedOut = vpWidth > 80.0 || vpHeight > 40.0;
+        let shouldClear = isGlobalSupported
+          ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+          : (overlapWidth <= 0 || intSouth >= intNorth);
+
+        if (g && (g.__isAcceptableRegional || gridWidth < 340.0)) {
+          shouldClear = overlapWidth <= 0 || intSouth >= intNorth;
+        }
+
+        if (shouldClear) {
+          console.log(`[Marine-Bounds-Clear] Clearing stale grid (isGlobalSupported=${isGlobalSupported}, gridWidth=${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vpWidth=${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)}, overlap: ${overlapRatio.toFixed(2)}). Clearing stale grid to prevent clamped rectangle.`);
           setMarineData(null);
           lastCommittedSigRef.current = null;
         }
@@ -474,6 +501,15 @@ export function useMarineDataFetcher({
 
       if (data && (data.features?.length > 0 || data.grid?.vectors?.length > 0 || data.grid?.__skippedReason === 'zoom_too_low' || data.grid?.skippedReason === 'zoom_too_low' || data.grid?.emptyGridWarning)) {
         if (data.grid) {
+          if (data.grid.bounds && bounds) {
+            const ew = bounds.west, ee = bounds.east;
+            const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+            const gw = data.grid.bounds.west, ge = data.grid.bounds.east;
+            const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+            if (vpWidth > 80.0 && gridWidth < 340.0) {
+              data.grid.__isAcceptableRegional = true;
+            }
+          }
           const isBackendCopernicus = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
           const isBackendIcon = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
           const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();

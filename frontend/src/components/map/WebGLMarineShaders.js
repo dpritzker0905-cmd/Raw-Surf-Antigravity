@@ -306,23 +306,13 @@ void main() {
   vec2 vertexPos = pos;
   vertexPos.x += u_merc_offset;
   vec4 clipPos = u_matrix * vec4(vertexPos.x, vertexPos.y, 0.0, 1.0);
-
-  // Larger eps (50×) for more stable screen-space direction across frames
-  float eps = 1.0 / (256.0 * exp2(u_zoom)) * 50.0;
-  vec2 offsetMerc = vertexPos + dir * eps;
-  vec4 clipPosOffset = u_matrix * vec4(offsetMerc.x, offsetMerc.y, 0.0, 1.0);
-
-  // Convert to pixel space for direction computation
   vec2 ndc0 = clipPos.xy / max(clipPos.w, 0.001);
-  vec2 ndc1 = clipPosOffset.xy / max(clipPosOffset.w, 0.001);
   vec2 pixel0 = (ndc0 + 1.0) * 0.5 * u_viewport;
-  vec2 pixel1 = (ndc1 + 1.0) * 0.5 * u_viewport;
 
-  // Stabilized: require at least 2 device pixels of delta for valid direction
-  vec2 pixelDelta = pixel1 - pixel0;
-  vec2 waveDir = length(pixelDelta) > 2.0
-    ? normalize(pixelDelta)
-    : vec2(1.0, 0.0);
+  vec2 matCol0 = u_matrix[0].xy;
+  vec2 matCol1 = u_matrix[1].xy;
+  vec2 pixelDelta = (dir.x * matCol0 + dir.y * matCol1) * u_viewport;
+  vec2 waveDir = length(pixelDelta) > 2.0 ? normalize(pixelDelta) : vec2(1.0, 0.0);
   vec2 crestDir = vec2(-waveDir.y, waveDir.x); // perpendicular = crest axis
 
   // === v5.3: INDEPENDENT CREST LENGTH AND THICKNESS (CSS pixels) ===
@@ -760,11 +750,11 @@ void main() {
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
   // while keeping volumetric shadows and reefs highlights fully intact.
-  float waveBlend = smoothstep(0.01, 0.8, displayHeight);
+  float waveBlend = smoothstep(0.0, 0.25, displayHeight);
   vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
   vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
   
-  vec3 blendedWaveColor = mix(baseWithChl, waveColor, waveBlend * 0.90);
+  vec3 blendedWaveColor = mix(baseWithChl, waveColor, waveBlend);
 
   // ── LAYER 5: DIRECTIONAL SWELL LIGHTING ──
   vec2 lightDir = normalize(vec2(-0.5, 0.7)); // light source from northwest/top-left

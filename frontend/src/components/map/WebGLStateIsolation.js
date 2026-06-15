@@ -34,24 +34,9 @@ export function captureWebGLState(gl) {
   // Cull face parameter is used in Marine Engine
   state.prevCullFace = gl.getParameter(gl.CULL_FACE);
   
-  // Clear color
-  state.prevClearColor = gl.getParameter(gl.COLOR_CLEAR_VALUE);
-
-  // Attributes enabled state
-  state.prevAttribsEnabled = [];
-  const maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
-  for (let i = 0; i < maxAttribs; i++) {
-    try {
-      const enabled = gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED);
-      state.prevAttribsEnabled.push(enabled);
-    } catch (e) {
-      state.prevAttribsEnabled.push(false);
-    }
-  }
-
-  // WebGL2 Vertex Array Object state
   const isWebGL2 = !!gl.bindVertexArray;
   state.isWebGL2 = isWebGL2;
+
   if (isWebGL2) {
     try {
       state.prevVAO = gl.getParameter(gl.VERTEX_ARRAY_BINDING);
@@ -60,26 +45,12 @@ export function captureWebGLState(gl) {
     }
   }
 
-  // Textures and samplers state
+  // Textures state: only capture 2D units 0-3 that our overlays actually modify
   state.prevTextures2D = [];
-  state.prevTexturesCube = [];
-  state.prevSamplers = [];
-  const maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
+  const maxUnits = 4;
   for (let u = 0; u < maxUnits; u++) {
     gl.activeTexture(gl.TEXTURE0 + u);
     state.prevTextures2D.push(gl.getParameter(gl.TEXTURE_BINDING_2D));
-    try {
-      state.prevTexturesCube.push(gl.getParameter(gl.TEXTURE_BINDING_CUBE_MAP));
-    } catch (e) {
-      state.prevTexturesCube.push(null);
-    }
-    if (isWebGL2) {
-      try {
-        state.prevSamplers.push(gl.getParameter(gl.SAMPLER_BINDING));
-      } catch (e) {
-        state.prevSamplers.push(null);
-      }
-    }
   }
 
   // Restore the originally active texture unit so we don't pollute the capture phase
@@ -95,7 +66,7 @@ export function restoreWebGLState(gl, state) {
   gl.bindBuffer(gl.ARRAY_BUFFER, state.prevArrayBuffer);
   gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, state.prevElementArrayBuffer);
 
-  // Restore WebGL2 Vertex Array Object
+  // Restore WebGL2 Vertex Array Object (restores all attribute pointers and enabled states)
   if (state.isWebGL2 && state.prevVAO !== undefined) {
     try {
       gl.bindVertexArray(state.prevVAO);
@@ -109,30 +80,11 @@ export function restoreWebGLState(gl, state) {
     gl.viewport(state.prevViewport[0], state.prevViewport[1], state.prevViewport[2], state.prevViewport[3]);
   }
 
-  // Restore Textures and Samplers
-  const maxUnits = Math.min(state.prevTextures2D.length, gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8);
+  // Restore Textures (only restore 2D units 0-3 that we modify)
+  const maxUnits = Math.min(state.prevTextures2D.length, 4);
   for (let u = 0; u < maxUnits; u++) {
     gl.activeTexture(gl.TEXTURE0 + u);
     gl.bindTexture(gl.TEXTURE_2D, state.prevTextures2D[u]);
-    if (state.prevTexturesCube[u]) {
-      gl.bindTexture(gl.TEXTURE_CUBE_MAP, state.prevTexturesCube[u]);
-    }
-    if (state.isWebGL2 && state.prevSamplers[u] !== undefined) {
-      try {
-        gl.bindSampler(u, state.prevSamplers[u]);
-      } catch (e) {}
-    }
-  }
-
-  // Restore attributes state
-  for (let i = 0; i < state.prevAttribsEnabled.length; i++) {
-    try {
-      if (state.prevAttribsEnabled[i]) {
-        gl.enableVertexAttribArray(i);
-      } else {
-        gl.disableVertexAttribArray(i);
-      }
-    } catch (e) {}
   }
 
   // Restore active texture unit
@@ -176,9 +128,5 @@ export function restoreWebGLState(gl, state) {
       gl.disable(gl.CULL_FACE);
     }
   }
-
-  // Restore clear color
-  if (state.prevClearColor) {
-    gl.clearColor(state.prevClearColor[0], state.prevClearColor[1], state.prevClearColor[2], state.prevClearColor[3]);
-  }
 }
+

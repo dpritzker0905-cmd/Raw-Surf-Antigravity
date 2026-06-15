@@ -160,6 +160,8 @@ class WeatherNormalizer:
         # Build mapping from raw results to snapped grid coordinates
         grid_data = {}
         bounds_obj = CoverageBounds(west=west, south=south, east=east, north=north)
+        is_layer_estimated = False
+        estimate_basis = None
         for pt in raw_results:
             raw_lat = pt.get("latitude")
             raw_lng = pt.get("longitude")
@@ -194,6 +196,12 @@ class WeatherNormalizer:
             # Fallback estimation for missing marine component layers (e.g. ecmwf_wam025 swells)
             if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
                 if not speed_list or all(v is None for v in speed_list):
+                    is_layer_estimated = True
+                    estimate_basis = {
+                        "type": "ecmwf_ifs_derived_fallback" if model.upper() == "EURO" else "gfs_derived_fallback",
+                        "method": "wave_component_ratio_estimation",
+                        "source_model": "ecmwf_wam025" if model.upper() == "EURO" else "ncep_gfswave025"
+                    }
                     wave_speed_list = pt_hourly.get("wave_height", [])
                     wave_dir_list = pt_hourly.get("wave_direction", [])
                     wave_period_list = pt_hourly.get("wave_period", [])
@@ -448,7 +456,8 @@ class WeatherNormalizer:
             run_time=run_time,
             valid_time=actual_valid_time,
             is_forecast_authoritative=provider.lower() != "test-fixture",
-            is_estimated=provider.lower() == "test-fixture",
+            is_estimated=is_layer_estimated or provider.lower() == "test-fixture",
+            estimate_basis=estimate_basis,
             coverage=bounds,
             grid=grid,
             value_kind=value_kind,

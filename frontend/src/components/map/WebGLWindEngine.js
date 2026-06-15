@@ -130,6 +130,58 @@ WebGLWindEngine.prototype.init = function(gl) {
   this.particleStateA = initParticleTexture(gl, this.particleRes);
   this.particleStateB = initParticleTexture(gl, this.particleRes);
   this.advFBO = gl.createFramebuffer();
+
+  // Create Vertex Array Objects (VAOs) for VAO isolation under WebGL 2
+  if (gl.createVertexArray) {
+    this.heatmapVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.heatmapVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
+    var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+    if (heatUVLoc !== -1) {
+      gl.enableVertexAttribArray(heatUVLoc);
+      gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
+
+    this.advectVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.advectVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+    if (advPosLoc !== -1) {
+      gl.enableVertexAttribArray(advPosLoc);
+      gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
+    this.fadeVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.fadeVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
+    if (fadePosLoc !== -1) {
+      gl.enableVertexAttribArray(fadePosLoc);
+      gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
+    this.drawVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.drawVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
+    var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
+    if (idxLoc !== -1) {
+      gl.enableVertexAttribArray(idxLoc);
+      gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
+    }
+
+    this.screenVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.screenVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    if (scrLoc !== -1) {
+      gl.enableVertexAttribArray(scrLoc);
+      gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
+    gl.bindVertexArray(null);
+  }
+
   // v3.9.8: Color ramp LUT texture is initialized dynamically on first render to match active theme
   this._colorRamp = null;
   this._currentTheme = null;
@@ -289,32 +341,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.disable(gl.SCISSOR_TEST);
     gl.colorMask(true, true, true, true);
 
-    // Clear any existing WebGL errors from MapLibre's previous drawing operations
-    while (gl.getError() !== gl.NO_ERROR) {}
-
-    // Disable MapLibre vertex attributes to prevent attributes pollution
-    const maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
-    for (let i = 0; i < maxAttribs; i++) {
-      try {
-        if (gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED)) {
-          gl.disableVertexAttribArray(i);
-        }
-      } catch (e) {}
-    }
-
-    // Unbind all texture units to prevent feedback loops with MapLibre's active drawing textures
-    const maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
-    for (let u = 0; u < maxUnits; u++) {
+    // Unbind only the texture units we actually use (0 to 3) to prevent feedback loops (non-blocking)
+    for (let u = 0; u < 4; u++) {
       gl.activeTexture(gl.TEXTURE0 + u);
       gl.bindTexture(gl.TEXTURE_2D, null);
-      try {
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-      } catch (e) {}
-      if (webglState.isWebGL2) {
-        try {
-          gl.bindSampler(u, null);
-        } catch (e) {}
-      }
     }
 
     // Unbind WebGL2 VAO
@@ -441,18 +471,27 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
-  var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
-  var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
-  gl.enableVertexAttribArray(heatUVLoc);
-  gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
-  var heatOffsets = worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]);
-  for (var hi = 0; hi < heatOffsets.length; hi++) {
-    gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
-    gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
-  }
-  gl.disableVertexAttribArray(heatUVLoc);
+    var heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+    if (this.heatmapVAO) {
+      gl.bindVertexArray(this.heatmapVAO);
+    } else {
+      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
+      gl.enableVertexAttribArray(heatUVLoc);
+      gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
+    }
+    var heatOffsets = worldOffsets || (z < 3.5 ? [0.0, -360.0, 360.0] : [0.0]);
+    for (var hi = 0; hi < heatOffsets.length; hi++) {
+      gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
+      gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
+    }
+    if (this.heatmapVAO) {
+      gl.bindVertexArray(null);
+    } else {
+      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
+    }
 
   // Step 1: Advect particles (ping-pong)
   gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
@@ -481,17 +520,23 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
-  var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-  gl.enableVertexAttribArray(advPosLoc);
-  gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+  if (this.advectVAO) {
+    gl.bindVertexArray(this.advectVAO);
+  } else {
+    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    gl.enableVertexAttribArray(advPosLoc);
+    gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+  }
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  var err1 = gl.getError();
-  if (err1 !== gl.NO_ERROR) {
-    console.error("[WebGLWindEngine] Step 1 Draw Error:", err1);
+
+  if (this.advectVAO) {
+    gl.bindVertexArray(null);
+  } else {
+    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+    if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
   }
-  gl.disableVertexAttribArray(advPosLoc);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
   var tmp = this.particleStateA; this.particleStateA = this.particleStateB; this.particleStateB = tmp;
 
@@ -505,16 +550,22 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.fadeProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.fadeProgram, 'u_fade'), this.fadeOpacity);
   bindTexture(gl, this.screenA.tex, 0);
-  var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-  gl.enableVertexAttribArray(fadePosLoc);
-  gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  var err2 = gl.getError();
-  if (err2 !== gl.NO_ERROR) {
-    console.error("[WebGLWindEngine] Step 2 Draw Error:", err2);
+  if (this.fadeVAO) {
+    gl.bindVertexArray(this.fadeVAO);
+  } else {
+    var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    gl.enableVertexAttribArray(fadePosLoc);
+    gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
   }
-  gl.disableVertexAttribArray(fadePosLoc);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  if (this.fadeVAO) {
+    gl.bindVertexArray(null);
+  } else {
+    var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
+    if (fadePosLoc !== -1) gl.disableVertexAttribArray(fadePosLoc);
+  }
 
   // Step 3: Draw particles onto screen B with color ramp
   // v3.12.2: Re-enable blending particles drawn ON TOP of faded trails
@@ -550,11 +601,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
-  var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
   var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
-  gl.enableVertexAttribArray(idxLoc);
-  gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
+  if (this.drawVAO) {
+    gl.bindVertexArray(this.drawVAO);
+  } else {
+    var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
+    gl.enableVertexAttribArray(idxLoc);
+    gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
+  }
 
   // v3.13: Draw particles for multiple world copies to fill the entire viewport at low zoom.
   // At zoom < 3, the map shows more than 360° of longitude, so we need 3 copies.
@@ -564,7 +619,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.uniform1f(lngOffsetLoc, actualWorldOffsets[wi]);
     gl.drawArrays(gl.POINTS, 0, this.particleRes * this.particleRes);
   }
-  gl.disableVertexAttribArray(idxLoc);
+
+  if (this.drawVAO) {
+    gl.bindVertexArray(null);
+  } else {
+    var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
+    if (idxLoc !== -1) gl.disableVertexAttribArray(idxLoc);
+  }
 
   // Copy screenB screenA
   gl.useProgram(this.screenProgram);
@@ -574,16 +635,22 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.screenProgram, 'u_screen'), 0);
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), 1.0);
   bindTexture(gl, this.screenB.tex, 0);
-  var cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-  gl.enableVertexAttribArray(cpLoc);
-  gl.vertexAttribPointer(cpLoc, 2, gl.FLOAT, false, 0, 0);
-  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  var errCopy = gl.getError();
-  if (errCopy !== gl.NO_ERROR) {
-    console.error("[WebGLWindEngine] Copy Draw Error:", errCopy);
+  if (this.screenVAO) {
+    gl.bindVertexArray(this.screenVAO);
+  } else {
+    var cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    gl.enableVertexAttribArray(cpLoc);
+    gl.vertexAttribPointer(cpLoc, 2, gl.FLOAT, false, 0, 0);
   }
-  gl.disableVertexAttribArray(cpLoc);
+  gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+
+  if (this.screenVAO) {
+    gl.bindVertexArray(null);
+  } else {
+    var cpLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    if (cpLoc !== -1) gl.disableVertexAttribArray(cpLoc);
+  }
 
   // Step 4: Composite to main framebuffer
   // v3.12.2: Standard alpha blend screen shader derives alpha from trail brightness.
@@ -593,10 +660,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.viewport(0, 0, screenWidth, screenHeight);
   gl.blendFunc(gl.SRC_ALPHA, gl.ONE_MINUS_SRC_ALPHA);
   bindTexture(gl, this.screenB.tex, 0);
-  var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-  gl.enableVertexAttribArray(scrLoc);
-  gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
+  if (this.screenVAO) {
+    gl.bindVertexArray(this.screenVAO);
+  } else {
+    var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    gl.enableVertexAttribArray(scrLoc);
+    gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
+  }
   // v3.13.4: Reduced to 0.48 — continents must be clearly visible
   // beneath the wind layer. Wind should feel atmospheric, not solid fog.
   // v3.24: Surgically increase opacity by 2.5% (+0.025 absolute) in mid-lower zooms (4.0 <= z <= 9.0)
@@ -608,11 +679,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.screenProgram, 'u_opacity'), finalOpacity);
 
   gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-  var err4 = gl.getError();
-  if (err4 !== gl.NO_ERROR) {
-    console.error("[WebGLWindEngine] Step 4 Draw Error:", err4);
+
+  if (this.screenVAO) {
+    gl.bindVertexArray(null);
+  } else {
+    var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
+    if (scrLoc !== -1) gl.disableVertexAttribArray(scrLoc);
   }
-    gl.disableVertexAttribArray(scrLoc);
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
       if (this.advFBO && gl.isFramebuffer(this.advFBO)) {
@@ -644,6 +717,12 @@ var deleteAttachedShaders = function(gl, prog) {
 
 WebGLWindEngine.prototype.dispose = function(gl) {
   if (!gl) return;
+  if (this.heatmapVAO) { gl.deleteVertexArray(this.heatmapVAO); this.heatmapVAO = null; }
+  if (this.advectVAO) { gl.deleteVertexArray(this.advectVAO); this.advectVAO = null; }
+  if (this.fadeVAO) { gl.deleteVertexArray(this.fadeVAO); this.fadeVAO = null; }
+  if (this.drawVAO) { gl.deleteVertexArray(this.drawVAO); this.drawVAO = null; }
+  if (this.screenVAO) { gl.deleteVertexArray(this.screenVAO); this.screenVAO = null; }
+
   if (this.advectProgram) deleteAttachedShaders(gl, this.advectProgram);
   if (this.drawProgram) deleteAttachedShaders(gl, this.drawProgram);
   if (this.screenProgram) deleteAttachedShaders(gl, this.screenProgram);

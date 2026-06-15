@@ -149,7 +149,7 @@ describe('useWebGLGuardrail', () => {
     expect(setWebglMarineFailed).not.toHaveBeenCalled();
   });
 
-  it('does not trigger wind fallback when wind layer FPS is consistently low (< 30) for 6 seconds', () => {
+  it('does not trigger wind fallback when wind layer FPS is consistently low (< 20) for 6 seconds', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
 
@@ -187,7 +187,7 @@ describe('useWebGLGuardrail', () => {
     expect(WeatherTelemetry.emit).not.toHaveBeenCalled();
   });
 
-  it('triggers marine fallback when waves layer FPS is consistently low (< 30) for 6 seconds', () => {
+  it('triggers marine fallback when waves layer FPS is consistently low (< 20) for 12 seconds', () => {
     const setWebglWindFailed = jest.fn();
     const setWebglMarineFailed = jest.fn();
 
@@ -246,7 +246,7 @@ describe('useWebGLGuardrail', () => {
     onRender();
 
     // Simulate 1 frame every 3 seconds (3000ms delta)
-    // Even though it is technically < 30 FPS, the delta-time gate of 2000ms
+    // Even though it is technically < 20 FPS, the delta-time gate of 2000ms
     // should reset the tracking to avoid false performance drop detection
     for (let i = 0; i < 10; i++) {
       currentTime += 3000;

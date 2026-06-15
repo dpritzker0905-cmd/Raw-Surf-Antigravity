@@ -24,6 +24,22 @@ def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
     from routes import weather
     monkeypatch.setattr(weather, "store", temp_store)
 
+    # Mock fetch_euro_marine to return target valid time to prevent temporal drift 404s in fallback paths
+    from services import copernicus_marine_service
+    async def mock_fetch_euro_marine(latitudes, longitudes, forecast_days=3, variables=None):
+        return [
+            {
+                "latitude": latitudes[0],
+                "longitude": longitudes[0],
+                "hourly_units": {v: "m" if "height" in v else ("°" if "direction" in v else "s") for v in (variables or [])},
+                "hourly": {
+                    "time": ["2026-06-01T21:00:00Z"],
+                    **{v: [2.0 if "height" in v else (45.0 if "direction" in v else 6.0)] for v in (variables or [])}
+                }
+            }
+        ]
+    monkeypatch.setattr(copernicus_marine_service, "fetch_euro_marine", mock_fetch_euro_marine)
+
     # Mock Copernicus fetcher results for 2x2 grid
     # Bbox: west=-85, south=24, east=-79, north=30
     # Resolution 6.0 yields lats: [24.0, 30.0], lons: [-85.0, -79.0]
@@ -107,9 +123,9 @@ def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
     )
     assert response_point_outside.status_code == 200
     point_outside_payload = response_point_outside.json()
-    assert point_outside_payload["is_estimated"] is False
+    assert point_outside_payload["is_estimated"] is True
     assert point_outside_payload["is_forecast_authoritative"] is False
-    assert point_outside_payload["point"]["interpolation_method"] == "out_of_bounds_fallback"
+    assert point_outside_payload["point"]["interpolation_method"] == "direct_point_api"
 
     # Verify grid diagnostics and metadata presence
     assert "diagnostics" in grid_payload["grid"]

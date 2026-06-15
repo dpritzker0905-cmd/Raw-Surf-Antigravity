@@ -35,20 +35,15 @@ class ViewportService:
     Handles caching, concurrent request deduplication, coordinate generation,
     Open-Meteo fetching, and normalization.
     """
-    
-    # Class-level registry for request deduplication
+
     IN_FLIGHT_REQUESTS: Dict[str, FetchContext] = {}
     IN_FLIGHT_LOCK = asyncio.Lock()
 
-    # Class-level registry for active background tasks to prevent resource exhaustion/crash
     ACTIVE_BG_TASKS: Dict[str, asyncio.Task] = {}
 
-    # Class-level registry for active revalidation tasks (SWR)
     ACTIVE_REVALIDATIONS = set()
 
-    # Class-level registry for negative caching of rate limit errors / timeouts
     NEGATIVE_CACHE: Dict[str, float] = {}
-
 
     def __init__(
         self,
@@ -76,10 +71,31 @@ class ViewportService:
         import routes.weather
         return routes.weather.dynamic_index
 
-    def is_viewport_enabled(self, model: str, domain: str, layer: str, use_manifest_product: bool, bbox: Optional[str] = None) -> bool:
+    def is_viewport_enabled(
+        self,
+        model: str,
+        domain: str,
+        layer: str,
+        use_manifest_product: bool,
+        bbox: Optional[str] = None,
+        target_dt: Optional[datetime] = None
+    ) -> bool:
         """
         Determines if dynamic viewport bounds fetching is enabled for the model/layer combination.
         """
+        if target_dt and model.upper() == "EURO" and domain.lower() == "marine":
+            now_utc = datetime.now(timezone.utc)
+            offset_hours = (target_dt - now_utc).total_seconds() / 3600.0
+
+            limit = None
+            if layer.lower() == "waves":
+                limit = 168.0
+            elif layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+                limit = 120.0
+
+            if limit is not None and offset_hours >= limit:
+                return False
+
         return (
             bool(bbox) and
             model.upper() in ("GFS", "ICON", "EURO") and
@@ -112,7 +128,6 @@ class ViewportService:
             bbox_str=bbox_str
         )
 
-
     async def fetch_viewport_grid_upstream(
         self,
         model: str,
@@ -126,7 +141,6 @@ class ViewportService:
         Step 4 & 5: Fetches viewport grid from upstream Open-Meteo, handling negative caching,
         in-flight request deduplication, and conformed stale fallback if upstream fails.
         """
-        # Parse and snap bounding box to nearest tileSize (1.0 for GFS vs 2.0 for EURO/ICON)
         req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
         t_sz = 1.0 if model.upper() == "GFS" else 2.0
         west, south, east, north = clamp_and_normalize_bbox(
@@ -135,7 +149,6 @@ class ViewportService:
             math.ceil(req_e / t_sz) * t_sz,
             math.ceil(req_n / t_sz) * t_sz
         )
-        # Spans (considering antimeridian wrap)
         span_lng = (east - west) if west <= east else ((180.0 - west) + (east + 180.0))
         span_lat = abs(north - south)
 
@@ -146,17 +159,14 @@ class ViewportService:
             span_lat = 165.0
         coverage_scope = "global_coarse" if is_global_view else "viewport"
 
-        # Determine adaptive resolution
         target_pts = 200.0 if domain.lower() == "marine" else 400.0
         resolution = choose_adaptive_resolution(span_lng, span_lat, target_pts)
 
-        # Generate cache key and viewport filename
         time_str = target_dt.strftime("%Y%m%dT%H%M%SZ")
         bbox_key_str = f"{west:.2f}_{south:.2f}_{east:.2f}_{north:.2f}"
         cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
         viewport_filename = f"{cache_key}.json"
 
-        # Check negative cache
         now_ts = datetime.now(timezone.utc).timestamp()
         if cache_key in self.NEGATIVE_CACHE:
             expire_ts = self.NEGATIVE_CACHE[cache_key]
@@ -174,7 +184,7 @@ class ViewportService:
                     fallback_product.staleReason = "upstream_rate_limited"
                     fallback_product.fallbackReason = "upstream_rate_limited"
                     fallback_product.partial_coverage = False
-                    
+
                     if domain.lower() != "wind":
                         fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
                     served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
@@ -203,17 +213,15 @@ class ViewportService:
                             "partial_coverage": False
                         }
                     return fallback_product
-                
+
                 raise HTTPException(
                     status_code=503,
                     detail="Upstream weather API is temporarily unavailable (cached rate limit block)."
                 )
 
-        # Calculate forecast days before deduplication to avoid missing slots on concurrent requests with different day spans
         days_diff = (target_dt - datetime.now(timezone.utc)).days + 2
         forecast_days = max(2, min(16, days_diff))
 
-        # Clamp forecast_days based on model and domain limits to avoid rate-limit storms and mismatch keys
         if domain.lower() == "wind":
             if model.upper() == "ICON":
                 forecast_days = 5
@@ -230,7 +238,6 @@ class ViewportService:
                 else:
                     forecast_days = min(forecast_days, 16)
 
-        # Deduplicate concurrent requests in-flight (hour-independent, but respects forecast days to avoid missing slots)
         is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         dedup_layer = "all_marine" if is_conjoined else layer
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{dedup_layer.lower()}_{bbox_key_str}_{forecast_days}"
@@ -249,16 +256,13 @@ class ViewportService:
         if not is_fetcher:
             logger.info(f"[Dynamic Viewport] Sharing in-flight request for {request_dedup_key}")
             try:
-                # Wait for the fetcher to complete the raw API fetch
                 await context.raw_fetch_future
-                
-                # Check if this specific hour is already processed and cached
+
                 my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                 my_viewport_filename = f"{my_cache_key}.json"
-                
+
                 loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
                 if not loaded_product:
-                    # Wait for this specific hour's processing to complete
                     hour_fut = None
                     async with self.IN_FLIGHT_LOCK:
                         if target_dt in context.hour_futures:
@@ -266,10 +270,10 @@ class ViewportService:
                         else:
                             hour_fut = asyncio.Future()
                             context.hour_futures[target_dt] = hour_fut
-                    
+
                     await hour_fut
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
-                
+
                 if loaded_product:
                     loaded_product.cache_hit = "cache_hit"  # Shared from fetcher
                     loaded_product.requested_bbox_original = bbox_str
@@ -285,8 +289,7 @@ class ViewportService:
                     logger.warning(f"[Dynamic Viewport] Waiter awoke but target product was not in cache: {my_viewport_filename}. Proceeding to self-heal and fetch.")
             except Exception as e:
                 logger.warning(f"[Dynamic Viewport] Shared in-flight fetch failed or raised exception: {e}. Proceeding to self-heal and fetch.")
-            
-            # Re-evaluate in-flight deduplication before fetching, since we are now entering the fetcher phase.
+
             async with self.IN_FLIGHT_LOCK:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
                     context = self.IN_FLIGHT_REQUESTS[request_dedup_key]
@@ -295,15 +298,14 @@ class ViewportService:
                     context = FetchContext()
                     self.IN_FLIGHT_REQUESTS[request_dedup_key] = context
                     is_fetcher = True
-            
-            # If another waiter also fell through and became the fetcher first, we wait on it.
+
             if not is_fetcher:
                 logger.info(f"[Dynamic Viewport] Waiter sharing newly spawned self-heal fetcher for {request_dedup_key}")
                 try:
                     await context.raw_fetch_future
                     my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                     my_viewport_filename = f"{my_cache_key}.json"
-                    
+
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
                     if not loaded_product:
                         hour_fut = None
@@ -315,7 +317,7 @@ class ViewportService:
                                 context.hour_futures[target_dt] = hour_fut
                         await hour_fut
                         loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
-                        
+
                     if loaded_product:
                         loaded_product.cache_hit = "cache_hit"
                         loaded_product.requested_bbox_original = bbox_str
@@ -329,8 +331,7 @@ class ViewportService:
                         return loaded_product
                 except Exception as inner_e:
                     logger.error(f"[Dynamic Viewport] Waiter self-heal retry failed: {inner_e}")
-                
-                # If retry failed as well, try checking for stale cached fallback before raising 504.
+
                 fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
                 if fallback_product:
                     logger.info(f"[Dynamic Viewport] Fallback (Self-Heal Waiter Failure): Found cached product {fallback_product.product_id}")
@@ -347,15 +348,13 @@ class ViewportService:
                     if fallback_product.grid and fallback_product.grid.bounds:
                         fallback_product.served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
                     return fallback_product
-                
+
                 raise HTTPException(status_code=504, detail="Upstream weather request failed (shared self-heal).")
 
         try:
-            # We are the fetcher! Let's generate coordinates
             lats_coords, lons_coords = generate_bbox_coords(west, south, east, north, resolution)
             coord_count = len(lats_coords)
 
-            # Safety step-up for coordinate count
             coord_cap = 3000 if domain.lower() == "wind" else 800
             resolution_steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
             while coord_count > coord_cap and resolution != 40.0:
@@ -368,12 +367,10 @@ class ViewportService:
 
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
 
-            # Resolve delay overrides using env variables
             env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.8"))
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
-            # Fetch via OpenMeteoProvider
             is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
@@ -394,7 +391,6 @@ class ViewportService:
 
             raw_list = raw_data if isinstance(raw_data, list) else [raw_data]
 
-            # Dynamically extend ICON wind to 14 days (336 hours) using diurnal loop extrapolation
             if model.upper() == "ICON" and domain.lower() == "wind":
                 logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
                 from datetime import timedelta
@@ -419,43 +415,43 @@ class ViewportService:
                         orig_speed = item["hourly"].get("wind_speed_10m", [])
                         orig_direction = item["hourly"].get("wind_direction_10m", [])
                         orig_gusts = item["hourly"].get("wind_gusts_10m", [])
-                        
+
                         valid_len = len(orig_speed)
                         for i in range(len(orig_speed) - 1, -1, -1):
                             speed_val = orig_speed[i] if i < len(orig_speed) else None
                             dir_val = orig_direction[i] if i < len(orig_direction) else None
                             gust_val = orig_gusts[i] if (orig_gusts and i < len(orig_gusts)) else 0.0
-                            
+
                             if speed_val is None or dir_val is None or (orig_gusts and gust_val is None):
                                     valid_len = i
                             else:
                                     break
-                        
+
                         if valid_len > 0:
                             valid_len = (valid_len // 24) * 24
-                        
+
                         if valid_len > 0:
                             orig_speed = orig_speed[:valid_len]
                             orig_direction = orig_direction[:valid_len]
                             if orig_gusts:
                                 orig_gusts = orig_gusts[:valid_len]
-                        
+
                         new_times = []
                         new_speed = []
                         new_direction = []
                         new_gusts = []
-                        
+
                         for hour_idx in range(14 * 24):
                             new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
                             new_times.append(new_time)
-                            
+
                             if orig_speed:
                                 new_speed.append(orig_speed[hour_idx % len(orig_speed)])
                             if orig_direction:
                                 new_direction.append(orig_direction[hour_idx % len(orig_direction)])
                             if orig_gusts:
                                 new_gusts.append(orig_gusts[hour_idx % len(orig_gusts)])
-                                
+
                         item["hourly"]["time"] = new_times
                         item["hourly"]["wind_speed_10m"] = new_speed
                         item["hourly"]["wind_direction_10m"] = new_direction
@@ -470,23 +466,20 @@ class ViewportService:
                 logger.error(f"[Dynamic Viewport] Upstream fetch returned no time array.")
                 raise Exception("Upstream fetch returned no time array.")
 
-            # Find closest time index for target_dt
             target_idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
             if target_idx is None:
                 logger.error(f"[Dynamic Viewport] target_dt {target_dt} is not covered by the fetched times.")
                 raise Exception(f"target_dt {target_dt} is not covered by the fetched times.")
 
-            # Store raw data and resolve raw fetch future
             context.raw_list = raw_list
             async with self.IN_FLIGHT_LOCK:
                 if not context.raw_fetch_future.done():
                     context.raw_fetch_future.set_result(True)
 
-            # Process the specific target_dt synchronously and save to disk
             target_t_str = times[target_idx]
             target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
             target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
-            
+
             is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             if is_conjoined:
                 conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
@@ -521,7 +514,6 @@ class ViewportService:
                         "source_model": "dwd_icon"
                     }
 
-
                 if not normalized:
                     if target_layer == layer.lower():
                         raise Exception("Target product normalization returned None.")
@@ -534,8 +526,6 @@ class ViewportService:
 
                 if is_empty_grid:
                     logger.warning(f"[Dynamic Viewport] Normalization produced empty grid for target hour: model={model}, domain={domain}, layer={target_layer}. Allowing zero grid.")
-
-
 
                 served_bbox_full = f"{normalized.grid.bounds.west},{normalized.grid.bounds.south},{normalized.grid.bounds.east},{normalized.grid.bounds.north}"
 
@@ -576,7 +566,7 @@ class ViewportService:
 
                 filepath = self.store.cache_dir / target_viewport_filename
                 tmp_filepath = filepath.with_suffix(".tmp")
-                
+
                 product_json_bytes = normalized.model_dump_json().encode("utf-8")
                 def save_to_disk(filepath, tmp_filepath, product_json_bytes):
                     with open(tmp_filepath, "wb") as f:
@@ -601,14 +591,12 @@ class ViewportService:
                 if target_layer == layer.lower():
                     target_normalized_product = normalized
 
-            # Resolve any future for target_dt
             async with self.IN_FLIGHT_LOCK:
                 for d in (target_dt, target_dt_actual):
                     fut = context.hour_futures.get(d)
                     if fut and not fut.done():
                         fut.set_result(True)
 
-            # Spawn background task to process all other times
             bg_key = f"{model.lower()}_{domain.lower()}"
             old_task = self.ACTIVE_BG_TASKS.get(bg_key)
             if old_task and not old_task.done():
@@ -638,7 +626,6 @@ class ViewportService:
             ))
             self.ACTIVE_BG_TASKS[bg_key] = task
 
-            # Return exact cropped product for the client's original bbox request if not global_coarse and not wind
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
                 return target_normalized_product
             cropped_product = filter_grid_to_bbox(target_normalized_product, bbox_str)
@@ -647,7 +634,6 @@ class ViewportService:
             return cropped_product
 
         except Exception as e:
-            # Reject shared listeners
             async with self.IN_FLIGHT_LOCK:
                 if request_dedup_key in self.IN_FLIGHT_REQUESTS:
                     ctx = self.IN_FLIGHT_REQUESTS[request_dedup_key]
@@ -667,8 +653,7 @@ class ViewportService:
                     self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
 
             logger.warning(f"[Dynamic Viewport] Upstream fetch failed for {model} {layer}: {e}")
-            
-            # Skip negative caching for cancellations, aborts, and client disconnects
+
             err_cls, err_str = e.__class__.__name__.lower(), str(e).lower()
             is_cancelled = isinstance(e, asyncio.CancelledError) or any(x in err_cls or x in err_str for x in ("cancel", "abort", "disconnect"))
             if not is_cancelled:
@@ -678,8 +663,7 @@ class ViewportService:
                 logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
             else:
                 logger.info(f"[Dynamic Viewport] Request cancelled or aborted ({e}). Skipping negative cache registration.")
-            
-            # Step 5: Stale fallback (Dynamic or Manifest)
+
             fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
             if fallback_product:
                 logger.info(f"[Dynamic Viewport] Fallback: Found previous cached product {fallback_product.product_id} for stale return")
@@ -692,8 +676,7 @@ class ViewportService:
                 fallback_product.staleReason = "upstream_rate_limited"
                 fallback_product.fallbackReason = "upstream_rate_limited"
                 fallback_product.partial_coverage = False
-                
-                # Crop to requested bounds
+
                 if domain.lower() != "wind":
                     fallback_product = filter_grid_to_bbox(fallback_product, bbox_str)
                 served_bbox = f"{fallback_product.grid.bounds.west:.4f},{fallback_product.grid.bounds.south:.4f},{fallback_product.grid.bounds.east:.4f},{fallback_product.grid.bounds.north:.4f}"
@@ -723,13 +706,9 @@ class ViewportService:
                     }
                 return fallback_product
 
-            # No fallback cached product exists -> raise exception
             if isinstance(e, HTTPException):
                 raise e
             raise HTTPException(status_code=504, detail=f"Viewport fetch failed: {str(e)}")
-
-
-
 
     async def fetch_viewport_grid(
         self,

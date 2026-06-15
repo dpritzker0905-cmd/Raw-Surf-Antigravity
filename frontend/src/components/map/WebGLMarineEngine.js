@@ -20,10 +20,12 @@ import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import {
   createShader,
   createProgram,
-  createTexture,
   bindTexture,
   unbindTexture,
-  safeDeleteTexture,
+  safeDeleteTexture
+} from './WebGLWindUtils';
+import {
+  createTexture,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
 
@@ -161,6 +163,40 @@ WebGLMarineEngine.prototype.init = function(gl) {
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
     window.__RAW_GPU__.framebufferCount++;
   }
+
+  // Create Vertex Array Objects (VAOs) for VAO isolation under WebGL 2
+  if (gl.createVertexArray) {
+    this.heatmapVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.heatmapVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+    var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+    if (heatUVLoc !== -1) {
+      gl.enableVertexAttribArray(heatUVLoc);
+      gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+
+    this.drawVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.drawVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
+    var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+    if (idLoc !== -1) {
+      gl.enableVertexAttribArray(idLoc);
+      gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
+    }
+
+    this.advectVAO = gl.createVertexArray();
+    gl.bindVertexArray(this.advectVAO);
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+    if (advPosLoc !== -1) {
+      gl.enableVertexAttribArray(advPosLoc);
+      gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
+    gl.bindVertexArray(null);
+  }
+
   this._initialized = true;
   console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 96x96 grid');
 };
@@ -358,29 +394,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.clear(gl.COLOR_BUFFER_BIT);
     }
 
-    while (gl.getError() !== gl.NO_ERROR) {}
-
-    const maxAttribs = gl.getParameter(gl.MAX_VERTEX_ATTRIBS) || 16;
-    for (let i = 0; i < maxAttribs; i++) {
-      try {
-        if (gl.getVertexAttrib(i, gl.VERTEX_ATTRIB_ARRAY_ENABLED)) {
-          gl.disableVertexAttribArray(i);
-        }
-      } catch (e) {}
-    }
-
-    const maxUnits = gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8;
-    for (let u = 0; u < maxUnits; u++) {
+    // Unbind only the texture units we actually use (0 to 3) to prevent feedback loops (non-blocking)
+    for (let u = 0; u < 4; u++) {
       gl.activeTexture(gl.TEXTURE0 + u);
       gl.bindTexture(gl.TEXTURE_2D, null);
-      try {
-        gl.bindTexture(gl.TEXTURE_CUBE_MAP, null);
-      } catch (e) {}
-      if (webglState.isWebGL2) {
-        try {
-          gl.bindSampler(u, null);
-        } catch (e) {}
-      }
     }
 
     if (webglState.isWebGL2) {
@@ -472,12 +489,16 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
 
-    var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
     var heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
-    gl.enableVertexAttribArray(heatUVLoc);
-    gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+    if (this.heatmapVAO) {
+      gl.bindVertexArray(this.heatmapVAO);
+    } else {
+      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+      gl.enableVertexAttribArray(heatUVLoc);
+      gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+      gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+    }
 
     var worldOffsets = [0.0, -360.0, 360.0];
     for (var wi = 0; wi < worldOffsets.length; wi++) {
@@ -487,7 +508,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         window.__RAW_GPU__.drawCallsPerFrame++;
       }
     }
-    gl.disableVertexAttribArray(heatUVLoc);
+
+    if (this.heatmapVAO) {
+      gl.bindVertexArray(null);
+    } else {
+      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
+    }
 
     // ==========================================
     // PHASE 2: WAVE CREST RENDERER
@@ -528,11 +555,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     bindTexture(gl, this._waveData.u_waveTexture, 1);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
 
-    var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
     var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
-    gl.enableVertexAttribArray(idLoc);
-    gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
+    if (this.drawVAO) {
+      gl.bindVertexArray(this.drawVAO);
+    } else {
+      var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
+      gl.enableVertexAttribArray(idLoc);
+      gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
+    }
 
     // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
     var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
@@ -544,7 +575,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         window.__RAW_GPU__.drawCallsPerFrame++;
       }
     }
-    gl.disableVertexAttribArray(idLoc);
+
+    if (this.drawVAO) {
+      gl.bindVertexArray(null);
+    } else {
+      var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+      if (idLoc !== -1) gl.disableVertexAttribArray(idLoc);
+    }
 
     // === CREST DIAGNOSTICS (v5.3) ===
     populateCrestDiagnostics(this, gl, waveBounds, z);
@@ -603,15 +640,26 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     bindTexture(gl, this._waveData.u_waveTexture, 1);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
 
-    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    gl.enableVertexAttribArray(advPosLoc);
-    gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+    if (this.advectVAO) {
+      gl.bindVertexArray(this.advectVAO);
+    } else {
+      var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+      gl.enableVertexAttribArray(advPosLoc);
+      gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+    }
+
     gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.drawCallsPerFrame++;
     }
-    gl.disableVertexAttribArray(advPosLoc);
+
+    if (this.advectVAO) {
+      gl.bindVertexArray(null);
+    } else {
+      var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+      if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
+    }
 
     gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
 
@@ -689,6 +737,10 @@ var deleteAttachedShaders = function(gl, prog) {
 WebGLMarineEngine.prototype.dispose = function(gl) {
   if (!gl) return;
   this.clearBuffers(gl);
+
+  if (this.heatmapVAO) { gl.deleteVertexArray(this.heatmapVAO); this.heatmapVAO = null; }
+  if (this.drawVAO) { gl.deleteVertexArray(this.drawVAO); this.drawVAO = null; }
+  if (this.advectVAO) { gl.deleteVertexArray(this.advectVAO); this.advectVAO = null; }
 
   if (this.advectProgram) deleteAttachedShaders(gl, this.advectProgram);
   if (this.drawProgram) deleteAttachedShaders(gl, this.drawProgram);

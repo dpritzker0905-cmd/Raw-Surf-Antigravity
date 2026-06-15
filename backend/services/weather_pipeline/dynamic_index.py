@@ -165,13 +165,15 @@ class DynamicProductIndex:
         layer: str,
         valid_time: datetime,
         lat: float,
-        lng: float
+        lng: float,
+        grid_bbox: Optional[str] = None
     ) -> Optional[Dict[str, Any]]:
-        """Finds any registered dynamic product that contains the requested coordinate and time."""
+        """Finds any registered dynamic product that contains the requested coordinate and time, sorted by closest match."""
         self.prune_expired()
         items = self._load_index()
         target_ts = valid_time.timestamp()
 
+        candidates = []
         for item in items:
             if (
                 item.get("model").upper() == model.upper()
@@ -180,7 +182,8 @@ class DynamicProductIndex:
             ):
                 try:
                     item_dt = datetime.fromisoformat(item["valid_time"].replace("Z", "+00:00"))
-                    if abs(item_dt.timestamp() - target_ts) <= 3 * 3600:
+                    time_diff = abs(item_dt.timestamp() - target_ts)
+                    if time_diff <= 3 * 3600:
                         # Parse served_bbox to check bounds: west,south,east,north
                         bbox_parts = [float(x) for x in item["served_bbox"].split(",")]
                         if len(bbox_parts) == 4:
@@ -191,12 +194,40 @@ class DynamicProductIndex:
                             in_lat = (south - margin) <= lat <= (north + margin)
                             if west <= east:
                                 in_lng = (west - margin) <= lng <= (east + margin)
+                                area = (north - south) * (east - west)
                             else:
                                 # Antimeridian crossing: coordinate must be west of East OR east of West
                                 in_lng = lng >= (west - margin) or lng <= (east + margin)
+                                area = (north - south) * ((east - west) % 360.0)
 
                             if in_lat and in_lng:
-                                return item
+                                # Calculate bbox match score (0 is best, 1 is fallback)
+                                bbox_match = 1
+                                if grid_bbox:
+                                    if item.get("requested_bbox") == grid_bbox or item.get("served_bbox") == grid_bbox:
+                                        bbox_match = 0
+                                    else:
+                                        try:
+                                            g_parts = [float(x) for x in grid_bbox.split(",")]
+                                            if len(g_parts) == 4:
+                                                g_w, g_s, g_e, g_n = g_parts
+                                                if abs(g_w - west) < 0.1 and abs(g_s - south) < 0.1 and abs(g_e - east) < 0.1 and abs(g_n - north) < 0.1:
+                                                    bbox_match = 0
+                                        except Exception:
+                                            pass
+
+                                candidates.append({
+                                    "item": item,
+                                    "bbox_match": bbox_match,
+                                    "time_diff": time_diff,
+                                    "area": area
+                                })
                 except (ValueError, KeyError, IndexError):
                     continue
+
+        if candidates:
+            # Sort: 1) bbox_match, 2) time_diff, 3) area (smaller is better)
+            candidates.sort(key=lambda c: (c["bbox_match"], c["time_diff"], c["area"]))
+            return candidates[0]["item"]
+
         return None

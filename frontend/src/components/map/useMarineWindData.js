@@ -1,6 +1,24 @@
 import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 
+function getLongitudinalOverlap(w1, e1, w2, e2) {
+  const norm = lng => ((lng % 360) + 360) % 360;
+  const nw1 = norm(w1), ne1 = norm(e1);
+  const nw2 = norm(w2), ne2 = norm(e2);
+  const getSegments = (s, e) => s <= e ? [[s, e]] : [[s, 360], [0, e]];
+  const segs1 = getSegments(nw1, ne1);
+  const segs2 = getSegments(nw2, ne2);
+  let overlap = 0;
+  for (const seg1 of segs1) {
+    for (const seg2 of segs2) {
+      const start = Math.max(seg1[0], seg2[0]);
+      const end = Math.min(seg1[1], seg2[1]);
+      if (start < end) overlap += (end - start);
+    }
+  }
+  return overlap;
+}
+
 export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
   const lastValidDataRef = useRef(null);
 
@@ -20,15 +38,15 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
           const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
           
-          const intWest = Math.max(ew, gw);
-          const intEast = Math.min(ee, ge);
+          const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
           const intSouth = Math.max(es, gs);
           const intNorth = Math.min(en, gn);
           
           let overlapRatio = 0;
-          if (intWest < intEast && intSouth < intNorth) {
-            const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
-            const viewportArea = (ee - ew) * (en - es);
+          if (overlapWidth > 0 && intSouth < intNorth) {
+            const intersectionArea = overlapWidth * (intNorth - intSouth);
+            const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+            const viewportArea = vpWidth * (en - es);
             if (viewportArea > 0) {
               overlapRatio = intersectionArea / viewportArea;
             }
@@ -38,16 +56,28 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           const vpHeight = en - es;
           const gridHeight = gn - gs;
 
-          if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
+          const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
+          const isViewportZoomedOut = vpWidth > 80.0 || vpHeight > 40.0;
+          let shouldReject = isGlobalSupported
+            ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+            : (overlapWidth <= 0 || intSouth >= intNorth);
+
+          if (g && (g.__isAcceptableRegional || gridWidth < 340.0)) {
+            shouldReject = overlapWidth <= 0 || intSouth >= intNorth;
+          }
+
+          if (shouldReject) {
             if (typeof window !== 'undefined') {
               window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
                 hasData: true,
                 hasGrid: true,
                 overlapRatio,
                 mismatch: true,
-                mismatchReason: gridWidth < vpWidth || gridHeight < vpHeight
-                  ? `Grid is smaller than viewport (grid: ${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vp: ${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)})`
-                  : `Viewport moved away from regional grid bounds (overlap: ${overlapRatio.toFixed(2)} < 0.15)`,
+                mismatchReason: isGlobalSupported && isViewportZoomedOut && gridWidth < 340.0
+                  ? `Grid is smaller than global threshold (gridWidth: ${gridWidth.toFixed(1)} < 340.0)`
+                  : (overlapWidth <= 0 || intSouth >= intNorth)
+                    ? `Regional grid is completely outside viewport bounds`
+                    : `Viewport moved away from regional grid bounds (overlap: ${overlapRatio.toFixed(2)} < 0.15)`,
                 timestamp: new Date().toISOString()
               };
               window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
@@ -81,47 +111,29 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
     const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
     const gridProvider = marineData.grid.__gridProvider || 'none';
+    const gridComponentLayer = marineData.grid.__componentLayer;
     const isEuroComponent = activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
     const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
 
-    // 1. Cross-model mismatch check: if the grid source model does not match the active model, return null to clear visual buffers.
-    if (gridModel !== activeModel) {
-      if (typeof window !== 'undefined') {
-        window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
-          hasData: !!marineData,
-          hasGrid: !!marineData?.grid,
-          gridProvider,
-          componentLayer: marineData.grid.__componentLayer || 'none',
-          activeMarineLayer,
-          activeModel,
-          isEuroComponent,
-          hasCopernicusGrid: false,
-          mismatch: true,
-          mismatchReason: `Model mismatch: activeModel is ${activeModel} but grid sourceModel is ${gridModel || 'none'}`,
-          timestamp: new Date().toISOString()
-        };
-        window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
-      }
-      if (isTransitioning && lastValidDataRef.current) {
-        return lastValidDataRef.current;
-      }
-      return null;
-    }
+    const isModelMismatch = gridModel !== activeModel;
+    const isLayerMismatch = gridComponentLayer && gridComponentLayer !== activeMarineLayer;
+    const isMismatch = isModelMismatch || isLayerMismatch;
 
-    // 2. Cross-layer mismatch check: if we expect the global waves grid (non-component) but the current grid is a regional Copernicus component grid, return null.
-    if (!isEuroComponent && gridProvider === 'copernicus') {
+    if (isMismatch) {
       if (typeof window !== 'undefined') {
         window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
           hasData: !!marineData,
           hasGrid: !!marineData?.grid,
           gridProvider,
-          componentLayer: marineData.grid.__componentLayer || 'none',
+          componentLayer: gridComponentLayer || 'none',
           activeMarineLayer,
           activeModel,
           isEuroComponent,
           hasCopernicusGrid: false,
           mismatch: true,
-          mismatchReason: `Expected global waves grid but received Copernicus component grid (${marineData.grid.__componentLayer || 'none'})`,
+          mismatchReason: isModelMismatch
+            ? `Model mismatch: activeModel is ${activeModel} but grid sourceModel is ${gridModel || 'none'}`
+            : `Layer mismatch: active layer is ${activeMarineLayer} but grid componentLayer is ${gridComponentLayer || 'none'}`,
           timestamp: new Date().toISOString()
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;

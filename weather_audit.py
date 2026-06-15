@@ -40,14 +40,14 @@ def iso_valid_time(hours_offset: int) -> str:
     """Return ISO‑8601 UTC timestamp with trailing Z.
     Uses the fixed reference time from the request (2026‑06‑05T13:39:51‑04:00).
     """
-    now_utc = datetime(2026, 6, 5, 17, 39, 51, tzinfo=timezone.utc)
+    now_utc = datetime(2026, 6, 15, 6, 0, 0, tzinfo=timezone.utc)
     target = now_utc + timedelta(hours=hours_offset)
     return target.strftime("%Y-%m-%dT%H:%M:%SZ")
 
 def fetch_json(url: str, params: dict = None) -> dict:
     """GET JSON safely – on failure returns empty dict and logs error."""
     try:
-        resp = requests.get(url, params=params, timeout=30)
+        resp = requests.get(url, params=params, timeout=90)
         resp.raise_for_status()
         return resp.json()
     except Exception as e:
@@ -152,6 +152,7 @@ def main():
                 "valid_time": vt,
                 "lat": LAT,
                 "lng": LNG,
+                "grid_bbox": BBOX,
             }
             point_data = fetch_json(f"{BASE_URL}/api/weather/point", params=point_params)
             point_fname = f"point_{layer}_{label.replace('+','plus').replace('h','h')}.json"

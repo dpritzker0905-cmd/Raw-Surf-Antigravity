@@ -15,7 +15,25 @@ import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMari
 
 var LAYER_ID = 'webgl-marine-particles';
 
-function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef) {
+function getLongitudinalOverlap(w1, e1, w2, e2) {
+  const norm = lng => ((lng % 360) + 360) % 360;
+  const nw1 = norm(w1), ne1 = norm(e1);
+  const nw2 = norm(w2), ne2 = norm(e2);
+  const getSegments = (s, e) => s <= e ? [[s, e]] : [[s, 360], [0, e]];
+  const segs1 = getSegments(nw1, ne1);
+  const segs2 = getSegments(nw2, ne2);
+  let overlap = 0;
+  for (const seg1 of segs1) {
+    for (const seg2 of segs2) {
+      const start = Math.max(seg1[0], seg2[0]);
+      const end = Math.min(seg1[1], seg2[1]);
+      if (start < end) overlap += (end - start);
+    }
+  }
+  return overlap;
+}
+
+function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef, activeModelRef) {
   let errorCount = 0;
   return {
     id: LAYER_ID,
@@ -113,15 +131,15 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
             const gw = bounds.west, ge = bounds.east, gs = bounds.south, gn = bounds.north;
             
-            const intWest = Math.max(ew, gw);
-            const intEast = Math.min(ee, ge);
+            const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
             const intSouth = Math.max(es, gs);
             const intNorth = Math.min(en, gn);
             
             let overlapRatio = 0;
-            if (intWest < intEast && intSouth < intNorth) {
-              const intersectionArea = (intEast - intWest) * (intNorth - intSouth);
-              const viewportArea = (ee - ew) * (en - es);
+            if (overlapWidth > 0 && intSouth < intNorth) {
+              const intersectionArea = overlapWidth * (intNorth - intSouth);
+              const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+              const viewportArea = vpWidth * (en - es);
               if (viewportArea > 0) {
                 overlapRatio = intersectionArea / viewportArea;
               }
@@ -131,7 +149,22 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             const vpHeight = en - es;
             const gridHeight = gn - gs;
 
-            if (gridWidth < vpWidth || gridHeight < vpHeight || overlapRatio < 0.15) {
+            const activeModel = activeModelRef ? activeModelRef.current : 'GFS';
+            const activeLayers = activeLayersRef.current || [];
+            const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+
+            const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
+            const isViewportZoomedOut = vpWidth > 80.0 || vpHeight > 40.0;
+            let shouldReject = isGlobalSupported
+              ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+              : (overlapWidth <= 0 || intSouth >= intNorth);
+
+            const g = engine._waveData?.waveGrid;
+            if (g && (g.__isAcceptableRegional || gridWidth < 340.0)) {
+              shouldReject = overlapWidth <= 0 || intSouth >= intNorth;
+            }
+
+            if (shouldReject) {
               engine.clearBuffers(_gl);
               this._wasActive = false;
               return;
@@ -526,7 +559,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const isMobile = window.innerWidth < 768;
     engine.particleRes = isMobile ? 192 : 296;
 
-    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef);
+    const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef, activeModelRef);
 
     const handleStyleData = () => {
       if (!mapInstance || !mapInstance.style) return;

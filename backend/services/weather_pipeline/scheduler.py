@@ -142,7 +142,7 @@ class WeatherPipelineScheduler:
         }
         resolution = 10.0
 
-        forecast_days = 2 if env["is_test_env"] else 14
+        forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
         results = await self._fetch_or_mock(
             "GFS", "marine", "all_marine", global_region, resolution, forecast_days,
             env["is_test_env"],
@@ -190,7 +190,7 @@ class WeatherPipelineScheduler:
         }
         resolution = 10.0
 
-        forecast_days = 2 if env["is_test_env"] else 7
+        forecast_days = int(os.environ.get("EURO_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "7"))
         
         # 1. Fetch EURO waves results
         euro_results = await self._fetch_or_mock(
@@ -308,7 +308,7 @@ class WeatherPipelineScheduler:
         }
         resolution = 10.0
 
-        forecast_days = 2 if env["is_test_env"] else 7
+        forecast_days = int(os.environ.get("ICON_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "7"))
         results = await self._fetch_or_mock(
             "ICON", "marine", "all_marine", global_region, resolution, forecast_days,
             env["is_test_env"],
@@ -383,7 +383,7 @@ class WeatherPipelineScheduler:
                 if has_credentials:
                     results = await self.cop_provider.fetch_grid(
                         layer=layer, bbox=region, resolution=0.5,
-                        forecast_days=1 if os.environ.get("RENDER") == "true" else 3
+                        forecast_days=int(os.environ.get("COPERNICUS_FORECAST_DAYS", "1" if os.environ.get("RENDER") == "true" else "3"))
                     )
                     if results:
                         results = results if isinstance(results, list) else [results]

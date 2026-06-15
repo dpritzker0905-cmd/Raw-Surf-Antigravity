@@ -177,6 +177,9 @@ async def get_grid(
             else:
                 use_manifest_product = True
 
+        if matching_manifest_item and getattr(matching_manifest_item, "is_estimated", False):
+            use_manifest_product = True
+
         if not use_manifest_product:
             # Do NOT serve a regional preview or global coarse preview for a zoomed-in viewport query (use_manifest_product is False),
             # as it causes jarring visual expand/shrink transitions and clamping jitters due to grid dimension/resolution mismatch.
@@ -188,7 +191,7 @@ async def get_grid(
     product = None
     
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
-    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
         product = await viewport_service.get_cached_dynamic_product(
             model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
         )
@@ -244,7 +247,7 @@ async def get_grid(
                     product = filter_grid_to_bbox(product, bbox)
                 if product.grid and product.grid.bounds:
                     product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
-                if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+                if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
                     reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
                     if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
                         viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
@@ -262,7 +265,7 @@ async def get_grid(
 
     # Step 4 & 5: Upstream dynamic fetch & stale fallback
     if not product:
-        if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox):
+        if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
             try:
                 # For ICON wind, dynamic viewport fetch is supported beyond 5-day limit by loop-extrapolation inside fetch_viewport_grid_upstream.
 
