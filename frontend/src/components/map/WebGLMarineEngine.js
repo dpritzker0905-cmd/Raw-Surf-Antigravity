@@ -440,8 +440,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
 
-    const isEstimated = waveGrid?.is_estimated || waveGrid?.isEstimated || false;
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), isEstimated ? 1.0 : 0.0);
+    // Only apply the power-law visual scaling to actual trend-blended estimated products (provider "estimated" or source_dataset "estimated_blend")
+    // and NOT to direct model fallbacks (like open-meteo or GFS fallback) which contain actual physical wave heights.
+    const isEstimatedBlend = (
+      waveGrid?.is_estimated || waveGrid?.isEstimated
+    ) && (
+      waveGrid?.provider === 'estimated' || 
+      waveGrid?.source_dataset === 'estimated_blend' ||
+      (waveGrid?.estimate_basis && (
+        waveGrid.estimate_basis.type === 'euro_persistence_gfs_icon_blend' ||
+        waveGrid.estimate_basis.type === 'euro_persistence_gfs_blend'
+      ))
+    );
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), isEstimatedBlend ? 1.0 : 0.0);
 
     var heatmapOpacity;
     if (z <= 2) heatmapOpacity = 0.55;

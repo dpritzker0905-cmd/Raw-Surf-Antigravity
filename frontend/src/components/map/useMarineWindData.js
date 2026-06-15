@@ -206,6 +206,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     res.__gridSupportsLayer = layerSupported;
     res.is_estimated = isGridEstimated;
     res.isEstimated = isGridEstimated;
+    res.provider = marineData?.provider || marineData?.grid?.provider || null;
+    res.source_dataset = marineData?.source_dataset || marineData?.grid?.source_dataset || null;
+    res.estimate_basis = marineData?.estimate_basis || marineData?.grid?.estimate_basis || null;
     res.productId = marineData.grid.productId || marineData.productId || null;
     res.is_dynamic_viewport_product = marineData.grid.is_dynamic_viewport_product || false;
     res.coverage_scope = marineData.grid.coverage_scope || null;

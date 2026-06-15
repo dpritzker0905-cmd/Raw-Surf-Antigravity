@@ -61,8 +61,12 @@ def validate_copernicus_product_helper(
             return False, "Estimated product is_estimated must be True"
         if product.is_forecast_authoritative:
             return False, "Estimated product is_forecast_authoritative must be False"
-        if product.source_dataset not in ("estimated_blend", "open_meteo_fallback", "gfs_estimated_fallback"):
-            return False, f"Estimated product source_dataset must be estimated_blend, open_meteo_fallback, or gfs_estimated_fallback, got {product.source_dataset}"
+        allowed_datasets = (
+            "estimated_blend", "open_meteo_fallback", "gfs_estimated_fallback",
+            "ecmwf_wam025", "ncep_gfswave025", "dwd_gwam", "gfs_seamless", "dwd_icon", "ecmwf_ifs"
+        )
+        if product.source_dataset not in allowed_datasets:
+            return False, f"Estimated product source_dataset must be in {allowed_datasets}, got {product.source_dataset}"
         
         basis = getattr(product, "estimate_basis", None)
         if not basis:
@@ -115,7 +119,7 @@ def validate_copernicus_product_helper(
             return False, f"Grid contract mismatch: expected cols * rows = {expected_len}, got len(vectors) = {actual_len}"
             
         diag = product.grid.diagnostics or {}
-        diag_vector_count = diag.get("vectorCount")
+        diag_vector_count = diag.get("vectorCount") if diag.get("vectorCount") is not None else diag.get("vectors_length")
         if diag_vector_count != actual_len:
             return False, f"Grid diagnostics mismatch: vectorCount = {diag_vector_count}, got len(vectors) = {actual_len}"
             

@@ -285,6 +285,7 @@ class WeatherNormalizer:
             diagnostics={
                 "cols": cols,
                 "rows": rows,
+                "vectorCount": len(vectors),
                 "vectors_length": len(vectors),
                 "expectedCellCount": expected_cell_count,
                 "missingCellCount": missing_cell_count,
