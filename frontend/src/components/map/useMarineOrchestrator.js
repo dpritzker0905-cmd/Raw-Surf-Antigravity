@@ -76,6 +76,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   }, [activeLayers]);
   activeMarineLayersRef.current = hasMarineLayers;
 
+  // Synchronously flag transition during render if model/layer changes
+  // to prevent child WebGL layer from clearing buffers before fetch starts.
+  if (typeof window !== 'undefined' && activeMarineLayersRef.current) {
+    if (lastFetchedModelRef.current !== null && lastFetchedModelRef.current !== activeModel) {
+      window.__MARINE_TRANSITIONING__ = true;
+    }
+    if (lastFetchedLayerRef.current !== null && lastFetchedLayerRef.current !== activeMarineLayer) {
+      window.__MARINE_TRANSITIONING__ = true;
+    }
+  }
+
   const hasActivatedRef = useRef(false);
 
   useEffect(() => {
@@ -478,6 +489,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             if (sig) {
               if (sig === lastCommittedSigRef.current) {
                 lastFetchedLayerRef.current = activeMarineLayer;
+                if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
                 return;
               }
               console.log(`[WEATHER_TRUTH] [Marine] Layer switch backend cache HIT for ${activeMarineLayer}: ${prodId}`);
@@ -510,6 +522,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               
               setMarineData(cached);
               lastFetchedLayerRef.current = activeMarineLayer;
+              if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
               enqueueMarineUpdate('cancel_scrub');
               return;
             }
@@ -527,7 +540,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
             if (remapped?.grid?.vectors?.length > 0) {
               const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
-              if (sig && sig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: sig }); lastFetchedLayerRef.current = activeMarineLayer; return; }
+              if (sig && sig === lastCommittedSigRef.current) {
+                logPipelineEventHelper('duplicate_commit_skipped', { signature: sig });
+                lastFetchedLayerRef.current = activeMarineLayer;
+                if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+                return;
+              }
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
               console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
               logPipelineEventHelper(evtType, { model: activeModel, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
@@ -536,7 +554,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               const vHash = getViewportHash();
               if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
  
-              setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer; enqueueMarineUpdate('cancel_scrub'); return;
+              setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer;
+              if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+              enqueueMarineUpdate('cancel_scrub');
+              return;
             }
           }
         } catch (e) { console.warn('[Marine] Cache remap failed:', e.message); }

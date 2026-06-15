@@ -178,11 +178,9 @@ async def get_grid(
                 use_manifest_product = True
 
         if not use_manifest_product:
-            # Only serve regional preview if it covers the requested bbox.
-            # Do NOT serve a global coarse preview for a zoomed-in viewport query,
-            # as it causes jarring visual expand/shrink transitions.
-            if is_regional and is_covered:
-                manifest_preview_item = matching_manifest_item
+            # Do NOT serve a regional preview or global coarse preview for a zoomed-in viewport query (use_manifest_product is False),
+            # as it causes jarring visual expand/shrink transitions and clamping jitters due to grid dimension/resolution mismatch.
+            manifest_preview_item = None
             matching_manifest_item = None
 
 
