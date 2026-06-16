@@ -765,22 +765,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     if (!isValid) {
-      const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
-      const isScrubbing = typeof window !== 'undefined' && (window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500)));
-      if (isTransitioning || isScrubbing) {
-        // Retain the current WebGL buffers during transition
-        return;
-      }
-      console.log(`[WebGLMarine-Validate] Grid mismatch: model=${gridModel} vs ${activeModelRef.current}`);
-      engine.clearBuffers(gl);
-      lastUploadedSignatureRef.current = '';
-      lastUploadedGridRef.current = {
-        activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
-        boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-        sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
-      };
-      runDiagnosticsUpdate(`intent_mismatch: model=${gridModel}`);
-      if (mapInstance) mapInstance.triggerRepaint();
+      // Retain the current WebGL buffers during transition and mismatch
+      // until new valid data for the active model/layer is successfully loaded and committed.
       return;
     }
 
