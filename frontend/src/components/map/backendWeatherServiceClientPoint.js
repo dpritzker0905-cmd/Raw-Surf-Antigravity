@@ -157,33 +157,33 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     const mockTime = validTimeStr.replace(/\.\d+Z$/, 'Z');
     const conformedHourly = {
       time: [mockTime],
-      wave_height: [0],
-      wave_direction: [0],
-      wave_period: [0],
-      wave_peak_period: [0],
-      swell_wave_height: [0],
-      swell_wave_direction: [0],
-      swell_wave_period: [0],
-      swell_wave_peak_period: [0],
-      secondary_swell_wave_height: [0],
-      secondary_swell_wave_direction: [0],
-      secondary_swell_wave_period: [0],
-      wind_wave_height: [0],
-      wind_wave_direction: [0],
-      wind_wave_period: [0],
-      wind_wave_peak_period: [0]
+      wave_height: [null],
+      wave_direction: [null],
+      wave_period: [null],
+      wave_peak_period: [null],
+      swell_wave_height: [null],
+      swell_wave_direction: [null],
+      swell_wave_period: [null],
+      swell_wave_peak_period: [null],
+      secondary_swell_wave_height: [null],
+      secondary_swell_wave_direction: [null],
+      secondary_swell_wave_period: [null],
+      wind_wave_height: [null],
+      wind_wave_direction: [null],
+      wind_wave_period: [null],
+      wind_wave_peak_period: [null]
     };
 
     if (layer === 'waves') {
       conformedHourly.wave_height = [json.point.speed || 0];
       conformedHourly.wave_direction = [json.point.direction || 0];
       conformedHourly.wave_period = [json.point.period || 0];
-      conformedHourly.wave_peak_period = [0];
+      conformedHourly.wave_peak_period = [null];
     } else if (layer === 'swell_1') {
       conformedHourly.swell_wave_height = [json.point.speed || 0];
       conformedHourly.swell_wave_direction = [json.point.direction || 0];
       conformedHourly.swell_wave_period = [json.point.period || 0];
-      conformedHourly.swell_wave_peak_period = [0];
+      conformedHourly.swell_wave_peak_period = [null];
     } else if (layer === 'swell_2') {
       conformedHourly.secondary_swell_wave_height = [json.point.speed || 0];
       conformedHourly.secondary_swell_wave_direction = [json.point.direction || 0];
@@ -192,7 +192,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       conformedHourly.wind_wave_height = [json.point.speed || 0];
       conformedHourly.wind_wave_direction = [json.point.direction || 0];
       conformedHourly.wind_wave_period = [json.point.period || 0];
-      conformedHourly.wind_wave_peak_period = [0];
+      conformedHourly.wind_wave_peak_period = [null];
     }
 
     const data = {
