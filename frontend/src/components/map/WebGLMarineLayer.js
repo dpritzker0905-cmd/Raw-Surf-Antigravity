@@ -51,16 +51,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const landGeoJSONRef = useRef(null);
   const landGeoJSONFailedRef = useRef(false);
 
-  useEffect(() => { activeRef.current = active; }, [active]);
-  useEffect(() => { mapRef.current = mapInstance; }, [mapInstance]);
-  useEffect(() => { onAddedChangeRef.current = onAddedChange; }, [onAddedChange]);
-  useEffect(() => { onErrorRef.current = onError; }, [onError]);
-  useEffect(() => { dataRef.current = data; }, [data]);
-  useEffect(() => { themeRef.current = theme; }, [theme]);
-  useEffect(() => { beforeIdRef.current = beforeId; }, [beforeId]);
-  useEffect(() => { activeLayersRef.current = activeLayers; }, [activeLayers]);
-  useEffect(() => { activeModelRef.current = activeModel; }, [activeModel]);
-  useEffect(() => { timeOffsetHoursRef.current = timeOffsetHours; }, [timeOffsetHours]);
+  useEffect(() => {
+    activeRef.current = active;
+    mapRef.current = mapInstance;
+    onAddedChangeRef.current = onAddedChange;
+    onErrorRef.current = onError;
+    dataRef.current = data;
+    themeRef.current = theme;
+    beforeIdRef.current = beforeId;
+    activeLayersRef.current = activeLayers;
+    activeModelRef.current = activeModel;
+    timeOffsetHoursRef.current = timeOffsetHours;
+  }, [active, mapInstance, onAddedChange, onError, data, theme, beforeId, activeLayers, activeModel, timeOffsetHours]);
 
   useEffect(() => {
     if (typeof window === 'undefined') return;
@@ -154,7 +156,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         window.__MARINE_HEATMAP_STATUS__ = null;
       }
     }
-  }, [data, timeOffsetHours, revision, active, activeModel]);
+  }, [timeOffsetHours, revision, active, activeModel]);
 
   const runDiagnosticsUpdate = (rejectionOrClearReason = null) => {
     updateWebGLMarineLayerDiag(
@@ -427,10 +429,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !gl) return;
 
-    const isRenderable = data && data.vectors?.length > 0 && data.__renderable !== false;
+    const currentData = dataRef.current;
+    const isRenderable = currentData && currentData.vectors?.length > 0 && currentData.__renderable !== false;
 
     if (!isRenderable) {
-      if (data?.__unsupportedLayer === true) {
+      if (currentData?.__unsupportedLayer === true) {
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {
@@ -454,7 +457,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
-      const isFallbackSafeZero = data?.__provider === 'fallback_safe_zero' || data?.grid?.__provider === 'fallback_safe_zero';
+      const isFallbackSafeZero = currentData?.__provider === 'fallback_safe_zero' || currentData?.grid?.__provider === 'fallback_safe_zero';
 
       if (isFallbackSafeZero && !modelOrLayerChanged && !hourChanged) {
         runDiagnosticsUpdate('held_rate_limit');
@@ -488,10 +491,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       window.lastScrubTime = Date.now();
     }
 
-    const gridModel = data.__sourceModel || activeModel;
+    const gridModel = currentData.__sourceModel || activeModel;
     const activeMarineLayer = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-    const gridProvider = data.grid?.__gridProvider || data.__gridProvider || 'none';
-    const componentLayer = data.grid?.__componentLayer || data.__componentLayer || 'none';
+    const gridProvider = currentData.grid?.__gridProvider || currentData.__gridProvider || 'none';
+    const componentLayer = currentData.grid?.__componentLayer || currentData.__componentLayer || 'none';
 
     const isEuro = activeModelRef.current === 'EURO';
     const isGfsOrIcon = activeModelRef.current === 'GFS' || activeModelRef.current === 'ICON';
@@ -531,14 +534,14 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       return;
     }
 
-    if (data.__renderable === false) {
-      runDiagnosticsUpdate(`render_blocked: ${data.__renderBlockedReason || 'not_renderable'}`);
+    if (currentData.__renderable === false) {
+      runDiagnosticsUpdate(`render_blocked: ${currentData.__renderBlockedReason || 'not_renderable'}`);
       return;
     }
 
     const doUpload = () => {
       const reason = window.isScrubbingTimeline ? 'scrub_settle' : 'data_commit';
-      safeUploadWaveData(reason, gl, data, landGeoJSONRef.current);
+      safeUploadWaveData(reason, gl, currentData, landGeoJSONRef.current);
     };
 
     if (window.isScrubbingTimeline) {
@@ -554,7 +557,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     return () => {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
     };
-  }, [data, revision, mapInstance, landGeoJSON]);
+  }, [revision, activeModel, timeOffsetHours, mapInstance, landGeoJSON]);
 
   useEffect(() => {
     if (!mapInstance || !active) return;

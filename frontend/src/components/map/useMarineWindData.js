@@ -26,8 +26,102 @@ function getLongitudinalOverlap(w1, e1, w2, e2) {
 export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
   const lastValidDataRef = useRef(null);
 
-  return useMemo(() => {
+  // 1. Memoize the conformed vectors so they are only re-mapped when the underlying grid/layer/model changes.
+  const conformedGridBase = useMemo(() => {
     if (!marineData?.grid?.vectors || !activeMarineLayer) {
+      return null;
+    }
+
+    const hasEstimatedGrid = marineData?.grid?.__gridProvider === 'estimated' &&
+                             marineData?.grid?.__gridSupportsLayer === true &&
+                             marineData?.grid?.__componentLayer === activeMarineLayer &&
+                             (activeModel === 'EURO' || activeModel === 'ICON');
+
+    const isGridEstimated = marineData?.grid?.is_estimated || marineData?.grid?.isEstimated || marineData?.is_estimated || marineData?.isEstimated || false;
+
+    const hasCopernicusGrid = ((['copernicus', 'backend-weather-service', 'test-fixture', 'open-meteo'].includes(marineData?.grid?.__gridProvider)) &&
+                              marineData?.grid?.__gridSupportsLayer === true &&
+                              marineData?.grid?.__componentLayer === activeMarineLayer &&
+                              activeModel === 'EURO') || hasEstimatedGrid ||
+                              ((['gfs_estimated_backdrop', 'gfs_estimated_fallback'].includes(marineData?.grid?.__gridProvider)) &&
+                               marineData?.grid?.__gridSupportsLayer === true &&
+                               marineData?.grid?.__componentLayer === activeMarineLayer &&
+                               activeModel === 'EURO') ||
+                              ((['open-meteo', 'estimated'].includes(marineData?.grid?.__gridProvider)) &&
+                               activeModel === 'EURO' &&
+                               (activeMarineLayer === 'waves' || isGridEstimated));
+
+    const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || hasCopernicusGrid;
+    const vectors = marineData.grid.vectors.map(v => {
+      // Only fall back to 'waves' if the model's GRID natively supports this layer.
+      // For unsupported grid layers (EURO swell/wind_waves), use the layer's own data
+      // (zeroed from API) to avoid rendering a misleading heatmap.
+      const hasFlat = v && typeof v.speed === 'number' && typeof v.u === 'number';
+      const hasSubData = activeMarineLayer && v && v[activeMarineLayer];
+      
+      // Prioritize specific sub-layer data (e.g. swell_1, wind_waves) over top-level conjoined wave data
+      const layerData = hasSubData
+        ? v[activeMarineLayer]
+        : (hasFlat
+            ? v
+            : (layerSupported
+                ? (v[activeMarineLayer] || v['waves'])
+                : v[activeMarineLayer])); // no fallback — will be {u:0,v:0,speed:0}
+                
+      return {
+        lat: v.lat,
+        lng: v.lng,
+        u: layerData?.u || 0,
+        v: layerData?.v || 0,
+        speed: layerData?.speed || 0,
+        period: layerData?.period || 0,
+        height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
+        direction: layerData?.direction !== undefined ? layerData.direction : undefined,
+        isOcean: v.isOcean,
+        [activeMarineLayer]: layerData
+      };
+    });
+
+    let nonzeroCount = 0, maxHeight = 0;
+    for (const v of vectors) {
+      if (v.speed > 0) { nonzeroCount++; if (v.speed > maxHeight) maxHeight = v.speed; }
+    }
+
+    return {
+      bounds: marineData.grid.bounds,
+      cols: marineData.grid.cols,
+      rows: marineData.grid.rows,
+      vectors,
+      __sourceModel: activeModel,
+      __provider: marineData?.grid?.provider || 'unknown',
+      __gridProvider: marineData?.grid?.__gridProvider || marineData?.grid?.provider || 'none',
+      __componentLayer: marineData?.grid?.__componentLayer || 'none',
+      __gridSupportsLayer: layerSupported,
+      is_estimated: isGridEstimated,
+      isEstimated: isGridEstimated,
+      provider: marineData?.provider || marineData?.grid?.provider || null,
+      source_dataset: marineData?.source_dataset || marineData?.grid?.source_dataset || null,
+      estimate_basis: marineData?.estimate_basis || marineData?.grid?.estimate_basis || null,
+      productId: marineData.grid.productId || marineData.productId || null,
+      is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
+      coverage_scope: marineData.grid.coverage_scope || null,
+      activeMarineLayer,
+      activeModel,
+      valid_time: marineData.valid_time || marineData.grid.valid_time,
+      validTime: marineData.validTime || marineData.grid.validTime,
+      run_time: marineData.run_time || marineData.grid.run_time || marineData.runTime || marineData.grid.runTime || null,
+      runTime: marineData.run_time || marineData.grid.run_time || marineData.runTime || marineData.grid.runTime || null,
+      truthTag: marineData.truthTag || marineData.grid.truthTag || null,
+      __nonzeroCount: nonzeroCount,
+      __maxHeight: maxHeight,
+      hasCopernicusGrid,
+      isEuroComponent: activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer)
+    };
+  }, [marineData, activeMarineLayer, activeModel]);
+
+  // 2. Perform the lightweight viewport bounds and overlap checks.
+  return useMemo(() => {
+    if (!conformedGridBase) {
       lastValidDataRef.current = null;
       return null;
     }
@@ -39,11 +133,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     );
 
     // Verify viewport overlap ratio to prevent clamped regional grid rendering
-    if (mapInstance && marineData?.grid?.bounds) {
-      const g = marineData.grid;
-      const isGlobalGrid = Math.abs(g.bounds.east - g.bounds.west) >= 350;
+    if (mapInstance && conformedGridBase.bounds) {
+      const isGlobalGrid = Math.abs(conformedGridBase.bounds.east - conformedGridBase.bounds.west) >= 350;
       if (!isGlobalGrid) {
-        const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+        const gw = conformedGridBase.bounds.west, ge = conformedGridBase.bounds.east, gs = conformedGridBase.bounds.south, gn = conformedGridBase.bounds.north;
         const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
         const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
         try {
@@ -90,7 +183,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
               : (overlapWidth <= 0 || intSouth >= intNorth);
 
             const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
-            if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
+            if ((conformedGridBase.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
               shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
             }
           } else {
@@ -133,7 +226,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     if (marineData.__renderable === false || marineData.grid?.__renderable === false) {
       if (marineData.__unsupportedLayer || marineData.grid?.__unsupportedLayer) {
         return {
-          bounds: marineData.grid?.bounds || { west: -180, south: -80, east: 180, north: 85 },
+          bounds: conformedGridBase.bounds,
           cols: 0,
           rows: 0,
           vectors: [],
@@ -148,30 +241,24 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       return null;
     }
 
-    const gridModel = marineData.grid.__sourceModel || marineData.__sourceModel;
-    const gridProvider = marineData.grid.__gridProvider || 'none';
-    const gridComponentLayer = marineData.grid.__componentLayer;
-    const isEuroComponent = activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
-
-    const isModelMismatch = gridModel !== activeModel;
-    const isLayerMismatch = gridComponentLayer && gridComponentLayer !== activeMarineLayer;
-    const isMismatch = isModelMismatch || isLayerMismatch;
+    const isMismatch = conformedGridBase.__sourceModel !== activeModel ||
+                       (conformedGridBase.__componentLayer && conformedGridBase.__componentLayer !== activeMarineLayer);
 
     if (isMismatch) {
       if (typeof window !== 'undefined') {
         window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
           hasData: !!marineData,
           hasGrid: !!marineData?.grid,
-          gridProvider,
-          componentLayer: gridComponentLayer || 'none',
+          gridProvider: conformedGridBase.__gridProvider,
+          componentLayer: conformedGridBase.__componentLayer || 'none',
           activeMarineLayer,
           activeModel,
-          isEuroComponent,
+          isEuroComponent: conformedGridBase.isEuroComponent,
           hasCopernicusGrid: false,
           mismatch: true,
-          mismatchReason: isModelMismatch
-            ? `Model mismatch: activeModel is ${activeModel} but grid sourceModel is ${gridModel || 'none'}`
-            : `Layer mismatch: active layer is ${activeMarineLayer} but grid componentLayer is ${gridComponentLayer || 'none'}`,
+          mismatchReason: conformedGridBase.__sourceModel !== activeModel
+            ? `Model mismatch: activeModel is ${activeModel} but grid sourceModel is ${conformedGridBase.__sourceModel || 'none'}`
+            : `Layer mismatch: active layer is ${activeMarineLayer} but grid componentLayer is ${conformedGridBase.__componentLayer || 'none'}`,
           timestamp: new Date().toISOString()
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
@@ -181,45 +268,20 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       }
       return null;
     }
-    
-    const hasEstimatedGrid = marineData?.grid?.__gridProvider === 'estimated' &&
-                             marineData?.grid?.__gridSupportsLayer === true &&
-                             marineData?.grid?.__componentLayer === activeMarineLayer &&
-                             (activeModel === 'EURO' || activeModel === 'ICON');
 
-    const isGridEstimated = marineData?.grid?.is_estimated || marineData?.grid?.isEstimated || marineData?.is_estimated || marineData?.isEstimated || false;
-
-    // v6.6: Tight dynamic grid capability validation: if Copernicus regional grid provided component data,
-    // it MUST match the active model and component layer exactly.
-    const hasCopernicusGrid = ((['copernicus', 'backend-weather-service', 'test-fixture', 'open-meteo'].includes(marineData?.grid?.__gridProvider)) &&
-                              marineData?.grid?.__gridSupportsLayer === true &&
-                              marineData?.grid?.__componentLayer === activeMarineLayer &&
-                              activeModel === 'EURO') || hasEstimatedGrid ||
-                              // v7.0: Accept GFS estimated backdrop/fallback for EURO components (honest provenance)
-                              ((['gfs_estimated_backdrop', 'gfs_estimated_fallback'].includes(marineData?.grid?.__gridProvider)) &&
-                               marineData?.grid?.__gridSupportsLayer === true &&
-                               marineData?.grid?.__componentLayer === activeMarineLayer &&
-                               activeModel === 'EURO') ||
-                              // v7.1: Accept legacy open-meteo fallback for EURO waves/components when backend is unavailable
-                              ((['open-meteo', 'estimated'].includes(marineData?.grid?.__gridProvider)) &&
-                               activeModel === 'EURO' &&
-                               (activeMarineLayer === 'waves' || isGridEstimated));
-
-    // If it's a EURO component layer and the Copernicus grid componentLayer doesn't match yet,
-    // return null synchronously to trigger/await fetch and avoid rendering stale/zero data.
-    if (isEuroComponent && !hasCopernicusGrid) {
+    if (conformedGridBase.isEuroComponent && !conformedGridBase.hasCopernicusGrid) {
       if (typeof window !== 'undefined') {
         window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
           hasData: !!marineData,
           hasGrid: !!marineData?.grid,
-          gridProvider: marineData?.grid?.__gridProvider || 'none',
-          componentLayer: marineData?.grid?.__componentLayer || 'none',
+          gridProvider: conformedGridBase.__gridProvider,
+          componentLayer: conformedGridBase.__componentLayer || 'none',
           activeMarineLayer,
           activeModel,
-          isEuroComponent,
-          hasCopernicusGrid,
+          isEuroComponent: conformedGridBase.isEuroComponent,
+          hasCopernicusGrid: false,
           mismatch: true,
-          mismatchReason: `EURO component layer ${activeMarineLayer} requested but Copernicus grid componentLayer is ${marineData?.grid?.__componentLayer || 'none'}`,
+          mismatchReason: `EURO component layer ${activeMarineLayer} requested but Copernicus grid componentLayer is ${conformedGridBase.__componentLayer || 'none'}`,
           timestamp: new Date().toISOString()
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
@@ -230,70 +292,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       return null;
     }
 
-    const layerSupported = isGridLayerSupported(activeModel, activeMarineLayer) || hasCopernicusGrid;
     const res = {
-      bounds: marineData.grid.bounds,
-      cols: marineData.grid.cols,
-      rows: marineData.grid.rows,
-      vectors: marineData.grid.vectors.map(v => {
-        // Only fall back to 'waves' if the model's GRID natively supports this layer.
-        // For unsupported grid layers (EURO swell/wind_waves), use the layer's own data
-        // (zeroed from API) to avoid rendering a misleading heatmap.
-        const hasFlat = v && typeof v.speed === 'number' && typeof v.u === 'number';
-        const hasSubData = activeMarineLayer && v && v[activeMarineLayer];
-        
-        // Prioritize specific sub-layer data (e.g. swell_1, wind_waves) over top-level conjoined wave data
-        const layerData = hasSubData
-          ? v[activeMarineLayer]
-          : (hasFlat
-              ? v
-              : (layerSupported
-                  ? (v[activeMarineLayer] || v['waves'])
-                  : v[activeMarineLayer])); // no fallback — will be {u:0,v:0,speed:0}
-                  
-        return {
-          lat: v.lat,
-          lng: v.lng,
-          u: layerData?.u || 0,
-          v: layerData?.v || 0,
-          speed: layerData?.speed || 0,
-          period: layerData?.period || 0,
-          height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
-          direction: layerData?.direction !== undefined ? layerData.direction : undefined,
-          isOcean: v.isOcean,
-          [activeMarineLayer]: layerData
-        };
-      })
+      ...conformedGridBase,
+      hourOffset: marineData.grid.hourOffset !== undefined ? marineData.grid.hourOffset : timeOffsetHours,
     };
-    res.__sourceModel = activeModel;
-    res.__provider = marineData?.grid?.provider || 'unknown';
-    res.__gridProvider = marineData?.grid?.__gridProvider || marineData?.grid?.provider || 'none';
-    res.__componentLayer = marineData?.grid?.__componentLayer || 'none';
-    res.__gridSupportsLayer = layerSupported;
-    res.is_estimated = isGridEstimated;
-    res.isEstimated = isGridEstimated;
-    res.provider = marineData?.provider || marineData?.grid?.provider || null;
-    res.source_dataset = marineData?.source_dataset || marineData?.grid?.source_dataset || null;
-    res.estimate_basis = marineData?.estimate_basis || marineData?.grid?.estimate_basis || null;
-    res.productId = marineData.grid.productId || marineData.productId || null;
-    res.is_dynamic_viewport_product = marineData.grid.is_dynamic_viewport_product || false;
-    res.coverage_scope = marineData.grid.coverage_scope || null;
-    res.activeMarineLayer = activeMarineLayer;
-    res.activeModel = activeModel;
-    res.hourOffset = marineData.grid.hourOffset !== undefined ? marineData.grid.hourOffset : timeOffsetHours;
-    res.valid_time = marineData.valid_time || marineData.grid.valid_time;
-    res.validTime = marineData.validTime || marineData.grid.validTime;
-    res.run_time = marineData.run_time || marineData.grid.run_time || marineData.runTime || marineData.grid.runTime || null;
-    res.runTime = res.run_time;
-    res.truthTag = marineData.truthTag || marineData.grid.truthTag || null;
 
-    // v7.4: Active-layer truth guard — don't upload any all-zero active-layer grid as a valid heatmap
-    let nonzeroCount = 0, maxHeight = 0;
-    for (const v of res.vectors) {
-      if (v.speed > 0) { nonzeroCount++; if (v.speed > maxHeight) maxHeight = v.speed; }
-    }
-    res.__nonzeroCount = nonzeroCount;
-    res.__maxHeight = maxHeight;
     const upstreamRenderable = marineData?.grid?.__renderable !== false;
     if (res.vectors.length === 0) {
       res.__renderBlockedReason = 'empty_vectors';
@@ -305,8 +308,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       res.__renderable = true;
     }
 
-    const gp = res.__gridProvider;
-    const isLayerSupported = layerSupported || (gp !== 'open-meteo' && gp !== 'none');
+    const isLayerSupported = conformedGridBase.__gridSupportsLayer || (conformedGridBase.__gridProvider !== 'open-meteo' && conformedGridBase.__gridProvider !== 'none');
     if (!isLayerSupported) {
       res.__renderable = false;
       res.__renderBlockedReason = 'unsupported_model_layer';
@@ -321,7 +323,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
         hasData: true, hasGrid: true, gridProvider: res.__gridProvider,
         componentLayer: res.__componentLayer, activeMarineLayer, activeModel,
-        isEuroComponent, hasCopernicusGrid, nonzeroCount, maxHeight,
+        isEuroComponent: res.isEuroComponent, hasCopernicusGrid: res.hasCopernicusGrid,
+        nonzeroCount: res.__nonzeroCount, maxHeight: res.__maxHeight,
         renderable: res.__renderable, renderBlockedReason: res.__renderBlockedReason || null,
         activeLayerNonzeroCount: marineData?.grid?.__activeLayerNonzeroCount,
         activeLayerMax: marineData?.grid?.__activeLayerMax,
@@ -341,5 +344,5 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     }
     lastValidDataRef.current = res;
     return res;
-  }, [marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState]);
+  }, [conformedGridBase, timeOffsetHours, mapInstance, viewState, marineData]);
 }
