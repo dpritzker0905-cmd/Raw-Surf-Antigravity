@@ -294,6 +294,16 @@ export const Sidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
+              onClick={(e) => {
+                const isActive = item.path === '/feed'
+                  ? (location.pathname === '/feed' || location.pathname === '/')
+                  : location.pathname.startsWith(item.path);
+                if (isActive) {
+                  e.preventDefault();
+                  const scrollContainer = document.getElementById('main-content') || window;
+                  scrollContainer.scrollTo({ top: 0, behavior: 'smooth' });
+                }
+              }}
               className={({ isActive }) =>
                 `flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${
                   isActive

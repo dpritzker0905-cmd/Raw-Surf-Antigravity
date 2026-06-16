@@ -219,6 +219,13 @@ export const BottomNav = () => {
 
   // Handler to close any open drawers and navigate
   const handleNavigation = (path) => {
+    if (isPathActive(path)) {
+      const mainContent = document.getElementById('main-content');
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
     navigate(path);
   };
 
