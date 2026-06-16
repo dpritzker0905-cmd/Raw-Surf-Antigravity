@@ -522,7 +522,7 @@ export function useMarineDataFetcher({
           const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
           const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
           const isSameModelAndLayer = prevModel === model && prevLayer === layer;
-          if (!hasNewValidData && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
+          if (!hasNewValidData && hasPrevValidData && !isZoomTooLow) {
             console.log(`[Marine] Ignoring empty/unrenderable commit to preserve stale heatmap data.`);
             return prev;
           }
@@ -579,7 +579,7 @@ export function useMarineDataFetcher({
             const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
             const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
             const isSameModelAndLayer = prevModel === model && prevLayer === layer;
-            if (hasValidData && isSameModelAndLayer) return prev;
+            if (hasValidData) return prev;
             lastCommittedSigRef.current = null;
             return null;
           });
