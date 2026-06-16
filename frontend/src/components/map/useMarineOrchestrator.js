@@ -301,7 +301,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         );
       }
 
-      const rejectRegionalCache = (isViewportZoomedOut && isRegional) || (isGridWidthRegional && !isContained);
+      const rejectRegionalCache = isViewportZoomedOut && (isRegional || (isGridWidthRegional && !isContained));
 
       if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
         extractedGrid = cachedBackendData.grid;
@@ -570,7 +570,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             coverageMode === 'regional_tile' ||
             (regionId && regionId !== 'global_coarse' && !isDynamic) ||
             (isDynamic && (!isContained || isViewportZoomedOut) && isGridWidthRegional) ||
-            (!isContained && isGridWidthRegional)
+            (isViewportZoomedOut && !isContained && isGridWidthRegional)
           );
           if (prodId && !isRegional) {
             const sig = _marineDataSignature(cached, activeMarineLayer);
