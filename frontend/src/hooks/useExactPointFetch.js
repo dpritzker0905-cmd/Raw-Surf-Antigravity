@@ -194,6 +194,7 @@ export function useExactPointFetch({
         sourceStr = 'estimate_pending_sources';
       }
 
+      /*
       console.log(
         `%c[FORECAST SCRUBUB SCRUBBER TRUTH] InfoBox Sync:\n` +
         `  - activeModel: ${activeModel}\n` +
@@ -208,6 +209,7 @@ export function useExactPointFetch({
         `  - source: ${sourceStr}`,
         'color: #22c55e; font-weight: bold;'
       );
+      */
 
       if (typeof window !== 'undefined') {
         window.__MARINE_POINT_DIAG__ = {
