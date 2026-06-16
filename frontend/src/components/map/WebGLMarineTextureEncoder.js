@@ -63,7 +63,7 @@ export function createTexture(gl, filter, data, width, height) {
 export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
   if (cols < 2 || rows < 2) return;
   for (let pass = 0; pass < 2; pass++) {
-    const nextVectors = vectors.map(v => (v ? { ...v } : null));
+    let nextVectors = null;
     let changes = 0;
 
     for (let r = 0; r < rows; r++) {
@@ -114,31 +114,33 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
         }
 
         if (count > 0) {
-          const target = nextVectors[idx];
-          if (target) {
-            target.u = sumU / count;
-            target.v = sumV / count;
-            target.speed = sumSpeed / count;
-            target.height = sumHeight / count;
-            target.period = sumPeriod / count;
-            target.swellHeight = sumSwellHeight / count;
-            
-            const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
-            target.direction = (avgDir + 360) % 360;
-
-            const avgSwellDir = Math.atan2(sumSwellSin / count, sumSwellCos / count) * (180 / Math.PI);
-            target.swellDir = (avgSwellDir + 360) % 360;
-
-            target.isOcean = true;
-            changes++;
+          if (!nextVectors) {
+            nextVectors = [...vectors];
           }
+          const target = { ...vectors[idx] };
+          target.u = sumU / count;
+          target.v = sumV / count;
+          target.speed = sumSpeed / count;
+          target.height = sumHeight / count;
+          target.period = sumPeriod / count;
+          target.swellHeight = sumSwellHeight / count;
+          
+          const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
+          target.direction = (avgDir + 360) % 360;
+
+          const avgSwellDir = Math.atan2(sumSwellSin / count, sumSwellCos / count) * (180 / Math.PI);
+          target.swellDir = (avgSwellDir + 360) % 360;
+
+          target.isOcean = true;
+          nextVectors[idx] = target;
+          changes++;
         }
       }
     }
 
     if (changes === 0) break;
 
-    if (isGlobal) {
+    if (isGlobal && nextVectors) {
       for (let r = 0; r < rows; r++) {
         const idx0 = r * cols + 0;
         const idxN = r * cols + cols - 1;
@@ -154,6 +156,9 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
           const dirNRad = (nextVectors[idxN].direction || 0) * (Math.PI / 180);
           const avgDir = Math.atan2(Math.sin(dir0Rad) + Math.sin(dirNRad), Math.cos(dir0Rad) + Math.cos(dirNRad)) * (180 / Math.PI);
 
+          if (nextVectors[idx0] === vectors[idx0]) nextVectors[idx0] = { ...vectors[idx0] };
+          if (nextVectors[idxN] === vectors[idxN]) nextVectors[idxN] = { ...vectors[idxN] };
+
           nextVectors[idx0].speed = nextVectors[idxN].speed = avgSpeed;
           nextVectors[idx0].height = nextVectors[idxN].height = avgHeight;
           nextVectors[idx0].period = nextVectors[idxN].period = avgPeriod;
@@ -166,17 +171,19 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
       }
     }
 
-    for (let i = 0; i < vectors.length; i++) {
-      if (vectors[i] && nextVectors[i]) {
-        vectors[i].u = nextVectors[i].u;
-        vectors[i].v = nextVectors[i].v;
-        vectors[i].speed = nextVectors[i].speed;
-        vectors[i].height = nextVectors[i].height;
-        vectors[i].period = nextVectors[i].period;
-        vectors[i].swellHeight = nextVectors[i].swellHeight;
-        vectors[i].direction = nextVectors[i].direction;
-        vectors[i].swellDir = nextVectors[i].swellDir;
-        vectors[i].isOcean = nextVectors[i].isOcean;
+    if (nextVectors) {
+      for (let i = 0; i < vectors.length; i++) {
+        if (vectors[i] && nextVectors[i] && vectors[i] !== nextVectors[i]) {
+          vectors[i].u = nextVectors[i].u;
+          vectors[i].v = nextVectors[i].v;
+          vectors[i].speed = nextVectors[i].speed;
+          vectors[i].height = nextVectors[i].height;
+          vectors[i].period = nextVectors[i].period;
+          vectors[i].swellHeight = nextVectors[i].swellHeight;
+          vectors[i].direction = nextVectors[i].direction;
+          vectors[i].swellDir = nextVectors[i].swellDir;
+          vectors[i].isOcean = nextVectors[i].isOcean;
+        }
       }
     }
   }

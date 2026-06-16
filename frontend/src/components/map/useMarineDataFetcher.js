@@ -193,15 +193,17 @@ export function useMarineDataFetcher({
       }
 
       phase = 'pre_fetch';
-      // Use actual viewport bounds from the map instance, NOT hardcoded global bounds.
-      // Global bounds cause the backend to return a regional tile whose bounds create
-      // a visible rectangle of concentrated wave animations ("square congestion").
+      // Use actual viewport bounds from the map instance, NOT hardcoded global bounds,
+      // EXCEPT on activation events ('mount', 'load', 'manual') to ensure the heatmap starts unclamped.
       let bounds = { west: -180, south: -85, east: 180, north: 85 };
-      try {
-        const mb = mapInstance.getBounds();
-        bounds = { west: mb.getWest(), south: mb.getSouth(), east: mb.getEast(), north: mb.getNorth() };
-      } catch (e) {
-        // Fallback to global if getBounds fails (e.g., map not ready)
+      const isActivation = source === 'mount' || source === 'load' || source === 'manual';
+      if (!isActivation) {
+        try {
+          const mb = mapInstance.getBounds();
+          bounds = { west: mb.getWest(), south: mb.getSouth(), east: mb.getEast(), north: mb.getNorth() };
+        } catch (e) {
+          // Fallback to global if getBounds fails (e.g., map not ready)
+        }
       }
 
       if (marineData && marineData.grid && marineData.grid.bounds) {
@@ -797,6 +799,7 @@ export function useMarineDataFetcher({
   ]);
 
   enqueueMarineUpdateRef.current = enqueueMarineUpdate;
+  manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
 
   useEffect(() => {
     return () => {
