@@ -60,21 +60,25 @@ export function createTexture(gl, filter, data, width, height) {
 
 // --- Dynamic GFS Shoreline Extrapolation (In-painting Coastline) ---
 
-export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
+export function extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, cols, rows, isGlobal = true) {
   if (cols < 2 || rows < 2) return;
   for (let pass = 0; pass < 2; pass++) {
-    let nextVectors = null;
+    const uRead = new Float32Array(uArr);
+    const vRead = new Float32Array(vArr);
+    const hRead = new Float32Array(hArr);
+    const pRead = new Float32Array(pArr);
+    const dRead = new Float32Array(dArr);
+    const oceanRead = new Uint8Array(oceanArr);
+    
     let changes = 0;
 
     for (let r = 0; r < rows; r++) {
       for (let c = 0; c < cols; c++) {
         const idx = r * cols + c;
-        if (!vectors[idx] || vectors[idx].isOcean) continue;
+        if (oceanRead[idx] !== 0) continue;
 
-        let sumU = 0, sumV = 0, sumSpeed = 0, sumHeight = 0;
-        let sumPeriod = 0, sumSwellHeight = 0;
+        let sumU = 0, sumV = 0, sumHeight = 0, sumPeriod = 0;
         let sumSin = 0, sumCos = 0;
-        let sumSwellSin = 0, sumSwellCos = 0;
         let count = 0;
 
         for (let dr = -1; dr <= 1; dr++) {
@@ -91,22 +95,15 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
             }
 
             const nIdx = nr * cols + nc;
-            const neighbor = vectors[nIdx];
-            if (neighbor && neighbor.isOcean) {
-              sumU += neighbor.u || 0;
-              sumV += neighbor.v || 0;
-              sumSpeed += neighbor.speed || 0;
-              sumHeight += neighbor.height || 0;
-              sumPeriod += neighbor.period || 0;
-              sumSwellHeight += neighbor.swellHeight || 0;
+            if (oceanRead[nIdx] !== 0) {
+              sumU += uRead[nIdx];
+              sumV += vRead[nIdx];
+              sumHeight += hRead[nIdx];
+              sumPeriod += pRead[nIdx];
 
-              const dirRad = (neighbor.direction || 0) * (Math.PI / 180);
+              const dirRad = dRead[nIdx] * (Math.PI / 180);
               sumSin += Math.sin(dirRad);
               sumCos += Math.cos(dirRad);
-
-              const swellRad = (neighbor.swellDir || 0) * (Math.PI / 180);
-              sumSwellSin += Math.sin(swellRad);
-              sumSwellCos += Math.cos(swellRad);
 
               count++;
             }
@@ -114,25 +111,15 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
         }
 
         if (count > 0) {
-          if (!nextVectors) {
-            nextVectors = [...vectors];
-          }
-          const target = { ...vectors[idx] };
-          target.u = sumU / count;
-          target.v = sumV / count;
-          target.speed = sumSpeed / count;
-          target.height = sumHeight / count;
-          target.period = sumPeriod / count;
-          target.swellHeight = sumSwellHeight / count;
+          uArr[idx] = sumU / count;
+          vArr[idx] = sumV / count;
+          hArr[idx] = sumHeight / count;
+          pArr[idx] = sumPeriod / count;
           
           const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
-          target.direction = (avgDir + 360) % 360;
+          dArr[idx] = (avgDir + 360) % 360;
 
-          const avgSwellDir = Math.atan2(sumSwellSin / count, sumSwellCos / count) * (180 / Math.PI);
-          target.swellDir = (avgSwellDir + 360) % 360;
-
-          target.isOcean = true;
-          nextVectors[idx] = target;
+          oceanArr[idx] = 1;
           changes++;
         }
       }
@@ -140,41 +127,28 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
 
     if (changes === 0) break;
 
-    if (isGlobal && nextVectors) {
+    if (isGlobal) {
       for (let r = 0; r < rows; r++) {
         const idx0 = r * cols + 0;
         const idxN = r * cols + cols - 1;
         
-        if (nextVectors[idx0] && nextVectors[idxN] && (nextVectors[idx0].isOcean || nextVectors[idxN].isOcean)) {
-          const avgSpeed = ((nextVectors[idx0].speed || 0) + (nextVectors[idxN].speed || 0)) * 0.5;
-          const avgHeight = ((nextVectors[idx0].height || 0) + (nextVectors[idxN].height || 0)) * 0.5;
-          const avgPeriod = ((nextVectors[idx0].period || 0) + (nextVectors[idxN].period || 0)) * 0.5;
-          const avgU = ((nextVectors[idx0].u || 0) + (nextVectors[idxN].u || 0)) * 0.5;
-          const avgV = ((nextVectors[idx0].v || 0) + (nextVectors[idxN].v || 0)) * 0.5;
+        if (oceanArr[idx0] !== 0 || oceanArr[idxN] !== 0) {
+          const avgU = (uArr[idx0] + uArr[idxN]) * 0.5;
+          const avgV = (vArr[idx0] + vArr[idxN]) * 0.5;
+          const avgHeight = (hArr[idx0] + hArr[idxN]) * 0.5;
+          const avgPeriod = (pArr[idx0] + pArr[idxN]) * 0.5;
           
-          const dir0Rad = (nextVectors[idx0].direction || 0) * (Math.PI / 180);
-          const dirNRad = (nextVectors[idxN].direction || 0) * (Math.PI / 180);
+          const dir0Rad = dArr[idx0] * (Math.PI / 180);
+          const dirNRad = dArr[idxN] * (Math.PI / 180);
           const avgDir = Math.atan2(Math.sin(dir0Rad) + Math.sin(dirNRad), Math.cos(dir0Rad) + Math.cos(dirNRad)) * (180 / Math.PI);
 
-          if (nextVectors[idx0] === vectors[idx0]) nextVectors[idx0] = { ...vectors[idx0] };
-          if (nextVectors[idxN] === vectors[idxN]) nextVectors[idxN] = { ...vectors[idxN] };
-
-          nextVectors[idx0].speed = nextVectors[idxN].speed = avgSpeed;
-          nextVectors[idx0].height = nextVectors[idxN].height = avgHeight;
-          nextVectors[idx0].period = nextVectors[idxN].period = avgPeriod;
-          nextVectors[idx0].u = nextVectors[idxN].u = avgU;
-          nextVectors[idx0].v = nextVectors[idxN].v = avgV;
-          nextVectors[idx0].direction = nextVectors[idxN].direction = (avgDir + 360) % 360;
+          uArr[idx0] = uArr[idxN] = avgU;
+          vArr[idx0] = vArr[idxN] = avgV;
+          hArr[idx0] = hArr[idxN] = avgHeight;
+          pArr[idx0] = pArr[idxN] = avgPeriod;
+          dArr[idx0] = dArr[idxN] = (avgDir + 360) % 360;
           
-          nextVectors[idx0].isOcean = nextVectors[idxN].isOcean = true;
-        }
-      }
-    }
-
-    if (nextVectors) {
-      for (let i = 0; i < vectors.length; i++) {
-        if (nextVectors[i] && vectors[i] !== nextVectors[i]) {
-          vectors[i] = nextVectors[i];
+          oceanArr[idx0] = oceanArr[idxN] = 1;
         }
       }
     }
@@ -309,72 +283,70 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   if (!vectors?.length || !cols || !rows || cols < 2 || rows < 2) return null;
 
   const activeLayer = waveGrid.__componentLayer || 'waves';
+  const N = cols * rows;
 
-  // Conform vectors to flat representation
-  const conformedVectors = vectors.map(v => {
+  const uArr = new Float32Array(N);
+  const vArr = new Float32Array(N);
+  const hArr = new Float32Array(N);
+  const pArr = new Float32Array(N);
+  const dArr = new Float32Array(N);
+  const oceanArr = new Uint8Array(N);
+
+  const numGridToProcess = Math.min(vectors.length, N);
+  let flatSpeedNonzeroCount = 0;
+
+  for (let i = 0; i < numGridToProcess; i++) {
+    const v = vectors[i];
     if (!v) {
-      return {
-        lat: 0,
-        lng: 0,
-        u: 0,
-        v: 0,
-        speed: 0,
-        period: 0,
-        height: 0,
-        direction: 0,
-        isOcean: false
-      };
+      oceanArr[i] = 0;
+      continue;
     }
-    // Check if it's already conformed/flat or if we need to pull from the nested activeLayer key
     const hasSub = activeLayer !== 'waves' && v[activeLayer];
     const sub = hasSub ? v[activeLayer] : {};
     
-    const u = hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0);
-    const v_val = hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0);
+    const uVal = hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0);
+    const vVal = hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0);
     const speed = hasSub && typeof sub.speed === 'number' ? sub.speed : (typeof v.speed === 'number' ? v.speed : 0);
-    const period = hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0);
     const height = hasSub && typeof sub.height === 'number' ? sub.height : (typeof v.height === 'number' ? v.height : (hasSub ? sub.speed || 0 : v.speed || 0));
+    const period = hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0);
     
     let direction = hasSub && typeof sub.direction === 'number' ? sub.direction : (typeof v.direction === 'number' ? v.direction : undefined);
     if (direction === undefined) {
-      direction = (Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360;
+      direction = (Math.atan2(-uVal, -vVal) * 180 / Math.PI + 360) % 360;
     }
-    
     const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean : (v.isOcean !== undefined ? v.isOcean : true);
     
-    return {
-      lat: v.lat || 0,
-      lng: v.lng || 0,
-      u,
-      v: v_val,
-      speed,
-      period,
-      height,
-      direction,
-      isOcean
-    };
-  });
+    uArr[i] = uVal;
+    vArr[i] = vVal;
+    hArr[i] = height;
+    pArr[i] = period;
+    dArr[i] = direction;
+    oceanArr[i] = isOcean ? 1 : 0;
+
+    if (speed > 0) {
+      flatSpeedNonzeroCount++;
+    }
+  }
 
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
   if (encodeMarineTexture._forensicCount < 3) {
     let minS = Infinity, maxS = 0, sumS = 0, cnt = 0;
-    for (let fi = 0; fi < conformedVectors.length; fi++) {
-      if (conformedVectors[fi] && conformedVectors[fi].isOcean && conformedVectors[fi].speed > 0) {
+    for (let fi = 0; fi < numGridToProcess; fi++) {
+      if (oceanArr[fi] !== 0 && hArr[fi] > 0) {
         cnt++;
-        if (conformedVectors[fi].speed < minS) minS = conformedVectors[fi].speed;
-        if (conformedVectors[fi].speed > maxS) maxS = conformedVectors[fi].speed;
-        sumS += conformedVectors[fi].speed;
+        if (hArr[fi] < minS) minS = hArr[fi];
+        if (hArr[fi] > maxS) maxS = hArr[fi];
+        sumS += hArr[fi];
       }
     }
     const meanS = cnt > 0 ? sumS / cnt : 0;
-    console.log(`[FORENSIC-ENCODE] encodeMarineTexture input: ${conformedVectors.length} vectors, ${cnt} ocean w/speed, speed: min=${minS.toFixed(3)}m max=${maxS.toFixed(3)}m mean=${meanS.toFixed(3)}m (${(meanS*3.281).toFixed(1)}ft), cols=${cols}, rows=${rows}`);
+    console.log(`[FORENSIC-ENCODE] encodeMarineTexture input: ${numGridToProcess} vectors, ${cnt} ocean w/speed, speed: min=${minS.toFixed(3)}m max=${maxS.toFixed(3)}m mean=${meanS.toFixed(3)}m (${(meanS*3.281).toFixed(1)}ft), cols=${cols}, rows=${rows}`);
     encodeMarineTexture._forensicCount++;
   }
 
   const isGlobal = bounds ? !(bounds.east - bounds.west < 359.0) : false;
 
-  const extVectors = conformedVectors.map(v => ({ ...v }));
-  extrapolateOceanData(extVectors, cols, rows, isGlobal);
+  extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, cols, rows, isGlobal);
 
   const dataWave = new Uint8Array(cols * rows * 4);
 
@@ -388,15 +360,8 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
 
   if (!geoData) {
     const grid = new Uint8Array(cols * rows);
-    const numGridToProcess = Math.min(conformedVectors.length, cols * rows);
     for (let i = 0; i < numGridToProcess; i++) {
-      const col = i % cols;
-      const row = Math.floor(i / cols);
-      const gfsIdx = row * cols + col;
-      const v = conformedVectors[gfsIdx];
-      if (!v) continue;
-      const isLand = v.isOcean === false || v.isOcean === 0;
-      grid[i] = isLand ? 0 : 1;
+      grid[i] = oceanArr[i];
     }
 
     const dist = new Float32Array(cols * rows);
@@ -580,24 +545,20 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
 
   const { dataBath, dataChl, dataMask } = geoData;
 
-  const numVectorsToProcess = Math.min(extVectors.length, cols * rows);
-  for (let i = 0; i < numVectorsToProcess; i++) {
-    const v = extVectors[i];
-    if (!v) continue;
+  for (let i = 0; i < N; i++) {
+    const u = uArr[i];
+    const v_y = vArr[i];
+    const height = hArr[i];
+    const periodVal = pArr[i];
+    const direction = dArr[i];
 
-    let speed = v.speed || 0;
-    let u = v.u || 0;
-    let v_y = v.v || 0;
-    // v4.0: Encode direction as unit vector (RG channels) for full ±1.0 precision.
-    // Height is stored separately in B channel. Previously divided by 10.0 which
-    // crushed the directional signal to ±0.17 for typical 1-2m waves.
     let nu, nv;
     const mag = Math.sqrt(u * u + v_y * v_y);
     if (mag > 0.001) {
       nu = Math.max(0.0, Math.min(1.0, (u / mag) * 0.5 + 0.5));
       nv = Math.max(0.0, Math.min(1.0, (v_y / mag) * 0.5 + 0.5));
-    } else if (typeof v.direction === 'number' && !isNaN(v.direction)) {
-      const dirRad = v.direction * (Math.PI / 180);
+    } else if (typeof direction === 'number' && !isNaN(direction)) {
+      const dirRad = direction * (Math.PI / 180);
       const du = -Math.sin(dirRad);
       const dv = -Math.cos(dirRad);
       nu = Math.max(0.0, Math.min(1.0, du * 0.5 + 0.5));
@@ -606,13 +567,13 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       nu = 0.5;
       nv = 0.5;
     }
-    const height = Math.max(0.0, Math.min(1.0, (typeof v.height === 'number' ? v.height : speed) / 10.0));
-    const periodVal = (typeof v.period === 'number' && v.period > 0) ? Math.max(0.0, Math.min(1.0, v.period / 20.0)) : 0.0;
+    const hEnc = Math.max(0.0, Math.min(1.0, height / 10.0));
+    const periodEnc = periodVal > 0 ? Math.max(0.0, Math.min(1.0, periodVal / 20.0)) : 0.0;
 
     dataWave[i * 4 + 0] = Math.floor(nu * 255);
     dataWave[i * 4 + 1] = Math.floor(nv * 255);
-    dataWave[i * 4 + 2] = Math.floor(height * 255);
-    dataWave[i * 4 + 3] = Math.floor(periodVal * 255);
+    dataWave[i * 4 + 2] = Math.floor(hEnc * 255);
+    dataWave[i * 4 + 3] = Math.floor(periodEnc * 255);
   }
 
   // Compute WebGL texture stats for GFS waves live trace
@@ -642,7 +603,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         cols: cols,
         rows: rows,
         vectorCount: vectors.length,
-        flatSpeedNonzeroCount: conformedVectors.filter(v => v.speed > 0).length,
+        flatSpeedNonzeroCount: flatSpeedNonzeroCount,
         encodedTextureMin: nonzeroCount > 0 ? minH : 0.0,
         encodedTextureMax: maxH,
         encodedTextureMean: meanH,
@@ -656,7 +617,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
       }
     }
-  }  if (isGlobal) {
+  }
+
+  if (isGlobal) {
     for (let r = 0; r < rows; r++) {
       const idx0 = (r * cols + 0) * 4;
       const idxN = (r * cols + cols - 1) * 4;
