@@ -183,7 +183,6 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             }
 
             if (shouldReject) {
-              engine.clearBuffers(_gl);
               this._wasActive = false;
               return;
             }

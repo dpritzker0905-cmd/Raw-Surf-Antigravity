@@ -447,8 +447,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       var tileZoom = Math.max(0, Math.floor(z) - 3);
       tileWidth = 1.0 / Math.pow(2.0, tileZoom);
 
+      var tileWidthChanged = (this._lastTileWidth !== undefined && tileWidth !== this._lastTileWidth);
+      this._lastTileWidth = tileWidth;
+
       // Initialize or drift check
-      if (this._tileCenterX === undefined || this._tileCenterY === undefined) {
+      if (this._tileCenterX === undefined || this._tileCenterY === undefined || tileWidthChanged) {
         this._tileCenterX = cx;
         this._tileCenterY = cy;
         this.reinitParticles(gl);
@@ -466,6 +469,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     } else {
       this._tileCenterX = undefined;
       this._tileCenterY = undefined;
+      this._lastTileWidth = undefined;
     }
 
     if (zoomStateChanged) {
