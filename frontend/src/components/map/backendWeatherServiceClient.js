@@ -448,7 +448,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
 
   let actualBounds = bounds;
-  if (!actualBounds || (Math.abs((actualBounds.east || 0) - (actualBounds.west || 0)) > 300)) {
+  if (!actualBounds) {
     try {
       if (typeof window !== 'undefined' && window.map && typeof window.map.getBounds === 'function') {
         const mb = window.map.getBounds();

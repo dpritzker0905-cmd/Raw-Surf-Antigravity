@@ -280,7 +280,7 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
   let actualBounds = bounds;
   let actualSource = boundsSource;
 
-  if (!actualBounds || (Math.abs((actualBounds.east || 0) - (actualBounds.west || 0)) > 300)) {
+  if (!actualBounds) {
     if (typeof window !== 'undefined' && window.map && typeof window.map.isStyleLoaded === 'function' && window.map.isStyleLoaded()) {
       try {
         const b = window.map.getBounds();

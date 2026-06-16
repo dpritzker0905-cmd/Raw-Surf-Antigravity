@@ -784,7 +784,7 @@ var TruthOverlay = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Plan Evolution:</span>
                   <span style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>
-                    {renderPlan?.evolution || 'none'}
+                    {renderPlan?.evolution?.evolved ? 'Active' : 'none'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
