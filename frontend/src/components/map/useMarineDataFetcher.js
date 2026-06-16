@@ -229,9 +229,7 @@ export function useMarineDataFetcher({
         }
 
         if (shouldClear) {
-          console.log(`[Marine-Bounds-Clear] Clearing stale grid (isGlobalSupported=${isGlobalSupported}, gridWidth=${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}, vpWidth=${vpWidth.toFixed(1)}x${vpHeight.toFixed(1)}, overlap: ${overlapRatio.toFixed(2)}). Clearing stale grid to prevent clamped rectangle.`);
-          setMarineData(null);
-          lastCommittedSigRef.current = null;
+          console.log(`[Marine-Bounds-Clear] Bypassing clear stale grid (isGlobalSupported=${isGlobalSupported}, gridWidth=${gridWidth.toFixed(1)}x${gridHeight.toFixed(1)}) to prevent heatmap blanking during transitions.`);
         }
       }
 
