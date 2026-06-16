@@ -109,9 +109,6 @@ export function useMarineDataFetcher({
   }, [activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
-    if (typeof window !== 'undefined') {
-      window.__MARINE_FETCH_DEBOUNCING__ = false;
-    }
     let phase = 'init';
     const model = activeModelRef.current;
     const layer = activeMarineLayerRef.current || 'waves';
@@ -119,6 +116,7 @@ export function useMarineDataFetcher({
     const zoom = mapInstance.getZoom();
     const locks = marineFetchLocksRef.current;
     let requestId = 0;
+    let clearDebounce = true;
 
     try {
       const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
@@ -130,6 +128,7 @@ export function useMarineDataFetcher({
         const isRetrySource = source.includes('retry');
         const canRetry = source === 'mount' || source === 'load' || source === 'manual' || isRetrySource;
         if (canRetry) {
+          clearDebounce = false;
           const retryCount = marineRetryCountRef.current || 0;
           if (retryCount < 20) {
             marineRetryCountRef.current = retryCount + 1;
@@ -184,7 +183,10 @@ export function useMarineDataFetcher({
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
       if (!isRetry && !isTimelineScrub && now - locks.lastTime < 1200) return;
-      if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming()) && hasValidData) return;
+      if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming()) && hasValidData) {
+        clearDebounce = false;
+        return;
+      }
 
       phase = 'pre_fetch';
       // Use actual viewport bounds from the map instance, NOT hardcoded global bounds.
@@ -316,7 +318,10 @@ export function useMarineDataFetcher({
 
       locks.isFetching = true;
       locks.activeSource = source;
-      if (typeof window !== 'undefined') window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+      if (typeof window !== 'undefined') {
+        window.__MARINE_FETCH_DEBOUNCING__ = false;
+        window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+      }
       const fetchIntent = { model, layer, hour: timeOffset };
 
       const isWaves = layer === 'waves';
@@ -656,6 +661,9 @@ export function useMarineDataFetcher({
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
           window.__MARINE_TRANSITIONING__ = false;
+          if (clearDebounce) {
+            window.__MARINE_FETCH_DEBOUNCING__ = false;
+          }
         }
         const pending = pendingMarineIntentRef.current;
         if (pending) {
