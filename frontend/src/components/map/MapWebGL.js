@@ -513,7 +513,7 @@ const MapWebGL = ({
 
             return (
               <Source
-                key={`${slotKey}-source-${url}`}
+                key={`${slotKey}-source`}
                 id={`${slotKey}-source`}
                 type="raster"
                 url={url}

@@ -24,7 +24,18 @@ export const usePresence = (userId) => {
     if (!userId) return;
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
-    const wsUrl = `${WS_BASE}/api/ws/presence/${userId}`;
+    let token = '';
+    try {
+      const stored = localStorage.getItem('raw-surf-user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.access_token) {
+          token = user.access_token;
+        }
+      }
+    } catch (e) {}
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${WS_BASE}/api/ws/presence/${userId}${tokenQuery}`;
     
     try {
       const ws = new WebSocket(wsUrl);

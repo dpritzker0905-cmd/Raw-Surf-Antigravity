@@ -18,10 +18,22 @@ export const useWebSocket = (room, userId = null) => {
   const connect = useCallback(() => {
     if (wsRef.current?.readyState === WebSocket.OPEN) return;
 
+    let token = '';
+    try {
+      const stored = localStorage.getItem('raw-surf-user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.access_token) {
+          token = user.access_token;
+        }
+      }
+    } catch (e) {}
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+
     // Build WebSocket URL
-    let wsUrl = `${WS_BASE}/api/ws/${room}`;
+    let wsUrl = `${WS_BASE}/api/ws/${room}${tokenQuery}`;
     if (userId && room === 'earnings') {
-      wsUrl = `${WS_BASE}/api/ws/earnings/${userId}`;
+      wsUrl = `${WS_BASE}/api/ws/earnings/${userId}${tokenQuery}`;
     }
 
     try {
@@ -193,7 +205,18 @@ export const usePhotographerActivitySync = (photographerId, onActivity) => {
   useEffect(() => {
     if (!photographerId) return;
 
-    const wsUrl = `${WS_BASE}/api/ws/photographer/${photographerId}/activity`;
+    let token = '';
+    try {
+      const stored = localStorage.getItem('raw-surf-user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.access_token) {
+          token = user.access_token;
+        }
+      }
+    } catch (e) {}
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${WS_BASE}/api/ws/photographer/${photographerId}/activity${tokenQuery}`;
     
     const connect = () => {
       try {

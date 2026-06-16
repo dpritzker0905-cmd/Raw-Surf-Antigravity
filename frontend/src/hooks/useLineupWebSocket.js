@@ -67,7 +67,18 @@ export const useLineupWebSocket = (lineupId, userId, onUpdate) => {
     if (!lineupId || !userId || !WS_BASE) return;
 
     try {
-      const wsUrl = `${WS_BASE}/api/ws/lineup/${lineupId}`;
+      let token = '';
+      try {
+        const stored = localStorage.getItem('raw-surf-user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          if (user?.access_token) {
+            token = user.access_token;
+          }
+        }
+      } catch (e) {}
+      const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+      const wsUrl = `${WS_BASE}/api/ws/lineup/${lineupId}${tokenQuery}`;
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {
@@ -157,7 +168,18 @@ export const useUserWebSocket = (userId, onNotification) => {
     if (!userId || !WS_BASE) return;
 
     try {
-      const wsUrl = `${WS_BASE}/api/ws/user/${userId}`;
+      let token = '';
+      try {
+        const stored = localStorage.getItem('raw-surf-user');
+        if (stored) {
+          const user = JSON.parse(stored);
+          if (user?.access_token) {
+            token = user.access_token;
+          }
+        }
+      } catch (e) {}
+      const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+      const wsUrl = `${WS_BASE}/api/ws/user/${userId}${tokenQuery}`;
       wsRef.current = new WebSocket(wsUrl);
 
       wsRef.current.onopen = () => {

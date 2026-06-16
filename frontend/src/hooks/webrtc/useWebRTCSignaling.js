@@ -1,4 +1,4 @@
-﻿/**
+/**
  * useWebRTCSignaling WebSocket signaling layer for WebRTC calls.
  *
  * Handles:
@@ -46,7 +46,18 @@ export function useWebRTCSignaling(userId, onMessage) {
     // NOTE: WebSocket routes are under /api prefix (api_router in __init__.py)
     const wsProtocol = BACKEND_URL.startsWith('https') ? 'wss' : 'ws';
     const wsHost = BACKEND_URL.replace(/^https?:\/\//, '');
-    const wsUrl = `${wsProtocol}://${wsHost}/api/ws/call/${userId}`;
+    let token = '';
+    try {
+      const stored = localStorage.getItem('raw-surf-user');
+      if (stored) {
+        const user = JSON.parse(stored);
+        if (user?.access_token) {
+          token = user.access_token;
+        }
+      }
+    } catch (e) {}
+    const tokenQuery = token ? `?token=${encodeURIComponent(token)}` : '';
+    const wsUrl = `${wsProtocol}://${wsHost}/api/ws/call/${userId}${tokenQuery}`;
 
     try {
       const ws = new WebSocket(wsUrl);
