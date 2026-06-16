@@ -176,7 +176,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
-      if (isTransitioning && lastValidDataRef.current) {
+      if (lastValidDataRef.current) {
         return lastValidDataRef.current;
       }
       return null;
@@ -224,7 +224,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
-      if (isTransitioning && lastValidDataRef.current) {
+      if (lastValidDataRef.current) {
         return lastValidDataRef.current;
       }
       return null;
