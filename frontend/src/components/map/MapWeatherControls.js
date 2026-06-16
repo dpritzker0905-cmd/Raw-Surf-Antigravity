@@ -275,10 +275,17 @@ export var MapWeatherControls = ({
 
   const handleDragStart = () => {
     isDraggingRef.current = true;
+    if (typeof window !== 'undefined') {
+      window.isScrubbingTimeline = true;
+    }
   };
 
   const handleDragEnd = () => {
     isDraggingRef.current = false;
+    if (typeof window !== 'undefined') {
+      window.isScrubbingTimeline = false;
+      window.lastScrubTime = Date.now();
+    }
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
