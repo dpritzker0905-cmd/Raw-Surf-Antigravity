@@ -55,8 +55,8 @@ const MARINE_MODEL_LIMITS = {
   'ecmwf_wam025': 10,
 };
 
-export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0) {
-  if (lat == null || lng == null) return false;
+export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0) {
+  if (lat == null || lng == null) return null;
   const rLat = +lat.toFixed(2);
   const rLng = +lng.toFixed(2);
   const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
@@ -71,20 +71,36 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOff
   const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
   const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
   const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain');
-  
+
   if (isPrecipRedirect) {
     const validTimeStr = getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS');
     const cacheKey = `${(model || 'GFS').toUpperCase()}_weather_precipitation_${rLat.toFixed(2)}_${rLng.toFixed(2)}_${validTimeStr}_${provider}`;
-    return precipitationPointCache.has(cacheKey);
+    const cachedPrecip = _exactPointCache.get(cacheKey);
+    if (cachedPrecip && Date.now() - cachedPrecip.timestamp < EXACT_POINT_CACHE_TTL) {
+      return cachedPrecip.data;
+    }
+    const cachedPrecipBC = precipitationPointCache.get(cacheKey);
+    if (cachedPrecipBC) {
+      return cachedPrecipBC.data;
+    }
+    return null;
   }
 
   const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
 
   const cacheKey = isBackendRedirect
-    ? `${rLat}_${rLng}_${model}_${activeLayer}_${provider}_hr${timeOffsetHours}`
-    : `${rLat}_${rLng}_${model}_${activeLayer}_${provider}`;
+    ? `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}_hr${timeOffsetHours}`
+    : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
 
-  return _exactPointCache.has(cacheKey);
+  const cached = _exactPointCache.get(cacheKey);
+  if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
+    return cached.data;
+  }
+  return null;
+}
+
+export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOffsetHours = 0) {
+  return getCachedPointResponse(lat, lng, model, activeLayer, timeOffsetHours) !== null;
 }
 
 /**
@@ -102,8 +118,35 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     return { status: 'rate_limited' };
   }
 
+  const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
+  let provider = PROVIDER_MAP[model] || 'open-meteo';
+  if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
+    provider = 'open-meteo';
+  }
+
+  const isPressureRedirect = typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'pressure';
+  const isGfsRedirect = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
+  const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
+  const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
+  const isPrecipRedirect = typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain');
+  const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
+
+  const cacheKey = isPrecipRedirect
+    ? `${(model || 'GFS').toUpperCase()}_weather_precipitation_${rLat.toFixed(2)}_${rLng.toFixed(2)}_${getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS')}_${provider}`
+    : (isBackendRedirect
+      ? `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}_hr${timeOffsetHours}`
+      : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`);
+
+  // --- v7.6 Unified Cache Interception ---
+  const cachedResponse = getCachedPointResponse(rLat, rLng, model, activeLayer, timeOffsetHours);
+  if (cachedResponse) {
+    console.log(`[ExactPoint] Cache hit resolved at entry for key: ${cacheKey}`);
+    return cachedResponse;
+  }
+
   // --- TEMPORARY ROUTING: REDIRECT GFS/ICON/EURO PRECIPITATION TO BACKEND ---
-  if (typeof getBackendPrecipitationFlag === 'function' && getBackendPrecipitationFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && (activeLayer === 'precipitation' || activeLayer === 'rain')) {
+  if (isPrecipRedirect) {
     try {
       console.log(`[Backend Precipitation Service] Redirecting ${model || 'GFS'} Precipitation point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPrecipitationPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
@@ -119,6 +162,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -130,7 +174,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT GFS/ICON/EURO PRESSURE TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'pressure') {
+  if (isPressureRedirect) {
     try {
       console.log(`[Backend Pressure Service] Redirecting ${model || 'GFS'} Pressure point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPressurePoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
@@ -146,6 +190,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -157,7 +202,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT GFS WAVES / SWELL_1 / SWELL_2 TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+  if (isGfsRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'GFS', gridProductId, gridBbox);
@@ -173,6 +218,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -184,7 +230,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT GFS, ICON AND EURO WIND TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind') {
+  if (isWindRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting ${model || 'GFS'} Wind point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactWindPoint(rLat, rLng, timeOffsetHours, signal, model || 'GFS');
@@ -200,6 +246,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -211,7 +258,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT COPERNICUS TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
+  if (isCopernicusRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, gridProductId, gridBbox);
@@ -227,6 +274,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -238,7 +286,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   }
 
   // --- REDIRECT ICON WAVES / SWELL_1 / SWELL_2 / WIND_WAVES TO BACKEND IF FEATURE FLAG IS ACTIVE ---
-  if (typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+  if (isIconRedirect) {
     try {
       console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
       const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON', gridProductId, gridBbox);
@@ -254,6 +302,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
+        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
         return pointResult;
       }
     } catch (err) {
@@ -262,28 +311,6 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
       }
       console.warn(`[Backend Weather Service] Point redirect failed for ICON ${activeLayer}. Falling back cleanly to original Netlify proxy/Open-Meteo pipeline.`);
     }
-  }
-
-  const PROVIDER_MAP = { GFS: 'open-meteo', ICON: 'open-meteo', EURO: 'copernicus' };
-  let provider = PROVIDER_MAP[model] || 'open-meteo';
-  if (model === 'EURO' && activeLayer === 'waves' && !getBackendCopernicusFlag()) {
-    provider = 'open-meteo';
-  }
-
-  const isPressureRedirect = typeof getBackendPressureFlag === 'function' && getBackendPressureFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'pressure';
-  const isGfsRedirect = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
-  const isWindRedirect = typeof getBackendWindFlag === 'function' && getBackendWindFlag() && (model === 'GFS' || model === 'ICON' || model === 'EURO' || !model) && activeLayer === 'wind';
-  const isCopernicusRedirect = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves');
-  const isIconRedirect = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves');
-  const isBackendRedirect = isPressureRedirect || isGfsRedirect || isWindRedirect || isCopernicusRedirect || isIconRedirect;
-
-  const cacheKey = isBackendRedirect
-    ? `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}_hr${timeOffsetHours}`
-    : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
-
-  const cached = _exactPointCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
-    return cached.data;
   }
 
   if (force) {
@@ -487,9 +514,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           _exactPointCache.set(cacheKey, { data, timestamp: Date.now() });
         }
 
-        if (_exactPointCache.size > 50) {
+        if (_exactPointCache.size > 200) {
           const oldest = [..._exactPointCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-          for (let i = 0; i < 10; i++) _exactPointCache.delete(oldest[i][0]);
+          for (let i = 0; i < 40; i++) _exactPointCache.delete(oldest[i][0]);
         }
 
         return data;

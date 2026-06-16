@@ -26,6 +26,7 @@ export { sampleFromMarineGrid };
 export {
   hasCacheForModel,
   fetchExactMarinePoint,
+  getCachedPointResponse,
   _exactPointCache
 } from './forecastExactPoint';
 

@@ -3,6 +3,7 @@ import {
   fetchExactMarinePoint,
   selectExactPointHour,
   hasCacheForModel,
+  getCachedPointResponse,
   updateDeprecationDiag,
   writeOverlayDiagnostics
 } from '../components/map/forecastSamplers';
@@ -44,25 +45,47 @@ export function useExactPointFetch({
   const fetchGenRef = useRef(0);
 
   // Synchronous state reset during render phase (Derived State pattern)
+  let localResponse = exactPointResponse;
+  let localPoint = exactPoint;
+  let localStatus = exactPointStatus;
+
   if (currentPointKey !== renderedPointKey) {
     setRenderedPointKey(currentPointKey);
-    setExactPointResponse(null);
-    setExactPoint(null);
-    setExactPointStatus(pointLat && pointLng && isExactPointRequired ? 'exact_loading' : 'idle');
+    const cachedData = getCachedPointResponse(pointLat, pointLng, activeModel, activeLayer, settledOffset);
+    if (cachedData) {
+      setExactPointResponse(cachedData);
+      const selected = selectExactPointHour(cachedData, timeOffsetHours);
+      setExactPoint(selected);
+      const nextStatus = selected ? 'exact_success' : 'exact_loading';
+      setExactPointStatus(nextStatus);
+
+      localResponse = cachedData;
+      localPoint = selected;
+      localStatus = nextStatus;
+    } else {
+      setExactPointResponse(null);
+      setExactPoint(null);
+      const nextStatus = pointLat && pointLng && isExactPointRequired ? 'exact_loading' : 'idle';
+      setExactPointStatus(nextStatus);
+
+      localResponse = null;
+      localPoint = null;
+      localStatus = nextStatus;
+    }
   }
 
-  const isStale = currentPointKey !== renderedPointKey;
+  const isStale = (currentPointKey !== renderedPointKey) && !getCachedPointResponse(pointLat, pointLng, activeModel, activeLayer, settledOffset);
 
-  const effectiveExactPointResponse = isStale ? null : exactPointResponse;
-  const effectiveExactPoint = isStale ? null : exactPoint;
+  const effectiveExactPointResponse = isStale ? null : localResponse;
+  const effectiveExactPoint = isStale ? null : localPoint;
   const effectiveExactPointStatus = (() => {
     if (isStale) {
       return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
     }
-    if (exactPointStatus === 'exact_success' && effectiveExactPoint?.status) {
+    if (localStatus === 'exact_success' && effectiveExactPoint?.status) {
       return effectiveExactPoint.status;
     }
-    return exactPointStatus;
+    return localStatus;
   })();
 
   useEffect(() => {
@@ -131,7 +154,7 @@ export function useExactPointFetch({
     exactPointFetchRef.current = token;
 
     const controller = new AbortController();
-    const debounceTime = (isUserExplicitSelection || isLayerSwitch) ? 200 : 3000;
+    const debounceTime = (isUserExplicitSelection || isLayerSwitch) ? 400 : 3000;
 
     const timeoutId = setTimeout(() => {
       if (token.cancelled || gen !== fetchGenRef.current) return;
