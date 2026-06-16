@@ -240,13 +240,18 @@ export function useMarineDataFetcher({
           isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
         }
 
-        let shouldClear = isGlobalSupported
-          ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
-          : (overlapWidth <= 0 || intSouth >= intNorth);
+        let shouldClear = false;
+        if (isGridRegional) {
+          shouldClear = isGlobalSupported
+            ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+            : (overlapWidth <= 0 || intSouth >= intNorth);
 
-        const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
-        if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-          shouldClear = isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth);
+          const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
+          if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
+            shouldClear = isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth);
+          }
+        } else {
+          shouldClear = (overlapWidth <= 0 || intSouth >= intNorth);
         }
 
         if (shouldClear) {

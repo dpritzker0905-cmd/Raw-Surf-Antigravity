@@ -322,7 +322,8 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   }
 };
 
-WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme, viewportBounds) {
+WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme, viewportBounds, opacityMultiplier) {
+  const mult = typeof opacityMultiplier === 'number' ? opacityMultiplier : 1.0;
   const renderStart = (typeof window !== 'undefined' && window.__RAW_GPU__) ? performance.now() : 0;
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
     window.__RAW_GPU__.drawCallsPerFrame = 0;
@@ -550,6 +551,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       heatmapOpacity = 1.0;
     }
 
+    heatmapOpacity *= mult;
+
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
 
     bindTexture(gl, this._waveData.u_waveTexture, 0);
@@ -597,6 +600,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
 
     let drawDebugModeVal = 0.0;
     if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {

@@ -123,6 +123,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       if (!map) return;
 
       let viewportBounds = null;
+      let opacityMultiplier = 1.0;
       try {
         const mb = map.getBounds();
         const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
@@ -177,14 +178,19 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
               isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
             }
 
-            let shouldReject = isGlobalSupported
-              ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
-              : (overlapWidth <= 0 || intSouth >= intNorth);
+            let shouldReject = false;
+            if (isGridRegional) {
+              shouldReject = isGlobalSupported
+                ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+                : (overlapWidth <= 0 || intSouth >= intNorth);
 
-            const g = engine._waveData?.waveGrid;
-            const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
-            if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-              shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
+              const g = engine._waveData?.waveGrid;
+              const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
+              if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
+                shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
+              }
+            } else {
+              shouldReject = (overlapWidth <= 0 || intSouth >= intNorth);
             }
 
             if (shouldReject) {
@@ -194,14 +200,27 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
                 this._wasActive = false;
                 return;
               }
+              // Calculate fade out during zoom transition or low overlap
+              let zoomFade = 1.0;
+              if (currentZoom <= 6.5) {
+                zoomFade = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
+              }
+              let overlapFade = 1.0;
+              if (overlapRatio < 0.15) {
+                overlapFade = Math.max(0.0, Math.min(1.0, (overlapRatio - 0.05) / (0.15 - 0.05)));
+              }
+              opacityMultiplier = Math.min(zoomFade, overlapFade);
             }
           } else {
             const currentZoom = map.getZoom();
             const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
             const isZoomingOrMoving = map.isZooming() || map.isMoving() || window.isScrubbingTimeline || isTransitioning;
-            if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0 && !isZoomingOrMoving) {
-              this._wasActive = false;
-              return;
+            if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0) {
+              if (!isZoomingOrMoving) {
+                this._wasActive = false;
+                return;
+              }
+              opacityMultiplier = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
             }
           }
         }
@@ -211,7 +230,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
 
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds, opacityMultiplier);
         map.triggerRepaint();
       } catch (e) {
         errorCount++;

@@ -203,6 +203,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
+uniform float u_opacity;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -410,7 +411,7 @@ void main() {
   // === v5.8: ZOOM-AWARE ALPHA (far = subtler, close = detailed) ===
   float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
   float zoomAlphaScale = mix(0.45, 1.0, smoothstep(3.0, 9.0, u_zoom));
-  v_alpha = mix(0.50, 0.85, heightAlpha) * zoomAlphaScale;
+  v_alpha = mix(0.50, 0.85, heightAlpha) * zoomAlphaScale * u_opacity;
 
   // v5.8: Apply wave-train envelope for visible period spacing
   v_alpha *= trainEnvelope;
