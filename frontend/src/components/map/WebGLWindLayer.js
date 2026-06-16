@@ -306,9 +306,16 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
       if (!oldBounds && newBounds) {
         boundsChanged = true;
       } else if (oldBounds && newBounds) {
-        const dw = Math.abs((newBounds.east - newBounds.west) - (oldBounds.east - oldBounds.west));
+        const getLongitudeSpan = (b) => {
+          const crosses = b.west > b.east;
+          return crosses ? (b.east + 360.0) - b.west : b.east - b.west;
+        };
+        const oldSpan = getLongitudeSpan(oldBounds);
+        const newSpan = getLongitudeSpan(newBounds);
+        const dw = Math.abs(newSpan - oldSpan);
         const dh = Math.abs((newBounds.north - newBounds.south) - (oldBounds.north - oldBounds.south));
-        const dx = Math.abs(newBounds.west - oldBounds.west);
+        let dx = Math.abs(newBounds.west - oldBounds.west);
+        if (dx > 180.0) dx = 360.0 - dx;
         const dy = Math.abs(newBounds.south - oldBounds.south);
         if (dw > 2.0 || dh > 2.0 || dx > 2.0 || dy > 2.0) {
           boundsChanged = true;

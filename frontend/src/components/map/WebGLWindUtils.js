@@ -121,7 +121,9 @@ export function encodeWindTexture(gl, windGrid) {
   }
 
   const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
-  const isGlobal = bounds && ((bounds.east - bounds.west >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse');
+  const crosses = bounds ? bounds.west > bounds.east : false;
+  const lngSpan = bounds ? (crosses ? (bounds.east + 360.0) - bounds.west : bounds.east - bounds.west) : 0;
+  const isGlobal = bounds && ((lngSpan >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse');
   if (isGlobal) {
     const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
     gl.bindTexture(gl.TEXTURE_2D, tex);

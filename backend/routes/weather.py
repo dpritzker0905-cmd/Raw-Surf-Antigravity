@@ -664,10 +664,12 @@ async def post_client_diagnostics(report: ClientDiagnosticReport):
         log_path = Path(__file__).parent.parent / "diagnostics.log"
         formatted_time = report.timestamp.strftime("%Y-%m-%dT%H:%M:%SZ") if report.timestamp else datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
         
-        # Ensure directory exists
-        log_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(log_path, "a", encoding="utf-8") as f:
-            f.write(f"[{formatted_time}] {log_msg}\n")
+        def write_diagnostic_log():
+            log_path.parent.mkdir(parents=True, exist_ok=True)
+            with open(log_path, "a", encoding="utf-8") as f:
+                f.write(f"[{formatted_time}] {log_msg}\n")
+                
+        await asyncio.to_thread(write_diagnostic_log)
             
         return {"status": "success", "message": "Diagnostic report logged successfully"}
     except Exception as e:
@@ -686,8 +688,10 @@ async def get_diagnostics_log(admin=Depends(get_current_admin)):
     if not log_path.exists():
         return {"status": "error", "message": f"Log file not found at {log_path.absolute()}"}
     try:
-        with open(log_path, "r") as f:
-            content = f.read()
+        def read_diagnostic_log():
+            with open(log_path, "r", encoding="utf-8") as f:
+                return f.read()
+        content = await asyncio.to_thread(read_diagnostic_log)
         return {"status": "success", "content": content}
     except Exception as e:
         return {"status": "error", "message": str(e)}

@@ -361,7 +361,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const z = typeof zoom === 'number' ? zoom : 6;
   const bounds = this._windData.bounds;
   const windGrid = this._windData.windGrid;
-  const isGlobal = (bounds.east - bounds.west >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse';
+  const crosses = bounds.west > bounds.east;
+  const lngSpan = crosses ? (bounds.east + 360.0) - bounds.west : bounds.east - bounds.west;
+  const isGlobal = (lngSpan >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse';
   const isRegionalGrid = !isGlobal;
   const edgeFeatherVal = isRegionalGrid ? 1.0 : 0.0;
   if (typeof window !== 'undefined') {

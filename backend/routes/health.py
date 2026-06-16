@@ -17,6 +17,9 @@ logger = logging.getLogger(__name__)
 
 router = APIRouter()
 
+_git_commit_cache = None
+
+
 
 @router.get("/health")
 async def health_check(
@@ -33,10 +36,11 @@ async def health_check(
     # Weather readiness diagnostics
     weather_readiness = {}
     try:
+        import asyncio
         from services.weather_pipeline.store import ProductStore
         store = ProductStore()
-        manifest = store.get_manifest()
-        persistence_diag = store.get_persistence_diagnostics()
+        manifest = await asyncio.to_thread(store.get_manifest)
+        persistence_diag = await asyncio.to_thread(store.get_persistence_diagnostics)
         product_count = len(manifest.products)
         weather_readiness = {
             "product_count": product_count,
@@ -63,18 +67,23 @@ async def health_check(
         uptime = "unknown"
         uptime_seconds = 0.0
 
-    # Resolve version/commit dynamically from environment or local git repository
-    git_commit = os.environ.get("RENDER_GIT_COMMIT", "")
-    if not git_commit:
-        try:
-            import subprocess
-            git_commit = subprocess.check_output(
-                ["git", "rev-parse", "--short", "HEAD"], 
-                stderr=subprocess.DEVNULL, 
-                text=True
-            ).strip()
-        except Exception:
-            git_commit = ""
+    # Resolve version/commit dynamically from environment or local git repository (cached)
+    global _git_commit_cache
+    if _git_commit_cache is None:
+        git_commit = os.environ.get("RENDER_GIT_COMMIT", "")
+        if not git_commit:
+            try:
+                import subprocess
+                git_commit = subprocess.check_output(
+                    ["git", "rev-parse", "--short", "HEAD"], 
+                    stderr=subprocess.DEVNULL, 
+                    text=True
+                ).strip()
+            except Exception:
+                git_commit = ""
+        _git_commit_cache = git_commit
+    else:
+        git_commit = _git_commit_cache
             
     version_str = "2.0.0-stage-6f-v1"
     if git_commit:

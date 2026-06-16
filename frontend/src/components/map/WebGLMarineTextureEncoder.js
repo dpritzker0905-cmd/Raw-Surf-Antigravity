@@ -680,96 +680,118 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     }
   }
 
-  let waveTex, chlTex, bathTex;
-  if (engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
-    waveTex = engine._residentWaveTex;
-    chlTex = engine._residentChlTex;
-    bathTex = engine._residentBathTex;
-    updateTexture(gl, waveTex, dataWave, cols, rows);
-    updateTexture(gl, chlTex, dataChl, cols, rows);
-    updateTexture(gl, bathTex, dataBath, cols, rows);
-  } else {
-    if (engine) {
-      if (engine._residentWaveTex) {
-        safeDeleteTexture(gl, engine._residentWaveTex, engine);
-        safeDeleteTexture(gl, engine._residentChlTex, engine);
-        safeDeleteTexture(gl, engine._residentBathTex, engine);
-        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-          window.__RAW_GPU__.textureCount -= 3;
-          window.__RAW_GPU__.gpuMemoryEstimate -= engine._texWidth * engine._texHeight * 12;
-        }
-      }
-    }
-    waveTex = createTexture(gl, gl.LINEAR, dataWave, cols, rows);
-    chlTex = createTexture(gl, gl.LINEAR, dataChl, cols, rows);
-    bathTex = createTexture(gl, gl.LINEAR, dataBath, cols, rows);
-    if (engine) {
-      engine._residentWaveTex = waveTex;
-      engine._residentChlTex = chlTex;
-      engine._residentBathTex = bathTex;
-      engine._texWidth = cols;
-      engine._texHeight = rows;
-    }
-  }
-
-  let maskTex;
-  if (landGeoJSON) {
-    const boundsChanged = !engine || !engine._cachedMaskBounds ||
-      engine._cachedMaskBounds.west !== bounds.west ||
-      engine._cachedMaskBounds.south !== bounds.south ||
-      engine._cachedMaskBounds.east !== bounds.east ||
-      engine._cachedMaskBounds.north !== bounds.north;
-
-    if (engine && engine._cachedMaskTex && landGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
-      maskTex = engine._cachedMaskTex;
+  const allocatedTextures = [];
+  let waveTex, chlTex, bathTex, maskTex;
+  try {
+    if (engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
+      waveTex = engine._residentWaveTex;
+      chlTex = engine._residentChlTex;
+      bathTex = engine._residentBathTex;
+      updateTexture(gl, waveTex, dataWave, cols, rows);
+      updateTexture(gl, chlTex, dataChl, cols, rows);
+      updateTexture(gl, bathTex, dataBath, cols, rows);
     } else {
-      if (engine && engine._cachedMaskTex) {
-        gl.deleteTexture(engine._cachedMaskTex);
-        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-          window.__RAW_GPU__.textureCount--;
-          const w = 1024;
-          const h = 512;
-          window.__RAW_GPU__.gpuMemoryEstimate -= w * h * 4;
-        }
-        engine._cachedMaskTex = null;
-      }
-      try {
-        const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
-        const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
-        const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
-        maskTex = gl.createTexture();
-        gl.bindTexture(gl.TEXTURE_2D, maskTex);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
-        gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-        
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
-        gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
-        gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);        
-        gl.bindTexture(gl.TEXTURE_2D, prevTex);
-        console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
-        
-        if (engine) {
-          engine._cachedMaskTex = maskTex;
-          engine._cachedMaskGeoJSON = landGeoJSON;
-          engine._cachedMaskBounds = { ...bounds };
+      if (engine) {
+        if (engine._residentWaveTex) {
+          safeDeleteTexture(gl, engine._residentWaveTex, engine);
+          safeDeleteTexture(gl, engine._residentChlTex, engine);
+          safeDeleteTexture(gl, engine._residentBathTex, engine);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-            window.__RAW_GPU__.textureCount++;
-            window.__RAW_GPU__.gpuMemoryEstimate += maskCanvas.width * maskCanvas.height * 4;
+            window.__RAW_GPU__.textureCount -= 3;
+            window.__RAW_GPU__.gpuMemoryEstimate -= engine._texWidth * engine._texHeight * 12;
           }
         }
-      } catch (e) {
-        console.warn('[WebGLMarineEngine] Failed to create high-res mask texture, falling back to grid-mask', e);
-        maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+      }
+      waveTex = createTexture(gl, gl.LINEAR, dataWave, cols, rows);
+      if (waveTex) allocatedTextures.push(waveTex);
+      chlTex = createTexture(gl, gl.LINEAR, dataChl, cols, rows);
+      if (chlTex) allocatedTextures.push(chlTex);
+      bathTex = createTexture(gl, gl.LINEAR, dataBath, cols, rows);
+      if (bathTex) allocatedTextures.push(bathTex);
+      if (engine) {
+        engine._residentWaveTex = waveTex;
+        engine._residentChlTex = chlTex;
+        engine._residentBathTex = bathTex;
+        engine._texWidth = cols;
+        engine._texHeight = rows;
       }
     }
-  } else {
-    if (engine && engine._cachedMaskTex) {
-      maskTex = engine._cachedMaskTex;
+
+    if (landGeoJSON) {
+      const boundsChanged = !engine || !engine._cachedMaskBounds ||
+        engine._cachedMaskBounds.west !== bounds.west ||
+        engine._cachedMaskBounds.south !== bounds.south ||
+        engine._cachedMaskBounds.east !== bounds.east ||
+        engine._cachedMaskBounds.north !== bounds.north;
+
+      if (engine && engine._cachedMaskTex && landGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
+        maskTex = engine._cachedMaskTex;
+      } else {
+        if (engine && engine._cachedMaskTex) {
+          gl.deleteTexture(engine._cachedMaskTex);
+          if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+            window.__RAW_GPU__.textureCount--;
+            const w = 1024;
+            const h = 512;
+            window.__RAW_GPU__.gpuMemoryEstimate -= w * h * 4;
+          }
+          engine._cachedMaskTex = null;
+        }
+        try {
+          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
+          const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+          const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+          maskTex = gl.createTexture();
+          if (maskTex) allocatedTextures.push(maskTex);
+          gl.bindTexture(gl.TEXTURE_2D, maskTex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);        
+          gl.bindTexture(gl.TEXTURE_2D, prevTex);
+          console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
+          
+          if (engine) {
+            engine._cachedMaskTex = maskTex;
+            engine._cachedMaskGeoJSON = landGeoJSON;
+            engine._cachedMaskBounds = { ...bounds };
+            if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+              window.__RAW_GPU__.textureCount++;
+              window.__RAW_GPU__.gpuMemoryEstimate += maskCanvas.width * maskCanvas.height * 4;
+            }
+          }
+        } catch (e) {
+          console.warn('[WebGLMarineEngine] Failed to create high-res mask texture, falling back to grid-mask', e);
+          maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+          if (maskTex) allocatedTextures.push(maskTex);
+        }
+      }
     } else {
-      maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+      if (engine && engine._cachedMaskTex) {
+        maskTex = engine._cachedMaskTex;
+      } else {
+        maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+        if (maskTex) allocatedTextures.push(maskTex);
+      }
     }
+  } catch (err) {
+    console.error('[WebGLMarineTextureEncoder] Error during texture upload transaction, rolling back allocations:', err);
+    for (const tex of allocatedTextures) {
+      try {
+        gl.deleteTexture(tex);
+      } catch (e) {}
+    }
+    if (engine) {
+      engine._residentWaveTex = null;
+      engine._residentChlTex = null;
+      engine._residentBathTex = null;
+      engine._cachedMaskTex = null;
+    }
+    throw err;
   }
 
   return {
