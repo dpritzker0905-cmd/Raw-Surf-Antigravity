@@ -13,40 +13,48 @@ import { AdaptiveBackground } from './AdaptiveBackground';
  * Animated Wave Home Icon - Simple Lucide Waves with gentle animation
  */
 const AnimatedWaveIcon = ({ isActive, isPressed, hasNewContent, className = '' }) => {
-  const [frame, setFrame] = useState(0);
-  
-  useEffect(() => {
-    const interval = setInterval(() => {
-      setFrame(prev => (prev + 1) % 40);
-    }, 80);
-    return () => clearInterval(interval);
-  }, []);
-  
   const scale = isPressed ? 0.85 : isActive ? 1.1 : 1;
-  const t = frame / 40;
-  
-  // Gentle wave motion - subtle rotation and bob
-  const rotate = Math.sin(t * Math.PI * 2) * 4;
-  const translateY = Math.sin(t * Math.PI * 2) * 1.5;
   
   return (
-    <div 
-      className={`relative ${className}`}
-      style={{
-        transform: `scale(${scale}) rotate(${rotate}deg) translateY(${translateY}px)`,
-        transition: 'transform 0.1s ease-out',
-        filter: isActive ? 'drop-shadow(0 0 4px rgba(56, 189, 248, 0.6))' : 'none'
-      }}
-    >
-      <Waves 
-        size={24} 
-        strokeWidth={2.5}
-        className={isActive ? 'text-cyan-400' : 'text-gray-500'}
-      />
-      {hasNewContent && (
-        <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
-      )}
-    </div>
+    <>
+      <style>{`
+        @keyframes wave-gentle {
+          0%, 100% {
+            transform: scale(var(--wave-scale)) rotate(0deg) translateY(0px);
+          }
+          25% {
+            transform: scale(var(--wave-scale)) rotate(4deg) translateY(1.5px);
+          }
+          50% {
+            transform: scale(var(--wave-scale)) rotate(0deg) translateY(0px);
+          }
+          75% {
+            transform: scale(var(--wave-scale)) rotate(-4deg) translateY(-1.5px);
+          }
+        }
+        .animate-wave-gentle {
+          animation: wave-gentle 3.2s ease-in-out infinite;
+        }
+      `}</style>
+      <div 
+        className={`relative ${className} ${isActive ? 'animate-wave-gentle' : ''}`}
+        style={{
+          '--wave-scale': scale,
+          transform: isActive ? undefined : `scale(${scale})`,
+          transition: 'transform 0.1s ease-out',
+          filter: isActive ? 'drop-shadow(0 0 4px rgba(56, 189, 248, 0.6))' : 'none'
+        }}
+      >
+        <Waves 
+          size={24} 
+          strokeWidth={2.5}
+          className={isActive ? 'text-cyan-400' : 'text-gray-500'}
+        />
+        {hasNewContent && (
+          <span className="absolute -top-1 -right-1 w-2 h-2 bg-cyan-400 rounded-full animate-pulse" />
+        )}
+      </div>
+    </>
   );
 };
 
@@ -61,6 +69,13 @@ const HomeWaveButton = ({ textActiveClass, textInactiveClass, onNavigate }) => {
   
   const handleClick = (e) => {
     e.preventDefault();
+    if (isActive) {
+      const mainContent = document.getElementById('main-content');
+      if (mainContent) {
+        mainContent.scrollTo({ top: 0, behavior: 'smooth' });
+      }
+      return;
+    }
     if (onNavigate) onNavigate('/feed');
     else navigate('/feed');
   };
