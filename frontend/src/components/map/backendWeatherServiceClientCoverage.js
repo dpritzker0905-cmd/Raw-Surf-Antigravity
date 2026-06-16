@@ -183,16 +183,30 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     const spanLng = east < west ? (180 - west) + (east + 180) : east - west;
     const spanLat = Math.abs(north - south);
     if (spanLng > 5.0 || spanLat > 5.0) {
-      return {
-        isInside: true,
-        clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
-        fallbackReason: null,
-        coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
-        selectedTileId: 'global_marine_coarse',
-        availableTileIds: REGIONAL_TILES.map(t => t.id),
-        rejectedTileIds: [],
-        tileFallbackReason: null
-      };
+      if ((modelName || '').toUpperCase() === 'GFS') {
+        return {
+          isInside: true,
+          clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
+          fallbackReason: null,
+          coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+          selectedTileId: 'global_marine_coarse',
+          availableTileIds: REGIONAL_TILES.map(t => t.id),
+          rejectedTileIds: [],
+          tileFallbackReason: null
+        };
+      } else {
+        const covRes = getProductCoverage(modelName, inferredDomain, layerName);
+        return {
+          isInside: true,
+          clampedBbox: covRes.coverage,
+          fallbackReason: null,
+          coverageBounds: covRes.coverage,
+          selectedTileId: `${(modelName || '').toLowerCase()}_regional_coarse`,
+          availableTileIds: REGIONAL_TILES.map(t => t.id),
+          rejectedTileIds: [],
+          tileFallbackReason: null
+        };
+      }
     }
 
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;

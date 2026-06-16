@@ -519,7 +519,10 @@ export function useMarineDataFetcher({
           const hasNewValidData = data && data.grid && data.grid.vectors && data.grid.vectors.length > 0 && data.grid.renderable !== false;
           const hasPrevValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
           const isZoomTooLow = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
-          if (!hasNewValidData && hasPrevValidData && !isZoomTooLow) {
+          const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
+          const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
+          const isSameModelAndLayer = prevModel === model && prevLayer === layer;
+          if (!hasNewValidData && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
             console.log(`[Marine] Ignoring empty/unrenderable commit to preserve stale heatmap data.`);
             return prev;
           }
@@ -573,7 +576,10 @@ export function useMarineDataFetcher({
         if (!window.isScrubbingTimeline && isCurrentHour) {
           setMarineData(prev => {
             const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-            if (hasValidData) return prev;
+            const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
+            const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
+            const isSameModelAndLayer = prevModel === model && prevLayer === layer;
+            if (hasValidData && isSameModelAndLayer) return prev;
             lastCommittedSigRef.current = null;
             return null;
           });
@@ -592,7 +598,10 @@ export function useMarineDataFetcher({
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
         setMarineData(prev => {
           const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-          if (hasValidData) return prev;
+          const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
+          const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
+          const isSameModelAndLayer = prevModel === model && prevLayer === layer;
+          if (hasValidData && isSameModelAndLayer) return prev;
           lastCommittedSigRef.current = null;
           return null;
         });
