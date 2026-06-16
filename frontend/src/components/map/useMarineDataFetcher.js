@@ -178,11 +178,9 @@ export function useMarineDataFetcher({
         }
         locks.isFetching = false;
       }
-
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
       if (!isRetry && !isTimelineScrub && now - locks.lastTime < 1200) return;
-      const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming()) && hasValidData) return;
 
       phase = 'pre_fetch';
