@@ -16,6 +16,10 @@ import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMari
 var LAYER_ID = 'webgl-marine-particles';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
+  const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
+  if (vpWidth >= 360.0 - 1e-5) {
+    return (e2 < w2) ? (e2 + 360) - w2 : e2 - w2;
+  }
   const norm = lng => ((lng % 360) + 360) % 360;
   const nw1 = norm(w1), ne1 = norm(e1);
   const nw2 = norm(w2), ne2 = norm(e2);
