@@ -377,109 +377,213 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   extrapolateOceanData(extVectors, cols, rows, isGlobal);
 
   const dataWave = new Uint8Array(cols * rows * 4);
-  const dataChl = new Uint8Array(cols * rows * 4);
-  const dataBath = new Uint8Array(cols * rows * 4);
-  const dataMask = new Uint8Array(cols * rows * 4);
 
-  const grid = new Uint8Array(cols * rows);
-  const numGridToProcess = Math.min(conformedVectors.length, cols * rows);
-  for (let i = 0; i < numGridToProcess; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const gfsIdx = row * cols + col;
-    const v = conformedVectors[gfsIdx];
-    if (!v) continue;
-    const isLand = v.isOcean === false || v.isOcean === 0;
-    const isOcean = !isLand && (v.isOcean === true || v.isOcean === 1 || v.speed > 0.001 || v.u !== 0 || v.v !== 0);
-    grid[i] = isOcean ? 1 : 0;
+  // Initialize geo data cache if it doesn't exist
+  if (!encodeMarineTexture._geoCache) {
+    encodeMarineTexture._geoCache = new Map();
   }
 
-  const dist = new Float32Array(cols * rows);
-  dist.fill(Infinity);
-  
-  for (let r = 0; r < rows; r++) {
-    for (let c = 0; c < cols; c++) {
-      const idx = r * cols + c;
-      if (grid[idx] === 0) {
-        dist[idx] = 0;
-      } else {
-        let minD = Infinity;
-        if (r > 0) minD = Math.min(minD, dist[(r - 1) * cols + c] + 1);
-        if (c > 0) minD = Math.min(minD, dist[r * cols + c - 1] + 1);
-        dist[idx] = minD;
+  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}`;
+  let geoData = encodeMarineTexture._geoCache.get(cacheKey);
+
+  if (!geoData) {
+    const grid = new Uint8Array(cols * rows);
+    const numGridToProcess = Math.min(conformedVectors.length, cols * rows);
+    for (let i = 0; i < numGridToProcess; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const gfsIdx = row * cols + col;
+      const v = conformedVectors[gfsIdx];
+      if (!v) continue;
+      const isLand = v.isOcean === false || v.isOcean === 0;
+      grid[i] = isLand ? 0 : 1;
+    }
+
+    const dist = new Float32Array(cols * rows);
+    dist.fill(Infinity);
+    
+    for (let r = 0; r < rows; r++) {
+      for (let c = 0; c < cols; c++) {
+        const idx = r * cols + c;
+        if (grid[idx] === 0) {
+          dist[idx] = 0;
+        } else {
+          let minD = Infinity;
+          if (r > 0) minD = Math.min(minD, dist[(r - 1) * cols + c] + 1);
+          if (c > 0) minD = Math.min(minD, dist[r * cols + c - 1] + 1);
+          dist[idx] = minD;
+        }
+      }
+      if (isGlobal) {
+        let minEdge = Math.min(dist[r * cols + 0], dist[r * cols + cols - 1]);
+        dist[r * cols + 0] = minEdge;
+        dist[r * cols + cols - 1] = minEdge;
+      }
+
+      for (let c = 1; c < cols; c++) {
+        dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c - 1] + 1);
+      }
+      for (let c = cols - 2; c >= 0; c--) {
+        dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c + 1] + 1);
       }
     }
-    if (isGlobal) {
-      let minEdge = Math.min(dist[r * cols + 0], dist[r * cols + cols - 1]);
-      dist[r * cols + 0] = minEdge;
-      dist[r * cols + cols - 1] = minEdge;
-    }
 
-    for (let c = 1; c < cols; c++) {
-      dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c - 1] + 1);
-    }
-    for (let c = cols - 2; c >= 0; c--) {
-      dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c + 1] + 1);
-    }
-  }
+    for (let r = rows - 1; r >= 0; r--) {
+      for (let c = cols - 1; c >= 0; c--) {
+        const idx = r * cols + c;
+        if (grid[idx] !== 0) {
+          let minD = dist[idx];
+          if (r < rows - 1) minD = Math.min(minD, dist[(r + 1) * cols + c] + 1);
+          if (c < cols - 1) minD = Math.min(minD, dist[r * cols + c + 1] + 1);
+          dist[idx] = minD;
+        }
+      }
+      if (isGlobal) {
+        let minEdge = Math.min(dist[r * cols + 0], dist[r * cols + cols - 1]);
+        dist[r * cols + 0] = minEdge;
+        dist[r * cols + cols - 1] = minEdge;
+      }
 
-  for (let r = rows - 1; r >= 0; r--) {
-    for (let c = cols - 1; c >= 0; c--) {
-      const idx = r * cols + c;
-      if (grid[idx] !== 0) {
-        let minD = dist[idx];
-        if (r < rows - 1) minD = Math.min(minD, dist[(r + 1) * cols + c] + 1);
-        if (c < cols - 1) minD = Math.min(minD, dist[r * cols + c + 1] + 1);
-        dist[idx] = minD;
+      for (let c = 1; c < cols; c++) {
+        dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c - 1] + 1);
+      }
+      for (let c = cols - 2; c >= 0; c--) {
+        dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c + 1] + 1);
       }
     }
+
+    function hash(x, y) {
+      const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
+      return s - Math.floor(s);
+    }
+    function noise(x, y) {
+      const ix = Math.floor(x);
+      const iy = Math.floor(y);
+      const fx = x - ix;
+      const fy = y - iy;
+      const ux = fx * fx * (3.0 - 2.0 * fx);
+      const uy = fy * fy * (3.0 - 2.0 * fy);
+      const a = hash(ix, iy);
+      const b = hash(ix + 1, iy);
+      const c = hash(ix, iy + 1);
+      const d = hash(ix + 1, iy + 1);
+      return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
+    }
+
+    const centerLng = getCenterLng(bounds.west, bounds.east);
+    const wrappedWestLng = wrapLngRelative(bounds.west, centerLng);
+    const wrappedEastLng = wrapLngRelative(bounds.east, centerLng);
+    const lngSpan = wrappedEastLng - wrappedWestLng;
+
+    const dataChl = new Uint8Array(cols * rows * 4);
+    const dataBath = new Uint8Array(cols * rows * 4);
+    const dataMask = new Uint8Array(cols * rows * 4);
+
+    for (let i = 0; i < numGridToProcess; i++) {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      const lng = wrapLongitude(wrappedWestLng + (col / (cols - 1)) * lngSpan);
+      const lat = bounds.south + (row / (rows - 1)) * (bounds.north - bounds.south);
+
+      const maxShelfDist = 8.0;
+      const depthFactor = grid[i] === 0 ? 0.0 : Math.min(1.0, dist[i] / maxShelfDist);
+      dataBath[i * 4 + 0] = Math.floor(depthFactor * 255);
+      dataBath[i * 4 + 1] = Math.floor(depthFactor * 255);
+      dataBath[i * 4 + 2] = Math.floor(depthFactor * 255);
+      dataBath[i * 4 + 3] = 255;
+
+      const absLat = Math.abs(lat);
+      let tropicalChl = 0.0;
+      if (absLat < 35.0) {
+        tropicalChl = (1.0 - (absLat / 35.0)) * 0.25;
+      }
+      let temperateChl = 0.0;
+      if (absLat > 25.0 && absLat < 65.0) {
+        const scale1 = (absLat - 25.0) / 20.0;
+        const scale2 = (65.0 - absLat) / 20.0;
+        temperateChl = Math.max(0.0, Math.min(scale1, scale2)) * 0.15;
+      }
+      let coastalChl = 0.0;
+      if (grid[i] === 1 && dist[i] <= 3.0) {
+        coastalChl = (1.0 - (dist[i] / 3.0)) * 0.35;
+      }
+
+      let gulfStreamChl = 0.0;
+      if (lng > -85 && lng < -35 && lat > 20 && lat < 50) {
+        const x1 = -80, y1 = 25, x2 = -40, y2 = 45;
+        const A = lat - y1;
+        const B = lng - x1;
+        const C = x2 - x1;
+        const D = y2 - y1;
+        const dotVal = B * C + A * D;
+        const lenSq = C * C + D * D;
+        let param = -1;
+        if (lenSq !== 0) param = dotVal / lenSq;
+        let xx, yy;
+        if (param < 0) {
+          xx = x1; yy = y1;
+        } else if (param > 1) {
+          xx = x2; yy = y2;
+        } else {
+          xx = x1 + param * C;
+          yy = y1 + param * D;
+        }
+        const dx = lng - xx;
+        const dy = lat - yy;
+        const streamDist = Math.sqrt(dx * dx + dy * dy);
+        if (streamDist < 5.0) {
+          const streamNoise = noise(lng * 0.5, lat * 0.5) * 0.15;
+          gulfStreamChl = (1.0 - (streamDist / 5.0)) * (0.2 + streamNoise);
+        }
+      }
+
+      const chlNoiseVal = noise(lng * 0.2, lat * 0.2) * 0.12;
+      const rawChl = tropicalChl + temperateChl + coastalChl + gulfStreamChl + chlNoiseVal;
+      const chlDensity = Math.max(0.0, Math.min(0.65, rawChl));
+
+      dataChl[i * 4 + 0] = Math.floor(chlDensity * 255);
+      dataChl[i * 4 + 1] = Math.floor(chlDensity * 255);
+      dataChl[i * 4 + 2] = Math.floor(chlDensity * 255);
+      dataChl[i * 4 + 3] = 255;
+
+      const oceanFlag = grid[i] === 1 ? 255 : 0;
+      dataMask[i * 4 + 0] = oceanFlag;
+      dataMask[i * 4 + 1] = oceanFlag;
+      dataMask[i * 4 + 2] = oceanFlag;
+      dataMask[i * 4 + 3] = oceanFlag;
+    }
+
     if (isGlobal) {
-      let minEdge = Math.min(dist[r * cols + 0], dist[r * cols + cols - 1]);
-      dist[r * cols + 0] = minEdge;
-      dist[r * cols + cols - 1] = minEdge;
+      for (let r = 0; r < rows; r++) {
+        const idx0 = (r * cols + 0) * 4;
+        const idxN = (r * cols + cols - 1) * 4;
+        
+        const avgR = Math.floor((dataChl[idx0 + 0] + dataChl[idxN + 0]) * 0.5);
+        const avgG = Math.floor((dataChl[idx0 + 1] + dataChl[idxN + 1]) * 0.5);
+        const avgB = Math.floor((dataChl[idx0 + 2] + dataChl[idxN + 2]) * 0.5);
+        
+        dataChl[idx0 + 0] = dataChl[idxN + 0] = avgR;
+        dataChl[idx0 + 1] = dataChl[idxN + 1] = avgG;
+        dataChl[idx0 + 2] = dataChl[idxN + 2] = avgB;
+
+        const avgFlag = Math.floor((dataMask[idx0 + 0] + dataMask[idxN + 0]) * 0.5);
+        dataMask[idx0 + 0] = dataMask[idxN + 0] = avgFlag;
+        dataMask[idx0 + 1] = dataMask[idxN + 1] = avgFlag;
+        dataMask[idx0 + 2] = dataMask[idxN + 2] = avgFlag;
+        dataMask[idx0 + 3] = dataMask[idxN + 3] = avgFlag;
+      }
     }
 
-    for (let c = 1; c < cols; c++) {
-      dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c - 1] + 1);
-    }
-    for (let c = cols - 2; c >= 0; c--) {
-      dist[r * cols + c] = Math.min(dist[r * cols + c], dist[r * cols + c + 1] + 1);
-    }
+    geoData = { dataBath, dataChl, dataMask, grid };
+    encodeMarineTexture._geoCache.set(cacheKey, geoData);
   }
 
-  function hash(x, y) {
-    const s = Math.sin(x * 12.9898 + y * 78.233) * 43758.5453;
-    return s - Math.floor(s);
-  }
-  function noise(x, y) {
-    const ix = Math.floor(x);
-    const iy = Math.floor(y);
-    const fx = x - ix;
-    const fy = y - iy;
-    const ux = fx * fx * (3.0 - 2.0 * fx);
-    const uy = fy * fy * (3.0 - 2.0 * fy);
-    const a = hash(ix, iy);
-    const b = hash(ix + 1, iy);
-    const c = hash(ix, iy + 1);
-    const d = hash(ix + 1, iy + 1);
-    return a * (1 - ux) * (1 - uy) + b * ux * (1 - uy) + c * (1 - ux) * uy + d * ux * uy;
-  }
-
-  const centerLng = getCenterLng(bounds.west, bounds.east);
-  const wrappedWestLng = wrapLngRelative(bounds.west, centerLng);
-  const wrappedEastLng = wrapLngRelative(bounds.east, centerLng);
-  const lngSpan = wrappedEastLng - wrappedWestLng;
+  const { dataBath, dataChl, dataMask } = geoData;
 
   const numVectorsToProcess = Math.min(extVectors.length, cols * rows);
   for (let i = 0; i < numVectorsToProcess; i++) {
-    const col = i % cols;
-    const row = Math.floor(i / cols);
-    const gfsIdx = row * cols + col;
-    const v = extVectors[gfsIdx];
+    const v = extVectors[i];
     if (!v) continue;
-
-    const lng = wrapLongitude(wrappedWestLng + (col / (cols - 1)) * lngSpan);
-    const lat = bounds.south + (row / (rows - 1)) * (bounds.north - bounds.south);
 
     let speed = v.speed || 0;
     let u = v.u || 0;
@@ -509,76 +613,6 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     dataWave[i * 4 + 1] = Math.floor(nv * 255);
     dataWave[i * 4 + 2] = Math.floor(height * 255);
     dataWave[i * 4 + 3] = Math.floor(periodVal * 255);
-
-    const maxShelfDist = 8.0;
-    const depthFactor = grid[i] === 0 ? 0.0 : Math.min(1.0, dist[i] / maxShelfDist);
-    dataBath[i * 4 + 0] = Math.floor(depthFactor * 255);
-    dataBath[i * 4 + 1] = Math.floor(depthFactor * 255);
-    dataBath[i * 4 + 2] = Math.floor(depthFactor * 255);
-    dataBath[i * 4 + 3] = 255;
-
-    const absLat = Math.abs(lat);
-    let tropicalChl = 0.0;
-    if (absLat < 35.0) {
-      tropicalChl = (1.0 - (absLat / 35.0)) * 0.25;
-    }
-    let temperateChl = 0.0;
-    if (absLat > 25.0 && absLat < 65.0) {
-      const scale1 = (absLat - 25.0) / 20.0;
-      const scale2 = (65.0 - absLat) / 20.0;
-      temperateChl = Math.max(0.0, Math.min(scale1, scale2)) * 0.15;
-    }
-    let coastalChl = 0.0;
-    if (grid[i] === 1 && dist[i] <= 3.0) {
-      coastalChl = (1.0 - (dist[i] / 3.0)) * 0.35;
-    }
-
-    let gulfStreamChl = 0.0;
-    if (lng > -85 && lng < -35 && lat > 20 && lat < 50) {
-      const x1 = -80, y1 = 25, x2 = -40, y2 = 45;
-      const A = lat - y1;
-      const B = lng - x1;
-      const C = x2 - x1;
-      const D = y2 - y1;
-      const dotVal = B * C + A * D;
-      const lenSq = C * C + D * D;
-      let param = -1;
-      if (lenSq !== 0) param = dotVal / lenSq;
-      let xx, yy;
-      if (param < 0) {
-        xx = x1; yy = y1;
-      } else if (param > 1) {
-        xx = x2; yy = y2;
-      } else {
-        xx = x1 + param * C;
-        yy = y1 + param * D;
-      }
-      const dx = lng - xx;
-      const dy = lat - yy;
-      const streamDist = Math.sqrt(dx * dx + dy * dy);
-      if (streamDist < 5.0) {
-        const streamNoise = noise(lng * 0.5, lat * 0.5) * 0.15;
-        gulfStreamChl = (1.0 - (streamDist / 5.0)) * (0.2 + streamNoise);
-      }
-    }
-
-    const chlNoiseVal = noise(lng * 0.2, lat * 0.2) * 0.12;
-    const rawChl = tropicalChl + temperateChl + coastalChl + gulfStreamChl + chlNoiseVal;
-    const chlDensity = Math.max(0.0, Math.min(0.65, rawChl));
-
-    dataChl[i * 4 + 0] = Math.floor(chlDensity * 255);
-    dataChl[i * 4 + 1] = Math.floor(chlDensity * 255);
-    dataChl[i * 4 + 2] = Math.floor(chlDensity * 255);
-    dataChl[i * 4 + 3] = 255;
-
-    const origV = vectors[gfsIdx];
-    const isLand = origV ? (origV.isOcean === false || origV.isOcean === 0) : true;
-    const isOcean = origV ? (!isLand && (origV.isOcean === true || origV.isOcean === 1 || origV.speed > 0.001 || origV.u !== 0 || origV.v !== 0)) : false;
-    const oceanFlag = isOcean ? 255 : 0;
-    dataMask[i * 4 + 0] = oceanFlag;
-    dataMask[i * 4 + 1] = oceanFlag;
-    dataMask[i * 4 + 2] = oceanFlag;
-    dataMask[i * 4 + 3] = oceanFlag;
   }
 
   // Compute WebGL texture stats for GFS waves live trace
@@ -622,33 +656,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
       }
     }
-  }
-
-  if (isGlobal) {
-    for (let r = 0; r < rows; r++) {
-      const idx0 = (r * cols + 0) * 4;
-      const idxN = (r * cols + cols - 1) * 4;
-      
-      const avgR = Math.floor((dataChl[idx0 + 0] + dataChl[idxN + 0]) * 0.5);
-      const avgG = Math.floor((dataChl[idx0 + 1] + dataChl[idxN + 1]) * 0.5);
-      const avgB = Math.floor((dataChl[idx0 + 2] + dataChl[idxN + 2]) * 0.5);
-      
-      dataChl[idx0 + 0] = dataChl[idxN + 0] = avgR;
-      dataChl[idx0 + 1] = dataChl[idxN + 1] = avgG;
-      dataChl[idx0 + 2] = dataChl[idxN + 2] = avgB;
-    }
-
-    for (let r = 0; r < rows; r++) {
-      const idx0 = (r * cols + 0) * 4;
-      const idxN = (r * cols + cols - 1) * 4;
-      
-      const avgFlag = Math.floor((dataMask[idx0 + 0] + dataMask[idxN + 0]) * 0.5);
-      dataMask[idx0 + 0] = dataMask[idxN + 0] = avgFlag;
-      dataMask[idx0 + 1] = dataMask[idxN + 1] = avgFlag;
-      dataMask[idx0 + 2] = dataMask[idxN + 2] = avgFlag;
-      dataMask[idx0 + 3] = dataMask[idxN + 3] = avgFlag;
-    }
-
+  }  if (isGlobal) {
     for (let r = 0; r < rows; r++) {
       const idx0 = (r * cols + 0) * 4;
       const idxN = (r * cols + cols - 1) * 4;
@@ -667,7 +675,6 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         nu = Math.max(0.0, Math.min(1.0, (avgU / mag) * 0.5 + 0.5));
         nv = Math.max(0.0, Math.min(1.0, (avgV / mag) * 0.5 + 0.5));
       }
-
 
       const avgH = Math.floor((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);
       const avgP = Math.floor((dataWave[idx0 + 3] + dataWave[idxN + 3]) * 0.5);
