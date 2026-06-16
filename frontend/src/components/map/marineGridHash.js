@@ -7,6 +7,12 @@
 
 export function computeGridContentHash(grid, layer = 'waves') {
   if (!grid?.vectors?.length) return 0;
+  if (!grid.__contentHashes) {
+    grid.__contentHashes = {};
+  }
+  if (grid.__contentHashes[layer] !== undefined) {
+    return grid.__contentHashes[layer];
+  }
   const len = grid.vectors.length;
   let hashSum = 0;
   for (let i = 0; i < len; i++) {
@@ -22,5 +28,7 @@ export function computeGridContentHash(grid, layer = 'waves') {
       hashSum = ((hashSum * 33) + valSum + i) | 0;
     }
   }
-  return hashSum >>> 0;
+  const result = hashSum >>> 0;
+  grid.__contentHashes[layer] = result;
+  return result;
 }

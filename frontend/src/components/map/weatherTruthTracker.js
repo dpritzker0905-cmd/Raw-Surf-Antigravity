@@ -12,7 +12,15 @@ function fnv1a_32(str) {
 
 export function computeJsDataHash(vectors, layer = 'waves') {
   if (!vectors || !vectors.length) return fnv1a_32("");
-  const parts = vectors.map(v => {
+  const cacheKey = `__jsDataHash_${layer}`;
+  if (vectors[cacheKey]) {
+    return vectors[cacheKey];
+  }
+
+  const parts = [];
+  const len = vectors.length;
+  for (let i = 0; i < len; i++) {
+    const v = vectors[i];
     const hasFlat = v.speed !== undefined;
     const layerObj = !hasFlat && layer ? v[layer] : null;
 
@@ -22,9 +30,11 @@ export function computeJsDataHash(vectors, layer = 'waves') {
     const period = hasFlat ? (v.period != null ? v.period : 0.0) : (layerObj?.period != null ? layerObj.period : 0.0);
     const isValid = (v.is_valid === undefined || v.is_valid) ? 1 : 0;
 
-    return `${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)},${Number(speed).toFixed(4)},${Number(u).toFixed(4)},${Number(vVal).toFixed(4)},${Number(period).toFixed(4)},${isValid}`;
-  });
-  return fnv1a_32(parts.join('\n'));
+    parts.push(`${Number(v.lat).toFixed(4)},${Number(v.lng).toFixed(4)},${Number(speed).toFixed(4)},${Number(u).toFixed(4)},${Number(vVal).toFixed(4)},${Number(period).toFixed(4)},${isValid}`);
+  }
+  const hash = fnv1a_32(parts.join('\n'));
+  vectors[cacheKey] = hash;
+  return hash;
 }
 
 export function computeJsBoundsHash(servedBbox) {
@@ -115,9 +125,32 @@ export function recordTruthStage(stageName, data, file, functionName) {
       cols: data.grid.cols,
       rows: data.grid.rows,
       vectorCount: data.grid.vectors.length,
-      nonzeroCount: data.grid.vectors.filter(v => v.speed > 0).length,
-      minSpeed: Math.min(...data.grid.vectors.map(v => v.speed)),
-      maxSpeed: Math.max(...data.grid.vectors.map(v => v.speed)),
+      nonzeroCount: (() => {
+        let nz = 0;
+        const len = data.grid.vectors.length;
+        for (let i = 0; i < len; i++) {
+          if ((data.grid.vectors[i]?.speed || 0) > 0) nz++;
+        }
+        return nz;
+      })(),
+      minSpeed: (() => {
+        let minS = Infinity;
+        const len = data.grid.vectors.length;
+        for (let i = 0; i < len; i++) {
+          const s = data.grid.vectors[i]?.speed || 0;
+          if (s < minS) minS = s;
+        }
+        return minS === Infinity ? 0 : minS;
+      })(),
+      maxSpeed: (() => {
+        let maxS = -Infinity;
+        const len = data.grid.vectors.length;
+        for (let i = 0; i < len; i++) {
+          const s = data.grid.vectors[i]?.speed || 0;
+          if (s > maxS) maxS = s;
+        }
+        return maxS === -Infinity ? 0 : maxS;
+      })(),
       dataHash,
       boundsHash,
       createdAt: timestamp,

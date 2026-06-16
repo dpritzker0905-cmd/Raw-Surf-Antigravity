@@ -143,11 +143,19 @@ export function computeVectorDiffAndLog({ grid, prev, activeModel, activeLayers,
   let nonzeroCount = 0;
   let contentHash = 0;
   if (grid.vectors) {
-    const len = grid.vectors.length;
-    for (let i = 0; i < len; i++) {
-      const v = grid.vectors[i];
-      const comp = v?.[activeML] || v;
-      if (comp && comp.speed > 0) nonzeroCount++;
+    if (!grid.__nonzeroCounts) {
+      grid.__nonzeroCounts = {};
+    }
+    if (grid.__nonzeroCounts[activeML] !== undefined) {
+      nonzeroCount = grid.__nonzeroCounts[activeML];
+    } else {
+      const len = grid.vectors.length;
+      for (let i = 0; i < len; i++) {
+        const v = grid.vectors[i];
+        const comp = v?.[activeML] || v;
+        if (comp && comp.speed > 0) nonzeroCount++;
+      }
+      grid.__nonzeroCounts[activeML] = nonzeroCount;
     }
     contentHash = computeGridContentHash(grid, activeML);
   }
