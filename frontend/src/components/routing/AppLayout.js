@@ -50,7 +50,7 @@ const PersonaMaskBannerWrapper = () => {
 };
 
 /** Auto-subscribes to push notifications when user logs in and permission is granted. */
-const PushNotificationInit = () => {
+export const PushNotificationInit = () => {
   const { user } = useAuth();
   const { isSupported, subscribe } = usePushNotifications(user?.id);
   useEffect(() => {
@@ -76,7 +76,7 @@ const PushNotificationInit = () => {
  *     route, immediately replace the history entry with /feed
  * and navigate there -- no setTimeout race conditions.
  */
-const BackButtonHandler = () => {
+export const BackButtonHandler = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
 
@@ -120,7 +120,7 @@ const BackButtonHandler = () => {
 };
 
 /** Global WebRTC Call Manager -- renders incoming call + in-call overlays. */
-const CallManager = () => {
+export const CallManager = () => {
   const { user } = useAuth();
   const call = useWebRTCCall(user?.id, {
     name: user?.full_name || user?.username,
@@ -214,9 +214,6 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       {/* System overlays */}
       <ImpersonationBannerWrapper />
       <PersonaMaskBannerWrapper />
-      <PushNotificationInit />
-      <BackButtonHandler />
-      <CallManager />
 
       {/* Navigation chrome */}
       {showSidebar && <Sidebar />}
@@ -236,7 +233,6 @@ const AppLayout = ({ children, hideNav = false, hideTopNav = false }) => {
       </main>
 
       {showBottomNav && <ActiveSessionBanner />}
-      <PushNotificationPrompt />
       {showBottomNav && <BottomNav />}
     </div>
   );

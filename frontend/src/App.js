@@ -11,7 +11,8 @@ import CookieConsentBanner from './components/ui/CookieConsentBanner';
 // ---  Routing utilities ---
 import ErrorBoundary from './components/routing/ErrorBoundary';
 import ProtectedRoute from './components/routing/ProtectedRoute';
-import AppLayout from './components/routing/AppLayout';
+import AppLayout, { CallManager, PushNotificationInit, BackButtonHandler } from './components/routing/AppLayout';
+import PushNotificationPrompt from './components/PushNotificationPrompt';
 
 // --- Critical path (NOT lazy -- loaded immediately) ---
 import { Home } from './components/Home';
@@ -219,6 +220,10 @@ function App() {
           </Routes>
           <Toaster position="top-center" richColors />
           <CookieConsentBanner />
+          <PushNotificationInit />
+          <BackButtonHandler />
+          <CallManager />
+          <PushNotificationPrompt />
         </BrowserRouter>
         </AccessCodeScreen>
       </PricingProvider>
