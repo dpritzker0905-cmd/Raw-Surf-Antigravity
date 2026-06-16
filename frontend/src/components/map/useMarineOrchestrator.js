@@ -168,6 +168,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (lastStableCameraRef.current === cameraHash) return;
       lastStableCameraRef.current = cameraHash;
 
+      if (typeof window !== 'undefined') {
+        window.__MARINE_FETCH_DEBOUNCING__ = true;
+      }
+
       let isCached = false;
       try {
         const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
