@@ -12,6 +12,7 @@ import useActiveSession from '../hooks/useActiveSession';
 import logger from '../utils/logger';
 import { ROLES } from '../constants/roles';
 import { AdaptiveBackground } from './AdaptiveBackground';
+import useRoutePreloader from '../hooks/useRoutePreloader';
 
 export const Sidebar = () => {
   const { user, logout } = useAuth();
@@ -19,6 +20,7 @@ export const Sidebar = () => {
   const { getEffectiveRole, isMasked, _activePersona, _isGodMode } = usePersona();
   const navigate = useNavigate();
   const location = useLocation();
+  const preload = useRoutePreloader();
   const [unreadCount, setUnreadCount] = useState(0);
   const [unreadMessages, setUnreadMessages] = useState(0);
   const [passportOpen, setPassportOpen] = useState(false);
@@ -294,6 +296,14 @@ export const Sidebar = () => {
             <NavLink
               key={item.path}
               to={item.path}
+              onMouseEnter={() => {
+                const routeKey = item.path.substring(1);
+                preload(routeKey);
+              }}
+              onTouchStart={() => {
+                const routeKey = item.path.substring(1);
+                preload(routeKey);
+              }}
               onClick={(e) => {
                 const isActive = item.path === '/feed'
                   ? (location.pathname === '/feed' || location.pathname === '/')
