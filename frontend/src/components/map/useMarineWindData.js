@@ -28,6 +28,12 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       return null;
     }
 
+    const isTransitioning = typeof window !== 'undefined' && (
+      !!window.__MARINE_TRANSITIONING__ || 
+      !!window.__MARINE_FETCH_PENDING__ || 
+      !!window.__MARINE_FETCH_DEBOUNCING__
+    );
+
     // Verify viewport overlap ratio to prevent clamped regional grid rendering
     if (mapInstance && marineData?.grid?.bounds) {
       const g = marineData.grid;
@@ -83,6 +89,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           }
 
           if (shouldReject) {
+            if (isTransitioning && lastValidDataRef.current) {
+              return lastValidDataRef.current;
+            }
             if (typeof window !== 'undefined') {
               window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
                 hasData: true,
@@ -134,7 +143,6 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     const gridProvider = marineData.grid.__gridProvider || 'none';
     const gridComponentLayer = marineData.grid.__componentLayer;
     const isEuroComponent = activeModel === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeMarineLayer);
-    const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
 
     const isModelMismatch = gridModel !== activeModel;
     const isLayerMismatch = gridComponentLayer && gridComponentLayer !== activeMarineLayer;
