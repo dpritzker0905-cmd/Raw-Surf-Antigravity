@@ -54,7 +54,11 @@ export function useOpenMeteoTileUrls({
       clearTimeout(debounceTimerRef.current);
     }
 
-    if (diff < 120) {
+    if (!window.isScrubbingTimeline) {
+      isScrubbingRef.current = false;
+      WeatherTelemetry.trackTimelineSeek(timeOffsetHours);
+      setDebouncedTimeOffsetHours(timeOffsetHours);
+    } else if (diff < 120) {
       // Rapid dragging / scrubbing timeline slider: debounce by 300ms (Fix 4)
       isScrubbingRef.current = true;
       window.isScrubbingTimeline = true;
@@ -76,6 +80,8 @@ export function useOpenMeteoTileUrls({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
+      isScrubbingRef.current = false;
+      window.isScrubbingTimeline = false;
     };
   }, [timeOffsetHours]);
 
@@ -412,6 +418,12 @@ export function useOpenMeteoTileUrls({
           }
           if (entry.omModelGroup === 'marine') {
             const baseModel = MARINE_MODEL_MAP[activeModel] || 'ncep_gfswave025';
+            if (baseModel === 'dwd_gwam' && debouncedTimeOffsetHours > 168) {
+              return 'ncep_gfswave025';
+            }
+            if (baseModel === 'ecmwf_wam025' && debouncedTimeOffsetHours > 240) {
+              return 'ncep_gfswave025';
+            }
             return baseModel;
           }
           if (variable === 'precipitation' || variable === 'cloud_cover') {

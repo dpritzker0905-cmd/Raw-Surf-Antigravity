@@ -281,6 +281,7 @@ export var MapWeatherControls = ({
   };
 
   const handleDragEnd = () => {
+    if (!isDraggingRef.current) return;
     isDraggingRef.current = false;
     if (typeof window !== 'undefined') {
       window.isScrubbingTimeline = false;
@@ -291,12 +292,37 @@ export var MapWeatherControls = ({
       requestRef.current = null;
     }
     // Commit final location instantly on pointer release to guarantee alignment
+    const finalVal = latestValueRef.current !== null ? latestValueRef.current : sliderVal;
     if (isRadar) {
-      onRadarFrameChange(sliderVal);
+      onRadarFrameChange(finalVal);
     } else {
-      onTimeChange(sliderVal);
+      onTimeChange(finalVal);
     }
+    latestValueRef.current = null;
   };
+
+  const handleDragEndRef = useRef(handleDragEnd);
+  useEffect(() => {
+    handleDragEndRef.current = handleDragEnd;
+  });
+
+  useEffect(() => {
+    const handleGlobalMouseUp = () => {
+      if (isDraggingRef.current) {
+        handleDragEndRef.current();
+      }
+    };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('mouseup', handleGlobalMouseUp);
+      window.addEventListener('touchend', handleGlobalMouseUp);
+    }
+    return () => {
+      if (typeof window !== 'undefined') {
+        window.removeEventListener('mouseup', handleGlobalMouseUp);
+        window.removeEventListener('touchend', handleGlobalMouseUp);
+      }
+    };
+  }, []);
 
   // Integrated Timeline UI block
   const renderTimeline = (isMobile = false) => {

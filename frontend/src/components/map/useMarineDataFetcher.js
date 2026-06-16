@@ -96,9 +96,14 @@ export function useMarineDataFetcher({
 
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
     let phase = 'init';
-    const model = activeModelRef.current;
+    const rawModel = activeModelRef.current;
     const layer = activeMarineLayerRef.current || 'waves';
     const timeOffset = timeOffsetRef.current;
+    const isWaves = layer === 'waves';
+    const nativeLimit = isWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
+    const model = (rawModel === 'ICON' && timeOffset > DISPLAY_ICON_MAX_HOURS) ? 'GFS'
+                : (rawModel === 'EURO' && timeOffset > nativeLimit) ? 'GFS'
+                : rawModel;
     const zoom = mapInstance.getZoom();
     const locks = marineFetchLocksRef.current;
     let requestId = 0;
@@ -258,9 +263,9 @@ export function useMarineDataFetcher({
       locks.activeSource = source;
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
-        window.__MARINE_FETCH_PENDING__ = { model, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+        window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
       }
-      const fetchIntent = { model, layer, hour: timeOffset };
+      const fetchIntent = { model: rawModel, layer, hour: timeOffset };
 
       const isWaves = layer === 'waves';
       const nativeLimit = isWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
@@ -651,6 +656,14 @@ export function useMarineDataFetcher({
 
     // Debounced scrub path: coalesce rapid scrub positions into a single fetch
     if (source === 'timeline_scrub_deferred') {
+      if (!window.isScrubbingTimeline) {
+        if (scrubDebounceRef.current) {
+          clearTimeout(scrubDebounceRef.current);
+          scrubDebounceRef.current = null;
+        }
+        updateMarineGrid('timeline_scrub');
+        return;
+      }
       clearTimeout(scrubDebounceRef.current);
       scrubDebounceRef.current = setTimeout(() => {
         scrubDebounceRef.current = null;

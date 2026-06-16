@@ -248,6 +248,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let extractedGrid = null;
     let curModel = activeModelRef.current || 'GFS';
     let curLayer = activeMarineLayerRef.current || 'waves';
+    const isWaves = (curLayer === 'waves');
+    const nativeLimit = isWaves ? 240 : 72;
+    if (curModel === 'ICON' && timeOffsetHours > 168) {
+      curModel = 'GFS';
+    } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
+      curModel = 'GFS';
+    }
     const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
     const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
     const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';
@@ -530,7 +537,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       vpBounds = null;
     }
 
-    const curModel = activeModelRef.current || 'GFS';
+    let curModel = activeModelRef.current || 'GFS';
+    const isWaves = (activeMarineLayer === 'waves');
+    const nativeLimit = isWaves ? 240 : 72;
+    if (curModel === 'ICON' && timeOffsetHours > 168) {
+      curModel = 'GFS';
+    } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
+      curModel = 'GFS';
+    }
     const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
     const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
     const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';
@@ -538,7 +552,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     if (isBackendActive) {
       try {
-        const cached = getModelSafeMarine(activeModelRef.current, timeOffsetHours, activeMarineLayer, vpBounds);
+        const cached = getModelSafeMarine(curModel, timeOffsetHours, activeMarineLayer, vpBounds);
         if (cached && cached.grid && !cached.__staleHour) {
           const prodId = cached.product_id || cached.productId;
           const regionId = cached.region_id || cached.regionId || cached.grid?.region_id || cached.grid?.regionId;
