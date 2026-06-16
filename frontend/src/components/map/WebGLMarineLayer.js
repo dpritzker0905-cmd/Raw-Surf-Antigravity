@@ -204,16 +204,20 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
                 this._wasActive = false;
                 return;
               }
-              // Calculate fade out during zoom transition or low overlap
-              let zoomFade = 1.0;
-              if (currentZoom <= 6.5) {
-                zoomFade = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
+              if (isViewportZoomedOut && isGridRegional) {
+                opacityMultiplier = 0.0;
+              } else {
+                // Calculate fade out during zoom transition or low overlap
+                let zoomFade = 1.0;
+                if (currentZoom <= 6.5) {
+                  zoomFade = Math.max(0.0, Math.min(1.0, (currentZoom - 5.5) / (6.5 - 5.5)));
+                }
+                let overlapFade = 1.0;
+                if (overlapRatio < 0.15) {
+                  overlapFade = Math.max(0.0, Math.min(1.0, (overlapRatio - 0.05) / (0.15 - 0.05)));
+                }
+                opacityMultiplier = Math.min(zoomFade, overlapFade);
               }
-              let overlapFade = 1.0;
-              if (overlapRatio < 0.15) {
-                overlapFade = Math.max(0.0, Math.min(1.0, (overlapRatio - 0.05) / (0.15 - 0.05)));
-              }
-              opacityMultiplier = Math.min(zoomFade, overlapFade);
             }
           } else {
             const currentZoom = map.getZoom();

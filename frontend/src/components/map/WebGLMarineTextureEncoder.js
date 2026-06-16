@@ -173,16 +173,8 @@ export function extrapolateOceanData(vectors, cols, rows, isGlobal = true) {
 
     if (nextVectors) {
       for (let i = 0; i < vectors.length; i++) {
-        if (vectors[i] && nextVectors[i] && vectors[i] !== nextVectors[i]) {
-          vectors[i].u = nextVectors[i].u;
-          vectors[i].v = nextVectors[i].v;
-          vectors[i].speed = nextVectors[i].speed;
-          vectors[i].height = nextVectors[i].height;
-          vectors[i].period = nextVectors[i].period;
-          vectors[i].swellHeight = nextVectors[i].swellHeight;
-          vectors[i].direction = nextVectors[i].direction;
-          vectors[i].swellDir = nextVectors[i].swellDir;
-          vectors[i].isOcean = nextVectors[i].isOcean;
+        if (nextVectors[i] && vectors[i] !== nextVectors[i]) {
+          vectors[i] = nextVectors[i];
         }
       }
     }
