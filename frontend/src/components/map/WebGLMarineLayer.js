@@ -122,6 +122,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       const map = mapRef.current;
       if (!map) return;
 
+      let viewportBounds = null;
+
       if (engine && engine._waveData && engine._waveData.waveGrid?.bounds) {
         const bounds = engine._waveData.waveGrid.bounds;
         const isGlobalGrid = Math.abs(bounds.east - bounds.west) >= 350;
@@ -135,6 +137,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           try {
             const mb = map.getBounds();
             const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
+            viewportBounds = [ew, es, ee, en];
             
             const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
             const intSouth = Math.max(es, gs);
@@ -200,7 +203,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         const canvas = map.getCanvas();
         const zoom = map.getZoom();
 
-        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current);
+        engine.render(_gl, _matrix, canvas.width, canvas.height, zoom, themeRef.current, viewportBounds);
         map.triggerRepaint();
       } catch (e) {
         errorCount++;

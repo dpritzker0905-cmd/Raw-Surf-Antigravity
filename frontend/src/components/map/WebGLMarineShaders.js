@@ -23,6 +23,9 @@ uniform vec2 u_dataBounds_min;
 uniform vec2 u_dataBounds_max;
 uniform float u_rand_seed;
 uniform float u_drop_rate;
+uniform float u_zoom;
+uniform vec2 u_tile_origin;
+uniform float u_tile_width;
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -61,8 +64,9 @@ void main() {
   vec2 pos = decodePos(encoded);
 
   // Convert global Mercator coordinates to geographic lng/lat
-  float lng = pos.x * 360.0 - 180.0;
-  float lat = mercatorYToLat(pos.y);
+  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
+  float lng = global_pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(global_pos.y);
 
   // Map to local texture coordinate of u_waveTexture and u_oceanMaskTexture
   float tex_u;
@@ -78,7 +82,7 @@ void main() {
   // Calculate Web Mercator mask coordinates
   float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - pos.y) / max(mercMaxY - mercMinY, 0.0001);
+  float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(tex_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
@@ -99,13 +103,20 @@ void main() {
   // Scale by waveHeight * 0.1 to restore height-proportional advection speed.
   vec2 offset = (waveVec * waveHeight * 0.1 / merc_scale) * u_speed_scale * energyBoost;
   
-  vec2 nextPos = pos + offset;
-  nextPos.x = fract(nextPos.x);
-  nextPos.y = clamp(nextPos.y, 0.001, 0.999);
+  vec2 nextPos;
+  if (u_zoom > 6.0) {
+    nextPos = pos + (offset / u_tile_width);
+    nextPos = fract(nextPos);
+  } else {
+    nextPos = pos + offset;
+    nextPos.x = fract(nextPos.x);
+    nextPos.y = clamp(nextPos.y, 0.001, 0.999);
+  }
 
   // Check land / oob for next position
-  float next_lng = nextPos.x * 360.0 - 180.0;
-  float next_lat = mercatorYToLat(nextPos.y);
+  vec2 next_global_pos = (u_zoom > 6.0) ? (u_tile_origin + nextPos * u_tile_width) : nextPos;
+  float next_lng = next_global_pos.x * 360.0 - 180.0;
+  float next_lat = mercatorYToLat(next_global_pos.y);
   float next_tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
     float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
@@ -115,7 +126,7 @@ void main() {
   }
   float next_tex_v = (next_lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   
-  float next_mask_v = (mercMaxY - nextPos.y) / max(mercMaxY - mercMinY, 0.0001);
+  float next_mask_v = (mercMaxY - next_global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 next_mask_uv = vec2(next_tex_u, next_mask_v);
   
   float nextOceanFlag = texture2D(u_oceanMaskTexture, next_mask_uv).r;
@@ -130,23 +141,34 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
-                next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  bool isOob = false;
+  if (u_zoom <= 6.0) {
+    isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
+             next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  }
 
   if (waveHeight < 0.01 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
-  float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
-  drop = max(drop, step(0.5, oobY));
+  if (u_zoom <= 6.0) {
+    float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
+    drop = max(drop, step(0.5, oobY));
+  }
 
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
-  float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
-  float randLng = u_dataBounds_min.x > u_dataBounds_max.x
-    ? mod(u_dataBounds_min.x + randVal.x * span + 180.0, 360.0) - 180.0
-    : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
-  float randLat = mix(u_dataBounds_min.y, u_dataBounds_max.y, randVal.y);
-  vec2 newPos = vec2((randLng + 180.0) / 360.0, latToMercatorY(randLat));
+  vec2 newPos;
+  if (u_zoom > 6.0) {
+    newPos = randVal;
+  } else {
+    float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
+    float randLng = u_dataBounds_min.x > u_dataBounds_max.x
+      ? mod(u_dataBounds_min.x + randVal.x * span + 180.0, 360.0) - 180.0
+      : mix(u_dataBounds_min.x, u_dataBounds_max.x, randVal.x);
+    float randLat = mix(u_dataBounds_min.y, u_dataBounds_max.y, randVal.y);
+    newPos = vec2((randLng + 180.0) / 360.0, latToMercatorY(randLat));
+  }
+
   if (drop > 0.5) {
     pos = newPos;
   } else {
@@ -154,7 +176,9 @@ void main() {
   }
 
   // Prevent pole clamping leakage
-  pos.y = clamp(pos.y, 0.001, 0.999);
+  if (u_zoom <= 6.0) {
+    pos.y = clamp(pos.y, 0.001, 0.999);
+  }
 
   gl_FragColor = encodePos(pos);
 }
@@ -177,6 +201,8 @@ uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
 uniform float u_motion_scale;
+uniform vec2 u_tile_origin;
+uniform float u_tile_width;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -226,8 +252,9 @@ void main() {
     encodedPos.b + encodedPos.a / 255.0
   );
 
-  float lng = pos.x * 360.0 - 180.0;
-  float lat = mercatorYToLat(pos.y);
+  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
+  float lng = global_pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(global_pos.y);
 
   float tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
@@ -242,7 +269,7 @@ void main() {
   // Calculate Web Mercator mask coordinates
   float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - pos.y) / max(mercMaxY - mercMinY, 0.0001);
+  float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(tex_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
@@ -264,7 +291,10 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
+  bool isOob = false;
+  if (u_zoom <= 6.0) {
+    isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
+  }
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
@@ -303,7 +333,7 @@ void main() {
   // Higher magnitude threshold prevents jittery near-zero directions
   vec2 dir = length(waveVec) > 0.01 ? normalize(waveVec) : vec2(1.0, 0.0);
 
-  vec2 vertexPos = pos;
+  vec2 vertexPos = global_pos;
   vertexPos.x += u_merc_offset;
   vec4 clipPos = u_matrix * vec4(vertexPos.x, vertexPos.y, 0.0, 1.0);
   vec2 ndc0 = clipPos.xy / max(clipPos.w, 0.001);
@@ -366,14 +396,14 @@ void main() {
   // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
   // All ribbons in the same wave train advance at the same rate.
   float temporalSpeed = (u_time * u_motion_scale) / max(2.0, periodVal);
-  float trainPhase = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
+  float trainPhase = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
   v_phase = trainPhase;
 
   // === v5.8: WAVE-TRAIN ENVELOPE — period controls visible band spacing ===
   // Short-period wind waves: tighter, more frequent visible bands.
   // Long-period swell: wider spacing, organized sets.
   // Modulates alpha softly (never fully invisible) to create visible wave sets.
-  float train = fract(dot(pos, dir) * spatialFreq - temporalSpeed);
+  float train = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
   float crestBand = 1.0 - smoothstep(0.08, 0.30, abs(train - 0.5));
   float trainEnvelope = mix(0.25, 1.0, crestBand);
 

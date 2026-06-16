@@ -50,6 +50,19 @@ function initParticleTexture(gl, resolution) {
   return createTexture(gl, gl.NEAREST, data, resolution, resolution);
 }
 
+function latToMercatorY(lat) {
+  const latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
+  const rad = (latClamped * Math.PI) / 180.0;
+  return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
+}
+
+WebGLMarineEngine.prototype.reinitParticles = function(gl) {
+  if (this.particleStateA) gl.deleteTexture(this.particleStateA);
+  if (this.particleStateB) gl.deleteTexture(this.particleStateB);
+  this.particleStateA = initParticleTexture(gl, this.particleRes);
+  this.particleStateB = initParticleTexture(gl, this.particleRes);
+};
+
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
@@ -309,7 +322,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   }
 };
 
-WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme) {
+WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme, viewportBounds) {
   const renderStart = (typeof window !== 'undefined' && window.__RAW_GPU__) ? performance.now() : 0;
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
     window.__RAW_GPU__.drawCallsPerFrame = 0;
@@ -408,6 +421,57 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     var time = (Date.now() - this._startTime) / 1000.0;
     const waveBounds = this._waveData.bounds;
     const z = typeof zoom === 'number' ? zoom : 6;
+
+    // v3.22: Compute camera center and tile origin for high-precision advection
+    var vb = viewportBounds || [-180, -80, 180, 85];
+    var centerLng = (vb[0] + vb[2]) * 0.5;
+    if (vb[2] < vb[0]) {
+      centerLng = (vb[0] + vb[2] + 360) * 0.5;
+      if (centerLng > 180) centerLng -= 360;
+    }
+    var centerLat = (vb[1] + vb[3]) * 0.5;
+    var cx = (centerLng + 180.0) / 360.0;
+    var cy = latToMercatorY(centerLat);
+
+    var isHighZoom = z > 6.0;
+    var prevHighZoom = this._lastZoom > 6.0;
+    var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
+    this._lastZoom = z;
+
+    var tileOriginX = 0.0;
+    var tileOriginY = 0.0;
+    var tileWidth = 1.0;
+
+    if (isHighZoom) {
+      // v3.23: Use -3 instead of -5 so the tile is 8x larger than the screen instead of 32x.
+      var tileZoom = Math.max(0, Math.floor(z) - 3);
+      tileWidth = 1.0 / Math.pow(2.0, tileZoom);
+
+      // Initialize or drift check
+      if (this._tileCenterX === undefined || this._tileCenterY === undefined) {
+        this._tileCenterX = cx;
+        this._tileCenterY = cy;
+        this.reinitParticles(gl);
+      } else {
+        var dx = cx - this._tileCenterX;
+        var dy = cy - this._tileCenterY;
+        if (Math.abs(dx) > tileWidth * 0.25 || Math.abs(dy) > tileWidth * 0.25) {
+          this._tileCenterX = cx;
+          this._tileCenterY = cy;
+          this.reinitParticles(gl);
+        }
+      }
+      tileOriginX = this._tileCenterX - tileWidth * 0.5;
+      tileOriginY = this._tileCenterY - tileWidth * 0.5;
+    } else {
+      this._tileCenterX = undefined;
+      this._tileCenterY = undefined;
+    }
+
+    if (zoomStateChanged) {
+      this.reinitParticles(gl);
+    }
+
     const smoothstepVal = (edge0, edge1, x) => {
       const t = Math.max(0.0, Math.min(1.0, (x - edge0) / (edge1 - edge0)));
       return t * t * (3.0 - 2.0 * t);
@@ -545,6 +609,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
     gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
+    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
 
     // v5.3: viewport and DPR uniforms for pixel-space quad expansion
     var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
@@ -602,6 +668,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
 
     gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
     gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
