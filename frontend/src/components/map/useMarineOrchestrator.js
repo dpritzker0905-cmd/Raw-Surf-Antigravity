@@ -263,6 +263,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
       isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
 
+      let isGridWidthRegional = false;
+      let isContained = true;
+
       if (cachedBackendData) {
         const prodId = cachedBackendData.product_id || cachedBackendData.productId;
         const regionId = cachedBackendData.region_id || cachedBackendData.regionId || cachedBackendData.grid?.region_id || cachedBackendData.grid?.regionId;
@@ -270,22 +273,35 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const isDynamic = !!(cachedBackendData.is_dynamic_viewport_product || cachedBackendData.isDynamicViewportProduct || cachedBackendData.grid?.is_dynamic_viewport_product || cachedBackendData.grid?.isDynamicViewportProduct);
 
         const actualBounds = cachedBackendData.grid?.bounds || cachedBackendData.bounds;
-        let isGridWidthRegional = false;
         if (actualBounds) {
-          const gw = actualBounds.west, ge = actualBounds.east;
+          const gw = actualBounds.west, ge = actualBounds.east, gs = actualBounds.south, gn = actualBounds.north;
           const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
           isGridWidthRegional = gridWidth < 340.0;
+
+          if (isGridWidthRegional && vpBounds) {
+            const ew = vpBounds.west, ee = vpBounds.east, es = vpBounds.south, en = vpBounds.north;
+            
+            let vWest = ew;
+            let vEast = ee;
+            if (vEast < vWest) vEast += 360;
+
+            let gWest = gw;
+            let gEast = ge;
+            if (gEast < gWest) gEast += 360;
+
+            isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
+          }
         }
 
         isRegional = prodId && (
           prodId.includes('florida_east_coast') ||
           coverageMode === 'regional_tile' ||
           (regionId && regionId !== 'global_coarse' && !isDynamic) ||
-          (isDynamic && isViewportZoomedOut && isGridWidthRegional)
+          (isDynamic && (!isContained || isViewportZoomedOut) && isGridWidthRegional)
         );
       }
 
-      const rejectRegionalCache = isViewportZoomedOut && isRegional;
+      const rejectRegionalCache = (isViewportZoomedOut && isRegional) || (isGridWidthRegional && !isContained);
 
       if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
         extractedGrid = cachedBackendData.grid;
@@ -528,17 +544,33 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
           const actualBounds = cached.grid?.bounds || cached.bounds;
           let isGridWidthRegional = false;
+          let isContained = true;
           if (actualBounds) {
-            const gw = actualBounds.west, ge = actualBounds.east;
+            const gw = actualBounds.west, ge = actualBounds.east, gs = actualBounds.south, gn = actualBounds.north;
             const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
             isGridWidthRegional = gridWidth < 340.0;
+
+            if (isGridWidthRegional && vpBounds) {
+              const ew = vpBounds.west, ee = vpBounds.east, es = vpBounds.south, en = vpBounds.north;
+              
+              let vWest = ew;
+              let vEast = ee;
+              if (vEast < vWest) vEast += 360;
+
+              let gWest = gw;
+              let gEast = ge;
+              if (gEast < gWest) gEast += 360;
+
+              isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
+            }
           }
 
           const isRegional = prodId && (
             prodId.includes('florida_east_coast') ||
             coverageMode === 'regional_tile' ||
             (regionId && regionId !== 'global_coarse' && !isDynamic) ||
-            (isDynamic && isViewportZoomedOut && isGridWidthRegional)
+            (isDynamic && (!isContained || isViewportZoomedOut) && isGridWidthRegional) ||
+            (!isContained && isGridWidthRegional)
           );
           if (prodId && !isRegional) {
             const sig = _marineDataSignature(cached, activeMarineLayer);

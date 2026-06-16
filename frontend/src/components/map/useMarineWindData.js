@@ -58,13 +58,28 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
           const currentZoom = viewState?.zoom ?? mapInstance.getZoom();
           const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+
+          const isGridRegional = gridWidth < 340.0;
+          let isContained = true;
+          if (isGridRegional) {
+            let vWest = ew;
+            let vEast = ee;
+            if (vEast < vWest) vEast += 360;
+
+            let gWest = gw;
+            let gEast = ge;
+            if (gEast < gWest) gEast += 360;
+
+            isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
+          }
+
           let shouldReject = isGlobalSupported
-            ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+            ? (!isContained || (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth)))
             : (overlapWidth <= 0 || intSouth >= intNorth);
 
           const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
           if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-            shouldReject = overlapWidth <= 0 || intSouth >= intNorth;
+            shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
           }
 
           if (shouldReject) {

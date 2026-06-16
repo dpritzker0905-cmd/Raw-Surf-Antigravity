@@ -204,13 +204,28 @@ export function useMarineDataFetcher({
 
         const isGlobalSupported = (model === 'GFS' || model === 'ICON' || (model === 'EURO' && layer === 'waves'));
         const isViewportZoomedOut = (zoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+
+        const isGridRegional = gridWidth < 340.0;
+        let isContained = true;
+        if (isGridRegional) {
+          let vWest = ew;
+          let vEast = ee;
+          if (vEast < vWest) vEast += 360;
+
+          let gWest = gw;
+          let gEast = ge;
+          if (gEast < gWest) gEast += 360;
+
+          isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
+        }
+
         let shouldClear = isGlobalSupported
-          ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+          ? (!isContained || (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth)))
           : (overlapWidth <= 0 || intSouth >= intNorth);
 
         const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
         if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-          shouldClear = overlapWidth <= 0 || intSouth >= intNorth;
+          shouldClear = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
         }
 
         if (shouldClear) {
