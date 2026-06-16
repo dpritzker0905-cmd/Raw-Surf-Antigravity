@@ -123,6 +123,13 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
       if (!map) return;
 
       let viewportBounds = null;
+      try {
+        const mb = map.getBounds();
+        const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
+        viewportBounds = [ew, es, ee, en];
+      } catch (e) {
+        // ignore bounds retrieval errors for viewportBounds, we will use zoom-based fallback below if needed
+      }
 
       if (engine && engine._waveData && engine._waveData.waveGrid?.bounds) {
         const bounds = engine._waveData.waveGrid.bounds;
@@ -134,11 +141,9 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           const activeLayers = activeLayersRef.current || [];
           const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
           const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
-          try {
-            const mb = map.getBounds();
-            const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
-            viewportBounds = [ew, es, ee, en];
-            
+          
+          if (viewportBounds) {
+            const ew = viewportBounds[0], ee = viewportBounds[2], es = viewportBounds[1], en = viewportBounds[3];
             const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
             const intSouth = Math.max(es, gs);
             const intNorth = Math.min(en, gn);
@@ -186,11 +191,9 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
               this._wasActive = false;
               return;
             }
-          } catch (e) {
-            // ignore MapBounds errors, but apply zoom-based fallback
+          } else {
             const currentZoom = map.getZoom();
             if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0) {
-              engine.clearBuffers(_gl);
               this._wasActive = false;
               return;
             }
