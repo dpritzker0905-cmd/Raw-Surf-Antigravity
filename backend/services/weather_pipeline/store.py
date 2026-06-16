@@ -60,6 +60,8 @@ class ProductStore:
     _last_upload_errors: List[str] = []
     _pruned_anomalous_count: int = 0
     _pruned_anomalous_ids: List[str] = []
+    _download_locks: Dict[str, threading.Lock] = {}
+    _download_locks_lock = threading.Lock()
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -675,17 +677,25 @@ class ProductStore:
         """Loads and returns a stored grid product by filename."""
         filepath = self.cache_dir / filename
         if not filepath.exists():
-            logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
-            sb = _get_supabase_storage()
-            if sb:
-                try:
-                    product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
-                    if product_bytes:
-                        with open(filepath, "wb") as f:
-                            f.write(product_bytes)
-                        logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
-                except Exception as e:
-                    logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
+            with ProductStore._download_locks_lock:
+                if filename not in ProductStore._download_locks:
+                    ProductStore._download_locks[filename] = threading.Lock()
+                lock = ProductStore._download_locks[filename]
+            
+            with lock:
+                if not filepath.exists():
+                    logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
+                    sb = _get_supabase_storage()
+                    if sb:
+                        try:
+                            product_bytes = sb.storage.from_(WEATHER_BUCKET).download(filename)
+                            if product_bytes:
+                                temp_filepath = filepath.with_suffix(".tmp")
+                                temp_filepath.write_bytes(product_bytes)
+                                temp_filepath.rename(filepath)
+                                logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
+                        except Exception as e:
+                            logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
             
             # Re-check filepath existence after download attempt
             if not filepath.exists():
