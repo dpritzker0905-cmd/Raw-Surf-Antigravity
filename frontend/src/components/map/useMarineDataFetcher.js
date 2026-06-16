@@ -220,12 +220,12 @@ export function useMarineDataFetcher({
         }
 
         let shouldClear = isGlobalSupported
-          ? (!isContained || (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth)))
+          ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
           : (overlapWidth <= 0 || intSouth >= intNorth);
 
         const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
         if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-          shouldClear = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
+          shouldClear = isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth);
         }
 
         if (shouldClear) {

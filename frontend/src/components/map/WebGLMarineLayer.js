@@ -178,7 +178,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             }
 
             let shouldReject = isGlobalSupported
-              ? (!isContained || (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth)))
+              ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
               : (overlapWidth <= 0 || intSouth >= intNorth);
 
             const g = engine._waveData?.waveGrid;
