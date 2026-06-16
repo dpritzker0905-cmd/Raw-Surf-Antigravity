@@ -124,16 +124,25 @@ export function useMarineDataFetcher({
       const viewportHash = getViewportHash();
       if (!viewportHash) {
         console.log(`[Marine] Viewport bounds are degenerate or map not ready. Skipping fetch (source=${source}).`);
-        const canRetry = source === 'mount' || source === 'load' || source === 'manual';
+        const isRetrySource = source.includes('retry');
+        const canRetry = source === 'mount' || source === 'load' || source === 'manual' || isRetrySource;
         if (canRetry) {
-          setTimeout(() => {
-            if (activeMarineLayersRef.current && updateMarineGridRef.current) {
-              updateMarineGridRef.current(source + '_retry');
-            }
-          }, 500);
+          const retryCount = marineRetryCountRef.current || 0;
+          if (retryCount < 20) {
+            marineRetryCountRef.current = retryCount + 1;
+            const nextSource = isRetrySource ? source : source + '_retry';
+            setTimeout(() => {
+              if (activeMarineLayersRef.current && updateMarineGridRef.current) {
+                updateMarineGridRef.current(nextSource);
+              }
+            }, 500);
+          } else {
+            console.warn(`[Marine] Max retries (${retryCount}) reached for degenerate bounds.`);
+          }
         }
         return;
       }
+      marineRetryCountRef.current = 0;
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
@@ -173,7 +182,8 @@ export function useMarineDataFetcher({
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
       const now = Date.now();
       if (!isRetry && !isTimelineScrub && now - locks.lastTime < 1200) return;
-      if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming())) return;
+      const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
+      if (!isTimelineScrub && (mapInstance.isMoving() || mapInstance.isZooming()) && hasValidData) return;
 
       phase = 'pre_fetch';
       // Use actual viewport bounds from the map instance, NOT hardcoded global bounds.
@@ -740,7 +750,17 @@ export function useMarineDataFetcher({
         if (isTimelineScrub || (!mapInstance.isMoving() && !mapInstance.isZooming())) {
           updateMarineGrid(source);
         } else {
-          mapInstance.once('idle', () => { if (activeMarineLayersRef.current) updateMarineGrid(source); });
+          let fired = false;
+          const runUpdate = () => {
+            if (fired) return;
+            fired = true;
+            mapInstance.off('idle', runUpdate);
+            if (activeMarineLayersRef.current) {
+              updateMarineGrid(source);
+            }
+          };
+          mapInstance.once('idle', runUpdate);
+          setTimeout(runUpdate, 1000);
         }
       }, stableDelay);
     });
