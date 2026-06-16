@@ -738,7 +738,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     }
 
     if (!isValid) {
-      const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
+      const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
       const isScrubbing = typeof window !== 'undefined' && (window.isScrubbingTimeline || (window.lastScrubTime && (Date.now() - window.lastScrubTime < 1500)));
       if (isTransitioning || isScrubbing) {
         // Retain the current WebGL buffers during transition

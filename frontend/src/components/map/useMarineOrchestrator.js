@@ -193,6 +193,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       clearTimeout(internalUpdateTimerRef.current);
       internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 500);
     };
+    const setDebouncingTrue = () => {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_FETCH_DEBOUNCING__ = true;
+      }
+    };
+    mapInstance.on('zoom', setDebouncingTrue);
+    mapInstance.on('move', setDebouncingTrue);
     mapInstance.on('sourcedata', onMapInternalUpdate);
     mapInstance.on('styledata', onMapInternalUpdate);
     mapInstance.on('moveend', onMoveEnd);
@@ -215,6 +222,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
       if (internalUpdateTimerRef.current) clearTimeout(internalUpdateTimerRef.current);
       ['mousedown', 'touchstart', 'wheel', 'dragstart', 'zoomstart'].forEach(e => mapInstance.off(e, trackIntent));
+      mapInstance.off('zoom', setDebouncingTrue);
+      mapInstance.off('move', setDebouncingTrue);
       mapInstance.off('sourcedata', onMapInternalUpdate);
       mapInstance.off('styledata', onMapInternalUpdate);
       mapInstance.off('moveend', onMoveEnd);
