@@ -109,6 +109,9 @@ export function useMarineDataFetcher({
   }, [activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
+    if (typeof window !== 'undefined') {
+      window.__MARINE_FETCH_DEBOUNCING__ = false;
+    }
     let phase = 'init';
     const model = activeModelRef.current;
     const layer = activeMarineLayerRef.current || 'waves';
@@ -739,6 +742,10 @@ export function useMarineDataFetcher({
     lastInvocationRef.current = { source, time: now };
     if (scheduledRef.current) return;
     scheduledRef.current = true;
+
+    if (typeof window !== 'undefined') {
+      window.__MARINE_FETCH_DEBOUNCING__ = true;
+    }
 
     requestAnimationFrame(() => {
       scheduledRef.current = false;

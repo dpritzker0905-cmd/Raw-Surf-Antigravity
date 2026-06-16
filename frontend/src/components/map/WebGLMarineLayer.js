@@ -188,7 +188,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             }
 
             if (shouldReject) {
-              const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
+              const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
               const isZoomingOrMoving = map.isZooming() || map.isMoving() || window.isScrubbingTimeline || isTransitioning;
               if (!isZoomingOrMoving) {
                 this._wasActive = false;
@@ -197,7 +197,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             }
           } else {
             const currentZoom = map.getZoom();
-            const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__);
+            const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
             const isZoomingOrMoving = map.isZooming() || map.isMoving() || window.isScrubbingTimeline || isTransitioning;
             if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0 && !isZoomingOrMoving) {
               this._wasActive = false;
