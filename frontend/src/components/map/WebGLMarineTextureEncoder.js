@@ -1,4 +1,5 @@
 import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
+import { renderMaskToCanvas } from './WebGLMarineMaskRenderer';
 import {
   createShader,
   createProgram,
@@ -60,30 +61,79 @@ export function createTexture(gl, filter, data, width, height) {
 
 // --- Dynamic GFS Shoreline Extrapolation (In-painting Coastline) ---
 
-export function extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, cols, rows, isGlobal = true) {
+// Reusable scratch buffers to avoid TypedArray allocation in hot path
+let uReadScratch = null;
+let vReadScratch = null;
+let hReadScratch = null;
+let pReadScratch = null;
+let oceanReadScratch = null;
+
+let uArrScratch = null;
+let vArrScratch = null;
+let hArrScratch = null;
+let pArrScratch = null;
+let oceanArrScratch = null;
+let dataWaveScratch = null;
+
+function getEncoderScratchBuffers(N) {
+  if (!uArrScratch || uArrScratch.length < N) {
+    uArrScratch = new Float32Array(N);
+    vArrScratch = new Float32Array(N);
+    hArrScratch = new Float32Array(N);
+    pArrScratch = new Float32Array(N);
+    oceanArrScratch = new Uint8Array(N);
+    dataWaveScratch = new Uint8Array(N * 4);
+  }
+  return {
+    uArr: uArrScratch,
+    vArr: vArrScratch,
+    hArr: hArrScratch,
+    pArr: pArrScratch,
+    oceanArr: oceanArrScratch,
+    dataWave: dataWaveScratch
+  };
+}
+
+export function extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal = true) {
   if (cols < 2 || rows < 2) return;
+  const N = cols * rows;
+
+  if (!uReadScratch || uReadScratch.length < N) {
+    uReadScratch = new Float32Array(N);
+    vReadScratch = new Float32Array(N);
+    hReadScratch = new Float32Array(N);
+    pReadScratch = new Float32Array(N);
+    oceanReadScratch = new Uint8Array(N);
+  }
+
+  const uRead = uReadScratch.subarray(0, N);
+  const vRead = vReadScratch.subarray(0, N);
+  const hRead = hReadScratch.subarray(0, N);
+  const pRead = pReadScratch.subarray(0, N);
+  const oceanRead = oceanReadScratch.subarray(0, N);
+
   for (let pass = 0; pass < 2; pass++) {
-    const uRead = new Float32Array(uArr);
-    const vRead = new Float32Array(vArr);
-    const hRead = new Float32Array(hArr);
-    const pRead = new Float32Array(pArr);
-    const dRead = new Float32Array(dArr);
-    const oceanRead = new Uint8Array(oceanArr);
+    uRead.set(uArr);
+    vRead.set(vArr);
+    hRead.set(hArr);
+    pRead.set(pArr);
+    oceanRead.set(oceanArr);
     
     let changes = 0;
 
     for (let r = 0; r < rows; r++) {
+      const rCols = r * cols;
       for (let c = 0; c < cols; c++) {
-        const idx = r * cols + c;
+        const idx = rCols + c;
         if (oceanRead[idx] !== 0) continue;
 
         let sumU = 0, sumV = 0, sumHeight = 0, sumPeriod = 0;
-        let sumSin = 0, sumCos = 0;
         let count = 0;
 
         for (let dr = -1; dr <= 1; dr++) {
           const nr = r + dr;
           if (nr < 0 || nr >= rows) continue;
+          const nrCols = nr * cols;
           for (let dc = -1; dc <= 1; dc++) {
             if (dr === 0 && dc === 0) continue;
             let nc = c + dc;
@@ -94,17 +144,12 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, col
               if (nc < 0 || nc >= cols) continue;
             }
 
-            const nIdx = nr * cols + nc;
+            const nIdx = nrCols + nc;
             if (oceanRead[nIdx] !== 0) {
               sumU += uRead[nIdx];
               sumV += vRead[nIdx];
               sumHeight += hRead[nIdx];
               sumPeriod += pRead[nIdx];
-
-              const dirRad = dRead[nIdx] * (Math.PI / 180);
-              sumSin += Math.sin(dirRad);
-              sumCos += Math.cos(dirRad);
-
               count++;
             }
           }
@@ -115,10 +160,6 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, col
           vArr[idx] = sumV / count;
           hArr[idx] = sumHeight / count;
           pArr[idx] = sumPeriod / count;
-          
-          const avgDir = Math.atan2(sumSin / count, sumCos / count) * (180 / Math.PI);
-          dArr[idx] = (avgDir + 360) % 360;
-
           oceanArr[idx] = 1;
           changes++;
         }
@@ -138,144 +179,17 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, col
           const avgHeight = (hArr[idx0] + hArr[idxN]) * 0.5;
           const avgPeriod = (pArr[idx0] + pArr[idxN]) * 0.5;
           
-          const dir0Rad = dArr[idx0] * (Math.PI / 180);
-          const dirNRad = dArr[idxN] * (Math.PI / 180);
-          const avgDir = Math.atan2(Math.sin(dir0Rad) + Math.sin(dirNRad), Math.cos(dir0Rad) + Math.cos(dirNRad)) * (180 / Math.PI);
-
           uArr[idx0] = uArr[idxN] = avgU;
           vArr[idx0] = vArr[idxN] = avgV;
           hArr[idx0] = hArr[idxN] = avgHeight;
           pArr[idx0] = pArr[idxN] = avgPeriod;
-          dArr[idx0] = dArr[idxN] = (avgDir + 360) % 360;
-          
           oceanArr[idx0] = oceanArr[idxN] = 1;
         }
       }
     }
   }
 }
-
-// --- Coordinate Projection and Land Mask Renderer ---
-
-export function renderMaskToCanvas(geojson, bounds) {
-  // Use a fixed resolution of 1024x512 to avoid massive rendering/memory overhead on high-DPI (Retina) screens.
-  // Linear filtering (gl.LINEAR) keeps the clipping completely smooth.
-  const width = 1024;
-  const height = 512;
-  const canvas = document.createElement('canvas');
-  canvas.width = width;
-  canvas.height = height;
-  const ctx = canvas.getContext('2d');
-  
-  ctx.fillStyle = '#ffffff';
-  ctx.fillRect(0, 0, width, height);
-  
-  if (!geojson?.features?.length) return canvas;
-  
-  ctx.fillStyle = '#000000';
-  ctx.strokeStyle = '#000000';
-  ctx.lineWidth = 1;
-  
-  const { west, south, east, north } = bounds;
-
-  // Web Mercator projection helpers
-  const latToMercatorY = (l) => {
-    const latClamped = Math.max(-85.051129, Math.min(85.051129, l));
-    const rad = latClamped * Math.PI / 180;
-    return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
-  };
-
-  const center = getCenterLng(west, east);
-  const wrappedWest = wrapLngRelative(west, center);
-  const wrappedEast = wrapLngRelative(east, center);
-
-  const mercMinX = (wrappedWest + 180.0) / 360.0;
-  const mercMaxX = (wrappedEast + 180.0) / 360.0;
-  const mercMinY = latToMercatorY(north); // North maps to smaller Mercator Y
-  const mercMaxY = latToMercatorY(south); // South maps to larger Mercator Y
-  
-  const mercXSpan = mercMaxX - mercMinX;
-  const mercYSpan = mercMaxY - mercMinY;
-  
-  function project(lng, lat) {
-    const projectedLng = wrapLngRelative(lng, center);
-    const mx = (projectedLng + 180.0) / 360.0;
-    const my = latToMercatorY(lat);
-    
-    // Normalize and scale to canvas dimensions
-    const x = ((mx - mercMinX) / mercXSpan) * width;
-    const y = ((my - mercMinY) / mercYSpan) * height;
-    return [x, y];
-  }
-  
-  const isGlobalTarget = (east - west) >= 359.0;
-  
-  geojson.features.forEach(feature => {
-    const geom = feature.geometry;
-    if (!geom) return;
-
-    // 1. Calculate & cache bounding box for this feature
-    if (!feature._bbox) {
-      let fWest = Infinity, fEast = -Infinity, fSouth = Infinity, fNorth = -Infinity;
-      const updateBBox = (pt) => {
-        const lng = pt[0];
-        const lat = pt[1];
-        if (lng < fWest) fWest = lng;
-        if (lng > fEast) fEast = lng;
-        if (lat < fSouth) fSouth = lat;
-        if (lat > fNorth) fNorth = lat;
-      };
-      if (geom.type === 'Polygon') {
-        geom.coordinates.forEach(ring => ring.forEach(updateBBox));
-      } else if (geom.type === 'MultiPolygon') {
-        geom.coordinates.forEach(poly => poly.forEach(ring => ring.forEach(updateBBox)));
-      }
-      feature._bbox = { west: fWest, south: fSouth, east: fEast, north: fNorth };
-    }
-
-    // 2. Perform bounding box intersection check
-    if (!isGlobalTarget) {
-      const fb = feature._bbox;
-      const pad = 1.0;
-      const fCenter = (fb.west + fb.east) * 0.5;
-      const projectedFCenter = wrapLngRelative(fCenter, center);
-      const halfSpan = (fb.east - fb.west) * 0.5;
-      const fWestWrapped = projectedFCenter - halfSpan;
-      const fEastWrapped = projectedFCenter + halfSpan;
-      
-      const overlapX = (fWestWrapped <= wrappedEast + pad) && (fEastWrapped >= wrappedWest - pad);
-      const overlapY = (fb.south <= north + pad) && (fb.north >= south - pad);
-      
-      if (!overlapX || !overlapY) {
-        return; // Skip rendering this feature completely
-      }
-    }
-    
-    const drawPolygon = (coords) => {
-      ctx.beginPath();
-      coords.forEach((ring) => {
-        if (!ring || !ring.length) return;
-        ring.forEach((pt, ptIdx) => {
-          const [px, py] = project(pt[0], pt[1]);
-          if (ptIdx === 0) ctx.moveTo(px, py);
-          else ctx.lineTo(px, py);
-        });
-      });
-      ctx.closePath();
-      ctx.fill();
-      ctx.stroke();
-    };
-    
-    if (geom.type === 'Polygon') {
-      drawPolygon(geom.coordinates);
-    } else if (geom.type === 'MultiPolygon') {
-      geom.coordinates.forEach(polyCoords => drawPolygon(polyCoords));
-    }
-  });
-  
-  return canvas;
-}
-
+// --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
 // --- The Ocean GPU Grid Texture Compressor ---
 
 export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
@@ -285,12 +199,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const activeLayer = waveGrid.__componentLayer || 'waves';
   const N = cols * rows;
 
-  const uArr = new Float32Array(N);
-  const vArr = new Float32Array(N);
-  const hArr = new Float32Array(N);
-  const pArr = new Float32Array(N);
-  const dArr = new Float32Array(N);
-  const oceanArr = new Uint8Array(N);
+  // Reusable scratch buffers to avoid TypedArray allocation in hot path
+  const scratch = getEncoderScratchBuffers(N);
+  const uArr = scratch.uArr.subarray(0, N);
+  const vArr = scratch.vArr.subarray(0, N);
+  const hArr = scratch.hArr.subarray(0, N);
+  const pArr = scratch.pArr.subarray(0, N);
+  const oceanArr = scratch.oceanArr.subarray(0, N);
+  const dataWave = scratch.dataWave.subarray(0, N * 4);
 
   const numGridToProcess = Math.min(vectors.length, N);
   let flatSpeedNonzeroCount = 0;
@@ -304,28 +220,41 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     const hasSub = activeLayer !== 'waves' && v[activeLayer];
     const sub = hasSub ? v[activeLayer] : {};
     
-    const uVal = hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0);
-    const vVal = hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0);
+    let uVal = hasSub && typeof sub.u === 'number' ? sub.u : (typeof v.u === 'number' ? v.u : 0);
+    let vVal = hasSub && typeof sub.v === 'number' ? sub.v : (typeof v.v === 'number' ? v.v : 0);
     const speed = hasSub && typeof sub.speed === 'number' ? sub.speed : (typeof v.speed === 'number' ? v.speed : 0);
     const height = hasSub && typeof sub.height === 'number' ? sub.height : (typeof v.height === 'number' ? v.height : (hasSub ? sub.speed || 0 : v.speed || 0));
     const period = hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0);
     
-    let direction = hasSub && typeof sub.direction === 'number' ? sub.direction : (typeof v.direction === 'number' ? v.direction : undefined);
-    if (direction === undefined) {
-      direction = (Math.atan2(-uVal, -vVal) * 180 / Math.PI + 360) % 360;
+    const direction = hasSub && typeof sub.direction === 'number' ? sub.direction : (typeof v.direction === 'number' ? v.direction : undefined);
+    
+    // Conform direction directly to unit vectors in uArr/vArr if uVal/vVal are zero
+    if (uVal === 0 && vVal === 0 && direction !== undefined) {
+      const dirRad = direction * (Math.PI / 180);
+      uVal = -Math.sin(dirRad);
+      vVal = -Math.cos(dirRad);
     }
+    
     const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean : (v.isOcean !== undefined ? v.isOcean : true);
     
     uArr[i] = uVal;
     vArr[i] = vVal;
     hArr[i] = height;
     pArr[i] = period;
-    dArr[i] = direction;
     oceanArr[i] = isOcean ? 1 : 0;
 
     if (speed > 0) {
       flatSpeedNonzeroCount++;
     }
+  }
+
+  // Clear any remaining elements in scratch buffers
+  if (numGridToProcess < N) {
+    uArr.fill(0, numGridToProcess, N);
+    vArr.fill(0, numGridToProcess, N);
+    hArr.fill(0, numGridToProcess, N);
+    pArr.fill(0, numGridToProcess, N);
+    oceanArr.fill(0, numGridToProcess, N);
   }
 
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
@@ -346,9 +275,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
 
   const isGlobal = bounds ? !(bounds.east - bounds.west < 359.0) : false;
 
-  extrapolateOceanData(uArr, vArr, hArr, pArr, dArr, oceanArr, cols, rows, isGlobal);
-
-  const dataWave = new Uint8Array(cols * rows * 4);
+  extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
 
   // Initialize geo data cache if it doesn't exist
   if (!encodeMarineTexture._geoCache) {
@@ -550,19 +477,12 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
     const v_y = vArr[i];
     const height = hArr[i];
     const periodVal = pArr[i];
-    const direction = dArr[i];
 
     let nu, nv;
     const mag = Math.sqrt(u * u + v_y * v_y);
     if (mag > 0.001) {
       nu = Math.max(0.0, Math.min(1.0, (u / mag) * 0.5 + 0.5));
       nv = Math.max(0.0, Math.min(1.0, (v_y / mag) * 0.5 + 0.5));
-    } else if (typeof direction === 'number' && !isNaN(direction)) {
-      const dirRad = direction * (Math.PI / 180);
-      const du = -Math.sin(dirRad);
-      const dv = -Math.cos(dirRad);
-      nu = Math.max(0.0, Math.min(1.0, du * 0.5 + 0.5));
-      nv = Math.max(0.0, Math.min(1.0, dv * 0.5 + 0.5));
     } else {
       nu = 0.5;
       nv = 0.5;
