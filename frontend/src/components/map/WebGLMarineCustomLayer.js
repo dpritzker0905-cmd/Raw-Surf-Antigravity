@@ -1,6 +1,6 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 
-const LAYER_ID = 'webgl-marine-particles';
+export const LAYER_ID = 'webgl-marine-particles';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;

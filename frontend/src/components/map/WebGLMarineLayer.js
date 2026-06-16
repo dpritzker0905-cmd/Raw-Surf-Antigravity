@@ -11,7 +11,7 @@ import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
-import { createCustomLayer } from './WebGLMarineCustomLayer';
+import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 

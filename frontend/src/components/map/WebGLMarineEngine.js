@@ -30,7 +30,12 @@ import {
 } from './WebGLMarineTextureEncoder';
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
-import './WebGLMarineEngineInit';
+import {
+  initParticleTexture,
+  reinitParticles,
+  initEngine,
+  disposeEngine
+} from './WebGLMarineEngineInit';
 
 function latToMercatorY(lat) {
   const latClamped = Math.max(-85.051129, Math.min(85.051129, lat));
@@ -68,7 +73,13 @@ function WebGLMarineEngine() {
   }
 }
 
-// init method is moved to WebGLMarineEngineInit.js
+WebGLMarineEngine.prototype.init = function(gl) {
+  initEngine(this, gl);
+};
+
+WebGLMarineEngine.prototype.reinitParticles = function(gl) {
+  reinitParticles(this, gl);
+};
 
 WebGLMarineEngine.prototype.isHighResMaskLoaded = function() {
   return !!this._cachedMaskGeoJSON;
@@ -646,6 +657,8 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
     this._waveData = null;
   }
 };
-// deleteAttachedShaders and dispose methods are moved to WebGLMarineEngineInit.js
+WebGLMarineEngine.prototype.dispose = function(gl) {
+  disposeEngine(this, gl);
+};
 
 export default WebGLMarineEngine;
