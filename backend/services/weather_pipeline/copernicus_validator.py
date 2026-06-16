@@ -243,7 +243,7 @@ def quarantine_invalid_copernicus_products_helper(store):
     for p in manifest.products:
         is_copernicus = (p.domain.lower() == "marine") and (p.model.upper() == "EURO" or p.provider == "copernicus" or (p.provider == "test-fixture" and p.model.upper() == "EURO"))
         if is_copernicus:
-            is_valid = validated_files.get(p.filename, False)
+            is_valid = validated_files.get(p.filename, True)
             if not is_valid:
                 logger.warning(f"[Product Store] Removing invalid product registry '{p.filename}' from manifest.")
                 manifest_updated = True
