@@ -41,8 +41,17 @@ export function useExactPointFetch({
   // click occurs, this prevents network queue saturation during scrubbing while ensuring correct data parity.
   const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
   const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
-  const isStale = currentPointKey !== renderedPointKey;
   const fetchGenRef = useRef(0);
+
+  // Synchronous state reset during render phase (Derived State pattern)
+  if (currentPointKey !== renderedPointKey) {
+    setRenderedPointKey(currentPointKey);
+    setExactPointResponse(null);
+    setExactPoint(null);
+    setExactPointStatus(pointLat && pointLng && isExactPointRequired ? 'exact_loading' : 'idle');
+  }
+
+  const isStale = currentPointKey !== renderedPointKey;
 
   const effectiveExactPointResponse = isStale ? null : exactPointResponse;
   const effectiveExactPoint = isStale ? null : exactPoint;
@@ -57,7 +66,6 @@ export function useExactPointFetch({
   })();
 
   useEffect(() => {
-    setRenderedPointKey(currentPointKey);
     const isLayerSwitch = prevLayerRef.current !== activeLayer;
     prevLayerRef.current = activeLayer;
 
@@ -132,7 +140,25 @@ export function useExactPointFetch({
         controller.abort();
       }, 18000);
 
-      fetchExactMarinePoint(pointLat, pointLng, activeModel, activeLayer, controller.signal, settledOffset).then(data => {
+      const grid = marineDataRef.current?.grid;
+      const gridProductId = grid?.productId || grid?.product_id || null;
+      let gridBbox = null;
+      if (grid?.bounds) {
+        const b = grid.bounds;
+        gridBbox = `${b.west},${b.south},${b.east},${b.north}`;
+      }
+
+      fetchExactMarinePoint(
+        pointLat,
+        pointLng,
+        activeModel,
+        activeLayer,
+        controller.signal,
+        settledOffset,
+        false,
+        gridProductId,
+        gridBbox
+      ).then(data => {
         clearTimeout(fetchTimeoutId);
         if (!token.cancelled && gen === fetchGenRef.current) {
           if (data) {

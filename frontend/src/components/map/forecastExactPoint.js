@@ -90,7 +90,7 @@ export function hasCacheForModel(lat, lng, model, activeLayer = 'waves', timeOff
 /**
  * Fetch the FULL multi-day forecast for a single point.
  */
-export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0, force = false) {
+export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'waves', signal = null, timeOffsetHours = 0, force = false, gridProductId = null, gridBbox = null) {
   if (lat == null || lng == null) return null;
 
   const startTime = Date.now();
@@ -160,7 +160,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting GFS ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'GFS', gridProductId, gridBbox);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'GFS',
@@ -214,7 +214,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag() && model === 'EURO' && (activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves' || activeLayer === 'waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting Copernicus ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer);
+      const pointResult = await fetchBackendExactCopernicusPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, gridProductId, gridBbox);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'EURO',
@@ -241,7 +241,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
   if (typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       console.log(`[Backend Weather Service] Redirecting ICON ${activeLayer} point fetch to backend Weather Data Service for lat=${rLat} lng=${rLng} hourOffset=+${timeOffsetHours}h`);
-      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON');
+      const pointResult = await fetchBackendExactPoint(rLat, rLng, timeOffsetHours, signal, activeLayer, 'ICON', gridProductId, gridBbox);
       if (pointResult) {
         updateDeprecationDiag({
           model: 'ICON',

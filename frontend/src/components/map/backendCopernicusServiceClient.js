@@ -468,10 +468,15 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 /**
  * Fetches exact point forecast from backend weather service for EURO Copernicus.
  */
-export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1') {
-  let gridProductId = null;
-  if (typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
+export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, signal, layer = 'swell_1', gridProductIdParam = null, gridBboxParam = null) {
+  let gridProductId = gridProductIdParam;
+  if (!gridProductId && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
     gridProductId = window.__MARINE_PROJECTION_DIAG__.productId || window.__MARINE_PROJECTION_DIAG__.gridProductId || null;
+  }
+
+  let gridBbox = gridBboxParam;
+  if (!gridBbox && typeof window !== 'undefined' && window.__MARINE_PROJECTION_DIAG__) {
+    gridBbox = window.__MARINE_PROJECTION_DIAG__.requested_bbox || window.__MARINE_PROJECTION_DIAG__.backendRequestBbox || null;
   }
 
   const start = Date.now();
@@ -480,6 +485,9 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
   let cacheKey = `EURO_marine_${layer}_${lat.toFixed(2)}_${lng.toFixed(2)}_${validTimeStr}_${provider}`;
   if (gridProductId) {
     cacheKey += `_grid_${gridProductId}`;
+  }
+  if (gridBbox) {
+    cacheKey += `_bbox_${gridBbox}`;
   }
 
   const cached = copernicusPointCache.get(cacheKey);
@@ -493,7 +501,10 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
 
   let url = `${POINT_URL}?model=EURO&domain=marine&layer=${layer}&lat=${lat}&lng=${lng}&valid_time=${validTimeStr}`;
   if (gridProductId) {
-    url += `&grid_product_id=${gridProductId}`;
+    url += `&grid_product_id=${encodeURIComponent(gridProductId)}`;
+  }
+  if (gridBbox) {
+    url += `&grid_bbox=${encodeURIComponent(gridBbox)}`;
   }
 
   try {

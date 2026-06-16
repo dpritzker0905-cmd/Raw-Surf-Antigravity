@@ -77,7 +77,12 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
     ? (activeModel === 'EURO' ? 'ecmwf_wam025' : (activeModel === 'ICON' ? 'dwd_gwam' : 'ncep_gfswave025'))
     : (activeModel === 'EURO' ? 'ecmwf_ifs025' : (activeModel === 'ICON' ? 'dwd_icon' : 'ncep_gfs013'));
 
-  const meta = window.__MODEL_METADATA_CACHE__?.[model];
+  let meta = window.__MODEL_METADATA_CACHE__?.[model];
+  if (!meta && activeModel === 'ICON' && isMarine) {
+    meta = window.__MODEL_METADATA_CACHE__?.['gwam'] || window.__MODEL_METADATA_CACHE__?.['dwd_gwam'];
+  } else if (!meta && activeModel === 'EURO' && isMarine) {
+    meta = window.__MODEL_METADATA_CACHE__?.['ecmwf_wam025'] || window.__MODEL_METADATA_CACHE__?.['wam'];
+  }
   let targetIdx = 0;
 
   if (meta && Array.isArray(meta.validTimes) && meta.validTimes.length > 0) {
@@ -97,7 +102,18 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
   
   const matchingTiles = [];
   for (const tile of window.__DECODED_OM_TILES__.values()) {
-    if (tile.variable === targetVariable && tile.timeIndex === targetIdx && tile.model === model) {
+    let isModelMatch = tile.model === model;
+    if (!isModelMatch && tile.model) {
+      const tModel = tile.model.toLowerCase();
+      if (activeModel === 'ICON') {
+        isModelMatch = tModel.includes('gwam') || tModel.includes('icon');
+      } else if (activeModel === 'EURO') {
+        isModelMatch = tModel.includes('ecmwf') || tModel.includes('ifs') || tModel.includes('wam');
+      } else if (activeModel === 'GFS') {
+        isModelMatch = tModel.includes('gfs');
+      }
+    }
+    if (tile.variable === targetVariable && tile.timeIndex === targetIdx && isModelMatch) {
       matchingTiles.push(tile);
     }
   }

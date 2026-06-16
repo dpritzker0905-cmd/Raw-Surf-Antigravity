@@ -8,7 +8,7 @@ import { getSharedValidTime, pointCache, POINT_URL } from './backendWeatherServi
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 
-export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS') {
+export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null) {
   if (model === 'ICON' && layer === 'swell_2') {
     return {
       status: 'unsupported',
@@ -29,16 +29,16 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     };
   }
 
-  let gridProductId = null;
-  if (typeof window !== 'undefined') {
+  let gridProductId = gridProductIdParam;
+  if (!gridProductId && typeof window !== 'undefined') {
     const diag = window.__MARINE_PROJECTION_DIAG__;
     if (diag && diag.activeLayer === layer && diag.activeModel === model) {
       gridProductId = diag.productId || diag.gridProductId || null;
     }
   }
 
-  let gridBbox = null;
-  if (typeof window !== 'undefined') {
+  let gridBbox = gridBboxParam;
+  if (!gridBbox && typeof window !== 'undefined') {
     const diag = window.__MARINE_PROJECTION_DIAG__;
     if (diag && diag.activeLayer === layer && diag.activeModel === model) {
       gridBbox = diag.requested_bbox || diag.backendRequestBbox || null;
