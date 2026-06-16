@@ -124,6 +124,14 @@ export function useMarineDataFetcher({
       const viewportHash = getViewportHash();
       if (!viewportHash) {
         console.log(`[Marine] Viewport bounds are degenerate or map not ready. Skipping fetch (source=${source}).`);
+        const canRetry = source === 'mount' || source === 'load' || source === 'manual';
+        if (canRetry) {
+          setTimeout(() => {
+            if (activeMarineLayersRef.current && updateMarineGridRef.current) {
+              updateMarineGridRef.current(source + '_retry');
+            }
+          }, 500);
+        }
         return;
       }
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
