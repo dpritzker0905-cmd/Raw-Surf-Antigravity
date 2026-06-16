@@ -58,6 +58,25 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(res.clampedBbox.east).toBe(-81.0);
       expect(res.clampedBbox.north).toBe(29.0);
     });
+
+    it('returns global bounds for GFS, EURO, and ICON when viewport span is wide', () => {
+      const bboxWide = { west: -120.0, south: 10.0, east: -60.0, north: 50.0 }; // span is 60°
+      
+      const resGFS = clampViewportBbox(bboxWide, 'waves', 'GFS');
+      expect(resGFS.isInside).toBe(true);
+      expect(resGFS.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+      expect(resGFS.selectedTileId).toBe('global_marine_coarse');
+
+      const resEURO = clampViewportBbox(bboxWide, 'waves', 'EURO');
+      expect(resEURO.isInside).toBe(true);
+      expect(resEURO.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+      expect(resEURO.selectedTileId).toBe('global_marine_coarse');
+
+      const resICON = clampViewportBbox(bboxWide, 'waves', 'ICON');
+      expect(resICON.isInside).toBe(true);
+      expect(resICON.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+      expect(resICON.selectedTileId).toBe('global_marine_coarse');
+    });
   });
 
   describe('getAvailableTilesFromManifest', () => {
