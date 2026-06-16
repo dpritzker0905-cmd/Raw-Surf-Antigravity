@@ -152,7 +152,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
             const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
             const vpHeight = en - es;
 
-            const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
+            const currentZoom = map.getZoom();
+            const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
             let shouldReject = isGlobalSupported
               ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
               : (overlapWidth <= 0 || intSouth >= intNorth);
@@ -171,7 +172,7 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
           } catch (e) {
             // ignore MapBounds errors, but apply zoom-based fallback
             const currentZoom = map.getZoom();
-            if (currentZoom <= 3.5 && isGlobalSupported && gridWidth < 340.0) {
+            if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0) {
               engine.clearBuffers(_gl);
               this._wasActive = false;
               return;

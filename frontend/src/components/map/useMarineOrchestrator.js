@@ -252,19 +252,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
       
       let isRegional = false;
-      if (cachedBackendData) {
-        const prodId = cachedBackendData.product_id || cachedBackendData.productId;
-        const regionId = cachedBackendData.region_id || cachedBackendData.regionId || cachedBackendData.grid?.region_id || cachedBackendData.grid?.regionId;
-        const coverageMode = cachedBackendData.coverage_mode || cachedBackendData.coverageMode || cachedBackendData.grid?.coverage_mode || cachedBackendData.grid?.coverageMode;
-        const isDynamic = !!(cachedBackendData.is_dynamic_viewport_product || cachedBackendData.isDynamicViewportProduct || cachedBackendData.grid?.is_dynamic_viewport_product || cachedBackendData.grid?.isDynamicViewportProduct);
-
-        isRegional = prodId && (
-          prodId.includes('florida_east_coast') ||
-          coverageMode === 'regional_tile' ||
-          (regionId && regionId !== 'global_coarse' && !isDynamic)
-        );
-      }
-
+      let isViewportZoomedOut = false;
+      const currentZoom = mapInstance.getZoom();
       let vpWidth = 0;
       let vpHeight = 0;
       if (vpBounds) {
@@ -272,7 +261,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         vpWidth = (ew < ew_w) ? (ew + 360) - ew_w : ew - ew_w;
         vpHeight = Math.abs(vpBounds.north - vpBounds.south);
       }
-      const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
+      isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+
+      if (cachedBackendData) {
+        const prodId = cachedBackendData.product_id || cachedBackendData.productId;
+        const regionId = cachedBackendData.region_id || cachedBackendData.regionId || cachedBackendData.grid?.region_id || cachedBackendData.grid?.regionId;
+        const coverageMode = cachedBackendData.coverage_mode || cachedBackendData.coverageMode || cachedBackendData.grid?.coverage_mode || cachedBackendData.grid?.coverageMode;
+        const isDynamic = !!(cachedBackendData.is_dynamic_viewport_product || cachedBackendData.isDynamicViewportProduct || cachedBackendData.grid?.is_dynamic_viewport_product || cachedBackendData.grid?.isDynamicViewportProduct);
+
+        const actualBounds = cachedBackendData.grid?.bounds || cachedBackendData.bounds;
+        let isGridWidthRegional = false;
+        if (actualBounds) {
+          const gw = actualBounds.west, ge = actualBounds.east;
+          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+          isGridWidthRegional = gridWidth < 340.0;
+        }
+
+        isRegional = prodId && (
+          prodId.includes('florida_east_coast') ||
+          coverageMode === 'regional_tile' ||
+          (regionId && regionId !== 'global_coarse' && !isDynamic) ||
+          (isDynamic && isViewportZoomedOut && isGridWidthRegional)
+        );
+      }
+
       const rejectRegionalCache = isViewportZoomedOut && isRegional;
 
       if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
@@ -504,10 +516,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           const coverageMode = cached.coverage_mode || cached.coverageMode || cached.grid?.coverage_mode || cached.grid?.coverageMode;
           const isDynamic = !!(cached.is_dynamic_viewport_product || cached.isDynamicViewportProduct || cached.grid?.is_dynamic_viewport_product || cached.grid?.isDynamicViewportProduct);
 
+          let vpWidth = 0;
+          let vpHeight = 0;
+          if (vpBounds) {
+            const ew = vpBounds.east, ew_w = vpBounds.west;
+            vpWidth = (ew < ew_w) ? (ew + 360) - ew_w : ew - ew_w;
+            vpHeight = Math.abs(vpBounds.north - vpBounds.south);
+          }
+          const currentZoom = mapInstance.getZoom();
+          const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+
+          const actualBounds = cached.grid?.bounds || cached.bounds;
+          let isGridWidthRegional = false;
+          if (actualBounds) {
+            const gw = actualBounds.west, ge = actualBounds.east;
+            const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+            isGridWidthRegional = gridWidth < 340.0;
+          }
+
           const isRegional = prodId && (
             prodId.includes('florida_east_coast') ||
             coverageMode === 'regional_tile' ||
-            (regionId && regionId !== 'global_coarse' && !isDynamic)
+            (regionId && regionId !== 'global_coarse' && !isDynamic) ||
+            (isDynamic && isViewportZoomedOut && isGridWidthRegional)
           );
           if (prodId && !isRegional) {
             const sig = _marineDataSignature(cached, activeMarineLayer);

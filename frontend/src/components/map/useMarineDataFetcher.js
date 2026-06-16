@@ -203,7 +203,7 @@ export function useMarineDataFetcher({
         }
 
         const isGlobalSupported = (model === 'GFS' || model === 'ICON' || (model === 'EURO' && layer === 'waves'));
-        const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
+        const isViewportZoomedOut = (zoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
         let shouldClear = isGlobalSupported
           ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
           : (overlapWidth <= 0 || intSouth >= intNorth);

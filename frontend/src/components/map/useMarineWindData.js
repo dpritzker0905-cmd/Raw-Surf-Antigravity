@@ -56,7 +56,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
           const vpHeight = en - es;
 
-          const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
+          const currentZoom = viewState?.zoom ?? mapInstance.getZoom();
+          const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
           let shouldReject = isGlobalSupported
             ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
             : (overlapWidth <= 0 || intSouth >= intNorth);
@@ -88,7 +89,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         } catch (e) {
           // ignore mapInstance getBounds errors, but apply zoom-based fallback
           const currentZoom = viewState?.zoom ?? mapInstance.getZoom();
-          if (currentZoom <= 3.5 && isGlobalSupported && gridWidth < 340.0) {
+          if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0) {
             lastValidDataRef.current = null;
             return null;
           }
