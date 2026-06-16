@@ -33,10 +33,12 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       const g = marineData.grid;
       const isGlobalGrid = Math.abs(g.bounds.east - g.bounds.west) >= 350;
       if (!isGlobalGrid) {
+        const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
+        const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+        const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
         try {
           const mb = mapInstance.getBounds();
           const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
-          const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
           
           const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
           const intSouth = Math.max(es, gs);
@@ -52,11 +54,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
             }
           }
           const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
           const vpHeight = en - es;
-          const gridHeight = gn - gs;
 
-          const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
           const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
           let shouldReject = isGlobalSupported
             ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
@@ -87,7 +86,12 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
             return null;
           }
         } catch (e) {
-          // ignore mapInstance getBounds errors
+          // ignore mapInstance getBounds errors, but apply zoom-based fallback
+          const currentZoom = viewState?.zoom ?? mapInstance.getZoom();
+          if (currentZoom <= 3.5 && isGlobalSupported && gridWidth < 340.0) {
+            lastValidDataRef.current = null;
+            return null;
+          }
         }
       }
     }

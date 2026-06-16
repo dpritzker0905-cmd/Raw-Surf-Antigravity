@@ -126,10 +126,15 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
         const bounds = engine._waveData.waveGrid.bounds;
         const isGlobalGrid = Math.abs(bounds.east - bounds.west) >= 350;
         if (!isGlobalGrid) {
+          const gw = bounds.west, ge = bounds.east, gs = bounds.south, gn = bounds.north;
+          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+          const activeModel = activeModelRef ? activeModelRef.current : 'GFS';
+          const activeLayers = activeLayersRef.current || [];
+          const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+          const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
           try {
             const mb = map.getBounds();
             const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
-            const gw = bounds.west, ge = bounds.east, gs = bounds.south, gn = bounds.north;
             
             const overlapWidth = getLongitudinalOverlap(ew, ee, gw, ge);
             const intSouth = Math.max(es, gs);
@@ -145,15 +150,8 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
               }
             }
             const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-            const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
             const vpHeight = en - es;
-            const gridHeight = gn - gs;
 
-            const activeModel = activeModelRef ? activeModelRef.current : 'GFS';
-            const activeLayers = activeLayersRef.current || [];
-            const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-
-            const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
             const isViewportZoomedOut = vpWidth > 15.0 || vpHeight > 15.0;
             let shouldReject = isGlobalSupported
               ? (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
@@ -171,7 +169,13 @@ function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef
               return;
             }
           } catch (e) {
-            // ignore MapBounds errors
+            // ignore MapBounds errors, but apply zoom-based fallback
+            const currentZoom = map.getZoom();
+            if (currentZoom <= 3.5 && isGlobalSupported && gridWidth < 340.0) {
+              engine.clearBuffers(_gl);
+              this._wasActive = false;
+              return;
+            }
           }
         }
       }
