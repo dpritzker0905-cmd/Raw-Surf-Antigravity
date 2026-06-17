@@ -41,6 +41,7 @@ export const MapForecastOverlay = ({
   longPressLocation = null,
   defaultSnappedLat = null,
   defaultSnappedLng = null,
+  isPlaying = false,
 }) => {
   const { theme } = useTheme();
   const [isCollapsed, setIsCollapsed] = useState(false);
@@ -88,6 +89,7 @@ export const MapForecastOverlay = ({
     selectedSpot,
     longPressLocation,
     isScrubbing,
+    isPlaying,
     timeOffsetHours,
     marineData
   });

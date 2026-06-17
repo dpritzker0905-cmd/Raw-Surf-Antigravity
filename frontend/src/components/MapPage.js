@@ -683,6 +683,7 @@ var MapPageContent = () => {
           longPressLocation={longPressLocation}
           defaultSnappedLat={snappedCoordinates?.lat}
           defaultSnappedLng={snappedCoordinates?.lng}
+          isPlaying={isPlayingTimeline}
         />
       )}
 

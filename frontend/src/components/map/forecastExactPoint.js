@@ -380,10 +380,20 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
     while (true) {
       let fetchSignal = signal;
       let standaloneTimeoutId = null;
+      let abortHandler = null;
+      let localController = null;
       if (isEuroComponent) {
-        const controller = new AbortController();
-        standaloneTimeoutId = setTimeout(() => controller.abort(), 25000);
-        fetchSignal = controller.signal;
+        localController = new AbortController();
+        standaloneTimeoutId = setTimeout(() => localController.abort(), 25000);
+        fetchSignal = localController.signal;
+        if (signal) {
+          if (signal.aborted) {
+            localController.abort();
+          } else {
+            abortHandler = () => localController.abort();
+            signal.addEventListener('abort', abortHandler);
+          }
+        }
       }
 
       try {
@@ -401,6 +411,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           isExplicit: force
         });
         if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
+        if (signal && abortHandler) {
+          signal.removeEventListener('abort', abortHandler);
+        }
 
         if (!res.ok) {
           const elapsed = (Date.now() - startTime) / 1000;
@@ -525,6 +538,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
       } catch (err) {
         if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
+        if (signal && abortHandler) {
+          signal.removeEventListener('abort', abortHandler);
+        }
         const elapsed = (Date.now() - startTime) / 1000;
         
         if (err.message === 'cooldown_active' || err.message === 'copernicus_cooldown_active' || err.message === 'failure_ttl_active' || err.message === 'grid_fetch_in_flight' || err.message === 'copernicus_concurrency_active') {
@@ -543,6 +559,10 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           window.__LAST_EXACT_FETCH_ELAPSED_MS__ = Math.round(elapsed * 1000);
         }
         if (err.name === 'AbortError') {
+          if (signal && signal.aborted) {
+            console.warn(`[ExactPoint Forensic] USER ABORT: Fetch aborted by user signal after ${elapsed.toFixed(2)}s for model=${apiModel}`);
+            throw err;
+          }
           console.warn(`[ExactPoint Forensic] TIMEOUT: Fetch aborted after ${elapsed.toFixed(2)}s for model=${apiModel}`);
           return { status: 'timeout' };
         }
@@ -560,6 +580,10 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
         _recentFailedRequests.set(cacheKey, Date.now());
         return null;
       } finally {
+        if (standaloneTimeoutId) clearTimeout(standaloneTimeoutId);
+        if (signal && abortHandler) {
+          signal.removeEventListener('abort', abortHandler);
+        }
         _inFlightExactPointRequests.delete(inFlightKey);
       }
     }

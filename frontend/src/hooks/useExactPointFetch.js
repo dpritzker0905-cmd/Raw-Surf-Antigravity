@@ -19,6 +19,7 @@ export function useExactPointFetch({
   selectedSpot,
   longPressLocation,
   isScrubbing,
+  isPlaying = false,
   timeOffsetHours,
   marineData
 }) {
@@ -109,10 +110,10 @@ export function useExactPointFetch({
     const domain = (activeLayer === 'wind') ? 'wind' : (activeLayer === 'pressure') ? 'pressure' : 'marine';
     const isDomainCooldownActive = typeof isInCooldown === 'function' && isInCooldown(domain);
 
-    if (!isMapBooted || isScrubbing || isDomainCooldownActive) {
+    if (!isMapBooted || isScrubbing || isPlaying || isDomainCooldownActive) {
       const isCached = hasCacheForModel(pointLat, pointLng, activeModel, activeLayer, settledOffset);
       if (!isCached) {
-        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} cooldown=${isDomainCooldownActive}`);
+        console.log(`[Forecast Overlay] Suppressing exact-point fetch: booted=${isMapBooted} scrubbing=${isScrubbing} playing=${isPlaying} cooldown=${isDomainCooldownActive}`);
         // Do not clear the exactPointResponse or exactPoint state to prevent visual flickering.
         // Keeping the old hour offset values is safe since MapForecastOverlay will see the hour mismatch
         // and fall back to the correct grid values in-memory.
@@ -225,7 +226,7 @@ export function useExactPointFetch({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, marineData]);
+  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, marineData]);
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {
