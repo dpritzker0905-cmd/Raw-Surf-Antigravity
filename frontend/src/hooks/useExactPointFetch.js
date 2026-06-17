@@ -225,7 +225,7 @@ export function useExactPointFetch({
       clearTimeout(timeoutId);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, settledOffset, isExactPointRequired, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, marineData]);
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {

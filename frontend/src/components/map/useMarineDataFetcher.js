@@ -195,7 +195,12 @@ export function useMarineDataFetcher({
       }
 
       if (marineData && marineData.grid && marineData.grid.bounds) {
-        checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, layer });
+        const shouldClear = checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, layer });
+        if (shouldClear) {
+          console.log('[Marine-Bounds-Clear] Clearing stale regional grid from marineData.');
+          setMarineData(null);
+          lastCommittedSigRef.current = null;
+        }
       }
 
       requestId = ++marineRequestIdRef.current;
