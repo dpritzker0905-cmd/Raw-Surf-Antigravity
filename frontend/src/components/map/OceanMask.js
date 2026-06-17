@@ -138,6 +138,29 @@ const findInsertionPoint = (mapInstance) => {
   return null;
 };
 
+const findRoadInsertionPoint = (mapInstance) => {
+  try {
+    const style = mapInstance.getStyle();
+    if (!style?.layers) return null;
+
+    for (const layer of style.layers) {
+      const id = layer.id;
+      // Skip our own layers and custom layers
+      if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+      
+      // Roads, buildings, bridges, tunnels, labels, markers
+      if (id.includes('road') || id.includes('building') || id.includes('tunnel') || 
+          id.includes('bridge') || id.includes('admin') || id.includes('label') ||
+          layer.type === 'symbol' || layer.type === 'line') {
+        // Exclude waterway lines or water lines
+        if (id.includes('water') || id.includes('stream') || id.includes('river')) continue;
+        return id;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -270,6 +293,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         }
 
         const insertBeforeId = beforeId || findInsertionPoint(mapInstance);
+        const roadInsertBeforeId = beforeId || findRoadInsertionPoint(mapInstance) || insertBeforeId;
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         
@@ -386,13 +410,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                 'fill-color': waterColor,
                 'fill-opacity': 1.0
               }
-            }, insertBeforeId || undefined);
+            }, roadInsertBeforeId || undefined);
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, insertBeforeId);
+            if (roadInsertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, roadInsertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
             mapInstance.setFilter(MASK_INLAND_WATER, ['match', ['get', 'class'], ['ocean', 'sea'], false, true]);
           } catch (e) {}
@@ -415,13 +439,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                 ],
                 'line-opacity': 1.0
               }
-            }, insertBeforeId || undefined);
+            }, roadInsertBeforeId || undefined);
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATERWAY:', e);
           }
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, insertBeforeId);
+            if (roadInsertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, roadInsertBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
           } catch (e) {}
         }
@@ -447,11 +471,11 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
                 'line-blur': 0.5,
               },
               layout: { 'line-join': 'round', 'line-cap': 'round' },
-            }, insertBeforeId || undefined);
+            }, roadInsertBeforeId || undefined);
           } catch (e) {}
         } else {
           try {
-            if (insertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, insertBeforeId);
+            if (roadInsertBeforeId) safeMoveLayer(mapInstance, MASK_LINE, roadInsertBeforeId);
           } catch (e) {}
         }
 
