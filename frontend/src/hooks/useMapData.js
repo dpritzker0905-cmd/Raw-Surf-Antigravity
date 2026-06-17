@@ -27,7 +27,7 @@ export const useMapData = (userId = null, userLocation = null) => {
   // Helper to convert arrays to GeoJSON
   const toGeoJSON = (data, latKey = 'latitude', lngKey = 'longitude') => ({
     type: 'FeatureCollection',
-    features: (data || []).filter(item => item[latKey] && item[lngKey]).map(item => ({
+    features: (Array.isArray(data) ? data : []).filter(item => item && item[latKey] && item[lngKey]).map(item => ({
       type: 'Feature',
       geometry: { type: 'Point', coordinates: [parseFloat(item[lngKey]), parseFloat(item[latKey])] },
       properties: { ...item }
@@ -59,8 +59,9 @@ export const useMapData = (userId = null, userLocation = null) => {
       
       const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiClient.get(url);
-      setSurfSpots(response.data);
-      setSurfSpotsGeoJSON(toGeoJSON(response.data));
+      const data = Array.isArray(response.data) ? response.data : [];
+      setSurfSpots(data);
+      setSurfSpotsGeoJSON(toGeoJSON(data));
     } catch (error) {
       logger.error('Error fetching surf spots:', error);
     }
@@ -69,8 +70,9 @@ export const useMapData = (userId = null, userLocation = null) => {
   const fetchLivePhotographers = useCallback(async () => {
     try {
       const response = await apiClient.get(`/live-photographers`);
-      setLivePhotographers(response.data);
-      setLivePhotographersGeoJSON(toGeoJSON(response.data));
+      const data = Array.isArray(response.data) ? response.data : [];
+      setLivePhotographers(data);
+      setLivePhotographersGeoJSON(toGeoJSON(data));
     } catch (error) {
       logger.error('Error fetching live photographers:', error);
     }
@@ -79,8 +81,9 @@ export const useMapData = (userId = null, userLocation = null) => {
   const fetchFeaturedPhotographers = useCallback(async () => {
     try {
       const response = await apiClient.get(`/photographers/featured`);
-      setFeaturedPhotographers(response.data);
-      setFeaturedPhotographersGeoJSON(toGeoJSON(response.data));
+      const data = Array.isArray(response.data) ? response.data : [];
+      setFeaturedPhotographers(data);
+      setFeaturedPhotographersGeoJSON(toGeoJSON(data));
     } catch (error) {
       logger.error('Error fetching featured photographers:', error);
     }

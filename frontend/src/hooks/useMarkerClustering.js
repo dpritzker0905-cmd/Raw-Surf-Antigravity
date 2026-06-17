@@ -30,8 +30,9 @@ export const useMarkerClustering = (spots, bounds, zoom, options = {}) => {
     });
     
     // Convert spots to GeoJSON features
-    const points = (spots || [])
-      .filter(spot => spot.latitude && spot.longitude)
+    const spotsArray = Array.isArray(spots) ? spots : [];
+    const points = spotsArray
+      .filter(spot => spot && spot.latitude && spot.longitude)
       .map(spot => ({
         type: 'Feature',
         properties: {
