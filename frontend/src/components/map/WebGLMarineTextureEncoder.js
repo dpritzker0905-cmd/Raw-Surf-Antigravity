@@ -59,6 +59,8 @@ export function createTexture(gl, filter, data, width, height) {
   return tex;
 }
 
+const FloatArrayConstructor = (typeof window !== 'undefined' && window.Float16Array) ? window.Float16Array : Float32Array;
+
 // --- Dynamic GFS Shoreline Extrapolation (In-painting Coastline) ---
 
 // Reusable scratch buffers to avoid TypedArray allocation in hot path
@@ -77,10 +79,10 @@ let dataWaveScratch = null;
 
 function getEncoderScratchBuffers(N) {
   if (!uArrScratch || uArrScratch.length < N) {
-    uArrScratch = new Float32Array(N);
-    vArrScratch = new Float32Array(N);
-    hArrScratch = new Float32Array(N);
-    pArrScratch = new Float32Array(N);
+    uArrScratch = new FloatArrayConstructor(N);
+    vArrScratch = new FloatArrayConstructor(N);
+    hArrScratch = new FloatArrayConstructor(N);
+    pArrScratch = new FloatArrayConstructor(N);
     oceanArrScratch = new Uint8Array(N);
     dataWaveScratch = new Uint8Array(N * 4);
   }
@@ -99,10 +101,10 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, row
   const N = cols * rows;
 
   if (!uReadScratch || uReadScratch.length < N) {
-    uReadScratch = new Float32Array(N);
-    vReadScratch = new Float32Array(N);
-    hReadScratch = new Float32Array(N);
-    pReadScratch = new Float32Array(N);
+    uReadScratch = new FloatArrayConstructor(N);
+    vReadScratch = new FloatArrayConstructor(N);
+    hReadScratch = new FloatArrayConstructor(N);
+    pReadScratch = new FloatArrayConstructor(N);
     oceanReadScratch = new Uint8Array(N);
   }
 
@@ -291,7 +293,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       grid[i] = oceanArr[i];
     }
 
-    const dist = new Float32Array(cols * rows);
+    const dist = new FloatArrayConstructor(cols * rows);
     dist.fill(Infinity);
     
     for (let r = 0; r < rows; r++) {

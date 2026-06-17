@@ -52,6 +52,7 @@ function WebGLMarineEngine() {
   this._initialized = false;
   this._waveData = null;
   this._startTime = Date.now();
+  this._fboSupported = true;
 
   if (typeof window !== 'undefined') {
     window.__MARINE_ENGINE__ = this;
@@ -454,162 +455,167 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
 
-    // ==========================================
-    // PHASE 2: WAVE CREST RENDERER
-    // ==========================================
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-    gl.useProgram(this.drawProgram);
-    gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
-    gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_waveTexture'), 1);
-    gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_oceanMaskTexture'), 2);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
-    gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
+    if (this._fboSupported !== false) {
+      // ==========================================
+      // PHASE 2: WAVE CREST RENDERER
+      // ==========================================
+      gl.enable(gl.BLEND);
+      gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+      gl.useProgram(this.drawProgram);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_particles'), 0);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_waveTexture'), 1);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_oceanMaskTexture'), 2);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_particles_res'), this.particleRes);
+      gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
 
-    let drawDebugModeVal = 0.0;
-    if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
-      const mode = window.__GPU_DEBUG__.mode;
-      if (mode === 'part_uv') drawDebugModeVal = 5.0;
-      else if (mode === 'part_pos') drawDebugModeVal = 6.0;
-      else if (mode === 'part_offset') drawDebugModeVal = 7.0;
-      else if (mode === 'part_fbo') drawDebugModeVal = 8.0;
-    }
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
+      let drawDebugModeVal = 0.0;
+      if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
+        const mode = window.__GPU_DEBUG__.mode;
+        if (mode === 'part_uv') drawDebugModeVal = 5.0;
+        else if (mode === 'part_pos') drawDebugModeVal = 6.0;
+        else if (mode === 'part_offset') drawDebugModeVal = 7.0;
+        else if (mode === 'part_fbo') drawDebugModeVal = 8.0;
+      }
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
 
-    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
-    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
 
-    // v5.3: viewport and DPR uniforms for pixel-space quad expansion
-    var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
-    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
-    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_device_pixel_ratio'), dpr);
+      // v5.3: viewport and DPR uniforms for pixel-space quad expansion
+      var dpr = (typeof window !== 'undefined' && window.devicePixelRatio) ? window.devicePixelRatio : 1.0;
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_viewport'), gl.drawingBufferWidth, gl.drawingBufferHeight);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_device_pixel_ratio'), dpr);
 
-    bindTexture(gl, this.particleStateA, 0);
-    bindTexture(gl, this._waveData.u_waveTexture, 1);
-    bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
+      bindTexture(gl, this.particleStateA, 0);
+      bindTexture(gl, this._waveData.u_waveTexture, 1);
+      bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
 
-    var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
-    if (this.drawVAO) {
-      gl.bindVertexArray(this.drawVAO);
-    } else {
-      var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
-      gl.enableVertexAttribArray(idLoc);
-      gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
-    }
+      var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
+      if (this.drawVAO) {
+        gl.bindVertexArray(this.drawVAO);
+      } else {
+        var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+        gl.bindBuffer(gl.ARRAY_BUFFER, this.vertexIdBuffer);
+        gl.enableVertexAttribArray(idLoc);
+        gl.vertexAttribPointer(idLoc, 1, gl.FLOAT, false, 0, 0);
+      }
 
-    // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
-    var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
-    var worldOffsets = [0.0, -1.0, 1.0];
-    for (var wi = 0; wi < worldOffsets.length; wi++) {
-      gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
-      gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
+      // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
+      var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
+      var worldOffsets = [0.0, -1.0, 1.0];
+      for (var wi = 0; wi < worldOffsets.length; wi++) {
+        gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
+        gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.drawCallsPerFrame++;
+        }
+      }
+
+      if (this.drawVAO) {
+        gl.bindVertexArray(null);
+      } else {
+        var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+        if (idLoc !== -1) gl.disableVertexAttribArray(idLoc);
+      }
+
+      // === CREST DIAGNOSTICS (v5.3) ===
+      populateCrestDiagnostics(this, gl, waveBounds, z);
+
+      // ==========================================
+      // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
+      // ==========================================
+      const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale;
+
+      gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
+      gl.useProgram(this.advectProgram);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_waveTexture'), 1);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
+
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
+
+      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
+      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+
+      unbindTexture(gl, this.particleStateB);
+      gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
+      gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
+      gl.viewport(0, 0, this.particleRes, this.particleRes);
+
+      const readTex = this.particleStateA;
+      const writeTex = this.particleStateB;
+      console.assert(readTex !== writeTex, "Assertion failed: readTex === writeTex inside WebGL advection loop!");
+
+      const fboStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
+      let fboStatusStr = 'UNKNOWN';
+      if (fboStatus === gl.FRAMEBUFFER_COMPLETE) fboStatusStr = 'FRAMEBUFFER_COMPLETE';
+      else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) fboStatusStr = 'INCOMPLETE_ATTACHMENT';
+      else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) fboStatusStr = 'INCOMPLETE_MISSING';
+      else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS) fboStatusStr = 'INCOMPLETE_DIMENSIONS';
+      else if (fboStatus === gl.FRAMEBUFFER_UNSUPPORTED) fboStatusStr = 'UNSUPPORTED';
+      else fboStatusStr = 'INCOMPLETE_STATUS_' + fboStatus;
+
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-        window.__RAW_GPU__.drawCallsPerFrame++;
+        window.__RAW_GPU__.particleStateATexUnit = 0;
+        window.__RAW_GPU__.particleStateBTexUnit = 'FBO_ATTACH_COLOR0';
+        window.__RAW_GPU__.advFboStatus = fboStatusStr;
+        window.__RAW_GPU__.particlePassExecuted = true;
+      }
+
+      if (fboStatus !== gl.FRAMEBUFFER_COMPLETE) {
+        console.warn('[WebGLMarine] Framebuffer incomplete: ' + fboStatusStr + '. Falling back to Heatmap only.');
+        this._fboSupported = false;
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+        gl.bindFramebuffer(gl.FRAMEBUFFER, null);
+      } else {
+        bindTexture(gl, this.particleStateA, 0);
+        bindTexture(gl, this._waveData.u_waveTexture, 1);
+        bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
+
+        if (this.advectVAO) {
+          gl.bindVertexArray(this.advectVAO);
+        } else {
+          var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+          gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
+          gl.enableVertexAttribArray(advPosLoc);
+          gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
+        }
+
+        gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.drawCallsPerFrame++;
+        }
+
+        if (this.advectVAO) {
+          gl.bindVertexArray(null);
+        } else {
+          var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+          if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
+        }
+
+        gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
+
+        var tmp = this.particleStateA;
+        this.particleStateA = this.particleStateB;
+        this.particleStateB = tmp;
       }
     }
-
-    if (this.drawVAO) {
-      gl.bindVertexArray(null);
-    } else {
-      var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
-      if (idLoc !== -1) gl.disableVertexAttribArray(idLoc);
-    }
-
-    // === CREST DIAGNOSTICS (v5.3) ===
-    populateCrestDiagnostics(this, gl, waveBounds, z);
-
-    // ==========================================
-    // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
-    // ==========================================
-    const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale;
-
-    gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
-    gl.useProgram(this.advectProgram);
-    gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_particles'), 0);
-    gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_waveTexture'), 1);
-    gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
-    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
-    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
-    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
-
-    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
-    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
-    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
-    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
-    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
-
-    gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-    gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
-
-    unbindTexture(gl, this.particleStateB);
-    gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
-    gl.viewport(0, 0, this.particleRes, this.particleRes);
-
-    const readTex = this.particleStateA;
-    const writeTex = this.particleStateB;
-    console.assert(readTex !== writeTex, "Assertion failed: readTex === writeTex inside WebGL advection loop!");
-
-    const fboStatus = gl.checkFramebufferStatus(gl.FRAMEBUFFER);
-    let fboStatusStr = 'UNKNOWN';
-    if (fboStatus === gl.FRAMEBUFFER_COMPLETE) fboStatusStr = 'FRAMEBUFFER_COMPLETE';
-    else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_ATTACHMENT) fboStatusStr = 'INCOMPLETE_ATTACHMENT';
-    else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_MISSING_ATTACHMENT) fboStatusStr = 'INCOMPLETE_MISSING';
-    else if (fboStatus === gl.FRAMEBUFFER_INCOMPLETE_DIMENSIONS) fboStatusStr = 'INCOMPLETE_DIMENSIONS';
-    else if (fboStatus === gl.FRAMEBUFFER_UNSUPPORTED) fboStatusStr = 'UNSUPPORTED';
-    else fboStatusStr = 'INCOMPLETE_STATUS_' + fboStatus;
-
-    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.particleStateATexUnit = 0;
-      window.__RAW_GPU__.particleStateBTexUnit = 'FBO_ATTACH_COLOR0';
-      window.__RAW_GPU__.advFboStatus = fboStatusStr;
-      window.__RAW_GPU__.particlePassExecuted = true;
-    }
-
-    if (fboStatus !== gl.FRAMEBUFFER_COMPLETE) {
-      throw new Error('[WebGLMarine] Framebuffer incomplete: ' + fboStatusStr);
-    }
-
-    bindTexture(gl, this.particleStateA, 0);
-    bindTexture(gl, this._waveData.u_waveTexture, 1);
-    bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
-
-    if (this.advectVAO) {
-      gl.bindVertexArray(this.advectVAO);
-    } else {
-      var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
-      gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-      gl.enableVertexAttribArray(advPosLoc);
-      gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
-    }
-
-    gl.drawArrays(gl.TRIANGLE_STRIP, 0, 4);
-    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.drawCallsPerFrame++;
-    }
-
-    if (this.advectVAO) {
-      gl.bindVertexArray(null);
-    } else {
-      var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
-      if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
-    }
-
-    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-
-    var tmp = this.particleStateA;
-    this.particleStateA = this.particleStateB;
-    this.particleStateB = tmp;
   } finally {
     if (gl && !gl.isContextLost() && webglState) {
       if (this.advFBO && gl.isFramebuffer(this.advFBO)) {

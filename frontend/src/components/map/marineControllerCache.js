@@ -61,8 +61,36 @@ export function setLastKnownGoodMarine(val, model = 'GFS', provider = 'open-mete
 
 export function getLastKnownGoodMarineModel() { return lastKnownGoodMarineModel; }
 
-var _perModelHourCache = new Map();
+class LRUMap extends Map {
+  constructor(limit = 50) {
+    super();
+    this.limit = limit;
+  }
+  get(key) {
+    const value = super.get(key);
+    if (value) {
+      super.delete(key);
+      super.set(key, value);
+    }
+    return value;
+  }
+  set(key, value) {
+    if (super.has(key)) {
+      super.delete(key);
+    }
+    super.set(key, value);
+    if (super.size > this.limit) {
+      const oldestKey = super.keys().next().value;
+      if (oldestKey !== undefined) {
+        super.delete(oldestKey);
+      }
+    }
+    return this;
+  }
+}
+
 var PER_MODEL_HOUR_CACHE_MAX = 50;
+var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
 
 export function getPerModelHourCache() { return _perModelHourCache; }
 
@@ -127,10 +155,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer) {
     }, 'marineControllerCache.js', '_cacheMarineResult');
   }
 
-  if (_perModelHourCache.size > PER_MODEL_HOUR_CACHE_MAX) {
-    const oldest = [..._perModelHourCache.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
-    for (let i = 0; i < 10; i++) _perModelHourCache.delete(oldest[i][0]);
-  }
+  // LRUMap automatically manages eviction on .set()
 }
 
 export function _updateDiagnosticsOnCacheHit(hitData, wantedModel, wantedHour, wantedLayer, bounds = null) {
