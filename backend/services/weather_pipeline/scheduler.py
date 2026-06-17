@@ -383,7 +383,7 @@ class WeatherPipelineScheduler:
                 if has_credentials:
                     results = await self.cop_provider.fetch_grid(
                         layer=layer, bbox=region, resolution=0.5,
-                        forecast_days=int(os.environ.get("COPERNICUS_FORECAST_DAYS", "1" if os.environ.get("RENDER") == "true" else "3"))
+                        forecast_days=int(os.environ.get("COPERNICUS_FORECAST_DAYS", "10"))
                     )
                     if results:
                         results = results if isinstance(results, list) else [results]

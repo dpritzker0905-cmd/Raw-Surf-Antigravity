@@ -3,14 +3,12 @@ import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { API_BASE } from '../../lib/apiClient';
 
-function getLayerTruth(layerId, rasterVisible, windData, marineData) {
-  const layer = LAYER_REGISTRY[layerId];
-  if (!layer) return "OFF";
-  if (layer.type === "raster") return rasterVisible ? "LOADED" : "LOADING";
-  if (layer.type === "particle") return (windData && windData.vectors && windData.vectors.length > 0) ? "LOADED" : "LOADING";
-  if (layer.type === "marine") return (marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0) ? "LOADED" : "LOADING";
-  return "OFF";
-}
+const getLayerTruth = (id, visible, wind, marine) => {
+  const l = LAYER_REGISTRY[id];
+  return !l ? "OFF" : l.type === "raster" ? (visible ? "LOADED" : "LOADING")
+    : l.type === "particle" ? (wind?.vectors?.length ? "LOADED" : "LOADING")
+    : l.type === "marine" ? (marine?.grid?.vectors?.length ? "LOADED" : "LOADING") : "OFF";
+};
 
 /**
  * TruthOverlay: Redesigned into the Unified Diagnostics HUD.
@@ -205,7 +203,7 @@ var TruthOverlay = ({
   // Grid details for provenance display
   const isEstimated = marineData?.grid?.isEstimated || marineData?.grid?.is_estimated;
   const gridProvider = marineData?.grid?.provider || marineData?.grid?.__gridProvider || 'unknown';
-  const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 72;
+  const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 240;
 
   // GPU metrics from window
   const gpuTexturesCount = typeof window !== 'undefined' ? window.__RAW_GPU__?.textureCount : 0;
@@ -217,23 +215,13 @@ var TruthOverlay = ({
 
   return (
     <div style={{
-      position: 'absolute',
-      bottom: '16px',
-      left: '16px',
-      zIndex: 100,
-      fontFamily: '"Outfit", "Inter", -apple-system, sans-serif',
-      color: '#f8fafc',
-      background: 'rgba(10, 10, 26, 0.85)',
-      backdropFilter: 'blur(20px)',
-      WebkitBackdropFilter: 'blur(20px)',
-      border: '1px solid rgba(255, 255, 255, 0.08)',
-      borderRadius: '16px',
-      boxShadow: '0 20px 50px 0 rgba(0, 0, 0, 0.55)',
-      width: minimized ? '220px' : '360px',
-      padding: '16px',
-      transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
-      userSelect: 'none',
-      pointerEvents: 'auto'
+      position: 'absolute', bottom: '16px', left: '16px', zIndex: 100,
+      fontFamily: '"Outfit", "Inter", -apple-system, sans-serif', color: '#f8fafc',
+      background: 'rgba(10, 10, 26, 0.85)', backdropFilter: 'blur(20px)', WebkitBackdropFilter: 'blur(20px)',
+      border: '1px solid rgba(255, 255, 255, 0.08)', borderRadius: '16px',
+      boxShadow: '0 20px 50px 0 rgba(0, 0, 0, 0.55)', width: minimized ? '220px' : '360px',
+      padding: '16px', transition: 'all 0.3s cubic-bezier(0.4, 0, 0.2, 1)',
+      userSelect: 'none', pointerEvents: 'auto'
     }}>
       {/* HUD Header */}
       <div style={{
@@ -256,13 +244,8 @@ var TruthOverlay = ({
             animation: 'pulse 1.5s infinite ease-in-out'
           }} />
           <span style={{
-            fontSize: '12px',
-            fontWeight: 800,
-            letterSpacing: '0.08em',
-            textTransform: 'uppercase',
-            background: 'linear-gradient(135deg, #00f0ff, #0072ff)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent'
+            fontSize: '12px', fontWeight: 800, letterSpacing: '0.08em', textTransform: 'uppercase',
+            background: 'linear-gradient(135deg, #00f0ff, #0072ff)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent'
           }}>
             Diagnostics HUD
           </span>
@@ -270,16 +253,8 @@ var TruthOverlay = ({
         <button
           onClick={() => setMinimized(!minimized)}
           style={{
-            background: 'rgba(255,255,255,0.06)',
-            border: 'none',
-            borderRadius: '6px',
-            color: '#94a3b8',
-            cursor: 'pointer',
-            fontSize: '10px',
-            padding: '3px 8px',
-            fontWeight: 600,
-            transition: 'all 0.2s',
-            outline: 'none'
+            background: 'rgba(255,255,255,0.06)', border: 'none', borderRadius: '6px', color: '#94a3b8',
+            cursor: 'pointer', fontSize: '10px', padding: '3px 8px', fontWeight: 600, transition: 'all 0.2s', outline: 'none'
           }}
           onMouseEnter={(e) => e.target.style.background = 'rgba(255,255,255,0.12)'}
           onMouseLeave={(e) => e.target.style.background = 'rgba(255,255,255,0.06)'}
@@ -395,7 +370,7 @@ var TruthOverlay = ({
                     fontWeight: 600,
                     lineHeight: 1.2
                   }}>
-                    ⚠️ Copernicus native ends at +72h (Waves: +240h). Extended GFS/ICON trend-blend estimate is currently active.
+                    ⚠️ Copernicus native ends at +240h. Extended GFS/ICON trend-blend estimate is currently active.
                   </div>
                 )}
               </div>

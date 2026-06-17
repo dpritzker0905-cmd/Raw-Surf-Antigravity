@@ -263,7 +263,7 @@ def generate_mock_copernicus_results(region: dict, resolution: float) -> list:
     base_time = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     times = [
         (base_time + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
-        for h in range(0, 72, 3)
+        for h in range(0, 243, 3)
     ]
     results = []
     for lat, lon in zip(lats, lons):

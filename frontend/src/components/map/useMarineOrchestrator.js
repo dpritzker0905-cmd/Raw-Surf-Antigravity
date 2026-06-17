@@ -249,7 +249,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let curModel = activeModelRef.current || 'GFS';
     let curLayer = activeMarineLayerRef.current || 'waves';
     const isWaves = (curLayer === 'waves');
-    const nativeLimit = isWaves ? 240 : 72;
+    const nativeLimit = 240;
     if (curModel === 'ICON' && timeOffsetHours > 168) {
       curModel = 'GFS';
     } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
@@ -539,7 +539,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     let curModel = activeModelRef.current || 'GFS';
     const isWaves = (activeMarineLayer === 'waves');
-    const nativeLimit = isWaves ? 240 : 72;
+    const nativeLimit = 240;
     if (curModel === 'ICON' && timeOffsetHours > 168) {
       curModel = 'GFS';
     } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {

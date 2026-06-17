@@ -1,5 +1,5 @@
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
-export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 72;
+export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 240;
 export const DISPLAY_ICON_MAX_HOURS = 168;
 
 export function getLongitudinalOverlap(w1, e1, w2, e2) {

@@ -27,18 +27,38 @@ def test_copernicus_provider_normalization_and_endpoints(tmp_path, monkeypatch):
     # Mock fetch_euro_marine to return target valid time to prevent temporal drift 404s in fallback paths
     from services import copernicus_marine_service
     async def mock_fetch_euro_marine(latitudes, longitudes, forecast_days=3, variables=None):
-        return [
-            {
-                "latitude": latitudes[0],
-                "longitude": longitudes[0],
-                "hourly_units": {v: "m" if "height" in v else ("°" if "direction" in v else "s") for v in (variables or [])},
+        lat, lng = latitudes[0], longitudes[0]
+        if 24.0 <= lat <= 30.0 and -85.0 <= lng <= -79.0:
+            return [
+                {
+                    "latitude": lat,
+                    "longitude": lng,
+                    "hourly_units": {v: "m" if "height" in v else ("°" if "direction" in v else "s") for v in (variables or [])},
+                    "hourly": {
+                        "time": ["2026-06-01T21:00:00Z"],
+                        **{v: [2.0 if "height" in v else (45.0 if "direction" in v else 6.0)] for v in (variables or [])}
+                    }
+                }
+            ]
+        raise ValueError("Out of bounds")
+    monkeypatch.setattr(copernicus_marine_service, "fetch_euro_marine", mock_fetch_euro_marine)
+
+    # Mock OpenMeteoProvider.fetch_point for the GFS fallback path
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    async def mock_fetch_point(self, model, domain, layer, lat, lng, forecast_days=2):
+        if model.upper() == "GFS" and layer == "swell_1":
+            return {
+                "latitude": lat,
+                "longitude": lng,
                 "hourly": {
                     "time": ["2026-06-01T21:00:00Z"],
-                    **{v: [2.0 if "height" in v else (45.0 if "direction" in v else 6.0)] for v in (variables or [])}
+                    "swell_wave_height": [2.0],
+                    "swell_wave_direction": [45.0],
+                    "swell_wave_period": [6.0]
                 }
             }
-        ]
-    monkeypatch.setattr(copernicus_marine_service, "fetch_euro_marine", mock_fetch_euro_marine)
+        raise ValueError("Unsupported mock point model/layer")
+    monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point)
 
     # Mock Copernicus fetcher results for 2x2 grid
     # Bbox: west=-85, south=24, east=-79, north=30

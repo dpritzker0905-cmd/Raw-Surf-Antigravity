@@ -256,7 +256,7 @@ def _fetch_sync(
             f"Bbox too large: {bbox_lat_range:.1f}° x {bbox_lon_range:.1f}°. Max: 30° x 60°."
         )
 
-    forecast_days = min(forecast_days, 3)
+    forecast_days = min(forecast_days, 10)
 
     # CMEMS VARIABLE MAP
     VARIABLE_MAP = [

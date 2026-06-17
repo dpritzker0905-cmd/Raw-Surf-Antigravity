@@ -381,7 +381,7 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
 }
 
 export async function fetchCopernicusComponentGrid(viewportBounds, layer, hourOffset, zoom, stateValidator) {
-  if (hourOffset > 72) {
+  if (hourOffset > 240) {
     if (typeof window !== 'undefined') {
       window.__COPERNICUS_GRID_DIAG__ = {
         layer,

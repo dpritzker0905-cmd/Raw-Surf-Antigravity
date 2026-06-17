@@ -144,7 +144,7 @@ export function writeOverlayDiagnostics(params) {
 
   // Build high-telemetry EURO MARINE FORENSIC DIAGNOSTIC Object
   const isWaves = activeLayer === 'waves';
-  const nativeLimit = activeModel === 'EURO' ? (isWaves ? 240 : 72) : 168;
+  const nativeLimit = activeModel === 'EURO' ? 240 : 168;
 
   let mode = 'unavailable';
   if (exactPointStatus === 'estimate_pending_sources') {

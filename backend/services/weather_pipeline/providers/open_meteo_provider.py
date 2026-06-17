@@ -265,7 +265,7 @@ class OpenMeteoProvider:
             elif layer == "swell_1":
                 params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
             elif layer == "swell_2":
-                if api_model == "gwam":
+                if api_model in ("gwam", "dwd_gwam"):
                     # ICON swell_2 doesn't have native secondary swell in gwam, fallback to swell
                     params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
                 else:
@@ -460,7 +460,7 @@ class OpenMeteoProvider:
             elif layer == "swell_1":
                 params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
             elif layer == "swell_2":
-                if api_model == "gwam":
+                if api_model in ("gwam", "dwd_gwam"):
                     params["hourly"] = "swell_wave_height,swell_wave_direction,swell_wave_period"
                 else:
                     params["hourly"] = "secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period"
