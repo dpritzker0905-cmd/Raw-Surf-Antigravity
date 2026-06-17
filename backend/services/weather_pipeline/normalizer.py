@@ -195,14 +195,14 @@ class WeatherNormalizer:
 
             # Fallback estimation for missing marine component layers (e.g. ecmwf_wam025 swells)
             if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
-                if not speed_list or all(v is None for v in speed_list):
+                wave_speed_list = pt_hourly.get("wave_height", [])
+                if (not speed_list or all(v is None for v in speed_list)) and wave_speed_list and any(v is not None for v in wave_speed_list):
                     is_layer_estimated = True
                     estimate_basis = {
                         "type": "ecmwf_ifs_derived_fallback" if model.upper() == "EURO" else "gfs_derived_fallback",
                         "method": "wave_component_ratio_estimation",
                         "source_model": "ecmwf_wam025" if model.upper() == "EURO" else "ncep_gfswave025"
                     }
-                    wave_speed_list = pt_hourly.get("wave_height", [])
                     wave_dir_list = pt_hourly.get("wave_direction", [])
                     wave_period_list = pt_hourly.get("wave_period", [])
                     

@@ -16,7 +16,13 @@ class CopernicusProvider:
         "waves": ["wave_height", "wave_direction", "wave_period"],
         "swell_1": ["swell_wave_height", "swell_wave_direction", "swell_wave_period"],
         "swell_2": ["secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period"],
-        "wind_waves": ["wind_wave_height", "wind_wave_direction", "wind_wave_period"]
+        "wind_waves": ["wind_wave_height", "wind_wave_direction", "wind_wave_period"],
+        "all_marine": [
+            "wave_height", "wave_direction", "wave_period",
+            "swell_wave_height", "swell_wave_direction", "swell_wave_period",
+            "secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period",
+            "wind_wave_height", "wind_wave_direction", "wind_wave_period"
+        ]
     }
 
     async def fetch_grid(
@@ -24,33 +30,37 @@ class CopernicusProvider:
         layer: str,
         bbox: Dict[str, float],
         resolution: float = 0.25,
-        forecast_days: int = 3
+        forecast_days: int = 3,
+        precomputed_coords: Optional[tuple] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Asynchronously fetches a coordinate snap-grid from CMEMS using the existing service in-process.
         Returns a list of shaped coordinate dicts.
         """
         # Step 1: Generate coordinates
-        import os
-        is_render = os.environ.get("RENDER") == "true"
-        
-        target_resolution = 0.5 if is_render else resolution
-        lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, target_resolution)
-        if not lats:
-            logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
-            return None
+        if precomputed_coords is not None:
+            lats, lons = precomputed_coords
+        else:
+            import os
+            is_render = os.environ.get("RENDER") == "true"
+            
+            target_resolution = 0.5 if is_render else resolution
+            lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, target_resolution)
+            if not lats:
+                logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
+                return None
 
-        # Verify point limit (Cap at 500 points to keep Render memory happy)
-        if len(lats) > 500:
-            logger.warning(
-                f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe Render 500 point cap. "
-                "Coarsening grid resolution..."
-            )
-            adj_res = target_resolution
-            while len(lats) > 500:
-                adj_res += 0.1
-                lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, adj_res)
-            logger.info(f"[Copernicus Provider] Adjusted resolution to {adj_res:.2f}° ({len(lats)} points)")
+            # Verify point limit (Cap at 500 points to keep Render memory happy)
+            if len(lats) > 500:
+                logger.warning(
+                    f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe Render 500 point cap. "
+                    "Coarsening grid resolution..."
+                )
+                adj_res = target_resolution
+                while len(lats) > 500:
+                    adj_res += 0.1
+                    lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, adj_res)
+                logger.info(f"[Copernicus Provider] Adjusted resolution to {adj_res:.2f}° ({len(lats)} points)")
 
         # Map layer to Copernicus variables
         variables = self.LAYER_VARIABLES.get(layer, self.LAYER_VARIABLES["waves"])

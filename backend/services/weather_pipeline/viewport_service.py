@@ -87,13 +87,8 @@ class ViewportService:
             now_utc = datetime.now(timezone.utc)
             offset_hours = (target_dt - now_utc).total_seconds() / 3600.0
 
-            limit = None
-            if layer.lower() == "waves":
-                limit = 168.0
-            elif layer.lower() in ("swell_1", "swell_2", "wind_waves"):
-                limit = 120.0
-
-            if limit is not None and offset_hours >= limit:
+            limit = 240.0
+            if offset_hours >= limit:
                 return False
 
         return (
@@ -374,16 +369,27 @@ class ViewportService:
             is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
-            raw_data = await self.provider.fetch_grid(
-                model=fetch_model,
-                domain=domain,
-                layer=fetch_layer,
-                bbox=bbox_dict,
-                resolution=resolution,
-                forecast_days=forecast_days,
-                precomputed_coords=(lats_coords, lons_coords),
-                inter_batch_delay=inter_delay
-            )
+            if model.upper() == "EURO" and domain.lower() == "marine":
+                from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+                cop_provider = CopernicusProvider()
+                raw_data = await cop_provider.fetch_grid(
+                    layer=fetch_layer,
+                    bbox=bbox_dict,
+                    resolution=resolution,
+                    forecast_days=forecast_days,
+                    precomputed_coords=(lats_coords, lons_coords)
+                )
+            else:
+                raw_data = await self.provider.fetch_grid(
+                    model=fetch_model,
+                    domain=domain,
+                    layer=fetch_layer,
+                    bbox=bbox_dict,
+                    resolution=resolution,
+                    forecast_days=forecast_days,
+                    precomputed_coords=(lats_coords, lons_coords),
+                    inter_batch_delay=inter_delay
+                )
 
             if not raw_data:
                 logger.error(f"[Dynamic Viewport] Upstream fetch returned empty data.")
@@ -493,7 +499,7 @@ class ViewportService:
 
                 normalized = self.normalizer.normalize(
                     model=model,
-                    provider="open-meteo",
+                    provider="copernicus" if model.upper() == "EURO" else "open-meteo",
                     domain=domain,
                     layer=target_layer,
                     raw_results=raw_list,

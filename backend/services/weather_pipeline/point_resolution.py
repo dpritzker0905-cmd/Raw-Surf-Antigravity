@@ -345,7 +345,7 @@ class PointResolutionService:
                         raw_points = await fetch_euro_marine(
                             latitudes=[lat],
                             longitudes=[lng],
-                            forecast_days=3,
+                            forecast_days=point_forecast_days,
                             variables=variables
                         )
                         raw_point = raw_points[0] if raw_points else None
