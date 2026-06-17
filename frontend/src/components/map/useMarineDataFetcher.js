@@ -431,6 +431,9 @@ export function useMarineDataFetcher({
                 };
               }
             } catch (err) {
+              if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+                throw err;
+              }
               console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
               data = {
                 type: 'FeatureCollection', features: [], hourOffset: timeOffset,

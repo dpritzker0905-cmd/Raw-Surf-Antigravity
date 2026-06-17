@@ -331,7 +331,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
 
   const isEuroComponent = model === 'EURO' && provider === 'copernicus';
   const inFlightKey = isEuroComponent
-    ? `${rLat}_${rLng}_EURO_COMPONENTS_fd${forecastDays}`
+    ? `${rLat}_${rLng}_EURO_${activeLayer === 'waves' ? 'waves' : 'components'}_fd${forecastDays}`
     : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_fd${forecastDays}`;
 
   if (_inFlightExactPointRequests.has(inFlightKey)) {
