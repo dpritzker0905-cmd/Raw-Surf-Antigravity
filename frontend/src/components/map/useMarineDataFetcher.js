@@ -183,7 +183,7 @@ export function useMarineDataFetcher({
       // Use actual viewport bounds from the map instance, NOT hardcoded global bounds,
       // EXCEPT on activation events ('mount', 'load', 'manual') to ensure the heatmap starts unclamped.
       let bounds = { west: -180, south: -85, east: 180, north: 85 };
-      const isActivation = source === 'mount' || source === 'load' || source === 'manual';
+      const isActivation = source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
       if (!isActivation) {
         try {
           const mb = mapInstance.getBounds();
