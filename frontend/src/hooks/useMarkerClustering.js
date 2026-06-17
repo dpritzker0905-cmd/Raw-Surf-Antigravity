@@ -4,6 +4,7 @@
  */
 import { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import Supercluster from 'supercluster';
+import { wrapLongitude } from '../components/map/mapUtils';
 
 /**
  * Custom hook for marker clustering
@@ -76,13 +77,8 @@ export const useMarkerClustering = (spots, bounds, zoom, options = {}) => {
       // Entire world
       clusterData = supercluster.getClusters([-180, south, 180, north], Math.floor(zoom));
     } else {
-      // Wrap longitudes to standard range [-180, 180]
-      const wrap = (lng) => {
-        const w = ((lng + 180) % 360 + 360) % 360 - 180;
-        return w === -180 ? 180 : w; // avoid -180 vs 180 boundary issues
-      };
-      const w = wrap(bounds.west);
-      const e = wrap(bounds.east);
+      const w = wrapLongitude(bounds.west);
+      const e = wrapLongitude(bounds.east);
       
       if (w > e) {
         // Crossed antimeridian: split query

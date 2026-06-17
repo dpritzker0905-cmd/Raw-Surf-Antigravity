@@ -1,4 +1,5 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
+import { useMarineRevalidation } from '../../hooks/useMarineRevalidation';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag } from './backendWeatherServiceClient';
@@ -38,10 +39,17 @@ export function useMarineDataFetcher({
   const lastUserInteractionRef = useRef(0);
   const lastStableCameraRef = useRef(null);
   const lastInvocationRef = useRef({ source: null, time: 0 });
-  const cooldownRetryRef = useRef(null);
-  const marineRetryCountRef = useRef(0);
-  const swrTimerRef = useRef(null);
-  const swrRetryCountRef = useRef(0);
+  const {
+    swrTimerRef,
+    swrRetryCountRef,
+    cooldownRetryRef,
+    marineRetryCountRef,
+    clearAllTimers,
+    scheduleSWRRevalidation,
+    scheduleCooldownRetry,
+    scheduleDegenerateRetry,
+    resetRetryCounts
+  } = useMarineRevalidation();
   const updateMarineGridRef = useRef(null);
   const enqueueMarineUpdateRef = useRef(null);
   const consecutiveFailuresRef = useRef(0);
@@ -120,22 +128,15 @@ export function useMarineDataFetcher({
         const canRetry = source === 'mount' || source === 'load' || source === 'manual' || isRetrySource;
         if (canRetry) {
           clearDebounce = false;
-          const retryCount = marineRetryCountRef.current || 0;
-          if (retryCount < 20) {
-            marineRetryCountRef.current = retryCount + 1;
-            const nextSource = isRetrySource ? source : source + '_retry';
-            setTimeout(() => {
-              if (activeMarineLayersRef.current && updateMarineGridRef.current) {
-                updateMarineGridRef.current(nextSource);
-              }
-            }, 500);
-          } else {
-            console.warn(`[Marine] Max retries (${retryCount}) reached for degenerate bounds.`);
-          }
+          scheduleDegenerateRetry(source, (nextSource) => {
+            if (activeMarineLayersRef.current && updateMarineGridRef.current) {
+              updateMarineGridRef.current(nextSource);
+            }
+          });
         }
         return;
       }
-      marineRetryCountRef.current = 0;
+      resetRetryCounts();
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
@@ -144,16 +145,16 @@ export function useMarineDataFetcher({
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
       if (locks.lastHash !== viewportHash) {
         consecutiveFailuresRef.current = 0;
-        marineRetryCountRef.current = 0;
-        swrRetryCountRef.current = 0;
-        clearTimeout(swrTimerRef.current);
-        swrTimerRef.current = null;
+        resetRetryCounts();
+        clearAllTimers();
         locks.lastTime = 0; // Prevent 1200ms rate-limiter from blocking the fetch on layer/viewport switch
       }
 
       if (source !== 'swr_revalidation') {
-        clearTimeout(swrTimerRef.current);
-        swrTimerRef.current = null;
+        if (swrTimerRef.current) {
+          clearTimeout(swrTimerRef.current);
+          swrTimerRef.current = null;
+        }
         swrRetryCountRef.current = 0;
       }
       updateMarineGridRef.current = updateMarineGrid;
@@ -565,25 +566,11 @@ export function useMarineDataFetcher({
         requestAnimationFrame(() => { isCommittingDataRef.current = false; });
         clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
 
-        if (data.stale || data.grid?.stale) {
-          if (swrRetryCountRef.current < 3) {
-            console.log(`[SWR] Committed stale/coarse grid. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in 1500ms`);
-            clearTimeout(swrTimerRef.current);
-            swrTimerRef.current = setTimeout(() => {
-              swrTimerRef.current = null;
-              swrRetryCountRef.current += 1;
-              if (activeMarineLayersRef.current) {
-                updateMarineGrid('swr_revalidation');
-              }
-            }, 1500);
-          } else {
-            console.warn('[SWR] Max revalidation retries reached (3), stopping polling.');
+        scheduleSWRRevalidation(data, (src) => {
+          if (activeMarineLayersRef.current) {
+            updateMarineGrid(src);
           }
-        } else {
-          swrRetryCountRef.current = 0;
-          clearTimeout(swrTimerRef.current);
-          swrTimerRef.current = null;
-        }
+        });
       } else {
         consecutiveFailuresRef.current += 1;
         const isCurrentHour = fetchIntent.hour === timeOffsetRef.current;
@@ -611,8 +598,11 @@ export function useMarineDataFetcher({
         }
         if (isInCooldown('marine')) logPipelineEventHelper('rate_limit_429', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour });
         if (consecutiveFailuresRef.current >= 3 || ['cooldown_retry', 'delayed_retry'].includes(source)) return;
-        const remaining = getRemainingCooldown('marine'), delay = remaining > 0 ? remaining + 3000 : 5000, retrySource = remaining > 0 ? 'cooldown_retry' : 'delayed_retry';
-        cooldownRetryRef.current = setTimeout(() => { cooldownRetryRef.current = null; if (updateMarineGridRef.current && activeMarineLayersRef.current) updateMarineGridRef.current(retrySource); }, delay);
+        scheduleCooldownRetry((src) => {
+          if (updateMarineGridRef.current && activeMarineLayersRef.current) {
+            updateMarineGridRef.current(src);
+          }
+        });
       }
     } catch (err) {
       const isAbort = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort');

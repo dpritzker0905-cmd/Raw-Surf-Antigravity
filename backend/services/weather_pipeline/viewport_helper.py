@@ -326,7 +326,7 @@ async def bg_process_remaining_hours_helper(
                 this_normalized_product = None
                 product_json_bytes = None
                 try:
-                    this_normalized_product = service.normalizer.normalize(
+                    this_normalized_product = await service.normalizer.normalize_async(
                         model=model,
                         provider="open-meteo",
                         domain=domain,

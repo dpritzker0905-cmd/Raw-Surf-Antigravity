@@ -343,7 +343,7 @@ async def normalize_and_save_loop(
         norm_kwargs["target_time"] = target_dt
 
         try:
-            product = normalizer.normalize(**norm_kwargs)
+            product = await normalizer.normalize_async(**norm_kwargs)
             if product:
                 # Security guard: reject test fixtures in non-test environments
                 if not is_test_env and hasattr(product, 'is_test_fixture') and product.is_test_fixture:

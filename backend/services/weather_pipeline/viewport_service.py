@@ -502,7 +502,7 @@ class ViewportService:
                 target_cache_key = build_dynamic_cache_key(model, domain, target_layer, target_dt_actual, west, south, east, north)
                 target_viewport_filename = f"{target_cache_key}.json"
 
-                normalized = self.normalizer.normalize(
+                normalized = await self.normalizer.normalize_async(
                     model=model,
                     provider="copernicus" if model.upper() == "EURO" else "open-meteo",
                     domain=domain,
