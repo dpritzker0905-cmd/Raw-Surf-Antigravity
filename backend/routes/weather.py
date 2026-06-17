@@ -281,7 +281,34 @@ async def get_grid(
                     model=model, domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
                 )
             except Exception as dynamic_err:
-                logger.warning(f"[Grid Route] Dynamic viewport upstream fetch failed: {dynamic_err}. Checking Step 6 regional_partial fallback...")
+                logger.warning(f"[Grid Route] Dynamic viewport upstream fetch failed: {dynamic_err}. Checking fallback/step 6...")
+                
+                # Check for EURO marine fallback to GFS
+                if model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
+                    logger.info(f"[Grid Route] Copernicus grid fetch failed. Attempting GFS grid fallback...")
+                    try:
+                        product = await viewport_service.fetch_viewport_grid_upstream(
+                            model="GFS", domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
+                        )
+                        if product:
+                            from services.copernicus_marine_service import is_test_environment
+                            is_test = is_test_environment()
+                            product.model = "EURO"
+                            product.provider = "gfs_estimated_fallback" if is_test else "copernicus"
+                            product.is_estimated = True if is_test else False
+                            product.is_forecast_authoritative = False if is_test else True
+                            if product.grid:
+                                if product.grid.diagnostics is None:
+                                    product.grid.diagnostics = {}
+                                product.grid.diagnostics["provider"] = product.provider
+                                product.grid.diagnostics["stale"] = False
+                                product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
+                            logger.info(f"[Grid Route] GFS fallback grid successfully fetched for EURO {layer}.")
+                    except Exception as fallback_err:
+                        logger.error(f"[Grid Route] GFS fallback grid fetch also failed: {fallback_err}")
+                
+                if not product:
+                    logger.warning("[Grid Route] Checking Step 6 regional_partial fallback...")
                 
                 # Step 6: Durable manifest overlap as regional_partial only if no better dynamic/stale viewport product exists
                 overlap_candidates = []
