@@ -457,7 +457,9 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           window.__MARINE_EXACT_POINT_ERROR__ = null;
         }
 
-        const detectedProvider = result.__provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo');
+        const detectedProvider = (model === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer))
+          ? 'copernicus'
+          : (result.__provider || result.provider || (proxyType === 'copernicus_marine' ? 'copernicus' : 'open-meteo'));
         const data = {
           hourly: result.hourly,
           snappedLat: result.latitude,
