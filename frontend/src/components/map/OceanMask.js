@@ -127,7 +127,12 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
-  console.log('[OceanMask] Render:', { active, propActive, activeMarineLayer, theme });
+  const lastLogRef = useRef(null);
+  const logKey = `${active}:${propActive}:${activeMarineLayer}:${theme}`;
+  if (lastLogRef.current !== logKey) {
+    lastLogRef.current = logKey;
+    console.log('[OceanMask] State Changed:', { active, propActive, activeMarineLayer, theme });
+  }
 
   // Load the Natural Earth land GeoJSON once at mount (local-first fallback chain)
   useEffect(() => {
