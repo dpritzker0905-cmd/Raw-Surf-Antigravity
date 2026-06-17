@@ -493,11 +493,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       timestamp: new Date().toISOString()
     };
 
-    console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Fetching...`);
+    console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Suppressing network fetch while scrubbing; safety net will fetch on settle.`);
     marineFetchLocksRef.current.lastHash = null;
-    if (window.isScrubbingTimeline) {
-      enqueueMarineUpdate('timeline_scrub_deferred');
-    } else {
+    if (!window.isScrubbingTimeline) {
       if (updateMarineGridRef.current) {
         updateMarineGridRef.current('timeline_scrub');
       }
