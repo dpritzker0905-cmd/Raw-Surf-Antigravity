@@ -24,9 +24,14 @@ async def prefetch_supabase_products():
         return
 
     now = datetime.now(timezone.utc)
-    # Active forecast window: from 6 hours ago to 8 days in the future
+    is_render = os.environ.get("RENDER") == "true"
+    # Active forecast window: from 6 hours ago to 8 days in the future (30 hours on Render to prevent OOM)
     start_time = now - timedelta(hours=6)
-    end_time = now + timedelta(days=8)
+    if is_render:
+        end_time = now + timedelta(hours=30)
+        logger.info("[Prefetcher] Render environment detected. Capping prefetch window to +30h to reduce memory pressure.")
+    else:
+        end_time = now + timedelta(days=8)
     
     # Filter products: ONLY conformed GFS Marine Waves
     candidates = []
@@ -93,11 +98,12 @@ async def prefetch_supabase_products():
             return False
 
     success_count = 0
+    loop_delay = 1.5 if is_render else 0.05
     for idx, p in enumerate(to_download):
         success = await download_file(p.filename)
         if success:
             success_count += 1
-        # Yield control back to the event loop and add a tiny delay (50ms) to prevent resource spikes
-        await asyncio.sleep(0.05)
+        # Yield control back to the event loop and add a delay to prevent resource spikes
+        await asyncio.sleep(loop_delay)
         
     logger.info(f"[Prefetcher] Background prefetch completed: {success_count}/{len(to_download)} succeeded.")

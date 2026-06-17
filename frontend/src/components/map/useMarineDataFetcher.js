@@ -4,7 +4,7 @@ import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedI
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag } from './backendWeatherServiceClient';
 import { updateDeprecationDiag } from './forecastSamplers';
-import { isInCooldown } from './marineControllerUtils';
+import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
 import {
   DISPLAY_EURO_WAVES_MAX_HOURS,
@@ -521,6 +521,9 @@ export function useMarineDataFetcher({
           }
         }
         consecutiveFailuresRef.current = 0; locks.lastHash = viewportHash; locks.lastTime = Date.now();
+        if (typeof clearCooldown === 'function') {
+          clearCooldown('marine');
+        }
         logPipelineEventHelper('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
         isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
         // After a successful scrub-deferred fetch commits, reset the lastHash so that
@@ -773,6 +776,11 @@ export function useMarineDataFetcher({
 
   enqueueMarineUpdateRef.current = enqueueMarineUpdate;
   manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
+
+  useEffect(() => {
+    consecutiveFailuresRef.current = 0;
+    resetRetryCounts();
+  }, [activeModel, activeMarineLayer, timeOffsetHours]);
 
   useEffect(() => {
     return () => {

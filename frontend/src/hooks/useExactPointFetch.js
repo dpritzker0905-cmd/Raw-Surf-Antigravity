@@ -7,7 +7,7 @@ import {
   updateDeprecationDiag,
   writeOverlayDiagnostics
 } from '../components/map/forecastSamplers';
-import { isInCooldown } from '../components/map/marineControllerUtils';
+import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
 
 export function useExactPointFetch({
   pointLat,
@@ -199,6 +199,10 @@ export function useExactPointFetch({
             } else {
               setExactPointResponse(data);
               setExactPointStatus('exact_success');
+              if (typeof clearCooldown === 'function') {
+                const domain = (activeLayer === 'wind') ? 'wind' : (activeLayer === 'pressure') ? 'pressure' : 'marine';
+                clearCooldown(domain);
+              }
             }
           } else {
             setExactPointStatus('exact_backend_error');
