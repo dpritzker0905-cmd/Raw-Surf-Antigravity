@@ -18,6 +18,12 @@ async def main():
     print('Running GFS Marine global...')
     await scheduler.ingest_gfs_marine_global()
     
+    print('Running ICON Marine regional...')
+    await scheduler.ingest_icon_marine_pilot()
+
+    print('Running ICON Marine global...')
+    await scheduler.ingest_icon_marine_global()
+
     print('Running Copernicus regional...')
     await scheduler.ingest_copernicus_regional()
     
@@ -30,3 +36,4 @@ async def main():
 
 if __name__ == '__main__':
     asyncio.run(main())
+

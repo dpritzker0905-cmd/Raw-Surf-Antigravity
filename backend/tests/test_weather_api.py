@@ -545,3 +545,56 @@ def test_client_diagnostics():
     assert response.status_code == 200
     assert response.json()["status"] == "success"
 
+
+def test_euro_regional_overlap_viewport(tmp_path, monkeypatch):
+    """
+    Verify that for EURO marine, a requested viewport that overlaps a regional tile
+    but is not fully covered (e.g. going slightly outside) still uses the regional Copernicus tile
+    and filters it, returning it as regional_partial instead of falling back to Open-Meteo.
+    """
+    temp_store = ProductStore(cache_dir=tmp_path)
+    from routes import weather
+    monkeypatch.setattr(weather, "store", temp_store)
+
+    bounds = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0) # Florida East Coast
+    valid_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
+    vectors = [
+        GridVector(lat=24.0, lng=-85.0, speed=1.0, direction=90.0, u=-1.0, v=0.0, period=6.0),
+        GridVector(lat=24.0, lng=-79.0, speed=2.0, direction=90.0, u=-2.0, v=0.0, period=6.0),
+        GridVector(lat=31.0, lng=-85.0, speed=3.0, direction=90.0, u=-3.0, v=0.0, period=8.0),
+        GridVector(lat=31.0, lng=-79.0, speed=4.0, direction=90.0, u=-4.0, v=0.0, period=8.0),
+    ]
+    grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
+    product = NormalizedProduct(
+        model="EURO",
+        provider="copernicus",
+        domain="marine",
+        layer="waves",
+        run_time=datetime.now(timezone.utc),
+        valid_time=valid_dt,
+        is_forecast_authoritative=True,
+        is_estimated=False,
+        coverage=bounds,
+        grid=grid,
+        value_kind="wave_height",
+        value_unit="m",
+        display_unit_hint="ft",
+        source_variables=["wave_height", "wave_direction"],
+        freshness_sec=1800,
+        region_id="florida_east_coast",
+        coverage_mode="regional_tile"
+    )
+
+    temp_store.save_product(product, resolution=6.0)
+
+    # Bbox overlaps Florida but goes slightly outside (-86 to -78 longitude)
+    response = client.get(
+        "/api/weather/grid?model=EURO&domain=marine&layer=waves&valid_time=2026-06-01T21:00:00Z&bbox=-86,23,-78,32"
+    )
+    assert response.status_code == 200
+    res_data = response.json()
+    assert res_data["product_id"] == "euro_marine_waves_florida_east_coast_20260601T210000Z.json"
+    assert res_data["is_estimated"] is False
+    assert res_data["provider"] == "copernicus"
+
+

@@ -151,6 +151,14 @@ async def get_grid(
 
                 if is_covered and not is_wider:
                     use_manifest_product = True
+                elif model.upper() == "EURO" and domain.lower() == "marine":
+                    # Reuse regional Copernicus tiles if the requested viewport overlaps the region and is not wider
+                    overlap_area = calculate_bbox_intersection_area(
+                        req_w, req_s, req_e, req_n,
+                        cov.west, cov.south, cov.east, cov.north
+                    )
+                    if overlap_area > 0.0001 and not is_wider:
+                        use_manifest_product = True
             else:
                 # If no bbox coordinates provided, serve manifest product by default
                 use_manifest_product = True

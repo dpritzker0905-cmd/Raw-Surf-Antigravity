@@ -141,11 +141,8 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = false;
-  if (u_zoom <= 6.0) {
-    isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
-             next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
-  }
+  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
+                next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
   if (waveHeight < 0.01 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
@@ -292,10 +289,7 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = false;
-  if (u_zoom <= 6.0) {
-    isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
-  }
+  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.

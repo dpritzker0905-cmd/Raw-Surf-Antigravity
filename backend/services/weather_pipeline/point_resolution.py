@@ -428,7 +428,7 @@ class PointResolutionService:
                         # Set is_estimated and estimate_basis matching normalizer conformed rules
                         is_estimated = is_fallback_active
                         est_basis = None
-                        if model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
+                        if model.upper() == "EURO" and layer.lower() in ("swell_1", "swell_2", "wind_waves") and is_fallback_active:
                             is_estimated = True
                             est_basis = {
                                 "type": "ecmwf_ifs_derived_fallback",
