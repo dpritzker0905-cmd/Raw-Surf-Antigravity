@@ -315,6 +315,10 @@ class OpenMeteoProvider:
             return mock_res
 
         use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true" if os.environ.get("RENDER") == "true" else "false").lower() == "true")
+        if len(lats) > 100:
+            logger.info(f"[Open-Meteo Provider] Grid size {len(lats)} > 100. Bypassing weather proxy for global/large background runs.")
+            use_proxy = False
+            
         proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy")
 
         async with httpx.AsyncClient() as client:
