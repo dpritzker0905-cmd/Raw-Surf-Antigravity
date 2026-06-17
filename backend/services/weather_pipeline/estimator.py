@@ -16,7 +16,7 @@ class EstimateContractError(Exception):
 
 # Constants
 EURO_LIMIT_WAVES = 240       # hours
-EURO_LIMIT_COMPONENTS = 72   # hours
+EURO_LIMIT_COMPONENTS = 240   # hours
 ICON_LIMIT = 168             # hours
 
 def get_estimate_weights(target_hour: float, native_limit: float, is_icon_valid: bool = False) -> dict:
@@ -545,7 +545,7 @@ async def resolve_euro_estimate_point(
         except Exception:
             pass
             
-    native_limit = 240.0 if layer.lower() == "waves" else 72.0
+    native_limit = EURO_LIMIT_WAVES if layer.lower() == "waves" else EURO_LIMIT_COMPONENTS
     w = get_estimate_weights(target_hour, native_limit, is_icon_valid)
     w_persist, w_gfs, w_icon, confidence = w["persistence"], w["gfs"], w["icon"], w["confidence"]
     w_icon_real = w_icon if is_icon_valid else 0.0

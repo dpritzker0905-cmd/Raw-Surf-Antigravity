@@ -42,6 +42,8 @@ async def prefetch_supabase_products():
         domain = p.domain.lower()
         layer = p.layer.lower()
         if model == "GFS" and domain == "marine" and layer == "waves":
+            if is_render and getattr(p, "region_id", "") == "global_coarse":
+                continue
             p_time = p.valid_time_start
             if start_time <= p_time <= end_time:
                 candidates.append(p)
@@ -84,6 +86,10 @@ async def prefetch_supabase_products():
                 await asyncio.to_thread(temp_filepath.write_bytes, product_bytes)
                 await asyncio.to_thread(temp_filepath.rename, filepath)
                 logger.info(f"[Prefetcher] Prefetched {filename} successfully.")
+                # Proactively clean up memory
+                product_bytes = None
+                import gc
+                gc.collect()
                 return True
             else:
                 logger.warning(f"[Prefetcher] Downloaded empty content for {filename}")

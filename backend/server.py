@@ -269,13 +269,18 @@ async def run_background_cache_population():
             has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
             and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
         )
-        has_copernicus = has_product_conformed("EURO", "marine", "swell_1")
+        has_copernicus = (
+            has_product_conformed("EURO", "marine", "waves")
+            and has_product_conformed("EURO", "marine", "swell_1")
+            and has_product_conformed("EURO", "marine", "swell_2")
+            and has_product_conformed("EURO", "marine", "wind_waves")
+        )
         has_icon_wind = has_product_conformed("ICON", "wind", "wind", region_id="global_coarse")
         has_euro_wind_global = has_product_conformed("EURO", "wind", "wind", region_id="global_coarse")
         
         logger.info(
             f"[lifespan] Cache status: GFS Waves={has_gfs_waves}, GFS Waves Global={has_gfs_waves_global}, "
-            f"GFS Wind={has_gfs_wind}, Copernicus Swell 1={has_copernicus}, "
+            f"GFS Wind={has_gfs_wind}, Copernicus={has_copernicus}, "
             f"ICON Wind Global={has_icon_wind}, EURO Wind Global={has_euro_wind_global}"
         )
         
