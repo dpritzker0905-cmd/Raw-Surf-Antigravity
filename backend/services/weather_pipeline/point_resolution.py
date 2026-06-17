@@ -445,7 +445,7 @@ class PointResolutionService:
 
                         return NormalizedPointResponse(
                             model=model.upper(),
-                            provider="copernicus" if model.upper() == "EURO" else ("gfs_estimated_fallback" if is_fallback_active else "open-meteo"),
+                            provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             domain="marine",
                             layer=layer.lower(),
                             run_time=datetime.now(timezone.utc),

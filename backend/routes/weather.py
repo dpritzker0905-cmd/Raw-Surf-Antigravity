@@ -446,6 +446,15 @@ async def get_grid(
                 vectors=product.grid.vectors if product.grid else []
             )
 
+    if product and model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
+        if product.provider == "open-meteo":
+            product.provider = "copernicus"
+        if product.grid:
+            if product.grid.diagnostics is None:
+                product.grid.diagnostics = {}
+            if product.grid.diagnostics.get("provider") == "open-meteo":
+                product.grid.diagnostics["provider"] = "copernicus"
+
     return product
 
 @router.get("/point", response_model=NormalizedPointResponse)

@@ -37,8 +37,8 @@ if (typeof window !== 'undefined' && !window.__RAW_SURF_PROXY_PATCHED__) {
         try {
           const searchParams = new URL(url, window.location.origin).searchParams;
           type = searchParams.get('type') || 'unknown';
-          model = searchParams.get('models') || 'unknown';
-          layer = searchParams.get('hourly') || 'none';
+          model = searchParams.get('models') || searchParams.get('model') || 'unknown';
+          layer = searchParams.get('hourly') || searchParams.get('layer') || 'none';
         } catch (e) {}
       }
 
@@ -66,7 +66,7 @@ if (typeof window !== 'undefined' && !window.__RAW_SURF_PROXY_PATCHED__) {
         source,
         status: 'pending',
         decision: 'allowed',
-        provider: (type.includes('copernicus') || url.includes('copernicus')) ? 'copernicus' : 'open-meteo',
+        provider: (type.includes('copernicus') || url.includes('copernicus') || (model && model.toUpperCase() === 'EURO' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layer))) ? 'copernicus' : 'open-meteo',
         pointCount: bodyData?.latitude ? (Array.isArray(bodyData.latitude) ? bodyData.latitude.length : 1) : 1,
         'point count': bodyData?.latitude ? (Array.isArray(bodyData.latitude) ? bodyData.latitude.length : 1) : 1,
         elapsedTime: 0,
