@@ -2,7 +2,7 @@ import os
 import math
 import logging
 import asyncio
-from concurrent.futures import ProcessPoolExecutor
+import bisect
 from datetime import datetime, timezone
 from typing import Dict, List, Any, Optional
 from services.weather_pipeline.schemas import (
@@ -11,49 +11,6 @@ from services.weather_pipeline.schemas import (
 from services.weather_pipeline.route_helpers import is_inside_bounds
 
 logger = logging.getLogger(__name__)
-
-_NORMALIZER_PROCESS_POOL = None
-
-def get_normalizer_process_pool():
-    global _NORMALIZER_PROCESS_POOL
-    if _NORMALIZER_PROCESS_POOL is None:
-        max_workers = min(os.cpu_count() or 1, 4)
-        _NORMALIZER_PROCESS_POOL = ProcessPoolExecutor(max_workers=max_workers)
-    return _NORMALIZER_PROCESS_POOL
-
-def _normalize_worker(
-    model: str,
-    provider: str,
-    domain: str,
-    layer: str,
-    raw_results: List[Dict[str, Any]],
-    bbox: Dict[str, float],
-    resolution: float,
-    target_time_ts: float,
-    run_time_ts: Optional[float],
-    region_id: Optional[str],
-    coverage_mode: Optional[str]
-) -> Optional[Dict[str, Any]]:
-    target_time = datetime.fromtimestamp(target_time_ts, tz=timezone.utc)
-    run_time = datetime.fromtimestamp(run_time_ts, tz=timezone.utc) if run_time_ts else None
-    
-    normalizer = WeatherNormalizer()
-    product = normalizer.normalize(
-        model=model,
-        provider=provider,
-        domain=domain,
-        layer=layer,
-        raw_results=raw_results,
-        bbox=bbox,
-        resolution=resolution,
-        target_time=target_time,
-        run_time=run_time,
-        region_id=region_id,
-        coverage_mode=coverage_mode
-    )
-    if product:
-        return product.model_dump()
-    return None
 
 class WeatherNormalizer:
     """
@@ -115,30 +72,22 @@ class WeatherNormalizer:
         coverage_mode: Optional[str] = None
     ) -> Optional[NormalizedProduct]:
         """
-        Asynchronously normalizes raw API responses by offloading CPU-bound tasks to a ProcessPoolExecutor.
+        Asynchronously normalizes raw API responses by offloading CPU-bound tasks to a thread pool.
         """
-        loop = asyncio.get_running_loop()
-        target_ts = target_time.timestamp()
-        run_ts = run_time.timestamp() if run_time else None
-        pool = get_normalizer_process_pool()
-        result_dict = await loop.run_in_executor(
-            pool,
-            _normalize_worker,
-            model,
-            provider,
-            domain,
-            layer,
-            raw_results,
-            bbox,
-            resolution,
-            target_ts,
-            run_ts,
-            region_id,
-            coverage_mode
+        return await asyncio.to_thread(
+            self.normalize,
+            model=model,
+            provider=provider,
+            domain=domain,
+            layer=layer,
+            raw_results=raw_results,
+            bbox=bbox,
+            resolution=resolution,
+            target_time=target_time,
+            run_time=run_time,
+            region_id=region_id,
+            coverage_mode=coverage_mode
         )
-        if result_dict:
-            return NormalizedProduct.model_validate(result_dict)
-        return None
 
     def normalize(
         self,
@@ -247,6 +196,8 @@ class WeatherNormalizer:
         bounds_obj = CoverageBounds(west=west, south=south, east=east, north=north)
         is_layer_estimated = False
         estimate_basis = None
+        lat_cache = {}
+        lon_cache = {}
         for pt in raw_results:
             raw_lat = pt.get("latitude")
             raw_lng = pt.get("longitude")
@@ -265,9 +216,35 @@ class WeatherNormalizer:
             mapped_lat = round(round((raw_lat - south) / resolution) * resolution + south, 4)
             mapped_lng = round(round((raw_lng_monotonic - west) / resolution) * resolution + west, 4)
             
-            # Clamp to the unique lists to be absolutely sure they lie on the clean grid
-            lat = min(unique_lats, key=lambda val: abs(val - mapped_lat))
-            lng = min(unique_lons, key=lambda val: abs(val - mapped_lng))
+            # Clamp to the unique lists to be absolutely sure they lie on the clean grid (O(1) cached lookup with O(log M) bisect fallback)
+            if mapped_lat in lat_cache:
+                lat = lat_cache[mapped_lat]
+            else:
+                idx = bisect.bisect_left(unique_lats, mapped_lat)
+                if idx == 0:
+                    lat = unique_lats[0]
+                elif idx == len(unique_lats):
+                    lat = unique_lats[-1]
+                else:
+                    val_left = unique_lats[idx - 1]
+                    val_right = unique_lats[idx]
+                    lat = val_left if abs(val_left - mapped_lat) <= abs(val_right - mapped_lat) else val_right
+                lat_cache[mapped_lat] = lat
+
+            if mapped_lng in lon_cache:
+                lng = lon_cache[mapped_lng]
+            else:
+                idx = bisect.bisect_left(unique_lons, mapped_lng)
+                if idx == 0:
+                    lng = unique_lons[0]
+                elif idx == len(unique_lons):
+                    lng = unique_lons[-1]
+                else:
+                    val_left = unique_lons[idx - 1]
+                    val_right = unique_lons[idx]
+                    lng = val_left if abs(val_left - mapped_lng) <= abs(val_right - mapped_lng) else val_right
+                lon_cache[mapped_lng] = lng
+
             pt_hourly = pt.get("hourly", {})
 
             s_key, d_key, p_key = speed_key, direction_key, period_key
