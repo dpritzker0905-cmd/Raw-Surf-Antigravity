@@ -228,7 +228,7 @@ class WeatherPipelineScheduler:
         if euro_results:
             count = await normalize_and_save_loop(
                 self.normalizer, self.store, euro_results,
-                model="EURO", provider="open-meteo", domain="marine", layer="waves",
+                model="EURO", provider="copernicus", domain="marine", layer="waves",
                 bbox=global_region, resolution=resolution, run_time=run_time,
                 region_id="global_coarse", coverage_mode="global_tile",
                 is_test_env=env["is_test_env"],
@@ -245,7 +245,7 @@ class WeatherPipelineScheduler:
             for layer in ["swell_1", "swell_2", "wind_waves"]:
                 count = await normalize_and_save_loop(
                     self.normalizer, self.store, gfs_results,
-                    model="EURO", provider="gfs_estimated_fallback", domain="marine", layer=layer,
+                    model="EURO", provider="copernicus", domain="marine", layer=layer,
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
                     is_test_env=env["is_test_env"],
