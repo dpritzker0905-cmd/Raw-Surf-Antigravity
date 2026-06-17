@@ -243,7 +243,16 @@ export function useMarineDataFetcher({
         if (!window.isScrubbingTimeline && isCurrentHour) {
           setMarineData(prev => {
             const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-            if (hasValidData) return prev;
+            if (hasValidData) {
+              return {
+                ...prev,
+                stale: true,
+                grid: {
+                  ...prev.grid,
+                  stale: true
+                }
+              };
+            }
             lastCommittedSigRef.current = null;
             return null;
           });
@@ -581,10 +590,16 @@ export function useMarineDataFetcher({
         if (!window.isScrubbingTimeline && isCurrentHour) {
           setMarineData(prev => {
             const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-            const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
-            const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
-            const isSameModelAndLayer = prevModel === model && prevLayer === layer;
-            if (hasValidData) return prev;
+            if (hasValidData) {
+              return {
+                ...prev,
+                stale: true,
+                grid: {
+                  ...prev.grid,
+                  stale: true
+                }
+              };
+            }
             lastCommittedSigRef.current = null;
             return null;
           });
@@ -603,10 +618,16 @@ export function useMarineDataFetcher({
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
         setMarineData(prev => {
           const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-          const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
-          const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
-          const isSameModelAndLayer = prevModel === model && prevLayer === layer;
-          if (hasValidData && isSameModelAndLayer) return prev;
+          if (hasValidData) {
+            return {
+              ...prev,
+              stale: true,
+              grid: {
+                ...prev.grid,
+                stale: true
+              }
+            };
+          }
           lastCommittedSigRef.current = null;
           return null;
         });

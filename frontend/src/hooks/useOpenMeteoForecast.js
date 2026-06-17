@@ -77,6 +77,11 @@ export const useOpenMeteoForecast = ({ latitude, longitude, activeModel = 'GFS',
 
     const MARINE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
     if (MARINE_LAYERS.includes(activeLayer)) {
+      if (forecastData || currentWeather) {
+        setIsLoading(false);
+        setIsStale(false);
+        return;
+      }
       setForecastData(null);
       setMarineData(null);
       setCurrentWeather(null);

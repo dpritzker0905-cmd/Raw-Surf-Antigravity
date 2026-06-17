@@ -570,7 +570,7 @@ export const MapForecastOverlay = ({
                   <div key={i} className="flex items-center gap-2">
                     <Icon
                       className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
-                      style={card.rotate ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
+                      style={(card.rotate !== undefined && card.rotate !== null) ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
                     />
                     <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
                     <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
