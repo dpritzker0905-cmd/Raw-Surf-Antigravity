@@ -64,7 +64,7 @@ class ProductStore:
     _download_locks_lock = threading.Lock()
     _cached_manifest: Optional[PipelineManifest] = None
     _cached_manifest_mtime: float = 0.0
-    _manifest_lock = threading.Lock()
+    _manifest_lock = threading.RLock()
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -168,107 +168,102 @@ class ProductStore:
             if ProductStore._cached_manifest is not None and ProductStore._cached_manifest_mtime == current_mtime:
                 return ProductStore._cached_manifest
 
-        import time
-        retries = 5
-        last_err = None
-        manifest = None
-        for attempt in range(retries):
-            try:
-                with open(self.manifest_path, "r") as f:
-                    data = json.load(f)
-                manifest = PipelineManifest.model_validate(data)
-                break
-            except Exception as e:
-                last_err = e
-                time.sleep(0.05)
-        
-        if manifest is None:
-            logger.error(f"[Product Store] Manifest parse error after {retries} retries: {last_err}")
-            sb = _get_supabase_storage()
-            if sb:
+            import time
+            retries = 5
+            last_err = None
+            manifest = None
+            for attempt in range(retries):
                 try:
-                    logger.warning("[Product Store] Local manifest read/parse failed. Attempting fallback download from Supabase...")
-                    manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
-                    if manifest_bytes:
-                        data = json.loads(manifest_bytes.decode("utf-8"))
-                        manifest = PipelineManifest.model_validate(data)
-                        with open(self.manifest_path, "w") as f:
-                            f.write(manifest.model_dump_json(indent=2))
-                except Exception as sb_err:
-                    logger.error(f"[Product Store] Supabase manifest fallback download failed: {sb_err}")
+                    with open(self.manifest_path, "r") as f:
+                        data = json.load(f)
+                    manifest = PipelineManifest.model_validate(data)
+                    break
+                except Exception as e:
+                    last_err = e
+                    time.sleep(0.05)
             
             if manifest is None:
-                raise RuntimeError(f"Failed to load or parse manifest.json registry: {last_err}")
+                logger.error(f"[Product Store] Manifest parse error after {retries} retries: {last_err}")
+                sb = _get_supabase_storage()
+                if sb:
+                    try:
+                        logger.warning("[Product Store] Local manifest read/parse failed. Attempting fallback download from Supabase...")
+                        manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
+                        if manifest_bytes:
+                            data = json.loads(manifest_bytes.decode("utf-8"))
+                            manifest = PipelineManifest.model_validate(data)
+                            with open(self.manifest_path, "w") as f:
+                                f.write(manifest.model_dump_json(indent=2))
+                    except Exception as sb_err:
+                        logger.error(f"[Product Store] Supabase manifest fallback download failed: {sb_err}")
+                
+                if manifest is None:
+                    raise RuntimeError(f"Failed to load or parse manifest.json registry: {last_err}")
 
-        # Dynamic self-healing: prune impossible future-dated products (>30 days in future)
-        now = datetime.now(timezone.utc)
-        valid_products = []
-        pruned_ids = []
-        has_corrupt = False
-        
-        # Test environments (like test_euro_estimator) use 2035 mock dates; only prune in prod/dev or if forced.
-        should_prune = not is_test_environment() or os.environ.get("FORCE_MANIFEST_PRUNING") == "true"
-        
-        for p in manifest.products:
-            if should_prune and p.valid_time_start > now + timedelta(days=30):
-                logger.warning(f"[Product Store] Pruning impossible future product from manifest: {p.filename} (valid time: {p.valid_time_start})")
-                pruned_ids.append(p.product_id or p.filename)
-                has_corrupt = True
-            else:
-                valid_products.append(p)
-        
-        if has_corrupt:
-            manifest.products = valid_products
-            ProductStore._pruned_anomalous_count = max(ProductStore._pruned_anomalous_count, len(pruned_ids))
-            for pid in pruned_ids:
-                if pid not in ProductStore._pruned_anomalous_ids:
-                    ProductStore._pruned_anomalous_ids.append(pid)
-            try:
-                self._save_manifest(manifest)
-                logger.info(f"[Product Store] Cleaned manifest saved locally with {len(pruned_ids)} pruned entries: {pruned_ids}")
-                # Cleaned manifest L2 resave (do not delete product files from Supabase blindly)
-                try:
-                    manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
-                    self._upload_to_supabase("manifest.json", manifest_json)
-                    logger.info("[Product Store] Cleaned manifest uploaded to L2 (Supabase)")
-                except Exception as e:
-                    logger.warning(f"[Product Store] Cleaned manifest L2 upload failed: {e}")
-            except Exception as se:
-                logger.error(f"[Product Store] Failed to save cleaned manifest: {se}")
-        
-        # Apply backward compatibility mapping for older/restored products
-        for p in manifest.products:
-            is_florida = (
-                abs(p.coverage.west - (-85.0)) < 0.1 and
-                abs(p.coverage.south - 24.0) < 0.1 and
-                abs(p.coverage.east - (-79.0)) < 0.1 and
-                abs(p.coverage.north - 31.0) < 0.1
-            )
-            if is_florida:
-                if not p.region_id:
-                    p.region_id = "florida_east_coast"
-                if not p.tile_id:
-                    p.tile_id = "florida_east_coast"
-                if not p.coverage_mode:
-                    p.coverage_mode = "regional_tile"
-            if not p.coverage_mode:
-                if p.filename and "global_coarse" in p.filename:
-                    p.coverage_mode = "global_tile"
+            # Dynamic self-healing: prune impossible future-dated products (>30 days in future)
+            now = datetime.now(timezone.utc)
+            valid_products = []
+            pruned_ids = []
+            has_corrupt = False
+            
+            # Test environments (like test_euro_estimator) use 2035 mock dates; only prune in prod/dev or if forced.
+            should_prune = not is_test_environment() or os.environ.get("FORCE_MANIFEST_PRUNING") == "true"
+            
+            for p in manifest.products:
+                if should_prune and p.valid_time_start > now + timedelta(days=30):
+                    logger.warning(f"[Product Store] Pruning impossible future product from manifest: {p.filename} (valid time: {p.valid_time_start})")
+                    pruned_ids.append(p.product_id or p.filename)
+                    has_corrupt = True
                 else:
-                    cov = p.coverage
-                    span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
-                    p.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
-            if not p.product_id:
-                p.product_id = p.filename
-        
-        try:
-            current_mtime = self.manifest_path.stat().st_mtime
-        except Exception:
-            current_mtime = 0.0
-        with ProductStore._manifest_lock:
+                    valid_products.append(p)
+            
+            if has_corrupt:
+                manifest.products = valid_products
+                ProductStore._pruned_anomalous_count = max(ProductStore._pruned_anomalous_count, len(pruned_ids))
+                for pid in pruned_ids:
+                    if pid not in ProductStore._pruned_anomalous_ids:
+                        ProductStore._pruned_anomalous_ids.append(pid)
+                try:
+                    self._save_manifest(manifest)
+                    logger.info(f"[Product Store] Cleaned manifest saved locally with {len(pruned_ids)} pruned entries: {pruned_ids}")
+                    # Cleaned manifest L2 resave (do not delete product files from Supabase blindly)
+                    try:
+                        manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+                        self._upload_to_supabase("manifest.json", manifest_json)
+                        logger.info("[Product Store] Cleaned manifest uploaded to L2 (Supabase)")
+                    except Exception as e:
+                        logger.warning(f"[Product Store] Cleaned manifest L2 upload failed: {e}")
+                except Exception as se:
+                    logger.error(f"[Product Store] Failed to save cleaned manifest: {se}")
+            
+            # Apply backward compatibility mapping for older/restored products
+            for p in manifest.products:
+                is_florida = (
+                    abs(p.coverage.west - (-85.0)) < 0.1 and
+                    abs(p.coverage.south - 24.0) < 0.1 and
+                    abs(p.coverage.east - (-79.0)) < 0.1 and
+                    abs(p.coverage.north - 31.0) < 0.1
+                )
+                if is_florida:
+                    if not p.region_id:
+                        p.region_id = "florida_east_coast"
+                    if not p.tile_id:
+                        p.tile_id = "florida_east_coast"
+                    if not p.coverage_mode:
+                        p.coverage_mode = "regional_tile"
+                if not p.coverage_mode:
+                    if p.filename and "global_coarse" in p.filename:
+                        p.coverage_mode = "global_tile"
+                    else:
+                        cov = p.coverage
+                        span = (cov.east - cov.west) if cov.west <= cov.east else (180.0 - cov.west) + (cov.east + 180.0)
+                        p.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
+                if not p.product_id:
+                    p.product_id = p.filename
+            
             ProductStore._cached_manifest = manifest
             ProductStore._cached_manifest_mtime = current_mtime
-        return manifest
+            return manifest
 
 
     def _save_manifest(self, manifest: PipelineManifest):
