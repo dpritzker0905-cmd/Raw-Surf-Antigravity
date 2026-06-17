@@ -11,77 +11,124 @@
  *   - loading: boolean
  */
 
-import { useState, useEffect, useRef, useCallback } from 'react';
+import { useState, useEffect } from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
 const POLL_INTERVAL = 8000; // 8 seconds
 
+// Global shared state
+let globalActiveSession = null;
+let globalLoading = true;
+let globalUser = null;
+const subscribers = new Set();
+let pollIntervalId = null;
+
+const fetchActiveSessionGlobal = async (userId) => {
+  if (!userId) {
+    globalActiveSession = null;
+    globalLoading = false;
+    notifySubscribers();
+    return;
+  }
+
+  try {
+    const res = await apiClient.get(`/dispatch/user/${userId}/active`);
+    const dispatch = res.data?.active_dispatch;
+
+    if (
+      dispatch &&
+      ['requester', 'crew_member', 'photographer'].includes(dispatch.role) &&
+      ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived', 'in_session'].includes(dispatch.status)
+    ) {
+      globalActiveSession = {
+        type: 'on_demand',
+        id: dispatch.id,
+        status: dispatch.status,
+        photographerName: dispatch.photographer_name || 'Photographer',
+        eta: dispatch.eta_minutes,
+        locationName: dispatch.location_name,
+        role: dispatch.role,
+      };
+    } else {
+      globalActiveSession = null;
+    }
+  } catch (err) {
+    logger.debug('[useActiveSession] Poll error:', err);
+  } finally {
+    globalLoading = false;
+    notifySubscribers();
+  }
+};
+
+const notifySubscribers = () => {
+  const currentState = { activeSession: globalActiveSession, loading: globalLoading };
+  subscribers.forEach(callback => callback(currentState));
+};
+
+const startPolling = (userId) => {
+  if (pollIntervalId) return;
+
+  // Immediate fetch
+  fetchActiveSessionGlobal(userId);
+
+  pollIntervalId = setInterval(() => {
+    if (document.visibilityState === 'hidden') return;
+    fetchActiveSessionGlobal(userId);
+  }, POLL_INTERVAL);
+};
+
+const stopPolling = () => {
+  if (pollIntervalId) {
+    clearInterval(pollIntervalId);
+    pollIntervalId = null;
+  }
+};
+
 export const useActiveSession = () => {
   const { user } = useAuth();
-  const [activeSession, setActiveSession] = useState(null);
-  const [loading, setLoading] = useState(true);
-  const pollRef = useRef(null);
-
-  const fetchActiveSession = useCallback(async () => {
-    if (!user?.id) {
-      setActiveSession(null);
-      setLoading(false);
-      return;
-    }
-
-    try {
-      // Check for active on-demand dispatch
-      const res = await apiClient.get(`/dispatch/user/${user.id}/active`);
-      const dispatch = res.data?.active_dispatch;
-
-      if (
-        dispatch &&
-        ['requester', 'crew_member', 'photographer'].includes(dispatch.role) &&
-        ['searching_for_pro', 'pending_payment', 'accepted', 'en_route', 'arrived', 'in_session'].includes(dispatch.status)
-      ) {
-        setActiveSession({
-          type: 'on_demand',
-          id: dispatch.id,
-          status: dispatch.status,
-          photographerName: dispatch.photographer_name || 'Photographer',
-          eta: dispatch.eta_minutes,
-          locationName: dispatch.location_name,
-          role: dispatch.role,
-        });
-      } else {
-        setActiveSession(null);
-      }
-    } catch (err) {
-      logger.debug('[useActiveSession] Poll error:', err);
-      // Don't clear session on transient errors
-    } finally {
-      setLoading(false);
-    }
-  }, [user?.id]);
+  const [state, setState] = useState({
+    activeSession: globalActiveSession,
+    loading: globalLoading
+  });
 
   useEffect(() => {
     if (!user?.id) {
-      setActiveSession(null);
-      setLoading(false);
+      setState({ activeSession: null, loading: false });
       return;
     }
 
-    // Immediate fetch
-    fetchActiveSession();
+    // Reset state if user changes
+    if (globalUser !== user.id) {
+      globalUser = user.id;
+      globalActiveSession = null;
+      globalLoading = true;
+      stopPolling();
+    }
 
-    // Poll
-    pollRef.current = setInterval(() => {
-      // Skip when tab is hidden
-      if (document.visibilityState === 'hidden') return;
-      fetchActiveSession();
-    }, POLL_INTERVAL);
+    const handleUpdate = (newState) => {
+      setState(newState);
+    };
 
-    return () => clearInterval(pollRef.current);
-  }, [user?.id, fetchActiveSession]);
+    subscribers.add(handleUpdate);
+    startPolling(user.id);
 
-  return { activeSession, loading };
+    // Sync state immediately with currently cached global value
+    setState({
+      activeSession: globalActiveSession,
+      loading: globalLoading
+    });
+
+    return () => {
+      subscribers.delete(handleUpdate);
+      if (subscribers.size === 0) {
+        stopPolling();
+      }
+    };
+  }, [user?.id]);
+
+  return state;
 };
 
 export default useActiveSession;
