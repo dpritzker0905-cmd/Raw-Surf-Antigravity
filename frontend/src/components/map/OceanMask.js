@@ -115,6 +115,29 @@ const repositionLanduse = (mapInstance) => {
   }
 };
 
+const findInsertionPoint = (mapInstance) => {
+  try {
+    const style = mapInstance.getStyle();
+    if (!style?.layers) return null;
+
+    for (const layer of style.layers) {
+      const id = layer.id;
+      // Skip our own layers and custom layers
+      if (id.startsWith('ocean-mask-') || id.endsWith('-layer') || id.endsWith('-source')) continue;
+      if (id === 'background' || id === 'water' || id === 'water-depth' || id === 'wetland') continue;
+
+      // Insert BEFORE the first landuse, park, POI, or structural layer
+      if (id.includes('landuse') || id.includes('park') || id.includes('landcover') ||
+          id.includes('national') || id.includes('land-structure') ||
+          id.includes('building') || id.includes('poi') ||
+          layer.type === 'symbol') {
+        return id;
+      }
+    }
+  } catch (e) {}
+  return null;
+};
+
 function buildLandMask(landGeoJSON) {
   if (!landGeoJSON?.features?.length) return null;
   const polygons = [];
@@ -246,7 +269,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           }
         }
 
-        const insertBeforeId = beforeId || findMarineInsertionLayer(mapInstance);
+        const insertBeforeId = beforeId || findInsertionPoint(mapInstance);
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         
