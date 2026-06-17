@@ -93,13 +93,22 @@ const repositionLanduse = (mapInstance) => {
     const anchorId = mapInstance.getLayer(MASK_INLAND_WATER) ? MASK_INLAND_WATER : (mapInstance.getLayer(MASK_LINE) ? MASK_LINE : null);
     if (!anchorId) return;
 
+    const waterLayerExists = !!mapInstance.getLayer('water');
+    const landuseAnchor = waterLayerExists ? 'water' : anchorId;
+
     for (let i = 0; i < maskFillIdx; i++) {
       const layer = layers[i];
       const id = layer.id.toLowerCase();
       const isLanduse = landuseKeywords.some(kw => id.includes(kw));
-      if (isLanduse && layer.type === 'fill') {
-        safeMoveLayer(mapInstance, layer.id, anchorId);
+      // Move landuse fills below base map water layer if it exists
+      if (isLanduse && layer.type === 'fill' && layer.id !== 'water') {
+        safeMoveLayer(mapInstance, layer.id, landuseAnchor);
       }
+    }
+
+    // Move the base map's 'water' layer above repositioned landuse layers but below inland water
+    if (waterLayerExists) {
+      safeMoveLayer(mapInstance, 'water', anchorId);
     }
   } catch (e) {
     console.warn('[OceanMask] Failed to reposition landuse layers:', e);
