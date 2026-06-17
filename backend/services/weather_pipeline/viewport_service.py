@@ -83,12 +83,17 @@ class ViewportService:
         """
         Determines if dynamic viewport bounds fetching is enabled for the model/layer combination.
         """
-        if target_dt and model.upper() == "EURO" and domain.lower() == "marine":
+        if target_dt and domain.lower() == "marine":
             now_utc = datetime.now(timezone.utc)
             offset_hours = (target_dt - now_utc).total_seconds() / 3600.0
 
-            limit = 240.0
-            if offset_hours >= limit:
+            limit = None
+            if model.upper() == "EURO":
+                limit = 240.0
+            elif model.upper() == "ICON":
+                limit = 168.0
+
+            if limit is not None and offset_hours >= limit:
                 return False
 
         return (
