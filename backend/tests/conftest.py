@@ -174,6 +174,21 @@ def mock_weather_setup(tmp_path, monkeypatch):
             }
         }
 
+    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+    async def mock_copernicus_fetch_grid(self, layer, bbox, resolution=0.25, forecast_days=2, precomputed_coords=None, *args, **kwargs):
+        return await mock_fetch_grid(
+            self=None,
+            model="EURO",
+            domain="marine",
+            layer=layer,
+            bbox=bbox,
+            resolution=resolution,
+            forecast_days=forecast_days,
+            precomputed_coords=precomputed_coords,
+            *args, **kwargs
+        )
+
     monkeypatch.setattr(OpenMeteoProvider, "fetch_grid", mock_fetch_grid)
     monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point)
+    monkeypatch.setattr(CopernicusProvider, "fetch_grid", mock_copernicus_fetch_grid)
     return temp_store, dynamic_idx

@@ -311,7 +311,7 @@ export function useMarineDataFetcher({
           diagObj.cooldownStatus = 'rate_limited'; diagObj.skippedReason = 'cooldown_active'; return null;
         }
 
-        const expectedProvider = (modelName === 'EURO' && COMPONENT_LAYERS.includes(targetLayer)) ? 'copernicus' : 'open-meteo';
+        const expectedProvider = (modelName === 'EURO' && (COMPONENT_LAYERS.includes(targetLayer) || targetLayer === 'waves')) ? 'copernicus' : 'open-meteo';
         const layerKey = (modelName !== 'EURO') ? 'all' : (targetLayer || 'waves');
         const snapBoundsStr = targetBounds ? `${targetBounds.west.toFixed(2)}_${targetBounds.south.toFixed(2)}_${targetBounds.east.toFixed(2)}_${targetBounds.north.toFixed(2)}` : 'global';
         const requestKey = `${modelName}_${layerKey}_${targetHour}_${expectedProvider}_vp_${targetZoom}_${snapBoundsStr}`;

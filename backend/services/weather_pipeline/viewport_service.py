@@ -504,7 +504,7 @@ class ViewportService:
 
                 normalized = await self.normalizer.normalize_async(
                     model=model,
-                    provider="copernicus" if model.upper() == "EURO" else "open-meteo",
+                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
                     domain=domain,
                     layer=target_layer,
                     raw_results=raw_list,
