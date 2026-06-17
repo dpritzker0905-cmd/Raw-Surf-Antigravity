@@ -189,13 +189,20 @@ var MapPageContent = () => {
   const forecastLat = snappedCoordinates?.lat;
   const forecastLng = snappedCoordinates?.lng;
 
-  // Clear selected spot and long-press location when changing weather layers
+  // Clear selected spot and long-press location when changing weather layers,
+  // except when toggling between compatible marine layers.
   const prevLayersRef = useRef(activeLayers);
   useEffect(() => {
     const prev = prevLayersRef.current;
     if (JSON.stringify(prev) !== JSON.stringify(activeLayers)) {
-      setSelectedSpot(null);
-      setLongPressLocation(null);
+      const isMarineLayer = (layer) => ["waves", "swell_1", "swell_2", "wind_waves"].includes(layer);
+      const prevIsMarine = prev.length > 0 && prev.every(isMarineLayer);
+      const nextIsMarine = activeLayers.length > 0 && activeLayers.every(isMarineLayer);
+      
+      if (!(prevIsMarine && nextIsMarine)) {
+        setSelectedSpot(null);
+        setLongPressLocation(null);
+      }
     }
     prevLayersRef.current = activeLayers;
   }, [activeLayers, setSelectedSpot, setLongPressLocation]);

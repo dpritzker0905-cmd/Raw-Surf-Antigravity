@@ -126,13 +126,13 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
       }
     };
 
-    mapInstance.on('render', handleObserve);
     mapInstance.on('moveend', handleObserve);
+    mapInstance.on('zoomend', handleObserve);
     handleObserve();
 
     return () => {
-      mapInstance.off('render', handleObserve);
       mapInstance.off('moveend', handleObserve);
+      mapInstance.off('zoomend', handleObserve);
     };
   }, [mapInstance, activeLayers, lowSystems, highSystems, activeSystemPopup]);
 }
