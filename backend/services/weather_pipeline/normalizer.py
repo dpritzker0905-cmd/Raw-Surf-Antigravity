@@ -194,7 +194,8 @@ class WeatherNormalizer:
         # Build mapping from raw results to snapped grid coordinates
         grid_data = {}
         bounds_obj = CoverageBounds(west=west, south=south, east=east, north=north)
-        is_layer_estimated = False
+        has_native_points = False
+        has_estimated_points = False
         estimate_basis = None
         lat_cache = {}
         lon_cache = {}
@@ -259,7 +260,7 @@ class WeatherNormalizer:
             if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
                 wave_speed_list = pt_hourly.get("wave_height", [])
                 if (not speed_list or all(v is None for v in speed_list)) and wave_speed_list and any(v is not None for v in wave_speed_list):
-                    is_layer_estimated = True
+                    has_estimated_points = True
                     estimate_basis = {
                         "type": "ecmwf_ifs_derived_fallback" if model.upper() == "EURO" else "gfs_derived_fallback",
                         "method": "wave_component_ratio_estimation",
@@ -280,6 +281,8 @@ class WeatherNormalizer:
                         speed_list = [v * 0.45 if v is not None else None for v in wave_speed_list]
                         dir_list = wave_dir_list
                         period_list = [v * 0.6 if v is not None else None for v in wave_period_list]
+                elif speed_list and any(v is not None for v in speed_list):
+                    has_native_points = True
 
             # Handle indexes out of bounds safely
             speed = speed_list[time_idx] if time_idx < len(speed_list) else None
@@ -336,6 +339,8 @@ class WeatherNormalizer:
                 )
             
             grid_data[(lat, lng)] = vector
+        
+        is_layer_estimated = has_estimated_points and not has_native_points
 
         # Build full rectangular grid
         vectors = []

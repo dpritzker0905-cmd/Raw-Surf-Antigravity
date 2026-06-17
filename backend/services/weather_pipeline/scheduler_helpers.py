@@ -51,6 +51,7 @@ def get_env_flags() -> dict:
 def generate_mock_marine_results(om_provider, region: dict, resolution: float,
                                  include_swell_2: bool = True) -> list:
     """Generate mock marine raw results for test environments."""
+    results = []
     lats, lons = om_provider.generate_grid_coords(region, resolution)
     base_time = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     forecast_days = int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8"))
