@@ -16,10 +16,10 @@ import {
   getSharedValidTime,
   updateDiagnostics,
   updateProjectionDiag,
-  fetchBackendCopernicusGrid,
   fetchBackendMarineGrid,
   clampViewportBbox
 } from './backendWeatherServiceClient';
+import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
 
 import {
