@@ -663,6 +663,54 @@ export function useMarineDataFetcher({
           lastCommittedSigRef.current = null;
           return null;
         });
+      } else if (isAbort && isCurrentHour && !window.isScrubbingTimeline) {
+        // ABORT RECOVERY: If this was an AbortError and there is no previous valid data,
+        // commit a recovery grid so the HUD transitions from permanent LOADING to a
+        // recoverable "no data" state. Without this, the state stays null forever.
+        console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Checking if recovery grid is needed.`);
+        setMarineData(prev => {
+          const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+          if (hasValidData) {
+            // Previous valid data exists — preserve it (normal abort behavior)
+            console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
+            return prev;
+          }
+          // No previous data — commit a recovery grid to break the LOADING deadlock
+          console.warn(`[ABORT RECOVERY] No previous data exists. Committing recovery grid to break LOADING deadlock.`);
+          lastCommittedSigRef.current = null;
+          marineRevision.current += 1;
+          const recoveryGrid = {
+            type: 'FeatureCollection',
+            features: [],
+            __commitRevision: marineRevision.current,
+            __sourceModel: model,
+            __provider: 'abort_recovery',
+            grid: {
+              vectors: [],
+              bounds: bounds || { west: -180, south: -80, east: 180, north: 85 },
+              cols: 0,
+              rows: 0,
+              __sourceModel: model,
+              __provider: 'abort_recovery',
+              __gridProvider: 'abort_recovery',
+              __componentLayer: layer,
+              __gridSupportsLayer: false,
+              __renderable: false,
+              __failureReason: 'abort_recovery_no_previous_data',
+              renderable: false,
+              provider: 'abort_recovery',
+              emptyGridWarning: `Fetch aborted during ${phase}. Recovery grid committed to prevent LOADING deadlock.`
+            }
+          };
+          // Schedule a retry after a short delay to attempt a real fetch
+          setTimeout(() => {
+            if (enqueueMarineUpdateRef.current && activeMarineLayersRef.current) {
+              console.log(`[ABORT RECOVERY] Scheduling retry fetch after abort recovery.`);
+              enqueueMarineUpdateRef.current('abort_recovery_retry');
+            }
+          }, 1500);
+          return recoveryGrid;
+        });
       } else {
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }

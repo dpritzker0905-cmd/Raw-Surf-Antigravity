@@ -50,14 +50,15 @@ class CopernicusProvider:
                 logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
                 return None
 
-            # Verify point limit (Cap at 500 points to keep Render memory happy)
-            if len(lats) > 500:
+            # Cap point count: 200 on Render (512MB RAM) to minimize NetCDF size, 500 otherwise
+            max_points = 200 if is_render else 500
+            if len(lats) > max_points:
                 logger.warning(
-                    f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe Render 500 point cap. "
+                    f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe {max_points} point cap. "
                     "Coarsening grid resolution..."
                 )
                 adj_res = target_resolution
-                while len(lats) > 500:
+                while len(lats) > max_points:
                     adj_res += 0.1
                     lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, adj_res)
                 logger.info(f"[Copernicus Provider] Adjusted resolution to {adj_res:.2f}° ({len(lats)} points)")
@@ -68,6 +69,12 @@ class CopernicusProvider:
         # Ensure wave_height is present for grid mask support
         if "wave_height" not in variables:
             variables = list(variables) + ["wave_height"]
+
+        # On Render, cap forecast_days to 1 to minimize download size and prevent OOM
+        import os
+        if os.environ.get("RENDER") == "true":
+            forecast_days = min(forecast_days, 1)
+            logger.info(f"[Copernicus Provider] Render environment: capping forecast_days to {forecast_days}")
 
         logger.info(
             f"[Copernicus Provider] Running in-process background ingestion for EURO/{layer}. "

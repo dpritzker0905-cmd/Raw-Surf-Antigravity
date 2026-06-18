@@ -45,6 +45,8 @@ export const getOpacityExpression = (layerKey, isMarine) => isMarine ? [
 ];
 
 // Global fallback rate limiter (1 fallback per layer per 2 seconds max) (Request 4)
+// NOTE: Entries initialize as undefined (not Date.now()) so the first transition per layer
+// is never rate-limited. This prevents the abort→rate-limit deadlock on fresh page load.
 const fallbackTimestamps = {};
 
 /**
@@ -209,9 +211,16 @@ export function useModelTransition({
                 const now = Date.now();
                 let allowed = false;
                 const layers = activeLayersRef.current || [];
+                let hasNeverBeenSet = false;
                 layers.forEach(layerKey => {
-                  const lastTime = fallbackTimestamps[layerKey] || 0;
-                  if (now - lastTime >= 2000) {
+                  const lastTime = fallbackTimestamps[layerKey];
+                  // If this layer has never had a fallback timestamp, this is the first
+                  // transition ever — always allow it to prevent the abort→rate-limit deadlock.
+                  if (lastTime === undefined || lastTime === 0) {
+                    fallbackTimestamps[layerKey] = now;
+                    allowed = true;
+                    hasNeverBeenSet = true;
+                  } else if (now - lastTime >= 2000) {
                     fallbackTimestamps[layerKey] = now;
                     allowed = true;
                   }
@@ -223,6 +232,11 @@ export function useModelTransition({
                   const diag = window.__MARINE_RENDER_SOURCE_DIAG__ || window.__MARINE_DISPLAY_SOURCE_DIAG__;
                   const noSuccessfulData = !diag || diag.hasData !== true || diag.renderable !== true || diag.heatmapProvider === 'unknown' || diag.heatmapProvider === 'none' || diag.heatmapProvider === 'fallback_safe_zero';
                   if (isTransitioning || noSuccessfulData) {
+                    allowed = true;
+                  }
+                  // Also allow if the provider is the abort_recovery placeholder — this means
+                  // we need to let the transition complete to attempt a real fetch.
+                  if (diag && diag.heatmapProvider === 'abort_recovery') {
                     allowed = true;
                   }
                 }

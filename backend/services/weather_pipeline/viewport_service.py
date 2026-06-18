@@ -380,13 +380,24 @@ class ViewportService:
                 cop_provider = CopernicusProvider()
                 # Cap forecast_days for global views to keep tiled CMEMS downloads fast
                 cop_forecast_days = min(forecast_days, 3) if is_global_view else forecast_days
-                raw_data = await cop_provider.fetch_grid(
-                    layer=fetch_layer,
-                    bbox=bbox_dict,
-                    resolution=resolution,
-                    forecast_days=cop_forecast_days,
-                    precomputed_coords=(lats_coords, lons_coords)
-                )
+                # Timeout wrapper: 20s on Render (512MB), 30s otherwise. Prevents OOM-induced
+                # worker death by failing fast with an empty response instead of hanging.
+                is_render_env = os.environ.get("RENDER") == "true"
+                cop_timeout = 20.0 if is_render_env else 30.0
+                try:
+                    raw_data = await asyncio.wait_for(
+                        cop_provider.fetch_grid(
+                            layer=fetch_layer,
+                            bbox=bbox_dict,
+                            resolution=resolution,
+                            forecast_days=cop_forecast_days,
+                            precomputed_coords=(lats_coords, lons_coords)
+                        ),
+                        timeout=cop_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"[Dynamic Viewport] Copernicus fetch timed out after {cop_timeout}s. Returning empty grid.")
+                    raw_data = None
             else:
                 raw_data = await self.provider.fetch_grid(
                     model=fetch_model,
