@@ -328,7 +328,7 @@ async def bg_process_remaining_hours_helper(
                 try:
                     this_normalized_product = await service.normalizer.normalize_async(
                         model=model,
-                        provider="open-meteo",
+                        provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
                         domain=domain,
                         layer=target_layer,
                         raw_results=context.raw_list,
