@@ -439,6 +439,12 @@ app.add_middleware(
 # Include the main API router with all sub-routers
 app.include_router(api_router)
 
+@app.get("/")
+@app.head("/")
+async def root_ping():
+    return {"status": "healthy", "service": "Raw Surf OS API"}
+
+
 # The duplicate /api/health endpoint has been consolidated and moved to routes/health.py to prevent priority conflict.
 
 
