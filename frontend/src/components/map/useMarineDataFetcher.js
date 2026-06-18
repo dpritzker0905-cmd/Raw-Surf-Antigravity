@@ -26,6 +26,7 @@ export function useMarineDataFetcher({
   activeModelRef
 }) {
   const [marineData, setMarineData] = useState(null);
+  const marineDataRef = useRef(null);
 
   const marineRevision = useRef(0);
   const marineRequestIdRef = useRef(0);
@@ -53,6 +54,7 @@ export function useMarineDataFetcher({
   const updateMarineGridRef = useRef(null);
   const enqueueMarineUpdateRef = useRef(null);
   const consecutiveFailuresRef = useRef(0);
+  const abortRecoveryRetryCountRef = useRef(0);
   const lastFetchedModelRef = useRef(null);
   const pendingMarineIntentRef = useRef(null);
   const pipelineEventsRef = useRef([]);
@@ -426,7 +428,8 @@ export function useMarineDataFetcher({
                     __gridSupportsLayer: false,
                     __failureReason: failureReason,
                     renderable: false,
-                    provider: 'backend-weather-service'
+                    provider: 'backend-weather-service',
+                    emptyGridWarning: `Copernicus ${layer} grid empty/unrenderable: ${failureReason}`
                   }
                 };
               }
@@ -667,14 +670,13 @@ export function useMarineDataFetcher({
         // ABORT RECOVERY: If this was an AbortError and there is no previous valid data,
         // commit a recovery grid so the HUD transitions from permanent LOADING to a
         // recoverable "no data" state. Without this, the state stays null forever.
-        console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Checking if recovery grid is needed.`);
-        setMarineData(prev => {
-          const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-          if (hasValidData) {
-            // Previous valid data exists — preserve it (normal abort behavior)
-            console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
-            return prev;
-          }
+        console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Retry count: ${abortRecoveryRetryCountRef.current}/3`);
+        const prev = marineDataRef.current;
+        const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+        if (hasValidData) {
+          // Previous valid data exists — preserve it (normal abort behavior)
+          console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
+        } else {
           // No previous data — commit a recovery grid to break the LOADING deadlock
           console.warn(`[ABORT RECOVERY] No previous data exists. Committing recovery grid to break LOADING deadlock.`);
           lastCommittedSigRef.current = null;
@@ -702,15 +704,23 @@ export function useMarineDataFetcher({
               emptyGridWarning: `Fetch aborted during ${phase}. Recovery grid committed to prevent LOADING deadlock.`
             }
           };
-          // Schedule a retry after a short delay to attempt a real fetch
-          setTimeout(() => {
-            if (enqueueMarineUpdateRef.current && activeMarineLayersRef.current) {
-              console.log(`[ABORT RECOVERY] Scheduling retry fetch after abort recovery.`);
-              enqueueMarineUpdateRef.current('abort_recovery_retry');
-            }
-          }, 1500);
-          return recoveryGrid;
-        });
+          setMarineData(recoveryGrid);
+
+          // Schedule a retry after a short delay, but cap at 3 retries to prevent infinite loops.
+          // AbortErrors don't increment consecutiveFailuresRef, so without this cap the
+          // abort→recovery→retry cycle would repeat forever.
+          if (abortRecoveryRetryCountRef.current < 3) {
+            abortRecoveryRetryCountRef.current += 1;
+            setTimeout(() => {
+              if (enqueueMarineUpdateRef.current && activeMarineLayersRef.current) {
+                console.log(`[ABORT RECOVERY] Scheduling retry fetch after abort recovery (attempt ${abortRecoveryRetryCountRef.current}/3).`);
+                enqueueMarineUpdateRef.current('abort_recovery_retry');
+              }
+            }, 1500);
+          } else {
+            console.warn(`[ABORT RECOVERY] Max retries (3) reached. Stopping abort recovery loop.`);
+          }
+        }
       } else {
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }
@@ -859,7 +869,12 @@ export function useMarineDataFetcher({
   manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
 
   useEffect(() => {
+    marineDataRef.current = marineData;
+  }, [marineData]);
+
+  useEffect(() => {
     consecutiveFailuresRef.current = 0;
+    abortRecoveryRetryCountRef.current = 0;
     resetRetryCounts();
   }, [activeModel, activeMarineLayer, timeOffsetHours]);
 

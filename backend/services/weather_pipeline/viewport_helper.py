@@ -281,6 +281,34 @@ async def bg_process_remaining_hours_helper(
     """Processes remaining forecast hours in the background with conjoined caching support."""
     try:
         remaining_indices = [i for i in range(len(times)) if i != target_idx]
+        is_render_env = os.environ.get("RENDER") == "true"
+        if is_render_env:
+            # On Render, limit background processing to prevent OOM
+            # If it's a global/coarse view, don't pre-calculate other hours at all
+            if coverage_scope == "global_coarse":
+                logger.info("[Dynamic Viewport BG] Render environment and global view detected. Skipping background pre-calculation of remaining hours to prevent OOM.")
+                remaining_indices = []
+            else:
+                # Regular viewport: only pre-calculate up to 24 hours ahead/behind
+                logger.info("[Dynamic Viewport BG] Render environment detected. Limiting background pre-calculation to 24h window.")
+                allowed_indices = []
+                for i in remaining_indices:
+                    try:
+                        t_str = times[i]
+                        t_str_with_z = t_str if t_str.endswith("Z") else t_str + "Z"
+                        dt_i = datetime.fromisoformat(t_str_with_z.replace("Z", "+00:00"))
+                        
+                        target_t_str = times[target_idx]
+                        target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
+                        target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
+                        
+                        diff_hours = abs((dt_i - target_dt_actual).total_seconds()) / 3600.0
+                        if diff_hours <= 24.0:
+                            allowed_indices.append(i)
+                    except Exception:
+                        pass
+                remaining_indices = allowed_indices
+
         processed_indices = {target_idx}
 
         is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")

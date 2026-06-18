@@ -17,12 +17,15 @@ from services.weather_pipeline.copernicus_validator import is_test_environment
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
 _thread_local = threading.local()
+_bucket_created_checked = False
+_bucket_lock = threading.Lock()
 
 # Thread pools for background (fire-and-forget) L2 operations
 _upload_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supabase_upload")
 _manifest_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="supabase_manifest_upload")
 
 def _get_supabase_storage():
+    global _bucket_created_checked
     if getattr(_thread_local, "supabase_client", None) is not None:
         return _thread_local.supabase_client
     if os.environ.get("NODE_ENV") == "test" or os.environ.get("TESTING") == "1":
@@ -34,8 +37,14 @@ def _get_supabase_storage():
         if not url or not key:
             return None
         client = _create_supabase_client(url, key)
-        try: client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
-        except Exception: pass
+        if not _bucket_created_checked:
+            with _bucket_lock:
+                if not _bucket_created_checked:
+                    try:
+                        client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
+                    except Exception:
+                        pass
+                    _bucket_created_checked = True
         _thread_local.supabase_client = client
         return client
     except Exception as e:
