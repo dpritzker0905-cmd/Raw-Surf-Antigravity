@@ -687,7 +687,7 @@ export function useMarineDataFetcher({
             __provider: 'abort_recovery',
             grid: {
               vectors: [],
-              bounds: bounds || { west: -180, south: -80, east: 180, north: 85 },
+              bounds: { west: -180, south: -80, east: 180, north: 85 },
               cols: 0,
               rows: 0,
               __sourceModel: model,
