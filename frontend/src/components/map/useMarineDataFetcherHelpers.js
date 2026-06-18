@@ -73,7 +73,9 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
 
     const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
     if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-      shouldClear = isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth);
+      shouldClear = isGlobalSupported
+        ? (isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth))
+        : (overlapWidth <= 0 || intSouth >= intNorth);
     }
   } else {
     shouldClear = (overlapWidth <= 0 || intSouth >= intNorth);

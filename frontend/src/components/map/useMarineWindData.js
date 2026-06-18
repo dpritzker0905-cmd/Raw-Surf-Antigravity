@@ -184,7 +184,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
             const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
             if ((conformedGridBase.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-              shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
+              shouldReject = isGlobalSupported
+                ? (!isContained || (overlapWidth <= 0 || intSouth >= intNorth))
+                : (overlapWidth <= 0 || intSouth >= intNorth);
             }
           } else {
             shouldReject = (overlapWidth <= 0 || intSouth >= intNorth);

@@ -178,7 +178,10 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               const g = engine._waveData?.waveGrid;
               const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
               if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
-                shouldReject = !isContained || (overlapWidth <= 0 || intSouth >= intNorth);
+                // If it is NOT global supported, we don't require containment to avoid culling the regional grid when zoomed out.
+                shouldReject = isGlobalSupported
+                  ? (!isContained || (overlapWidth <= 0 || intSouth >= intNorth))
+                  : (overlapWidth <= 0 || intSouth >= intNorth);
               }
             } else {
               shouldReject = (overlapWidth <= 0 || intSouth >= intNorth);
