@@ -703,7 +703,7 @@ def test_euro_point_fallback_to_gfs(mock_weather_setup, monkeypatch):
         raise Exception("Simulated Copernicus fetch failure")
     monkeypatch.setattr(copernicus_marine_service, "fetch_euro_marine", mock_fail_fetch_euro_marine)
 
-    # Enhance mock_fetch_point in OpenMeteoProvider to support swell_1
+    # Enhance mock_fetch_point in OpenMeteoProvider to support swell_1 and swell_2
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
     original_fetch_point = OpenMeteoProvider.fetch_point
     async def mock_fetch_point_extended(self, model, domain, layer, lat, lng, forecast_days=2):
@@ -716,6 +716,17 @@ def test_euro_point_fallback_to_gfs(mock_weather_setup, monkeypatch):
                     "swell_wave_height": [2.2],
                     "swell_wave_direction": [165.0],
                     "swell_wave_period": [9.5]
+                }
+            }
+        elif model.upper() == "GFS" and layer == "swell_2":
+            return {
+                "latitude": lat,
+                "longitude": lng,
+                "hourly": {
+                    "time": ["2026-06-02T12:00:00Z"],
+                    "secondary_swell_wave_height": [1.1],
+                    "secondary_swell_wave_direction": [95.0],
+                    "secondary_swell_wave_period": [7.5]
                 }
             }
         # Fall back to conftest's mock_fetch_point if any
@@ -744,5 +755,24 @@ def test_euro_point_fallback_to_gfs(mock_weather_setup, monkeypatch):
     assert payload["point"]["speed"] == 2.2
     assert payload["point"]["direction"] == 165.0
     assert payload["point"]["period"] == 9.5
+
+    # Query point API for EURO swell_2
+    response_swell2 = client.get(
+        "/api/weather/point?model=EURO&domain=marine&layer=swell_2&lat=28.29&lng=-80.61&valid_time=2026-06-02T12:00:00Z"
+    )
+    assert response_swell2.status_code == 200
+    payload_swell2 = response_swell2.json()
+
+    # Assert GFS fallback metadata for swell_2
+    assert payload_swell2["model"] == "EURO"
+    assert payload_swell2["provider"] == "gfs_estimated_fallback"
+    assert payload_swell2["is_forecast_authoritative"] is False
+    assert payload_swell2["is_estimated"] is True
+    assert payload_swell2["fallback_attempted"] is True
+
+    # Assert conformed values for swell_2
+    assert payload_swell2["point"]["speed"] == 1.1
+    assert payload_swell2["point"]["direction"] == 95.0
+    assert payload_swell2["point"]["period"] == 7.5
 
 

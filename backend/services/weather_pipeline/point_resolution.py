@@ -400,6 +400,24 @@ class PointResolutionService:
                             variables=variables
                         )
                         raw_point = raw_points[0] if raw_points else None
+                        
+                        # Verify if the requested layer variables are completely masked/null
+                        if raw_point and "hourly" in raw_point:
+                            if layer.lower() == "waves":
+                                speed_key = "wave_height"
+                            elif layer.lower() == "swell_1":
+                                speed_key = "swell_wave_height"
+                            elif layer.lower() == "swell_2":
+                                speed_key = "secondary_swell_wave_height"
+                            elif layer.lower() == "wind_waves":
+                                speed_key = "wind_wave_height"
+                            else:
+                                speed_key = "wave_height"
+                            
+                            vals = raw_point["hourly"].get(speed_key, [])
+                            if not vals or all(v is None for v in vals):
+                                logger.info(f"[Copernicus Point] Native data for {layer} at ({lat}, {lng}) is completely masked. Triggering GFS fallback.")
+                                raw_point = None
                     except Exception as ex:
                         logger.warning(f"[Copernicus Point] Native fetch failed or unavailable: {ex}. Falling back to GFS point.")
                         raw_point = None
@@ -425,7 +443,7 @@ class PointResolutionService:
                         elif layer.lower() == "swell_1":
                             layer_vars = ("swell_wave_height", "swell_wave_direction", "swell_wave_period")
                         elif layer.lower() == "swell_2":
-                            if model.upper() == "ICON" or (model.upper() == "EURO" and is_fallback_active):
+                            if model.upper() == "ICON":
                                 layer_vars = ("swell_wave_height", "swell_wave_direction", "swell_wave_period")
                             else:
                                 layer_vars = ("secondary_swell_wave_height", "secondary_swell_wave_direction", "secondary_swell_wave_period")
