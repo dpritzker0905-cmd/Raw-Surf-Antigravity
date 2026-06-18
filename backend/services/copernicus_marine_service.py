@@ -326,13 +326,13 @@ def _fetch_sync(
                 capture_output=True,
                 text=True,
                 check=False,
-                timeout=22.0
+                timeout=12.0
             )
             if result.returncode != 0:
                 raise RuntimeError(f"Fetcher subprocess failed (exit code {result.returncode}): {result.stdout.strip()} | stderr: {result.stderr.strip()}")
         except subprocess.TimeoutExpired as te:
-            logger.error(f"[Copernicus Subprocess API] Fetcher subprocess timed out after 22 seconds: {te}")
-            raise TimeoutError("Copernicus Marine fetcher subprocess timed out after 22 seconds") from te
+            logger.error(f"[Copernicus Subprocess API] Fetcher subprocess timed out after 12 seconds: {te}")
+            raise TimeoutError("Copernicus Marine fetcher subprocess timed out after 12 seconds") from te
         logger.info("[Copernicus Subprocess API] Download completed. Parsing with netCDF4...")
         
         nc = netCDF4.Dataset(temp_file, "r")

@@ -42,7 +42,7 @@ export function useExactPointFetch({
   // snapping key — Includes settledOffset to support backend redirect responses (which only return
   // a single valid time). Since settledOffset changes only when scrubbing finishes or direct timeline
   // click occurs, this prevents network queue saturation during scrubbing while ensuring correct data parity.
-  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${isEuroComponentLayer ? 'EURO_COMPONENTS' : activeLayer}_hr${settledOffset}`;
+  const currentPointKey = `${pointLat ?? ''}_${pointLng ?? ''}_${activeModel}_${activeLayer}_hr${settledOffset}`;
   const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
   const fetchGenRef = useRef(0);
 

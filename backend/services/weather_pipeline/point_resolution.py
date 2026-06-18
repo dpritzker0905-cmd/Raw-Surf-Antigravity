@@ -160,8 +160,13 @@ class PointResolutionService:
 
         if grid_product_id:
             product = await asyncio.to_thread(self.store.load_product, grid_product_id)
+            if product and getattr(product, "layer", "").lower() != layer.lower():
+                logger.warning(f"[Point Resolution] Layer mismatch: loaded product has layer={product.layer}, but requested layer={layer}. Bypassing strict grid lookup.")
+                product = None
+                grid_product_id = None
+
             if not product or not product.grid or not product.grid.vectors:
-                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id, "grid_product_not_found")
+                return make_grid_miss_point_response(model, layer, lat, lng, valid_time_str, grid_product_id or "unknown", "grid_product_not_found")
 
             # Let's ensure coverage_mode is set correctly!
             if not getattr(product, "coverage_mode", None):
@@ -424,7 +429,8 @@ class PointResolutionService:
                     
                     if not raw_point:
                         is_fallback_active = True
-                        raw_point = await self.provider.fetch_point(model="GFS", domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=16)
+                        fallback_model = "EURO" if layer.lower() == "waves" else "GFS"
+                        raw_point = await self.provider.fetch_point(model=fallback_model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=16)
                 else:
                     raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
                 
@@ -707,149 +713,6 @@ class PointResolutionService:
         Unifies conditions retrieval for a spot, checking local dynamic/manifest
         caches first, and falling back to a single upstream point query on miss.
         """
-        from datetime import timedelta
-        now_dt = datetime.now(timezone.utc)
-        
-        # Round current conditions target time to nearest 3 hours
-        current_hour = round(now_dt.hour / 3.0) * 3
-        if current_hour == 24:
-            current_dt = (now_dt + timedelta(days=1)).replace(hour=0, minute=0, second=0, microsecond=0)
-        else:
-            current_dt = now_dt.replace(hour=current_hour, minute=0, second=0, microsecond=0)
-            
-        # 10 daily forecast days
-        forecast_dates = []
-        tomorrow_date = now_dt.date() + timedelta(days=1)
-        for i in range(10):
-            d = tomorrow_date + timedelta(days=i)
-            forecast_dates.append(datetime(d.year, d.month, d.day, 12, 0, 0, tzinfo=timezone.utc))
-            
-        all_dates = [current_dt] + forecast_dates
-        
-        waves_data = {}
-        swell_data = {}
-        cache_misses = False
-        
-        # Try local cache resolution for waves and swell
-        for dt in all_dates:
-            # Waves
-            waves_prod = await self.find_cached_grid_product(model, "marine", "waves", lat, lng, dt)
-            if waves_prod:
-                res = self.sampler.sample_point(waves_prod, lat, lng)
-                waves_data[dt] = {
-                    "wave_height": res.point.speed,
-                    "wave_direction": res.point.direction,
-                    "wave_period": res.point.period
-                }
-            else:
-                cache_misses = True
-                
-            # Swell
-            swell_prod = await self.find_cached_grid_product(model, "marine", "swell_1", lat, lng, dt)
-            if swell_prod:
-                res = self.sampler.sample_point(swell_prod, lat, lng)
-                swell_data[dt] = {
-                    "swell_height": res.point.speed,
-                    "swell_direction": res.point.direction
-                }
-            else:
-                cache_misses = True
+        from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
+        return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days)
 
-        # Fallback to direct point query if any target date was a cache miss
-        if cache_misses:
-            logger.info(f"[Spot conditions] Cache miss for {model} at ({lat}, {lng}). Fetching direct point forecast...")
-            try:
-                raw_point = await self.provider.fetch_point(
-                    model=model, domain="marine", layer="all_marine", lat=lat, lng=lng, forecast_days=forecast_days
-                )
-                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
-                    times = raw_point["hourly"]["time"]
-                    from services.weather_pipeline.normalizer import WeatherNormalizer
-                    
-                    for dt in all_dates:
-                        idx = WeatherNormalizer.find_closest_time_index(times, dt)
-                        if idx is not None:
-                            # Parse waves fallback
-                            if dt not in waves_data:
-                                wave_height = safe_index_get(raw_point["hourly"], "wave_height", idx, 0.0)
-                                wave_dir = safe_index_get(raw_point["hourly"], "wave_direction", idx, 0.0)
-                                wave_per = safe_index_get(raw_point["hourly"], "wave_period", idx, 0.0)
-                                waves_data[dt] = {
-                                    "wave_height": wave_height,
-                                    "wave_direction": wave_dir,
-                                    "wave_period": wave_per
-                                }
-                            # Parse swell fallback
-                            if dt not in swell_data:
-                                swell_height = safe_index_get(raw_point["hourly"], "swell_wave_height", idx, 0.0)
-                                swell_dir = safe_index_get(raw_point["hourly"], "swell_wave_direction", idx, 0.0)
-                                swell_data[dt] = {
-                                    "swell_height": swell_height,
-                                    "swell_direction": swell_dir
-                                }
-            except Exception as e:
-                logger.error(f"[Spot conditions] Upstream point fallback failed for {model} at ({lat}, {lng}): {e}")
-
-        # Local helper for labels
-        def get_local_label(wave_height_ft: float) -> str:
-            if wave_height_ft < 1:
-                return "Flat"
-            elif wave_height_ft < 2:
-                return "Ankle High"
-            elif wave_height_ft < 3:
-                return "Knee High"
-            elif wave_height_ft < 4:
-                return "Waist High"
-            elif wave_height_ft < 5:
-                return "Chest High"
-            elif wave_height_ft < 6:
-                return "Head High"
-            elif wave_height_ft < 8:
-                return "Overhead"
-            elif wave_height_ft < 10:
-                return "Double Overhead"
-            else:
-                return "Triple Overhead+"
-
-        # Construct current conditions response dict
-        current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
-        current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
-        
-        current_wave_height_ft = round(current_waves["wave_height"] * 3.28084, 1) if current_waves["wave_height"] else 0
-        current_swell_height_ft = round(current_swell["swell_height"] * 3.28084, 1) if current_swell["swell_height"] else 0
-        
-        current_conditions = {
-            "wave_height_ft": current_wave_height_ft,
-            "wave_direction": current_waves["wave_direction"],
-            "wave_period": current_waves["wave_period"],
-            "swell_height_ft": current_swell_height_ft,
-            "swell_direction": current_swell["swell_direction"],
-            "label": get_local_label(current_wave_height_ft),
-            "updated_at": datetime.now(timezone.utc).isoformat()
-        }
-        
-        # Construct forecast response list
-        forecast_list = []
-        for dt in forecast_dates:
-            date_str = dt.strftime("%Y-%m-%d")
-            day_waves = waves_data.get(dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
-            day_swell = swell_data.get(dt, {"swell_height": 0.0})
-            
-            max_ft = round(day_waves["wave_height"] * 3.28084, 1) if day_waves["wave_height"] else 0
-            min_ft = round(max_ft * 0.6, 1)
-            swell_max_ft = round(day_swell["swell_height"] * 3.28084, 1) if day_swell["swell_height"] else 0
-            
-            forecast_list.append({
-                "date": date_str,
-                "wave_height_min": min_ft,
-                "wave_height_max": max_ft,
-                "wave_direction": day_waves["wave_direction"],
-                "wave_period": day_waves["wave_period"],
-                "swell_height_ft": swell_max_ft,
-                "label": get_local_label(max_ft)
-            })
-            
-        return {
-            "current_conditions": current_conditions,
-            "forecast": forecast_list
-        }
