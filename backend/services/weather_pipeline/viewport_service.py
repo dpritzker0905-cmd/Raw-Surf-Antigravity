@@ -2,6 +2,7 @@ import os
 import asyncio
 import logging
 import math
+import gc
 from datetime import datetime, timezone
 from typing import Optional, Dict, Any, List
 
@@ -641,6 +642,7 @@ class ViewportService:
             ))
             self.ACTIVE_BG_TASKS[bg_key] = task
 
+            gc.collect()
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
                 return target_normalized_product
             cropped_product = filter_grid_to_bbox(target_normalized_product, get_snapped_bbox(bbox_str, model))
