@@ -402,46 +402,156 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
  */
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   if (model === 'ICON' && layer === 'swell_2') {
+    // ICON/GWAM doesn't provide native swell_2. Synthesize from GFS/EURO blend.
+    // Formula: 60% GFS + 40% EURO weighted average (GFS has broader 384h coverage).
     updateProjectionDiag('marine', {
       activeModel: 'ICON',
       activeLayer: 'swell_2',
       requestedViewportBounds: bounds || snappedBounds,
-      renderable: false,
-      renderDecision: 'unsupported',
-      reason: 'unsupported_model_layer',
+      renderable: true,
+      renderDecision: 'estimated_blend',
+      reason: 'icon_swell_2_gfs_euro_blend',
       timeOffsetHours: hourOffset
     });
-    return {
-      type: 'FeatureCollection',
-      features: [],
-      hourOffset,
-      grid: {
-        vectors: [],
-        bounds: snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
-        cols: 0,
-        rows: 0,
+
+    try {
+      const [gfsResult, euroResult] = await Promise.allSettled([
+        fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, 'swell_2', 'GFS'),
+        fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, 'swell_2', 'EURO')
+      ]);
+
+      const gfsGrid = gfsResult.status === 'fulfilled' ? gfsResult.value : null;
+      const euroGrid = euroResult.status === 'fulfilled' ? euroResult.value : null;
+      const gfsVectors = gfsGrid?.grid?.vectors || [];
+      const euroVectors = euroGrid?.grid?.vectors || [];
+
+      // If both failed, fall back to whichever is available; if neither, return unsupported
+      const primaryVectors = gfsVectors.length > 0 ? gfsVectors : euroVectors;
+      const secondaryVectors = gfsVectors.length > 0 ? euroVectors : [];
+      const primaryGrid = gfsVectors.length > 0 ? gfsGrid?.grid : euroGrid?.grid;
+
+      if (!primaryVectors.length) {
+        // Both models failed — return unsupported
+        return {
+          type: 'FeatureCollection', features: [], hourOffset,
+          grid: {
+            vectors: [], bounds: snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+            cols: 0, rows: 0, timestamp: Date.now(),
+            __sourceModel: 'ICON', __provider: 'none', __gridProvider: 'none',
+            __componentLayer: 'swell_2', __gridSupportsLayer: false,
+            __activeLayerNonzeroCount: 0, __activeLayerMax: 0, __oceanMaskCount: 0,
+            __renderable: false, __unsupportedLayer: true,
+            provider: 'none', hourOffset, nonzeroCount: 0, maxSpeed: 0,
+            renderable: false, status: 'unsupported'
+          },
+          __renderable: false, __unsupportedLayer: true, status: 'unsupported'
+        };
+      }
+
+      // Build secondary lookup for blending (lat/lng → vector index)
+      let secondaryLookup = null;
+      if (secondaryVectors.length > 0) {
+        secondaryLookup = new Map();
+        for (let i = 0; i < secondaryVectors.length; i++) {
+          const sv = secondaryVectors[i];
+          const key = `${(sv.lat * 100) | 0},${(sv.lng * 100) | 0}`;
+          secondaryLookup.set(key, sv);
+        }
+      }
+
+      // Blend: for each primary vector, look up matching secondary and weighted-average
+      const GFS_WEIGHT = gfsVectors.length > 0 && secondaryVectors.length > 0 ? 0.6 : 1.0;
+      const EURO_WEIGHT = 1.0 - GFS_WEIGHT;
+      let maxSpeed = 0, nonzeroCount = 0;
+
+      const blendedVectors = primaryVectors.map(pv => {
+        let speed = pv.speed || 0;
+        let u = pv.u || 0;
+        let v = pv.v || 0;
+        let period = pv.period || 0;
+
+        if (secondaryLookup) {
+          const key = `${(pv.lat * 100) | 0},${(pv.lng * 100) | 0}`;
+          const sv = secondaryLookup.get(key);
+          if (sv && (sv.speed || 0) > 0) {
+            speed = speed * GFS_WEIGHT + (sv.speed || 0) * EURO_WEIGHT;
+            u = u * GFS_WEIGHT + (sv.u || 0) * EURO_WEIGHT;
+            v = v * GFS_WEIGHT + (sv.v || 0) * EURO_WEIGHT;
+            period = period * GFS_WEIGHT + (sv.period || 0) * EURO_WEIGHT;
+          }
+        }
+
+        if (speed > maxSpeed) maxSpeed = speed;
+        if (speed > 0) nonzeroCount++;
+
+        return {
+          lat: pv.lat, lng: pv.lng,
+          speed, u, v, period,
+          is_valid: pv.is_valid !== false
+        };
+      });
+
+      const blendedGrid = {
+        vectors: blendedVectors,
+        bounds: primaryGrid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+        cols: primaryGrid.cols || 0,
+        rows: primaryGrid.rows || 0,
         timestamp: Date.now(),
         __sourceModel: 'ICON',
-        __provider: 'none',
-        __gridProvider: 'none',
+        __provider: 'estimated',
+        __gridProvider: 'gfs_euro_blend',
         __componentLayer: 'swell_2',
-        __gridSupportsLayer: false,
-        __activeLayerNonzeroCount: 0,
-        __activeLayerMax: 0,
-        __oceanMaskCount: 0,
-        __renderable: false,
-        __unsupportedLayer: true,
-        provider: 'none',
+        __gridSupportsLayer: true,
+        __activeLayerNonzeroCount: nonzeroCount,
+        __activeLayerMax: maxSpeed,
+        __oceanMaskCount: primaryGrid.__oceanMaskCount || 0,
+        __renderable: blendedVectors.length > 0,
+        provider: 'estimated',
+        source_dataset: 'estimated_blend',
         hourOffset,
-        nonzeroCount: 0,
-        maxSpeed: 0,
-        renderable: false,
-        status: 'unsupported'
-      },
-      __renderable: false,
-      __unsupportedLayer: true,
-      status: 'unsupported'
-    };
+        nonzeroCount,
+        maxSpeed,
+        renderable: blendedVectors.length > 0,
+        is_estimated: true,
+        isEstimated: true,
+        estimate_basis: {
+          type: 'icon_swell_2_gfs_euro_blend',
+          method: 'weighted_average',
+          gfs_weight: GFS_WEIGHT,
+          euro_weight: EURO_WEIGHT,
+          gfs_vectors: gfsVectors.length,
+          euro_vectors: euroVectors.length,
+          source_model: 'ncep_gfswave025+ecmwf_wam025'
+        }
+      };
+
+      console.log(`[Backend] ICON swell_2 blend: ${blendedVectors.length} vectors (GFS:${gfsVectors.length} EURO:${euroVectors.length}), max:${maxSpeed.toFixed(2)}, nz:${nonzeroCount}`);
+
+      return {
+        type: 'FeatureCollection',
+        features: [],
+        hourOffset,
+        grid: blendedGrid,
+        __renderable: blendedGrid.__renderable,
+        status: 'ok'
+      };
+    } catch (blendErr) {
+      console.error('[Backend] ICON swell_2 blend failed:', blendErr);
+      return {
+        type: 'FeatureCollection', features: [], hourOffset,
+        grid: {
+          vectors: [], bounds: snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+          cols: 0, rows: 0, timestamp: Date.now(),
+          __sourceModel: 'ICON', __provider: 'none', __gridProvider: 'none',
+          __componentLayer: 'swell_2', __gridSupportsLayer: false,
+          __activeLayerNonzeroCount: 0, __activeLayerMax: 0, __oceanMaskCount: 0,
+          __renderable: false, __unsupportedLayer: true,
+          provider: 'none', hourOffset, nonzeroCount: 0, maxSpeed: 0,
+          renderable: false, status: 'unsupported'
+        },
+        __renderable: false, __unsupportedLayer: true, status: 'unsupported'
+      };
+    }
   }
 
   const start = Date.now();

@@ -20,13 +20,13 @@
 // ========================================================================
 export var MARINE_GRID_CAPABILITIES = {
   GFS:  { waves: true, swell_1: true, swell_2: true, wind_waves: true },
-  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true },
+  ICON: { waves: true, swell_1: true, swell_2: 'estimated', wind_waves: true },
   EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true }
 };
 
 export var MARINE_EXACT_CAPABILITIES = {
   GFS:  { waves: true, swell_1: true, swell_2: true, wind_waves: true },
-  ICON: { waves: true, swell_1: true, swell_2: false, wind_waves: true },
+  ICON: { waves: true, swell_1: true, swell_2: 'estimated', wind_waves: true },
   EURO: { waves: true, swell_1: true, swell_2: true, wind_waves: true }
 };
 
