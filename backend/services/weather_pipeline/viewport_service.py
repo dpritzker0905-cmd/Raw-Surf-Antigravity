@@ -375,28 +375,17 @@ class ViewportService:
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
             if model.upper() == "EURO" and domain.lower() == "marine":
-                if is_global_view:
-                    logger.info("[Dynamic Viewport] Global view detected for EURO marine. Diverting to GFS for global coverage.")
-                    raw_data = await self.provider.fetch_grid(
-                        model="GFS",
-                        domain=domain,
-                        layer=fetch_layer,
-                        bbox=bbox_dict,
-                        resolution=resolution,
-                        forecast_days=forecast_days,
-                        precomputed_coords=(lats_coords, lons_coords),
-                        inter_batch_delay=inter_delay
-                    )
-                else:
-                    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
-                    cop_provider = CopernicusProvider()
-                    raw_data = await cop_provider.fetch_grid(
-                        layer=fetch_layer,
-                        bbox=bbox_dict,
-                        resolution=resolution,
-                        forecast_days=forecast_days,
-                        precomputed_coords=(lats_coords, lons_coords)
-                    )
+                from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+                cop_provider = CopernicusProvider()
+                # Cap forecast_days for global views to keep tiled CMEMS downloads fast
+                cop_forecast_days = min(forecast_days, 3) if is_global_view else forecast_days
+                raw_data = await cop_provider.fetch_grid(
+                    layer=fetch_layer,
+                    bbox=bbox_dict,
+                    resolution=resolution,
+                    forecast_days=cop_forecast_days,
+                    precomputed_coords=(lats_coords, lons_coords)
+                )
             else:
                 raw_data = await self.provider.fetch_grid(
                     model=fetch_model,
@@ -517,7 +506,7 @@ class ViewportService:
 
                 normalized = await self.normalizer.normalize_async(
                     model=model,
-                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine" and not is_global_view) else "open-meteo",
+                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
                     domain=domain,
                     layer=target_layer,
                     raw_results=raw_list,
@@ -538,17 +527,7 @@ class ViewportService:
                         "source_model": "dwd_icon"
                     }
 
-                # Mark EURO marine global view as estimated (actual data from GFS via Open-Meteo)
-                if normalized and model.upper() == "EURO" and domain.lower() == "marine" and is_global_view:
-                    normalized.is_estimated = True
-                    normalized.is_forecast_authoritative = False
-                    normalized.estimate_basis = {
-                        "type": "gfs_global_coverage_fallback",
-                        "native_model": "ecmwf_wam",
-                        "method": "gfs_noaa_substitution",
-                        "source_model": "gfs_wavewatch3",
-                        "reason": "copernicus_bbox_limit_exceeded"
-                    }
+
 
                 if not normalized:
                     if target_layer == layer.lower():

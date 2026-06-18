@@ -213,6 +213,84 @@ async def fetch_euro_marine(
     return results
 
 
+def _fetch_tiled_sync(
+    latitudes: List[float],
+    longitudes: List[float],
+    forecast_days: int,
+    variables: Optional[List[str]] = None,
+) -> List[dict]:
+    """
+    Fetch Copernicus data for large bounding boxes by splitting into 25°×50° tiles.
+    Each tile is processed sequentially via _fetch_sync to keep memory usage constant
+    (one NetCDF file in memory at a time).
+    """
+    import math
+    import time
+
+    start_total = time.time()
+    TILE_LAT = 25.0
+    TILE_LON = 50.0
+
+    # Cap forecast_days for tiles to keep each NetCDF download fast
+    tile_forecast_days = min(forecast_days, 3)
+
+    # Group coordinate indices by spatial tile
+    tiles = {}
+    for i, (lat, lon) in enumerate(zip(latitudes, longitudes)):
+        tile_key = (math.floor(lat / TILE_LAT), math.floor(lon / TILE_LON))
+        tiles.setdefault(tile_key, []).append(i)
+
+    logger.info(
+        f"[Copernicus Tiled] Splitting {len(latitudes)} points into {len(tiles)} tiles "
+        f"(forecast_days={tile_forecast_days}, tile_size={TILE_LAT}°x{TILE_LON}°)"
+    )
+
+    all_results = [None] * len(latitudes)
+    tiles_ok = 0
+    tiles_failed = 0
+
+    for tile_key, indices in tiles.items():
+        tile_lats = [latitudes[i] for i in indices]
+        tile_lons = [longitudes[i] for i in indices]
+
+        try:
+            tile_results = _fetch_sync(tile_lats, tile_lons, tile_forecast_days, variables)
+            if tile_results:
+                for j, idx in enumerate(indices):
+                    if j < len(tile_results):
+                        all_results[idx] = tile_results[j]
+                tiles_ok += 1
+            else:
+                tiles_failed += 1
+                logger.warning(f"[Copernicus Tiled] Tile {tile_key} returned empty results ({len(indices)} pts)")
+        except Exception as e:
+            tiles_failed += 1
+            logger.warning(f"[Copernicus Tiled] Tile {tile_key} ({len(indices)} pts) failed: {e}")
+            # Create empty result stubs for failed tile points so coordinate ordering is preserved
+            for idx in indices:
+                all_results[idx] = {
+                    "latitude": latitudes[idx],
+                    "longitude": longitudes[idx],
+                    "generationtime_ms": 0,
+                    "utc_offset_seconds": 0,
+                    "timezone": "GMT",
+                    "timezone_abbreviation": "GMT",
+                    "elevation": 0,
+                    "__provider": "copernicus",
+                    "hourly_units": {"time": "iso8601"},
+                    "hourly": {"time": []},
+                }
+
+    elapsed = time.time() - start_total
+    logger.info(
+        f"[Copernicus Tiled] Complete: {tiles_ok}/{tiles_ok + tiles_failed} tiles OK, "
+        f"{len([r for r in all_results if r is not None])} results in {elapsed:.1f}s"
+    )
+
+    results = [r for r in all_results if r is not None]
+    return results if results else None
+
+
 def _fetch_sync(
     latitudes: List[float],
     longitudes: List[float],
@@ -251,10 +329,12 @@ def _fetch_sync(
 
     bbox_lat_range = lat_max - lat_min
     bbox_lon_range = lon_max - lon_min
-    if bbox_lat_range > 30 or bbox_lon_range > 60:
-        raise ValueError(
-            f"Bbox too large: {bbox_lat_range:.1f}° x {bbox_lon_range:.1f}°. Max: 30° x 60°."
+    if bbox_lat_range > 28 or bbox_lon_range > 55:
+        logger.info(
+            f"[Copernicus] Bbox {bbox_lat_range:.1f}\u00b0 x {bbox_lon_range:.1f}\u00b0 exceeds single-request limit. "
+            f"Switching to tiled fetch for {len(latitudes)} points."
         )
+        return _fetch_tiled_sync(latitudes, longitudes, forecast_days, variables)
 
     forecast_days = min(forecast_days, 10)
 
