@@ -517,7 +517,7 @@ class ViewportService:
 
                 normalized = await self.normalizer.normalize_async(
                     model=model,
-                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
+                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine" and not is_global_view) else "open-meteo",
                     domain=domain,
                     layer=target_layer,
                     raw_results=raw_list,
@@ -536,6 +536,18 @@ class ViewportService:
                         "native_horizon_hours": 120,
                         "method": "diurnal_cycle_loop",
                         "source_model": "dwd_icon"
+                    }
+
+                # Mark EURO marine global view as estimated (actual data from GFS via Open-Meteo)
+                if normalized and model.upper() == "EURO" and domain.lower() == "marine" and is_global_view:
+                    normalized.is_estimated = True
+                    normalized.is_forecast_authoritative = False
+                    normalized.estimate_basis = {
+                        "type": "gfs_global_coverage_fallback",
+                        "native_model": "ecmwf_wam",
+                        "method": "gfs_noaa_substitution",
+                        "source_model": "gfs_wavewatch3",
+                        "reason": "copernicus_bbox_limit_exceeded"
                     }
 
                 if not normalized:

@@ -432,27 +432,33 @@ export function useMarineDataFetcher({
               }
             } catch (err) {
               if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-                throw err;
+                // Signal was aborted during model/layer transition — DON'T re-throw.
+                // The pending intent mechanism (line 677) will re-fetch with a fresh signal.
+                console.log('[Marine] Copernicus fetch aborted during transition — will retry via pending intent.');
+                data = null; // Fall through to empty-grid handling below
+              } else {
+                console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
               }
-              console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
-              data = {
-                type: 'FeatureCollection', features: [], hourOffset: timeOffset,
-                grid: {
-                  vectors: [],
-                  bounds,
-                  cols: 0,
-                  rows: 0,
-                  timestamp: Date.now(),
-                  __sourceModel: 'EURO',
-                  __provider: 'backend-weather-service',
-                  __gridProvider: 'backend-weather-service',
-                  __componentLayer: layer,
-                  __gridSupportsLayer: false,
-                  renderable: false,
-                  provider: 'backend-weather-service',
-                  emptyGridWarning: err.message || 'Copernicus grid fetch failed'
-                }
-              };
+              if (!data) {
+                data = {
+                  type: 'FeatureCollection', features: [], hourOffset: timeOffset,
+                  grid: {
+                    vectors: [],
+                    bounds,
+                    cols: 0,
+                    rows: 0,
+                    timestamp: Date.now(),
+                    __sourceModel: 'EURO',
+                    __provider: 'backend-weather-service',
+                    __gridProvider: 'backend-weather-service',
+                    __componentLayer: layer,
+                    __gridSupportsLayer: false,
+                    renderable: false,
+                    provider: 'backend-weather-service',
+                    emptyGridWarning: err.message || 'Copernicus grid fetch failed'
+                  }
+                };
+              }
             }
           } else {
             data = {
