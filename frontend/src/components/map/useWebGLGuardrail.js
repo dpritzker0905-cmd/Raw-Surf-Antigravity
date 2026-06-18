@@ -103,6 +103,15 @@ export function useWebGLGuardrail({
         return;
       }
 
+      // Bypass monitoring during active model/layer transitions — FPS drops are expected
+      // while tile sources reload and the WebGL engine re-uploads textures.
+      if (typeof window !== 'undefined' && window.__MARINE_TRANSITIONING__ === true) {
+        frameCount = 0;
+        lastTime = now;
+        lowFpsCount = 0;
+        return;
+      }
+
       frameCount++;
       const elapsed = now - lastTime;
 

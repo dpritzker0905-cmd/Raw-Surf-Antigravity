@@ -120,8 +120,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       }
 
       // RULE 3: marine must NEVER render empty when active
+      // Suppress during model/layer transitions — data is expected to be temporarily empty
+      // while the pipeline fetches new data from the switched model.
+      const isTransitioning = typeof window !== 'undefined' && window.__MARINE_TRANSITIONING__ === true;
       if (["waves","swell_1","swell_2","wind_waves"].includes(s.activeLayer)) {
-        if (!s.marine?.grid?.vectors?.length) {
+        if (!s.marine?.grid?.vectors?.length && !isTransitioning) {
           violations.push({
             layerId: s.activeLayer,
             type: "MARINE_EMPTY_RENDER",

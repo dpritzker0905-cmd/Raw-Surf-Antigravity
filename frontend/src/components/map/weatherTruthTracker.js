@@ -70,6 +70,28 @@ export function initializeTruthTracker() {
   }
 }
 
+/**
+ * Resets the truth tracker state when the active model or layer changes.
+ * Prevents stale stages from prior model/layer fetches from triggering
+ * false MISMATCH verdicts against the new model's data.
+ */
+export function resetTruthTracker(reason) {
+  if (typeof window === 'undefined') return;
+  initializeTruthTracker();
+  const trace = window.__WEATHER_TRUTH_TRACE__;
+  trace.stages = [];
+  trace.activeTraceId = null;
+  trace.verdict = {
+    status: "PASS",
+    firstMismatchStage: null,
+    failReasons: [],
+    nextPatchTarget: null
+  };
+  if (window.__WEATHER_TRUTH_DEBUG__) {
+    console.log(`[WEATHER_TRUTH] Tracker reset: ${reason}`);
+  }
+}
+
 export function recordTruthStage(stageName, data, file, functionName) {
   initializeTruthTracker();
   

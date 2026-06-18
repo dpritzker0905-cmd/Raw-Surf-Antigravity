@@ -498,6 +498,28 @@ export function useMarineDataFetcher({
         window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: layer, timeOffsetHours: timeOffsetRef.current, provider: data?.grid?.__provider || 'none', gridProvider: data?.grid?.__gridProvider || 'none', httpStatus: data ? 200 : 502, elapsedMs: Date.now() - now, vectorCount: data?.grid?.vectors?.length || 0, nonzeroCount: nzCount, timestamp: new Date().toISOString() };
       }
 
+      // Gate: If the response is an unsupported layer (e.g. ICON+swell_2), preserve existing
+      // heatmap data to avoid clearing the WebGL engine. This prevents the "render returned early"
+      // crash loop when the upstream model doesn't provide this layer.
+      const isUnsupportedLayer = data?.grid?.__unsupportedLayer || data?.__unsupportedLayer || data?.status === 'unsupported';
+      if (isUnsupportedLayer) {
+        console.log(`[Marine] Unsupported layer detected: ${model}/${layer}. Preserving existing heatmap.`);
+        logPipelineEventHelper('unsupported_layer_preserved', { model, layer, hour: timeOffset, reason: data?.grid?.emptyGridWarning || 'unsupported_model_layer' });
+        consecutiveFailuresRef.current = 0; locks.lastHash = viewportHash; locks.lastTime = Date.now();
+        setMarineData(prev => {
+          if (prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0) {
+            return {
+              ...prev,
+              __unsupportedLayerOverride: { model, layer, reason: data?.grid?.emptyGridWarning || 'unsupported_model_layer' }
+            };
+          }
+          // No previous data to hold — commit the empty grid so the HUD reflects the unsupported state
+          lastCommittedSigRef.current = null;
+          return data;
+        });
+        return;
+      }
+
       if (data && (data.features?.length > 0 || data.grid?.vectors?.length > 0 || data.grid?.__skippedReason === 'zoom_too_low' || data.grid?.skippedReason === 'zoom_too_low' || data.grid?.emptyGridWarning)) {
         if (data.grid) {
           if (data.grid.bounds && bounds) {

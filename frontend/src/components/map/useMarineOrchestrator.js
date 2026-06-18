@@ -4,7 +4,7 @@ import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFl
 import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
-import { recordTruthStage } from './weatherTruthTracker';
+import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
@@ -508,6 +508,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
     console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+    resetTruthTracker(`model_switch_to_${activeModel}`);
     if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
     lastCommittedSigRef.current = null;
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
@@ -522,6 +523,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
+    resetTruthTracker(`layer_switch_to_${activeMarineLayer}`);
     if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
     lastCommittedSigRef.current = null;
 
