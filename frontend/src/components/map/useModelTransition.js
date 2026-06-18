@@ -217,6 +217,16 @@ export function useModelTransition({
                   }
                 });
 
+                // Bypass transition rate-limiter if the active source is currently LOADING or unknown (no successful data has been rendered yet)
+                if (typeof window !== 'undefined') {
+                  const isTransitioning = !!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__;
+                  const diag = window.__MARINE_RENDER_SOURCE_DIAG__ || window.__MARINE_DISPLAY_SOURCE_DIAG__;
+                  const noSuccessfulData = !diag || diag.hasData !== true || diag.renderable !== true || diag.heatmapProvider === 'unknown' || diag.heatmapProvider === 'none' || diag.heatmapProvider === 'fallback_safe_zero';
+                  if (isTransitioning || noSuccessfulData) {
+                    allowed = true;
+                  }
+                }
+
                 if (allowed) {
                   console.log('[TRANSITION] Style load safety fallback triggered');
                 } else {
