@@ -406,14 +406,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-        console.log(`[Backend Weather Service] Copernicus grid fetch aborted during transition — returning null for retry.`);
-        return null;
+        throw err;
       }
       console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}.`);
     }
   }
-
-  // --- ICON BACKEND SERVICE REDIRECT ---
   if (getBackendIconMarineFlag() && model === 'ICON' && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');

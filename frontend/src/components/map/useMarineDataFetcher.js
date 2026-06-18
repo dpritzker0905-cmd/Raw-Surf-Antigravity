@@ -432,10 +432,7 @@ export function useMarineDataFetcher({
               }
             } catch (err) {
               if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-                // Signal was aborted during model/layer transition — DON'T re-throw.
-                // The pending intent mechanism (line 677) will re-fetch with a fresh signal.
-                console.log('[Marine] Copernicus fetch aborted during transition — will retry via pending intent.');
-                data = null; // Fall through to empty-grid handling below
+                throw err;
               } else {
                 console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
               }
