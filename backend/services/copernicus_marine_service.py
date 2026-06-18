@@ -338,13 +338,6 @@ def _fetch_sync(
 
     forecast_days = min(forecast_days, 10)
 
-    # On Render (512MB RAM), cap forecast_days to 1 to minimize NetCDF download size
-    # and prevent OOM kills from large copernicusmarine downloads.
-    is_render = os.environ.get("RENDER") == "true"
-    if is_render:
-        forecast_days = min(forecast_days, 1)
-        logger.info(f"[Copernicus] Render environment: capping forecast_days to {forecast_days}")
-
     # CMEMS VARIABLE MAP
     VARIABLE_MAP = [
         ("VHM0",     "wave_height",                    "m"),
@@ -409,8 +402,8 @@ def _fetch_sync(
         # Free memory before spawning subprocess to maximize available RAM on constrained envs
         gc.collect()
 
-        # Use shorter timeout on Render to fail fast rather than OOM
-        subprocess_timeout = 15.0 if is_render else 26.0
+        # Use shorter timeout on Render (512MB RAM) to fail fast rather than OOM
+        subprocess_timeout = 15.0 if os.environ.get("RENDER") == "true" else 26.0
         logger.info(f"[Copernicus Subprocess API] Downloading subset via {sys.executable} -OO {fetcher_script} to {temp_file} (timeout={subprocess_timeout}s)...")
         try:
             result = subprocess.run(

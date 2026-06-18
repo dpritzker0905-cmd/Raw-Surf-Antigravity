@@ -70,12 +70,6 @@ class CopernicusProvider:
         if "wave_height" not in variables:
             variables = list(variables) + ["wave_height"]
 
-        # On Render, cap forecast_days to 1 to minimize download size and prevent OOM
-        import os
-        if os.environ.get("RENDER") == "true":
-            forecast_days = min(forecast_days, 1)
-            logger.info(f"[Copernicus Provider] Render environment: capping forecast_days to {forecast_days}")
-
         logger.info(
             f"[Copernicus Provider] Running in-process background ingestion for EURO/{layer}. "
             f"Bbox: {bbox} | Coords count: {len(lats)} | Variables: {variables}"
