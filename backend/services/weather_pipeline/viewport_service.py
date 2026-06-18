@@ -375,15 +375,28 @@ class ViewportService:
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
             if model.upper() == "EURO" and domain.lower() == "marine":
-                from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
-                cop_provider = CopernicusProvider()
-                raw_data = await cop_provider.fetch_grid(
-                    layer=fetch_layer,
-                    bbox=bbox_dict,
-                    resolution=resolution,
-                    forecast_days=forecast_days,
-                    precomputed_coords=(lats_coords, lons_coords)
-                )
+                if is_global_view:
+                    logger.info("[Dynamic Viewport] Global view detected for EURO marine. Diverting to GFS for global coverage.")
+                    raw_data = await self.provider.fetch_grid(
+                        model="GFS",
+                        domain=domain,
+                        layer=fetch_layer,
+                        bbox=bbox_dict,
+                        resolution=resolution,
+                        forecast_days=forecast_days,
+                        precomputed_coords=(lats_coords, lons_coords),
+                        inter_batch_delay=inter_delay
+                    )
+                else:
+                    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+                    cop_provider = CopernicusProvider()
+                    raw_data = await cop_provider.fetch_grid(
+                        layer=fetch_layer,
+                        bbox=bbox_dict,
+                        resolution=resolution,
+                        forecast_days=forecast_days,
+                        precomputed_coords=(lats_coords, lons_coords)
+                    )
             else:
                 raw_data = await self.provider.fetch_grid(
                     model=fetch_model,
