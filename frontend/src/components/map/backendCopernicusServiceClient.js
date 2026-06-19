@@ -674,7 +674,11 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       is_test_fixture: false,
       layer
     });
-    console.error(`[Backend Weather Service] Copernicus point fetch error: ${err.message}.`);
+    if (err.name === 'AbortError' || err.message?.includes('abort')) {
+      console.log(`[Backend Weather Service] Copernicus point fetch aborted (expected during model/layer switch).`);
+    } else {
+      console.error(`[Backend Weather Service] Copernicus point fetch error: ${err.message}.`);
+    }
     throw err;
   }
 }

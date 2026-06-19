@@ -295,7 +295,11 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       is_estimated: false,
       is_test_fixture: false
     }, model);
-    console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
+    if (err.name === 'AbortError' || err.message?.includes('abort')) {
+      console.log(`[Backend Weather Service] Point fetch aborted (expected during model/layer switch).`);
+    } else {
+      console.error(`[Backend Weather Service] Point fetch error: ${err.message}. Falling back cleanly to standard proxy pipeline.`);
+    }
     throw err;
   }
 }
