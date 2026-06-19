@@ -206,6 +206,8 @@ export function logForensicAudit({
         period: { displayedValue: cards.find(c => c.label === 'Period')?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
         direction: { displayedValue: cards.find(c => c.label === 'Dir' || c.label === degToCompass(waveDir || swell1Dir || swell2Dir || windWaveDir))?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' }
       });
+    } else if (effectiveExactPointStatus === 'exact_success' && !effectiveExactPoint) {
+      console.log(`[Forensic Audit] Temporal hour mismatch (data succeeded but requested hour has no point coverage) — fallbacks ${blockFallbacks ? 'BLOCKED' : 'ACTIVE'}.`);
     } else if (effectiveExactPointStatus === 'exact_loading') {
       console.log(`[Forensic Audit] Exact point is loading — fallbacks ${blockFallbacks ? 'BLOCKED' : 'ACTIVE'}.`);
     } else {
