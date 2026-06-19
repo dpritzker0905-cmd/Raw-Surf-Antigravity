@@ -67,7 +67,7 @@ export function useOpenMeteoTileUrls({
         isScrubbingRef.current = false;
         window.isScrubbingTimeline = false;
         setDebouncedTimeOffsetHours(timeOffsetHours);
-      }, 75);
+      }, 300);
     } else {
       // Single click/tap or slow adjustment: update instantly
       isScrubbingRef.current = false;

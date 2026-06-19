@@ -12,7 +12,7 @@ import { BoundedPointCache } from './BoundedPointCache';
 import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backendWeatherServiceClientCoverage';
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
-import { fetchBackendMarineGridIconExtended } from './backendWeatherServiceClientHelpers';
+import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
 
 
 export { BoundedPointCache };
