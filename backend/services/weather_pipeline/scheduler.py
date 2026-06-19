@@ -35,7 +35,7 @@ class WeatherPipelineScheduler:
         self.normalizer = WeatherNormalizer()
 
     def _get_resolution(self, region: dict, is_render: bool) -> float:
-        return 0.5 if is_render else region["resolution"]
+        return region["resolution"]
 
     async def _fetch_or_mock(self, model: str, domain: str, layer: str,
                              region: dict, resolution: float, forecast_days: int,

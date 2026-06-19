@@ -402,7 +402,6 @@ def find_nearest_manifest_product(
     Returns the ManifestProduct item or None if no product is close enough.
     """
     env = get_env_flags()
-    is_test_or_local = env.get("is_test_env", False) or not env.get("is_render", False)
     candidates = [
         p for p in manifest.products
         if (
@@ -410,7 +409,6 @@ def find_nearest_manifest_product(
             and p.domain.lower() == domain.lower()
             and p.layer.lower() == layer.lower()
             and p.region_id == region_id
-            and (not p.is_estimated or is_test_or_local)
         )
     ]
     if not candidates:
@@ -429,7 +427,6 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
         estimate_euro_grid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, EstimateContractError
     )
     env = get_env_flags()
-    is_test_or_local = env.get("is_test_env", False) or not env.get("is_render", False)
     manifest = await asyncio.to_thread(scheduler.store.get_manifest)
     products_to_save = []
     

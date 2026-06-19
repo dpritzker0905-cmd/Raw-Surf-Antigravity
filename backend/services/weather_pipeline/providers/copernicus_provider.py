@@ -42,17 +42,14 @@ class CopernicusProvider:
         if precomputed_coords is not None:
             lats, lons = precomputed_coords
         else:
-            import os
-            is_render = os.environ.get("RENDER") == "true"
-            
-            target_resolution = 0.5 if is_render else resolution
+            target_resolution = resolution
             lats, lons = OpenMeteoProvider.generate_grid_coords(bbox, target_resolution)
             if not lats:
                 logger.error(f"[Copernicus Provider] Generated empty grid for bbox: {bbox}")
                 return None
 
-            # Cap point count: 200 on Render (512MB RAM) to minimize NetCDF size, 500 otherwise
-            max_points = 200 if is_render else 500
+            # Cap point count to prevent oversized NetCDF requests
+            max_points = 500
             if len(lats) > max_points:
                 logger.warning(
                     f"[Copernicus Provider] Coordinate count {len(lats)} exceeds safe {max_points} point cap. "
