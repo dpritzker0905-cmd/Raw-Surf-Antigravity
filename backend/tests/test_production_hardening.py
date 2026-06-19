@@ -33,7 +33,8 @@ async def test_open_meteo_provider_rejects_mocks_in_production():
     # We patch httpx.AsyncClient.get to raise a RuntimeError. If is_test is False,
     # the provider will attempt to make the real HTTP call instead of returning mock immediately.
     with patch.dict(os.environ, {"NODE_ENV": "production", "LOCAL_TEST_FIXTURE": "true"}):
-        with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Real HTTP call attempted")) as mock_get:
+        with patch("httpx.AsyncClient.get", side_effect=RuntimeError("Real HTTP call attempted")) as mock_get, \
+             patch("httpx.AsyncClient.post", side_effect=RuntimeError("Real HTTP call attempted")) as mock_post:
             with pytest.raises(RuntimeError, match="Real HTTP call attempted"):
                 await provider.fetch_grid(
                     model="GFS",

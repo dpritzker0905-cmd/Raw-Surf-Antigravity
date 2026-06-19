@@ -102,13 +102,22 @@ var MapPageContent = () => {
     setUserLocation, setLocationDenied, startWatchingLocation, stopWatchingLocation,
   } = useUserLocation();
 
+  const memoizedUserLocation = useMemo(() => {
+    if (!userLocation) return null;
+    return {
+      lat: userLocation.lat,
+      lng: userLocation.lng,
+      accuracy: userLocation.accuracy
+    };
+  }, [userLocation?.lat, userLocation?.lng, userLocation?.accuracy]);
+
   const {
     surfSpots,
     livePhotographers,
     featuredPhotographers,
     loading,
     fetchLivePhotographers,
-  } = useMapData(user?.id, userLocation);
+  } = useMapData(user?.id, memoizedUserLocation);
 
   const {
     goLiveSpotId,
@@ -141,10 +150,10 @@ var MapPageContent = () => {
 
   const effectiveLocation = useMemo(() => {
     // Check GPS location first
-    if (userLocation?.lat && userLocation?.lng && 
-        !isNaN(userLocation.lat) && !isNaN(userLocation.lng) &&
-        isFinite(userLocation.lat) && isFinite(userLocation.lng)) {
-      return { ...userLocation, source: 'gps' };
+    if (memoizedUserLocation?.lat && memoizedUserLocation?.lng && 
+        !isNaN(memoizedUserLocation.lat) && !isNaN(memoizedUserLocation.lng) &&
+        isFinite(memoizedUserLocation.lat) && isFinite(memoizedUserLocation.lng)) {
+      return { ...memoizedUserLocation, source: 'gps' };
     }
     if (ipLocation?.lat && ipLocation?.lng &&
         !isNaN(ipLocation.lat) && !isNaN(ipLocation.lng) &&
@@ -152,12 +161,12 @@ var MapPageContent = () => {
       return { ...ipLocation, source: 'ip' };
     }
     return null;
-  }, [userLocation, ipLocation]);
+  }, [memoizedUserLocation, ipLocation]);
 
   const { snappedCoordinates, findNearestSpotToCoord } = useSnappedCoordinates({
     selectedSpot,
     longPressLocation,
-    userLocation,
+    userLocation: memoizedUserLocation,
     mapCenter,
     ipLocation,
     surfSpots,
@@ -213,13 +222,13 @@ var MapPageContent = () => {
         activeModel,
         activeLayers,
         timeOffsetHours,
-        gpsAvailable: !!userLocation,
+        gpsAvailable: !!memoizedUserLocation,
         ipAvailable: !!ipLocation,
         snappedCoordinates,
         timestamp: new Date().toISOString()
       };
     }
-  }, [activeModel, activeLayers, timeOffsetHours, userLocation, ipLocation, snappedCoordinates]);
+  }, [activeModel, activeLayers, timeOffsetHours, memoizedUserLocation, ipLocation, snappedCoordinates]);
 
   const hasWeatherLayer = activeLayers.length > 0;
   const {
@@ -245,8 +254,8 @@ var MapPageContent = () => {
   
   // Nearest spot (derived from user location)
   const nearestSpot = useMemo(() => 
-    userLocation ? findNearestSpot(surfSpots) : null,
-    [userLocation, surfSpots, findNearestSpot]
+    memoizedUserLocation ? findNearestSpot(surfSpots) : null,
+    [memoizedUserLocation, surfSpots, findNearestSpot]
   );
 
   const {
@@ -314,12 +323,12 @@ var MapPageContent = () => {
 
 
   useEffect(() => {
-    if (pendingRequestPro && userLocation) {
+    if (pendingRequestPro && memoizedUserLocation) {
       setShowRequestProModal(true);
       setPendingRequestPro(false);
       setRequestProLocationLoading(false);
     }
-  }, [userLocation, pendingRequestPro]);
+  }, [memoizedUserLocation, pendingRequestPro]);
 
   useEffect(() => {
     if (isImmersiveMode) {
@@ -344,7 +353,7 @@ var MapPageContent = () => {
   } = useMapActions({
     user, mapInstanceRef, selectedSpot,
     trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
-    livePhotographers, surfSpots, userLocation, effectiveLocation,
+    livePhotographers, surfSpots, userLocation: memoizedUserLocation, effectiveLocation,
     showRequestProModal, inviteFriends, currentUserShooting: !!currentLiveSpot,
     isValidLatLng, truncateCoord, handleStartGoLiveFlow: startGoLiveFlow,
     setActiveOnDemandRequests,
@@ -363,7 +372,7 @@ var MapPageContent = () => {
 
   useEffect(() => {
     fetchOnDemandPros();
-  }, [showRequestProModal, userLocation, fetchOnDemandPros]);
+  }, [showRequestProModal, memoizedUserLocation, fetchOnDemandPros]);
 
   useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
 

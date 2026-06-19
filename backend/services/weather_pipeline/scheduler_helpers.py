@@ -366,7 +366,7 @@ async def normalize_and_save_loop(
     success_count = 0
     if products_to_save:
         try:
-            success_count = store.save_products_batch(products_to_save)
+            success_count = await asyncio.to_thread(store.save_products_batch, products_to_save)
         except Exception as e:
             logger.error(f"{log_prefix} Failed to save batch of products: {e}", exc_info=True)
         del products_to_save
@@ -575,7 +575,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
     total_saved = 0
     if products_to_save:
         try:
-            total_saved = scheduler.store.save_products_batch(products_to_save)
+            total_saved = await asyncio.to_thread(scheduler.store.save_products_batch, products_to_save)
         except Exception as e:
             logger.error(f"[Pipeline Scheduler] Failed to save batch of estimated products: {e}", exc_info=True)
             

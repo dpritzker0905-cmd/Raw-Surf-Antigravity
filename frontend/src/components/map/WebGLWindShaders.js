@@ -362,9 +362,9 @@ void main() {
   }
   lng += u_lng_offset;
   float lat = mix(u_dataBounds_min.y, u_dataBounds_max.y, a_grid_uv.y);
-  lat = clamp(lat, -85.051129, 85.051129);
+  float clampedLat = clamp(lat, -85.0511, 85.0511);
   float x = (lng + 180.0) / 360.0;
-  float y = (1.0 - log(tan(radians(lat)) + 1.0 / cos(radians(lat))) / 3.141592653589793) / 2.0;
+  float y = (1.0 - log(tan(radians(clampedLat)) + 1.0 / cos(radians(clampedLat))) / 3.141592653589793) / 2.0;
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;

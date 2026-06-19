@@ -13,6 +13,9 @@ import logger from '../utils/logger';
  * - Auto-refresh polling
  */
 export const useMapData = (userId = null, userLocation = null) => {
+  const userLat = userLocation?.lat;
+  const userLng = userLocation?.lng;
+
   const [surfSpots, setSurfSpots] = useState([]);
   const [surfSpotsGeoJSON, setSurfSpotsGeoJSON] = useState({ type: 'FeatureCollection', features: [] });
   
@@ -43,9 +46,9 @@ export const useMapData = (userId = null, userLocation = null) => {
         params.append('user_id', userId);
       }
       
-      if (userLocation?.lat && userLocation?.lng) {
-        params.append('user_lat', userLocation.lat);
-        params.append('user_lon', userLocation.lng);
+      if (userLat && userLng) {
+        params.append('user_lat', userLat);
+        params.append('user_lon', userLng);
       }
       
       // Viewport filtering for performance
@@ -65,7 +68,7 @@ export const useMapData = (userId = null, userLocation = null) => {
     } catch (error) {
       logger.error('Error fetching surf spots:', error);
     }
-  }, [userId, userLocation]);
+  }, [userId, userLat, userLng]);
 
   const fetchLivePhotographers = useCallback(async () => {
     try {
