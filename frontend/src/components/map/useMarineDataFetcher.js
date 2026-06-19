@@ -715,7 +715,15 @@ export function useMarineDataFetcher({
           // abort→recovery→retry cycle would repeat forever.
           if (abortRecoveryRetryCountRef.current < 3) {
             abortRecoveryRetryCountRef.current += 1;
+            const retryModel = model;
+            const retryLayer = layer;
             setTimeout(() => {
+              // Discard stale retries — if model/layer changed since the abort, this retry
+              // would fetch data for the wrong model, then get aborted by the next trigger.
+              if (activeModelRef.current !== retryModel || (activeMarineLayerRef.current || 'waves') !== retryLayer) {
+                console.log(`[ABORT RECOVERY] Discarding stale retry (target=${retryModel}/${retryLayer}, current=${activeModelRef.current}/${activeMarineLayerRef.current}).`);
+                return;
+              }
               if (enqueueMarineUpdateRef.current && activeMarineLayersRef.current) {
                 console.log(`[ABORT RECOVERY] Scheduling retry fetch after abort recovery (attempt ${abortRecoveryRetryCountRef.current}/3).`);
                 enqueueMarineUpdateRef.current('abort_recovery_retry');
@@ -749,7 +757,9 @@ export function useMarineDataFetcher({
         if (pending) {
           pendingMarineIntentRef.current = null;
           if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
-            setTimeout(() => enqueueMarineUpdateRef.current?.(pending.source + '_pending'), 50);
+            // Cap source name depth to prevent infinite chains like manual_pending_pending_pending...
+            const pendingSource = pending.source.includes('_pending') ? pending.source : pending.source + '_pending';
+            setTimeout(() => enqueueMarineUpdateRef.current?.(pendingSource), 50);
           } else { logPipelineEventHelper('pending_intent_expired', pending); }
         }
       }
@@ -799,7 +809,7 @@ export function useMarineDataFetcher({
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
       const activeSource = locks.activeSource || 'unknown';
-      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub') || src.includes('recovery');
+      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub');
       if (isHighPriority(activeSource) && !isHighPriority(source)) {
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;

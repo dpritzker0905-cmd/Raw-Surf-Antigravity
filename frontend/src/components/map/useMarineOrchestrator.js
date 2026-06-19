@@ -703,7 +703,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     manualMarineTriggerRef.current?.();
-    }); // end coalescing setTimeout
+    }, 300); // end coalescing setTimeout — 300ms window absorbs rapid layer cycling
   }, [activeMarineLayer, mapInstance, setMarineData]);
 
   useEffect(() => {
