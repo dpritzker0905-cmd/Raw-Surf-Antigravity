@@ -574,8 +574,7 @@ uniform mat4 u_matrix;
 uniform vec2 u_dataBounds_min;   // [west, south]
 uniform vec2 u_dataBounds_max;   // [east, north]
 uniform float u_lng_offset;
-varying highp vec2 v_grid_uv;
-varying highp vec2 v_mask_uv;
+varying highp vec2 v_mercator_xy;
 
 float latToMercatorY(float lat) {
   float latClamped = clamp(lat, -85.051129, 85.051129);
@@ -584,8 +583,6 @@ float latToMercatorY(float lat) {
 }
 
 void main() {
-  v_grid_uv = a_grid_uv;
-  
   float lng = u_dataBounds_min.x > u_dataBounds_max.x
     ? u_dataBounds_min.x + a_grid_uv.x * (u_dataBounds_max.x + 360.0 - u_dataBounds_min.x)
     : mix(u_dataBounds_min.x, u_dataBounds_max.x, a_grid_uv.x);
@@ -596,27 +593,18 @@ void main() {
   float x = (lng + 180.0) / 360.0;
   float y = latToMercatorY(lat);
 
+  v_mercator_xy = vec2(x, y);
+
   gl_Position = u_matrix * vec4(x, y, 0.0, 1.0);
   if (gl_Position.w == 0.0) {
     gl_Position.w = 1.0;
   }
-
-  // Calculate normalized Web Mercator coordinates for the mask
-  float mercMinX = (u_dataBounds_min.x + 180.0) / 360.0;
-  float mercMaxX = (u_dataBounds_max.x + 180.0) / 360.0;
-  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-
-  float mask_u = a_grid_uv.x;
-  float mask_v = (mercMaxY - y) / max(mercMaxY - mercMinY, 0.0001);
-  v_mask_uv = vec2(mask_u, mask_v);
 }
 `;
 
 export const HEATMAP_FS = `
 precision mediump float;
-varying highp vec2 v_grid_uv;
-varying highp vec2 v_mask_uv;
+varying highp vec2 v_mercator_xy;
 uniform sampler2D u_waveTexture;
 uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
@@ -626,6 +614,19 @@ uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
+uniform vec2 u_dataBounds_min;   // [west, south]
+uniform vec2 u_dataBounds_max;   // [east, north]
+
+float mercatorYToLat(float y) {
+  float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
+  return atan(sinhVal) * 180.0 / 3.141592653589793;
+}
+
+float latToMercatorY(float lat) {
+  float latClamped = clamp(lat, -85.051129, 85.051129);
+  float rad = latClamped * 3.141592653589793 / 180.0;
+  return (1.0 - log(tan(rad) + 1.0 / cos(rad)) / 3.141592653589793) / 2.0;
+}
 
 float getNonlinearT(float h) {
   // v4.1: Refined breakpoints — 0.5-1.5m gets 35% of color range for best open-ocean differentiation
@@ -688,9 +689,27 @@ vec3 getThemedWaveColor(float h, float theme) {
 }
 
 void main() {
-  float oceanAlpha = texture2D(u_oceanMaskTexture, v_mask_uv).r;
-  vec4 waveData = texture2D(u_waveTexture, v_grid_uv);
-  float depthFactor = texture2D(u_bathymetryTexture, v_grid_uv).r;
+  float lng = v_mercator_xy.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(v_mercator_xy.y);
+
+  float tex_u;
+  if (u_dataBounds_min.x > u_dataBounds_max.x) {
+    float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+    tex_u = mod(lng - u_dataBounds_min.x, 360.0) / max(span, 0.0001);
+  } else {
+    tex_u = (lng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
+  }
+  float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
+  vec2 grid_uv = vec2(tex_u, tex_v);
+
+  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  float mask_v = (mercMaxY - v_mercator_xy.y) / max(mercMaxY - mercMinY, 0.0001);
+  vec2 mask_uv = vec2(tex_u, mask_v);
+
+  float oceanAlpha = texture2D(u_oceanMaskTexture, mask_uv).r;
+  vec4 waveData = texture2D(u_waveTexture, grid_uv);
+  float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;
   float waveHeight = waveData.b * 10.0;
   
   float displayHeight = waveHeight;
@@ -700,7 +719,7 @@ void main() {
 
   if (u_debug_mode > 0.5) {
     if (u_debug_mode < 1.5) { // 'uv' -> 1.0
-      gl_FragColor = vec4(v_grid_uv.x, v_grid_uv.y, 0.0, u_opacity);
+      gl_FragColor = vec4(grid_uv.x, grid_uv.y, 0.0, u_opacity);
       return;
     } else if (u_debug_mode < 2.5) { // 'mask' -> 2.0
       gl_FragColor = vec4(oceanAlpha, oceanAlpha, oceanAlpha, u_opacity);
@@ -709,7 +728,7 @@ void main() {
       gl_FragColor = vec4(0.0, 1.0, 0.0, u_opacity);
       return;
     } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
-      gl_FragColor = vec4(v_grid_uv.x, 1.0 - v_grid_uv.y, 1.0, u_opacity);
+      gl_FragColor = vec4(grid_uv.x, 1.0 - grid_uv.y, 1.0, u_opacity);
       return;
     }
   }
@@ -761,7 +780,7 @@ void main() {
   vec3 baseDepthColor = mix(c_shelf_mid, deepNavy, t3);
 
   // ── LAYER 2: CHLOROPHYLL SATELLITE REALISM LAYER ──
-  float chlDensity = texture2D(u_chlorophyllTexture, v_grid_uv).r;
+  float chlDensity = texture2D(u_chlorophyllTexture, grid_uv).r;
   vec3 chlorophyllGreen = vec3(0.06, 0.42, 0.24);
 
   // ── LAYER 3: SHALLOW WATER SHELF GLOW ──
@@ -801,8 +820,8 @@ void main() {
 
   // Smoothstep edge feathering to dissolve regional bounds softly
   if (u_edgeFeatherEnabled > 0.5) {
-    float edgeDistX = min(v_grid_uv.x, 1.0 - v_grid_uv.x);
-    float edgeDistY = min(v_grid_uv.y, 1.0 - v_grid_uv.y);
+    float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);
+    float edgeDistY = min(grid_uv.y, 1.0 - grid_uv.y);
     float minEdgeDist = min(edgeDistX, edgeDistY);
     float feather = smoothstep(0.0, 0.18, minEdgeDist);
     alpha *= feather;

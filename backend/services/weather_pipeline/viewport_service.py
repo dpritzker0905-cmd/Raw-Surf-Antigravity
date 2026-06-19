@@ -136,11 +136,6 @@ class ViewportService:
             span_lat = 165.0
         coverage_scope = "global_coarse" if is_global_view else "viewport"
 
-        should_fallback_to_gfs = False
-        if model.upper() == "EURO" and domain.lower() == "marine" and (is_global_view or span_lng > 55.0 or span_lat > 28.0):
-            logger.info(f"[Dynamic Viewport] Copernicus query too wide (span_lng={span_lng:.1f}, span_lat={span_lat:.1f}) or global view. Falling back to GFS.")
-            should_fallback_to_gfs = True
-
         target_pts = 200.0 if domain.lower() == "marine" else 400.0
         resolution = choose_adaptive_resolution(span_lng, span_lat, target_pts)
 
@@ -220,7 +215,7 @@ class ViewportService:
                 else:
                     forecast_days = min(forecast_days, 16)
 
-        is_conjoined = (model.upper() in ("GFS", "ICON") or should_fallback_to_gfs) and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         dedup_layer = "all_marine" if is_conjoined else layer
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{dedup_layer.lower()}_{bbox_key_str}_{forecast_days}"
         context = None
@@ -345,16 +340,14 @@ class ViewportService:
                 lats_coords, lons_coords = generate_bbox_coords(west, south, east, north, resolution)
                 coord_count = len(lats_coords)
 
-            logger.info(f"[Dynamic Viewport] Fetching coordinates count: {coord_count} at resolution {resolution}°")
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
             env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.8"))
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
-            effective_model = "GFS" if should_fallback_to_gfs else model
-            inter_delay = env_wind_delay if (effective_model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
-            is_conjoined = (model.upper() in ("GFS", "ICON") or should_fallback_to_gfs) and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-            fetch_model = "GFS" if should_fallback_to_gfs else model
+            inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
+            is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
-            if model.upper() == "EURO" and domain.lower() == "marine" and not should_fallback_to_gfs:
+            if model.upper() == "EURO" and domain.lower() == "marine":
                 from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
                 cop_provider = CopernicusProvider()
                 cop_forecast_days = min(forecast_days, 3) if is_global_view else forecast_days
@@ -483,9 +476,9 @@ class ViewportService:
             target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
             target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
 
-            is_conjoined = (model.upper() in ("GFS", "ICON") or should_fallback_to_gfs) and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             if is_conjoined:
-                conjoined_layers = ("waves", "swell_1", "wind_waves") if (model.upper() == "ICON" and not should_fallback_to_gfs) else ("waves", "swell_1", "swell_2", "wind_waves")
+                conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
             else:
                 conjoined_layers = (layer.lower(),)
             target_normalized_product = None
@@ -495,8 +488,8 @@ class ViewportService:
                 target_viewport_filename = f"{target_cache_key}.json"
 
                 normalized = await self.normalizer.normalize_async(
-                    model="GFS" if should_fallback_to_gfs else model,
-                    provider="open-meteo" if should_fallback_to_gfs else ("copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo"),
+                    model=model,
+                    provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
                     domain=domain,
                     layer=target_layer,
                     raw_results=raw_list,
@@ -507,25 +500,7 @@ class ViewportService:
                     region_id=f"viewport_{bbox_key_str}"
                 )
 
-                if should_fallback_to_gfs and normalized:
-                    from services.copernicus_marine_service import is_test_environment
-                    is_test = is_test_environment()
-                    normalized.model = "EURO"
-                    normalized.provider = "gfs_estimated_fallback" if is_test else "copernicus"
-                    normalized.is_estimated = True
-                    normalized.is_forecast_authoritative = False
-                    if normalized.grid:
-                        if normalized.grid.diagnostics is None:
-                            normalized.grid.diagnostics = {}
-                        normalized.grid.diagnostics["provider"] = normalized.provider
-                        normalized.grid.diagnostics["stale"] = False
-                        normalized.grid.diagnostics["renderable"] = len(normalized.grid.vectors) > 0 and any(v.speed > 0 for v in normalized.grid.vectors)
-                        normalized.grid.diagnostics["model"] = "EURO"
-                        normalized.grid.__sourceModel = "EURO"
-                        normalized.grid.__provider = normalized.provider
-                        normalized.grid.__gridProvider = normalized.provider
-
-                if normalized and not should_fallback_to_gfs and model.upper() == "ICON" and domain.lower() == "wind" and target_idx >= 120:
+                if normalized and model.upper() == "ICON" and domain.lower() == "wind" and target_idx >= 120:
                     normalized.is_estimated = True
                     normalized.is_forecast_authoritative = False
                     normalized.estimate_basis = {

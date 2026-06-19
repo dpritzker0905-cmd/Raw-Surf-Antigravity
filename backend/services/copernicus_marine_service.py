@@ -232,6 +232,7 @@ def _fetch_tiled_sync(
     longitudes: List[float],
     forecast_days: int,
     variables: Optional[List[str]] = None,
+    valid_time: Optional[str] = None,
 ) -> List[dict]:
     """
     Fetch Copernicus data for large bounding boxes by splitting into 25°×50° tiles.
@@ -268,7 +269,7 @@ def _fetch_tiled_sync(
         tile_lons = [longitudes[i] for i in indices]
 
         try:
-            tile_results = _fetch_sync(tile_lats, tile_lons, tile_forecast_days, variables)
+            tile_results = _fetch_sync(tile_lats, tile_lons, tile_forecast_days, variables, valid_time=valid_time)
             if tile_results:
                 for j, idx in enumerate(indices):
                     if j < len(tile_results):
@@ -349,7 +350,7 @@ def _fetch_sync(
             f"[Copernicus] Bbox {bbox_lat_range:.1f}\u00b0 x {bbox_lon_range:.1f}\u00b0 exceeds single-request limit. "
             f"Switching to tiled fetch for {len(latitudes)} points."
         )
-        return _fetch_tiled_sync(latitudes, longitudes, forecast_days, variables)
+        return _fetch_tiled_sync(latitudes, longitudes, forecast_days, variables, valid_time=valid_time)
 
     forecast_days = min(forecast_days, 10)
 
