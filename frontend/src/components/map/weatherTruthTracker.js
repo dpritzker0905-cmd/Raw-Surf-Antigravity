@@ -216,14 +216,15 @@ export function recordTruthStage(stageName, data, file, functionName) {
   let mismatchFromPrevious = false;
   let mismatchReason = null;
 
-  if ((isGfsWaves || isWindLayer) && stageName !== 'pointRequest' && stageName !== 'pointResponse') {
+  if ((isGfsWaves || isWindLayer) && stageName !== 'pointRequest' && stageName !== 'pointResponse' && stageName !== 'infoboxDisplay') {
     const previousStages = trace.stages.filter(s => 
       s.truthTag && 
       s.truthTag.model === truthTag.model && 
       s.truthTag.layer === truthTag.layer &&
       s.truthTag.valid_time === truthTag.valid_time &&
       s.stage !== 'pointRequest' &&
-      s.stage !== 'pointResponse'
+      s.stage !== 'pointResponse' &&
+      s.stage !== 'infoboxDisplay'
     );
     if (previousStages.length > 0) {
       const prev = previousStages[previousStages.length - 1];

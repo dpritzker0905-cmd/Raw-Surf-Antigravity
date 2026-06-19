@@ -798,7 +798,12 @@ export function useMarineDataFetcher({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      return;
+      // Reset locks so the fall-through scheduling path can start the new fetch.
+      // Previously this returned here, which relied on pendingMarineIntentRef to
+      // re-trigger the fetch — but the re-triggered source hit the dedupe window
+      // and got suppressed, leaving EURO/ICON marine layers showing stale data.
+      locks.isFetching = false;
+      locks.activeSource = null;
     }
 
     if (source === 'manual') locks.manualFetchActiveUntil = now + 1500;
