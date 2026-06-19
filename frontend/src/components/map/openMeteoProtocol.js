@@ -593,7 +593,8 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               if (res && res.data) {
                 cacheDecodedTile(tileKey, res);
               }
-              if (isMarine) {
+              const isFallbackActive = params.url && params.url.includes('webgl_fallback=true');
+              if (isMarine && !isFallbackActive) {
                 return getSafeWorkerFallbackResponse(params.url, params.type || 'image');
               }
               return res;

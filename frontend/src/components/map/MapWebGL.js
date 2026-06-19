@@ -94,8 +94,8 @@ const MapWebGL = ({
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].find(l => activeLayers.includes(l));
   }, [activeLayers]);
 
-  const lowSystems = [];
-  const highSystems = [];
+  const lowSystems = useMemo(() => [], []);
+  const highSystems = useMemo(() => [], []);
 
   useMapObservability({
     mapInstance,

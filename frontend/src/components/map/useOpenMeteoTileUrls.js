@@ -509,7 +509,10 @@ export function useOpenMeteoTileUrls({
             closestIdx = Math.max(0, Math.min(maxAllowedIdx, closestIdx));
             if (isNaN(closestIdx)) closestIdx = 0;
 
-            const targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            let targetUrl = trace(layerKey, 'resolve_raster', 'MapWebGL', getUrlForIndex(layerModel, resolvedVar, closestIdx));
+            if (entry.omModelGroup === 'marine' && webglMarineFailed) {
+              targetUrl += (targetUrl.includes('?') ? '&' : '?') + 'webgl_fallback=true';
+            }
             const currentUrls = omTileUrlsRef.current || {};
             const currentActiveSlot = activeSlotsRef.current[layerKey];
 

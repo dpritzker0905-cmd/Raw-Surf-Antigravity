@@ -31,7 +31,8 @@ class CopernicusProvider:
         bbox: Dict[str, float],
         resolution: float = 0.25,
         forecast_days: int = 3,
-        precomputed_coords: Optional[tuple] = None
+        precomputed_coords: Optional[tuple] = None,
+        valid_time: Optional[str] = None
     ) -> Optional[List[Dict[str, Any]]]:
         """
         Asynchronously fetches a coordinate snap-grid from CMEMS using the existing service in-process.
@@ -72,7 +73,7 @@ class CopernicusProvider:
 
         logger.info(
             f"[Copernicus Provider] Running in-process background ingestion for EURO/{layer}. "
-            f"Bbox: {bbox} | Coords count: {len(lats)} | Variables: {variables}"
+            f"Bbox: {bbox} | Coords count: {len(lats)} | Variables: {variables} | ValidTime: {valid_time}"
         )
 
         try:
@@ -80,7 +81,8 @@ class CopernicusProvider:
                 latitudes=lats,
                 longitudes=lons,
                 forecast_days=forecast_days,
-                variables=variables
+                variables=variables,
+                valid_time=valid_time
             )
             if results:
                 logger.info(f"[Copernicus Provider] In-process grid fetch succeeded, read {len(results)} points.")

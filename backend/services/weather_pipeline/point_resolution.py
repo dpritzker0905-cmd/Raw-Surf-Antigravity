@@ -402,7 +402,8 @@ class PointResolutionService:
                             latitudes=[lat],
                             longitudes=[lng],
                             forecast_days=point_forecast_days,
-                            variables=variables
+                            variables=variables,
+                            valid_time=valid_time_str
                         )
                         raw_point = raw_points[0] if raw_points else None
                         

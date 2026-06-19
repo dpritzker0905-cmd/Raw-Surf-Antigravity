@@ -174,6 +174,7 @@ async def fetch_euro_marine(
     longitudes: List[float],
     forecast_days: int = 3,
     variables: Optional[List[str]] = None,
+    valid_time: Optional[str] = None,
 ) -> List[dict]:
     """
     Fetch EURO marine wave data from Copernicus Marine Service.
@@ -187,7 +188,7 @@ async def fetch_euro_marine(
     rounded_lons = tuple(round(lon, 2) for lon in longitudes)
     sorted_vars = tuple(sorted(variables)) if variables else None
     
-    cache_key = (rounded_lats, rounded_lons, forecast_days, sorted_vars)
+    cache_key = (rounded_lats, rounded_lons, forecast_days, sorted_vars, valid_time)
     
     now = time.time()
     if cache_key in _point_cache:
@@ -201,7 +202,7 @@ async def fetch_euro_marine(
     # Run the blocking Copernicus fetch in a thread pool
     loop = asyncio.get_event_loop()
     results = await loop.run_in_executor(
-        None, _fetch_sync, latitudes, longitudes, forecast_days, variables
+        None, _fetch_sync, latitudes, longitudes, forecast_days, variables, valid_time
     )
     
     if results and len(results) > 0:
@@ -296,6 +297,7 @@ def _fetch_sync(
     longitudes: List[float],
     forecast_days: int,
     variables: Optional[List[str]] = None,
+    valid_time: Optional[str] = None,
 ) -> List[dict]:
     """Synchronous Copernicus fetch using copernicusmarine and netCDF4 in-process (no subprocess) to avoid fork OOMs."""
     import tempfile
@@ -366,8 +368,20 @@ def _fetch_sync(
         fetch_vars = COPERNICUS_VARS
 
     now_dt = datetime.now(timezone.utc)
-    start_time_dt = now_dt - timedelta(hours=6)
-    end_time_dt = now_dt + timedelta(days=forecast_days)
+    if valid_time:
+        try:
+            iso_str = valid_time.replace("Z", "+00:00")
+            target_dt = datetime.fromisoformat(iso_str)
+            start_time_dt = target_dt - timedelta(hours=3)
+            end_time_dt = target_dt + timedelta(hours=3)
+            logger.info(f"[Copernicus Time Window] Restricted query around valid_time={valid_time}: {start_time_dt} to {end_time_dt}")
+        except Exception as te:
+            logger.error(f"[Copernicus Time Window] Failed to parse valid_time={valid_time}: {te}. Falling back to default window.")
+            start_time_dt = now_dt - timedelta(hours=6)
+            end_time_dt = now_dt + timedelta(days=forecast_days)
+    else:
+        start_time_dt = now_dt - timedelta(hours=6)
+        end_time_dt = now_dt + timedelta(days=forecast_days)
 
     temp_dir = Path(tempfile.gettempdir())
     temp_filename = f"cmems_subset_{int(time.time())}.nc"
@@ -402,8 +416,9 @@ def _fetch_sync(
         # Free memory before spawning subprocess to maximize available RAM on constrained envs
         gc.collect()
 
-        # Use shorter timeout on Render (512MB RAM) to fail fast rather than OOM
-        subprocess_timeout = 15.0 if os.environ.get("RENDER") == "true" else 26.0
+        # If valid_time is provided, it's a client request -> use 25.0s to fail fast before Netlify timeout
+        # Otherwise, it's a background ingestion request -> allow up to 180s (3 minutes) for large subsets
+        subprocess_timeout = 25.0 if valid_time else 180.0
         logger.info(f"[Copernicus Subprocess API] Downloading subset via {sys.executable} -OO {fetcher_script} to {temp_file} (timeout={subprocess_timeout}s)...")
         try:
             result = subprocess.run(

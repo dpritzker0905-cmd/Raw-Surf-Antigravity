@@ -239,7 +239,7 @@ class ViewportService:
                 else:
                     forecast_days = min(forecast_days, 16)
 
-        is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         dedup_layer = "all_marine" if is_conjoined else layer
         request_dedup_key = f"{model.lower()}_{domain.lower()}_{dedup_layer.lower()}_{bbox_key_str}_{forecast_days}"
         context = None
@@ -372,7 +372,7 @@ class ViewportService:
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
 
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
-            is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
             if model.upper() == "EURO" and domain.lower() == "marine":
@@ -391,7 +391,8 @@ class ViewportService:
                             bbox=bbox_dict,
                             resolution=resolution,
                             forecast_days=cop_forecast_days,
-                            precomputed_coords=(lats_coords, lons_coords)
+                            precomputed_coords=(lats_coords, lons_coords),
+                            valid_time=valid_time_str
                         ),
                         timeout=cop_timeout
                     )
@@ -505,7 +506,7 @@ class ViewportService:
             target_t_str_with_z = target_t_str if target_t_str.endswith("Z") else target_t_str + "Z"
             target_dt_actual = datetime.fromisoformat(target_t_str_with_z.replace("Z", "+00:00"))
 
-            is_conjoined = model.upper() in ("GFS", "EURO", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             if is_conjoined:
                 conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
             else:
