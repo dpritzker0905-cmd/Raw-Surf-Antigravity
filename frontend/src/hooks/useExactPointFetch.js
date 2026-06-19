@@ -97,7 +97,6 @@ export function useExactPointFetch({
 
     if (!pointLat || !pointLng || !isExactPointRequired) {
       setExactPointResponse(null);
-      setExactPoint(null);
       setExactPointStatus('idle');
       return;
     }
@@ -123,7 +122,6 @@ export function useExactPointFetch({
 
     if (!isUserExplicitSelection && !hasGrid) {
       setExactPointResponse(null);
-      setExactPoint(null);
       setExactPointStatus('idle');
       return;
     }
@@ -131,7 +129,6 @@ export function useExactPointFetch({
     if (!isUserExplicitSelection && typeof isInCooldown === 'function' && isInCooldown('marine')) {
       console.log("[Forecast] Suppressing background snap prewarm because marine fetch is cooling down/failing");
       setExactPointResponse(null);
-      setExactPoint(null);
       setExactPointStatus('idle');
       return;
     }
@@ -142,13 +139,11 @@ export function useExactPointFetch({
     if (isCooling && !isCached) {
       console.log("[Forecast] Suppressing exact-point fetch because marine is cooling down and no cache is available.");
       setExactPointResponse(null);
-      setExactPoint(null);
       setExactPointStatus('rate_limited');
       return;
     }
 
     setExactPointResponse(null);
-    setExactPoint(null);
     setExactPointStatus('exact_loading');
 
     if (exactPointFetchRef.current) exactPointFetchRef.current.cancelled = true;

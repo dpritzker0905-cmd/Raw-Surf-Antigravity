@@ -1,11 +1,13 @@
 import {
-  ADVECT_VS,
-  ADVECT_FS,
-  DRAW_VS,
-  DRAW_FS,
   HEATMAP_VS,
   HEATMAP_FS
 } from './WebGLMarineShaders';
+import {
+  ADVECT_VS,
+  ADVECT_FS,
+  DRAW_VS,
+  DRAW_FS
+} from './WebGLMarineParticleShaders';
 import {
   createShader,
   createProgram

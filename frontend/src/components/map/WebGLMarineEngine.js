@@ -6,14 +6,6 @@
  * Strictly conforms to WebGL State Isolation Protocol and is < 600 lines of code.
  */
 
-import {
-  ADVECT_VS,
-  ADVECT_FS,
-  DRAW_VS,
-  DRAW_FS,
-  HEATMAP_VS,
-  HEATMAP_FS
-} from './WebGLMarineShaders';
 import { recordTruthStage } from './weatherTruthTracker';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 
