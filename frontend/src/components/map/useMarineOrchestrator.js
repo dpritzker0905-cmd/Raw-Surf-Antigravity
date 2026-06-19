@@ -7,6 +7,9 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 
+// Module-level scrub log throttle (max once per 2s)
+let _lastMarineScrubLogTime = 0;
+
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const timeOffsetRef = useRef(timeOffsetHours);
   const activeModelRef = useRef(activeModel);
@@ -328,7 +331,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         const sig = _marineDataSignature(cachedBackendData, curLayer);
         if (sig && sig !== lastCommittedSigRef.current) {
           const evtType = cachedBackendData.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-          console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+          const _now = Date.now();
+          if (_now - _lastMarineScrubLogTime > 2000) {
+            _lastMarineScrubLogTime = _now;
+            console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+          }
           lastCommittedSigRef.current = sig;
           logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: cachedBackendData.grid?.__renderable });
           marineRevision.current += 1;
@@ -356,26 +363,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           setMarineData(cachedBackendData);
         }
 
-        const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-        const samples = sampleIndices.map(idx => {
-          const v = extractedGrid?.vectors?.[idx];
-          const comp = v?.[curLayer] || v;
-          return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-        });
+        // Fast-path: skip expensive diagnostic construction during active scrub
+        if (!window.isScrubbingTimeline) {
+          const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+          const samples = sampleIndices.map(idx => {
+            const v = extractedGrid?.vectors?.[idx];
+            const comp = v?.[curLayer] || v;
+            return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+          });
 
-        window.__MARINE_SCRUB_DIAG__ = {
-          requestedHour: timeOffsetHours,
-          targetMs: Date.now() + timeOffsetHours * 3600000,
-          selectedApiTimestamp: 'none',
-          selectedIndex: -1,
-          cacheCoverageStart: 'none',
-          cacheCoverageEnd: 'none',
-          forecastDays: 1,
-          contentHash: computeGridContentHash(extractedGrid, curLayer),
-          samples,
-          coverageRejected: false,
-          timestamp: new Date().toISOString()
-        };
+          window.__MARINE_SCRUB_DIAG__ = {
+            requestedHour: timeOffsetHours,
+            targetMs: Date.now() + timeOffsetHours * 3600000,
+            selectedApiTimestamp: 'none',
+            selectedIndex: -1,
+            cacheCoverageStart: 'none',
+            cacheCoverageEnd: 'none',
+            forecastDays: 1,
+            contentHash: computeGridContentHash(extractedGrid, curLayer),
+            samples,
+            coverageRejected: false,
+            timestamp: new Date().toISOString()
+          };
+        }
         // Do NOT cancel pending deferred fetches — they protect against cache-miss hours
         // that would otherwise never be fetched during rapid scrubbing sequences.
         // The deferred fetch has its own staleness check to self-invalidate if stale.
@@ -417,7 +427,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const sig = _marineDataSignature(data, curLayer);
             if (sig && sig !== lastCommittedSigRef.current) {
               const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-              console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+              const _now2 = Date.now();
+              if (_now2 - _lastMarineScrubLogTime > 2000) {
+                _lastMarineScrubLogTime = _now2;
+                console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
+              }
               lastCommittedSigRef.current = sig; logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
               marineRevision.current += 1; data.__commitRevision = marineRevision.current;
               
@@ -426,26 +440,29 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               setMarineData(data);
             }
             
-            const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-            const samples = sampleIndices.map(idx => {
-              const v = extractedGrid?.vectors?.[idx];
-              const comp = v?.[curLayer] || v;
-              return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-            });
+            // Fast-path: skip expensive diagnostic construction during active scrub
+            if (!window.isScrubbingTimeline) {
+              const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
+              const samples = sampleIndices.map(idx => {
+                const v = extractedGrid?.vectors?.[idx];
+                const comp = v?.[curLayer] || v;
+                return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
+              });
 
-            window.__MARINE_SCRUB_DIAG__ = {
-              requestedHour: timeOffsetHours,
-              targetMs: Date.now() + timeOffsetHours * 3600000,
-              selectedApiTimestamp,
-              selectedIndex,
-              cacheCoverageStart: cacheStartStr,
-              cacheCoverageEnd: cacheEndStr,
-              forecastDays: cacheForecastDays,
-              contentHash: computeGridContentHash(extractedGrid, curLayer),
-              samples,
-              coverageRejected,
-              timestamp: new Date().toISOString()
-            };
+              window.__MARINE_SCRUB_DIAG__ = {
+                requestedHour: timeOffsetHours,
+                targetMs: Date.now() + timeOffsetHours * 3600000,
+                selectedApiTimestamp,
+                selectedIndex,
+                cacheCoverageStart: cacheStartStr,
+                cacheCoverageEnd: cacheEndStr,
+                forecastDays: cacheForecastDays,
+                contentHash: computeGridContentHash(extractedGrid, curLayer),
+                samples,
+                coverageRejected,
+                timestamp: new Date().toISOString()
+              };
+            }
             // Do NOT cancel pending deferred fetches — same rationale as backend cache hit path.
             return;
           }
@@ -481,21 +498,28 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
     }
 
-    window.__MARINE_SCRUB_DIAG__ = {
-      requestedHour: timeOffsetHours,
-      targetMs: Date.now() + timeOffsetHours * 3600000,
-      selectedApiTimestamp,
-      selectedIndex,
-      cacheCoverageStart: cacheStartStr,
-      cacheCoverageEnd: cacheEndStr,
-      forecastDays: cacheForecastDays,
-      contentHash: 0,
-      samples: [],
-      coverageRejected,
-      timestamp: new Date().toISOString()
-    };
+    // Skip diagnostic construction during active scrub — only update on settle
+    if (!window.isScrubbingTimeline) {
+      window.__MARINE_SCRUB_DIAG__ = {
+        requestedHour: timeOffsetHours,
+        targetMs: Date.now() + timeOffsetHours * 3600000,
+        selectedApiTimestamp,
+        selectedIndex,
+        cacheCoverageStart: cacheStartStr,
+        cacheCoverageEnd: cacheEndStr,
+        forecastDays: cacheForecastDays,
+        contentHash: 0,
+        samples: [],
+        coverageRejected,
+        timestamp: new Date().toISOString()
+      };
+    }
 
-    console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Suppressing network fetch while scrubbing; safety net will fetch on settle.`);
+    const _now3 = Date.now();
+    if (_now3 - _lastMarineScrubLogTime > 2000) {
+      _lastMarineScrubLogTime = _now3;
+      console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Suppressing network fetch while scrubbing; safety net will fetch on settle.`);
+    }
     marineFetchLocksRef.current.lastHash = null;
     if (!window.isScrubbingTimeline) {
       if (updateMarineGridRef.current) {

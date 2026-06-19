@@ -173,8 +173,8 @@ export function useOpenMeteoTileUrls({
         if (isLoaded || isTransparent || isTimeout) {
           const transitionKey = `${layerKey}-undefined-${targetSlot}-${activeModel}`;
           const nowMs = Date.now();
-          if (lastTransitionKey === transitionKey && (nowMs - lastTransitionTimestamp) < 300) {
-            console.log(`[TRANSITION] Skip duplicate transition for key: ${transitionKey} within 300ms`);
+          if (lastTransitionKey === transitionKey && (nowMs - lastTransitionTimestamp) < 500) {
+            console.log(`[TRANSITION] Skip duplicate transition for key: ${transitionKey} within 500ms`);
             return;
           }
           lastTransitionKey = transitionKey;
@@ -263,19 +263,43 @@ export function useOpenMeteoTileUrls({
     }, 50);
   }, [runTransitionsAudit]);
 
+  // Throttled variant for high-frequency sourcedata events (max once per 100ms)
+  const lastSourcedataCheckRef = useRef(0);
+  const sourcedataThrottleRef = useRef(null);
+  const throttledCheckTransitions = useCallback(() => {
+    const now = Date.now();
+    if (now - lastSourcedataCheckRef.current < 100) {
+      // Already scheduled or recently fired — skip
+      if (!sourcedataThrottleRef.current) {
+        sourcedataThrottleRef.current = setTimeout(() => {
+          sourcedataThrottleRef.current = null;
+          lastSourcedataCheckRef.current = Date.now();
+          checkPendingTransitions();
+        }, 100);
+      }
+      return;
+    }
+    lastSourcedataCheckRef.current = now;
+    checkPendingTransitions();
+  }, [checkPendingTransitions]);
+
   // Bind MapLibre events and run audit when active/target slots differ
   useEffect(() => {
     if (!mapInstance) return;
 
-    mapInstance.on('sourcedata', checkPendingTransitions);
+    mapInstance.on('sourcedata', throttledCheckTransitions);
     mapInstance.on('idle', checkPendingTransitions);
     checkPendingTransitions();
 
     return () => {
-      mapInstance.off('sourcedata', checkPendingTransitions);
+      mapInstance.off('sourcedata', throttledCheckTransitions);
       mapInstance.off('idle', checkPendingTransitions);
+      if (sourcedataThrottleRef.current) {
+        clearTimeout(sourcedataThrottleRef.current);
+        sourcedataThrottleRef.current = null;
+      }
     };
-  }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions]);
+  }, [mapInstance, activeSlots, omTileUrls, checkPendingTransitions, throttledCheckTransitions]);
 
   // Protocol registration
   useEffect(() => {

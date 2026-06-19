@@ -4,6 +4,9 @@ import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
 
+// Module-level scrub log throttle (max once per 2s)
+let _lastScrubLogTime = 0;
+
 /**
  * Unified Weather Data Engine (v3.9.4)
  * 
@@ -182,7 +185,8 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
-    console.log(`[SCRUB] [WeatherEngine] Timeline scrub: ${timeOffsetHours}h`);
+    // Hard freeze during active drag — defer all work to scrub settle
+    if (window.isScrubbingTimeline) return;
 
     const t = setTimeout(async () => {
       let cacheMiss = false;
@@ -250,7 +254,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           windRevision.current += 1;
         }
       } else if (targetData && targetData.vectors?.length > 0) {
-        console.log(`[CACHE] [WeatherEngine] Timeline data: ${targetData.vectors.length} vectors at +${timeOffsetHours}h`);
+        const _now = Date.now();
+        if (_now - _lastScrubLogTime > 2000) {
+          _lastScrubLogTime = _now;
+          console.log(`[CACHE] [WeatherEngine] Timeline data: ${targetData.vectors.length} vectors at +${timeOffsetHours}h`);
+        }
         windRevision.current += 1;
         commitWindData(targetData);
       }
