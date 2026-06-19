@@ -1,14 +1,219 @@
-/**
- * backendWeatherServiceClientPoint.js
- * 
- * Fetches exact point forecasts from backend weather service.
- */
-
-import { getSharedValidTime, pointCache, POINT_URL } from './backendWeatherServiceClient';
+import { getSharedValidTime, pointCache, POINT_URL, blendDirection, blendPeriod } from './backendWeatherServiceClient';
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 
 export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer = 'waves', model = 'GFS', gridProductIdParam = null, gridBboxParam = null) {
+  if (model === 'ICON' && hourOffset > 168) {
+    if (hourOffset <= 240 && layer === 'swell_2') {
+      // Fall through to unsupported swell_2 response below
+    } else {
+      const validTimeStr = getSharedValidTime(hourOffset, layer, 'ICON');
+      try {
+        if (hourOffset <= 240) {
+          // ICON Persistence + GFS Trend extrapolation
+          const [iconAnchor, gfsAnchor, gfsTarget] = await Promise.all([
+            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'ICON', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'GFS', gridProductIdParam, gridBboxParam)
+          ]);
+
+          if (!iconAnchor || !gfsAnchor || !gfsTarget) {
+            throw new Error('ICON point extended estimate anchors or target GFS are unavailable');
+          }
+
+          const prefix = layer === 'waves' ? 'wave' : (layer === 'swell_1' ? 'swell_wave' : (layer === 'swell_2' ? 'secondary_swell_wave' : 'wind_wave'));
+          const hKey = `${prefix}_height`;
+          const dKey = `${prefix}_direction`;
+          const pKey = `${prefix}_period`;
+
+          const hIconAnchor = iconAnchor.hourly?.[hKey]?.[0] || 0;
+          const pIconAnchor = iconAnchor.hourly?.[pKey]?.[0] || 0;
+          const dIconAnchor = iconAnchor.hourly?.[dKey]?.[0];
+
+          const hGfsAnchor = gfsAnchor.hourly?.[hKey]?.[0] || 0;
+          const hGfsTarget = gfsTarget.hourly?.[hKey]?.[0] || 0;
+          const pGfsAnchor = gfsAnchor.hourly?.[pKey]?.[0] || 0;
+          const pGfsTarget = gfsTarget.hourly?.[pKey]?.[0] || 0;
+          const dGfsTarget = gfsTarget.hourly?.[dKey]?.[0];
+
+          const daysPast = Math.max(0, (hourOffset - 168) / 24);
+          const confidence = Math.max(0.10, 1.0 - 0.15 * daysPast);
+          let wPersist = 0;
+          let wGfs = 0;
+
+          if (daysPast <= 1) {
+            wPersist = 0.70 - 0.30 * daysPast;
+            wGfs = 0.30 + 0.30 * daysPast;
+          } else if (daysPast <= 5) {
+            const pct = (daysPast - 1) / 4;
+            wPersist = 0.40 * (1 - pct);
+            wGfs = 0.60 + 0.40 * pct;
+          } else {
+            wPersist = 0;
+            wGfs = 1.0;
+          }
+          const sum = wPersist + wGfs;
+          const weightPersist = sum > 0 ? wPersist / sum : 0;
+          const weightGfs = sum > 0 ? wGfs / sum : 0;
+
+          const hGfsTrend = Math.max(0, hIconAnchor + (hGfsTarget - hGfsAnchor));
+          const pGfsTrend = pGfsAnchor > 0 ? Math.max(2, pIconAnchor + (pGfsTarget - pGfsAnchor)) : pIconAnchor;
+          const dGfsTrend = dGfsTarget;
+
+          const blendedHeight = Math.max(0, weightPersist * hIconAnchor + weightGfs * hGfsTrend);
+          const blendedPeriod = blendPeriod([pIconAnchor, pGfsTrend], [weightPersist, weightGfs]) || 0;
+          const blendedDirection = blendDirection([hIconAnchor, hGfsTrend], [dIconAnchor, dGfsTrend], [weightPersist, weightGfs]);
+
+          const conformedHourly = {
+            time: [validTimeStr.replace(/\.\d+Z$/, 'Z')],
+            wave_height: [null], wave_direction: [null], wave_period: [null], wave_peak_period: [null],
+            swell_wave_height: [null], swell_wave_direction: [null], swell_wave_period: [null], swell_wave_peak_period: [null],
+            secondary_swell_wave_height: [null], secondary_swell_wave_direction: [null], secondary_swell_wave_period: [null],
+            wind_wave_height: [null], wind_wave_direction: [null], wind_wave_period: [null], wind_wave_peak_period: [null]
+          };
+          conformedHourly[hKey] = [blendedHeight];
+          conformedHourly[dKey] = [blendedDirection];
+          conformedHourly[pKey] = [blendedPeriod];
+
+          if (typeof window !== 'undefined') {
+            window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
+              activeModel: 'ICON',
+              activeLayer: layer,
+              targetHour: hourOffset,
+              sourceProvider: 'estimated',
+              isEstimated: true,
+              estimateConfidence: confidence,
+              iconAnchorTime: 168,
+              gfsTargetTime: hourOffset,
+              weights: { persistence: weightPersist, gfs: weightGfs },
+              timestamp: new Date().toISOString()
+            };
+          }
+
+          return {
+            hourly: conformedHourly,
+            requestedLat: lat,
+            requestedLng: lng,
+            requestedModel: 'ICON',
+            activeLayer: layer,
+            forecastDays: 1,
+            apiModel: 'gwam',
+            provider: 'estimated',
+            source: 'estimated_trend',
+            status: 'exact_success',
+            is_estimated: true,
+            estimate_basis: {
+              type: 'icon_extended_estimate',
+              method: 'persistence_gfs_trend',
+              icon_anchor: hIconAnchor,
+              gfs_anchor: hGfsAnchor,
+              gfs_target: hGfsTarget
+            }
+          };
+        } else {
+          // hourOffset > 240: 60/40 GFS/EURO Weighted Average blend
+          const [gfsTarget, euroTarget] = await Promise.allSettled([
+            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'EURO', gridProductIdParam, gridBboxParam)
+          ]);
+
+          const gfsVal = gfsTarget.status === 'fulfilled' ? gfsTarget.value : null;
+          const euroVal = euroTarget.status === 'fulfilled' ? euroTarget.value : null;
+
+          if (!gfsVal && !euroVal) {
+            throw new Error('ICON extended blend target GFS and EURO are both unavailable');
+          }
+
+          const prefix = layer === 'waves' ? 'wave' : (layer === 'swell_1' ? 'swell_wave' : (layer === 'swell_2' ? 'secondary_swell_wave' : 'wind_wave'));
+          const hKey = `${prefix}_height`;
+          const dKey = `${prefix}_direction`;
+          const pKey = `${prefix}_period`;
+
+          const hGfs = gfsVal?.hourly?.[hKey]?.[0];
+          const dGfs = gfsVal?.hourly?.[dKey]?.[0];
+          const pGfs = gfsVal?.hourly?.[pKey]?.[0];
+
+          const hEuro = euroVal?.hourly?.[hKey]?.[0];
+          const dEuro = euroVal?.hourly?.[dKey]?.[0];
+          const pEuro = euroVal?.hourly?.[pKey]?.[0];
+
+          let blendedHeight = 0;
+          let blendedPeriod = 0;
+          let blendedDirection = 0;
+          let usedGfsWeight = 0.6;
+          let usedEuroWeight = 0.4;
+
+          if (hGfs != null && hEuro != null) {
+            blendedHeight = hGfs * 0.6 + hEuro * 0.4;
+            blendedPeriod = blendPeriod([pGfs, pEuro], [0.6, 0.4]) || 0;
+            blendedDirection = blendDirection([hGfs, hEuro], [dGfs, dEuro], [0.6, 0.4]);
+          } else if (hGfs != null) {
+            blendedHeight = hGfs;
+            blendedPeriod = pGfs;
+            blendedDirection = dGfs;
+            usedGfsWeight = 1.0;
+            usedEuroWeight = 0.0;
+          } else if (hEuro != null) {
+            blendedHeight = hEuro;
+            blendedPeriod = pEuro;
+            blendedDirection = dEuro;
+            usedGfsWeight = 0.0;
+            usedEuroWeight = 1.0;
+          }
+
+          const conformedHourly = {
+            time: [validTimeStr.replace(/\.\d+Z$/, 'Z')],
+            wave_height: [null], wave_direction: [null], wave_period: [null], wave_peak_period: [null],
+            swell_wave_height: [null], swell_wave_direction: [null], swell_wave_period: [null], swell_wave_peak_period: [null],
+            secondary_swell_wave_height: [null], secondary_swell_wave_direction: [null], secondary_swell_wave_period: [null],
+            wind_wave_height: [null], wind_wave_direction: [null], wind_wave_period: [null], wind_wave_peak_period: [null]
+          };
+          conformedHourly[hKey] = [blendedHeight];
+          conformedHourly[dKey] = [blendedDirection];
+          conformedHourly[pKey] = [blendedPeriod];
+
+          if (typeof window !== 'undefined') {
+            window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
+              activeModel: 'ICON',
+              activeLayer: layer,
+              targetHour: hourOffset,
+              sourceProvider: 'estimated',
+              isEstimated: true,
+              estimateConfidence: 0.5,
+              iconAnchorTime: 168,
+              gfsTargetTime: hourOffset,
+              weights: { gfs: usedGfsWeight, euro: usedEuroWeight },
+              timestamp: new Date().toISOString()
+            };
+          }
+
+          return {
+            hourly: conformedHourly,
+            requestedLat: lat,
+            requestedLng: lng,
+            requestedModel: 'ICON',
+            activeLayer: layer,
+            forecastDays: 1,
+            apiModel: 'gwam',
+            provider: 'estimated',
+            source: 'estimated_blend',
+            status: 'exact_success',
+            is_estimated: true,
+            estimate_basis: {
+              type: 'icon_extended_blend',
+              method: 'weighted_average',
+              gfs_weight: usedGfsWeight,
+              euro_weight: usedEuroWeight
+            }
+          };
+        }
+      } catch (err) {
+        console.error('[Backend Weather Client Point] ICON extended point emulation failed:', err);
+        throw err;
+      }
+    }
+  }
+
   if (model === 'ICON' && layer === 'swell_2') {
     return {
       status: 'unsupported',

@@ -19,7 +19,7 @@ import { updateDeprecationDiag } from './forecastDeprecationDiag';
 // Display/no-coverage boundary only; frontend estimator math removed.
 const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
 const DISPLAY_EURO_COMPONENT_MAX_HOURS = 240;
-const DISPLAY_ICON_MAX_HOURS = 168;
+const DISPLAY_ICON_MAX_HOURS = 336;
 
 export { sampleFromMarineGrid };
 

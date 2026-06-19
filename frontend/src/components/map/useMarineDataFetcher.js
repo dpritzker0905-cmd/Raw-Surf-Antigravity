@@ -11,7 +11,14 @@ import {
   DISPLAY_EURO_COMPONENT_MAX_HOURS,
   DISPLAY_ICON_MAX_HOURS,
   getLongitudinalOverlap,
-  checkShouldClearRegionalGrid
+  checkShouldClearRegionalGrid,
+  buildIconFallbackGrid,
+  buildEuroFallbackGrid,
+  buildCopernicusEmptyGrid,
+  getAbortRecoveryGrid,
+  handleRegionalGridClearing,
+  handleCooldownFallback,
+  commitMarineData
 } from './useMarineDataFetcherHelpers';
 
 
@@ -111,7 +118,8 @@ export function useMarineDataFetcher({
     const timeOffset = timeOffsetRef.current;
     const isWaves = layer === 'waves';
     const nativeLimit = isWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
-    const model = (rawModel === 'ICON' && timeOffset > DISPLAY_ICON_MAX_HOURS) ? 'GFS'
+    const model = (rawModel === 'ICON' && timeOffset > 168 && !getBackendIconMarineFlag()) ? 'GFS'
+                : (rawModel === 'ICON' && timeOffset > DISPLAY_ICON_MAX_HOURS) ? 'GFS'
                 : (rawModel === 'EURO' && timeOffset > nativeLimit) ? 'GFS'
                 : rawModel;
     const zoom = mapInstance.getZoom();
@@ -183,90 +191,19 @@ export function useMarineDataFetcher({
       }
 
       phase = 'pre_fetch';
-      // Use actual viewport bounds from the map instance, NOT hardcoded global bounds,
-      // EXCEPT on activation events ('mount', 'load', 'manual') to ensure the heatmap starts unclamped.
-      let bounds = { west: -180, south: -85, east: 180, north: 85 };
       const isActivation = source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
-      if (!isActivation) {
-        try {
-          const mb = mapInstance.getBounds();
-          bounds = { west: mb.getWest(), south: mb.getSouth(), east: mb.getEast(), north: mb.getNorth() };
-        } catch (e) {
-          // Fallback to global if getBounds fails (e.g., map not ready)
-        }
-      }
-
-      if (marineData && marineData.grid && marineData.grid.bounds) {
-        const shouldClear = checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, layer });
-        if (shouldClear) {
-          console.log('[Marine-Bounds-Clear] Clearing stale regional grid from marineData.');
-          setMarineData(null);
-          lastCommittedSigRef.current = null;
-        }
-      }
+      const bounds = handleRegionalGridClearing({
+        mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef
+      });
 
       requestId = ++marineRequestIdRef.current;
       
       if (getRemainingCooldown('marine') > 0 || isInCooldown('marine')) {
-        console.warn('[Orchestrator] 429 rate limit active, skipping network fetch and entering cooldown fallback');
-        consecutiveFailuresRef.current = 3;
-        clearTimeout(cooldownRetryRef.current); cooldownRetryRef.current = null;
-        logPipelineEventHelper('rate_limit_429', { model, layer, hour: timeOffset });
-
-        let cachedData = null;
-        try {
-          const b = mapInstance.getBounds();
-          const vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-          cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds);
-        } catch (e) { console.warn('[Cooldown Fallback] cache check failed:', e.message); }
-
-        if (cachedData?.grid?.vectors?.length > 0) {
-          console.log(`[Cooldown Fallback] Reusing valid cached grid for ${model} layer=${layer} hour=+${timeOffset}h`);
-          const sig = _marineDataSignature(cachedData, layer);
-          if (sig && sig !== lastCommittedSigRef.current) {
-            lastCommittedSigRef.current = sig; marineRevision.current += 1;
-            cachedData.__commitRevision = marineRevision.current;
-            if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
-              window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
-              window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
-                committedProductId: cachedData.grid?.productId || cachedData.productId || null,
-                committedValidTime: cachedData.grid?.validTime || cachedData.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
-                committedBounds: cachedData.grid?.bounds || cachedData.bounds || null,
-                cacheKey: getViewportHash(),
-                cacheSource: 'cooldown_cache',
-                didRejectStaleRegional: true,
-                didClearPreviousRegionalBeforeViewport: true,
-                commitRevision: marineRevision.current,
-                timeOffsetHours: timeOffset
-              };
-              if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
-                window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
-              }
-            }
-            setMarineData(cachedData);
-          }
-          return;
-        }
-        const isCurrentHour = timeOffset === timeOffsetRef.current;
-        if (!window.isScrubbingTimeline && isCurrentHour) {
-          setMarineData(prev => {
-            const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-            if (hasValidData) {
-              return {
-                ...prev,
-                stale: true,
-                grid: {
-                  ...prev.grid,
-                  stale: true
-                }
-              };
-            }
-            lastCommittedSigRef.current = null;
-            return null;
-          });
-        } else {
-          console.log(`[Marine] Cooldown hit during scrubbing/stale (isCurrentHour=${isCurrentHour}), preserving stale data.`);
-        }
+        handleCooldownFallback({
+          mapInstance, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
+          marineRevision, getViewportHash, logPipelineEventHelper, cooldownRetryRef, consecutiveFailuresRef,
+          clearTimeoutFunc: clearTimeout, getModelSafeMarine, _marineDataSignature, getSharedValidTime
+        });
         return;
       }
 
@@ -284,13 +221,10 @@ export function useMarineDataFetcher({
       }
       const fetchIntent = { model: rawModel, layer, hour: timeOffset };
 
-      const isWaves = layer === 'waves';
-      const nativeLimit = isWaves ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
       let data = null;
 
       const safeLoadGrid = async (modelName, targetLayer, targetHour, targetBounds, targetZoom, diagObj) => {
         phase = `load_${modelName}_h${targetHour}`;
-        
         try {
           const cached = getModelSafeMarine(modelName, targetHour, targetLayer, targetBounds);
           if (cached?.grid?.vectors?.length > 0) {
@@ -344,94 +278,19 @@ export function useMarineDataFetcher({
       if (model === 'ICON' && timeOffset > DISPLAY_ICON_MAX_HOURS) {
         const hasBackend = getBackendIconMarineFlag();
         const fallbackReason = hasBackend ? 'icon_no_backend_extended_estimate' : 'backend_required_no_frontend_estimator';
-        if (typeof window !== 'undefined') {
-          updateDeprecationDiag({
-            model: 'ICON',
-            layer,
-            offset: timeOffset,
-            calledFunc: null,
-            called: false,
-            backendAvailable: false,
-            productId: null,
-            fallbackReason
-          });
-        }
-        data = {
-          type: 'FeatureCollection',
-          features: [],
-          grid: {
-            bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
-            cols: 0,
-            rows: 0,
-            vectors: [],
-            emptyGridWarning: "No ICON weather precipitation/marine products found in manifest",
-            productId: null,
-            provider: 'backend-weather-service',
-            is_estimated: false,
-            fallbackReason,
-            renderable: false
-          }
-        };
+        data = buildIconFallbackGrid(bounds, fallbackReason);
       } else if (model === 'EURO' && timeOffset > nativeLimit && !getBackendCopernicusFlag()) {
-        const fallbackReason = 'backend_required_no_frontend_estimator';
-        if (typeof window !== 'undefined') {
-          updateDeprecationDiag({
-            model: 'EURO',
-            layer,
-            offset: timeOffset,
-            calledFunc: null,
-            called: false,
-            backendAvailable: false,
-            productId: null,
-            fallbackReason
-          });
-        }
-        data = {
-          type: 'FeatureCollection',
-          features: [],
-          grid: {
-            bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
-            cols: 0,
-            rows: 0,
-            vectors: [],
-            emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator",
-            productId: null,
-            provider: 'none',
-            is_estimated: false,
-            fallbackReason,
-            renderable: false
-          }
-        };
+        data = buildEuroFallbackGrid(bounds, 'backend_required_no_frontend_estimator');
       } else if (data === null) {
         if (model === 'EURO' && layer && COMPONENT_LAYERS.includes(layer)) {
           if (getBackendCopernicusFlag()) {
             phase = 'standard_fetch_copernicus';
             try {
               data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
-               if (!data || !data.grid || (!data.grid.renderable && (!data.grid.vectors || data.grid.vectors.length === 0))) {
+              if (!data || !data.grid || (!data.grid.renderable && (!data.grid.vectors || data.grid.vectors.length === 0))) {
                 console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
                 const failureReason = data?.grid?.__failureReason || 'unavailable';
-                data = {
-                  type: 'FeatureCollection',
-                  features: [],
-                  hourOffset: timeOffset,
-                  grid: {
-                    vectors: [],
-                    bounds: bounds,
-                    cols: 0,
-                    rows: 0,
-                    timestamp: Date.now(),
-                    __sourceModel: 'EURO',
-                    __provider: 'backend-weather-service',
-                    __gridProvider: 'backend-weather-service',
-                    __componentLayer: layer,
-                    __gridSupportsLayer: false,
-                    __failureReason: failureReason,
-                    renderable: false,
-                    provider: 'backend-weather-service',
-                    emptyGridWarning: `Copernicus ${layer} grid empty/unrenderable: ${failureReason}`
-                  }
-                };
+                data = buildCopernicusEmptyGrid(bounds, timeOffset, layer, failureReason);
               }
             } catch (err) {
               if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -439,43 +298,16 @@ export function useMarineDataFetcher({
               } else {
                 console.error('[Marine] Deployed Copernicus grid fetch failed:', err.message);
               }
-              if (!data) {
-                data = {
-                  type: 'FeatureCollection', features: [], hourOffset: timeOffset,
-                  grid: {
-                    vectors: [],
-                    bounds,
-                    cols: 0,
-                    rows: 0,
-                    timestamp: Date.now(),
-                    __sourceModel: 'EURO',
-                    __provider: 'backend-weather-service',
-                    __gridProvider: 'backend-weather-service',
-                    __componentLayer: layer,
-                    __gridSupportsLayer: false,
-                    renderable: false,
-                    provider: 'backend-weather-service',
-                    emptyGridWarning: err.message || 'Copernicus grid fetch failed'
-                  }
-                };
-              }
+              data = buildCopernicusEmptyGrid(bounds, timeOffset, layer, err.message || 'Copernicus grid fetch failed');
             }
           } else {
             data = {
               type: 'FeatureCollection',
               features: [],
               grid: {
-                vectors: [],
-                bounds,
-                cols: 0,
-                rows: 0,
-                status: "no_coverage",
-                source: "backend_required",
-                provider: "none",
-                is_estimated: false,
-                fallbackReason: "backend_required_no_frontend_estimator",
-                renderable: false,
-                emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator"
+                vectors: [], bounds, cols: 0, rows: 0, status: "no_coverage", source: "backend_required",
+                provider: "none", is_estimated: false, fallbackReason: "backend_required_no_frontend_estimator",
+                renderable: false, emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator"
               }
             };
           }
@@ -504,9 +336,6 @@ export function useMarineDataFetcher({
         window.__MARINE_FETCH_DIAG__ = { activeModel: activeModelRef.current, activeLayer: layer, timeOffsetHours: timeOffsetRef.current, provider: data?.grid?.__provider || 'none', gridProvider: data?.grid?.__gridProvider || 'none', httpStatus: data ? 200 : 502, elapsedMs: Date.now() - now, vectorCount: data?.grid?.vectors?.length || 0, nonzeroCount: nzCount, timestamp: new Date().toISOString() };
       }
 
-      // Gate: If the response is an unsupported layer (e.g. ICON+swell_2), preserve existing
-      // heatmap data to avoid clearing the WebGL engine. This prevents the "render returned early"
-      // crash loop when the upstream model doesn't provide this layer.
       const isUnsupportedLayer = data?.grid?.__unsupportedLayer || data?.__unsupportedLayer || data?.status === 'unsupported';
       if (isUnsupportedLayer) {
         console.log(`[Marine] Unsupported layer detected: ${model}/${layer}. Preserving existing heatmap.`);
@@ -519,7 +348,6 @@ export function useMarineDataFetcher({
               __unsupportedLayerOverride: { model, layer, reason: data?.grid?.emptyGridWarning || 'unsupported_model_layer' }
             };
           }
-          // No previous data to hold — commit the empty grid so the HUD reflects the unsupported state
           lastCommittedSigRef.current = null;
           return data;
         });
@@ -527,88 +355,13 @@ export function useMarineDataFetcher({
       }
 
       if (data && (data.features?.length > 0 || data.grid?.vectors?.length > 0 || data.grid?.__skippedReason === 'zoom_too_low' || data.grid?.skippedReason === 'zoom_too_low' || data.grid?.emptyGridWarning)) {
-        if (data.grid) {
-          if (data.grid.bounds && bounds) {
-            const ew = bounds.west, ee = bounds.east;
-            const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
-            const gw = data.grid.bounds.west, ge = data.grid.bounds.east;
-            const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
-            if (vpWidth > 15.0 && gridWidth < 340.0) {
-              data.grid.__isAcceptableRegional = true;
-            }
-          }
-          const isBackendCopernicus = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
-          const isBackendIcon = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
-          const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
-          const isBackendRedirectActive = (model === 'EURO' && isBackendCopernicus) || (model === 'ICON' && isBackendIcon) || (model === 'GFS' && isBackendGfs);
-          const backendAvailable = isBackendRedirectActive && (data.grid.is_estimated || !data.grid.emptyGridWarning);
-          if (typeof window !== 'undefined') {
-            updateDeprecationDiag({
-              model,
-              layer,
-              offset: timeOffset,
-              calledFunc: null,
-              called: false,
-              backendAvailable: !!backendAvailable,
-              productId: data.grid.productId || null,
-              isEstimated: data.grid.is_estimated || false,
-              fallbackReason: isBackendRedirectActive ? 'backend_redirect_active' : 'within_native_limit_or_unsupported'
-            });
-          }
-        }
-        consecutiveFailuresRef.current = 0; locks.lastHash = viewportHash; locks.lastTime = Date.now();
-        if (typeof clearCooldown === 'function') {
-          clearCooldown('marine');
-        }
-        logPipelineEventHelper('data_committed', { model: fetchIntent.model, layer: fetchIntent.layer, hour: fetchIntent.hour, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
-        isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
-        // After a successful scrub-deferred fetch commits, reset the lastHash so that
-        // the next scrub position (which may also be a cache miss) can trigger a fetch
-        // without being blocked by the viewportHash deduplication window.
-        if (source === 'timeline_scrub' && timeOffsetRef.current !== fetchIntent.hour) {
-          locks.lastHash = null;
-        }
-
-        setMarineData(prev => {
-          const hasNewValidData = data && data.grid && data.grid.vectors && data.grid.vectors.length > 0 && data.grid.renderable !== false;
-          const hasPrevValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
-          const isZoomTooLow = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
-          const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
-          const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
-          const isSameModelAndLayer = prevModel === model && prevLayer === layer;
-          if (!hasNewValidData && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
-            console.log(`[Marine] Ignoring empty/unrenderable commit to preserve stale heatmap data.`);
-            return prev;
-          }
-          const newSig = _marineDataSignature(data, layer);
-          if (newSig && newSig === lastCommittedSigRef.current) { logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig }); return prev; }
-          lastCommittedSigRef.current = newSig; marineRevision.current += 1; data.__commitRevision = marineRevision.current;
-          if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
-            window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
-            window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
-              committedProductId: data.grid?.productId || data.productId || null,
-              committedValidTime: data.grid?.validTime || data.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
-              committedBounds: data.grid?.bounds || data.bounds || null,
-              cacheKey: getViewportHash(),
-              cacheSource: data.__provider || data.grid?.__provider || 'network',
-              didRejectStaleRegional: true,
-              didClearPreviousRegionalBeforeViewport: true,
-              commitRevision: marineRevision.current,
-              timeOffsetHours: timeOffset
-            };
-            if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
-              window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
-            }
-          }
-          return data;
-        });
-        requestAnimationFrame(() => { isCommittingDataRef.current = false; });
-        clearTimeout(internalUpdateTimerRef.current); internalUpdateTimerRef.current = setTimeout(() => { isInternalMapUpdateRef.current = false; }, 800);
-
-        scheduleSWRRevalidation(data, (src) => {
-          if (activeMarineLayersRef.current) {
-            updateMarineGrid(src);
-          }
+        commitMarineData({
+          data, bounds, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
+          marineRevision, getViewportHash, logPipelineEventHelper, consecutiveFailuresRef,
+          isCommittingDataRef, isInternalMapUpdateRef, internalUpdateTimerRef, locks, source,
+          scheduleSWRRevalidation, updateMarineGrid, getBackendCopernicusFlag, getBackendIconMarineFlag,
+          getBackendWeatherFlag, _marineDataSignature, getSharedValidTime, updateDeprecationDiag,
+          setTimeoutFunc: setTimeout, clearTimeoutFunc: clearTimeout
         });
       } else {
         consecutiveFailuresRef.current += 1;
@@ -620,14 +373,7 @@ export function useMarineDataFetcher({
             const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
             const isSameModelAndLayer = prevModel === model && prevLayer === layer;
             if (hasValidData && isSameModelAndLayer) {
-              return {
-                ...prev,
-                stale: true,
-                grid: {
-                  ...prev.grid,
-                  stale: true
-                }
-              };
+              return { ...prev, stale: true, grid: { ...prev.grid, stale: true } };
             }
             lastCommittedSigRef.current = null;
             return null;
@@ -658,68 +404,29 @@ export function useMarineDataFetcher({
           const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
           const isSameModelAndLayer = prevModel === model && prevLayer === layer;
           if (hasValidData && isSameModelAndLayer) {
-            return {
-              ...prev,
-              stale: true,
-              grid: {
-                ...prev.grid,
-                stale: true
-              }
-            };
+            return { ...prev, stale: true, grid: { ...prev.grid, stale: true } };
           }
           lastCommittedSigRef.current = null;
           return null;
         });
       } else if (isAbort && isCurrentHour && !window.isScrubbingTimeline) {
-        // ABORT RECOVERY: If this was an AbortError and there is no previous valid data,
-        // commit a recovery grid so the HUD transitions from permanent LOADING to a
-        // recoverable "no data" state. Without this, the state stays null forever.
         console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Retry count: ${abortRecoveryRetryCountRef.current}/3`);
         const prev = marineDataRef.current;
         const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
         if (hasValidData) {
-          // Previous valid data exists — preserve it (normal abort behavior)
           console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
         } else {
-          // No previous data — commit a recovery grid to break the LOADING deadlock
           console.warn(`[ABORT RECOVERY] No previous data exists. Committing recovery grid to break LOADING deadlock.`);
           lastCommittedSigRef.current = null;
           marineRevision.current += 1;
-          const recoveryGrid = {
-            type: 'FeatureCollection',
-            features: [],
-            __commitRevision: marineRevision.current,
-            __sourceModel: model,
-            __provider: 'abort_recovery',
-            grid: {
-              vectors: [],
-              bounds: { west: -180, south: -80, east: 180, north: 85 },
-              cols: 0,
-              rows: 0,
-              __sourceModel: model,
-              __provider: 'abort_recovery',
-              __gridProvider: 'abort_recovery',
-              __componentLayer: layer,
-              __gridSupportsLayer: false,
-              __renderable: false,
-              __failureReason: 'abort_recovery_no_previous_data',
-              renderable: false,
-              provider: 'abort_recovery',
-              emptyGridWarning: `Fetch aborted during ${phase}. Recovery grid committed to prevent LOADING deadlock.`
-            }
-          };
+          const recoveryGrid = getAbortRecoveryGrid(model, layer, phase, marineRevision.current);
           setMarineData(recoveryGrid);
 
-          // Schedule a retry after a short delay, but cap at 3 retries to prevent infinite loops.
-          // AbortErrors don't increment consecutiveFailuresRef, so without this cap the
-          // abort→recovery→retry cycle would repeat forever.
           if (abortRecoveryRetryCountRef.current < 3) {
             abortRecoveryRetryCountRef.current += 1;
             const retryModel = model;
             const retryLayer = layer;
             setTimeout(() => {
-              // Discard stale retries — if model/layer changed since the abort, this retry
-              // would fetch data for the wrong model, then get aborted by the next trigger.
               if (activeModelRef.current !== retryModel || (activeMarineLayerRef.current || 'waves') !== retryLayer) {
                 console.log(`[ABORT RECOVERY] Discarding stale retry (target=${retryModel}/${retryLayer}, current=${activeModelRef.current}/${activeMarineLayerRef.current}).`);
                 return;
@@ -742,10 +449,6 @@ export function useMarineDataFetcher({
         locks.activeSource = null;
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
-          // Only clear the transitioning flag if no coalesced retry is pending.
-          // When an abort triggers a 150ms coalesced retry, the retry will clear
-          // this flag in its own finally block after the replacement fetch completes.
-          // Clearing it here prematurely would cause false MARINE_EMPTY_RENDER violations.
           if (!timeoutIdRef.current) {
             window.__MARINE_TRANSITIONING__ = false;
           }
@@ -757,7 +460,6 @@ export function useMarineDataFetcher({
         if (pending) {
           pendingMarineIntentRef.current = null;
           if (pending.model === activeModelRef.current && pending.layer === (activeMarineLayerRef.current || 'waves')) {
-            // Cap source name depth to prevent infinite chains like manual_pending_pending_pending...
             const pendingSource = pending.source.includes('_pending') ? pending.source : pending.source + '_pending';
             setTimeout(() => enqueueMarineUpdateRef.current?.(pendingSource), 50);
           } else { logPipelineEventHelper('pending_intent_expired', pending); }

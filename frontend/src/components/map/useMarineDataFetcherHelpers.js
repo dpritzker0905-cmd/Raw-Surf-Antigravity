@@ -1,6 +1,6 @@
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
 export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 240;
-export const DISPLAY_ICON_MAX_HOURS = 168;
+export const DISPLAY_ICON_MAX_HOURS = 336;
 
 export function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -86,3 +86,312 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
   }
   return shouldClear;
 }
+
+export function buildIconFallbackGrid(bounds, fallbackReason) {
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    grid: {
+      bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+      cols: 0,
+      rows: 0,
+      vectors: [],
+      emptyGridWarning: "No ICON weather precipitation/marine products found in manifest",
+      productId: null,
+      provider: 'backend-weather-service',
+      is_estimated: false,
+      fallbackReason,
+      renderable: false
+    }
+  };
+}
+
+export function buildEuroFallbackGrid(bounds, fallbackReason) {
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    grid: {
+      bounds: bounds || { west: -180, south: -85, east: 180, north: 85 },
+      cols: 0,
+      rows: 0,
+      vectors: [],
+      emptyGridWarning: "Backend Copernicus support is absent, no frontend estimator",
+      productId: null,
+      provider: 'none',
+      is_estimated: false,
+      fallbackReason,
+      renderable: false
+    }
+  };
+}
+
+export function buildCopernicusEmptyGrid(bounds, timeOffset, layer, reason) {
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    hourOffset: timeOffset,
+    grid: {
+      vectors: [],
+      bounds: bounds,
+      cols: 0,
+      rows: 0,
+      timestamp: Date.now(),
+      __sourceModel: 'EURO',
+      __provider: 'backend-weather-service',
+      __gridProvider: 'backend-weather-service',
+      __componentLayer: layer,
+      __gridSupportsLayer: false,
+      __failureReason: reason,
+      renderable: false,
+      provider: 'backend-weather-service',
+      emptyGridWarning: `Copernicus ${layer} grid empty/unrenderable: ${reason}`
+    }
+  };
+}
+
+export function getAbortRecoveryGrid(model, layer, phase, marineRevision) {
+  return {
+    type: 'FeatureCollection',
+    features: [],
+    __commitRevision: marineRevision,
+    __sourceModel: model,
+    __provider: 'abort_recovery',
+    grid: {
+      vectors: [],
+      bounds: { west: -180, south: -80, east: 180, north: 85 },
+      cols: 0,
+      rows: 0,
+      __sourceModel: model,
+      __provider: 'abort_recovery',
+      __gridProvider: 'abort_recovery',
+      __componentLayer: layer,
+      __gridSupportsLayer: false,
+      __renderable: false,
+      __failureReason: 'abort_recovery_no_previous_data',
+      renderable: false,
+      provider: 'abort_recovery',
+      emptyGridWarning: `Fetch aborted during ${phase}. Recovery grid committed to prevent LOADING deadlock.`
+    }
+  };
+}
+
+export function handleRegionalGridClearing({ mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef }) {
+  let bounds = { west: -180, south: -85, east: 180, north: 85 };
+  if (!isActivation) {
+    try {
+      const mb = mapInstance.getBounds();
+      bounds = { west: mb.getWest(), south: mb.getSouth(), east: mb.getEast(), north: mb.getNorth() };
+    } catch (e) {
+      // Fallback if map not ready
+    }
+  }
+
+  if (marineData && marineData.grid && marineData.grid.bounds) {
+    const shouldClear = checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, layer });
+    if (shouldClear) {
+      console.log('[Marine-Bounds-Clear] Clearing stale regional grid from marineData.');
+      setMarineData(null);
+      lastCommittedSigRef.current = null;
+    }
+  }
+  return bounds;
+}
+
+export function handleCooldownFallback({
+  mapInstance,
+  model,
+  layer,
+  timeOffset,
+  timeOffsetRef,
+  setMarineData,
+  lastCommittedSigRef,
+  marineRevision,
+  getViewportHash,
+  logPipelineEventHelper,
+  cooldownRetryRef,
+  consecutiveFailuresRef,
+  clearTimeoutFunc,
+  getModelSafeMarine,
+  _marineDataSignature,
+  getSharedValidTime
+}) {
+  console.warn('[Orchestrator] 429 rate limit active, skipping network fetch and entering cooldown fallback');
+  consecutiveFailuresRef.current = 3;
+  if (cooldownRetryRef.current) {
+    clearTimeoutFunc(cooldownRetryRef.current);
+    cooldownRetryRef.current = null;
+  }
+  logPipelineEventHelper('rate_limit_429', { model, layer, hour: timeOffset });
+
+  let cachedData = null;
+  try {
+    const b = mapInstance.getBounds();
+    const vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+    cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds);
+  } catch (e) { console.warn('[Cooldown Fallback] cache check failed:', e.message); }
+
+  if (cachedData?.grid?.vectors?.length > 0) {
+    console.log(`[Cooldown Fallback] Reusing valid cached grid for ${model} layer=${layer} hour=+${timeOffset}h`);
+    const sig = _marineDataSignature(cachedData, layer);
+    if (sig && sig !== lastCommittedSigRef.current) {
+      lastCommittedSigRef.current = sig;
+      marineRevision.current += 1;
+      cachedData.__commitRevision = marineRevision.current;
+      if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
+        window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+        window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
+          committedProductId: cachedData.grid?.productId || cachedData.productId || null,
+          committedValidTime: cachedData.grid?.validTime || cachedData.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
+          committedBounds: cachedData.grid?.bounds || cachedData.bounds || null,
+          cacheKey: getViewportHash(),
+          cacheSource: 'cooldown_cache',
+          didRejectStaleRegional: true,
+          didClearPreviousRegionalBeforeViewport: true,
+          commitRevision: marineRevision.current,
+          timeOffsetHours: timeOffset
+        };
+        if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+          window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+        }
+      }
+      setMarineData(cachedData);
+    }
+    return true; // Handled
+  }
+  const isCurrentHour = timeOffset === timeOffsetRef.current;
+  if (!window.isScrubbingTimeline && isCurrentHour) {
+    setMarineData(prev => {
+      const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+      if (hasValidData) {
+        return {
+          ...prev,
+          stale: true,
+          grid: {
+            ...prev.grid,
+            stale: true
+          }
+        };
+      }
+      lastCommittedSigRef.current = null;
+      return null;
+    });
+  } else {
+    console.log(`[Marine] Cooldown hit during scrubbing/stale (isCurrentHour=${isCurrentHour}), preserving stale data.`);
+  }
+  return true; // Handled
+}
+
+export function commitMarineData({
+  data,
+  bounds,
+  model,
+  layer,
+  timeOffset,
+  timeOffsetRef,
+  setMarineData,
+  lastCommittedSigRef,
+  marineRevision,
+  getViewportHash,
+  logPipelineEventHelper,
+  consecutiveFailuresRef,
+  isCommittingDataRef,
+  isInternalMapUpdateRef,
+  internalUpdateTimerRef,
+  locks,
+  source,
+  scheduleSWRRevalidation,
+  updateMarineGrid,
+  getBackendCopernicusFlag,
+  getBackendIconMarineFlag,
+  getBackendWeatherFlag,
+  _marineDataSignature,
+  getSharedValidTime,
+  updateDeprecationDiag,
+  setTimeoutFunc,
+  clearTimeoutFunc
+}) {
+  if (data.grid) {
+    if (data.grid.bounds && bounds) {
+      const ew = bounds.west, ee = bounds.east;
+      const vpWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+      const gw = data.grid.bounds.west, ge = data.grid.bounds.east;
+      const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+      if (vpWidth > 15.0 && gridWidth < 340.0) {
+        data.grid.__isAcceptableRegional = true;
+      }
+    }
+    const isBackendCopernicus = typeof getBackendCopernicusFlag === 'function' && getBackendCopernicusFlag();
+    const isBackendIcon = typeof getBackendIconMarineFlag === 'function' && getBackendIconMarineFlag();
+    const isBackendGfs = typeof getBackendWeatherFlag === 'function' && getBackendWeatherFlag();
+    const isBackendRedirectActive = (model === 'EURO' && isBackendCopernicus) || (model === 'ICON' && isBackendIcon) || (model === 'GFS' && isBackendGfs);
+    const backendAvailable = isBackendRedirectActive && (data.grid.is_estimated || !data.grid.emptyGridWarning);
+    if (typeof window !== 'undefined') {
+      updateDeprecationDiag({
+        model,
+        layer,
+        offset: timeOffset,
+        calledFunc: null,
+        called: false,
+        backendAvailable: !!backendAvailable,
+        productId: data.grid.productId || null,
+        isEstimated: data.grid.is_estimated || false,
+        fallbackReason: isBackendRedirectActive ? 'backend_redirect_active' : 'within_native_limit_or_unsupported'
+      });
+    }
+  }
+  consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
+  
+  logPipelineEventHelper('data_committed', { model, layer, hour: timeOffset, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
+  isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
+  if (source === 'timeline_scrub' && timeOffsetRef.current !== timeOffset) {
+    locks.lastHash = null;
+  }
+
+  setMarineData(prev => {
+    const hasNewValidData = data && data.grid && data.grid.vectors && data.grid.vectors.length > 0 && data.grid.renderable !== false;
+    const hasPrevValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+    const isZoomTooLow = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
+    const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
+    const prevLayer = prev?.grid?.__componentLayer || prev?.__componentLayer || 'waves';
+    const isSameModelAndLayer = prevModel === model && prevLayer === layer;
+    if (!hasNewValidData && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
+      console.log(`[Marine] Ignoring empty/unrenderable commit to preserve stale heatmap data.`);
+      return prev;
+    }
+    const newSig = _marineDataSignature(data, layer);
+    if (newSig && newSig === lastCommittedSigRef.current) {
+      logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig });
+      return prev;
+    }
+    lastCommittedSigRef.current = newSig;
+    marineRevision.current += 1;
+    data.__commitRevision = marineRevision.current;
+    if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
+      window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
+        committedProductId: data.grid?.productId || data.productId || null,
+        committedValidTime: data.grid?.validTime || data.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
+        committedBounds: data.grid?.bounds || data.bounds || null,
+        cacheKey: getViewportHash(),
+        cacheSource: data.__provider || data.grid?.__provider || 'network',
+        didRejectStaleRegional: true,
+        didClearPreviousRegionalBeforeViewport: true,
+        commitRevision: marineRevision.current,
+        timeOffsetHours: timeOffset
+      };
+      if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
+        window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
+      }
+    }
+    return data;
+  });
+
+  requestAnimationFrame(() => { isCommittingDataRef.current = false; });
+  if (internalUpdateTimerRef.current) clearTimeoutFunc(internalUpdateTimerRef.current);
+  internalUpdateTimerRef.current = setTimeoutFunc(() => { isInternalMapUpdateRef.current = false; }, 800);
+
+  scheduleSWRRevalidation(data, (src) => {
+    updateMarineGrid(src);
+  });
+}
+

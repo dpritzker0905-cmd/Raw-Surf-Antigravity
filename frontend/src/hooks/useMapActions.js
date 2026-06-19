@@ -1,8 +1,4 @@
-/**
- * useMapActions.js - Extracted from MapPage.js
- * Map page handlers: data fetching, location, search.
- * ~340 lines, 11 handlers.
- */
+import { useCallback } from 'react';
 import apiClient from '../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
@@ -27,7 +23,7 @@ const useMapActions = ({
   setUnifiedDrawerOpen,
 }) => {
 
-    const fetchOnDemandPros = async () => {
+    const fetchOnDemandPros = useCallback(async () => {
       if (!showRequestProModal || !userLocation) return;
       
       setOnDemandLoading(true);
@@ -46,9 +42,9 @@ const useMapActions = ({
       } finally {
         setOnDemandLoading(false);
       }
-    };
+    }, [showRequestProModal, userLocation, setOnDemandLoading, setOnDemandPhotographers]);
 
-    const fetchFriends = async () => {
+    const fetchFriends = useCallback(async () => {
       if (!inviteFriends || !user?.id) return;
       
       setFriendsLoading(true);
@@ -68,9 +64,9 @@ const useMapActions = ({
       } finally {
         setFriendsLoading(false);
       }
-    };
+    }, [inviteFriends, user?.id, setFriendsLoading, setFriendsList]);
 
-    const fetchActiveRequests = async () => {
+    const fetchActiveRequests = useCallback(async () => {
       try {
         const response = await apiClient.get(`/dispatch/requests/pending`);
         setActiveOnDemandRequests(response.data || []);
@@ -78,12 +74,25 @@ const useMapActions = ({
         logger.debug('No pending dispatch requests');
         setActiveOnDemandRequests([]);
       }
-    };
+    }, [setActiveOnDemandRequests]);
 
   // Removed Leaflet tracking logic (updateTrackingMarkers, updateUserLocationMarker) 
   // as it is now natively handled by MapWebGL component via react-map-gl
 
-  const handleSpotClick = (spot) => {
+  const fetchActiveShootersAtSpot = useCallback(async (spotId) => {
+    try {
+      // Filter live photographers who are at this spot
+      const shootersAtSpot = livePhotographers.filter(
+        p => p.current_spot_id === spotId || p.spot_id === spotId
+      );
+      setActiveShootersAtSpot(shootersAtSpot);
+    } catch (error) {
+      logger.error('Error fetching active shooters:', error);
+      setActiveShootersAtSpot([]);
+    }
+  }, [livePhotographers, setActiveShootersAtSpot]);
+
+  const handleSpotClick = useCallback((spot) => {
     // Clear any previous drawer state before mounting new one
     if (selectedSpot && selectedSpot.id !== spot.id) {
       // Different spot clicked - reset state
@@ -102,37 +111,24 @@ const useMapActions = ({
     // Open unified drawer instead of old bottom sheet
     setUnifiedDrawerOpen(true);
     setBottomSheetOpen(false);
-  };
+  }, [selectedSpot, setSelectedSpot, setSelectedPhotographer, setActiveShootersAtSpot, setLockedShooterCount, fetchActiveShootersAtSpot, setUnifiedDrawerOpen, setBottomSheetOpen]);
 
-  const fetchActiveShootersAtSpot = async (spotId) => {
-    try {
-      // Filter live photographers who are at this spot
-      const shootersAtSpot = livePhotographers.filter(
-        p => p.current_spot_id === spotId || p.spot_id === spotId
-      );
-      setActiveShootersAtSpot(shootersAtSpot);
-    } catch (error) {
-      logger.error('Error fetching active shooters:', error);
-      setActiveShootersAtSpot([]);
-    }
-  };
-
-  const handleCloseUnifiedDrawer = () => {
+  const handleCloseUnifiedDrawer = useCallback(() => {
     setUnifiedDrawerOpen(false);
     setActiveShootersAtSpot([]);
     setLockedShooterCount(null);
-  };
+  }, [setUnifiedDrawerOpen, setActiveShootersAtSpot, setLockedShooterCount]);
 
-  const handleStartShootingFromDrawer = (spotId, sessionSettings = {}) => {
+  const handleStartShootingFromDrawer = useCallback((spotId, sessionSettings = {}) => {
     handleStartGoLiveFlow(spotId, sessionSettings);
-  };
+  }, [handleStartGoLiveFlow]);
 
-  const handleSwitchLocation = async (newSpotId, sessionSettings = {}) => {
+  const handleSwitchLocation = useCallback(async (newSpotId, sessionSettings = {}) => {
     // End current session first
     if (currentUserShooting) {
       try {
         await apiClient.post(`/photographer-sessions/end`, {
-          photographer_id: user.id
+          photographer_id: user?.id
         });
         setCurrentLiveSpot(null);
       } catch (error) {
@@ -143,9 +139,9 @@ const useMapActions = ({
     }
     // Start new session at new spot with settings
     handleStartGoLiveFlow(newSpotId, sessionSettings);
-  };
+  }, [currentUserShooting, user?.id, setCurrentLiveSpot, handleStartGoLiveFlow]);
 
-  const handlePhotographerClick = (photographer) => {
+  const handlePhotographerClick = useCallback((photographer) => {
     // CRITICAL UX LOGIC: Differentiate between official spot vs GPS-based photographers
     
     // Check if photographer is at an official spot
@@ -177,7 +173,7 @@ const useMapActions = ({
     setSelectedSpot(null);
     setLockedShooterCount(null);
     setBottomSheetOpen(true);
-  };
+  }, [surfSpots, setSelectedSpot, setSelectedPhotographer, setLockedShooterCount, fetchActiveShootersAtSpot, setUnifiedDrawerOpen, setBottomSheetOpen]);
 
 
   return {

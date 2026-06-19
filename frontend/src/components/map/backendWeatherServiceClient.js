@@ -397,10 +397,414 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
 
 export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 
+export function blendDirection(heights, directions, weights) {
+  let sumU = 0;
+  let sumV = 0;
+  let validWeightSum = 0;
+
+  for (let i = 0; i < heights.length; i++) {
+    const h = heights[i];
+    const dir = directions[i];
+    const w = weights[i];
+
+    if (h != null && dir != null && !isNaN(h) && !isNaN(dir) && w > 0) {
+      const rad = (dir * Math.PI) / 180;
+      const u = -h * Math.sin(rad);
+      const v = -h * Math.cos(rad);
+      sumU += u * w;
+      sumV += v * w;
+      validWeightSum += w;
+    }
+  }
+
+  if (validWeightSum > 0 && (sumU !== 0 || sumV !== 0)) {
+    return (Math.atan2(-sumU, -sumV) * 180 / Math.PI + 360) % 360;
+  }
+  return directions[0] != null ? directions[0] : null;
+}
+
+export function blendPeriod(periods, weights) {
+  let periodSum = 0;
+  let weightSum = 0;
+
+  for (let i = 0; i < periods.length; i++) {
+    const p = periods[i];
+    const w = weights[i];
+    if (p != null && p > 0 && !isNaN(p) && w > 0) {
+      periodSum += p * w;
+      weightSum += w;
+    }
+  }
+
+  return weightSum > 0 ? periodSum / weightSum : null;
+}
+
+export function blendSubVector(v1, v2, w1, w2) {
+  if (!v1 && !v2) return { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
+  if (!v1) return v2;
+  if (!v2) return v1;
+  const h1 = v1.speed || 0;
+  const h2 = v2.speed || 0;
+  const blendedHeight = h1 * w1 + h2 * w2;
+
+  const p1 = v1.period || 0;
+  const p2 = v2.period || 0;
+  const blendedPeriod = blendPeriod([p1, p2], [w1, w2]) || 0;
+
+  const d1 = v1.direction !== undefined ? v1.direction : ((Math.atan2(-v1.u, -v1.v) * 180 / Math.PI + 360) % 360);
+  const d2 = v2.direction !== undefined ? v2.direction : ((Math.atan2(-v2.u, -v2.v) * 180 / Math.PI + 360) % 360);
+  const blendedDirection = blendDirection([h1, h2], [d1, d2], [w1, w2]);
+
+  let u = 0;
+  let v = 0;
+  if (blendedHeight > 0 && blendedDirection != null) {
+    const rad = (blendedDirection * Math.PI) / 180;
+    u = -blendedHeight * Math.sin(rad);
+    v = -blendedHeight * Math.cos(rad);
+  }
+  return {
+    u,
+    v,
+    speed: blendedHeight,
+    period: blendedPeriod,
+    height: blendedHeight,
+    direction: blendedDirection,
+    isOcean: v1.isOcean || v2.isOcean
+  };
+}
+
+export function extrapolateSubVector(iconAnchor, gfsAnchor, gfsTarget, weightPersist, weightGfs) {
+  if (!iconAnchor) return { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
+  const hIcon = iconAnchor.speed || 0;
+  const pIcon = iconAnchor.period || 0;
+  const dIcon = iconAnchor.direction !== undefined ? iconAnchor.direction : ((Math.atan2(-iconAnchor.u, -iconAnchor.v) * 180 / Math.PI + 360) % 360);
+
+  const hGfsAnchor = gfsAnchor?.speed || 0;
+  const hGfsTarget = gfsTarget?.speed || 0;
+  const hGfsTrend = Math.max(0, hIcon + (hGfsTarget - hGfsAnchor));
+
+  const pGfsAnchor = gfsAnchor?.period || 0;
+  const pGfsTarget = gfsTarget?.period || 0;
+  const pGfsTrend = pGfsAnchor > 0 ? Math.max(2, pIcon + (pGfsTarget - pGfsAnchor)) : pIcon;
+
+  const dGfsTarget = gfsTarget ? (gfsTarget.direction !== undefined ? gfsTarget.direction : ((Math.atan2(-gfsTarget.u, -gfsTarget.v) * 180 / Math.PI + 360) % 360)) : dIcon;
+  const dGfsTrend = dGfsTarget;
+
+  const blendedHeight = Math.max(0, weightPersist * hIcon + weightGfs * hGfsTrend);
+  const blendedPeriod = blendPeriod([pIcon, pGfsTrend], [weightPersist, weightGfs]) || 0;
+  const blendedDirection = blendDirection([hIcon, hGfsTrend], [dIcon, dGfsTrend], [weightPersist, weightGfs]);
+
+  let u = 0;
+  let v = 0;
+  if (blendedHeight > 0 && blendedDirection != null) {
+    const rad = (blendedDirection * Math.PI) / 180;
+    u = -blendedHeight * Math.sin(rad);
+    v = -blendedHeight * Math.cos(rad);
+  }
+  return {
+    u,
+    v,
+    speed: blendedHeight,
+    period: blendedPeriod,
+    height: blendedHeight,
+    direction: blendedDirection,
+    isOcean: iconAnchor.isOcean
+  };
+}
+
 /**
  * Fetches marine conformed forecast grid from backend weather service.
  */
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+  if (model === 'ICON' && hourOffset > 168) {
+    if (hourOffset <= 240 && layer === 'swell_2') {
+      // Fall through to existing swell_2 blender below
+    } else {
+      updateProjectionDiag('marine', {
+        activeModel: 'ICON',
+        activeLayer: layer,
+        requestedViewportBounds: bounds || snappedBounds,
+        renderable: true,
+        renderDecision: 'estimated_blend',
+        reason: hourOffset <= 240 ? 'icon_trend_extrapolation' : 'icon_gfs_euro_blend',
+        timeOffsetHours: hourOffset
+      });
+
+      try {
+        if (hourOffset <= 240) {
+          const [iconAnchorResult, gfsAnchorResult, gfsTargetResult] = await Promise.allSettled([
+            fetchBackendMarineGrid(bounds, 168, signal, snappedBounds, layer, 'ICON'),
+            fetchBackendMarineGrid(bounds, 168, signal, snappedBounds, layer, 'GFS'),
+            fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer, 'GFS')
+          ]);
+
+          const iconAnchorGrid = iconAnchorResult.status === 'fulfilled' ? iconAnchorResult.value : null;
+          const gfsAnchorGrid = gfsAnchorResult.status === 'fulfilled' ? gfsAnchorResult.value : null;
+          const gfsTargetGrid = gfsTargetResult.status === 'fulfilled' ? gfsTargetResult.value : null;
+
+          const iconVectors = iconAnchorGrid?.grid?.vectors || [];
+          const gfsAnchorVectors = gfsAnchorGrid?.grid?.vectors || [];
+          const gfsTargetVectors = gfsTargetGrid?.grid?.vectors || [];
+
+          if (!iconVectors.length) {
+            if (gfsTargetGrid) return gfsTargetGrid;
+            throw new Error('ICON extended estimate anchor and target GFS are both unavailable');
+          }
+
+          const daysPast = Math.max(0, (hourOffset - 168) / 24);
+          const confidence = Math.max(0.10, 1.0 - 0.15 * daysPast);
+          let wPersist = 0;
+          let wGfs = 0;
+
+          if (daysPast <= 1) {
+            wPersist = 0.70 - 0.30 * daysPast;
+            wGfs = 0.30 + 0.30 * daysPast;
+          } else if (daysPast <= 5) {
+            const pct = (daysPast - 1) / 4;
+            wPersist = 0.40 * (1 - pct);
+            wGfs = 0.60 + 0.40 * pct;
+          } else {
+            wPersist = 0;
+            wGfs = 1.0;
+          }
+          const sum = wPersist + wGfs;
+          const weightPersist = sum > 0 ? wPersist / sum : 0;
+          const weightGfs = sum > 0 ? wGfs / sum : 0;
+
+          const blendedVectors = [];
+          let nonzeroCount = 0;
+
+          for (let i = 0; i < iconVectors.length; i++) {
+            const iv = iconVectors[i];
+            const gfsAv = gfsAnchorVectors[i] || gfsAnchorVectors.find(v => Math.abs(v.lat - iv.lat) < 0.01 && Math.abs(v.lng - iv.lng) < 0.01);
+            const gfsTv = gfsTargetVectors[i] || gfsTargetVectors.find(v => Math.abs(v.lat - iv.lat) < 0.01 && Math.abs(v.lng - iv.lng) < 0.01);
+
+            if (!iv.isOcean) {
+              blendedVectors.push({
+                lat: iv.lat, lng: iv.lng, isOcean: false,
+                u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0,
+                waves: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                swell_1: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                swell_2: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                wind_waves: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false }
+              });
+              continue;
+            }
+
+            const blendedWaves = extrapolateSubVector(iv.waves || iv, gfsAv?.waves || gfsAv, gfsTv?.waves || gfsTv, weightPersist, weightGfs);
+            const blendedSwell1 = extrapolateSubVector(iv.swell_1, gfsAv?.swell_1, gfsTv?.swell_1, weightPersist, weightGfs);
+            const blendedSwell2 = extrapolateSubVector(iv.swell_2, gfsAv?.swell_2, gfsTv?.swell_2, weightPersist, weightGfs);
+            const blendedWindWaves = extrapolateSubVector(iv.wind_waves, gfsAv?.wind_waves, gfsTv?.wind_waves, weightPersist, weightGfs);
+
+            const activeBlended = layer === 'waves' ? blendedWaves
+                              : layer === 'swell_1' ? blendedSwell1
+                              : layer === 'swell_2' ? blendedSwell2
+                              : blendedWindWaves;
+
+            if (activeBlended.speed > 0.05) nonzeroCount++;
+
+            blendedVectors.push({
+              lat: iv.lat, lng: iv.lng, isOcean: true,
+              u: activeBlended.u, v: activeBlended.v,
+              speed: activeBlended.speed, period: activeBlended.period,
+              height: activeBlended.height, direction: activeBlended.direction,
+              waves: blendedWaves,
+              swell_1: blendedSwell1,
+              swell_2: blendedSwell2,
+              wind_waves: blendedWindWaves
+            });
+          }
+
+          const maxSpeed = blendedVectors.length > 0 ? Math.max(...blendedVectors.map(v => v.speed), 0) : 0;
+          const blendedGrid = {
+            vectors: blendedVectors,
+            bounds: iconAnchorGrid.grid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+            cols: iconAnchorGrid.grid.cols || 0,
+            rows: iconAnchorGrid.grid.rows || 0,
+            timestamp: Date.now(),
+            __sourceModel: 'ICON',
+            __provider: 'estimated',
+            __gridProvider: 'gfs_trend',
+            __componentLayer: layer,
+            __gridSupportsLayer: blendedVectors.length > 0,
+            __activeLayerNonzeroCount: nonzeroCount,
+            __activeLayerMax: maxSpeed,
+            __oceanMaskCount: iconAnchorGrid.grid.__oceanMaskCount || 0,
+            __renderable: blendedVectors.length > 0,
+            provider: 'estimated',
+            source_dataset: 'icon_trend_extrapolation',
+            hourOffset,
+            nonzeroCount,
+            maxSpeed,
+            renderable: blendedVectors.length > 0,
+            is_estimated: true,
+            isEstimated: true,
+            estimate_basis: {
+              type: 'icon_trend_extrapolation',
+              method: 'persistence_gfs_trend',
+              weight_persist: weightPersist,
+              weight_gfs: weightGfs
+            }
+          };
+
+          if (typeof window !== 'undefined') {
+            window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
+              activeModel: 'ICON',
+              activeLayer: layer,
+              targetHour: hourOffset,
+              sourceProvider: 'estimated',
+              isEstimated: true,
+              estimateConfidence: confidence,
+              iconAnchorTime: 168,
+              gfsTargetTime: hourOffset,
+              weights: { persistence: weightPersist, gfs: weightGfs },
+              vectorCount: blendedVectors.length,
+              nonzeroCount,
+              timestamp: new Date().toISOString()
+            };
+          }
+
+          return {
+            type: 'FeatureCollection',
+            features: [],
+            hourOffset,
+            grid: blendedGrid,
+            __renderable: blendedGrid.__renderable,
+            status: 'ok'
+          };
+        } else {
+          // hourOffset > 240
+          const [gfsTargetResult, euroTargetResult] = await Promise.allSettled([
+            fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer, 'GFS'),
+            fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer, 'EURO')
+          ]);
+
+          const gfsTargetGrid = gfsTargetResult.status === 'fulfilled' ? gfsTargetResult.value : null;
+          const euroTargetGrid = euroTargetResult.status === 'fulfilled' ? euroTargetResult.value : null;
+
+          const gfsVectors = gfsTargetGrid?.grid?.vectors || [];
+          const euroVectors = euroTargetGrid?.grid?.vectors || [];
+
+          if (!gfsVectors.length && !euroVectors.length) {
+            throw new Error('ICON extended blend target GFS and EURO are both unavailable');
+          }
+
+          const primaryVectors = gfsVectors.length > 0 ? gfsVectors : euroVectors;
+          const primaryGrid = gfsVectors.length > 0 ? gfsTargetGrid.grid : euroTargetGrid.grid;
+
+          const GFS_WEIGHT = gfsVectors.length > 0 && euroVectors.length > 0 ? 0.6 : 1.0;
+          const EURO_WEIGHT = 1.0 - GFS_WEIGHT;
+
+          const blendedVectors = [];
+          let nonzeroCount = 0;
+
+          for (let i = 0; i < primaryVectors.length; i++) {
+            const pv = primaryVectors[i];
+            const sv = gfsVectors.length > 0
+              ? euroVectors[i] || euroVectors.find(v => Math.abs(v.lat - pv.lat) < 0.01 && Math.abs(v.lng - pv.lng) < 0.01)
+              : gfsVectors[i] || gfsVectors.find(v => Math.abs(v.lat - pv.lat) < 0.01 && Math.abs(v.lng - pv.lng) < 0.01);
+
+            if (!pv.isOcean) {
+              blendedVectors.push({
+                lat: pv.lat, lng: pv.lng, isOcean: false,
+                u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0,
+                waves: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                swell_1: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                swell_2: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false },
+                wind_waves: { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false }
+              });
+              continue;
+            }
+
+            const blendedWaves = blendSubVector(pv.waves || pv, sv?.waves || sv, GFS_WEIGHT, EURO_WEIGHT);
+            const blendedSwell1 = blendSubVector(pv.swell_1, sv?.swell_1, GFS_WEIGHT, EURO_WEIGHT);
+            const blendedSwell2 = blendSubVector(pv.swell_2, sv?.swell_2, GFS_WEIGHT, EURO_WEIGHT);
+            const blendedWindWaves = blendSubVector(pv.wind_waves, sv?.wind_waves, GFS_WEIGHT, EURO_WEIGHT);
+
+            const activeBlended = layer === 'waves' ? blendedWaves
+                              : layer === 'swell_1' ? blendedSwell1
+                              : layer === 'swell_2' ? blendedSwell2
+                              : blendedWindWaves;
+
+            if (activeBlended.speed > 0.05) nonzeroCount++;
+
+            blendedVectors.push({
+              lat: pv.lat, lng: pv.lng, isOcean: true,
+              u: activeBlended.u, v: activeBlended.v,
+              speed: activeBlended.speed, period: activeBlended.period,
+              height: activeBlended.height, direction: activeBlended.direction,
+              waves: blendedWaves,
+              swell_1: blendedSwell1,
+              swell_2: blendedSwell2,
+              wind_waves: blendedWindWaves
+            });
+          }
+
+          const maxSpeed = blendedVectors.length > 0 ? Math.max(...blendedVectors.map(v => v.speed), 0) : 0;
+          const blendedGrid = {
+            vectors: blendedVectors,
+            bounds: primaryGrid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
+            cols: primaryGrid.cols || 0,
+            rows: primaryGrid.rows || 0,
+            timestamp: Date.now(),
+            __sourceModel: 'ICON',
+            __provider: 'estimated',
+            __gridProvider: 'gfs_euro_blend',
+            __componentLayer: layer,
+            __gridSupportsLayer: blendedVectors.length > 0,
+            __activeLayerNonzeroCount: nonzeroCount,
+            __activeLayerMax: maxSpeed,
+            __oceanMaskCount: primaryGrid.__oceanMaskCount || 0,
+            __renderable: blendedVectors.length > 0,
+            provider: 'estimated',
+            source_dataset: 'gfs_euro_blend',
+            hourOffset,
+            nonzeroCount,
+            maxSpeed,
+            renderable: blendedVectors.length > 0,
+            is_estimated: true,
+            isEstimated: true,
+            estimate_basis: {
+              type: 'icon_extended_blend',
+              method: 'weighted_average',
+              gfs_weight: GFS_WEIGHT,
+              euro_weight: EURO_WEIGHT
+            }
+          };
+
+          if (typeof window !== 'undefined') {
+            window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
+              activeModel: 'ICON',
+              activeLayer: layer,
+              targetHour: hourOffset,
+              sourceProvider: 'estimated',
+              isEstimated: true,
+              estimateConfidence: 0.5,
+              iconAnchorTime: 168,
+              gfsTargetTime: hourOffset,
+              weights: { gfs: GFS_WEIGHT, euro: EURO_WEIGHT },
+              vectorCount: blendedVectors.length,
+              nonzeroCount,
+              timestamp: new Date().toISOString()
+            };
+          }
+
+          return {
+            type: 'FeatureCollection',
+            features: [],
+            hourOffset,
+            grid: blendedGrid,
+            __renderable: blendedGrid.__renderable,
+            status: 'ok'
+          };
+        }
+      } catch (blendErr) {
+        console.error('[Backend Weather Client] ICON extended blending/extrapolation failed:', blendErr);
+        throw blendErr;
+      }
+    }
+  }
+
   if (model === 'ICON' && layer === 'swell_2') {
     // ICON/GWAM doesn't provide native swell_2. Synthesize from GFS/EURO blend.
     // Formula: 60% GFS + 40% EURO weighted average (GFS has broader 384h coverage).
