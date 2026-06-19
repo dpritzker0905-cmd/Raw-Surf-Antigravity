@@ -122,7 +122,15 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       // RULE 3: marine must NEVER render empty when active
       // Suppress during model/layer transitions — data is expected to be temporarily empty
       // while the pipeline fetches new data from the switched model.
-      const isTransitioning = typeof window !== 'undefined' && window.__MARINE_TRANSITIONING__ === true;
+      // Check all three pipeline flags (matching WebGLMarineCustomLayer's suppression logic):
+      // - __MARINE_TRANSITIONING__: set immediately on model/layer switch
+      // - __MARINE_FETCH_PENDING__: set when a fetch is queued
+      // - __MARINE_FETCH_DEBOUNCING__: set during the scheduling debounce window
+      const isTransitioning = typeof window !== 'undefined' && (
+        window.__MARINE_TRANSITIONING__ === true ||
+        !!window.__MARINE_FETCH_PENDING__ ||
+        !!window.__MARINE_FETCH_DEBOUNCING__
+      );
       if (["waves","swell_1","swell_2","wind_waves"].includes(s.activeLayer)) {
         if (!s.marine?.grid?.vectors?.length && !isTransitioning) {
           violations.push({

@@ -730,7 +730,13 @@ export function useMarineDataFetcher({
         locks.activeSource = null;
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
-          window.__MARINE_TRANSITIONING__ = false;
+          // Only clear the transitioning flag if no coalesced retry is pending.
+          // When an abort triggers a 150ms coalesced retry, the retry will clear
+          // this flag in its own finally block after the replacement fetch completes.
+          // Clearing it here prematurely would cause false MARINE_EMPTY_RENDER violations.
+          if (!timeoutIdRef.current) {
+            window.__MARINE_TRANSITIONING__ = false;
+          }
           if (clearDebounce) {
             window.__MARINE_FETCH_DEBOUNCING__ = false;
           }
@@ -789,7 +795,7 @@ export function useMarineDataFetcher({
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
       const activeSource = locks.activeSource || 'unknown';
-      const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
+      const isHighPriority = (src) => src === 'manual' || src.startsWith('manual') || src.includes('timeline') || src.includes('scrub') || src.includes('recovery');
       if (isHighPriority(activeSource) && !isHighPriority(source)) {
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;
@@ -798,12 +804,20 @@ export function useMarineDataFetcher({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
-      // Reset locks so the fall-through scheduling path can start the new fetch.
-      // Previously this returned here, which relied on pendingMarineIntentRef to
-      // re-trigger the fetch — but the re-triggered source hit the dedupe window
-      // and got suppressed, leaving EURO/ICON marine layers showing stale data.
       locks.isFetching = false;
       locks.activeSource = null;
+      // Schedule a coalesced retry instead of falling through immediately.
+      // The fall-through created chain reactions: each replacement fetch got
+      // aborted by the next trigger from a different React effect (model-switch,
+      // layer-activation, layer-switch all fire within milliseconds).
+      // A 150ms coalesced retry absorbs all cross-effect collisions:
+      // subsequent triggers are either deduped or cancel-and-replace this timer.
+      if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
+      timeoutIdRef.current = setTimeout(() => {
+        if (!activeMarineLayersRef.current) return;
+        updateMarineGrid(source);
+      }, 150);
+      return;
     }
 
     if (source === 'manual') locks.manualFetchActiveUntil = now + 1500;
