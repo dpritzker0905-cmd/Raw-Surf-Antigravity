@@ -365,12 +365,9 @@ class ViewportService:
                 coord_count = len(lats_coords)
 
             logger.info(f"[Dynamic Viewport] Fetching coordinates count: {coord_count} at resolution {resolution}°")
-
             bbox_dict = {"west": west, "south": south, "east": east, "north": north}
-
             env_viewport_marine_delay = float(os.environ.get("OPEN_METEO_VIEWPORT_MARINE_BATCH_DELAY_SEC", "0.8"))
             env_wind_delay = float(os.environ.get("OPEN_METEO_WIND_BATCH_DELAY_SEC", "0.5"))
-
             inter_delay = env_wind_delay if (model.upper() == "GFS" and domain == "wind") else env_viewport_marine_delay
             is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             fetch_model = model
@@ -378,10 +375,8 @@ class ViewportService:
             if model.upper() == "EURO" and domain.lower() == "marine":
                 from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
                 cop_provider = CopernicusProvider()
-                # Cap forecast_days for global views to keep tiled CMEMS downloads fast
                 cop_forecast_days = min(forecast_days, 3) if is_global_view else forecast_days
-                # Timeout wrapper: 20s on Render (512MB), 30s otherwise. Prevents OOM-induced
-                # worker death by failing fast with an empty response instead of hanging.
+                # Timeout: 20s on Render, 30s otherwise to prevent OOM/hangs.
                 is_render_env = os.environ.get("RENDER") == "true"
                 cop_timeout = 20.0 if is_render_env else 30.0
                 try:

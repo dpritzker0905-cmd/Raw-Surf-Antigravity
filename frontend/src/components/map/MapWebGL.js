@@ -195,7 +195,7 @@ const MapWebGL = ({
     pressureData: null,
     activeModel,
     timeOffsetHours: timeOffsetHours,
-    enableLogging: true,
+    enableLogging: typeof window !== 'undefined' && localStorage.getItem('debug-fce') === 'true',
     activeMarineLayer,
   });
 

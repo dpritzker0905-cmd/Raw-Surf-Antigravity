@@ -405,6 +405,9 @@ class OpenMeteoProvider:
                         await asyncio.sleep(delay)
 
                 # Cache successful response
+                if len(self._GRID_CACHE) >= 50:
+                    oldest_key = next(iter(self._GRID_CACHE))
+                    self._GRID_CACHE.pop(oldest_key, None)
                 self._GRID_CACHE[cache_key] = (now + self._CACHE_TTL_SEC, aggregated_results)
                 return aggregated_results
                 
@@ -567,6 +570,9 @@ class OpenMeteoProvider:
                 result_json = response.json()
                 if isinstance(result_json, list) and len(result_json) > 0:
                     result_json = result_json[0]
+                if len(self._POINT_CACHE) >= 200:
+                    oldest_key = next(iter(self._POINT_CACHE))
+                    self._POINT_CACHE.pop(oldest_key, None)
                 self._POINT_CACHE[cache_key] = (now + self._CACHE_TTL_SEC, result_json)
                 return result_json
             except Exception as e:
