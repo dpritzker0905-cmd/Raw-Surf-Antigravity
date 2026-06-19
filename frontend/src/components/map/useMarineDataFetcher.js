@@ -410,6 +410,10 @@ export function useMarineDataFetcher({
           return null;
         });
       } else if (isAbort && isCurrentHour && !window.isScrubbingTimeline) {
+        if (requestId !== marineRequestIdRef.current) {
+          console.log(`[ABORT RECOVERY] Discarding abort recovery because requestId (${requestId}) is stale (current=${marineRequestIdRef.current}).`);
+          return;
+        }
         console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Retry count: ${abortRecoveryRetryCountRef.current}/3`);
         const prev = marineDataRef.current;
         const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;

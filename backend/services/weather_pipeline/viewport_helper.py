@@ -477,7 +477,12 @@ def is_viewport_enabled_helper(
     """
     if target_dt and domain.lower() == "marine":
         now_utc = datetime.now(timezone.utc)
-        offset_hours = (target_dt - now_utc).total_seconds() / 3600.0
+        # Snap now_utc to the nearest hour to match frontend rounding
+        now_ts = now_utc.timestamp()
+        rounded_ts = round(now_ts / 3600.0) * 3600.0
+        now_utc_snapped = datetime.fromtimestamp(rounded_ts, tz=timezone.utc)
+
+        offset_hours = (target_dt - now_utc_snapped).total_seconds() / 3600.0
 
         limit = None
         if model.upper() == "EURO":
@@ -485,7 +490,7 @@ def is_viewport_enabled_helper(
         elif model.upper() == "ICON":
             limit = 168.0
 
-        if limit is not None and offset_hours >= limit:
+        if limit is not None and offset_hours > limit + 0.01:
             return False
 
     return (

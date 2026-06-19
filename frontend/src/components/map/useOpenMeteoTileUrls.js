@@ -80,8 +80,6 @@ export function useOpenMeteoTileUrls({
       if (debounceTimerRef.current) {
         clearTimeout(debounceTimerRef.current);
       }
-      isScrubbingRef.current = false;
-      window.isScrubbingTimeline = false;
     };
   }, [timeOffsetHours]);
 
