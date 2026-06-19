@@ -198,21 +198,17 @@ uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
 uniform float u_motion_scale;
+uniform vec2 u_tile_origin;
+uniform float u_tile_width;
+uniform float u_opacity;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
-varying highp vec2 v_local_uv;     // v5.3: quad local coords [-1,1] x=alongCrest y=acrossCrest
+varying highp vec2 v_local_uv;     // v5.3: quad local coords [-1,1] (replaces gl_PointCoord)
 varying highp float v_phase;       // wave-train phase for rolling whitewater
 varying highp float v_period_norm; // normalized period [0=short choppy, 1=long swell]
-varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
+varying highp float v_whitecap;    // v5.3: whitecap foam strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
-
-vec2 decodePos(vec4 color) {
-  return vec2(
-    color.r + color.g / 255.0,
-    color.b + color.a / 255.0
-  );
-}
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -226,23 +222,38 @@ float latToMercatorY(float lat) {
 }
 
 void main() {
-  // Six vertices per particle: 2 triangles form a quad/crest ribbon
+  // === v5.3: QUAD RIBBON EXPANSION ===
+  // 6 vertices per particle (2 triangles). Vertex ID encodes both particle and corner.
   float particleIndex = floor(a_vertex_id / 6.0);
-  float vertexIndex = mod(a_vertex_id, 6.0);
+  float cornerIndex = a_vertex_id - particleIndex * 6.0;
 
-  // particle UV in state texture
+  // Map corner index to local quad UV: tri1=(0,1,2) tri2=(3,4,5)
+  // 0→BL(-1,-1) 1→BR(1,-1) 2→TL(-1,1) 3→TL(-1,1) 4→BR(1,-1) 5→TR(1,1)
+  vec2 cornerUV;
+  if (cornerIndex < 0.5) cornerUV = vec2(-1.0, -1.0);
+  else if (cornerIndex < 1.5) cornerUV = vec2(1.0, -1.0);
+  else if (cornerIndex < 2.5) cornerUV = vec2(-1.0, 1.0);
+  else if (cornerIndex < 3.5) cornerUV = vec2(-1.0, 1.0);
+  else if (cornerIndex < 4.5) cornerUV = vec2(1.0, -1.0);
+  else cornerUV = vec2(1.0, 1.0);
+
+  v_local_uv = cornerUV;
+
+  // Decode particle position from texture
   float col = mod(particleIndex, u_particles_res);
   float row = floor(particleIndex / u_particles_res);
   vec2 p_uv = (vec2(col, row) + 0.5) / u_particles_res;
 
-  vec4 encoded = texture2D(u_particles, p_uv);
-  vec2 pos = decodePos(encoded);
+  vec4 encodedPos = texture2D(u_particles, p_uv);
+  vec2 pos = vec2(
+    encodedPos.r + encodedPos.g / 255.0,
+    encodedPos.b + encodedPos.a / 255.0
+  );
 
-  // Convert global Mercator coordinates to geographic lng/lat
-  float lng = pos.x * 360.0 - 180.0;
-  float lat = mercatorYToLat(pos.y);
+  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
+  float lng = global_pos.x * 360.0 - 180.0;
+  float lat = mercatorYToLat(global_pos.y);
 
-  // Map to local texture coordinate of u_waveTexture and u_oceanMaskTexture
   float tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
     float span = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
@@ -256,32 +267,16 @@ void main() {
   // Calculate Web Mercator mask coordinates
   float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
   float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - pos.y) / max(mercMaxY - mercMinY, 0.0001);
+  float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(tex_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
-  waveVec.y = -waveVec.y; // Flip y to match Mercator space
+  // v5.5: Negate y for Mercator convention (geographic +v=north, Mercator +y=south).
+  // Without this, the N-S component of wave travel direction is inverted.
+  waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
-  float wavePeriod = waveData.a * 30.0; // period scaled up to 30s
-  
   v_wave_height = waveHeight;
-  v_period_norm = clamp(wavePeriod / 25.0, 0.0, 1.0); // normalize up to 25s
-
-  // v5.8: Temporal animation using phase velocity (C = L / T).
-  // Wave phase advances by frequency * time. Smaller speed multiplier
-  // makes the motion realistic (no hyperactive sliding).
-  float speedFactor = u_motion_scale * 0.15;
-  v_phase = (2.0 * 3.141592653589793 * u_time * speedFactor) / max(wavePeriod, 1.0);
-
-  // Wave-train envelope for clean wave groupings:
-  // Multiplying envelope by phase creates group velocity separation (packet fading)
-  float groupEnvelope = sin(v_phase * 0.5);
-  float trainEnvelope = 0.5 + 0.5 * groupEnvelope;
-
-  // v5.8: Calibrate base opacity based on wave height
-  v_alpha = smoothstep(0.02, 1.5, waveHeight) * 0.70;
-
   float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
@@ -353,35 +348,64 @@ void main() {
   float halfLength = mix(18.0, 40.0, sizeEnergy) + smallBoost * 6.0;
 
   // Crest THICKNESS: 6-16 CSS px total (halfThickness = 3-8)
-  float halfThickness = mix(3.0, 8.0, sizeEnergy) + smallBoost * 1.5;
+  float halfThickness = mix(3.0, 8.0, sizeEnergy) + smallBoost * 2.0;
 
-  // Quad Vertex positioning: map vertexIndex 0-5 to local quad coordinates
-  // 0 -> top-left, 1 -> bottom-left, 2 -> top-right
-  // 3 -> top-right, 4 -> bottom-left, 5 -> bottom-right
-  vec2 localUV;
-  if (vertexIndex == 0.0) localUV = vec2(-1.0, -1.0);
-  else if (vertexIndex == 1.0) localUV = vec2(-1.0, 1.0);
-  else if (vertexIndex == 2.0) localUV = vec2(1.0, -1.0);
-  else if (vertexIndex == 3.0) localUV = vec2(1.0, -1.0);
-  else if (vertexIndex == 4.0) localUV = vec2(-1.0, 1.0);
-  else localUV = vec2(1.0, 1.0);
+  // Zoom scaling (gentler)
+  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * 0.6 + 0.4;
+  halfLength *= zoomScale;
+  halfThickness *= zoomScale;
 
-  v_local_uv = localUV;
+  // Per-particle size variation
+  halfLength *= 0.85 + particleHash * 0.3;
+  halfThickness *= 0.9 + particleHash * 0.2;
 
-  // Offset vertex in screen space using the direction vectors
-  vec2 screenOffset = crestDir * localUV.x * halfLength + waveDir * localUV.y * halfThickness;
+  // Guaranteed minimums (CSS pixels)
+  halfLength = max(halfLength, 16.0);
+  halfThickness = max(halfThickness, 2.5);
 
-  // Convert offset back to NDC and clip coordinates
-  vec2 ndcOffset = (screenOffset / u_viewport) * 2.0 * clipPos.w;
-  
-  // v5.3: Apply high-zoom thickness attenuation.
-  // Dampens wave line thickness at high zoom levels to prevent overlapping clutter
-  float thicknessDamping = 1.0;
-  if (u_zoom > 9.0) {
-    thicknessDamping = mix(1.0, 0.40, smoothstep(9.0, 12.0, u_zoom));
-  }
-  
-  gl_Position = vec4(clipPos.xy + ndcOffset * thicknessDamping, clipPos.zw);
+  // Convert CSS pixels to device pixels
+  float dpr = max(u_device_pixel_ratio, 1.0);
+  float deviceHalfLength = halfLength * dpr;
+  float deviceHalfThickness = halfThickness * dpr;
+
+  // === OFFSET QUAD CORNER IN PIXEL SPACE, CONVERT BACK TO CLIP ===
+  vec2 cornerPixel = pixel0
+    + crestDir * cornerUV.x * deviceHalfLength
+    + waveDir * cornerUV.y * deviceHalfThickness;
+
+  vec2 cornerNdc = cornerPixel / u_viewport * 2.0 - 1.0;
+  gl_Position = vec4(cornerNdc * clipPos.w, clipPos.z, clipPos.w);
+
+  // === v5.8: DEEP-WATER PERIOD SPACING + WAVE-TRAIN ENVELOPE ===
+  // L ≈ g·T²/(2π) → spatialFreq ∝ 1/T². Cap for visual range.
+  float modelPeriod = waveData.a * 20.0;
+  float derivedPeriod = 6.0 + waveHeight * 2.0;
+  float periodVal = modelPeriod > 0.5 ? modelPeriod : derivedPeriod;
+
+  float periodNorm = smoothstep(4.0, 18.0, periodVal);
+  v_period_norm = periodNorm;
+
+  float spatialFreq = 800.0 / max(36.0, periodVal * periodVal);
+  spatialFreq = clamp(spatialFreq, 3.0, 25.0);
+
+  // v5.8: COHERENT temporal phase — no per-particle hash jitter on speed.
+  // All ribbons in the same wave train advance at the same rate.
+  float temporalSpeed = (u_time * u_motion_scale) / max(2.0, periodVal);
+  float trainPhase = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
+  v_phase = trainPhase;
+
+  // === v5.8: WAVE-TRAIN ENVELOPE — period controls visible band spacing ===
+  // Short-period wind waves: tighter, more frequent visible bands.
+  // Long-period swell: wider spacing, organized sets.
+  // Modulates alpha softly (never fully invisible) to create visible wave sets.
+  float train = fract(dot(global_pos, dir) * spatialFreq - temporalSpeed);
+  float crestBand = 1.0 - smoothstep(0.08, 0.30, abs(train - 0.5));
+  float trainEnvelope = mix(0.25, 1.0, crestBand);
+
+  // === v5.8: ZOOM-AWARE ALPHA (far = subtler, close = detailed) ===
+  float heightAlpha = smoothstep(0.0, 4.0, waveHeight);
+  float zoomAlphaScale = mix(0.45, 1.0, smoothstep(3.0, 9.0, u_zoom));
+  v_alpha = mix(0.50, 0.85, heightAlpha) * zoomAlphaScale * u_opacity;
 
   // v5.8: Apply wave-train envelope for visible period spacing
   v_alpha *= trainEnvelope;
@@ -494,35 +518,52 @@ void main() {
   float n1 = foamNoise(vec2(alongCrest * 5.0 + v_wave_height, acrossCrest * 4.0));
   float n2 = foamNoise(vec2(alongCrest * 8.0 - v_phase * 0.3, acrossCrest * 6.0 + v_wave_height * 0.5));
   float foamBreakup = mix(n1, n2, 0.35);
+  foamBreakup = smoothstep(0.1, 0.75, foamBreakup);
 
-  float activeFoam = whitecapRoll * smoothstep(0.20, 0.50, foamBreakup);
+  // Period-aware density: short period = denser choppy foam, long period = cleaner
+  float periodDensity = mix(0.5, 0.75, v_period_norm);
+  shape *= mix(periodDensity, 1.0, foamBreakup);
 
-  // Base wave theme coloring
-  vec3 baseWaveColor, foamHighlight;
+  float alpha = v_alpha * shape;
+  if (alpha < 0.01) discard;
+
+  // === THEMED CREST COLORS ===
+  float energy = smoothstep(0.0, 6.0, v_wave_height);
+
+  vec3 calmColor, activeColor, stormColor, foamHighlight;
+
   if (u_theme > 1.5) {
-    // Beach Mode: tropical warm ripple, sunlit whitecap
-    baseWaveColor = vec3(0.05, 0.65, 0.58);
-    foamHighlight = vec3(0.85, 0.95, 1.00);
+    // Beach Mode — v5.4: pale seafoam-white to contrast green heatmap
+    calmColor = vec3(0.92, 0.98, 0.90);    // pale seafoam-white (was teal 0.05,0.70,0.60)
+    activeColor = vec3(1.00, 0.92, 0.72);  // warm sunlit foam (was orange 1.00,0.65,0.45)
+    stormColor = vec3(1.00, 0.98, 0.90);   // warm white
+    foamHighlight = vec3(1.00, 0.98, 0.90);
   } else if (u_theme > 0.5) {
-    // Light Mode: sky blue ripple, crisp whitecap
-    baseWaveColor = vec3(0.25, 0.62, 0.85);
+    // Light Mode
+    calmColor = vec3(0.10, 0.35, 0.80);
+    activeColor = vec3(0.40, 0.75, 0.95);
+    stormColor = vec3(1.00, 1.00, 1.00);
     foamHighlight = vec3(1.00, 1.00, 1.00);
   } else {
-    // Dark Mode: electric cyan ripple, neon white/blue whitecap
-    baseWaveColor = vec3(0.00, 0.85, 0.95);
-    foamHighlight = vec3(0.90, 0.95, 1.00);
+    // Dark Mode
+    calmColor = vec3(0.00, 0.90, 1.00);
+    activeColor = vec3(1.00, 0.10, 0.80);
+    stormColor = vec3(1.00, 1.00, 1.00);
+    foamHighlight = vec3(0.85, 0.95, 1.00);
   }
 
-  // Blended final color: mix base ripple with breaking foam highlight
-  vec3 finalColor = mix(baseWaveColor, foamHighlight, activeFoam * 0.85);
+  vec3 baseColor = energy < 0.5
+    ? mix(calmColor, activeColor, energy * 2.0)
+    : mix(activeColor, stormColor, (energy - 0.5) * 2.0);
 
-  // Volumetric wave height shadows (valleys shadow crests)
-  float shadow = mix(0.40, 1.0, v_period_norm);
-  finalColor *= shadow;
+  // === WHITECAP HIGHLIGHT (separate from base ripple) ===
+  // Bright white/cyan at the breaking front, proportional to v_whitecap
+  float whiteBlend = whitecapRoll * 0.45;
+  vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)
-  // v5.8: Modulate alpha with shape to soften lines organically
-  float alpha = shape * v_alpha;
-  gl_FragColor = vec4(finalColor * alpha, alpha);
+  float boostedAlpha = alpha * mix(1.2, 1.8, energy);
+  boostedAlpha = min(boostedAlpha, 0.85);
+  gl_FragColor = vec4(finalColor * boostedAlpha, boostedAlpha);
 }
 `;
