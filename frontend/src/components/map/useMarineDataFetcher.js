@@ -645,7 +645,11 @@ export function useMarineDataFetcher({
       }
     } catch (err) {
       const isAbort = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort');
-      console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
+      if (isAbort) {
+        console.log(`[Marine] Fetch aborted (expected during model/layer switch) phase=${phase}: ${err.message}`);
+      } else {
+        console.error(`[Orchestrator Fatal Exception] phase=${phase} error:`, err.message);
+      }
       const isCurrentHour = timeOffset === timeOffsetRef.current;
       if (!isAbort && !window.isScrubbingTimeline && isCurrentHour) {
         setMarineData(prev => {
