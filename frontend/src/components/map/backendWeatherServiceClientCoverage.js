@@ -152,14 +152,46 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     };
   }
 
-  const { west, south, east, north } = requestedBbox;
-  
+  let west = requestedBbox.west;
+  let south = requestedBbox.south;
+  let east = requestedBbox.east;
+  let north = requestedBbox.north;
+
   const isViewportEnabled = ['GFS', 'ICON', 'EURO'].includes((modelName || '').toUpperCase()) && (
     (inferredDomain === 'marine' && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes((layerName || '').toLowerCase())) ||
     (inferredDomain === 'wind' && (layerName || '').toLowerCase() === 'wind')
   );
 
   if (isViewportEnabled) {
+    if ((modelName || '').toUpperCase() === 'EURO') {
+      // Cap the maximum query span to 20.0 degrees to prevent timeouts/expensive downloads on zoomed-out views.
+      const maxSpan = 20.0;
+      
+      // Calculate longitude center & span
+      let spanLng = east < west ? (180 - west) + (east + 180) : east - west;
+      if (spanLng > maxSpan) {
+        let centerLng;
+        if (east < west) {
+          centerLng = ((west + east + 360) / 2) % 360;
+        } else {
+          centerLng = (west + east) / 2;
+        }
+        west = centerLng - maxSpan / 2;
+        east = centerLng + maxSpan / 2;
+        // Normalize to [-180, 180]
+        if (west < -180) west += 360;
+        if (east > 180) east -= 360;
+      }
+
+      // Calculate latitude center & span
+      let spanLat = Math.abs(north - south);
+      if (spanLat > maxSpan) {
+        const centerLat = (south + north) / 2;
+        south = Math.max(-80, centerLat - maxSpan / 2);
+        north = Math.min(85, centerLat + maxSpan / 2);
+      }
+    }
+
     // v3.15: For WIND domain, always request global coverage.
     // Wind particles must render across the entire map, so we need global data.
     // The backend's viewport_service expands to global when span > 180° and uses
@@ -182,7 +214,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // to prevent visible rectangular edges and clamping at zoomed-out views.
     const spanLng = east < west ? (180 - west) + (east + 180) : east - west;
     const spanLat = Math.abs(north - south);
-    if (spanLng > 5.0 || spanLat > 5.0) {
+    if ((modelName || '').toUpperCase() !== 'EURO' && (spanLng > 5.0 || spanLat > 5.0)) {
       return {
         isInside: true,
         clampedBbox: { west: -180, south: -80, east: 180, north: 85 },

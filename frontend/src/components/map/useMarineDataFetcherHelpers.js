@@ -48,7 +48,7 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
     }
   }
 
-  const isGlobalSupported = (model === 'GFS' || model === 'ICON' || (model === 'EURO' && layer === 'waves'));
+  const isGlobalSupported = (model === 'GFS' || model === 'ICON');
   const isViewportZoomedOut = (zoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
 
   const isGridRegional = gridWidth < 340.0;
