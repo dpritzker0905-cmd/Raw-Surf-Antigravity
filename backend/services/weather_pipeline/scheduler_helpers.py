@@ -430,7 +430,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
     )
     env = get_env_flags()
     is_test_or_local = env.get("is_test_env", False) or not env.get("is_render", False)
-    manifest = scheduler.store.get_manifest()
+    manifest = await asyncio.to_thread(scheduler.store.get_manifest)
     products_to_save = []
     
     regions_to_process = dict(REGIONAL_CONFIGS)
@@ -470,7 +470,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
             logger.info(f"[Pipeline Scheduler] Found EURO marine {layer} anchor for {region_id} at {anchor_time.isoformat()}")
             
             # Load the full euro anchor product
-            euro_anchor_product = scheduler.store.load_product(euro_anchor_item.filename)
+            euro_anchor_product = await asyncio.to_thread(scheduler.store.load_product, euro_anchor_item.filename)
             if not euro_anchor_product:
                 logger.warning(f"[Pipeline Scheduler] Failed to load EURO anchor product {euro_anchor_item.filename}. Skipping layer.")
                 continue
@@ -483,7 +483,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                 logger.warning(f"[Pipeline Scheduler] No GFS anchor product found near {anchor_time.isoformat()} for {region_id} {layer}. Skipping layer.")
                 continue
             
-            gfs_anchor_product = scheduler.store.load_product(gfs_anchor_item.filename)
+            gfs_anchor_product = await asyncio.to_thread(scheduler.store.load_product, gfs_anchor_item.filename)
             if not gfs_anchor_product:
                 logger.warning(f"[Pipeline Scheduler] Failed to load GFS anchor product {gfs_anchor_item.filename}. Skipping layer.")
                 continue
@@ -496,7 +496,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                     manifest, "ICON", "marine", layer, region_id, anchor_time, max_delta_hours=3.0
                 )
                 if icon_anchor_item:
-                    icon_anchor_product = scheduler.store.load_product(icon_anchor_item.filename)
+                    icon_anchor_product = await asyncio.to_thread(scheduler.store.load_product, icon_anchor_item.filename)
             
             native_limit = EURO_LIMIT_WAVES if layer == "waves" else EURO_LIMIT_COMPONENTS
             
@@ -521,7 +521,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                 target_hour = native_limit + hours_diff
                 
                 # Load GFS target product
-                gfs_target_product = scheduler.store.load_product(gfs_target_item.filename)
+                gfs_target_product = await asyncio.to_thread(scheduler.store.load_product, gfs_target_item.filename)
                 if not gfs_target_product:
                     continue
                 
@@ -535,7 +535,7 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                         manifest, "ICON", "marine", layer, region_id, target_time, max_delta_hours=3.0
                     )
                     if icon_target_item:
-                        icon_target_product = scheduler.store.load_product(icon_target_item.filename)
+                        icon_target_product = await asyncio.to_thread(scheduler.store.load_product, icon_target_item.filename)
                         if not icon_target_product:
                             logger.debug(f"[Pipeline Scheduler] Failed to load ICON target product {icon_target_item.filename}. Proceeding without ICON.")
                     else:

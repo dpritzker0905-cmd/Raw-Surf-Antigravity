@@ -169,6 +169,16 @@ import time
 _point_cache = {}
 POINT_CACHE_TTL = 600.0  # 10 minutes
 
+_copernicus_lock = None
+
+def get_copernicus_lock():
+    global _copernicus_lock
+    if _copernicus_lock is None:
+        import asyncio
+        _copernicus_lock = asyncio.Lock()
+    return _copernicus_lock
+
+
 async def fetch_euro_marine(
     latitudes: List[float],
     longitudes: List[float],
@@ -199,11 +209,14 @@ async def fetch_euro_marine(
             
     import asyncio
 
-    # Run the blocking Copernicus fetch in a thread pool
-    loop = asyncio.get_event_loop()
-    results = await loop.run_in_executor(
-        None, _fetch_sync, latitudes, longitudes, forecast_days, variables, valid_time
-    )
+    # Serialize Copernicus downloads using a global Lock to prevent concurrent subprocesses and OOM restarts
+    lock = get_copernicus_lock()
+    async with lock:
+        # Run the blocking Copernicus fetch in a thread pool
+        loop = asyncio.get_event_loop()
+        results = await loop.run_in_executor(
+            None, _fetch_sync, latitudes, longitudes, forecast_days, variables, valid_time
+        )
     
     if results and len(results) > 0:
         _point_cache[cache_key] = (copy.deepcopy(results), now)

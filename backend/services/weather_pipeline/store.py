@@ -71,6 +71,9 @@ class ProductStore:
     _pruned_anomalous_ids: List[str] = []
     _download_locks: Dict[str, threading.Lock] = {}
     _download_locks_lock = threading.Lock()
+    _l2_negative_cache: Dict[str, float] = {}
+    _l2_negative_cache_lock = threading.Lock()
+    _L2_NEGATIVE_CACHE_TTL = 60.0
     _cached_manifest: Optional[PipelineManifest] = None
     _cached_manifest_mtime: float = 0.0
     _manifest_lock = threading.RLock()
@@ -624,6 +627,15 @@ class ProductStore:
         """Loads and returns a stored grid product by filename."""
         filepath = self.cache_dir / filename
         if not filepath.exists():
+            import time
+            now = time.time()
+            with ProductStore._l2_negative_cache_lock:
+                if filename in ProductStore._l2_negative_cache:
+                    fail_time = ProductStore._l2_negative_cache[filename]
+                    if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
+                        logger.debug(f"[Product Store] L2 negative cache HIT for {filename}. Skipping Supabase download.")
+                        return None
+
             with ProductStore._download_locks_lock:
                 if filename not in ProductStore._download_locks:
                     ProductStore._download_locks[filename] = threading.Lock()
@@ -631,6 +643,13 @@ class ProductStore:
             
             with lock:
                 if not filepath.exists():
+                    now = time.time()
+                    with ProductStore._l2_negative_cache_lock:
+                        if filename in ProductStore._l2_negative_cache:
+                            fail_time = ProductStore._l2_negative_cache[filename]
+                            if now - fail_time < ProductStore._L2_NEGATIVE_CACHE_TTL:
+                                return None
+
                     logger.info(f"[Product Store] L1 miss for {filename}. Attempting dynamic download from L2...")
                     sb = _get_supabase_storage()
                     if sb:
@@ -643,6 +662,8 @@ class ProductStore:
                                 logger.info(f"[Product Store] Dynamically restored {filename} from L2 to L1")
                         except Exception as e:
                             logger.warning(f"[Product Store] Dynamic L2 download failed for {filename}: {e}")
+                            with ProductStore._l2_negative_cache_lock:
+                                ProductStore._l2_negative_cache[filename] = time.time()
             
             # Re-check filepath existence after download attempt
             if not filepath.exists():
