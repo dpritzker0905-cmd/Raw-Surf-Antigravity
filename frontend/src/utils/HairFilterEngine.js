@@ -214,7 +214,7 @@ function processImageAlpha(img) {
   const canvas = document.createElement('canvas');
   canvas.width = img.width;
   canvas.height = img.height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(img, 0, 0);
   
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);

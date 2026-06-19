@@ -508,25 +508,45 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayersRef.current) return;
     if (lastFetchedModelRef.current === activeModel) return;
 
-    lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
-    console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
-    resetTruthTracker(`model_switch_to_${activeModel}`);
+    // Immediately flag UI as transitioning for responsiveness
     if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
-    lastCommittedSigRef.current = null;
-    marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
+
+    // Coalesce rapid model switches (e.g. GFS→EURO→ICON in quick succession).
+    // Only the final model in the sequence will execute the full reset + fetch logic.
+    // This prevents the abort cascade where intermediate fetches get killed.
     if (modelFetchTimeoutRef.current) clearTimeout(modelFetchTimeoutRef.current);
     modelFetchTimeoutRef.current = setTimeout(() => {
-      manualMarineTriggerRef.current?.();
       modelFetchTimeoutRef.current = null;
-    }, 250);
+      // Verify this is still the target model after the coalescing window
+      if (activeModelRef.current !== activeModel) return;
+
+      lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
+      console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+      resetTruthTracker(`model_switch_to_${activeModel}`);
+      lastCommittedSigRef.current = null;
+      marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
+      manualMarineTriggerRef.current?.();
+    }, 300);
   }, [activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
-    resetTruthTracker(`layer_switch_to_${activeMarineLayer}`);
+    // Immediately flag UI as transitioning for responsiveness
     if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
+
+    // Coalesce rapid layer switches (e.g. waves→swell_1→swell_2→wind_waves in quick
+    // succession). Only the final layer in the sequence will execute the full
+    // cache-lookup + fetch logic. This prevents the abort cascade where each
+    // intermediate Copernicus/ICON fetch gets killed before completing.
+    if (layerFetchTimeoutRef.current) clearTimeout(layerFetchTimeoutRef.current);
+    layerFetchTimeoutRef.current = setTimeout(() => {
+      layerFetchTimeoutRef.current = null;
+      // Verify this is still the target layer after the coalescing window
+      if (activeMarineLayerRef.current !== activeMarineLayer) return;
+
+    resetTruthTracker(`layer_switch_to_${activeMarineLayer}`);
     lastCommittedSigRef.current = null;
 
     let vpBounds = null;
@@ -682,11 +702,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    if (layerFetchTimeoutRef.current) clearTimeout(layerFetchTimeoutRef.current);
-    layerFetchTimeoutRef.current = setTimeout(() => {
-      manualMarineTriggerRef.current?.();
-      layerFetchTimeoutRef.current = null;
-    }, 250);
+    manualMarineTriggerRef.current?.();
+    }); // end coalescing setTimeout
   }, [activeMarineLayer, mapInstance, setMarineData]);
 
   useEffect(() => {

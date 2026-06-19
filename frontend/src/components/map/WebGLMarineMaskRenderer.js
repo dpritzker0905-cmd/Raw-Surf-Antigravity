@@ -10,7 +10,7 @@ export function renderMaskToCanvas(geojson, bounds) {
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
-  const ctx = canvas.getContext('2d');
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
   
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);

@@ -39,6 +39,8 @@ let _initialWindEnergy = null;
 let _lastCallbackTime = 0;
 let _sampleIndex = 0;
 let _lastFieldRevision = -1;
+let _rebaselineTimer = null;
+let _pendingRevision = -1;
 
 // Rolling buffers
 const _jitterSamples = new Float32Array(SAMPLE_WINDOW);
@@ -164,9 +166,17 @@ function onPlanReceived(renderPlan, frameIndex) {
 
   const field = renderPlan._evolvedField;
   if (field && field.revision !== _lastFieldRevision) {
-    console.log('[SimHealth] New field revision detected (' + field.revision + '), re-baselining energy calculation');
+    // Always null the baseline immediately so the next energy measurement
+    // captures the new field, but debounce the console log to avoid 50+
+    // redundant lines during rapid layer/model switching sequences.
     _initialWindEnergy = null;
     _lastFieldRevision = field.revision;
+    _pendingRevision = field.revision;
+    clearTimeout(_rebaselineTimer);
+    _rebaselineTimer = setTimeout(() => {
+      console.log('[SimHealth] New field revision detected (' + _pendingRevision + '), re-baselining energy calculation');
+      _rebaselineTimer = null;
+    }, 500);
   }
 
   const idx = _sampleIndex % SAMPLE_WINDOW;
