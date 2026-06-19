@@ -464,6 +464,19 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
+      // v8.0: During model/layer transitions, skip clearing and retain existing heatmap
+      // until the new data arrives. This prevents the visual flash-clear that occurs
+      // when the orchestrator is fetching new data and temporarily sets __renderable=false.
+      const isTransitionGuard = typeof window !== 'undefined' && (
+        !!window.__MARINE_TRANSITIONING__ ||
+        !!window.__MARINE_FETCH_PENDING__ ||
+        !!window.__MARINE_FETCH_DEBOUNCING__
+      );
+      if (isTransitionGuard && lastUploadedSignatureRef.current) {
+        runDiagnosticsUpdate('transition_hold');
+        return;
+      }
+
       engine.clearBuffers(gl);
       lastUploadedSignatureRef.current = '';
       lastUploadedGridRef.current = {

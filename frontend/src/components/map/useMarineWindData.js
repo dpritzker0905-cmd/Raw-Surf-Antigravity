@@ -122,6 +122,15 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
   // 2. Perform the lightweight viewport bounds and overlap checks.
   return useMemo(() => {
     if (!conformedGridBase) {
+      // v8.0: During transitions, preserve last valid data to prevent heatmap flash-clearing
+      const isTransitioningEarly = typeof window !== 'undefined' && (
+        !!window.__MARINE_TRANSITIONING__ ||
+        !!window.__MARINE_FETCH_PENDING__ ||
+        !!window.__MARINE_FETCH_DEBOUNCING__
+      );
+      if (isTransitioningEarly && lastValidDataRef.current) {
+        return lastValidDataRef.current;
+      }
       lastValidDataRef.current = null;
       return null;
     }
@@ -239,6 +248,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           __componentLayer: activeMarineLayer,
           __gridSupportsLayer: false
         };
+      }
+      // v8.0: During transitions (fetch pending, abort recovery), preserve stale heatmap
+      // instead of returning null which triggers WebGL clearBuffers and visual flash
+      if (isTransitioning && lastValidDataRef.current) {
+        return lastValidDataRef.current;
       }
       return null;
     }
