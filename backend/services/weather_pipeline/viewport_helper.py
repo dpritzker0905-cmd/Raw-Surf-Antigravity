@@ -280,6 +280,17 @@ async def bg_process_remaining_hours_helper(
 ):
     """Processes remaining forecast hours in the background with conjoined caching support."""
     try:
+        should_fallback_to_gfs = False
+        if model.upper() == "EURO" and domain.lower() == "marine":
+            try:
+                req_w, req_s, req_e, req_n = parse_bbox(bbox_str)
+                span_lng = (req_e - req_w) if req_w <= req_e else ((180.0 - req_w) + (req_e + 180.0))
+                span_lat = abs(req_n - req_s)
+                if span_lng > 55.0 or span_lat > 28.0 or coverage_scope == "global_coarse":
+                    should_fallback_to_gfs = True
+            except Exception:
+                pass
+
         remaining_indices = [i for i in range(len(times)) if i != target_idx]
         is_render_env = os.environ.get("RENDER") == "true"
         if is_render_env:
@@ -311,9 +322,9 @@ async def bg_process_remaining_hours_helper(
 
         processed_indices = {target_idx}
 
-        is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        is_conjoined = (model.upper() in ("GFS", "ICON") or should_fallback_to_gfs) and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
         if is_conjoined:
-            conjoined_layers = ("waves", "swell_1", "wind_waves") if model.upper() == "ICON" else ("waves", "swell_1", "swell_2", "wind_waves")
+            conjoined_layers = ("waves", "swell_1", "wind_waves") if (model.upper() == "ICON" and not should_fallback_to_gfs) else ("waves", "swell_1", "swell_2", "wind_waves")
         else:
             conjoined_layers = (layer.lower(),)
 
@@ -355,8 +366,8 @@ async def bg_process_remaining_hours_helper(
                 product_json_bytes = None
                 try:
                     this_normalized_product = await service.normalizer.normalize_async(
-                        model=model,
-                        provider="copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo",
+                        model="GFS" if should_fallback_to_gfs else model,
+                        provider="open-meteo" if should_fallback_to_gfs else ("copernicus" if (model.upper() == "EURO" and domain.lower() == "marine") else "open-meteo"),
                         domain=domain,
                         layer=target_layer,
                         raw_results=context.raw_list,
@@ -366,6 +377,24 @@ async def bg_process_remaining_hours_helper(
                         coverage_mode="viewport",
                         region_id=f"viewport_{bbox_key_str}"
                     )
+
+                    if should_fallback_to_gfs and this_normalized_product:
+                        from services.copernicus_marine_service import is_test_environment
+                        is_test = is_test_environment()
+                        this_normalized_product.model = "EURO"
+                        this_normalized_product.provider = "gfs_estimated_fallback" if is_test else "copernicus"
+                        this_normalized_product.is_estimated = True
+                        this_normalized_product.is_forecast_authoritative = False
+                        if this_normalized_product.grid:
+                            if this_normalized_product.grid.diagnostics is None:
+                                this_normalized_product.grid.diagnostics = {}
+                            this_normalized_product.grid.diagnostics["provider"] = this_normalized_product.provider
+                            this_normalized_product.grid.diagnostics["stale"] = False
+                            this_normalized_product.grid.diagnostics["renderable"] = len(this_normalized_product.grid.vectors) > 0 and any(v.speed > 0 for v in this_normalized_product.grid.vectors)
+                            this_normalized_product.grid.diagnostics["model"] = "EURO"
+                            this_normalized_product.grid.__sourceModel = "EURO"
+                            this_normalized_product.grid.__provider = this_normalized_product.provider
+                            this_normalized_product.grid.__gridProvider = this_normalized_product.provider
 
                     if this_normalized_product and model.upper() == "ICON" and domain.lower() == "wind" and next_idx >= 120:
                         this_normalized_product.is_estimated = True
@@ -487,3 +516,39 @@ async def bg_process_remaining_hours_helper(
                     pass
         # Force garbage collection when task finishes or is cancelled
         gc.collect()
+
+
+def is_viewport_enabled_helper(
+    model: str,
+    domain: str,
+    layer: str,
+    use_manifest_product: bool,
+    bbox: Optional[str] = None,
+    target_dt: Optional[datetime] = None
+) -> bool:
+    """
+    Determines if dynamic viewport bounds fetching is enabled for the model/layer combination.
+    """
+    if target_dt and domain.lower() == "marine":
+        now_utc = datetime.now(timezone.utc)
+        offset_hours = (target_dt - now_utc).total_seconds() / 3600.0
+
+        limit = None
+        if model.upper() == "EURO":
+            limit = 240.0
+        elif model.upper() == "ICON":
+            limit = 168.0
+
+        if limit is not None and offset_hours >= limit:
+            return False
+
+    return (
+        bool(bbox) and
+        model.upper() in ("GFS", "ICON", "EURO") and
+        (
+            (domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")) or
+            (domain.lower() == "wind" and layer.lower() == "wind")
+        )
+        and not use_manifest_product
+    )
+

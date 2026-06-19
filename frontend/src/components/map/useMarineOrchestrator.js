@@ -384,7 +384,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
         // DO NOT clear marineData — retain stale heatmap view while the deferred fetch loads
         marineFetchLocksRef.current.lastHash = null;
-        enqueueMarineUpdate('timeline_scrub_deferred');
+        if (!window.isScrubbingTimeline) {
+          enqueueMarineUpdate('timeline_scrub_deferred');
+        }
         return;
       }
     } else {

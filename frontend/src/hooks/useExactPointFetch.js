@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from 'react';
+import { useState, useEffect, useRef, useMemo } from 'react';
 import {
   fetchExactMarinePoint,
   selectExactPointHour,
@@ -25,7 +25,6 @@ export function useExactPointFetch({
 }) {
   const [exactPointResponse, setExactPointResponse] = useState(null);
   const [exactPointStatus, setExactPointStatus] = useState('idle');
-  const [exactPoint, setExactPoint] = useState(null);
   const [estimateTrigger, setEstimateTrigger] = useState(0);
   const exactPointFetchRef = useRef(null);
   const prevLayerRef = useRef(activeLayer);
@@ -48,7 +47,6 @@ export function useExactPointFetch({
 
   // Synchronous state reset during render phase (Derived State pattern)
   let localResponse = exactPointResponse;
-  let localPoint = exactPoint;
   let localStatus = exactPointStatus;
 
   if (currentPointKey !== renderedPointKey) {
@@ -57,21 +55,17 @@ export function useExactPointFetch({
     if (cachedData) {
       setExactPointResponse(cachedData);
       const selected = selectExactPointHour(cachedData, timeOffsetHours);
-      setExactPoint(selected);
       const nextStatus = selected ? 'exact_success' : 'exact_loading';
       setExactPointStatus(nextStatus);
 
       localResponse = cachedData;
-      localPoint = selected;
       localStatus = nextStatus;
     } else {
       setExactPointResponse(null);
-      setExactPoint(null);
       const nextStatus = pointLat && pointLng && isExactPointRequired ? 'exact_loading' : 'idle';
       setExactPointStatus(nextStatus);
 
       localResponse = null;
-      localPoint = null;
       localStatus = nextStatus;
     }
   }
@@ -79,7 +73,12 @@ export function useExactPointFetch({
   const isStale = (currentPointKey !== renderedPointKey) && !getCachedPointResponse(pointLat, pointLng, activeModel, activeLayer, settledOffset);
 
   const effectiveExactPointResponse = isStale ? null : localResponse;
-  const effectiveExactPoint = isStale ? null : localPoint;
+  
+  const effectiveExactPoint = useMemo(() => {
+    if (!effectiveExactPointResponse) return null;
+    return selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
+  }, [effectiveExactPointResponse, timeOffsetHours]);
+
   const effectiveExactPointStatus = (() => {
     if (isStale) {
       return (pointLat && pointLng && isExactPointRequired ? 'exact_stale_rejected' : 'idle');
@@ -230,11 +229,9 @@ export function useExactPointFetch({
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {
-      setExactPoint(null);
       return;
     }
     const selected = selectExactPointHour(effectiveExactPointResponse, timeOffsetHours);
-    setExactPoint(selected);
 
     if (selected) {
       const targetTs = Date.now() + (timeOffsetHours || 0) * 3600000;
