@@ -40,14 +40,14 @@ var TruthOverlay = ({
   const marineVectorCount = marineData?.grid?.vectors?.length || 0;
   const activeLayer = activeLayers?.[0] || 'none';
 
-  // Live telemetry ticking loop (updates numbers at 2Hz without React overhead on main map)
+  // Live telemetry ticking loop (updates at 0.5Hz — only when GPU tab is active and not minimized)
   useEffect(() => {
-    if (minimized) return;
+    if (minimized || activeTab !== 'gpu') return;
     const interval = setInterval(() => {
       setTicks(t => t + 1);
-    }, 500);
+    }, 2000);
     return () => clearInterval(interval);
-  }, [minimized]);
+  }, [minimized, activeTab]);
 
   // Subscribe to WeatherTelemetry for live events trace
   const [events, setEvents] = useState(() => {
@@ -795,4 +795,4 @@ var TruthOverlay = ({
   );
 };
 
-export default TruthOverlay;
+export default React.memo(TruthOverlay);

@@ -1,5 +1,6 @@
 import logging
 import asyncio
+import gc
 from services.forecast_ingester import ingest_global_model
 
 logger = logging.getLogger(__name__)
@@ -24,6 +25,7 @@ def ingest_marine_forecast_task():
             except Exception as e:
                 logger.error(f"[Scheduler] Legacy wind ingestion failed: {e}", exc_info=True)
 
+            gc.collect()
             await asyncio.sleep(5.0)
 
             try:
@@ -31,6 +33,8 @@ def ingest_marine_forecast_task():
                 await ingest_global_model('marine')
             except Exception as e:
                 logger.error(f"[Scheduler] Legacy marine ingestion failed: {e}", exc_info=True)
+
+            gc.collect()
 
             # Run conformed global weather pipeline jobs
             from services.weather_pipeline.scheduler import WeatherPipelineScheduler
@@ -51,13 +55,14 @@ def ingest_marine_forecast_task():
             ]
 
             for name, job_func in jobs:
-                await asyncio.sleep(15.0)
+                await asyncio.sleep(30.0)
                 logger.info(f"[Scheduler] Starting scheduled job: {name}")
                 try:
                     await job_func()
                     logger.info(f"[Scheduler] Completed scheduled job: {name}")
                 except Exception as e:
                     logger.error(f"[Scheduler] Job '{name}' failed with error: {e}", exc_info=True)
+                gc.collect()
 
         loop.run_until_complete(run_jobs())
         loop.close()

@@ -5,8 +5,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { usePersona } from '../contexts/PersonaContext';
 import { useTheme } from '../contexts/ThemeContext';
 import { toast } from 'sonner';
-import useMapActions from '../hooks/useMapActions';
-import { supabase } from '../lib/supabase';
 import UnifiedSpotDrawer from './UnifiedSpotDrawer';
 import { MapLiveFloatingIsland } from './MapLiveIndicator';
 import DispatchTrackingPanel from './map/DispatchTrackingPanel';
@@ -23,24 +21,21 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { FLORIDA_CENTER, isValidLatLng, truncateCoord, fitMapToAll, getSharedLandGeoJSON } from './map/mapUtils';
+import { getSharedLandGeoJSON } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
 import { useIPGeolocation } from '../hooks/useIPGeolocation';
 import { useMapState } from '../hooks/useMapState';
-import { useFriendsOnMap } from '../hooks/useFriendsOnMap';
-import { useRequestProState } from '../hooks/useRequestProState';
-import logger from '../utils/logger';
-import useDispatchTracking from '../hooks/useDispatchTracking';
 import useOpenMeteoForecast from '../hooks/useOpenMeteoForecast';
-import { useMapSeo } from '../hooks/useMapSeo';
 import { useWeatherState } from '../hooks/useWeatherState';
 import { useSnappedCoordinates } from '../hooks/useSnappedCoordinates';
+import { useMapPhotographerState } from '../hooks/useMapPhotographerState';
+import { useMapInteractions } from '../hooks/useMapInteractions';
+import logger from '../utils/logger';
 
 var MapPageContent = () => {
   const { user, refreshUser } = useAuth();
-  const { getEffectiveRole } = usePersona();
 
   // Refresh user profile and preload land GeoJSON on mount
   useEffect(() => {
@@ -52,6 +47,7 @@ var MapPageContent = () => {
     });
   }, []);
   const { theme } = useTheme();
+  const { getEffectiveRole } = usePersona();
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
 
@@ -275,198 +271,81 @@ var MapPageContent = () => {
     friendsLoading, setFriendsLoading,
     setShowFriendPicker,
     friendSearchQuery, setFriendSearchQuery,
-  } = useRequestProState();
-
-  const {
-    friendsOnMap,
-    showFriendsOnMap,
-    setShowFriendsOnMap,
+    friendsOnMap, showFriendsOnMap, setShowFriendsOnMap,
     friendMarkersRef,
-    _fetchFriendsOnMap,
-    _clearFriendMarkers,
-  } = useFriendsOnMap({ user, mapInstanceRef });
-  
-  const [activeOnDemandRequests, setActiveOnDemandRequests] = useState([]);
-  const onDemandMarkersRef = useRef([]);
-  const [, setLockedShooterCount] = useState(null);
-  
-  const [trackingMarkersRef] = useState({ surfer: null, photographer: null, routeLine: null });
-  const userMarkerRef = useRef(null);
-  const userAccuracyCircleRef = useRef(null);
-  const [showPermissionNudge, setShowPermissionNudge] = useState(false);
-  const [permissionNudgeAction, setPermissionNudgeAction] = useState('booking');
+    activeOnDemandRequests, setActiveOnDemandRequests,
+    setLockedShooterCount,
+    trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
+    showPermissionNudge, setShowPermissionNudge,
+    permissionNudgeAction, setPermissionNudgeAction,
+    effectiveRole, isPhotographer,
+  } = useMapPhotographerState({ user, mapInstanceRef, getEffectiveRole });
 
-  const effectiveRole = getEffectiveRole(user?.role);
-  const isPhotographer = useMemo(() =>
-    ['Hobbyist', 'Photographer', 'Approved Pro'].includes(effectiveRole),
-    [effectiveRole]
-  );
-
-
-  // Handle filter change with map resize
-  const handleFilterChange = useCallback((newFilter) => {
-    setFilter(newFilter);
-    
-    // Force map resize on filter change
-    if (mapInstanceRef.current) {
-      setTimeout(() => {
-        mapInstanceRef.current.resize();
-        
-        // Fit bounds to all data points for 'ALL' filter
-        if (newFilter === 'all') {
-          fitMapToAll(mapInstanceRef.current, surfSpots, livePhotographers);
-        }
-      }, 100);
-    }
-  }, [surfSpots, livePhotographers]);
-
-
-
-  useEffect(() => {
-    if (pendingRequestPro && memoizedUserLocation) {
-      setShowRequestProModal(true);
-      setPendingRequestPro(false);
-      setRequestProLocationLoading(false);
-    }
-  }, [memoizedUserLocation, pendingRequestPro]);
-
-  useEffect(() => {
-    if (isImmersiveMode) {
-      setShowWeatherControls(false);
-      setIsTimelineCollapsed(true);
-    }
-  }, [isImmersiveMode, setShowWeatherControls, setIsTimelineCollapsed]);
-
-  // Setup Map page SEO meta tags
-  useMapSeo();
 
   const {
-    fetchOnDemandPros,
-    fetchFriends,
-    fetchActiveRequests,
+    handleFilterChange,
+    getUserLocation,
+    handleStartGoLiveFlow,
+    handleConditionsConfirm,
+    handleStopLiveWrapper,
     handleSpotClick,
-    fetchActiveShootersAtSpot,
     handleCloseUnifiedDrawer,
     handleStartShootingFromDrawer,
     handleSwitchLocation,
     handlePhotographerClick,
-  } = useMapActions({
-    user, mapInstanceRef, selectedSpot,
-    trackingMarkersRef, userMarkerRef, userAccuracyCircleRef,
-    livePhotographers, surfSpots, userLocation: memoizedUserLocation, effectiveLocation,
-    showRequestProModal, inviteFriends, currentUserShooting: !!currentLiveSpot,
-    isValidLatLng, truncateCoord, handleStartGoLiveFlow: startGoLiveFlow,
+    currentUserShooting,
+    activeDispatch,
+    activeDispatchId,
+    setActiveDispatchId,
+    clearDispatch,
+    fetchActiveShootersAtSpot,
+  } = useMapInteractions({
+    user,
+    mapInstanceRef,
+    selectedSpot,
+    livePhotographers,
+    surfSpots,
+    userLocation,
+    memoizedUserLocation,
+    effectiveLocation,
+    currentLiveSpot,
+    startGoLiveFlow,
+    locationDenied,
+    requestLocation,
+    isPhotographer,
+    isImmersiveMode,
+    inviteFriends,
+    pendingRequestPro,
+    showRequestProModal,
+    setFilter,
+    setSelectedSpot,
+    setUnifiedDrawerOpen,
+    setBottomSheetOpen,
+    setSelectedPhotographer,
+    setCurrentLiveSpot,
+    setShowLocationPicker,
+    setShowWeatherControls,
+    setIsTimelineCollapsed,
+    setShowRequestProModal,
+    setPendingRequestPro,
+    setRequestProLocationLoading,
+    setPulsingMarkers,
+    setShowPermissionNudge,
+    setPermissionNudgeAction,
+    trackingMarkersRef,
+    userMarkerRef,
+    userAccuracyCircleRef,
     setActiveOnDemandRequests,
     setActiveShootersAtSpot,
-    setBottomSheetOpen,
-    setCurrentLiveSpot,
     setFriendsList,
     setFriendsLoading,
     setLockedShooterCount,
     setOnDemandLoading,
     setOnDemandPhotographers,
-    setSelectedPhotographer,
-    setSelectedSpot,
-    setUnifiedDrawerOpen,
+    hookHandleConditionsConfirm,
+    handleStopLive,
+    fetchLivePhotographers,
   });
-
-  useEffect(() => {
-    fetchOnDemandPros();
-  }, [showRequestProModal, memoizedUserLocation, fetchOnDemandPros]);
-
-  useEffect(() => { fetchFriends(); }, [inviteFriends, user?.id]);
-
- // Dispatch tracking extracted to useDispatchTracking hook (v80)
-  const {
-    activeDispatch,
-    activeDispatchId,
-    setActiveDispatchId,
-    clearDispatch,
-  } = useDispatchTracking({ userId: user?.id });
-
-  useEffect(() => {
-    if (!isPhotographer) return;
-    fetchActiveRequests();
-    const interval = setInterval(fetchActiveRequests, 30000);
-    return () => clearInterval(interval);
-  }, [isPhotographer]);
-
-  useEffect(() => {
-    if (!supabase) return;
-    const channel = supabase
-      .channel('live-session-participants')
-      .on(
-        'postgres_changes',
-        {
-          event: 'INSERT',
-          schema: 'public',
-          table: 'live_session_participants'
-        },
-        (payload) => {
-          const photographerId = payload.new?.photographer_id;
-          
-          if (photographerId) {
-            setPulsingMarkers(prev => new Set([...prev, photographerId]));
-            
-            // Remove pulse after 3 seconds
-            setTimeout(() => {
-              setPulsingMarkers(prev => {
-                const newSet = new Set(prev);
-                newSet.delete(photographerId);
-                return newSet;
-              });
-            }, 3000);
-            fetchLivePhotographers();
-            toast.success('\u{1F3C4} A surfer just jumped in!', { description: 'Someone joined a live session' });
-          }
-        }
-      )
-      .subscribe();
-
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  // MapLibre doesn't need these manual updates; React handles it via props!
-  const getUserLocation = async () => {
-    try {
-      const location = await requestLocation();
-      if (!location?.lat || !location?.lng ||
-          typeof location.lat !== 'number' || typeof location.lng !== 'number' ||
-          Number.isNaN(location.lat) || Number.isNaN(location.lng)) {
-        logger.error('[MAP] Invalid location:', location);
-        setShowLocationPicker(true);
-        return;
-      }
-      if (mapInstanceRef.current) {
-        mapInstanceRef.current.flyTo({ center: [location.lng, location.lat], zoom: 12 });
-      }
-    } catch (error) {
-      logger.error('[MAP] GPS failed:', error);
-      setShowLocationPicker(true);
-    }
-  };
-
-  const handleStartGoLiveFlow = useCallback((spotId, sessionSettings = {}) => {
-    if (!userLocation && locationDenied) {
-      setPermissionNudgeAction('go_live');
-      setShowPermissionNudge(true);
-      return;
-    }
-    setUnifiedDrawerOpen(false);
-    setBottomSheetOpen(false);
-    startGoLiveFlow(spotId, sessionSettings);
-  }, [startGoLiveFlow, userLocation, locationDenied]);
-
-  const handleConditionsConfirm = useCallback((data) => {
-    hookHandleConditionsConfirm(data, surfSpots);
-  }, [hookHandleConditionsConfirm, surfSpots]);
-
-  const currentUserShooting = (livePhotographers || []).find(p => p.id === user?.id);
-  const handleStopLiveWrapper = useCallback(() => {
-    handleStopLive(currentUserShooting);
-  }, [handleStopLive, currentUserShooting]);
 
   if (loading) {
     return (

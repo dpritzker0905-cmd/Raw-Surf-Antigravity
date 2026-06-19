@@ -142,16 +142,11 @@ def start_scheduler():
     )
 
     # Global Forecast Ingestion Pipeline — Every 3 hours
-    import os
-    is_render = os.environ.get("RENDER") == "true"
-    if is_render:
-        logger.info("[Scheduler] Render environment detected. Skipping global forecast ingestion task to prevent memory exhaustion.")
-    else:
-        scheduler.add_job(
-            ingest_marine_forecast_task, IntervalTrigger(hours=3),
-            id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
-            replace_existing=True
-        )
+    scheduler.add_job(
+        ingest_marine_forecast_task, IntervalTrigger(hours=3),
+        id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
+        replace_existing=True
+    )
 
     # Rate limiter memory cleanup — every hour
     def _cleanup_rate_limiter():

@@ -76,14 +76,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   }, [activeLayers]);
   activeMarineLayersRef.current = hasMarineLayers;
 
-  // Synchronously flag transition during render if model/layer changes
+  // Flag transition during render if model/layer changes — batched via microtask
   // to prevent child WebGL layer from clearing buffers before fetch starts.
   if (typeof window !== 'undefined' && activeMarineLayersRef.current) {
     if (lastFetchedModelRef.current !== null && lastFetchedModelRef.current !== activeModel) {
-      window.__MARINE_TRANSITIONING__ = true;
+      queueMicrotask(() => { window.__MARINE_TRANSITIONING__ = true; });
     }
     if (lastFetchedLayerRef.current !== null && lastFetchedLayerRef.current !== activeMarineLayer) {
-      window.__MARINE_TRANSITIONING__ = true;
+      queueMicrotask(() => { window.__MARINE_TRANSITIONING__ = true; });
     }
   }
 
