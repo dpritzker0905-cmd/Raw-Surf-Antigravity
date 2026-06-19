@@ -396,8 +396,9 @@ def _fetch_sync(
         start_time_dt = now_dt - timedelta(hours=6)
         end_time_dt = now_dt + timedelta(days=forecast_days)
 
+    import uuid
     temp_dir = Path(tempfile.gettempdir())
-    temp_filename = f"cmems_subset_{int(time.time())}.nc"
+    temp_filename = f"cmems_subset_{uuid.uuid4().hex}.nc"
     temp_file = temp_dir / temp_filename
 
     if temp_file.exists():
