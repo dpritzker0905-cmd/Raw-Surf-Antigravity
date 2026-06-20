@@ -78,6 +78,28 @@ const safeMoveLayer = (mapInstance, layerId, beforeId) => {
   } catch (e) {}
 };
 
+// Batched variant: move MANY layers below `beforeId` using a SINGLE getStyle() snapshot
+// instead of one getStyle() per layer. getStyle() serializes the entire MapLibre style,
+// so calling it once for N layers (vs N times) is a large saving on the styledata hot path.
+const safeMoveLayersBatch = (mapInstance, layerIds, beforeId) => {
+  if (!mapInstance || !beforeId || !layerIds || !layerIds.length) return;
+  try {
+    if (!mapInstance.getLayer(beforeId)) return;
+    const style = mapInstance.getStyle();
+    if (!style || !style.layers) return;
+    const order = new Map();
+    for (let i = 0; i < style.layers.length; i++) order.set(style.layers[i].id, i);
+    const beforeIdx = order.get(beforeId);
+    if (beforeIdx === undefined) return;
+    for (const layerId of layerIds) {
+      const layerIdx = order.get(layerId);
+      if (layerIdx === undefined) continue;   // layer not present
+      if (layerIdx < beforeIdx) continue;      // already below/before — nothing to do
+      try { mapInstance.moveLayer(layerId, beforeId); } catch (e) {}
+    }
+  } catch (e) {}
+};
+
 // Reposition base map landuse/park fills dynamically on top of the solid land mask
 const repositionLanduse = (mapInstance) => {
   if (!mapInstance) return;
@@ -563,19 +585,28 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     };
   }, [mapInstance, triggerSync]);
 
-  // Dedicated marine-raster repositioning listener to ensure slots sit below buffer
+  // Dedicated marine-raster repositioning listener to ensure slots sit below buffer.
+  // styledata can fire several times per frame during transitions; coalesce to one
+  // reposition per animation frame, and reposition all 12 slot layers with a single
+  // getStyle() snapshot (was 12 getStyle() calls per styledata event).
   useEffect(() => {
     if (!mapInstance) return;
     const marineRasterLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
+    let rafId = null;
     const repositionLayers = () => {
-      const { active } = stateRef.current;
-      if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
-      for (const ml of marineRasterLayers) {
-        safeMoveLayer(mapInstance, ml, MASK_BUFFER);
-      }
+      if (rafId !== null) return; // already scheduled this frame
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const { active } = stateRef.current;
+        if (!active || !mapInstance.getLayer(MASK_BUFFER)) return;
+        safeMoveLayersBatch(mapInstance, marineRasterLayers, MASK_BUFFER);
+      });
     };
     mapInstance.on('styledata', repositionLayers);
-    return () => mapInstance.off('styledata', repositionLayers);
+    return () => {
+      mapInstance.off('styledata', repositionLayers);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
   }, [mapInstance]);
 
   // Unmount cleanup
