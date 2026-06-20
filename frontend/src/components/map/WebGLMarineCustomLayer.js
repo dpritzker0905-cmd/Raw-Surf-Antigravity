@@ -132,7 +132,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
           const activeModel = activeModelRef ? activeModelRef.current : 'GFS';
           const activeLayers = activeLayersRef.current || [];
           const activeMarineLayer = activeLayers.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
-          const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
+          // EURO has a global (estimated) product for ALL marine components, so reject a
+          // regional EURO grid when zoomed out instead of rendering a clamped rectangle.
+          const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || activeModel === 'EURO');
           
           if (viewportBounds) {
             const ew = viewportBounds[0], ee = viewportBounds[2], es = viewportBounds[1], en = viewportBounds[3];

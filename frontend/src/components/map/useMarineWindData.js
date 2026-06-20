@@ -165,7 +165,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       if (!isGlobalGrid) {
         const gw = conformedGridBase.bounds.west, ge = conformedGridBase.bounds.east, gs = conformedGridBase.bounds.south, gn = conformedGridBase.bounds.north;
         const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
-        const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || (activeModel === 'EURO' && activeMarineLayer === 'waves'));
+        // EURO has a global (estimated) product for ALL marine components — not just waves —
+        // so a regional EURO grid (e.g. a Florida tile fetched while zoomed in) must be
+        // rejected when zoomed out instead of rendering as a clamped rectangle. Previously
+        // only EURO waves was treated as global-supported, so EURO swell/wind_waves clamped.
+        const isGlobalSupported = (activeModel === 'GFS' || activeModel === 'ICON' || activeModel === 'EURO');
         try {
           const mb = mapInstance.getBounds();
           const ew = mb.getWest(), ee = mb.getEast(), es = mb.getSouth(), en = mb.getNorth();
