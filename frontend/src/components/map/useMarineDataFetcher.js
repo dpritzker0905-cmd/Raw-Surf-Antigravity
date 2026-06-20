@@ -518,11 +518,14 @@ export function useMarineDataFetcher({
     // the network with one fetch+abort per intermediate hour. A single discrete timeline
     // click just waits ~220ms — imperceptible — while a drag no longer floods.
     if (source === 'timeline_scrub_deferred') {
+      // 150ms trailing debounce: snappy enough to track a pause between scrub ticks while
+      // still coalescing a fast drag into one fetch (cancel-and-replace). Lower than this
+      // risks firing per-tick on a slow drag and reintroducing the fetch flood.
       if (scrubDebounceRef.current) clearTimeout(scrubDebounceRef.current);
       scrubDebounceRef.current = setTimeout(() => {
         scrubDebounceRef.current = null;
         updateMarineGrid('timeline_scrub');
-      }, 220);
+      }, 150);
       return;
     }
 

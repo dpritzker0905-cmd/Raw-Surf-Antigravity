@@ -358,6 +358,19 @@ export function commitMarineData({
       console.log(`[Marine] Ignoring empty/unrenderable commit to preserve stale heatmap data.`);
       return prev;
     }
+    // Anti-flicker during an ACTIVE scrub: a stale/coarse/degenerate grid (e.g. the 2x2
+    // global fallback, 4 vectors) would replace the good heatmap with a near-empty frame
+    // for a beat, then refill — the glitch felt while scrubbing. Hold the prior good
+    // same-model/layer frame instead. This is scrub-only: the SWR revalidation commit
+    // (source 'swr_revalidation') and settled commits are NOT suppressed, so the final
+    // displayed frame is still truthful (even if genuinely coarse).
+    const isScrubCommit = source === 'timeline_scrub';
+    const isStaleCoarse = !!(data?.stale || data?.grid?.stale);
+    const isDegenerate = ((data?.grid?.cols ?? 99) <= 2 || (data?.grid?.rows ?? 99) <= 2);
+    if (isScrubCommit && (isStaleCoarse || isDegenerate) && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
+      console.log(`[Marine] Scrub: holding good frame, skipped ${isDegenerate ? 'degenerate' : 'stale/coarse'} commit (cols=${data?.grid?.cols}, rows=${data?.grid?.rows}).`);
+      return prev;
+    }
     const newSig = _marineDataSignature(data, layer);
     if (newSig && newSig === lastCommittedSigRef.current) {
       logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig });
