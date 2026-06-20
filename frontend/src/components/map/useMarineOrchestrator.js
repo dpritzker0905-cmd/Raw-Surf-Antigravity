@@ -12,6 +12,14 @@ import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
 
+// Coalescing window for model/layer SWITCH fetches. The timer resets on every switch, so a
+// burst of clicks collapses into ONE fetch once the user pauses for this long. 300ms was
+// shorter than a typical explore-click interval (~0.4-0.7s), so each click fired its own
+// fetch → abort-and-clear storm (blank flashes). 600ms absorbs normal rapid toggling while
+// staying imperceptible for a single deliberate switch. (Does NOT touch the 150ms scrub
+// coalescing or engine residency.)
+const SWITCH_FETCH_COALESCE_MS = 600;
+
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const timeOffsetRef = useRef(timeOffsetHours);
   const activeModelRef = useRef(activeModel);
@@ -577,7 +585,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       lastCommittedSigRef.current = null;
       marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
       manualMarineTriggerRef.current?.();
-    }, 300);
+    }, SWITCH_FETCH_COALESCE_MS);
   }, [activeModel, mapInstance, setMarineData]);
 
   useEffect(() => {
@@ -754,7 +762,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
     manualMarineTriggerRef.current?.();
-    }, 300); // end coalescing setTimeout — 300ms window absorbs rapid layer cycling
+    }, SWITCH_FETCH_COALESCE_MS); // end coalescing setTimeout — absorbs rapid layer cycling
   }, [activeMarineLayer, mapInstance, setMarineData]);
 
   useEffect(() => {
