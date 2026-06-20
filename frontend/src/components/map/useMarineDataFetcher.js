@@ -20,7 +20,7 @@ import {
   handleCooldownFallback,
   commitMarineData
 } from './useMarineDataFetcherHelpers';
-import { getTarget, endTransition } from './marineTransitionCoordinator';
+import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 
 
 export function useMarineDataFetcher({
@@ -182,6 +182,7 @@ export function useMarineDataFetcher({
           return;
         }
         console.log(`[Abort] Aborting in-flight fetch (${activeSource}) for new request source=${source}`);
+        recordChurn('abort', { site: 'updateMarineGrid', from: activeSource, to: source });
         if (abortControllerRef.current) {
           abortControllerRef.current.abort();
         }
@@ -435,6 +436,7 @@ export function useMarineDataFetcher({
           console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
         } else {
           console.warn(`[ABORT RECOVERY] No previous data exists. Committing recovery grid to break LOADING deadlock.`);
+          recordChurn('recovery_grid_commit', { model, layer, hour: timeOffset, phase, retry: abortRecoveryRetryCountRef.current });
           lastCommittedSigRef.current = null;
           marineRevision.current += 1;
           const recoveryGrid = getAbortRecoveryGrid(model, layer, phase, marineRevision.current);
@@ -538,6 +540,7 @@ export function useMarineDataFetcher({
         return;
       }
       console.log(`[Abort] Aborting active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source}`);
+      recordChurn('abort', { site: 'enqueueMarineUpdate', from: activeSource, to: source });
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }

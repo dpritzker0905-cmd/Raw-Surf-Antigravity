@@ -15,6 +15,7 @@ import {
 import {
   createTexture
 } from './WebGLMarineTextureEncoder';
+import { recordChurn } from './marineTransitionCoordinator';
 
 // --- Particle Texture Init Helper ---
 export function initParticleTexture(gl, resolution) {
@@ -158,6 +159,7 @@ export function initEngine(engine, gl) {
 
   engine._initialized = true;
   console.log('[WebGLMarine] Initialized engine with ' + numParticles + ' wave crests + 96x96 grid');
+  recordChurn('engine_init', { particles: numParticles });
 }
 
 var deleteAttachedShaders = function(gl, prog) {
@@ -212,4 +214,5 @@ export function disposeEngine(engine, gl) {
   engine._landGeoJSON = null;
   engine._initialized = false;
   console.log('[WebGLMarine] Engine Disposed');
+  recordChurn('engine_dispose');
 }

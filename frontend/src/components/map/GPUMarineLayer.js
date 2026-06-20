@@ -11,6 +11,7 @@
 import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 import { wrapLongitude, wrapLngRelative, getCenterLng, isLngInBounds } from './mapUtils';
+import { recordChurn } from './marineTransitionCoordinator';
 
 // --- SINGLETON REGISTRY ---
 var ACTIVE_MARINE_ENGINES = new Set();
@@ -290,6 +291,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     }
     ACTIVE_MARINE_ENGINES.add(id);
     console.log(`[Marine] === STARTING FOAM ENGINE (${id}) ===`);
+    recordChurn('foam_mount', { id });
 
     const canvas = canvasRef.current;
     const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -547,6 +549,7 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
 
     return () => {
       console.log(`[Marine] === UNMOUNTING (${id}) ===`);
+      recordChurn('foam_unmount', { id });
       ACTIVE_MARINE_ENGINES.delete(id);
       coordinator.unregister(id);
       window.removeEventListener('resize', onResize);

@@ -147,6 +147,31 @@ export function recordClear(reason, requested = null) {
   return entry;
 }
 
+/**
+ * Churn telemetry (instrumentation-first, no behavior change). Records the events that
+ * drive engine/recovery churn during scrub + layer/model toggling so we can fix with
+ * evidence instead of guessing. Read `window.__MARINE_CHURN__` in the console:
+ *   .counts  → running totals per kind (recovery_grid_commit, engine_init, engine_dispose,
+ *              foam_mount, foam_unmount, active_layer_flip, abort)
+ *   .log     → last 150 events with {kind, detail, gen, sinceMs, t}
+ * Use `window.__MARINE_CHURN_RESET__()` to zero it before a measurement run.
+ */
+export function recordChurn(kind, detail = {}) {
+  if (typeof window === 'undefined') return;
+  let c = window.__MARINE_CHURN__;
+  if (!c || typeof c !== 'object') {
+    c = window.__MARINE_CHURN__ = { counts: {}, log: [], startedAt: Date.now(), _last: 0 };
+    window.__MARINE_CHURN_RESET__ = () => { window.__MARINE_CHURN__ = { counts: {}, log: [], startedAt: Date.now(), _last: 0 }; };
+  }
+  c.counts[kind] = (c.counts[kind] || 0) + 1;
+  const now = Date.now();
+  const entry = { kind, ...detail, gen: _target ? _target.gen : 0, sinceMs: c._last ? now - c._last : 0, t: now };
+  c._last = now;
+  c.log.push(entry);
+  if (c.log.length > 150) c.log.shift();
+  return entry;
+}
+
 export function subscribe(fn) {
   _subs.add(fn);
   return () => _subs.delete(fn);

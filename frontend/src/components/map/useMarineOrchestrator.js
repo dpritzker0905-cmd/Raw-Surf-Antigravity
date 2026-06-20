@@ -6,7 +6,7 @@ import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
-import { beginTransition, endCurrentTransition } from './marineTransitionCoordinator';
+import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
@@ -29,6 +29,18 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => { if (typeof window !== 'undefined') window.activeModel = activeModel; }, [activeModel]);
   useEffect(() => { if (typeof window !== 'undefined') window.activeMarineLayer = activeMarineLayer || 'waves'; }, [activeMarineLayer]);
   useEffect(() => { if (typeof window !== 'undefined') window.activeTimeOffsetHours = timeOffsetHours; }, [timeOffsetHours]);
+
+  // Churn instrumentation: record every activeMarineLayer flip. A flip to/from null
+  // unmounts <WebGLMarineLayer> (gated on !!activeMarineLayer in MapWebGL) and tears down
+  // the WebGL + foam engines, so `toNull`/`fromNull` flips are the engine-remount smoking gun.
+  const churnPrevLayerRef = useRef(activeMarineLayer);
+  useEffect(() => {
+    const prev = churnPrevLayerRef.current;
+    if (prev !== activeMarineLayer) {
+      recordChurn('active_layer_flip', { from: prev, to: activeMarineLayer, toNull: !activeMarineLayer, fromNull: !prev });
+      churnPrevLayerRef.current = activeMarineLayer;
+    }
+  }, [activeMarineLayer]);
 
   const lastFetchedLayerRef = useRef(null);
   const layerFetchTimeoutRef = useRef(null);
