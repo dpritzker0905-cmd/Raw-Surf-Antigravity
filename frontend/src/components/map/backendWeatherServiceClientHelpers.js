@@ -8,6 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
+import { arrayMax } from './marineControllerUtils';
 
 /**
  * Perform circular blending for direction vectors.
@@ -196,7 +197,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   });
 
   const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
-  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
+  const maxSpeed = arrayMax(mappedVectors.map(v => v[layer].speed));
   
   const renderable = mappedVectors.length > 0;
 
@@ -269,8 +270,8 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
     const rootFlatSpeedNonzeroCount = mappedVectors.filter(v => v.speed > 0).length;
     const nestedWavesSpeedNonzeroCount = mappedVectors.filter(v => v.waves && v.waves.speed > 0).length;
-    const rootFlatMaxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.speed)) : 0;
-    const nestedWavesMaxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v.waves ? v.waves.speed : 0)) : 0;
+    const rootFlatMaxSpeed = arrayMax(mappedVectors.map(v => v.speed));
+    const nestedWavesMaxSpeed = arrayMax(mappedVectors.map(v => v.waves ? v.waves.speed : 0));
     const sampleMapped = mappedVectors.filter(v => v.speed > 0).slice(0, 5).map(v => ({
       root: {
         speed: v.speed,
@@ -406,7 +407,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         });
       }
 
-      const maxSpeed = blendedVectors.length > 0 ? Math.max(...blendedVectors.map(v => v.speed), 0) : 0;
+      const maxSpeed = arrayMax(blendedVectors.map(v => v.speed));
       const blendedGrid = {
         vectors: blendedVectors,
         bounds: iconAnchorGrid.grid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },
@@ -531,7 +532,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         });
       }
 
-      const maxSpeed = blendedVectors.length > 0 ? Math.max(...blendedVectors.map(v => v.speed), 0) : 0;
+      const maxSpeed = arrayMax(blendedVectors.map(v => v.speed));
       const blendedGrid = {
         vectors: blendedVectors,
         bounds: primaryGrid.bounds || snappedBounds || { west: -180, south: -80, east: 180, north: 85 },

@@ -1,9 +1,33 @@
 /**
  * marineControllerUtils.js
- * 
+ *
  * Shared utility functions and constants for wind, marine, and pressure data fetching.
  * Extracted from marineController.js for LOC compliance.
  */
+
+/**
+ * Max/min over an array WITHOUT the spread operator. `Math.max(...arr)` pushes every
+ * element as a function argument and throws "Maximum call stack size exceeded" once the
+ * array is large enough (global marine grids reach tens of thousands of cells). These
+ * reduce-based versions are safe for arbitrarily large arrays.
+ */
+export function arrayMax(arr, fallback = 0) {
+  let m = -Infinity;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (v > m) m = v;
+  }
+  return m === -Infinity ? fallback : m;
+}
+
+export function arrayMin(arr, fallback = 0) {
+  let m = Infinity;
+  for (let i = 0; i < arr.length; i++) {
+    const v = arr[i];
+    if (v < m) m = v;
+  }
+  return m === Infinity ? fallback : m;
+}
 
 // ========================================================================
 // MARINE MODEL CAPABILITY MAPS — v6.4 Split: Grid vs ExactPoint

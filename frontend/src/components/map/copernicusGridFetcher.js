@@ -15,6 +15,7 @@
 
 import { governMarineRequest } from './marineRequestGovernor';
 import { upscaleGrid, computeRegionalGrid } from './copernicusGridHelpers';
+import { arrayMax, arrayMin } from './marineControllerUtils';
 
 // Maps marine layer → Copernicus/Open-Meteo variable names
 var COPERNICUS_LAYER_VARS = {
@@ -166,12 +167,12 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
           boundsAtSend,
           inputBounds: viewportBounds,
           clampedBounds: clampedBBox,
-          sentMinLat: lats.length > 0 ? Math.min(...lats) : null,
-          sentMaxLat: lats.length > 0 ? Math.max(...lats) : null,
-          sentMinLon: lons.length > 0 ? Math.min(...lons) : null,
-          sentMaxLon: lons.length > 0 ? Math.max(...lons) : null,
-          sentLatSpan: lats.length > 0 ? (Math.max(...lats) - Math.min(...lats)) : null,
-          sentLonSpan: lons.length > 0 ? (Math.max(...lons) - Math.min(...lons)) : null,
+          sentMinLat: lats.length > 0 ? arrayMin(lats, null) : null,
+          sentMaxLat: lats.length > 0 ? arrayMax(lats, null) : null,
+          sentMinLon: lons.length > 0 ? arrayMin(lons, null) : null,
+          sentMaxLon: lons.length > 0 ? arrayMax(lons, null) : null,
+          sentLatSpan: lats.length > 0 ? (arrayMax(lats, 0) - arrayMin(lats, 0)) : null,
+          sentLonSpan: lons.length > 0 ? (arrayMax(lons, 0) - arrayMin(lons, 0)) : null,
           zoomSnapshot: zoomAtSend
         };
       }
@@ -187,12 +188,12 @@ async function doFetchAndUpscale(viewportBounds, layer, hourOffset, zoom, cacheK
   var boundsDiag = {
     inputBounds: viewportBounds,
     clampedBounds: clampedBBox,
-    sentMinLat: lats.length > 0 ? Math.min(...lats) : null,
-    sentMaxLat: lats.length > 0 ? Math.max(...lats) : null,
-    sentMinLon: lons.length > 0 ? Math.min(...lons) : null,
-    sentMaxLon: lons.length > 0 ? Math.max(...lons) : null,
-    sentLatSpan: lats.length > 0 ? (Math.max(...lats) - Math.min(...lats)) : null,
-    sentLonSpan: lons.length > 0 ? (Math.max(...lons) - Math.min(...lons)) : null,
+    sentMinLat: lats.length > 0 ? arrayMin(lats, null) : null,
+    sentMaxLat: lats.length > 0 ? arrayMax(lats, null) : null,
+    sentMinLon: lons.length > 0 ? arrayMin(lons, null) : null,
+    sentMaxLon: lons.length > 0 ? arrayMax(lons, null) : null,
+    sentLatSpan: lats.length > 0 ? (arrayMax(lats, 0) - arrayMin(lats, 0)) : null,
+    sentLonSpan: lons.length > 0 ? (arrayMax(lons, 0) - arrayMin(lons, 0)) : null,
     zoomSnapshot: zoomAtSend,
     zoomAtSchedule,
     zoomAtSend,

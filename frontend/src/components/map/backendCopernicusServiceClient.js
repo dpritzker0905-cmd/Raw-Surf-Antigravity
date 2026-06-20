@@ -16,6 +16,7 @@ import {
   updateProjectionDiag
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
+import { arrayMax } from './marineControllerUtils';
 
 export const copernicusPointCache = new BoundedPointCache(50, 30000);
 
@@ -57,7 +58,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
   });
 
   const nonzeroCount = mappedVectors.filter(v => v[layer].speed > 0).length;
-  const maxSpeed = mappedVectors.length > 0 ? Math.max(...mappedVectors.map(v => v[layer].speed), 0) : 0;
+  const maxSpeed = arrayMax(mappedVectors.map(v => v[layer].speed));
   const renderable = mappedVectors.length > 0;
 
   return {

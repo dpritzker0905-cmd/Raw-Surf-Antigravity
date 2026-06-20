@@ -13,6 +13,7 @@ import { clampViewportBbox, getCachedManifest, setCachedManifest } from './backe
 import { latestTimeDiag, updateDiagnostics, updateProjectionDiag } from './backendWeatherServiceClientDiag';
 import { recordTruthStage } from './weatherTruthTracker';
 import { fetchBackendMarineGridIconExtended, mapNormalizedGridToWebGL } from './backendWeatherServiceClientHelpers';
+import { arrayMax, arrayMin } from './marineControllerUtils';
 
 
 export { BoundedPointCache };
@@ -493,8 +494,8 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
       const vectors = json.grid && Array.isArray(json.grid.vectors) ? json.grid.vectors : [];
       const nonzero = vectors.filter(v => (v.speed || 0) > 0);
-      const minS = vectors.length > 0 ? Math.min(...vectors.map(v => v.speed || 0)) : 0;
-      const maxS = vectors.length > 0 ? Math.max(...vectors.map(v => v.speed || 0)) : 0;
+      const minS = arrayMin(vectors.map(v => v.speed || 0));
+      const maxS = arrayMax(vectors.map(v => v.speed || 0));
       const samples = nonzero.slice(0, 5).map(v => ({
         lat: v.lat,
         lng: v.lng,
