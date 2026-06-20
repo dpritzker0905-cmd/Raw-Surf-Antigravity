@@ -28,9 +28,97 @@ CONCURRENCY = 4
 # per-hour flow for missing hours.
 PER_HOUR_TIMEOUT = 10.0
 OVERALL_DEADLINE = 35.0
+# EURO/Copernicus fast path budget. Kept under the client's 45s fetch timeout so the
+# backend always answers first. The Copernicus full-range fetch is cached (10 min), so
+# only the FIRST EURO series load pays this; later ones are instant.
+EURO_SERIES_TIMEOUT = 40.0
 
 
-async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
+async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hour_list, base):
+    """
+    EURO/Copernicus fast path. The per-hour loop hangs for EURO because each hour passes a
+    `valid_time`, which makes copernicus_marine_service fetch only a ±3h CMEMS window per
+    hour (serialized behind a global lock) — N slow downloads. Instead, fetch the FULL
+    forecast range ONCE (valid_time=None) and normalize every requested hour from that one
+    response, reusing the SAME normalizer /grid's dynamic path uses.
+
+    Additive + EURO-marine-only: touches no existing method, cache, or the /grid path. On
+    any problem returns None so build_grid_series falls back to the generic per-hour loop.
+    """
+    from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
+    from services.weather_pipeline.route_helpers import parse_bbox, generate_bbox_coords
+    from services.weather_pipeline.normalizer import WeatherNormalizer
+
+    w, s, e, n = parse_bbox(bbox)
+    bbox_dict = {"west": w, "south": s, "east": e, "north": n}
+
+    # Adaptive resolution + 500-point cap, mirroring the dynamic builder so the grid matches.
+    resolution = 0.25
+    steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
+    lats, lons = generate_bbox_coords(w, s, e, n, resolution)
+    while len(lats) > 500 and resolution != steps[-1]:
+        resolution = steps[min(len(steps) - 1, steps.index(resolution) + 1)]
+        lats, lons = generate_bbox_coords(w, s, e, n, resolution)
+    if not lats:
+        return None
+
+    max_h = max(hour_list) if hour_list else 72
+    forecast_days = min(10, max(3, (max_h // 24) + 2))
+
+    cop = CopernicusProvider()
+    raw = await cop.fetch_grid(
+        layer=layer, bbox=bbox_dict, resolution=resolution,
+        forecast_days=forecast_days, precomputed_coords=(lats, lons),
+        valid_time=None,  # FULL range in ONE fetch — the entire point of this path
+    )
+    if not raw:
+        return None
+    raw_list = raw if isinstance(raw, list) else [raw]
+    times = (raw_list[0].get("hourly") or {}).get("time") or []
+    if not times:
+        return None
+
+    frames = []
+    shared_bounds = None
+    shared_cols = shared_rows = 0
+    region_id = f"viewport_series_{w:.2f}_{s:.2f}_{e:.2f}_{n:.2f}"
+    for h in hour_list:
+        target_dt = base + timedelta(hours=h)
+        idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+        if idx is None:
+            continue
+        t_str = times[idx]
+        t_actual = datetime.fromisoformat((t_str if t_str.endswith("Z") else t_str + "Z").replace("Z", "+00:00"))
+        normalized = await viewport_service.normalizer.normalize_async(
+            model="EURO", provider="copernicus", domain="marine", layer=layer,
+            raw_results=raw_list, bbox=bbox_dict, resolution=resolution,
+            target_time=t_actual, coverage_mode="viewport", region_id=region_id,
+        )
+        if not normalized or not getattr(normalized, "grid", None) or not normalized.grid.vectors:
+            continue
+        g = normalized.grid
+        b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
+        if shared_bounds is None and b:
+            shared_bounds, shared_cols, shared_rows = b, g.cols, g.rows
+        frames.append({
+            "hour_offset": h,
+            "valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "cols": g.cols, "rows": g.rows, "bounds": b,
+            "vectors": g.vectors,
+            "provider": getattr(normalized, "provider", "copernicus"),
+            "is_estimated": getattr(normalized, "is_estimated", False),
+        })
+
+    frames.sort(key=lambda f: f["hour_offset"])
+    return {
+        "model": "EURO", "domain": "marine", "layer": layer,
+        "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "bounds": shared_bounds, "cols": shared_cols, "rows": shared_rows,
+        "frame_count": len(frames), "frames": frames,
+    }
+
+
+async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
@@ -45,6 +133,21 @@ async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, b
         raise HTTPException(status_code=400, detail="no valid hours provided")
 
     base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+
+    # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic
+    # per-hour loop below hangs for EURO — each hour is a separate ±3h CMEMS download).
+    # Additive + EURO-marine-only; on any failure fall through to the generic loop.
+    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine":
+        try:
+            euro = await asyncio.wait_for(
+                _build_euro_marine_series(viewport_service, layer, bbox, hour_list, base),
+                timeout=EURO_SERIES_TIMEOUT,
+            )
+            if euro and euro.get("frame_count", 0) > 0:
+                return euro
+            logger.warning("[grid_series] EURO fast path returned no frames; falling back to per-hour")
+        except BaseException as e:
+            logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); falling back to per-hour")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).

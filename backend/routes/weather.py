@@ -96,7 +96,8 @@ async def get_grid_series(
     from services.weather_pipeline.grid_series_helper import build_grid_series
     # Reuse the SAME resolver /grid uses (get_grid, defined below) so each frame matches the
     # live heatmap exactly, at any zoom/region (manifest regional/global + dynamic viewport).
-    return await build_grid_series(get_grid, model, domain, layer, bbox, hours)
+    # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
+    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours)
 
 
 @router.get("/grid", response_model=NormalizedProduct)
