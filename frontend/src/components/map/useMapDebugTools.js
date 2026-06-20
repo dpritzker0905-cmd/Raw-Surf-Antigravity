@@ -10,21 +10,20 @@ export function useMapDebugTools({
   windData,
   marineData,
   simulationField,
-  renderPlan,
   fieldDiagnostics,
-  simDiagnostics,
-  simFrameIndex
+  simDiagnostics
 }) {
   useEffect(() => {
     if (typeof window === 'undefined') return;
 
     window.__FCE_FIELD__ = simulationField;
-    window.__FCE_RENDER_PLAN__ = renderPlan;
     window.__FCE_DIAGNOSTICS__ = fieldDiagnostics;
     window.__SIM_DIAGNOSTICS__ = simDiagnostics;
-    window.__SIM_FRAME__ = simFrameIndex;
-    window.__SIM_EVOLUTION__ = renderPlan?.evolution || null;
     window.__GPU_DISPATCHER__ = getDispatcherDiagnostics();
+    // NOTE: __FCE_RENDER_PLAN__ / __SIM_FRAME__ / __SIM_EVOLUTION__ are now owned by
+    // useRenderPlanBridge (written on each throttled sample without a React re-render).
+    // This effect no longer depends on the per-frame renderPlan/simFrameIndex, so a
+    // bridge update does not re-run it.
 
     window.__DATA_DIAG__ = {
       wind: {
@@ -50,8 +49,8 @@ export function useMapDebugTools({
       fce: {
         fieldRevision: simulationField?.revision || null,
         fieldSources: simulationField?.sources || null,
-        renderPlanExists: !!renderPlan,
-        simFrame: simFrameIndex,
+        renderPlanExists: !!window.__FCE_LATEST_PLAN__,
+        simFrame: window.__SIM_FRAME__ || 0,
       },
       timestamp: new Date().toISOString(),
     };
@@ -63,10 +62,8 @@ export function useMapDebugTools({
     windData,
     marineData,
     simulationField,
-    renderPlan,
     fieldDiagnostics,
-    simDiagnostics,
-    simFrameIndex
+    simDiagnostics
   ]);
 
   useEffect(() => {

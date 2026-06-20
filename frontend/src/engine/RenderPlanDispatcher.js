@@ -419,7 +419,7 @@ function fieldToMarineGrid(field, activeMarineLayer) {
  * @param {Object} renderPlan - Latest RenderPlan from SimulationLoop
  * @param {number} frameIndex - Current simulation frame
  */
-function dispatchRenderPlan(renderPlan, frameIndex) {
+export function dispatchRenderPlan(renderPlan, frameIndex) {
   if (!renderPlan) return;
 
   _dispatchCount++;
@@ -432,17 +432,25 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
   if (!field) return;
 
   // ---- Dispatch to Wind Engine ----
+  // Domain-local gate: a disabled wind upload must skip ONLY the wind block, never
+  // return from the dispatcher — otherwise it suppresses marine dispatch/diagnostics
+  // below when a wind engine happens to be registered. (P1 — dispatcher domain gates.)
+  const windUploadEnabled = typeof window === 'undefined' || window.__ALLOW_FCE_WIND_UPLOAD__ === true;
   if (_windEngine && _windGL && field.sources.wind) {
-    if (typeof window !== 'undefined' && window.__ALLOW_FCE_WIND_UPLOAD__ !== true) {
-      return;
+    if (typeof window !== 'undefined') {
+      window.__FCE_WIND_BLOCKED__ = windUploadEnabled
+        ? null
+        : { blocked: true, reason: 'FCE wind uploads disabled — forecast-authoritative mode', frameIndex, timestamp: new Date().toISOString() };
     }
-    try {
-      const windGrid = fieldToWindGrid(field);
-      if (windGrid) {
-        _windEngine.setWindData(_windGL, windGrid);
+    if (windUploadEnabled) {
+      try {
+        const windGrid = fieldToWindGrid(field);
+        if (windGrid) {
+          _windEngine.setWindData(_windGL, windGrid);
+        }
+      } catch (e) {
+        console.warn('[RenderPlanDispatcher] Wind texture upload error:', e.message);
       }
-    } catch (e) {
-      console.warn('[RenderPlanDispatcher] Wind texture upload error:', e.message);
     }
   }
 

@@ -404,8 +404,8 @@ function deterministicHash(x, y, t) {
  * @param {import('./SimulationField').SimulationField} field
  * @returns {Object}
  */
-export function getEvolutionDiagnostics(field) {
-  if (!field) return { evolved: false };
+export function getEvolutionDiagnostics(field, opts = {}) {
+  if (!field) return { evolved: false, mode: 'no_field' };
 
   const g = field.grid;
   const size = field.cols * field.rows;
@@ -416,8 +416,17 @@ export function getEvolutionDiagnostics(field) {
     waveEnergy += g.waveHeight[i] ** 2;
   }
 
+  // Evolution only runs in the simulation sandbox; in normal forecast-authoritative
+  // map mode evolveField() is never invoked. Report the true mode + whether any
+  // evolution tick has actually been applied — NOT mere field existence.
+  const inSandbox = typeof window !== 'undefined' && window.__IN_SIMULATION_SANDBOX__ === true;
+  const evolutionTicks = opts.evolutionTicks || 0;
+  const evolved = inSandbox && evolutionTicks > 0;
+
   return {
-    evolved: true,
+    evolved,
+    mode: inSandbox ? 'sandbox_active' : 'disabled_forecast_authoritative',
+    evolutionTicks,
     windTotalEnergy: +(windEnergy / size).toFixed(4),
     waveTotalEnergy: +(waveEnergy / size).toFixed(4),
     gridSize: `${field.cols}×${field.rows}`,

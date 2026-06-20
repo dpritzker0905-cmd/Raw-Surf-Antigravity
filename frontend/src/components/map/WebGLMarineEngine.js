@@ -126,6 +126,21 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
       oldRows: oldGrid?.rows,
       newRows: waveGrid.rows
     });
+    // Phase 1.3: record reset reason + source product so real product changes can be
+    // distinguished from redundant commits before optimizing. Diagnostics only.
+    if (typeof window !== 'undefined') {
+      const reason = (boundsChanged && dimsChanged) ? 'both' : boundsChanged ? 'bounds' : 'dimensions';
+      const rd = window.__MARINE_GPU_RESET__ || (window.__MARINE_GPU_RESET__ = { counts: {}, log: [] });
+      rd.counts[reason] = (rd.counts[reason] || 0) + 1;
+      rd.log.unshift({
+        reason,
+        oldCols: oldGrid?.cols, newCols: waveGrid.cols,
+        oldRows: oldGrid?.rows, newRows: waveGrid.rows,
+        productId: waveGrid.productId || waveGrid.__productId || null,
+        timestamp: new Date().toISOString()
+      });
+      if (rd.log.length > 40) rd.log.pop();
+    }
     // Delete existing particle textures first to prevent GPU memory leaks
     if (this.particleStateA) gl.deleteTexture(this.particleStateA);
     if (this.particleStateB) gl.deleteTexture(this.particleStateB);

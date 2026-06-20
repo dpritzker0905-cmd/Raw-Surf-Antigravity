@@ -213,6 +213,14 @@ var TruthOverlay = ({
   const gpuDroppedFrames = typeof window !== 'undefined' ? window.__RAW_GPU__?.droppedFrameCounter : 0;
   const fboStatus = typeof window !== 'undefined' ? window.__RAW_GPU__?.advFboStatus : null;
 
+  // Evolution mode: prefer the live prop, fall back to the sampled window value
+  // (in normal forecast-authoritative mode the per-frame renderPlan is not published
+  //  to React — the bridge keeps the latest sample on window.__SIM_EVOLUTION__).
+  const evolutionMode = renderPlan?.evolution?.mode
+    || (typeof window !== 'undefined' ? window.__SIM_EVOLUTION__?.mode : null);
+  // Live frame counter with the same window fallback.
+  const liveSimFrame = simFrameIndex || (typeof window !== 'undefined' ? (window.__SIM_FRAME__ || 0) : 0);
+
   return (
     <div style={{
       position: 'absolute', bottom: '16px', left: '16px', zIndex: 100,
@@ -753,13 +761,15 @@ var TruthOverlay = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Simulation Frame:</span>
                   <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#38bdf8' }}>
-                    {simFrameIndex}
+                    {liveSimFrame}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Plan Evolution:</span>
-                  <span style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>
-                    {renderPlan?.evolution?.evolved ? 'Active' : 'none'}
+                  <span style={{ fontFamily: 'monospace', color: evolutionMode === 'sandbox_active' ? '#10b981' : '#94a3b8' }}>
+                    {evolutionMode === 'sandbox_active' ? 'Active (sandbox)'
+                      : evolutionMode === 'disabled_forecast_authoritative' ? 'Disabled (forecast-auth)'
+                      : 'none'}
                   </span>
                 </div>
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>

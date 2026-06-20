@@ -78,6 +78,64 @@ export function useSimulationField({
     const currentSig = `${wSig}_${mSig}_${pSig}_${activeModel}_${activeMarineLayer}`;
 
     if (lastFieldRef.current && lastFieldSigRef.current === currentSig) {
+      const prevField = lastFieldRef.current;
+
+      // The content signature intentionally omits timeOffsetHours. If the grid
+      // content is identical but the REQUESTED hour changed, the previous field's
+      // hourOffset/time would be stale — which downstream FCE dispatcher validation
+      // and diagnostics read. Correct the temporal metadata WITHOUT rebuilding the
+      // field (reuse the existing grid arrays).
+      if (prevField.hourOffset !== timeOffsetHours) {
+        const isScrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline === true;
+        const refreshedTime = Date.now() + timeOffsetHours * 3600000;
+
+        if (isScrubbing) {
+          // During an active scrub, correct the metadata IN PLACE (same object
+          // reference, same revision). This keeps the requested hour truthful for
+          // diagnostics while avoiding a new field identity — which would re-render
+          // map consumers and trigger SimulationLoop.bindField rebind churn on every
+          // intermediate hour. The per-frame FCE dispatcher is a no-op in normal map
+          // mode (and self-suppresses during scrub when enabled), so nothing reads a
+          // stale evolved-field hour here.
+          prevField.hourOffset = timeOffsetHours;
+          prevField.time = refreshedTime;
+          if (typeof window !== 'undefined') {
+            window.__SIM_BIND_REASON__ = {
+              changed: ['timeOffset'], deduped: true, reason: 'metadata_time_refresh_scrub_inplace',
+              signature: currentSig, prevRevision: prevField.revision, nextRevision: prevField.revision,
+              nextHourOffset: timeOffsetHours, timestamp: new Date().toISOString()
+            };
+          }
+          return prevField;
+        }
+
+        // Settled: propagate via a metadata-only revision bump so ALL consumers —
+        // including the SimulationLoop-cloned evolved field the dispatcher reads —
+        // pick up the corrected hour. Grid arrays are still reused (no rebuild).
+        const refreshed = {
+          ...prevField,
+          hourOffset: timeOffsetHours,
+          time: refreshedTime,
+          revision: prevField.revision + 1,
+        };
+        lastRevisionRef.current = refreshed.revision;
+        lastFieldRef.current = refreshed;
+        if (typeof window !== 'undefined') {
+          window.__SIM_BIND_REASON__ = {
+            changed: ['timeOffset'],
+            deduped: true,
+            reason: 'metadata_only_time_refresh',
+            signature: currentSig,
+            prevRevision: prevField.revision,
+            nextRevision: refreshed.revision,
+            prevHourOffset: prevField.hourOffset,
+            nextHourOffset: timeOffsetHours,
+            timestamp: new Date().toISOString()
+          };
+        }
+        return refreshed;
+      }
+
       if (typeof window !== 'undefined') {
         window.__SIM_BIND_REASON__ = {
           changed: [],
@@ -89,7 +147,7 @@ export function useSimulationField({
           timestamp: new Date().toISOString()
         };
       }
-      return lastFieldRef.current;
+      return prevField;
     }
 
     const f = buildSimulationField({

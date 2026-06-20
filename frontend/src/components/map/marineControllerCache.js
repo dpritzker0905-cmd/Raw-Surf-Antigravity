@@ -94,6 +94,26 @@ var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
 
 export function getPerModelHourCache() { return _perModelHourCache; }
 
+// ---------------------------------------------------------------------------
+// Structured cache lookup telemetry (Phase 1.3)
+// Records WHY a marine cache lookup hit or missed so the dominant miss class can
+// be measured BEFORE any cache capacity/prefetch change. Pure diagnostics: this
+// never changes the lookup result. Reasons: hit, hit_fallback, exact_key_absent,
+// expired, stale, signature_mismatch, bounds_not_contained.
+// Read in console: window.__MARINE_CACHE_DIAG__  /  reset: window.__MARINE_CACHE_DIAG_RESET__()
+// ---------------------------------------------------------------------------
+export function recordMarineCacheLookup(reason, detail) {
+  if (typeof window === 'undefined') return;
+  let diag = window.__MARINE_CACHE_DIAG__;
+  if (!diag) {
+    diag = window.__MARINE_CACHE_DIAG__ = { counts: {}, log: [] };
+    window.__MARINE_CACHE_DIAG_RESET__ = () => { window.__MARINE_CACHE_DIAG__ = { counts: {}, log: [] }; };
+  }
+  diag.counts[reason] = (diag.counts[reason] || 0) + 1;
+  diag.log.unshift({ reason, ...detail, timestamp: new Date().toISOString() });
+  if (diag.log.length > 60) diag.log.pop();
+}
+
 export function estimateRequestCost(type, model, pointCount, hourlyVarCount, forecastDays) {
   if (type === 'tiles') return 50000;
   const timeBytes = forecastDays * 24 * 25;
@@ -271,9 +291,12 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
     const layerPart = _isAllVarModel(model) ? 'all' : layer;
     const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
-    const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
+    const lookupKey = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
+    const missDetail = { model: model || 'GFS', layer, hourOffset, tileId, lookupKey };
+    const exact = _perModelHourCache.get(lookupKey);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
       if (exact.data?.stale || exact.data?.grid?.stale) {
+        recordMarineCacheLookup('stale', missDetail);
         return false;
       }
       const sig = exact.signature;
@@ -291,9 +314,15 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
             sig.cols === (g.cols || 0) &&
             sig.rows === (g.rows || 0) &&
             sig.vectorsLength === (g.vectors?.length || 0)) {
+          recordMarineCacheLookup('hit', missDetail);
           return true;
         }
+        recordMarineCacheLookup('signature_mismatch', missDetail);
       }
+    } else if (exact) {
+      recordMarineCacheLookup('expired', missDetail);
+    } else {
+      recordMarineCacheLookup('exact_key_absent', missDetail);
     }
 
     // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
@@ -326,6 +355,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
                     sig.cols === (g.cols || 0) &&
                     sig.rows === (g.rows || 0) &&
                     sig.vectorsLength === (g.vectors?.length || 0)) {
+                  recordMarineCacheLookup('hit_fallback', missDetail);
                   return true;
                 }
               }
@@ -334,6 +364,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
         }
       }
     }
+    recordMarineCacheLookup('bounds_not_contained', missDetail);
     return false;
   }
 

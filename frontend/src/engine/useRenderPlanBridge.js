@@ -73,15 +73,31 @@ export function useRenderPlanBridge({ field, config, enabled = true }) {
   // Subscribe to RenderPlan updates from the simulation loop
   useEffect(() => {
     const unsub = onRenderPlan((plan, frame) => {
-      // Throttle React updates to ~10Hz to avoid excessive re-renders
-      // The simulation runs at 60Hz but React doesn't need that frequency
+      // Throttle to ~10Hz. The simulation runs at 60Hz but nothing here needs it.
       const now = Date.now();
-      if (now - throttleRef.current < 100) return; // Max 10 updates/sec to React
+      if (now - throttleRef.current < 100) return;
       throttleRef.current = now;
 
-      // Update React with latest plan (field evolves continuously)
-      if (plan && frame !== lastPlanRevRef.current) {
-        lastPlanRevRef.current = frame;
+      if (!plan || frame === lastPlanRevRef.current) return;
+      lastPlanRevRef.current = frame;
+
+      // ALWAYS keep the latest sample on window for the diagnostics HUD — this is a
+      // plain assignment, NOT React state, so it triggers no re-render.
+      if (typeof window !== 'undefined') {
+        window.__FCE_LATEST_PLAN__ = plan;
+        window.__FCE_RENDER_PLAN__ = plan;
+        window.__SIM_FRAME__ = frame;
+        window.__SIM_EVOLUTION__ = plan.evolution || null;
+      }
+
+      // In normal forecast-authoritative map mode the per-frame RenderPlan does NOT
+      // control forecast-direct WebGL rendering (FCE GPU uploads are disabled), so
+      // publishing it into React state would re-render the whole map for nothing.
+      // Only publish to React in the simulation sandbox or when an explicit FCE
+      // diagnostics flag is set. (P0 — RenderPlan/frame state drives avoidable React work.)
+      const publishToReact = typeof window !== 'undefined' &&
+        (window.__IN_SIMULATION_SANDBOX__ === true || window.__FCE_REACT_PUBLISH__ === true);
+      if (publishToReact) {
         setRenderPlan(plan);
         setFrameIndex(frame);
       }

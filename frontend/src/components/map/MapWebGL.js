@@ -228,11 +228,21 @@ const MapWebGL = ({
     windData,
     marineData,
     simulationField,
-    renderPlan,
     fieldDiagnostics,
-    simDiagnostics,
-    simFrameIndex
+    simDiagnostics
   });
+
+  // OceanMask activation is a pure function of layer state — it does NOT need a
+  // per-frame RenderPlan. Deriving it directly lets us stop publishing renderPlan
+  // into React in normal mode without changing mask behavior. (Mirrors
+  // composeRenderPlan's oceanMask.active: oceanMaskEnabled && (hasMarine || hasMarineRaster).)
+  const oceanMaskActive = useMemo(() => {
+    const hasMarine = !!activeMarineLayer;
+    const hasMarineRaster = (activeLayers || []).some(l =>
+      ['waves', 'swell', 'wind_waves', 'secondary_swell'].includes(l)
+    );
+    return hasMarine || hasMarineRaster;
+  }, [activeMarineLayer, activeLayers]);
 
   const activeRenderType = useMemo(() => {
     const layerId = activeLayers[0];
@@ -449,7 +459,7 @@ const MapWebGL = ({
         {/* Ocean Mask — Static land/ocean layers */}
         <OceanMask
           mapInstance={mapInstance}
-          active={renderPlan ? renderPlan.oceanMask.active : !!activeMarineLayer}
+          active={oceanMaskActive}
           activeMarineLayer={activeMarineLayer}
           theme={theme}
           activeLayers={activeLayers}

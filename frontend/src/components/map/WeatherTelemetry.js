@@ -90,10 +90,16 @@ class WeatherTelemetryEngine {
       '[PressureController]'
     ];
 
+    // Cheap pre-filter: every tracked prefix begins with '[', so if the first
+    // argument is not a string starting with '[' we can bail out before the
+    // expensive args.join(' ') + substring scan. This runs on EVERY console call.
+    const cannotMatch = (args) => typeof args[0] !== 'string' || args[0].charCodeAt(0) !== 91; // 91 === '['
+
     const originalWarn = console.warn;
     console.warn = (...args) => {
       originalWarn.apply(console, args);
       try {
+        if (cannotMatch(args)) return;
         const msg = args.join(' ');
         if (targetPrefixes.some(prefix => msg.includes(prefix))) {
           this.emit('model_warning', {
@@ -109,6 +115,7 @@ class WeatherTelemetryEngine {
     console.error = (...args) => {
       originalError.apply(console, args);
       try {
+        if (cannotMatch(args)) return;
         const msg = args.join(' ');
         if (targetPrefixes.some(prefix => msg.includes(prefix))) {
           this.emit('model_error', {
@@ -124,6 +131,7 @@ class WeatherTelemetryEngine {
     console.log = (...args) => {
       originalLog.apply(console, args);
       try {
+        if (cannotMatch(args)) return;
         const msg = args.join(' ');
         if (typeof args[0] === 'string' && args[0].includes('[WebGLMarineEngine] setWaveData result:') && args[1] && args[1].hasData === false) {
           this.emit('texture_encoding_failed', {

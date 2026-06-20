@@ -463,7 +463,12 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           const hasWindow = typeof window !== 'undefined';
           const currentSettings = (hasWindow && window.__OM_PROTOCOL_SETTINGS__) || settings;
           const debug = (hasWindow && window.__RASTER_DEBUG__) || {};
-          console.log("[OM-Protocol] addProtocol callback triggered! URL:", params.url, "hasWindow:", hasWindow, "hasCallback:", typeof currentSettings.postReadCallback === 'function');
+          // Per-tile callback log fires for every tile (332+ lines in a normal session);
+          // gate it behind window.__RASTER_DEBUG__ so it does not amplify main-thread +
+          // console-recording overhead in production. One-time init/failure logs below stay.
+          if (hasWindow && window.__RASTER_DEBUG__) {
+            console.log("[OM-Protocol] addProtocol callback triggered! URL:", params.url, "hasWindow:", hasWindow, "hasCallback:", typeof currentSettings.postReadCallback === 'function');
+          }
           
           // Safe one-time init log
           if (!debug.hasLoggedProtocol) {

@@ -41,6 +41,12 @@ let _sampleIndex = 0;
 let _lastFieldRevision = -1;
 let _rebaselineTimer = null;
 let _pendingRevision = -1;
+let _lastHealthSampleTime = 0;
+
+// In forecast-authoritative mode the field is not evolving, so the full
+// integrity/energy/divergence/particle scan every plan is wasted work. Sample at
+// ~1Hz unless the field revision just changed. Sandbox keeps full-rate checks.
+const HEALTH_SAMPLE_INTERVAL_MS = 1000;
 
 // Rolling buffers
 const _jitterSamples = new Float32Array(SAMPLE_WINDOW);
@@ -165,6 +171,8 @@ function onPlanReceived(renderPlan, frameIndex) {
   if (!renderPlan) return;
 
   const field = renderPlan._evolvedField;
+  // Capture revision-changed BEFORE the rebaseline block mutates _lastFieldRevision.
+  const revisionChanged = field && field.revision !== _lastFieldRevision;
   if (field && field.revision !== _lastFieldRevision) {
     // Always null the baseline immediately so the next energy measurement
     // captures the new field, but debounce the console log to avoid 50+
@@ -178,6 +186,15 @@ function onPlanReceived(renderPlan, frameIndex) {
       _rebaselineTimer = null;
     }, 500);
   }
+
+  // Mode-aware throttle: in forecast-authoritative mode, only run the full metric
+  // scan ~1Hz (or immediately when the revision changed). Sandbox runs full rate.
+  const inSandbox = typeof window !== 'undefined' && window.__IN_SIMULATION_SANDBOX__ === true;
+  const now0 = performance.now();
+  if (!inSandbox && !revisionChanged && (now0 - _lastHealthSampleTime) < HEALTH_SAMPLE_INTERVAL_MS) {
+    return;
+  }
+  _lastHealthSampleTime = now0;
 
   const idx = _sampleIndex % SAMPLE_WINDOW;
 

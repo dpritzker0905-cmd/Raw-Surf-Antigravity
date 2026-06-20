@@ -45,6 +45,12 @@ let _unsubUpdate = null;
 let _unsubRender = null;
 let _evolutionTicks = 0;     // Count of evolution steps applied
 let _lastFieldRevision = 0;  // Track when new base data arrives
+let _composeThrottle = 0;    // Normal-mode compose cadence counter
+
+// In normal forecast-authoritative mode the composed plan only feeds diagnostics
+// (FCE GPU uploads disabled), so compose at ~4Hz instead of display refresh rate.
+// renderCallback fires at ~60Hz, so 15 → ~4 composes/sec.
+const NORMAL_COMPOSE_INTERVAL = 15;
 
 // Render plan subscribers (React bridge)
 const _planSubscribers = [];
@@ -255,6 +261,19 @@ function simulationTick(dt, simTime) {
 function renderCallback(alpha, simTime) {
   if (!_evolvedField || !_config) return;
 
+  // Compose at full display rate only when the plan actually drives work: the
+  // simulation sandbox, an explicit FCE GPU upload, or explicit React publishing.
+  // Otherwise throttle to ~4Hz — the plan is diagnostics-only in normal map mode.
+  const fullRate = typeof window !== 'undefined' &&
+    (window.__IN_SIMULATION_SANDBOX__ === true ||
+     window.__ALLOW_FCE_WIND_UPLOAD__ === true ||
+     window.__ALLOW_FCE_MARINE_UPLOAD__ === true ||
+     window.__FCE_REACT_PUBLISH__ === true);
+  if (!fullRate) {
+    _composeThrottle = (_composeThrottle + 1) % NORMAL_COMPOSE_INTERVAL;
+    if (_composeThrottle !== 0) return;
+  }
+
   // Compose RenderPlan from EVOLVED field (not base)
   _renderPlan = composeRenderPlan(_evolvedField, _config);
 
@@ -277,8 +296,8 @@ function renderCallback(alpha, simTime) {
       _renderPlan.waveField.particleCount = _marineParticles.getCount();
     }
 
-    // Attach evolution diagnostics
-    _renderPlan.evolution = getEvolutionDiagnostics(_evolvedField);
+    // Attach evolution diagnostics (mode + actual evolution tick count, not field existence)
+    _renderPlan.evolution = getEvolutionDiagnostics(_evolvedField, { evolutionTicks: _evolutionTicks });
 
     // Attach evolved field reference for GPU dispatcher (non-enumerable to keep plan clean)
     Object.defineProperty(_renderPlan, '_evolvedField', {
