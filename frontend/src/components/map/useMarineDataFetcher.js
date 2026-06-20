@@ -510,21 +510,19 @@ export function useMarineDataFetcher({
     const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
     if (!isTimelineScrub && window.isScrubbingTimeline) return;
 
-    // Debounced scrub path: coalesce rapid scrub positions into a single fetch
+    // Debounced scrub path: ALWAYS coalesce rapid scrub positions into a single fetch.
+    // Cancel-and-replace, so a drag across many hours collapses into ONE backend fetch
+    // ~220ms after movement settles. The previous immediate-fire branch ran whenever
+    // window.isScrubbingTimeline was momentarily false between ticks (which is exactly
+    // when the orchestrator processes each scrub tick), defeating coalescing and flooding
+    // the network with one fetch+abort per intermediate hour. A single discrete timeline
+    // click just waits ~220ms — imperceptible — while a drag no longer floods.
     if (source === 'timeline_scrub_deferred') {
-      if (!window.isScrubbingTimeline) {
-        if (scrubDebounceRef.current) {
-          clearTimeout(scrubDebounceRef.current);
-          scrubDebounceRef.current = null;
-        }
-        updateMarineGrid('timeline_scrub');
-        return;
-      }
-      clearTimeout(scrubDebounceRef.current);
+      if (scrubDebounceRef.current) clearTimeout(scrubDebounceRef.current);
       scrubDebounceRef.current = setTimeout(() => {
         scrubDebounceRef.current = null;
         updateMarineGrid('timeline_scrub');
-      }, 150);
+      }, 220);
       return;
     }
 
