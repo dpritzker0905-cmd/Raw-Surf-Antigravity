@@ -201,6 +201,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const fetchedRef = useRef(false);
   const syncingRef = useRef(false);
   const timeoutRef = useRef(null);
+  const deactivateTimerRef = useRef(null);
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
@@ -546,12 +547,18 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     }
   }, [syncLayers]);
 
-  // Handle active state changes immediately and synchronously to clean up on toggling off
+  // Handle active state changes. Removal is DEBOUNCED so a rapid marine->wind->marine toggle
+  // doesn't tear down and rebuild all mask layers each time (the [OceanMask] Deactivating
+  // churn seen while toggling between marine and wind). If marine reactivates within the
+  // window, the active branch cancels the pending removal — a cheap no-op resync instead.
   useEffect(() => {
     if (!active) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
-      if (mapInstance) {
-        console.log('[OceanMask] Deactivating: removing layers immediately');
+      if (!mapInstance) return;
+      if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
+      deactivateTimerRef.current = setTimeout(() => {
+        deactivateTimerRef.current = null;
+        console.log('[OceanMask] Deactivating: removing layers');
         syncingRef.current = true;
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
@@ -563,10 +570,16 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
         setTimeout(() => { syncingRef.current = false; }, 300);
-      }
+      }, 350);
     } else {
+      // Reactivated — cancel any pending deactivation (mask layers are likely still present)
+      // and just resync, avoiding a remove+re-add cycle.
+      if (deactivateTimerRef.current) { clearTimeout(deactivateTimerRef.current); deactivateTimerRef.current = null; }
       triggerSync(0);
     }
+    return () => {
+      if (deactivateTimerRef.current) { clearTimeout(deactivateTimerRef.current); deactivateTimerRef.current = null; }
+    };
   }, [mapInstance, active, activeMarineLayer, theme, beforeId, maskData, triggerSync]);
 
   // Re-run sync on styles data changes
