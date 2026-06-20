@@ -10,6 +10,7 @@ import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } 
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
+import { recordClear } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
 
@@ -434,6 +435,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!isRenderable) {
       if (currentData?.__unsupportedLayer === true) {
+        recordClear('unsupported_layer');
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {
@@ -477,6 +479,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
+      recordClear('non_renderable_terminal');
       engine.clearBuffers(gl);
       lastUploadedSignatureRef.current = '';
       lastUploadedGridRef.current = {

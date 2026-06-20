@@ -6,6 +6,7 @@ import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
+import { beginTransition, endCurrentTransition } from './marineTransitionCoordinator';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
@@ -79,14 +80,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   }, [activeLayers]);
   activeMarineLayersRef.current = hasMarineLayers;
 
-  // Flag transition during render if model/layer changes — batched via microtask
-  // to prevent child WebGL layer from clearing buffers before fetch starts.
+  // Open a transition during render if model/layer changes, BEFORE the child WebGL layer
+  // can clear buffers. beginTransition is idempotent on {model,layer} and ownership-tracked
+  // (a stale fetch can no longer end a newer transition), so a render-phase call is safe
+  // under repeated/StrictMode renders.
   if (typeof window !== 'undefined' && activeMarineLayersRef.current) {
-    if (lastFetchedModelRef.current !== null && lastFetchedModelRef.current !== activeModel) {
-      queueMicrotask(() => { window.__MARINE_TRANSITIONING__ = true; });
-    }
-    if (lastFetchedLayerRef.current !== null && lastFetchedLayerRef.current !== activeMarineLayer) {
-      queueMicrotask(() => { window.__MARINE_TRANSITIONING__ = true; });
+    const modelChanged = lastFetchedModelRef.current !== null && lastFetchedModelRef.current !== activeModel;
+    const layerChanged = lastFetchedLayerRef.current !== null && lastFetchedLayerRef.current !== activeMarineLayer;
+    if (modelChanged || layerChanged) {
+      beginTransition({ model: activeModel, layer: activeMarineLayer || 'waves', hour: timeOffsetHours });
     }
   }
 
@@ -532,8 +534,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayersRef.current) return;
     if (lastFetchedModelRef.current === activeModel) return;
 
-    // Immediately flag UI as transitioning for responsiveness
-    if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
+    // Immediately open an ownership-tracked transition for responsiveness.
+    beginTransition({ model: activeModel, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
 
     // Coalesce rapid model switches (e.g. GFS→EURO→ICON in quick succession).
     // Only the final model in the sequence will execute the full reset + fetch logic.
@@ -557,8 +559,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayer) return;
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
-    // Immediately flag UI as transitioning for responsiveness
-    if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = true;
+    // Immediately open an ownership-tracked transition for responsiveness.
+    beginTransition({ model: activeModelRef.current || 'GFS', layer: activeMarineLayer, hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
 
     // Coalesce rapid layer switches (e.g. waves→swell_1→swell_2→wind_waves in quick
     // succession). Only the final layer in the sequence will execute the full
@@ -650,7 +652,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             if (sig) {
               if (sig === lastCommittedSigRef.current) {
                 lastFetchedLayerRef.current = activeMarineLayer;
-                if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+                endCurrentTransition();
                 return;
               }
               console.log(`[WEATHER_TRUTH] [Marine] Layer switch backend cache HIT for ${activeMarineLayer}: ${prodId}`);
@@ -683,7 +685,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               
               setMarineData(cached);
               lastFetchedLayerRef.current = activeMarineLayer;
-              if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+              endCurrentTransition();
               enqueueMarineUpdate('cancel_scrub');
               return;
             }
@@ -704,7 +706,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               if (sig && sig === lastCommittedSigRef.current) {
                 logPipelineEventHelper('duplicate_commit_skipped', { signature: sig });
                 lastFetchedLayerRef.current = activeMarineLayer;
-                if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+                endCurrentTransition();
                 return;
               }
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
@@ -716,7 +718,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
  
               setMarineData(remapped); lastFetchedLayerRef.current = activeMarineLayer;
-              if (typeof window !== 'undefined') window.__MARINE_TRANSITIONING__ = false;
+              endCurrentTransition();
               enqueueMarineUpdate('cancel_scrub');
               return;
             }

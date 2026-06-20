@@ -20,6 +20,7 @@
  */
 
 import { onRenderPlan } from './SimulationLoop';
+import { recordClear as recordMarineClear } from '../components/map/marineTransitionCoordinator';
 
 // ========================================================================
 // RENDERER REGISTRY
@@ -594,6 +595,7 @@ function dispatchRenderPlan(renderPlan, frameIndex) {
         updateMarineTruthTrace('upload', gridToUpload, activeModel, activeMarineLayer, field.hourOffset, usingLastGood ? 'last_good_cache' : 'render_plan_dispatcher', null, true);
       } else if (isHardMismatch) {
         // Confirmed hard mismatch: clear buffers to prevent stale/tight heatmap rendering
+        recordMarineClear(isLayerDisabled ? 'layer_disabled' : isModelMismatch ? 'model_mismatch' : 'component_mismatch', { model: activeModel, layer: activeMarineLayer, hour: field.hourOffset });
         _marineEngine.clearBuffers(_marineGL);
         updateMarineTruthTrace('rejection', null, activeModel, activeMarineLayer, field.hourOffset, 'cleared', isLayerDisabled ? 'Layer disabled' : isModelMismatch ? 'Model mismatch' : 'Component layer mismatch', false);
       }

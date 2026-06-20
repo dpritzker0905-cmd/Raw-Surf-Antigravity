@@ -20,6 +20,7 @@ import {
   handleCooldownFallback,
   commitMarineData
 } from './useMarineDataFetcherHelpers';
+import { getTarget, endTransition } from './marineTransitionCoordinator';
 
 
 export function useMarineDataFetcher({
@@ -126,6 +127,10 @@ export function useMarineDataFetcher({
     const locks = marineFetchLocksRef.current;
     let requestId = 0;
     let clearDebounce = true;
+    // Generation of the transition this fetch fulfills, if any. Captured at dispatch so
+    // the finally can end ONLY the transition it owns — a stale request (older generation,
+    // or a non-transition viewport refetch) can never end a newer transition.
+    let capturedTransitionGen = null;
 
     try {
       const isTimelineScrub = source === 'timeline_scrub' || source.includes('timeline');
@@ -218,6 +223,15 @@ export function useMarineDataFetcher({
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
         window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+      }
+      // Take ownership of the open transition ONLY if this fetch's target identity matches it.
+      // A viewport/moveend refetch (different intent) leaves capturedTransitionGen null and
+      // therefore cannot end the transition.
+      {
+        const t = getTarget();
+        if (t && t.status === 'pending' && t.model === rawModel && t.layer === layer) {
+          capturedTransitionGen = t.gen;
+        }
       }
       const fetchIntent = { model: rawModel, layer, hour: timeOffset };
 
@@ -453,8 +467,11 @@ export function useMarineDataFetcher({
         locks.activeSource = null;
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
-          if (!timeoutIdRef.current) {
-            window.__MARINE_TRANSITIONING__ = false;
+          if (!timeoutIdRef.current && capturedTransitionGen !== null) {
+            // End ONLY the transition this fetch owns. No-op if a newer transition began
+            // (endTransition checks generation), so a stale request can't end it. The
+            // coordinator mirrors __MARINE_TRANSITIONING__ for un-migrated readers.
+            endTransition(capturedTransitionGen);
           }
           if (clearDebounce) {
             window.__MARINE_FETCH_DEBOUNCING__ = false;

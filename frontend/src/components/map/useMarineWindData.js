@@ -1,5 +1,6 @@
 import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
+import { markDisplayed } from './marineTransitionCoordinator';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -25,6 +26,18 @@ function getLongitudinalOverlap(w1, e1, w2, e2) {
 
 export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
   const lastValidDataRef = useRef(null);
+  // Identity of the frame held in lastValidDataRef, so a held frame is never reclassified
+  // as the newly-selected target. When we hand back a held frame during a transition we
+  // report THIS identity (the previous target) to the coordinator, not the requested one.
+  const lastValidKeyRef = useRef(null);
+
+  // Hand back the held frame for rendering (better than a blank heatmap) while telling the
+  // coordinator the screen still shows the PREVIOUS identity — the infobox parity gate then
+  // shows "updating" instead of relabeling old values as the new model/layer/hour.
+  const returnHeld = () => {
+    if (lastValidKeyRef.current) markDisplayed(lastValidKeyRef.current);
+    return lastValidDataRef.current;
+  };
 
   // 1. Memoize the conformed vectors so they are only re-mapped when the underlying grid/layer/model changes.
   const conformedGridBase = useMemo(() => {
@@ -92,7 +105,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       cols: marineData.grid.cols,
       rows: marineData.grid.rows,
       vectors,
-      __sourceModel: activeModel,
+      // Truthful data origin: the model the grid was actually built for, NOT the currently
+      // selected activeModel. During a transition the stale frame keeps its real source so it
+      // is never relabeled as the new target (and model mismatch can actually be detected —
+      // previously this was always activeModel, so the model-mismatch check was dead code).
+      __sourceModel: marineData?.grid?.__sourceModel || marineData?.__sourceModel || marineData?.model || activeModel,
       __provider: marineData?.grid?.provider || 'unknown',
       __gridProvider: marineData?.grid?.__gridProvider || marineData?.grid?.provider || 'none',
       __componentLayer: marineData?.grid?.__componentLayer || 'none',
@@ -129,9 +146,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         !!window.__MARINE_FETCH_DEBOUNCING__
       );
       if (isTransitioningEarly && lastValidDataRef.current) {
-        return lastValidDataRef.current;
+        return returnHeld();
       }
       lastValidDataRef.current = null;
+      lastValidKeyRef.current = null;
       return null;
     }
 
@@ -203,7 +221,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
           if (shouldReject) {
             if (isTransitioning && lastValidDataRef.current) {
-              return lastValidDataRef.current;
+              return returnHeld();
             }
             if (typeof window !== 'undefined') {
               window.__MARINE_DISPLAY_SOURCE_DIAG__ = {
@@ -252,7 +270,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // v8.0: During transitions (fetch pending, abort recovery), preserve stale heatmap
       // instead of returning null which triggers WebGL clearBuffers and visual flash
       if (isTransitioning && lastValidDataRef.current) {
-        return lastValidDataRef.current;
+        return returnHeld();
       }
       return null;
     }
@@ -279,8 +297,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
-      if (lastValidDataRef.current) {
-        return lastValidDataRef.current;
+      // Hold the previous frame ONLY while a transition is in flight. Outside a transition a
+      // model/layer mismatch is a genuine error, not a transient — returning stale data then
+      // would silently present old values as current truth.
+      if (isTransitioning && lastValidDataRef.current) {
+        return returnHeld();
       }
       return null;
     }
@@ -302,8 +323,9 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         };
         window.__MARINE_RENDER_SOURCE_DIAG__ = window.__MARINE_DISPLAY_SOURCE_DIAG__;
       }
-      if (lastValidDataRef.current) {
-        return lastValidDataRef.current;
+      // Hold the previous frame ONLY during a transition (see model/layer mismatch note above).
+      if (isTransitioning && lastValidDataRef.current) {
+        return returnHeld();
       }
       return null;
     }
@@ -354,11 +376,15 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     
     if (!res.__renderable) {
       if (isTransitioning && lastValidDataRef.current) {
-        return lastValidDataRef.current;
+        return returnHeld();
       }
       return null;
     }
+    // Fresh renderable frame: it passed the mismatch checks above, so its identity IS the
+    // currently requested {model, layer, hour}. Tag the held slot and report it as displayed.
     lastValidDataRef.current = res;
+    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset };
+    markDisplayed(lastValidKeyRef.current);
     return res;
   }, [conformedGridBase, timeOffsetHours, mapInstance, viewState, marineData]);
 }

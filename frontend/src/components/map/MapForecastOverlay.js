@@ -18,6 +18,7 @@ import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './m
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
+import { displayMatchesRequested } from './marineTransitionCoordinator';
 import { recordTruthStage } from './weatherTruthTracker';
 import { getBackendPrecipitationFlag } from './backendPrecipitationServiceClient';
 import { getBackendPressureFlag } from './backendPressureServiceClient';
@@ -138,15 +139,36 @@ export const MapForecastOverlay = ({
   // v8.0: Also fall back during exact_loading WITHOUT grid parity to prevent "odd data" flash
   //       from stale forecast data being shown before the exact point API response arrives.
   const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
+  // Grid parity = the heatmap hour parity flag AND the heatmap frame on screen actually
+  // matches the requested {model, layer, hour}. Without BOTH, a grid/forecast sample would
+  // be relabeled as the newly-selected target — the v8 regression this gate prevents.
   const hasGridParity = typeof window !== 'undefined' && window.__MARINE_RENDER_HOUR_PARITY__?.parity === true;
+  const gridParityOk = hasGridParity && displayMatchesRequested({ model: activeModel, layer: activeLayer, hour: timeOffsetHours });
+
+  const allExactValuesNull = !!useExactPoint &&
+    useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null &&
+    useExactPoint.wind_speed_10m === null && useExactPoint.pressure_msl === null && useExactPoint.precipitation === null;
+
+  // Terminal exact-point failures: no response is coming, so the visual grid is the best
+  // available source — fall back to it. Transient waits (still loading / not yet valid /
+  // all-null): only fall back when grid parity holds; otherwise let the card show its
+  // existing "updating" state rather than relabeling a stale frame as the new target.
+  const isTerminalExactFailure = isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage';
+  const isTransientExactWait = isExactPointLoading || !useExactPoint || allExactValuesNull;
   const useGridFallback = isExactPointAuthority && (
     isScrubbing ||
-    !useExactPoint ||
-    (useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null && useExactPoint.wind_speed_10m === null && useExactPoint.pressure_msl === null && useExactPoint.precipitation === null) ||
-    (isExactPointLoading || isExactPointTimeout || isExactPointError || effectiveExactPointStatus === 'exact_no_time_coverage')
+    isTerminalExactFailure ||
+    (isTransientExactWait && gridParityOk)
   );
   
   const blockFallbacks = isExactPointAuthority && !useGridFallback;
+
+  // Transient exact-point wait with NO grid parity: there is no authoritative source for the
+  // requested {model,layer,hour}. The marine height must NOT fall through to forecastMarineData
+  // (Open-Meteo), which would relabel a different dataset as the selected model. Null the height
+  // so the card shows its existing "Loading…"/updating state instead. (wind_waves already nulls.)
+  const isMarineUpdatingNoParity = isExactPointAuthority && isTransientExactWait &&
+    !gridParityOk && !isScrubbing && !isTerminalExactFailure;
 
   const sampledWaves = blockFallbacks ? null : sampleValueFromDecodedTiles(lat, lng, 'wave_height', timeOffsetHours, activeModel);
   const sampledSwell1 = blockFallbacks ? null : sampleValueFromDecodedTiles(lat, lng, 'swell_wave_height', timeOffsetHours, activeModel);
@@ -217,7 +239,7 @@ export const MapForecastOverlay = ({
   const rawWaveHeight = isLive && marineCurrent.wave_height != null ? marineCurrent.wave_height : getClampedValue(marine.wave_height, marineHourIndex);
   // v6.6: Exact-point is authoritative when valid. Fallbacks only when exact-point failed or loading/scrubbing.
   const waveHeight = isExactPointAuthority
-    ? (useExactPoint?.wave_height ?? sampledWaves?.value ?? marineGridSample?.value ?? getBiasAdjustedLocal(rawWaveHeight, 'wave'))
+    ? (useExactPoint?.wave_height ?? sampledWaves?.value ?? marineGridSample?.value ?? (isMarineUpdatingNoParity ? null : getBiasAdjustedLocal(rawWaveHeight, 'wave')))
     : (activeLayer === 'waves' && sampledWaves)
       ? sampledWaves.value
       : (activeLayer === 'waves' && marineGridSample)
@@ -255,7 +277,7 @@ export const MapForecastOverlay = ({
     const rawSwell1HeightRaw = isLive && marineCurrent.swell_wave_height != null ? marineCurrent.swell_wave_height : getClampedValue(marine.swell_wave_height, marineHourIndex);
     const rawSwell1Height = rawSwell1HeightRaw != null ? rawSwell1HeightRaw : null;
     swell1Height = isExactPointAuthority
-      ? (useExactPoint?.swell_wave_height ?? sampledSwell1?.value ?? marineGridSample?.value ?? getBiasAdjustedLocal(rawSwell1Height, 'swell1'))
+      ? (useExactPoint?.swell_wave_height ?? sampledSwell1?.value ?? marineGridSample?.value ?? (isMarineUpdatingNoParity ? null : getBiasAdjustedLocal(rawSwell1Height, 'swell1')))
       : (activeLayer === 'swell_1' && sampledSwell1)
         ? sampledSwell1.value
         : (activeLayer === 'swell_1' && marineGridSample)
@@ -291,7 +313,7 @@ export const MapForecastOverlay = ({
     const rawSwell2HeightRaw = getClampedValue(marine.secondary_swell_wave_height, marineHourIndex);
     const rawSwell2Height = rawSwell2HeightRaw != null ? rawSwell2HeightRaw : null;
     swell2Height = isExactPointAuthority
-      ? (useExactPoint?.secondary_swell_wave_height ?? sampledSwell2?.value ?? marineGridSample?.value ?? getBiasAdjustedLocal(rawSwell2Height, 'swell2'))
+      ? (useExactPoint?.secondary_swell_wave_height ?? sampledSwell2?.value ?? marineGridSample?.value ?? (isMarineUpdatingNoParity ? null : getBiasAdjustedLocal(rawSwell2Height, 'swell2')))
       : (activeLayer === 'swell_2' && sampledSwell2)
         ? sampledSwell2.value
         : (activeLayer === 'swell_2' && marineGridSample)
