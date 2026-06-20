@@ -474,7 +474,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         !!window.__MARINE_FETCH_PENDING__ ||
         !!window.__MARINE_FETCH_DEBOUNCING__
       );
-      if (isTransitionGuard && lastUploadedSignatureRef.current) {
+      // v8.1: Also hold for a TRANSIENT non-renderable commit on the SAME model/layer we're
+      // already displaying (e.g. a settled-scrub refetch or aborted refetch that briefly
+      // returns __renderable=false while the transition flags happen to be unset). Clearing
+      // in that no-flags window is what caused the intermittent blank after scrubbing.
+      // Truth-safe: same model/layer, so the held frame is NOT mislabeled — this is the
+      // existing stale-good-frame retention intent. A real model/LAYER switch
+      // (modelOrLayerChanged) still falls through and clears, so we never hold one layer's
+      // frame under another. The next renderable commit always replaces the held frame.
+      const sameTargetTransient = !modelOrLayerChanged && !!engine._waveData;
+      if ((isTransitionGuard || sameTargetTransient) && lastUploadedSignatureRef.current) {
         runDiagnosticsUpdate('transition_hold');
         return;
       }
