@@ -7,6 +7,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
+import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
@@ -286,7 +287,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
 
     if (isBackendActive) {
-      const cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
+      let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
+      // Option 1 (flag-gated): when the per-hour cache misses, try the pre-loaded
+      // multi-hour SERIES so scrubbing tracks the requested hour instantly. Commits
+      // through the SAME path below (parity/transition gates unchanged). Off by default.
+      if (!cachedBackendData) {
+        const seriesFrame = getMarineSeriesFrame(curModel, curLayer, vpBounds, timeOffsetHours);
+        if (seriesFrame) cachedBackendData = seriesFrame;
+      }
       
       let isRegional = false;
       let isViewportZoomedOut = false;
@@ -819,6 +827,37 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       clearTimeout(scrubSettleTimerRef.current);
     };
   }, [mapInstance, marineData]);
+
+  // Option 1 (flag-gated): background-load the marine time-series for the active
+  // model/layer/viewport so the timeline scrubber can track hours instantly via the
+  // series-as-cache-source above. No-op unless window.__MARINE_SERIES__ === true;
+  // ensureMarineSeries is deduped + TTL'd so moveend spam is cheap.
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayer) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const kick = () => {
+      if (cancelled || !mapInstance) return;
+      try {
+        const b = mapInstance.getBounds();
+        ensureMarineSeries(
+          activeModelRef.current,
+          activeMarineLayerRef.current,
+          { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+          controller.signal
+        );
+      } catch (e) { /* map not ready — ignore */ }
+    };
+    const t = setTimeout(kick, 600);
+    const onIdle = () => kick();
+    mapInstance.on('moveend', onIdle);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      controller.abort();
+      try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
+    };
+  }, [mapInstance, activeModel, activeMarineLayer]);
 
   return { marineData };
 }

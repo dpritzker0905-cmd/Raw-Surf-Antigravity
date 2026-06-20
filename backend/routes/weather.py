@@ -73,6 +73,30 @@ def calculate_bbox_intersection_area(w1: float, s1: float, e1: float, n1: float,
     return bbox_intersection_area(w1, s1, e1, n1, SimpleCov(w2, s2, e2, n2))
 
 
+@router.get("/grid_series")
+async def get_grid_series(
+    model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
+    domain: str = Query("marine", pattern="^(marine|wind|weather)$"),
+    layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
+    bbox: str = Query(..., description="west,south,east,north viewport bbox"),
+    hours: str = Query(..., description="comma-separated integer hour offsets from now, e.g. 0,3,6,9"),
+):
+    """
+    GET /api/weather/grid_series
+
+    Returns a TIME-SERIES of viewport grids in ONE response so the client can scrub
+    hours instantly (client-side frame selection) instead of one fetch per hour.
+
+    SURGICAL + ADDITIVE: reuses the exact per-hour dynamic-product builder that /grid
+    already uses (get_cached_dynamic_product). The first requested hour triggers the
+    multi-hour upstream fetch (Open-Meteo/Copernicus already return it and the provider
+    caches it 5 min); every subsequent hour re-slices that SAME cached fetch. It does not
+    touch /grid — if it fails, the client falls back to the per-hour /grid flow.
+    """
+    from services.weather_pipeline.grid_series_helper import build_grid_series
+    return await build_grid_series(viewport_service, model, domain, layer, bbox, hours)
+
+
 @router.get("/grid", response_model=NormalizedProduct)
 async def get_grid(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
