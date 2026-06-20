@@ -74,15 +74,24 @@ async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, b
         except asyncio.TimeoutError:
             logger.warning(f"[grid_series] hour +{h}h timed out after {PER_HOUR_TIMEOUT}s")
             return (h, None)
-        except Exception as e:  # one hour failing must not sink the whole series
-            logger.warning(f"[grid_series] hour +{h}h failed: {e}")
+        except BaseException as e:  # incl. CancelledError — one hour must never sink the series
+            logger.warning(f"[grid_series] hour +{h}h failed: {type(e).__name__}: {e}")
             return (h, None)
 
     # Build the first hour FIRST so it populates the shared upstream cache, then build the
-    # rest concurrently (bounded) — they re-slice the cached multi-hour data.
-    results = [await _build_one(hour_list[0])]
-    if len(hour_list) > 1:
-        results.extend(await asyncio.gather(*[_build_one(h) for h in hour_list[1:]]))
+    # rest concurrently (bounded) — they re-slice the cached multi-hour data. The whole
+    # thing must never 500: on any unexpected error return an empty series so the client
+    # silently falls back to the per-hour flow. (_error is temporary diagnostics.)
+    try:
+        results = [await _build_one(hour_list[0])]
+        if len(hour_list) > 1:
+            results.extend(await asyncio.gather(*[_build_one(h) for h in hour_list[1:]], return_exceptions=True))
+        results = [r for r in results if isinstance(r, tuple)]
+    except BaseException as e:
+        import traceback
+        logger.error(f"[grid_series] build failed for {model}/{layer}: {type(e).__name__}: {e}\n{traceback.format_exc()}")
+        return {"model": model, "domain": domain, "layer": layer, "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
+                "bounds": None, "cols": 0, "rows": 0, "frame_count": 0, "frames": [], "_error": f"{type(e).__name__}: {e}"}
 
     shared_bounds = None
     shared_cols = shared_rows = 0
