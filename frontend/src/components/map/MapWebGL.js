@@ -542,7 +542,12 @@ const MapWebGL = ({
             );
           });
         })}
-        {(!webglMarineFailed && !!activeMarineLayer) ? (
+        {/* Keep the WebGL marine engine RESIDENT (gated by the `active` prop) instead of
+            unmounting it whenever no marine layer is selected. Unmounting disposed the
+            87,616-particle GPU engine and remounting rebuilt it — the dominant churn when
+            toggling between a marine layer and wind. The custom layer's render() no-ops
+            (and clears once) when active=false, so an idle resident engine is cheap. */}
+        {!webglMarineFailed ? (
           <WebGLMarineLayer
             mapInstance={mapInstance}
             active={!!activeMarineLayer}
@@ -602,7 +607,10 @@ const MapWebGL = ({
           onPhotographerClick={onPhotographerClick}
           mapRef={innerMapRef}
         />
-        {(!webglWindFailed && activeLayers.includes('wind')) ? (
+        {/* Keep the WebGL wind engine RESIDENT (gated by `active`) — same rationale as the
+            marine layer above: avoid disposing/rebuilding the 147,456-particle engine on
+            every wind toggle. render() no-ops + clears once when active=false. */}
+        {!webglWindFailed ? (
           <WebGLWindLayer
             mapInstance={mapInstance}
             active={activeLayers.includes('wind')}
