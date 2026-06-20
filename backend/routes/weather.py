@@ -94,7 +94,9 @@ async def get_grid_series(
     touch /grid — if it fails, the client falls back to the per-hour /grid flow.
     """
     from services.weather_pipeline.grid_series_helper import build_grid_series
-    return await build_grid_series(viewport_service, model, domain, layer, bbox, hours)
+    # Reuse the SAME resolver /grid uses (get_grid, defined below) so each frame matches the
+    # live heatmap exactly, at any zoom/region (manifest regional/global + dynamic viewport).
+    return await build_grid_series(get_grid, model, domain, layer, bbox, hours)
 
 
 @router.get("/grid", response_model=NormalizedProduct)

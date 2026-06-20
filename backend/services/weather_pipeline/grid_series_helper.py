@@ -14,6 +14,7 @@ import logging
 from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
+from starlette.background import BackgroundTasks
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +22,13 @@ MAX_FRAMES = 48
 CONCURRENCY = 4
 
 
-async def build_grid_series(viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
+async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
+    """
+    resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
+    per requested hour with its valid_time so every frame matches exactly what the live
+    heatmap renders (manifest regional/global products AND dynamic viewport products). The
+    first hour warms any shared upstream/manifest cache; the rest reuse it.
+    """
     try:
         hour_list = sorted({int(h) for h in hours.split(",") if h.strip() != ""})[:MAX_FRAMES]
     except ValueError:
@@ -37,10 +44,14 @@ async def build_grid_series(viewport_service, model: str, domain: str, layer: st
 
     async def _build_one(h: int):
         target_dt = base + timedelta(hours=h)
+        vt_str = target_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         try:
             async with sem:
-                product = await viewport_service.get_cached_dynamic_product(
-                    model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
+                # Throwaway BackgroundTasks so get_grid's revalidation scheduling has a sink
+                # (these tasks never run outside a request cycle — harmless).
+                product = await resolve_grid(
+                    model=model, domain=domain, layer=layer,
+                    valid_time=vt_str, bbox=bbox, background_tasks=BackgroundTasks()
                 )
             return (h, product)
         except Exception as e:  # one hour failing must not sink the whole series
