@@ -152,7 +152,13 @@ export function useExactPointFetch({
     exactPointFetchRef.current = token;
 
     const controller = new AbortController();
-    const debounceTime = (isUserExplicitSelection || isLayerSwitch || isModelSwitch) ? 400 : 3000;
+    // Switch/explicit selection stays at 400ms (already parallel with the grid fetch,
+    // and we don't want to hammer the backend during rapid model cycling). The
+    // non-switch path — most importantly the post-scrub SETTLED-hour change — was
+    // 3000ms, which left the precise (esp. slow EURO/Copernicus) point not even
+    // starting to fetch for 3s after the user stopped scrubbing. Trim it to 1200ms so
+    // exact data loads sooner. Cooldown (isInCooldown) still guards against saturation.
+    const debounceTime = (isUserExplicitSelection || isLayerSwitch || isModelSwitch) ? 400 : 1200;
 
     const timeoutId = setTimeout(() => {
       if (token.cancelled || gen !== fetchGenRef.current) return;
