@@ -232,7 +232,6 @@ async def run_background_cache_population():
     it triggers their respective ingestion jobs.
     """
     import os
-    from typing import Optional  # must be bound BEFORE has_product_conformed's annotation below
     logger.info("[lifespan] Starting background cache pre-population check...")
     
     # Store original USE_WEATHER_PROXY env var and temporarily set it to "false" to bypass proxy during pre-population
@@ -265,6 +264,7 @@ async def run_background_cache_population():
         has_gfs_waves = has_product_conformed("GFS", "marine", "waves")
         has_gfs_waves_global = has_product_conformed("GFS", "marine", "waves", region_id="global_coarse")
         # For GFS wind, we specifically need the global coarse wind product as well.
+        from typing import Optional
         has_gfs_wind = (
             has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
             and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")
