@@ -215,6 +215,14 @@ export function useMarineDataFetcher({
       updateMarineGridRef.current = updateMarineGrid;
 
       if (locks.isFetching) {
+        // Same-target dedup (see enqueueMarineUpdate): never abort an in-flight fetch that's
+        // already loading this exact model/layer/hour — the activation multi-trigger would
+        // otherwise abort-loop into the recovery-grid blank.
+        const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
+        if (inflight && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
+          console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+          return;
+        }
         const activeSource = locks.activeSource || 'unknown';
         const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
         if (isHighPriority(activeSource) && !isHighPriority(source)) {
@@ -266,7 +274,7 @@ export function useMarineDataFetcher({
       const signal = abortControllerRef.current.signal;
       // Tag the controller with this fetch's target so that if a later switch aborts it,
       // we can background-complete it into the cache (Phase C).
-      abortControllerRef.current.__intent = { model, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
+      abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
 
       locks.isFetching = true;
       locks.activeSource = source;
@@ -581,6 +589,18 @@ export function useMarineDataFetcher({
     const now = Date.now();
     const locks = marineFetchLocksRef.current;
     if (locks.isFetching) {
+      // Same-target dedup: if a fetch for THIS exact model/layer/hour is already in-flight,
+      // skip — do NOT abort it or buffer a duplicate. On marine activation the activation +
+      // layer-change + model-change effects each enqueue a 'manual' fetch for the same
+      // target; aborting each other strands the heatmap in the abort→recovery-grid loop
+      // (blank that never settles, esp. on a fresh load).
+      const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
+      if (inflight && inflight.rawModel === activeModelRef.current &&
+          inflight.layer === (activeMarineLayerRef.current || 'waves') &&
+          inflight.hour === timeOffsetRef.current) {
+        console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+        return;
+      }
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };
       logPipelineEventHelper('intent_buffered', pendingMarineIntentRef.current);
       const activeSource = locks.activeSource || 'unknown';
