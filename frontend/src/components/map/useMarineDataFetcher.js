@@ -489,8 +489,21 @@ export function useMarineDataFetcher({
         console.log(`[ABORT RECOVERY] AbortError in phase=${phase}, model=${model}, layer=${layer}. Retry count: ${abortRecoveryRetryCountRef.current}/3`);
         const prev = marineDataRef.current;
         const hasValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
+        // Rapid activation / model+layer switching: by the time this aborted fetch's
+        // catch runs, the user has usually already switched target and a NEWER fetch
+        // for the new target is in flight. The requestId guard above can miss that
+        // race (the abort and the successor fetch's dispatch are not atomic, so this
+        // fetch can still look "current" by id). Committing a non-renderable recovery
+        // grid here would gratuitously blank the heatmap on EVERY abort mid-switch —
+        // the dominant "struggling to load when activating quickly" symptom. Only the
+        // genuine terminal abort (this fetch is still the desired target → real
+        // LOADING-deadlock risk) should commit the placeholder; otherwise let the
+        // in-flight switch fetch own the display. Mirrors the retry target guard below.
+        const targetChanged = activeModelRef.current !== model || (activeMarineLayerRef.current || 'waves') !== layer;
         if (hasValidData) {
           console.log(`[ABORT RECOVERY] Previous valid data exists, preserving.`);
+        } else if (targetChanged) {
+          console.log(`[ABORT RECOVERY] Skipping recovery-grid blank — target moved on (was ${model}/${layer}, now ${activeModelRef.current}/${activeMarineLayerRef.current || 'waves'}); newer fetch owns the display.`);
         } else {
           console.warn(`[ABORT RECOVERY] No previous data exists. Committing recovery grid to break LOADING deadlock.`);
           recordChurn('recovery_grid_commit', { model, layer, hour: timeOffset, phase, retry: abortRecoveryRetryCountRef.current });

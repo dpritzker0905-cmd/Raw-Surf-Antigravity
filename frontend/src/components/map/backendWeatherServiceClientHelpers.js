@@ -145,6 +145,49 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     throw new Error("Invalid normalized grid response structure");
   }
 
+  // Oversized-grid guard. Every legitimate marine product is small: dynamic
+  // viewport ~9x9, regional ~33x33, global coarse ~37x17. A response carrying a
+  // native global 0.25deg field (1441x661 = ~952k cells, observed transiently
+  // before the coarse product is cached) would freeze the tab in encodeMarineTexture
+  // + land-mask build + particle-texture reset. Treat it as a transient
+  // non-renderable so the SWR retry re-fetches the normal coarse product instead of
+  // committing a ~1M-vector grid. Cap is far above any real product (<~3k cells).
+  const MAX_GRID_CELLS = 250000;
+  const rawVectorCount = json.grid.vectors.length;
+  if (rawVectorCount > MAX_GRID_CELLS) {
+    console.warn(`[Backend Weather Service] Oversized grid rejected: ${rawVectorCount} vectors (cols=${json.grid.cols}, rows=${json.grid.rows}) exceeds cap ${MAX_GRID_CELLS}. Treating as transient non-renderable so the retry fetches the coarse product.`);
+    return {
+      type: 'FeatureCollection',
+      features: [],
+      hourOffset,
+      grid: {
+        vectors: [],
+        bounds: json.grid.bounds || snappedBounds,
+        cols: 0,
+        rows: 0,
+        timestamp: Date.now(),
+        __sourceModel: model,
+        __provider: json.provider || 'backend-weather-service',
+        __gridProvider: json.provider || 'backend-weather-service',
+        __componentLayer: layer,
+        __gridSupportsLayer: false,
+        __activeLayerNonzeroCount: 0,
+        __activeLayerMax: 0,
+        __oceanMaskCount: 0,
+        __renderable: false,
+        provider: json.provider || 'backend-weather-service',
+        hourOffset,
+        nonzeroCount: 0,
+        maxSpeed: 0,
+        renderable: false,
+        emptyGridWarning: `Oversized grid (${rawVectorCount} cells, ${json.grid.cols}x${json.grid.rows}) rejected — anomalous backend resolution`,
+        productId: json.product_id || null,
+        oversizedRejected: true
+      },
+      __renderable: false
+    };
+  }
+
   const zeroVec = { u: 0, v: 0, speed: 0, period: 0, height: 0, direction: 0, isOcean: false };
   const mappedVectors = json.grid.vectors.map(v => {
     const hasConjoined = !!(v.waves || v.swell_1 || v.swell_2 || v.wind_waves);
