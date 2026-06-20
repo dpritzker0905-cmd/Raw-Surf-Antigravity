@@ -61,17 +61,14 @@ export function useOpenMeteoTileUrls({
     } else if (diff < 120) {
       // Rapid dragging / scrubbing timeline slider: debounce by 300ms (Fix 4)
       isScrubbingRef.current = true;
-      window.isScrubbingTimeline = true;
       WeatherTelemetry.trackAnimationScrub(timeOffsetHours);
       debounceTimerRef.current = setTimeout(() => {
         isScrubbingRef.current = false;
-        window.isScrubbingTimeline = false;
         setDebouncedTimeOffsetHours(timeOffsetHours);
       }, 300);
     } else {
       // Single click/tap or slow adjustment: update instantly
       isScrubbingRef.current = false;
-      window.isScrubbingTimeline = false;
       WeatherTelemetry.trackTimelineSeek(timeOffsetHours);
       setDebouncedTimeOffsetHours(timeOffsetHours);
     }

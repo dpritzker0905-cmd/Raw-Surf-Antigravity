@@ -69,7 +69,7 @@ export const MapForecastOverlay = ({
     const handler = setTimeout(() => {
       setIsScrubbing(false);
       setSettledOffset(timeOffsetHours);
-    }, 300);
+    }, 200);
     return () => clearTimeout(handler);
   }, [timeOffsetHours]);
 

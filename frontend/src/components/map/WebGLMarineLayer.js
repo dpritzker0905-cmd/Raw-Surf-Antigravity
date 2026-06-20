@@ -564,7 +564,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
       scrubUploadTimeoutRef.current = setTimeout(() => {
         doUpload();
-      }, 80);
+      }, 40);
     } else {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
       doUpload();

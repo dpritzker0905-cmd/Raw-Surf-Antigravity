@@ -804,10 +804,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (wasScrubbingRef && !isNowScrubbing) {
         // Scrubbing just ended — delay slightly then verify
         clearTimeout(scrubSettleTimerRef.current);
-        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 250);
+        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 150);
       }
       wasScrubbingRef = isNowScrubbing;
-    }, 200);
+    }, 150);
 
     return () => {
       clearInterval(intervalId);
