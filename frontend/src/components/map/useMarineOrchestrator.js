@@ -405,7 +405,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         // The deferred fetch has its own staleness check to self-invalidate if stale.
         return;
       } else {
-        console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
+        // Per-intermediate-hour scrub cache-miss log. The actual grid fetch is coalesced
+        // (one fetch at scrub-settle), so this fires once per scrub tick and floods the
+        // console without indicating extra work. Gate behind window.__SCRUB_DEBUG__.
+        if (typeof window !== 'undefined' && window.__SCRUB_DEBUG__) {
+          console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
+        }
         // DO NOT clear marineData — retain stale heatmap view while the deferred fetch loads
         marineFetchLocksRef.current.lastHash = null;
         if (!window.isScrubbingTimeline) {
