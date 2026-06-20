@@ -150,17 +150,24 @@ export function buildCopernicusEmptyGrid(bounds, timeOffset, layer, reason) {
 }
 
 export function getAbortRecoveryGrid(model, layer, phase, marineRevision) {
+  // Honest product identity so the abort-recovery placeholder never logs "Product: undefined"
+  // in the weather-truth trace (it is a non-renderable safe-zero placeholder, not real data).
+  const recoveryProductId = `${(model || 'GFS').toLowerCase()}_${layer || 'waves'}_abort_recovery`;
   return {
     type: 'FeatureCollection',
     features: [],
     __commitRevision: marineRevision,
     __sourceModel: model,
     __provider: 'abort_recovery',
+    productId: recoveryProductId,
+    product_id: recoveryProductId,
+    is_estimated: true,
     grid: {
       vectors: [],
       bounds: { west: -180, south: -80, east: 180, north: 85 },
       cols: 0,
       rows: 0,
+      productId: recoveryProductId,
       __sourceModel: model,
       __provider: 'abort_recovery',
       __gridProvider: 'abort_recovery',
@@ -170,6 +177,7 @@ export function getAbortRecoveryGrid(model, layer, phase, marineRevision) {
       __failureReason: 'abort_recovery_no_previous_data',
       renderable: false,
       provider: 'abort_recovery',
+      is_estimated: true,
       emptyGridWarning: `Fetch aborted during ${phase}. Recovery grid committed to prevent LOADING deadlock.`
     }
   };

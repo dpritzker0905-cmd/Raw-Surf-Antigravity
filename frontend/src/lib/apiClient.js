@@ -33,6 +33,21 @@ const apiClient = axios.create({
   },
 });
 
+// --- Cold-start warmup ---
+// The backend runs on Render's free tier, which spins the server down after ~15 min idle
+// and takes 20-60s to wake on the next request. Fire a lightweight fire-and-forget ping at
+// module-import time (before React even renders) so the server starts waking as early as
+// possible, overlapping the cold start with app bootstrap instead of the user's first
+// weather fetch. Any request wakes Render, so a 404 is fine; errors are intentionally ignored.
+// NOTE: this only shaves time by starting the wake earlier — it does NOT eliminate the cold
+// start. The real fix is keeping the backend warm (a cron ping every ~10 min, or a paid tier).
+if (typeof window !== 'undefined' && typeof fetch === 'function') {
+  try {
+    fetch(`${BACKEND_URL}/api/health`, { method: 'GET', mode: 'cors', cache: 'no-store', keepalive: true })
+      .catch(() => { /* warmup is best-effort; ignore failures */ });
+  } catch { /* ignore */ }
+}
+
 // --- Request interceptor -- inject auth token ---
 apiClient.interceptors.request.use(
   (config) => {
