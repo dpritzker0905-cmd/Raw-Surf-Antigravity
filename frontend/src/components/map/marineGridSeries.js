@@ -22,7 +22,15 @@ const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 24;
 
 export function isMarineSeriesEnabled() {
-  return typeof window !== 'undefined' && window.__MARINE_SERIES__ === true;
+  if (typeof window === 'undefined') return false;
+  if (window.__MARINE_SERIES__ === true) return true;
+  // Persistent opt-in so it survives reloads (set once, test reliably):
+  //   localStorage.setItem('marine_series', 'true')
+  try {
+    return window.localStorage && window.localStorage.getItem('marine_series') === 'true';
+  } catch (e) {
+    return false;
+  }
 }
 
 // Coarse viewport key so small pans reuse the same series.
