@@ -132,6 +132,15 @@ export function _isAllVarModel(model) {
 
 export function _cacheMarineResult(model, hourOffset, data, layer) {
   if (!data) return;
+  // Do not cache empty / non-renderable grids. An HTTP-200 response carrying zero
+  // vectors is typically a *transient* absence of data — e.g. a far-hour slice of a
+  // freshly-published model run the backend is still ingesting (ICON marine far
+  // hours return empty for a few minutes after a run lands, then fill in). Caching
+  // it would pin the blank heatmap for the cache TTL and starve any retry of the
+  // real data once ingestion completes. Grids with vectors (incl. all-calm or
+  // stale/coarse) are still cached as before.
+  const vecLen = data.grid?.vectors?.length || 0;
+  if (vecLen === 0 || data.grid?.renderable === false) return;
   const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
   const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
   const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;

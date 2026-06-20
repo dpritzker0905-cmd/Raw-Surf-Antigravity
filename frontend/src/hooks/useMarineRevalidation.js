@@ -23,9 +23,26 @@ export function useMarineRevalidation() {
   }, []);
 
   const scheduleSWRRevalidation = useCallback((data, updateFn) => {
-    if (data?.stale || data?.grid?.stale) {
+    const grid = data?.grid;
+    const isStale = !!(data?.stale || grid?.stale);
+    // An HTTP-200 grid with zero vectors (non-renderable) is usually a *transient*
+    // absence of data — e.g. a far-hour slice of a freshly-published model run the
+    // backend is still ingesting. It is NOT flagged stale, so without this branch it
+    // commits once (blanking the heatmap, e.g. on a GFS->ICON switch where the
+    // same-model hold-guard doesn't apply) and is never retried. Schedule a bounded
+    // revalidation so it self-heals once the backend finishes ingesting. Terminal
+    // no-coverage / unsupported responses are excluded — retrying won't resolve them.
+    const isEmptyTransient = !!grid &&
+      grid.renderable === false &&
+      ((grid.vectors?.length || 0) === 0) &&
+      !grid.__unsupportedLayer && data?.__unsupportedLayer !== true &&
+      data?.status !== 'unsupported' && grid.status !== 'unsupported' &&
+      data?.status !== 'no_coverage' && grid.status !== 'no_coverage';
+
+    if (isStale || isEmptyTransient) {
       if (swrRetryCountRef.current < 3) {
-        console.log(`[SWR] Committed stale/coarse grid. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in 1500ms`);
+        const delay = isEmptyTransient ? 2500 : 1500;
+        console.log(`[SWR] ${isEmptyTransient ? 'Empty/non-renderable grid (likely cold ingestion of a fresh run)' : 'Committed stale/coarse grid'}. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in ${delay}ms`);
         if (swrTimerRef.current) {
           clearTimeout(swrTimerRef.current);
         }
@@ -33,7 +50,7 @@ export function useMarineRevalidation() {
           swrTimerRef.current = null;
           swrRetryCountRef.current += 1;
           updateFn('swr_revalidation');
-        }, 1500);
+        }, delay);
       } else {
         console.warn('[SWR] Max revalidation retries reached (3), stopping polling.');
       }
