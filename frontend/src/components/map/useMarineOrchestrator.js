@@ -155,10 +155,25 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       hasActivatedRef.current = false;
     } else if (!hasActivatedRef.current) {
       hasActivatedRef.current = true;
-      console.log('[Marine] Layer activated, triggering manual fetch...');
       marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
       consecutiveFailuresRef.current = 0;
-      manualMarineTriggerRef.current?.();
+      // Gate the FIRST activation fetch on map/style readiness. Activating a marine layer
+      // before the style finishes loading (e.g. immediately after a fresh page load) races
+      // the WebGL layer-add ("Style is not done loading") and drops into an
+      // abort→recovery-grid→retry-preempted loop — a blank heatmap that never settles
+      // until you wait and re-activate. Defer the trigger to the map's 'idle' event if the
+      // style isn't loaded yet; fire immediately when it already is.
+      const fireActivation = () => {
+        console.log('[Marine] Layer activated, triggering manual fetch...');
+        manualMarineTriggerRef.current?.();
+      };
+      const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
+      if (styleReady) {
+        fireActivation();
+      } else {
+        console.log('[Marine] Activation deferred — waiting for map style to finish loading...');
+        try { mapInstance.once('idle', fireActivation); } catch (e) { fireActivation(); }
+      }
     }
   }, [activeLayersKey]);
 
