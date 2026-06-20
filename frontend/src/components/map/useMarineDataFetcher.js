@@ -551,6 +551,11 @@ export function useMarineDataFetcher({
       // subsequent triggers are either deduped or cancel-and-replace this timer.
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       timeoutIdRef.current = setTimeout(() => {
+        // Timer has fired — it is no longer pending. Null the ref BEFORE running the
+        // update so updateMarineGrid's finally sees no pending coalesced retry and can
+        // end the transition. (If updateMarineGrid schedules a new retry, this ref is
+        // reassigned and the transition is correctly kept open.)
+        timeoutIdRef.current = null;
         if (!activeMarineLayersRef.current) return;
         updateMarineGrid(source);
       }, 150);
@@ -594,6 +599,9 @@ export function useMarineDataFetcher({
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       const stableDelay = (isCached || source === 'manual' || source === 'timeline_scrub') ? 20 : 300;
       timeoutIdRef.current = setTimeout(() => {
+        // Timer fired — clear the ref so updateMarineGrid's finally can settle the
+        // transition (see note in the abort-gate retry above).
+        timeoutIdRef.current = null;
         if (isTimelineScrub || (!mapInstance.isMoving() && !mapInstance.isZooming())) {
           updateMarineGrid(source);
         } else {
