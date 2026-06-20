@@ -11,6 +11,7 @@ Additive: nothing here changes the existing /grid path.
 """
 import asyncio
 import logging
+import time
 from datetime import datetime, timezone, timedelta
 
 from fastapi import HTTPException
@@ -20,6 +21,13 @@ logger = logging.getLogger(__name__)
 
 MAX_FRAMES = 48
 CONCURRENCY = 4
+# A single hour must never hang the whole series. Models with pre-built regional/global
+# products (GFS/ICON via manifest) resolve in ms; models that fall to the slow dynamic
+# path (EURO/Copernicus) can stall — so cap each hour and the whole build, and return
+# whatever frames completed. The client uses the partial series and falls back to the
+# per-hour flow for missing hours.
+PER_HOUR_TIMEOUT = 10.0
+OVERALL_DEADLINE = 35.0
 
 
 async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
@@ -41,19 +49,31 @@ async def build_grid_series(resolve_grid, model: str, domain: str, layer: str, b
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).
     sem = asyncio.Semaphore(CONCURRENCY)
+    deadline = time.monotonic() + OVERALL_DEADLINE
 
     async def _build_one(h: int):
+        if time.monotonic() > deadline:
+            return (h, None)
         target_dt = base + timedelta(hours=h)
         vt_str = target_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
         try:
             async with sem:
+                if time.monotonic() > deadline:
+                    return (h, None)
                 # Throwaway BackgroundTasks so get_grid's revalidation scheduling has a sink
-                # (these tasks never run outside a request cycle — harmless).
-                product = await resolve_grid(
-                    model=model, domain=domain, layer=layer,
-                    valid_time=vt_str, bbox=bbox, background_tasks=BackgroundTasks()
+                # (these tasks never run outside a request cycle — harmless). Per-hour timeout
+                # so a slow/stalled model (EURO dynamic) can't hang the whole series.
+                product = await asyncio.wait_for(
+                    resolve_grid(
+                        model=model, domain=domain, layer=layer,
+                        valid_time=vt_str, bbox=bbox, background_tasks=BackgroundTasks()
+                    ),
+                    timeout=PER_HOUR_TIMEOUT,
                 )
             return (h, product)
+        except asyncio.TimeoutError:
+            logger.warning(f"[grid_series] hour +{h}h timed out after {PER_HOUR_TIMEOUT}s")
+            return (h, None)
         except Exception as e:  # one hour failing must not sink the whole series
             logger.warning(f"[grid_series] hour +{h}h failed: {e}")
             return (h, None)

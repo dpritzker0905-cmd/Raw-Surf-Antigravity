@@ -104,9 +104,14 @@ export async function ensureMarineSeries(model, layer, bounds, signal) {
     + `&bbox=${bounds.west.toFixed(4)},${bounds.south.toFixed(4)},${bounds.east.toFixed(4)},${bounds.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`;
 
+  // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
+  const localController = new AbortController();
+  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) {} }, 45000);
+  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) {} }
+
   const p = (async () => {
     try {
-      const res = await fetch(url, { signal });
+      const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;
       const json = await res.json();
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
@@ -132,8 +137,9 @@ export async function ensureMarineSeries(model, layer, bounds, signal) {
         window.__MARINE_SERIES_DIAG__.lastFrames = hoursList.length;
       }
     } catch (e) {
-      // network/abort — silent, falls back to per-hour path
+      // network/abort/timeout — silent, falls back to per-hour path
     } finally {
+      clearTimeout(timeoutId);
       _inFlight.delete(key);
     }
   })();
