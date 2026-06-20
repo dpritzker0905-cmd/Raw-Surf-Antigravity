@@ -39,6 +39,9 @@ export function useMarineDataFetcher({
   const marineRevision = useRef(0);
   const marineRequestIdRef = useRef(0);
   const abortControllerRef = useRef(null);
+  // Phase C: in-flight BACKGROUND cache fills for model/layer being switched away from.
+  // key -> AbortController. These never commit to display (display-safe by construction).
+  const bgCacheFillRef = useRef(new Map());
   const activeMarineLayersRef = useRef(false);
   const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0 });
   const manualMarineTriggerRef = useRef(null);
@@ -112,6 +115,43 @@ export function useMarineDataFetcher({
     );
   }, [activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
+  // Phase C — Background cache fill for an abandoned model/layer fetch.
+  // When the user switches model/layer, the in-flight fetch for the layer being LEFT is
+  // normally aborted and its bytes discarded, so switching BACK re-fetches from scratch
+  // (the blank-then-load the user sees while toggling EURO/ICON/GFS). Instead, complete
+  // that fetch in the background so fetchMarineData self-caches it into _perModelHourCache.
+  //
+  // Display-safe BY CONSTRUCTION: this NEVER calls setMarineData and touches none of the
+  // abort/lock/transition-coordinator machinery — so it cannot commit wrong-model data or
+  // cause a stuck-loading regression. Worst case is bounded extra bandwidth: capped at
+  // BG_CACHE_FILL_CAP concurrent fills and deduped by target key. Observe via
+  // window.__MARINE_BG_FILL__.
+  const BG_CACHE_FILL_CAP = 4;
+  const backgroundCacheFill = useCallback((intent) => {
+    if (!intent || !intent.bounds || typeof window === 'undefined') return;
+    const fills = bgCacheFillRef.current;
+    const key = `${intent.model}_${intent.layer}_${intent.hour}_${intent.boundsKey || ''}`;
+    if (fills.has(key)) return; // already filling this exact target
+    if (fills.size >= BG_CACHE_FILL_CAP) {
+      // Bound concurrency: drop the oldest in-flight fill to make room.
+      const oldestKey = fills.keys().next().value;
+      const oldest = fills.get(oldestKey);
+      try { if (oldest) oldest.abort(); } catch (e) { /* ignore */ }
+      fills.delete(oldestKey);
+    }
+    const bgController = new AbortController();
+    fills.set(key, bgController);
+    window.__MARINE_BG_FILL__ = window.__MARINE_BG_FILL__ || { started: 0, completed: 0 };
+    window.__MARINE_BG_FILL__.started++;
+    // Detached, no await, never commits. fetchMarineData self-caches on success.
+    fetchMarineData(intent.bounds, intent.zoom, bgController.signal, intent.hour, false, intent.model, intent.layer)
+      .catch(() => { /* aborted/failed — nothing to commit, cache simply stays unpopulated */ })
+      .finally(() => {
+        fills.delete(key);
+        if (window.__MARINE_BG_FILL__) window.__MARINE_BG_FILL__.completed++;
+      });
+  }, []);
+
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
     let phase = 'init';
     const rawModel = activeModelRef.current;
@@ -184,6 +224,10 @@ export function useMarineDataFetcher({
         console.log(`[Abort] Aborting in-flight fetch (${activeSource}) for new request source=${source}`);
         recordChurn('abort', { site: 'updateMarineGrid', from: activeSource, to: source });
         if (abortControllerRef.current) {
+          // If we're abandoning a DIFFERENT model/layer, complete it in the background so
+          // switching back is a cache hit instead of a blank re-fetch. (Phase C, display-safe.)
+          const prior = abortControllerRef.current.__intent;
+          if (prior && (prior.model !== model || prior.layer !== layer)) backgroundCacheFill(prior);
           abortControllerRef.current.abort();
         }
         locks.isFetching = false;
@@ -214,10 +258,15 @@ export function useMarineDataFetcher({
       }
 
       if (abortControllerRef.current) {
+        const prior = abortControllerRef.current.__intent;
+        if (prior && (prior.model !== model || prior.layer !== layer)) backgroundCacheFill(prior);
         abortControllerRef.current.abort();
       }
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
+      // Tag the controller with this fetch's target so that if a later switch aborts it,
+      // we can background-complete it into the cache (Phase C).
+      abortControllerRef.current.__intent = { model, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
 
       locks.isFetching = true;
       locks.activeSource = source;
