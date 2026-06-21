@@ -64,6 +64,7 @@ describe('WebGLMarineShaders', () => {
       expect(HEATMAP_FS).toContain('precision mediump float;');
       expect(HEATMAP_FS).toContain('gl_FragColor =');
       expect(HEATMAP_FS).toContain('uniform sampler2D u_oceanMaskTexture;');
+      expect(HEATMAP_FS).toContain('uniform float u_lng_offset;');
     });
   });
 });

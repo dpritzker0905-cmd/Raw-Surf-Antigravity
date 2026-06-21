@@ -50,6 +50,7 @@ uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
+uniform float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
 
@@ -125,7 +126,7 @@ vec3 getThemedWaveColor(float h, float theme) {
 }
 
 void main() {
-  float lng = v_mercator_xy.x * 360.0 - 180.0;
+  float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
   float lat = mercatorYToLat(v_mercator_xy.y);
 
   float tex_u;
