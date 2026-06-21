@@ -16,9 +16,10 @@ import {
 
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
 
-// Display/no-coverage boundary only; frontend estimator math removed.
-const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
-const DISPLAY_EURO_COMPONENT_MAX_HOURS = 240;
+// Display/no-coverage boundary only; frontend estimator math removed. EURO marine serves
+// backend estimated products to 336h (240 native + 96 estimated), so the serve max is 336h.
+const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
+const DISPLAY_EURO_COMPONENT_MAX_HOURS = 336;
 const DISPLAY_ICON_MAX_HOURS = 336;
 
 export { sampleFromMarineGrid };

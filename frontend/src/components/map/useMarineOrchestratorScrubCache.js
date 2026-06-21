@@ -5,7 +5,7 @@ import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { getMarineSeriesFrame } from './marineGridSeries';
-import { DISPLAY_ICON_MAX_HOURS } from './useMarineDataFetcherHelpers';
+import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
 
@@ -41,7 +41,9 @@ export function useMarineOrchestratorScrubCache({
     let extractedGrid = null;
     let curModel = activeModelRef.current || 'GFS';
     let curLayer = activeMarineLayerRef.current || 'waves';
-    const nativeLimit = 240;
+    // EURO display max (336h incl. estimates) — mirror the fetcher so EURO keeps its identity
+    // through the estimate window and only falls back to GFS past 336h.
+    const euroMax = curLayer === 'waves' ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
 
     // Deferred-1: mirror the fetcher's model resolution EXACTLY so this scrub cache lookup keys
     // on the model actually fetched. ICON keeps its extended window (168→336h) when the backend
@@ -51,10 +53,10 @@ export function useMarineOrchestratorScrubCache({
       curModel = 'GFS';
     } else if (curModel === 'ICON' && timeOffsetHours > DISPLAY_ICON_MAX_HOURS) {
       curModel = 'GFS';
-    } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
+    } else if (curModel === 'EURO' && timeOffsetHours > euroMax) {
       curModel = 'GFS';
     }
-    
+
     const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
     const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
     const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';

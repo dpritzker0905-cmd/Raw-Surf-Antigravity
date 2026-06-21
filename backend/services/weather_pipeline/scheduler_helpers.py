@@ -517,7 +517,13 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                 target_time = gfs_target_item.valid_time_start
                 hours_diff = (target_time - anchor_time).total_seconds() / 3600.0
                 target_hour = native_limit + hours_diff
-                
+
+                # Clamp estimates to the published EURO marine ceiling (240 native + 96 estimated
+                # = 336h max). gfs_targets is sorted chronologically, so every later target is
+                # also beyond the ceiling — stop here rather than generating unbounded estimates.
+                if target_hour > 336.0:
+                    break
+
                 # Load GFS target product
                 gfs_target_product = await asyncio.to_thread(scheduler.store.load_product, gfs_target_item.filename)
                 if not gfs_target_product:

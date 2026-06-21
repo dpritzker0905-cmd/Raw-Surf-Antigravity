@@ -1,5 +1,11 @@
-export const DISPLAY_EURO_WAVES_MAX_HOURS = 240;
-export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 240;
+// Display/serve maxima: the furthest hour each model is requested under its OWN identity
+// before falling back. EURO marine is native to 240h and serves backend-conformed ESTIMATED
+// products from 241..336h (240 native + 96 estimated), so the display max is 336h — matching
+// capabilities.max_forecast_hours. (The native/estimate boundary, 240h, lives in the backend
+// estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
+export const EURO_NATIVE_HOURS = 240;
+export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
+export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 336;
 export const DISPLAY_ICON_MAX_HOURS = 336;
 
 export function getLongitudinalOverlap(w1, e1, w2, e2) {
