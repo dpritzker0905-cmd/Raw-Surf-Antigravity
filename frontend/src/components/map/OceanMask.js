@@ -118,14 +118,18 @@ const repositionLanduse = (mapInstance) => {
     const waterLayerExists = !!mapInstance.getLayer('water');
     const landuseAnchor = waterLayerExists ? 'water' : anchorId;
 
+    const landuseLayerIds = [];
     for (let i = 0; i < maskFillIdx; i++) {
       const layer = layers[i];
       const id = layer.id.toLowerCase();
       const isLanduse = landuseKeywords.some(kw => id.includes(kw));
       // Move landuse fills below base map water layer if it exists
       if (isLanduse && layer.type === 'fill' && layer.id !== 'water') {
-        safeMoveLayer(mapInstance, layer.id, landuseAnchor);
+        landuseLayerIds.push(layer.id);
       }
+    }
+    if (landuseLayerIds.length > 0) {
+      safeMoveLayersBatch(mapInstance, landuseLayerIds, landuseAnchor);
     }
 
     // Move the base map's 'water' layer above repositioned landuse layers but below inland water
@@ -516,9 +520,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
         // 7. Force slot-based active marine raster layers BELOW MASK_BUFFER
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
-        for (const ml of marineLayers) {
-          safeMoveLayer(mapInstance, ml, MASK_BUFFER);
-        }
+        safeMoveLayersBatch(mapInstance, marineLayers, MASK_BUFFER);
 
       } else {
         // Active is false: remove all layers immediately and synchronously
