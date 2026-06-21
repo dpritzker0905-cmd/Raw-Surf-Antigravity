@@ -213,7 +213,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     console.log('[WindOverlay] === STARTING WIND PARTICLE ENGINE ===');
 
     var canvas = canvasRef.current;
-    var ctx = canvas.getContext('2d', { willReadFrequently: false });
+    var ctx = canvas.getContext('2d', { willReadFrequently: true });
     var dpr = window.devicePixelRatio || 1;
 
     var resize = function() {
