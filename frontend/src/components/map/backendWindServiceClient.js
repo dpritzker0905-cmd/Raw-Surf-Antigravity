@@ -13,7 +13,8 @@ import {
   getBackendWindFlag,
   latestTimeDiag,
   updateProjectionDiag,
-  PILOT_COVERAGE
+  PILOT_COVERAGE,
+  fetchProductsManifest
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -382,6 +383,7 @@ export async function fetchBackendExactWindPoint(lat, lng, hourOffset, signal, m
  * Fetches wind grid forecast from backend weather service.
  */
 export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller", model = 'GFS') {
+  await fetchProductsManifest().catch(() => null);
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, 'wind', model);
 

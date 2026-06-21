@@ -313,11 +313,23 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (activeModelRef.current !== activeModel) return;
 
       lastFetchedModelRef.current = activeModel; lastFetchedLayerRef.current = null;
-      console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, triggering manual fetch...`);
+      console.log(`[MODEL] [Marine] Active model changed to ${activeModel}, checking style readiness for manual fetch...`);
       resetTruthTracker(`model_switch_to_${activeModel}`);
       lastCommittedSigRef.current = null;
       marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-      manualMarineTriggerRef.current?.();
+
+      const fireModelFetch = () => {
+        if (activeModelRef.current !== activeModel) return;
+        manualMarineTriggerRef.current?.();
+      };
+
+      const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
+      if (styleReady) {
+        fireModelFetch();
+      } else {
+        console.log(`[MODEL] [Marine] Model switch to ${activeModel} fetch deferred — waiting for map style to finish loading...`);
+        try { mapInstance.once('idle', fireModelFetch); } catch (e) { fireModelFetch(); }
+      }
     }, SWITCH_FETCH_COALESCE_MS);
   }, [activeModel, mapInstance, setMarineData]);
 
@@ -501,7 +513,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
     
     marineFetchLocksRef.current.lastHash = null; marineFetchLocksRef.current.lastTime = 0;
-    manualMarineTriggerRef.current?.();
+
+    const fireLayerFetch = () => {
+      if (activeMarineLayerRef.current !== activeMarineLayer) return;
+      manualMarineTriggerRef.current?.();
+    };
+
+    const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
+    if (styleReady) {
+      fireLayerFetch();
+    } else {
+      console.log(`[LAYER] [Marine] Layer switch to ${activeMarineLayer} fetch deferred — waiting for map style to finish loading...`);
+      try { mapInstance.once('idle', fireLayerFetch); } catch (e) { fireLayerFetch(); }
+    }
     }, SWITCH_FETCH_COALESCE_MS); // end coalescing setTimeout — absorbs rapid layer cycling
   }, [activeMarineLayer, mapInstance, setMarineData]);
 

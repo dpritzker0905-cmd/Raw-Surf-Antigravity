@@ -241,6 +241,8 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
  * Fetches marine conformed forecast grid from backend weather service.
  */
 export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+  await fetchProductsManifest().catch(() => null);
+
   if (model === 'ICON' && hourOffset > 168) {
     if (hourOffset <= 240 && layer === 'swell_2') {
       // Fall through to existing swell_2 blender below

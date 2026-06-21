@@ -533,23 +533,23 @@ void main() {
   vec3 calmColor, activeColor, stormColor, foamHighlight;
 
   if (u_theme > 1.5) {
-    // Beach Mode — v5.4: pale seafoam-white to contrast green heatmap
-    calmColor = vec3(0.92, 0.98, 0.90);    // pale seafoam-white (was teal 0.05,0.70,0.60)
-    activeColor = vec3(1.00, 0.92, 0.72);  // warm sunlit foam (was orange 1.00,0.65,0.45)
-    stormColor = vec3(1.00, 0.98, 0.90);   // warm white
-    foamHighlight = vec3(1.00, 0.98, 0.90);
+    // Beach Mode
+    calmColor = vec3(1.00, 0.45, 0.65);    // orchid-pink
+    activeColor = vec3(0.00, 0.92, 0.85);  // electric turquoise
+    stormColor = vec3(0.80, 0.20, 0.90);   // sunset magenta
+    foamHighlight = vec3(0.95, 0.95, 1.00);
   } else if (u_theme > 0.5) {
     // Light Mode
-    calmColor = vec3(0.10, 0.35, 0.80);
-    activeColor = vec3(0.40, 0.75, 0.95);
-    stormColor = vec3(1.00, 1.00, 1.00);
+    calmColor = vec3(0.05, 0.15, 0.45);    // deep navy
+    activeColor = vec3(0.85, 0.50, 0.00);  // amber-gold
+    stormColor = vec3(0.75, 0.10, 0.05);   // crimson red
     foamHighlight = vec3(1.00, 1.00, 1.00);
   } else {
     // Dark Mode
-    calmColor = vec3(0.00, 0.90, 1.00);
-    activeColor = vec3(1.00, 0.10, 0.80);
-    stormColor = vec3(1.00, 1.00, 1.00);
-    foamHighlight = vec3(0.85, 0.95, 1.00);
+    calmColor = vec3(0.10, 0.95, 0.60);    // mint-green
+    activeColor = vec3(1.00, 0.80, 0.10);  // yellow-gold
+    stormColor = vec3(1.00, 0.40, 0.10);   // fiery orange
+    foamHighlight = vec3(1.00, 1.00, 1.00);
   }
 
   vec3 baseColor = energy < 0.5

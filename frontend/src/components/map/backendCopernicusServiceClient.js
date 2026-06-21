@@ -13,7 +13,8 @@ import {
   getBackendCopernicusFlag,
   latestTimeDiag,
   PILOT_COVERAGE,
-  updateProjectionDiag
+  updateProjectionDiag,
+  fetchProductsManifest
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { arrayMax } from './marineControllerUtils';
@@ -275,6 +276,7 @@ export function updateCopernicusDiagnostics(type, details) {
  * Fetches EURO Copernicus forecast grid from backend weather service.
  */
 export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, boundsSource = "controller", layer = "swell_1") {
+  await fetchProductsManifest().catch(() => null);
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, 'EURO');
 
