@@ -43,6 +43,41 @@ export function reinitParticles(engine, gl) {
   engine.particleStateB = initParticleTexture(gl, engine.particleRes);
 }
 
+// Reseed the particle-state textures IN PLACE (texSubImage2D) instead of delete+realloc.
+// particleRes is constant, so the textures never change size — on a grid shift/resize we only
+// need fresh start positions, not new GPU allocations. Eliminates per-switch texture churn
+// (the "Resetting particle state textures" cost during rapid model/layer toggling). Same data
+// semantics as before (fresh random seed); B is overwritten on the first advect step so it
+// shares the seed buffer (one random pass instead of two). Falls back to a full alloc if a
+// texture is missing.
+export function reseedParticleStateInPlace(engine, gl) {
+  const res = engine.particleRes;
+  if (!engine.particleStateA || !engine.particleStateB) {
+    reinitParticles(engine, gl);
+    return;
+  }
+  const numParticles = res * res;
+  const data = new Uint8Array(numParticles * 4);
+  for (let i = 0; i < numParticles; i++) {
+    const x = Math.random();
+    const y = Math.random();
+    const xHi = Math.floor(x * 255);
+    const xLo = Math.floor(((x * 255) - xHi) * 255);
+    const yHi = Math.floor(y * 255);
+    const yLo = Math.floor(((y * 255) - yHi) * 255);
+    data[i * 4 + 0] = xHi;
+    data[i * 4 + 1] = xLo;
+    data[i * 4 + 2] = yHi;
+    data[i * 4 + 3] = yLo;
+  }
+  const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+  gl.bindTexture(gl.TEXTURE_2D, engine.particleStateA);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, res, res, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.bindTexture(gl.TEXTURE_2D, engine.particleStateB);
+  gl.texSubImage2D(gl.TEXTURE_2D, 0, 0, 0, res, res, gl.RGBA, gl.UNSIGNED_BYTE, data);
+  gl.bindTexture(gl.TEXTURE_2D, prevTex);
+}
+
 export function initEngine(engine, gl) {
   if (engine._initialized) return;
 

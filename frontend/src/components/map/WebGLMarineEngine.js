@@ -23,8 +23,8 @@ import {
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import {
-  initParticleTexture,
   reinitParticles,
+  reseedParticleStateInPlace,
   initEngine,
   disposeEngine
 } from './WebGLMarineEngineInit';
@@ -141,12 +141,9 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
       });
       if (rd.log.length > 40) rd.log.pop();
     }
-    // Delete existing particle textures first to prevent GPU memory leaks
-    if (this.particleStateA) gl.deleteTexture(this.particleStateA);
-    if (this.particleStateB) gl.deleteTexture(this.particleStateB);
-
-    this.particleStateA = initParticleTexture(gl, this.particleRes);
-    this.particleStateB = initParticleTexture(gl, this.particleRes);
+    // Reseed the FIXED-size particle textures in place (texSubImage2D) instead of
+    // delete+realloc — eliminates per-switch GPU texture churn during rapid toggling.
+    reseedParticleStateInPlace(this, gl);
   }
 
   if (oldWaveData) {
