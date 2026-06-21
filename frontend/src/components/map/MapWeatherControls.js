@@ -181,12 +181,12 @@ export var MapWeatherControls = ({
     };
     config.wind = {
       label: LEGEND_LABELS.wind,
-      // Gradient matches WindColorRamp.js stops: calm blue → cyan → teal → green → yellow → amber → red → magenta → purple
+      // Gradient matches WindColorRamp.js stops: calm/low-speed contrast -> moderate -> high-speed
       gradientCSS: isLight
-        ? 'linear-gradient(to right, rgba(166,191,224,0.3), rgba(97,191,224,0.5), rgba(56,204,184,0.6), rgba(97,209,97,0.65), rgba(199,209,51,0.7), rgba(242,173,38,0.8), rgba(230,56,38,0.85), rgba(191,26,89,0.9), rgba(140,13,128,0.95))'
+        ? 'linear-gradient(to right, rgba(20,46,92,0.75), rgba(13,64,115,0.78), rgba(5,97,122,0.8), rgba(13,128,77,0.82), rgba(166,115,0,0.85), rgba(191,51,13,0.88), rgba(140,13,102,0.9), rgba(89,0,115,0.95))'
         : isBeach
-        ? 'linear-gradient(to right, rgba(166,191,224,0.25), rgba(97,191,224,0.45), rgba(56,204,184,0.55), rgba(97,209,97,0.6), rgba(199,209,51,0.65), rgba(242,173,38,0.75), rgba(230,56,38,0.8), rgba(191,26,89,0.9), rgba(140,13,128,0.95))'
-        : 'linear-gradient(to right, rgba(166,191,224,0.25), rgba(97,191,224,0.45), rgba(56,204,184,0.55), rgba(97,209,97,0.6), rgba(199,209,51,0.65), rgba(242,173,38,0.75), rgba(230,56,38,0.8), rgba(191,26,89,0.9), rgba(140,13,128,0.95))',
+        ? 'linear-gradient(to right, rgba(255,102,166,0.88), rgba(255,128,77,0.9), rgba(242,191,26,0.92), rgba(51,230,89,0.92), rgba(0,224,204,0.95), rgba(0,140,242,0.95), rgba(140,51,230,0.95), rgba(230,26,230,0.95))'
+        : 'linear-gradient(to right, rgba(153,217,255,0.85), rgba(115,230,242,0.88), rgba(51,242,230,0.9), rgba(26,250,204,0.92), rgba(102,217,115,0.92), rgba(242,184,38,0.92), rgba(242,64,46,0.95), rgba(255,204,230,0.95))',
       stops: ['0', '5', '15', '30', '50+'],
     };
     config.radar = {

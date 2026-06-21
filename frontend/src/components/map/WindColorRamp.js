@@ -18,56 +18,53 @@
  * Default (dark) follows Beaufort/Ventusky convention: blue→cyan→green→yellow→red→purple.
  */
 var DEFAULT_WIND_RAMP = [
-  [0,  0.65, 0.75, 0.85, 0.05], // Calm: highly transparent light blue-white
-  [2,  0.55, 0.70, 0.88, 0.10], // Light air: bright blue, very transparent
-  [5,  0.38, 0.75, 0.88, 0.18], // Light breeze: cyan
-  [8,  0.22, 0.80, 0.72, 0.24], // Gentle breeze: teal
-  [12, 0.38, 0.82, 0.38, 0.30], // Moderate: soft green
-  [16, 0.78, 0.82, 0.20, 0.35], // Fresh: yellow-green
-  [20, 0.95, 0.68, 0.15, 0.40], // Strong: soft amber
-  [25, 0.95, 0.45, 0.10, 0.45], // Near gale: soft orange
-  [30, 0.90, 0.22, 0.15, 0.48], // Gale: soft red
-  [40, 0.75, 0.10, 0.35, 0.50], // Storm: soft magenta
-  [50, 0.55, 0.05, 0.50, 0.50], // Hurricane: soft purple
+  [0,  0.60, 0.85, 1.00, 0.85], // Calm: ice-blue
+  [3,  0.45, 0.90, 0.95, 0.88], // Light air: electric cyan-blue
+  [6,  0.20, 0.95, 0.90, 0.90], // Light breeze: neon cyan
+  [12, 0.10, 0.98, 0.80, 0.92], // Moderate: bright minty green-cyan
+  [21, 0.40, 0.85, 0.45, 0.92], // Strong: green-yellow
+  [29, 0.95, 0.72, 0.15, 0.92], // Gale: amber
+  [39, 0.95, 0.25, 0.18, 0.95], // Storm: hot red
+  [50, 1.00, 0.80, 0.90, 0.95], // Hurricane: white-magenta
 ];
 
 /**
  * Theme-specific wind ramps matching the HEATMAP_FS shader palettes.
- * Beach: warm teal → cyan → amber → cream (tropical vibes)
- * Light: cool blue → indigo → white (clean visibility on light backgrounds)
- * Dark: default cyan → magenta → white ramp (high contrast on dark maps)
+ * Beach: tropical hot pink → coral orange → sun yellow → lime green → turquoise → royal blue → sunset purple (sunset vibes, high contrast over sand/teal water)
+ * Light: deep navy → steel blue → deep teal → forest green → rich gold → crimson red → deep purple → violet (highly visible dark lines on light background)
+ * Dark: ice blue → electric cyan → neon cyan → minty green-cyan → green-yellow → amber → hot red → white-magenta (luminous neon glow on dark navy background)
  */
 var BEACH_WIND_RAMP = [
-  [0,  0.92, 0.82, 0.60, 0.85], // c0 (warm sandy gold, raised alpha)
-  [3,  0.61, 0.84, 0.68, 0.88], // midpoint
-  [6,  0.30, 0.85, 0.75, 0.90], // c1 (bright tropical seafoam)
-  [12, 0.65, 0.88, 0.35, 0.92], // c2 (sunny lime-yellow)
-  [21, 0.95, 0.70, 0.20, 0.92], // c3 (warm amber)
-  [29, 0.98, 0.45, 0.20, 0.95], // c4 (tangerine orange)
-  [39, 0.90, 0.25, 0.40, 0.95], // c5 (deep coral/rose)
-  [50, 0.60, 0.20, 0.65, 0.95], // c6 (sunset purple)
+  [0,  1.00, 0.40, 0.65, 0.88], // Calm: bright electric rose/pink
+  [3,  1.00, 0.50, 0.30, 0.90], // Light air: bright coral-orange
+  [6,  0.95, 0.75, 0.10, 0.92], // Light breeze: vibrant sun yellow
+  [12, 0.20, 0.90, 0.35, 0.92], // Moderate: bright lime green
+  [21, 0.00, 0.88, 0.80, 0.95], // Strong: electric turquoise
+  [29, 0.00, 0.55, 0.95, 0.95], // Gale: royal blue
+  [39, 0.55, 0.20, 0.90, 0.95], // Storm: deep purple
+  [50, 0.90, 0.10, 0.90, 0.95], // Hurricane: hot orchid/magenta
 ];
 
 var LIGHT_WIND_RAMP = [
-  [0,  0.30, 0.55, 0.42, 0.35], // c0 (dark mint green particles, reduced alpha)
-  [3,  0.35, 0.58, 0.25, 0.40], // midpoint: dark lime green
-  [6,  0.42, 0.58, 0.20, 0.45], // c1 (dark lime-green)
-  [12, 0.62, 0.58, 0.15, 0.52], // c2 (dark yellow-gold)
-  [21, 0.78, 0.45, 0.08, 0.60], // c3 (dark orange)
-  [29, 0.78, 0.22, 0.12, 0.65], // c4 (dark red)
-  [39, 0.62, 0.12, 0.40, 0.70], // c5 (dark purple)
-  [50, 0.42, 0.08, 0.52, 0.75], // c6 (deep violet)
+  [0,  0.08, 0.18, 0.36, 0.75], // Calm: deep rich navy blue
+  [3,  0.05, 0.25, 0.45, 0.78], // Light air: deep steel blue
+  [6,  0.02, 0.38, 0.48, 0.80], // Light breeze: deep teal
+  [12, 0.05, 0.50, 0.30, 0.82], // Moderate: forest green
+  [21, 0.65, 0.45, 0.00, 0.85], // Strong: rich gold/amber
+  [29, 0.75, 0.20, 0.05, 0.88], // Gale: crimson red
+  [39, 0.55, 0.05, 0.40, 0.90], // Storm: deep purple
+  [50, 0.35, 0.00, 0.45, 0.95], // Hurricane: deep violet
 ];
 
 var DARK_WIND_RAMP = [
-  [0,  0.05, 0.25, 0.42, 0.82], // c0 (richer blue-teal, raised alpha)
-  [3,  0.04, 0.38, 0.52, 0.85], // midpoint
-  [6,  0.03, 0.48, 0.60, 0.88], // c1 (bright teal)
-  [12, 0.05, 0.75, 0.90, 0.90], // c2 (vivid cyan)
-  [21, 0.40, 0.85, 0.45, 0.92], // c3 (green-yellow)
-  [29, 0.95, 0.72, 0.15, 0.92], // c4 (amber)
-  [39, 0.95, 0.25, 0.18, 0.95], // c5 (hot red)
-  [50, 1.00, 0.80, 0.90, 0.95], // c6 (white-magenta)
+  [0,  0.60, 0.85, 1.00, 0.85], // Calm: ice-blue
+  [3,  0.45, 0.90, 0.95, 0.88], // Light air: electric cyan-blue
+  [6,  0.20, 0.95, 0.90, 0.90], // Light breeze: neon cyan
+  [12, 0.10, 0.98, 0.80, 0.92], // Moderate: bright minty green-cyan
+  [21, 0.40, 0.85, 0.45, 0.92], // Strong: green-yellow
+  [29, 0.95, 0.72, 0.15, 0.92], // Gale: amber
+  [39, 0.95, 0.25, 0.18, 0.95], // Storm: hot red
+  [50, 1.00, 0.80, 0.90, 0.95], // Hurricane: white-magenta
 ];
 
 export var THEME_RAMPS = {
