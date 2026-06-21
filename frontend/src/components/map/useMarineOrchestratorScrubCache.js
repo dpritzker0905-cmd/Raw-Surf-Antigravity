@@ -5,6 +5,7 @@ import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { getMarineSeriesFrame } from './marineGridSeries';
+import { DISPLAY_ICON_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
 
@@ -41,9 +42,14 @@ export function useMarineOrchestratorScrubCache({
     let curModel = activeModelRef.current || 'GFS';
     let curLayer = activeMarineLayerRef.current || 'waves';
     const nativeLimit = 240;
-    
-    // Note: Deferred-1 remap is NOT done here per user request, leaving exact logic as-is for Claude 4.8.
-    if (curModel === 'ICON' && timeOffsetHours > 168) {
+
+    // Deferred-1: mirror the fetcher's model resolution EXACTLY so this scrub cache lookup keys
+    // on the model actually fetched. ICON keeps its extended window (168→336h) when the backend
+    // ICON flag is on; only fall back to GFS when ICON is unsupported (>168h && flag off) or out
+    // of range (>336h). Was: unconditional ICON→GFS at >168h (ICON-extended never cache-hit).
+    if (curModel === 'ICON' && timeOffsetHours > 168 && !getBackendIconMarineFlag()) {
+      curModel = 'GFS';
+    } else if (curModel === 'ICON' && timeOffsetHours > DISPLAY_ICON_MAX_HOURS) {
       curModel = 'GFS';
     } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
       curModel = 'GFS';

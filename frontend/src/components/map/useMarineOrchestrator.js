@@ -8,6 +8,7 @@ import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { DISPLAY_ICON_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
 
@@ -353,7 +354,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     let curModel = activeModelRef.current || 'GFS';
     const isWaves = (activeMarineLayer === 'waves');
     const nativeLimit = 240;
-    if (curModel === 'ICON' && timeOffsetHours > 168) {
+    // Deferred-1: mirror the fetcher's model resolution (useMarineDataFetcherCore) EXACTLY so
+    // the cache lookup keys on the model actually fetched. ICON keeps its extended window
+    // (168→336h) when the backend ICON flag is on — only fall back to GFS when ICON is
+    // unsupported (>168h && flag off) or truly out of range (>336h). Previously this swapped
+    // ICON→GFS at >168h unconditionally, so ICON-extended products never cache-hit (churn).
+    if (curModel === 'ICON' && timeOffsetHours > 168 && !getBackendIconMarineFlag()) {
+      curModel = 'GFS';
+    } else if (curModel === 'ICON' && timeOffsetHours > DISPLAY_ICON_MAX_HOURS) {
       curModel = 'GFS';
     } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
       curModel = 'GFS';
