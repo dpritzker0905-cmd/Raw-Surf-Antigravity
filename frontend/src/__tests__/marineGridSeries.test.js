@@ -71,6 +71,32 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 50)).toBeNull();
   });
 
+  it('pages around the requested hour — a far hour loads ITS page (not hour 0) and serves it', async () => {
+    window.__MARINE_SERIES__ = true;
+    const mkVec = (s) => ({ lat: 28, lng: -80, u: 0, v: 0, speed: s, direction: 90, period: 8 });
+    const farResponse = {
+      model: 'GFS', domain: 'marine', layer: 'waves', cols: 4, rows: 4,
+      frames: [
+        { hour_offset: 297, cols: 4, rows: 4, bounds, vectors: [mkVec(2)], provider: 'open-meteo' },
+        { hour_offset: 300, cols: 4, rows: 4, bounds, vectors: [mkVec(3)], provider: 'open-meteo' },
+      ],
+    };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => farResponse });
+
+    // Scrub to +300h -> page 2 (288..336), NOT page 0.
+    await ensureMarineSeries('GFS', 'waves', bounds, 300);
+    const url = global.fetch.mock.calls[0][0];
+    expect(url).toContain('hours=288');     // page 2 starts at 288h
+    expect(url).not.toContain('hours=0,');  // did NOT start the request at hour 0
+
+    const f = getMarineSeriesFrame('GFS', 'waves', bounds, 300);
+    expect(f).not.toBeNull();
+    expect(f.grid.hourOffset).toBe(300);
+
+    // Hour 0 lives in a different (unloaded) page -> miss, falls back to per-hour path.
+    expect(getMarineSeriesFrame('GFS', 'waves', bounds, 0)).toBeNull();
+  });
+
   it('dedupes concurrent loads for the same key', async () => {
     window.__MARINE_SERIES__ = true;
     let resolve;

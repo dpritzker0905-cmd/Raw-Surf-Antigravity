@@ -32,6 +32,7 @@ OVERALL_DEADLINE = 35.0
 # backend always answers first. The Copernicus full-range fetch is cached (10 min), so
 # only the FIRST EURO series load pays this; later ones are instant.
 EURO_SERIES_TIMEOUT = 40.0
+EURO_NATIVE_HOURS = 240  # EURO marine native horizon; 241..336h are stored ESTIMATED products
 
 
 async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hour_list, base):
@@ -146,20 +147,36 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
 
     base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
 
-    # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic
-    # per-hour loop below hangs for EURO — each hour is a separate ±3h CMEMS download).
-    # Additive + EURO-marine-only; on any failure fall through to the generic loop.
+    # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic per-hour
+    # loop below hangs for EURO — each hour is a separate ±3h CMEMS download). Additive +
+    # EURO-marine-only; on any failure fall through to the generic loop.
+    #
+    # F2: a page can SPAN the native/estimate boundary (240h) — e.g. 144..285h. Copernicus only
+    # covers <=240h, so run the fast path on the NATIVE hours and let the per-hour loop build the
+    # ESTIMATED hours (>240h). Those resolve to STORED estimated products (manifest match + load
+    # — fast, no Copernicus), so they don't hang like a native per-hour EURO fetch would.
+    loop_hours = hour_list
+    prebuilt_frames = []  # native EURO frames carried over from the Copernicus fast path
     if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine" and not await _client_gone():
-        try:
-            euro = await asyncio.wait_for(
-                _build_euro_marine_series(viewport_service, layer, bbox, hour_list, base),
-                timeout=EURO_SERIES_TIMEOUT,
-            )
-            if euro and euro.get("frame_count", 0) > 0:
-                return euro
-            logger.warning("[grid_series] EURO fast path returned no frames; falling back to per-hour")
-        except BaseException as e:
-            logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); falling back to per-hour")
+        native_hours = [h for h in hour_list if h <= EURO_NATIVE_HOURS]
+        estimated_hours = [h for h in hour_list if h > EURO_NATIVE_HOURS]
+        if native_hours:
+            try:
+                euro = await asyncio.wait_for(
+                    _build_euro_marine_series(viewport_service, layer, bbox, native_hours, base),
+                    timeout=EURO_SERIES_TIMEOUT,
+                )
+                if euro and euro.get("frame_count", 0) > 0:
+                    if not estimated_hours:
+                        return euro
+                    prebuilt_frames = euro.get("frames", []) or []
+                    loop_hours = estimated_hours  # build only the stored estimated hours per-hour
+                else:
+                    logger.warning("[grid_series] EURO fast path returned no frames; falling back to per-hour")
+            except BaseException as e:
+                logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); falling back to per-hour")
+        # native_hours empty (page entirely >240h): loop_hours stays = hour_list (all estimated)
+        # and the per-hour loop resolves the stored estimated EURO products directly.
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).
@@ -198,9 +215,11 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     # thing must never 500: on any unexpected error return an empty series so the client
     # silently falls back to the per-hour flow. (_error is temporary diagnostics.)
     try:
-        results = [await _build_one(hour_list[0])]
-        if len(hour_list) > 1:
-            results.extend(await asyncio.gather(*[_build_one(h) for h in hour_list[1:]], return_exceptions=True))
+        results = []
+        if loop_hours:
+            results = [await _build_one(loop_hours[0])]
+            if len(loop_hours) > 1:
+                results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
         results = [r for r in results if isinstance(r, tuple)]
     except BaseException as e:
         import traceback
@@ -228,6 +247,16 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
         })
+
+    # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames
+    # (>240h) so a boundary-spanning page returns its full hour range.
+    if prebuilt_frames:
+        have = {f["hour_offset"] for f in frames}
+        for pf in prebuilt_frames:
+            if pf.get("hour_offset") not in have:
+                frames.append(pf)
+                if shared_bounds is None and pf.get("bounds"):
+                    shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
 
     frames.sort(key=lambda f: f["hour_offset"])
     return {

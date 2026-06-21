@@ -7,7 +7,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
-import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame, marineSeriesPageForHour } from './marineGridSeries';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
@@ -621,10 +621,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (cancelled || !mapInstance) return;
       try {
         const b = mapInstance.getBounds();
+        // Load the PAGE containing the current scrubbed hour first (not always hour 0), then
+        // adjacent pages on idle — so far-hour scrubbing is instant once its page warms.
         ensureMarineSeries(
           activeModelRef.current,
           activeMarineLayerRef.current,
           { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+          timeOffsetRef.current,
           controller.signal
         );
       } catch (e) { /* map not ready — ignore */ }
@@ -638,7 +641,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       controller.abort();
       try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
     };
-  }, [mapInstance, activeModel, activeMarineLayer]);
+    // seriesPage in deps: re-run when scrubbing crosses a page boundary so the new page loads.
+  }, [mapInstance, activeModel, activeMarineLayer, marineSeriesPageForHour(timeOffsetHours)]);
 
   return { marineData };
 }
