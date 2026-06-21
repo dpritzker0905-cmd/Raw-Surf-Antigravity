@@ -163,9 +163,13 @@ export function useExactPointFetch({
     const timeoutId = setTimeout(() => {
       if (token.cancelled || gen !== fetchGenRef.current) return;
 
+      // 12s (was 18s): the infobox point is interactive — an 18s hang on "Loading…" for a
+      // stalled/far-hour request felt broken. On a warm backend a valid point resolves in
+      // a few seconds; on timeout the overlay flips to grid fallback / "No coverage" (a
+      // truthful, in-sync state) rather than holding "Loading…". Tunable.
       const fetchTimeoutId = setTimeout(() => {
         controller.abort();
-      }, 18000);
+      }, 12000);
 
       const grid = marineDataRef.current?.grid;
       const gridProductId = grid?.productId || grid?.product_id || null;

@@ -142,9 +142,18 @@ export function resolveForecastWindow(user, model = 'GFS', activeLayer = null) {
       }
     }
     if (caps.length > 0) {
-      const maxHours = Math.max(...caps.map(c => c.max_forecast_hours || 0));
-      if (maxHours > 0) {
-        const maxDays = Math.floor(maxHours / 24);
+      // Prefer the model's NATIVE forecast horizon over max_forecast_hours. For some
+      // models (notably ICON marine: native 168h, max 336h) max_forecast_hours bundles an
+      // *estimated extension* that only works when other models' anchors (GFS/EURO) are
+      // loaded at the same time. Mid-interaction those anchors are usually absent, so the
+      // extension fails -> conformed safe-zero grid + exact-point timeout -> the infobox
+      // hangs on "Loading…" and the heatmap shows nothing at far hours (verified: ICON
+      // wind_waves/swell_1 +170/+269/+278h "extended blend target GFS and EURO are both
+      // unavailable"). Capping the scrubber to the native horizon keeps the timeline within
+      // reliably-served hours. Falls back to max_forecast_hours when native is absent/zero.
+      const reliableHours = Math.max(...caps.map(c => c.native_horizon_hours || c.max_forecast_hours || 0));
+      if (reliableHours > 0) {
+        const maxDays = Math.floor(reliableHours / 24);
         allowedDays = Math.min(allowedDays, maxDays);
       }
     }
