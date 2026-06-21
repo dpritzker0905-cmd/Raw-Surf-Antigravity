@@ -21,6 +21,7 @@ import {
   commitMarineData
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
+import { createMarineInFlightRegistry } from './marineInFlightRegistry';
 
 
 export function useMarineDataFetcher({
@@ -39,9 +40,13 @@ export function useMarineDataFetcher({
   const marineRevision = useRef(0);
   const marineRequestIdRef = useRef(0);
   const abortControllerRef = useRef(null);
-  // Phase C: in-flight BACKGROUND cache fills for model/layer being switched away from.
-  // key -> AbortController. These never commit to display (display-safe by construction).
-  const bgCacheFillRef = useRef(new Map());
+  // Phase 2 (abort-storm rework): in-flight registry. On a target switch we DETACH the
+  // abandoned fetch (let it run to completion + self-cache) instead of aborting+refetching.
+  // Display-safety stays with the requestId / live-target / transition guards below — the
+  // registry only bounds concurrency (cap detached requests) and cleans up on unmount.
+  const inFlightRef = useRef(null);
+  if (!inFlightRef.current) inFlightRef.current = createMarineInFlightRegistry({ cap: 3 });
+  const inFlight = inFlightRef.current;
   const activeMarineLayersRef = useRef(false);
   const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0 });
   const manualMarineTriggerRef = useRef(null);
@@ -115,45 +120,12 @@ export function useMarineDataFetcher({
     );
   }, [activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
-  // Phase C — Background cache fill for an abandoned model/layer fetch.
-  // When the user switches model/layer, the in-flight fetch for the layer being LEFT is
-  // normally aborted and its bytes discarded, so switching BACK re-fetches from scratch
-  // (the blank-then-load the user sees while toggling EURO/ICON/GFS). Instead, complete
-  // that fetch in the background so fetchMarineData self-caches it into _perModelHourCache.
-  //
-  // Display-safe BY CONSTRUCTION: this NEVER calls setMarineData and touches none of the
-  // abort/lock/transition-coordinator machinery — so it cannot commit wrong-model data or
-  // cause a stuck-loading regression. Worst case is bounded extra bandwidth: capped at
-  // BG_CACHE_FILL_CAP concurrent fills and deduped by target key. Observe via
-  // window.__MARINE_BG_FILL__.
-  const BG_CACHE_FILL_CAP = 4;
-  const backgroundCacheFill = useCallback((intent) => {
-    if (!intent || !intent.bounds || typeof window === 'undefined') return;
-    const fills = bgCacheFillRef.current;
-    const key = `${intent.model}_${intent.layer}_${intent.hour}_${intent.boundsKey || ''}`;
-    if (fills.has(key)) return; // already filling this exact target
-    if (fills.size >= BG_CACHE_FILL_CAP) {
-      // Bound concurrency: drop the oldest in-flight fill to make room.
-      const oldestKey = fills.keys().next().value;
-      const oldest = fills.get(oldestKey);
-      try { if (oldest) oldest.abort(); } catch (e) { /* ignore */ }
-      fills.delete(oldestKey);
-    }
-    const bgController = new AbortController();
-    fills.set(key, bgController);
-    window.__MARINE_BG_FILL__ = window.__MARINE_BG_FILL__ || { started: 0, completed: 0 };
-    window.__MARINE_BG_FILL__.started++;
-    // Detached, no await, never commits. fetchMarineData self-caches on success.
-    fetchMarineData(intent.bounds, intent.zoom, bgController.signal, intent.hour, false, intent.model, intent.layer)
-      .catch(() => { /* aborted/failed — nothing to commit, cache simply stays unpopulated */ })
-      .finally(() => {
-        fills.delete(key);
-        if (window.__MARINE_BG_FILL__) window.__MARINE_BG_FILL__.completed++;
-      });
-  }, []);
-
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
     let phase = 'init';
+    // Phase 2: this invocation's controller + outcome, for identity-safe registry bookkeeping
+    // in `finally` (a detached/stale request must still be removed from the registry).
+    let myController = null;
+    let fetchStatus = 'failure';
     const rawModel = activeModelRef.current;
     const layer = activeMarineLayerRef.current || 'waves';
     const timeOffset = timeOffsetRef.current;
@@ -229,14 +201,14 @@ export function useMarineDataFetcher({
           console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority update request (${source})`);
           return;
         }
-        console.log(`[Abort] Aborting in-flight fetch (${activeSource}) for new request source=${source}`);
-        recordChurn('abort', { site: 'updateMarineGrid', from: activeSource, to: source });
-        if (abortControllerRef.current) {
-          // If we're abandoning a DIFFERENT model/layer, complete it in the background so
-          // switching back is a cache hit instead of a blank re-fetch. (Phase C, display-safe.)
-          const prior = abortControllerRef.current.__intent;
-          if (prior && (prior.model !== model || prior.layer !== layer)) backgroundCacheFill(prior);
-          abortControllerRef.current.abort();
+        console.log(`[Detach] Detaching in-flight fetch (${activeSource}) for new request source=${source} (runs to completion + self-caches)`);
+        recordChurn('detach', { site: 'updateMarineGrid', from: activeSource, to: source });
+        if (abortControllerRef.current && abortControllerRef.current.__intent) {
+          // Detach (do NOT abort) so the abandoned fetch finishes and self-caches into
+          // _perModelHourCache — switching back becomes a cache hit instead of a blank
+          // re-fetch. The requestId/live-target guards below block its stale commit; the
+          // registry caps concurrency and cleans up on unmount.
+          inFlight.detach(abortControllerRef.current.__intent);
         }
         locks.isFetching = false;
       }
@@ -265,16 +237,19 @@ export function useMarineDataFetcher({
         return;
       }
 
-      if (abortControllerRef.current) {
-        const prior = abortControllerRef.current.__intent;
-        if (prior && (prior.model !== model || prior.layer !== layer)) backgroundCacheFill(prior);
-        abortControllerRef.current.abort();
+      if (abortControllerRef.current && abortControllerRef.current.__intent) {
+        // Detach (not abort) the prior fetch so it completes + self-caches; same-target is
+        // already handled by the dedup gates above, so this is always a real switch.
+        inFlight.detach(abortControllerRef.current.__intent);
       }
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
-      // Tag the controller with this fetch's target so that if a later switch aborts it,
-      // we can background-complete it into the cache (Phase C).
+      myController = abortControllerRef.current;
+      // Tag the controller with this fetch's target so a later switch can detach (and
+      // self-cache) it, and the registry can abort it for the concurrency cap / on unmount.
       abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
+      inFlight.registerForeground(myController, abortControllerRef.current.__intent, requestId);
+      inFlight.noteNetworkRequest(myController.__intent.rawModel + '/' + layer + '/h' + timeOffset);
 
       locks.isFetching = true;
       locks.activeSource = source;
@@ -389,6 +364,13 @@ export function useMarineDataFetcher({
         }
       }
 
+      // A renderable response means fetchMarineData has self-cached this target (warm for a
+      // switch-back). Record success for registry telemetry BEFORE the stale-reject return so
+      // a detached request that finished is counted as completed-into-cache, not failed.
+      if (data && data.grid && data.grid.renderable !== false && data.grid.vectors && data.grid.vectors.length > 0) {
+        fetchStatus = 'success';
+      }
+
       if (requestId !== marineRequestIdRef.current) return;
       if (fetchIntent.model !== activeModelRef.current || fetchIntent.layer !== (activeMarineLayerRef.current || 'waves') || fetchIntent.hour !== timeOffsetRef.current) {
         logPipelineEventHelper('stale_async_response_rejected', fetchIntent); return;
@@ -463,6 +445,7 @@ export function useMarineDataFetcher({
       }
     } catch (err) {
       const isAbort = err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort');
+      fetchStatus = isAbort ? 'abort' : 'failure';
       if (isAbort) {
         console.log(`[Marine] Fetch aborted (expected during model/layer switch) phase=${phase}: ${err.message}`);
       } else {
@@ -534,6 +517,12 @@ export function useMarineDataFetcher({
         console.log(`[Marine] Fetch exception (isAbort=${isAbort}, isCurrentHour=${isCurrentHour}), preserving stale data.`);
       }
     } finally {
+      // Registry bookkeeping for THIS request — runs for foreground AND detached/stale
+      // requests. Identity-safe (ignored if a newer controller re-took this key), and it
+      // NEVER commits or touches the transition/locks, so a detached completion is inert.
+      if (myController && myController.__intent) {
+        inFlight.complete(myController.__intent, myController, fetchStatus);
+      }
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;
         locks.activeSource = null;
@@ -622,10 +611,12 @@ export function useMarineDataFetcher({
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;
       }
-      console.log(`[Abort] Aborting active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source}`);
-      recordChurn('abort', { site: 'enqueueMarineUpdate', from: activeSource, to: source });
-      if (abortControllerRef.current) {
-        abortControllerRef.current.abort();
+      console.log(`[Detach] Detaching active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (runs to completion + self-caches)`);
+      recordChurn('detach', { site: 'enqueueMarineUpdate', from: activeSource, to: source });
+      if (abortControllerRef.current && abortControllerRef.current.__intent) {
+        // Detach (not abort): let the abandoned fetch finish and self-cache. The coalesced
+        // retry below drives the new target through updateMarineGrid's normal guards.
+        inFlight.detach(abortControllerRef.current.__intent);
       }
       locks.isFetching = false;
       locks.activeSource = null;
@@ -733,6 +724,8 @@ export function useMarineDataFetcher({
       if (abortControllerRef.current) {
         abortControllerRef.current.abort();
       }
+      // Abort every detached in-flight request too (they no longer auto-abort on switch).
+      try { inFlight.abortAll(); } catch (e) { /* ignore */ }
       if (cooldownRetryRef.current) clearTimeout(cooldownRetryRef.current);
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);
