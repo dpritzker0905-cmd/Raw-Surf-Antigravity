@@ -273,7 +273,15 @@ class OpenMeteoProvider:
             elif layer == "wind_waves":
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
             elif layer == "all_marine":
-                params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
+                if api_model in ("gwam", "dwd_gwam"):
+                    # gwam (DWD ICON wave) has NO native secondary swell parameter. Including
+                    # secondary_swell_wave_* makes Open-Meteo 400 the ENTIRE all_marine request,
+                    # which silently zeroes ICON marine global ingestion -> no coarse product ->
+                    # ICON marine falls to the slow on-demand path on activation (unlike GFS/EURO,
+                    # whose models support secondary swell). Mirror the swell_2 gwam special-case.
+                    params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
+                else:
+                    params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
             else:
                 params["hourly"] = "wave_height,wave_direction,wave_period"
                 
@@ -474,7 +482,15 @@ class OpenMeteoProvider:
             elif layer == "wind_waves":
                 params["hourly"] = "wind_wave_height,wind_wave_direction,wind_wave_period"
             elif layer == "all_marine":
-                params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
+                if api_model in ("gwam", "dwd_gwam"):
+                    # gwam (DWD ICON wave) has NO native secondary swell parameter. Including
+                    # secondary_swell_wave_* makes Open-Meteo 400 the ENTIRE all_marine request,
+                    # which silently zeroes ICON marine global ingestion -> no coarse product ->
+                    # ICON marine falls to the slow on-demand path on activation (unlike GFS/EURO,
+                    # whose models support secondary swell). Mirror the swell_2 gwam special-case.
+                    params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
+                else:
+                    params["hourly"] = "wave_height,wave_direction,wave_period,swell_wave_height,swell_wave_direction,swell_wave_period,secondary_swell_wave_height,secondary_swell_wave_direction,secondary_swell_wave_period,wind_wave_height,wind_wave_direction,wind_wave_period"
             else:
                 params["hourly"] = "wave_height,wave_direction,wave_period"
         elif domain == "weather":

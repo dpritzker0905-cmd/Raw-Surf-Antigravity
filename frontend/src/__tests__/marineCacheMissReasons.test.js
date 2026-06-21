@@ -3,7 +3,7 @@
  * lookup by reason and keeps per-reason counts + a ring-buffer log, so the
  * dominant miss class can be measured BEFORE any cache capacity/prefetch change.
  */
-import { recordMarineCacheLookup } from '../components/map/marineControllerCache';
+import { recordMarineCacheLookup, getPerModelHourCache } from '../components/map/marineControllerCache';
 
 describe('recordMarineCacheLookup — structured cache miss classification', () => {
   beforeEach(() => { delete window.__MARINE_CACHE_DIAG__; });
@@ -32,5 +32,21 @@ describe('recordMarineCacheLookup — structured cache miss classification', () 
     window.__MARINE_CACHE_DIAG_RESET__();
     expect(window.__MARINE_CACHE_DIAG__.counts).toEqual({});
     expect(window.__MARINE_CACHE_DIAG__.log).toEqual([]);
+  });
+
+  it('tombstones capacity-evicted keys so a later lookup can be classified `evicted`', () => {
+    const cache = getPerModelHourCache();
+    cache.clear();
+    // Fill past the LRU limit so the oldest key is evicted by the cap.
+    const LIMIT = 50;
+    for (let i = 0; i <= LIMIT; i++) cache.set(`k${i}`, { v: i });
+
+    expect(cache.has('k0')).toBe(false);        // oldest, evicted
+    expect(cache.wasEvicted('k0')).toBe(true);  // recorded as evicted (not exact_key_absent)
+    expect(cache.wasEvicted('never_cached')).toBe(false);
+
+    // Re-caching a key clears its eviction tombstone.
+    cache.set('k0', { v: 0 });
+    expect(cache.wasEvicted('k0')).toBe(false);
   });
 });

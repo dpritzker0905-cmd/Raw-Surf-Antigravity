@@ -65,6 +65,10 @@ class LRUMap extends Map {
   constructor(limit = 50) {
     super();
     this.limit = limit;
+    // Bounded tombstone set of keys removed by capacity eviction, so a later lookup can
+    // report a structured `evicted` miss (vs `exact_key_absent` for a never-cached key).
+    this._evicted = new Set();
+    this._evictedLimit = limit * 4;
   }
   get(key) {
     const value = super.get(key);
@@ -78,14 +82,24 @@ class LRUMap extends Map {
     if (super.has(key)) {
       super.delete(key);
     }
+    // A re-cached key is live again — clear any stale eviction tombstone for it.
+    this._evicted.delete(key);
     super.set(key, value);
     if (super.size > this.limit) {
       const oldestKey = super.keys().next().value;
       if (oldestKey !== undefined) {
         super.delete(oldestKey);
+        this._evicted.add(oldestKey);
+        if (this._evicted.size > this._evictedLimit) {
+          // Drop the oldest tombstone to keep the set bounded.
+          this._evicted.delete(this._evicted.values().next().value);
+        }
       }
     }
     return this;
+  }
+  wasEvicted(key) {
+    return this._evicted.has(key);
   }
 }
 
@@ -99,7 +113,7 @@ export function getPerModelHourCache() { return _perModelHourCache; }
 // Records WHY a marine cache lookup hit or missed so the dominant miss class can
 // be measured BEFORE any cache capacity/prefetch change. Pure diagnostics: this
 // never changes the lookup result. Reasons: hit, hit_fallback, exact_key_absent,
-// expired, stale, signature_mismatch, bounds_not_contained.
+// evicted, expired, stale, signature_mismatch, bounds_not_contained.
 // Read in console: window.__MARINE_CACHE_DIAG__  /  reset: window.__MARINE_CACHE_DIAG_RESET__()
 // ---------------------------------------------------------------------------
 export function recordMarineCacheLookup(reason, detail) {
@@ -330,6 +344,8 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
       }
     } else if (exact) {
       recordMarineCacheLookup('expired', missDetail);
+    } else if (_perModelHourCache.wasEvicted(lookupKey)) {
+      recordMarineCacheLookup('evicted', missDetail);
     } else {
       recordMarineCacheLookup('exact_key_absent', missDetail);
     }
