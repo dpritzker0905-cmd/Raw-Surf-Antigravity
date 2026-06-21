@@ -16,6 +16,26 @@ from services.weather_pipeline.normalizer import WeatherNormalizer
 
 logger = logging.getLogger(__name__)
 
+# A legitimate dynamic-viewport / coarse / regional product is at most a few thousand cells
+# (coarse global = 37×17 or 19×9; dynamic viewports are coord-capped). A grid far larger than
+# that is a STALE pre-cap artifact — e.g. a 0.25° global field (1441×661 ≈ 952k cells) cached
+# in Supabase L2 before resolution caps existed. Serving it forces the client to reject it
+# ("Oversized grid rejected") and wait for an SWR retry — a recurring load delay observed for
+# ICON/EURO marine. Treat any such product as a cache miss so resolution falls through to the
+# proper coarse product instead.
+_MAX_SERVEABLE_GRID_VECTORS = 250000
+
+
+def _is_oversized_grid(product) -> bool:
+    """True if a loaded product's grid is anomalously large (stale native-resolution artifact)."""
+    try:
+        return bool(
+            product and product.grid and product.grid.vectors
+            and len(product.grid.vectors) > _MAX_SERVEABLE_GRID_VECTORS
+        )
+    except Exception:
+        return False
+
 async def find_any_cached_product_helper(
     model: str,
     domain: str,
@@ -137,19 +157,19 @@ async def find_any_cached_product_helper(
     # Compare best dynamic vs best manifest, serving the one with the smallest time difference
     if best_item and (best_manifest_item is None or min_diff <= min_manifest_diff):
         loaded = await asyncio.to_thread(store.load_product, best_item["product_id"])
-        if loaded:
+        if loaded and not _is_oversized_grid(loaded):
             return loaded
 
     if best_manifest_item:
         loaded = await asyncio.to_thread(store.load_product, best_manifest_item.filename)
-        if loaded:
+        if loaded and not _is_oversized_grid(loaded):
             loaded.product_id = best_manifest_item.filename
             return loaded
-            
+
     # Fallback to loading dynamic index item if manifest loading failed
     if best_item:
         loaded = await asyncio.to_thread(store.load_product, best_item["product_id"])
-        if loaded:
+        if loaded and not _is_oversized_grid(loaded):
             return loaded
 
     return None
@@ -196,6 +216,12 @@ async def get_cached_dynamic_product_helper(
 
     if cached_entry:
         loaded_product = await asyncio.to_thread(service.store.load_product, cached_entry["product_id"])
+        if loaded_product and _is_oversized_grid(loaded_product):
+            logger.warning(
+                f"[Dynamic Viewport] Skipping oversized stale cached product {cached_entry['product_id']} "
+                f"({len(loaded_product.grid.vectors)} vectors) — treating as cache miss so a coarse product serves."
+            )
+            loaded_product = None
         if loaded_product:
             logger.info(f"[Dynamic Viewport] Cache HIT for {viewport_filename}")
             loaded_product.resolution = cached_entry.get("resolution")
