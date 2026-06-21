@@ -16,7 +16,7 @@ from services.weather_pipeline.copernicus_validator import is_test_environment
 
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
-_thread_local = threading.local()
+_supabase_client = None
 _bucket_created_checked = False
 _bucket_lock = threading.Lock()
 
@@ -25,9 +25,9 @@ _upload_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supabas
 _manifest_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="supabase_manifest_upload")
 
 def _get_supabase_storage():
-    global _bucket_created_checked
-    if getattr(_thread_local, "supabase_client", None) is not None:
-        return _thread_local.supabase_client
+    global _supabase_client, _bucket_created_checked
+    if _supabase_client is not None:
+        return _supabase_client
     if os.environ.get("NODE_ENV") == "test" or os.environ.get("TESTING") == "1":
         return None
     try:
@@ -36,19 +36,20 @@ def _get_supabase_storage():
         key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
         if not url or not key:
             return None
-        client = _create_supabase_client(url, key)
-        if not _bucket_created_checked:
-            with _bucket_lock:
-                if not _bucket_created_checked:
-                    try:
-                        client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
-                    except Exception:
-                        pass
-                    _bucket_created_checked = True
-        _thread_local.supabase_client = client
-        return client
+        with _bucket_lock:
+            if _supabase_client is not None:
+                return _supabase_client
+            client = _create_supabase_client(url, key)
+            if not _bucket_created_checked:
+                try:
+                    client.storage.create_bucket(WEATHER_BUCKET, options={"public": False})
+                except Exception:
+                    pass
+                _bucket_created_checked = True
+            _supabase_client = client
+            return _supabase_client
     except Exception as e:
-        logger.error(f"[Product Store] Supabase Storage init failed on thread: {e}")
+        logger.error(f"[Product Store] Supabase Storage init failed: {e}")
         return None
 
 
@@ -77,6 +78,11 @@ class ProductStore:
     _cached_manifest: Optional[PipelineManifest] = None
     _cached_manifest_mtime: float = 0.0
     _manifest_lock = threading.RLock()
+    
+    # In-memory product cache to speed up scrubbing and avoid duplicate Pydantic parses
+    _product_cache: Dict[str, Tuple[NormalizedProduct, float]] = {}
+    _product_cache_lock = threading.Lock()
+    _PRODUCT_CACHE_TTL = 300.0  # 5 minutes
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -472,6 +478,9 @@ class ProductStore:
             except Exception as e:
                 logger.warning(f"[Product Store] Manifest L2 upload submit failed: {e}")
 
+        with ProductStore._product_cache_lock:
+            ProductStore._product_cache.pop(filename, None)
+
         return filename
 
     def save_products_batch(
@@ -621,14 +630,31 @@ class ProductStore:
             except Exception as e:
                 logger.warning(f"[Product Store] Manifest L2 upload submit failed in batch: {e}")
 
+        with ProductStore._product_cache_lock:
+            for product, _ in products_to_save:
+                if product and product.product_id:
+                    ProductStore._product_cache.pop(product.product_id, None)
+
         return success_count
 
     def load_product(self, filename: str) -> Optional[NormalizedProduct]:
         """Loads and returns a stored grid product by filename."""
+        import time
+        import copy
+
+        # 1. Check in-memory product cache
+        now = time.time()
+        with ProductStore._product_cache_lock:
+            if filename in ProductStore._product_cache:
+                cached_product, cached_time = ProductStore._product_cache[filename]
+                if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
+                    logger.debug(f"[Product Store] Memory cache HIT for {filename}")
+                    return copy.deepcopy(cached_product)
+                else:
+                    ProductStore._product_cache.pop(filename, None)
+
         filepath = self.cache_dir / filename
         if not filepath.exists():
-            import time
-            now = time.time()
             with ProductStore._l2_negative_cache_lock:
                 if filename in ProductStore._l2_negative_cache:
                     fail_time = ProductStore._l2_negative_cache[filename]
@@ -643,7 +669,6 @@ class ProductStore:
             
             with lock:
                 if not filepath.exists():
-                    now = time.time()
                     with ProductStore._l2_negative_cache_lock:
                         if filename in ProductStore._l2_negative_cache:
                             fail_time = ProductStore._l2_negative_cache[filename]
@@ -698,8 +723,15 @@ class ProductStore:
                         product.coverage_mode = "global_tile" if span >= 350.0 else "regional_tile"
                 if not product.product_id:
                     product.product_id = filename
-                    
-                return product
+                
+                # Cache the product before returning a deepcopy
+                with ProductStore._product_cache_lock:
+                    if len(ProductStore._product_cache) >= 64:
+                        oldest_key = next(iter(ProductStore._product_cache.keys()))
+                        ProductStore._product_cache.pop(oldest_key, None)
+                    ProductStore._product_cache[filename] = (product, time.time())
+                
+                return copy.deepcopy(product)
         except Exception as e:
             logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
             return None

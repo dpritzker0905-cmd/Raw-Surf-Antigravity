@@ -365,10 +365,10 @@ async def run_background_cache_population():
 
 @asynccontextmanager
 async def lifespan(app: FastAPI):
-    # Set default executor to a larger ThreadPoolExecutor to prevent thread starvation under high concurrency scrubbing
+    # Set default executor to a capped ThreadPoolExecutor to prevent memory exhaustion under high concurrency scrubbing
     from concurrent.futures import ThreadPoolExecutor
     loop = asyncio.get_running_loop()
-    loop.set_default_executor(ThreadPoolExecutor(max_workers=128, thread_name_prefix="asyncio_default_executor"))
+    loop.set_default_executor(ThreadPoolExecutor(max_workers=16, thread_name_prefix="asyncio_default_executor"))
 
     logger.info("Starting Raw Surf OS API...")
     # Database health check - ensure all tables exist
