@@ -240,6 +240,63 @@ async def resolve_grid(
                                 )
                             )
 
+    # Step 3.7: Instant coarse preview for marine (SWR). On a cold viewport (Step 1&2 cache
+    # miss) the response would otherwise BLOCK on the slow upstream fetch — notably EURO's
+    # multi-second Copernicus call (~7s) and ICON's gwam call — leaving the heatmap blank until
+    # it returns. Instead, serve a covering cached coarse/regional product immediately and
+    # revalidate the precise viewport in the background. This proactively gives EURO/ICON the
+    # same fast coarse render GFS already gets (GFS only reaches it as an upstream-failure
+    # fallback). Purely additive: any failure or absent preview falls straight through to the
+    # normal upstream path below.
+    PREVIEW_MAX_VECTORS = 5000  # coarse/regional products are <~1k cells; guards against ever
+                                # serving a stale native-resolution (e.g. 0.25° global ~952k) field.
+    if (
+        not product
+        and bbox
+        and domain.lower() == "marine"
+        and not is_test_environment()
+        and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
+    ):
+        preview = None
+        try:
+            preview = await viewport_service._find_any_cached_product(model, domain, layer, target_dt, bbox)
+        except Exception as preview_err:
+            logger.warning(f"[Grid Route] Coarse preview lookup failed for {model} {layer}: {preview_err}")
+        if (
+            preview and preview.grid and preview.grid.vectors
+            and 0 < len(preview.grid.vectors) <= PREVIEW_MAX_VECTORS
+            and any(v.speed > 0 for v in preview.grid.vectors)
+        ):
+            preview.requested_bbox_original = bbox
+            preview.query_bbox = bbox
+            preview.requested_bbox = bbox
+            preview.partial_coverage = False
+            preview.stale = True
+            preview.staleReason = "swr_revalidation_pending"
+            preview.cache_hit = "coarse_preview"
+            if preview.grid and preview.grid.bounds:
+                preview.served_bbox = f"{preview.grid.bounds.west:.4f},{preview.grid.bounds.south:.4f},{preview.grid.bounds.east:.4f},{preview.grid.bounds.north:.4f}"
+            # Kick off background revalidation so the next request resolves the precise viewport.
+            reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+            if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
+                viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
+                if background_tasks:
+                    background_tasks.add_task(
+                        viewport_service._revalidate_fetch,
+                        model, domain, layer, valid_time, target_dt, bbox, reval_key
+                    )
+                else:
+                    asyncio.create_task(
+                        viewport_service._revalidate_fetch(
+                            model, domain, layer, valid_time, target_dt, bbox, reval_key
+                        )
+                    )
+            logger.info(
+                f"[Grid Route] Instant coarse preview {preview.product_id} "
+                f"({len(preview.grid.vectors)} vec) for {model} {layer}; revalidating viewport in background."
+            )
+            product = preview
+
     # Step 4 & 5: Upstream dynamic fetch & stale fallback
     if not product:
         # The upstream viewport fetch is the single heaviest step (network download + full
