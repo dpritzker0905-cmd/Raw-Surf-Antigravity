@@ -399,12 +399,20 @@ async def lifespan(app: FastAPI):
         start_scheduler()
 
     # Trigger background cache pre-population check and prefetching in a non-blocking way
-    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "True"
+    async def run_startup_tasks():
+        try:
+            from services.weather_pipeline.prefetcher import prefetch_supabase_products
+            await prefetch_supabase_products()
+        except Exception as pre_err:
+            logger.error(f"[lifespan] Background prefetch failed: {pre_err}")
+        try:
+            await run_background_cache_population()
+        except Exception as pop_err:
+            logger.error(f"[lifespan] Background cache population failed: {pop_err}")
+
+    is_testing = "pytest" in sys.modules or os.environ.get("TESTING") == "1" or os.environ.get("TESTING") == "True"
     if not is_testing:
-        # Start background prefetch of conformed products from L2 to L1
-        from services.weather_pipeline.prefetcher import prefetch_supabase_products
-        asyncio.create_task(prefetch_supabase_products())
-        asyncio.create_task(run_background_cache_population())
+        asyncio.create_task(run_startup_tasks())
 
     yield
     logger.info("Shutting down Raw Surf OS API...")

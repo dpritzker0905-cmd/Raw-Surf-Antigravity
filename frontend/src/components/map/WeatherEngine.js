@@ -185,8 +185,35 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     prevOffsetRef.current = timeOffsetHours;
     if (!mapInstance || !isWindActive) return;
 
-    // Hard freeze during active drag — defer all work to scrub settle
-    if (window.isScrubbingTimeline) return;
+    // Active drag scrub path - immediate cache-only lookup (zero network requests)
+    if (window.isScrubbingTimeline) {
+      let targetData = null;
+      try {
+        if (getBackendWindFlag()) {
+          const b = mapInstance.getBounds();
+          const bounds = {
+            west: b.getWest(),
+            south: Math.max(-85, b.getSouth()),
+            east: b.getEast(),
+            north: Math.min(85, b.getNorth())
+          };
+          targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds);
+        } else {
+          const cache = getWindHourlyCache();
+          if (cache?.results?.length && cache.model === activeModel) {
+            targetData = extractWindAtOffset(cache, timeOffsetHours);
+          }
+        }
+      } catch (e) {
+        // ignore
+      }
+
+      if (targetData && targetData.vectors?.length > 0) {
+        windRevision.current += 1;
+        commitWindData(targetData);
+      }
+      return;
+    }
 
     const t = setTimeout(async () => {
       let cacheMiss = false;

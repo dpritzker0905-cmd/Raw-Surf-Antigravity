@@ -569,15 +569,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       safeUploadWaveData(reason, gl, currentData, landGeoJSONRef.current);
     };
 
-    if (window.isScrubbingTimeline) {
-      if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
-      scrubUploadTimeoutRef.current = setTimeout(() => {
-        doUpload();
-      }, 40);
-    } else {
-      if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
-      doUpload();
-    }
+    if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
+    doUpload();
 
     return () => {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
