@@ -50,7 +50,7 @@ uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
-uniform float u_lng_offset;
+uniform highp float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
 
