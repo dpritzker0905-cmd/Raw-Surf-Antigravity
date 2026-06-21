@@ -381,6 +381,14 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
       const gfsAnchorVectors = gfsAnchorGrid?.grid?.vectors || [];
       const gfsTargetVectors = gfsTargetGrid?.grid?.vectors || [];
 
+      // Deferred-2: if the inputs were ABORTED (cap eviction / unmount / switch), propagate an
+      // AbortError so the fetcher's isAbort path handles it — don't mask it as a generic
+      // "sources unavailable" error that would commit a safe-zero grid.
+      if (signal?.aborted || iconAnchorResult.reason?.name === 'AbortError' ||
+          gfsAnchorResult.reason?.name === 'AbortError' || gfsTargetResult.reason?.name === 'AbortError') {
+        const e = new Error('ICON extended estimate fetch aborted'); e.name = 'AbortError'; throw e;
+      }
+
       if (!iconVectors.length) {
         if (gfsTargetGrid) return gfsTargetGrid;
         throw new Error('ICON extended estimate anchor and target GFS are both unavailable');
@@ -519,6 +527,13 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
 
       const gfsVectors = gfsTargetGrid?.grid?.vectors || [];
       const euroVectors = euroTargetGrid?.grid?.vectors || [];
+
+      // Deferred-2: propagate aborted inputs as an AbortError (handled by the fetcher's isAbort
+      // path) rather than masking them as "both unavailable" -> safe-zero commit.
+      if (signal?.aborted || gfsTargetResult.reason?.name === 'AbortError' ||
+          euroTargetResult.reason?.name === 'AbortError') {
+        const e = new Error('ICON extended blend fetch aborted'); e.name = 'AbortError'; throw e;
+      }
 
       if (!gfsVectors.length && !euroVectors.length) {
         throw new Error('ICON extended blend target GFS and EURO are both unavailable');
