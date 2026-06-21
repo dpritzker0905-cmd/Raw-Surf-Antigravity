@@ -14,27 +14,17 @@
 
 import { generateRampData } from './WindColorRamp';
 import {
-  ADVECT_VS,
-  ADVECT_FS,
-  DRAW_VS,
-  DRAW_FS,
-  HEATMAP_VS,
-  HEATMAP_FS,
-  SCREEN_VS,
-  SCREEN_FS,
-  FADE_FS
-} from './WebGLWindShaders';
-import {
-  createShader,
-  createProgram,
   createTexture,
   unbindTexture,
-  logStepDetails,
   createFBO,
   bindTexture,
-  encodeWindTexture,
-  initParticleTexture
+  encodeWindTexture
 } from './WebGLWindUtils';
+import {
+  initEngine,
+  disposeEngine,
+  reinitParticles
+} from './WebGLWindEngineInit';
 import { recordTruthStage } from './weatherTruthTracker';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 
@@ -67,126 +57,7 @@ function WebGLWindEngine() {
 export default WebGLWindEngine;
 
 WebGLWindEngine.prototype.init = function(gl) {
-  if (this._initialized) return;
-  var advVS = createShader(gl, gl.VERTEX_SHADER, ADVECT_VS);
-  var advFS = createShader(gl, gl.FRAGMENT_SHADER, ADVECT_FS);
-  var drawVS = createShader(gl, gl.VERTEX_SHADER, DRAW_VS);
-  var drawFS = createShader(gl, gl.FRAGMENT_SHADER, DRAW_FS);
-  var screenVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
-  var screenFS = createShader(gl, gl.FRAGMENT_SHADER, SCREEN_FS);
-  var fadeVS = createShader(gl, gl.VERTEX_SHADER, SCREEN_VS);
-  var fadeFS = createShader(gl, gl.FRAGMENT_SHADER, FADE_FS);
-  var heatVS = createShader(gl, gl.VERTEX_SHADER, HEATMAP_VS);
-  var heatFS = createShader(gl, gl.FRAGMENT_SHADER, HEATMAP_FS);
-  if (!advVS || !advFS || !drawVS || !drawFS || !screenVS || !screenFS || !heatVS || !heatFS) {
-    console.error('[WebGLWind] Failed to compile shaders'); return;
-  }
-  this.advectProgram = createProgram(gl, advVS, advFS);
-  this.drawProgram = createProgram(gl, drawVS, drawFS);
-  this.screenProgram = createProgram(gl, screenVS, screenFS);
-  this.fadeProgram = createProgram(gl, fadeVS, fadeFS);
-  this.heatmapProgram = createProgram(gl, heatVS, heatFS);
-  this.quadBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, new Float32Array([-1,-1, 1,-1, -1,1, 1,1]), gl.STATIC_DRAW);
-  var indices = new Float32Array(this.particleRes * this.particleRes);
-  for (var i = 0; i < indices.length; i++) indices[i] = i;
-  this.particleIndexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, indices, gl.STATIC_DRAW);
-  const gridW = 72;
-  const gridH = 48;
-  const gridUVs = new Float32Array(gridW * gridH * 2);
-  for (let r = 0; r < gridH; r++) {
-    for (let c = 0; c < gridW; c++) {
-      const idx = (r * gridW + c) * 2;
-      gridUVs[idx + 0] = c / (gridW - 1);
-      gridUVs[idx + 1] = r / (gridH - 1);
-    }
-  }
-  const gridIndices = new Uint16Array((gridW - 1) * (gridH - 1) * 6);
-  let gi = 0;
-  for (let r = 0; r < gridH - 1; r++) {
-    for (let c = 0; c < gridW - 1; c++) {
-      const i0 = r * gridW + c;
-      const i1 = i0 + 1;
-      const i2 = (r + 1) * gridW + c;
-      const i3 = i2 + 1;
-      gridIndices[gi++] = i0;
-      gridIndices[gi++] = i1;
-      gridIndices[gi++] = i2;
-      gridIndices[gi++] = i1;
-      gridIndices[gi++] = i3;
-      gridIndices[gi++] = i2;
-    }
-  }
-  this.heatmapGridBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
-  gl.bufferData(gl.ARRAY_BUFFER, gridUVs, gl.STATIC_DRAW);
-  this.heatmapIndexBuffer = gl.createBuffer();
-  gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
-  gl.bufferData(gl.ELEMENT_ARRAY_BUFFER, gridIndices, gl.STATIC_DRAW);
-  this.heatmapIndexCount = gridIndices.length;
-  this.particleStateA = initParticleTexture(gl, this.particleRes);
-  this.particleStateB = initParticleTexture(gl, this.particleRes);
-  this.advFBO = gl.createFramebuffer();
-
-  // Create Vertex Array Objects (VAOs) for VAO isolation under WebGL 2
-  if (gl.createVertexArray) {
-    this.heatmapVAO = gl.createVertexArray();
-    gl.bindVertexArray(this.heatmapVAO);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.heatmapGridBuffer);
-    var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
-    if (heatUVLoc !== -1) {
-      gl.enableVertexAttribArray(heatUVLoc);
-      gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
-    }
-    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.heatmapIndexBuffer);
-
-    this.advectVAO = gl.createVertexArray();
-    gl.bindVertexArray(this.advectVAO);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
-    if (advPosLoc !== -1) {
-      gl.enableVertexAttribArray(advPosLoc);
-      gl.vertexAttribPointer(advPosLoc, 2, gl.FLOAT, false, 0, 0);
-    }
-
-    this.fadeVAO = gl.createVertexArray();
-    gl.bindVertexArray(this.fadeVAO);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    var fadePosLoc = gl.getAttribLocation(this.fadeProgram, 'a_pos');
-    if (fadePosLoc !== -1) {
-      gl.enableVertexAttribArray(fadePosLoc);
-      gl.vertexAttribPointer(fadePosLoc, 2, gl.FLOAT, false, 0, 0);
-    }
-
-    this.drawVAO = gl.createVertexArray();
-    gl.bindVertexArray(this.drawVAO);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.particleIndexBuffer);
-    var idxLoc = gl.getAttribLocation(this.drawProgram, 'a_index');
-    if (idxLoc !== -1) {
-      gl.enableVertexAttribArray(idxLoc);
-      gl.vertexAttribPointer(idxLoc, 1, gl.FLOAT, false, 0, 0);
-    }
-
-    this.screenVAO = gl.createVertexArray();
-    gl.bindVertexArray(this.screenVAO);
-    gl.bindBuffer(gl.ARRAY_BUFFER, this.quadBuffer);
-    var scrLoc = gl.getAttribLocation(this.screenProgram, 'a_pos');
-    if (scrLoc !== -1) {
-      gl.enableVertexAttribArray(scrLoc);
-      gl.vertexAttribPointer(scrLoc, 2, gl.FLOAT, false, 0, 0);
-    }
-
-    gl.bindVertexArray(null);
-  }
-
-  // v3.9.8: Color ramp LUT texture is initialized dynamically on first render to match active theme
-  this._colorRamp = null;
-  this._currentTheme = null;
-  this._initialized = true;
-  console.log('[WebGLWind] Initialized: ' + (this.particleRes * this.particleRes) + ' particles');
+  initEngine(this, gl);
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
@@ -718,48 +589,7 @@ var deleteAttachedShaders = function(gl, prog) {
 };
 
 WebGLWindEngine.prototype.dispose = function(gl) {
-  if (!gl) return;
-  if (this.heatmapVAO) { gl.deleteVertexArray(this.heatmapVAO); this.heatmapVAO = null; }
-  if (this.advectVAO) { gl.deleteVertexArray(this.advectVAO); this.advectVAO = null; }
-  if (this.fadeVAO) { gl.deleteVertexArray(this.fadeVAO); this.fadeVAO = null; }
-  if (this.drawVAO) { gl.deleteVertexArray(this.drawVAO); this.drawVAO = null; }
-  if (this.screenVAO) { gl.deleteVertexArray(this.screenVAO); this.screenVAO = null; }
-
-  if (this.advectProgram) deleteAttachedShaders(gl, this.advectProgram);
-  if (this.drawProgram) deleteAttachedShaders(gl, this.drawProgram);
-  if (this.screenProgram) deleteAttachedShaders(gl, this.screenProgram);
-  if (this.fadeProgram) deleteAttachedShaders(gl, this.fadeProgram);
-  if (this.heatmapProgram) deleteAttachedShaders(gl, this.heatmapProgram);
-  if (this.quadBuffer) gl.deleteBuffer(this.quadBuffer);
-  if (this.particleIndexBuffer) gl.deleteBuffer(this.particleIndexBuffer);
-  if (this.heatmapGridBuffer) gl.deleteBuffer(this.heatmapGridBuffer);
-  if (this.heatmapIndexBuffer) gl.deleteBuffer(this.heatmapIndexBuffer);
-  if (this.advFBO) gl.deleteFramebuffer(this.advFBO);
-  if (this.particleStateA) gl.deleteTexture(this.particleStateA);
-  if (this.particleStateB) gl.deleteTexture(this.particleStateB);
-  if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
-  if (this._colorRamp) gl.deleteTexture(this._colorRamp);
-  if (this.screenA) { gl.deleteFramebuffer(this.screenA.fbo); gl.deleteTexture(this.screenA.tex); }
-  if (this.screenB) { gl.deleteFramebuffer(this.screenB.fbo); gl.deleteTexture(this.screenB.tex); }
-  
-  this.advectProgram = null;
-  this.drawProgram = null;
-  this.screenProgram = null;
-  this.fadeProgram = null;
-  this.heatmapProgram = null;
-  this.quadBuffer = null;
-  this.particleIndexBuffer = null;
-  this.heatmapGridBuffer = null;
-  this.heatmapIndexBuffer = null;
-  this.advFBO = null;
-  this.particleStateA = null;
-  this.particleStateB = null;
-  this._windData = null;
-  this._colorRamp = null;
-  this.screenA = null;
-  this.screenB = null;
-  this._initialized = false;
-  console.log('[WebGLWind] Disposed');
+  disposeEngine(this, gl);
 };
 /**
  * v3.11.2r1: Clear all framebuffers called on layer deactivation
@@ -782,13 +612,7 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
 };
 
 WebGLWindEngine.prototype.reinitParticles = function(gl) {
-  if (!gl || !this._initialized) return;
-  this.clearBuffers(gl);
-  if (this.particleStateA) gl.deleteTexture(this.particleStateA);
-  if (this.particleStateB) gl.deleteTexture(this.particleStateB);
-  this.particleStateA = initParticleTexture(gl, this.particleRes);
-  this.particleStateB = initParticleTexture(gl, this.particleRes);
-  console.log('[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
+  reinitParticles(this, gl);
 };
 
 /**
