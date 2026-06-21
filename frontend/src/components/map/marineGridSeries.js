@@ -23,14 +23,13 @@ const SERIES_MAX = 24;
 
 export function isMarineSeriesEnabled() {
   if (typeof window === 'undefined') return false;
-  if (window.__MARINE_SERIES__ === true) return true;
-  // Persistent opt-in so it survives reloads (set once, test reliably):
-  //   localStorage.setItem('marine_series', 'true')
+  if (window.__MARINE_SERIES__ === false) return false;
   try {
-    return window.localStorage && window.localStorage.getItem('marine_series') === 'true';
-  } catch (e) {
-    return false;
-  }
+    if (window.localStorage && window.localStorage.getItem('marine_series') === 'false') {
+      return false;
+    }
+  } catch (e) {}
+  return true;
 }
 
 // Coarse viewport key so small pans reuse the same series.

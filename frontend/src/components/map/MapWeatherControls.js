@@ -286,6 +286,7 @@ export var MapWeatherControls = ({
     if (typeof window !== 'undefined') {
       window.isScrubbingTimeline = false;
       window.lastScrubTime = Date.now();
+      window.dispatchEvent(new CustomEvent('timeline_scrub_end'));
     }
     if (requestRef.current) {
       cancelAnimationFrame(requestRef.current);

@@ -32,11 +32,16 @@ describe('marineGridSeries — flag-gated time-series client', () => {
   });
   afterEach(() => { delete window.__MARINE_SERIES__; });
 
-  it('is OFF by default — ensure/get are no-ops, no fetch', async () => {
+  it('can be disabled explicitly — ensure/get are no-ops, no fetch', async () => {
+    window.__MARINE_SERIES__ = false;
     expect(isMarineSeriesEnabled()).toBe(false);
     await ensureMarineSeries('GFS', 'waves', bounds);
     expect(global.fetch).not.toHaveBeenCalled();
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 3)).toBeNull();
+  });
+
+  it('is ON by default', () => {
+    expect(isMarineSeriesEnabled()).toBe(true);
   });
 
   it('when enabled: loads the series and serves the nearest-hour frame as commit-ready marineData', async () => {
