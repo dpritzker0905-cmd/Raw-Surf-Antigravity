@@ -88,6 +88,9 @@ export function useMarineDataFetcher({
   const timeoutIdRef = useRef(null);
   const moveendDebounceRef = useRef({ timer: null });
   const scrubDebounceRef = useRef(null);
+  // Phase 2b: belt-and-suspenders fallback for the detached-dedup early-return — if a wake
+  // is ever missed, this re-drives the current target so a transition can't be stranded.
+  const detachedWaitTimerRef = useRef(null);
 
   const getViewportHash = useCallback(() => {
     if (!mapInstance) return null;
@@ -204,10 +207,8 @@ export function useMarineDataFetcher({
         console.log(`[Detach] Detaching in-flight fetch (${activeSource}) for new request source=${source} (runs to completion + self-caches)`);
         recordChurn('detach', { site: 'updateMarineGrid', from: activeSource, to: source });
         if (abortControllerRef.current && abortControllerRef.current.__intent) {
-          // Detach (do NOT abort) so the abandoned fetch finishes and self-caches into
-          // _perModelHourCache — switching back becomes a cache hit instead of a blank
-          // re-fetch. The requestId/live-target guards below block its stale commit; the
-          // registry caps concurrency and cleans up on unmount.
+          // Detach (not abort): the abandoned fetch finishes + self-caches (switch-back = cache
+          // hit); requestId/live-target guards block its stale commit; registry caps + unmounts.
           inFlight.detach(abortControllerRef.current.__intent);
         }
         locks.isFetching = false;
@@ -219,6 +220,27 @@ export function useMarineDataFetcher({
         clearDebounce = false;
         return;
       }
+
+      // Phase 2b — detached-dedup: if THIS exact target (incl. viewport) is already running
+      // as a DETACHED request, don't start a duplicate; mark it wanted so its completion wakes
+      // a cache-backed re-entry. Stuck-proof: cap never aborts a wanted entry (so it always
+      // completes + wakes) + a 2s fallback re-drives if a wake is ever missed.
+      {
+        const di = { model, rawModel, layer, hour: timeOffset, boundsKey: viewportHash };
+        const detachedSame = inFlight.find(di);
+        if (detachedSame && detachedSame.state === 'detached') {
+          inFlight.markWanted(di);
+          logPipelineEventHelper('detached_dedup_wait', { model: rawModel, layer, hour: timeOffset });
+          if (detachedWaitTimerRef.current) clearTimeout(detachedWaitTimerRef.current);
+          detachedWaitTimerRef.current = setTimeout(() => {
+            detachedWaitTimerRef.current = null;
+            if (activeMarineLayersRef.current && updateMarineGridRef.current) updateMarineGridRef.current('detached_wake_fallback');
+          }, 2000);
+          clearDebounce = false;
+          return;
+        }
+      }
+      if (detachedWaitTimerRef.current) { clearTimeout(detachedWaitTimerRef.current); detachedWaitTimerRef.current = null; }
 
       phase = 'pre_fetch';
       const isActivation = source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
@@ -238,18 +260,17 @@ export function useMarineDataFetcher({
       }
 
       if (abortControllerRef.current && abortControllerRef.current.__intent) {
-        // Detach (not abort) the prior fetch so it completes + self-caches; same-target is
-        // already handled by the dedup gates above, so this is always a real switch.
+        // Detach (not abort) the prior fetch so it completes + self-caches (same-target is
+        // already deduped above, so this is always a real switch).
         inFlight.detach(abortControllerRef.current.__intent);
       }
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
       myController = abortControllerRef.current;
-      // Tag the controller with this fetch's target so a later switch can detach (and
-      // self-cache) it, and the registry can abort it for the concurrency cap / on unmount.
+      // Tag with this fetch's target so a later switch can detach+self-cache it and the
+      // registry can abort it for the concurrency cap / on unmount.
       abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
       inFlight.registerForeground(myController, abortControllerRef.current.__intent, requestId);
-      inFlight.noteNetworkRequest(myController.__intent.rawModel + '/' + layer + '/h' + timeOffset);
 
       locks.isFetching = true;
       locks.activeSource = source;
@@ -521,7 +542,13 @@ export function useMarineDataFetcher({
       // requests. Identity-safe (ignored if a newer controller re-took this key), and it
       // NEVER commits or touches the transition/locks, so a detached completion is inert.
       if (myController && myController.__intent) {
-        inFlight.complete(myController.__intent, myController, fetchStatus);
+        const { shouldWake } = inFlight.complete(myController.__intent, myController, fetchStatus);
+        // A wanted detached request finished — re-drive the CURRENT target once (cache-hit if
+        // it succeeded, fresh fetch if it failed), unblocking the dedup early-return above.
+        if (shouldWake && activeMarineLayersRef.current && enqueueMarineUpdateRef.current) {
+          inFlight.noteWakeEnqueued(inFlight.key(myController.__intent));
+          setTimeout(() => { enqueueMarineUpdateRef.current && enqueueMarineUpdateRef.current('detached_wake'); }, 0);
+        }
       }
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;
@@ -726,6 +753,7 @@ export function useMarineDataFetcher({
       }
       // Abort every detached in-flight request too (they no longer auto-abort on switch).
       try { inFlight.abortAll(); } catch (e) { /* ignore */ }
+      if (detachedWaitTimerRef.current) clearTimeout(detachedWaitTimerRef.current);
       if (cooldownRetryRef.current) clearTimeout(cooldownRetryRef.current);
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       if (moveendDebounceRef.current.timer) clearTimeout(moveendDebounceRef.current.timer);

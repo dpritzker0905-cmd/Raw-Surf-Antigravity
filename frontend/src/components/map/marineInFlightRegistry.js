@@ -187,7 +187,12 @@ export function createMarineInFlightRegistry(opts = {}) {
     } else {
       record('detached_failed', { key, reason: status });
     }
-    const shouldWake = entry.state === 'detached' && entry.wantedAgain && status === 'success';
+    // Wake on success OR failure (not deliberate abort): a wanted detached request that
+    // finished must re-drive the current target — success => cache-warm hit, failure =>
+    // fresh re-fetch. Combined with "cap never evicts a wanted entry" (pickEvictionVictim),
+    // this guarantees a wanted detached request always completes and wakes, so the early-
+    // return dedup in the fetcher can never strand a transition.
+    const shouldWake = entry.state === 'detached' && entry.wantedAgain && status !== 'abort';
     entries.delete(key);
     return { entry, shouldWake };
   }
@@ -229,16 +234,19 @@ export function createMarineInFlightRegistry(opts = {}) {
   }
 
   function pickEvictionVictim(protectKey) {
-    // Oldest-first (Map insertion order). Prefer non-wanted; fall back to wanted.
+    // Oldest-first (Map insertion order). NEVER evict a wanted entry or the protected
+    // (current) key — a wanted detached request must survive to complete and wake, else its
+    // early-return dedup in the fetcher would strand a transition. If only wanted/protected
+    // entries remain over cap, evict nothing (temporary +N over cap is safe and bounded by
+    // how many distinct targets the user is actively returning to).
     let oldestNonWanted = null;
-    let oldestAny = null;
     for (const e of entries.values()) {
       if (e.state !== 'detached') continue;
       if (e.key === protectKey) continue;
-      if (!oldestAny) oldestAny = e;
-      if (!e.wantedAgain && !oldestNonWanted) oldestNonWanted = e;
+      if (e.wantedAgain) continue;
+      if (!oldestNonWanted) oldestNonWanted = e;
     }
-    return oldestNonWanted || oldestAny;
+    return oldestNonWanted;
   }
 
   /** Abort EVERY request (foreground + detached). For true unmount. */

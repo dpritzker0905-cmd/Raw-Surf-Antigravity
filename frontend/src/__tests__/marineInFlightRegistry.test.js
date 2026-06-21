@@ -77,18 +77,52 @@ describe('A -> B -> A reuse', () => {
     expect(r.find(intent({ layer: 'waves' }))).toBeNull();
   });
 
-  it('does NOT wake when detached completion was not wanted, or failed', () => {
+  it('wakes a wanted detached request on success OR failure, but NOT on deliberate abort', () => {
     const r = reg();
+    // not wanted -> no wake even on success
     const c1 = fakeController();
     r.registerForeground(c1, intent({ hour: 1 }), 1);
     r.detach(intent({ hour: 1 }));
-    expect(r.complete(intent({ hour: 1 }), c1, 'success').shouldWake).toBe(false); // not wanted
+    expect(r.complete(intent({ hour: 1 }), c1, 'success').shouldWake).toBe(false);
 
+    // wanted + failure -> WAKE (re-fetch fresh) — stuck-proofing
     const c2 = fakeController();
     r.registerForeground(c2, intent({ hour: 2 }), 2);
     r.detach(intent({ hour: 2 }));
     r.markWanted(intent({ hour: 2 }));
-    expect(r.complete(intent({ hour: 2 }), c2, 'abort').shouldWake).toBe(false); // wanted but failed
+    expect(r.complete(intent({ hour: 2 }), c2, 'failure').shouldWake).toBe(true);
+
+    // wanted + abort (cap/unmount) -> no wake (but cap never aborts a wanted entry anyway)
+    const c3 = fakeController();
+    r.registerForeground(c3, intent({ hour: 3 }), 3);
+    r.detach(intent({ hour: 3 }));
+    r.markWanted(intent({ hour: 3 }));
+    expect(r.complete(intent({ hour: 3 }), c3, 'abort').shouldWake).toBe(false);
+  });
+
+  it('cap evicts the oldest non-wanted, non-just-detached entry and spares the wanted one', () => {
+    const r2 = createMarineInFlightRegistry({ cap: 1, mirrorToWindow: false, now: () => ++clock });
+    const wanted = fakeController();
+    const plainOld = fakeController();
+    const trigger = fakeController();
+    r2.registerForeground(wanted, intent({ hour: 1 }), 1); r2.detach(intent({ hour: 1 })); r2.markWanted(intent({ hour: 1 }));
+    r2.registerForeground(plainOld, intent({ hour: 2 }), 2); r2.detach(intent({ hour: 2 }));
+    r2.registerForeground(trigger, intent({ hour: 3 }), 3); r2.detach(intent({ hour: 3 })); // protect=h3 -> evicts oldest non-wanted = h2
+    expect(wanted.abortCalls).toBe(0);   // wanted survives
+    expect(plainOld.abortCalls).toBe(1); // non-wanted oldest evicted
+    expect(trigger.abortCalls).toBe(0);  // just-detached protected
+    expect(r2.find(intent({ hour: 1 }))).toBeTruthy();
+  });
+
+  it('cap evicts NOTHING when all over-cap detached entries are wanted', () => {
+    const r2 = createMarineInFlightRegistry({ cap: 1, mirrorToWindow: false, now: () => ++clock });
+    const a = fakeController();
+    const b = fakeController();
+    r2.registerForeground(a, intent({ hour: 1 }), 1); r2.detach(intent({ hour: 1 })); r2.markWanted(intent({ hour: 1 }));
+    r2.registerForeground(b, intent({ hour: 2 }), 2); r2.detach(intent({ hour: 2 })); r2.markWanted(intent({ hour: 2 }));
+    expect(a.abortCalls).toBe(0);
+    expect(b.abortCalls).toBe(0); // temporary over-cap, neither stranded
+    expect(r2.detachedCount()).toBe(2);
   });
 });
 
