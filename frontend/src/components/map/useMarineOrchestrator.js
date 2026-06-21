@@ -9,6 +9,8 @@ import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 
+import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
+
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
 
@@ -274,309 +276,24 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     };
   }, [mapInstance, enqueueMarineUpdate]);
 
-  useEffect(() => {
-    const prev = prevTimeOffsetRef.current; prevTimeOffsetRef.current = timeOffsetHours;
-    timeOffsetRef.current = timeOffsetHours;
-    if (prev === timeOffsetHours) return;
-    if (!mapInstance || !activeMarineLayersRef.current) return;
+  useMarineOrchestratorScrubCache({
+    timeOffsetHours,
+    mapInstance,
+    activeMarineLayersRef,
+    prevTimeOffsetRef,
+    timeOffsetRef,
+    activeModelRef,
+    activeMarineLayerRef,
+    lastCommittedSigRef,
+    marineRevision,
+    marineFetchLocksRef,
+    setMarineData,
+    logPipelineEventHelper,
+    getViewportHash,
+    updateMarineGridRef,
+    enqueueMarineUpdate
+  });
 
-    let selectedApiTimestamp = 'none';
-    let selectedIndex = -1;
-    let cacheStartStr = 'none';
-    let cacheEndStr = 'none';
-    let cacheForecastDays = 0;
-    let coverageRejected = false;
-    let extractedGrid = null;
-    let curModel = activeModelRef.current || 'GFS';
-    let curLayer = activeMarineLayerRef.current || 'waves';
-    const isWaves = (curLayer === 'waves');
-    const nativeLimit = 240;
-    if (curModel === 'ICON' && timeOffsetHours > 168) {
-      curModel = 'GFS';
-    } else if (curModel === 'EURO' && timeOffsetHours > nativeLimit) {
-      curModel = 'GFS';
-    }
-    const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
-    const isIconBackend = getBackendIconMarineFlag() && curModel === 'ICON';
-    const isCopernicusBackend = getBackendCopernicusFlag() && curModel === 'EURO';
-    const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
-
-    let vpBounds = null;
-    try {
-      const b = mapInstance.getBounds();
-      vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-    } catch (e) {
-      vpBounds = null;
-    }
-
-    if (isBackendActive) {
-      let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
-      // Option 1 (flag-gated): when the per-hour cache misses, try the pre-loaded
-      // multi-hour SERIES so scrubbing tracks the requested hour instantly. Commits
-      // through the SAME path below (parity/transition gates unchanged). Off by default.
-      if (!cachedBackendData) {
-        const seriesFrame = getMarineSeriesFrame(curModel, curLayer, vpBounds, timeOffsetHours);
-        if (seriesFrame) cachedBackendData = seriesFrame;
-      }
-      
-      let isRegional = false;
-      let isViewportZoomedOut = false;
-      const currentZoom = mapInstance.getZoom();
-      let vpWidth = 0;
-      let vpHeight = 0;
-      if (vpBounds) {
-        const ew = vpBounds.east, ew_w = vpBounds.west;
-        vpWidth = (ew < ew_w) ? (ew + 360) - ew_w : ew - ew_w;
-        vpHeight = Math.abs(vpBounds.north - vpBounds.south);
-      }
-      isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
-
-      let isGridWidthRegional = false;
-      let isContained = true;
-
-      if (cachedBackendData) {
-        const prodId = cachedBackendData.product_id || cachedBackendData.productId;
-        const regionId = cachedBackendData.region_id || cachedBackendData.regionId || cachedBackendData.grid?.region_id || cachedBackendData.grid?.regionId;
-        const coverageMode = cachedBackendData.coverage_mode || cachedBackendData.coverageMode || cachedBackendData.grid?.coverage_mode || cachedBackendData.grid?.coverageMode;
-        const isDynamic = !!(cachedBackendData.is_dynamic_viewport_product || cachedBackendData.isDynamicViewportProduct || cachedBackendData.grid?.is_dynamic_viewport_product || cachedBackendData.grid?.isDynamicViewportProduct);
-
-        const actualBounds = cachedBackendData.grid?.bounds || cachedBackendData.bounds;
-        if (actualBounds) {
-          const gw = actualBounds.west, ge = actualBounds.east, gs = actualBounds.south, gn = actualBounds.north;
-          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
-          isGridWidthRegional = gridWidth < 340.0;
-
-          if (isGridWidthRegional && vpBounds) {
-            const ew = vpBounds.west, ee = vpBounds.east, es = vpBounds.south, en = vpBounds.north;
-            
-            let vWest = ew;
-            let vEast = ee;
-            if (vEast < vWest) vEast += 360;
-
-            let gWest = gw;
-            let gEast = ge;
-            if (gEast < gWest) gEast += 360;
-
-            isContained = es >= gs && en <= gn && vWest >= gWest && vEast <= gEast;
-          }
-        }
-
-        isRegional = prodId && (
-          prodId.includes('florida_east_coast') ||
-          coverageMode === 'regional_tile' ||
-          (regionId && regionId !== 'global_coarse' && !isDynamic) ||
-          (isDynamic && (!isContained || isViewportZoomedOut) && isGridWidthRegional)
-        );
-      }
-
-      const rejectRegionalCache = isViewportZoomedOut && (isRegional || (isGridWidthRegional && !isContained));
-
-      if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
-        extractedGrid = cachedBackendData.grid;
-        const sig = _marineDataSignature(cachedBackendData, curLayer);
-        if (sig && sig !== lastCommittedSigRef.current) {
-          const evtType = cachedBackendData.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-          const _now = Date.now();
-          if (_now - _lastMarineScrubLogTime > 2000) {
-            _lastMarineScrubLogTime = _now;
-            console.log(`[SCRUB] [BACKEND CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
-          }
-          lastCommittedSigRef.current = sig;
-          logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: cachedBackendData.grid?.__renderable });
-          marineRevision.current += 1;
-          cachedBackendData.__commitRevision = marineRevision.current;
-
-          const vHash = getViewportHash();
-          if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
-          if (typeof window !== 'undefined' && curModel === 'GFS' && curLayer === 'waves' && timeOffsetHours === 0) {
-            window.__GFS_WAVES_SINGLE_SLICE_TRACE__ = window.__GFS_WAVES_SINGLE_SLICE_TRACE__ || {};
-            window.__GFS_WAVES_SINGLE_SLICE_TRACE__.cacheCommit = {
-              committedProductId: cachedBackendData.grid?.productId || cachedBackendData.productId || null,
-              committedValidTime: cachedBackendData.grid?.validTime || cachedBackendData.validTime || (typeof getSharedValidTime === 'function' ? getSharedValidTime(0, 'waves', 'GFS') : null),
-              committedBounds: cachedBackendData.grid?.bounds || cachedBackendData.bounds || null,
-              cacheKey: vHash,
-              cacheSource: 'backend_cache_scrub',
-              didRejectStaleRegional: true,
-              didClearPreviousRegionalBeforeViewport: true,
-              commitRevision: marineRevision.current,
-              timeOffsetHours: timeOffsetHours
-            };
-            if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
-              window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
-            }
-          }
-          setMarineData(cachedBackendData);
-        }
-
-        // Fast-path: skip expensive diagnostic construction during active scrub
-        if (!window.isScrubbingTimeline) {
-          const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-          const samples = sampleIndices.map(idx => {
-            const v = extractedGrid?.vectors?.[idx];
-            const comp = v?.[curLayer] || v;
-            return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-          });
-
-          window.__MARINE_SCRUB_DIAG__ = {
-            requestedHour: timeOffsetHours,
-            targetMs: Date.now() + timeOffsetHours * 3600000,
-            selectedApiTimestamp: 'none',
-            selectedIndex: -1,
-            cacheCoverageStart: 'none',
-            cacheCoverageEnd: 'none',
-            forecastDays: 1,
-            contentHash: computeGridContentHash(extractedGrid, curLayer),
-            samples,
-            coverageRejected: false,
-            timestamp: new Date().toISOString()
-          };
-        }
-        // Do NOT cancel pending deferred fetches — they protect against cache-miss hours
-        // that would otherwise never be fetched during rapid scrubbing sequences.
-        // The deferred fetch has its own staleness check to self-invalidate if stale.
-        return;
-      } else {
-        // Per-intermediate-hour scrub cache-miss log. The actual grid fetch is coalesced
-        // (one fetch at scrub-settle), so this fires once per scrub tick and floods the
-        // console without indicating extra work. Gate behind window.__SCRUB_DEBUG__.
-        if (typeof window !== 'undefined' && window.__SCRUB_DEBUG__) {
-          console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
-        }
-        // DO NOT clear marineData — retain stale heatmap view while the deferred fetch loads
-        marineFetchLocksRef.current.lastHash = null;
-        if (!window.isScrubbingTimeline) {
-          enqueueMarineUpdate('timeline_scrub_deferred');
-        }
-        return;
-      }
-    } else {
-      const cache = getMarineHourlyCache();
-      if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer)) {
-        const timeArray = cache.results[0]?.hourly?.time;
-        const targetMs = Date.now() + timeOffsetHours * 3600000;
-        const idx = timeArray ? findClosestHourIndex(timeArray, targetMs) : 0;
-        selectedIndex = idx;
-        if (timeArray?.[idx]) {
-          selectedApiTimestamp = timeArray[idx];
-          const cachedMs = new Date(timeArray[idx].endsWith('Z') ? timeArray[idx] : timeArray[idx] + 'Z').getTime();
-          const delta = Math.abs(cachedMs - targetMs);
-          if (delta > 3 * 3600000) {
-            coverageRejected = true;
-          }
-        }
-        cacheForecastDays = cache.__forecastDays || 0;
-        if (cache.__coverageStartMs) cacheStartStr = new Date(cache.__coverageStartMs).toISOString();
-        if (cache.__coverageEndMs) cacheEndStr = new Date(cache.__coverageEndMs).toISOString();
-      }
-
-      try {
-        if (cache?.results?.length && cache.model === curModel && (curModel !== 'EURO' || (cache.activeLayer || 'waves') === curLayer) && !coverageRejected) {
-          const data = extractMarineAtOffset(cache, timeOffsetHours, curLayer);
-          if (data) {
-            extractedGrid = data.grid;
-            const sig = _marineDataSignature(data, curLayer);
-            if (sig && sig !== lastCommittedSigRef.current) {
-              const evtType = data.grid?.__renderable ? 'local_cache_remap_timeline' : 'local_cache_remap_timeline_no_data';
-              const _now2 = Date.now();
-              if (_now2 - _lastMarineScrubLogTime > 2000) {
-                _lastMarineScrubLogTime = _now2;
-                console.log(`[SCRUB] [CACHE] Instant re-index: +${timeOffsetHours}h model=${curModel} layer=${curLayer}`);
-              }
-              lastCommittedSigRef.current = sig; logPipelineEventHelper(evtType, { model: curModel, layer: curLayer, hour: timeOffsetHours, renderable: data.grid?.__renderable });
-              marineRevision.current += 1; data.__commitRevision = marineRevision.current;
-              
-              const vHash = getViewportHash();
-              if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
-              setMarineData(data);
-            }
-            
-            // Fast-path: skip expensive diagnostic construction during active scrub
-            if (!window.isScrubbingTimeline) {
-              const sampleIndices = [0, 5, 10, 20, 50, 100, 200, 300, 400, 500];
-              const samples = sampleIndices.map(idx => {
-                const v = extractedGrid?.vectors?.[idx];
-                const comp = v?.[curLayer] || v;
-                return comp ? { idx, speed: comp.speed || 0, u: comp.u || 0, v: comp.v || 0, period: comp.period || 0 } : { idx, speed: 0, u: 0, v: 0, period: 0 };
-              });
-
-              window.__MARINE_SCRUB_DIAG__ = {
-                requestedHour: timeOffsetHours,
-                targetMs: Date.now() + timeOffsetHours * 3600000,
-                selectedApiTimestamp,
-                selectedIndex,
-                cacheCoverageStart: cacheStartStr,
-                cacheCoverageEnd: cacheEndStr,
-                forecastDays: cacheForecastDays,
-                contentHash: computeGridContentHash(extractedGrid, curLayer),
-                samples,
-                coverageRejected,
-                timestamp: new Date().toISOString()
-              };
-            }
-            // Do NOT cancel pending deferred fetches — same rationale as backend cache hit path.
-            return;
-          }
-        }
-      } catch (e) { console.warn('[CACHE] Local timeline re-index failed:', e.message); }
-    }
-
-    if (coverageRejected) {
-      let renderedHour = timeOffsetHours;
-      if (cache?.results?.[0]?.hourly?.time) {
-        const timeArray = cache.results[0].hourly.time;
-        if (timeArray[selectedIndex]) {
-          const closestTimeMs = new Date(timeArray[selectedIndex].endsWith('Z') ? timeArray[selectedIndex] : timeArray[selectedIndex] + 'Z').getTime();
-          renderedHour = Math.round((closestTimeMs - Date.now()) / 3600000);
-        }
-      }
-      const statusVal = isBackendActive
-        ? (curModel === 'EURO' ? 'no_copernicus_coverage' : 'no_backend_coverage')
-        : 'retained_previous_hour_warning';
-      window.__MARINE_HEATMAP_STATUS__ = {
-        status: statusVal,
-        requestedHour: timeOffsetHours,
-        renderedHour: renderedHour,
-        coverageRejected: true,
-        retainedPrevious: true,
-        blockedReason: 'cache_coverage_exceeded'
-      };
-    } else {
-      if (window.__MARINE_HEATMAP_STATUS__?.status === 'retained_previous_hour_warning' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_copernicus_coverage' ||
-          window.__MARINE_HEATMAP_STATUS__?.status === 'no_backend_coverage') {
-        window.__MARINE_HEATMAP_STATUS__ = null;
-      }
-    }
-
-    // Skip diagnostic construction during active scrub — only update on settle
-    if (!window.isScrubbingTimeline) {
-      window.__MARINE_SCRUB_DIAG__ = {
-        requestedHour: timeOffsetHours,
-        targetMs: Date.now() + timeOffsetHours * 3600000,
-        selectedApiTimestamp,
-        selectedIndex,
-        cacheCoverageStart: cacheStartStr,
-        cacheCoverageEnd: cacheEndStr,
-        forecastDays: cacheForecastDays,
-        contentHash: 0,
-        samples: [],
-        coverageRejected,
-        timestamp: new Date().toISOString()
-      };
-    }
-
-    const _now3 = Date.now();
-    if (_now3 - _lastMarineScrubLogTime > 2000) {
-      _lastMarineScrubLogTime = _now3;
-      console.log(`[CACHE] [Marine] Cache miss for hour +${timeOffsetHours}h. Suppressing network fetch while scrubbing; safety net will fetch on settle.`);
-    }
-    marineFetchLocksRef.current.lastHash = null;
-    if (!window.isScrubbingTimeline) {
-      if (updateMarineGridRef.current) {
-        updateMarineGridRef.current('timeline_scrub');
-      }
-    }
-  }, [timeOffsetHours, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
