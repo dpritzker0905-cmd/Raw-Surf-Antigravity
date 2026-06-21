@@ -202,6 +202,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const syncingRef = useRef(false);
   const timeoutRef = useRef(null);
   const deactivateTimerRef = useRef(null);
+  const lastSyncSignatureRef = useRef(null);
+  const styleVersionRef = useRef(0);
+  const syncRafIdRef = useRef(null);
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
@@ -284,7 +287,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       return;
     }
 
+    const currentSig = `${active}_${activeMarineLayer || ''}_${theme}_${beforeId || ''}_${!!maskData}_${styleVersionRef.current}`;
+    if (lastSyncSignatureRef.current === currentSig) {
+      return;
+    }
+
     console.log('[OceanMask] syncLayers running:', { active, activeMarineLayer, theme });
+    lastSyncSignatureRef.current = currentSig;
 
     try {
       const style = mapInstance.getStyle();
@@ -531,18 +540,26 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const triggerSync = useCallback((delay = 0) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
     if (delay === 0) {
-      if (!syncingRef.current) {
-        syncingRef.current = true;
-        syncLayers();
-        setTimeout(() => { syncingRef.current = false; }, 300);
-      }
-    } else {
-      timeoutRef.current = setTimeout(() => {
+      if (syncRafIdRef.current) cancelAnimationFrame(syncRafIdRef.current);
+      syncRafIdRef.current = requestAnimationFrame(() => {
+        syncRafIdRef.current = null;
         if (!syncingRef.current) {
           syncingRef.current = true;
           syncLayers();
           setTimeout(() => { syncingRef.current = false; }, 300);
         }
+      });
+    } else {
+      timeoutRef.current = setTimeout(() => {
+        if (syncRafIdRef.current) cancelAnimationFrame(syncRafIdRef.current);
+        syncRafIdRef.current = requestAnimationFrame(() => {
+          syncRafIdRef.current = null;
+          if (!syncingRef.current) {
+            syncingRef.current = true;
+            syncLayers();
+            setTimeout(() => { syncingRef.current = false; }, 300);
+          }
+        });
       }, delay);
     }
   }, [syncLayers]);
@@ -554,11 +571,13 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   useEffect(() => {
     if (!active) {
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (syncRafIdRef.current) { cancelAnimationFrame(syncRafIdRef.current); syncRafIdRef.current = null; }
       if (!mapInstance) return;
       if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
       deactivateTimerRef.current = setTimeout(() => {
         deactivateTimerRef.current = null;
         console.log('[OceanMask] Deactivating: removing layers');
+        lastSyncSignatureRef.current = null;
         syncingRef.current = true;
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
@@ -587,14 +606,18 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     if (!mapInstance) return;
     const handler = () => {
       const { active } = stateRef.current;
-      if (active && !syncingRef.current) {
-        triggerSync(300);
+      if (active) {
+        if (!syncingRef.current) {
+          styleVersionRef.current += 1;
+          triggerSync(300);
+        }
       }
     };
     mapInstance.on('styledata', handler);
     return () => {
       mapInstance.off('styledata', handler);
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
+      if (syncRafIdRef.current) { cancelAnimationFrame(syncRafIdRef.current); syncRafIdRef.current = null; }
     };
   }, [mapInstance, triggerSync]);
 
@@ -625,6 +648,8 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   // Unmount cleanup
   useEffect(() => {
     return () => {
+      if (syncRafIdRef.current) { cancelAnimationFrame(syncRafIdRef.current); syncRafIdRef.current = null; }
+      lastSyncSignatureRef.current = null;
       if (!mapInstance) return;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
