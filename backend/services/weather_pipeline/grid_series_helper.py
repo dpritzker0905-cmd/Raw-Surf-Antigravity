@@ -118,13 +118,25 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
     }
 
 
-async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str) -> dict:
+async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
     heatmap renders (manifest regional/global products AND dynamic viewport products). The
     first hour warms any shared upstream/manifest cache; the rest reuse it.
+
+    request: optional Starlette Request. When the client aborts (scrub/toggle), per-hour
+    builds short-circuit so a single series fan-out can't keep N hours of heavy upstream
+    fetches running for a dead connection.
     """
+    async def _client_gone() -> bool:
+        if request is None:
+            return False
+        try:
+            return await request.is_disconnected()
+        except Exception:
+            return False
+
     try:
         hour_list = sorted({int(h) for h in hours.split(",") if h.strip() != ""})[:MAX_FRAMES]
     except ValueError:
@@ -137,7 +149,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     # EURO/Copernicus fast path: one full-range fetch + slice all hours (the generic
     # per-hour loop below hangs for EURO — each hour is a separate ±3h CMEMS download).
     # Additive + EURO-marine-only; on any failure fall through to the generic loop.
-    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine":
+    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine" and not await _client_gone():
         try:
             euro = await asyncio.wait_for(
                 _build_euro_marine_series(viewport_service, layer, bbox, hour_list, base),
@@ -155,7 +167,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     deadline = time.monotonic() + OVERALL_DEADLINE
 
     async def _build_one(h: int):
-        if time.monotonic() > deadline:
+        if time.monotonic() > deadline or await _client_gone():
             return (h, None)
         target_dt = base + timedelta(hours=h)
         vt_str = target_dt.strftime("%Y-%m-%dT%H:%M:%SZ")

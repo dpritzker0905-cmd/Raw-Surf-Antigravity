@@ -20,6 +20,29 @@ import {
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 
+/**
+ * Release an abandoned in-flight marine fetch when a newer request supersedes it.
+ *
+ * Phase 2c (OOM rework): during ACTIVE timeline scrubbing we ABORT the abandoned fetch —
+ * closing the socket so the backend's disconnect-detection cancels the remaining per-hour
+ * upstream work instead of running it to completion. Under a scrub storm there's no
+ * switch-back benefit to detaching, only a pile-up of open connections + backend memory.
+ * For model/layer switches we keep DETACHing so the abandoned fetch self-caches (a
+ * switch-back becomes a cache hit). The aborted fetch's finally -> inFlight.complete(...,
+ * 'abort') removes its registry entry, so no extra bookkeeping is needed here.
+ */
+function releaseAbandonedFetch(inFlight, controller, site, activeSource, source) {
+  if (!controller || !controller.__intent) return;
+  const scrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
+  if (scrubbing) {
+    recordChurn('scrub_abort', { site, from: activeSource, to: source });
+    try { controller.abort(); } catch (e) { /* ignore */ }
+    return;
+  }
+  recordChurn('detach', { site, from: activeSource, to: source });
+  inFlight.detach(controller.__intent);
+}
+
 export function useMarineDataFetcherCore({
   mapInstance,
   activeMarineLayerRef,
@@ -145,13 +168,11 @@ export function useMarineDataFetcherCore({
           console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority update request (${source})`);
           return;
         }
-        console.log(`[Detach] Detaching in-flight fetch (${activeSource}) for new request source=${source} (runs to completion + self-caches)`);
-        recordChurn('detach', { site: 'updateMarineGrid', from: activeSource, to: source });
-        if (abortControllerRef.current && abortControllerRef.current.__intent) {
-          // Detach (not abort): the abandoned fetch finishes + self-caches (switch-back = cache
-          // hit); requestId/live-target guards block its stale commit; registry caps + unmounts.
-          inFlight.detach(abortControllerRef.current.__intent);
-        }
+        console.log(`[Release] Releasing in-flight fetch (${activeSource}) for new request source=${source} (scrub=abort, switch=detach+self-cache)`);
+        // Detach on model/layer switch (self-caches; requestId/live-target guards block its
+        // stale commit; registry caps + unmounts) — but ABORT under active scrubbing so the
+        // backend's disconnect-detection can cancel the remaining per-hour upstream work.
+        releaseAbandonedFetch(inFlight, abortControllerRef.current, 'updateMarineGrid', activeSource, source);
         locks.isFetching = false;
       }
       if (!isRetry && !isTimelineScrub && consecutiveFailuresRef.current >= 3) return;
@@ -200,11 +221,9 @@ export function useMarineDataFetcherCore({
         return;
       }
 
-      if (abortControllerRef.current && abortControllerRef.current.__intent) {
-        // Detach (not abort) the prior fetch so it completes + self-caches (same-target is
-        // already deduped above, so this is always a real switch).
-        inFlight.detach(abortControllerRef.current.__intent);
-      }
+      // Release the prior fetch (same-target is already deduped above, so this is a real
+      // switch): detach to self-cache on a model/layer switch, abort under active scrubbing.
+      releaseAbandonedFetch(inFlight, abortControllerRef.current, 'updateMarineGrid_preStart', null, source);
       abortControllerRef.current = new AbortController();
       const signal = abortControllerRef.current.signal;
       myController = abortControllerRef.current;
@@ -509,11 +528,8 @@ export function useMarineDataFetcherCore({
         console.log(`[Abort-Gate] Preserving high-priority fetch (${activeSource}) against low-priority request (${source})`);
         return;
       }
-      console.log(`[Detach] Detaching active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (runs to completion + self-caches)`);
-      recordChurn('detach', { site: 'enqueueMarineUpdate', from: activeSource, to: source });
-      if (abortControllerRef.current && abortControllerRef.current.__intent) {
-        inFlight.detach(abortControllerRef.current.__intent);
-      }
+      console.log(`[Release] Releasing active fetch (${activeSource}) in enqueueMarineUpdate for new source=${source} (scrub=abort, switch=detach+self-cache)`);
+      releaseAbandonedFetch(inFlight, abortControllerRef.current, 'enqueueMarineUpdate', activeSource, source);
       locks.isFetching = false;
       locks.activeSource = null;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);

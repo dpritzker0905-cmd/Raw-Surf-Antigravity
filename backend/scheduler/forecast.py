@@ -64,6 +64,20 @@ def ingest_marine_forecast_task():
                     logger.error(f"[Scheduler] Job '{name}' failed with error: {e}", exc_info=True)
                 gc.collect()
 
+            # Periodic manifest pruning: prune_old_products is otherwise never run on a cadence
+            # (only superseded runs are pruned during active ingestion), so obsolete forecast
+            # runs accumulate and re-bloat manifest.json -> startup/parse memory spikes -> OOM.
+            # Prune everything whose valid time is >2 days old after each ingestion cycle.
+            try:
+                from datetime import datetime, timezone, timedelta
+                cutoff = datetime.now(timezone.utc) - timedelta(days=2)
+                logger.info(f"[Scheduler] Pruning products older than {cutoff.isoformat()}...")
+                await asyncio.to_thread(store.prune_old_products, cutoff)
+                logger.info("[Scheduler] Manifest pruning complete.")
+            except Exception as e:
+                logger.error(f"[Scheduler] Manifest pruning failed: {e}", exc_info=True)
+            gc.collect()
+
         loop.run_until_complete(run_jobs())
         loop.close()
         logger.info("[Scheduler] Successfully completed forecast ingestion.")

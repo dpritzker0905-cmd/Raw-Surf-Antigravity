@@ -1,5 +1,4 @@
 import math
-import copy
 import logging
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
@@ -256,9 +255,16 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
     except Exception as e:
         raise HTTPException(status_code=400, detail=f"Invalid bbox parameter format in filter: {e}")
 
-    # Create a deep copy to ensure we do not mutate cached memory objects
-    cloned_product = copy.deepcopy(product)
-    
+    # Shallow-copy the product and its grid container ONLY (not the vectors). This function
+    # rebuilds grid.vectors from a filtered subset of the ORIGINAL vector objects and never
+    # mutates the survivors, so re-referencing them is cache-safe and avoids deep-copying
+    # thousands of GridVector models per request (the dominant OOM cost under scrubbing).
+    # Copying the grid one level deep guarantees the reassignments below (vectors/bounds/
+    # cols/rows) cannot leak back into the shared cached product.
+    cloned_product = product.model_copy()
+    if cloned_product.grid is not None:
+        cloned_product.grid = cloned_product.grid.model_copy()
+
     if not cloned_product.grid:
         return cloned_product
 

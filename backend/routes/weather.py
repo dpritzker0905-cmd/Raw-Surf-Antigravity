@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends
+from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
 from datetime import datetime, timezone, timedelta
 from deps.admin_auth import get_current_admin
@@ -80,6 +80,7 @@ async def get_grid_series(
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     bbox: str = Query(..., description="west,south,east,north viewport bbox"),
     hours: str = Query(..., description="comma-separated integer hour offsets from now, e.g. 0,3,6,9"),
+    request: Request = None,
 ):
     """
     GET /api/weather/grid_series
@@ -97,7 +98,9 @@ async def get_grid_series(
     # Reuse the SAME resolver /grid uses (get_grid, defined below) so each frame matches the
     # live heatmap exactly, at any zoom/region (manifest regional/global + dynamic viewport).
     # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours)
+    # request is threaded through so a scrub-aborted connection cancels the remaining per-hour
+    # builds instead of running the whole multi-hour series to completion (zombie OOM load).
+    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request)
 
 
 @router.get("/grid", response_model=NormalizedProduct)
@@ -107,13 +110,21 @@ async def get_grid(
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter"),
-    background_tasks: BackgroundTasks = None
+    background_tasks: BackgroundTasks = None,
+    request: Request = None
 ):
     """
     GET /api/weather/grid
     Returns a compact normalized coordinate grid ready for WebGL rendering.
     Enforces dynamic bounding-box coordinate filtering to conserve bandwidth.
     """
+    # Disconnect detection: under timeline scrubbing / model toggling the client aborts
+    # obsolete requests. Bail before any heavy work so we don't pile up zombie handlers that
+    # keep downloading + normalizing grids for a connection that's already gone. `request` is
+    # None when get_grid is called as a plain coroutine (e.g. from build_grid_series).
+    if request is not None and await request.is_disconnected():
+        raise HTTPException(status_code=499, detail="Client Closed Request")
+
     # Parse target timestamp
     target_dt = parse_valid_time(valid_time)
 
@@ -300,6 +311,10 @@ async def get_grid(
 
     # Step 4 & 5: Upstream dynamic fetch & stale fallback
     if not product:
+        # The upstream viewport fetch is the single heaviest step (network download + full
+        # normalization). Skip it if the client already walked away (scrub/toggle abort).
+        if request is not None and await request.is_disconnected():
+            raise HTTPException(status_code=499, detail="Client Closed Request")
         if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
             try:
                 # For ICON wind, dynamic viewport fetch is supported beyond 5-day limit by loop-extrapolation inside fetch_viewport_grid_upstream.
