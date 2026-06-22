@@ -1,6 +1,17 @@
 import { CUSTOM_COLOR_SCALES } from './colorScales';
 import { WeatherTelemetry } from './WeatherTelemetry';
 
+// F4: per-tile / per-frame console output is GATED. With console capture / React Scan / PostHog
+// active, an unconditional console.log per decoded tile materially amplifies tile-heavy
+// interactions (the "[OM-Protocol] addProtocol callback triggered" spam fires dozens of times
+// per pan/scrub). Enable verbose tile logging with globalThis.__OM_TILE_DEBUG__ = true. Works in
+// both the main thread and the decode worker (globalThis). Warnings/errors stay unconditional.
+function tileLog(...args) {
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.__OM_TILE_DEBUG__) console.log(...args);
+  } catch (e) { /* ignore */ }
+}
+
 // Custom protocol active model lock to avoid premature tile discarding
 let activeModelLock = "";
 
@@ -169,7 +180,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         channel.onmessage = (event) => {
           const payload = event.data;
           if (payload && payload.cacheKey && window.__DECODED_OM_TILES__) {
-            console.log(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}, Dimensions: ${payload.nx}x${payload.ny}, TimeIndex: ${payload.timeIndex}`);
+            tileLog(`[OM-Protocol-Main] Decoded tile received. Variable: ${payload.variable}, Bounds: ${payload.bounds?.join(',')}, ValueCount: ${payload.values?.length}, Dimensions: ${payload.nx}x${payload.ny}, TimeIndex: ${payload.timeIndex}`);
             window.__DECODED_OM_TILES__.set(payload.cacheKey, {
               values: payload.values,
               directions: payload.directions,
@@ -302,7 +313,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         ...CUSTOM_COLOR_SCALES
       },
       postReadCallback(omFileReader, data, state) {
-        console.log("[OM-Protocol-Callback] postReadCallback triggered! Data exists:", !!data, "values exists:", !!data?.values, "state exists:", !!state);
+        tileLog("[OM-Protocol-Callback] postReadCallback triggered! Data exists:", !!data, "values exists:", !!data?.values, "state exists:", !!state);
         if (!data || !data.values) return;
         
         let bounds = state.dataOptions?.bounds;
@@ -314,7 +325,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             resolvedGrid = GridFactory.create(state.dataOptions.domain.grid, null);
             if (!bounds) {
               bounds = resolvedGrid.getBounds();
-              console.log(`[OM-Protocol-Callback] Resolved bounds from domain grid:`, bounds);
+              tileLog(`[OM-Protocol-Callback] Resolved bounds from domain grid:`, bounds);
             }
           } catch (e) {
             console.warn(`[OM-Protocol-Callback] Failed to get grid bounds:`, e.message);
@@ -360,14 +371,14 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                       timeIndex = i;
                     }
                   }
-                  console.log(`[FORENSIC-INDEX] Match successful: url date ${new Date(targetTimeMs).toISOString()} maps to validTimes index ${timeIndex} (${meta.validTimes[timeIndex]}) for model ${model}`);
+                  tileLog(`[FORENSIC-INDEX] Match successful: url date ${new Date(targetTimeMs).toISOString()} maps to validTimes index ${timeIndex} (${meta.validTimes[timeIndex]}) for model ${model}`);
                 } else {
                   // Fallback: estimate timeIndex using forecast hours diff from reference time
                   const refTime = meta?.referenceTime ? new Date(meta.referenceTime) : new Date();
                   const hoursDiff = Math.round((targetTimeMs - refTime.getTime()) / 3600000);
                   const hoursPerStep = (model.includes('wave') || model.includes('wam') || model.includes('gwam')) ? 3 : 1;
                   timeIndex = Math.max(0, Math.round(hoursDiff / hoursPerStep));
-                  console.log(`[FORENSIC-INDEX] validTimes cache miss: url date ${new Date(targetTimeMs).toISOString()} estimated index ${timeIndex} for model ${model}`);
+                  tileLog(`[FORENSIC-INDEX] validTimes cache miss: url date ${new Date(targetTimeMs).toISOString()} estimated index ${timeIndex} for model ${model}`);
                 }
               }
             }
@@ -391,7 +402,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           
           // Cross-thread communication: Broadcast decoded tile payload to main thread via persistent BroadcastChannel
           if (typeof window !== 'undefined' && window.__DECODED_OM_TILES__) {
-            console.log(`[OM-Protocol-Direct] Stored decoded tile directly on main thread. Variable: ${variable}, Model: ${model}, Bounds: ${bounds.join(',')}, ValueCount: ${data.values?.length}, Dimensions: ${tilePayload.nx}x${tilePayload.ny}, TimeIndex: ${timeIndex}`);
+            tileLog(`[OM-Protocol-Direct] Stored decoded tile directly on main thread. Variable: ${variable}, Model: ${model}, Bounds: ${bounds.join(',')}, ValueCount: ${data.values?.length}, Dimensions: ${tilePayload.nx}x${tilePayload.ny}, TimeIndex: ${timeIndex}`);
             window.__DECODED_OM_TILES__.set(cacheKey, {
               values: data.values,
               directions: data.directions,
@@ -417,7 +428,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
               console.log('[OM-Protocol-Worker] Persistent BroadcastChannel initialized successfully.');
             }
             globalCtx.__OM_BROADCAST_CHANNEL_WORKER__.postMessage(tilePayload);
-            console.log(`[OM-Protocol-Worker] Broadcasted decoded tile for ${variable} (bounds: ${bounds.join(',')})`);
+            tileLog(`[OM-Protocol-Worker] Broadcasted decoded tile for ${variable} (bounds: ${bounds.join(',')})`);
           } catch (e) {
             console.warn('[OM-Protocol-Worker] BroadcastChannel failed to send in worker:', e);
             // Worker-self fallback just in case
@@ -467,7 +478,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
           // gate it behind window.__RASTER_DEBUG__ so it does not amplify main-thread +
           // console-recording overhead in production. One-time init/failure logs below stay.
           if (hasWindow && window.__RASTER_DEBUG__) {
-            console.log("[OM-Protocol] addProtocol callback triggered! URL:", params.url, "hasWindow:", hasWindow, "hasCallback:", typeof currentSettings.postReadCallback === 'function');
+            tileLog("[OM-Protocol] addProtocol callback triggered! URL:", params.url, "hasWindow:", hasWindow, "hasCallback:", typeof currentSettings.postReadCallback === 'function');
           }
           
           // Safe one-time init log
