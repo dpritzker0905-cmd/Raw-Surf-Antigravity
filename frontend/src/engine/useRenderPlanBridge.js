@@ -56,11 +56,34 @@ export function useRenderPlanBridge({ field, config, enabled = true }) {
     };
   }, [enabled]);
 
-  // Bind field to simulation loop whenever it changes
+  // Bind field to simulation loop whenever it changes — but BYPASS during active scrubbing.
+  // Each hour's grid differs, so useSimulationField hands us a new field per committed hour;
+  // bindField deep-clones it + allocates/copies 16 typed arrays + re-baselines the particle
+  // energy, which at scrub rate (~18Hz) is the dominant main-thread churn (~33ms tasks → GC
+  // pressure). Bypassing here lets the heatmap commit track the slider; the settled field is
+  // bound once on scrub release (effect below). Non-scrub field changes bind normally.
   useEffect(() => {
     if (field) {
+      if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
+        return;
+      }
       bindField(field);
     }
+  }, [field]);
+
+  // Bind the settled field once scrubbing ends (timeline_scrub_end is dispatched by the slider
+  // on drag release, after window.isScrubbingTimeline flips false).
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const handleScrubEnd = () => {
+      if (field) {
+        bindField(field);
+      }
+    };
+    window.addEventListener('timeline_scrub_end', handleScrubEnd);
+    return () => {
+      window.removeEventListener('timeline_scrub_end', handleScrubEnd);
+    };
   }, [field]);
 
   // Bind config to simulation loop whenever it changes

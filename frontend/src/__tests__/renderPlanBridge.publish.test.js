@@ -34,6 +34,7 @@ describe('useRenderPlanBridge — normal-mode React publishing gate', () => {
     delete window.__FCE_LATEST_PLAN__;
     delete window.__SIM_FRAME__;
     delete window.__SIM_EVOLUTION__;
+    delete window.isScrubbingTimeline;
   });
 
   it('does NOT push renderPlan into React state in normal mode, but keeps the window sample fresh', () => {
@@ -64,5 +65,26 @@ describe('useRenderPlanBridge — normal-mode React publishing gate', () => {
 
     expect(result.current.renderPlan).toBe(plan);
     expect(result.current.frameIndex).toBe(55);
+  });
+
+  it('bypasses bindField while scrubbing and binds the settled field on timeline_scrub_end', () => {
+    const { bindField } = require('../engine/SimulationLoop');
+    bindField.mockClear();
+
+    // Start scrubbing, then mount + change the field — bindField must NOT fire during the scrub.
+    window.isScrubbingTimeline = true;
+    const { rerender } = renderHook(
+      ({ field }) => useRenderPlanBridge({ field, config: {}, enabled: true }),
+      { initialProps: { field: { revision: 1 } } }
+    );
+    rerender({ field: { revision: 2 } });
+    expect(bindField).not.toHaveBeenCalled();
+
+    // On scrub release, the settled (latest) field is bound exactly once.
+    window.isScrubbingTimeline = false;
+    act(() => {
+      window.dispatchEvent(new CustomEvent('timeline_scrub_end'));
+    });
+    expect(bindField).toHaveBeenCalledWith({ revision: 2 });
   });
 });
