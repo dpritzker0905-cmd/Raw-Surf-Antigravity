@@ -2,6 +2,8 @@ import React, { useState, useEffect, useMemo, useRef } from 'react';
 import { LAYER_REGISTRY } from './LayerRegistry';
 import { WeatherTelemetry } from './WeatherTelemetry';
 import { API_BASE } from '../../lib/apiClient';
+import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
+import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 
 const getLayerTruth = (id, visible, wind, marine) => {
   const l = LAYER_REGISTRY[id];
@@ -509,283 +511,32 @@ var TruthOverlay = ({
 
           {/* TAB 3: VISUAL DEBUG (Shader debug layers and Keypad) */}
           {activeTab === 'visual' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '8px' }}>
-              <div style={{
-                fontSize: '9px',
-                fontWeight: 700,
-                textTransform: 'uppercase',
-                color: '#64748b',
-                letterSpacing: '0.05em'
-              }}>
-                Interactive Shader Debug Views
-              </div>
-
-              {/* Direct Debug Buttons */}
-              <div style={{
-                display: 'grid',
-                gridTemplateColumns: 'repeat(2, 1fr)',
-                gap: '5px'
-              }}>
-                {[
-                  { name: 'Normal View', mode: null },
-                  { name: 'Ocean Mask', mode: 'mask' },
-                  { name: 'Mesh UVs', mode: 'uv' },
-                  { name: 'Grid Index', mode: 'grid' },
-                  { name: 'Mercator Grids', mode: 'mercator' },
-                  { name: 'Particle UVs', mode: 'part_uv' },
-                  { name: 'Particle Pos', mode: 'part_pos' },
-                  { name: 'Advection Offsets', mode: 'part_offset' },
-                  { name: 'FBO Quantization', mode: 'part_fbo' }
-                ].map(item => (
-                  <button
-                    key={item.name}
-                    onClick={() => setDebugMode(item.mode)}
-                    style={{
-                      background: currentDebugMode === item.mode ? 'rgba(0, 240, 255, 0.25)' : 'rgba(255, 255, 255, 0.04)',
-                      border: currentDebugMode === item.mode ? '1px solid #00f0ff' : '1px solid rgba(255, 255, 255, 0.08)',
-                      borderRadius: '6px',
-                      color: currentDebugMode === item.mode ? '#00f0ff' : '#e2e8f0',
-                      fontSize: '9px',
-                      fontWeight: 'bold',
-                      padding: '5px 0',
-                      cursor: 'pointer',
-                      transition: 'all 0.15s ease-in-out',
-                      outline: 'none'
-                    }}
-                    onMouseEnter={(e) => {
-                      if (currentDebugMode !== item.mode) {
-                        e.target.style.background = 'rgba(0, 240, 255, 0.1)';
-                      }
-                    }}
-                    onMouseLeave={(e) => {
-                      if (currentDebugMode !== item.mode) {
-                        e.target.style.background = 'rgba(255, 255, 255, 0.04)';
-                      }
-                    }}
-                  >
-                    {item.name}
-                  </button>
-                ))}
-              </div>
-
-              {/* Stacking Info block */}
-              {activeDiagnostic === '2-0-2' && (
-                <div style={{
-                  background: 'rgba(0, 240, 255, 0.08)',
-                  border: '1px solid rgba(0, 240, 255, 0.25)',
-                  borderRadius: '8px',
-                  padding: '8px',
-                  fontSize: '9px',
-                  color: '#cffafe',
-                  display: 'flex',
-                  flexDirection: 'column',
-                  gap: '3px',
-                  maxHeight: '100px',
-                  overflowY: 'auto'
-                }}>
-                  <div style={{ fontWeight: 'bold', color: '#00f0ff', marginBottom: '2px' }}>🗺️ LAYERS STACK INSPECTOR</div>
-                  {stackInfo.map((l, idx) => (
-                    <div key={idx} style={{ display: 'flex', justifyContent: 'space-between', fontFamily: 'monospace' }}>
-                      <span>{l.id}</span>
-                      <span style={{ color: '#00f0ff' }}>#{l.idx} ({l.type})</span>
-                    </div>
-                  ))}
-                </div>
-              )}
-
-              {/* Interactive Safe Keypad (Legacy fallback support) */}
-              <div style={{
-                background: 'rgba(0, 0, 0, 0.2)',
-                border: '1px solid rgba(255, 255, 255, 0.04)',
-                borderRadius: '8px',
-                padding: '8px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '6px'
-              }}>
-                <div style={{
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                  fontSize: '9px',
-                  color: '#64748b'
-                }}>
-                  <span>COMBINATION PAD:</span>
-                  <span style={{
-                    fontFamily: 'monospace',
-                    fontSize: '11px',
-                    fontWeight: 'bold',
-                    color: activeDiagnostic === 'invalid' ? '#ef4444' : '#00f0ff',
-                    background: 'rgba(0,0,0,0.3)',
-                    padding: '1px 5px',
-                    borderRadius: '4px',
-                    letterSpacing: '2px'
-                  }}>
-                    {combo.padEnd(3, '_')}
-                  </span>
-                </div>
-
-                <div style={{
-                  display: 'grid',
-                  gridTemplateColumns: 'repeat(5, 1fr)',
-                  gap: '4px'
-                }}>
-                  {[1, 2, 3, 4, 5, 6, 7, 8, 9, 0].map(num => (
-                    <button
-                      key={num}
-                      onClick={() => handleKeyClick(num.toString())}
-                      style={{
-                        background: 'rgba(255, 255, 255, 0.04)',
-                        border: '1px solid rgba(255, 255, 255, 0.06)',
-                        borderRadius: '4px',
-                        color: '#cbd5e1',
-                        fontSize: '10px',
-                        fontWeight: 'bold',
-                        padding: '4px 0',
-                        cursor: 'pointer',
-                        transition: 'all 0.12s',
-                        outline: 'none'
-                      }}
-                    >
-                      {num}
-                    </button>
-                  ))}
-                </div>
-                <button
-                  onClick={clearCombo}
-                  style={{
-                    width: '100%',
-                    background: 'rgba(239, 68, 68, 0.12)',
-                    border: '1px solid rgba(239, 68, 68, 0.2)',
-                    borderRadius: '4px',
-                    color: '#fca5a5',
-                    fontSize: '8px',
-                    fontWeight: 'bold',
-                    padding: '3px 0',
-                    cursor: 'pointer',
-                    outline: 'none'
-                  }}
-                >
-                  CLEAR CODE
-                </button>
-              </div>
-            </div>
+            <TruthOverlayVisualTab
+              combo={combo}
+              activeDiagnostic={activeDiagnostic}
+              currentDebugMode={currentDebugMode}
+              stackInfo={stackInfo}
+              handleKeyClick={handleKeyClick}
+              clearCombo={clearCombo}
+              setDebugMode={setDebugMode}
+            />
           )}
 
           {/* TAB 4: GPU & FCE TELEMETRY */}
           {activeTab === 'gpu' && (
-            <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', fontSize: '11px' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Frame Rate:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 700, color: '#10b981' }}>
-                  {gpuFps || 60} FPS
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>GPU Memory:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#f472b6' }}>
-                  {((gpuMemoryBytes || 0) / (1024 * 1024)).toFixed(2)} MB
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Resident Textures:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#60a5fa' }}>
-                  {gpuTexturesCount || 0} textures
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Texture Uploads:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#34d399' }}>
-                  {gpuUploadsCount || 0} uploads
-                </span>
-              </div>
-              <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                <span style={{ color: '#94a3b8' }}>Dropped Frames:</span>
-                <span style={{ fontFamily: 'monospace', fontWeight: 600, color: gpuDroppedFrames > 0 ? '#ef4444' : '#94a3b8' }}>
-                  {gpuDroppedFrames || 0}
-                </span>
-              </div>
-
-              <div style={{
-                marginTop: '4px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingTop: '6px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '5px'
-              }}>
-                <div style={{ fontWeight: 700, fontSize: '9px', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.05em' }}>
-                  WebGL Shader Bindings
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>State A Tex Unit:</span>
-                  <span style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>
-                    {typeof window !== 'undefined' && window.__RAW_GPU__?.particleStateATexUnit !== undefined ? window.__RAW_GPU__.particleStateATexUnit : 'N/A'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>State B Tex Unit:</span>
-                  <span style={{ fontFamily: 'monospace', color: '#e2e8f0' }}>
-                    {typeof window !== 'undefined' && window.__RAW_GPU__?.particleStateBTexUnit !== undefined ? window.__RAW_GPU__.particleStateBTexUnit : 'N/A'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>FBO Status:</span>
-                  <span style={{ 
-                    fontFamily: 'monospace', 
-                    fontWeight: 600,
-                    color: fboStatus === 'FRAMEBUFFER_COMPLETE' ? '#10b981' : '#ef4444'
-                  }}>
-                    {fboStatus || 'INACTIVE'}
-                  </span>
-                </div>
-              </div>
-
-              <div style={{
-                marginTop: '4px',
-                borderTop: '1px solid rgba(255, 255, 255, 0.1)',
-                paddingTop: '6px',
-                display: 'flex',
-                flexDirection: 'column',
-                gap: '4px'
-              }}>
-                <div style={{ fontWeight: 700, fontSize: '9px', textTransform: 'uppercase', color: '#64748b', letterSpacing: '0.05em', marginBottom: '2px' }}>
-                  Field Composition Engine (FCE)
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>FCE Revision:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#f59e0b' }}>
-                    {simulationField?.revision || 'none'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Simulation Frame:</span>
-                  <span style={{ fontFamily: 'monospace', fontWeight: 600, color: '#38bdf8' }}>
-                    {liveSimFrame}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Plan Evolution:</span>
-                  <span style={{ fontFamily: 'monospace', color: evolutionMode === 'sandbox_active' ? '#10b981' : '#94a3b8' }}>
-                    {evolutionMode === 'sandbox_active' ? 'Active (sandbox)'
-                      : evolutionMode === 'disabled_forecast_authoritative' ? 'Disabled (forecast-auth)'
-                      : 'none'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Wind Data Grid:</span>
-                  <span style={{ fontFamily: 'monospace', color: windVectorCount > 0 ? '#10b981' : '#64748b' }}>
-                    {windVectorCount > 0 ? `${windVectorCount.toLocaleString()} cells` : 'none'}
-                  </span>
-                </div>
-                <div style={{ display: 'flex', justifyContent: 'space-between' }}>
-                  <span style={{ color: '#94a3b8' }}>Marine Data Grid:</span>
-                  <span style={{ fontFamily: 'monospace', color: marineVectorCount > 0 ? '#10b981' : '#64748b' }}>
-                    {marineVectorCount > 0 ? `${marineVectorCount.toLocaleString()} cells` : 'none'}
-                  </span>
-                </div>
-              </div>
-            </div>
+            <TruthOverlayGpuTab
+              gpuFps={gpuFps}
+              gpuMemoryBytes={gpuMemoryBytes}
+              gpuTexturesCount={gpuTexturesCount}
+              gpuUploadsCount={gpuUploadsCount}
+              gpuDroppedFrames={gpuDroppedFrames}
+              fboStatus={fboStatus}
+              simulationField={simulationField}
+              liveSimFrame={liveSimFrame}
+              evolutionMode={evolutionMode}
+              windVectorCount={windVectorCount}
+              marineVectorCount={marineVectorCount}
+            />
           )}
         </div>
       )}

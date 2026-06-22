@@ -83,6 +83,7 @@ class ProductStore:
     _product_cache: Dict[str, Tuple[NormalizedProduct, float]] = {}
     _product_cache_lock = threading.Lock()
     _PRODUCT_CACHE_TTL = 300.0  # 5 minutes
+    _PRODUCT_CACHE_LIMIT = 12
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -375,9 +376,11 @@ class ProductStore:
                 cached_product, cached_time = ProductStore._product_cache[filename]
                 if now - cached_time < ProductStore._PRODUCT_CACHE_TTL:
                     logger.debug(f"[Product Store] Memory cache HIT for {filename}")
-                    # Pydantic v2 model_copy(deep=True) is Rust-backed and ~10x cheaper than
-                    # stdlib copy.deepcopy when recursing thousands of GridVector models.
-                    return cached_product.model_copy(deep=True)
+                    # Shallow copy product and grid container to avoid deep-copying vector list
+                    cloned = cached_product.model_copy()
+                    if cloned.grid is not None:
+                        cloned.grid = cloned.grid.model_copy()
+                    return cloned
                 else:
                     ProductStore._product_cache.pop(filename, None)
 
@@ -454,12 +457,15 @@ class ProductStore:
                 
                 # Cache the product before returning a deepcopy
                 with ProductStore._product_cache_lock:
-                    if len(ProductStore._product_cache) >= 64:
+                    if len(ProductStore._product_cache) >= ProductStore._PRODUCT_CACHE_LIMIT:
                         oldest_key = next(iter(ProductStore._product_cache.keys()))
                         ProductStore._product_cache.pop(oldest_key, None)
                     ProductStore._product_cache[filename] = (product, time.time())
 
-                return product.model_copy(deep=True)
+                cloned = product.model_copy()
+                if cloned.grid is not None:
+                    cloned.grid = cloned.grid.model_copy()
+                return cloned
         except Exception as e:
             logger.error(f"[Product Store] Stored product load and parse failed for {filename}: {e}")
             return None
