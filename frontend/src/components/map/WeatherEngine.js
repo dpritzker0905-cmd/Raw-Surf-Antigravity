@@ -3,6 +3,7 @@ import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtO
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
+import { ensureWindSeries, getWindSeriesFrame, windSeriesPageForHour } from './windGridSeries';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -178,6 +179,38 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
   }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes
 
+  // F3: background-load the wind multi-hour series for the active model/viewport — the page
+  // containing the current hour first, neighbours on idle — so far-hour scrubbing is instant
+  // (the during-drag path reads getWindSeriesFrame above). Flag-gated (window.__WIND_SERIES__);
+  // a no-op until enabled, so the default wind path is unchanged.
+  useEffect(() => {
+    if (!mapInstance || !isWindActive) return;
+    let cancelled = false;
+    const controller = new AbortController();
+    const kick = () => {
+      if (cancelled || !mapInstance) return;
+      try {
+        const b = mapInstance.getBounds();
+        ensureWindSeries(
+          activeModel,
+          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
+          timeOffsetHours,
+          controller.signal
+        );
+      } catch (e) { /* map not ready — ignore */ }
+    };
+    const t = setTimeout(kick, 600);
+    const onIdle = () => kick();
+    mapInstance.on('moveend', onIdle);
+    return () => {
+      cancelled = true;
+      clearTimeout(t);
+      controller.abort();
+      try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
+    };
+    // page in deps: reload when scrubbing crosses a page boundary.
+  }, [mapInstance, activeModel, isWindActive, windSeriesPageForHour(timeOffsetHours)]);
+
   // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
@@ -189,20 +222,27 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     if (window.isScrubbingTimeline) {
       let targetData = null;
       try {
+        const b = mapInstance.getBounds();
+        const bounds = {
+          west: b.getWest(),
+          south: Math.max(-85, b.getSouth()),
+          east: b.getEast(),
+          north: Math.min(85, b.getNorth())
+        };
         if (getBackendWindFlag()) {
-          const b = mapInstance.getBounds();
-          const bounds = {
-            west: b.getWest(),
-            south: Math.max(-85, b.getSouth()),
-            east: b.getEast(),
-            north: Math.min(85, b.getNorth())
-          };
           targetData = getModelSafeWind(activeModel, timeOffsetHours, bounds);
         } else {
           const cache = getWindHourlyCache();
           if (cache?.results?.length && cache.model === activeModel) {
             targetData = extractWindAtOffset(cache, timeOffsetHours);
           }
+        }
+        // F3: wind multi-hour series cache — nearest frame for the scrubbed hour, served
+        // synchronously. Additive: returns null when the series flag is off or unloaded, so the
+        // existing per-hour cache/fetch path is unchanged.
+        if (!targetData || !(targetData.vectors?.length > 0)) {
+          const seriesFrame = getWindSeriesFrame(activeModel, bounds, timeOffsetHours);
+          if (seriesFrame) targetData = seriesFrame;
         }
       } catch (e) {
         // ignore
