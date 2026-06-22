@@ -210,13 +210,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           let shouldReject = false;
           if (isGridRegional) {
             shouldReject = isGlobalSupported
-              ? (!isContained || (isViewportZoomedOut ? (gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth)))
+              ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
               : (overlapWidth <= 0 || intSouth >= intNorth);
 
             const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;
             if ((conformedGridBase.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
               shouldReject = isGlobalSupported
-                ? (!isContained || (overlapWidth <= 0 || intSouth >= intNorth))
+                ? (isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth))
                 : (overlapWidth <= 0 || intSouth >= intNorth);
             }
           } else {
@@ -273,7 +273,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       }
       // v8.0: During transitions (fetch pending, abort recovery), preserve stale heatmap
       // instead of returning null which triggers WebGL clearBuffers and visual flash
-      if (isTransitioning && lastValidDataRef.current) {
+      const isSameTarget = lastValidKeyRef.current &&
+                           lastValidKeyRef.current.model === activeModel &&
+                           lastValidKeyRef.current.layer === activeMarineLayer;
+      if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
       return null;
@@ -379,7 +382,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     }
     
     if (!res.__renderable) {
-      if (isTransitioning && lastValidDataRef.current) {
+      const isSameTarget = lastValidKeyRef.current &&
+                           lastValidKeyRef.current.model === activeModel &&
+                           lastValidKeyRef.current.layer === activeMarineLayer;
+      if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
       return null;

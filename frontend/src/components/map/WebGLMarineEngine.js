@@ -282,8 +282,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // Unbind only the texture units we actually use (0 to 3) to prevent feedback loops (non-blocking)
     for (let u = 0; u < 4; u++) {
-      gl.activeTexture(gl.TEXTURE0 + u);
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      bindTexture(gl, null, u);
     }
 
     if (webglState.isWebGL2) {
@@ -553,9 +552,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
 
-      gl.activeTexture(gl.TEXTURE0); gl.bindTexture(gl.TEXTURE_2D, null);
-      gl.activeTexture(gl.TEXTURE1); gl.bindTexture(gl.TEXTURE_2D, null);
-      gl.activeTexture(gl.TEXTURE2); gl.bindTexture(gl.TEXTURE_2D, null);
+      bindTexture(gl, null, 0);
+      bindTexture(gl, null, 1);
+      bindTexture(gl, null, 2);
 
       unbindTexture(gl, this.particleStateB);
       gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);

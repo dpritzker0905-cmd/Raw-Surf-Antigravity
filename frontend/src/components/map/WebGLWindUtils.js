@@ -48,6 +48,14 @@ export function createTexture(gl, filter, data, width, height) {
 
 export function unbindTexture(gl, tex) {
   if (!tex) return;
+  if (gl.__boundTextures2D) {
+    for (let u = 0; u < 4; u++) {
+      if (gl.__boundTextures2D[u] === tex) {
+        bindTexture(gl, null, u);
+      }
+    }
+    return;
+  }
   var prevActive = gl.getParameter(gl.ACTIVE_TEXTURE);
   var maxUnits = Math.min(16, gl.getParameter(gl.MAX_COMBINED_TEXTURE_IMAGE_UNITS) || 8);
   for (var u = 0; u < maxUnits; u++) {
@@ -83,7 +91,19 @@ export function createFBO(gl, filter, width, height) {
 }
 
 export function bindTexture(gl, tex, unit) {
-  gl.activeTexture(gl.TEXTURE0 + unit);
+  const targetUnit = gl.TEXTURE0 + unit;
+  if (gl.__boundTextures2D) {
+    if (gl.__activeTextureUnit !== targetUnit) {
+      gl.activeTexture(targetUnit);
+      gl.__activeTextureUnit = targetUnit;
+    }
+    if (gl.__boundTextures2D[unit] !== tex) {
+      gl.bindTexture(gl.TEXTURE_2D, tex);
+      gl.__boundTextures2D[unit] = tex;
+    }
+    return;
+  }
+  gl.activeTexture(targetUnit);
   gl.bindTexture(gl.TEXTURE_2D, tex);
 }
 

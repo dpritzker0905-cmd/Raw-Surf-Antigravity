@@ -182,7 +182,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               if (g && (g.__isAcceptableRegional || gridWidth < 340.0) && canBypassRegionalRejection) {
                 // If it is NOT global supported, we don't require containment to avoid culling the regional grid when zoomed out.
                 shouldReject = isGlobalSupported
-                  ? (!isContained || (overlapWidth <= 0 || intSouth >= intNorth))
+                  ? (isViewportZoomedOut ? (!isContained || overlapWidth <= 0 || intSouth >= intNorth) : (overlapWidth <= 0 || intSouth >= intNorth))
                   : (overlapWidth <= 0 || intSouth >= intNorth);
               }
             } else {

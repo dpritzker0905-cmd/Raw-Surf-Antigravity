@@ -56,6 +56,9 @@ export function captureWebGLState(gl) {
   // Restore the originally active texture unit so we don't pollute the capture phase
   gl.activeTexture(state.prevActiveTex);
 
+  gl.__activeTextureUnit = state.prevActiveTex;
+  gl.__boundTextures2D = [...state.prevTextures2D];
+
   return state;
 }
 
@@ -89,6 +92,9 @@ export function restoreWebGLState(gl, state) {
 
   // Restore active texture unit
   gl.activeTexture(state.prevActiveTex);
+
+  delete gl.__activeTextureUnit;
+  delete gl.__boundTextures2D;
 
   // Restore blending state and equation
   if (state.prevBlend) {

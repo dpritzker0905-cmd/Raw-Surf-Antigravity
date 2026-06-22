@@ -214,8 +214,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
 
     // Unbind only the texture units we actually use (0 to 3) to prevent feedback loops (non-blocking)
     for (let u = 0; u < 4; u++) {
-      gl.activeTexture(gl.TEXTURE0 + u);
-      gl.bindTexture(gl.TEXTURE_2D, null);
+      bindTexture(gl, null, u);
     }
 
     // Unbind WebGL2 VAO
