@@ -4,6 +4,7 @@ from test_dynamic_viewport import client
 
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 
+@pytest.mark.asyncio
 async def test_gfs_wind_global_ingestion(mock_weather_setup):
     """Verify that ingest_gfs_wind_global runs successfully and saves a global coarse product."""
     store, dynamic_idx = mock_weather_setup

@@ -83,7 +83,7 @@ class ProductStore:
     _product_cache: Dict[str, Tuple[NormalizedProduct, float]] = {}
     _product_cache_lock = threading.Lock()
     _PRODUCT_CACHE_TTL = 300.0  # 5 minutes
-    _PRODUCT_CACHE_LIMIT = 12
+    _PRODUCT_CACHE_LIMIT = 8
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:

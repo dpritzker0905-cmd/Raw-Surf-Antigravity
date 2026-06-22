@@ -467,9 +467,8 @@ async def bg_process_remaining_hours_helper(
             # Yield to the event loop
             await asyncio.sleep(0.001)
 
-            # Periodically force garbage collection to reclaim memory from Pydantic models
-            if next_idx % 10 == 0:
-                gc.collect()
+            # Force garbage collection to reclaim memory from Pydantic models after every hour
+            gc.collect()
 
     except asyncio.CancelledError:
         logger.info(f"[Dynamic Viewport BG] Background task for {model} {domain} {layer} was cancelled.")
