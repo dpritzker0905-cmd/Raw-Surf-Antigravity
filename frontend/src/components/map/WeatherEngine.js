@@ -265,7 +265,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             return;
           }
 
-          const data = await fetchWindData(bounds, null, timeOffsetHours, true, forecastDays, activeModel);
+          // F3: revalidate via the cache-aware path (was forceFetch=true). The WeatherEngine
+          // caches already missed above, but fetchWindData's own WIND_CACHE may still hold this
+          // exact tile/hour — let it reuse that (TTL-gated) instead of forcing a duplicate network
+          // fetch, and join any in-flight request for the same target.
+          const data = await fetchWindData(bounds, null, timeOffsetHours, false, forecastDays, activeModel);
           if (data && data.vectors?.length > 0) {
             console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
             windRevision.current += 1;

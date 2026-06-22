@@ -12,6 +12,10 @@ import { recordTruthStage } from './weatherTruthTracker';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
+// In-flight wind fetches keyed by the canonical target (model + hour + snapped tile) so the
+// primary refresh, moveend, and scrub-settle callers share ONE network request instead of
+// issuing duplicate same-hour wind URLs (F3).
+var WIND_INFLIGHT = new Map();
 var windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
 
 // --- PERSISTENT CACHE ---
@@ -244,60 +248,75 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     }
   }
   
-  if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {
-    try {
-      console.log(`[Backend Weather Service] Redirecting ${resolvedModel} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
-      const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
-      
-      if (result && result.renderable) {
-        WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
-        if (hourOffset === 0) {
-          recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
+  // Join an in-flight fetch for this exact target rather than starting a duplicate (F3).
+  const existingInflight = WIND_INFLIGHT.get(cacheKey);
+  if (existingInflight) {
+    try { return await existingInflight; } catch (e) { /* fall through to a fresh attempt */ }
+  }
+
+  const fetchPromise = (async () => {
+    if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {
+      try {
+        console.log(`[Backend Weather Service] Redirecting ${resolvedModel} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
+        const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
+
+        if (result && result.renderable) {
+          WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
+          if (hourOffset === 0) {
+            recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
+          }
+          // Also populate windHourlyCache for timeline scrubs fallback
+          windHourlyCache = {
+            hash: tileId,
+            results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
+            points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
+            gridSize: result.cols,
+            cols: result.cols,
+            rows: result.rows,
+            bounds: result.bounds,
+            timestamp: Date.now(),
+            model: resolvedModel,
+            isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
+            vectors: result.vectors
+          };
+          lastKnownGoodWind = result;
         }
-        // Also populate windHourlyCache for timeline scrubs fallback
-        windHourlyCache = {
-          hash: tileId,
-          results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
-          points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
-          gridSize: result.cols,
-          cols: result.cols,
-          rows: result.rows,
-          bounds: result.bounds,
-          timestamp: Date.now(),
-          model: resolvedModel,
-          isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
-          vectors: result.vectors
-        };
-        lastKnownGoodWind = result;
-      }
-      return result;
-    } catch (err) {
-      console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}.`);
-      if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
-        window.__BACKEND_WIND_SERVICE_DIAG__.fallbackPath = 'none';
-        window.__BACKEND_WIND_SERVICE_DIAG__.fallbackReason = err.message;
+        return result;
+      } catch (err) {
+        console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}.`);
+        if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
+          window.__BACKEND_WIND_SERVICE_DIAG__.fallbackPath = 'none';
+          window.__BACKEND_WIND_SERVICE_DIAG__.fallbackReason = err.message;
+        }
       }
     }
-  }
 
-  console.warn(`[Fallback] Backend wind redirects failed for model=${resolvedModel}, hour=${hourOffset}. Returning conformed safe zero grid.`);
-  const targetBounds = viewportBounds || snappedBounds;
-  if (isContainedInWindCache(targetBounds, resolvedModel)) {
-    const cachedData = extractWindAtOffset(windHourlyCache, hourOffset);
-    if (cachedData) {
-      return cachedData;
+    console.warn(`[Fallback] Backend wind redirects failed for model=${resolvedModel}, hour=${hourOffset}. Returning conformed safe zero grid.`);
+    const targetBounds = viewportBounds || snappedBounds;
+    if (isContainedInWindCache(targetBounds, resolvedModel)) {
+      const cachedData = extractWindAtOffset(windHourlyCache, hourOffset);
+      if (cachedData) {
+        return cachedData;
+      }
     }
-  }
 
-  return {
-    vectors: [{ lat: (targetBounds.south + targetBounds.north) / 2, lng: (targetBounds.west + targetBounds.east) / 2, speed: 0, direction: 0, u: 0, v: 0 }],
-    bounds: targetBounds,
-    cols: 1,
-    rows: 1,
-    stale: true,
-    source: resolvedModel,
-    hourOffset,
-    renderable: false,
-    nonzeroCount: 0
-  };
+    return {
+      vectors: [{ lat: (targetBounds.south + targetBounds.north) / 2, lng: (targetBounds.west + targetBounds.east) / 2, speed: 0, direction: 0, u: 0, v: 0 }],
+      bounds: targetBounds,
+      cols: 1,
+      rows: 1,
+      stale: true,
+      source: resolvedModel,
+      hourOffset,
+      renderable: false,
+      nonzeroCount: 0
+    };
+  })();
+
+  WIND_INFLIGHT.set(cacheKey, fetchPromise);
+  try {
+    return await fetchPromise;
+  } finally {
+    WIND_INFLIGHT.delete(cacheKey);
+  }
 }
