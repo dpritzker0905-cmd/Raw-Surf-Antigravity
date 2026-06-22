@@ -21,6 +21,7 @@ from services.weather_pipeline.route_helpers import (
     compute_truth_tag, get_snapped_bbox
 )
 from services.weather_pipeline.product_selection import select_best_candidate
+from services.weather_pipeline.viewport_helper import _is_oversized_grid
 
 logger = logging.getLogger(__name__)
 
@@ -176,21 +177,28 @@ async def resolve_grid(
     # Step 3: Durable manifest full coverage
     if not product:
         if use_manifest_product and matching_manifest_item:
-            product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename)
-            if product and product.grid:
-                product.product_id = matching_manifest_item.filename
-                product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
-                product.partial_coverage = False
-                product.requested_bbox_original = bbox
-                product.query_bbox = bbox
-                product.requested_bbox = bbox
-                product.coverage_mode = getattr(matching_manifest_item, "coverage_mode", None)
-                if not product.coverage_mode:
-                    product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
-                if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
-                    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
-                if product.grid and product.grid.bounds:
-                    product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+            candidate_product = await asyncio.to_thread(store.load_product, matching_manifest_item.filename)
+            if candidate_product and not _is_oversized_grid(candidate_product):
+                product = candidate_product
+                if product.grid:
+                    product.product_id = matching_manifest_item.filename
+                    product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
+                    product.partial_coverage = False
+                    product.requested_bbox_original = bbox
+                    product.query_bbox = bbox
+                    product.requested_bbox = bbox
+                    product.coverage_mode = getattr(matching_manifest_item, "coverage_mode", None)
+                    if not product.coverage_mode:
+                        product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
+                    if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
+                        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+                    if product.grid and product.grid.bounds:
+                        product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+            elif candidate_product:
+                logger.warning(
+                    f"[Grid Resolver] Skipping oversized stale manifest product {matching_manifest_item.filename} "
+                    f"({len(candidate_product.grid.vectors)} vectors) in Step 3."
+                )
 
     # Step 3.5: Fast manifest preview (SWR)
     from services.weather_pipeline.store import is_test_environment
@@ -199,46 +207,53 @@ async def resolve_grid(
         file_exists = await asyncio.to_thread(file_path.exists)
         if file_exists:
             logger.info(f"[Grid Route] Serving conformed manifest item {manifest_preview_item.filename} as instant SWR preview")
-            product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename)
-            if product and product.grid:
-                product.product_id = manifest_preview_item.filename
-                product.coverage_mode = getattr(manifest_preview_item, "coverage_mode", None)
-                if not product.coverage_mode:
-                    product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
-                if regional_span_lng >= 350.0:
-                    product.coverage_scope = "global_coarse"
-                    product.partial_coverage = False
-                else:
-                    if use_manifest_product:
-                        product.coverage_scope = "regional"
+            candidate_product = await asyncio.to_thread(store.load_product, manifest_preview_item.filename)
+            if candidate_product and not _is_oversized_grid(candidate_product):
+                product = candidate_product
+                if product.grid:
+                    product.product_id = manifest_preview_item.filename
+                    product.coverage_mode = getattr(manifest_preview_item, "coverage_mode", None)
+                    if not product.coverage_mode:
+                        product.coverage_mode = "global_tile" if regional_span_lng >= 350.0 else "regional_tile"
+                    if regional_span_lng >= 350.0:
+                        product.coverage_scope = "global_coarse"
                         product.partial_coverage = False
                     else:
-                        product.coverage_scope = "regional_partial"
-                        product.partial_coverage = True
-                product.requested_bbox_original = bbox
-                product.query_bbox = bbox
-                product.requested_bbox = bbox
-                product.stale = True
-                product.staleReason = "swr_revalidation_pending"
-                if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
-                    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
-                if product.grid and product.grid.bounds:
-                    product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
-                if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
-                    reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
-                    if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
-                        viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
-                        if background_tasks:
-                            background_tasks.add_task(
-                                viewport_service._revalidate_fetch,
-                                model, domain, layer, valid_time, target_dt, bbox, reval_key
-                            )
+                        if use_manifest_product:
+                            product.coverage_scope = "regional"
+                            product.partial_coverage = False
                         else:
-                            asyncio.create_task(
-                                viewport_service._revalidate_fetch(
+                            product.coverage_scope = "regional_partial"
+                            product.partial_coverage = True
+                    product.requested_bbox_original = bbox
+                    product.query_bbox = bbox
+                    product.requested_bbox = bbox
+                    product.stale = True
+                    product.staleReason = "swr_revalidation_pending"
+                    if bbox and product.coverage_mode != "global_tile" and domain.lower() != "wind":
+                        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+                    if product.grid and product.grid.bounds:
+                        product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                    if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
+                        reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+                        if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
+                            viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
+                            if background_tasks:
+                                background_tasks.add_task(
+                                    viewport_service._revalidate_fetch,
                                     model, domain, layer, valid_time, target_dt, bbox, reval_key
                                 )
-                            )
+                            else:
+                                asyncio.create_task(
+                                    viewport_service._revalidate_fetch(
+                                        model, domain, layer, valid_time, target_dt, bbox, reval_key
+                                    )
+                                )
+            elif candidate_product:
+                logger.warning(
+                    f"[Grid Resolver] Skipping oversized stale preview product {manifest_preview_item.filename} "
+                    f"({len(candidate_product.grid.vectors)} vectors) in Step 3.5."
+                )
 
     # Step 3.7: Instant coarse preview for marine (SWR). On a cold viewport (Step 1&2 cache
     # miss) the response would otherwise BLOCK on the slow upstream fetch — notably EURO's
@@ -395,19 +410,26 @@ async def resolve_grid(
 
                 if overlap_manifest_item:
                     logger.info(f"[Grid Route] Fallback: Serving overlapping regional manifest product '{overlap_manifest_item.filename}' as regional_partial")
-                    product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename)
-                    if not product or not product.grid:
-                        raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
-                    product.product_id = overlap_manifest_item.filename
-                    product.coverage_scope = "regional_partial"
-                    product.partial_coverage = True
-                    product.requested_bbox_original = bbox
-                    product.query_bbox = bbox
-                    product.requested_bbox = bbox
-                    if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
-                        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
-                    if product.grid and product.grid.bounds:
-                        product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                    candidate_product = await asyncio.to_thread(store.load_product, overlap_manifest_item.filename)
+                    if candidate_product and not _is_oversized_grid(candidate_product):
+                        product = candidate_product
+                        if not product or not product.grid:
+                            raise HTTPException(status_code=500, detail="Failed to load prepared grid from storage.")
+                        product.product_id = overlap_manifest_item.filename
+                        product.coverage_scope = "regional_partial"
+                        product.partial_coverage = True
+                        product.requested_bbox_original = bbox
+                        product.query_bbox = bbox
+                        product.requested_bbox = bbox
+                        if bbox and getattr(overlap_manifest_item, "coverage_mode", None) != "global_tile" and domain.lower() != "wind":
+                            product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+                        if product.grid and product.grid.bounds:
+                            product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                    elif candidate_product:
+                        logger.warning(
+                            f"[Grid Resolver] Skipping oversized stale overlap product {overlap_manifest_item.filename} "
+                            f"({len(candidate_product.grid.vectors)} vectors) in Step 6."
+                        )
                 else:
                     # Step 7: Honest no_coverage/temporary_unavailable (raise the error or return empty grid if wide request)
                     is_wide_req = False
