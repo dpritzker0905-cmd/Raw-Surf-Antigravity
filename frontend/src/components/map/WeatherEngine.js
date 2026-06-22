@@ -21,7 +21,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   const [windData, setWindData] = useState(null);
   const windRevision = useRef(0);
   const timeOffsetRef = useRef(timeOffsetHours);
+  const activeModelRef = useRef(activeModel);
   const activeLayersRef = useRef(activeLayers);
+  // Keep latest model in a ref so an async wind fetch can verify request-intent parity (model +
+  // hour) before committing — a scrub/model-switch during the fetch must not commit stale data.
+  activeModelRef.current = activeModel;
 
   const commitWindData = (data) => {
     if (data && typeof window !== 'undefined' && data.hourOffset === 0) {
@@ -310,6 +314,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           // exact tile/hour — let it reuse that (TTL-gated) instead of forcing a duplicate network
           // fetch, and join any in-flight request for the same target.
           const data = await fetchWindData(bounds, null, timeOffsetHours, false, forecastDays, activeModel);
+          // Request-intent parity: if the user scrubbed or switched model during the async fetch,
+          // this result is stale — discard it (the newer effect run owns the display) (F3).
+          if (timeOffsetRef.current !== timeOffsetHours || activeModelRef.current !== activeModel) {
+            console.log(`[SCRUB] [WeatherEngine] Discarding stale wind fetch (req +${timeOffsetHours}h/${activeModel}; now +${timeOffsetRef.current}h/${activeModelRef.current}).`);
+            return;
+          }
           if (data && data.vectors?.length > 0) {
             console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
             windRevision.current += 1;
@@ -320,9 +330,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             windRevision.current += 1;
           }
         } catch (err) {
-          console.error('[WeatherEngine] Wind scrub fetch failed:', err.message);
-          commitWindData(null);
-          windRevision.current += 1;
+          // F3: preserve the previous same-model frame on a fetch error — do NOT clear the visual
+          // merely because a (far-hour) fetch failed/aborted. A transient error shouldn't blank wind.
+          console.error('[WeatherEngine] Wind scrub fetch failed (preserving previous frame):', err.message);
         }
       } else if (targetData && targetData.vectors?.length > 0) {
         const _now = Date.now();
