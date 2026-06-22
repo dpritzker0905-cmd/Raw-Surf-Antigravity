@@ -15,12 +15,15 @@ import {
 } from './backendWeatherServiceClient';
 
 import { updateDeprecationDiag } from './forecastDeprecationDiag';
-
-// Display/no-coverage boundary only; frontend estimator math removed. EURO marine serves
-// backend estimated products to 336h (240 native + 96 estimated), so the serve max is 336h.
-const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
-const DISPLAY_EURO_COMPONENT_MAX_HOURS = 336;
-const DISPLAY_ICON_MAX_HOURS = 336;
+// F5: single source of truth for display horizons. Import from useMarineDataFetcherHelpers (the
+// one definition) instead of redefining locally — this duplication is what let EURO drift to a
+// stale 240h. These are display/no-coverage serve maxima; the authoritative scrubber max is the
+// backend capabilities max_forecast_hours, consumed by LayerAccessResolver.
+import {
+  DISPLAY_EURO_WAVES_MAX_HOURS,
+  DISPLAY_EURO_COMPONENT_MAX_HOURS,
+  DISPLAY_ICON_MAX_HOURS,
+} from './useMarineDataFetcherHelpers';
 
 export { sampleFromMarineGrid };
 
