@@ -535,4 +535,11 @@ async def resolve_grid(
                 product.grid.diagnostics = {}
             product.grid.diagnostics["provider"] = "copernicus"
 
+    if product and _is_oversized_grid(product):
+        logger.warning(
+            f"[Grid Resolver] Safety check failed: resolved product {product.product_id} is oversized "
+            f"({len(product.grid.vectors)} vectors). Returning no-coverage response."
+        )
+        return make_no_coverage_grid_response(model, layer, valid_time)
+
     return product

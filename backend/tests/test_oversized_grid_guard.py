@@ -95,3 +95,59 @@ def test_find_any_cached_product_skips_oversized():
     # An oversized stale product is treated as a miss (None), so resolution falls through.
     big = _FakeProduct(952501, product_id="stale_global.json")
     assert _find(big) is None
+
+
+def test_resolve_grid_safety_guard_rejects_oversized(monkeypatch):
+    from services.weather_pipeline.grid_resolver import resolve_grid
+    from fastapi.responses import JSONResponse
+
+    class _LightweightFakeVector:
+        speed = 0.0
+
+    class _LightweightFakeGrid:
+        def __init__(self, n):
+            self.vectors = [_LightweightFakeVector()] * n
+            self.diagnostics = {}
+            self.cols = 1
+            self.rows = 1
+            self.bounds = None
+
+    class _LightweightFakeProduct:
+        def __init__(self, n, product_id="x.json"):
+            self.grid = _LightweightFakeGrid(n)
+            self.product_id = product_id
+            self.model = "ICON"
+            self.domain = "marine"
+            self.layer = "waves"
+            self.run_time = datetime.now(timezone.utc)
+            self.valid_time = datetime.now(timezone.utc)
+            self.provider = "open-meteo"
+            self.upstream_model = None
+            self.is_dynamic_viewport_product = True
+            self.coverage_scope = "global_coarse"
+            self.requested_bbox = None
+            self.served_bbox = None
+            self.partial_coverage = False
+
+    # Mock viewport service to return an oversized product from cache
+    class _FakeViewportService:
+        def is_viewport_enabled(self, *a, **k):
+            return True
+        async def get_cached_dynamic_product(self, **k):
+            return _LightweightFakeProduct(952501, product_id="oversized_dynamic.json")
+
+    # resolve_grid should catch the oversized product in the safety check
+    # and return a 404 JSONResponse (via make_no_coverage_grid_response)
+    response = asyncio.run(resolve_grid(
+        store=_FakeStore(None),
+        viewport_service=_FakeViewportService(),
+        model="ICON",
+        domain="marine",
+        layer="waves",
+        valid_time="2026-06-21T12:00:00Z",
+        bbox="-82,26,-78,30"
+    ))
+
+    assert response is not None
+    assert isinstance(response, JSONResponse)
+    assert response.status_code == 404

@@ -17,6 +17,7 @@ from services.weather_pipeline.route_helpers import (
     choose_adaptive_resolution, build_dynamic_cache_key, filter_grid_to_bbox,
     is_bbox_covered_by, get_snapped_bbox
 )
+from services.weather_pipeline.viewport_helper import _is_oversized_grid
 
 logger = logging.getLogger(__name__)
 
@@ -251,6 +252,13 @@ class ViewportService:
                     await hour_fut
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
 
+                if loaded_product and _is_oversized_grid(loaded_product):
+                    logger.warning(
+                        f"[Dynamic Viewport] Waiter loaded cached product {my_viewport_filename} "
+                        f"but it was oversized ({len(loaded_product.grid.vectors)} vectors). Treating as cache miss to self-heal."
+                    )
+                    loaded_product = None
+
                 if loaded_product:
                     loaded_product.cache_hit = "cache_hit"  # Shared from fetcher
                     loaded_product.requested_bbox_original = bbox_str
@@ -294,6 +302,13 @@ class ViewportService:
                                 context.hour_futures[target_dt] = hour_fut
                         await hour_fut
                         loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
+
+                    if loaded_product and _is_oversized_grid(loaded_product):
+                        logger.warning(
+                            f"[Dynamic Viewport] Waiter self-heal loaded cached product {my_viewport_filename} "
+                            f"but it was oversized ({len(loaded_product.grid.vectors)} vectors). Treating as cache miss."
+                        )
+                        loaded_product = None
 
                     if loaded_product:
                         loaded_product.cache_hit = "cache_hit"
@@ -625,6 +640,12 @@ class ViewportService:
             self.ACTIVE_BG_TASKS[bg_key] = task
 
             gc.collect()
+            if target_normalized_product and _is_oversized_grid(target_normalized_product):
+                raise ValueError(
+                    f"Freshly normalized product {target_normalized_product.product_id} is oversized: "
+                    f"{len(target_normalized_product.grid.vectors)} vectors"
+                )
+
             if target_normalized_product.coverage_scope == "global_coarse" or domain.lower() == "wind":
                 return target_normalized_product
             cropped_product = filter_grid_to_bbox(target_normalized_product, get_snapped_bbox(bbox_str, model))
