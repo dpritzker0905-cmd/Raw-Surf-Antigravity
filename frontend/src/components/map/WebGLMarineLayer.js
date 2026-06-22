@@ -570,7 +570,13 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
 
     if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
-    doUpload();
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
+      // During active scrubbing, debounce the GPU texture upload so frames the user scrubs
+      // past are skipped instead of each triggering encodeMarineTexture + texImage2D.
+      scrubUploadTimeoutRef.current = setTimeout(doUpload, 60);
+    } else {
+      doUpload();
+    }
 
     return () => {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);

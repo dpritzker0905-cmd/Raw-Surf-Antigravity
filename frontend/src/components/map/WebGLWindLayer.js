@@ -297,44 +297,63 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
       return;
     }
 
+    if (engine._scrubTimeout) {
+      clearTimeout(engine._scrubTimeout);
+      engine._scrubTimeout = null;
+    }
+
     try {
-      console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
-      
-      const oldBounds = engine._windData?.bounds;
-      const newBounds = data.bounds;
-      let boundsChanged = false;
-      if (!oldBounds && newBounds) {
-        boundsChanged = true;
-      } else if (oldBounds && newBounds) {
-        const getLongitudeSpan = (b) => {
-          const crosses = b.west > b.east;
-          return crosses ? (b.east + 360.0) - b.west : b.east - b.west;
-        };
-        const oldSpan = getLongitudeSpan(oldBounds);
-        const newSpan = getLongitudeSpan(newBounds);
-        const dw = Math.abs(newSpan - oldSpan);
-        const dh = Math.abs((newBounds.north - newBounds.south) - (oldBounds.north - oldBounds.south));
-        let dx = Math.abs(newBounds.west - oldBounds.west);
-        if (dx > 180.0) dx = 360.0 - dx;
-        const dy = Math.abs(newBounds.south - oldBounds.south);
-        if (dw > 2.0 || dh > 2.0 || dx > 2.0 || dy > 2.0) {
+      const applyWindUpdate = () => {
+        console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
+
+        const oldBounds = engine._windData?.bounds;
+        const newBounds = data.bounds;
+        let boundsChanged = false;
+        if (!oldBounds && newBounds) {
           boundsChanged = true;
+        } else if (oldBounds && newBounds) {
+          const getLongitudeSpan = (b) => {
+            const crosses = b.west > b.east;
+            return crosses ? (b.east + 360.0) - b.west : b.east - b.west;
+          };
+          const oldSpan = getLongitudeSpan(oldBounds);
+          const newSpan = getLongitudeSpan(newBounds);
+          const dw = Math.abs(newSpan - oldSpan);
+          const dh = Math.abs((newBounds.north - newBounds.south) - (oldBounds.north - oldBounds.south));
+          let dx = Math.abs(newBounds.west - oldBounds.west);
+          if (dx > 180.0) dx = 360.0 - dx;
+          const dy = Math.abs(newBounds.south - oldBounds.south);
+          if (dw > 2.0 || dh > 2.0 || dx > 2.0 || dy > 2.0) {
+            boundsChanged = true;
+          }
         }
-      }
 
-      engine.setWindData(gl, data);
+        engine.setWindData(gl, data);
 
-      if (boundsChanged) {
-        if (typeof engine.reinitParticles === 'function') {
+        if (boundsChanged && typeof engine.reinitParticles === 'function') {
           engine.reinitParticles(gl);
         }
-      }
 
-      pendingDataRef.current = null;
-      mapInstance.triggerRepaint();
+        pendingDataRef.current = null;
+        mapInstance.triggerRepaint();
+      };
+
+      if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
+        // Debounce the GPU upload + particle reinit so frames scrubbed past are skipped.
+        engine._scrubTimeout = setTimeout(applyWindUpdate, 60);
+      } else {
+        applyWindUpdate();
+      }
     } catch (e) {
       console.warn('[WebGLWind] setWindData error:', e.message);
     }
+
+    return () => {
+      if (engine._scrubTimeout) {
+        clearTimeout(engine._scrubTimeout);
+        engine._scrubTimeout = null;
+      }
+    };
   }, [data, mapInstance]);
 
   // Trigger repaints when activated

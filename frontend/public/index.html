@@ -175,6 +175,12 @@
                 session_recording: {
                     recordCrossOriginIframes: true,
                     capturePerformance: false,
+                    // Prevent rrweb full-snapshots from doing synchronous Canvas2D getImageData /
+                    // WebGL readbacks of the map canvases, which stall the main thread ~90ms per
+                    // snapshot and tank FPS during timeline scrubbing.
+                    captureCanvas: {
+                        recordCanvas: false,
+                    },
                 },
             });
         </script>

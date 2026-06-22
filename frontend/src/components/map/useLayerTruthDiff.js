@@ -185,6 +185,9 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
 
     // Attach listeners
     const onRender = () => {
+      // Bypass the expensive getStyle() serialization during active scrubbing — it runs on
+      // every MapLibre render and causes periodic micro-stutters while the timeline is dragged.
+      if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
       const now = performance.now();
       if (now - lastRenderCheck.current > 250) { // Throttle to 4fps for debug checks to save CPU
         lastRenderCheck.current = now;
