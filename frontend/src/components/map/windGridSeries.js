@@ -31,11 +31,11 @@ const LAST_PAGE = Math.floor(WIND_SERIES_MAX_HOURS / PAGE_SPAN_HOURS); // 2
 
 export function isWindSeriesEnabled() {
   if (typeof window === 'undefined') return false;
-  if (window.__WIND_SERIES__ === true) return true; // explicit opt-in (default OFF)
+  if (window.__WIND_SERIES__ === false) return false; // explicit opt-out
   try {
-    if (window.localStorage && window.localStorage.getItem('wind_series') === 'true') return true;
+    if (window.localStorage && window.localStorage.getItem('wind_series') === 'false') return false;
   } catch (e) {}
-  return false;
+  return true; // default ON
 }
 
 export function windSeriesPageForHour(hourOffset) {

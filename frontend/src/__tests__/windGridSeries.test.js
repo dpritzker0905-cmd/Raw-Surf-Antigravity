@@ -32,7 +32,15 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
   });
   afterEach(() => { delete window.__WIND_SERIES__; });
 
-  it('is OFF by default — ensure/get are no-ops, no fetch', async () => {
+  it('is ON by default — ensure loads the series', async () => {
+    expect(isWindSeriesEnabled()).toBe(true);
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+    await ensureWindSeries('GFS', bounds, 0);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('is OFF when window.__WIND_SERIES__ is false — ensure/get are no-ops, no fetch', async () => {
+    window.__WIND_SERIES__ = false;
     expect(isWindSeriesEnabled()).toBe(false);
     await ensureWindSeries('GFS', bounds, 0);
     expect(global.fetch).not.toHaveBeenCalled();
