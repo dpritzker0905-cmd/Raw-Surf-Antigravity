@@ -170,6 +170,18 @@ export async function ensureWindSeries(model, bounds, hourOffset = 0, signal) {
 }
 
 /**
+ * Eagerly load EVERY page for the active model/viewport (no idle deferral). Called on scrub
+ * START so any hour the user jumps to during a fast drag already has a cached frame (idle
+ * prefetch never runs during active scrubbing). Fire-and-forget; deduped + TTL'd.
+ */
+export function prewarmWindSeries(model, bounds, signal) {
+  if (!isWindSeriesEnabled() || !bounds) return;
+  for (let page = 0; page <= LAST_PAGE; page++) {
+    loadSeriesPage(model, bounds, page, signal);
+  }
+}
+
+/**
  * Nearest cached wind frame (±1.5h) for the requested hour, or null. Searches the hour's page
  * plus neighbours so boundary frames are found. Synchronous — never blocks the slider tick.
  */

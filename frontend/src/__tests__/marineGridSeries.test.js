@@ -7,6 +7,7 @@ import {
   isMarineSeriesEnabled,
   ensureMarineSeries,
   getMarineSeriesFrame,
+  prewarmMarineSeries,
   _resetMarineSeriesForTest,
 } from '../components/map/marineGridSeries';
 
@@ -95,6 +96,19 @@ describe('marineGridSeries — flag-gated time-series client', () => {
 
     // Hour 0 lives in a different (unloaded) page -> miss, falls back to per-hour path.
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 0)).toBeNull();
+  });
+
+  it('prewarmMarineSeries eagerly loads ALL pages (not idle-deferred) for instant far-hour scrub', async () => {
+    window.__MARINE_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+
+    prewarmMarineSeries('GFS', 'waves', bounds);
+    // 3 pages (0..141 / 144..285 / 288..336) each fetched eagerly + synchronously.
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    const urls = global.fetch.mock.calls.map((c) => c[0]);
+    expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);
+    expect(urls.some((u) => u.includes('hours=144,'))).toBe(true);
+    expect(urls.some((u) => u.includes('hours=288,'))).toBe(true);
   });
 
   it('dedupes concurrent loads for the same key', async () => {

@@ -3,7 +3,7 @@ import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtO
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
-import { ensureWindSeries, getWindSeriesFrame, windSeriesPageForHour } from './windGridSeries';
+import { ensureWindSeries, getWindSeriesFrame, windSeriesPageForHour, prewarmWindSeries } from './windGridSeries';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -206,11 +206,26 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     const t = setTimeout(kick, 600);
     const onIdle = () => kick();
     mapInstance.on('moveend', onIdle);
+    // On scrub start, eagerly load EVERY page so any hour the user jumps to during a fast drag
+    // is already cached (the during-drag path reads getWindSeriesFrame synchronously).
+    const onScrubStart = () => {
+      if (cancelled || !mapInstance) return;
+      try {
+        const b = mapInstance.getBounds();
+        prewarmWindSeries(
+          activeModel,
+          { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
+          controller.signal
+        );
+      } catch (e) { /* map not ready — ignore */ }
+    };
+    if (typeof window !== 'undefined') window.addEventListener('timeline_scrub_start', onScrubStart);
     return () => {
       cancelled = true;
       clearTimeout(t);
       controller.abort();
       try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
+      if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
     };
     // page in deps: reload when scrubbing crosses a page boundary.
   }, [mapInstance, activeModel, isWindActive, windSeriesPageForHour(timeOffsetHours)]);

@@ -7,7 +7,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
-import { ensureMarineSeries, getMarineSeriesFrame, marineSeriesPageForHour } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame, marineSeriesPageForHour, prewarmMarineSeries } from './marineGridSeries';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
@@ -635,11 +635,27 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const t = setTimeout(kick, 600);
     const onIdle = () => kick();
     mapInstance.on('moveend', onIdle);
+    // On scrub start, eagerly load EVERY page so any hour the user jumps to during a fast drag
+    // is already cached (the during-scrub re-index reads getMarineSeriesFrame synchronously).
+    const onScrubStart = () => {
+      if (cancelled || !mapInstance) return;
+      try {
+        const b = mapInstance.getBounds();
+        prewarmMarineSeries(
+          activeModelRef.current,
+          activeMarineLayerRef.current,
+          { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+          controller.signal
+        );
+      } catch (e) { /* map not ready — ignore */ }
+    };
+    if (typeof window !== 'undefined') window.addEventListener('timeline_scrub_start', onScrubStart);
     return () => {
       cancelled = true;
       clearTimeout(t);
       controller.abort();
       try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
+      if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
     };
     // seriesPage in deps: re-run when scrubbing crosses a page boundary so the new page loads.
   }, [mapInstance, activeModel, activeMarineLayer, marineSeriesPageForHour(timeOffsetHours)]);

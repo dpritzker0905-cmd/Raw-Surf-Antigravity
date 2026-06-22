@@ -277,6 +277,10 @@ export var MapWeatherControls = ({
     isDraggingRef.current = true;
     if (typeof window !== 'undefined') {
       window.isScrubbingTimeline = true;
+      // Signal scrub start so the series clients can eagerly prewarm ALL pages — any hour the
+      // user jumps to during a fast drag then already has a cached frame (idle prefetch can't
+      // run while scrubbing), so the heatmap tracks the slider instead of holding the old frame.
+      window.dispatchEvent(new CustomEvent('timeline_scrub_start'));
     }
   };
 

@@ -200,6 +200,19 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
 }
 
 /**
+ * Eagerly load EVERY page for the active model/layer/viewport (no idle deferral). Called on
+ * scrub START so any hour the user jumps to during a fast drag already has a cached frame —
+ * idle prefetch (requestIdleCallback) never runs during active scrubbing, which is why far
+ * hours otherwise held the previous frame until settle. Fire-and-forget; deduped + TTL'd.
+ */
+export function prewarmMarineSeries(model, layer, bounds, signal) {
+  if (!isMarineSeriesEnabled() || !bounds) return;
+  for (let page = 0; page <= LAST_PAGE; page++) {
+    loadSeriesPage(model, layer, bounds, page, signal);
+  }
+}
+
+/**
  * Return a ready-to-commit marineData for the requested hour from the cached series, or
  * null if no series / no nearby frame. Searches the page containing the hour plus its
  * neighbours (to cover frames near a page boundary) and snaps to the nearest frame within

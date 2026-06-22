@@ -7,6 +7,7 @@ import {
   isWindSeriesEnabled,
   ensureWindSeries,
   getWindSeriesFrame,
+  prewarmWindSeries,
   _resetWindSeriesForTest,
 } from '../components/map/windGridSeries';
 
@@ -87,6 +88,18 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     expect(url).not.toContain('hours=0,');
     expect(getWindSeriesFrame('GFS', bounds, 300).hourOffset).toBe(300);
     expect(getWindSeriesFrame('GFS', bounds, 0)).toBeNull();
+  });
+
+  it('prewarmWindSeries eagerly loads ALL pages for instant far-hour scrub', async () => {
+    window.__WIND_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+
+    prewarmWindSeries('GFS', bounds);
+    expect(global.fetch).toHaveBeenCalledTimes(3);
+    const urls = global.fetch.mock.calls.map((c) => c[0]);
+    expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);
+    expect(urls.some((u) => u.includes('hours=144,'))).toBe(true);
+    expect(urls.some((u) => u.includes('hours=288,'))).toBe(true);
   });
 
   it('dedupes concurrent loads for the same key', async () => {
