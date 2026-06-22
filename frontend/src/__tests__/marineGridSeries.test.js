@@ -111,6 +111,14 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(urls.some((u) => u.includes('hours=288,'))).toBe(true);
   });
 
+  it('prewarmMarineSeries skips EURO (slow per-hour Copernicus) to protect the backend', async () => {
+    window.__MARINE_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+
+    prewarmMarineSeries('EURO', 'waves', bounds);
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
   it('dedupes concurrent loads for the same key', async () => {
     window.__MARINE_SERIES__ = true;
     let resolve;

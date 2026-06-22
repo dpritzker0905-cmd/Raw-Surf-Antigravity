@@ -72,7 +72,11 @@ export function useMarineOrchestratorScrubCache({
 
     if (isBackendActive) {
       let cachedBackendData = getModelSafeMarine(curModel, timeOffsetHours, curLayer, vpBounds);
-      if (!cachedBackendData) {
+      // The series frame is the EXACT scrubbed hour (±1.5h snap). getModelSafeMarine can return a
+      // NEAREST/stale-hour fallback (flagged __staleHour) which the commit below intentionally
+      // SKIPS — leaving the heatmap stuck one step behind the slider during scrub. Prefer the
+      // exact-hour series frame over that stale fallback so the heatmap snaps to each hour.
+      if (!cachedBackendData || cachedBackendData.__staleHour) {
         const seriesFrame = getMarineSeriesFrame(curModel, curLayer, vpBounds, timeOffsetHours);
         if (seriesFrame) cachedBackendData = seriesFrame;
       }

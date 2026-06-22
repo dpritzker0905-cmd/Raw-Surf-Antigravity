@@ -207,6 +207,11 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
  */
 export function prewarmMarineSeries(model, layer, bounds, signal) {
   if (!isMarineSeriesEnabled() || !bounds) return;
+  // EURO marine grid_series is backed by per-hour Copernicus fetches (~10s/hr, frequently time
+  // out, and OOM the 512MB backend). Eager-loading all its pages is what overloaded Render under
+  // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
+  // ICON just re-slice a cheap cached coarse product, so prewarming all pages is safe + fast.
+  if ((model || 'GFS').toUpperCase() === 'EURO') return;
   for (let page = 0; page <= LAST_PAGE; page++) {
     loadSeriesPage(model, layer, bounds, page, signal);
   }
