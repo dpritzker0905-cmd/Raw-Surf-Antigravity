@@ -279,6 +279,10 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !mapInstance) return;
 
+    if (!active) {
+      return;
+    }
+
     if (!data?.vectors?.length || data.renderable === false) {
       if (gl) {
         if (engine._windData?.texture) {
@@ -354,7 +358,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
         engine._scrubTimeout = null;
       }
     };
-  }, [data, mapInstance]);
+  }, [data, mapInstance, active]);
 
   // Trigger repaints when activated
   useEffect(() => {

@@ -430,6 +430,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !gl) return;
 
+    if (!active) {
+      return;
+    }
+
     const currentData = dataRef.current;
     const isRenderable = currentData && currentData.vectors?.length > 0 && currentData.__renderable !== false;
 
@@ -581,7 +585,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     return () => {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
     };
-  }, [revision, activeModel, timeOffsetHours, mapInstance, landGeoJSON]);
+  }, [revision, activeModel, timeOffsetHours, mapInstance, landGeoJSON, active]);
 
   useEffect(() => {
     if (!mapInstance || !active) return;
