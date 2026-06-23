@@ -583,6 +583,30 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           return;
         }
 
+        // Prefer the time-series frame before firing a per-hour fetch. When zoomed out the fetch
+        // resolves to the full-global bbox the backend can't reliably serve under a scrub storm
+        // (CORS/ERR_FAILED), so renderedHour never settles and this net re-fires forever. The
+        // series (clipped-viewport bbox) succeeds — committing its frame settles renderedHour and
+        // breaks the storm. Falls through to the fetch only when the series has no frame yet.
+        try {
+          const ssModel = activeModelRef.current || 'GFS';
+          const ssLayer = activeMarineLayerRef.current || 'waves';
+          let ssBounds = null;
+          try { const sb = mapInstance.getBounds(); ssBounds = { west: sb.getWest(), south: sb.getSouth(), east: sb.getEast(), north: sb.getNorth() }; } catch (e) {}
+          const ssFrame = getMarineSeriesFrame(ssModel, ssLayer, ssBounds, currentHour);
+          if (ssFrame && ssFrame.grid?.vectors?.length > 0) {
+            const ssSig = _marineDataSignature(ssFrame, ssLayer);
+            if (ssSig && ssSig !== lastCommittedSigRef.current) {
+              lastCommittedSigRef.current = ssSig;
+              marineRevision.current += 1;
+              ssFrame.__commitRevision = marineRevision.current;
+              console.log(`[SCRUB-SETTLE] Series frame re-index: +${currentHour}h model=${ssModel} layer=${ssLayer} (skipped doomed fetch)`);
+              setMarineData(ssFrame);
+            }
+            return;
+          }
+        } catch (e) {}
+
         console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
         marineFetchLocksRef.current.lastHash = null;
         if (updateMarineGridRef.current) {
