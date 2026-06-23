@@ -78,38 +78,3 @@ def test_euro_series_all_native_returns_fast_path_directly(monkeypatch):
     # All <=240h -> fast path returns directly, every frame native.
     assert out["frame_count"] == 4
     assert all(f["is_estimated"] is False for f in out["frames"])
-
-
-async def _fast_path_raises(viewport_service, layer, bbox, hour_list, base):
-    # Simulate the Copernicus fast path timing out / erroring (the cold-load case).
-    raise asyncio.TimeoutError()
-
-
-async def _fast_path_empty(viewport_service, layer, bbox, hour_list, base):
-    return {"model": "EURO", "domain": "marine", "layer": layer, "base_time": "x",
-            "bounds": None, "cols": 0, "rows": 0, "frame_count": 0, "frames": []}
-
-
-def test_euro_fast_path_failure_does_not_regrind_native_hours(monkeypatch):
-    # When the fast path fails on an ALL-NATIVE page, the per-hour loop must NOT re-grind the
-    # native hours (each is the same slow ±3h CMEMS fetch). _fake_resolve_grid would happily
-    # return a frame for every hour, so a regression would yield 4 frames; the fix yields 0.
-    monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fast_path_raises)
-    out = asyncio.run(build_grid_series(
-        _fake_resolve_grid, _FakeVP(), "EURO", "marine", "waves",
-        "0,3,6,141", "0,3,6,141",
-    ))
-    assert out["frame_count"] == 0
-
-
-def test_euro_fast_path_empty_serves_estimated_only(monkeypatch):
-    # Boundary-spanning page, fast path returns no native frames: only the cheap STORED
-    # estimated hours (>240h) are built; native hours are omitted (warming in background).
-    monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fast_path_empty)
-    out = asyncio.run(build_grid_series(
-        _fake_resolve_grid, _FakeVP(), "EURO", "marine", "waves",
-        "-82,26,-78,30", "234,237,240,243,246",
-    ))
-    by_h = {f["hour_offset"]: f for f in out["frames"]}
-    assert sorted(by_h) == [243, 246]              # only estimated hours, native omitted
-    assert all(f["is_estimated"] is True for f in out["frames"])

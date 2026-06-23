@@ -67,18 +67,11 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
     forecast_days = min(10, max(3, (max_h // 24) + 2))
 
     cop = CopernicusProvider()
-    # Shield the full-range fetch from cancellation. If THIS request's outer budget
-    # (EURO_SERIES_TIMEOUT) expires and cancels us, a bare `await` would also cancel the
-    # Copernicus download — so it never finishes, never populates the provider's 10-min cache,
-    # and the NEXT cold load re-pays the full latency and times out again (the >60s hang the
-    # user sees as EURO scrub never tracking). With shield the download keeps running in the
-    # background and caches, so the next series request resolves from cache and the scrubber
-    # tracks. The shielded task is referenced by the running loop until it completes.
-    raw = await asyncio.shield(cop.fetch_grid(
+    raw = await cop.fetch_grid(
         layer=layer, bbox=bbox_dict, resolution=resolution,
         forecast_days=forecast_days, precomputed_coords=(lats, lons),
         valid_time=None,  # FULL range in ONE fetch — the entire point of this path
-    ))
+    )
     if not raw:
         return None
     raw_list = raw if isinstance(raw, list) else [raw]
@@ -179,18 +172,9 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
                     prebuilt_frames = euro.get("frames", []) or []
                     loop_hours = estimated_hours  # build only the stored estimated hours per-hour
                 else:
-                    # The fast path missed (cold cache / slow Copernicus). Do NOT let the generic
-                    # per-hour loop re-grind the NATIVE EURO hours — each is the same slow ±3h
-                    # serialized CMEMS download the fast path just timed out on, and stacking
-                    # OVERALL_DEADLINE (35s) on top of EURO_SERIES_TIMEOUT (40s) is the ~75s hang.
-                    # Build only the cheap STORED estimated hours; native hours are omitted this
-                    # round (the shielded fetch is warming the cache for the next request), and the
-                    # client falls back to its per-hour flow for them meanwhile.
-                    loop_hours = estimated_hours
-                    logger.warning("[grid_series] EURO fast path returned no frames; serving estimated-only, native hours warming")
+                    logger.warning("[grid_series] EURO fast path returned no frames; falling back to per-hour")
             except BaseException as e:
-                loop_hours = estimated_hours
-                logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); serving estimated-only, native hours warming")
+                logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); falling back to per-hour")
         # native_hours empty (page entirely >240h): loop_hours stays = hour_list (all estimated)
         # and the per-hour loop resolves the stored estimated EURO products directly.
 
