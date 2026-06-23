@@ -9,17 +9,6 @@ import { ensureWindSeries, getWindSeriesFrame, windSeriesPageForHour, prewarmWin
 let _lastScrubLogTime = 0;
 
 /**
- * True only for a wind grid that can actually be committed and rendered. A wind grid with
- * vectors but `renderable === false` is the synthesized safe-zero fallback fetchWindData
- * returns on a transient backend error (504 / cold ingestion) — it has a single zero vector
- * and must NOT be treated as a successful fetch, or it blanks the heatmap (clearBuffers) and
- * suppresses the fast retry. Exported so the contract is unit-testable.
- */
-export function isCommittableWindGrid(data) {
-  return !!(data && data.vectors?.length > 0 && data.renderable !== false);
-}
-
-/**
  * Unified Weather Data Engine (v3.9.4)
  * 
  * v3.9.4 FIXES:
@@ -155,13 +144,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         
         if (cancelled) return;
         
-        // A genuine wind grid is renderable. The safe-zero fallback fetchWindData returns on a
-        // transient backend error (504 / cold ingestion) is a SINGLE non-renderable vector, so
-        // `vectors.length > 0` alone wrongly accepted it as success — committing a renderable:false
-        // grid (which clearBuffers→blanks the wind heatmap) and scheduling only the lazy 5-min
-        // refresh, leaving wind blank for minutes when a retry seconds later would succeed. Require
-        // renderability so the fallback instead takes the bounded fast-retry/hold path below.
-        if (isCommittableWindGrid(data)) {
+        if (data && data.vectors?.length > 0) {
           console.log(`[CACHE] [WeatherEngine] Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           commitWindData(data);
@@ -172,7 +155,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           retryCount++;
           if (retryCount < MAX_RETRIES) {
             const delay = RETRY_DELAYS[retryCount] || 60000;
-            console.log(`[FETCH] [WeatherEngine] No renderable wind (attempt ${retryCount}), retry in ${delay/1000}s`);
+            console.log(`[FETCH] [WeatherEngine] No data (attempt ${retryCount}), retry in ${delay/1000}s`);
             retryTimer = setTimeout(attemptFetch, delay);
           } else {
             console.warn(`[FETCH] [WeatherEngine] Max retries (${MAX_RETRIES}) exhausted`);
