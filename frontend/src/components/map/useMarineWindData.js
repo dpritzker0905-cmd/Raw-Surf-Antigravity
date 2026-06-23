@@ -393,14 +393,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     // Fresh renderable frame: it passed the mismatch checks above, so its identity IS the
     // currently requested {model, layer, hour}. Tag the held slot and report it as displayed.
     lastValidDataRef.current = res;
-    lastValidKeyRef.current = {
-      model: activeModel,
-      layer: activeMarineLayer,
-      hour: res.hourOffset,
-      // Record the displayed grid's coverage so the parity gate can confirm a held frame
-      // actually covers the requested point (prevents relabeling a different region's grid).
-      bounds: res.bounds || marineData?.grid?.bounds || null,
-    };
+    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset };
     markDisplayed(lastValidKeyRef.current);
     return res;
   }, [conformedGridBase, timeOffsetHours, mapInstance, viewState, marineData]);

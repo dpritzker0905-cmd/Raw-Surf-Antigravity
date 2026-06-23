@@ -143,9 +143,7 @@ export const MapForecastOverlay = ({
   // matches the requested {model, layer, hour}. Without BOTH, a grid/forecast sample would
   // be relabeled as the newly-selected target — the v8 regression this gate prevents.
   const hasGridParity = typeof window !== 'undefined' && window.__MARINE_RENDER_HOUR_PARITY__?.parity === true;
-  // Pass the requested point so parity also requires the displayed heatmap frame to COVER it —
-  // a held frame from a different region must not be sampled as this location's value.
-  const gridParityOk = hasGridParity && displayMatchesRequested({ model: activeModel, layer: activeLayer, hour: timeOffsetHours, lat, lng });
+  const gridParityOk = hasGridParity && displayMatchesRequested({ model: activeModel, layer: activeLayer, hour: timeOffsetHours });
 
   const allExactValuesNull = !!useExactPoint &&
     useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null &&

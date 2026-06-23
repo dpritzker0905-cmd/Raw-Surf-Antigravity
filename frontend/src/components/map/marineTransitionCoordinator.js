@@ -27,7 +27,7 @@
 
 let _gen = 0;          // monotonic transitionId
 let _target = null;    // { gen, beginKey, model, layer, hour, viewportKey, status }
-let _displayed = null; // { model, layer, hour, viewportKey, bounds } — last frame actually shown
+let _displayed = null; // { model, layer, hour, viewportKey } — last frame actually shown
 const _subs = new Set();
 
 const transitionKey = (model, layer) => `${model ?? ''}|${layer ?? ''}`;
@@ -90,14 +90,9 @@ export function endCurrentTransition(status = 'settled') {
   return _target ? endTransition(_target.gen, status) : false;
 }
 
-/**
- * Record the identity of the frame actually rendered to the heatmap. `bounds` (the displayed
- * grid's geographic coverage) lets the parity gate confirm the frame on screen actually covers
- * a requested point — so a held frame from a different region is never relabeled as the value
- * for a location it doesn't cover.
- */
-export function markDisplayed({ model, layer, hour = null, viewportKey = null, bounds = null } = {}) {
-  _displayed = { model, layer, hour, viewportKey, bounds };
+/** Record the identity of the frame actually rendered to the heatmap. */
+export function markDisplayed({ model, layer, hour = null, viewportKey = null } = {}) {
+  _displayed = { model, layer, hour, viewportKey };
   emit();
 }
 
@@ -119,35 +114,15 @@ export function getDisplayed() {
 
 /**
  * True when the frame currently displayed matches a requested identity on
- * model + layer + hour (+ optionally covers a requested lat/lng). Used by the infobox
- * parity gate so a grid/forecast fallback is never relabeled as the newly-selected target.
- *
- * Viewport awareness is done by CONTAINMENT, not viewport-key equality: a fine viewport hash
- * (the `getViewportHash` the orchestrator feeds beginTransition is `toFixed(2)`) would flip
- * parity off on every micro-pan even while a perfectly valid grid is on screen. Instead, when
- * the caller supplies a point and the displayed frame recorded its grid bounds, parity holds
- * iff the displayed grid actually covers that point. Global grids cover everything, so they are
- * never vetoed. Backward compatible: with no point or no recorded bounds the check is skipped.
+ * model + layer + hour. Used by the infobox parity gate so a grid/forecast
+ * fallback is never relabeled as the newly-selected target.
  */
-export function displayMatchesRequested({ model, layer, hour, lat, lng } = {}) {
+export function displayMatchesRequested({ model, layer, hour } = {}) {
   if (!_displayed) return false;
   if (_displayed.model !== model) return false;
   if (_displayed.layer !== layer) return false;
   // hour is compared only when the caller supplies one (infobox cares about hour).
   if (hour !== undefined && hour !== null && _displayed.hour !== hour) return false;
-  // Viewport containment: only when the caller asks about a point AND we know the frame's bounds.
-  if (lat !== undefined && lat !== null && lng !== undefined && lng !== null && _displayed.bounds) {
-    const b = _displayed.bounds;
-    const w = b.west, e = b.east, s = b.south, n = b.north;
-    if ([w, e, s, n].every(v => typeof v === 'number' && isFinite(v))) {
-      const isGlobal = Math.abs(e - w) > 180; // global grid covers any point — never veto
-      if (!isGlobal) {
-        const eps = 0.001;
-        const within = lng >= w - eps && lng <= e + eps && lat >= s - eps && lat <= n + eps;
-        if (!within) return false;
-      }
-    }
-  }
   return true;
 }
 
