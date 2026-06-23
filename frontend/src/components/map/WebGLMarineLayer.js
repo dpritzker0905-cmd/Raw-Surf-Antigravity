@@ -420,7 +420,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       } catch (e) { /* map disposed */ }
       layerAddedRef.current = false;
       unregisterMarineEngine();
-      engine.dispose(mapInstance.painter?.context?.gl);
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (gl) {
+        engine.dispose(gl);
+      }
       engineRef.current = null;
     };
   }, [mapInstance]);
@@ -431,6 +434,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (!engine || !gl) return;
 
     if (!active) {
+      engine.clearBuffers(gl);
+      if (mapInstance) mapInstance.triggerRepaint();
       return;
     }
 

@@ -158,7 +158,8 @@ export function useMarineDataFetcherCore({
         // already loading this exact model/layer/hour — the activation multi-trigger would
         // otherwise abort-loop into the recovery-grid blank.
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
-        if (inflight && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
+        const isAborted = abortControllerRef.current?.signal?.aborted;
+        if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
           console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
           return;
         }
@@ -514,7 +515,8 @@ export function useMarineDataFetcherCore({
     const locks = marineFetchLocksRef.current;
     if (locks.isFetching) {
       const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
-      if (inflight && inflight.rawModel === activeModelRef.current &&
+      const isAborted = abortControllerRef.current?.signal?.aborted;
+      if (inflight && !isAborted && inflight.rawModel === activeModelRef.current &&
           inflight.layer === (activeMarineLayerRef.current || 'waves') &&
           inflight.hour === timeOffsetRef.current) {
         console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
