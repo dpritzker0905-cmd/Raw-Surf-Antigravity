@@ -224,7 +224,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
           }
 
           if (shouldReject) {
-            if (isTransitioning && lastValidDataRef.current) {
+            // Don't HOLD a regional grid that's being rejected because we zoomed out — holding it
+            // renders it as a clamped rectangle (the brief post-scrub clamp on zoom-out: a scrub
+            // leaves __MARINE_TRANSITIONING__ true, so this held path fired and re-showed the
+            // regional grid clamped). Return blank until the global grid loads instead. Still hold
+            // for other rejections (genuine transition flash prevention).
+            const isZoomedOutRegionalReject = isGridRegional && isGlobalSupported && isViewportZoomedOut;
+            if (isTransitioning && lastValidDataRef.current && !isZoomedOutRegionalReject) {
               return returnHeld();
             }
             if (typeof window !== 'undefined') {
