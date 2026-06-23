@@ -85,45 +85,6 @@ describe('scheduleSWRRevalidation — retries a transient empty grid', () => {
     expect(updateFn).not.toHaveBeenCalled();
   });
 
-  it('does NOT retry an EURO no_copernicus_coverage safe-zero grid (grid.__failureReason)', () => {
-    // The EURO out-of-coverage fallback is a 0-vector safe-zero grid carrying the reason on
-    // __failureReason (not status). Retrying it just re-fires the doomed 404 (the EURO churn).
-    const { result } = renderHook(() => useMarineRevalidation());
-    const updateFn = jest.fn();
-    result.current.scheduleSWRRevalidation(
-      { __failureReason: 'no_copernicus_coverage',
-        grid: { vectors: [], cols: 27, rows: 27, renderable: false, __failureReason: 'no_copernicus_coverage' } },
-      updateFn
-    );
-    jest.advanceTimersByTime(8000);
-    expect(updateFn).not.toHaveBeenCalled();
-  });
-
-  it('does NOT retry a no_backend_coverage safe-zero grid', () => {
-    const { result } = renderHook(() => useMarineRevalidation());
-    const updateFn = jest.fn();
-    result.current.scheduleSWRRevalidation(
-      { __failureReason: 'no_backend_coverage',
-        grid: { vectors: [], cols: 27, rows: 27, renderable: false, __failureReason: 'no_backend_coverage' } },
-      updateFn
-    );
-    jest.advanceTimersByTime(8000);
-    expect(updateFn).not.toHaveBeenCalled();
-  });
-
-  it('STILL retries a generic backend_fetch_failed empty grid (transient, may self-heal)', () => {
-    // A non-coverage failure is treated as transient — it can resolve on retry, so we keep it.
-    const { result } = renderHook(() => useMarineRevalidation());
-    const updateFn = jest.fn();
-    result.current.scheduleSWRRevalidation(
-      { __failureReason: 'backend_fetch_failed',
-        grid: { vectors: [], cols: 27, rows: 27, renderable: false, __failureReason: 'backend_fetch_failed' } },
-      updateFn
-    );
-    jest.advanceTimersByTime(2500);
-    expect(updateFn).toHaveBeenCalledWith('swr_revalidation');
-  });
-
   it('stops after 3 retries (does not poll forever)', () => {
     const { result } = renderHook(() => useMarineRevalidation());
     const updateFn = jest.fn();

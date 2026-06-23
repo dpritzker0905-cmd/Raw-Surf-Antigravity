@@ -384,12 +384,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     }
   }
 
-  // Preserve the SPECIFIC failure reason from the last redirect attempt (e.g.
-  // 'no_copernicus_coverage') so the safe-zero grid below carries it. Genericizing it to
-  // 'backend_fetch_failed' hid terminal no-coverage from the SWR layer, which then retried a
-  // doomed fetch 3× (the EURO 404 churn). Abort errors rethrow above and never reach here.
-  let lastRedirectFailureReason = null;
-
   // --- GFS BACKEND SERVICE REDIRECT ---
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
     try {
@@ -400,7 +394,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
         throw err;
       }
-      lastRedirectFailureReason = err.message;
       console.warn(`[Backend Weather Service] Grid redirect failed for GFS ${activeLayer}: ${err.message}.`);
     }
   }
@@ -415,7 +408,6 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
         throw err;
       }
-      lastRedirectFailureReason = err.message;
       console.warn(`[Backend Weather Service] Grid redirect failed for Copernicus ${activeLayer}: ${err.message}.`);
     }
   }
@@ -428,11 +420,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
         throw err;
       }
-      lastRedirectFailureReason = err.message;
       console.warn(`[Backend Weather Service] Grid redirect failed for ICON ${activeLayer}: ${err.message}.`);
     }
   }
 
   console.warn(`[Fallback] Backend redirects failed for model=${model || 'GFS'}, layer=${activeLayer || 'waves'}, hour=${hourOffset}. Returning conformed safe zero grid.`);
-  return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, lastRedirectFailureReason || 'backend_fetch_failed');
+  return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, 'backend_fetch_failed');
 }

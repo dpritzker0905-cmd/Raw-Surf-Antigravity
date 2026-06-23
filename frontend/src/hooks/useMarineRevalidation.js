@@ -32,19 +32,12 @@ export function useMarineRevalidation() {
     // same-model hold-guard doesn't apply) and is never retried. Schedule a bounded
     // revalidation so it self-heals once the backend finishes ingesting. Terminal
     // no-coverage / unsupported responses are excluded — retrying won't resolve them.
-    // A TERMINAL no-data response — out-of-coverage (no_coverage, no_copernicus_coverage,
-    // no_backend_coverage, out_of_bounds/no_coverage) or unsupported layer — will never resolve
-    // by retrying, so it must be excluded from the transient retry. The reason can arrive as a
-    // status OR as the safe-zero grid's __failureReason (createFallbackSafeZeroGrid). Match by
-    // substring so every coverage/unsupported variant is caught.
-    const reasonStr = `${data?.status || ''} ${grid?.status || ''} ${data?.__failureReason || ''} ${grid?.__failureReason || ''}`.toLowerCase();
-    const isTerminalNoData = reasonStr.includes('coverage') || reasonStr.includes('unsupported');
-
     const isEmptyTransient = !!grid &&
       grid.renderable === false &&
       ((grid.vectors?.length || 0) === 0) &&
       !grid.__unsupportedLayer && data?.__unsupportedLayer !== true &&
-      !isTerminalNoData;
+      data?.status !== 'unsupported' && grid.status !== 'unsupported' &&
+      data?.status !== 'no_coverage' && grid.status !== 'no_coverage';
 
     if (isStale || isEmptyTransient) {
       if (swrRetryCountRef.current < 3) {
