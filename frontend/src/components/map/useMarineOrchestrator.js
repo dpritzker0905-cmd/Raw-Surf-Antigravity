@@ -591,14 +591,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (wasScrubbingRef && !isNowScrubbing) {
         // Scrubbing just ended — delay slightly then verify
         clearTimeout(scrubSettleTimerRef.current);
-        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 150);
+        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 250);
       }
       wasScrubbingRef = isNowScrubbing;
     }, 150);
 
     const handleScrubEnd = () => {
       clearTimeout(scrubSettleTimerRef.current);
-      scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 20);
+      scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 200);
     };
     window.addEventListener('timeline_scrub_end', handleScrubEnd);
 

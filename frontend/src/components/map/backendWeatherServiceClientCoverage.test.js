@@ -39,6 +39,13 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(resNorth.isInside).toBe(false);
     });
 
+    it('returns isInside: false for EURO if viewport is completely outside coverage bounds', () => {
+      const bboxPacific = { west: -150.0, south: 10.0, east: -130.0, north: 30.0 };
+      const res = clampViewportBbox(bboxPacific, 'waves', 'EURO');
+      expect(res.isInside).toBe(false);
+      expect(res.fallbackReason).toBe('outside_coverage_clear');
+    });
+
     it('performs intersection clamping if viewport overlaps with coverage bounds', () => {
       const bboxOverlap = { west: -88.0, south: 23.0, east: -80.0, north: 30.0 };
       const res = clampViewportBbox(bboxOverlap, 'waves', 'COPERNICUS');

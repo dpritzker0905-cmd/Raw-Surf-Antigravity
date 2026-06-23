@@ -233,6 +233,42 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     const snapE = Math.ceil(east / tileSize) * tileSize;
     const snapN = Math.ceil(north / tileSize) * tileSize;
 
+    if ((modelName || '').toUpperCase() === 'EURO') {
+      const tileResult = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);
+      const tiles = tileResult.tiles || [];
+      let intersectsAny = false;
+      for (const t of tiles) {
+        const cov = t.bounds;
+        let sW = snapW;
+        let sE = snapE;
+        if (sE < sW) sE += 360;
+        let cW = cov.west;
+        let cE = cov.east;
+        if (cE < cW) cE += 360;
+
+        const overlapLng = Math.max(sW, cW) < Math.min(sE, cE) ||
+                          Math.max(sW - 360, cW) < Math.min(sE - 360, cE) ||
+                          Math.max(sW + 360, cW) < Math.min(sE + 360, cE);
+        const overlapLat = Math.max(snapS, cov.south) < Math.min(snapN, cov.north);
+        if (overlapLng && overlapLat) {
+          intersectsAny = true;
+          break;
+        }
+      }
+      if (!intersectsAny) {
+        return {
+          isInside: false,
+          clampedBbox: null,
+          fallbackReason: tileResult.fallbackReason && tileResult.fallbackReason !== 'manifest_not_loaded' ? tileResult.fallbackReason : "outside_coverage_clear",
+          coverageBounds: PILOT_COVERAGE,
+          selectedTileId: null,
+          availableTileIds: tiles.map(t => t.id),
+          rejectedTileIds: [],
+          tileFallbackReason: tileResult.fallbackReason
+        };
+      }
+    }
+
     const r = v => Number(v).toFixed(2);
     const selectedTileId = `viewport_${r(snapW)}_${r(snapS)}_${r(snapE)}_${r(snapN)}`;
     return {

@@ -119,7 +119,7 @@ export function useOpenMeteoTileUrls({
     if (!mapInstance) return;
 
     // Hard Scrub Lock: Disable all raster transitions while timeline scrubbing is active to prevent tile flood
-    if (window.isScrubbingTimeline || isScrubbingRef.current) {
+    if (isScrubbingRef.current) {
       return;
     }
 
@@ -226,7 +226,7 @@ export function useOpenMeteoTileUrls({
     if (changed && transitionQueueRef.current.length > 0) {
       // Coalesce / batch all transitions in a single frame tick (Fix 2 & 5)
       requestAnimationFrame(() => {
-        if (window.isScrubbingTimeline) {
+        if (isScrubbingRef.current) {
           transitionQueueRef.current = [];
           return;
         }
@@ -402,7 +402,7 @@ export function useOpenMeteoTileUrls({
 
     const resolveAllUrls = async () => {
       // Hard check during timeline scrubbing to suppress network tile storm
-      if (window.isScrubbingTimeline || isScrubbingRef.current) {
+      if (isScrubbingRef.current) {
         return;
       }
       try {
