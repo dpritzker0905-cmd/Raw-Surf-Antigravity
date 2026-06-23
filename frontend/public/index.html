@@ -2,8 +2,25 @@
 <!-- Build: 2026-04-23T22:30 -->
 <html lang="en">
     <head>
-        <!-- React Scan (Million.js) - automated React rendering optimizer -->
-        <script src="https://unpkg.com/react-scan/dist/auto.global.js" crossorigin="anonymous"></script>
+        <!-- React Scan (dev render profiler). auto.global.js instruments EVERY React render and
+             paints overlays — a heavy main-thread tax on this WebGL-heavy map that ships to all
+             deployed users by default. Load it ONLY on localhost or when explicitly opted in via
+             ?reactscan=1, so the deployed app isn't profiled for normal viewing. No app code
+             depends on it; gating is a no-op for functionality. -->
+        <script>
+          (function () {
+            try {
+              var h = location.hostname;
+              var optIn = /[?&]reactscan=1/.test(location.search);
+              if (h === 'localhost' || h === '127.0.0.1' || optIn) {
+                var s = document.createElement('script');
+                s.src = 'https://unpkg.com/react-scan/dist/auto.global.js';
+                s.crossOrigin = 'anonymous';
+                document.head.appendChild(s);
+              }
+            } catch (e) {}
+          })();
+        </script>
         <meta charset="utf-8" />
         <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover, maximum-scale=1, user-scalable=no" />
         <!-- Dynamic theme-color - will be updated by ThemeContext.js -->
