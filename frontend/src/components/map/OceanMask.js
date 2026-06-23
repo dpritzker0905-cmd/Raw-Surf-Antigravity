@@ -207,6 +207,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
   const timeoutRef = useRef(null);
   const deactivateTimerRef = useRef(null);
   const lastSyncSignatureRef = useRef(null);
+  const lastSyncCoreRef = useRef(null); // signature WITHOUT activeMarineLayer — enables a recolor fast path
   const styleVersionRef = useRef(0);
   const syncRafIdRef = useRef(null);
 
@@ -296,8 +297,27 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       return;
     }
 
+    // RECOLOR FAST PATH: when ONLY the active marine layer changed (same active/theme/beforeId/
+    // maskData/style), the sole layer-dependent value is the MASK_BUFFER fill-color — every mask
+    // layer and all layer positions are independent of activeMarineLayer. A full rebuild here
+    // re-serializes the entire MapLibre style several times (getStyle) and re-adds/moves layers,
+    // which React Scan attributes to "other" time (style recalc + layerization + paint) on each
+    // layer switch. Recoloring in place is behaviorally identical and ~free. The styledata event
+    // this fires is ignored by the styledata handler because syncingRef is held true around sync.
+    const coreSig = `${active}_${theme}_${beforeId || ''}_${!!maskData}_${styleVersionRef.current}`;
+    if (active && maskData && lastSyncCoreRef.current === coreSig && mapInstance.getLayer(MASK_BUFFER)) {
+      const tcFast = THEME_COLORS[theme] || THEME_COLORS.dark;
+      const oceanColorFast = (activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer])
+        ? MARINE_BUFFER_COLORS[activeMarineLayer]
+        : (tcFast.ocean || 'rgba(16, 29, 43, 0.90)');
+      try { mapInstance.setPaintProperty(MASK_BUFFER, 'fill-color', oceanColorFast); } catch (e) {}
+      lastSyncSignatureRef.current = currentSig;
+      return;
+    }
+
     console.log('[OceanMask] syncLayers running:', { active, activeMarineLayer, theme });
     lastSyncSignatureRef.current = currentSig;
+    lastSyncCoreRef.current = coreSig;
 
     try {
       const style = mapInstance.getStyle();
@@ -580,6 +600,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         deactivateTimerRef.current = null;
         console.log('[OceanMask] Deactivating: removing layers');
         lastSyncSignatureRef.current = null;
+        lastSyncCoreRef.current = null;
         syncingRef.current = true;
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
         for (const lid of historicalLayers) {
@@ -652,6 +673,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     return () => {
       if (syncRafIdRef.current) { cancelAnimationFrame(syncRafIdRef.current); syncRafIdRef.current = null; }
       lastSyncSignatureRef.current = null;
+      lastSyncCoreRef.current = null;
       if (!mapInstance) return;
       if (timeoutRef.current) clearTimeout(timeoutRef.current);
       const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
