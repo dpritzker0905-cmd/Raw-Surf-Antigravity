@@ -434,7 +434,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             (isDynamic && (!isContained || isViewportZoomedOut) && isGridWidthRegional) ||
             (isViewportZoomedOut && !isContained && isGridWidthRegional)
           );
-          if (prodId && !isRegional) {
+          // A regional cached grid (e.g. florida_east_coast) is normally rejected so a clamped
+          // tile isn't served when zoomed out. But on an IN-PLACE re-activation (the marine↔wind
+          // toggle-back) the SAME regional grid still fully covers the SAME zoomed-in viewport, so
+          // re-displaying it is truth-safe and avoids a wasteful re-fetch+re-encode (the toggle-back
+          // churn: exact_key_absent → re-fetch). Only the covered, zoomed-in case is added; zoomed-
+          // out / not-contained regional grids keep being rejected (so they still load global).
+          const regionalValidInPlace = isRegional && isContained && !isViewportZoomedOut;
+          if (prodId && (!isRegional || regionalValidInPlace)) {
             const sig = _marineDataSignature(cached, activeMarineLayer);
             if (sig) {
               if (sig === lastCommittedSigRef.current) {
