@@ -434,8 +434,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (!engine || !gl) return;
 
     if (!active) {
-      engine.clearBuffers(gl);
-      if (mapInstance) mapInstance.triggerRepaint();
+      if (engine._waveData) {
+        engine.clearBuffers(gl);
+        lastUploadedSignatureRef.current = '';
+        lastUploadedGridRef.current = {
+          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
+        };
+        if (mapInstance) mapInstance.triggerRepaint();
+      }
       return;
     }
 
@@ -444,16 +452,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
     if (!isRenderable) {
       if (currentData?.__unsupportedLayer === true) {
-        recordClear('unsupported_layer');
-        engine.clearBuffers(gl);
-        lastUploadedSignatureRef.current = '';
-        lastUploadedGridRef.current = {
-          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
-          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
-        };
+        if (engine._waveData) {
+          recordClear('unsupported_layer');
+          engine.clearBuffers(gl);
+          lastUploadedSignatureRef.current = '';
+          lastUploadedGridRef.current = {
+            activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+            boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+            sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
+          };
+          if (mapInstance) mapInstance.triggerRepaint();
+        }
         runDiagnosticsUpdate('unsupported_layer');
-        if (mapInstance) mapInstance.triggerRepaint();
         return;
       }
 
@@ -497,27 +507,29 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         return;
       }
 
-      recordClear('non_renderable_terminal');
-      engine.clearBuffers(gl);
-      lastUploadedSignatureRef.current = '';
-      lastUploadedGridRef.current = {
-        activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
-        boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
-        sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
-      };
+      if (engine._waveData) {
+        recordClear('non_renderable_terminal');
+        engine.clearBuffers(gl);
+        lastUploadedSignatureRef.current = '';
+        lastUploadedGridRef.current = {
+          activeModel: '', activeMarineLayer: '', gridProvider: '', componentLayer: '',
+          boundsStr: '', cols: 0, rows: 0, vectorsLength: 0, nonzeroCount: 0,
+          sampleSum: 0, timestamp: 0, timeOffsetHours: 0, renderedDataHour: null
+        };
 
-      if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
-      window.__WEBGL_MARINE_CLEAR_COUNT__++;
-      if (window.__MARINE_PIPELINE_TRUTH__) {
-        window.__MARINE_PIPELINE_TRUTH__.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
-        if (window.__MARINE_PIPELINE_TRUTH__.counters) {
-          window.__MARINE_PIPELINE_TRUTH__.counters.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+        if (!window.__WEBGL_MARINE_CLEAR_COUNT__) window.__WEBGL_MARINE_CLEAR_COUNT__ = 0;
+        window.__WEBGL_MARINE_CLEAR_COUNT__++;
+        if (window.__MARINE_PIPELINE_TRUTH__) {
+          window.__MARINE_PIPELINE_TRUTH__.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+          if (window.__MARINE_PIPELINE_TRUTH__.counters) {
+            window.__MARINE_PIPELINE_TRUTH__.counters.webglClears = window.__WEBGL_MARINE_CLEAR_COUNT__;
+          }
         }
-      }
 
-      window.__WEBGL_MARINE_UPLOAD_REASON__ = 'forced_clear';
+        window.__WEBGL_MARINE_UPLOAD_REASON__ = 'forced_clear';
+        if (mapInstance) mapInstance.triggerRepaint();
+      }
       runDiagnosticsUpdate('forced_clear');
-      if (mapInstance) mapInstance.triggerRepaint();
       return;
     }
 
