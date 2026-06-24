@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo } from 'react';
+import { useRef, useEffect, useMemo, useCallback } from 'react';
 import { getMarineHourlyCache, extractMarineAtOffset, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag, getSharedValidTime } from './backendWeatherServiceClient';
 import { findClosestHourIndex } from './marineControllerUtils';
@@ -620,109 +620,113 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   // far-hour full-global request that CORS/504s under load) can't re-fire forever and saturate
   // the 1-CPU backend. Resets automatically when the target changes.
   const safetyNetRetryRef = useRef({ key: '', count: 0 });
+  // Scrub-settle verification: confirm the rendered marineData matches the requested hour and, if
+  // not (or if blank), trigger a fresh fetch. Extracted to a useCallback so BOTH the scrub-end
+  // listener AND the blank-heatmap backstop below can drive it. Terminal-bypass (coverage/unsupported)
+  // + a 3-retry cap per {hour,model,layer} stop it looping on a genuinely-empty layer.
+  const checkScrubSettle = useCallback(() => {
+    if (window.isScrubbingTimeline) return;
+    const currentHour = timeOffsetRef.current;
+    const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
+    const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
+    const noData = !marineData || !marineData.grid?.vectors?.length;
+
+    if (hourMismatch || noData) {
+      // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
+      // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
+      const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
+      if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
+        return;
+      }
+
+      const pending = window.__MARINE_FETCH_PENDING__;
+      const isAlreadyFetchingCurrentHour = pending &&
+        pending.hour === currentHour &&
+        pending.model === activeModelRef.current &&
+        pending.layer === (activeMarineLayerRef.current || 'waves');
+
+      if (isAlreadyFetchingCurrentHour) {
+        console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
+        return;
+      }
+
+      // Cap retries for a persistently-failing target so this net can't saturate the backend.
+      // Only the no-data (failing) case is counted; an hour-mismatch with data still fetches the
+      // right hour, and the counter resets when {hour,model,layer} changes (normal scrubbing).
+      const ssKey = `${currentHour}_${activeModelRef.current}_${activeMarineLayerRef.current || 'waves'}`;
+      if (safetyNetRetryRef.current.key !== ssKey) safetyNetRetryRef.current = { key: ssKey, count: 0 };
+      if (noData) {
+        if (safetyNetRetryRef.current.count >= 3) {
+          console.warn(`[SCRUB-SETTLE] Max safety-net retries (3) for ${ssKey}; stopping to avoid a refetch loop.`);
+          return;
+        }
+        safetyNetRetryRef.current.count++;
+      }
+
+      console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
+      marineFetchLocksRef.current.lastHash = null;
+      if (updateMarineGridRef.current) {
+        updateMarineGridRef.current('timeline_scrub');
+      }
+    }
+  }, [marineData]);
+
+  // Drive checkScrubSettle when scrubbing ends.
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
-
-    const checkScrubSettle = () => {
-      if (window.isScrubbingTimeline) return;
-      const currentHour = timeOffsetRef.current;
-      const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
-      const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
-      const noData = !marineData || !marineData.grid?.vectors?.length;
-
-      if (hourMismatch || noData) {
-        // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
-        // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
-        const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
-        if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
-          return;
-        }
-
-        const pending = window.__MARINE_FETCH_PENDING__;
-        const isAlreadyFetchingCurrentHour = pending &&
-          pending.hour === currentHour &&
-          pending.model === activeModelRef.current &&
-          pending.layer === (activeMarineLayerRef.current || 'waves');
-
-        if (isAlreadyFetchingCurrentHour) {
-          console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
-          return;
-        }
-
-        // Cap retries for a persistently-failing target so this net can't saturate the backend.
-        // Only the no-data (failing) case is counted; an hour-mismatch with data still fetches the
-        // right hour, and the counter resets when {hour,model,layer} changes (normal scrubbing).
-        const ssKey = `${currentHour}_${activeModelRef.current}_${activeMarineLayerRef.current || 'waves'}`;
-        if (safetyNetRetryRef.current.key !== ssKey) safetyNetRetryRef.current = { key: ssKey, count: 0 };
-        if (noData) {
-          if (safetyNetRetryRef.current.count >= 3) {
-            console.warn(`[SCRUB-SETTLE] Max safety-net retries (3) for ${ssKey}; stopping to avoid a refetch loop.`);
-            return;
-          }
-          safetyNetRetryRef.current.count++;
-        }
-
-        console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
-        marineFetchLocksRef.current.lastHash = null;
-        if (updateMarineGridRef.current) {
-          updateMarineGridRef.current('timeline_scrub');
-        }
-      }
-    };
-
-    // Listen for scrub-end via a lightweight interval that self-clears
     let wasScrubbingRef = false;
     const intervalId = setInterval(() => {
       const isNowScrubbing = !!window.isScrubbingTimeline;
       if (wasScrubbingRef && !isNowScrubbing) {
-        // Scrubbing just ended — delay slightly then verify
         clearTimeout(scrubSettleTimerRef.current);
         scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 250);
       }
       wasScrubbingRef = isNowScrubbing;
     }, 150);
-
     const handleScrubEnd = () => {
       clearTimeout(scrubSettleTimerRef.current);
       scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 200);
     };
     window.addEventListener('timeline_scrub_end', handleScrubEnd);
+    return () => {
+      clearInterval(intervalId);
+      window.removeEventListener('timeline_scrub_end', handleScrubEnd);
+      clearTimeout(scrubSettleTimerRef.current);
+    };
+  }, [mapInstance, marineData, checkScrubSettle]);
 
-    // Blank-heatmap backstop: the verification above only runs on scrub-END, so a layer that wedges
-    // blank WITHOUT scrubbing (e.g. activate a layer right after a model switch) is never re-driven
-    // and stays blank until the user interacts (the live-forensic wedge — see
-    // marine-stranded-fetch-lock-wedge). Periodically run the SAME verification when the heatmap is
-    // PROVABLY blank: the WebGL engine has no wave data, no fetch is pending (a pending-stranded lock
-    // is the fetcher's releaseStaleMarineLock job, not this), and the governor shows no in-flight
-    // fetch (so we never fight a real slow request) — sustained ~3s to ignore the brief commit→upload
-    // gap during a normal load. checkScrubSettle carries the terminal-bypass + 3-retry cap, so this
-    // can't loop on a genuinely-empty layer. Net: the wedge self-heals in ~3s with no user action.
+  // Blank-heatmap backstop — OWN effect, keyed on activeMarineLayer so it (re)creates the instant a
+  // layer becomes active. (The scrub-settle effect above is keyed on marineData, so during a
+  // fresh-activation wedge — where marineData never changes — its interval would never be created;
+  // that's why the wedge sat blank ~8s in live testing.) When a layer is active but the WebGL engine
+  // has NO wave data AND no fetch is pending AND the governor shows no in-flight fetch, sustained
+  // ~3s, re-drive checkScrubSettle. This catches the SILENT blank-wedge (a fetch resolved/aborted
+  // without committing, locks already cleared) that the fetcher's isFetching-gated watchdog can't
+  // see. The govIdle/pending guards never fight a real fetch; the ~3s gate ignores the brief
+  // commit→upload gap during a normal load; checkScrubSettle's terminal-bypass + 3-retry cap stop it
+  // looping on a genuinely-empty layer. Net: blank-wedge self-heals in ~3s with no user action.
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayer) return;
     let blankStreak = 0;
-    let lastBlankBackstop = 0;
-    const blankBackstopId = setInterval(() => {
-      if (window.isScrubbingTimeline || !activeMarineLayersRef.current) { blankStreak = 0; return; }
+    let lastBackstop = 0;
+    const id = setInterval(() => {
+      if (window.isScrubbingTimeline) { blankStreak = 0; return; }
       const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
       const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
       const blank = !(eng && eng._waveData) && !window.__MARINE_FETCH_PENDING__ && govIdle;
       if (!blank) { blankStreak = 0; return; }
       blankStreak++;
-      if (blankStreak < 3) return;                        // require ~3s of sustained, provable blank
-      if (Date.now() - lastBlankBackstop < 6000) return;  // min gap so each refetch can complete
-      lastBlankBackstop = Date.now();
+      if (blankStreak < 3) return;                   // require ~3s of sustained, provable blank
+      if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
+      lastBackstop = Date.now();
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
       console.warn('[Marine] Blank-heatmap backstop: layer active but engine empty + idle ≥3s — re-driving fetch.');
       checkScrubSettle();
     }, 1000);
-
-    return () => {
-      clearInterval(intervalId);
-      clearInterval(blankBackstopId);
-      window.removeEventListener('timeline_scrub_end', handleScrubEnd);
-      clearTimeout(scrubSettleTimerRef.current);
-    };
-  }, [mapInstance, marineData]);
+    return () => clearInterval(id);
+  }, [mapInstance, activeMarineLayer, checkScrubSettle]);
 
   // Option 1 (flag-gated): background-load the marine time-series for the active
   // model/layer/viewport so the timeline scrubber can track hours instantly via the
