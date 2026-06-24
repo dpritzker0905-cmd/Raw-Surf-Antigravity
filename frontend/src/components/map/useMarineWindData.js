@@ -355,6 +355,18 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     } else if (!upstreamRenderable) {
       res.__renderBlockedReason = marineData?.grid?.__noDataReason || 'upstream_not_renderable';
       res.__renderable = false;
+    } else if (res.__nonzeroCount === 0) {
+      // All-zero guard: a full-shape grid (vectors present) whose every active-layer ocean
+      // vector reads exactly 0 is a conformed-empty / no-coverage placeholder, NOT real data —
+      // a real forecast grid always carries some signal (the forensic encoder shows min≈0.02m).
+      // Without this, such a grid passes as renderable and uploads an all-zero texture that
+      // BLANKS the heatmap (the "heatmap cleared on ICON after auto-play scrub" report: a
+      // per-hour global fetch starved on the 1-CPU box during auto-play returned max=0.00m).
+      // Marking it non-renderable routes it into the hold-stale path below (returnHeld on the
+      // same model/layer), so the good frame stays up. NOT terminal: scrub-settle/SWR still
+      // retry and recover real data once the backend is idle.
+      res.__renderBlockedReason = 'all_zero_grid';
+      res.__renderable = false;
     } else {
       res.__renderable = true;
     }

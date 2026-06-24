@@ -361,8 +361,25 @@ export function commitMarineData({
     locks.lastHash = null;
   }
 
+  // All-zero guard (state side): a full-shape grid whose every active-layer ocean vector reads
+  // exactly 0 is a conformed-empty / transient-starved placeholder, not real forecast data.
+  // Committing it would blank the heatmap AND wedge the scrub-settle net (which sees vectors +
+  // a matching hour and stops retrying). Treat it as non-valid so a good same-model/layer frame
+  // is retained; the retained OLD hour then trips scrub-settle's hourMismatch and a retry
+  // recovers real data. NOT marked terminal — the all-zero often comes from a per-hour global
+  // fetch starved on the 1-CPU box during auto-play scrub and succeeds on retry when idle.
+  let gridHasSignal = false;
+  const _signalVecs = data?.grid?.vectors;
+  if (Array.isArray(_signalVecs)) {
+    for (const v of _signalVecs) {
+      if (!v) continue;
+      const comp = v[layer] || v.waves || v.swell_1 || v.swell_2 || v.wind_waves || v;
+      if (comp && comp.speed > 0) { gridHasSignal = true; break; }
+    }
+  }
+
   setMarineData(prev => {
-    const hasNewValidData = data && data.grid && data.grid.vectors && data.grid.vectors.length > 0 && data.grid.renderable !== false;
+    const hasNewValidData = data && data.grid && data.grid.vectors && data.grid.vectors.length > 0 && data.grid.renderable !== false && gridHasSignal;
     const hasPrevValidData = prev && prev.grid && prev.grid.vectors && prev.grid.vectors.length > 0;
     const isZoomTooLow = data?.grid?.__skippedReason === 'zoom_too_low' || data?.grid?.skippedReason === 'zoom_too_low';
     const prevModel = prev?.grid?.__sourceModel || prev?.__sourceModel;
