@@ -104,11 +104,14 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
       }
 
       if (!activeRef.current || errorCount > 5) {
-        // v3.11.2r1: Clear FBOs when deactivated to prevent trail residue
-        if (this._wasActive) {
-          engine.clearBuffers(_gl);
-          this._wasActive = false;
-        }
+        // v3.11.2r1 → conditional (instant toggle): do NOT wipe the trail FBOs on deactivation.
+        // Keeping them means toggling wind back on shows the resident field INSTANTLY instead of
+        // rebuilding trails over ~1s. Stale trails are still handled where it matters: a viewport
+        // change on reactivation triggers reinitParticles() (which clears) via the data effect's
+        // boundsChanged path, and a genuine zoom change clears in render(). A same-viewport
+        // hour change just re-advects the kept trails with the new field (same as scrubbing —
+        // smooth, geographically correct), so no clear is needed.
+        this._wasActive = false;
         return;
       }
       this._wasActive = true;
