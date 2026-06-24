@@ -550,9 +550,17 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (gridModel !== activeModelRef.current) isValid = false;
     if (isValid) {
       if (isGfsOrIcon) {
-        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture') {
+        // 'gfs_euro_blend' is the ICON synthesized-layer provider: swell_2 (no native gwam
+        // secondary swell) and the >240h extended-range grids are built as a GFS/EURO weighted
+        // blend in backendWeatherServiceClient*.js. It was missing from this whitelist, so the
+        // blended grid failed validation and was silently dropped (return below) — leaving the
+        // engine showing the PREVIOUS layer's texture. That is the "ICON swell_2 just renders a
+        // copy of swell_1" bug: verified live — engine._waveData.waveGrid.__componentLayer was
+        // 'swell_1' (629 vec, max 7.12) while the render gate held the swell_2 blend (171 vec,
+        // max 3.15). The componentLayer===activeMarineLayer guard below keeps it truth-safe.
+        if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_euro_blend') {
           isValid = false;
-        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture') && componentLayer !== activeMarineLayer) {
+        } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture' || gridProvider === 'gfs_euro_blend') && componentLayer !== activeMarineLayer) {
           isValid = false;
         }
       } else if (isEuro) {
