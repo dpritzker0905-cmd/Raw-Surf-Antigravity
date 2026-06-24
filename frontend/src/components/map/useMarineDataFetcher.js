@@ -49,7 +49,7 @@ export function useMarineDataFetcher({
   if (!inFlightRef.current) inFlightRef.current = createMarineInFlightRegistry({ cap: 3 });
   const inFlight = inFlightRef.current;
   const activeMarineLayersRef = useRef(false);
-  const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0 });
+  const marineFetchLocksRef = useRef({ lastHash: null, lastTime: 0, isFetching: false, manualFetchActiveUntil: 0, fetchStartedAt: 0 });
   const manualMarineTriggerRef = useRef(null);
   const isCommittingDataRef = useRef(false);
   const isInternalMapUpdateRef = useRef(false);

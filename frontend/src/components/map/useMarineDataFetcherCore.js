@@ -43,6 +43,52 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
   inFlight.detach(controller.__intent);
 }
 
+// Max time a marine fetch may legitimately hold the isFetching lock. A real fetch (even slow on
+// the 1-CPU backend) registers in the governor within ms and resolves well under this; only a
+// STRANDED lock outlives it with the governor idle.
+export const MARINE_FETCH_LEASE_MS = 8000;
+
+/**
+ * Stale-lock watchdog. A superseded marine fetch can strand locks.isFetching=true +
+ * __MARINE_FETCH_PENDING__/__MARINE_FETCH_DEBOUNCING__ when its finally skips cleanup (the
+ * `requestId === marineRequestIdRef.current` guard fails because a newer fetch bumped the id).
+ * The same-target dedup below then trusts the dead-but-not-aborted abortControllerRef and skips
+ * EVERY recovery fetch → the heatmap wedges blank forever until a scrub/pan releases the lock
+ * (the "sometimes the heatmap won't load / won't track the scrub" + "clears after toggling" churn,
+ * reproduced live on dev). This releases the lock ONLY when it's provably dead — held past the
+ * lease AND the governor shows no active marine fetch (so we never abort a real slow request) —
+ * letting the caller fall through to a fresh fetch. Returns true if it healed a stranded lock.
+ */
+export function releaseStaleMarineLock(locks, abortControllerRef) {
+  if (!locks || !locks.isFetching) return false;
+  const startedAt = locks.fetchStartedAt || 0;
+  if (!startedAt || Date.now() - startedAt <= MARINE_FETCH_LEASE_MS) return false;
+  let govIdle = true;
+  try {
+    const gov = (typeof window !== 'undefined') && window.__MARINE_GOVERNOR_STATE__;
+    if (gov) {
+      govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches &&
+                !(gov.inFlightKeys && gov.inFlightKeys.length);
+    }
+  } catch (e) { govIdle = true; }
+  if (!govIdle) return false; // a real fetch is running — never abort it
+  try {
+    if (abortControllerRef.current && !abortControllerRef.current.signal?.aborted) {
+      abortControllerRef.current.abort();
+    }
+  } catch (e) { /* ignore */ }
+  locks.isFetching = false;
+  locks.activeSource = null;
+  locks.fetchStartedAt = 0;
+  if (typeof window !== 'undefined') {
+    window.__MARINE_FETCH_PENDING__ = null;
+    window.__MARINE_FETCH_DEBOUNCING__ = false;
+  }
+  recordChurn('stale_lock_release', {});
+  console.warn('[Marine] Stale fetch lock released (held >lease, governor idle) — refetching to recover wedged heatmap.');
+  return true;
+}
+
 export function useMarineDataFetcherCore({
   mapInstance,
   activeMarineLayerRef,
@@ -153,6 +199,9 @@ export function useMarineDataFetcherCore({
       }
       updateMarineGridRef.current = updateMarineGrid;
 
+      // Heal a stranded lock before trusting it (otherwise the same-target dedup below skips
+      // this recovery fetch forever → permanent blank heatmap). No-op for a healthy in-flight fetch.
+      releaseStaleMarineLock(locks, abortControllerRef);
       if (locks.isFetching) {
         // Same-target dedup (see enqueueMarineUpdate): never abort an in-flight fetch that's
         // already loading this exact model/layer/hour — the activation multi-trigger would
@@ -240,6 +289,7 @@ export function useMarineDataFetcherCore({
 
       locks.isFetching = true;
       locks.activeSource = source;
+      locks.fetchStartedAt = Date.now(); // lease start — see releaseStaleMarineLock watchdog
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
         window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
@@ -464,6 +514,7 @@ export function useMarineDataFetcherCore({
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;
         locks.activeSource = null;
+        locks.fetchStartedAt = 0;
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
           if (!timeoutIdRef.current && capturedTransitionGen !== null) {
@@ -518,6 +569,8 @@ export function useMarineDataFetcherCore({
 
     const now = Date.now();
     const locks = marineFetchLocksRef.current;
+    // Heal a stranded lock before trusting it (same watchdog as updateMarineGrid).
+    releaseStaleMarineLock(locks, abortControllerRef);
     if (locks.isFetching) {
       const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
       const isAborted = abortControllerRef.current?.signal?.aborted;
