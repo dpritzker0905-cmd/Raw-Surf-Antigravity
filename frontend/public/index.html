@@ -186,9 +186,16 @@
                     }),
                     (e.__SV = 1));
             })(document, window.posthog || []);
+            var __isLocalDev = /^(localhost|127\.0\.0\.1|\[::1\])$/.test(
+                window.location.hostname,
+            );
             posthog.init("phc_xAvL2Iq4tFmANRE7kzbKwaSqp1HJjN7x48s3vr0CMjs", {
                 api_host: "https://us.i.posthog.com",
                 person_profiles: "identified_only", // or 'always' to create profiles for anonymous users as well,
+                // Don't record local dev sessions into the prod PostHog project (telemetry/quota
+                // hygiene + avoids rrweb main-thread overhead while developing). Prod recording
+                // stays on — its cost is negligible (canvas capture already disabled below).
+                disable_session_recording: __isLocalDev,
                 session_recording: {
                     recordCrossOriginIframes: true,
                     capturePerformance: false,
