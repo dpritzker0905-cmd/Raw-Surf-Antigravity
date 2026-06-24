@@ -43,10 +43,11 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
   inFlight.detach(controller.__intent);
 }
 
-// Max time a marine fetch may legitimately hold the isFetching lock. A real fetch (even slow on
-// the 1-CPU backend) registers in the governor within ms and resolves well under this; only a
-// STRANDED lock outlives it with the governor idle.
-export const MARINE_FETCH_LEASE_MS = 8000;
+// Max time a marine fetch may legitimately hold the isFetching lock before we treat it as stranded.
+// A real fetch registers in the governor within ms, so the govIdle guard (not this timeout) is the
+// real safety against aborting a live request — this just bounds how long a blank persists before
+// the watchdog acts. Kept short for fast recovery; govIdle prevents false positives.
+export const MARINE_FETCH_LEASE_MS = 4000;
 
 /**
  * Stale-lock watchdog. A superseded marine fetch can strand locks.isFetching=true +

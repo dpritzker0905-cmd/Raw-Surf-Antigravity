@@ -688,8 +688,37 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     };
     window.addEventListener('timeline_scrub_end', handleScrubEnd);
 
+    // Blank-heatmap backstop: the verification above only runs on scrub-END, so a layer that wedges
+    // blank WITHOUT scrubbing (e.g. activate a layer right after a model switch) is never re-driven
+    // and stays blank until the user interacts (the live-forensic wedge — see
+    // marine-stranded-fetch-lock-wedge). Periodically run the SAME verification when the heatmap is
+    // PROVABLY blank: the WebGL engine has no wave data, no fetch is pending (a pending-stranded lock
+    // is the fetcher's releaseStaleMarineLock job, not this), and the governor shows no in-flight
+    // fetch (so we never fight a real slow request) — sustained ~3s to ignore the brief commit→upload
+    // gap during a normal load. checkScrubSettle carries the terminal-bypass + 3-retry cap, so this
+    // can't loop on a genuinely-empty layer. Net: the wedge self-heals in ~3s with no user action.
+    let blankStreak = 0;
+    let lastBlankBackstop = 0;
+    const blankBackstopId = setInterval(() => {
+      if (window.isScrubbingTimeline || !activeMarineLayersRef.current) { blankStreak = 0; return; }
+      const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
+      const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
+      const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
+      const blank = !(eng && eng._waveData) && !window.__MARINE_FETCH_PENDING__ && govIdle;
+      if (!blank) { blankStreak = 0; return; }
+      blankStreak++;
+      if (blankStreak < 3) return;                        // require ~3s of sustained, provable blank
+      if (Date.now() - lastBlankBackstop < 6000) return;  // min gap so each refetch can complete
+      lastBlankBackstop = Date.now();
+      blankStreak = 0;
+      if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
+      console.warn('[Marine] Blank-heatmap backstop: layer active but engine empty + idle ≥3s — re-driving fetch.');
+      checkScrubSettle();
+    }, 1000);
+
     return () => {
       clearInterval(intervalId);
+      clearInterval(blankBackstopId);
       window.removeEventListener('timeline_scrub_end', handleScrubEnd);
       clearTimeout(scrubSettleTimerRef.current);
     };
