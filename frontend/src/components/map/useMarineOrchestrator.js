@@ -707,15 +707,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       if (cancelled || !mapInstance) return;
       try {
         const b = mapInstance.getBounds();
+        const bounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
         // Load the PAGE containing the current scrubbed hour first (not always hour 0), then
         // adjacent pages on idle — so far-hour scrubbing is instant once its page warms.
-        ensureMarineSeries(
-          activeModelRef.current,
-          activeMarineLayerRef.current,
-          { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
-          timeOffsetRef.current,
-          controller.signal
-        );
+        ensureMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, timeOffsetRef.current, controller.signal);
+        // Also eagerly warm ALL pages on viewport SETTLE (not just on scrub-start), so scrubbing
+        // to FAR hours right after activating/panning is instant instead of cold-missing the
+        // un-warmed page (the "heatmap doesn't change during scrub" delay). prewarmMarineSeries is
+        // capped + deduped + TTL'd + abortable (controller aborts on viewport/model/layer change)
+        // and SKIPS EURO (protects the 1-CPU/512MB backend) — GFS & ICON just re-slice a cheap
+        // cached coarse product, so the proactive warm is bounded.
+        prewarmMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, controller.signal);
       } catch (e) { /* map not ready — ignore */ }
     };
     const t = setTimeout(kick, 600);
