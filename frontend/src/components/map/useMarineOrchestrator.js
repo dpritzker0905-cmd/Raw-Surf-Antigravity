@@ -691,6 +691,28 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     // seriesPage in deps: re-run when scrubbing crosses a page boundary so the new page loads.
   }, [mapInstance, activeModel, activeMarineLayer, marineSeriesPageForHour(timeOffsetHours)]);
 
+  // On a MODEL switch only, eagerly warm the NEW model's series pages so the heatmap + scrubbing
+  // resolve fast instead of waiting on cold per-hour fetches — this is what makes switching
+  // ICON/GFS/EURO feel slow (the block cache is wiped on switch, so the new model starts cold).
+  // It also shrinks the window where the cross-model hold cap (useMarineWindData) has to blank.
+  // Additive + safe: prewarmMarineSeries is deduped + TTL'd and SKIPS EURO (avoids OOMing the
+  // 1-CPU/512MB backend); GFS & ICON just re-slice a cheap cached coarse product. Model-only
+  // (ref-guarded) so it does NOT fire on layer switches or pans.
+  const prevPrewarmModelRef = useRef(null);
+  useEffect(() => {
+    if (!mapInstance || !activeMarineLayer) return;
+    if (prevPrewarmModelRef.current === activeModel) return;
+    prevPrewarmModelRef.current = activeModel;
+    try {
+      const b = mapInstance.getBounds();
+      prewarmMarineSeries(
+        activeModelRef.current,
+        activeMarineLayerRef.current,
+        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() }
+      );
+    } catch (e) { /* map not ready — ignore */ }
+  }, [activeModel, mapInstance, activeMarineLayer]);
+
   return { marineData };
 }
 
