@@ -29,6 +29,42 @@ const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 32;              // bounded; ~10 distinct (model,layer,viewport) targets × pages
 
+// Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
+// once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
+// into 503s/timeouts so NOTHING completes — the "bottleneck after scrubbing." Cap concurrent
+// fetches so the box serves them ~2 at a time and each finishes fast (no contention). Requests
+// queue client-side; a request whose signal aborts while queued is dropped (never hits the box),
+// so superseded model/layer warms don't pile up. Tune up once the backend has more CPU.
+const MARINE_SERIES_MAX_CONCURRENT = 2;
+let _seriesActiveLoads = 0;
+const _seriesWaiters = []; // [{ resolve, signal }]
+
+function acquireSeriesSlot(signal) {
+  if (_seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) { _seriesActiveLoads++; return Promise.resolve(true); }
+  return new Promise((resolve) => {
+    const entry = { resolve, signal };
+    _seriesWaiters.push(entry);
+    if (signal) {
+      try {
+        signal.addEventListener('abort', () => {
+          const i = _seriesWaiters.indexOf(entry);
+          if (i >= 0) { _seriesWaiters.splice(i, 1); resolve(false); } // dropped while queued; no slot taken
+        }, { once: true });
+      } catch (e) { /* ignore */ }
+    }
+  });
+}
+
+function releaseSeriesSlot() {
+  if (_seriesActiveLoads > 0) _seriesActiveLoads--;
+  while (_seriesWaiters.length && _seriesActiveLoads < MARINE_SERIES_MAX_CONCURRENT) {
+    const w = _seriesWaiters.shift();
+    if (w.signal && w.signal.aborted) { w.resolve(false); continue; } // drop aborted-while-queued
+    _seriesActiveLoads++;
+    w.resolve(true);
+  }
+}
+
 // 3-hourly pages of at most 48 frames (the backend series cap). 48 frames × 3h = 144h span.
 const PAGE_SPAN_HOURS = 144;
 const MARINE_SERIES_MAX_HOURS = 336; // EURO 14-day window ceiling (240 native + 96 estimated)
@@ -41,7 +77,7 @@ export function isMarineSeriesEnabled() {
     if (window.localStorage && window.localStorage.getItem('marine_series') === 'false') {
       return false;
     }
-  } catch (e) {}
+  } catch (e) { /* localStorage blocked */ }
   return true;
 }
 
@@ -136,10 +172,18 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
   const localController = new AbortController();
-  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) {} }, 45000);
-  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) {} }
+  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
+  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
 
   const p = (async () => {
+    // Wait for a concurrency slot before hitting the 1-CPU backend. If the signal aborts while
+    // we're queued, acquireSeriesSlot resolves false and we never fetch (superseded warm dropped).
+    const gotSlot = await acquireSeriesSlot(localController.signal);
+    if (!gotSlot || localController.signal.aborted) {
+      clearTimeout(timeoutId);
+      _inFlight.delete(key);
+      return;
+    }
     try {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;
@@ -170,6 +214,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
     } catch (e) {
       // network/abort/timeout — silent, falls back to per-hour path
     } finally {
+      releaseSeriesSlot(); // hand the slot to the next queued load
       clearTimeout(timeoutId);
       _inFlight.delete(key);
     }
@@ -250,7 +295,9 @@ export function _resetMarineSeriesForTest() {
   _seriesCache.clear();
   _inFlight.clear();
   for (const id of _idleTimers) {
-    try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) {}
+    try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) { /* ignore */ }
   }
   _idleTimers.clear();
+  _seriesActiveLoads = 0;
+  _seriesWaiters.length = 0;
 }

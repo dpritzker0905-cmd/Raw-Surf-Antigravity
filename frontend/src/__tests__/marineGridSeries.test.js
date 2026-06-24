@@ -98,12 +98,14 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 0)).toBeNull();
   });
 
-  it('prewarmMarineSeries eagerly loads ALL pages (not idle-deferred) for instant far-hour scrub', async () => {
+  it('prewarmMarineSeries loads ALL pages (concurrency-capped) for far-hour scrub', async () => {
     window.__MARINE_SERIES__ = true;
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
 
     prewarmMarineSeries('GFS', 'waves', bounds);
-    // 3 pages (0..141 / 144..285 / 288..336) each fetched eagerly + synchronously.
+    // Concurrency-capped (1-CPU backend): pages load ~2 at a time, NOT all synchronously — but
+    // ALL 3 pages (0..141 / 144..285 / 288..336) still complete as the queue drains.
+    for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
     expect(global.fetch).toHaveBeenCalledTimes(3);
     const urls = global.fetch.mock.calls.map((c) => c[0]);
     expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);

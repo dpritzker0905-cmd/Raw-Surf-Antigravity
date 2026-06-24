@@ -758,14 +758,20 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (!mapInstance || !activeMarineLayer) return;
     if (prevPrewarmModelRef.current === activeModel) return;
     prevPrewarmModelRef.current = activeModel;
+    // Abortable: when the user switches model AGAIN, abort this prewarm so the PREVIOUS model's
+    // still-queued series pages are dropped instead of piling onto the 1-CPU backend (rapid
+    // model toggling was firing GFS+ICON+EURO × every layer × 3 pages concurrently → 503 storm).
+    const controller = new AbortController();
     try {
       const b = mapInstance.getBounds();
       prewarmMarineSeries(
         activeModelRef.current,
         activeMarineLayerRef.current,
-        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() }
+        { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() },
+        controller.signal
       );
     } catch (e) { /* map not ready — ignore */ }
+    return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
   }, [activeModel, mapInstance, activeMarineLayer]);
 
   return { marineData };
