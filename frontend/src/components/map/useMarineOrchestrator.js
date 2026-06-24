@@ -340,6 +340,61 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     // Immediately open an ownership-tracked transition for responsiveness.
     beginTransition({ model: activeModelRef.current || 'GFS', layer: activeMarineLayer, hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
 
+    // INSTANT cache-hit commit (out of the coalescing window). If the new layer's data is ALREADY
+    // cached for this model/hour/viewport, display it NOW so a layer switch is instant instead of
+    // waiting out SWITCH_FETCH_COALESCE_MS (the ~1s layer-switch delay). This is additive + does
+    // NOT touch the coalesced fetch/abort body below (which still runs and owns the transition
+    // lifecycle, revalidation, and the cache-miss fetch). Conservative + truth-safe: commits ONLY
+    // a renderable, non-stale grid that is global, OR regional-but-contained while zoomed in
+    // (never a clamped regional tile when zoomed out). On any miss/edge case it does nothing and
+    // the coalesced path handles it exactly as before.
+    try {
+      let im = activeModelRef.current || 'GFS';
+      const isW = (activeMarineLayer === 'waves');
+      const eMaxI = isW ? DISPLAY_EURO_WAVES_MAX_HOURS : DISPLAY_EURO_COMPONENT_MAX_HOURS;
+      if (im === 'ICON' && timeOffsetHours > 168 && !getBackendIconMarineFlag()) im = 'GFS';
+      else if (im === 'ICON' && timeOffsetHours > DISPLAY_ICON_MAX_HOURS) im = 'GFS';
+      else if (im === 'EURO' && timeOffsetHours > eMaxI) im = 'GFS';
+      let ivp = null;
+      try {
+        const b = mapInstance.getBounds();
+        if (b && Math.abs(b.getEast() - b.getWest()) > 0.01 && Math.abs(b.getNorth() - b.getSouth()) > 0.01) {
+          ivp = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+        }
+      } catch (e) { ivp = null; }
+      const cachedNow = getModelSafeMarine(im, timeOffsetHours, activeMarineLayer, ivp);
+      if (cachedNow && cachedNow.grid && cachedNow.grid.__renderable !== false && !cachedNow.__staleHour) {
+        const ab = cachedNow.grid?.bounds || cachedNow.bounds;
+        let safe = false;
+        if (ab) {
+          const gw = ab.west, ge = ab.east;
+          const gridWidth = (ge < gw) ? (ge + 360) - gw : ge - gw;
+          if (gridWidth >= 340.0) {
+            safe = true; // global grid is viewport-valid everywhere
+          } else if (ivp) {
+            const cz = mapInstance.getZoom();
+            const vw = (ivp.east < ivp.west) ? (ivp.east + 360) - ivp.west : ivp.east - ivp.west;
+            const vh = Math.abs(ivp.north - ivp.south);
+            const zoomedOut = (cz <= 6.5) || (vw > 15.0 || vh > 15.0);
+            let vW = ivp.west, vE = ivp.east; if (vE < vW) vE += 360;
+            let gW = gw, gE = ge; if (gE < gW) gE += 360;
+            const contained = ivp.south >= ab.south && ivp.north <= ab.north && vW >= gW && vE <= gE;
+            safe = contained && !zoomedOut; // regional only when zoomed-in + fully covered
+          }
+        }
+        if (safe) {
+          const sig = _marineDataSignature(cachedNow, activeMarineLayer);
+          if (sig && sig !== lastCommittedSigRef.current) {
+            lastCommittedSigRef.current = sig;
+            marineRevision.current += 1;
+            cachedNow.__commitRevision = marineRevision.current;
+            console.log(`[SWITCH] [Marine] Instant cache-hit commit for ${activeMarineLayer} (no coalesce wait).`);
+            setMarineData(cachedNow);
+          }
+        }
+      }
+    } catch (e) { /* fall through to the coalesced path unchanged */ }
+
     // Coalesce rapid layer switches (e.g. waves→swell_1→swell_2→wind_waves in quick
     // succession). Only the final layer in the sequence will execute the full
     // cache-lookup + fetch logic. This prevents the abort cascade where each
