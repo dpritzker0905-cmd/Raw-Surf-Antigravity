@@ -351,6 +351,45 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
   return result;
 }
 
+// ICON extended-blend ANCHOR cache. The anchors (ICON@168, GFS@168) are FIXED-hour fetches that
+// are identical across timeline scrub steps for a given viewport — but the blend ran them on the
+// caller's per-step signal, so every scrub step re-issued and the next step aborted them; they
+// never completed → the blend never got anchors → safe-zero. Dedup per {model,layer,bbox} on a
+// DEDICATED controller that survives scrub steps (so a no-pan scrub fetches each anchor once and
+// reuses it). BOUNDED (not the reverted-shield pattern): at most one in-flight anchor per key, and
+// a viewport (bbox) change ABORTS + evicts the stale-bbox anchors before starting new ones — so at
+// most ICON+GFS in flight at a time, never accumulating across pans.
+const _iconAnchorCache = new Map(); // key -> { promise, controller, ts }
+const ICON_ANCHOR_TTL_MS = 5 * 60 * 1000;
+
+function _anchorBboxKey(bounds, snappedBounds) {
+  const b = bounds || snappedBounds || {};
+  const r = v => (typeof v === 'number' ? v.toFixed(2) : 'x');
+  return `${r(b.west)}_${r(b.south)}_${r(b.east)}_${r(b.north)}`;
+}
+
+function getCachedIconAnchor(model, layer, bounds, snappedBounds, fetchBackendMarineGridRecur) {
+  const bboxKey = _anchorBboxKey(bounds, snappedBounds);
+  const key = `${model}_${layer}_${bboxKey}`;
+  const existing = _iconAnchorCache.get(key);
+  if (existing && Date.now() - existing.ts < ICON_ANCHOR_TTL_MS) {
+    return existing.promise; // warm hit — no network request (the scrub-step win)
+  }
+  // Evict + abort any anchor for this model+layer at a DIFFERENT bbox (a pan happened) so stale
+  // requests can't pile up on the 1-CPU backend.
+  for (const [k, v] of _iconAnchorCache) {
+    if (k.startsWith(`${model}_${layer}_`) && k !== key) {
+      try { v.controller.abort(); } catch (e) {}
+      _iconAnchorCache.delete(k);
+    }
+  }
+  const controller = new AbortController();
+  const promise = fetchBackendMarineGridRecur(bounds, 168, controller.signal, snappedBounds, layer, model)
+    .catch((e) => { _iconAnchorCache.delete(key); throw e; }); // drop on failure so the next step retries
+  _iconAnchorCache.set(key, { promise, controller, ts: Date.now() });
+  return promise;
+}
+
 /**
  * Handle DWD ICON extended-range grid fetching and blending.
  */
@@ -368,8 +407,10 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
   try {
     if (hourOffset <= 240) {
       const [iconAnchorResult, gfsAnchorResult, gfsTargetResult] = await Promise.allSettled([
-        fetchBackendMarineGridRecur(bounds, 168, signal, snappedBounds, layer, 'ICON'),
-        fetchBackendMarineGridRecur(bounds, 168, signal, snappedBounds, layer, 'GFS'),
+        // Anchors (fixed @168h) are deduped+cached per viewport on a dedicated controller so a
+        // no-pan scrub fetches them once; the varying-hour TARGET keeps the caller's per-step signal.
+        getCachedIconAnchor('ICON', layer, bounds, snappedBounds, fetchBackendMarineGridRecur),
+        getCachedIconAnchor('GFS', layer, bounds, snappedBounds, fetchBackendMarineGridRecur),
         fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'GFS')
       ]);
 
