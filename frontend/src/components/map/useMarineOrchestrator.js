@@ -671,6 +671,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
   }, [marineData]);
 
+  // Live ref to the latest checkScrubSettle so the blank-backstop interval can call it without
+  // taking it as an effect dep (which would re-create the interval on every marineData change and
+  // reset its blank streak before it ever reaches the threshold — the bug that kept the backstop
+  // from firing during an 8s live wedge).
+  const checkScrubSettleRef = useRef(checkScrubSettle);
+  checkScrubSettleRef.current = checkScrubSettle;
+
   // Drive checkScrubSettle when scrubbing ends.
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
@@ -706,11 +713,13 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   // commit→upload gap during a normal load; checkScrubSettle's terminal-bypass + 3-retry cap stop it
   // looping on a genuinely-empty layer. Net: blank-wedge self-heals in ~3s with no user action.
   useEffect(() => {
-    if (!mapInstance || !activeMarineLayer) return;
+    if (!mapInstance) return;
     let blankStreak = 0;
     let lastBackstop = 0;
     const id = setInterval(() => {
-      if (window.isScrubbingTimeline) { blankStreak = 0; return; }
+      // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
+      // interval is created once and never churns (preserving the blank streak across re-renders).
+      if (window.isScrubbingTimeline || !activeMarineLayerRef.current) { blankStreak = 0; return; }
       const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
       const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
@@ -723,10 +732,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
       console.warn('[Marine] Blank-heatmap backstop: layer active but engine empty + idle ≥3s — re-driving fetch.');
-      checkScrubSettle();
+      if (checkScrubSettleRef.current) checkScrubSettleRef.current();
     }, 1000);
     return () => clearInterval(id);
-  }, [mapInstance, activeMarineLayer, checkScrubSettle]);
+  }, [mapInstance]);
 
   // Option 1 (flag-gated): background-load the marine time-series for the active
   // model/layer/viewport so the timeline scrubber can track hours instantly via the
