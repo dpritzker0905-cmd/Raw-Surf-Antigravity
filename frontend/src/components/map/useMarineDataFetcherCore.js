@@ -290,6 +290,15 @@ export function useMarineDataFetcherCore({
       locks.isFetching = true;
       locks.activeSource = source;
       locks.fetchStartedAt = Date.now(); // lease start — see releaseStaleMarineLock watchdog
+      // Auto-redrive: if this fetch is still holding the lock past the lease (stranded), re-drive
+      // once so the watchdog releases it and fetches fresh WITHOUT needing a user scrub/toggle —
+      // covers the "activate a layer and it never loads" wedge. A newer fetch clears this timer
+      // (above), and a clean completion clears it in finally, so only a truly-stuck fetch re-drives.
+      if (locks._staleLockTimer) clearTimeout(locks._staleLockTimer);
+      locks._staleLockTimer = setTimeout(() => {
+        locks._staleLockTimer = null;
+        if (locks.isFetching && updateMarineGridRef.current) updateMarineGridRef.current('stale_lock_watchdog');
+      }, MARINE_FETCH_LEASE_MS + 500);
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
         window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
@@ -515,6 +524,7 @@ export function useMarineDataFetcherCore({
         locks.isFetching = false;
         locks.activeSource = null;
         locks.fetchStartedAt = 0;
+        if (locks._staleLockTimer) { clearTimeout(locks._staleLockTimer); locks._staleLockTimer = null; }
         if (typeof window !== 'undefined') {
           window.__MARINE_FETCH_PENDING__ = null;
           if (!timeoutIdRef.current && capturedTransitionGen !== null) {
