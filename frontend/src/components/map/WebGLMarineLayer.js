@@ -502,7 +502,35 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       // (modelOrLayerChanged) still falls through and clears, so we never hold one layer's
       // frame under another. The next renderable commit always replaces the held frame.
       const sameTargetTransient = !modelOrLayerChanged && !!engine._waveData;
-      if ((isTransitionGuard || sameTargetTransient) && lastUploadedSignatureRef.current) {
+
+      // Zoom-out clamp guard: if the engine is HOLDING a regional texture but the viewport is now
+      // zoomed out to ~global, holding renders that regional grid as a clamped rectangle (the brief
+      // post-scrub/zoom-out clamp). The render gate already returns null for this case
+      // (isZoomedOutRegionalReject in useMarineWindData.js) — honour it by CLEARING instead of
+      // holding, so we show blank until the global grid loads. Self-selecting: a stable zoomed-IN
+      // viewport is residentRegional but !zoomedOut, and a stable zoomed-OUT viewport has a global
+      // (non-regional) resident — so this trips ONLY on an actual regional->global zoom-out, never
+      // on the same-target scrub/toggle/abort holds those cases depend on (all-zero is a full-shape
+      // global grid; cross-model switch is modelOrLayerChanged and clears already). Mirrors the
+      // gate's zoomed-out math for parity.
+      let isResidentRegionalAtGlobalViewport = false;
+      try {
+        const residentBounds = engine._waveData?.waveGrid?.bounds;
+        if (residentBounds && mapInstance && typeof mapInstance.getZoom === 'function') {
+          const rWidth = (residentBounds.east < residentBounds.west)
+            ? (residentBounds.east + 360) - residentBounds.west
+            : residentBounds.east - residentBounds.west;
+          const residentRegional = rWidth < 340.0;
+          const vb = mapInstance.getBounds();
+          const ew = vb.getWest(), ee = vb.getEast();
+          const vWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
+          const vHeight = vb.getNorth() - vb.getSouth();
+          const viewportZoomedOut = (mapInstance.getZoom() <= 6.5) || (vWidth > 15.0 || vHeight > 15.0);
+          isResidentRegionalAtGlobalViewport = residentRegional && viewportZoomedOut;
+        }
+      } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }
+
+      if ((isTransitionGuard || sameTargetTransient) && lastUploadedSignatureRef.current && !isResidentRegionalAtGlobalViewport) {
         runDiagnosticsUpdate('transition_hold');
         return;
       }
