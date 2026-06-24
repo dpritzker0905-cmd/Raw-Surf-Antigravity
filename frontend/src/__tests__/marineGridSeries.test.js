@@ -72,6 +72,27 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', bounds, 50)).toBeNull();
   });
 
+  it('containment fallback: a contained (zoomed-in/panned) viewport is served by a wider warmed series', async () => {
+    window.__MARINE_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+
+    const wide = { west: -82, south: 27, east: -79, north: 29 };
+    await ensureMarineSeries('GFS', 'waves', wide); // warm the WIDE view
+    expect(global.fetch).toHaveBeenCalled();
+
+    // A narrower viewport CONTAINED in `wide` has a DIFFERENT viewport key, so the exact-key
+    // lookup misses — but containment serves it (the wider grid covers it). This is the zoom-in/
+    // small-pan re-warm window that used to fall through to a per-hour fetch.
+    const narrow = { west: -80.6, south: 28.0, east: -80.0, north: 28.4 };
+    const f = getMarineSeriesFrame('GFS', 'waves', narrow, 3);
+    expect(f).not.toBeNull();
+    expect(f.grid.hourOffset).toBe(3);
+
+    // A viewport NOT contained (panned fully outside the warmed bbox) still misses — truth-safe.
+    const outside = { west: -90, south: 40, east: -88, north: 42 };
+    expect(getMarineSeriesFrame('GFS', 'waves', outside, 3)).toBeNull();
+  });
+
   it('pages around the requested hour — a far hour loads ITS page (not hour 0) and serves it', async () => {
     window.__MARINE_SERIES__ = true;
     const mkVec = (s) => ({ lat: 28, lng: -80, u: 0, v: 0, speed: s, direction: 90, period: 8 });

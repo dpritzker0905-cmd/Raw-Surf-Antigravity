@@ -198,7 +198,9 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
       }
       if (frames.size === 0) return;
       hoursList.sort((a, b) => a - b);
-      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList });
+      // Store bounds/model/layer/page so getMarineSeriesFrame can do containment matching (serve
+      // a wider already-warmed view for a contained read viewport).
+      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds, model, layer, page });
       // Bound memory.
       if (_seriesCache.size > SERIES_MAX) {
         const oldest = _seriesCache.keys().next().value;
@@ -262,6 +264,24 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
   }
 }
 
+// True if `outer` bbox fully contains `inner`. No antimeridian handling — series bboxes don't
+// cross it in practice; a wrap case just fails containment and falls through to exact/miss.
+function bboxContains(outer, inner) {
+  if (!outer || !inner) return false;
+  return outer.south <= inner.south && outer.north >= inner.north &&
+         outer.west <= inner.west && outer.east >= inner.east;
+}
+
+// Nearest frame (within ±1.5h, 3-hourly) for an hour within one cache entry, or null.
+function nearestFrameInEntry(entry, hourOffset) {
+  let best = null, bestDiff = Infinity;
+  for (const h of entry.hours) {
+    const d = Math.abs(h - hourOffset);
+    if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
+  }
+  return (best !== null && bestDiff <= 1.5) ? { frame: best, diff: bestDiff } : null;
+}
+
 /**
  * Return a ready-to-commit marineData for the requested hour from the cached series, or
  * null if no series / no nearby frame. Searches the page containing the hour plus its
@@ -281,6 +301,25 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     for (const h of entry.hours) {
       const d = Math.abs(h - hourOffset);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
+    }
+  }
+  // Containment fallback: the exact viewport key missed (e.g. just zoomed in / panned a bit), but
+  // a WIDER already-warmed series (same model/layer, page-proximate) whose bbox CONTAINS this
+  // viewport can serve it NOW — instant + zero backend while the exact view re-warms, instead of
+  // missing into a per-hour fetch. The grid covers the viewport so it's render-safe; pick the
+  // SMALLEST containing bbox so the served frame is the highest resolution available.
+  if (best === null || bestDiff > 1.5) {
+    let smallestArea = Infinity;
+    for (const entry of _seriesCache.values()) {
+      if (now - entry.ts >= SERIES_TTL_MS) continue;
+      if (entry.model !== model || entry.layer !== layer) continue;
+      if (entry.page != null && Math.abs(entry.page - page) > 1) continue;
+      if (!bboxContains(entry.bounds, bounds)) continue;
+      const nf = nearestFrameInEntry(entry, hourOffset);
+      if (!nf) continue;
+      const b = entry.bounds;
+      const area = Math.max(1e-4, b.east - b.west) * Math.max(1e-4, b.north - b.south);
+      if (area < smallestArea) { smallestArea = area; best = nf.frame; bestDiff = nf.diff; }
     }
   }
   if (best === null || bestDiff > 1.5) {
