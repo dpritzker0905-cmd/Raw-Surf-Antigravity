@@ -81,7 +81,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     let retryTimer = null;
     let retryCount = 0;
     const MAX_RETRIES = 5;
-    const RETRY_DELAYS = [0, 8000, 15000, 30000, 60000];
+    // First empty-retry is fast (3s) so wind recovers quickly when its initial fetch returns
+    // empty because the 1-CPU backend was momentarily storm-loaded (e.g. right after rapidly
+    // cycling marine layers — the "wind won't activate" report). Subsequent retries back off so
+    // a persistently-empty viewport doesn't hammer the box.
+    const RETRY_DELAYS = [0, 3000, 10000, 25000, 60000];
 
     const getBounds = () => {
       try {
