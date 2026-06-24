@@ -211,8 +211,11 @@ export function useMarineDataFetcherCore({
         mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef
       });
 
-      requestId = ++marineRequestIdRef.current;
-      
+      // NOTE: do NOT bump requestId before the cooldown early-return. The finally clears
+      // locks.isFetching only when requestId === marineRequestIdRef.current; if we bumped it here
+      // and then returned on cooldown without dispatching, an in-flight prior fetch's finally would
+      // no longer match and locks.isFetching would be stranded true forever (stuck in-flight /
+      // abort-storm deadlock). Bump it only once we're committed to dispatching, below.
       if (getRemainingCooldown('marine') > 0 || isInCooldown('marine')) {
         handleCooldownFallback({
           mapInstance, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
@@ -221,6 +224,8 @@ export function useMarineDataFetcherCore({
         });
         return;
       }
+
+      requestId = ++marineRequestIdRef.current;
 
       // Release the prior fetch (same-target is already deduped above, so this is a real
       // switch): detach to self-cache on a model/layer switch, abort under active scrubbing.

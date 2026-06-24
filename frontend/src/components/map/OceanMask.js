@@ -310,7 +310,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       const oceanColorFast = (activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer])
         ? MARINE_BUFFER_COLORS[activeMarineLayer]
         : (tcFast.ocean || 'rgba(16, 29, 43, 0.90)');
-      try { mapInstance.setPaintProperty(MASK_BUFFER, 'fill-color', oceanColorFast); } catch (e) {}
+      // MASK_BUFFER is a 'line' layer (full-sync recolors it via 'line-color' below) — using
+      // 'fill-color' here threw silently, so the recolor fast-path never actually recolored.
+      try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', oceanColorFast); } catch (e) {}
       lastSyncSignatureRef.current = currentSig;
       return;
     }
