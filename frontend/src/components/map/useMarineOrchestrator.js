@@ -561,6 +561,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   // matches the current timeOffsetHours. If not, trigger a fresh fetch.
   // This catches edge cases where deferred fetches were lost during rapid scrub sequences.
   const scrubSettleTimerRef = useRef(null);
+  // Caps safety-net refetches per {hour,model,layer} so a fetch that keeps failing (e.g. a
+  // far-hour full-global request that CORS/504s under load) can't re-fire forever and saturate
+  // the 1-CPU backend. Resets automatically when the target changes.
+  const safetyNetRetryRef = useRef({ key: '', count: 0 });
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
 
@@ -572,8 +576,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       const noData = !marineData || !marineData.grid?.vectors?.length;
 
       if (hourMismatch || noData) {
+        // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
+        // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
+        const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
+        if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
+          return;
+        }
+
         const pending = window.__MARINE_FETCH_PENDING__;
-        const isAlreadyFetchingCurrentHour = pending && 
+        const isAlreadyFetchingCurrentHour = pending &&
           pending.hour === currentHour &&
           pending.model === activeModelRef.current &&
           pending.layer === (activeMarineLayerRef.current || 'waves');
@@ -581,6 +592,19 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         if (isAlreadyFetchingCurrentHour) {
           console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
           return;
+        }
+
+        // Cap retries for a persistently-failing target so this net can't saturate the backend.
+        // Only the no-data (failing) case is counted; an hour-mismatch with data still fetches the
+        // right hour, and the counter resets when {hour,model,layer} changes (normal scrubbing).
+        const ssKey = `${currentHour}_${activeModelRef.current}_${activeMarineLayerRef.current || 'waves'}`;
+        if (safetyNetRetryRef.current.key !== ssKey) safetyNetRetryRef.current = { key: ssKey, count: 0 };
+        if (noData) {
+          if (safetyNetRetryRef.current.count >= 3) {
+            console.warn(`[SCRUB-SETTLE] Max safety-net retries (3) for ${ssKey}; stopping to avoid a refetch loop.`);
+            return;
+          }
+          safetyNetRetryRef.current.count++;
         }
 
         console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
