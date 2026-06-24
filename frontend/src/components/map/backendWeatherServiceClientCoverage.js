@@ -220,7 +220,11 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
         clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
         fallbackReason: null,
         coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
-        selectedTileId: 'global_marine_coarse',
+        // Must match the STORE key: _cacheMarineResult keys global grids by the backend region_id
+        // ('global_coarse'), but cache LOOKUPS key by this selectedTileId. 'global_marine_coarse'
+        // never matched the stored 'global_coarse' → every global cache lookup was exact_key_absent
+        // (forced the O(N) containment fallback). Align it to 'global_coarse'.
+        selectedTileId: 'global_coarse',
         availableTileIds: REGIONAL_TILES.map(t => t.id),
         rejectedTileIds: [],
         tileFallbackReason: null

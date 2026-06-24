@@ -72,7 +72,7 @@ describe('backendWeatherServiceClientCoverage', () => {
       const resGFS = clampViewportBbox(bboxWide, 'waves', 'GFS');
       expect(resGFS.isInside).toBe(true);
       expect(resGFS.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
-      expect(resGFS.selectedTileId).toBe('global_marine_coarse');
+      expect(resGFS.selectedTileId).toBe('global_coarse');
 
       const resEURO = clampViewportBbox(bboxWide, 'waves', 'EURO');
       expect(resEURO.isInside).toBe(true);
@@ -82,7 +82,7 @@ describe('backendWeatherServiceClientCoverage', () => {
       const resICON = clampViewportBbox(bboxWide, 'waves', 'ICON');
       expect(resICON.isInside).toBe(true);
       expect(resICON.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
-      expect(resICON.selectedTileId).toBe('global_marine_coarse');
+      expect(resICON.selectedTileId).toBe('global_coarse');
     });
   });
 
