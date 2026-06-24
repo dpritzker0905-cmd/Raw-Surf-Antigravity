@@ -215,6 +215,61 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
   }
 
   if (model === 'ICON' && layer === 'swell_2') {
+    // ICON/GWAM has NO native secondary swell, so swell_2 is synthesized as a 60/40 GFS/EURO
+    // point blend at ALL hours — matching the heatmap (backendWeatherServiceClient.js ~L254) and
+    // the >240h extended path above. Previously this returned 'unsupported' for hours ≤240, so
+    // the infobox showed "no source data" while the heatmap rendered the blend. Only falls back to
+    // 'unsupported' when BOTH GFS and EURO swell_2 are genuinely unavailable.
+    try {
+      const s2ValidTimeStr = getSharedValidTime(hourOffset, 'swell_2', 'ICON');
+      const [gfsS2, euroS2] = await Promise.allSettled([
+        fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'GFS', gridProductIdParam, gridBboxParam),
+        fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'EURO', gridProductIdParam, gridBboxParam)
+      ]);
+      const gfsVal = gfsS2.status === 'fulfilled' ? gfsS2.value : null;
+      const euroVal = euroS2.status === 'fulfilled' ? euroS2.value : null;
+      const hKey = 'secondary_swell_wave_height', dKey = 'secondary_swell_wave_direction', pKey = 'secondary_swell_wave_period';
+      const hGfs = gfsVal?.hourly?.[hKey]?.[0], dGfs = gfsVal?.hourly?.[dKey]?.[0], pGfs = gfsVal?.hourly?.[pKey]?.[0];
+      const hEuro = euroVal?.hourly?.[hKey]?.[0], dEuro = euroVal?.hourly?.[dKey]?.[0], pEuro = euroVal?.hourly?.[pKey]?.[0];
+
+      if (hGfs != null || hEuro != null) {
+        let blendedHeight = 0, blendedPeriod = 0, blendedDirection = 0, usedGfsWeight = 0.6, usedEuroWeight = 0.4;
+        if (hGfs != null && hEuro != null) {
+          blendedHeight = hGfs * 0.6 + hEuro * 0.4;
+          blendedPeriod = blendPeriod([pGfs, pEuro], [0.6, 0.4]) || 0;
+          blendedDirection = blendDirection([hGfs, hEuro], [dGfs, dEuro], [0.6, 0.4]);
+        } else if (hGfs != null) {
+          blendedHeight = hGfs; blendedPeriod = pGfs; blendedDirection = dGfs; usedGfsWeight = 1.0; usedEuroWeight = 0.0;
+        } else {
+          blendedHeight = hEuro; blendedPeriod = pEuro; blendedDirection = dEuro; usedGfsWeight = 0.0; usedEuroWeight = 1.0;
+        }
+        if (typeof window !== 'undefined') {
+          window.__ICON_EXTENDED_ESTIMATE_DIAG__ = {
+            activeModel: 'ICON', activeLayer: 'swell_2', targetHour: hourOffset,
+            sourceProvider: 'estimated', isEstimated: true, estimateConfidence: 0.5,
+            gfsTargetTime: hourOffset, euroTargetTime: hourOffset,
+            weights: { gfs: usedGfsWeight, euro: usedEuroWeight }, timestamp: new Date().toISOString()
+          };
+        }
+        return {
+          hourly: {
+            time: [s2ValidTimeStr.replace(/\.\d+Z$/, 'Z')],
+            wave_height: [null], wave_direction: [null], wave_period: [null], wave_peak_period: [null],
+            swell_wave_height: [null], swell_wave_direction: [null], swell_wave_period: [null], swell_wave_peak_period: [null],
+            secondary_swell_wave_height: [blendedHeight], secondary_swell_wave_direction: [blendedDirection], secondary_swell_wave_period: [blendedPeriod],
+            wind_wave_height: [null], wind_wave_direction: [null], wind_wave_period: [null], wind_wave_peak_period: [null]
+          },
+          requestedLat: lat, requestedLng: lng, requestedModel: 'ICON', activeLayer: 'swell_2',
+          forecastDays: 1, apiModel: 'gwam', provider: 'estimated', source: 'estimated_blend',
+          status: 'exact_success', is_estimated: true,
+          estimate_basis: { type: 'icon_swell_2_gfs_euro_blend', method: 'weighted_average', gfs_weight: usedGfsWeight, euro_weight: usedEuroWeight }
+        };
+      }
+      // Both GFS and EURO swell_2 unavailable — fall through to the unsupported response below.
+    } catch (err) {
+      console.error('[Backend Weather Client Point] ICON swell_2 GFS/EURO blend failed:', err);
+      // fall through to unsupported
+    }
     return {
       status: 'unsupported',
       hourly: {
@@ -309,7 +364,7 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
         } else if (errorJson && errorJson.detail) {
           reason = errorJson.detail;
         }
-      } catch (e) {}
+      } catch (e) { /* keep default reason */ }
 
       if (reason === 'no_backend_coverage' || reason === 'no_copernicus_coverage') {
         const errorDetails = {
