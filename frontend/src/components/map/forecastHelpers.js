@@ -288,7 +288,18 @@ export function sampleFromMarineGrid(lat, lng, activeModel, activeLayer) {
   }
 
   if (activeModel === 'GFS' || activeModel === 'ICON') {
-    if (grid.__provider !== 'open-meteo' && grid.__provider !== 'backend-weather-service' && grid.__provider !== 'test-fixture') return null;
+    // ICON has no native gwam secondary swell, so swell_2 (and >240h extended-range layers)
+    // are synthesized as a 'gfs_euro_blend' (also 'estimated' for some GFS component grids).
+    // Accept those so the infobox grid-fallback can read the blended value — but only when the
+    // grid's component layer matches what we're sampling (truth-safe). Native waves/swell_1
+    // (open-meteo) keep the original strict provider gate unchanged (their __componentLayer is
+    // 'none', so they must NOT go through the component-match path or the infobox would break).
+    const gp = grid.__gridProvider;
+    if (gp === 'gfs_euro_blend' || gp === 'estimated') {
+      if (grid.__componentLayer !== activeLayer) return null;
+    } else if (grid.__provider !== 'open-meteo' && grid.__provider !== 'backend-weather-service' && grid.__provider !== 'test-fixture') {
+      return null;
+    }
   } else if (activeModel === 'EURO') {
     if (activeLayer === 'waves') {
       if (grid.__provider !== 'open-meteo' && grid.__provider !== 'estimated' && grid.__provider !== 'test-fixture' && grid.__provider !== 'gfs_estimated_fallback' && grid.__provider !== 'gfs_estimated_backdrop') return null;

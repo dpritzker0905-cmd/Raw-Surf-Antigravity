@@ -34,7 +34,7 @@ export function computeHeatmapStatus({ activeModel, activeLayer, renderMarineDat
   }
   
   const webglDiag = window.__WebGLMarineLayer_DIAG__;
-  const validProviders = ['copernicus', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'backend-weather-service', 'test-fixture'];
+  const validProviders = ['copernicus', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'backend-weather-service', 'test-fixture', 'gfs_euro_blend', 'estimated'];
   const isWebGLRendered = webglDiag &&
                           validProviders.includes(webglDiag.renderedProvider) && 
                           webglDiag.activeMarineLayer === activeLayer && 
