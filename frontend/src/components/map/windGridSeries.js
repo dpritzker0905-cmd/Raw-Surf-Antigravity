@@ -25,6 +25,39 @@ const _idleTimers = new Set();
 const SERIES_TTL_MS = 5 * 60 * 1000;
 const SERIES_MAX = 24;
 
+// Concurrency gate for wind grid_series fetches — mirrors marineGridSeries.js. The 1-CPU backend
+// can't take N concurrent series fetches; cap so it serves ~2 at a time (requests queue
+// client-side; aborted-while-queued ones are dropped before they hit the box).
+const WIND_SERIES_MAX_CONCURRENT = 2;
+let _windActiveLoads = 0;
+const _windWaiters = []; // [{ resolve, signal }]
+
+function acquireWindSeriesSlot(signal) {
+  if (_windActiveLoads < WIND_SERIES_MAX_CONCURRENT) { _windActiveLoads++; return Promise.resolve(true); }
+  return new Promise((resolve) => {
+    const entry = { resolve, signal };
+    _windWaiters.push(entry);
+    if (signal) {
+      try {
+        signal.addEventListener('abort', () => {
+          const i = _windWaiters.indexOf(entry);
+          if (i >= 0) { _windWaiters.splice(i, 1); resolve(false); }
+        }, { once: true });
+      } catch (e) { /* ignore */ }
+    }
+  });
+}
+
+function releaseWindSeriesSlot() {
+  if (_windActiveLoads > 0) _windActiveLoads--;
+  while (_windWaiters.length && _windActiveLoads < WIND_SERIES_MAX_CONCURRENT) {
+    const w = _windWaiters.shift();
+    if (w.signal && w.signal.aborted) { w.resolve(false); continue; }
+    _windActiveLoads++;
+    w.resolve(true);
+  }
+}
+
 const PAGE_SPAN_HOURS = 144;            // 48 frames × 3h
 const WIND_SERIES_MAX_HOURS = 384;      // GFS wind horizon ceiling
 const LAST_PAGE = Math.floor(WIND_SERIES_MAX_HOURS / PAGE_SPAN_HOURS); // 2
@@ -34,7 +67,7 @@ export function isWindSeriesEnabled() {
   if (window.__WIND_SERIES__ === false) return false; // explicit opt-out
   try {
     if (window.localStorage && window.localStorage.getItem('wind_series') === 'false') return false;
-  } catch (e) {}
+  } catch (e) { /* localStorage blocked */ }
   return true; // default ON
 }
 
@@ -111,10 +144,16 @@ async function loadSeriesPage(model, bounds, page, signal) {
     + `&hours=${hours.join(',')}`;
 
   const localController = new AbortController();
-  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) {} }, 45000);
-  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) {} }
+  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
+  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
 
   const p = (async () => {
+    const gotSlot = await acquireWindSeriesSlot(localController.signal);
+    if (!gotSlot || localController.signal.aborted) {
+      clearTimeout(timeoutId);
+      _inFlight.delete(key);
+      return;
+    }
     try {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;
@@ -144,6 +183,7 @@ async function loadSeriesPage(model, bounds, page, signal) {
     } catch (e) {
       // network/abort/timeout — silent, falls back to per-hour path
     } finally {
+      releaseWindSeriesSlot();
       clearTimeout(timeoutId);
       _inFlight.delete(key);
     }
@@ -212,7 +252,9 @@ export function _resetWindSeriesForTest() {
   _seriesCache.clear();
   _inFlight.clear();
   for (const id of _idleTimers) {
-    try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) {}
+    try { clearTimeout(id); if (typeof window !== 'undefined' && window.cancelIdleCallback) window.cancelIdleCallback(id); } catch (e) { /* ignore */ }
   }
   _idleTimers.clear();
+  _windActiveLoads = 0;
+  _windWaiters.length = 0;
 }

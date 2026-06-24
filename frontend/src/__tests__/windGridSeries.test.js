@@ -90,11 +90,14 @@ describe('windGridSeries — flag-gated wind time-series client', () => {
     expect(getWindSeriesFrame('GFS', bounds, 0)).toBeNull();
   });
 
-  it('prewarmWindSeries eagerly loads ALL pages for instant far-hour scrub', async () => {
+  it('prewarmWindSeries loads ALL pages (concurrency-capped) for far-hour scrub', async () => {
     window.__WIND_SERIES__ = true;
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
 
     prewarmWindSeries('GFS', bounds);
+    // Concurrency-capped (1-CPU backend): pages load ~2 at a time, not all synchronously — but
+    // all 3 still complete as the queue drains.
+    for (let i = 0; i < 6; i++) await new Promise((r) => setTimeout(r, 0));
     expect(global.fetch).toHaveBeenCalledTimes(3);
     const urls = global.fetch.mock.calls.map((c) => c[0]);
     expect(urls.some((u) => u.includes('hours=0,'))).toBe(true);
