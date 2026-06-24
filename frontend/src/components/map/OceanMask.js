@@ -338,6 +338,17 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
           return;
         }
 
+        // Reactivation un-hide: deactivation now HIDES layers (visibility:none) instead of
+        // removing them, so a marine->wind->marine toggle keeps the ~2.7MB land source + layers
+        // resident (no teardown/re-parse). Restore visibility on any that survived hidden; a no-op
+        // for layers that don't exist yet (first activation / after a real style-reload removal),
+        // which the add branches below recreate (visible by default).
+        for (const lid of ALL_LAYERS) {
+          if (mapInstance.getLayer(lid)) {
+            try { mapInstance.setLayoutProperty(lid, 'visibility', 'visible'); } catch (e) {}
+          }
+        }
+
         if (!hasSrc) {
           try {
             mapInstance.addSource(MASK_SOURCE, {
@@ -600,18 +611,22 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
       if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
       deactivateTimerRef.current = setTimeout(() => {
         deactivateTimerRef.current = null;
-        console.log('[OceanMask] Deactivating: removing layers');
+        console.log('[OceanMask] Deactivating: hiding layers');
+        // HIDE instead of remove: keep the layers + the ~2.7MB land source resident so a later
+        // reactivation (marine<->wind<->marine) just flips visibility back on (handled by the
+        // syncLayers reactivation un-hide) instead of re-adding the source and re-parsing the
+        // GeoJSON. GPU cost of a hidden layer is ~0 (MapLibre skips its draw/layout); memory cost
+        // is the parsed source (~5-10MB), which is acceptable. Reset the sig refs so reactivation
+        // runs a FULL sync (un-hide + reposition + recolor) rather than an early-return/fast-path.
+        // Real teardown still happens on unmount (the unmount-cleanup effect) and on a style reload
+        // (MapLibre destroys custom layers; reactivation re-adds them fresh).
         lastSyncSignatureRef.current = null;
         lastSyncCoreRef.current = null;
         syncingRef.current = true;
-        const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
-        for (const lid of historicalLayers) {
+        for (const lid of ALL_LAYERS) {
           if (mapInstance.getLayer(lid)) {
-            try { mapInstance.removeLayer(lid); } catch (e) {}
+            try { mapInstance.setLayoutProperty(lid, 'visibility', 'none'); } catch (e) {}
           }
-        }
-        if (mapInstance.getSource(MASK_SOURCE)) {
-          try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
         setTimeout(() => { syncingRef.current = false; }, 300);
       }, 350);
