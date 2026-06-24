@@ -604,6 +604,28 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
   }, [revision, activeModel, timeOffsetHours, mapInstance, landGeoJSON, active]);
 
+  // Self-heal re-feed: the main upload effect above keys on [revision, activeModel,
+  // timeOffsetHours, active] and reads dataRef — it does NOT depend on `data`. When the marine
+  // layer is toggled off→on, the !active branch calls clearBuffers() and empties the engine
+  // (_waveData=null); on toggle-on the reactivation reuses the RETAINED stale frame (cache MISS
+  // → "retaining stale view", no new commit ⇒ revision/hour/model unchanged), so the main effect
+  // never re-fires and the renderable frame is never re-uploaded — the heatmap stays blank even
+  // though useMarineWindData reports renderable (verified live: engine._waveData=false while
+  // __MARINE_WIND_DATA__.__renderable=true, vectors=171). This effect DOES depend on `data`, so
+  // it fires when the frame settles after reactivation and re-feeds the emptied engine. It is
+  // purely additive — it can only UPLOAD when the engine is active+emptied with a renderable
+  // frame; it never clears or holds. The `engine._waveData` guard makes it a no-op once resident,
+  // so it cannot loop or double-upload.
+  useEffect(() => {
+    const engine = engineRef.current;
+    const gl = glRef.current || mapInstance?.painter?.context?.gl;
+    if (!engine || !gl || !active || engine._waveData) return;
+    const cur = dataRef.current;
+    if (cur && cur.vectors?.length > 0 && cur.__renderable !== false) {
+      safeUploadWaveData('reactivate_refeed', gl, cur, landGeoJSONRef.current);
+    }
+  }, [data, active, revision]);
+
   useEffect(() => {
     if (!mapInstance || !active) return;
     safeMoveLayer(mapInstance, LAYER_ID, beforeId);
