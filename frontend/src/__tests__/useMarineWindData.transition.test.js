@@ -87,6 +87,43 @@ test('a held model-switch frame keeps its true displayed identity', () => {
   expect(getDisplayed()).toMatchObject({ model: 'GFS', layer: 'waves', hour: 0 });
 });
 
+test('cross-model hold is capped — stops showing the previous model after the timeout', () => {
+  const realNow = Date.now;
+  let now = 5_000_000;
+  Date.now = () => now;
+  try {
+    const gfsFrame = marineFrame({ model: 'GFS', layer: 'waves', hour: 0 });
+    const { result, rerender } = renderHook((props) => useMarineWindData(props), {
+      initialProps: {
+        marineData: gfsFrame, activeMarineLayer: 'waves', activeModel: 'GFS',
+        timeOffsetHours: 0, mapInstance, viewState: { zoom: 7 },
+      },
+    });
+    expect(result.current).not.toBeNull();
+
+    // Switch to EURO while a transition is in flight, still holding the GFS frame. WITHIN the cap
+    // the previous model's frame is held (prevents flash on a fast switch).
+    beginTransition({ model: 'EURO', layer: 'waves', hour: 0 });
+    rerender({
+      marineData: gfsFrame, activeMarineLayer: 'waves', activeModel: 'EURO',
+      timeOffsetHours: 0, mapInstance, viewState: { zoom: 7 },
+    });
+    expect(result.current).not.toBeNull();
+    expect(result.current.__sourceModel).toBe('GFS');
+
+    // Advance past CROSS_MODEL_HOLD_MS (1500) and force a memo re-run (new viewState). The slow
+    // model switch must NOT keep showing the wrong (GFS) model's heatmap — it goes blank instead.
+    now += 1600;
+    rerender({
+      marineData: gfsFrame, activeMarineLayer: 'waves', activeModel: 'EURO',
+      timeOffsetHours: 0, mapInstance, viewState: { zoom: 7.0001 },
+    });
+    expect(result.current).toBeNull();
+  } finally {
+    Date.now = realNow;
+  }
+});
+
 test('an all-zero same-model/layer grid holds the prior good frame instead of blanking', () => {
   const good = marineFrame({ model: 'ICON', layer: 'waves', hour: 0, speed: 9.88 });
   const { result, rerender } = renderHook((props) => useMarineWindData(props), {

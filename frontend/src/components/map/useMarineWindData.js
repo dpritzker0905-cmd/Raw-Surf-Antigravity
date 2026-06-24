@@ -24,12 +24,23 @@ function getLongitudinalOverlap(w1, e1, w2, e2) {
   return overlap;
 }
 
+// Max time the heatmap may keep displaying the PREVIOUS model's frame while a model switch is
+// in flight. The hold prevents a flash on fast switches, but an UNBOUNDED hold (the new model's
+// fetch is slow on the 1-CPU backend) shows the wrong model's heatmap for seconds — the "every
+// model shows the same heatmap" report. After this, stop holding so a stale wrong-model frame is
+// never presented as current truth (blank + infobox "updating" instead). Layer-only mismatches
+// (same model, e.g. swell switch) are NOT capped — they resolve fast and never mislabel the model.
+const CROSS_MODEL_HOLD_MS = 1500;
+
 export function useMarineWindData({ marineData, activeMarineLayer, activeModel, timeOffsetHours, mapInstance, viewState }) {
   const lastValidDataRef = useRef(null);
   // Identity of the frame held in lastValidDataRef, so a held frame is never reclassified
   // as the newly-selected target. When we hand back a held frame during a transition we
   // report THIS identity (the previous target) to the coordinator, not the requested one.
   const lastValidKeyRef = useRef(null);
+  // Timestamp when the current cross-MODEL hold began (0 = not currently holding a wrong-model
+  // frame). Used to cap the hold at CROSS_MODEL_HOLD_MS.
+  const crossModelHoldSinceRef = useRef(0);
 
   // Hand back the held frame for rendering (better than a blank heatmap) while telling the
   // coordinator the screen still shows the PREVIOUS identity — the infobox parity gate then
@@ -314,10 +325,24 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // model/layer mismatch is a genuine error, not a transient — returning stale data then
       // would silently present old values as current truth.
       if (isTransitioning && lastValidDataRef.current) {
+        // Cap the hold for a MODEL mismatch (held frame is a DIFFERENT model than selected) so a
+        // slow model switch can't keep displaying the wrong model's heatmap indefinitely — the
+        // "every model shows the same heatmap" report. A layer-only mismatch (same model) is not
+        // capped (resolves fast, never mislabels the model).
+        const isModelMismatch = conformedGridBase.__sourceModel !== activeModel;
+        if (isModelMismatch) {
+          if (!crossModelHoldSinceRef.current) crossModelHoldSinceRef.current = Date.now();
+          if (Date.now() - crossModelHoldSinceRef.current > CROSS_MODEL_HOLD_MS) {
+            return null; // stop displaying the previous model's frame; show loading/blank instead
+          }
+        }
         return returnHeld();
       }
       return null;
     }
+    // Reached only when the grid's model AND layer match the selection — clear any cross-model
+    // hold timer so the next model switch gets a fresh hold window.
+    crossModelHoldSinceRef.current = 0;
 
     if (conformedGridBase.isEuroComponent && !conformedGridBase.hasCopernicusGrid) {
       if (typeof window !== 'undefined') {
