@@ -141,6 +141,24 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         return;
       }
 
+      // SYNC PARITY (wind↔marine): if a warm client/series cache already covers the current
+      // hour+viewport+model, commit it INSTANTLY so wind renders without waiting on the backend
+      // round-trip — the same cached-instant pattern the marine scrub path uses. The network
+      // fetch below still runs to refresh. Additive + cache-only (keyed by model+hour+bounds, so
+      // never a stale-viewport commit): a cold cache is a no-op, no extra backend load. This kills
+      // the "wind reloads slowly after toggling around / scrubbing marine" delay on warm toggles.
+      try {
+        let warm = getBackendWindFlag() ? getModelSafeWind(activeModel, timeOffsetRef.current, bounds) : null;
+        if (!warm || !(warm.vectors?.length > 0)) {
+          const sf = getWindSeriesFrame(activeModel, bounds, timeOffsetRef.current);
+          if (sf && sf.vectors?.length > 0) warm = sf;
+        }
+        if (warm && warm.vectors?.length > 0) {
+          windRevision.current += 1;
+          commitWindData(warm);
+        }
+      } catch (e) { /* best-effort warm commit; fall through to the authoritative fetch */ }
+
       console.log(`[FETCH] [WeatherEngine] Fetching wind (attempt ${retryCount + 1}/${MAX_RETRIES}, offset: ${timeOffsetRef.current}h)`);
       
       try {
