@@ -12,6 +12,14 @@ from services.weather_pipeline.scheduler_helpers import (
 
 logger = logging.getLogger(__name__)
 
+# GFS/EURO wind GLOBAL ingestion fetched 14 days × the global coarse grid, which reliably timed out
+# the open-meteo fetch on the 1-CPU/512MB Render box (45s/batch) → no product (manifest stuck: EURO
+# wind 14 days stale, GFS 7 days). ICON wind global already uses 5 days and SUCCEEDS. Fetch a lighter
+# horizon so the ingestion completes; current + near-future is what activation needs, and the dynamic
+# viewport fetch still covers far hours. Tunable down to 5 (ICON's proven value) if EURO still fails.
+_WIND_GLOBAL_FORECAST_DAYS = int(os.environ.get("WIND_GLOBAL_FORECAST_DAYS", "7"))
+
+
 async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     """GFS wind pilot ingestion."""
     logger.info("[Pipeline Scheduler] Starting GFS Wind Ingestion job for all regions...")
@@ -62,7 +70,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
     resolution = 10.0
 
     results = await scheduler._fetch_or_mock(
-        "GFS", "wind", "wind", global_region, resolution, 14,
+        "GFS", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
         False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14),
         "global_coarse"
@@ -143,7 +151,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
     resolution = 10.0
 
     results = await scheduler._fetch_or_mock(
-        "EURO", "wind", "wind", global_region, resolution, 14,
+        "EURO", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
         False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
         "global_coarse"
