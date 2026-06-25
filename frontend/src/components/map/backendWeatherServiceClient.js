@@ -240,65 +240,7 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 /**
  * Fetches marine conformed forecast grid from backend weather service.
  */
-const GRID_CONJOINED_URL = `${BACKEND_URL}/api/weather/grid_conjoined`;
-
-/**
- * isMarineConjoinedEnabled — DEFAULT OFF (opt-in). The /grid_conjoined endpoint resolves all 4
- * components server-side; for ZOOMED-IN regional viewports that need an upstream dynamic-viewport
- * fetch, doing 4 of those on the 1-CPU backend overloads it (503s) and/or serves a global-coarse
- * grid that renders CLAMPED at regional zoom. So it stays dormant (per-layer path runs = proven
- * behavior) until the endpoint is fixed to (a) build all components from ONE upstream all_marine
- * fetch and (b) honor the regional dynamic viewport. Opt in via `window.__MARINE_CONJOINED__ = true`
- * or localStorage 'marine_conjoined'='true'. When on, any failure still falls back to per-layer.
- */
-export function isMarineConjoinedEnabled() {
-  if (typeof window === 'undefined') return false;
-  if (window.__MARINE_CONJOINED__ === true) return true;
-  try { if (window.localStorage && window.localStorage.getItem('marine_conjoined') === 'true') return true; } catch (e) { /* localStorage blocked */ }
-  return false;
-}
-
-/**
- * fetchBackendMarineGridConjoined — fetch ONE /grid_conjoined response (vectors carry all four
- * components {waves, swell_1, swell_2, wind_waves}) and map it into per-layer WebGL grids:
- * { waves, swell_1, swell_2, wind_waves }. Reuses the SAME valid_time/clamp/mapper as the per-layer
- * path. Returns null on failure/empty so the caller falls back to per-layer. GFS-scoped for now
- * (ICON swell_2 has no native data + EURO uses the separate Copernicus client).
- */
-export async function fetchBackendMarineGridConjoined(bounds, hourOffset, signal, snappedBounds, model = 'GFS') {
-  await fetchProductsManifest().catch(() => null);
-  const validTimeStr = getSharedValidTime(hourOffset, 'waves', model);
-  const clampResult = clampViewportBbox(bounds || snappedBounds, 'waves', model, 'marine');
-  if (!clampResult || !clampResult.isInside) {
-    throw new Error(clampResult ? clampResult.fallbackReason : 'clamp_failed');
-  }
-  const { clampedBbox } = clampResult;
-  const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_CONJOINED_URL}?model=${model}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
-
-  const res = await fetch(url, { signal });
-  if (!res.ok) {
-    let reason = `Backend conjoined grid returned HTTP ${res.status}`;
-    try { const ej = await res.json(); if (ej && ej.reason) reason = ej.reason; else if (ej && ej.detail) reason = ej.detail; } catch (e) { /* ignore */ }
-    throw new Error(reason);
-  }
-  const json = await res.json();
-
-  // Map the SAME conjoined json once per component layer (the mapper extracts v[layer] when the
-  // vector is conjoined, preserving the rest). Only keep layers that actually have data.
-  const out = {};
-  for (const lyr of ['waves', 'swell_1', 'swell_2', 'wind_waves']) {
-    try {
-      const mapped = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, lyr, model);
-      if (mapped && mapped.grid && Array.isArray(mapped.grid.vectors) && mapped.grid.vectors.some(v => (v.speed || 0) > 0)) {
-        out[lyr] = mapped;
-      }
-    } catch (e) { /* skip a layer that fails to map; caller falls back per-layer for it */ }
-  }
-  return Object.keys(out).length > 0 ? out : null;
-}
-
-export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
+export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS', isPrewarm = false) {
   await fetchProductsManifest().catch(() => null);
 
   if (model === 'ICON' && hourOffset > 168) {
@@ -536,7 +478,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     }
     const json = await res.json();
 
-    if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    if (!isPrewarm && typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
       recordTruthStage('backendResponse', {
         model,
         domain: 'marine',
@@ -585,7 +527,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
-    updateDiagnostics('grid', {
+    if (!isPrewarm) updateDiagnostics('grid', {
       url,
       status: res.status,
       validTime: validTimeStr,
@@ -616,7 +558,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
     const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
 
-    updateProjectionDiag('marine', {
+    if (!isPrewarm) updateProjectionDiag('marine', {
       activeModel: model,
       activeLayer: layer,
       requestedViewportBounds: actualBounds || snappedBounds,

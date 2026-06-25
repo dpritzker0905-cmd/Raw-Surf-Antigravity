@@ -17,8 +17,6 @@ import {
   updateDiagnostics,
   updateProjectionDiag,
   fetchBackendMarineGrid,
-  fetchBackendMarineGridConjoined,
-  isMarineConjoinedEnabled,
   clampViewportBbox
 } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
@@ -60,6 +58,47 @@ export {
 };
 
 // --- CACHE & DEDUPLICATION CONFIG ---
+
+// Sibling-layer prewarm (instant marine layer toggles). After a marine layer commits, warm the
+// OTHER component layers into the CLIENT cache so toggling is an instant client-side hit (no
+// round-trip, no blank). Safe by design:
+//  • REGIONAL GUARD — only runs when the ACTIVE grid is regional (width < 340°). That guarantees
+//    the dynamic viewport fetch ran (backend stored ALL 4 per-layer products for this viewport →
+//    siblings are CACHE HITS) AND that toggling commits a REGIONAL grid, never a coarse-global one
+//    (a coarse-global grid at a zoomed-in viewport trips the render backstop → clear, the bug the
+//    first prewarm attempt hit). At coarse-global/global, skip (global toggles already hit the
+//    manifest cache; the backstop handles coarse-at-zoom re-drive).
+//  • LAYER-ISOLATED — writes only the layer-keyed _perModelHourCache via _cacheMarineResult (it
+//    does NOT touch marineHourlyCache.__layerKey/lastKnownGood), so a sibling write never clobbers
+//    the active layer's cache view.
+//  • SILENT — sibling fetches pass isPrewarm=true so they don't overwrite the active layer's diags.
+//  • Fire-and-forget, deduped, skipped during scrub, aborts with the active signal.
+const _siblingPrewarmInFlight = new Set();
+function prewarmSiblingMarineLayers(model, hourOffset, bounds, snappedBounds, activeLayer, signal, activeResult) {
+  try {
+    if (typeof window !== 'undefined' && (window.__MARINE_SIBLING_PREWARM__ === false || window.isScrubbingTimeline)) return;
+    const g = activeResult && (activeResult.grid || activeResult);
+    const b = g && g.bounds;
+    if (!b || b.east === undefined) return;
+    const gw = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+    const cs = activeResult.coverage_scope || g.coverage_scope;
+    if (gw >= 340 || cs === 'global' || cs === 'global_coarse') return; // active is coarse-global → skip
+    const all = (model === 'ICON') ? ['waves', 'swell_1', 'wind_waves'] : ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    for (const lyr of all) {
+      if (lyr === activeLayer) continue;
+      const key = `${model}_${hourOffset}_${lyr}`;
+      if (_siblingPrewarmInFlight.has(key)) continue;
+      const cached = getModelSafeMarine(model, hourOffset, lyr, bounds);
+      if (cached && cached.grid && !cached.__staleHour) continue; // already warm client-side
+      _siblingPrewarmInFlight.add(key);
+      Promise.resolve()
+        .then(() => fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, lyr, model, true /* isPrewarm */))
+        .then((grid) => { if (grid && grid.grid) _cacheMarineResult(model, hourOffset, grid, lyr); })
+        .catch(() => { /* best-effort: abort/miss is fine, the toggle still works per-layer */ })
+        .finally(() => { _siblingPrewarmInFlight.delete(key); });
+    }
+  } catch (e) { /* never let prewarm break the active fetch */ }
+}
 
 /** getModelSafeMarine - returns safe model cached results */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
@@ -394,29 +433,10 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // --- GFS BACKEND SERVICE REDIRECT ---
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
-    // CONJOINED fast-path (default on): one /grid_conjoined fetch warms ALL 4 GFS marine layers,
-    // so toggling between them is an instant client-side cache hit (no refetch, no blank). Caches
-    // every returned layer so getModelSafeMarine() hits for siblings too. ANY failure falls through
-    // to the per-layer fetch below → behavior degrades to exactly today's.
-    if (isMarineConjoinedEnabled()) {
-      try {
-        const conj = await fetchBackendMarineGridConjoined(bounds, hourOffset, signal, snappedBounds, 'GFS');
-        if (conj && Object.keys(conj).length > 0) {
-          for (const lyr of Object.keys(conj)) {
-            _cacheMarineResult('GFS', hourOffset, conj[lyr], lyr);
-          }
-          if (conj[activeLayer]) return conj[activeLayer];
-        }
-      } catch (err) {
-        if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-          throw err;
-        }
-        console.warn(`[Conjoined] GFS conjoined fetch failed for ${activeLayer}; falling back to per-layer: ${err.message}`);
-      }
-    }
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
+      prewarmSiblingMarineLayers('GFS', hourOffset, bounds, snappedBounds, activeLayer, signal, result);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -445,6 +465,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
+      prewarmSiblingMarineLayers('ICON', hourOffset, bounds, snappedBounds, activeLayer, signal, result);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
