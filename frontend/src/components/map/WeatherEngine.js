@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag } from './marineController';
+import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -171,6 +171,9 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           windRevision.current += 1;
           commitWindData(data);
           retryCount = 0; // Reset on success
+          // Cross-model prewarm (DEFAULT OFF): warm the OTHER models' wind into the isolated
+          // per-model cache so a subsequent model switch is an instant warm commit, not a cold fetch.
+          prewarmSiblingModelWind(activeModel, bounds, timeOffsetRef.current, forecastDays, null);
           // Schedule periodic refresh (5 min)
           retryTimer = setTimeout(attemptFetch, 5 * 60 * 1000);
         } else {

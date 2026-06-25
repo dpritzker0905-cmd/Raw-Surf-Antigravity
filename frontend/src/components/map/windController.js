@@ -167,7 +167,7 @@ export function getModelSafeWind(model, hourOffset, bounds) {
   return null;
 }
 
-export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null) {
+export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null, isPrewarm = false) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
 
   let west = bounds.west, east = bounds.east;
@@ -217,7 +217,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     const cached = WIND_CACHE.get(cacheKey);
     if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) { // 10 minutes TTL
       console.log(`[Backend Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
-      if (hourOffset === 0) {
+      if (!isPrewarm && hourOffset === 0) {
         recordTruthStage('cacheRead', cached.data, 'windController.js', 'fetchWindData');
       }
       return cached.data;
@@ -238,7 +238,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
 
           if (containsLng && containsLat) {
             console.log(`[Backend Contained Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
-            if (hourOffset === 0) {
+            if (!isPrewarm && hourOffset === 0) {
               recordTruthStage('cacheRead', entry.data, 'windController.js', 'fetchWindData');
             }
             return entry.data;
@@ -261,25 +261,32 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         const result = await fetchBackendWindGrid(viewportBounds, hourOffset, signal, snappedBounds, source, resolvedModel);
 
         if (result && result.renderable) {
+          // WIND_CACHE is per-model-keyed (model_wind_grid_tile_hour) → ALWAYS safe to write, even
+          // for a sibling-model prewarm (getModelSafeWind reads this). The shared single-slot caches
+          // below (windHourlyCache / lastKnownGoodWind) and the truth stage are model-stamped GLOBAL
+          // state — a sibling-model prewarm MUST NOT clobber them (that's the marine cache-pollution
+          // landmine), so they are skipped when isPrewarm.
           WIND_CACHE.set(cacheKey, { data: result, timestamp: Date.now() });
-          if (hourOffset === 0) {
+          if (!isPrewarm && hourOffset === 0) {
             recordTruthStage('cacheWrite', result, 'windController.js', 'fetchWindData');
           }
-          // Also populate windHourlyCache for timeline scrubs fallback
-          windHourlyCache = {
-            hash: tileId,
-            results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
-            points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
-            gridSize: result.cols,
-            cols: result.cols,
-            rows: result.rows,
-            bounds: result.bounds,
-            timestamp: Date.now(),
-            model: resolvedModel,
-            isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
-            vectors: result.vectors
-          };
-          lastKnownGoodWind = result;
+          if (!isPrewarm) {
+            // Also populate windHourlyCache for timeline scrubs fallback
+            windHourlyCache = {
+              hash: tileId,
+              results: [ { hourly: { time: [ getSharedValidTime(hourOffset, 'wind', resolvedModel) ] } } ],
+              points: result.vectors.map(v => ({ lat: v.lat, reqLng: v.lng, monotonicLng: v.lng })),
+              gridSize: result.cols,
+              cols: result.cols,
+              rows: result.rows,
+              bounds: result.bounds,
+              timestamp: Date.now(),
+              model: resolvedModel,
+              isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
+              vectors: result.vectors
+            };
+            lastKnownGoodWind = result;
+          }
         }
         return result;
       } catch (err) {
@@ -319,4 +326,54 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   } finally {
     WIND_INFLIGHT.delete(cacheKey);
   }
+}
+
+// ── Cross-model wind prewarm (instant model switches) — DEFAULT OFF (opt-in) ──
+// After the active model's wind commits, warm the OTHER models' current wind into the per-model
+// WIND_CACHE (isolated; getModelSafeWind reads it) so switching models is an INSTANT warm commit
+// (WeatherEngine's getModelSafeWind path, WeatherEngine.js:151) instead of the cold ~1s backend
+// fetch the first switch to each model otherwise pays on the 1-CPU box.
+// Safe/bounded: fetchWindData(...,isPrewarm=true) writes ONLY WIND_CACHE (NOT the shared model-
+// stamped windHourlyCache / lastKnownGood / truth stage — the marine cache-pollution landmine);
+// deduped (WIND_INFLIGHT same-target + _windModelPrewarmInFlight), skipped during scrub, skipped
+// when already warm. The 1–2 extra fetches are small (global-coarse ~300 vectors) but still hit the
+// 1-CPU backend — MEASURE before flipping default-on.
+const _windModelPrewarmInFlight = new Set();
+const WIND_PREWARM_MODELS = ['GFS', 'ICON', 'EURO'];
+
+function isWindModelPrewarmEnabled() {
+  if (typeof window === 'undefined') return false;
+  if (window.__WIND_MODEL_PREWARM__ === true) return true;
+  try {
+    if (window.localStorage && window.localStorage.getItem('wind_model_prewarm') === 'true') return true;
+  } catch (e) { /* localStorage blocked */ }
+  return false;
+}
+
+export function _resetWindCachesForTest() {
+  WIND_CACHE.clear();
+  WIND_INFLIGHT.clear();
+  _windModelPrewarmInFlight.clear();
+  windHourlyCache = { hash: null, results: null, points: null, gridSize: 0, bounds: null, timestamp: 0, model: null };
+  lastKnownGoodWind = null;
+}
+
+export function prewarmSiblingModelWind(activeModel, bounds, hourOffset = 0, forecastDays = 3, signal = null) {
+  try {
+    if (!isWindModelPrewarmEnabled()) return;
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return; // don't compete with scrub
+    if (!getBackendWindFlag() || !bounds) return;
+    const active = activeModel || 'GFS';
+    for (const m of WIND_PREWARM_MODELS) {
+      if (m === active) continue;
+      const key = `${m}_${hourOffset}`;
+      if (_windModelPrewarmInFlight.has(key)) continue;
+      if (getModelSafeWind(m, hourOffset, bounds)) continue; // already warm for this model/hour/viewport
+      _windModelPrewarmInFlight.add(key);
+      Promise.resolve()
+        .then(() => fetchWindData(bounds, signal, hourOffset, false, forecastDays, m, true /* isPrewarm */))
+        .catch(() => { /* best-effort: a miss just means that switch falls back to a cold fetch */ })
+        .finally(() => { _windModelPrewarmInFlight.delete(key); });
+    }
+  } catch (e) { /* never let prewarm break the active fetch */ }
 }

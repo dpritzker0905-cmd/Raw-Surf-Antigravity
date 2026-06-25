@@ -44,7 +44,7 @@ import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 export { getBackendWindFlag, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag } from './backendWeatherServiceClient';
 
 // Re-export wind controller components for timeline scrubs and observers
-export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind } from './windController';
+export { fetchWindData, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, prewarmSiblingModelWind } from './windController';
 
 // Re-export shared utilities for consumers that import from marineController
 export { getRemainingCooldown } from './marineControllerUtils';
