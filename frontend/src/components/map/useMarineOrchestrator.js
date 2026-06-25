@@ -1,4 +1,4 @@
-import { useRef, useEffect, useMemo, useCallback } from 'react';
+import { useRef, useEffect, useMemo } from 'react';
 import { getMarineHourlyCache, extractMarineAtOffset, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { getBackendCopernicusFlag, getBackendWeatherFlag, getBackendIconMarineFlag, getSharedValidTime } from './backendWeatherServiceClient';
 import { findClosestHourIndex } from './marineControllerUtils';
@@ -11,6 +11,7 @@ import { ensureMarineSeries, getMarineSeriesFrame, marineSeriesPageForHour, prew
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
+import { useMarineScrubSettle } from './useMarineScrubSettle';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastMarineScrubLogTime = 0;
@@ -612,184 +613,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     }
   }, [marineData, activeModel, activeMarineLayer, timeOffsetHours]);
 
-  // Scrub-settle safety net: After scrubbing ends, verify that the marineData
-  // matches the current timeOffsetHours. If not, trigger a fresh fetch.
-  // This catches edge cases where deferred fetches were lost during rapid scrub sequences.
-  const scrubSettleTimerRef = useRef(null);
-  // Caps safety-net refetches per {hour,model,layer} so a fetch that keeps failing (e.g. a
-  // far-hour full-global request that CORS/504s under load) can't re-fire forever and saturate
-  // the 1-CPU backend. Resets automatically when the target changes.
-  const safetyNetRetryRef = useRef({ key: '', count: 0 });
-  // Scrub-settle verification: confirm the rendered marineData matches the requested hour and, if
-  // not (or if blank), trigger a fresh fetch. Extracted to a useCallback so BOTH the scrub-end
-  // listener AND the blank-heatmap backstop below can drive it. Terminal-bypass (coverage/unsupported)
-  // + a 3-retry cap per {hour,model,layer} stop it looping on a genuinely-empty layer.
-  const checkScrubSettle = useCallback(() => {
-    if (window.isScrubbingTimeline) return;
-    const currentHour = timeOffsetRef.current;
-    const renderedHour = marineData?.grid?.hourOffset ?? marineData?.hourOffset;
-    const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
-    const noData = !marineData || !marineData.grid?.vectors?.length;
-
-    // Resolution mismatch: a COARSE GLOBAL grid is rendered while the viewport is zoomed IN to a
-    // region. The global grid "covers" the zoomed-in viewport, so the normal moveend fetch is
-    // suppressed by cache containment and the heatmap stays a blocky ~1-cell blob that never
-    // sharpens. Detect it and force a fresh REGIONAL fetch (clampViewportBbox returns a regional
-    // bbox at this zoom). Reads the live engine grid bounds vs the current viewport.
-    let gridMismatch = false;
-    try {
-      const wg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-      if (wg && wg.bounds && mapInstance) {
-        const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
-        const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
-        const vb = mapInstance.getBounds();
-        const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
-        gridMismatch = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
-      }
-    } catch (e) { /* map not ready */ }
-
-    // gridMismatch: a coarse-global grid is held while zoomed in. The exact-viewport REGIONAL series
-    // is already warming (the warming kick fetches grid_series for the viewport) — commit its
-    // current-hour frame to sharpen, INSTEAD of a /grid fetch: the marine controller cache serves
-    // the coarse global for the contained viewport, so updateMarineGrid here is a no-op loop. If the
-    // regional frame isn't ready yet, defer (the warming kick is loading it and this re-checks).
-    // Self-resolves once the engine renders the regional grid (gridMismatch then goes false).
-    if (gridMismatch) {
-      // gridMismatch is ENGINE-based (live __MARINE_ENGINE__ grid), so don't gate on the React
-      // marineData (noData/hourMismatch) which can be out of sync. Commit the regional series frame.
-      try {
-        const vb = mapInstance.getBounds();
-        const frame = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves',
-          { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() }, currentHour);
-        const fb = frame && frame.grid && frame.grid.bounds;
-        const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
-        if (frame && fw < 340 && setMarineData) {
-          if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
-          console.log('[SCRUB-SETTLE] Sharpening coarse-global grid: committing regional series frame.');
-          setMarineData(frame);
-        }
-      } catch (e) { /* map/series not ready — defer */ }
-      return;
-    }
-
-    if (hourMismatch || noData) {
-      // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
-      // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
-      const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
-      if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
-        return;
-      }
-
-      const pending = window.__MARINE_FETCH_PENDING__;
-      const isAlreadyFetchingCurrentHour = pending &&
-        pending.hour === currentHour &&
-        pending.model === activeModelRef.current &&
-        pending.layer === (activeMarineLayerRef.current || 'waves');
-
-      if (isAlreadyFetchingCurrentHour) {
-        console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Fetch already in-flight for this hour. Bypassing redundant fetch.`);
-        return;
-      }
-
-      // Cap retries for a persistently-failing target so this net can't saturate the backend.
-      // Only the no-data (failing) case is counted; an hour-mismatch with data still fetches the
-      // right hour, and the counter resets when {hour,model,layer} changes (normal scrubbing).
-      const ssKey = `${currentHour}_${activeModelRef.current}_${activeMarineLayerRef.current || 'waves'}`;
-      if (safetyNetRetryRef.current.key !== ssKey) safetyNetRetryRef.current = { key: ssKey, count: 0 };
-      if (noData) {
-        if (safetyNetRetryRef.current.count >= 3) {
-          console.warn(`[SCRUB-SETTLE] Max safety-net retries (3) for ${ssKey}; stopping to avoid a refetch loop.`);
-          return;
-        }
-        safetyNetRetryRef.current.count++;
-      }
-
-      console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
-      marineFetchLocksRef.current.lastHash = null;
-      if (updateMarineGridRef.current) {
-        updateMarineGridRef.current('timeline_scrub');
-      }
-    }
-  }, [marineData]);
-
-  // Live ref to the latest checkScrubSettle so the blank-backstop interval can call it without
-  // taking it as an effect dep (which would re-create the interval on every marineData change and
-  // reset its blank streak before it ever reaches the threshold — the bug that kept the backstop
-  // from firing during an 8s live wedge).
-  const checkScrubSettleRef = useRef(checkScrubSettle);
-  checkScrubSettleRef.current = checkScrubSettle;
-
-  // Drive checkScrubSettle when scrubbing ends.
-  useEffect(() => {
-    if (!mapInstance || !activeMarineLayersRef.current) return;
-    let wasScrubbingRef = false;
-    const intervalId = setInterval(() => {
-      const isNowScrubbing = !!window.isScrubbingTimeline;
-      if (wasScrubbingRef && !isNowScrubbing) {
-        clearTimeout(scrubSettleTimerRef.current);
-        scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 250);
-      }
-      wasScrubbingRef = isNowScrubbing;
-    }, 150);
-    const handleScrubEnd = () => {
-      clearTimeout(scrubSettleTimerRef.current);
-      scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 200);
-    };
-    window.addEventListener('timeline_scrub_end', handleScrubEnd);
-    return () => {
-      clearInterval(intervalId);
-      window.removeEventListener('timeline_scrub_end', handleScrubEnd);
-      clearTimeout(scrubSettleTimerRef.current);
-    };
-  }, [mapInstance, marineData, checkScrubSettle]);
-
-  // Blank-heatmap backstop — OWN effect, keyed on activeMarineLayer so it (re)creates the instant a
-  // layer becomes active. (The scrub-settle effect above is keyed on marineData, so during a
-  // fresh-activation wedge — where marineData never changes — its interval would never be created;
-  // that's why the wedge sat blank ~8s in live testing.) When a layer is active but the WebGL engine
-  // has NO wave data AND no fetch is pending AND the governor shows no in-flight fetch, sustained
-  // ~3s, re-drive checkScrubSettle. This catches the SILENT blank-wedge (a fetch resolved/aborted
-  // without committing, locks already cleared) that the fetcher's isFetching-gated watchdog can't
-  // see. The govIdle/pending guards never fight a real fetch; the ~3s gate ignores the brief
-  // commit→upload gap during a normal load; checkScrubSettle's terminal-bypass + 3-retry cap stop it
-  // looping on a genuinely-empty layer. Net: blank-wedge self-heals in ~3s with no user action.
-  useEffect(() => {
-    if (!mapInstance) return;
-    let blankStreak = 0;
-    let lastBackstop = 0;
-    const id = setInterval(() => {
-      // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
-      // interval is created once and never churns (preserving the blank streak across re-renders).
-      if (window.isScrubbingTimeline || !activeMarineLayerRef.current) { blankStreak = 0; return; }
-      const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
-      const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
-      const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
-      const wg = eng && eng._waveData && eng._waveData.waveGrid;
-      // Also re-drive when a COARSE GLOBAL grid is held while zoomed IN (the zoom-in resolution
-      // mismatch — zoom-in fires no scrub-end, so this periodic interval is what catches it).
-      let coarseAtZoom = false;
-      if (wg && wg.bounds) {
-        const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
-        const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
-        try {
-          const vb = mapInstance.getBounds();
-          const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
-          coarseAtZoom = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
-        } catch (e) { /* ignore */ }
-      }
-      const needsRefetch = (!(eng && eng._waveData) || coarseAtZoom) && !window.__MARINE_FETCH_PENDING__ && govIdle;
-      if (!needsRefetch) { blankStreak = 0; return; }
-      blankStreak++;
-      if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
-      if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
-      lastBackstop = Date.now();
-      blankStreak = 0;
-      if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
-      console.warn(`[Marine] Render backstop: ${coarseAtZoom ? 'coarse-global grid at zoomed-in viewport' : 'engine empty'} + idle ≥3s — re-driving fetch.`);
-      if (checkScrubSettleRef.current) checkScrubSettleRef.current();
-    }, 1000);
-    return () => clearInterval(id);
-  }, [mapInstance]);
+  // Scrub-settle safety net + blank-heatmap backstop (extracted to useMarineScrubSettle, LOC cap).
+  // After scrubbing ends it verifies the rendered grid matches the requested hour and re-drives a
+  // fetch / commits a regional series frame if not; a periodic backstop catches silent blank-wedges
+  // and coarse-global-at-zoom holds. Behavior unchanged — verbatim move with the same deps.
+  useMarineScrubSettle({
+    mapInstance, marineData, setMarineData,
+    timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef,
+    marineFetchLocksRef, updateMarineGridRef,
+  });
 
   // Option 1 (flag-gated): background-load the marine time-series for the active
   // model/layer/viewport so the timeline scrubber can track hours instantly via the
