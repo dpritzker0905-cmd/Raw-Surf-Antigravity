@@ -3,6 +3,8 @@ Scheduler package — centralized registry for all background tasks.
 Re-exports scheduler instance and lifecycle functions for backward compatibility.
 """
 import logging
+import os
+from datetime import datetime, timezone, timedelta
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
@@ -141,11 +143,19 @@ def start_scheduler():
         replace_existing=True
     )
 
-    # Global Forecast Ingestion Pipeline — Every 3 hours
+    # Global Forecast Ingestion Pipeline — every 3 hours, AND ~2 min after startup. IntervalTrigger's
+    # first fire is now+interval, so on a box that restarts more often than the interval (frequent
+    # deploys) the ingestion would NEVER run and forecast data goes stale (observed: wind global 14h+
+    # stale). The startup run guarantees fresh data after each deploy. Tunable via
+    # FORECAST_STARTUP_DELAY_SEC (default 120; set <=0 to keep interval-only).
+    _forecast_kwargs = {}
+    _startup_delay = int(os.environ.get("FORECAST_STARTUP_DELAY_SEC", "120"))
+    if _startup_delay > 0:
+        _forecast_kwargs["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=_startup_delay)
     scheduler.add_job(
         ingest_marine_forecast_task, IntervalTrigger(hours=3),
         id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
-        replace_existing=True
+        replace_existing=True, **_forecast_kwargs
     )
 
     # Rate limiter memory cleanup — every hour
