@@ -315,6 +315,24 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
       postReadCallback(omFileReader, data, state) {
         tileLog("[OM-Protocol-Callback] postReadCallback triggered! Data exists:", !!data, "values exists:", !!data?.values, "state exists:", !!state);
         if (!data || !data.values) return;
+
+        // Raster tile-decode timing probe (opt-in: window.__PRECIP_TILE_DIAG__ = true). The precip-
+        // after-marine residual is cold .om tile fetch+decode (metadata is already prewarmed at mount
+        // and the raster slots are resident, so it's neither of those). This records, per variable,
+        // the decoded-tile count + the span from the first to the latest decode, so we can quantify
+        // the real cost on a visible tab (reset window.__PRECIP_TILE_DIAG_DATA__ = {} before a toggle).
+        // Zero-cost when off; never throws.
+        try {
+          if (typeof window !== 'undefined' && window.__PRECIP_TILE_DIAG__ === true) {
+            const v = state?.dataOptions?.variable || 'unknown';
+            const reg = (window.__PRECIP_TILE_DIAG_DATA__ = window.__PRECIP_TILE_DIAG_DATA__ || {});
+            const now = Date.now();
+            const e = (reg[v] = reg[v] || { count: 0, firstTs: now, lastTs: now, spanMs: 0 });
+            e.count++;
+            e.lastTs = now;
+            e.spanMs = e.lastTs - e.firstTs;
+          }
+        } catch (e) { /* probe must never break tile decoding */ }
         
         let bounds = state.dataOptions?.bounds;
         const variable = state.dataOptions?.variable;
