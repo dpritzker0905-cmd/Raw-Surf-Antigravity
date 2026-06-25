@@ -663,13 +663,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() }, currentHour);
         const fb = frame && frame.grid && frame.grid.bounds;
         const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
-        if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_DEBUG__ = { hasFrame: !!frame, fw, hasSetData: !!setMarineData, hasBounds: !!fb, hour: currentHour };
         if (frame && fw < 340 && setMarineData) {
           if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
           console.log('[SCRUB-SETTLE] Sharpening coarse-global grid: committing regional series frame.');
           setMarineData(frame);
         }
-      } catch (e) { if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_DEBUG__ = { err: String(e) }; }
+      } catch (e) { /* map/series not ready — defer */ }
       return;
     }
 
