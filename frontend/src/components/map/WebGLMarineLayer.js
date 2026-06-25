@@ -47,7 +47,6 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     renderedDataHour: null
   });
   const scrubUploadTimeoutRef = useRef(null);
-  const lastScrubUploadRef = useRef(0);
 
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
@@ -627,31 +626,16 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       safeUploadWaveData(reason, gl, currentData, landGeoJSONRef.current);
     };
 
+    // Upload synchronously on every committed frame — for BOTH scrub and non-scrub. There is no
+    // need for a scrub-only debounce here: (1) the timeline slider already rAF-coalesces its input
+    // (MapWeatherControls.handleSliderChange fires the latest hour at most once per animation frame),
+    // so commits arrive at <=60fps, and (2) safeUploadWaveData content-diffs each frame
+    // (computeVectorDiffAndLog → skipped_identical_content_across_hours), so a redundant same-frame
+    // upload is already a cheap no-op. The old scrub setTimeout debounce therefore only ADDED latency
+    // (heatmap lagging the scrubber) without preventing any real flood. Synchronous = the heatmap
+    // repaints on the same frame the new hour commits, tracking the scrubber.
     if (scrubUploadTimeoutRef.current) { clearTimeout(scrubUploadTimeoutRef.current); scrubUploadTimeoutRef.current = null; }
-    if (typeof window !== 'undefined' && window.isScrubbingTimeline) {
-      // THROTTLE (not a canceling debounce). The old `clearTimeout + setTimeout(doUpload, 60)` reset
-      // the timer on EVERY frame, so during a continuous drag (frames < 60ms apart) the upload never
-      // fired until the user paused — the heatmap froze mid-scrub and only caught up on release.
-      // Throttle instead: upload immediately on the leading edge once >= interval has elapsed (so the
-      // heatmap repaints THROUGHOUT the drag, tracking the scrubber), and schedule a trailing upload
-      // for the latest frame that lands inside a window. Still caps encode+texImage2D cost (~25fps),
-      // which is what the original debounce was protecting against.
-      const SCRUB_UPLOAD_THROTTLE_MS = 40; // ~25fps repaint during drag
-      const now = Date.now();
-      const elapsed = now - (lastScrubUploadRef.current || 0);
-      if (elapsed >= SCRUB_UPLOAD_THROTTLE_MS) {
-        lastScrubUploadRef.current = now;
-        doUpload();
-      } else {
-        scrubUploadTimeoutRef.current = setTimeout(() => {
-          scrubUploadTimeoutRef.current = null;
-          lastScrubUploadRef.current = Date.now();
-          doUpload();
-        }, SCRUB_UPLOAD_THROTTLE_MS - elapsed);
-      }
-    } else {
-      doUpload();
-    }
+    doUpload();
 
     return () => {
       if (scrubUploadTimeoutRef.current) clearTimeout(scrubUploadTimeoutRef.current);
