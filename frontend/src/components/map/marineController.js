@@ -17,6 +17,8 @@ import {
   updateDiagnostics,
   updateProjectionDiag,
   fetchBackendMarineGrid,
+  fetchBackendMarineGridConjoined,
+  isMarineConjoinedEnabled,
   clampViewportBbox
 } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
@@ -392,6 +394,26 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // --- GFS BACKEND SERVICE REDIRECT ---
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
+    // CONJOINED fast-path (default on): one /grid_conjoined fetch warms ALL 4 GFS marine layers,
+    // so toggling between them is an instant client-side cache hit (no refetch, no blank). Caches
+    // every returned layer so getModelSafeMarine() hits for siblings too. ANY failure falls through
+    // to the per-layer fetch below → behavior degrades to exactly today's.
+    if (isMarineConjoinedEnabled()) {
+      try {
+        const conj = await fetchBackendMarineGridConjoined(bounds, hourOffset, signal, snappedBounds, 'GFS');
+        if (conj && Object.keys(conj).length > 0) {
+          for (const lyr of Object.keys(conj)) {
+            _cacheMarineResult('GFS', hourOffset, conj[lyr], lyr);
+          }
+          if (conj[activeLayer]) return conj[activeLayer];
+        }
+      } catch (err) {
+        if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
+          throw err;
+        }
+        console.warn(`[Conjoined] GFS conjoined fetch failed for ${activeLayer}; falling back to per-layer: ${err.message}`);
+      }
+    }
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
