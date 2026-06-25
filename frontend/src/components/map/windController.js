@@ -350,6 +350,16 @@ function isWindModelPrewarmEnabled() {
   return false;
 }
 
+// True only for a wind grid that is safe to COMMIT to the engine. The backend wind redirect returns
+// a 1-vector "conformed safe zero grid" (cols:1,rows:1,stale:true,renderable:false) when a fetch
+// fails (e.g. EURO wind /grid 500s for some forecast valid_times → the browser reports it as a CORS
+// error because the 500 response carries no CORS headers). Committing that 1-vector grid CLEARS the
+// wind heatmap ([WebGLWind] Buffers cleared). Gating the commit on this lets the caller RETAIN the
+// previous frame + retry instead — mirrors the marine "retain stale view while fetching" behavior.
+export function isRenderableWindData(d) {
+  return !!(d && Array.isArray(d.vectors) && d.vectors.length > 0 && d.renderable !== false && !d.stale);
+}
+
 export function _resetWindCachesForTest() {
   WIND_CACHE.clear();
   WIND_INFLIGHT.clear();

@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef, useMemo } from 'react';
-import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind } from './marineController';
+import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
@@ -166,7 +166,10 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         
         if (cancelled) return;
         
-        if (data && data.vectors?.length > 0) {
+        // Commit ONLY a renderable, non-stale grid. A failed redirect returns a 1-vector safe-zero
+        // grid (renderable:false/stale:true) — committing it would CLEAR the wind heatmap. Instead
+        // fall through to the retry branch and RETAIN the previous frame (the EURO-wind-clearing fix).
+        if (isRenderableWindData(data)) {
           console.log(`[CACHE] [WeatherEngine] Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           commitWindData(data);

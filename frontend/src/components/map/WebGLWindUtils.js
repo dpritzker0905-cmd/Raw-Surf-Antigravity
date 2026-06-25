@@ -107,6 +107,26 @@ export function bindTexture(gl, tex, unit) {
   gl.bindTexture(gl.TEXTURE_2D, tex);
 }
 
+// Copy the WEST edge column (lng -180) onto the EAST edge column (lng +180) of a GLOBAL wind texture
+// when the EAST column is dead while the WEST one carries wind — repairs the EURO antimeridian seam
+// (lng -180 ≡ lng +180 = same meridian; GFS already has them equal, EURO ships a near-zero +180
+// column → a hard vertical line east of NZ). Pure + in-place on the RGBA byte array. Returns true if
+// it repaired. No-op (false) for non-global / single-column / already-healthy grids. Truth-safe
+// (periodic identity) and a strict no-op for GFS, so it cannot regress the GFS Pacific-seam wrap fix.
+export function repairGlobalWindSeamInPlace(data, cols, rows, isGlobal, firstColMeanSpeed, lastColMeanSpeed) {
+  if (!isGlobal || !data || cols < 2 || rows < 1) return false;
+  if (!(firstColMeanSpeed > 0.5 && lastColMeanSpeed < 0.25 * firstColMeanSpeed)) return false;
+  for (let r = 0; r < rows; r++) {
+    const src = (r * cols + 0) * 4;
+    const dst = (r * cols + (cols - 1)) * 4;
+    data[dst] = data[src];
+    data[dst + 1] = data[src + 1];
+    data[dst + 2] = data[src + 2];
+    data[dst + 3] = data[src + 3];
+  }
+  return true;
+}
+
 export function encodeWindTexture(gl, windGrid) {
   const { vectors, cols, rows, bounds } = windGrid;
   if (!vectors?.length || !cols || !rows) return null;
@@ -140,24 +160,30 @@ export function encodeWindTexture(gl, windGrid) {
     data[i * 4 + 3] = 255;
   }
 
-  const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
   const crosses = bounds ? bounds.west > bounds.east : false;
   const lngSpan = bounds ? (crosses ? (bounds.east + 360.0) - bounds.west : bounds.east - bounds.west) : 0;
   const isGlobal = bounds && ((lngSpan >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse');
 
+  // WEST (lng -180) vs EAST (lng +180) edge-column mean speed. For a global grid these are the SAME
+  // meridian and should match (GFS does); EURO's +180 column is dead → the Pacific seam east of NZ.
+  let fSpd = 0, fN = 0, lSpd = 0, lN = 0;
+  for (let i = 0; i < vectors.length; i++) {
+    const col = i % cols;
+    if (col === 0) { fSpd += vectors[i].speed || 0; fN++; }
+    else if (col === cols - 1) { lSpd += vectors[i].speed || 0; lN++; }
+  }
+  const firstColMeanSpeed = fN ? fSpd / fN : 0;
+  const lastColMeanSpeed = lN ? lSpd / lN : 0;
+
+  // Repair the seam on the byte array BEFORE the texture is created (copy -180 column → +180 column).
+  const seamRepaired = repairGlobalWindSeamInPlace(data, cols, rows, !!isGlobal, firstColMeanSpeed, lastColMeanSpeed);
+  if (seamRepaired && typeof window !== 'undefined') window.__WIND_SEAM_REPAIRED__ = (window.__WIND_SEAM_REPAIRED__ || 0) + 1;
+
+  const tex = createTexture(gl, gl.LINEAR, data, cols, rows);
+
   // ── EURO antimeridian-seam diagnostic (default ON; opt out window.__WIND_SEAM_DIAG__ = false) ──
-  // The Pacific seam (~180°E, east of NZ) appears when the longitude-wrap REPEAT is NOT applied
-  // (isGlobal false → CLAMP edge) OR when it IS applied but the grid is non-periodic at 180° (the
-  // first and last columns differ / the ±180 column is duplicated → REPEAT mis-aligns). Capture the
-  // exact inputs so we can tell which, per model, on a visible tab. Cheap (one pass over ~300 vecs).
   try {
     if (typeof window !== 'undefined' && window.__WIND_SEAM_DIAG__ !== false) {
-      let fSpd = 0, fN = 0, lSpd = 0, lN = 0;
-      for (let i = 0; i < vectors.length; i++) {
-        const col = i % cols;
-        if (col === 0) { fSpd += vectors[i].speed || 0; fN++; }
-        else if (col === cols - 1) { lSpd += vectors[i].speed || 0; lN++; }
-      }
       const model = (windGrid && (windGrid.model || windGrid.__sourceModel || windGrid.source))
         || (window.activeModel || window.__ACTIVE_MODEL__ || 'unknown');
       const diag = {
@@ -168,10 +194,10 @@ export function encodeWindTexture(gl, windGrid) {
         coverage_scope: windGrid?.coverage_scope || null,
         isGlobal: !!isGlobal,
         wrapApplied: !!isGlobal, // REPEAT is only set below when isGlobal
-        firstColMeanSpeed: fN ? +(fSpd / fN).toFixed(3) : null,
-        lastColMeanSpeed: lN ? +(lSpd / lN).toFixed(3) : null,
-        // endpoints inclusive (e.g. west=-180 AND east=180) ⇒ the ±180 column is likely DUPLICATED,
-        // which breaks REPEAT periodicity even when isGlobal is true.
+        firstColMeanSpeed: fN ? +firstColMeanSpeed.toFixed(3) : null,
+        lastColMeanSpeed: lN ? +lastColMeanSpeed.toFixed(3) : null,
+        seamRepaired: !!seamRepaired,
+        // endpoints inclusive (west=-180 AND east=180) ⇒ the ±180 column is duplicated (same meridian).
         endpointsInclusive180: !!(bounds && Math.abs(Math.abs(bounds.east - bounds.west) - 360) < 0.6),
         ts: Date.now(),
       };
