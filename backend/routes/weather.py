@@ -118,29 +118,6 @@ async def get_grid(
         bbox=bbox, background_tasks=background_tasks, request=request
     )
 
-@router.get("/grid_conjoined")
-async def get_grid_conjoined(
-    model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
-    valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
-    bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter"),
-    background_tasks: BackgroundTasks = None,
-    request: Request = None
-):
-    """
-    GET /api/weather/grid_conjoined  (marine only)
-    Returns ONE grid whose vectors each carry all four wave components
-    {waves, swell_1, swell_2, wind_waves}, so the client can fetch every marine layer in a single
-    request and toggle between them client-side with NO refetch and NO blank. Reuses resolve_grid
-    per component (identical cache/coverage/fallback behavior); strictly additive to the per-layer
-    /grid route. Frontend opts in (Phase 2), so this is dormant until then.
-    """
-    from services.weather_pipeline.grid_resolver import resolve_conjoined_marine_grid
-    return await resolve_conjoined_marine_grid(
-        store, viewport_service,
-        model=model, valid_time=valid_time, bbox=bbox,
-        background_tasks=background_tasks, request=request
-    )
-
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
     model: str = Query(..., pattern="^(GFS|ICON|EURO)$"),
