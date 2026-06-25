@@ -39,12 +39,14 @@ class WeatherPipelineScheduler:
 
     async def _fetch_or_mock(self, model: str, domain: str, layer: str,
                              region: dict, resolution: float, forecast_days: int,
-                             is_test_env: bool, mock_fn, region_id: str = "") -> Optional[list]:
+                             is_test_env: bool, mock_fn, region_id: str = "",
+                             batch_size: Optional[int] = None) -> Optional[list]:
         """Fetch grid from provider, falling back to mock data in test environments."""
         try:
             raw_data = await self.om_provider.fetch_grid(
                 model=model, domain=domain, layer=layer,
-                bbox=region, resolution=resolution, forecast_days=forecast_days
+                bbox=region, resolution=resolution, forecast_days=forecast_days,
+                batch_size=batch_size
             )
         except Exception as e:
             logger.error(f"[Pipeline Scheduler] Exception during fetch: {e}")

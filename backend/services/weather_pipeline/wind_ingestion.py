@@ -12,12 +12,15 @@ from services.weather_pipeline.scheduler_helpers import (
 
 logger = logging.getLogger(__name__)
 
-# GFS/EURO wind GLOBAL ingestion fetched 14 days × the global coarse grid, which reliably timed out
-# the open-meteo fetch on the 1-CPU/512MB Render box (45s/batch) → no product (manifest stuck: EURO
-# wind 14 days stale, GFS 7 days). ICON wind global already uses 5 days and SUCCEEDS. Fetch a lighter
-# horizon so the ingestion completes; current + near-future is what activation needs, and the dynamic
-# viewport fetch still covers far hours. Tunable down to 5 (ICON's proven value) if EURO still fails.
-_WIND_GLOBAL_FORECAST_DAYS = int(os.environ.get("WIND_GLOBAL_FORECAST_DAYS", "7"))
+# GFS/EURO wind GLOBAL ingestion fetched 14 days × the global coarse grid in batches of 500 points,
+# which reliably timed out open-meteo on the 1-CPU/512MB box (it processes 14 days × 500 pts per call
+# too slowly) → no product (manifest stuck: EURO wind 341h stale, GFS 166h). We KEEP the full 14-day
+# horizon (the forecast must reach 14 days) but fetch in SMALLER point-batches so each open-meteo/proxy
+# call processes fewer points and completes — marine succeeds at 500pts×8d×12vars, so 200pts×14d×3vars
+# is a lighter call. Both env-tunable: drop WIND_GLOBAL_FORECAST_DAYS or raise WIND_GLOBAL_BATCH_SIZE
+# if needed. ICON wind global already uses 5 days (its native horizon) and is unchanged.
+_WIND_GLOBAL_FORECAST_DAYS = int(os.environ.get("WIND_GLOBAL_FORECAST_DAYS", "14"))
+_WIND_GLOBAL_BATCH_SIZE = int(os.environ.get("WIND_GLOBAL_BATCH_SIZE", "200"))
 
 
 async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
@@ -73,7 +76,8 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
         "GFS", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
         False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14),
-        "global_coarse"
+        "global_coarse",
+        batch_size=_WIND_GLOBAL_BATCH_SIZE
     )
     if not results:
         logger.warning("[Pipeline Scheduler] GFS wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
@@ -154,7 +158,8 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
         "EURO", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
         False,
         lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
-        "global_coarse"
+        "global_coarse",
+        batch_size=_WIND_GLOBAL_BATCH_SIZE
     )
     if not results:
         logger.warning("[Pipeline Scheduler] EURO wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")

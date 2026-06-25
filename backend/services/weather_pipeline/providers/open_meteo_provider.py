@@ -202,7 +202,8 @@ class OpenMeteoProvider:
         resolution: float = 0.25,
         forecast_days: int = 2,
         precomputed_coords: Optional[tuple] = None,
-        inter_batch_delay: Optional[float] = None
+        inter_batch_delay: Optional[float] = None,
+        batch_size: Optional[int] = None
     ) -> Optional[Dict[str, Any]]:
         """
         Asynchronously fetches a coordinate snap-grid from Open-Meteo.
@@ -332,7 +333,10 @@ class OpenMeteoProvider:
         async with httpx.AsyncClient() as client:
             try:
                 # We restrict the batch size to 500 to avoid excessive sequential HTTP request overhead, while still staying within safe limits.
-                batch_size = 500
+                # Callers can pass a smaller batch_size for heavy long-horizon fetches (e.g. 14-day wind
+                # global) so each proxy/open-meteo call processes fewer points and completes in time.
+                if batch_size is None:
+                    batch_size = 500
                 aggregated_results = []
 
                 for i in range(0, len(lats), batch_size):
