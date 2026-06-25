@@ -644,7 +644,15 @@ export function useMarineDataFetcherCore({
       window.__MARINE_FETCH_DEBOUNCING__ = true;
     }
 
-    requestAnimationFrame(() => {
+    // Run the debounced dispatch on the next frame — but via rAF OR a setTimeout fallback, run-once.
+    // rAF alone PAUSES when the tab is hidden, stranding scheduledRef true (which makes the
+    // `if (scheduledRef.current) return` guard above block every subsequent enqueue) and
+    // __MARINE_FETCH_DEBOUNCING__ true. The setTimeout fallback fires even when hidden; whichever
+    // fires first runs the body, the other no-ops (visible tab: rAF wins, timing unchanged).
+    let _dispatchRan = false;
+    const _runDispatch = () => {
+      if (_dispatchRan) return;
+      _dispatchRan = true;
       scheduledRef.current = false;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
       const stableDelay = (isCached || source === 'manual' || source === 'timeline_scrub') ? 20 : 300;
@@ -666,7 +674,9 @@ export function useMarineDataFetcherCore({
           setTimeout(runUpdate, 1000);
         }
       }, stableDelay);
-    });
+    };
+    requestAnimationFrame(_runDispatch);
+    setTimeout(_runDispatch, 1500);
   }, [
     mapInstance,
     activeModelRef,

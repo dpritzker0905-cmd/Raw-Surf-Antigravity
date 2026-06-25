@@ -430,7 +430,14 @@ export function commitMarineData({
     return data;
   });
 
+  // Clear the commit lock after the commit's render frame. NOT via rAF alone: rAF PAUSES when the
+  // tab is hidden (and can be starved under load), which strands isCommittingDataRef true — and
+  // while it's true updateMarineGridCore early-returns on every NON-scrub fetch (model/layer switch,
+  // activation, moveend, pan), wedging the heatmap on stale data until a scrub. The setTimeout
+  // fallback fires even when hidden (throttled to ~1s). On a visible tab the rAF wins (~16ms) so the
+  // timeout is a redundant no-op and timing is unchanged.
   requestAnimationFrame(() => { isCommittingDataRef.current = false; });
+  setTimeoutFunc(() => { isCommittingDataRef.current = false; }, 1500);
   if (internalUpdateTimerRef.current) clearTimeoutFunc(internalUpdateTimerRef.current);
   internalUpdateTimerRef.current = setTimeoutFunc(() => { isInternalMapUpdateRef.current = false; }, 800);
 
