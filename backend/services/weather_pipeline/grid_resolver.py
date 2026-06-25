@@ -328,9 +328,16 @@ async def resolve_grid(
             except Exception as dynamic_err:
                 logger.warning(f"[Grid Route] Dynamic viewport upstream fetch failed: {dynamic_err}. Checking fallback/step 6...")
 
-                # Check for EURO marine fallback to GFS
-                if model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves"):
-                    logger.info(f"[Grid Route] Copernicus grid fetch failed. Attempting GFS grid fallback...")
+                # EURO → GFS fallback. Marine: Copernicus upstream failed. Wind: EURO (ecmwf_ifs) wind
+                # has no fresh global product and its on-demand open-meteo fetch fails for the current
+                # horizon (curl: every EURO wind hour past the stale product 500'd while GFS wind 200'd).
+                # Without this, EURO wind fell through to a path that returned an unhandled 500 (no CORS)
+                # → the heatmap never activated. GFS wind is a sound global proxy (same as marine's GFS
+                # fallback), so EURO wind always shows real wind data; provider is labelled honestly.
+                _is_euro_marine = model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+                _is_euro_wind = model.upper() == "EURO" and domain.lower() == "wind" and layer.lower() == "wind"
+                if _is_euro_marine or _is_euro_wind:
+                    logger.info(f"[Grid Route] EURO {domain} upstream failed. Attempting GFS {domain} fallback...")
                     try:
                         product = await viewport_service.fetch_viewport_grid_upstream(
                             model="GFS", domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
@@ -339,9 +346,14 @@ async def resolve_grid(
                             from services.copernicus_marine_service import is_test_environment
                             is_test = is_test_environment()
                             product.model = "EURO"
-                            product.provider = "gfs_estimated_fallback" if is_test else "copernicus"
-                            product.is_estimated = True if is_test else False
-                            product.is_forecast_authoritative = False if is_test else True
+                            if _is_euro_wind:
+                                product.provider = "gfs_fallback"
+                                product.is_estimated = True
+                                product.is_forecast_authoritative = False
+                            else:
+                                product.provider = "gfs_estimated_fallback" if is_test else "copernicus"
+                                product.is_estimated = True if is_test else False
+                                product.is_forecast_authoritative = False if is_test else True
                             if product.grid:
                                 if product.grid.diagnostics is None:
                                     product.grid.diagnostics = {}
@@ -442,7 +454,7 @@ async def resolve_grid(
                         if req_span_lng > 15.0 or req_span_lat > 15.0:
                             is_wide_req = True
 
-                    if is_wide_req and domain.lower() != "wind":
+                    if not product and is_wide_req and domain.lower() != "wind":
                         return JSONResponse(status_code=200, content={
                             "model": model,
                             "provider": "none",
@@ -484,9 +496,13 @@ async def resolve_grid(
                             "renderable": False
                         })
 
-                    if isinstance(dynamic_err, HTTPException):
-                        raise dynamic_err
-                    raise HTTPException(status_code=503, detail=f"Grid service temporarily unavailable: {dynamic_err}")
+                    # If the EURO→GFS fallback above set a product, USE it — don't raise. The Step 6/7
+                    # no-coverage block runs even when the fallback succeeded, and these raises would
+                    # otherwise discard the fallback product (the EURO-wind-never-activates 500/503 bug).
+                    if not product:
+                        if isinstance(dynamic_err, HTTPException):
+                            raise dynamic_err
+                        raise HTTPException(status_code=503, detail=f"Grid service temporarily unavailable: {dynamic_err}")
         else:
             # Dynamic viewport not enabled for this layer/model, return honest no-coverage
             return make_no_coverage_grid_response(model, layer, valid_time)
