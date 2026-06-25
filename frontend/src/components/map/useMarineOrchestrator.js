@@ -631,13 +631,31 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
     const noData = !marineData || !marineData.grid?.vectors?.length;
 
-    if (hourMismatch || noData) {
+    // Resolution mismatch: a COARSE GLOBAL grid is rendered while the viewport is zoomed IN to a
+    // region. The global grid "covers" the zoomed-in viewport, so the normal moveend fetch is
+    // suppressed by cache containment and the heatmap stays a blocky ~1-cell blob that never
+    // sharpens. Detect it and force a fresh REGIONAL fetch (clampViewportBbox returns a regional
+    // bbox at this zoom). Reads the live engine grid bounds vs the current viewport.
+    let gridMismatch = false;
+    try {
+      const wg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+      if (wg && wg.bounds && mapInstance) {
+        const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
+        const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
+        const vb = mapInstance.getBounds();
+        const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
+        gridMismatch = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
+      }
+    } catch (e) { /* map not ready */ }
+
+    if (hourMismatch || noData || gridMismatch) {
       // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
       // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
       const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
       if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
         return;
       }
+      if (gridMismatch && typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
 
       const pending = window.__MARINE_FETCH_PENDING__;
       const isAlreadyFetchingCurrentHour = pending &&
@@ -723,15 +741,28 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
       const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
-      const blank = !(eng && eng._waveData) && !window.__MARINE_FETCH_PENDING__ && govIdle;
-      if (!blank) { blankStreak = 0; return; }
+      const wg = eng && eng._waveData && eng._waveData.waveGrid;
+      // Also re-drive when a COARSE GLOBAL grid is held while zoomed IN (the zoom-in resolution
+      // mismatch — zoom-in fires no scrub-end, so this periodic interval is what catches it).
+      let coarseAtZoom = false;
+      if (wg && wg.bounds) {
+        const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
+        const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
+        try {
+          const vb = mapInstance.getBounds();
+          const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
+          coarseAtZoom = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
+        } catch (e) { /* ignore */ }
+      }
+      const needsRefetch = (!(eng && eng._waveData) || coarseAtZoom) && !window.__MARINE_FETCH_PENDING__ && govIdle;
+      if (!needsRefetch) { blankStreak = 0; return; }
       blankStreak++;
-      if (blankStreak < 3) return;                   // require ~3s of sustained, provable blank
+      if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
       if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
       lastBackstop = Date.now();
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
-      console.warn('[Marine] Blank-heatmap backstop: layer active but engine empty + idle ≥3s — re-driving fetch.');
+      console.warn(`[Marine] Render backstop: ${coarseAtZoom ? 'coarse-global grid at zoomed-in viewport' : 'engine empty'} + idle ≥3s — re-driving fetch.`);
       if (checkScrubSettleRef.current) checkScrubSettleRef.current();
     }, 1000);
     return () => clearInterval(id);
