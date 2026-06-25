@@ -243,17 +243,19 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 const GRID_CONJOINED_URL = `${BACKEND_URL}/api/weather/grid_conjoined`;
 
 /**
- * isMarineConjoinedEnabled — default ON. When on, marine layers are fetched via ONE
- * /grid_conjoined request (all 4 wave components) so toggling layers is an instant client-side
- * cache hit (no refetch, no blank). Opt out with `window.__MARINE_CONJOINED__ = false` or
- * localStorage 'marine_conjoined'='false'. ANY conjoined failure falls back to the per-layer path,
- * so behavior degrades to exactly today's on error.
+ * isMarineConjoinedEnabled — DEFAULT OFF (opt-in). The /grid_conjoined endpoint resolves all 4
+ * components server-side; for ZOOMED-IN regional viewports that need an upstream dynamic-viewport
+ * fetch, doing 4 of those on the 1-CPU backend overloads it (503s) and/or serves a global-coarse
+ * grid that renders CLAMPED at regional zoom. So it stays dormant (per-layer path runs = proven
+ * behavior) until the endpoint is fixed to (a) build all components from ONE upstream all_marine
+ * fetch and (b) honor the regional dynamic viewport. Opt in via `window.__MARINE_CONJOINED__ = true`
+ * or localStorage 'marine_conjoined'='true'. When on, any failure still falls back to per-layer.
  */
 export function isMarineConjoinedEnabled() {
   if (typeof window === 'undefined') return false;
-  if (window.__MARINE_CONJOINED__ === false) return false;
-  try { if (window.localStorage && window.localStorage.getItem('marine_conjoined') === 'false') return false; } catch (e) { /* localStorage blocked */ }
-  return true;
+  if (window.__MARINE_CONJOINED__ === true) return true;
+  try { if (window.localStorage && window.localStorage.getItem('marine_conjoined') === 'true') return true; } catch (e) { /* localStorage blocked */ }
+  return false;
 }
 
 /**
