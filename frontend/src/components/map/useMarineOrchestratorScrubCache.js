@@ -191,6 +191,26 @@ export function useMarineOrchestratorScrubCache({
         }
         return;
       } else {
+        // SYNC (option B): during an ACTIVE drag, when the exact hour isn't cached but a NEAREST
+        // frame IS, commit that nearest frame instead of FREEZING on the last-committed (often far)
+        // hour — so the heatmap tracks the slider through the cold-page warming window. The nearest
+        // is already bounded to ≤6h of the requested hour (getModelSafeMarine __staleHour, see
+        // marineController.js), and SCRUB-SETTLE snaps to the exact hour on release. Truth-safe:
+        // the truth-diff doesn't check hour and is bypassed during scrub, the frame carries real
+        // vectors, and WebGLMarineLayer's coverageMissing/parity flags are diagnostic-only (they
+        // never blank the engine). Deduped by signature so it can't churn within a 6h gap.
+        if (window.isScrubbingTimeline && cachedBackendData && cachedBackendData.grid &&
+            cachedBackendData.__staleHour && !rejectRegionalCache) {
+          const sig = _marineDataSignature(cachedBackendData, curLayer);
+          if (sig && sig !== lastCommittedSigRef.current) {
+            lastCommittedSigRef.current = sig;
+            marineRevision.current += 1;
+            cachedBackendData.__commitRevision = marineRevision.current;
+            setMarineData(cachedBackendData);
+          }
+          marineFetchLocksRef.current.lastHash = null; // approximate frame — don't claim an exact-viewport commit
+          return;
+        }
         if (typeof window !== 'undefined' && window.__SCRUB_DEBUG__) {
           console.log(`[SCRUB] [BACKEND CACHE] Miss: +${timeOffsetHours}h model=${curModel} layer=${curLayer}. Retaining stale view while fetching.`);
         }
