@@ -144,6 +144,43 @@ export function encodeWindTexture(gl, windGrid) {
   const crosses = bounds ? bounds.west > bounds.east : false;
   const lngSpan = bounds ? (crosses ? (bounds.east + 360.0) - bounds.west : bounds.east - bounds.west) : 0;
   const isGlobal = bounds && ((lngSpan >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse');
+
+  // ── EURO antimeridian-seam diagnostic (default ON; opt out window.__WIND_SEAM_DIAG__ = false) ──
+  // The Pacific seam (~180°E, east of NZ) appears when the longitude-wrap REPEAT is NOT applied
+  // (isGlobal false → CLAMP edge) OR when it IS applied but the grid is non-periodic at 180° (the
+  // first and last columns differ / the ±180 column is duplicated → REPEAT mis-aligns). Capture the
+  // exact inputs so we can tell which, per model, on a visible tab. Cheap (one pass over ~300 vecs).
+  try {
+    if (typeof window !== 'undefined' && window.__WIND_SEAM_DIAG__ !== false) {
+      let fSpd = 0, fN = 0, lSpd = 0, lN = 0;
+      for (let i = 0; i < vectors.length; i++) {
+        const col = i % cols;
+        if (col === 0) { fSpd += vectors[i].speed || 0; fN++; }
+        else if (col === cols - 1) { lSpd += vectors[i].speed || 0; lN++; }
+      }
+      const model = (windGrid && (windGrid.model || windGrid.__sourceModel || windGrid.source))
+        || (window.activeModel || window.__ACTIVE_MODEL__ || 'unknown');
+      const diag = {
+        model,
+        cols, rows,
+        bounds,
+        lngSpan: Math.round(lngSpan * 10) / 10,
+        coverage_scope: windGrid?.coverage_scope || null,
+        isGlobal: !!isGlobal,
+        wrapApplied: !!isGlobal, // REPEAT is only set below when isGlobal
+        firstColMeanSpeed: fN ? +(fSpd / fN).toFixed(3) : null,
+        lastColMeanSpeed: lN ? +(lSpd / lN).toFixed(3) : null,
+        // endpoints inclusive (e.g. west=-180 AND east=180) ⇒ the ±180 column is likely DUPLICATED,
+        // which breaks REPEAT periodicity even when isGlobal is true.
+        endpointsInclusive180: !!(bounds && Math.abs(Math.abs(bounds.east - bounds.west) - 360) < 0.6),
+        ts: Date.now(),
+      };
+      window.__WIND_SEAM_DIAG__ = diag;
+      window.__WIND_SEAM_DIAG_BY_MODEL__ = window.__WIND_SEAM_DIAG_BY_MODEL__ || {};
+      window.__WIND_SEAM_DIAG_BY_MODEL__[model] = diag;
+    }
+  } catch (e) { /* diagnostic must never break rendering */ }
+
   if (isGlobal) {
     const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
     gl.bindTexture(gl.TEXTURE_2D, tex);
