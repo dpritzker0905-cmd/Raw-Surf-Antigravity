@@ -366,6 +366,12 @@ class ViewportService:
             # for uncached wide viewports hung ~90s, blocking the worker). On timeout → graceful no-cov.
             is_render_env = os.environ.get("RENDER") == "true"
             upstream_timeout = float(os.environ.get("VIEWPORT_UPSTREAM_TIMEOUT_SEC", "20.0" if is_render_env else "30.0"))
+            # EURO (ecmwf_ifs) wind upstream is reliably ~20s for a global viewport — too slow for the
+            # marine→wind toggle. Use a SHORT timeout so it fails over FAST to the GFS-wind fallback
+            # (grid_resolver) instead of blocking activation ~20s. Once the scheduled EURO wind
+            # global_coarse product exists, /grid serves it from disk and never reaches this fetch.
+            if model.upper() == "EURO" and domain.lower() == "wind":
+                upstream_timeout = float(os.environ.get("EURO_WIND_UPSTREAM_TIMEOUT_SEC", "6.0"))
             if model.upper() == "EURO" and domain.lower() == "marine":
                 from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
                 cop_provider = CopernicusProvider()
