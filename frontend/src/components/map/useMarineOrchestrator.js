@@ -648,14 +648,35 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       }
     } catch (e) { /* map not ready */ }
 
-    if (hourMismatch || noData || gridMismatch) {
+    // gridMismatch: a coarse-global grid is held while zoomed in. The exact-viewport REGIONAL series
+    // is already warming (the warming kick fetches grid_series for the viewport) — commit its
+    // current-hour frame to sharpen, INSTEAD of a /grid fetch: the marine controller cache serves
+    // the coarse global for the contained viewport, so updateMarineGrid here is a no-op loop. If the
+    // regional frame isn't ready yet, defer (the warming kick is loading it and this re-checks).
+    // Self-resolves once the engine renders the regional grid (gridMismatch then goes false).
+    if (gridMismatch && !hourMismatch && !noData) {
+      try {
+        const vb = mapInstance.getBounds();
+        const frame = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves',
+          { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() }, currentHour);
+        const fb = frame && frame.grid && frame.grid.bounds;
+        const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
+        if (frame && fw < 340 && setMarineData) {
+          if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
+          console.log('[SCRUB-SETTLE] Sharpening coarse-global grid: committing regional series frame.');
+          setMarineData(frame);
+        }
+      } catch (e) { /* map/series not ready — defer */ }
+      return;
+    }
+
+    if (hourMismatch || noData) {
       // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net
       // so it doesn't spin on a doomed request (e.g. EURO outside its region, far-hour no-data).
       const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
       if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
         return;
       }
-      if (gridMismatch && typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
 
       const pending = window.__MARINE_FETCH_PENDING__;
       const isAlreadyFetchingCurrentHour = pending &&
