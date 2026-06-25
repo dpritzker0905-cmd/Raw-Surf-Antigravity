@@ -112,11 +112,28 @@ async def get_grid(
     grid_series can reuse the exact same resolver.
     """
     from services.weather_pipeline.grid_resolver import resolve_grid
-    return await resolve_grid(
-        store, viewport_service,
-        model=model, domain=domain, layer=layer, valid_time=valid_time,
-        bbox=bbox, background_tasks=background_tasks, request=request
-    )
+    try:
+        return await resolve_grid(
+            store, viewport_service,
+            model=model, domain=domain, layer=layer, valid_time=valid_time,
+            bbox=bbox, background_tasks=background_tasks, request=request
+        )
+    except HTTPException:
+        # Intentional, CORS-safe statuses (499 client-closed, 503 temporarily-unavailable, 4xx) — keep.
+        raise
+    except Exception as e:
+        # An UNHANDLED exception becomes a bare FastAPI 500 ("Internal Server Error") that carries NO
+        # Access-Control-Allow-Origin header, so the browser misreports it as a CORS error — and for
+        # wind the client's safe-zero fallback then clears the heatmap. This was the EURO-wind 500
+        # (no forecast products beyond the latest stale run → dynamic fetch throws for far valid_times).
+        # Convert any unexpected failure into a graceful no-coverage grid (404 JSONResponse → CORS-safe)
+        # so the client retains the previous frame + retries. The real cause is logged for Render.
+        logger.error(
+            f"[Grid Route] Unhandled error resolving {model}/{domain}/{layer}@{valid_time} "
+            f"(bbox={bbox}): {type(e).__name__}: {e}", exc_info=True
+        )
+        from services.weather_pipeline.route_helpers import make_no_coverage_grid_response
+        return make_no_coverage_grid_response(model, layer, valid_time)
 
 @router.get("/point", response_model=NormalizedPointResponse)
 async def get_point(
