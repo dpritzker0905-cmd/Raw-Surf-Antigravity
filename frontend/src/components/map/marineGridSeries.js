@@ -232,10 +232,14 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
  * flag is off. Never throws. hourOffset defaults to 0 (near page) for legacy callers.
  */
-export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal) {
+export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false) {
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset);
   await loadSeriesPage(model, layer, bounds, page, signal);
+  // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
+  // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
+  // pages (future-hour frames, for scrubbing) would be wasted 1-CPU backend load on the siblings.
+  if (currentPageOnly) return;
   // Prefetch neighbours during idle so scrubbing into an adjacent page is already warm.
   for (const adj of [page + 1, page - 1]) {
     if (adj < 0 || adj > LAST_PAGE) continue;

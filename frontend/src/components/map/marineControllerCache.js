@@ -144,7 +144,7 @@ export function _isAllVarModel(model) {
   return true;
 }
 
-export function _cacheMarineResult(model, hourOffset, data, layer) {
+export function _cacheMarineResult(model, hourOffset, data, layer, silent = false) {
   if (!data) return;
   // Do not cache empty / non-renderable grids. An HTTP-200 response carrying zero
   // vectors is typically a *transient* absence of data — e.g. a far-hour slice of a
@@ -181,7 +181,7 @@ export function _cacheMarineResult(model, hourOffset, data, layer) {
     signature
   });
 
-  if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+  if (!silent && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
     recordTruthStage('cacheWrite', {
       model,
       domain: 'marine',

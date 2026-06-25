@@ -39,6 +39,8 @@ import {
 
 import { extractMarineAtOffset } from './marineControllerExtractor';
 
+import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
+
 export { getBackendWindFlag, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag } from './backendWeatherServiceClient';
 
 // Re-export wind controller components for timeline scrubs and observers
@@ -58,6 +60,81 @@ export {
 };
 
 // --- CACHE & DEDUPLICATION CONFIG ---
+
+// Sibling-layer SERIES prewarm (instant marine layer toggles) — DEFAULT OFF (opt-in).
+// After a marine layer commits, warm the OTHER component layers' regional SERIES frames into the
+// client per-model-hour cache, so toggling to a sibling is an instant client-side hit via the
+// orchestrator's switch instant-commit path (getModelSafeMarine) — NO round-trip, NO blank.
+//
+// Why SERIES (not /grid): fetchBackendMarineGrid always returns a COARSE-GLOBAL grid; the REGIONAL
+// grid only exists in the grid_series path. A coarse-global frame committed at a zoomed-in viewport
+// trips the render backstop → clear — the bug the first /grid prewarm attempt hit (it was a confirmed
+// no-op). So we warm the sibling SERIES, read its REGIONAL current-hour frame, and cache THAT.
+//
+// Safe by design:
+//  • DEFAULT OFF — runs only when window.__MARINE_SIBLING_PREWARM__ === true (or localStorage
+//    marine_sibling_prewarm === 'true'). Production behavior is unchanged until opted in.
+//  • REGIONAL GUARD — only at a zoomed-in viewport (span ≤ 15°, mirrors the switch path's
+//    !zoomedOut gate). At global/coarse we skip (global toggles already hit the manifest cache).
+//  • REGIONAL-ONLY WRITE — only caches a frame whose grid width < 340° (never a coarse-global one),
+//    so a sibling toggle can never commit a coarse-global grid at a regional viewport.
+//  • LAYER-ISOLATED — writes only the layer-keyed _perModelHourCache via _cacheMarineResult (it does
+//    NOT touch marineHourlyCache.__layerKey/lastKnownGood), so a sibling write never clobbers the
+//    active layer's cache view; silent=true skips the GFS-waves-h0 truth-stage (no diag pollution).
+//  • BOUNDED — ensureMarineSeries is deduped + TTL'd + capped at 2 concurrent grid_series fetches
+//    and aborts with the active signal; skipped during scrub; per-(model,hour,layer) in-flight dedup.
+const _siblingPrewarmInFlight = new Set();
+
+function isMarineSiblingPrewarmEnabled() {
+  if (typeof window === 'undefined') return false;
+  if (window.__MARINE_SIBLING_PREWARM__ === true) return true;
+  try {
+    if (window.localStorage && window.localStorage.getItem('marine_sibling_prewarm') === 'true') return true;
+  } catch (e) { /* localStorage blocked */ }
+  return false;
+}
+
+export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLayer, signal) {
+  try {
+    if (!isMarineSiblingPrewarmEnabled()) return;
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return; // don't compete with scrub
+    if (!bounds || bounds.east === undefined || bounds.north === undefined) return;
+    // Regional viewport only (series frames are regional). Mirrors the switch instant-commit gate.
+    const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+    const vh = Math.abs(bounds.north - bounds.south);
+    if (vw > 15 || vh > 15) return;
+    const siblings = (model === 'ICON')
+      ? ['waves', 'swell_1', 'wind_waves']               // ICON has no native secondary swell
+      : ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    for (const lyr of siblings) {
+      if (lyr === activeLayer) continue;
+      const key = `${model}_${hourOffset}_${lyr}`;
+      if (_siblingPrewarmInFlight.has(key)) continue;
+      // Already warm REGIONAL client-side? Don't refetch the series.
+      const cached = getModelSafeMarine(model, hourOffset, lyr, bounds);
+      if (cached && cached.grid && cached.grid.__renderable !== false && !cached.__staleHour) {
+        const cb = cached.grid.bounds;
+        const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 999;
+        if (cw < 340) continue;
+      }
+      _siblingPrewarmInFlight.add(key);
+      Promise.resolve()
+        .then(() => ensureMarineSeries(model, lyr, bounds, hourOffset, signal, true /* currentPageOnly */))
+        .then(() => {
+          if (signal && signal.aborted) return;
+          const frame = getMarineSeriesFrame(model, lyr, bounds, hourOffset);
+          const fg = frame && frame.grid;
+          if (!fg || !Array.isArray(fg.vectors) || fg.vectors.length === 0) return;
+          const fb = fg.bounds;
+          const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
+          if (fw >= 340) return; // never cache a coarse-global frame at a regional viewport
+          _cacheMarineResult(model, hourOffset, frame, lyr, true /* silent: no truth-stage pollution */);
+        })
+        .catch(() => { /* best-effort: miss/abort is fine, the toggle still works per-layer */ })
+        .finally(() => { _siblingPrewarmInFlight.delete(key); });
+    }
+  } catch (e) { /* never let prewarm break the active fetch */ }
+}
 
 /** getModelSafeMarine - returns safe model cached results */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
@@ -395,6 +472,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
+      prewarmSiblingMarineSeries('GFS', hourOffset, bounds, activeLayer, signal);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -423,6 +501,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
+      prewarmSiblingMarineSeries('ICON', hourOffset, bounds, activeLayer, signal);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
