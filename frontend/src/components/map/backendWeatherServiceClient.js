@@ -240,7 +240,7 @@ export { fetchBackendExactPoint } from './backendWeatherServiceClientPoint';
 /**
  * Fetches marine conformed forecast grid from backend weather service.
  */
-export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS', isPrewarm = false) {
+export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, layer = 'waves', model = 'GFS') {
   await fetchProductsManifest().catch(() => null);
 
   if (model === 'ICON' && hourOffset > 168) {
@@ -478,7 +478,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     }
     const json = await res.json();
 
-    if (!isPrewarm && typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
+    if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
       recordTruthStage('backendResponse', {
         model,
         domain: 'marine',
@@ -527,7 +527,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
     const result = mapNormalizedGridToWebGL(json, clampedBbox, hourOffset, layer, model);
 
-    if (!isPrewarm) updateDiagnostics('grid', {
+    updateDiagnostics('grid', {
       url,
       status: res.status,
       validTime: validTimeStr,
@@ -558,7 +558,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
     const firstVector = vectors && vectors[0] ? { lat: vectors[0].lat, lng: vectors[0].lng } : null;
     const lastVector = vectors && vectors.length > 0 ? { lat: vectors[vectors.length - 1].lat, lng: vectors[vectors.length - 1].lng } : null;
 
-    if (!isPrewarm) updateProjectionDiag('marine', {
+    updateProjectionDiag('marine', {
       activeModel: model,
       activeLayer: layer,
       requestedViewportBounds: actualBounds || snappedBounds,
