@@ -362,13 +362,14 @@ class ViewportService:
             is_conjoined = model.upper() in ("GFS", "ICON") and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
             fetch_model = model
             fetch_layer = "all_marine" if is_conjoined else layer
+            # Upstream timeout caps ANY provider hang (the open-meteo path had none → EURO wind fetches
+            # for uncached wide viewports hung ~90s, blocking the worker). On timeout → graceful no-cov.
+            is_render_env = os.environ.get("RENDER") == "true"
+            upstream_timeout = float(os.environ.get("VIEWPORT_UPSTREAM_TIMEOUT_SEC", "20.0" if is_render_env else "30.0"))
             if model.upper() == "EURO" and domain.lower() == "marine":
                 from services.weather_pipeline.providers.copernicus_provider import CopernicusProvider
                 cop_provider = CopernicusProvider()
                 cop_forecast_days = min(forecast_days, 3) if is_global_view else forecast_days
-                # Timeout: 20s on Render, 30s otherwise to prevent OOM/hangs.
-                is_render_env = os.environ.get("RENDER") == "true"
-                cop_timeout = 20.0 if is_render_env else 30.0
                 try:
                     raw_data = await asyncio.wait_for(
                         cop_provider.fetch_grid(
@@ -379,22 +380,29 @@ class ViewportService:
                             precomputed_coords=(lats_coords, lons_coords),
                             valid_time=valid_time_str
                         ),
-                        timeout=cop_timeout
+                        timeout=upstream_timeout
                     )
                 except asyncio.TimeoutError:
-                    logger.error(f"[Dynamic Viewport] Copernicus fetch timed out after {cop_timeout}s. Returning empty grid.")
+                    logger.error(f"[Dynamic Viewport] Copernicus fetch timed out after {upstream_timeout}s. Returning empty grid.")
                     raw_data = None
             else:
-                raw_data = await self.provider.fetch_grid(
-                    model=fetch_model,
-                    domain=domain,
-                    layer=fetch_layer,
-                    bbox=bbox_dict,
-                    resolution=resolution,
-                    forecast_days=forecast_days,
-                    precomputed_coords=(lats_coords, lons_coords),
-                    inter_batch_delay=inter_delay
-                )
+                try:
+                    raw_data = await asyncio.wait_for(
+                        self.provider.fetch_grid(
+                            model=fetch_model,
+                            domain=domain,
+                            layer=fetch_layer,
+                            bbox=bbox_dict,
+                            resolution=resolution,
+                            forecast_days=forecast_days,
+                            precomputed_coords=(lats_coords, lons_coords),
+                            inter_batch_delay=inter_delay
+                        ),
+                        timeout=upstream_timeout
+                    )
+                except asyncio.TimeoutError:
+                    logger.error(f"[Dynamic Viewport] Open-Meteo {model} {domain}/{layer} fetch timed out after {upstream_timeout}s. Returning empty grid.")
+                    raw_data = None
 
             if not raw_data:
                 logger.error(f"[Dynamic Viewport] Upstream fetch returned empty data.")
