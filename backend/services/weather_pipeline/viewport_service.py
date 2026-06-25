@@ -17,7 +17,7 @@ from services.weather_pipeline.route_helpers import (
     choose_adaptive_resolution, build_dynamic_cache_key, filter_grid_to_bbox,
     is_bbox_covered_by, get_snapped_bbox
 )
-from services.weather_pipeline.viewport_helper import _is_oversized_grid
+from services.weather_pipeline.viewport_helper import _is_oversized_grid, extend_icon_wind_to_14d
 
 logger = logging.getLogger(__name__)
 
@@ -412,70 +412,7 @@ class ViewportService:
 
             if model.upper() == "ICON" and domain.lower() == "wind":
                 logger.info("[Dynamic Viewport] Dynamically extending ICON wind raw results to 14 days (336 hours) via loop extrapolation.")
-                from datetime import timedelta
-                orig_times = []
-                for item in raw_list:
-                    if "hourly" in item and "time" in item["hourly"] and item["hourly"]["time"]:
-                        orig_times = item["hourly"]["time"]
-                        break
-                base_date = None
-                if orig_times:
-                    try:
-                        first_time_str = orig_times[0]
-                        if not first_time_str.endswith("Z"):
-                            first_time_str += "Z"
-                        base_date = datetime.fromisoformat(first_time_str.replace("Z", "+00:00")).replace(minute=0, second=0, microsecond=0)
-                    except Exception as parse_err:
-                        logger.warning(f"[Dynamic Viewport] Failed to parse first time {orig_times[0]} for base_date: {parse_err}")
-                if not base_date:
-                    base_date = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                for item in raw_list:
-                    if "hourly" in item and "time" in item["hourly"]:
-                        orig_speed = item["hourly"].get("wind_speed_10m", [])
-                        orig_direction = item["hourly"].get("wind_direction_10m", [])
-                        orig_gusts = item["hourly"].get("wind_gusts_10m", [])
-
-                        valid_len = len(orig_speed)
-                        for i in range(len(orig_speed) - 1, -1, -1):
-                            speed_val = orig_speed[i] if i < len(orig_speed) else None
-                            dir_val = orig_direction[i] if i < len(orig_direction) else None
-                            gust_val = orig_gusts[i] if (orig_gusts and i < len(orig_gusts)) else 0.0
-
-                            if speed_val is None or dir_val is None or (orig_gusts and gust_val is None):
-                                    valid_len = i
-                            else:
-                                    break
-
-                        if valid_len > 0:
-                            valid_len = (valid_len // 24) * 24
-
-                        if valid_len > 0:
-                            orig_speed = orig_speed[:valid_len]
-                            orig_direction = orig_direction[:valid_len]
-                            if orig_gusts:
-                                orig_gusts = orig_gusts[:valid_len]
-
-                        new_times = []
-                        new_speed = []
-                        new_direction = []
-                        new_gusts = []
-
-                        for hour_idx in range(14 * 24):
-                            new_time = (base_date + timedelta(hours=hour_idx)).strftime("%Y-%m-%dT%H:%M")
-                            new_times.append(new_time)
-
-                            if orig_speed:
-                                new_speed.append(orig_speed[hour_idx % len(orig_speed)])
-                            if orig_direction:
-                                new_direction.append(orig_direction[hour_idx % len(orig_direction)])
-                            if orig_gusts:
-                                new_gusts.append(orig_gusts[hour_idx % len(orig_gusts)])
-
-                        item["hourly"]["time"] = new_times
-                        item["hourly"]["wind_speed_10m"] = new_speed
-                        item["hourly"]["wind_direction_10m"] = new_direction
-                        if orig_gusts:
-                            item["hourly"]["wind_gusts_10m"] = new_gusts
+                extend_icon_wind_to_14d(raw_list)
 
             first_point = raw_list[0]
             hourly = first_point.get("hourly", {})
