@@ -17,8 +17,6 @@ import {
   updateDiagnostics,
   updateProjectionDiag,
   fetchBackendMarineGrid,
-  fetchBackendMarineGridConjoined,
-  isMarineConjoinedEnabled,
   clampViewportBbox
 } from './backendWeatherServiceClient';
 import { fetchBackendCopernicusGrid } from './backendCopernicusServiceClient';
@@ -60,6 +58,34 @@ export {
 };
 
 // --- CACHE & DEDUPLICATION CONFIG ---
+
+// Sibling-layer prewarm: after a marine layer commits, warm the OTHER component layers into the
+// CLIENT cache so toggling between marine layers is an instant client-side hit (no round-trip, no
+// blank). The backend already fetched all_marine in ONE upstream call and cached all 4 per-layer
+// products for this exact viewport (viewport_service), so these sibling fetches are backend CACHE
+// HITS — no upstream, no 503, no clamp, regional resolution. Fire-and-forget, deduped, skipped
+// during active scrub and when already client-cached, and aborts with the active fetch's signal.
+const _siblingPrewarmInFlight = new Set();
+function prewarmSiblingMarineLayers(model, hourOffset, bounds, snappedBounds, activeLayer, signal) {
+  try {
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
+    // ICON has no native swell_2 (gwam) — its conjoined set is waves/swell_1/wind_waves.
+    const all = (model === 'ICON') ? ['waves', 'swell_1', 'wind_waves'] : ['waves', 'swell_1', 'swell_2', 'wind_waves'];
+    for (const lyr of all) {
+      if (lyr === activeLayer) continue;
+      const key = `${model}_${hourOffset}_${lyr}`;
+      if (_siblingPrewarmInFlight.has(key)) continue;
+      const cached = getModelSafeMarine(model, hourOffset, lyr, bounds);
+      if (cached && cached.grid && !cached.__staleHour) continue; // already warm client-side
+      _siblingPrewarmInFlight.add(key);
+      Promise.resolve()
+        .then(() => fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, lyr, model))
+        .then((grid) => { if (grid && grid.grid) _cacheMarineResult(model, hourOffset, grid, lyr); })
+        .catch(() => { /* best-effort: abort/miss is fine, the toggle still works per-layer */ })
+        .finally(() => { _siblingPrewarmInFlight.delete(key); });
+    }
+  } catch (e) { /* never let prewarm break the active fetch */ }
+}
 
 /** getModelSafeMarine - returns safe model cached results */
 export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
@@ -394,29 +420,15 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
 
   // --- GFS BACKEND SERVICE REDIRECT ---
   if (getBackendWeatherFlag() && (model === 'GFS' || !model) && (activeLayer === 'waves' || activeLayer === 'swell_1' || activeLayer === 'swell_2' || activeLayer === 'wind_waves')) {
-    // CONJOINED fast-path (default on): one /grid_conjoined fetch warms ALL 4 GFS marine layers,
-    // so toggling between them is an instant client-side cache hit (no refetch, no blank). Caches
-    // every returned layer so getModelSafeMarine() hits for siblings too. ANY failure falls through
-    // to the per-layer fetch below → behavior degrades to exactly today's.
-    if (isMarineConjoinedEnabled()) {
-      try {
-        const conj = await fetchBackendMarineGridConjoined(bounds, hourOffset, signal, snappedBounds, 'GFS');
-        if (conj && Object.keys(conj).length > 0) {
-          for (const lyr of Object.keys(conj)) {
-            _cacheMarineResult('GFS', hourOffset, conj[lyr], lyr);
-          }
-          if (conj[activeLayer]) return conj[activeLayer];
-        }
-      } catch (err) {
-        if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
-          throw err;
-        }
-        console.warn(`[Conjoined] GFS conjoined fetch failed for ${activeLayer}; falling back to per-layer: ${err.message}`);
-      }
-    }
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
+      // SIBLING PREWARM: the backend already fetched all_marine in ONE upstream call and cached all 4
+      // per-layer products for this viewport (viewport_service stores waves/swell_1/swell_2/wind_waves
+      // from the single fetch), so the OTHER 3 layers are now backend CACHE HITS. Warm them into the
+      // CLIENT cache (fire-and-forget) so toggling marine layers is an instant client-side hit — no
+      // round-trip, no blank. No upstream / 503 / clamp risk (cache hits, per-layer regional grids).
+      prewarmSiblingMarineLayers('GFS', hourOffset, bounds, snappedBounds, activeLayer, signal);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -445,6 +457,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
+      prewarmSiblingMarineLayers('ICON', hourOffset, bounds, snappedBounds, activeLayer, signal);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
