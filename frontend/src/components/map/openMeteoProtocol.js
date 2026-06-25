@@ -499,6 +499,32 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
             variable = urlObj.searchParams.get('variable') || "";
           } catch (err) { /* ignore parse errors */ }
 
+          // [RASTER PROBE] (gated behind the existing __RASTER_DEBUG__ flag; OFF in prod → zero cost)
+          // Decisive diagnostic for "precip clears above z10": captures the tile zooms MapLibre
+          // ACTUALLY requests. If maxZ stays ≤10 while the map is at z13 → overzoom is working
+          // (clearing is a decode/render issue, not maxzoom). If maxZ >10 → maxzoom:10 isn't
+          // taking effect and overzoom is NOT happening. Read window.__RASTER_PROBE__ after a repro.
+          if (hasWindow && window.__RASTER_DEBUG__ && urlObj) {
+            try {
+              const segs = urlObj.pathname.split('/').filter(Boolean);
+              const tail = segs.slice(-3); // expected XYZ scheme: [z, x, y(.om|.json)]
+              const last = tail[tail.length - 1] || '';
+              const probe = (window.__RASTER_PROBE__ = window.__RASTER_PROBE__ || { maxZ: 0, byKey: {}, recent: [], jsonReqs: 0 });
+              if (last.endsWith('.om')) {
+                const z = Number(tail[0]);
+                if (Number.isFinite(z)) {
+                  const key = variable || requestedModelFolder || 'unknown';
+                  probe.maxZ = Math.max(probe.maxZ, z);
+                  probe.byKey[key] = Math.max(probe.byKey[key] || 0, z);
+                  probe.recent.push({ z, path: tail.join('/'), key, t: Date.now() });
+                  if (probe.recent.length > 150) probe.recent.shift();
+                }
+              } else if (last.endsWith('.json')) {
+                probe.jsonReqs++;
+              }
+            } catch (e) { /* a probe must never break the protocol */ }
+          }
+
           const getSafeWorkerFallbackResponse = async (url, type) => {
             // Explicitly verify that the URL request targets a cancelled metadata configuration block
             const isAbortedJsonMeta = type === 'json' || (typeof url === 'string' && !url.includes('.om'));
