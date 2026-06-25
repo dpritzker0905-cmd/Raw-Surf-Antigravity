@@ -44,7 +44,16 @@ def ingest_marine_forecast_task():
             weather_scheduler = WeatherPipelineScheduler(store=store)
             
             jobs = [
+                # Wind global-coarse for ALL THREE models. GFS + EURO were missing here (only ICON was
+                # scheduled), so their *_wind_global_coarse products went stale — EURO wind's last run
+                # was 2 weeks old, leaving no current/forecast products, which is why the on-demand
+                # dynamic-viewport fetch (the only thing still serving current EURO wind) intermittently
+                # failed → 500/clear. These are COARSE (300 vec, 10°), the same weight as the ICON wind
+                # job already here and far lighter than the marine jobs below, so the 1-CPU/memory cost
+                # is minimal; each runs after a 30s stagger + gc.collect() like the rest.
                 ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
+                ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
+                ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
                 ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global),
