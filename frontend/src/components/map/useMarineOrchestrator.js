@@ -654,19 +654,22 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     // the coarse global for the contained viewport, so updateMarineGrid here is a no-op loop. If the
     // regional frame isn't ready yet, defer (the warming kick is loading it and this re-checks).
     // Self-resolves once the engine renders the regional grid (gridMismatch then goes false).
-    if (gridMismatch && !hourMismatch && !noData) {
+    if (gridMismatch) {
+      // gridMismatch is ENGINE-based (live __MARINE_ENGINE__ grid), so don't gate on the React
+      // marineData (noData/hourMismatch) which can be out of sync. Commit the regional series frame.
       try {
         const vb = mapInstance.getBounds();
         const frame = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves',
           { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() }, currentHour);
         const fb = frame && frame.grid && frame.grid.bounds;
         const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
+        if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_DEBUG__ = { hasFrame: !!frame, fw, hasSetData: !!setMarineData, hasBounds: !!fb, hour: currentHour };
         if (frame && fw < 340 && setMarineData) {
           if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
           console.log('[SCRUB-SETTLE] Sharpening coarse-global grid: committing regional series frame.');
           setMarineData(frame);
         }
-      } catch (e) { /* map/series not ready — defer */ }
+      } catch (e) { if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_DEBUG__ = { err: String(e) }; }
       return;
     }
 
