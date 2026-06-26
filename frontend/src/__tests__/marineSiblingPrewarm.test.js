@@ -1,10 +1,10 @@
 /**
  * Series-based sibling-layer prewarm for INSTANT marine layer toggles (TASK #2).
  *
- * DEFAULT OFF. When opted in (window.__MARINE_SIBLING_PREWARM__ === true) at a REGIONAL viewport,
- * after a marine layer commits we warm the OTHER component layers' regional SERIES frames and cache
- * them in the per-model-hour cache, so a subsequent toggle is an INSTANT getModelSafeMarine hit
- * (the orchestrator's switch instant-commit path) — no round-trip, no blank.
+ * DEFAULT ON (2026-06-26; kill switch window.__MARINE_SIBLING_PREWARM__ === false). At a REGIONAL
+ * viewport, after a marine layer commits we warm the OTHER component layers' regional SERIES frames
+ * and cache them in the per-model-hour cache, so a subsequent toggle is an INSTANT getModelSafeMarine
+ * hit (the orchestrator's switch instant-commit path) — no round-trip, no blank.
  *
  * These tests exercise the REAL bridge end-to-end (grid_series fetch → series cache → frame →
  * _cacheMarineResult → getModelSafeMarine) — the piece that can't be timed on a hidden audit tab.
@@ -37,7 +37,7 @@ async function waitFor(pred, tries = 60) {
 }
 const flush = () => waitFor(() => false, 4); // ~4 macrotasks, used for "nothing should happen" cases
 
-describe('prewarmSiblingMarineSeries — default-off series-based sibling prewarm', () => {
+describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm', () => {
   beforeEach(() => {
     _resetMarineSeriesForTest();
     getPerModelHourCache().clear();
@@ -56,15 +56,16 @@ describe('prewarmSiblingMarineSeries — default-off series-based sibling prewar
     delete window.isScrubbingTimeline;
   });
 
-  it('is a NO-OP by default (flag off): no series fetch, no sibling cached', async () => {
+  it('is a NO-OP when killed (flag === false): no series fetch, no sibling cached', async () => {
+    window.__MARINE_SIBLING_PREWARM__ = false;
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
     await flush();
     expect(global.fetch).not.toHaveBeenCalled();
     expect(getModelSafeMarine('GFS', 0, 'swell_1', bounds)).toBeNull();
   });
 
-  it('enabled + regional: warms sibling SERIES and caches their REGIONAL frames so a toggle is an instant getModelSafeMarine hit', async () => {
-    window.__MARINE_SIBLING_PREWARM__ = true;
+  it('default (no flag) + regional: warms sibling SERIES and caches their REGIONAL frames so a toggle is an instant getModelSafeMarine hit', async () => {
+    // no flag set — relies on the new 2026-06-26 default-on
     prewarmSiblingMarineSeries('GFS', 0, bounds, 'waves', undefined);
 
     const ok = await waitFor(() =>

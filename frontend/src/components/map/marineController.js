@@ -72,10 +72,10 @@ export {
 // no-op). So we warm the sibling SERIES, read its REGIONAL current-hour frame, and cache THAT.
 //
 // Safe by design:
-//  • DEFAULT OFF — runs only when window.__MARINE_SIBLING_PREWARM__ === true (or localStorage
-//    marine_sibling_prewarm === 'true'). Production behavior is unchanged until opted in.
-//    (Live A/B 2026-06-25 verified it works at stable zoom — instant toggles, 0 clears — but flip to
-//    default-on is HELD pending the zoom-out coverage/clamp investigation in the same subsystem.)
+//  • DEFAULT ON (2026-06-26) — kill switch: set window.__MARINE_SIBLING_PREWARM__ === false (or
+//    localStorage marine_sibling_prewarm === 'false') to disable. Held opt-in until the zoom-out
+//    coverage/clamp blocker was resolved (54e289b5 + SWR revalidation); live A/B 2026-06-25 verified
+//    instant toggles + 0 engine clears at stable zoom. The other guards below still bound the load.
 //  • REGIONAL GUARD — only at a zoomed-in viewport (span ≤ 15°, mirrors the switch path's
 //    !zoomedOut gate). At global/coarse we skip (global toggles already hit the manifest cache).
 //  • REGIONAL-ONLY WRITE — only caches a frame whose grid width < 340° (never a coarse-global one),
@@ -89,11 +89,12 @@ const _siblingPrewarmInFlight = new Set();
 
 function isMarineSiblingPrewarmEnabled() {
   if (typeof window === 'undefined') return false;
-  if (window.__MARINE_SIBLING_PREWARM__ === true) return true;
+  // Kill switch (explicit opt-OUT): a window flag or localStorage value of false disables prewarm.
+  if (window.__MARINE_SIBLING_PREWARM__ === false) return false;
   try {
-    if (window.localStorage && window.localStorage.getItem('marine_sibling_prewarm') === 'true') return true;
+    if (window.localStorage && window.localStorage.getItem('marine_sibling_prewarm') === 'false') return false;
   } catch (e) { /* localStorage blocked */ }
-  return false;
+  return true; // DEFAULT ON (2026-06-26) — zoom-out clamp blocker resolved; see comment above.
 }
 
 export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLayer, signal) {

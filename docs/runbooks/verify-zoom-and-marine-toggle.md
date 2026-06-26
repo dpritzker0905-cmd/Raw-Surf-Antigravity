@@ -10,18 +10,20 @@ Forensic globals available on the page: `window.map`, `setActiveModel`, `toggleL
 
 ---
 
-## 1. Marine sibling-prewarm — INSTANT layer toggle (flag-gated, default OFF)
+## 1. Marine sibling-prewarm — INSTANT layer toggle (DEFAULT ON since 2026-06-26)
 
-Code: `marineController.js:97 prewarmSiblingMarineSeries`. Flag: `marine_sibling_prewarm`.
-Goal: confirm no-regression, then **flip default-on**.
+Code: `marineController.js prewarmSiblingMarineSeries` / `isMarineSiblingPrewarmEnabled`. Flag:
+`marine_sibling_prewarm`. **Now default ON** (the zoom-out clamp blocker is resolved — `54e289b5` +
+SWR reval). This A/B confirms the live deploy is strictly better than the kill-switched path.
 
-**Enable + reload:**
+**Kill switch (disable) + reload:**
 ```js
-localStorage.setItem('marine_sibling_prewarm','true'); location.reload();
+localStorage.setItem('marine_sibling_prewarm','false'); location.reload();   // OFF
+// re-enable (back to default): localStorage.removeItem('marine_sibling_prewarm'); location.reload();
 ```
 
-**A/B test:**
-1. Zoom to **8–10**, model **GFS**, activate **waves**. Wait for it to render.
+**A/B test (default ON vs killed OFF):**
+1. Default (no flag): zoom to **8–10**, model **GFS**, activate **waves**. Wait for it to render.
 2. Open Network, filter `grid_series`. EXPECT: after the waves commit, exactly **3** requests —
    `grid_series?...layer=swell_1`, `layer=swell_2`, `layer=wind_waves` (current page only).
 3. Toggle each sibling (`window.toggleLayer('swell_1')`, etc.). EXPECT for each:
@@ -29,12 +31,12 @@ localStorage.setItem('marine_sibling_prewarm','true'); location.reload();
      NO `Render backstop`, NO `cache MISS`.
    - Correct component (distinct max heights in the HUD / `__MARINE_ENGINE__._waveData.waveGrid.__componentLayer`).
 4. **Stress:** rapid toggle + model switch (GFS↔ICON) + scrub. EXPECT: no clearing, no churn, no truth violations.
-5. **A/B:** repeat with the flag OFF (`localStorage.removeItem('marine_sibling_prewarm'); location.reload()`).
-   The flag-on path must be strictly better (instant) with zero new regressions vs flag-off.
+5. **A/B:** repeat with the kill switch ON (`localStorage.setItem('marine_sibling_prewarm','false'); location.reload()`).
+   The default path must be strictly better (instant) — the killed path shows the `cache MISS` round-trip + blank.
 
-**If clean →** flip default-on in `isMarineSiblingPrewarmEnabled()` (`marineController.js:88`) and ship.
-**Watch:** 1-CPU Render load under rapid panning (each commit fires 3 more `grid_series`; capped at 2
-concurrent + aborts). Re-measure if it feels heavy.
+**If the default-on path regresses anywhere →** kill switch is the instant rollback; re-open the
+opt-in decision. **Watch:** 1-CPU Render load under rapid panning (each commit fires 3 more
+`grid_series`; capped at 2 concurrent + aborts). Re-measure if it feels heavy.
 
 ---
 
