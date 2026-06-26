@@ -145,16 +145,43 @@ class WeatherPipelineScheduler:
         resolution = 10.0
 
         forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
-        results = await self._fetch_or_mock(
-            "GFS", "marine", "all_marine", global_region, resolution, forecast_days,
-            env["is_test_env"],
-            lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
-            "global_coarse"
-        )
+
+        # ══ PRIMARY: native GFS-Wave direct from NOAA (AWS Open Data, byte-range GRIB2) ══
+        # Moves GFS marine OFF open-meteo (frees the whole open-meteo daily budget so ICON marine can keep
+        # its 3-hourly cadence) using the SAME ncep_gfswave025 model. Low-strain (~tens of MB peak), slow
+        # (~5-15 min, background only — see noaa_gfs_wave_fetcher.py). Provider stays 'open-meteo' in the
+        # save loop below so the manifest (source_dataset='ncep_gfswave025') is BYTE-IDENTICAL to the
+        # open-meteo path — zero regression. NOAA unavailable/failed -> falls through to the existing
+        # open-meteo fetch. Kill switch: GFS_MARINE_NOAA_DIRECT=0.
+        noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
+        results = None
+        from_noaa = False
+        if noaa_direct:
+            try:
+                from services.noaa_marine_service import fetch_gfs_marine_global_coarse
+                results = await fetch_gfs_marine_global_coarse(global_region, resolution, forecast_days)
+                if results:
+                    from_noaa = True
+                    logger.info(f"[Pipeline Scheduler] GFS-Wave NOAA-direct OK: {len(results)} points (off open-meteo).")
+            except Exception as _ne:
+                logger.error(f"[Pipeline Scheduler] GFS-Wave NOAA-direct fetch errored: {_ne}")
+
+        if not results:
+            if noaa_direct:
+                logger.warning("[Pipeline Scheduler] GFS-Wave NOAA-direct unavailable; falling back to open-meteo.")
+            results = await self._fetch_or_mock(
+                "GFS", "marine", "all_marine", global_region, resolution, forecast_days,
+                env["is_test_env"],
+                lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
+                "global_coarse"
+            )
         if not results:
             logger.error("[Pipeline Scheduler] GFS marine global_coarse fetch failed. Skipping.")
             return False
 
+        # NOAA GFS-Wave is natively 3-hourly (step=1 keeps every step); open-meteo all_marine is hourly
+        # (step=3 -> 3-hourly products). Same 3-hourly product cadence either way.
+        save_step = 1 if from_noaa else 3
         layers = ["waves", "swell_1", "swell_2", "wind_waves"]
         for layer in layers:
             count = await normalize_and_save_loop(
@@ -162,7 +189,7 @@ class WeatherPipelineScheduler:
                 model="GFS", provider="open-meteo", domain="marine", layer=layer,
                 bbox=global_region, resolution=resolution, run_time=run_time,
                 region_id="global_coarse", coverage_mode="global_tile",
-                is_test_env=env["is_test_env"],
+                is_test_env=env["is_test_env"], step=save_step,
                 log_prefix=f"[Pipeline Scheduler] GFS {layer} global_coarse"
             )
             logger.info(f"[Pipeline Scheduler] Ingested {count} GFS {layer} global coarse grid files.")

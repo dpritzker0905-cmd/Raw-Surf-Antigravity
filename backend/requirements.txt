@@ -40,3 +40,7 @@ copernicusmarine>=2.0.0
 xarray>=2024.1.0
 netCDF4>=1.6.5
 h5netcdf>=1.3.0
+
+# NOAA GFS-Wave direct (GFS marine off open-meteo) — GRIB2 decode.
+# pygrib manylinux wheels bundle the ecCodes binary, so no apt step is needed on Render.
+pygrib>=2.1.5
