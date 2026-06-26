@@ -463,7 +463,15 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       timeOffsetHours: hourOffset
     });
 
-    console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}.`);
+    // An abort is EXPECTED when the user switches model/layer (the prior EURO Copernicus revalidation
+    // is cancelled) — it is NOT a model error. Logging it via console.error trips WeatherTelemetry's
+    // console-error interceptor, which surfaces a false "model_error: copernicus grid fetch error:
+    // signal is aborted" in the Diagnostics HUD. Mirror the point-fetch handler: log aborts benignly.
+    if (err.name === 'AbortError' || err.message?.includes('abort')) {
+      console.log(`[Backend Weather Service] Copernicus grid fetch aborted (expected during model/layer switch).`);
+    } else {
+      console.error(`[Backend Weather Service] Copernicus grid fetch error: ${err.message}.`);
+    }
     throw err;
   }
 }
