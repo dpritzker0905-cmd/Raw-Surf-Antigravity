@@ -72,13 +72,34 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
     }
     resolution = 10.0
 
-    results = await scheduler._fetch_or_mock(
-        "GFS", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
-        False,
-        lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14),
-        "global_coarse",
-        batch_size=_WIND_GLOBAL_BATCH_SIZE
-    )
+    # ══ PRIMARY: native GFS 10m wind direct from NOAA (AWS Open Data, byte-range GRIB2) ══
+    # Moves GFS wind OFF open-meteo (frees the daily budget for ICON/etc.) using the same GFS model.
+    # Provider stays 'open-meteo' below so the manifest (source_dataset='gfs_seamless') is byte-identical
+    # — zero regression. NOAA is 3-hourly (step=1) vs open-meteo hourly (step=3). NOAA failed -> open-meteo
+    # fallback (then the forecast_cache fallback). Kill switch: GFS_WIND_NOAA_DIRECT=0.
+    noaa_direct = os.environ.get("GFS_WIND_NOAA_DIRECT", "1") != "0"
+    results = None
+    from_noaa = False
+    if noaa_direct:
+        try:
+            from services.noaa_wind_service import fetch_gfs_wind_global_coarse
+            results = await fetch_gfs_wind_global_coarse(global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS)
+            if results:
+                from_noaa = True
+                logger.info(f"[Pipeline Scheduler] GFS wind NOAA-direct OK: {len(results)} points (off open-meteo).")
+        except Exception as _ne:
+            logger.error(f"[Pipeline Scheduler] GFS wind NOAA-direct fetch errored: {_ne}")
+
+    if not results:
+        if noaa_direct:
+            logger.warning("[Pipeline Scheduler] GFS wind NOAA-direct unavailable; falling back to open-meteo.")
+        results = await scheduler._fetch_or_mock(
+            "GFS", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
+            False,
+            lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=14),
+            "global_coarse",
+            batch_size=_WIND_GLOBAL_BATCH_SIZE
+        )
     if not results:
         logger.warning("[Pipeline Scheduler] GFS wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
         fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
@@ -125,12 +146,15 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
     if not results:
         return False
 
+    # NOAA GFS is natively 3-hourly (step=1 keeps every step); open-meteo all-wind is hourly (step=3 ->
+    # 3-hourly products). Same 3-hourly product cadence either way. (forecast_cache fallback is hourly too.)
+    save_step = 1 if from_noaa else 3
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="GFS", provider="open-meteo", domain="wind", layer="wind",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"],
+        is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] GFS wind global_coarse"
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind global coarse grid files.")
