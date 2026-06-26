@@ -51,6 +51,23 @@ def _coarse_axis(lo, hi, step):
     return vals
 
 
+def _sanitize_om(om, x):
+    """Drop NaN (incl. masked land/ice cells) AND physically-impossible values -> None.
+    Defense-in-depth: a CMEMS land/ice _FillValue sentinel (e.g. 9.96e36, -32767) must NEVER reach the
+    grid as a real number (it shows as 10,000-ft waves in the infobox and blows out / deadens the heatmap).
+    Bounds are generous headroom over real maxima (sig. wave height record ~19 m; periods ~25 s)."""
+    if x != x:  # NaN
+        return None
+    x = float(x)
+    if "height" in om:
+        return round(x, 4) if 0.0 <= x <= 30.0 else None
+    if "period" in om:
+        return round(x, 4) if 0.0 <= x <= 40.0 else None
+    if "direction" in om:
+        return round(x, 4) if 0.0 <= x <= 360.0 else None
+    return round(x, 4)
+
+
 def fetch_global_coarse(payload):
     """Return list of Open-Meteo-shaped point dicts for the coarse global grid (thin-band subsets)."""
     import numpy as np
@@ -103,12 +120,20 @@ def fetch_global_coarse(payload):
                 shared_times = times
             # nearest band-row to this coarse lat
             row = int(np.abs(band_lats - lat).argmin())
-            # preload var arrays for this band: shape (time, lat, lon)
+            # CMEMS may return longitude as 0..360 or -180..180; normalize the coarse-lon lookup so the
+            # western hemisphere (e.g. Gulf of Mexico) samples the correct column instead of mis-mapping.
+            is_360 = bool(band_lons.max() > 180.0)
+            # preload var arrays, masked -> NaN. CRITICAL: np.asarray(masked_array) STRIPS the mask and
+            # exposes the land/ice _FillValue (9.96e36 / -32767) as a real number; np.ma.filled converts
+            # masked cells to NaN so _sanitize_om drops them (the prior np.asarray + NaN-only check leaked
+            # numeric fills -> 10,000-ft waves in the infobox + dead zones in the heatmap).
             arrs = {}
             for cop, om, _ in VARIABLE_MAP:
-                arrs[om] = np.asarray(nc.variables[cop][:], dtype=float) if cop in nc.variables else None
+                arrs[om] = (np.ma.filled(np.ma.asarray(nc.variables[cop][:]).astype(float), np.nan)
+                            if cop in nc.variables else None)
             for lon in lons:
-                col = int(np.abs(band_lons - lon).argmin())
+                target_lon = (lon % 360.0) if is_360 else lon
+                col = int(np.abs(band_lons - target_lon).argmin())
                 hourly = {"time": times}
                 for cop, om, unit in VARIABLE_MAP:
                     a = arrs[om]
@@ -116,7 +141,7 @@ def fetch_global_coarse(payload):
                         hourly[om] = [None] * len(times)
                     else:
                         series = a[:, row, col]
-                        hourly[om] = [round(float(x), 4) if (x == x) else None for x in series]  # x==x drops NaN
+                        hourly[om] = [_sanitize_om(om, x) for x in series]
                 points.append({
                     "latitude": float(lat), "longitude": float(lon),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
