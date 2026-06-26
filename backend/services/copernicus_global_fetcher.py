@@ -149,13 +149,18 @@ def main():
     else:
         from datetime import datetime, timezone, timedelta
         now = datetime.now(timezone.utc)
+        # QUICK=1 → tiny region + 3 days (~2 bands, ~2 min) to verify logic fast; else full global ~10d.
+        quick = os.environ.get("COPERNICUS_FETCHER_QUICK", "") == "1"
+        days = int(os.environ.get("COPERNICUS_FETCHER_DAYS", "3" if quick else "10"))
+        bbox = ({"west": -80.0, "south": 20.0, "east": -40.0, "north": 40.0} if quick
+                else {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0})
         payload = {
             "username": os.environ.get("COPERNICUSMARINE_SERVICE_USERNAME", ""),
             "password": os.environ.get("COPERNICUSMARINE_SERVICE_PASSWORD", ""),
-            "bbox": {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0},
+            "bbox": bbox,
             "resolution": 10.0,
             "start_datetime": (now - timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S"),
-            "end_datetime": (now + timedelta(days=10)).strftime("%Y-%m-%dT%H:%M:%S"),
+            "end_datetime": (now + timedelta(days=days)).strftime("%Y-%m-%dT%H:%M:%S"),
             "output_path": "",  # standalone: don't write
         }
     if not payload.get("username") or not payload.get("password"):
