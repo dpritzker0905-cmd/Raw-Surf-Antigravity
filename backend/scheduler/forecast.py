@@ -43,6 +43,24 @@ def ingest_marine_forecast_task():
             store = ProductStore()
             weather_scheduler = WeatherPipelineScheduler(store=store)
             
+            # Stagger the 3 heavy global-marine fetches. Doing GFS(14d) + EURO + ICON back-to-back in
+            # ONE cycle exhausts open-meteo's rate budget (429) + peak memory by the 3rd fetch, so ICON
+            # — always last — failed every run and went 4 days stale (run 06-22 while GFS/EURO refreshed
+            # daily). Any scrubbed/viewed hour past ICON's stale coverage then had no manifest product →
+            # fell to the OOM-prone on-demand dynamic /grid → worker died → CORS-less 500 → the frontend
+            # committed a safe-zero → ICON heatmap CLEARED to blank at every zoom and on every path.
+            # Forensics: 2 marine fetches succeed every run (GFS+EURO today); only the 3rd starves. So
+            # keep GFS (the default model) fresh every run and ALTERNATE EURO/ICON — each cycle does at
+            # most 2 heavy marine fetches (the proven-working count). Cadence: GFS ~3h, EURO/ICON ~6h —
+            # well within their multi-day coverage. Trivially revertable to all-three if the box ever
+            # gets more headroom or a keyed open-meteo plan.
+            from datetime import datetime, timezone
+            _marine_alt = (
+                ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global)
+                if (datetime.now(timezone.utc).hour // 3) % 2 == 0
+                else ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global)
+            )
+
             jobs = [
                 # Wind global-coarse for ALL THREE models. GFS + EURO were missing here (only ICON was
                 # scheduled), so their *_wind_global_coarse products went stale — EURO wind's last run
@@ -56,8 +74,7 @@ def ingest_marine_forecast_task():
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
-                ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global),
-                ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global),
+                _marine_alt,  # EURO or ICON this cycle (staggered — see note above)
                 ("GFS Pressure Global", weather_scheduler.ingest_gfs_pressure_global),
                 ("ICON Pressure Global", weather_scheduler.ingest_icon_pressure_global),
                 ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global)
