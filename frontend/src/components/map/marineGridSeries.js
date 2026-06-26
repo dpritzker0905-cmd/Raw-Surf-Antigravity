@@ -104,10 +104,25 @@ function buildPageHours(page) {
 }
 
 // Coarse viewport key so small pans reuse the same series.
+// Two correctness fixes for GLOBAL-zoom scrub (forensics 2026-06-26: at z2 with a wrapped viewport
+// like west=-204, scrubbing was a per-hour fetch storm because the series never HIT):
+//  (1) Normalize longitude to [-180,180] — a viewport panned past the antimeridian (west < -180)
+//      otherwise yields keys that never match the warmed series.
+//  (2) Collapse any WIDE viewport (span > 15° either axis — the backend's is_wide threshold, where it
+//      serves ONE global-coarse product for everything) to a single stable 'global' key. Without this,
+//      the 0.5° snap on a ~200°-span viewport churns the key on every micro-pan, so the warmed global
+//      series is never reused → scrub re-fetches each hour. With it, the global-coarse series warms
+//      once on settle and every global scrub hour HITS it (instant, zero-backend).
 function viewportKey(bounds) {
   if (!bounds) return 'global';
+  const normLng = (lng) => (((lng + 180) % 360) + 360) % 360 - 180; // wrap into [-180,180)
+  const w = normLng(bounds.west);
+  const e = normLng(bounds.east);
+  const spanLng = (e < w) ? (e + 360) - w : e - w;
+  const spanLat = Math.abs(bounds.north - bounds.south);
+  if (spanLng > 15.0 || spanLat > 15.0) return 'global';
   const r = (v) => (Math.round(v * 2) / 2).toFixed(1); // 0.5° snap
-  return `${r(bounds.west)}_${r(bounds.south)}_${r(bounds.east)}_${r(bounds.north)}`;
+  return `${r(w)}_${r(bounds.south)}_${r(e)}_${r(bounds.north)}`;
 }
 
 function pageKey(model, layer, bounds, page) {
@@ -222,9 +237,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
       const frameW = sfb ? ((sfb.east < sfb.west) ? (sfb.east + 360 - sfb.west) : (sfb.east - sfb.west)) : 0;
       const isCoarsePreview = reqW < 15.0 && reqH < 15.0 && frameW >= 340.0;
       const revalCount = isCoarsePreview ? (((existing && existing.revalCount) || 0) + 1) : 0;
-      // Store bounds/model/layer/page so getMarineSeriesFrame can do containment matching (serve
-      // a wider already-warmed view for a contained read viewport).
-      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds, model, layer, page, coarsePreview: isCoarsePreview, revalCount });
+      // Store the SERVED frame bounds (sfb), not the requested bbox, so getMarineSeriesFrame's
+      // containment matching reflects what the grid ACTUALLY covers. This matters for the 'global'
+      // key: the requested bbox is a wrapped wide viewport (e.g. west=-204) but the served global
+      // grid is ±180, which contains every viewport — so global scrub HITS regardless of pan. Also
+      // strictly improves regional hits (the served tile is ≥ the requested viewport).
+      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, coarsePreview: isCoarsePreview, revalCount });
       // Bound memory.
       if (_seriesCache.size > SERIES_MAX) {
         const oldest = _seriesCache.keys().next().value;
