@@ -123,6 +123,24 @@ function runScrubSettleCheck(ctx) {
       safetyNetRetryRef.current.count++;
     }
 
+    // SERIES-FIRST: the warmed multi-hour series usually already holds this hour — especially at
+    // GLOBAL zoom, where the prewarm loads all pages under the stable 'global' key. Commit the nearest
+    // warmed frame INSTANTLY (zero-backend) and SKIP the per-hour /grid fetch. This is the snappy-scrub
+    // path: live forensics showed the series warmed (loads>0) but this safety net NEVER consulted it —
+    // it always fetched, which is the per-hour SCRUB-SETTLE storm the user sees. Only fetch when the
+    // series genuinely lacks the hour (returns null).
+    try {
+      const vb = mapInstance.getBounds();
+      const vp = { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() };
+      const sf = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves', vp, currentHour);
+      if (sf && sf.grid && sf.grid.vectors && sf.grid.vectors.length > 0 && setMarineData) {
+        if (typeof window !== 'undefined') window.__MARINE_SCRUBSETTLE_SERIESHIT__ = (window.__MARINE_SCRUBSETTLE_SERIESHIT__ || 0) + 1;
+        console.log(`[SCRUB-SETTLE] Series hit for hour=${currentHour} — committing warmed frame (no fetch).`);
+        setMarineData(sf);
+        return;
+      }
+    } catch (e) { /* series not ready — fall through to the authoritative fetch */ }
+
     console.log(`[SCRUB-SETTLE] Post-scrub verification: rendered hour=${renderedHour}, requested hour=${currentHour}. Triggering fetch.`);
     marineFetchLocksRef.current.lastHash = null;
     if (updateMarineGridRef.current) {
