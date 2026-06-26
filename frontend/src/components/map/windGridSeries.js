@@ -86,8 +86,21 @@ function buildPageHours(page) {
 
 function viewportKey(bounds) {
   if (!bounds) return 'global';
+  // Mirror marineGridSeries: normalize longitude to [-180,180] so an antimeridian-wrapped viewport
+  // (west < -180) doesn't yield keys that never match the warmed series, and collapse any WIDE
+  // viewport (span > 15° either axis — served by ONE global-coarse wind product) to a single stable
+  // 'global' key. Without this, the 0.5° snap on a ~200°-span global viewport churns the key on every
+  // micro-pan, so the warmed global wind series is never reused → scrubbing freezes the wind heatmap
+  // on the pre-scrub hour (the "wind doesn't track the scrubber at global zoom" bug). With it, the
+  // global wind series warms once and every scrubbed hour HITS it (instant, zero-backend).
+  const normLng = (lng) => (((lng + 180) % 360) + 360) % 360 - 180;
+  const w = normLng(bounds.west);
+  const e = normLng(bounds.east);
+  const spanLng = (e < w) ? (e + 360) - w : e - w;
+  const spanLat = Math.abs(bounds.north - bounds.south);
+  if (spanLng > 15.0 || spanLat > 15.0) return 'global';
   const r = (v) => (Math.round(v * 2) / 2).toFixed(1);
-  return `${r(bounds.west)}_${r(bounds.south)}_${r(bounds.east)}_${r(bounds.north)}`;
+  return `${r(w)}_${r(bounds.south)}_${r(e)}_${r(bounds.north)}`;
 }
 
 function pageKey(model, bounds, page) {
