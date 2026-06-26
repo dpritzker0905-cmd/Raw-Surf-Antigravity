@@ -19,10 +19,15 @@ let _lastMarineScrubLogTime = 0;
 // Coalescing window for model/layer SWITCH fetches. The timer resets on every switch, so a
 // burst of clicks collapses into ONE fetch once the user pauses for this long. 300ms was
 // shorter than a typical explore-click interval (~0.4-0.7s), so each click fired its own
-// fetch → abort-and-clear storm (blank flashes). 600ms absorbs normal rapid toggling while
-// staying imperceptible for a single deliberate switch. (Does NOT touch the 150ms scrub
-// coalescing or engine residency.)
-const SWITCH_FETCH_COALESCE_MS = 600;
+// fetch → abort-and-clear storm (blank flashes). The window was widened to 600ms (c93007f1)
+// as the FIRST line of defense against that storm — but it adds 600ms of latency to every
+// COLD model switch (cache-hit switches already bypass this via the instant-commit fast-path).
+// The real storm protections landed LATER and make the long window redundant: the cross-model
+// hold (useMarineWindData) keeps the prior frame on screen during the switch so there is no
+// blank flash, the grid_series concurrency cap (=2) bounds backend load, and superseded fetches
+// abort cleanly. So restore snappiness to 350ms — fast single switches, storm still contained
+// downstream. (Does NOT touch the 150ms scrub coalescing or engine residency.)
+const SWITCH_FETCH_COALESCE_MS = 350;
 
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const timeOffsetRef = useRef(timeOffsetHours);
