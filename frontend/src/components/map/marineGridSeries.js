@@ -221,7 +221,6 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
       const sfb = sf && sf.grid && sf.grid.bounds;
       const frameW = sfb ? ((sfb.east < sfb.west) ? (sfb.east + 360 - sfb.west) : (sfb.east - sfb.west)) : 0;
       const isCoarsePreview = reqW < 15.0 && reqH < 15.0 && frameW >= 340.0;
-      const prevCoarse = !!(existing && existing.coarsePreview);
       const revalCount = isCoarsePreview ? (((existing && existing.revalCount) || 0) + 1) : 0;
       // Store bounds/model/layer/page so getMarineSeriesFrame can do containment matching (serve
       // a wider already-warmed view for a contained read viewport).
@@ -236,8 +235,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
         const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal); }, COARSE_REVAL_INTERVAL_MS);
         _idleTimers.add(t);
-      } else if (prevCoarse && !isCoarsePreview && typeof window !== 'undefined') {
-        // coarse → regional: the revalidation landed. Notify so a held coarse/clamped grid gets re-committed.
+      } else if (!isCoarsePreview && typeof window !== 'undefined') {
+        // A REGIONAL frame just landed. Notify so a held coarse-global / clamped grid is sharpened
+        // IMMEDIATELY (event-driven) instead of waiting on the ~3s render backstop's polling timer.
+        // This is the INITIAL-LOAD clamp: the first /grid MISS serves a coarse-global SWR preview, and
+        // without this the sharpen waited 3s. After the series is warm, toggles already commit regional
+        // instantly (no clamp). checkScrubSettle is a cheap no-op when nothing is actually clamped.
         try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ }
       }
       if (typeof window !== 'undefined') {
