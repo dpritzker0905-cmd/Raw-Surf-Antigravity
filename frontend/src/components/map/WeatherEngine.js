@@ -3,7 +3,7 @@ import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtO
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
-import { ensureWindSeries, getWindSeriesFrame, windSeriesPageForHour, prewarmWindSeries } from './windGridSeries';
+import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -255,8 +255,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
       if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
     };
-    // page in deps: reload when scrubbing crosses a page boundary.
-  }, [mapInstance, activeModel, isWindActive, windSeriesPageForHour(timeOffsetHours)]);
+    // Page is intentionally NOT a dep (mirror useMarineOrchestrator). prewarmWindSeries loads ALL
+    // pages on settle + scrub-start; re-running per page crossing only ABORTS the in-flight warm via
+    // the cleanup's controller.abort(), so a fast multi-page scrub perpetually killed its own wind
+    // warm → the wind series never warmed → wind scrub fell to per-hour fetches. Key on
+    // model/layer/map only so the warm COMPLETES and getWindSeriesFrame hits during scrub.
+  }, [mapInstance, activeModel, isWindActive]);
 
   // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);

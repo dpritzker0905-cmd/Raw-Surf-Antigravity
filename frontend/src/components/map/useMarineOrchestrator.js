@@ -7,7 +7,7 @@ import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
-import { ensureMarineSeries, getMarineSeriesFrame, marineSeriesPageForHour, prewarmMarineSeries } from './marineGridSeries';
+import { ensureMarineSeries, getMarineSeriesFrame, prewarmMarineSeries } from './marineGridSeries';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
@@ -678,8 +678,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       try { mapInstance.off('moveend', onIdle); } catch (e) { /* ignore */ }
       if (typeof window !== 'undefined') window.removeEventListener('timeline_scrub_start', onScrubStart);
     };
-    // seriesPage in deps: re-run when scrubbing crosses a page boundary so the new page loads.
-  }, [mapInstance, activeModel, activeMarineLayer, marineSeriesPageForHour(timeOffsetHours)]);
+    // Page is intentionally NOT a dep. prewarmMarineSeries already loads ALL pages on settle +
+    // scrub-start, so re-running per page crossing is redundant — and destructive: the cleanup's
+    // controller.abort() would KILL the in-flight prewarm. A fast MULTI-PAGE scrub (e.g. 271→31→88…)
+    // crosses page boundaries (141↔144, 285↔288) repeatedly, so the warm was perpetually aborted and
+    // the series NEVER warmed → scrub fell to a per-hour /grid storm (the "scrub never gets snappy"
+    // root, live-confirmed 2026-06-26). Keying only on model/layer/map lets the warm COMPLETE so the
+    // scrub-settle + during-scrub paths actually HIT the series. (A real model/layer switch still
+    // re-runs + aborts the now-stale warm, which is correct.)
+  }, [mapInstance, activeModel, activeMarineLayer]);
 
   // On a MODEL switch only, eagerly warm the NEW model's series pages so the heatmap + scrubbing
   // resolve fast instead of waiting on cold per-hour fetches — this is what makes switching
