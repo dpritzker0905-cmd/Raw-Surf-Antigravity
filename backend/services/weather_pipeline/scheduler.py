@@ -193,18 +193,27 @@ class WeatherPipelineScheduler:
         resolution = 10.0
 
         forecast_days = int(os.environ.get("EURO_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "7"))
-        
-        # 1. Fetch EURO waves results
+        # GFS swell/wind_waves fallback: request the SAME horizon as ingest_gfs_marine_global (which runs
+        # ~1 min earlier in the same cycle) so this resolves as a provider _GRID_CACHE HIT (TTL 300s)
+        # instead of a SECOND, redundant open-meteo all_marine fetch of identical GFS data. open-meteo
+        # bills each of the ~612 grid locations as a call, so de-duplicating this frees ~600+ calls/cycle
+        # of the daily quota — enough to keep the cycle's tail jobs (ICON marine) under the 5k/hour cap so
+        # they stop getting 429'd. Worst case (GFS job failed / cache expired) it re-fetches as before — no
+        # regression. (The longer-term win is moving EURO marine onto Copernicus entirely; tiled fetch is
+        # memory-safe but ~60 slow tile downloads, deferred.)
+        gfs_forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
+
+        # 1. Fetch EURO waves results (real ECMWF WAM via open-meteo ecmwf_wam025)
         euro_results = await self._fetch_or_mock(
             "EURO", "marine", "all_marine", global_region, resolution, forecast_days,
             env["is_test_env"],
             lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
             "global_coarse"
         )
-        
-        # 2. Fetch GFS swell/wind_waves results
+
+        # 2. GFS swell/wind_waves fallback — reuses the GFS-marine-global fetch via cache (see note above)
         gfs_results = await self._fetch_or_mock(
-            "GFS", "marine", "all_marine", global_region, resolution, forecast_days,
+            "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
             env["is_test_env"],
             lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
             "global_coarse"
