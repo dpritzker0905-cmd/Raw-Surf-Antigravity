@@ -74,6 +74,8 @@ export {
 // Safe by design:
 //  • DEFAULT OFF — runs only when window.__MARINE_SIBLING_PREWARM__ === true (or localStorage
 //    marine_sibling_prewarm === 'true'). Production behavior is unchanged until opted in.
+//    (Live A/B 2026-06-25 verified it works at stable zoom — instant toggles, 0 clears — but flip to
+//    default-on is HELD pending the zoom-out coverage/clamp investigation in the same subsystem.)
 //  • REGIONAL GUARD — only at a zoomed-in viewport (span ≤ 15°, mirrors the switch path's
 //    !zoomedOut gate). At global/coarse we skip (global toggles already hit the manifest cache).
 //  • REGIONAL-ONLY WRITE — only caches a frame whose grid width < 340° (never a coarse-global one),
@@ -371,6 +373,28 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
     } catch (e) {
       console.warn('[Truth Tracker] Failed to record cacheRead truth stage:', e.message);
     }
+  }
+
+  // Serve-coverage diagnostic: which cache path served, and does the served grid COVER the viewport?
+  // coversViewport:false at a regional viewport is the heatmap-CLAMP signature (a sub-viewport grid).
+  if (hitData && typeof window !== 'undefined' && bounds) {
+    try {
+      const g = hitData.grid;
+      const gb = g && g.bounds;
+      let covers = null, gw = null;
+      if (gb && gb.west !== undefined) {
+        gw = (gb.east < gb.west) ? (gb.east + 360 - gb.west) : (gb.east - gb.west);
+        covers = gb.west <= bounds.west + 1e-6 && gb.east >= bounds.east - 1e-6 &&
+                 gb.south <= bounds.south + 1e-6 && gb.north >= bounds.north - 1e-6;
+      }
+      window.__MARINE_SERVE_DIAG__ = {
+        cacheSource, model: wanted, layer: wantedLayer, hour: wantedHour,
+        gridWidth: gw, coversViewport: covers,
+        gridBounds: gb && gb.west !== undefined ? { w: gb.west, s: gb.south, e: gb.east, n: gb.north } : null,
+        viewport: { w: bounds.west, s: bounds.south, e: bounds.east, n: bounds.north },
+        ts: Date.now()
+      };
+    } catch (e) { /* diag must not break the serve */ }
   }
 
   return hitData;

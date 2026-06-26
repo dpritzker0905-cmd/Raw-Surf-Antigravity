@@ -28,6 +28,13 @@ const _inFlight = new Map();
 const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared on reset)
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 32;              // bounded; ~10 distinct (model,layer,viewport) targets × pages
+// Coarse-preview revalidation: a COLD regional viewport gets an instant GLOBAL coarse_preview from the
+// backend (SWR — it builds the precise regional grid in the background). Re-fetch the page a few times,
+// spaced out, until the backend returns the regional grid — else we'd cache the global frame and the
+// heatmap renders coarse/clamped at the viewport forever (the zoom-out clamp). Bounded so a viewport
+// that is genuinely global-only can't loop.
+const COARSE_REVAL_MAX = 6;
+const COARSE_REVAL_INTERVAL_MS = 2500;
 
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
 // once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
@@ -160,7 +167,14 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
   if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
   const key = pageKey(model, layer, bounds, page);
   const existing = _seriesCache.get(key);
-  if (existing && Date.now() - existing.ts < SERIES_TTL_MS) return;
+  if (existing) {
+    // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
+    // grid replaces the cold global frame; otherwise honour the normal TTL dedup.
+    const coarseRetryDue = existing.coarsePreview &&
+      (existing.revalCount || 0) < COARSE_REVAL_MAX &&
+      Date.now() - existing.ts >= COARSE_REVAL_INTERVAL_MS;
+    if (!coarseRetryDue && Date.now() - existing.ts < SERIES_TTL_MS) return;
+  }
   if (_inFlight.has(key)) return;
 
   const hours = buildPageHours(page);
@@ -198,13 +212,33 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
       }
       if (frames.size === 0) return;
       hoursList.sort((a, b) => a - b);
+      // Coarse-preview detection: the backend served a GLOBAL frame for a REGIONAL request (a cold SWR
+      // preview while it builds the precise regional grid). Flag it so the dedup above re-fetches until
+      // the regional grid lands, instead of caching the coarse/clamped frame.
+      const reqW = (bounds.east < bounds.west) ? (bounds.east + 360 - bounds.west) : (bounds.east - bounds.west);
+      const reqH = Math.abs(bounds.north - bounds.south);
+      const sf = frames.values().next().value;
+      const sfb = sf && sf.grid && sf.grid.bounds;
+      const frameW = sfb ? ((sfb.east < sfb.west) ? (sfb.east + 360 - sfb.west) : (sfb.east - sfb.west)) : 0;
+      const isCoarsePreview = reqW < 15.0 && reqH < 15.0 && frameW >= 340.0;
+      const prevCoarse = !!(existing && existing.coarsePreview);
+      const revalCount = isCoarsePreview ? (((existing && existing.revalCount) || 0) + 1) : 0;
       // Store bounds/model/layer/page so getMarineSeriesFrame can do containment matching (serve
       // a wider already-warmed view for a contained read viewport).
-      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds, model, layer, page });
+      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds, model, layer, page, coarsePreview: isCoarsePreview, revalCount });
       // Bound memory.
       if (_seriesCache.size > SERIES_MAX) {
         const oldest = _seriesCache.keys().next().value;
-        if (oldest !== undefined) _seriesCache.delete(oldest);
+        if (oldest !== undefined && oldest !== key) _seriesCache.delete(oldest);
+      }
+      // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
+      // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
+      if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
+        const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal); }, COARSE_REVAL_INTERVAL_MS);
+        _idleTimers.add(t);
+      } else if (prevCoarse && !isCoarsePreview && typeof window !== 'undefined') {
+        // coarse → regional: the revalidation landed. Notify so a held coarse/clamped grid gets re-committed.
+        try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ }
       }
       if (typeof window !== 'undefined') {
         window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 };

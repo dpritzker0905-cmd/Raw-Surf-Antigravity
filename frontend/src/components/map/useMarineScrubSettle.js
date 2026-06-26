@@ -1,5 +1,41 @@
 import { useRef, useCallback, useEffect } from 'react';
-import { getMarineSeriesFrame } from './marineGridSeries';
+import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
+
+// True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
+function gridCoversViewport(gb, vb) {
+  if (!gb || !vb) return false;
+  const e = 1e-6;
+  return gb.west <= vb.west + e && gb.east >= vb.east - e &&
+         gb.south <= vb.south + e && gb.north >= vb.north - e;
+}
+
+// Detect a heatmap CLAMP: at a regional viewport (zoom > 6.5, span < 15°) the engine grid does NOT
+// cover the viewport — either a coarse-GLOBAL grid held while zoomed in (renders blocky) OR a stale
+// too-SMALL regional grid held after a zoom-out/pan (renders into a sub-rectangle). Both look clamped.
+// Returns { clamp, kind, vb } reading the LIVE engine grid + map viewport. tol guards float jitter so a
+// thin pan-edge sliver (grid still ~covers) is NOT treated as a clamp (avoids refetch churn/flash).
+function detectClamp(mapInstance) {
+  try {
+    const wg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+    if (!wg || !wg.bounds || !mapInstance) return { clamp: false };
+    const gb = wg.bounds;
+    const gwid = (gb.east < gb.west) ? (gb.east + 360) - gb.west : gb.east - gb.west;
+    const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
+    const b = mapInstance.getBounds();
+    const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+    const vwid = (vb.east < vb.west) ? (vb.east + 360) - vb.west : vb.east - vb.west;
+    const vhgt = vb.north - vb.south;
+    const regionalZoom = mapInstance.getZoom() > 6.5 && vwid < 15 && vhgt < 15;
+    if (!regionalZoom) return { clamp: false, vb };
+    if (renderedGlobal) return { clamp: true, kind: 'coarse_global', vb };
+    // Regional grid SMALLER than the viewport (with a 0.25° tolerance) → too-small clamp.
+    const ghgt = gb.north - gb.south;
+    const tooSmall = !gridCoversViewport(gb, vb) && (gwid < vwid - 0.25 || ghgt < vhgt - 0.25);
+    return { clamp: tooSmall, kind: tooSmall ? 'regional_too_small' : undefined, vb };
+  } catch (e) {
+    return { clamp: false };
+  }
+}
 
 // Scrub-settle safety net + blank-heatmap backstop, extracted VERBATIM from useMarineOrchestrator to
 // keep that module under the 800-LOC cap. Behavior is unchanged: the effects run at the same call
@@ -22,36 +58,37 @@ function runScrubSettleCheck(ctx) {
   const hourMismatch = renderedHour !== undefined && renderedHour !== null && renderedHour !== currentHour;
   const noData = !marineData || !marineData.grid?.vectors?.length;
 
-  // Resolution mismatch: a COARSE GLOBAL grid is rendered while the viewport is zoomed IN to a
-  // region. The global grid "covers" the zoomed-in viewport, so the normal moveend fetch is
-  // suppressed by cache containment and the heatmap stays a blocky ~1-cell blob that never
-  // sharpens. Detect it and force a fresh REGIONAL fetch. Reads the live engine grid bounds.
-  let gridMismatch = false;
-  try {
-    const wg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
-    if (wg && wg.bounds && mapInstance) {
-      const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
-      const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
-      const vb = mapInstance.getBounds();
-      const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
-      gridMismatch = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
-    }
-  } catch (e) { /* map not ready */ }
-
-  // gridMismatch: commit the regional series frame to sharpen INSTEAD of a /grid fetch (the marine
-  // controller cache serves the coarse global for the contained viewport, so a refetch is a no-op
-  // loop). If the regional frame isn't ready yet, defer (the warming kick is loading it).
-  if (gridMismatch) {
+  // Heatmap CLAMP: the engine grid does NOT cover the viewport at a regional zoom — a coarse-GLOBAL
+  // grid held while zoomed in (blocky blob), OR a stale too-SMALL regional grid held after a
+  // zoom-out/pan (renders into a sub-rectangle). A plain /grid refetch is a no-op loop here (the
+  // cache serves the same non-covering grid for the "contained" viewport), so instead commit a
+  // REGIONAL series frame that COVERS the viewport. If none is warmed yet, load the series for THIS
+  // viewport+hour so the next tick can sharpen — this is what breaks the coarse-global refetch loop.
+  const { clamp, kind, vb: clampVb } = detectClamp(mapInstance);
+  if (clamp && clampVb) {
     try {
-      const vb = mapInstance.getBounds();
-      const frame = getMarineSeriesFrame(activeModelRef.current, activeMarineLayerRef.current || 'waves',
-        { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() }, currentHour);
+      const model = activeModelRef.current;
+      const layer = activeMarineLayerRef.current || 'waves';
+      const frame = getMarineSeriesFrame(model, layer, clampVb, currentHour);
       const fb = frame && frame.grid && frame.grid.bounds;
       const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
-      if (frame && fw < 340 && setMarineData) {
+      const frameCovers = fb && gridCoversViewport(fb, clampVb);
+      const canSharpen = !!(frame && fw < 340 && frameCovers && setMarineData);
+      if (typeof window !== 'undefined') {
+        window.__MARINE_SHARPEN_DIAG__ = {
+          kind, frameFound: !!frame, frameCovers: !!frameCovers, fw,
+          hour: currentHour, vb: { w: +clampVb.west.toFixed(2), s: +clampVb.south.toFixed(2), e: +clampVb.east.toFixed(2), n: +clampVb.north.toFixed(2) },
+          willSharpen: canSharpen, ts: Date.now()
+        };
+      }
+      if (canSharpen) {
         if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
-        console.log('[SCRUB-SETTLE] Sharpening coarse-global grid: committing regional series frame.');
+        console.log(`[SCRUB-SETTLE] Sharpening ${kind} grid: committing covering regional series frame.`);
         setMarineData(frame);
+      } else {
+        // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
+        // tick sharpens. Deduped + TTL'd + concurrency-capped, so repeated backstop ticks are cheap.
+        ensureMarineSeries(model, layer, clampVb, currentHour);
       }
     } catch (e) { /* map/series not ready — defer */ }
     return;
@@ -135,10 +172,30 @@ export function useMarineScrubSettle({
       scrubSettleTimerRef.current = setTimeout(checkScrubSettle, 200);
     };
     window.addEventListener('timeline_scrub_end', handleScrubEnd);
+    // When a coarse-preview series page revalidates to a REGIONAL grid, commit it (sharpen the clamp).
+    const handleRevalidated = () => {
+      clearTimeout(scrubSettleTimerRef.current);
+      scrubSettleTimerRef.current = setTimeout(() => checkScrubSettleRef.current && checkScrubSettleRef.current(), 60);
+    };
+    window.addEventListener('marine_series_revalidated', handleRevalidated);
+    // On viewport SETTLE (zoom-out/pan), check for a clamp promptly instead of waiting for the 3s
+    // backstop. Debounced; a no-op unless detectClamp fires, so normal panning is unaffected. A
+    // second check ~1.4s later catches the case where the covering series frame is still loading.
+    let moveTimer = null, moveTimer2 = null;
+    const handleMoveEnd = () => {
+      if (window.isScrubbingTimeline) return;
+      clearTimeout(moveTimer); clearTimeout(moveTimer2);
+      moveTimer = setTimeout(() => checkScrubSettleRef.current && checkScrubSettleRef.current(), 350);
+      moveTimer2 = setTimeout(() => checkScrubSettleRef.current && checkScrubSettleRef.current(), 1400);
+    };
+    mapInstance.on('moveend', handleMoveEnd);
     return () => {
       clearInterval(intervalId);
       window.removeEventListener('timeline_scrub_end', handleScrubEnd);
+      window.removeEventListener('marine_series_revalidated', handleRevalidated);
+      try { mapInstance.off('moveend', handleMoveEnd); } catch (e) { /* map gone */ }
       clearTimeout(scrubSettleTimerRef.current);
+      clearTimeout(moveTimer); clearTimeout(moveTimer2);
     };
   }, [mapInstance, marineData, checkScrubSettle]);
 
@@ -157,19 +214,10 @@ export function useMarineScrubSettle({
       const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
       const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
-      const wg = eng && eng._waveData && eng._waveData.waveGrid;
-      // Also re-drive when a COARSE GLOBAL grid is held while zoomed IN (zoom-in fires no scrub-end).
-      let coarseAtZoom = false;
-      if (wg && wg.bounds) {
-        const gwid = (wg.bounds.east < wg.bounds.west) ? (wg.bounds.east + 360) - wg.bounds.west : wg.bounds.east - wg.bounds.west;
-        const renderedGlobal = gwid >= 340 || wg.coverage_scope === 'global' || wg.coverage_scope === 'global_coarse';
-        try {
-          const vb = mapInstance.getBounds();
-          const vwid = (vb.getEast() < vb.getWest()) ? (vb.getEast() + 360) - vb.getWest() : vb.getEast() - vb.getWest();
-          coarseAtZoom = renderedGlobal && mapInstance.getZoom() > 6.5 && vwid < 15 && (vb.getNorth() - vb.getSouth()) < 15;
-        } catch (e) { /* ignore */ }
-      }
-      const needsRefetch = (!(eng && eng._waveData) || coarseAtZoom) && !window.__MARINE_FETCH_PENDING__ && govIdle;
+      // Also re-drive when a non-covering grid (coarse-global OR too-small regional) is held while
+      // zoomed IN — zoom-in/out fires no scrub-end, so without this the clamp would never sharpen.
+      const { clamp, kind } = detectClamp(mapInstance);
+      const needsRefetch = (!(eng && eng._waveData) || clamp) && !window.__MARINE_FETCH_PENDING__ && govIdle;
       if (!needsRefetch) { blankStreak = 0; return; }
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
@@ -177,7 +225,7 @@ export function useMarineScrubSettle({
       lastBackstop = Date.now();
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
-      console.warn(`[Marine] Render backstop: ${coarseAtZoom ? 'coarse-global grid at zoomed-in viewport' : 'engine empty'} + idle ≥3s — re-driving fetch.`);
+      console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`);
       if (checkScrubSettleRef.current) checkScrubSettleRef.current();
     }, 1000);
     return () => clearInterval(id);
