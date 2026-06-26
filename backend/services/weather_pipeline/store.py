@@ -100,15 +100,34 @@ class ProductStore:
     # ── Supabase Storage L2 helpers ──────────────────────────────────────
 
     def _upload_to_supabase(self, filename: str, data_bytes: bytes):
-        """Upload a file to Supabase Storage L2 (fire-and-forget with logging)."""
-        sb = _get_supabase_storage()
+        """Upload a file to Supabase Storage L2 (fire-and-forget with logging).
+
+        Uses the Storage REST API directly (via requests) instead of storage3's sync .upload(): in the
+        pinned supabase==2.4.6, that method raises an UnboundLocalError ("cannot access local variable
+        'response'") that masked the real result and broke ALL L2 persistence (every product + manifest).
+        The REST POST is self-contained, surfaces real HTTP errors, and avoids upgrading the whole
+        supabase stack (no auth/DB regression). x-upsert overwrites by key, matching the prior intent.
+        """
+        sb = _get_supabase_storage()  # gates on config + ensures the bucket exists (one-time create)
         if sb is None:
             return
+        base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+        if not base or not key:
+            return
         try:
-            sb.storage.from_(WEATHER_BUCKET).upload(
-                filename, data_bytes,
-                file_options={"content-type": "application/json", "upsert": "true"}
-            )
+            import requests
+            url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{filename}"
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "apikey": key,
+                "Content-Type": "application/json",
+                "x-upsert": "true",
+                "cache-control": "3600",
+            }
+            resp = requests.post(url, headers=headers, data=data_bytes, timeout=30)
+            if resp.status_code not in (200, 201):
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
         except Exception as e:
