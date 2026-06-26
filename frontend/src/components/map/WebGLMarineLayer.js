@@ -9,7 +9,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
-import { getSharedLandGeoJSON, safeMoveLayer } from './mapUtils';
+import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
@@ -51,6 +51,10 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
   const landGeoJSONFailedRef = useRef(false);
+  // High-zoom land-mask refinement state: which mask resolution the engine currently reflects
+  // ('standard' = 50m default, 'hires' = 10m), and a stable handle to the evaluator.
+  const maskResRef = useRef('standard');
+  const evaluateMaskRef = useRef(null);
 
   useEffect(() => {
     activeRef.current = active;
@@ -372,6 +376,78 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       });
     return () => { activeFetch = false; };
   }, [mapInstance]);
+
+  // ── High-zoom land-mask refinement ──────────────────────────────────────────────
+  // Bug: the wave heatmap bleeds over land at z12+ because the engine masks land with the 50m
+  // GeoJSON, which is too coarse to follow barrier islands / thin coastline. When a marine layer is
+  // zoomed past the threshold we lazily swap in the 10m mask and re-encode; below the threshold we
+  // revert to 50m so the global mask render stays cheap (it iterates ALL land features). The 10m
+  // swap re-uploads because geojsonSig (land_<featureCount>) differs → no duplicate-upload skip.
+  // Isolated from the fetch/commit pipeline — worst case is a coarser mask, never a wedge.
+  // Kill switch: window.__MARINE_HIRES_MASK__ === false.
+  const HIRES_MASK_MIN_ZOOM = 11;
+  useEffect(() => {
+    if (!mapInstance) return;
+
+    const reuploadMask = (geojson) => {
+      const engine = engineRef.current;
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (!engine || !gl || !geojson) return;
+      landGeoJSONRef.current = geojson;
+      engine._landGeoJSON = geojson;
+      if (dataRef.current?.vectors?.length && safeUploadRef.current) {
+        safeUploadRef.current('land_mask_res_swap', gl, dataRef.current, geojson);
+        mapInstance.triggerRepaint();
+      }
+    };
+
+    const evaluate = () => {
+      // Only meaningful when a marine layer is active and there is data to re-encode.
+      if (!activeRef.current || !dataRef.current?.vectors?.length) return;
+      const hiresAllowed = typeof window === 'undefined' || window.__MARINE_HIRES_MASK__ !== false;
+      let z;
+      try { z = mapInstance.getZoom(); } catch (e) { return; }
+      const desired = (hiresAllowed && z >= HIRES_MASK_MIN_ZOOM) ? 'hires' : 'standard';
+      if (desired === maskResRef.current) return;
+
+      if (desired === 'hires') {
+        getSharedLandGeoJSONHiRes()
+          .then(geojson => {
+            if (!geojson) return;
+            // The 10m fetch can be slow (~18 MB on first load) — re-check the user is still zoomed in.
+            let zNow;
+            try { zNow = mapInstance.getZoom(); } catch (e) { return; }
+            if (window.__MARINE_HIRES_MASK__ === false || zNow < HIRES_MASK_MIN_ZOOM) return;
+            if (!activeRef.current) return;
+            maskResRef.current = 'hires';
+            reuploadMask(geojson);
+          })
+          .catch(() => { /* CDN unavailable → keep the 50m mask (still functional) */ });
+      } else {
+        getSharedLandGeoJSON()
+          .then(geojson => {
+            if (!geojson || maskResRef.current === 'standard') return;
+            maskResRef.current = 'standard';
+            reuploadMask(geojson);
+          })
+          .catch(() => { /* no-op: 50m already resident */ });
+      }
+    };
+
+    evaluateMaskRef.current = evaluate;
+    mapInstance.on('zoomend', evaluate);
+    return () => {
+      evaluateMaskRef.current = null;
+      try { mapInstance.off('zoomend', evaluate); } catch (e) { /* map gone */ }
+    };
+  }, [mapInstance]);
+
+  // Re-evaluate the mask resolution when the layer activates or new data commits while already
+  // zoomed in (a pure zoom event would otherwise be the only trigger). Idempotent + cheap: a no-op
+  // when the resolution already matches the zoom, so scrub-rate revision changes don't thrash.
+  useEffect(() => {
+    if (evaluateMaskRef.current) evaluateMaskRef.current();
+  }, [active, revision, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance) return;

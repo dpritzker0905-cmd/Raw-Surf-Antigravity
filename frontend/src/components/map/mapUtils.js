@@ -500,6 +500,43 @@ export function getSharedLandGeoJSON() {
   return window.__LAND_GEOJSON_PROMISE__;
 }
 
+// 10m (high-resolution) Natural Earth land polygons — the same CDN OceanMask falls back to.
+// ~18 MB, so it is fetched LAZILY (only when a marine layer is zoomed past the hi-res threshold,
+// where the 50m mask is too coarse and wave color bleeds over barrier islands / thin coast).
+// Cached on window after the first load; a failed fetch clears the promise so it can retry.
+const NE_10M_LAND_URL = 'https://cdn.jsdelivr.net/gh/martynafford/natural-earth-geojson@master/10m/physical/ne_10m_land.json';
+
+export function getSharedLandGeoJSONHiRes() {
+  if (typeof window === 'undefined') return Promise.resolve(null);
+
+  if (window.__LAND_GEOJSON_HIRES_CACHE__) {
+    return Promise.resolve(window.__LAND_GEOJSON_HIRES_CACHE__);
+  }
+
+  if (!window.__LAND_GEOJSON_HIRES_PROMISE__) {
+    // Prefer a locally-served copy if the deploy ships one (repo ships only 50m/110m today),
+    // else the Natural Earth 10m CDN.
+    window.__LAND_GEOJSON_HIRES_PROMISE__ = fetch('/ne_10m_land.json')
+      .then(res => { if (!res.ok) throw new Error(`Status ${res.status}`); return res.json(); })
+      .catch(() => fetch(NE_10M_LAND_URL).then(res => {
+        if (!res.ok) throw new Error(`Status ${res.status}`);
+        return res.json();
+      }))
+      .then(geojson => {
+        if (!geojson?.features?.length) throw new Error('empty hi-res land geojson');
+        window.__LAND_GEOJSON_HIRES_CACHE__ = geojson;
+        return geojson;
+      })
+      .catch(err => {
+        // Allow a later retry; callers degrade gracefully to the 50m mask.
+        window.__LAND_GEOJSON_HIRES_PROMISE__ = null;
+        throw err;
+      });
+  }
+
+  return window.__LAND_GEOJSON_HIRES_PROMISE__;
+}
+
 export function safeMoveLayer(mapInstance, layerId, beforeId) {
   if (!mapInstance || !layerId) return;
   try {
