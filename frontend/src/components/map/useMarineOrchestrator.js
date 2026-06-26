@@ -643,7 +643,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         // to FAR hours right after activating/panning is instant instead of cold-missing the
         // un-warmed page (the "heatmap doesn't change during scrub" delay). prewarmMarineSeries is
         // capped + deduped + TTL'd + abortable (controller aborts on viewport/model/layer change)
-        // and SKIPS EURO (protects the 1-CPU/512MB backend) — GFS & ICON just re-slice a cheap
+        // and SKIPS EURO (protects the 1-CPU/2GB backend) — GFS & ICON just re-slice a cheap
         // cached coarse product, so the proactive warm is bounded.
         prewarmMarineSeries(activeModelRef.current, activeMarineLayerRef.current, bounds, controller.signal);
       } catch (e) { /* map not ready — ignore */ }

@@ -33,8 +33,8 @@ const SERIES_MAX = 32;              // bounded; ~10 distinct (model,layer,viewpo
 // spaced out, until the backend returns the regional grid — else we'd cache the global frame and the
 // heatmap renders coarse/clamped at the viewport forever (the zoom-out clamp). Bounded so a viewport
 // that is genuinely global-only can't loop.
-const COARSE_REVAL_MAX = 6;
-const COARSE_REVAL_INTERVAL_MS = 2500;
+const COARSE_REVAL_MAX = 8;
+const COARSE_REVAL_INTERVAL_MS = 1200;
 
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
 // once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
@@ -336,6 +336,11 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     if (cand < 0 || cand > LAST_PAGE) continue;
     const entry = _seriesCache.get(pageKey(model, layer, bounds, cand));
     if (!entry || now - entry.ts >= SERIES_TTL_MS) continue;
+    // The 0.5° viewportKey snap can match an entry whose grid is slightly SMALLER than (or offset
+    // from) the current viewport — serving it renders a clamped sub-rectangle. Only take the exact-key
+    // frame if its grid actually COVERS the viewport; else fall through to the containment fallback
+    // (which finds a wider warmed frame, e.g. the zoom-out pre-warm) or misses into a fresh fetch.
+    if (!bboxContains(entry.bounds, bounds)) continue;
     for (const h of entry.hours) {
       const d = Math.abs(h - hourOffset);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }
