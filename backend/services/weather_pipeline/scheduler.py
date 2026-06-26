@@ -203,6 +203,96 @@ class WeatherPipelineScheduler:
         # memory-safe but ~60 slow tile downloads, deferred.)
         gfs_forecast_days = int(os.environ.get("GFS_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
 
+        # ══ PRIMARY: native EURO from Copernicus (REAL ECMWF-WAM swells), 0-10d + cached-GFS 10->14d ══
+        # Moves EURO marine OFF open-meteo (frees ~1,200 calls/cycle for ICON) and upgrades swell_1/swell_2/
+        # wind_waves from GFS-fallback to REAL CMEMS partitions. The Copernicus fetch is slow (~15-30 min)
+        # but LOW-STRAIN (background thin-latitude-band subsets, ~0.3 GB, ~36 MB peak — see
+        # copernicus_global_fetcher.py). CMEMS global waves is a ~10-day product, so days 10->14 are filled
+        # by the cached GFS all_marine (estimated). Copernicus unavailable/failed -> falls through to the
+        # existing open-meteo path below (zero regression).
+        cop_days = int(os.environ.get("EURO_COPERNICUS_DAYS", "2" if env["is_test_env"] else "10"))
+        _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset", "source_model": "ecmwf_wam_cmems_glo_0083"}
+        _gfs_ext_basis = {"type": "gfs_estimated_fallback", "method": "gfs_wave_fallback", "source_model": "ncep_gfswave025"}
+
+        def _parse_iso(s):
+            if not s:
+                return None
+            try:
+                return datetime.fromisoformat(s.replace("Z", "+00:00"))
+            except Exception:
+                return None
+
+        def _slice_after(results, after_dt):
+            """Trim Open-Meteo-shaped point results to hourly times STRICTLY AFTER after_dt (the GFS 10->14d tail)."""
+            if not results or after_dt is None:
+                return None
+            sliced = []
+            for pt in results:
+                hourly = pt.get("hourly", {}) or {}
+                times = hourly.get("time", []) or []
+                keep = [i for i, t in enumerate(times) if (_parse_iso(t) and _parse_iso(t) > after_dt)]
+                if not keep:
+                    continue
+                new_hourly = {k: ([arr[i] for i in keep] if (isinstance(arr, list) and len(arr) == len(times)) else arr)
+                              for k, arr in hourly.items()}
+                npt = dict(pt)
+                npt["hourly"] = new_hourly
+                sliced.append(npt)
+            return sliced or None
+
+        cop_results = None
+        try:
+            from services.copernicus_marine_service import fetch_euro_marine_global_coarse
+            cop_results = await fetch_euro_marine_global_coarse(global_region, resolution, cop_days)
+        except Exception as _ce:
+            logger.error(f"[Pipeline Scheduler] EURO Copernicus global-coarse fetch errored: {_ce}")
+
+        if cop_results:
+            logger.info(f"[Pipeline Scheduler] EURO Copernicus global-coarse OK: {len(cop_results)} points (native swells).")
+            # cached GFS (ingest_gfs_marine_global ran ~1 min earlier -> _GRID_CACHE hit) for the 10->14d tail
+            gfs_ext_src = await self._fetch_or_mock(
+                "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
+                env["is_test_env"],
+                lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
+                "global_coarse"
+            )
+            _cop_times = cop_results[0].get("hourly", {}).get("time", []) if cop_results else []
+            _cop_max = _parse_iso(_cop_times[-1]) if _cop_times else None
+            gfs_ext = _slice_after(gfs_ext_src, _cop_max)
+            for layer in ["waves", "swell_1", "swell_2", "wind_waves"]:
+                # native Copernicus 0-10d (CMEMS is natively 3-hourly -> step=1)
+                c = await normalize_and_save_loop(
+                    self.normalizer, self.store, cop_results,
+                    model="EURO", provider="copernicus", domain="marine", layer=layer,
+                    bbox=global_region, resolution=resolution, run_time=run_time,
+                    region_id="global_coarse", coverage_mode="global_tile",
+                    is_test_env=env["is_test_env"], step=1,
+                    log_prefix=f"[Pipeline Scheduler] EURO {layer} (copernicus native) global_coarse",
+                    estimated_after_index=0, estimate_basis=_cop_basis
+                )
+                e_cnt = 0
+                if gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
+                    e_cnt = await normalize_and_save_loop(
+                        self.normalizer, self.store, gfs_ext,
+                        model="EURO", provider="copernicus", domain="marine", layer=layer,
+                        bbox=global_region, resolution=resolution, run_time=run_time,
+                        region_id="global_coarse", coverage_mode="global_tile",
+                        is_test_env=env["is_test_env"], step=3,
+                        log_prefix=f"[Pipeline Scheduler] EURO {layer} (GFS 10-14d ext) global_coarse",
+                        estimated_after_index=0, estimate_basis=_gfs_ext_basis
+                    )
+                logger.info(f"[Pipeline Scheduler] Ingested EURO {layer}: {c} native + {e_cnt} GFS-ext global coarse files.")
+                total_saved += c + e_cnt
+                if (c + e_cnt) > 0:
+                    self.store.prune_superseded_products("EURO", "marine", layer, "global_coarse", run_time)
+            await self._cleanup_and_pause(cop_results, 0)
+            if gfs_ext_src:
+                await self._cleanup_and_pause(gfs_ext_src, 0)
+            return total_saved > 0
+
+        # ══ FALLBACK: Copernicus unavailable -> existing open-meteo path (ecmwf_wam025 + cached GFS), no regression ══
+        logger.warning("[Pipeline Scheduler] EURO Copernicus global-coarse unavailable; falling back to open-meteo (ecmwf_wam025 + GFS).")
+
         # 1. Fetch EURO waves results (real ECMWF WAM via open-meteo ecmwf_wam025)
         euro_results = await self._fetch_or_mock(
             "EURO", "marine", "all_marine", global_region, resolution, forecast_days,

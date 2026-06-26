@@ -157,6 +157,10 @@ def generate_mock_copernicus_response(
             "timezone_abbreviation": "GMT",
             "elevation": 0.0,
             "__provider": "copernicus",
+            # Mock data is only produced under is_test_environment(); flag it so the normalizer tags the
+            # product provider="test-fixture" (and its non-test security guard rejects it), exactly like
+            # the open-meteo mock — keeps test expectations + the fixture-safety model consistent.
+            "is_test_fixture": True,
             "hourly_units": hourly_units,
             "hourly": hourly_data
         })
@@ -216,6 +220,86 @@ async def fetch_euro_marine(
             _point_cache.pop(oldest_key, None)
             
     return results
+
+
+async def fetch_euro_marine_global_coarse(
+    bbox: dict,
+    resolution: float = 10.0,
+    forecast_days: int = 10,
+) -> Optional[List[dict]]:
+    """
+    BACKGROUND-ONLY: fetch a coarse (resolution°) GLOBAL EURO marine grid from Copernicus using the
+    thin-latitude-band subset fetcher (copernicus_global_fetcher.py). Returns Open-Meteo-shaped point
+    dicts for ALL 4 native layers (waves/swell_1/swell_2/wind_waves incl REAL ECMWF-WAM swells), or
+    None on failure. Slow (~15-30 min, ~0.3 GB, ~36 MB peak) — scheduler ingestion ONLY, never a user
+    request. CMEMS global waves is a ~10-day product (caller extends 10->14d with cached GFS).
+    """
+    def _axis(lo, hi, step):
+        out = []
+        v = lo
+        while v < hi - 1e-9:
+            out.append(round(v, 4))
+            v += step
+        return out
+    lons = _axis(float(bbox["west"]), float(bbox["east"]), resolution)
+    lats = _axis(float(bbox["south"]), float(bbox["north"]), resolution)
+
+    if is_test_environment():
+        all_lats = [la for la in lats for _ in lons]
+        all_lons = [lo for _ in lats for lo in lons]
+        return generate_mock_copernicus_response(all_lats, all_lons, forecast_days, None)
+
+    import asyncio
+    import subprocess
+    import sys
+    import json
+    import os
+    import tempfile
+    import uuid
+    from pathlib import Path
+    from datetime import datetime, timezone, timedelta
+
+    user, pwd = _check_credentials()
+    now = datetime.now(timezone.utc)
+    tmp = Path(tempfile.gettempdir())
+    os.environ["COPERNICUSMARINE_CREDENTIALS_DIRECTORY"] = str(tmp)
+    out = tmp / f"cmems_global_{uuid.uuid4().hex}.json"
+    payload = {
+        "username": user, "password": pwd, "bbox": bbox, "resolution": resolution,
+        "start_datetime": (now - timedelta(hours=6)).strftime("%Y-%m-%dT%H:%M:%S"),
+        "end_datetime": (now + timedelta(days=forecast_days)).strftime("%Y-%m-%dT%H:%M:%S"),
+        "output_path": str(out),
+    }
+    script = os.path.join(os.path.dirname(__file__), "copernicus_global_fetcher.py")
+
+    def _run():
+        return subprocess.run(
+            [sys.executable, "-OO", script, json.dumps(payload)],
+            capture_output=True, text=True, timeout=2400,  # 40 min ceiling
+        )
+
+    try:
+        result = await asyncio.get_event_loop().run_in_executor(None, _run)
+        if result.stdout and result.stdout.strip():
+            logger.info(f"[Copernicus Global] {result.stdout.strip().splitlines()[-1]}")
+        if result.returncode != 0:
+            logger.error(f"[Copernicus Global] fetcher failed (exit {result.returncode}): {result.stderr.strip()[-600:]}")
+            return None
+        with open(out) as f:
+            data = json.load(f)
+        return data if data else None
+    except subprocess.TimeoutExpired:
+        logger.error("[Copernicus Global] fetcher subprocess timed out (>2400s)")
+        return None
+    except Exception as e:
+        logger.error(f"[Copernicus Global] error: {e}")
+        return None
+    finally:
+        try:
+            if out.exists():
+                out.unlink()
+        except Exception:
+            pass
 
 
 def _fetch_tiled_sync(
