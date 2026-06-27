@@ -148,15 +148,25 @@ def start_scheduler():
     # deploys) the ingestion would NEVER run and forecast data goes stale (observed: wind global 14h+
     # stale). The startup run guarantees fresh data after each deploy. Tunable via
     # FORECAST_STARTUP_DELAY_SEC (default 120; set <=0 to keep interval-only).
-    _forecast_kwargs = {}
-    _startup_delay = int(os.environ.get("FORECAST_STARTUP_DELAY_SEC", "120"))
-    if _startup_delay > 0:
-        _forecast_kwargs["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=_startup_delay)
-    scheduler.add_job(
-        ingest_marine_forecast_task, IntervalTrigger(hours=3),
-        id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
-        replace_existing=True, **_forecast_kwargs
-    )
+    # DECOUPLING CUTOVER SWITCH: set DISABLE_FORECAST_SCHEDULER=1 on the Render web box to make it
+    # SERVE-ONLY — the heavy GRIB-decode ingestion then runs in the GitHub Action
+    # (.github/workflows/forecast-ingest.yml) and lands in Supabase L2; Render restores from L2. This
+    # is the "strengthen the spine" move (ingestion compute no longer contends with request serving on
+    # the 1-CPU box). Default OFF = unchanged in-process ingestion. See
+    # docs/runbooks/decouple-ingestion-github-action.md for the verify->cutover sequence.
+    if os.environ.get("DISABLE_FORECAST_SCHEDULER", "").lower() in ("1", "true", "yes"):
+        logger.info("[Scheduler] DISABLE_FORECAST_SCHEDULER set — skipping in-process forecast ingestion "
+                    "(decoupled to the GitHub Action; this box is serve-only).")
+    else:
+        _forecast_kwargs = {}
+        _startup_delay = int(os.environ.get("FORECAST_STARTUP_DELAY_SEC", "120"))
+        if _startup_delay > 0:
+            _forecast_kwargs["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=_startup_delay)
+        scheduler.add_job(
+            ingest_marine_forecast_task, IntervalTrigger(hours=3),
+            id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
+            replace_existing=True, **_forecast_kwargs
+        )
 
     # Rate limiter memory cleanup — every hour
     def _cleanup_rate_limiter():

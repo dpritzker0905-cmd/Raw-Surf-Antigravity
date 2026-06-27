@@ -1,0 +1,49 @@
+# Decoupled forecast ingestion — runs the heavy GRIB-decode/NN ingestion OFF the 1-CPU Render web box
+# and lands the normalized products + manifest in Supabase L2; the Render box restores from L2 and only
+# serves. See docs/runbooks/decouple-ingestion-github-action.md for the verify -> cutover sequence.
+#
+# PHASE 1 (now): manual `workflow_dispatch` only, so it can't race the in-process Render scheduler.
+#   Trigger it a few times, confirm the run is green AND the Render box shows fresh products restored
+#   from L2. THEN enable the cron below and set DISABLE_FORECAST_SCHEDULER=1 on Render (serve-only).
+name: Forecast Ingestion (decoupled)
+
+on:
+  workflow_dispatch: {}
+  # PHASE 2 — uncomment after the L2 round-trip is verified (runbook step 4):
+  # schedule:
+  #   - cron: '15 */3 * * *'   # every 3h at :15 UTC (matches the in-process IntervalTrigger(hours=3))
+
+concurrency:
+  group: forecast-ingest
+  cancel-in-progress: false   # never cancel a half-written ingestion cycle
+
+jobs:
+  ingest:
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r requirements.txt   # pygrib manylinux wheel bundles ecCodes — no apt step
+
+      - name: Run forecast ingestion -> Supabase L2
+        working-directory: backend
+        env:
+          NODE_ENV: production          # real ingestion, not the test mock
+          RENDER: 'true'                # match the production grid resolution + fetch paths
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          # EURO marine (Copernicus) — set these to the SAME names/values your Render service uses.
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          # open-meteo fallback proxy (EURO wind/pressure + any direct-source miss); optional.
+          WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+          # Per-source kill switches default ON; override here only to disable a source in CI.
+          # GFS_MARINE_NOAA_DIRECT: '1'  ICON_PRESSURE_DWD_DIRECT: '1'  etc.
+        run: python scripts/ingest_forecast_ci.py
