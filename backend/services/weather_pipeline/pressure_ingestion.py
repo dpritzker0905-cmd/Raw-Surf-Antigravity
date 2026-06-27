@@ -172,6 +172,39 @@ async def ingest_icon_pressure_global_impl(scheduler) -> bool:
     }
     resolution = 10.0
 
+    # ══ PRIMARY: native ICON MSL pressure direct from DWD opendata (icosahedral PMSL) ══
+    # The LAST ICON layer on open-meteo. Provider stays 'open-meteo' below so the manifest
+    # (source_dataset='dwd_icon') is byte-identical — zero regression. DWD is 3-hourly native (step=1)
+    # to ~7.5d, served authoritative like ICON wind/marine (NO loop-extrapolation). DWD failed/empty ->
+    # the original open-meteo loop-extrapolation path below, unchanged. Kill switch ICON_PRESSURE_DWD_DIRECT=0.
+    dwd_direct = os.environ.get("ICON_PRESSURE_DWD_DIRECT", "1") != "0"
+    if dwd_direct:
+        dwd_results = None
+        try:
+            from services.dwd_pressure_service import fetch_icon_pressure_global_coarse
+            dwd_results = await fetch_icon_pressure_global_coarse(global_region, resolution, forecast_days=8)
+        except Exception as _de:
+            logger.error(f"[Pipeline Scheduler] ICON pressure DWD-direct fetch errored: {_de}")
+        if dwd_results:
+            logger.info(f"[Pipeline Scheduler] ICON pressure DWD-direct OK: {len(dwd_results)} points (off open-meteo).")
+            count = await normalize_and_save_loop(
+                scheduler.normalizer, scheduler.store, dwd_results,
+                model="ICON", provider="open-meteo", domain="weather", layer="pressure",
+                bbox=global_region, resolution=resolution, run_time=run_time,
+                region_id="global_coarse", coverage_mode="global_tile",
+                is_test_env=env["is_test_env"], step=1,
+                log_prefix="[Pipeline Scheduler] ICON pressure global_coarse (DWD)"
+            )
+            logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Pressure global coarse grid files (DWD-direct, native ~7.5d).")
+            if count > 0:
+                scheduler.store.prune_superseded_products("ICON", "weather", "pressure", "global_coarse", run_time)
+            await scheduler._cleanup_and_pause(dwd_results, 0)
+            if count > 0:
+                return True
+            logger.warning("[Pipeline Scheduler] ICON pressure DWD-direct produced 0 products; falling back to open-meteo.")
+        else:
+            logger.warning("[Pipeline Scheduler] ICON pressure DWD-direct unavailable; falling back to open-meteo.")
+
     results = await scheduler._fetch_or_mock(
         "ICON", "weather", "pressure", global_region, resolution, 5,
         env["is_test_env"],
