@@ -2,16 +2,16 @@
 # and lands the normalized products + manifest in Supabase L2; the Render box restores from L2 and only
 # serves. See docs/runbooks/decouple-ingestion-github-action.md for the verify -> cutover sequence.
 #
-# PHASE 1 (now): manual `workflow_dispatch` only, so it can't race the in-process Render scheduler.
-#   Trigger it a few times, confirm the run is green AND the Render box shows fresh products restored
-#   from L2. THEN enable the cron below and set DISABLE_FORECAST_SCHEDULER=1 on Render (serve-only).
+# CUTOVER (2026-06-27): L2 round-trip verified (CI run green + storage3 .download confirmed on Render),
+#   and the default branch is now `dev`, so schedule/dispatch run from CURRENT code (no main sync needed).
+#   Cron ENABLED below. The companion step is setting DISABLE_FORECAST_SCHEDULER=1 on the Render web box
+#   (serve-only + periodic L2 restore). Reverse by commenting the cron + unsetting the Render env var.
 name: Forecast Ingestion (decoupled)
 
 on:
   workflow_dispatch: {}
-  # PHASE 2 — uncomment after the L2 round-trip is verified (runbook step 4):
-  # schedule:
-  #   - cron: '15 */3 * * *'   # every 3h at :15 UTC (matches the in-process IntervalTrigger(hours=3))
+  schedule:
+    - cron: '15 */3 * * *'   # every 3h at :15 UTC (matches the in-process IntervalTrigger(hours=3))
 
 concurrency:
   group: forecast-ingest
@@ -20,7 +20,7 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 60
+    timeout-minutes: 90   # full cycle ~36-41 min; headroom for an occasional slow upstream fetch
     steps:
       - uses: actions/checkout@v4
 
@@ -37,6 +37,7 @@ jobs:
         env:
           NODE_ENV: production          # real ingestion, not the test mock
           RENDER: 'true'                # match the production grid resolution + fetch paths
+          FORECAST_JOB_STAGGER_SEC: '0' # runner has no 1-CPU contention -> skip the inter-job staggers
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # EURO marine (Copernicus) — set these to the SAME names/values your Render service uses.

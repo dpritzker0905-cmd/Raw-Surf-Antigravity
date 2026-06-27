@@ -1,6 +1,7 @@
 import logging
 import asyncio
 import gc
+import os
 from services.forecast_ingester import ingest_global_model
 
 logger = logging.getLogger(__name__)
@@ -80,8 +81,12 @@ def ingest_marine_forecast_task():
                 ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global)
             ]
 
+            # Inter-job stagger lets the 1-CPU Render box settle (gc) between heavy jobs. The decoupled
+            # GitHub runner (2 CPU, no serving contention) doesn't need it -> CI sets FORECAST_JOB_STAGGER_SEC=0
+            # to shave ~4.5 min (9 jobs x 30s). Default 30 keeps Render behaviour unchanged.
+            _stagger = float(os.environ.get("FORECAST_JOB_STAGGER_SEC", "30"))
             for name, job_func in jobs:
-                await asyncio.sleep(30.0)
+                await asyncio.sleep(_stagger)
                 logger.info(f"[Scheduler] Starting scheduled job: {name}")
                 try:
                     await job_func()
