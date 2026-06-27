@@ -288,22 +288,43 @@ async def ingest_euro_pressure_global_impl(scheduler) -> bool:
     }
     resolution = 10.0
 
-    forecast_days = 2 if env["is_test_env"] else 14
-    results = await scheduler._fetch_or_mock(
-        "EURO", "weather", "pressure", global_region, resolution, forecast_days,
-        env["is_test_env"],
-        lambda: generate_mock_pressure_results(scheduler.om_provider, global_region, resolution),
-        "global_coarse"
-    )
+    # ══ PRIMARY: native EURO MSL pressure direct from ECMWF Open Data (free IFS 0.25° GRIB, msl) ══
+    # Off open-meteo (which was starving EURO pressure). Provider stays 'open-meteo' below so the manifest
+    # (source_dataset='ecmwf_ifs') is byte-identical. ECMWF native 3/6-hourly (step=1); open-meteo hourly
+    # (step=3). ECMWF failed -> the open-meteo fallback below, UNCHANGED. Kill switch EURO_PRESSURE_ECMWF_DIRECT=0.
+    ecmwf_direct = os.environ.get("EURO_PRESSURE_ECMWF_DIRECT", "1") != "0"
+    results = None
+    from_ecmwf = False
+    if ecmwf_direct:
+        try:
+            from services.ecmwf_pressure_service import fetch_euro_pressure_global_coarse
+            results = await fetch_euro_pressure_global_coarse(global_region, resolution, forecast_days=10)
+            if results:
+                from_ecmwf = True
+                logger.info(f"[Pipeline Scheduler] EURO pressure ECMWF-direct OK: {len(results)} points (off open-meteo).")
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] EURO pressure ECMWF-direct fetch errored: {_ee}")
+
+    if not results:
+        if ecmwf_direct:
+            logger.warning("[Pipeline Scheduler] EURO pressure ECMWF-direct unavailable; falling back to open-meteo.")
+        forecast_days = 2 if env["is_test_env"] else 14
+        results = await scheduler._fetch_or_mock(
+            "EURO", "weather", "pressure", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_pressure_results(scheduler.om_provider, global_region, resolution),
+            "global_coarse"
+        )
     if not results:
         return False
 
+    save_step = 1 if from_ecmwf else 3
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="EURO", provider="open-meteo", domain="weather", layer="pressure",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"],
+        is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] EURO pressure global_coarse"
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Pressure global coarse grid files.")

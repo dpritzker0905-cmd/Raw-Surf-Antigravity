@@ -189,13 +189,15 @@ async def run_fetcher_subprocess(
     log_tag: str,
     out_prefix: str,
     timeout: int = 1800,
+    extra_payload: Optional[dict] = None,
 ) -> Optional[List[dict]]:
     """Spawn a sibling ``<fetcher>.py`` off the request path and return its Open-Meteo-shaped points,
     or None on any failure (so the caller falls back to open-meteo).
 
     Returns None immediately in a test environment so the existing open-meteo mock path runs unchanged
     (every service relied on this short-circuit). ``script_name`` resolves relative to backend/services/
-    unless it is already an absolute path.
+    unless it is already an absolute path. ``extra_payload`` (e.g. {"layer": "wind"}) is merged into the
+    JSON payload for fetchers that serve more than one layer.
     """
     if is_test_environment():
         return None
@@ -215,6 +217,8 @@ async def run_fetcher_subprocess(
         "forecast_days": int(forecast_days),
         "output_path": str(out),
     }
+    if extra_payload:
+        payload.update(extra_payload)
     # os.path.join returns the 2nd arg unchanged when it is absolute (lets tests point at a temp script).
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_name)
 

@@ -149,3 +149,19 @@ async def test_runner_spawns_and_parses(monkeypatch, tmp_path):
     )
     out = await fc.run_fetcher_subprocess(str(fake), {"west": 0}, 10.0, 2, "FAKE", "fake")
     assert out == [{"latitude": 1.0, "longitude": 2.0}]
+
+
+@pytest.mark.asyncio
+async def test_runner_merges_extra_payload(monkeypatch, tmp_path):
+    # extra_payload (e.g. {"layer": "wind"}) must reach the fetcher's payload JSON
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)
+    fake = tmp_path / "echo_fetcher.py"
+    fake.write_text(
+        "import json,sys\n"
+        "p=json.loads(sys.argv[1])\n"
+        "open(p['output_path'],'w').write(json.dumps([{'layer':p.get('layer')}]))\n"
+        "print('SUMMARY: ok')\n"
+    )
+    out = await fc.run_fetcher_subprocess(str(fake), {"west": 0}, 10.0, 2, "FAKE", "fake",
+                                          extra_payload={"layer": "pressure"})
+    assert out == [{"layer": "pressure"}]

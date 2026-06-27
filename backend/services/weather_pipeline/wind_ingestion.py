@@ -178,13 +178,35 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
     }
     resolution = 10.0
 
-    results = await scheduler._fetch_or_mock(
-        "EURO", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
-        False,
-        lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
-        "global_coarse",
-        batch_size=_WIND_GLOBAL_BATCH_SIZE
-    )
+    # ══ PRIMARY: native EURO 10m wind direct from ECMWF Open Data (free IFS 0.25° GRIB, 10u/10v) ══
+    # Off open-meteo (which was STARVING EURO wind — failing multiple cycles, ~10h stale). Provider stays
+    # 'open-meteo' below so the manifest (source_dataset='ecmwf_ifs') is byte-identical — zero frontend
+    # regression (the EURO-wind clearing/seam/activation fixes operate on the rendered grid, unaffected).
+    # ECMWF is 3/6-hourly native (step=1); open-meteo is hourly (step=3). ECMWF failed -> the open-meteo
+    # fallback + forecast_cache path below, all UNCHANGED. Kill switch EURO_WIND_ECMWF_DIRECT=0.
+    ecmwf_direct = os.environ.get("EURO_WIND_ECMWF_DIRECT", "1") != "0"
+    results = None
+    from_ecmwf = False
+    if ecmwf_direct:
+        try:
+            from services.ecmwf_wind_service import fetch_euro_wind_global_coarse
+            results = await fetch_euro_wind_global_coarse(global_region, resolution, min(_WIND_GLOBAL_FORECAST_DAYS, 10))
+            if results:
+                from_ecmwf = True
+                logger.info(f"[Pipeline Scheduler] EURO wind ECMWF-direct OK: {len(results)} points (off open-meteo).")
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] EURO wind ECMWF-direct fetch errored: {_ee}")
+
+    if not results:
+        if ecmwf_direct:
+            logger.warning("[Pipeline Scheduler] EURO wind ECMWF-direct unavailable; falling back to open-meteo.")
+        results = await scheduler._fetch_or_mock(
+            "EURO", "wind", "wind", global_region, resolution, _WIND_GLOBAL_FORECAST_DAYS,
+            False,
+            lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.0, dir_base=105.0, forecast_days=14),
+            "global_coarse",
+            batch_size=_WIND_GLOBAL_BATCH_SIZE
+        )
     if not results:
         logger.warning("[Pipeline Scheduler] EURO wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
         fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
@@ -231,12 +253,15 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
     if not results:
         return False
 
+    # ECMWF is native 3/6-hourly (step=1 keeps every step); open-meteo all-wind + forecast_cache are
+    # hourly (step=3 -> 3-hourly products). Same product cadence either way.
+    save_step = 1 if from_ecmwf else 3
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="EURO", provider="open-meteo", domain="wind", layer="wind",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"],
+        is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] EURO wind global_coarse"
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind global coarse grid files.")
