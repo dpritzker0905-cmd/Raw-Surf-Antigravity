@@ -45,6 +45,23 @@ def main() -> int:
                      "as Action secrets.")
         return 1
 
+    # ── Restore the previous cycle's manifest from L2 BEFORE ingesting ──────────────────────────────
+    # The ephemeral runner starts with an empty store. Without this, the manifest is rebuilt from ZERO and
+    # uploaded progressively over the ~60-90 min cycle, so Render's periodic L2 restore catches PARTIAL
+    # snapshots — layers that ingest late (EURO marine components save after EURO waves; ICON marine; the
+    # pressure trio) transiently DISAPPEAR from the served manifest mid-cycle even though they were complete
+    # last cycle (the "EURO components / ICON marine intermittently won't load" bug). Restoring first means
+    # each job's prune_superseded swaps only its OWN layer in place; every other layer keeps last cycle's
+    # products (≤3h old, still valid) so the manifest is NEVER emptier than last-complete. Manifest-only
+    # (product grids stay lazy in L2 via load_product) -> cheap. No-op on the first ever run (empty L2).
+    from services.weather_pipeline.store import ProductStore
+    try:
+        restored, restore_errors = ProductStore().restore_from_supabase()
+        logger.info("Pre-ingest L2 restore: %d products carried over from last cycle%s",
+                    restored, f" (errors: {restore_errors})" if restore_errors else "")
+    except Exception as _re:
+        logger.warning("Pre-ingest L2 restore failed (continuing from empty store): %s", _re)
+
     logger.info("Starting decoupled forecast ingestion (reusing production ingest_marine_forecast_task)...")
     from scheduler.forecast import ingest_marine_forecast_task
     ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
