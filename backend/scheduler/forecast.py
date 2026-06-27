@@ -56,11 +56,23 @@ def ingest_marine_forecast_task():
             # well within their multi-day coverage. Trivially revertable to all-three if the box ever
             # gets more headroom or a keyed open-meteo plan.
             from datetime import datetime, timezone
-            _marine_alt = (
-                ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global)
-                if (datetime.now(timezone.utc).hour // 3) % 2 == 0
-                else ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global)
-            )
+            # The 1-CPU Render box ALTERNATES EURO/ICON marine (2 heavy fetches/cycle, note above) and
+            # accumulates BOTH across cycles in its PERSISTENT store. The decoupled GitHub runner has an
+            # EPHEMERAL store (empty each run) — alternating there yields a manifest MISSING one model every
+            # run (e.g. EURO marine blank after Render restores the L2 manifest). So MARINE_INGEST_ALL=1
+            # (set in CI) ingests BOTH every run. Marine is now off open-meteo (direct NOAA/Copernicus/DWD)
+            # so the old 429 reason is moot; only the 1-CPU memory limit keeps the default alternation on Render.
+            if os.environ.get("MARINE_INGEST_ALL", "").lower() in ("1", "true", "yes"):
+                _marine_jobs = [
+                    ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global),
+                    ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global),
+                ]
+            else:
+                _marine_jobs = [
+                    ("EURO Marine Global", weather_scheduler.ingest_euro_marine_global)
+                    if (datetime.now(timezone.utc).hour // 3) % 2 == 0
+                    else ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global)
+                ]
 
             jobs = [
                 # Wind global-coarse for ALL THREE models. GFS + EURO were missing here (only ICON was
@@ -75,7 +87,8 @@ def ingest_marine_forecast_task():
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
-                _marine_alt,  # EURO or ICON this cycle (staggered — see note above)
+                *_marine_jobs,  # both EURO+ICON in CI (MARINE_INGEST_ALL=1); alternated on the 1-CPU Render box
+
                 ("GFS Pressure Global", weather_scheduler.ingest_gfs_pressure_global),
                 ("ICON Pressure Global", weather_scheduler.ingest_icon_pressure_global),
                 ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global)
