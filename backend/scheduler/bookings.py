@@ -22,7 +22,7 @@ async def check_payment_window_expiry_task():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification, Profile
-    from routes.notifications.push import notify_crew_session_confirmed
+    from routes.notifications.push_payloads import notify_crew_session_confirmed
     
     logger.info("[Scheduler] Checking payment window expiry...")
     
@@ -112,7 +112,7 @@ async def send_payment_expiry_reminders_task():
     from sqlalchemy import select
     from sqlalchemy.orm import selectinload
     from models import Booking, BookingParticipant, Notification
-    from routes.notifications.push import notify_crew_payment_expiring
+    from routes.notifications.push_payloads import notify_crew_payment_expiring
     from datetime import timedelta
     
     logger.info("[Scheduler] Checking for payment expiry reminders...")
