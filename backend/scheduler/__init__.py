@@ -157,6 +157,28 @@ def start_scheduler():
     if os.environ.get("DISABLE_FORECAST_SCHEDULER", "").lower() in ("1", "true", "yes"):
         logger.info("[Scheduler] DISABLE_FORECAST_SCHEDULER set — skipping in-process forecast ingestion "
                     "(decoupled to the GitHub Action; this box is serve-only).")
+        # Serve-only must see the Action's fresh ingestions WITHOUT a restart. The box otherwise restores
+        # from L2 only on startup (server.py lifespan) + on a local manifest parse-failure fallback, so a
+        # periodic re-pull of the L2 manifest is required for continuous decoupled operation. Gated to
+        # serve-only ONLY — it never runs while this box ingests locally (which would clobber fresh local
+        # data with L2). restore_from_supabase is manifest-only (product grids stay lazy via load_product),
+        # so this is a light ~2.5MB pull. Interval tunable via L2_RESTORE_INTERVAL_MIN (default 30, floor 5).
+        def _periodic_l2_restore():
+            try:
+                from services.weather_pipeline.store import ProductStore
+                restored, errors = ProductStore().restore_from_supabase()
+                logger.info(f"[Scheduler] Periodic L2 restore: {restored} products available"
+                            + (f"; errors={errors[:2]}" if errors else ""))
+            except Exception as e:
+                logger.error(f"[Scheduler] Periodic L2 restore failed: {e}", exc_info=True)
+        _restore_min = max(5, int(os.environ.get("L2_RESTORE_INTERVAL_MIN", "30")))
+        scheduler.add_job(
+            _periodic_l2_restore, IntervalTrigger(minutes=_restore_min),
+            id='periodic_l2_restore', name='Periodic L2 manifest restore (serve-only)',
+            replace_existing=True,
+            next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
+        )
+        logger.info(f"[Scheduler] Serve-only: periodic L2 restore every {_restore_min} min enabled.")
     else:
         _forecast_kwargs = {}
         _startup_delay = int(os.environ.get("FORECAST_STARTUP_DELAY_SEC", "120"))
