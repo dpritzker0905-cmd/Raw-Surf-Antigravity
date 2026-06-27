@@ -260,14 +260,35 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
     }
     resolution = 10.0
 
-    results = await scheduler._fetch_or_mock(
-        "ICON", "wind", "wind", global_region, resolution, 5,
-        False,
-        lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14),
-        "global_coarse"
-    )
+    # ══ PRIMARY: native ICON 10m wind direct from DWD opendata (icosahedral GRIB via CLAT/CLON) ══
+    # Off open-meteo (frees budget), same ICON model. Provider stays 'open-meteo' below so the manifest
+    # (source_dataset='dwd_icon') is byte-identical — zero regression. DWD gives REAL ~7.5d (180h) data,
+    # so the DWD path is authoritative (no estimation) at step=1; the open-meteo fallback keeps its 5d +
+    # cyclic-fill post-processing + >120h-estimated behavior. Kill switch ICON_WIND_DWD_DIRECT=0.
+    dwd_direct = os.environ.get("ICON_WIND_DWD_DIRECT", "1") != "0"
+    results = None
+    from_dwd = False
+    if dwd_direct:
+        try:
+            from services.dwd_wind_service import fetch_icon_wind_global_coarse
+            results = await fetch_icon_wind_global_coarse(global_region, resolution, 8)
+            if results:
+                from_dwd = True
+                logger.info(f"[Pipeline Scheduler] ICON wind DWD-direct OK: {len(results)} points (off open-meteo).")
+        except Exception as _de:
+            logger.error(f"[Pipeline Scheduler] ICON wind DWD-direct fetch errored: {_de}")
 
-    if results:
+    if not results:
+        if dwd_direct:
+            logger.warning("[Pipeline Scheduler] ICON wind DWD-direct unavailable; falling back to open-meteo.")
+        results = await scheduler._fetch_or_mock(
+            "ICON", "wind", "wind", global_region, resolution, 5,
+            False,
+            lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, speed_base=7.5, dir_base=110.0, forecast_days=14),
+            "global_coarse"
+        )
+
+    if results and not from_dwd:
         is_mock_fixture = any(getattr(item, "is_test_fixture", False) or item.get("is_test_fixture") for item in results if isinstance(item, dict))
         if not is_mock_fixture:
             base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -372,17 +393,22 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
         "source_model": "dwd_icon"
     }
 
+    # DWD-direct is real 3-hourly data to ~180h -> authoritative, step=1, no estimation. open-meteo path
+    # is hourly to 120h + cyclic-filled -> step=3, estimated beyond index 120.
+    save_step = 1 if from_dwd else 3
+    est_after = None if from_dwd else 120
+    est_basis = None if from_dwd else icon_estimate_basis
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="ICON", provider="open-meteo", domain="wind", layer="wind",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"],
+        is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] ICON wind global_coarse",
-        estimated_after_index=120,
-        estimate_basis=icon_estimate_basis
+        estimated_after_index=est_after,
+        estimate_basis=est_basis
     )
-    logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Wind global coarse grid files (native <=120h, estimated >120h).")
+    logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Wind global coarse grid files (from_dwd={from_dwd}).")
     if count > 0:
         scheduler.store.prune_superseded_products("ICON", "wind", "wind", "global_coarse", run_time)
     await scheduler._cleanup_and_pause(results, 0)
