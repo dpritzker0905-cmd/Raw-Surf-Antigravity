@@ -20,7 +20,11 @@ concurrency:
 jobs:
   ingest:
     runs-on: ubuntu-latest
-    timeout-minutes: 90   # full cycle ~36-41 min; headroom for an occasional slow upstream fetch
+    timeout-minutes: 120  # core cycle ~57 min; +2 slow regional NOAA fetches (A1) push it higher, so
+                          # give comfortable headroom (cron is 180 min apart, so no overlap). The job
+                          # ORDER (regional pilot LAST, see scheduler/forecast.py) guarantees that even
+                          # if this ceiling is ever hit, only the coastal regionals are lost, not a core
+                          # global layer.
     steps:
       - uses: actions/checkout@v4
 

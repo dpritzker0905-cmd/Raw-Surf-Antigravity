@@ -85,13 +85,21 @@ def ingest_marine_forecast_task():
                 ("Icon Wind Global", weather_scheduler.ingest_icon_wind_global),
                 ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
-                ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
                 *_marine_jobs,  # both EURO+ICON in CI (MARINE_INGEST_ALL=1); alternated on the 1-CPU Render box
 
                 ("GFS Pressure Global", weather_scheduler.ingest_gfs_pressure_global),
                 ("ICON Pressure Global", weather_scheduler.ingest_icon_pressure_global),
-                ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global)
+                ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global),
+
+                # Regional GFS marine pilot (FL+SoCal 0.25°) runs LAST: its NOAA-direct GRIB fetches are
+                # slow (~5-15 min x2 regions, added by the A1 off-open-meteo regional migration), so placing
+                # it after the core global marine+pressure layers means a worst-case CI timeout can only cost
+                # the nice-to-have coastal regionals — NEVER a core global layer (which blanks a whole model's
+                # heatmap; the ICON/EURO marine + pressure drop seen mid-run 2026-06-27 was this fragility).
+                # The pilot has no downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
+                # EURO Marine Global job reuses), so moving it is dependency-safe.
+                ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
             ]
 
             # Inter-job stagger lets the 1-CPU Render box settle (gc) between heavy jobs. The decoupled
