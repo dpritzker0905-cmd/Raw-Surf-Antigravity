@@ -209,11 +209,12 @@ To prevent shell escaping failures and quote-stripping issues common to PowerShe
   - **NEVER** let a session end without calling `checkpoint_done` to log a session summary.
   - **NEVER** create a Mind memory without at least one tag (e.g. `cat:decision`).
   - **ALWAYS** check file topology (`read_file_topology`) before editing a file.
-  - **NEVER** stage, commit, or push changes directly to the `main` production branch. All updates, fixes, and rules modifications must be pushed exclusively to the `dev` branch.
+  - **NEVER** push to `main` *autonomously*. Default all pushes to `dev`. A `main` push requires an explicit user instruction AND a confirmation handshake ("Are you sure you want me to push to main?") first — see §22.
 
 ### 22. Git Branching & Deployment Constraints
-* **Exclusive Dev Branch Target**: AI assistants are strictly forbidden from staging, committing, or pushing any codebase modifications directly to the `main` branch. All branch targets for git push operations must be explicitly set to `dev` (`git push origin dev`).
-* **Dev Environment Targeting**: All production build verifications, local Netlify previews, and local server actions must explicitly target the `dev` environment or branch state. The `main` branch remains locked for manual gatekeeper verification and staging release controls.
+* **Default Dev Branch Target**: AI assistants must NOT *autonomously* stage, commit, or push codebase modifications to the `main` branch. All push operations default to `dev` (`git push origin dev`). The AI never decides on its own to target `main`.
+* **Authorized Main-Push Exception (explicit instruction + confirmation handshake)**: The user MAY explicitly instruct the AI to push to `main`. Even with that instruction, before executing the AI MUST first ask an explicit confirmation question — **"Are you sure you want me to push to main?"** — stating exactly what will be pushed (the commit/range) and its effect, and WAIT for the user's affirmative reply. A `main` push requires BOTH (1) an explicit user instruction AND (2) the confirmed handshake; absent either, it is forbidden. Prefer a conflict-free fast-forward when `main` is strictly behind `dev`.
+* **Dev Environment Targeting**: All production build verifications, local Netlify previews, and local server actions must explicitly target the `dev` environment or branch state. The `main` branch remains the manual gatekeeper / staging-release branch; bring it current from `dev` only via the explicit-instruction + confirmation flow above.
 
 ---
 
