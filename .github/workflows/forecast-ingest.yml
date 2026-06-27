@@ -30,7 +30,7 @@ jobs:
           cache: pip
 
       - name: Install dependencies
-        run: pip install -r requirements.txt   # pygrib manylinux wheel bundles ecCodes — no apt step
+        run: pip install -r backend/requirements.txt   # pygrib manylinux wheel bundles ecCodes — no apt step
 
       - name: Run forecast ingestion -> Supabase L2
         working-directory: backend
