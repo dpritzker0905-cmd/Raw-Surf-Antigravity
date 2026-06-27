@@ -96,37 +96,36 @@ def fetch_global_coarse(payload):
         sys.stderr.write("[ecmwf_opendata_fetcher] retrieve produced no file\n")
         return [], 0, 0, None
 
+    # MEMORY: ECMWF returns ONE multi-step file (~130 full global 0.25° fields for 10d wind). Holding
+    # them all decoded at once is ~1GB -> OOM on the 2GB box. Stream message-by-message: sample the
+    # ~n_pts NN points immediately and DISCARD each full field, so peak RAM is ~one field (~8MB). The
+    # sampled per-message lists are in idx_map order = the points order, so index by point (pi).
+    want_u = ("10u", "u10"); want_v = ("10v", "v10"); want_p = ("msl", "prmsl", "mslp")
+    u_by, v_by, p_by = {}, {}, {}
+    idx_map = None
     try:
         grbs = pygrib.open(str(target))
-        msgs = grbs.read()
-        if not msgs:
-            grbs.close()
-            return [], 0, 0, None
-
-        glats, glons = msgs[0].latlons()
-        lat1d = np.asarray(glats[:, 0], dtype=float)
-        lon1d = np.asarray(glons[0, :], dtype=float)
-        idx_map = build_regular_nn(lats, lons, lat1d, lon1d)  # auto 0-360 detect
-
-        def _arr(m):
-            return np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
-
-        if layer == "wind":
-            u_by, v_by = {}, {}
-            for m in msgs:
-                sn = (m.shortName or "").lower()
-                vt = m.validDate
-                if sn in ("10u", "u10"):
-                    u_by[vt] = _arr(m)
-                elif sn in ("10v", "v10"):
-                    v_by[vt] = _arr(m)
-            times_dt = sorted(set(u_by) & set(v_by))
-        else:
-            p_by = {}
-            for m in msgs:
-                if (m.shortName or "").lower() in ("msl", "prmsl", "mslp"):
-                    p_by[m.validDate] = _arr(m)
-            times_dt = sorted(p_by)
+        for m in grbs:
+            sn = (m.shortName or "").lower()
+            if layer == "wind" and sn not in (want_u + want_v):
+                continue
+            if layer == "pressure" and sn not in want_p:
+                continue
+            if idx_map is None:
+                glats, glons = m.latlons()
+                lat1d = np.asarray(glats[:, 0], dtype=float)
+                lon1d = np.asarray(glons[0, :], dtype=float)
+                idx_map = build_regular_nn(lats, lons, lat1d, lon1d)  # auto 0-360 detect
+            arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
+            vals = [arr[r, c] for (r, c) in idx_map]  # ~n_pts sampled values (tiny)
+            del arr
+            vt = m.validDate
+            if sn in want_u:
+                u_by[vt] = vals
+            elif sn in want_v:
+                v_by[vt] = vals
+            elif sn in want_p:
+                p_by[vt] = vals
         grbs.close()
     finally:
         try:
@@ -135,7 +134,8 @@ def fetch_global_coarse(payload):
         except Exception:
             pass
 
-    if not times_dt:
+    times_dt = sorted(set(u_by) & set(v_by)) if layer == "wind" else sorted(p_by)
+    if not times_dt or idx_map is None:
         sys.stderr.write(f"[ecmwf_opendata_fetcher] no usable {layer} messages decoded\n")
         return [], 0, 0, None
 
@@ -145,9 +145,9 @@ def fetch_global_coarse(payload):
         spd = [[] for _ in range(n_pts)]
         drc = [[] for _ in range(n_pts)]
         for vt in times_dt:
-            u = u_by[vt]; v = v_by[vt]
-            for pi, (r, c) in enumerate(idx_map):
-                uu = u[r, c]; vv = v[r, c]
+            u_vals = u_by[vt]; v_vals = v_by[vt]
+            for pi in range(n_pts):
+                uu = u_vals[pi]; vv = v_vals[pi]
                 if uu == uu and vv == vv:  # not NaN
                     spd[pi].append(sanitize_speed_ms(math.sqrt(uu * uu + vv * vv)))
                     drc[pi].append(sanitize_direction_deg(meteo_wind_dir(uu, vv)))
@@ -166,9 +166,9 @@ def fetch_global_coarse(payload):
     else:
         ser = [[] for _ in range(n_pts)]
         for vt in times_dt:
-            p = p_by[vt]
-            for pi, (r, c) in enumerate(idx_map):
-                ser[pi].append(sanitize_pressure_hpa(p[r, c]))
+            p_vals = p_by[vt]
+            for pi in range(n_pts):
+                ser[pi].append(sanitize_pressure_hpa(p_vals[pi]))
         points = []
         pi = 0
         for la in lats:
