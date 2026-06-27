@@ -1,4 +1,5 @@
 import logging
+import os
 from datetime import datetime, timezone, timedelta
 from services.weather_pipeline.scheduler_helpers import (
     get_env_flags,
@@ -111,21 +112,43 @@ async def ingest_gfs_pressure_global_impl(scheduler) -> bool:
     resolution = 10.0
 
     forecast_days = 2 if env["is_test_env"] else 16
-    results = await scheduler._fetch_or_mock(
-        "GFS", "weather", "pressure", global_region, resolution, forecast_days,
-        env["is_test_env"],
-        lambda: generate_mock_pressure_results(scheduler.om_provider, global_region, resolution),
-        "global_coarse"
-    )
+
+    # ══ PRIMARY: native GFS MSL pressure direct from NOAA (AWS Open Data, byte-range PRMSL) ══
+    # Off open-meteo (frees budget), same GFS model. Provider stays 'open-meteo' below so the manifest
+    # (source_dataset='gfs_seamless') is byte-identical — zero regression. NOAA is 3-hourly (step=1) vs
+    # open-meteo hourly (step=3). NOAA failed -> open-meteo fallback. Kill switch GFS_PRESSURE_NOAA_DIRECT=0.
+    noaa_direct = os.environ.get("GFS_PRESSURE_NOAA_DIRECT", "1") != "0"
+    results = None
+    from_noaa = False
+    if noaa_direct:
+        try:
+            from services.noaa_pressure_service import fetch_gfs_pressure_global_coarse
+            results = await fetch_gfs_pressure_global_coarse(global_region, resolution, forecast_days)
+            if results:
+                from_noaa = True
+                logger.info(f"[Pipeline Scheduler] GFS pressure NOAA-direct OK: {len(results)} points (off open-meteo).")
+        except Exception as _ne:
+            logger.error(f"[Pipeline Scheduler] GFS pressure NOAA-direct fetch errored: {_ne}")
+
+    if not results:
+        if noaa_direct:
+            logger.warning("[Pipeline Scheduler] GFS pressure NOAA-direct unavailable; falling back to open-meteo.")
+        results = await scheduler._fetch_or_mock(
+            "GFS", "weather", "pressure", global_region, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_pressure_results(scheduler.om_provider, global_region, resolution),
+            "global_coarse"
+        )
     if not results:
         return False
 
+    save_step = 1 if from_noaa else 3
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="GFS", provider="open-meteo", domain="weather", layer="pressure",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"],
+        is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] GFS pressure global_coarse"
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Pressure global coarse grid files.")
