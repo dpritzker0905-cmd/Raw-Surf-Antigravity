@@ -378,7 +378,39 @@ class PointSampler:
             else:
                 return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist and no valid ocean data in grid")
         else:
-            # 0 valid ocean corners exist: point is inland, return unavailable
+            # 0 valid ocean corners in the bracketing cell. At COARSE resolution this is often an
+            # OPEN-OCEAN point whose nearest coarse cells are all land-masked (e.g. the central Gulf of
+            # Mexico: corners (20/30, -90/-100) snap to inland TX/LA/MX) — NOT a genuinely-inland point.
+            # The heatmap interpolates from farther valid ocean cells, so the infobox showed a misleading
+            # "0 ft / 0 dir" where the map shows waves. Fall back to the nearest valid ocean vector IF it's
+            # within ~1.5 grid cells; deep-inland points (nearest ocean farther) stay unavailable.
+            valid_vectors = [v for v in grid.vectors if self._is_vector_valid(v, product.domain, product.layer)]
+            if valid_vectors:
+                nearest = self._find_nearest_vector(valid_vectors, lat, lng)
+                pos_diffs = [lats[i + 1] - lats[i] for i in range(len(lats) - 1)]
+                grid_res = min(pos_diffs) if pos_diffs else 10.0
+                max_dist = max(grid_res * 1.5, 1.0)
+                d = math.hypot(nearest.lat - lat, nearest.lng - lng)
+                if d <= max_dist:
+                    detail = NormalizedPointDetail(
+                        requested_lat=lat,
+                        requested_lng=lng,
+                        sampled_lat=nearest.lat,
+                        sampled_lng=nearest.lng,
+                        speed=nearest.speed,
+                        direction=nearest.direction,
+                        u=nearest.u,
+                        v=nearest.v,
+                        period=nearest.period,
+                        gust=getattr(nearest, "gust", None),
+                        interpolation_method="nearest_ocean_coarse_masked"
+                    )
+                    warnings.append(
+                        f"All bracketing corners land/masked at coarse resolution; nearest ocean vector "
+                        f"{d:.1f}deg away (<= {max_dist:.1f}deg) — matches heatmap interpolation."
+                    )
+                    return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
+            # Genuinely inland (no valid ocean within range): no data.
             return self._build_unavailable_response(product, lat, lng, "No valid ocean corners exist in grid bounding box")
 
     def _is_vector_valid(self, v: Any, domain: str, layer: str) -> bool:
