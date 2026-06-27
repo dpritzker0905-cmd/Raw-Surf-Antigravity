@@ -245,7 +245,11 @@ class WeatherPipelineScheduler:
             if not s:
                 return None
             try:
-                return datetime.fromisoformat(s.replace("Z", "+00:00"))
+                dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+                # open-meteo GFS times are offset-NAIVE ("...T00:00"); Copernicus times are AWARE ("...Z").
+                # Normalize to UTC-aware so the GFS 10->14d slice comparison can't raise a naive-vs-aware
+                # TypeError (which otherwise aborts the whole EURO ingest before any product is saved).
+                return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
             except Exception:
                 return None
 
