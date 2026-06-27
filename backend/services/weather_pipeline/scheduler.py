@@ -79,19 +79,52 @@ class WeatherPipelineScheduler:
         run_time = datetime.now(timezone.utc)
         total_saved = 0
 
+        # The regional pilot was the LAST GFS-marine path still on open-meteo. On the decoupled GitHub
+        # runner open-meteo is unreachable/rate-limited, so every region's all_marine fetch failed and the
+        # manifest shipped ZERO regional (0.25°) products — the coastal-resolution regression (Cape Canaveral
+        # read the 10° global-coarse: 2.7ft vs the truer 1.9ft). Mirror ingest_gfs_marine_global's NOAA-direct
+        # PRIMARY here: the same fetch_gfs_marine_global_coarse is bbox+resolution-parameterized, so a regional
+        # 0.25° western-hemisphere fetch is just a smaller bbox (lon wrap handled in noaa_gfs_wave_fetcher).
+        # Provider stays 'open-meteo' (manifest byte-identical, source_dataset='ncep_gfswave025'); open-meteo
+        # remains the fallback. Kill switch: GFS_MARINE_NOAA_DIRECT=0.
+        noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
+
         for region_id, region in REGIONAL_CONFIGS.items():
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
             env_forecast_days = int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8"))
-            results = await self._fetch_or_mock(
-                "GFS", "marine", "all_marine", region, resolution, env_forecast_days,
-                env["is_test_env"],
-                lambda: generate_mock_marine_results(self.om_provider, region, resolution),
-                region_id
-            )
+
+            # ══ PRIMARY: native GFS-Wave direct from NOAA (regional 0.25°, off open-meteo) ══
+            results = None
+            from_noaa = False
+            if noaa_direct:
+                try:
+                    from services.noaa_marine_service import fetch_gfs_marine_global_coarse
+                    results = await fetch_gfs_marine_global_coarse(region, resolution, env_forecast_days)
+                    if results:
+                        from_noaa = True
+                        logger.info(f"[Pipeline Scheduler] GFS-Wave NOAA-direct OK for {region_id}: "
+                                    f"{len(results)} points (off open-meteo).")
+                except Exception as _ne:
+                    logger.error(f"[Pipeline Scheduler] GFS-Wave NOAA-direct fetch errored for {region_id}: {_ne}")
+
+            if not results:
+                if noaa_direct:
+                    logger.warning(f"[Pipeline Scheduler] GFS-Wave NOAA-direct unavailable for {region_id}; "
+                                   "falling back to open-meteo.")
+                results = await self._fetch_or_mock(
+                    "GFS", "marine", "all_marine", region, resolution, env_forecast_days,
+                    env["is_test_env"],
+                    lambda r=region, res=resolution: generate_mock_marine_results(self.om_provider, r, res),
+                    region_id
+                )
             if not results:
                 continue
+
+            # NOAA GFS-Wave is natively 3-hourly (step=1 keeps every step); open-meteo all_marine is hourly
+            # (step=3 -> 3-hourly products). Same 3-hourly product cadence either way.
+            save_step = 1 if from_noaa else 3
 
             # Swell 2 is not requested for SoCal
             layers = ["waves", "swell_1", "wind_waves"] if region_id == "us_west_coast_socal" \
@@ -103,7 +136,7 @@ class WeatherPipelineScheduler:
                     model="GFS", provider="open-meteo", domain="marine", layer=layer,
                     bbox=region, resolution=resolution, run_time=run_time,
                     region_id=region_id, coverage_mode="regional_tile",
-                    is_test_env=env["is_test_env"],
+                    is_test_env=env["is_test_env"], step=save_step,
                     log_prefix=f"[Pipeline Scheduler] GFS {layer} {region_id}"
                 )
                 logger.info(f"[Pipeline Scheduler] Ingested {count} GFS {layer} products for region {region_id}.")

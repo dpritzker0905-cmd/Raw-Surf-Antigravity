@@ -86,3 +86,55 @@ async def test_gfs_marine_noaa_fallback_to_open_meteo(tmp_path, monkeypatch):
     for p in gfs_marine:
         assert p.provider in ("open-meteo", "test-fixture")
     assert {"waves", "swell_1", "swell_2", "wind_waves"}.issubset({p.layer for p in gfs_marine})
+
+
+@pytest.mark.asyncio
+async def test_gfs_marine_pilot_noaa_direct_regional(tmp_path, monkeypatch):
+    """
+    Regression guard for the decoupling coastal-resolution bug: ingest_gfs_marine_pilot must take the
+    NOAA-direct PRIMARY for every region (FL east coast + SoCal at 0.25°) so the decoupled GitHub-runner
+    manifest carries regional products even with open-meteo unreachable. Products stay authoritative and
+    byte-identical: provider='open-meteo', source_dataset='ncep_gfswave025', coverage_mode='regional_tile'.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.scheduler_helpers import generate_mock_marine_results, REGIONAL_CONFIGS
+    import services.noaa_marine_service as noaa_svc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("GFS_MARINE_FORECAST_DAYS", "1")  # small/fast mock time-axis
+    monkeypatch.setenv("GFS_MARINE_NOAA_DIRECT", "1")
+
+    called_regions = []
+
+    async def fake_noaa(bbox, resolution=10.0, forecast_days=14):
+        # NOAA-shaped results for whatever regional bbox the pilot passes (authoritative, not a fixture).
+        called_regions.append((round(bbox["west"], 2), round(bbox["east"], 2)))
+        pts = generate_mock_marine_results(scheduler.om_provider, bbox, resolution)
+        for p in pts:
+            p.pop("is_test_fixture", None)
+            p["__provider"] = "noaa"
+        return pts
+
+    monkeypatch.setattr(noaa_svc, "fetch_gfs_marine_global_coarse", fake_noaa)
+
+    success = await scheduler.ingest_gfs_marine_pilot()
+    assert success is True
+    # NOAA primary taken for BOTH pilot regions (not the open-meteo fallback).
+    assert len(called_regions) == len(REGIONAL_CONFIGS)
+
+    products = temp_store.get_manifest().products
+    for region_id in REGIONAL_CONFIGS:
+        regionals = [p for p in products
+                     if p.model == "GFS" and p.domain == "marine" and p.region_id == region_id]
+        assert len(regionals) > 0, f"no regional products saved for {region_id}"
+        for p in regionals:
+            assert p.provider == "open-meteo"
+            assert p.source_dataset == "ncep_gfswave025"
+            assert p.is_estimated is False
+            assert p.is_forecast_authoritative is True
+            assert p.coverage_mode == "regional_tile"
+            assert p.resolution == REGIONAL_CONFIGS[region_id]["resolution"]
