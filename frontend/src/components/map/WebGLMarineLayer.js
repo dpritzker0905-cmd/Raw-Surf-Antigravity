@@ -651,7 +651,8 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const isWaves = activeMarineLayer === 'waves';
 
     let isValid = true;
-    if (gridModel !== activeModelRef.current) isValid = false;
+    let invalidReason = null;
+    if (gridModel !== activeModelRef.current) { isValid = false; invalidReason = 'model_mismatch'; }
     if (isValid) {
       if (isGfsOrIcon) {
         // 'gfs_euro_blend' is the ICON synthesized-layer provider: swell_2 (no native gwam
@@ -663,30 +664,47 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
         // 'swell_1' (629 vec, max 7.12) while the render gate held the swell_2 blend (171 vec,
         // max 3.15). The componentLayer===activeMarineLayer guard below keeps it truth-safe.
         if (gridProvider !== 'open-meteo' && gridProvider !== 'backend-weather-service' && gridProvider !== 'estimated' && gridProvider !== 'test-fixture' && gridProvider !== 'gfs_euro_blend') {
-          isValid = false;
+          isValid = false; invalidReason = 'provider_not_whitelisted';
         } else if ((gridProvider === 'backend-weather-service' || gridProvider === 'estimated' || gridProvider === 'test-fixture' || gridProvider === 'gfs_euro_blend') && componentLayer !== activeMarineLayer) {
-          isValid = false;
+          isValid = false; invalidReason = 'component_layer_mismatch';
         }
       } else if (isEuro) {
         const isFallbackProvider = ['gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'].includes(gridProvider);
         if (isWaves) {
           if (gridProvider !== 'copernicus' && gridProvider !== 'backend-weather-service' && !isFallbackProvider) {
-            isValid = false;
+            isValid = false; invalidReason = 'provider_not_whitelisted';
           } else if (componentLayer !== activeMarineLayer) {
-            isValid = false;
+            isValid = false; invalidReason = 'component_layer_mismatch';
           }
         } else {
           const validEuroComponentProviders = ['copernicus', 'backend-weather-service', 'gfs_estimated_fallback', 'gfs_estimated_backdrop', 'open-meteo', 'estimated', 'test-fixture'];
           if (!validEuroComponentProviders.includes(gridProvider)) {
-            isValid = false;
+            isValid = false; invalidReason = 'provider_not_whitelisted';
           } else if (componentLayer !== activeMarineLayer) {
-            isValid = false;
+            isValid = false; invalidReason = 'component_layer_mismatch';
           }
         }
       }
     }
 
     if (!isValid) {
+      // FORENSIC PROBE (swell_2 intermittent-load investigation): the drop below is otherwise SILENT,
+      // so the heatmap "won't load / shows the wrong layer" with zero console trace. Stash the
+      // discriminating fields (and console.warn for the swell_2 case) so a live repro on a VISIBLE
+      // tab pins WHICH case fired — provider_not_whitelisted vs component_layer_mismatch vs
+      // model_mismatch — without touching the truth-safe guard. Read window.__SWELL2_LAST_DROP__
+      // in the console after a repro. No behavior change.
+      try {
+        const drop = {
+          gridModel, activeModel: activeModelRef.current, gridProvider, componentLayer,
+          activeMarineLayer, reason: invalidReason, renderable: currentData?.__renderable,
+          t: new Date().toISOString()
+        };
+        if (typeof window !== 'undefined') {
+          window.__SWELL2_LAST_DROP__ = drop;
+          if (activeMarineLayer === 'swell_2') console.warn('[SWELL2_DROP]', drop);
+        }
+      } catch (_) { /* probe must never affect rendering */ }
       // Retain the current WebGL buffers during transition and mismatch
       // until new valid data for the active model/layer is successfully loaded and committed.
       return;
