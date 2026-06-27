@@ -441,16 +441,41 @@ class WeatherPipelineScheduler:
         resolution = 10.0
 
         forecast_days = int(os.environ.get("ICON_GLOBAL_FORECAST_DAYS", "2" if env["is_test_env"] else "7"))
-        results = await self._fetch_or_mock(
-            "ICON", "marine", "all_marine", global_region, resolution, forecast_days,
-            env["is_test_env"],
-            lambda: generate_mock_icon_marine_results(self.om_provider, global_region, resolution),
-            "global_coarse"
-        )
+
+        # ══ PRIMARY: native ICON/GWAM marine direct from DWD opendata (bz2 GRIB2) ══
+        # Moves ICON marine OFF open-meteo (frees its budget) using the SAME gwam model. Low-strain
+        # (many small files, one at a time), slow (~5-10 min, background only — see dwd_gwam_fetcher.py).
+        # Provider stays 'open-meteo' in the save loop below so the manifest (source_dataset='dwd_gwam')
+        # is BYTE-IDENTICAL to the open-meteo path — zero regression. DWD unavailable/failed -> falls
+        # through to the existing open-meteo fetch. Kill switch: ICON_MARINE_DWD_DIRECT=0.
+        dwd_direct = os.environ.get("ICON_MARINE_DWD_DIRECT", "1") != "0"
+        results = None
+        from_dwd = False
+        if dwd_direct:
+            try:
+                from services.dwd_marine_service import fetch_icon_marine_global_coarse
+                results = await fetch_icon_marine_global_coarse(global_region, resolution, forecast_days)
+                if results:
+                    from_dwd = True
+                    logger.info(f"[Pipeline Scheduler] ICON marine DWD-direct OK: {len(results)} points (off open-meteo).")
+            except Exception as _de:
+                logger.error(f"[Pipeline Scheduler] ICON marine DWD-direct fetch errored: {_de}")
+
+        if not results:
+            if dwd_direct:
+                logger.warning("[Pipeline Scheduler] ICON marine DWD-direct unavailable; falling back to open-meteo.")
+            results = await self._fetch_or_mock(
+                "ICON", "marine", "all_marine", global_region, resolution, forecast_days,
+                env["is_test_env"],
+                lambda: generate_mock_icon_marine_results(self.om_provider, global_region, resolution),
+                "global_coarse"
+            )
         if not results:
             logger.error("[Pipeline Scheduler] ICON marine global_coarse fetch failed. Skipping.")
             return False
 
+        # DWD GWAM is natively 3-hourly (step=1); open-meteo all_marine is hourly (step=3 -> 3-hourly).
+        save_step = 1 if from_dwd else 3
         layers = ["waves", "swell_1", "wind_waves"]
         for layer in layers:
             count = await normalize_and_save_loop(
@@ -458,7 +483,7 @@ class WeatherPipelineScheduler:
                 model="ICON", provider="open-meteo", domain="marine", layer=layer,
                 bbox=global_region, resolution=resolution, run_time=run_time,
                 region_id="global_coarse", coverage_mode="global_tile",
-                is_test_env=env["is_test_env"],
+                is_test_env=env["is_test_env"], step=save_step,
                 log_prefix=f"[Pipeline Scheduler] ICON {layer} global_coarse"
             )
             logger.info(f"[Pipeline Scheduler] Ingested {count} ICON {layer} global coarse grid files.")
