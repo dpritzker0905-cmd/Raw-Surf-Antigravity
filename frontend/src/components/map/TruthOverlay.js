@@ -205,6 +205,20 @@ var TruthOverlay = ({
   // Grid details for provenance display
   const isEstimated = marineData?.grid?.isEstimated || marineData?.grid?.is_estimated;
   const gridProvider = marineData?.grid?.provider || marineData?.grid?.__gridProvider || 'unknown';
+  // Map the data's source_dataset to its basic origin name so the HUD shows where the data ACTUALLY came
+  // from (NOAA / DWD / Copernicus / ECMWF) instead of the 'open-meteo' capabilities-contract channel key.
+  const __basicSourceName = (sd) => {
+    if (!sd) return null;
+    const s = String(sd).toLowerCase();
+    if (s.includes('gfs') || s.startsWith('ncep')) return 'NOAA';
+    if (s.includes('gwam') || s.includes('dwd')) return 'DWD';
+    if (s.includes('copernicus') || s.includes('cmems')) return 'Copernicus';
+    if (s.includes('ecmwf')) return 'ECMWF';
+    if (s.includes('open') && s.includes('meteo')) return 'Open-Meteo';
+    return null;
+  };
+  const gridSourceDataset = marineData?.grid?.__sourceDataset || marineData?.grid?.sourceDataset || null;
+  const displayProvider = __basicSourceName(gridSourceDataset) || gridProvider;
   const showExtendedWarning = activeModel === 'EURO' && timeOffsetHours > 240;
 
   // GPU metrics from window
@@ -355,9 +369,17 @@ var TruthOverlay = ({
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Provider:</span>
                   <span style={{ fontWeight: 600, color: '#f8fafc', textTransform: 'uppercase' }}>
-                    {gridProvider}
+                    {displayProvider}
                   </span>
                 </div>
+                {gridSourceDataset && (
+                  <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                    <span style={{ color: '#94a3b8' }}>Source:</span>
+                    <span style={{ fontWeight: 500, color: '#cbd5e1' }}>
+                      {gridSourceDataset}
+                    </span>
+                  </div>
+                )}
                 <div style={{ display: 'flex', justifyContent: 'space-between' }}>
                   <span style={{ color: '#94a3b8' }}>Class:</span>
                   <span style={{ 

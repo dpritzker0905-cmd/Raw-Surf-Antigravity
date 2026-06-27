@@ -86,6 +86,7 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       __oceanMaskCount: mappedVectors.length,
       __renderable: renderable,
       provider: json.provider || 'backend-weather-service',
+      __sourceDataset: json.source_dataset || null,
       hourOffset,
       nonzeroCount,
       maxSpeed,
