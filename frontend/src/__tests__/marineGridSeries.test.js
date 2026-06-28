@@ -93,6 +93,30 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', outside, 3)).toBeNull();
   });
 
+  it('never serves a GLOBAL-width frame to a regional viewport (coarse-clamp guard)', async () => {
+    window.__MARINE_SERIES__ = true;
+    const globalBounds = { west: -180, south: -80, east: 180, north: 80 };
+    const mkVec = (h) => ({ lat: 28, lng: -80, u: 0.1, v: 0.2, speed: h * 0.1, direction: 90, period: 8 });
+    const globalResp = {
+      model: 'GFS', domain: 'marine', layer: 'waves', cols: 4, rows: 4,
+      frames: [
+        { hour_offset: 0, valid_time: '2026-06-20T06:00:00Z', cols: 4, rows: 4, bounds: globalBounds, vectors: [mkVec(0)], provider: 'open-meteo' },
+        { hour_offset: 3, valid_time: '2026-06-20T09:00:00Z', cols: 4, rows: 4, bounds: globalBounds, vectors: [mkVec(3)], provider: 'open-meteo' },
+      ],
+    };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => globalResp });
+    await ensureMarineSeries('GFS', 'waves', globalBounds); // warm a GLOBAL series (like the global-zoom prewarm)
+
+    // A regional (zoomed-in) viewport must NOT be served the 360°-wide frame — that is the coarse clamp
+    // (the GFS/waves-only bug: the default layer's global prewarm was served to zoomed-in viewports).
+    const regional = { west: -81, south: 27.5, east: -80, north: 28.5 };
+    expect(getMarineSeriesFrame('GFS', 'waves', regional, 3)).toBeNull();
+
+    // A (near-)global viewport CAN still be served the global frame — global-zoom scrub is unaffected.
+    const nearGlobal = { west: -170, south: -70, east: 170, north: 70 };
+    expect(getMarineSeriesFrame('GFS', 'waves', nearGlobal, 3)).not.toBeNull();
+  });
+
   it('pages around the requested hour — a far hour loads ITS page (not hour 0) and serves it', async () => {
     window.__MARINE_SERIES__ = true;
     const mkVec = (s) => ({ lat: 28, lng: -80, u: 0, v: 0, speed: s, direction: 90, period: 8 });

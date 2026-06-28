@@ -353,6 +353,10 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   if (!isMarineSeriesEnabled() || !bounds) return null;
   const page = marineSeriesPageForHour(hourOffset);
   const now = Date.now();
+  // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be
+  // served to a regional (zoomed-in) viewport — that IS the coarse-global clamp.
+  const vWid = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+  const isRegionalViewport = vWid < 60;
   let best = null;
   let bestDiff = Infinity;
   for (const cand of [page, page + 1, page - 1]) {
@@ -380,6 +384,14 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
       if (entry.model !== model || entry.layer !== layer) continue;
       if (entry.page != null && Math.abs(entry.page - page) > 1) continue;
+      // Skip a GLOBAL-width frame for a regional viewport. The global-zoom prewarm caches a 360°-wide
+      // 'global' series frame for the default (GFS/waves) layer; it "contains" any viewport so it would be
+      // returned here, but it fails the clamp's fw<340 sharpen → the heatmap stays coarse-clamped (GFS-waves-
+      // only, because only the default layer gets the global prewarm). Skipping it returns null so the caller
+      // fetches a real regional grid — exactly how the non-default layers already behave. Global-zoom
+      // viewports (vWid large) still accept it, so global scrub is unaffected.
+      const eWid = (entry.bounds.east < entry.bounds.west) ? (entry.bounds.east + 360) - entry.bounds.west : entry.bounds.east - entry.bounds.west;
+      if (isRegionalViewport && eWid >= 340) continue;
       if (!bboxContains(entry.bounds, bounds)) continue;
       const nf = nearestFrameInEntry(entry, hourOffset);
       if (!nf) continue;
