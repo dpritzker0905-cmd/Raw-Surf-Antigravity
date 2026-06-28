@@ -576,28 +576,42 @@ async def resolve_grid(
     ):
         try:
             from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
-            # The "surf" toggle now renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
-            # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the height
-            # channel (the shader colours it via getRatingColor); open-ocean cells are transparency-masked.
-            # Wind is co-sampled from the model's own wind product. Kill switch SURF_RATING=0 falls back to the
-            # surf-HEIGHT band (the prior surf_transform_grid behaviour) for rollback.
-            if os.environ.get("SURF_RATING", "1") != "0":
-                from services.weather_pipeline.surf_rating import rating_transform_grid
-                wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
-                n_t, n_masked = rating_transform_grid(
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at)
-                tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn)}
-                label = "RATING overlay"
+            # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
+            # resolve a trustworthy shore-normal / exposure, surf is a coastline property, and a blocky
+            # world-zoom rating band isn't the experience — the per-spot rating GLYPHS (P1) are the accuracy
+            # path. So on a global-extent grid we DON'T transform; the frontend Option-A gate then shows the
+            # honest swell field. (This was happening accidentally via an OverflowError on a coastal-classified
+            # deep cell; now it's intentional + the math is also hardened in shoaling_coefficient.)
+            _b = product.grid.bounds
+            _span = ((_b.east - _b.west) if (_b and _b.east >= _b.west) else ((_b.east + 360.0 - _b.west) if _b else 0.0))
+            if _b is not None and _span >= 350.0:
+                if product.grid.diagnostics is None:
+                    product.grid.diagnostics = {}
+                product.grid.diagnostics["surf_transform"] = {"skipped": "coarse_extent"}
+                logger.info(f"[Grid Route] Surf rating skipped on global/coarse extent ({_span:.0f}°) — honest swell served for {model} {layer}.")
             else:
-                from services.weather_pipeline.surf_transform import surf_transform_grid
-                n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
-                tag = {"transformed": n_t, "masked": n_masked}
-                label = "height band"
-            product.is_estimated = True
-            if product.grid.diagnostics is None:
-                product.grid.diagnostics = {}
-            product.grid.diagnostics["surf_transform"] = tag
-            logger.info(f"[Grid Route] Surf {label}: {n_t} coastal cells, {n_masked} open-ocean masked, for {model} {layer}.")
+                # The "surf" toggle renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
+                # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the
+                # height channel (the shader colours it via getRatingColor); open-ocean cells are masked. Wind
+                # is co-sampled from the model's own wind product. Kill switch SURF_RATING=0 falls back to the
+                # surf-HEIGHT band (the prior surf_transform_grid behaviour) for rollback.
+                if os.environ.get("SURF_RATING", "1") != "0":
+                    from services.weather_pipeline.surf_rating import rating_transform_grid
+                    wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
+                    n_t, n_masked = rating_transform_grid(
+                        product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at)
+                    tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn)}
+                    label = "RATING overlay"
+                else:
+                    from services.weather_pipeline.surf_transform import surf_transform_grid
+                    n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
+                    tag = {"transformed": n_t, "masked": n_masked}
+                    label = "height band"
+                product.is_estimated = True
+                if product.grid.diagnostics is None:
+                    product.grid.diagnostics = {}
+                product.grid.diagnostics["surf_transform"] = tag
+                logger.info(f"[Grid Route] Surf {label}: {n_t} coastal cells, {n_masked} open-ocean masked, for {model} {layer}.")
         except Exception as _se:
             logger.warning(f"[Grid Route] Surf overlay skipped: {_se}")
             # Forensic instrumentation (rating plan §8 #3): the global-coarse frame returns surf_transform:None

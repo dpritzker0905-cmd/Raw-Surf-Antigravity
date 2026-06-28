@@ -29,6 +29,16 @@ def test_shoaling_coefficient_is_unity_in_deep_water():
     assert st.shoaling_coefficient(12.0, 3000.0) == pytest.approx(1.0, abs=0.02)
 
 
+def test_shoaling_coefficient_no_overflow_on_deep_short_period():
+    # Regression: a short period over a very deep cell gives huge kd → math.sinh(2kd) used to raise
+    # `OverflowError: math range error` and abort the whole rating_transform_grid on the global-coarse
+    # frame (a deep-ocean cell mis-classified as coastal). The kd>20 guard returns the deep-water Ks=1.0.
+    assert st.shoaling_coefficient(4.0, 2000.0) == 1.0
+    # And the real entry point (estimate_surf) over such a cell must not raise either.
+    surf, regime = st.estimate_surf(2.0, 4.0, 2000.0, coastal=True, shelf_width_km=50.0)
+    assert surf is not None and regime in ("shelf", "shoaling", "breaking")
+
+
 def test_calm_and_unknown_inputs():
     assert st.transform_surf(0.0, 12.0, 5.0) == (0.0, 'calm')
     assert st.transform_surf(None, 12.0, 5.0) == (None, 'unknown')

@@ -56,6 +56,8 @@ def shoaling_coefficient(period_s: float, depth_m: float) -> float:
     if not k or k <= 0:
         return 1.0
     kd = k * depth_m
+    if kd > 20.0:            # deep water: sinh(2kd) below would overflow (math range error) and Ks -> 1.0
+        return 1.0           # (no shoaling) anyway. Mirrors the kd guards in shelf_dissipation/shelf_factor.
     C0 = G * period_s / (2.0 * math.pi)              # deep-water phase speed C0 = gT/2pi
     Cg0 = 0.5 * C0                                   # deep-water group speed = C0/2
     C = (2.0 * math.pi / k) / period_s              # phase speed at depth = L/T = (2pi/k)/T

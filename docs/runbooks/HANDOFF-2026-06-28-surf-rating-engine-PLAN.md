@@ -158,7 +158,19 @@ seabed morphology (from `wave_type`) → local‑wind modification / currents (a
    the shader band (`WebGLMarineEngine.js` ~L417: `surfModeVal=0` unless `waveGrid.ratingMode`) AND the glyphs
    (`useSpotRatings`→pure exported `computeSpotRatings`, returns `{}` unless `grid.ratingMode`; +5 tests). Rating
    mode now shows the HONEST swell field where no real rating exists. Green: 25 JS + 31 py + prod build.
-3. **Why the transform doesn't run on the global grid (P0 investigate). ⏳ INSTRUMENTED (truth on next deploy).**
+3. **Why the transform doesn't run on the global grid (P0). ✅ ROOT CAUSE FOUND + FIXED.** The deployed
+   instrument PROVED it (live `surf_skip_reason` on the global frame): **`OverflowError: math range error`** —
+   `shoaling_coefficient` (`surf_transform.py`) called `math.sinh(2*kd)` UNGUARDED (its siblings
+   `shelf_dissipation`/`shelf_factor` guard kd first). On the coarse global frame a coastal-classified
+   deep-ocean cell (big depth + short period → huge kd) overflowed → `rating_transform_grid` aborted → the
+   WHOLE grid fell back to raw height. Regional frames have shallow shelf depths → no overflow → worked. FIX:
+   (a) `shoaling_coefficient` `if kd > 20: return 1.0` (deep-water Ks≈1 anyway; +regression test); (b) keep the
+   ambient field HONEST at global/coarse zoom on purpose (plan §1) — `grid_resolver` now SKIPS the rating
+   transform when the grid span ≥ 350° (`surf_transform: {skipped:'coarse_extent'}`), so the frontend Option-A
+   gate shows the swell field there and per-spot glyphs (P1) carry rating accuracy. ⏳ pending live re-verify on
+   the next deploy (expect global `surf_skip_reason` gone, `surf_transform.skipped='coarse_extent'`).
+   (Original investigation note retained below.)
+   ⏳ INSTRUMENTED (truth on next deploy):
    Could NOT decide throw (H2) vs skipped‑gate (H1) from static code: `rating_transform_grid` already wraps every
    per‑cell helper EXCEPT `estimate_surf`/`compute_surf_rating`, and the math helpers all guard `sinh` with kd
    cutoffs; the local `backend/diagnostics.log` is stale 2026‑06‑14 client data (NOT the prod log). So rather than
