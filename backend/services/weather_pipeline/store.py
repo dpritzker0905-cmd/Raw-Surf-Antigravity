@@ -83,7 +83,12 @@ class ProductStore:
     _product_cache: Dict[str, Tuple[NormalizedProduct, float]] = {}
     _product_cache_lock = threading.Lock()
     _PRODUCT_CACHE_TTL = 300.0  # 5 minutes
-    _PRODUCT_CACHE_LIMIT = 8
+    # Hold enough products hot to cover a multi-hour scrub across several layers/models without thrashing
+    # back to disk/L2. Was 8 — far too small for scrubbing (a single layer's scrub touches dozens of hourly
+    # products), which made every scrub frame / layer switch a fresh disk read+parse (or cold L2 download).
+    # Products are small (regional ~117 vec, global-coarse ~629 vec ≈ <1MB parsed), so 128 ≈ tens of MB.
+    # Env-tunable for the serve box: PRODUCT_CACHE_LIMIT.
+    _PRODUCT_CACHE_LIMIT = int(os.environ.get("PRODUCT_CACHE_LIMIT", "128"))
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:

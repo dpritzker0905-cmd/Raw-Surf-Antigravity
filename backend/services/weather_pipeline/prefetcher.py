@@ -2,21 +2,71 @@ import os
 import logging
 import asyncio
 from datetime import datetime, timezone, timedelta
-from typing import List
 
 from services.weather_pipeline.store import ProductStore, _get_supabase_storage, WEATHER_BUCKET
 
 logger = logging.getLogger(__name__)
 
+# Layers worth warming on boot — what the map actually renders first + scrubs across. (domain, layer).
+# Was GFS/marine/waves ONLY, which left wind (→ ~5min first load), EURO/ICON marine, and the swell /
+# wind_waves layers cold → every first request paid the ~45s synchronous L2 download, and non-prewarmed
+# layers rendered the stale prior frame ("all marine layers show the same data").
+_WARM_LAYERS = {
+    ("marine", "waves"),
+    ("marine", "swell_1"),
+    ("marine", "swell_2"),
+    ("marine", "wind_waves"),
+    ("wind", "wind"),
+    ("weather", "pressure"),
+}
+
+
+def _prefetch_window_days() -> float:
+    try:
+        return float(os.environ.get("PREFETCH_WINDOW_DAYS", "3"))
+    except Exception:
+        return 3.0
+
+
+def _prefetch_concurrency() -> int:
+    try:
+        return max(1, int(os.environ.get("PREFETCH_CONCURRENCY", "5")))
+    except Exception:
+        return 5
+
+
+def _prefetch_max() -> int:
+    try:
+        return max(0, int(os.environ.get("PREFETCH_MAX", "400")))
+    except Exception:
+        return 400
+
+
 async def prefetch_supabase_products():
     """
-    Prefetches conformed GFS Marine Waves products from Supabase Storage (L2) to local disk (L1) sequentially.
-    Runs in the background after startup to ensure that when users view the map or scrub,
-    there are no blocking synchronous downloads causing 20-30s delays.
+    Warm the serve box on boot: download the NEAR-TERM forecast products for ALL models and the layers the
+    map actually renders/scrubs (marine waves + swell_1/swell_2 + wind_waves, wind, pressure) from Supabase
+    Storage L2 to local disk L1, so the first user does not pay the ~45s synchronous L2 download per product.
+
+    This is the cure for serve-only COLD-START: Render's disk is ephemeral, so every restart empties L1 and
+    `restore_from_supabase` only restores the manifest (lazy product restore). Previously only GFS/marine/
+    waves was prewarmed, so wind took ~5min, EURO/ICON + swell layers loaded cold, scrub froze, and cold
+    layers rendered the stale prior frame.
+
+    Priority: nearest-to-now valid_time first (so the default view + first scrub steps land first), with the
+    default GFS/marine/waves layer ahead of others at the same time. Parallelized with a small bounded
+    semaphore (downloads are network I/O). The lazy on-demand download in ProductStore.load_product remains
+    the fallback for anything not prewarmed (e.g. far-future hours beyond the cap). Tunables (serve box):
+    PREFETCH_WINDOW_DAYS (default 3), PREFETCH_CONCURRENCY (5), PREFETCH_MAX (400). Kill switch:
+    PREFETCH_DISABLED=1 (reverts to fully lazy on-demand, the prior behavior).
     """
-    logger.info("[Prefetcher] Starting background prefetch of conformed GFS Marine Waves products...")
+    if os.environ.get("PREFETCH_DISABLED") == "1":
+        logger.info("[Prefetcher] PREFETCH_DISABLED=1 — skipping boot prewarm (lazy on-demand only).")
+        return
+
+    logger.info("[Prefetcher] Starting warm-on-boot prefetch across all models / map layers...")
     store = ProductStore()
-    
+
     try:
         manifest = await asyncio.to_thread(store.get_manifest)
     except Exception as e:
@@ -24,85 +74,74 @@ async def prefetch_supabase_products():
         return
 
     now = datetime.now(timezone.utc)
-    # Active forecast window: from 6 hours ago to 8 days in the future
     start_time = now - timedelta(hours=6)
-    end_time = now + timedelta(days=8)
-    
-    # Filter products: ONLY conformed GFS Marine Waves
+    end_time = now + timedelta(days=_prefetch_window_days())
+
     candidates = []
     for p in manifest.products:
         if getattr(p, "is_test_fixture", False):
             continue
-        model = p.model.upper()
-        domain = p.domain.lower()
-        layer = p.layer.lower()
-        if model == "GFS" and domain == "marine" and layer == "waves":
-            p_time = p.valid_time_start
-            if start_time <= p_time <= end_time:
-                candidates.append(p)
-            
-    logger.info(f"[Prefetcher] Found {len(candidates)} active candidate GFS Marine Waves products in manifest.")
-    
-    # Filter out files that already exist locally
-    to_download = []
-    for p in candidates:
-        filepath = store.cache_dir / p.filename
-        if not filepath.exists():
-            to_download.append(p)
-            
+        if (p.domain.lower(), p.layer.lower()) not in _WARM_LAYERS:
+            continue
+        if start_time <= p.valid_time_start <= end_time:
+            candidates.append(p)
+
+    # Only what is not already on disk L1.
+    to_download = [p for p in candidates if not (store.cache_dir / p.filename).exists()]
     if not to_download:
-        logger.info("[Prefetcher] All active GFS Marine Waves products are already present in L1 cache.")
+        logger.info("[Prefetcher] All near-term warm-set products already present in L1 cache.")
         return
 
-    logger.info(f"[Prefetcher] Need to download {len(to_download)} products from L2 storage.")
+    def _priority(p):
+        dist = abs((p.valid_time_start - now).total_seconds())
+        is_default = 0 if (p.model.upper() == "GFS" and p.domain.lower() == "marine" and p.layer.lower() == "waves") else 1
+        return (dist, is_default)
 
-    # Prioritize: though all are GFS Marine Waves, we can process them chronological
-    to_download.sort(key=lambda p: p.valid_time_start)
+    to_download.sort(key=_priority)
 
-    async def download_file(filename: str) -> bool:
+    cap = _prefetch_max()
+    if cap and len(to_download) > cap:
+        logger.info(f"[Prefetcher] Capping warm set {len(to_download)} -> {cap} (nearest-hour-first); rest lazy on demand.")
+        to_download = to_download[:cap]
+
+    logger.info(
+        f"[Prefetcher] Warm-on-boot: downloading {len(to_download)} near-term products "
+        f"({_prefetch_window_days()}d window, conc={_prefetch_concurrency()}) across all models / map layers."
+    )
+
+    sem = asyncio.Semaphore(_prefetch_concurrency())
+    counters = {"ok": 0, "fail": 0}
+
+    async def _download_one(p):
+        filename = p.filename
+        filepath = store.cache_dir / filename
+        if filepath.exists():
+            return
         sb = _get_supabase_storage()
         if not sb:
-            logger.warning(f"[Prefetcher] Supabase client unavailable for {filename}")
-            return False
-            
-        filepath = store.cache_dir / filename
+            return
         temp_filepath = filepath.with_suffix(".tmp")
-        
-        try:
-            # Run the blocking download in a separate worker thread
-            logger.debug(f"[Prefetcher] Downloading {filename}...")
-            product_bytes = await asyncio.to_thread(
-                sb.storage.from_(WEATHER_BUCKET).download, filename
-            )
-            if product_bytes:
-                # Write to a temp file first, then rename atomically
-                await asyncio.to_thread(temp_filepath.write_bytes, product_bytes)
-                await asyncio.to_thread(temp_filepath.rename, filepath)
-                logger.info(f"[Prefetcher] Prefetched {filename} successfully.")
-                # Proactively clean up memory
-                product_bytes = None
-                import gc
-                gc.collect()
-                return True
-            else:
-                logger.warning(f"[Prefetcher] Downloaded empty content for {filename}")
-                return False
-        except Exception as e:
-            logger.warning(f"[Prefetcher] Failed to prefetch {filename}: {e}")
-            if temp_filepath.exists():
+        async with sem:
+            try:
+                product_bytes = await asyncio.to_thread(sb.storage.from_(WEATHER_BUCKET).download, filename)
+                if product_bytes:
+                    await asyncio.to_thread(temp_filepath.write_bytes, product_bytes)
+                    await asyncio.to_thread(temp_filepath.rename, filepath)
+                    counters["ok"] += 1
+                    logger.debug(f"[Prefetcher] Prewarmed {filename}")
+                else:
+                    counters["fail"] += 1
+                    logger.warning(f"[Prefetcher] Empty content for {filename}")
+            except Exception as e:
+                counters["fail"] += 1
+                logger.warning(f"[Prefetcher] Failed to prewarm {filename}: {e}")
                 try:
-                    temp_filepath.unlink()
+                    if temp_filepath.exists():
+                        temp_filepath.unlink()
                 except Exception:
                     pass
-            return False
 
-    success_count = 0
-    for idx, p in enumerate(to_download):
-        success = await download_file(p.filename)
-        if success:
-            success_count += 1
-        # Yield control back to the event loop with a small delay
-        await asyncio.sleep(0.5)
-        
-    logger.info(f"[Prefetcher] Background prefetch completed: {success_count}/{len(to_download)} succeeded.")
-
+    await asyncio.gather(*[_download_one(p) for p in to_download], return_exceptions=True)
+    logger.info(
+        f"[Prefetcher] Warm-on-boot complete: {counters['ok']} ok, {counters['fail']} failed, of {len(to_download)}."
+    )
