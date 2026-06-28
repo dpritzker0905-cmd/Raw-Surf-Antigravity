@@ -76,7 +76,10 @@ ICON marine waves/swell_1/wind_waves         =  57/ 57/ 57      ; wind  43 ; pre
 
 ---
 
-## 3. #1 NEXT STEP — serve-box warm-on-boot (the real fix)
+## 3. #1 NEXT STEP — serve-box warm-on-boot (the real fix) — ✅ SHIPPED (2026-06-28 AM, see §6)
+
+> Done in the morning session (`45a53585`) and **LIVE-VERIFIED** — see §6 for the actual fix + results.
+> The original analysis below stands.
 
 The frontend resilience (`f538321f`) only helps the *partial*-warm case. The durable fix is to eliminate
 the cold first-read on the **serve box** so the first user after a restart/idle isn't punished:
@@ -112,3 +115,49 @@ retained stale frame, so (c) doesn't read as a bug. Needs live verification — 
 - Did not touch the backend, wind client, or the decoupling/cron machinery.
 - The infobox EURO==ICON issue from earlier in the day is **confirmed fixed** (your logs showed EURO 9.85 m
   vs ICON 10.64 m, distinct `exact_success` with separate cache keys).
+
+---
+
+## 6. MORNING SESSION (2026-06-28 AM) — backend fixes shipped
+
+### 6a. Serve-box warm-on-boot — `45a53585` (✅ LIVE-VERIFIED)
+Root mechanism confirmed: Render disk is ephemeral; `restore_from_supabase` only restores the manifest
+(`store_helpers.py` "Lazy restoration enabled: skipping individual product downloads"), so products download
+from L2 lazily on first request (~45s each, serialized). The boot prefetcher warmed **GFS/marine/waves ONLY**
+(sequential, 0.5s sleeps), and the in-memory `_product_cache` held only **8** products.
+- `prefetcher.py`: now warms the near-term window for **ALL models × {marine waves/swell_1/swell_2/wind_waves,
+  wind, pressure}**, nearest-hour-first, bounded-concurrency parallel. Env: `PREFETCH_WINDOW_DAYS=3`,
+  `PREFETCH_CONCURRENCY=5`, `PREFETCH_MAX=400`, `PREFETCH_DISABLED=1`.
+- `store.py`: `_PRODUCT_CACHE_LIMIT` 8 → 128 (env `PRODUCT_CACHE_LIMIT`).
+- **Verified warm:** all marine layers across GFS/EURO/ICON 0.16–0.38s (was 45s/timeout); scrub series ~0.3s.
+
+### 6b. Regional wind tiles — `5a8b3b96` (⏳ pending cron dispatch)
+Zoomed-in wind was ~20s GFS / ~6s EURO **every request** (never warms): wind ships only a 10° global, so
+`resolve_grid` Step 4&5 does a synchronous live upstream viewport fetch per request. Marine is fast because
+it ships regional 0.25° tiles.
+- The 3 wind pilot ingestions existed but fetched via open-meteo (dead on the CI runner → 0 regional wind).
+  Migrated GFS→NOAA / ICON→DWD / EURO→ECMWF (bbox-parameterized `*_wind_global_coarse`, open-meteo fallback,
+  kill switches), wired GFS/ICON/EURO Wind Pilot into the cron (`scheduler/forecast.py`, run LAST, gated
+  `WIND_PILOT_INGEST=1`). No serve-side change (regional tile → `resolve_grid` is_regional branch serves it;
+  prefetcher warms it). `WIND_PILOT_FORECAST_DAYS=8`.
+- **TO ACTIVATE:** dispatch the **forecast-ingest** GitHub Action (workflow_dispatch, branch `dev`). After
+  ~60-90 min the regional wind tiles land in the manifest → zoomed-in wind over FL/SoCal serves fast.
+
+### 6c. Worldwide coastal 0.25° tiles — `85b7f8ea` (⏳ populates over cron cycles)
+The coastal-resolution gap was FL+SoCal only; every other coast read the 10° global-coarse. True worldwide
+0.25° every cycle is infeasible (blows the ~120min CI budget — marine pilot ~5-15min/region).
+- `scheduler_helpers.py`: `WORLDWIDE_COASTAL_REGIONS` (8 curated surf coasts — Hawaii, Iberia, UK/Ireland,
+  E-Australia, Indonesia, Brazil, S-Africa, Mexico/C-America Pacific) + `get_pilot_regions()` =
+  flagship REGIONAL_CONFIGS (FL+SoCal, EVERY cycle) + a **round-robin** slice (`WORLDWIDE_REGIONS_PER_CYCLE`,
+  default 1) of worldwide regions, so per-cycle CI cost stays bounded while all coasts refresh over time.
+- The marine pilot + 3 wind pilots iterate `get_pilot_regions()`. No serve-side change (resolver serves any
+  regional tile by coverage; prefetcher warms it). Env: `WORLDWIDE_COASTAL=0` reverts; raise
+  `WORLDWIDE_REGIONS_PER_CYCLE` once CI headroom is confirmed (watch the Action duration vs 120min).
+- **Staleness:** with per_cycle=1 and 8 worldwide regions, each non-flagship coast refreshes ~every 8 cron
+  cycles (~24h). Raise per_cycle (or run more frequently) to tighten. Acceptable for v1 coverage.
+- **Future:** TRUE worldwide (all coasts at once) = a coastal-mask product (0.25° only within N km of any
+  coastline) — far less data than a full fine global; the proper next step if rotation staleness matters.
+
+### Test status (morning)
+Backend: 39 weather/prefetcher/pilot tests green. Frontend (overnight): 102 marine/scrub/wind + 29
+shader/series. All shipped: `96120177` `f538321f` `45a53585` `5a8b3b96` `85b7f8ea` (dev).
