@@ -292,6 +292,13 @@ export function useMarineScrubSettle({
     let pendingSince = 0;
     let lastPendingRelease = 0;
     let lastFreezeRecord = 0;
+    // No-progress cap (organic repro 2026-06-28): at extreme zoom the series only has a GLOBAL covering frame
+    // (fw 360) so runScrubSettleCheck's `fw < 340` gate can NEVER sharpen — the backstop re-drove forever
+    // (loads 24→161+, rAF-jank). Track the stuck-clamp signature; after a few no-progress fires, stop
+    // re-driving until the view changes (a covering regional tile genuinely isn't available — more re-driving
+    // can't conjure one). Resets on any viewport/grid change, so normal sharpening is unaffected.
+    let clampSig = null;
+    let clampNoProgress = 0;
     const id = setInterval(() => {
       // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
       // interval is created once and never churns (preserving the blank streak across re-renders).
@@ -355,7 +362,7 @@ export function useMarineScrubSettle({
       }
 
       const needsRefetch = (!(eng && eng._waveData) || clamp) && !window.__MARINE_FETCH_PENDING__ && govIdle;
-      if (!needsRefetch) { blankStreak = 0; return; }
+      if (!needsRefetch) { blankStreak = 0; clampNoProgress = 0; clampSig = null; return; }
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
       if (Date.now() - lastBackstop < 6000) return;  // min gap so each refetch can complete
@@ -368,6 +375,31 @@ export function useMarineScrubSettle({
       //   frameFound:true + frameCovers:false -> served grid doesn't contain the viewport (containment/snap).
       const _sd = (typeof window !== 'undefined' && window.__MARINE_SHARPEN_DIAG__) || {};
       const _ser = (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) || {};
+      // No-progress cap: a CLAMP whose last sharpen attempt could NOT resolve (willSharpen:false) on the SAME
+      // held grid is unrecoverable by re-driving — the only covering frame is global (fw>=340) and the gate
+      // rightly won't commit it; more re-drives just churn (the rAF-jank loop in the 2026-06-28 repro). Cap it
+      // and stop until the view changes (a moveend re-triggers checkScrubSettle for the new viewport).
+      if (clamp) {
+        let gb = null;
+        try { gb = eng && eng._waveData && eng._waveData.waveGrid && eng._waveData.waveGrid.bounds; } catch (e) { gb = null; }
+        const sig = gb
+          ? `${kind}|${gb.west.toFixed(1)},${gb.south.toFixed(1)},${gb.east.toFixed(1)},${gb.north.toFixed(1)}`
+          : kind;
+        if (sig === clampSig && _sd.willSharpen === false) {
+          clampNoProgress++;
+        } else {
+          clampSig = sig;
+          clampNoProgress = 0;
+        }
+        if (clampNoProgress >= 3) {
+          if (clampNoProgress === 3 && typeof window !== 'undefined') {
+            window.__MARINE_CLAMP_GIVEUP_COUNT__ = (window.__MARINE_CLAMP_GIVEUP_COUNT__ || 0) + 1;
+            console.warn(`[Marine] Clamp backstop: no covering regional frame for ${kind} after 3 tries `
+              + `(best available is global fw=${_sd.fw}); stopping re-drive churn until the view changes.`);
+          }
+          return;  // suppress further no-progress re-drives (breaks the infinite loop + rAF jank)
+        }
+      }
       console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`,
         `sharpen={found:${_sd.frameFound}, covers:${_sd.frameCovers}, fw:${_sd.fw && _sd.fw.toFixed ? _sd.fw.toFixed(1) : _sd.fw}, willSharpen:${_sd.willSharpen}} series={loads:${_ser.loads}, hits:${_ser.hits}, misses:${_ser.misses}}`);
       if (checkScrubSettleRef.current) checkScrubSettleRef.current();
