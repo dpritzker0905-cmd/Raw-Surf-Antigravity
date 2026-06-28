@@ -49,7 +49,7 @@ function runScrubSettleCheck(ctx) {
   const {
     marineData, mapInstance, setMarineData,
     timeOffsetRef, activeModelRef, activeMarineLayerRef,
-    safetyNetRetryRef, marineFetchLocksRef, updateMarineGridRef,
+    safetyNetRetryRef, clampRefetchRef, marineFetchLocksRef, updateMarineGridRef,
   } = ctx;
 
   if (window.isScrubbingTimeline) return;
@@ -89,6 +89,19 @@ function runScrubSettleCheck(ctx) {
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
         // tick sharpens. Deduped + TTL'd + concurrency-capped, so repeated backstop ticks are cheap.
         ensureMarineSeries(model, layer, clampVb, currentHour);
+      }
+      // UPGRADE the clamp to the FULLER regional tile. The committed series frame "covers" the viewport
+      // but can be a small/coarse viewport grid (the "clamped to a small patch" report). A plain refetch
+      // dedups (the no-op loop this branch was built to avoid), but a FRESH dedup-bypassing fetch — exactly
+      // what a layer-toggle triggers (isCorrectLayer=false → bypassDedupe) — pulls the fuller regional
+      // viewport tile. Capped per {viewport,hour,model,layer} so a coarse-only region can't make it storm.
+      if (clampRefetchRef && updateMarineGridRef && updateMarineGridRef.current) {
+        const _ck = `${model}_${layer}_${currentHour}_${clampVb.west.toFixed(1)}_${clampVb.south.toFixed(1)}_${clampVb.east.toFixed(1)}_${clampVb.north.toFixed(1)}`;
+        if (clampRefetchRef.current.key !== _ck) clampRefetchRef.current = { key: _ck, count: 0 };
+        if (clampRefetchRef.current.count < 2) {
+          clampRefetchRef.current.count++;
+          updateMarineGridRef.current('clamp_resharpen');
+        }
       }
     } catch (e) { /* map/series not ready — defer */ }
     return;
@@ -158,12 +171,15 @@ export function useMarineScrubSettle({
   // Caps safety-net refetches per {hour,model,layer} so a fetch that keeps failing can't re-fire
   // forever and saturate the 1-CPU backend. Resets automatically when the target changes.
   const safetyNetRetryRef = useRef({ key: '', count: 0 });
+  // Caps the dedup-bypassing "upgrade" fetch when a coarse/small grid is held while zoomed in, so a
+  // region that only has the coarse product can't turn the clamp-resharpen into a refetch storm.
+  const clampRefetchRef = useRef({ key: '', count: 0 });
 
   const checkScrubSettle = useCallback(() => {
     runScrubSettleCheck({
       marineData, mapInstance, setMarineData,
       timeOffsetRef, activeModelRef, activeMarineLayerRef,
-      safetyNetRetryRef, marineFetchLocksRef, updateMarineGridRef,
+      safetyNetRetryRef, clampRefetchRef, marineFetchLocksRef, updateMarineGridRef,
     });
   }, [marineData]);
 

@@ -178,7 +178,7 @@ export function useMarineDataFetcherCore({
         return;
       }
       resetRetryCounts();
-      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation';
+      const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
       let bypassDedupe = !hasValidData || !isCorrectLayer || !!(marineData?.stale || marineData?.grid?.stale);
