@@ -466,7 +466,15 @@ def find_nearest_manifest_product(
 
 
 async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
-    """Implementation of ingest_euro_marine_extended_estimates delegated from scheduler."""
+    """Implementation of ingest_euro_marine_extended_estimates delegated from scheduler.
+
+    Builds the EURO marine 10->14d ESTIMATED extension (persistence + GFS-14d/ICON blend) so the heatmap/
+    scrub does not clear past EURO's ~10d native horizon. Wired into the decoupled cron after the marine
+    globals. Kill switch EURO_MARINE_EXTEND=0.
+    """
+    if os.environ.get("EURO_MARINE_EXTEND", "1") == "0":
+        logger.info("[Pipeline Scheduler] EURO_MARINE_EXTEND=0 — skipping EURO marine extended estimates.")
+        return False
     from services.weather_pipeline.estimator import (
         estimate_euro_grid, EURO_LIMIT_WAVES, EURO_LIMIT_COMPONENTS, EstimateContractError
     )

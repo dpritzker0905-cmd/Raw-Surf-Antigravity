@@ -92,6 +92,12 @@ def ingest_marine_forecast_task():
                 ("ICON Pressure Global", weather_scheduler.ingest_icon_pressure_global),
                 ("EURO Pressure Global", weather_scheduler.ingest_euro_pressure_global),
 
+                # EURO marine 10->14d estimated extension (persistence + GFS-14d blend). EURO marine is
+                # natively ~10d (240h), so without this the heatmap CLEARS when scrubbing past day 10. Runs
+                # AFTER the marine globals (its GFS/EURO/ICON anchors) but BEFORE the slow regional pilots so
+                # a CI timeout can't skip the fix. Compute-only (no GRIB fetch). Kill switch EURO_MARINE_EXTEND=0.
+                ("EURO Marine Extended Estimates", weather_scheduler.ingest_euro_marine_extended_estimates),
+
                 # Regional GFS marine pilot (FL+SoCal 0.25°) runs LAST: its NOAA-direct GRIB fetches are
                 # slow (~5-15 min x2 regions, added by the A1 off-open-meteo regional migration), so placing
                 # it after the core global marine+pressure layers means a worst-case CI timeout can only cost
