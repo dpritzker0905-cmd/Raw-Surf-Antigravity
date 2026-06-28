@@ -33,3 +33,9 @@ def test_inland_returns_none():
 def test_longitude_wrap():
     # a Pacific point expressed with lng > 180 must wrap and still resolve to deep ocean
     assert b.depth_at(0.0, 200.0) == b.depth_at(0.0, -160.0)
+
+
+def test_is_coastal_distinguishes_shore_from_open_ocean():
+    assert b.is_coastal(28.4, -80.55) is True    # Florida east coast — land + ocean within the window
+    assert b.is_coastal(30.0, -150.0) is False    # mid North Pacific — no shore to break on
+    assert b.is_coastal(38.5, -98.0) is False      # central Kansas — land only, no ocean (not surfable)

@@ -560,10 +560,12 @@ async def resolve_grid(
         )
         return make_no_coverage_grid_response(model, layer, valid_time)
 
-    # ── Option-2 Swell<->Surf toggle: when surf mode is requested, replace each marine cell's offshore wave
-    # HEIGHT with its bathymetry surf estimate (per-cell shelf depth + shoaling/friction/breaking), scaling
-    # u/v to keep direction. The heatmap then renders SURF instead of offshore swell. Additive + gated;
-    # serve-only safe (bundled bathymetry + cheap math). Marine height-layers only. Kill switch SURF_TRANSFORM=0.
+    # ── Option-2 Swell<->Surf toggle: when surf mode is requested, render a COASTAL SURF BAND. Each coastal
+    # cell's offshore wave HEIGHT is replaced with its bathymetry breaker estimate (per-cell shelf depth +
+    # Komar shoaling / friction / depth-limited breaking; can be bigger at steep reefs, smaller on shallow
+    # shelves), u/v scaled to keep direction; every OPEN-OCEAN cell is transparency-masked (is_valid=False)
+    # because surf is a coastline property, not an open-ocean field. Additive + gated; serve-only safe
+    # (bundled bathymetry + cheap cached math). Marine height-layers only. Kill switch SURF_TRANSFORM=0.
     if (
         surf
         and domain.lower() == "marine"
@@ -574,14 +576,14 @@ async def resolve_grid(
     ):
         try:
             from services.weather_pipeline.surf_transform import surf_transform_grid
-            from services.weather_pipeline.bathymetry import shelf_depth_at
-            n_t, n_shelf = surf_transform_grid(product.grid.vectors, shelf_depth_at)
+            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal
+            n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal)
             product.is_estimated = True
             if product.grid.diagnostics is None:
                 product.grid.diagnostics = {}
-            product.grid.diagnostics["surf_transform"] = {"transformed": n_t, "shelf": n_shelf}
-            logger.info(f"[Grid Route] Surf transform: {n_t} cells reduced ({n_shelf} shelf/breaking) "
-                        f"for {model} {layer}.")
+            product.grid.diagnostics["surf_transform"] = {"transformed": n_t, "masked": n_masked}
+            logger.info(f"[Grid Route] Surf band: {n_t} coastal cells -> breaker height, "
+                        f"{n_masked} open-ocean cells masked, for {model} {layer}.")
         except Exception as _se:
             logger.warning(f"[Grid Route] Surf transform skipped: {_se}")
 

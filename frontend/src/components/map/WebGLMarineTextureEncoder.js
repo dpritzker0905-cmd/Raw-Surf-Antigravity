@@ -237,7 +237,11 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       vVal = -Math.cos(dirRad);
     }
     
-    const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean : (v.isOcean !== undefined ? v.isOcean : true);
+    // Honor the backend's explicit is_valid=false (land / no-data / surf-band open-ocean mask) so those cells
+    // render transparent. Only falls through to it when isOcean isn't set, so existing isOcean logic is intact.
+    const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean
+      : (v.isOcean !== undefined ? v.isOcean
+         : (v.is_valid === false ? false : true));
     
     uArr[i] = uVal;
     vArr[i] = vVal;

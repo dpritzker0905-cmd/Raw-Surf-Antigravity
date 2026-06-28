@@ -201,13 +201,16 @@ export function compileForecastCards({
     }
 
     cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
-    // Option-2 bathymetry surf transform (ESTIMATE): the nearshore breaking height. Shown only when the
-    // shelf actually changed it (regime shelf/breaking) — in deep water surf == the offshore Height above,
-    // so we skip the duplicate. The (est.) tag keeps it honestly distinct from the authoritative model value.
+    // Option-2 bathymetry SURF transform (ESTIMATE): the nearshore breaking height (Komar & Gaughan shoaling
+    // + shelf friction + depth-limited breaking). Shown for any coastal break regime — reef (shoaling-
+    // amplified, can be BIGGER than offshore Height), shelf (friction-reduced), or breaking (depth-capped).
+    // Open-ocean points (regime 'open_ocean') have no shore to break on, so the row is hidden there. The
+    // coastal gate is geography-based, so this row shows consistently for GFS/EURO/ICON. (est.) keeps it
+    // honestly distinct from the authoritative offshore model value.
     {
       const _surf = useExactPoint?.surf_height_m;
       const _reg = useExactPoint?.surf_regime;
-      if (_surf != null && (_reg === 'shelf' || _reg === 'breaking')) {
+      if (_surf != null && (_reg === 'reef' || _reg === 'shelf' || _reg === 'breaking')) {
         const _surfFt = mToFt(_surf);
         if (_surfFt != null) {
           cards.push({ icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300' });

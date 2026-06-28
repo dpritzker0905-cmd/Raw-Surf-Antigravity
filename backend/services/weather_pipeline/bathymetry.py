@@ -11,6 +11,7 @@ coastal click returns the shelf depth just offshore (the depth the swell actuall
 import os
 import json
 import threading
+from functools import lru_cache
 from typing import Optional
 
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
@@ -78,6 +79,7 @@ def depth_at(lat: float, lng: float, search_cells: int = 4) -> Optional[float]:
     return float(best) if best is not None else None
 
 
+@lru_cache(maxsize=200_000)
 def shelf_depth_at(lat: float, lng: float, window_cells: int = 2) -> Optional[float]:
     """Representative SHELF depth (m) for the surf transform: the MEDIAN ocean depth in a small window
     (~±0.5° at window_cells=2) around (lat, lng). This distinguishes a WIDE shallow shelf (window stays
@@ -105,3 +107,38 @@ def shelf_depth_at(lat: float, lng: float, window_cells: int = 2) -> Optional[fl
     if ocean.size == 0:
         return None
     return float(np.median(ocean))
+
+
+@lru_cache(maxsize=200_000)
+def is_coastal(lat: float, lng: float, radius_cells: int = 3) -> bool:
+    """True if there is LAND **and** open ocean within ~radius_cells (~0.25° each ≈ ±0.75° at the default 3)
+    of (lat, lng) — i.e. a shoreline for waves to break on.
+
+    Surf (a breaking wave) is a COASTLINE property: it only exists where swell meets a shore. An open-ocean
+    point carries swell but has no surf. This check is GEOGRAPHY ONLY (model-independent), so every forecast
+    model agrees which points are surfable — that's what makes the infobox surf row consistent across
+    GFS/EURO/ICON. Steep coasts whose nearest 0.25° wet cell is deep (e.g. Oahu) still register as coastal
+    because land is in the window even though the depth is large.
+
+    Fail-OPEN (returns True) if the bundled bathymetry grid is unavailable, so surf is never silently
+    suppressed when we simply can't tell."""
+    if not is_available():
+        return True
+    try:
+        import numpy as np
+        grid, meta = _load()
+    except Exception:
+        return True
+    nlat, nlon = meta["nlat"], meta["nlon"]
+    lat0, lon0, dlat, dlon = meta["lat0"], meta["lon0"], meta["dlat"], meta["dlon"]
+    lng = ((float(lng) + 180.0) % 360.0) - 180.0
+    r = int(round((float(lat) - lat0) / dlat))
+    c = int(round((lng - lon0) / dlon))
+    if r < 0 or r >= nlat or c < 0 or c >= nlon:
+        return False
+    r0, r1 = max(0, r - radius_cells), min(nlat, r + radius_cells + 1)
+    c0, c1 = max(0, c - radius_cells), min(nlon, c + radius_cells + 1)
+    sub = np.asarray(grid[r0:r1, c0:c1])
+    has_land = bool((sub <= 0).any())     # land / no-depth cells are <= 0 (ocean depth is positive-down)
+    has_ocean = bool((sub > 0).any())
+    return has_land and has_ocean
