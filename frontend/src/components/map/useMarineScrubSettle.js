@@ -243,7 +243,14 @@ export function useMarineScrubSettle({
       lastBackstop = Date.now();
       blankStreak = 0;
       if (typeof window !== 'undefined') window.__MARINE_BLANK_BACKSTOP_COUNT__ = (window.__MARINE_BLANK_BACKSTOP_COUNT__ || 0) + 1;
-      console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`);
+      // Inline the sharpen/series diagnosis so a single backstop log line reveals WHY it isn't sharpening:
+      //   frameFound:false -> the regional series isn't warming for this viewport (load/dedup);
+      //   frameFound:true + fw>=340 -> the series itself came back GLOBAL-coarse (needs regional revalidation);
+      //   frameFound:true + frameCovers:false -> served grid doesn't contain the viewport (containment/snap).
+      const _sd = (typeof window !== 'undefined' && window.__MARINE_SHARPEN_DIAG__) || {};
+      const _ser = (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) || {};
+      console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`,
+        `sharpen={found:${_sd.frameFound}, covers:${_sd.frameCovers}, fw:${_sd.fw && _sd.fw.toFixed ? _sd.fw.toFixed(1) : _sd.fw}, willSharpen:${_sd.willSharpen}} series={loads:${_ser.loads}, hits:${_ser.hits}, misses:${_ser.misses}}`);
       if (checkScrubSettleRef.current) checkScrubSettleRef.current();
     }, 1000);
     return () => clearInterval(id);
