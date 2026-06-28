@@ -380,24 +380,35 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   // SMALLEST containing bbox so the served frame is the highest resolution available.
   if (best === null || bestDiff > 1.5) {
     let smallestArea = Infinity;
+    let globalFallbackFrame = null;   // a GLOBAL-width frame — used ONLY if no regional frame contains the viewport
+    let globalFallbackDiff = Infinity;
     for (const entry of _seriesCache.values()) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
       if (entry.model !== model || entry.layer !== layer) continue;
       if (entry.page != null && Math.abs(entry.page - page) > 1) continue;
-      // Skip a GLOBAL-width frame for a regional viewport. The global-zoom prewarm caches a 360°-wide
-      // 'global' series frame for the default (GFS/waves) layer; it "contains" any viewport so it would be
-      // returned here, but it fails the clamp's fw<340 sharpen → the heatmap stays coarse-clamped (GFS-waves-
-      // only, because only the default layer gets the global prewarm). Skipping it returns null so the caller
-      // fetches a real regional grid — exactly how the non-default layers already behave. Global-zoom
-      // viewports (vWid large) still accept it, so global scrub is unaffected.
-      const eWid = (entry.bounds.east < entry.bounds.west) ? (entry.bounds.east + 360) - entry.bounds.west : entry.bounds.east - entry.bounds.west;
-      if (isRegionalViewport && eWid >= 340) continue;
       if (!bboxContains(entry.bounds, bounds)) continue;
       const nf = nearestFrameInEntry(entry, hourOffset);
       if (!nf) continue;
       const b = entry.bounds;
+      // A GLOBAL-width frame renders coarse-clamped for a regional viewport, so DON'T prefer it. But in the
+      // decoupled/serve-only world a region may have ONLY the global-coarse product (the regional grid_series
+      // returns 0 frames / times out). Keep it as a LAST RESORT so scrubbing + layer/model switches still
+      // render and track per hour instead of freezing on a stale frame. (Regression guard: returning null
+      // here froze the heatmap whenever no regional frame existed — was 7db0a655.) The clamp-resharpen path
+      // still attempts to upgrade to the regional tile once one is available; (near-)global viewports keep
+      // accepting it directly below, so global scrub is unaffected.
+      const eWid = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+      if (isRegionalViewport && eWid >= 340) {
+        if (nf.diff < globalFallbackDiff) { globalFallbackDiff = nf.diff; globalFallbackFrame = nf.frame; }
+        continue;
+      }
       const area = Math.max(1e-4, b.east - b.west) * Math.max(1e-4, b.north - b.south);
       if (area < smallestArea) { smallestArea = area; best = nf.frame; bestDiff = nf.diff; }
+    }
+    // No regional frame contained the viewport — serve the global-coarse as a last resort (better than a
+    // frozen/blank scrub). Still subject to the ±1.5h nearest-frame gate below.
+    if ((best === null || bestDiff > 1.5) && globalFallbackFrame !== null) {
+      best = globalFallbackFrame; bestDiff = globalFallbackDiff;
     }
   }
   if (best === null || bestDiff > 1.5) {
