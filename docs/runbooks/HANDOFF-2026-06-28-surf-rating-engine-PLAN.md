@@ -135,13 +135,20 @@ seabed morphology (from `wave_type`) → local‑wind modification / currents (a
 ---
 
 ## 8. BUGS TO FIX (carry forward — verify each LIVE on a VISIBLE tab; see [[marine-raf-hidden-tab-confound]])
-1. **Heatmap CLAMP / freeze (P0, real frontend wedge).** Repro (organic): FL, GFS waves, interact ~1 min →
-   heatmap freezes; only Waves off→on recovers. NOT a data gap (FL has regional tiles). The existing
-   `stale_lock_watchdog` (`useMarineDataFetcherCore.js` ~L298‑302) fires only while `isFetching`; the blank/
-   clamp backstop (`useMarineScrubSettle.js` `detectClamp` + 1s interval) didn't auto‑recover. NEXT: instrument
-   which lock is stuck when frozen (`window.__MARINE_GOVERNOR_STATE__` govIdle? `__MARINE_FETCH_PENDING__`
-   stuck non‑null? `isFetching` stuck?), then release/auto‑redrive it. See [[marine-stranded-fetch-lock-wedge]],
-   [[marine-zoomout-clamp-live-2026-06-25]]. ⚠️ Delicate subsystem — instrument from a real repro, don't guess.
+1. **Heatmap CLAMP / freeze (P0, real frontend wedge). ⏳ INSTRUMENTED + guarded recovery shipped (needs ORGANIC
+   live verify).** Forensics localized it: the freeze escapes ALL 3 recovery paths — `releaseStaleMarineLock`
+   (`useMarineDataFetcherCore.js` L64) + the auto‑redrive timer (L298‑302) are BOTH `isFetching`‑gated, and the
+   blank/clamp backstop (`useMarineScrubSettle.js` L254) needs `!pending` AND engine‑empty/clamp (near FL the
+   regional grid loaded + covers → neither). Best‑fit cause (matches "only Waves off→on recovers"): a stranded
+   `__MARINE_FETCH_PENDING__` (non‑null, isFetching false, governor idle) — it disables runScrubSettleCheck's
+   bypass (L117‑126) AND the backstop, while the isFetching watchdog is silent. SHIPPED: a freeze‑state recorder
+   (`window.__MARINE_FREEZE_DIAG__`, reasons `stranded_pending` + `stale_not_tracking`) + pure
+   `evaluateStrandedPending` + a govIdle‑guarded pending‑lease watchdog that clears the stranded pending and
+   re‑drives (telemeter `__MARINE_PENDING_LEASE_RELEASE__`). Green: 12 watchdog tests + build. NEXT: deploy →
+   ORGANIC repro on a VISIBLE tab → read `__MARINE_FREEZE_DIAG__` to CONFIRM the cause (or rule out stranded‑pending
+   if `stale_not_tracking` fired instead → render/commit freeze, different fix). ⚠️ Delicate subsystem — no further
+   orchestrator surgery without the capture. See [[heatmap-freeze-stranded-pending-2026-06-28]],
+   [[marine-stranded-fetch-lock-wedge]], [[marine-zoomout-clamp-live-2026-06-25]].
 2. **Coarse/global overlay = FAKE rating (P0). ✅ FIXED IN CODE (pending live verify) — Option A.** ROOT CAUSE
    (forensics): the frontend marine conformers (`mapNormalizedGridToWebGL` in
    `backendWeatherServiceClientHelpers.js`; the EURO builder in `backendCopernicusServiceClient.js`) built

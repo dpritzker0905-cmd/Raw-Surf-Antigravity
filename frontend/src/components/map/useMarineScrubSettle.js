@@ -37,6 +37,52 @@ function detectClamp(mapInstance) {
   }
 }
 
+// How long a marine fetch-PENDING flag may persist with no live fetch backing it before we treat it as
+// STRANDED. Symmetric to MARINE_FETCH_LEASE_MS (the isFetching lease in useMarineDataFetcherCore) but for
+// the wedge the isFetching-gated watchdog CANNOT see: __MARINE_FETCH_PENDING__ stuck non-null while
+// locks.isFetching is false and the governor is idle. Slightly longer than the isFetching lease because
+// this path only clears a window flag (no controller to abort), so we want zero chance of clobbering a
+// just-queued fetch that hasn't registered in the governor yet (the governor registers a real fetch in ms).
+export const MARINE_PENDING_LEASE_MS = 6000;
+// Snapshot the freeze state earlier than we act, so a single organic repro is fully diagnosable even if the
+// auto-recovery's trigger turns out to be slightly off.
+export const STRANDED_PENDING_RECORD_MS = 3000;
+
+/**
+ * Decide whether a marine fetch-PENDING is STRANDED. A stranded pending wedges BOTH frontend recovery
+ * paths — runScrubSettleCheck bypasses on a matching pending (see "isAlreadyFetchingCurrentHour"), and the
+ * blank-heatmap backstop requires `!pending` — while the isFetching-gated releaseStaleMarineLock stays
+ * silent (isFetching is false). Net result: the heatmap freezes near a region that HAS data until a manual
+ * layer toggle clears pending. This is the symmetric sibling of releaseStaleMarineLock for that case; the
+ * govIdle + age + !isFetching guards make a false positive (clobbering a real in-flight fetch) effectively
+ * impossible. Pure + unit-testable (no I/O). `record` requests a forensic snapshot before we act.
+ */
+export function evaluateStrandedPending({ hasPending, pendingAgeMs, govIdle, isFetching,
+  leaseMs = MARINE_PENDING_LEASE_MS, recordMs = STRANDED_PENDING_RECORD_MS }) {
+  if (!hasPending) return { record: false, stranded: false };
+  // Record whatever is stuck (govIdle / isFetching captured in the payload by the caller) once a single
+  // pending has out-lived a normal fetch — that alone is abnormal and worth a snapshot.
+  const record = pendingAgeMs > recordMs;
+  // Only treat as STRANDED (safe to clear + re-drive) when provably dead: idle + not isFetching + past lease.
+  const stranded = !!govIdle && !isFetching && pendingAgeMs > leaseMs;
+  return { record, stranded };
+}
+
+/**
+ * Ring-buffer recorder for the "froze, needed a manual toggle" wedge (rating plan §8 #1). Read-only telemetry
+ * — captures the lock/governor/pending state at the moment of a suspected freeze so the NEXT organic repro is
+ * diagnosable in one shot (instrument-then-fix, not guess). Keeps the last ~20 snapshots + per-reason counts.
+ */
+function recordMarineFreeze(reason, payload) {
+  if (typeof window === 'undefined') return;
+  const store = window.__MARINE_FREEZE_DIAG__ || { counts: {}, recent: [] };
+  store.counts[reason] = (store.counts[reason] || 0) + 1;
+  store.recent.push({ ts: Date.now(), reason, ...payload });
+  if (store.recent.length > 20) store.recent.shift();
+  store.last = store.recent[store.recent.length - 1];
+  window.__MARINE_FREEZE_DIAG__ = store;
+}
+
 // Scrub-settle safety net + blank-heatmap backstop, extracted VERBATIM from useMarineOrchestrator to
 // keep that module under the 800-LOC cap. Behavior is unchanged: the effects run at the same call
 // site, with the same dependency arrays, reading the same live refs (passed in via params).
@@ -241,16 +287,73 @@ export function useMarineScrubSettle({
     if (!mapInstance) return;
     let blankStreak = 0;
     let lastBackstop = 0;
+    // Stranded-pending tracking (rating plan §8 #1): how long the SAME __MARINE_FETCH_PENDING__ has persisted.
+    let pendingSig = null;
+    let pendingSince = 0;
+    let lastPendingRelease = 0;
+    let lastFreezeRecord = 0;
     const id = setInterval(() => {
       // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
       // interval is created once and never churns (preserving the blank streak across re-renders).
-      if (window.isScrubbingTimeline || !activeMarineLayerRef.current) { blankStreak = 0; return; }
+      if (window.isScrubbingTimeline || !activeMarineLayerRef.current) { blankStreak = 0; pendingSig = null; return; }
       const eng = typeof window !== 'undefined' && window.__MARINE_ENGINE__;
       const gov = (typeof window !== 'undefined' && window.__MARINE_GOVERNOR_STATE__) || {};
       const govIdle = !gov.activeGridFetches && !gov.activeCopernicusFetches && !((gov.inFlightKeys || []).length);
       // Also re-drive when a non-covering grid (coarse-global OR too-small regional) is held while
       // zoomed IN — zoom-in/out fires no scrub-end, so without this the clamp would never sharpen.
       const { clamp, kind } = detectClamp(mapInstance);
+
+      // ── Stranded-pending watchdog: the wedge the user hit near FL (data present, grid covers, froze after
+      //    ~1min, only Waves off→on recovered). __MARINE_FETCH_PENDING__ stuck non-null while isFetching is
+      //    false + governor idle disables BOTH recovery paths (runScrubSettleCheck bypasses on a matching
+      //    pending; the blank-backstop below requires !pending) and the isFetching watchdog can't see it.
+      //    Symmetric sibling of releaseStaleMarineLock: record the freeze state (forensics), then — only when
+      //    provably dead (idle + !isFetching + past the lease) — clear the stranded pending and re-drive.
+      const pending = (typeof window !== 'undefined') ? window.__MARINE_FETCH_PENDING__ : null;
+      const locks = marineFetchLocksRef && marineFetchLocksRef.current;
+      const isFetching = !!(locks && locks.isFetching);
+      const sig = pending ? `${pending.model}/${pending.layer}/${pending.hour}` : null;
+      if (sig !== pendingSig) { pendingSig = sig; pendingSince = Date.now(); }
+      const pendingAge = pending ? (Date.now() - pendingSince) : 0;
+      const sp = evaluateStrandedPending({ hasPending: !!pending, pendingAgeMs: pendingAge, govIdle, isFetching });
+      if (sp.record && Date.now() - lastFreezeRecord > 3000) {
+        lastFreezeRecord = Date.now();
+        let renderedHour = null;
+        try { renderedHour = eng && eng._waveData && eng._waveData.waveGrid ? eng._waveData.waveGrid.hourOffset : null; } catch (e) { /* engine churning */ }
+        recordMarineFreeze('stranded_pending', {
+          pendingAge, sig, govIdle, isFetching, engHasData: !!(eng && eng._waveData), clamp: !!clamp, kind: kind || null,
+          renderedHour, requestedHour: timeOffsetRef.current,
+          gov: { grid: gov.activeGridFetches || 0, cop: gov.activeCopernicusFetches || 0, inFlight: (gov.inFlightKeys || []).length },
+        });
+      }
+      if (sp.stranded && Date.now() - lastPendingRelease > 6000) {
+        lastPendingRelease = Date.now();
+        pendingSig = null; blankStreak = 0;
+        if (typeof window !== 'undefined') {
+          window.__MARINE_FETCH_PENDING__ = null;
+          window.__MARINE_FETCH_DEBOUNCING__ = false;
+          window.__MARINE_PENDING_LEASE_RELEASE__ = (window.__MARINE_PENDING_LEASE_RELEASE__ || 0) + 1;
+        }
+        console.warn(`[Marine] Stranded fetch-pending released (idle ${(pendingAge / 1000).toFixed(1)}s, isFetching=false, governor idle) — re-driving wedged heatmap.`);
+        if (checkScrubSettleRef.current) checkScrubSettleRef.current();
+        return;
+      }
+
+      // Forensic-only (no auto-action): the OTHER hypothesis — at rest (idle, not scrubbing, NO pending,
+      // not isFetching) but the engine's rendered hour ≠ the requested hour while a covering grid is held.
+      // That's a render/commit freeze the stranded-pending path won't fire on; capturing it (vs. the absence
+      // of any record) tells us which cause the next organic repro actually is — instrument, then fix.
+      if (!pending && govIdle && !isFetching && eng && eng._waveData && !clamp && Date.now() - lastFreezeRecord > 3000) {
+        let rh = null;
+        try { rh = eng._waveData.waveGrid ? eng._waveData.waveGrid.hourOffset : null; } catch (e) { rh = null; }
+        if (rh != null && rh !== timeOffsetRef.current) {
+          lastFreezeRecord = Date.now();
+          recordMarineFreeze('stale_not_tracking', {
+            renderedHour: rh, requestedHour: timeOffsetRef.current, govIdle, isFetching, pending: false,
+          });
+        }
+      }
+
       const needsRefetch = (!(eng && eng._waveData) || clamp) && !window.__MARINE_FETCH_PENDING__ && govIdle;
       if (!needsRefetch) { blankStreak = 0; return; }
       blankStreak++;
