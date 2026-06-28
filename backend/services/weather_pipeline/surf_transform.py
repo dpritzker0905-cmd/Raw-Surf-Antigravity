@@ -142,25 +142,55 @@ def komar_breaker_height(Hs_m, Tp_s):
     return 0.56 * Hs_m * (Hs_m / L0) ** (-0.2)
 
 
-def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True):
-    """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative 0.25°
-    shelf depth, and whether the point is near a coast.
+# Calibrated so a Florida-class shelf (~80-100 km wide, ~25 m deep, ~8-10 s swell) keeps roughly half the
+# offshore height, while a steep/deep coast keeps ~all of it. Universal (not region-specific) — the variation
+# is carried by shelf WIDTH + depth, which come from the global bathymetry, so the model is worldwide.
+SHELF_FRICTION_CF = 0.40
+_CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 
-    Physics (literature-grounded — Komar & Gaughan 1972 shoaling breaker; Caldwell 2007 surf-from-deepwater):
-      1. Shelf bottom-friction (Kf) bleeds energy from swell crossing a WIDE SHALLOW shelf (e.g. Florida);
-         ~1 over a steep/deep shelf (e.g. Mavericks/Nazaré).
-      2. Komar & Gaughan shoaling lifts the (friction-reduced) swell to its breaking height — so a STEEP
-         reef breaks LARGER than the offshore swell, a wide shallow shelf SMALLER.
-      3. Depth-limited breaking caps the height at GAMMA*depth where the coarse shelf cell is itself shallow
-         enough to break the wave offshore.
-      4. Surf only exists where there is a shore to break on: an OPEN-OCEAN point (no nearby land) carries
-         swell but no surf -> regime 'open_ocean', offshore height returned, callers hide/transparency-mask it.
 
-    Refraction (Kr, Caldwell 2007) is a deliberate v2 (needs a per-point shore-normal / exposure angle).
+def shelf_dissipation(Tp_s, depth_m, width_km):
+    """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
+    narrow/steep or deep shelf; << 1 over a WIDE SHALLOW shelf where swell crosses many wavelengths of shallow
+    water and bleeds energy to the bed — up to ~90% energy loss on the widest shelves (Ardhuin 2003, NC/VA
+    shelf), far more on gentle/wide than steep/narrow (Kurian 1987). This is the dominant, grid-resolvable
+    nearshore effect (the surf-zone shoaling jump is sub-grid at 0.25°).
 
-    Returns ``(surf_height_m, regime)`` with regime in:
-      calm | unknown | open_ocean | reef (shoaling-amplified) | shelf (friction-reduced) | breaking (depth-capped).
-    An ESTIMATE from bulk parameters — callers MUST tag is_estimated and present it as surf, not model truth."""
+    Form: exp(-CF * shelf_width_in_cells * bed_feel), bed_feel = 1/sinh(kd) (near-bed orbital influence:
+    ~0 in deep water, large in shallow). Returns 1.0 (no loss) for deep water or zero shelf width."""
+    if (Tp_s is None or Tp_s <= 0 or depth_m is None or depth_m <= 0
+            or width_km is None or width_km <= 0):
+        return 1.0
+    k = wavenumber(Tp_s, depth_m)
+    if not k or k <= 0:
+        return 1.0
+    kd = k * depth_m
+    if kd > 8.0:                               # deep: the wave doesn't feel the bed -> no friction
+        return 1.0
+    feel = 1.0 / math.sinh(kd)
+    width_cells = width_km / _CELL_KM
+    return math.exp(-SHELF_FRICTION_CF * width_cells * feel)
+
+
+def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0):
+    """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative shelf depth,
+    the shelf WIDTH, and whether the point is near a coast. Worldwide — every input comes from the global
+    bathymetry, so the same physics applies on any coast.
+
+    Physics (literature-grounded):
+      1. Cross-shelf bottom friction (Kf, ``shelf_dissipation``): swell crossing a WIDE SHALLOW shelf loses
+         energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd).
+      2. Local shoaling (Ks) from deep/intermediate water to the shelf-cell depth (linear wave theory).
+      3. Depth-limited breaking: capped at GAMMA*depth.
+      4. Surf only exists near a shore: an OPEN-OCEAN point (no nearby land) carries swell but no surf ->
+         regime 'open_ocean', offshore height returned, callers hide/transparency-mask it.
+
+    Net effect: a WIDE SHALLOW shelf (Florida, the US East/Gulf, Patagonia, the Yellow Sea…) yields surf MUCH
+    SMALLER than the offshore swell; a STEEP/DEEP coast passes most of it through. Sub-grid reef shoaling /
+    refraction amplification (surf > offshore) needs finer bathymetry + a shore-normal -> deferred to v3.
+
+    Returns ``(surf_height_m, regime)`` in: calm | unknown | open_ocean | shelf (friction-reduced) |
+    shoaling (locally raised) | breaking (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
     if Hs_m <= 0:
@@ -169,34 +199,32 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True):
         return None, 'unknown'
     if not coastal:
         return float(Hs_m), 'open_ocean'           # swell with no shore to break on -> not surf
-    Kf = shelf_factor(Tp_s, depth_m) if (depth_m and depth_m > 0) else 1.0
-    Hs_eff = Kf * Hs_m
-    Hb = komar_breaker_height(Hs_eff, Tp_s)
-    if Hb is None:
-        Hb = Hs_eff
-    if depth_m and depth_m > 0:
-        cap = GAMMA * depth_m
-        if Hb >= cap:
-            return float(cap), 'breaking'           # depth-limited on a shallow shelf cell
-    if Hb >= Hs_m:
-        return float(Hb), 'reef'                    # shoaling amplification dominates (steep coast)
-    return float(Hb), 'shelf'                       # friction-dominated reduction (wide shallow shelf)
+    if depth_m is None or depth_m <= 0:
+        return float(Hs_m), 'shelf'                # coastal but no usable depth -> pass through
+    Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)
+    Ks = shoaling_coefficient(Tp_s, depth_m)
+    H = Kf * Ks * Hs_m
+    cap = GAMMA * depth_m
+    if H >= cap:
+        return float(cap), 'breaking'              # depth-limited on a shallow shelf cell
+    return (float(H), 'shelf') if H <= Hs_m else (float(H), 'shoaling')
 
 
-def surf_transform_grid(vectors, depth_fn, coastal_fn=None):
+def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):
     """In-place SURF-BAND transform of a marine grid for the Swell<->Surf heatmap toggle.
 
     Surf is a COASTLINE property, not an open-ocean field, so this does two things per cell:
-      - COASTAL cells: replace the offshore wave HEIGHT (``speed``) with the bathymetry breaker estimate
-        (``estimate_surf``), scaling ``u``/``v`` by the same ratio so direction is preserved. Breakers can be
-        LARGER than the offshore swell (steep reefs) or smaller (wide shallow shelves).
+      - COASTAL cells: replace the offshore wave HEIGHT (``speed``) with the bathymetry surf estimate
+        (``estimate_surf`` — cross-shelf friction + shoaling + depth-limited breaking), scaling ``u``/``v`` by
+        the same ratio so direction is preserved. Wide shallow shelves reduce; steep/deep coasts pass through.
       - OPEN-OCEAN cells: transparency-mask them (``is_valid = False``) so the heatmap renders only a
         nearshore SURF BAND hugging the coast instead of washing the whole ocean.
 
-    ``depth_fn(lat,lng)->depth_m|None`` and ``coastal_fn(lat,lng)->bool`` are injected (pass
-    ``bathymetry.shelf_depth_at`` / ``bathymetry.is_coastal``) so this stays pure + unit-testable. When
-    ``coastal_fn`` is None every cell is treated coastal (no masking). Returns ``(n_transformed, n_masked)``.
-    Mutates the vector objects (any object with speed/u/v/period/lat/lng[/is_valid] attributes)."""
+    ``depth_fn(lat,lng)->depth_m|None``, ``coastal_fn(lat,lng)->bool`` and ``width_fn(lat,lng)->km`` are
+    injected (pass ``bathymetry.shelf_depth_at`` / ``is_coastal`` / ``shelf_width_km``) so this stays pure +
+    unit-testable. When ``coastal_fn`` is None every cell is treated coastal (no masking); when ``width_fn`` is
+    None no shelf-width friction is applied. Returns ``(n_transformed, n_masked)``. Mutates the vector objects
+    (any object with speed/u/v/period/lat/lng[/is_valid] attributes)."""
     n_transformed = 0
     n_masked = 0
     for vec in vectors:
@@ -220,7 +248,13 @@ def surf_transform_grid(vectors, depth_fn, coastal_fn=None):
             depth = depth_fn(lat, lng)
         except Exception:
             depth = None
-        surf, regime = estimate_surf(sp, getattr(vec, "period", None), depth, coastal=True)
+        width = 0.0
+        if width_fn is not None:
+            try:
+                width = width_fn(lat, lng) or 0.0
+            except Exception:
+                width = 0.0
+        surf, regime = estimate_surf(sp, getattr(vec, "period", None), depth, coastal=True, shelf_width_km=width)
         if surf is None or regime in ("open_ocean", "calm", "unknown"):
             continue
         ratio = (surf / sp) if sp else 1.0

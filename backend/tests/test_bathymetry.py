@@ -39,3 +39,10 @@ def test_is_coastal_distinguishes_shore_from_open_ocean():
     assert b.is_coastal(28.4, -80.55) is True    # Florida east coast — land + ocean within the window
     assert b.is_coastal(30.0, -150.0) is False    # mid North Pacific — no shore to break on
     assert b.is_coastal(38.5, -98.0) is False      # central Kansas — land only, no ocean (not surfable)
+
+
+def test_shelf_width_wide_florida_vs_zero_deep():
+    fl = b.shelf_width_km(28.4, -80.55)      # on the Florida shelf -> finite distance to the shelf break
+    assert fl > 0
+    deep = b.shelf_width_km(30.0, -150.0)    # cell itself is deep ocean -> no shelf to cross
+    assert deep == 0.0

@@ -576,8 +576,8 @@ async def resolve_grid(
     ):
         try:
             from services.weather_pipeline.surf_transform import surf_transform_grid
-            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal
-            n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal)
+            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+            n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
             product.is_estimated = True
             if product.grid.diagnostics is None:
                 product.grid.diagnostics = {}

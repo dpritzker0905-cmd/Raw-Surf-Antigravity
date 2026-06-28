@@ -86,23 +86,42 @@ def test_komar_breaker_height():
     assert st.komar_breaker_height(1.0, 16.0) > st.komar_breaker_height(1.0, 8.0)
 
 
+def test_shelf_dissipation():
+    # deep water or zero shelf width -> no loss
+    assert st.shelf_dissipation(12.0, 3000.0, 100.0) == pytest.approx(1.0, abs=1e-9)
+    assert st.shelf_dissipation(10.0, 20.0, 0.0) == pytest.approx(1.0)
+    # wider shelf -> more energy lost (monotonic decrease)
+    narrow = st.shelf_dissipation(10.0, 25.0, 20.0)
+    wide = st.shelf_dissipation(10.0, 25.0, 120.0)
+    assert 0.0 < wide < narrow < 1.0
+    # shallower shelf -> the wave feels the bed more -> more loss
+    assert st.shelf_dissipation(10.0, 12.0, 80.0) < st.shelf_dissipation(10.0, 60.0, 80.0)
+
+
 def test_estimate_surf_regimes():
     # open ocean (not coastal) -> offshore swell passes through, regime open_ocean (callers hide it)
     s, r = st.estimate_surf(2.0, 10.0, 2000.0, coastal=False)
     assert r == 'open_ocean' and s == pytest.approx(2.0)
-    # steep / deep coast -> shoaling lifts the breaker ABOVE the offshore swell (reef)
-    s, r = st.estimate_surf(2.0, 12.0, 1000.0, coastal=True)
-    assert r == 'reef' and s > 2.0
-    # wide shallow shelf -> a coastal break (friction + shoaling), height still positive
-    s, r = st.estimate_surf(1.0, 8.0, 12.0, coastal=True)
-    assert r in ('shelf', 'reef', 'breaking') and s > 0
+    # WIDE SHALLOW shelf (Florida-class): cross-shelf friction shrinks surf well below the offshore swell
+    s, r = st.estimate_surf(2.0, 10.0, 24.0, coastal=True, shelf_width_km=100.0)
+    assert r in ('shelf', 'breaking') and s < 2.0 * 0.8
+    # steep / deep coast (no shelf to cross) -> passes ~through, never amplified above offshore
+    s, r = st.estimate_surf(2.0, 12.0, 2000.0, coastal=True, shelf_width_km=0.0)
+    assert s == pytest.approx(2.0, rel=0.1) and s <= 2.0 + 1e-9
     # very shallow + big swell -> depth-limited breaking cap binds
-    s, r = st.estimate_surf(5.0, 14.0, 1.0, coastal=True)
+    s, r = st.estimate_surf(5.0, 14.0, 1.0, coastal=True, shelf_width_km=5.0)
     assert r == 'breaking' and s == pytest.approx(st.GAMMA * 1.0, rel=1e-6)
     # calm / unknown
     assert st.estimate_surf(0.0, 10.0, 20.0) == (0.0, 'calm')
     assert st.estimate_surf(None, 10.0, 20.0) == (None, 'unknown')
     assert st.estimate_surf(2.0, 0.0, 20.0) == (None, 'unknown')
+
+
+def test_estimate_surf_wider_shelf_reduces_more():
+    # THE key physics fix: a wider shelf (more cross-shelf friction) gives smaller surf for the same swell.
+    narrow, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=20.0)
+    wide, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=120.0)
+    assert wide < narrow <= 2.0 + 1e-9
 
 
 def test_estimate_surf_open_ocean_passthrough():
@@ -131,13 +150,13 @@ async def test_resolve_point_attaches_surf_for_marine(monkeypatch):
             value_kind="wave_height", value_unit="m", display_unit_hint="ft",
             source_variables=["wave_height"], freshness_sec=1800)
 
-    # Cape Canaveral marine waves: a coastal break -> surf attached (regime reef/shelf/breaking)
+    # Cape Canaveral marine waves: a WIDE SHALLOW shelf -> surf attached AND SMALLER than the offshore swell
     async def fake_marine(**kw):
         return _resp("marine", "waves", 28.4, -80.55, 2.0, 10.0)
     monkeypatch.setattr(svc, "_resolve_point_internal", fake_marine)
     r = await svc.resolve_point("GFS", "marine", "waves", 28.4, -80.55, "2026-06-28T00:00:00Z")
-    assert r.surf_regime in ("reef", "shelf", "breaking")            # a real coastal break
-    assert r.surf_height_m is not None and r.surf_height_m > 0
+    assert r.surf_regime in ("shelf", "breaking")                    # friction-dominated coastal break
+    assert r.surf_height_m is not None and 0 < r.surf_height_m < 2.0  # Florida shelf shrinks it (the fix)
     assert r.shelf_depth_m is not None and r.shelf_depth_m < 200
 
     # Deep open ocean (no nearby land) -> open_ocean, surf == offshore swell (hidden by the infobox)
@@ -166,10 +185,11 @@ def test_surf_transform_grid_band_masks_open_ocean():
     ]
     depth_fn = lambda lat, lng: 20.0 if lat == 28.4 else 3000.0
     coastal_fn = lambda lat, lng: (lat == 28.4 and lng == -80.5)
-    n_transformed, n_masked = st.surf_transform_grid(vecs, depth_fn, coastal_fn)
+    width_fn = lambda lat, lng: 100.0 if lat == 28.4 else 0.0   # wide FL-class shelf
+    n_transformed, n_masked = st.surf_transform_grid(vecs, depth_fn, coastal_fn, width_fn)
     assert n_transformed == 1 and n_masked == 1
-    # coastal cell: breaker height set (>0), still valid, u/v scaled by the same ratio (direction preserved)
-    assert vecs[0].speed > 0 and vecs[0].is_valid is True
+    # coastal cell: surf set BELOW the offshore swell (wide shelf reduces), still valid, u/v scaled by ratio
+    assert 0 < vecs[0].speed < 2.0 and vecs[0].is_valid is True
     assert vecs[0].u == pytest.approx(-vecs[0].v, abs=1e-9)   # was (1.0, -1.0) -> stays equal-and-opposite
     # open-ocean cell: transparency-masked (rendered transparent), offshore value left as-is
     assert vecs[1].is_valid is False

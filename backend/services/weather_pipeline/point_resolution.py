@@ -134,13 +134,15 @@ class PointResolutionService:
             and os.environ.get("SURF_TRANSFORM", "1") != "0"
         ):
             try:
-                from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal
+                from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
                 from services.weather_pipeline.surf_transform import estimate_surf
                 depth = shelf_depth_at(lat, lng)
                 # Coastal-proximity gate is GEOGRAPHY-only (model-independent) so the surf row shows at the
                 # same coastal points for GFS/EURO/ICON; open-ocean points get regime 'open_ocean' (hidden).
+                # shelf_width drives cross-shelf bottom friction: a wide shallow shelf (Florida) yields surf
+                # MUCH smaller than the offshore swell; a steep/deep coast passes most of it through.
                 surf, regime = estimate_surf(response.point.speed, response.point.period, depth,
-                                             coastal=is_coastal(lat, lng))
+                                             coastal=is_coastal(lat, lng), shelf_width_km=shelf_width_km(lat, lng))
                 response.surf_height_m = round(surf, 4) if surf is not None else None
                 response.surf_regime = regime
                 response.shelf_depth_m = round(depth, 1) if depth is not None else None

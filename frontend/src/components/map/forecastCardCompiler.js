@@ -201,16 +201,16 @@ export function compileForecastCards({
     }
 
     cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
-    // Option-2 bathymetry SURF transform (ESTIMATE): the nearshore breaking height (Komar & Gaughan shoaling
-    // + shelf friction + depth-limited breaking). Shown for any coastal break regime — reef (shoaling-
-    // amplified, can be BIGGER than offshore Height), shelf (friction-reduced), or breaking (depth-capped).
-    // Open-ocean points (regime 'open_ocean') have no shore to break on, so the row is hidden there. The
-    // coastal gate is geography-based, so this row shows consistently for GFS/EURO/ICON. (est.) keeps it
-    // honestly distinct from the authoritative offshore model value.
+    // Option-2 bathymetry SURF transform (ESTIMATE): nearshore breaking height (cross-shelf bottom friction
+    // + shoaling + depth-limited breaking). Shown for any coastal break regime (shelf/shoaling/breaking);
+    // hidden for 'open_ocean' (no shore to break on) and calm/unknown. The coastal gate is geography-based,
+    // so this row shows consistently for GFS/EURO/ICON. A wide shallow shelf (Florida) reads SMALLER than the
+    // offshore Height; a steep coast ~the same. (est.) keeps it honestly distinct from the model value.
     {
       const _surf = useExactPoint?.surf_height_m;
       const _reg = useExactPoint?.surf_regime;
-      if (_surf != null && (_reg === 'reef' || _reg === 'shelf' || _reg === 'breaking')) {
+      const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown';
+      if (_surf != null && _reg && !_hidden) {
         const _surfFt = mToFt(_surf);
         if (_surfFt != null) {
           cards.push({ icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300' });

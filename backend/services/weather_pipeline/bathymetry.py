@@ -10,9 +10,15 @@ coastal click returns the shelf depth just offshore (the depth the swell actuall
 """
 import os
 import json
+import math
 import threading
 from functools import lru_cache
 from typing import Optional
+
+# Water deeper than this is treated as "off the shelf" (the shelf break is ~150-200 m worldwide). Used to
+# measure shelf WIDTH = how far swell crosses the dissipative shelf before it reaches the surf zone.
+SHELF_BREAK_DEPTH_M = 200.0
+_KM_PER_DEG = 111.0
 
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _NPY = os.path.join(_DATA_DIR, "etopo_depth_0p25.npy")
@@ -142,3 +148,48 @@ def is_coastal(lat: float, lng: float, radius_cells: int = 3) -> bool:
     has_land = bool((sub <= 0).any())     # land / no-depth cells are <= 0 (ocean depth is positive-down)
     has_ocean = bool((sub > 0).any())
     return has_land and has_ocean
+
+
+@lru_cache(maxsize=200_000)
+def shelf_width_km(lat: float, lng: float, max_cells: int = 8) -> float:
+    """Approx distance (km) from (lat, lng) to the SHELF BREAK — the nearest water deeper than
+    SHELF_BREAK_DEPTH_M. This is a proxy for how far swell crosses the dissipative shelf before it reaches
+    the surf zone, which is THE control on bottom-friction energy loss: a wide gentle shelf (Florida ~100 km)
+    bleeds far more energy than a narrow steep one (Hawaii ~few km) [Kurian 1987; Ardhuin 2003].
+
+    Returns 0.0 if the point's own cell is already deep (steep drop-off — no shelf to cross), or
+    ``max_cells * ~28 km`` if no deep water is found within the search (a very wide shelf / shallow sea).
+    Returns 0.0 if the grid is unavailable (caller then applies no shelf friction)."""
+    if not is_available():
+        return 0.0
+    try:
+        grid, meta = _load()
+    except Exception:
+        return 0.0
+    nlat, nlon = meta["nlat"], meta["nlon"]
+    lat0, lon0, dlat, dlon = meta["lat0"], meta["lon0"], meta["dlat"], meta["dlon"]
+    lng = ((float(lng) + 180.0) % 360.0) - 180.0
+    r = int(round((float(lat) - lat0) / dlat))
+    c = int(round((lng - lon0) / dlon))
+    if r < 0 or r >= nlat or c < 0 or c >= nlon:
+        return 0.0
+    if int(grid[r, c]) > SHELF_BREAK_DEPTH_M:
+        return 0.0                                   # already off the shelf -> steep drop-off
+    km_lat = dlat * _KM_PER_DEG
+    km_lng = dlon * _KM_PER_DEG * math.cos(math.radians(float(lat)))
+    best = None
+    for rad in range(1, max_cells + 1):
+        for dr in range(-rad, rad + 1):
+            for dc in range(-rad, rad + 1):
+                if max(abs(dr), abs(dc)) != rad:     # only the new ring at this radius
+                    continue
+                rr, cc = r + dr, c + dc
+                if rr < 0 or rr >= nlat or cc < 0 or cc >= nlon:
+                    continue
+                if int(grid[rr, cc]) > SHELF_BREAK_DEPTH_M:
+                    dist = math.hypot(dr * km_lat, dc * km_lng)
+                    if best is None or dist < best:
+                        best = dist
+        if best is not None:
+            return float(best)
+    return float(max_cells * km_lat)                  # no deep water within search -> very wide shelf
