@@ -183,6 +183,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
         renderable: false,
         emptyGridWarning: `Oversized grid (${rawVectorCount} cells, ${json.grid.cols}x${json.grid.rows}) rejected — anomalous backend resolution`,
         productId: json.product_id || null,
+        ratingMode: false,
         oversizedRejected: true
       },
       __renderable: false
@@ -282,6 +283,12 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       productId: json.product_id || null,
       region_id: json.region_id || json.tile_id || null,
       coverage_scope: json.coverage_scope || null,
+      // ratingMode: TRUE only when the backend actually ran the surf-QUALITY transform on this grid
+      // (diagnostics.surf_transform.value_kind === 'surf_rating'). Both render layers (the shader rating
+      // band + the per-spot glyphs) gate on this so they NEVER paint rating colours on a raw-height frame
+      // (e.g. the global-coarse frame where the transform was skipped) — Option-A from the rating plan §8 #2.
+      ratingMode: !!(json.grid && json.grid.diagnostics && json.grid.diagnostics.surf_transform
+        && json.grid.diagnostics.surf_transform.value_kind === 'surf_rating'),
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,

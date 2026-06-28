@@ -94,6 +94,11 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       productId: json.product_id || null,
       region_id: json.region_id || json.tile_id || null,
       coverage_scope: json.coverage_scope || null,
+      // ratingMode: TRUE only when the backend ran the surf-QUALITY transform (value_kind === 'surf_rating').
+      // Gates the rating band + spot glyphs so EURO coarse/global raw-height frames never show fake ratings
+      // (Option-A, rating plan §8 #2). Mirrors the GFS/ICON conformer in backendWeatherServiceClientHelpers.js.
+      ratingMode: !!(json.grid && json.grid.diagnostics && json.grid.diagnostics.surf_transform
+        && json.grid.diagnostics.surf_transform.value_kind === 'surf_rating'),
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,

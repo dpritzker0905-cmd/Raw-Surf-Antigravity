@@ -600,6 +600,18 @@ async def resolve_grid(
             logger.info(f"[Grid Route] Surf {label}: {n_t} coastal cells, {n_masked} open-ocean masked, for {model} {layer}.")
         except Exception as _se:
             logger.warning(f"[Grid Route] Surf overlay skipped: {_se}")
+            # Forensic instrumentation (rating plan §8 #3): the global-coarse frame returns surf_transform:None
+            # and the Render exception isn't capturable locally. Stash the exception type+message into the
+            # response diagnostics so the NEXT live `/grid?surf=true` on the global frame reveals WHY the
+            # transform was skipped (a throw vs a no-op) — forensics over guessing. Purely additive; the
+            # frontend Option-A gate already renders the honest swell field when no rating grid exists.
+            try:
+                if product is not None and getattr(product, "grid", None) is not None:
+                    if product.grid.diagnostics is None:
+                        product.grid.diagnostics = {}
+                    product.grid.diagnostics["surf_skip_reason"] = f"{type(_se).__name__}: {_se}"
+            except Exception:
+                pass
 
     return product
 

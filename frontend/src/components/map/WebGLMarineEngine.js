@@ -422,6 +422,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           : ((window.localStorage && window.localStorage.getItem('__SURF_MODE__') === 'true') ? 1.0 : 0.0);
       }
     } catch (e) { surfModeVal = 0.0; }
+    // Option-A gate (rating plan §8 #2): the rating colormap (getRatingColorSmooth) decodes the height channel
+    // as a 0-100 QUALITY score, which is only valid when the backend actually produced a rating grid. On a
+    // raw-height frame (e.g. the global-coarse frame where the surf transform was skipped) `ratingMode` is
+    // false, so we force surfMode off and the shader shows the HONEST swell field instead of fake rating
+    // colours. The per-spot glyphs gate on the same signal (useSpotRatings) so both layers stay consistent.
+    if (surfModeVal > 0.0 && !(waveGrid && waveGrid.ratingMode)) {
+      surfModeVal = 0.0;
+    }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
 

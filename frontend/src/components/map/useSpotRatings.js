@@ -53,6 +53,33 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
 }
 
 /**
+ * Pure: spotId -> { score, level, color, label } for the visible (non-cluster) spots in Rating mode.
+ * Extracted from the hook so the ratingMode gate + sampling are unit-testable without React.
+ *
+ * Option-A gate (rating plan §8 #2): returns {} unless `grid.ratingMode` is true. On a raw-height frame
+ * (e.g. the global-coarse frame where the backend skipped the surf transform) `grid.speed` is wave HEIGHT
+ * in metres, which sampleRatingScoreFromGrid would mis-decode as score/10 → fake "poor" glyphs. When
+ * ratingMode is false the spots fall back to plain pins (matching the shader showing the honest swell field).
+ */
+export function computeSpotRatings(spotClusters, grid, surfMode) {
+  const out = {};
+  if (!surfMode || !grid || !grid.ratingMode || !spotClusters) return out;
+  for (const c of spotClusters) {
+    if (!c || c.isCluster) continue;
+    const score = sampleRatingScoreFromGrid(grid, c.latitude, c.longitude);
+    if (score == null) continue;
+    const level = scoreToLevel(score);
+    out[c.id] = {
+      score: Math.round(score),
+      level,
+      color: RATING_COLOR[level],
+      label: RATING_LABEL[level],
+    };
+  }
+  return out;
+}
+
+/**
  * Map of spotId -> { score, level, color, label } for the visible (non-cluster) spots, while Rating mode is on.
  * Recomputes only when the spots, the surf-mode flag, or the marine grid revision change.
  */
@@ -61,21 +88,7 @@ export function useSpotRatings({ spotClusters, marineData, surfMode }) {
   const rev = (marineData && (marineData.__commitRevision || (grid && grid.__activeLayerNonzeroCount))) || 0;
 
   return useMemo(() => {
-    const out = {};
-    if (!surfMode || !grid || !spotClusters) return out;
-    for (const c of spotClusters) {
-      if (!c || c.isCluster) continue;
-      const score = sampleRatingScoreFromGrid(grid, c.latitude, c.longitude);
-      if (score == null) continue;
-      const level = scoreToLevel(score);
-      out[c.id] = {
-        score: Math.round(score),
-        level,
-        color: RATING_COLOR[level],
-        label: RATING_LABEL[level],
-      };
-    }
-    return out;
+    return computeSpotRatings(spotClusters, grid, surfMode);
     // rev guards the data-content recompute when the grid is mutated in place across commits.
   }, [spotClusters, surfMode, rev, grid]);
 }

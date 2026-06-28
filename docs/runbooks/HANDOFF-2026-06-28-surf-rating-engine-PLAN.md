@@ -142,15 +142,24 @@ seabed morphology (from `wave_type`) → local‑wind modification / currents (a
    which lock is stuck when frozen (`window.__MARINE_GOVERNOR_STATE__` govIdle? `__MARINE_FETCH_PENDING__`
    stuck non‑null? `isFetching` stuck?), then release/auto‑redrive it. See [[marine-stranded-fetch-lock-wedge]],
    [[marine-zoomout-clamp-live-2026-06-25]]. ⚠️ Delicate subsystem — instrument from a real repro, don't guess.
-2. **Coarse/global overlay = FAKE rating (P0).** `/grid?surf=true` on the global‑coarse grid returns
-   `surf_transform: None` (raw wave_height), and the shader still paints rating colors → fake (no wind/period/
-   angle). FIX = gate `u_surfMode` on the grid actually being a rating grid (`WebGLMarineEngine.js` ~L417‑425
-   reads `window.__SURF_MODE__`; also require `marineData.grid.diagnostics.surf_transform`/value_kind). Then
-   Rating mode shows the honest swell field where no real rating exists. (Option A from the discussion.)
-3. **Why the transform doesn't run on the global grid (P0 investigate).** Regional runs (`wind:True`); wide/
-   global returns None — likely `rating_transform_grid`/`_build_wind_sampler` throws on the global extent
-   (caught at `grid_resolver.py` ~L601 "Surf overlay skipped"). Need the Render‑side exception log; then either
-   harden it (per‑cell try/except) or accept Option‑A gating and leave coarse unrated.
+2. **Coarse/global overlay = FAKE rating (P0). ✅ FIXED IN CODE (pending live verify) — Option A.** ROOT CAUSE
+   (forensics): the frontend marine conformers (`mapNormalizedGridToWebGL` in
+   `backendWeatherServiceClientHelpers.js`; the EURO builder in `backendCopernicusServiceClient.js`) built
+   `result.grid` field‑by‑field and **dropped `diagnostics`** → `waveGrid.diagnostics` was undefined, so the
+   shader/glyphs had NO signal to tell a real rating grid from a raw‑height frame. FIX: plumb a `ratingMode`
+   boolean (`grid.diagnostics?.surf_transform?.value_kind === 'surf_rating'`) through BOTH conformers, then gate
+   the shader band (`WebGLMarineEngine.js` ~L417: `surfModeVal=0` unless `waveGrid.ratingMode`) AND the glyphs
+   (`useSpotRatings`→pure exported `computeSpotRatings`, returns `{}` unless `grid.ratingMode`; +5 tests). Rating
+   mode now shows the HONEST swell field where no real rating exists. Green: 25 JS + 31 py + prod build.
+3. **Why the transform doesn't run on the global grid (P0 investigate). ⏳ INSTRUMENTED (truth on next deploy).**
+   Could NOT decide throw (H2) vs skipped‑gate (H1) from static code: `rating_transform_grid` already wraps every
+   per‑cell helper EXCEPT `estimate_surf`/`compute_surf_rating`, and the math helpers all guard `sinh` with kd
+   cutoffs; the local `backend/diagnostics.log` is stale 2026‑06‑14 client data (NOT the prod log). So rather than
+   guess, added `grid.diagnostics["surf_skip_reason"]=f"{type(e).__name__}: {e}"` in the `grid_resolver.py` `except`
+   (~L601) — the NEXT live `/grid?surf=true` on the global frame reveals WHY. Deliberately did NOT add per‑cell
+   try/except yet: if the cause IS a cell throw, hardening would silently make the global frame emit COARSE ratings
+   (a behavior change; this section leans "leave coarse unrated"). Decide after the instrumentation result.
+   See [[rating-option-a-gate-2026-06-28]].
 4. **(Shipped — verify after deploy):** infobox accuracy `f0d2b6f4`, arrow revert `aab77b0f`, swell‑angle
    exposure `e0d334ec`. Verify: Pacific point infobox reads ~2.7ft/SW (not 9.3ft/ENE); arrows toward shore.
 
