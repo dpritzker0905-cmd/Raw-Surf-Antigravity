@@ -136,6 +136,25 @@ export function getBackendCopernicusFlag() {
 }
 
 /**
+ * Option-2 Swell<->Surf toggle flag. When ON, marine grid fetches request &surf=1 so the heatmap renders
+ * the bathymetry SURF (nearshore breaking) height instead of offshore swell. window + localStorage; OFF by
+ * default. Read by the marine grid URL builder + the marine cache key; flipped by the controls toggle.
+ */
+export function getSurfModeFlag() {
+  if (typeof window === 'undefined') return false;
+  if (window.__SURF_MODE__ !== undefined) return !!window.__SURF_MODE__;
+  try {
+    return window.localStorage.getItem('__SURF_MODE__') === 'true';
+  } catch (e) { return false; }
+}
+
+export function setSurfModeFlag(on) {
+  if (typeof window === 'undefined') return;
+  window.__SURF_MODE__ = !!on;
+  try { window.localStorage.setItem('__SURF_MODE__', on ? 'true' : 'false'); } catch (e) {}
+}
+
+/**
  * Resolves the backend ICON service feature flag.
  * Defaults to true under active master flag.
  */
@@ -477,7 +496,7 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  const url = `${GRID_URL}?model=${model}&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
     const res = await fetch(url, { signal });

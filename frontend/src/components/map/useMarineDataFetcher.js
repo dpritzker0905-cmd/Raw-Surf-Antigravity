@@ -3,7 +3,7 @@ import { useMarineRevalidation } from '../../hooks/useMarineRevalidation';
 import { useMarineDataFetcherCore } from './useMarineDataFetcherCore';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
-import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag } from './backendWeatherServiceClient';
+import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature, _logPipelineEvent } from './useMarineOrchestratorDiag';
@@ -106,7 +106,7 @@ export function useMarineDataFetcher({
       }
       const q = v => Number(v).toFixed(2);
       const bboxStr = `${q(west)},${q(south)},${q(east)},${q(north)}`;
-      return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}`;
+      return `${bboxStr}:${activeModelRef.current}:${activeMarineLayerRef.current || 'waves'}:${timeOffsetRef.current}:${getSurfModeFlag() ? 'surf' : 'swell'}`;
     } catch (e) { return null; }
   }, [mapInstance, activeModelRef, activeMarineLayerRef, timeOffsetRef]);
 
@@ -171,6 +171,17 @@ export function useMarineDataFetcher({
 
   enqueueMarineUpdateRef.current = enqueueMarineUpdate;
   manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
+
+  // Option-2 Swell<->Surf toggle: re-fetch the marine grid when the surf flag flips. The toggle (in
+  // MapWeatherControls) flips the flag then dispatches this event; the URL builder + cache key already read
+  // the flag, so a forced manual fetch pulls the surf (or swell) grid and commits it to the heatmap.
+  useEffect(() => {
+    const onSurfToggle = () => {
+      try { enqueueMarineUpdate('manual'); } catch (e) {}
+    };
+    window.addEventListener('rawsurf:surf-toggle', onSurfToggle);
+    return () => window.removeEventListener('rawsurf:surf-toggle', onSurfToggle);
+  }, [enqueueMarineUpdate]);
 
   useEffect(() => {
     marineDataRef.current = marineData;

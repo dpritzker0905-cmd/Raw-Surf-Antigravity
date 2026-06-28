@@ -3,6 +3,10 @@ import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, Chev
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
+import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
+
+// Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
+const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
 
 // Convert meters to feet
 const M_TO_FT = 3.28084;
@@ -74,6 +78,15 @@ export var MapWeatherControls = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   // Remove local isTimelineCollapsed since we lift it up, or use the prop directly if provided.
   const [localTimelineCollapsed, setLocalTimelineCollapsed] = useState(false);
+  const [surfMode, setSurfMode] = useState(() => getSurfModeFlag());
+
+  // Flip Swell<->Surf: persist the flag and signal the marine fetcher to re-fetch (surf vs swell grid).
+  const toggleSurfMode = () => {
+    const next = !surfMode;
+    setSurfMode(next);
+    setSurfModeFlag(next);
+    if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('rawsurf:surf-toggle'));
+  };
 
   useEffect(() => {
     setIsCollapsed(isImmersiveMode);
@@ -531,7 +544,23 @@ export var MapWeatherControls = ({
 
         {activeLayer && legendConfig[activeLayer] && (
           <div className="mt-1">
-            <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
+            <div className="flex items-center justify-between mb-0.5">
+              <div className={`text-[9px] ${textMuted}`}>
+                {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)
+                  ? `Surf · ${legendConfig[activeLayer].label}`
+                  : legendConfig[activeLayer].label}
+              </div>
+              {SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+                <button
+                  type="button"
+                  onClick={toggleSurfMode}
+                  title="Toggle Swell (offshore) vs Surf (bathymetry breaking height — estimate)"
+                  className={`text-[8px] leading-none px-1.5 py-0.5 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
+                >
+                  {surfMode ? 'Surf' : 'Swell'}
+                </button>
+              )}
+            </div>
             <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
             <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
               {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
