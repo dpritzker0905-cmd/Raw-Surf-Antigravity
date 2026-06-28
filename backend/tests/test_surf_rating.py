@@ -87,3 +87,29 @@ def test_score_to_level_buckets():
 def test_missing_surf_height_is_unknown():
     score, level = compute_surf_rating(None, 12.0, 5.0)
     assert score is None and level == "unknown"
+
+
+def test_rating_transform_grid_writes_score_masks_open_ocean_zeros_vectors():
+    from types import SimpleNamespace
+    from services.weather_pipeline.surf_rating import rating_transform_grid
+
+    def vec(speed, lat, lng):
+        return SimpleNamespace(speed=speed, period=12.0, lat=lat, lng=lng, u=1.0, v=1.0,
+                               is_valid=True, rating_level=None)
+
+    coastal = vec(1.5, 34.0, -120.0)
+    open_ocean = vec(2.0, 0.0, -140.0)
+    n_rated, n_masked = rating_transform_grid(
+        [coastal, open_ocean],
+        depth_fn=lambda la, ln: 30.0,
+        coastal_fn=lambda la, ln: la == 34.0,        # only the coastal cell is coastal
+        width_fn=lambda la, ln: 0.0,
+        wind_fn=lambda la, ln: (5.0, 90.0),          # light, offshore vs the 270 shore-normal
+        shore_normal_fn=lambda la, ln: 270.0,
+    )
+    assert n_rated == 1 and n_masked == 1
+    assert 0 < coastal.speed <= 100                  # speed now holds the 0-100 rating score
+    assert coastal.u == 0.0 and coastal.v == 0.0     # rating is scalar -> no direction arrows
+    assert coastal.rating_level in (
+        "very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic")
+    assert open_ocean.is_valid is False              # open ocean transparency-masked

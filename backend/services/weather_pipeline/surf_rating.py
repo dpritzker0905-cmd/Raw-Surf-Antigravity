@@ -128,3 +128,77 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
         return None, "unknown"
     score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg)
     return score, score_to_level(score)
+
+
+def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, wind_fn=None, shore_normal_fn=None):
+    """In-place RATING-BAND transform of a marine grid for the surf-quality MAP overlay (the on-map
+    differentiator). Per COASTAL cell: derive the breaking height (surf_transform.estimate_surf) then the
+    0-100 surf-quality SCORE (compute_surf_rating, with wind + shore-normal co-sampled via the injected fns),
+    and write that score into ``speed`` so the heatmap colours by QUALITY (the frontend keys the 7-level
+    rating colormap off the grid's rating mode). OPEN-OCEAN cells are transparency-masked (is_valid=False) ->
+    a coastal RATING BAND, exactly like surf_transform_grid.
+
+    Injected fns keep it pure/unit-testable (no I/O): depth_fn(lat,lng)->m|None, coastal_fn(lat,lng)->bool,
+    width_fn(lat,lng)->km, wind_fn(lat,lng)->(speed_ms, from_deg)|None, shore_normal_fn(lat,lng)->bearing|None.
+    Returns (n_rated, n_masked). Mutates each vector: ``speed`` becomes the score, ``u``/``v`` are zeroed
+    (rating is scalar — no direction arrows), and ``rating_level`` is set when the attribute exists. Truly
+    flat cells (size gate 0 -> score 0) are left untouched/non-rendered (no wave to rate)."""
+    from services.weather_pipeline.surf_transform import estimate_surf
+    n_rated = 0
+    n_masked = 0
+    for vec in vectors:
+        sp = getattr(vec, "speed", 0) or 0
+        if sp <= 0:
+            continue
+        lat = getattr(vec, "lat", None)
+        lng = getattr(vec, "lng", None)
+        if coastal_fn is not None:
+            try:
+                coastal = bool(coastal_fn(lat, lng))
+            except Exception:
+                coastal = True
+            if not coastal:
+                if hasattr(vec, "is_valid"):
+                    vec.is_valid = False
+                n_masked += 1
+                continue
+        try:
+            depth = depth_fn(lat, lng)
+        except Exception:
+            depth = None
+        width = 0.0
+        if width_fn is not None:
+            try:
+                width = width_fn(lat, lng) or 0.0
+            except Exception:
+                width = 0.0
+        period = getattr(vec, "period", None)
+        surf, regime = estimate_surf(sp, period, depth, coastal=True, shelf_width_km=width)
+        if surf is None or regime in ("open_ocean", "calm", "unknown"):
+            continue
+        wind_speed = wind_from = None
+        if wind_fn is not None:
+            try:
+                w = wind_fn(lat, lng)
+                if w:
+                    wind_speed, wind_from = w
+            except Exception:
+                pass
+        shore_normal = None
+        if shore_normal_fn is not None:
+            try:
+                shore_normal = shore_normal_fn(lat, lng)
+            except Exception:
+                shore_normal = None
+        score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal)
+        if score is None or score <= 0:
+            continue                                   # no rideable wave -> nothing to rate
+        vec.speed = round(float(score), 1)             # 0-100 rating score -> heatmap value
+        if hasattr(vec, "rating_level"):
+            vec.rating_level = level
+        if getattr(vec, "u", None) is not None:
+            vec.u = 0.0
+        if getattr(vec, "v", None) is not None:
+            vec.v = 0.0
+        n_rated += 1
+    return n_rated, n_masked
