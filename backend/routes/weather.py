@@ -29,7 +29,9 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import BaseModel
 from database import get_db
 from models.spots import SurfSpot
-from services.weather_pipeline.surf_rating import compute_surf_rating
+from services.weather_pipeline.spot_ratings import (
+    rate_one_spot, load_spot_ratings_l2_cached, select_precomputed,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -298,7 +300,6 @@ async def get_point(
 # sampling — the first call per domain warms the viewport tile, the rest hit cache), so it is NOT N network
 # fetches. Concurrency is bounded for the 1-CPU serve box. The cron precompute → L2 path (increment 3) will
 # later serve these with zero serve-box compute; this live path is the fallback. Kill switch SPOT_RATINGS_V2=0.
-KT_TO_MS = 0.514444
 _SPOT_RATINGS_CONCURRENCY = int(os.environ.get("SPOT_RATINGS_CONCURRENCY", "6"))
 
 
@@ -319,39 +320,8 @@ class SpotRatingsResponse(BaseModel):
     model: str
     valid_time: str
     count: int                            # number of spots with a non-null score
-    source: str                           # "live" | "disabled" (later: "precomputed")
+    source: str                           # "precomputed" | "live" | "disabled"
     spots: list[SpotRatingItem]
-
-
-def _spot_confidence(spot) -> str:
-    """Rating confidence from the spot's location-accuracy metadata (the bathymetry-driven factors — surf
-    height, shore-normal — are only as trustworthy as the pin)."""
-    flag = (getattr(spot, "accuracy_flag", "") or "").lower()
-    if getattr(spot, "is_verified_peak", False) or flag == "verified":
-        return "high"
-    if flag in ("low_accuracy", "crowdsourced"):
-        return "low"
-    return "medium"
-
-
-def _rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> Optional[str]:
-    """Compact explainability string (the structured `why` can come later). None when there's nothing to rate."""
-    if level == "unknown" or surf_h_m is None:
-        return None
-    ft = surf_h_m * 3.281
-    parts = [f"~{ft:.1f} ft surf"]
-    if period_s:
-        parts.append(f"{period_s:.0f}s period")
-    if wind_ms is not None:
-        kt = wind_ms * 1.943844
-        if wind_from is not None and shore_normal is not None:
-            import math as _m
-            off = -_m.cos(_m.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
-            wd = "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
-            parts.append(f"{kt:.0f}kt {wd} wind")
-        else:
-            parts.append(f"{kt:.0f}kt wind")
-    return ", ".join(parts)
 
 
 @router.get("/spot-ratings", response_model=SpotRatingsResponse)
@@ -370,6 +340,19 @@ async def get_spot_ratings(
     except Exception:
         raise HTTPException(status_code=400, detail="bbox must be 'west,south,east,north'")
 
+    # PRECOMPUTED path (rating plan §4): if the cron wrote a frame covering this model+time, serve it straight
+    # from L2 (zero serve-box compute). select_precomputed returns None when no matching frame exists → live.
+    try:
+        pre = select_precomputed(load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
+    except Exception as _pe:
+        logger.debug(f"[spot-ratings] precomputed read failed: {_pe}")
+        pre = None
+    if pre is not None:
+        items = [SpotRatingItem(**sp) for sp in pre[:limit]]
+        count = sum(1 for it in items if it.score is not None)
+        return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="precomputed", spots=items)
+
+    # LIVE fallback: query the spots in the bbox + rate each at its precise location (bounded concurrency).
     stmt = (
         select(SurfSpot)
         .where(
@@ -387,35 +370,15 @@ async def get_spot_ratings(
     sem = asyncio.Semaphore(max(1, _SPOT_RATINGS_CONCURRENCY))
 
     async def _rate(spot) -> SpotRatingItem:
-        lat, lng = spot.latitude, spot.longitude
-        surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
+        spot_dict = {
+            "id": spot.id, "name": getattr(spot, "name", None),
+            "latitude": spot.latitude, "longitude": spot.longitude,
+            "accuracy_flag": getattr(spot, "accuracy_flag", None),
+            "is_verified_peak": getattr(spot, "is_verified_peak", False),
+        }
         async with sem:
-            try:
-                marine = await point_resolution_service.resolve_point(
-                    model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
-                if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
-                    surf_h = marine.surf_height_m
-                    period = marine.point.period
-                    swell_from = marine.point.direction
-                    shore_normal = marine.shore_normal_deg
-            except Exception as _me:
-                logger.debug(f"[spot-ratings] marine resolve failed for spot {spot.id}: {_me}")
-            try:
-                wind = await point_resolution_service.resolve_point(
-                    model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
-                if isinstance(wind, NormalizedPointResponse) and wind.point is not None:
-                    wind_ms = (wind.point.speed or 0.0) * KT_TO_MS   # wind point speed is knots
-                    wind_from = wind.point.direction
-            except Exception as _we:
-                logger.debug(f"[spot-ratings] wind resolve failed for spot {spot.id}: {_we}")
-        score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from)
-        return SpotRatingItem(
-            spot_id=spot.id, name=getattr(spot, "name", None), latitude=lat, longitude=lng,
-            score=score, level=level, confidence=_spot_confidence(spot),
-            surf_height_m=round(surf_h, 3) if surf_h is not None else None,
-            period_s=round(period, 1) if period is not None else None,
-            why=_rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal),
-        )
+            d = await rate_one_spot(point_resolution_service, spot_dict, model, valid_time)
+        return SpotRatingItem(**d)
 
     items = list(await asyncio.gather(*[_rate(sp) for sp in rows])) if rows else []
     count = sum(1 for it in items if it.score is not None)
