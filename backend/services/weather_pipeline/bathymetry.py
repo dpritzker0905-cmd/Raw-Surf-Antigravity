@@ -193,3 +193,50 @@ def shelf_width_km(lat: float, lng: float, max_cells: int = 8) -> float:
         if best is not None:
             return float(best)
     return float(max_cells * km_lat)                  # no deep water within search -> very wide shelf
+
+
+def _seaward_bearing(sub, dlat, dlon):
+    """Pure: seaward compass bearing (deg, 0=N, 90=E) from a 2D depth window (ocean depth > 0, land <= 0),
+    as the vector from the land centroid to the ocean centroid (i.e. land -> sea). Returns None if the
+    window is all-ocean or all-land (no shoreline in view) or the centroids coincide. ``dlat``/``dlon`` give
+    the grid's row/col orientation (ETOPO is stored north-down, so dlat < 0)."""
+    import numpy as np
+    ocean_mask = sub > 0
+    n_ocean = int(ocean_mask.sum())
+    if n_ocean == 0 or n_ocean == sub.size:
+        return None
+    rows, cols = np.indices(sub.shape)
+    land_mask = ~ocean_mask
+    d_row = float(rows[ocean_mask].mean() - rows[land_mask].mean())
+    d_col = float(cols[ocean_mask].mean() - cols[land_mask].mean())
+    north = d_row * (1.0 if dlat > 0 else -1.0)       # +row is +lat only when dlat > 0
+    east = d_col * (1.0 if dlon > 0 else -1.0)         # +col is +lng only when dlon > 0
+    if east == 0.0 and north == 0.0:
+        return None
+    return math.degrees(math.atan2(east, north)) % 360.0
+
+
+@lru_cache(maxsize=200_000)
+def shore_normal_at(lat: float, lng: float, window_cells: int = 3) -> Optional[float]:
+    """Seaward bearing (deg, 0=N, 90=E) at a coastal point — the direction pointing OUT TO SEA (toward ocean,
+    away from land), from the land/ocean centroid vector in a ~±window_cells window. Drives offshore-vs-onshore
+    wind in the surf-quality rating ([[surf_rating]]). Returns None if there's no shoreline in the window
+    (all ocean / all land) or the grid is unavailable (rating then grades wind on speed alone)."""
+    if not is_available():
+        return None
+    try:
+        import numpy as np
+        grid, meta = _load()
+    except Exception:
+        return None
+    nlat, nlon = meta["nlat"], meta["nlon"]
+    lat0, lon0, dlat, dlon = meta["lat0"], meta["lon0"], meta["dlat"], meta["dlon"]
+    lng = ((float(lng) + 180.0) % 360.0) - 180.0
+    r = int(round((float(lat) - lat0) / dlat))
+    c = int(round((lng - lon0) / dlon))
+    if r < 0 or r >= nlat or c < 0 or c >= nlon:
+        return None
+    r0, r1 = max(0, r - window_cells), min(nlat, r + window_cells + 1)
+    c0, c1 = max(0, c - window_cells), min(nlon, c + window_cells + 1)
+    sub = np.asarray(grid[r0:r1, c0:c1])
+    return _seaward_bearing(sub, dlat, dlon)
