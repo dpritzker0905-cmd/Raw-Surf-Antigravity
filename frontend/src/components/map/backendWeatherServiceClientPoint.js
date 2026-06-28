@@ -313,6 +313,23 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
     }
   }
 
+  // Surf-ACCURACY guard (prefer accuracy over heatmap grid-parity): the global-COARSE frame's product id — or
+  // a globe-wide bbox — makes /point sample a ~10° coarse cell, which mislocates the dominant component and
+  // returns wildly wrong height/direction at the real point (confirmed live: a coarse cell read 9.3ft/ENE/8.3s
+  // where the precise viewport tile reads 2.7ft/SW/12.3s). When the loaded grid is coarse/global, drop the grid
+  // hints so the backend resolves the precise high-res viewport point. Parity still holds for regional/high-res
+  // tiles (their product id isn't 'coarse' and their bbox is small).
+  if (gridProductId && /coarse/i.test(gridProductId)) {
+    gridProductId = null;
+    gridBbox = null;
+  } else if (gridBbox) {
+    const _p = gridBbox.split(',').map(Number);
+    if (_p.length === 4 && _p.every(n => !isNaN(n))) {
+      let _w = Math.abs(_p[2] - _p[0]); if (_w > 180) _w = 360 - _w;
+      if (_w > 60 || Math.abs(_p[3] - _p[1]) > 60) { gridProductId = null; gridBbox = null; } // too-wide ⇒ coarse
+    }
+  }
+
   const start = Date.now();
   const validTimeStr = getSharedValidTime(hourOffset, layer, model);
   const provider = model === 'EURO' ? 'copernicus' : 'open-meteo';

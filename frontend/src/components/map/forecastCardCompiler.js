@@ -247,7 +247,9 @@ export function compileForecastCards({
         label: displayCompass || 'Dir',
         value: displayDir,
         color: 'text-blue-200',
-        rotate: waveDir != null ? (waveDir + 180) % 360 : undefined
+        // Point the arrow FROM the swell source (matches the cardinal label, e.g. "SW 220°"); was (dir+180)
+        // = travel direction, which read as "opposite" against the from-label. Marine layers only; wind unchanged.
+        rotate: waveDir != null ? waveDir % 360 : undefined
       });
     }
   }
@@ -336,7 +338,7 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-cyan-200',
-            rotate: swell1Dir != null ? (swell1Dir + 180) % 360 : undefined
+            rotate: swell1Dir != null ? swell1Dir % 360 : undefined
           });
         }
       }
@@ -424,7 +426,7 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-purple-200',
-            rotate: swell2Dir != null ? (swell2Dir + 180) % 360 : undefined
+            rotate: swell2Dir != null ? swell2Dir % 360 : undefined
           });
         }
       }
@@ -508,7 +510,7 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-emerald-200',
-            rotate: windWaveDir != null ? (windWaveDir + 180) % 360 : undefined
+            rotate: windWaveDir != null ? windWaveDir % 360 : undefined
           });
         }
       }
