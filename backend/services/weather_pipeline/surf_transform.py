@@ -148,3 +148,35 @@ def estimate_surf(Hs_m, Tp_s, depth_m):
     if Kf < 0.985:
         return float(H), 'shelf'
     return float(Hs_m), 'deep'                      # deep shelf: negligible attenuation
+
+
+def surf_transform_grid(vectors, depth_fn):
+    """In-place surf transform of a marine grid: replace each cell's wave HEIGHT (``speed``) with its
+    bathymetry surf estimate, scaling ``u``/``v`` by the same ratio so direction is preserved. Only cells the
+    shelf actually reduces (shelf/breaking) change; deep-water and calm cells are untouched. ``depth_fn(lat,
+    lng) -> depth_m|None`` is injected (pass ``bathymetry.shelf_depth_at``) so this stays pure + unit-testable.
+    Returns (n_transformed, n_shelf_or_breaking). Mutates the vector objects (any object with
+    speed/u/v/period/lat/lng attributes)."""
+    n_transformed = 0
+    n_shelf = 0
+    for vec in vectors:
+        sp = getattr(vec, "speed", 0) or 0
+        if sp <= 0:
+            continue
+        try:
+            depth = depth_fn(vec.lat, vec.lng)
+        except Exception:
+            depth = None
+        surf, regime = estimate_surf(sp, getattr(vec, "period", None), depth)
+        if surf is None or surf >= sp:            # 'deep'/'unknown' -> leave the offshore value as-is
+            continue
+        ratio = surf / sp
+        vec.speed = round(float(surf), 4)
+        if getattr(vec, "u", None) is not None:
+            vec.u = round(vec.u * ratio, 4)
+        if getattr(vec, "v", None) is not None:
+            vec.v = round(vec.v * ratio, 4)
+        n_transformed += 1
+        if regime in ("shelf", "breaking"):
+            n_shelf += 1
+    return n_transformed, n_shelf

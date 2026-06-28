@@ -99,6 +99,7 @@ async def get_grid(
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     valid_time: str = Query(..., description="ISO-8601 UTC timestamp"),
     bbox: Optional[str] = Query(None, description="west,south,east,north boundary filter"),
+    surf: bool = Query(False, description="Option-2: return the bathymetry SURF-transformed grid (nearshore breaking height)"),
     background_tasks: BackgroundTasks = None,
     request: Request = None
 ):
@@ -116,7 +117,7 @@ async def get_grid(
         return await resolve_grid(
             store, viewport_service,
             model=model, domain=domain, layer=layer, valid_time=valid_time,
-            bbox=bbox, background_tasks=background_tasks, request=request
+            bbox=bbox, surf=surf, background_tasks=background_tasks, request=request
         )
     except HTTPException:
         # Intentional, CORS-safe statuses (499 client-closed, 503 temporarily-unavailable, 4xx) — keep.

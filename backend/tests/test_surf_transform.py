@@ -142,3 +142,24 @@ async def test_resolve_point_attaches_surf_for_marine(monkeypatch):
     monkeypatch.setattr(svc, "_resolve_point_internal", fake_wind)
     r3 = await svc.resolve_point("GFS", "wind", "wind", 28.4, -80.55, "2026-06-28T00:00:00Z")
     assert r3.surf_height_m is None and r3.surf_regime is None
+
+
+# ── grid transform (the Swell↔Surf heatmap mode) ──
+def test_surf_transform_grid_reduces_shelf_keeps_deep_and_calm():
+    import types
+    mk = lambda lat, lng, sp, u, v, p: types.SimpleNamespace(lat=lat, lng=lng, speed=sp, u=u, v=v, period=p)
+    vecs = [
+        mk(28.4, -80.5, 2.0, 1.0, -1.0, 10.0),    # shallow shelf -> reduced
+        mk(30.0, -150.0, 2.0, 1.0, -1.0, 10.0),   # deep -> unchanged
+        mk(28.4, -80.5, 0.0, 0.0, 0.0, 10.0),     # calm -> unchanged
+    ]
+    depth_fn = lambda lat, lng: 20.0 if (lat == 28.4 and lng == -80.5) else 3000.0
+    n_transformed, n_shelf = st.surf_transform_grid(vecs, depth_fn)
+    assert n_transformed == 1 and n_shelf == 1
+    # shelf cell: height reduced, u/v scaled by the same ratio (direction preserved)
+    assert 0 < vecs[0].speed < 2.0
+    assert abs(vecs[0].u) < 1.0
+    assert vecs[0].u == pytest.approx(-vecs[0].v, abs=1e-9)   # was (1.0, -1.0) -> stays equal-and-opposite
+    # deep + calm untouched
+    assert vecs[1].speed == 2.0 and vecs[1].u == 1.0
+    assert vecs[2].speed == 0.0
