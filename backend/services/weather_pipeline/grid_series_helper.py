@@ -201,7 +201,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     sem = asyncio.Semaphore(CONCURRENCY)
     deadline = time.monotonic() + OVERALL_DEADLINE
 
-    async def _build_one(h: int):
+    async def _build_one(h: int, warm_regional: bool = False):
         if time.monotonic() > deadline or await _client_gone():
             return (h, None)
         target_dt = base + timedelta(hours=h)
@@ -210,13 +210,21 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
             async with sem:
                 if time.monotonic() > deadline:
                     return (h, None)
-                # Throwaway BackgroundTasks so get_grid's revalidation scheduling has a sink
-                # (these tasks never run outside a request cycle — harmless). Per-hour timeout
-                # so a slow/stalled model (EURO dynamic) can't hang the whole series.
+                # background_tasks selection — the difference between grid_series staying coarse forever vs.
+                # sharpening to the regional tile (the zoom-in clamp root cause):
+                #   * A zoomed-in COLD bbox gets resolve_grid's instant GLOBAL coarse preview (Step 3.7), which
+                #     schedules an SWR revalidation that BUILDS + CACHES the precise regional viewport tile.
+                #   * That schedule runs via asyncio.create_task ONLY when background_tasks is falsy; a (throwaway)
+                #     BackgroundTasks() just .add_task()s to an object that never executes outside a request — so
+                #     grid_series served the global preview FOREVER and the heatmap stayed coarse-clamped.
+                # Pass None for the FIRST hour so the regional revalidation actually fires (warming the tile once
+                # for the bbox); throwaway for the rest so we don't fan out N background fetches on the 1-CPU box.
+                bg = None if warm_regional else BackgroundTasks()
+                # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole series.
                 product = await asyncio.wait_for(
                     resolve_grid(
                         model=model, domain=domain, layer=layer,
-                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=BackgroundTasks()
+                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg
                     ),
                     timeout=PER_HOUR_TIMEOUT,
                 )
@@ -235,7 +243,9 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     try:
         results = []
         if loop_hours:
-            results = [await _build_one(loop_hours[0])]
+            # First hour warms the regional viewport tile (background_tasks=None → the SWR revalidation fires)
+            # so the NEXT series request for this bbox serves the precise regional grid instead of global-coarse.
+            results = [await _build_one(loop_hours[0], warm_regional=True)]
             if len(loop_hours) > 1:
                 results.extend(await asyncio.gather(*[_build_one(h) for h in loop_hours[1:]], return_exceptions=True))
         results = [r for r in results if isinstance(r, tuple)]
