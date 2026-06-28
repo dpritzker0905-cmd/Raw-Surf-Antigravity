@@ -161,3 +161,37 @@ The coastal-resolution gap was FL+SoCal only; every other coast read the 10° gl
 ### Test status (morning)
 Backend: 39 weather/prefetcher/pilot tests green. Frontend (overnight): 102 marine/scrub/wind + 29
 shader/series. All shipped: `96120177` `f538321f` `45a53585` `5a8b3b96` `85b7f8ea` (dev).
+
+---
+
+## 7. NOTED FOR REPAIR (open, 2026-06-28 — diagnosed, not yet fixed)
+
+### 7a. EURO marine heatmap clears in scrub after ~day 10
+**Root (confirmed):** EURO marine ships only ~9-10 days of products (manifest: EURO marine waves ≈ 73
+products ≈ 219h); the estimated **10-14d extension** (`ingest_euro_marine_extended_estimates_impl`, exists
+in `scheduler.py` / `scheduler_helpers.py`) is **NOT wired into the decoupled cron** job list
+(`scheduler/forecast.py` — only "EURO Marine Global" runs, no extended-estimates job). So scrubbing past
+~day 10 finds no EURO marine product → heatmap clears. (GFS marine reaches ~14d; ICON ~7.5d native.)
+**Repair:** add the EURO marine extended-estimates job to the cron jobs list (this is the deferred
+[[tiered-forecast-window-14d-2026-06-27]] / [[euro-marine-14day-horizon]] work — also tier-gate FREE 2d /
+BASIC 7d / PREMIUM 14d). Until then the EURO scrubber should cap its slider at the real horizon so it
+doesn't scrub into the empty range.
+
+### 7b. Infobox shows 0 for marine layers at several marker points
+**Backend is HEALTHY — not the cause.** Live `/point` returns real wave heights in `point.speed` at every
+test point (Pacific 2.16 m, Atlantic 1.46 m, Ireland 3.23 m, FL coast 0.40 m), picks the right product
+(global-coarse open ocean / `florida_east_coast` regional tile at FL), and the /point client
+(`backendWeatherServiceClientPoint.js:438-452`) maps `point.speed` → `wave_height` correctly. NOTE
+`point.value` is null by design (marine magnitude lives in `point.speed`; `value` is for scalar layers like
+pressure) — do NOT "fix" by reading `value`.
+**Likely cause(s) of the 0s:**
+1. **Coastal-resolution gap** — at coastal / enclosed-sea cells the 10° global-coarse has 0/null
+   (land-dominated cell), so a marker there reads 0. The worldwide regional 0.25° tiles (`85b7f8ea`, §6c)
+   fix this for covered coasts as they populate (flagship FL already returns a real 0.40 m). Enclosed seas
+   (Med, Gulf, Great Lakes) and far-from-flagship coasts will keep reading 0 until a covering tile exists.
+2. **Possible frontend exact-point path** returning a `status` (rate_limited/timeout/no_coverage) → null at
+   some markers, OR a layer/time with genuinely null `point.speed` (EURO >10d per 7a; ICON swell_2 N/A).
+**Repair / next step:** needs a LIVE frontend forensic — for a marker showing 0, capture the
+`[Forensic Audit] Infobox display data source for waves … Status:` line + the `/point` response
+(`point.speed`). If `point.speed` is real but the box shows 0 → frontend path bug; if `point.speed` is
+null/0 → it's the coastal-cell gap (resolve via more regional tiles) or the >10d horizon (7a).
