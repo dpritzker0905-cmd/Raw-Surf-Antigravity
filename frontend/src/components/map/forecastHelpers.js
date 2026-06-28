@@ -263,6 +263,16 @@ export function sampleValueFromDecodedTiles(lat, lng, targetVariable, timeOffset
     direction = (Math.atan2(sinAvg, cosAvg) * 180 / Math.PI + 360) % 360;
   }
   
+  // A wave-height sample that interpolates to 0 means every contributing corner was land/masked (no ocean
+  // data at this coarse cell — common at coastal / enclosed-sea markers). Return null (NOT {value: 0}) so
+  // the infobox value chain (useExactPoint?.wave_height ?? sampledWaves?.value ?? marineGridSample?.value)
+  // falls through to a real source instead of short-circuiting on 0 (0 isn't nullish) and displaying "0 ft"
+  // — the "infobox shows 0 for marine at markers all over the map" bug. Real ocean (incl. decayed nearshore,
+  // which stays > 0) always samples > 0, so this never masks a legitimate value.
+  if (isWaveHeightVar && !(value > 0)) {
+    return null;
+  }
+
   if (value !== null && value !== undefined && typeof window !== 'undefined' && window.__OM_SAMPLER_DEBUG__) {
     console.log(`[OM-Sampler] Coordinate (${lat.toFixed(4)}, ${lng.toFixed(4)}) variable: ${targetVariable} -> Sampled Value: ${value.toFixed(2)}, Dir: ${direction}`);
   }

@@ -1,4 +1,4 @@
-import { sampleFromMarineGrid, mToFt, degToCompass } from '../components/map/forecastHelpers';
+import { sampleFromMarineGrid, sampleValueFromDecodedTiles, mToFt, degToCompass } from '../components/map/forecastHelpers';
 
 describe('forecastHelpers.js - sampleFromMarineGrid geodetic snapping math', () => {
   beforeEach(() => {
@@ -104,5 +104,28 @@ describe('forecastHelpers.js - sampleFromMarineGrid geodetic snapping math', () 
     const result = sampleFromMarineGrid(25.1, 280.6, 'GFS', 'waves');
     expect(result).not.toBeNull();
     expect(result.value).toBe(2.0); // snaps to nearest ocean (25, -79)
+  });
+});
+
+describe('forecastHelpers.js - sampleValueFromDecodedTiles no-data null guard (infobox-0 fix)', () => {
+  const setTiles = (values) => {
+    window.__DECODED_OM_TILES__ = new Map([['t', {
+      model: 'ncep_gfswave025', variable: 'wave_height', timeIndex: 0,
+      bounds: [-80.0, 25.0, -79.0, 26.0], nx: 2, ny: 2, values,
+    }]]);
+  };
+  beforeEach(() => { delete window.__DECODED_OM_TILES__; delete window.__MODEL_METADATA_CACHE__; });
+  afterEach(() => { delete window.__DECODED_OM_TILES__; });
+
+  test('returns null for an all-land/masked wave-height cell (was {value:0} -> infobox "0 ft")', () => {
+    setTiles([0, 0, 0, 0]);
+    expect(sampleValueFromDecodedTiles(25.5, -79.5, 'wave_height', 0, 'GFS')).toBeNull();
+  });
+
+  test('still returns a real value for an ocean wave-height cell', () => {
+    setTiles([2, 2, 2, 2]);
+    const r = sampleValueFromDecodedTiles(25.5, -79.5, 'wave_height', 0, 'GFS');
+    expect(r).not.toBeNull();
+    expect(r.value).toBeCloseTo(2.0, 3);
   });
 });
