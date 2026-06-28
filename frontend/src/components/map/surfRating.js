@@ -3,7 +3,7 @@
  *
  * Multivariable surf-quality rating used for the infobox badge (the map/grid rating is computed backend-side
  * from the same model). Answers "how GOOD is it?" not just "how big?": a size gate * (0.60 wind + 0.40
- * period) composite -> 0..100 -> the 7-level Surfline-style scale. Grounded in Espejo et al. (2014)
+ * period) composite -> 0..100 -> a 7-level surf-quality scale. Grounded in Espejo et al. (2014)
  * multivariable surf index + Goda (2010) breaker statistics (see surf_rating.py).
  *
  * Degrades gracefully: no wind -> neutral wind quality; no shore-normal -> speed-only wind grading.
@@ -74,10 +74,11 @@ export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, 
 }
 
 export const RATING_LABEL = {
-  very_poor: 'Very poor', poor: 'Poor', poor_fair: 'Poor–Fair', fair: 'Fair',
-  fair_good: 'Fair–Good', good: 'Good', epic: 'Epic', unknown: '—',
+  very_poor: 'Very poor', poor: 'Poor', poor_fair: 'Poor to Fair', fair: 'Fair',
+  fair_good: 'Fair to Good', good: 'Good', epic: 'Epic', unknown: '—',
 };
+// Industry-standard surf-rating palette (red→orange→yellow→green→teal, with the rare Good/Epic in purple).
 export const RATING_COLOR = {
-  very_poor: '#7f1d1d', poor: '#dc2626', poor_fair: '#f97316', fair: '#eab308',
-  fair_good: '#84cc16', good: '#22c55e', epic: '#8b5cf6', unknown: '#6b7280',
+  very_poor: '#f0476b', poor: '#f59e2c', poor_fair: '#f7d038', fair: '#2fd07a',
+  fair_good: '#14b8a6', good: '#7c3aed', epic: '#a855f7', unknown: '#6b7280',
 };

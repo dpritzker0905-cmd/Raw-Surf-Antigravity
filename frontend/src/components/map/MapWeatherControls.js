@@ -3,8 +3,8 @@ import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, Chev
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
-import { getThemedWaveColorJS } from './colorScales';
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
+import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
@@ -212,19 +212,16 @@ export var MapWeatherControls = ({
     return config;
   }, [theme]);
 
-  // Surf-mode legend: rescaled to the nearshore surf range (0-13 ft) so the color key matches the coastal
-  // band's getSurfT() mapping. Same per-theme ramp (theme-aware), just surf breakpoints + ft labels.
+  // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
+  // shader getRatingColor palette. Fixed colors (not theme-dependent); coarse tick labels under the bar.
   const surfLegend = useMemo(() => {
-    const bpsM = [0, 0.3, 0.6, 0.9, 1.5, 2.4, 3.7, 5.0];          // meters (surf-focused scale, densest 2-8 ft)
-    const labelsFt = ['0', '1', '2', '3', '5', '8', '12', '16+']; // ~ft equivalents
-    const alphas = [0.0, 0.42, 0.55, 0.68, 0.80, 0.90, 0.95, 0.98];
-    const stopsCSS = bpsM.map((bp, i) => {
-      const [r, g, b] = getThemedWaveColorJS(bp, theme, true);
-      const pct = Math.round((bp / 5.0) * 100);
-      return `rgba(${r},${g},${b},${alphas[i]}) ${pct}%`;
+    const n = RATING_LEVELS.length;
+    const segs = RATING_LEVELS.map((lvl, i) => {
+      const c = RATING_COLOR[lvl];
+      return `${c} ${((i / n) * 100).toFixed(1)}%, ${c} ${(((i + 1) / n) * 100).toFixed(1)}%`;
     }).join(', ');
-    return { gradientCSS: `linear-gradient(to right, ${stopsCSS})`, stops: labelsFt };
-  }, [theme]);
+    return { gradientCSS: `linear-gradient(to right, ${segs})`, stops: ['Poor', 'Fair', 'Good', 'Epic'] };
+  }, []);
 
   const maxForecastDays = resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]);
   const maxForecastHours = maxForecastDays * 24;
@@ -562,17 +559,17 @@ export var MapWeatherControls = ({
             <div className="flex items-center justify-between mb-0.5">
               <div className={`text-[9px] ${textMuted}`}>
                 {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)
-                  ? `Surf · ${legendConfig[activeLayer].label}`
+                  ? 'Surf Rating'
                   : legendConfig[activeLayer].label}
               </div>
               {SURF_TOGGLE_LAYERS.includes(activeLayer) && (
                 <button
                   type="button"
                   onClick={toggleSurfMode}
-                  title="Toggle Swell (offshore) vs Surf (bathymetry breaking height — estimate)"
+                  title="Toggle Swell (offshore wave height) vs Rating (surf-quality estimate: size + period + wind)"
                   className={`text-[8px] leading-none px-1.5 py-0.5 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
                 >
-                  {surfMode ? 'Surf' : 'Swell'}
+                  {surfMode ? 'Rating' : 'Swell'}
                 </button>
               )}
             </div>

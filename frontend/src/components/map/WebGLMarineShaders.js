@@ -150,6 +150,19 @@ vec3 getThemedWaveColor(float h, float theme, float surfMode) {
   }
 }
 
+// Surf-quality RATING colormap: a 0-100 score -> one of 7 discrete levels (very_poor -> epic).
+// Industry-standard surf-rating palette: red -> orange -> yellow -> green -> teal, with the rare
+// Good/Epic in purple. Used by the "surf" toggle's rating overlay (see getRatingColor branch in main).
+vec3 getRatingColor(float score) {
+  if (score < 14.0) return vec3(0.941, 0.278, 0.420); // very poor  #f0476b
+  if (score < 28.0) return vec3(0.961, 0.620, 0.173); // poor       #f59e2c
+  if (score < 42.0) return vec3(0.969, 0.816, 0.220); // poor-fair  #f7d038
+  if (score < 56.0) return vec3(0.184, 0.816, 0.478); // fair       #2fd07a
+  if (score < 70.0) return vec3(0.078, 0.722, 0.651); // fair-good  #14b8a6
+  if (score < 84.0) return vec3(0.486, 0.227, 0.929); // good       #7c3aed
+  return vec3(0.659, 0.333, 0.969);                    // epic       #a855f7
+}
+
 void main() {
   float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
   float lat = mercatorYToLat(v_mercator_xy.y);
@@ -198,6 +211,17 @@ void main() {
   // Ocean mask: discard land pixels
   if (oceanAlpha < 0.5) {
     discard;
+  }
+
+  // ── Surf-quality RATING overlay (the "surf" toggle) ──
+  // The rating grid packs score/10 into the height channel, so the 0-100 score is waveHeight*10. Colour the
+  // coastal band by the 7-level rating palette and return, bypassing the swell-height ramp, the is_estimated
+  // transform, and the bathymetry blend below. The normal marine/swell path (u_surfMode <= 0.5) is untouched.
+  if (u_surfMode > 0.5) {
+    float ratingScore = waveHeight * 10.0;
+    if (ratingScore <= 0.5) discard;   // no rideable wave -> no band here
+    gl_FragColor = vec4(getRatingColor(ratingScore), u_opacity);
+    return;
   }
 
   // Decode swell direction from normalized [0,1] -> [-1,1]

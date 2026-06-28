@@ -5,7 +5,7 @@ import {
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
 describe('surfRating (JS mirror of surf_rating.py)', () => {
-  test('the 7 Surfline-style levels', () => {
+  test('the 7 surf-quality levels', () => {
     expect(RATING_LEVELS).toEqual(['very_poor', 'poor', 'poor_fair', 'fair', 'fair_good', 'good', 'epic']);
   });
 
