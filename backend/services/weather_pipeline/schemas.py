@@ -154,6 +154,7 @@ class NormalizedPointResponse(BaseModel):
     surf_height_m: Optional[float] = None       # transformed breaking/surf height, metres
     surf_regime: Optional[str] = None           # calm | deep | shelf | breaking | unknown
     shelf_depth_m: Optional[float] = None        # representative shelf depth used by the transform (m)
+    shore_normal_deg: Optional[float] = None     # seaward bearing (0=N,90=E); offshore/onshore wind for the surf rating
 
 class ManifestProduct(BaseModel):
     model: str

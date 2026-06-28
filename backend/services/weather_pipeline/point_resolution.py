@@ -134,7 +134,7 @@ class PointResolutionService:
             and os.environ.get("SURF_TRANSFORM", "1") != "0"
         ):
             try:
-                from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+                from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
                 from services.weather_pipeline.surf_transform import estimate_surf
                 depth = shelf_depth_at(lat, lng)
                 # Coastal-proximity gate is GEOGRAPHY-only (model-independent) so the surf row shows at the
@@ -146,6 +146,13 @@ class PointResolutionService:
                 response.surf_height_m = round(surf, 4) if surf is not None else None
                 response.surf_regime = regime
                 response.shelf_depth_m = round(depth, 1) if depth is not None else None
+                # Seaward bearing for the surf-quality rating's offshore/onshore wind factor. Pure bathymetry
+                # (lru-cached, no fetch) so it adds no latency to the marine point. The frontend pairs it with
+                # the already-fetched wind point + surf height/period to compute the rating badge ([[surf_rating]]).
+                try:
+                    response.shore_normal_deg = shore_normal_at(lat, lng)
+                except Exception:
+                    response.shore_normal_deg = None
             except Exception as _se:
                 logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
 
