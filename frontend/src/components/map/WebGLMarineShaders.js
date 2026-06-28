@@ -51,6 +51,7 @@ uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
 uniform float u_surfMode;   // 1.0 = Swell↔Surf coastal-band mode: rescale the color ramp to the surf range
+uniform float u_time;       // seconds — drives the rating band's subtle living shimmer (free: render loop already runs)
 uniform highp float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
@@ -163,6 +164,28 @@ vec3 getRatingColor(float score) {
   return vec3(0.659, 0.333, 0.969);                    // epic       #a855f7
 }
 
+// SMOOTH variant of the rating palette: continuously interpolates between the same 7 industry-standard
+// anchor colors instead of snapping to discrete plateaus. The wave texture is LINEAR-filtered, so the score
+// is already smooth across space — the OLD hard-step getRatingColor quantized it into blocky bands. This
+// mixes through the palette so the coastal band reads as a polished quality gradient (the discrete 7 levels
+// still drive the legend + the per-spot glyphs).
+vec3 getRatingColorSmooth(float s) {
+  vec3 c0 = vec3(0.941, 0.278, 0.420); // very poor  #f0476b
+  vec3 c1 = vec3(0.961, 0.620, 0.173); // poor       #f59e2c
+  vec3 c2 = vec3(0.969, 0.816, 0.220); // poor-fair  #f7d038
+  vec3 c3 = vec3(0.184, 0.816, 0.478); // fair       #2fd07a
+  vec3 c4 = vec3(0.078, 0.722, 0.651); // fair-good  #14b8a6
+  vec3 c5 = vec3(0.486, 0.227, 0.929); // good       #7c3aed
+  vec3 c6 = vec3(0.659, 0.333, 0.969); // epic       #a855f7
+  if (s < 14.0) return mix(c0, c1, s / 14.0);
+  if (s < 28.0) return mix(c1, c2, (s - 14.0) / 14.0);
+  if (s < 42.0) return mix(c2, c3, (s - 28.0) / 14.0);
+  if (s < 56.0) return mix(c3, c4, (s - 42.0) / 14.0);
+  if (s < 70.0) return mix(c4, c5, (s - 56.0) / 14.0);
+  if (s < 84.0) return mix(c5, c6, (s - 70.0) / 14.0);
+  return c6;
+}
+
 void main() {
   float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
   float lat = mercatorYToLat(v_mercator_xy.y);
@@ -220,7 +243,27 @@ void main() {
   if (u_surfMode > 0.5) {
     float ratingScore = waveHeight * 10.0;
     if (ratingScore <= 0.5) discard;   // no rideable wave -> no band here
-    gl_FragColor = vec4(getRatingColor(ratingScore), u_opacity);
+
+    // Smooth gradient through the 7-level industry palette — no hard-step plateaus, so no blocky bands.
+    vec3 ratingColor = getRatingColorSmooth(ratingScore);
+
+    // Gentle living shimmer: a slow, low-amplitude brightness ripple over space+time. Rides the existing
+    // per-frame render loop (wave-crest particles already drive u_time) so it costs nothing extra, and is
+    // subtle by design (FPS rule) — it makes the band feel alive without strobing.
+    float shimmer = 0.05 * sin(v_mercator_xy.x * 520.0 + v_mercator_xy.y * 520.0 - u_time * 1.4)
+                  + 0.03 * sin(v_mercator_xy.y * 900.0 + u_time * 0.9);
+    ratingColor *= (1.0 + shimmer);
+
+    // Soft alpha: fade in faint (near-flat) cells, dissolve the seaward edge instead of a hard cut, and apply
+    // the ocean-mask fade + optional regional edge feather. Premultiplied (matches the ONE/1-SRC_ALPHA blend
+    // and the normal path below) — the old branch emitted non-premultiplied color, which over-saturated.
+    float bandAlpha = u_opacity * smoothstep(0.5, 4.0, ratingScore) * smoothstep(0.3, 0.8, oceanAlpha);
+    if (u_edgeFeatherEnabled > 0.5) {
+      float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);
+      float edgeDistY = min(grid_uv.y, 1.0 - grid_uv.y);
+      bandAlpha *= smoothstep(0.0, 0.18, min(edgeDistX, edgeDistY));
+    }
+    gl_FragColor = vec4(ratingColor * bandAlpha, bandAlpha);
     return;
   }
 

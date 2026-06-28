@@ -45,12 +45,23 @@ export function useExactPointFetch({
   const [renderedPointKey, setRenderedPointKey] = useState(currentPointKey);
   const fetchGenRef = useRef(0);
 
+  // Auto-retry on a wedged failure (exact_timeout / backend_error) so the infobox doesn't get stuck
+  // "Loading…→Timeout" under rapid model/layer switching or a cold/slow backend (handoff §4.1). Bumping
+  // retryNonce re-runs the fetch effect; retryCountRef caps attempts PER point-key (reset when the key
+  // changes below, or on success). This is the "force one fresh fetch on settle, don't leave a wedged
+  // timeout" fix — the prior code aborted in-flight fetches and never re-fired.
+  const [retryNonce, setRetryNonce] = useState(0);
+  const retryCountRef = useRef(0);
+  const retryTimerRef = useRef(null);
+  const MAX_EXACT_RETRIES = 2;
+
   // Synchronous state reset during render phase (Derived State pattern)
   let localResponse = exactPointResponse;
   let localStatus = exactPointStatus;
 
   if (currentPointKey !== renderedPointKey) {
     setRenderedPointKey(currentPointKey);
+    retryCountRef.current = 0;   // new point/model/layer/hour -> reset the retry budget
     const cachedData = getCachedPointResponse(pointLat, pointLng, activeModel, activeLayer, settledOffset);
     if (cachedData) {
       setExactPointResponse(cachedData);
@@ -180,6 +191,20 @@ export function useExactPointFetch({
         gridBbox = `${b.west},${b.south},${b.east},${b.north}`;
       }
 
+      // On a retryable failure, keep the infobox "Loading…" and force one fresh fetch shortly instead of
+      // wedging on a terminal status — this is the core fix for the rapid-switch / cold-backend hang.
+      const failAttempt = (terminalStatus) => {
+        if (retryCountRef.current < MAX_EXACT_RETRIES) {
+          retryCountRef.current += 1;
+          setExactPointStatus('exact_loading');
+          retryTimerRef.current = setTimeout(() => {
+            if (!token.cancelled && gen === fetchGenRef.current) setRetryNonce(n => n + 1);
+          }, 1200);
+        } else {
+          setExactPointStatus(terminalStatus);
+        }
+      };
+
       fetchExactMarinePoint(
         pointLat,
         pointLng,
@@ -195,9 +220,9 @@ export function useExactPointFetch({
         if (!token.cancelled && gen === fetchGenRef.current) {
           if (data) {
             if (data.status === 'timeout') {
-              setExactPointStatus('exact_timeout');
+              failAttempt('exact_timeout');
             } else if (data.status === 'error') {
-              setExactPointStatus('exact_backend_error');
+              failAttempt('exact_backend_error');
             } else if (data.status === 'empty') {
               setExactPointStatus('exact_empty');
             } else if (['copernicus_credentials_missing', 'copernicus_backend_502', 'copernicus_timeout', 'rate_limited'].includes(data.status)) {
@@ -205,22 +230,23 @@ export function useExactPointFetch({
             } else {
               setExactPointResponse(data);
               setExactPointStatus('exact_success');
+              retryCountRef.current = 0;   // success -> reset budget for this point-key
               if (typeof clearCooldown === 'function') {
                 const domain = (activeLayer === 'wind') ? 'wind' : (activeLayer === 'pressure') ? 'pressure' : 'marine';
                 clearCooldown(domain);
               }
             }
           } else {
-            setExactPointStatus('exact_backend_error');
+            failAttempt('exact_backend_error');
           }
         }
       }).catch(err => {
         clearTimeout(fetchTimeoutId);
         if (!token.cancelled && gen === fetchGenRef.current) {
           if (err.name === 'AbortError') {
-            setExactPointStatus('exact_timeout');
+            failAttempt('exact_timeout');
           } else {
-            setExactPointStatus('exact_backend_error');
+            failAttempt('exact_backend_error');
           }
         }
       });
@@ -229,9 +255,10 @@ export function useExactPointFetch({
     return () => {
       token.cancelled = true;
       clearTimeout(timeoutId);
+      if (retryTimerRef.current) clearTimeout(retryTimerRef.current);
       controller.abort();
     };
-  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation]);
+  }, [pointLat, pointLng, activeModel, activeLayer, isScrubbing, isPlaying, settledOffset, isExactPointRequired, selectedSpot, longPressLocation, retryNonce]);
 
   useEffect(() => {
     if (!effectiveExactPointResponse) {

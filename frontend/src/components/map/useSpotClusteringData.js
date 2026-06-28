@@ -1,12 +1,14 @@
 import { useMemo } from 'react';
 import { useMarkerClustering } from '../../hooks/useMarkerClustering';
 
-export function useSpotClusteringData({ surfSpots, filter, mapInstance, viewState }) {
+export function useSpotClusteringData({ surfSpots, filter, mapInstance, viewState, surfMode = false }) {
   const clusteringOptions = useMemo(() => ({ radius: 60, maxZoom: 14 }), []);
-  
-  const spotsToCluster = useMemo(() => 
-    (filter === 'all' || filter === 'spots') ? surfSpots : [], 
-  [filter, surfSpots]);
+
+  // In Rating mode the spots ARE the overlay (each becomes a quality glyph), so surface them even when the
+  // marker filter would otherwise hide them — otherwise the headline "rating at the surf spots" is invisible.
+  const spotsToCluster = useMemo(() =>
+    (surfMode || filter === 'all' || filter === 'spots') ? surfSpots : [],
+  [filter, surfSpots, surfMode]);
 
   const currentBounds = useMemo(() => {
     if (!mapInstance) return { west: -180, south: -85, east: 180, north: 85 };

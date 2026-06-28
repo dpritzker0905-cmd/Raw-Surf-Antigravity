@@ -36,6 +36,8 @@ var MapMarkerLayers = ({
   onSpotClick,
   onPhotographerClick,
   mapRef,
+  surfMode = false,
+  spotRatings = null,
 }) => {
   const [hoveredSpotId, setHoveredSpotId] = useState(null);
   return (
@@ -64,6 +66,8 @@ var MapMarkerLayers = ({
 
         const hasPhotographers = cluster.active_photographers_count > 0;
         const isWithinGeofence = cluster.is_within_geofence;
+        // Rating mode: this spot becomes a surf-quality glyph (colour = 7-level rating sampled from the grid).
+        const rating = surfMode && spotRatings ? spotRatings[cluster.id] : null;
         return (
           <Marker
             key={`spot-${cluster.id}`}
@@ -89,26 +93,52 @@ var MapMarkerLayers = ({
               onMouseEnter={() => setHoveredSpotId(cluster.id)}
               onMouseLeave={() => setHoveredSpotId(null)}
             >
-              <div
-                className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
-                  !isWithinGeofence
-                    ? 'bg-zinc-800 border-2 border-zinc-600 opacity-60'
-                    : hasPhotographers
-                      ? 'bg-gradient-to-r from-emerald-400 to-yellow-400'
-                      : 'bg-zinc-700 border-2 border-zinc-500'
-                }`}
-                style={{
-                  width: 32, height: 32, borderRadius: '50%',
-                  display: 'flex', alignItems: 'center', justifyContent: 'center',
-                  background: !isWithinGeofence ? '#27272a' : hasPhotographers ? 'linear-gradient(to right, #34d399, #facc15)' : '#3f3f46',
-                  border: !isWithinGeofence || !hasPhotographers ? '2px solid #52525b' : 'none',
-                  boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
-                }}
-              >
-                <svg width="16" height="16" fill={hasPhotographers && isWithinGeofence ? '#000' : '#d4d4d8'} viewBox="0 0 24 24">
-                  <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
-                </svg>
-              </div>
+              {rating ? (
+                <div
+                  style={{ position: 'absolute', inset: 0, display: 'flex', alignItems: 'center', justifyContent: 'center' }}
+                >
+                  {/* expanding pulse ring — GPU-composited transform/opacity, honours reduced-motion */}
+                  <span
+                    className="absolute rounded-full animate-ping motion-reduce:animate-none"
+                    style={{ width: 24, height: 24, backgroundColor: rating.color, opacity: 0.4 }}
+                  />
+                  {/* soft static halo for depth */}
+                  <span
+                    className="absolute rounded-full"
+                    style={{ width: 30, height: 30, background: `radial-gradient(circle, ${rating.color}59 0%, transparent 70%)` }}
+                  />
+                  {/* solid core dot in the rating colour */}
+                  <span
+                    className="relative rounded-full"
+                    style={{
+                      width: 15, height: 15, backgroundColor: rating.color,
+                      border: '2px solid rgba(255,255,255,0.9)',
+                      boxShadow: `0 0 8px 2px ${rating.color}, 0 1px 3px rgba(0,0,0,0.45)`
+                    }}
+                  />
+                </div>
+              ) : (
+                <div
+                  className={`w-8 h-8 rounded-full flex items-center justify-center shadow-md ${
+                    !isWithinGeofence
+                      ? 'bg-zinc-800 border-2 border-zinc-600 opacity-60'
+                      : hasPhotographers
+                        ? 'bg-gradient-to-r from-emerald-400 to-yellow-400'
+                        : 'bg-zinc-700 border-2 border-zinc-500'
+                  }`}
+                  style={{
+                    width: 32, height: 32, borderRadius: '50%',
+                    display: 'flex', alignItems: 'center', justifyContent: 'center',
+                    background: !isWithinGeofence ? '#27272a' : hasPhotographers ? 'linear-gradient(to right, #34d399, #facc15)' : '#3f3f46',
+                    border: !isWithinGeofence || !hasPhotographers ? '2px solid #52525b' : 'none',
+                    boxShadow: '0 2px 4px rgba(0,0,0,0.3)'
+                  }}
+                >
+                  <svg width="16" height="16" fill={hasPhotographers && isWithinGeofence ? '#000' : '#d4d4d8'} viewBox="0 0 24 24">
+                    <path d="M12 2C8.13 2 5 5.13 5 9c0 5.25 7 13 7 13s7-7.75 7-13c0-3.87-3.13-7-7-7zm0 9.5c-1.38 0-2.5-1.12-2.5-2.5s1.12-2.5 2.5-2.5 2.5 1.12 2.5 2.5-1.12 2.5-2.5 2.5z"/>
+                  </svg>
+                </div>
+              )}
               {hasPhotographers && isWithinGeofence && (
                 <div className="absolute -top-1 -right-1 w-4 h-4 bg-red-500 rounded-full flex items-center justify-center text-[10px] text-white font-bold animate-pulse motion-reduce:animate-none"
                   style={{ position: 'absolute', top: -4, right: -4, width: 16, height: 16, borderRadius: '50%', background: '#ef4444', display: 'flex', alignItems: 'center', justifyContent: 'center', fontSize: 10, color: 'white', fontWeight: 'bold' }}
@@ -124,8 +154,8 @@ var MapMarkerLayers = ({
                   }}
                 >
                   <div className="flex items-center gap-1.5">
-                    <span className="w-1.5 h-1.5 rounded-full bg-cyan-400"></span>
-                    <span>{cluster.name || 'Surf Spot'}</span>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: rating ? rating.color : '#22d3ee' }}></span>
+                    <span>{cluster.name || 'Surf Spot'}{rating ? ` · ${rating.label}` : ''}</span>
                   </div>
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950/95"></div>
                 </div>

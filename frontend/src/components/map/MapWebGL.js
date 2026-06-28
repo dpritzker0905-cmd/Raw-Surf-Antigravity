@@ -28,6 +28,8 @@ import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
 import { useSpotClusteringData } from './useSpotClusteringData';
+import { useSpotRatings } from './useSpotRatings';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
 import { useMapObservability } from './useMapObservability';
@@ -137,8 +139,19 @@ const MapWebGL = ({
     configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
   }, [mapInstance, activeMarineLayer, theme]);
 
+  // Rating mode (the Swell↔Rating toggle in MapWeatherControls). Tracked reactively here so the spot
+  // glyphs + clustering can respond; the toggle persists the flag and fires 'rawsurf:surf-toggle'.
+  const [surfMode, setSurfMode] = useState(() => { try { return getSurfModeFlag(); } catch (e) { return false; } });
+  useEffect(() => {
+    const sync = () => { try { setSurfMode(getSurfModeFlag()); } catch (e) { /* noop */ } };
+    if (typeof window !== 'undefined') {
+      window.addEventListener('rawsurf:surf-toggle', sync);
+      return () => window.removeEventListener('rawsurf:surf-toggle', sync);
+    }
+  }, []);
+
   // 6. Spot Clustering Data
-  const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState });
+  const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState, surfMode });
 
   const animFrameRef = useRef(null);
   
@@ -188,6 +201,9 @@ const MapWebGL = ({
       onMarineDataChange(marineData);
     }
   }, [marineData, onMarineDataChange]);
+
+  // Per-spot surf-quality ratings for the Rating-overlay glyphs (sampled from the rating-mode marine grid).
+  const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode });
   // FCE: Field Composition Engine — Single Source of Truth
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
     windData,
@@ -616,6 +632,8 @@ const MapWebGL = ({
           onSpotClick={onSpotClick}
           onPhotographerClick={onPhotographerClick}
           mapRef={innerMapRef}
+          surfMode={surfMode}
+          spotRatings={spotRatings}
         />
         {/* Keep the WebGL wind engine RESIDENT (gated by `active`) — same rationale as the
             marine layer above: avoid disposing/rebuilding the 147,456-particle engine on

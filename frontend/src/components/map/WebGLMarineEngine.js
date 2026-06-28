@@ -423,6 +423,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     } catch (e) { surfModeVal = 0.0; }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
 
     var heatmapOpacity;
     if (z <= 2) heatmapOpacity = 0.55;
