@@ -7,7 +7,8 @@ from services.weather_pipeline.scheduler_helpers import (
     get_env_flags,
     generate_mock_wind_results,
     normalize_and_save_loop,
-    REGIONAL_CONFIGS
+    REGIONAL_CONFIGS,
+    get_pilot_regions,
 )
 
 logger = logging.getLogger(__name__)
@@ -39,7 +40,7 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     noaa_direct = os.environ.get("GFS_WIND_NOAA_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
 
-    for region_id, region in REGIONAL_CONFIGS.items():
+    for region_id, region in get_pilot_regions().items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting GFS Wind for region: {region_id}")
 
@@ -485,7 +486,7 @@ async def ingest_icon_wind_pilot_impl(scheduler) -> bool:
     dwd_direct = os.environ.get("ICON_WIND_DWD_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
 
-    for region_id, region in REGIONAL_CONFIGS.items():
+    for region_id, region in get_pilot_regions().items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting ICON Wind for region: {region_id}")
 
@@ -549,7 +550,7 @@ async def ingest_euro_wind_pilot_impl(scheduler) -> bool:
     ecmwf_direct = os.environ.get("EURO_WIND_ECMWF_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
 
-    for region_id, region in REGIONAL_CONFIGS.items():
+    for region_id, region in get_pilot_regions().items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting EURO Wind for region: {region_id}")
 
