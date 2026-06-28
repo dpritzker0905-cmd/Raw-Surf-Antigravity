@@ -215,12 +215,12 @@ export var MapWeatherControls = ({
   // Surf-mode legend: rescaled to the nearshore surf range (0-13 ft) so the color key matches the coastal
   // band's getSurfT() mapping. Same per-theme ramp (theme-aware), just surf breakpoints + ft labels.
   const surfLegend = useMemo(() => {
-    const bpsM = [0, 0.3, 0.9, 1.8, 3.0, 4.0];          // meters
-    const labelsFt = ['0', '1', '3', '6', '10', '13+']; // ~ft equivalents
-    const alphas = [0.0, 0.5, 0.7, 0.8, 0.9, 0.95];
+    const bpsM = [0, 0.6, 1.5, 2.4, 3.7, 5.5, 8.0];          // meters (coastal surf scale, densest 1-8 ft)
+    const labelsFt = ['0', '2', '5', '8', '12', '18', '26+']; // ~ft equivalents
+    const alphas = [0.0, 0.5, 0.65, 0.78, 0.88, 0.93, 0.97];
     const stopsCSS = bpsM.map((bp, i) => {
       const [r, g, b] = getThemedWaveColorJS(bp, theme, true);
-      const pct = Math.round((bp / 4.0) * 100);
+      const pct = Math.round((bp / 8.0) * 100);
       return `rgba(${r},${g},${b},${alphas[i]}) ${pct}%`;
     }).join(', ');
     return { gradientCSS: `linear-gradient(to right, ${stopsCSS})`, stops: labelsFt };

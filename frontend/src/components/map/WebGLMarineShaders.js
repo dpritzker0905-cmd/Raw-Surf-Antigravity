@@ -82,19 +82,27 @@ float getNonlinearT(float h) {
 }
 
 float getSurfT(float h) {
-  // Swell↔Surf mode: nearshore BREAKING height is ~0-4 m (0-13 ft), not the 0-10 m offshore swell range,
-  // so the offshore ramp would compress all surf into its flat low end. Rescale to industry surf bands so a
-  // coastal band differentiates well: ~1 ft (0.3 m), ~3 ft (0.9 m), ~6 ft (1.8 m), ~10 ft (3.0 m), 13 ft+.
+  // Swell↔Surf mode: nearshore BREAKING height, not offshore swell. Coastal-logical scale spanning ~0-26 ft
+  // (0-8 m) with the DENSEST color resolution in the common 1-8 ft band — where almost all surfable/coastal
+  // conditions live, and a surfer cares far more about 2 vs 5 ft than 18 vs 22 ft. Extends through big-wave
+  // heights so reefs / open Pacific coasts differentiate instead of saturating into one blob at 13 ft.
+  // 8 levels (ft): 1, 2, 3, 5, 8, 12, 18, 26+.
   if (h < 0.3) {
-    return (h / 0.3) * 0.15;
+    return (h / 0.3) * 0.10;                              // 0-1 ft
+  } else if (h < 0.6) {
+    return 0.10 + ((h - 0.3) / 0.3) * 0.14;               // 1-2 ft
   } else if (h < 0.9) {
-    return 0.15 + ((h - 0.3) / 0.6) * 0.35;   // the 1-3 ft "small but rideable" band gets the most range
-  } else if (h < 1.8) {
-    return 0.50 + ((h - 0.9) / 0.9) * 0.30;
-  } else if (h < 3.0) {
-    return 0.80 + ((h - 1.8) / 1.2) * 0.12;
+    return 0.24 + ((h - 0.6) / 0.3) * 0.14;               // 2-3 ft
+  } else if (h < 1.5) {
+    return 0.38 + ((h - 0.9) / 0.6) * 0.18;               // 3-5 ft (most-common band, widest color range)
+  } else if (h < 2.4) {
+    return 0.56 + ((h - 1.5) / 0.9) * 0.16;               // 5-8 ft
+  } else if (h < 3.7) {
+    return 0.72 + ((h - 2.4) / 1.3) * 0.13;               // 8-12 ft
+  } else if (h < 5.5) {
+    return 0.85 + ((h - 3.7) / 1.8) * 0.10;               // 12-18 ft
   } else {
-    return 0.92 + clamp((h - 3.0) / 1.0, 0.0, 1.0) * 0.08;
+    return 0.95 + clamp((h - 5.5) / 2.5, 0.0, 1.0) * 0.05; // 18-26 ft+
   }
 }
 
