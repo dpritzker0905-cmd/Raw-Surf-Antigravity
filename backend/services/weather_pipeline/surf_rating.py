@@ -18,7 +18,7 @@ Model:
   - wind_quality: the dominant cleanliness factor. Offshore/light grooms the face (high); onshore/strong
     is blown out (low). Uses the shore-normal (offshore vs onshore) when known, else speed-only.
   - period_quality: long-period groundswell is powerful + organized (high); short windswell is chop (low).
-mapped to the 7-level Surfline-style scale: very_poor, poor, poor_fair, fair, fair_good, good, epic.
+mapped to a 7-level surf-quality scale: very_poor, poor, poor_fair, fair, fair_good, good, epic.
 """
 import math
 
@@ -193,7 +193,10 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
         score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal)
         if score is None or score <= 0:
             continue                                   # no rideable wave -> nothing to rate
-        vec.speed = round(float(score), 1)             # 0-100 rating score -> heatmap value
+        # Encode score/10 into the height channel: the marine texture packs height as clamp(h/10,0,1), and the
+        # shader recovers the score as waveHeight*10 -> getRatingColor(score). Keeps the existing encode/decode
+        # untouched (the rating overlay is just a different colormap on the same 0-10 channel).
+        vec.speed = round(float(score) / 10.0, 4)
         if hasattr(vec, "rating_level"):
             vec.rating_level = level
         if getattr(vec, "u", None) is not None:

@@ -575,16 +575,76 @@ async def resolve_grid(
         and os.environ.get("SURF_TRANSFORM", "1") != "0"
     ):
         try:
-            from services.weather_pipeline.surf_transform import surf_transform_grid
-            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
-            n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
+            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
+            # The "surf" toggle now renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
+            # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the height
+            # channel (the shader colours it via getRatingColor); open-ocean cells are transparency-masked.
+            # Wind is co-sampled from the model's own wind product. Kill switch SURF_RATING=0 falls back to the
+            # surf-HEIGHT band (the prior surf_transform_grid behaviour) for rollback.
+            if os.environ.get("SURF_RATING", "1") != "0":
+                from services.weather_pipeline.surf_rating import rating_transform_grid
+                wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
+                n_t, n_masked = rating_transform_grid(
+                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at)
+                tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn)}
+                label = "RATING overlay"
+            else:
+                from services.weather_pipeline.surf_transform import surf_transform_grid
+                n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
+                tag = {"transformed": n_t, "masked": n_masked}
+                label = "height band"
             product.is_estimated = True
             if product.grid.diagnostics is None:
                 product.grid.diagnostics = {}
-            product.grid.diagnostics["surf_transform"] = {"transformed": n_t, "masked": n_masked}
-            logger.info(f"[Grid Route] Surf band: {n_t} coastal cells -> breaker height, "
-                        f"{n_masked} open-ocean cells masked, for {model} {layer}.")
+            product.grid.diagnostics["surf_transform"] = tag
+            logger.info(f"[Grid Route] Surf {label}: {n_t} coastal cells, {n_masked} open-ocean masked, for {model} {layer}.")
         except Exception as _se:
-            logger.warning(f"[Grid Route] Surf transform skipped: {_se}")
+            logger.warning(f"[Grid Route] Surf overlay skipped: {_se}")
 
     return product
+
+
+async def _build_wind_sampler(store, manifest, model, target_dt):
+    """Return a ``(lat, lng) -> (speed_ms, from_deg) | None`` sampler over the model's wind product nearest
+    ``target_dt`` (within 3h), for the surf-rating's offshore/onshore wind factor. The wind product stores
+    speed in KNOTS (value_unit=kn) -> converted to m/s; ``direction`` is the meteorological FROM bearing.
+    Nearest-cell by lat/lng (robust to grid ordering; the wind grid is small/coarse). None if no product."""
+    try:
+        cands = [
+            p for p in manifest.products
+            if p.model.upper() == model.upper() and p.domain.lower() == "wind" and p.layer.lower() == "wind"
+            and abs((p.valid_time_start - target_dt).total_seconds()) <= 3 * 3600
+        ]
+        if not cands:
+            return None
+        best = min(cands, key=lambda p: abs((p.valid_time_start - target_dt).total_seconds()))
+        wp = await asyncio.to_thread(store.load_product, best.filename)
+        if not wp or not wp.grid or not wp.grid.vectors:
+            return None
+        vex = [v for v in wp.grid.vectors
+               if getattr(v, "lat", None) is not None and getattr(v, "lng", None) is not None
+               and getattr(v, "speed", None) is not None]
+        if not vex:
+            return None
+        KT_TO_MS = 0.514444
+
+        def sampler(lat, lng):
+            if lat is None or lng is None:
+                return None
+            best_v = None
+            best_d = None
+            for v in vex:
+                dlng = abs(v.lng - lng)
+                if dlng > 180:
+                    dlng = 360 - dlng
+                d = (v.lat - lat) ** 2 + dlng ** 2
+                if best_d is None or d < best_d:
+                    best_d = d
+                    best_v = v
+            if best_v is None:
+                return None
+            return (best_v.speed * KT_TO_MS, getattr(best_v, "direction", None))
+
+        return sampler
+    except Exception:
+        return None

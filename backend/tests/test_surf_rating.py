@@ -108,7 +108,7 @@ def test_rating_transform_grid_writes_score_masks_open_ocean_zeros_vectors():
         shore_normal_fn=lambda la, ln: 270.0,
     )
     assert n_rated == 1 and n_masked == 1
-    assert 0 < coastal.speed <= 100                  # speed now holds the 0-100 rating score
+    assert 0 < coastal.speed <= 10                   # speed holds score/10 (fits the 0-10 texture channel)
     assert coastal.u == 0.0 and coastal.v == 0.0     # rating is scalar -> no direction arrows
     assert coastal.rating_level in (
         "very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic")
