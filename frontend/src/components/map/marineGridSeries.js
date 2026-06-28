@@ -368,6 +368,15 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     // frame if its grid actually COVERS the viewport; else fall through to the containment fallback
     // (which finds a wider warmed frame, e.g. the zoom-out pre-warm) or misses into a fresh fetch.
     if (!bboxContains(entry.bounds, bounds)) continue;
+    // A GLOBAL-width entry stored under the exact viewport key (a cold-viewport coarse SWR preview — the
+    // backend served global-coarse while building the regional grid) must NOT be accepted here for a
+    // REGIONAL viewport: doing so sets `best` with diff 0 and short-circuits the containment fallback below,
+    // which would otherwise serve a SMALLER, already-warmed REGIONAL frame that also covers. That short
+    // circuit is why a zoomed-in heatmap renders coarse/clamped (fw=360, willSharpen:false) even though a
+    // covering regional tile is cached (organic repro 2026-06-28). Defer global to the last-resort fallback.
+    const _eb = entry.bounds;
+    const _eWid = (_eb.east < _eb.west) ? (_eb.east + 360 - _eb.west) : (_eb.east - _eb.west);
+    if (isRegionalViewport && _eWid >= 340) continue;
     for (const h of entry.hours) {
       const d = Math.abs(h - hourOffset);
       if (d < bestDiff) { bestDiff = d; best = entry.frames.get(h) || null; }

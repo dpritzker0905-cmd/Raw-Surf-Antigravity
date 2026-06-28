@@ -130,6 +130,35 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(getMarineSeriesFrame('GFS', 'waves', nearGlobal, 3)).not.toBeNull();
   });
 
+  it('a GLOBAL coarse-preview under the exact viewport key does NOT mask a warmed regional tile (clamp repro 2026-06-28)', async () => {
+    window.__MARINE_SERIES__ = true;
+    const globalBounds = { west: -180, south: -80, east: 180, north: 80 };
+    const regBounds = { west: -82, south: 27, east: -79, north: 29 };
+    const mkVec = (s, b) => ({ lat: (b.south + b.north) / 2, lng: (b.west + b.east) / 2, u: 0, v: 0, speed: s, direction: 90, period: 8 });
+
+    // 1) The backend serves a GLOBAL coarse-preview for a TIGHT (zoomed-in) request → cached UNDER THE TIGHT
+    //    viewport key but with global bounds (the SWR preview while it builds the regional grid). speed=9.
+    const tight = { west: -80.6, south: 28.0, east: -80.0, north: 28.4 };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({
+      model: 'GFS', layer: 'waves', cols: 4, rows: 4,
+      frames: [{ hour_offset: 3, cols: 4, rows: 4, bounds: globalBounds, vectors: [mkVec(9, globalBounds)], provider: 'open-meteo' }],
+    }) });
+    await ensureMarineSeries('GFS', 'waves', tight, 3);
+
+    // 2) A wider REGIONAL tile that CONTAINS the tight viewport is also warmed (the earlier zoom-out warm). speed=7.
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({
+      model: 'GFS', layer: 'waves', cols: 4, rows: 4,
+      frames: [{ hour_offset: 3, cols: 4, rows: 4, bounds: regBounds, vectors: [mkVec(7, regBounds)], provider: 'open-meteo' }],
+    }) });
+    await ensureMarineSeries('GFS', 'waves', regBounds, 3);
+
+    // The fix: the tight viewport must resolve to the REGIONAL frame (7), NOT the global exact-key preview (9)
+    // — the exact-key global preview must defer to the containment fallback so the heatmap sharpens.
+    const f = getMarineSeriesFrame('GFS', 'waves', tight, 3);
+    expect(f).not.toBeNull();
+    expect(f.grid.vectors[0].speed).toBe(7);
+  });
+
   it('pages around the requested hour — a far hour loads ITS page (not hour 0) and serves it', async () => {
     window.__MARINE_SERIES__ = true;
     const mkVec = (s) => ({ lat: 28, lng: -80, u: 0, v: 0, speed: s, direction: 90, period: 8 });
