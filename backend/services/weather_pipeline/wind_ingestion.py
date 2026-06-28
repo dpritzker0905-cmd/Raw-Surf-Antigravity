@@ -30,29 +30,60 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     run_time = datetime.now(timezone.utc)
     total_saved = 0
 
+    # Regional pilot mirrors ingest_gfs_wind_global_impl's NOAA-direct PRIMARY: fetch_gfs_wind_global_coarse
+    # is bbox+resolution-parameterized, so a regional 0.25° fetch is just a smaller bbox. open-meteo is
+    # unreachable on the decoupled GitHub runner, so without this the regional pilot ships ZERO wind tiles —
+    # the zoomed-in-wind slow path (no regional product -> ~20s live viewport fetch per request on the serve
+    # box). Provider stays 'open-meteo' (manifest byte-identical, source_dataset='gfs_seamless'); open-meteo
+    # remains the fallback. Kill switch: GFS_WIND_NOAA_DIRECT=0.
+    noaa_direct = os.environ.get("GFS_WIND_NOAA_DIRECT", "1") != "0"
+    forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
+
     for region_id, region in REGIONAL_CONFIGS.items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting GFS Wind for region: {region_id}")
 
-        results = await scheduler._fetch_or_mock(
-            "GFS", "wind", "wind", region, resolution, 14,
-            False,
-            lambda: generate_mock_wind_results(scheduler.om_provider, region, resolution),
-            region_id
-        )
+        results = None
+        from_noaa = False
+        if noaa_direct:
+            try:
+                from services.noaa_wind_service import fetch_gfs_wind_global_coarse
+                results = await fetch_gfs_wind_global_coarse(region, resolution, forecast_days)
+                if results:
+                    from_noaa = True
+                    logger.info(f"[Pipeline Scheduler] GFS wind NOAA-direct OK for {region_id}: "
+                                f"{len(results)} points (off open-meteo).")
+            except Exception as _ne:
+                logger.error(f"[Pipeline Scheduler] GFS wind NOAA-direct fetch errored for {region_id}: {_ne}")
+
+        if not results:
+            if noaa_direct:
+                logger.warning(f"[Pipeline Scheduler] GFS wind NOAA-direct unavailable for {region_id}; "
+                               "falling back to open-meteo.")
+            results = await scheduler._fetch_or_mock(
+                "GFS", "wind", "wind", region, resolution, 14,
+                False,
+                lambda r=region, res=resolution: generate_mock_wind_results(scheduler.om_provider, r, res),
+                region_id
+            )
         if not results:
             continue
 
+        # NOAA GFS wind is natively 3-hourly (step=1 keeps every step); open-meteo is hourly (step=3 ->
+        # 3-hourly products). Same 3-hourly product cadence either way.
+        save_step = 1 if from_noaa else 3
         count = await normalize_and_save_loop(
             scheduler.normalizer, scheduler.store, results,
             model="GFS", provider="open-meteo", domain="wind", layer="wind",
             bbox=region, resolution=resolution, run_time=run_time,
             region_id=region_id, coverage_mode="regional_tile",
-            is_test_env=env["is_test_env"],
+            is_test_env=env["is_test_env"], step=save_step,
             log_prefix=f"[Pipeline Scheduler] GFS wind {region_id}"
         )
         logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind grid files for region {region_id}.")
         total_saved += count
+        if count > 0:
+            scheduler.store.prune_superseded_products("GFS", "wind", "wind", region_id, run_time)
         await scheduler._cleanup_and_pause(results)
 
     return total_saved > 0
@@ -447,36 +478,58 @@ async def ingest_icon_wind_pilot_impl(scheduler) -> bool:
     run_time = datetime.now(timezone.utc)
     total_saved = 0
 
+    # DWD-direct PRIMARY (mirrors ingest_icon_wind_global_impl): fetch_icon_wind_global_coarse is bbox-
+    # parameterized, so a regional fetch is just a smaller bbox. open-meteo is unreachable on the CI runner,
+    # so without this the pilot ships ZERO regional wind tiles. Provider stays 'open-meteo' (manifest byte-
+    # identical, source_dataset='dwd_icon'); open-meteo remains the fallback. Kill switch: ICON_WIND_DWD_DIRECT=0.
+    dwd_direct = os.environ.get("ICON_WIND_DWD_DIRECT", "1") != "0"
+    forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
+
     for region_id, region in REGIONAL_CONFIGS.items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting ICON Wind for region: {region_id}")
 
-        try:
-            raw_data = await scheduler.om_provider.fetch_grid(
-                model="ICON", domain="wind", layer="wind",
-                bbox=region, resolution=resolution, forecast_days=5
-            )
-        except Exception as e:
-            logger.error(f"[Pipeline Scheduler] ICON Wind fetch exception: {e}")
-            raw_data = None
+        results = None
+        from_dwd = False
+        if dwd_direct:
+            try:
+                from services.dwd_wind_service import fetch_icon_wind_global_coarse
+                results = await fetch_icon_wind_global_coarse(region, resolution, forecast_days)
+                if results:
+                    from_dwd = True
+                    logger.info(f"[Pipeline Scheduler] ICON wind DWD-direct OK for {region_id}: "
+                                f"{len(results)} points (off open-meteo).")
+            except Exception as _de:
+                logger.error(f"[Pipeline Scheduler] ICON wind DWD-direct fetch errored for {region_id}: {_de}")
 
-        if raw_data:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
-            provider = "open-meteo"
-        else:
-            logger.error(f"[Pipeline Scheduler] ICON Wind fetch failed for {region_id}. Skipping.")
-            continue
+        if not results:
+            try:
+                raw_data = await scheduler.om_provider.fetch_grid(
+                    model="ICON", domain="wind", layer="wind",
+                    bbox=region, resolution=resolution, forecast_days=5
+                )
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] ICON Wind fetch exception: {e}")
+                raw_data = None
+            if raw_data:
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
+            else:
+                logger.error(f"[Pipeline Scheduler] ICON Wind fetch failed for {region_id}. Skipping.")
+                continue
 
+        save_step = 1 if from_dwd else 3
         count = await normalize_and_save_loop(
             scheduler.normalizer, scheduler.store, results,
-            model="ICON", provider=provider, domain="wind", layer="wind",
+            model="ICON", provider="open-meteo", domain="wind", layer="wind",
             bbox=region, resolution=resolution, run_time=run_time,
             region_id=region_id, coverage_mode="regional_tile",
-            is_test_env=env["is_test_env"],
+            is_test_env=env["is_test_env"], step=save_step,
             log_prefix=f"[Pipeline Scheduler] ICON wind {region_id}"
         )
         logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Wind grid files for region {region_id}.")
         total_saved += count
+        if count > 0:
+            scheduler.store.prune_superseded_products("ICON", "wind", "wind", region_id, run_time)
         await scheduler._cleanup_and_pause(results)
 
     return total_saved > 0
@@ -489,36 +542,58 @@ async def ingest_euro_wind_pilot_impl(scheduler) -> bool:
     run_time = datetime.now(timezone.utc)
     total_saved = 0
 
+    # ECMWF-direct PRIMARY (mirrors ingest_euro_wind_global_impl): fetch_euro_wind_global_coarse is bbox-
+    # parameterized. open-meteo is unreachable on the CI runner (and was starving EURO wind), so without this
+    # the pilot ships ZERO regional wind tiles. Provider stays 'open-meteo' (manifest byte-identical,
+    # source_dataset='ecmwf_ifs'); open-meteo remains the fallback. Kill switch: EURO_WIND_ECMWF_DIRECT=0.
+    ecmwf_direct = os.environ.get("EURO_WIND_ECMWF_DIRECT", "1") != "0"
+    forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
+
     for region_id, region in REGIONAL_CONFIGS.items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting EURO Wind for region: {region_id}")
 
-        try:
-            raw_data = await scheduler.om_provider.fetch_grid(
-                model="EURO", domain="wind", layer="wind",
-                bbox=region, resolution=resolution, forecast_days=2
-            )
-        except Exception as e:
-            logger.error(f"[Pipeline Scheduler] EURO Wind fetch exception: {e}")
-            raw_data = None
+        results = None
+        from_ecmwf = False
+        if ecmwf_direct:
+            try:
+                from services.ecmwf_wind_service import fetch_euro_wind_global_coarse
+                results = await fetch_euro_wind_global_coarse(region, resolution, min(forecast_days, 10))
+                if results:
+                    from_ecmwf = True
+                    logger.info(f"[Pipeline Scheduler] EURO wind ECMWF-direct OK for {region_id}: "
+                                f"{len(results)} points (off open-meteo).")
+            except Exception as _ee:
+                logger.error(f"[Pipeline Scheduler] EURO wind ECMWF-direct fetch errored for {region_id}: {_ee}")
 
-        if raw_data:
-            results = raw_data if isinstance(raw_data, list) else [raw_data]
-            provider = "open-meteo"
-        else:
-            logger.error(f"[Pipeline Scheduler] EURO Wind fetch failed for {region_id}. Skipping.")
-            continue
+        if not results:
+            try:
+                raw_data = await scheduler.om_provider.fetch_grid(
+                    model="EURO", domain="wind", layer="wind",
+                    bbox=region, resolution=resolution, forecast_days=2
+                )
+            except Exception as e:
+                logger.error(f"[Pipeline Scheduler] EURO Wind fetch exception: {e}")
+                raw_data = None
+            if raw_data:
+                results = raw_data if isinstance(raw_data, list) else [raw_data]
+            else:
+                logger.error(f"[Pipeline Scheduler] EURO Wind fetch failed for {region_id}. Skipping.")
+                continue
 
+        save_step = 1 if from_ecmwf else 3
         count = await normalize_and_save_loop(
             scheduler.normalizer, scheduler.store, results,
-            model="EURO", provider=provider, domain="wind", layer="wind",
+            model="EURO", provider="open-meteo", domain="wind", layer="wind",
             bbox=region, resolution=resolution, run_time=run_time,
             region_id=region_id, coverage_mode="regional_tile",
-            is_test_env=env["is_test_env"],
+            is_test_env=env["is_test_env"], step=save_step,
             log_prefix=f"[Pipeline Scheduler] EURO wind {region_id}"
         )
         logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind grid files for region {region_id}.")
         total_saved += count
+        if count > 0:
+            scheduler.store.prune_superseded_products("EURO", "wind", "wind", region_id, run_time)
         await scheduler._cleanup_and_pause(results)
 
     return total_saved > 0

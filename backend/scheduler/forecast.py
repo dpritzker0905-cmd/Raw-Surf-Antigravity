@@ -102,6 +102,20 @@ def ingest_marine_forecast_task():
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
             ]
 
+            # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
+            # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per
+            # request for any zoomed-in wind view ("wind takes minutes to load"). Like the marine pilot these
+            # are slow regional NOAA/DWD/ECMWF GRIB fetches with NO downstream dependents, so they run LAST:
+            # a worst-case CI timeout can only cost the nice-to-have coastal wind regionals, never a core
+            # global layer. Once a regional wind tile is in the manifest, resolve_grid serves it (is_regional
+            # branch) instead of fetching upstream. Kill switch: WIND_PILOT_INGEST=0.
+            if os.environ.get("WIND_PILOT_INGEST", "1") != "0":
+                jobs += [
+                    ("GFS Wind Pilot", weather_scheduler.ingest_gfs_wind_pilot),
+                    ("ICON Wind Pilot", weather_scheduler.ingest_icon_wind_pilot),
+                    ("EURO Wind Pilot", weather_scheduler.ingest_euro_wind_pilot),
+                ]
+
             # Inter-job stagger lets the 1-CPU Render box settle (gc) between heavy jobs. The decoupled
             # GitHub runner (2 CPU, no serving contention) doesn't need it -> CI sets FORECAST_JOB_STAGGER_SEC=0
             # to shave ~4.5 min (9 jobs x 30s). Default 30 keeps Render behaviour unchanged.
