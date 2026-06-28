@@ -166,7 +166,13 @@ shader/series. All shipped: `96120177` `f538321f` `45a53585` `5a8b3b96` `85b7f8e
 
 ## 7. NOTED FOR REPAIR (open, 2026-06-28 — diagnosed, not yet fixed)
 
-### 7a. EURO marine heatmap clears in scrub after ~day 10
+### 7a. EURO marine heatmap clears in scrub after ~day 10 — ✅ FIXED (`ad17ca46`, pending cron run)
+**Fix shipped:** wired "EURO Marine Extended Estimates" (`ingest_euro_marine_extended_estimates`,
+persistence + GFS-14d/ICON blend) into the cron — after the marine globals, before the slow pilots so a
+timeout can't skip it; compute-only; kill switch `EURO_MARINE_EXTEND=0`. After the next forecast-ingest run
+EURO marine extends to ~14d (`is_estimated=true` past 240h). Full per-layer 14d + tier-gating still TODO
+(the broader [[tiered-forecast-window-14d-2026-06-27]] work).
+
 **Root (confirmed):** EURO marine ships only ~9-10 days of products (manifest: EURO marine waves ≈ 73
 products ≈ 219h); the estimated **10-14d extension** (`ingest_euro_marine_extended_estimates_impl`, exists
 in `scheduler.py` / `scheduler_helpers.py`) is **NOT wired into the decoupled cron** job list
