@@ -183,8 +183,18 @@ in `scheduler.py` / `scheduler_helpers.py`) is **NOT wired into the decoupled cr
 BASIC 7d / PREMIUM 14d). Until then the EURO scrubber should cap its slider at the real horizon so it
 doesn't scrub into the empty range.
 
-### 7b. Infobox shows 0 for marine layers at several marker points
-**Backend is HEALTHY — not the cause.** Live `/point` returns real wave heights in `point.speed` at every
+### 7b. Infobox shows 0 for marine layers at several marker points — ✅ PRIMARY ROOT FIXED (`3f45d004`)
+**Fix shipped (frontend):** `sampleValueFromDecodedTiles` (`forecastHelpers.js`) treated land/masked tile
+corners as 0 and bilinear-interpolated; when ALL 4 corners were land/masked (a coastal/enclosed-sea marker
+in the coarse tile) it returned `{value: 0}` instead of `null`, and that 0 short-circuited the infobox value
+chain's `??` (0 isn't nullish) → "0 ft". Now returns `null` for any non-`>0` wave-height sample (waves +
+swell_1/swell_2/wind_waves) so the chain falls through to a real source. Real ocean (incl. decayed nearshore,
+which stays > 0) is never masked. +2 regression tests. **Verify after Netlify deploy**: drop markers at the
+previously-0 coastal spots — should show a real value or "--", not "0 ft". Residual (rare): a true-land
+marker can still hit the final local-forecast fallback (`getBiasAdjustedLocal`) = 0; if any 0 remains,
+capture the `[Forensic Audit]` line + `/point` `point.speed` to confirm.
+
+(Original diagnosis retained below.) **Backend is HEALTHY — not the cause.** Live `/point` returns real wave heights in `point.speed` at every
 test point (Pacific 2.16 m, Atlantic 1.46 m, Ireland 3.23 m, FL coast 0.40 m), picks the right product
 (global-coarse open ocean / `florida_east_coast` regional tile at FL), and the /point client
 (`backendWeatherServiceClientPoint.js:438-452`) maps `point.speed` → `wave_height` correctly. NOTE
