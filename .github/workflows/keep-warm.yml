@@ -1,0 +1,34 @@
+name: keep-serve-box-warm
+
+# Keep the Render serve box warm so it doesn't cold-start on idle spin-down (the "waves map took a while
+# to load" cold-start). A single lightweight /api/health curl wakes it. GitHub's scheduled cron is
+# BEST-EFFORT (runs can be delayed or skipped under load), so this REDUCES cold-starts but isn't a hard
+# guarantee — for a guarantee, ALSO point an external uptime monitor (UptimeRobot / cron-job.org, 5-min
+# interval, free) at the same URL. Tune the cadence below; disable by deleting this file or via the Actions UI.
+
+on:
+  schedule:
+    - cron: '*/10 * * * *'   # ~every 10 min (best-effort; GitHub may delay). Render free tier idles at ~15 min.
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: keep-warm
+  cancel-in-progress: true   # a ping is disposable — never queue stale ones
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Wake the serve box (health ping)
+        run: |
+          url="https://raw-surf-antigravity.onrender.com/api/health"
+          for i in 1 2 3; do
+            code=$(curl -s -o /dev/null -w "%{http_code}" --max-time 90 "$url" || echo 000)
+            echo "ping $i -> HTTP $code"
+            if [ "$code" = "200" ]; then exit 0; fi
+            sleep 15   # a cold box may take a moment to boot; retry within this run
+          done
+          echo "serve box not 200 after 3 tries (likely deploying/cold) — non-fatal; next run retries"
