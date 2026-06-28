@@ -77,6 +77,23 @@ def test_select_precomputed_returns_empty_list_not_none_when_frame_matches_but_n
     assert sel == []   # frame exists (don't fall back to live) but nothing in view
 
 
+def test_select_precomputed_tolerant_nearest_time_match():
+    # The precompute keyed the frame at 21:00Z; a request 40 min later should still hit it (within 2h).
+    frame = {"model": "GFS", "valid_time": "2026-06-28T21:00:00Z", "spots": [
+        {"spot_id": "in", "latitude": 26.0, "longitude": -80.0, "score": 50, "level": "fair"},
+    ]}
+    sel = select_precomputed(_obj([frame]), (-82, 24, -79, 28), "GFS", "2026-06-28T21:40:00Z")
+    assert sel is not None and [s["spot_id"] for s in sel] == ["in"]
+
+
+def test_select_precomputed_outside_tolerance_falls_back():
+    # A request 5h away from the only frame → no match → None (caller falls back to live).
+    frame = {"model": "GFS", "valid_time": "2026-06-28T21:00:00Z", "spots": [
+        {"spot_id": "in", "latitude": 26.0, "longitude": -80.0, "score": 50, "level": "fair"},
+    ]}
+    assert select_precomputed(_obj([frame]), (-82, 24, -79, 28), "GFS", "2026-06-29T02:00:00Z") is None
+
+
 # ── antimeridian-aware longitude test ──
 def test_lng_in_normal_and_wrapped():
     assert _lng_in(-80, -82, -79) is True

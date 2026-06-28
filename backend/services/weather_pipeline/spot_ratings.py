@@ -8,11 +8,12 @@ DATABASE_URL — only the Storage service key), rates each spot, and writes a sm
 Storage L2. The serve box reads that object back; the endpoint falls through to live compute whenever no
 precomputed frame covers the request, so this is purely additive — it never removes the working live path.
 """
+import asyncio
 import json
 import logging
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from services.weather_pipeline.schemas import NormalizedPointResponse
@@ -99,18 +100,49 @@ def _lng_in(lng, w, e) -> bool:
     return (w <= lng <= e) if w <= e else (lng >= w or lng <= e)
 
 
-def select_precomputed(obj, bbox, model, valid_time) -> Optional[list]:
-    """PURE: pick the frame matching (model, valid_time) from a loaded L2 object and filter its spots to the
-    bbox. Returns the list of rating dicts (possibly empty), or None when no matching frame exists — the
-    signal for the caller to fall back to LIVE compute. Tolerant of malformed input."""
+def _parse_dt(s):
+    """Parse an ISO-8601 timestamp (tolerating a trailing 'Z') to an aware datetime, or None."""
+    if not s or not isinstance(s, str):
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+SELECT_TOLERANCE_S = 7200  # 2h — the frontend's getSharedValidTime needn't string-match the precomputed key
+
+
+def select_precomputed(obj, bbox, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S) -> Optional[list]:
+    """PURE: pick the frame for (model, valid_time) from a loaded L2 object and filter its spots to the bbox.
+    Matches valid_time EXACTLY first, else the NEAREST same-model frame within `tolerance_s` (the frontend's
+    getSharedValidTime needn't byte-match the precompute's key — only be the same forecast hour). Returns the
+    list of rating dicts (possibly empty when the frame matches but nothing's in view → DON'T fall back), or
+    None when no frame matches → the signal to fall back to LIVE compute. Tolerant of malformed input."""
     if not obj or not isinstance(obj.get("frames"), list):
         return None
     try:
         w, s, e, n = bbox
     except Exception:
         return None
-    frame = next((f for f in obj["frames"]
-                  if f.get("model") == model and f.get("valid_time") == valid_time), None)
+    model_frames = [f for f in obj["frames"] if f.get("model") == model]
+    if not model_frames:
+        return None
+    frame = next((f for f in model_frames if f.get("valid_time") == valid_time), None)
+    if frame is None:
+        req = _parse_dt(valid_time)
+        if req is not None:
+            best, best_d = None, None
+            for f in model_frames:
+                ft = _parse_dt(f.get("valid_time"))
+                if ft is None:
+                    continue
+                d = abs((ft - req).total_seconds())
+                if best_d is None or d < best_d:
+                    best, best_d = f, d
+            if best is not None and best_d <= tolerance_s:
+                frame = best
     if frame is None:
         return None
     out = []
@@ -189,3 +221,55 @@ def fetch_active_spots_via_rest(limit: int = 5000) -> list:
     resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
     resp.raise_for_status()
     return resp.json()
+
+
+def _make_point_resolver():
+    """Build a PointResolutionService the same way the /weather routes do — for the CI precompute, which has
+    the ingested products in the store but not the route module's singletons."""
+    from services.weather_pipeline.point_resolution import PointResolutionService
+    from services.weather_pipeline.sampler import PointSampler
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    return PointResolutionService(sampler=PointSampler(), provider=OpenMeteoProvider())
+
+
+def _top_of_hour_utc():
+    return datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+
+
+async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt=None, concurrency: int = 8) -> dict:
+    """Rate every spot for each (model, hour) frame and return the versioned L2 object. Bounded concurrency so
+    a large spot list doesn't stampede the resolver. valid_time per frame = base_dt + hour (top-of-hour UTC)."""
+    base = base_dt or _top_of_hour_utc()
+    sem = asyncio.Semaphore(max(1, concurrency))
+
+    async def _one(resolver, sp, model, vt):
+        async with sem:
+            return await rate_one_spot(resolver, sp, model, vt)
+
+    frames = []
+    for model in models:
+        for h in hour_offsets:
+            vt = (base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
+            rated = list(await asyncio.gather(*[_one(resolver, sp, model, vt) for sp in spots])) if spots else []
+            frames.append({"model": model, "valid_time": vt, "hour_offset": h, "spots": rated})
+    return build_l2_object(frames)
+
+
+def run_spot_ratings_precompute() -> tuple:
+    """CI entry: read spots (Supabase REST), rate the configured frames, upload the L2 object. Returns
+    (n_spots, n_frames). Config via env: SPOT_RATINGS_PRECOMPUTE_MODELS (csv, default GFS),
+    SPOT_RATINGS_PRECOMPUTE_HOURS (csv offsets, default '0')."""
+    from services.weather_pipeline.store import ProductStore
+    spots = fetch_active_spots_via_rest()
+    if not spots:
+        logger.warning("[spot-ratings] precompute: no active spots from REST — nothing to do.")
+        return 0, 0
+    models = [m.strip().upper() for m in os.environ.get("SPOT_RATINGS_PRECOMPUTE_MODELS", "GFS").split(",") if m.strip()]
+    hours = [int(h) for h in os.environ.get("SPOT_RATINGS_PRECOMPUTE_HOURS", "0").split(",") if h.strip()]
+    resolver = _make_point_resolver()
+    obj = asyncio.run(precompute_spot_ratings(resolver, spots, models, hours))
+    n_frames = len(obj.get("frames", []))
+    upload_spot_ratings_l2(ProductStore(), obj)
+    logger.info("[spot-ratings] precompute uploaded L2: %d spots × %d frames (%s × hours %s).",
+                len(spots), n_frames, models, hours)
+    return len(spots), n_frames

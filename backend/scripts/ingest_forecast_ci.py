@@ -66,6 +66,19 @@ def main() -> int:
     from scheduler.forecast import ingest_marine_forecast_task
     ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
 
+    # ── P1 increment 3: precompute per-spot surf ratings → L2 (off the 1-CPU serve box) ──────────────────
+    # AFTER ingestion (so the store holds fresh marine + wind products), rate every active surf spot for the
+    # current frame and upload a small JSON object to L2; the serve box reads it (source="precomputed") and
+    # falls back to live compute otherwise. Flag-gated OFF by default + fully guarded so it can NEVER fail the
+    # ingest cycle (the products are already persisted above). Enable with SPOT_RATINGS_PRECOMPUTE=1.
+    if os.environ.get("SPOT_RATINGS_PRECOMPUTE", "0") == "1":
+        try:
+            from services.weather_pipeline.spot_ratings import run_spot_ratings_precompute
+            n_spots, n_frames = run_spot_ratings_precompute()
+            logger.info("Spot-ratings precompute complete: %d spots × %d frames → L2.", n_spots, n_frames)
+        except Exception as _spe:
+            logger.warning("Spot-ratings precompute skipped (non-fatal, ingestion already persisted): %s", _spe)
+
     # The store records L2 outcomes at class level, so a fresh instance reads this process's results.
     from services.weather_pipeline.store import ProductStore
     diag = ProductStore().get_persistence_diagnostics()
