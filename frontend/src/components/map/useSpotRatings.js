@@ -9,8 +9,10 @@
  * The result colours a discrete animated glyph at each spot (rendered in MapMarkerLayers) so the rating reads
  * AT the surf breaks, not as a coarse band smeared across the whole shelf.
  */
-import { useMemo } from 'react';
+import { useMemo, useState, useEffect, useRef } from 'react';
 import { scoreToLevel, RATING_COLOR, RATING_LABEL } from './surfRating';
+import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
+import { getSharedValidTime } from './backendWeatherServiceClient';
 
 /**
  * Nearest rated coastal cell to (lat,lng) in a Rating-mode marine grid (speed = score/10; open-ocean = 0).
@@ -80,15 +82,57 @@ export function computeSpotRatings(spotClusters, grid, surfMode) {
 }
 
 /**
- * Map of spotId -> { score, level, color, label } for the visible (non-cluster) spots, while Rating mode is on.
- * Recomputes only when the spots, the surf-mode flag, or the marine grid revision change.
+ * Map of spotId -> { score, level, color, label, confidence, why } for the visible spots while Rating mode is on.
+ *
+ * Two-source (P1 increment 2): the per-spot backend endpoint (/api/weather/spot-ratings) is the ACCURATE source
+ * — it resolves each spot at its precise location (best-resolution tile + bathymetry + wind), so glyphs are right
+ * even at remote/un-warmed spots where the coarse grid sample is wrong or absent. The instant grid-sample
+ * (computeSpotRatings) is kept as an immediate fallback so glyphs appear with zero latency on toggle, then the
+ * endpoint result overrides it. Endpoint failures keep the last result (no flicker); the grid fallback still covers.
  */
-export function useSpotRatings({ spotClusters, marineData, surfMode }) {
+export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, activeModel = 'GFS', timeOffsetHours = 0 }) {
   const grid = marineData && marineData.grid;
   const rev = (marineData && (marineData.__commitRevision || (grid && grid.__activeLayerNonzeroCount))) || 0;
+  // Instant fallback from the already-loaded rating grid (gated on ratingMode — Option A).
+  const gridRatings = useMemo(
+    () => computeSpotRatings(spotClusters, grid, surfMode),
+    [spotClusters, surfMode, rev, grid]
+  );
 
-  return useMemo(() => {
-    return computeSpotRatings(spotClusters, grid, surfMode);
-    // rev guards the data-content recompute when the grid is mutated in place across commits.
-  }, [spotClusters, surfMode, rev, grid]);
+  const [endpointRatings, setEndpointRatings] = useState({});
+  const [moveNonce, setMoveNonce] = useState(0);
+  const lastKeyRef = useRef(null);
+
+  // moveend fires once per pan/zoom settle (not per frame) → a clean refetch trigger.
+  useEffect(() => {
+    if (!mapInstance) return;
+    const onMove = () => setMoveNonce((n) => (n + 1) % 1000000);
+    mapInstance.on('moveend', onMove);
+    return () => { try { mapInstance.off('moveend', onMove); } catch (e) { /* map gone */ } };
+  }, [mapInstance]);
+
+  // Fetch accurate per-spot ratings for the viewport, debounced + deduped + abortable.
+  useEffect(() => {
+    if (!surfMode || !mapInstance) { setEndpointRatings({}); lastKeyRef.current = null; return; }
+    let bounds;
+    try { bounds = mapInstance.getBounds(); } catch (e) { return; }
+    if (!bounds) return;
+    const snap = (v) => Math.round(v * 4) / 4;          // 0.25° — no refetch on sub-cell pans
+    const bbox = `${snap(bounds.getWest())},${snap(bounds.getSouth())},${snap(bounds.getEast())},${snap(bounds.getNorth())}`;
+    let validTime;
+    try { validTime = getSharedValidTime(timeOffsetHours, 'waves', activeModel || 'GFS'); } catch (e) { return; }
+    const key = `${bbox}|${validTime}|${activeModel}`;
+    if (key === lastKeyRef.current) return;             // same viewport/time/model → keep current ratings
+    const controller = new AbortController();
+    const t = setTimeout(() => {
+      lastKeyRef.current = key;
+      fetchSpotRatings({ bbox, validTime, model: activeModel || 'GFS', limit: 80, signal: controller.signal })
+        .then((resp) => setEndpointRatings(mapSpotRatingsResponse(resp && resp.spots)))
+        .catch(() => { lastKeyRef.current = null; /* allow retry; keep last + grid fallback */ });
+    }, 450);
+    return () => { clearTimeout(t); controller.abort(); };
+  }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce]);
+
+  // Endpoint ratings (accurate) override the instant grid-sample fallback.
+  return useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
 }

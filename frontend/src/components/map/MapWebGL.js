@@ -202,8 +202,9 @@ const MapWebGL = ({
     }
   }, [marineData, onMarineDataChange]);
 
-  // Per-spot surf-quality ratings for the Rating-overlay glyphs (sampled from the rating-mode marine grid).
-  const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode });
+  // Per-spot surf-quality ratings for the Rating-overlay glyphs: the backend /spot-ratings endpoint (precise
+  // per-spot resolution) with the rating-grid sample as an instant fallback. See useSpotRatings.js.
+  const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, activeModel, timeOffsetHours });
   // FCE: Field Composition Engine — Single Source of Truth
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
     windData,
