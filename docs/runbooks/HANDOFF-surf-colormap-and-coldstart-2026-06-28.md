@@ -211,3 +211,26 @@ pressure) — do NOT "fix" by reading `value`.
 `[Forensic Audit] Infobox display data source for waves … Status:` line + the `/point` response
 (`point.speed`). If `point.speed` is real but the box shows 0 → frontend path bug; if `point.speed` is
 null/0 → it's the coastal-cell gap (resolve via more regional tiles) or the >10d horizon (7a).
+
+---
+
+## 8. SURF-QUALITY RATING feature (2026-06-28) — shipped, ⏳ pending live verify
+
+The map **"Surf" toggle is now a "Rating" overlay** (very_poor→epic) + an **infobox Rating badge**. We
+dropped the surf-HEIGHT *map* band (redundant at our grid resolution — surf-zone amplification is sub-grid;
+height stays in the infobox). Full detail + model + value-encoding in memory [[surf-rating-overlay-2026-06-28]].
+
+- **Model (source of truth):** `backend/services/weather_pipeline/surf_rating.py` (+ JS mirror
+  `frontend/src/components/map/surfRating.js`, keep in sync). `size_gate(h) × (0.60·wind + 0.40·period)` →
+  0-100 → 7 levels. Grounded in Espejo 2014 / Mesa 2011 / Goda 2010 (Consensus MCP).
+- **Inputs:** `bathymetry.shore_normal_at` (offshore/onshore); `/point` `shore_normal_deg` (no extra fetch);
+  badge computed frontend-side; grid overlay = `grid_resolver` surf→`rating_transform_grid` + `_build_wind_sampler`
+  (wind co-sample, kt→m/s). Score/10 packed into the 0-10 height texture channel → shader `getRatingColor`
+  (isolated `u_surfMode` branch; normal marine path untouched).
+- **Colors:** industry surf-rating palette (red→teal, purple Good/Epic). **Never label "Surfline".** Palette in
+  `surfRating.js` RATING_COLOR + `WebGLMarineShaders.js` getRatingColor (keep synced). Legend = 7 bands.
+- **Kill switches:** `SURF_RATING=0` (backend → surf-height grid fallback), `SURF_TRANSFORM=0`.
+- **Commits:** `1ba30f57` `561ac2d2` `711dedae` `99ef0c17` `7ff799c7` `0a732ba5` `806c9445`. ~50 tests + build green.
+- **VERIFY after Netlify + Render redeploy:** toggle **Rating** on a coast → colored band; infobox **Rating**
+  badge; offshore-wind spot > onshore. (Still gated on the forecast-ingest Action dispatch / serve redeploy —
+  the whole backend batch is unverified live.)
