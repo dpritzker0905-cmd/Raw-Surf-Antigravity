@@ -82,27 +82,24 @@ float getNonlinearT(float h) {
 }
 
 float getSurfT(float h) {
-  // Swell↔Surf mode: nearshore BREAKING height, not offshore swell. Coastal-logical scale spanning ~0-26 ft
-  // (0-8 m) with the DENSEST color resolution in the common 1-8 ft band — where almost all surfable/coastal
-  // conditions live, and a surfer cares far more about 2 vs 5 ft than 18 vs 22 ft. Extends through big-wave
-  // heights so reefs / open Pacific coasts differentiate instead of saturating into one blob at 13 ft.
-  // 8 levels (ft): 1, 2, 3, 5, 8, 12, 18, 26+.
+  // Swell↔Surf mode: nearshore BREAKING height, FOCUSED on the surf range surfers actually read at the coast.
+  // Densest color resolution in the common 2-8 ft band (waist→overhead), where almost every coastal day lives;
+  // surf above ~16 ft (big-wave reefs, rare) saturates at the top. Same color family as the swell ramp — only
+  // the height→color mapping changes. 7 levels (ft): 1, 2, 3, 5, 8, 12, 16+.
   if (h < 0.3) {
-    return (h / 0.3) * 0.10;                              // 0-1 ft
+    return (h / 0.3) * 0.08;                              // 0-1 ft
   } else if (h < 0.6) {
-    return 0.10 + ((h - 0.3) / 0.3) * 0.14;               // 1-2 ft
+    return 0.08 + ((h - 0.3) / 0.3) * 0.14;               // 1-2 ft
   } else if (h < 0.9) {
-    return 0.24 + ((h - 0.6) / 0.3) * 0.14;               // 2-3 ft
+    return 0.22 + ((h - 0.6) / 0.3) * 0.16;               // 2-3 ft
   } else if (h < 1.5) {
-    return 0.38 + ((h - 0.9) / 0.6) * 0.18;               // 3-5 ft (most-common band, widest color range)
+    return 0.38 + ((h - 0.9) / 0.6) * 0.22;               // 3-5 ft (most-common band, widest color range)
   } else if (h < 2.4) {
-    return 0.56 + ((h - 1.5) / 0.9) * 0.16;               // 5-8 ft
+    return 0.60 + ((h - 1.5) / 0.9) * 0.20;               // 5-8 ft
   } else if (h < 3.7) {
-    return 0.72 + ((h - 2.4) / 1.3) * 0.13;               // 8-12 ft
-  } else if (h < 5.5) {
-    return 0.85 + ((h - 3.7) / 1.8) * 0.10;               // 12-18 ft
+    return 0.80 + ((h - 2.4) / 1.3) * 0.12;               // 8-12 ft
   } else {
-    return 0.95 + clamp((h - 5.5) / 2.5, 0.0, 1.0) * 0.05; // 18-26 ft+
+    return 0.92 + clamp((h - 3.7) / 1.3, 0.0, 1.0) * 0.08; // 12-16 ft+
   }
 }
 

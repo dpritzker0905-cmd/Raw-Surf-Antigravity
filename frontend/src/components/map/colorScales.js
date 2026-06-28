@@ -211,23 +211,21 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
   // matching getSurfT() in the shader.
   let t = 0;
   if (surfMode) {
-    // Mirror of getSurfT() in WebGLMarineShaders.js — coastal surf scale 0-26 ft (0-8 m), densest in 1-8 ft.
+    // Mirror of getSurfT() in WebGLMarineShaders.js — surf-focused scale 0-16 ft (0-5 m), densest 2-8 ft.
     if (h < 0.3) {
-      t = (h / 0.3) * 0.10;
+      t = (h / 0.3) * 0.08;
     } else if (h < 0.6) {
-      t = 0.10 + ((h - 0.3) / 0.3) * 0.14;
+      t = 0.08 + ((h - 0.3) / 0.3) * 0.14;
     } else if (h < 0.9) {
-      t = 0.24 + ((h - 0.6) / 0.3) * 0.14;
+      t = 0.22 + ((h - 0.6) / 0.3) * 0.16;
     } else if (h < 1.5) {
-      t = 0.38 + ((h - 0.9) / 0.6) * 0.18;
+      t = 0.38 + ((h - 0.9) / 0.6) * 0.22;
     } else if (h < 2.4) {
-      t = 0.56 + ((h - 1.5) / 0.9) * 0.16;
+      t = 0.60 + ((h - 1.5) / 0.9) * 0.20;
     } else if (h < 3.7) {
-      t = 0.72 + ((h - 2.4) / 1.3) * 0.13;
-    } else if (h < 5.5) {
-      t = 0.85 + ((h - 3.7) / 1.8) * 0.10;
+      t = 0.80 + ((h - 2.4) / 1.3) * 0.12;
     } else {
-      t = 0.95 + Math.min(1.0, (h - 5.5) / 2.5) * 0.05;
+      t = 0.92 + Math.min(1.0, (h - 3.7) / 1.3) * 0.08;
     }
   } else if (h < 0.5) {
     t = (h / 0.5) * 0.15;
