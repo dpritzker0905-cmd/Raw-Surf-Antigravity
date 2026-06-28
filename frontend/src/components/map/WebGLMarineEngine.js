@@ -411,6 +411,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     );
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), isEstimatedBlend ? 1.0 : 0.0);
 
+    // Swell↔Surf coastal-band mode: rescale the color ramp to the surf range (0-4 m) so the band
+    // differentiates. Read the flag inline (mirrors getSurfModeFlag) to avoid an engine import cycle; it
+    // matches the rendered data, which marineGridSeries fetched with the same flag.
+    var surfModeVal = 0.0;
+    try {
+      if (typeof window !== 'undefined') {
+        surfModeVal = (window.__SURF_MODE__ !== undefined)
+          ? (window.__SURF_MODE__ ? 1.0 : 0.0)
+          : ((window.localStorage && window.localStorage.getItem('__SURF_MODE__') === 'true') ? 1.0 : 0.0);
+      }
+    } catch (e) { surfModeVal = 0.0; }
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
+
     var heatmapOpacity;
     if (z <= 2) heatmapOpacity = 0.55;
     else if (z <= 5) heatmapOpacity = 0.55 + (z - 2) / 3 * 0.10;

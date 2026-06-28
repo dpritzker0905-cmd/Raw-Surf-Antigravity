@@ -205,10 +205,24 @@ export function applyThemePressureScale(theme) {
   }
 }
 
-export function getThemedWaveColorJS(h, theme) {
-  // getNonlinearT
+export function getThemedWaveColorJS(h, theme, surfMode = false) {
+  // JS mirror of the HEATMAP_FS color ramp (keep in sync with WebGLMarineShaders.js). surfMode rescales the
+  // height->color mapping to the nearshore surf range (~0-4 m / 0-13 ft) so the coastal band differentiates,
+  // matching getSurfT() in the shader.
   let t = 0;
-  if (h < 0.5) {
+  if (surfMode) {
+    if (h < 0.3) {
+      t = (h / 0.3) * 0.15;
+    } else if (h < 0.9) {
+      t = 0.15 + ((h - 0.3) / 0.6) * 0.35;
+    } else if (h < 1.8) {
+      t = 0.50 + ((h - 0.9) / 0.9) * 0.30;
+    } else if (h < 3.0) {
+      t = 0.80 + ((h - 1.8) / 1.2) * 0.12;
+    } else {
+      t = 0.92 + Math.min(1.0, (h - 3.0) / 1.0) * 0.08;
+    }
+  } else if (h < 0.5) {
     t = (h / 0.5) * 0.15;
   } else if (h < 1.5) {
     t = 0.15 + ((h - 0.5) / 1.0) * 0.35;

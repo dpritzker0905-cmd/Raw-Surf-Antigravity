@@ -3,6 +3,7 @@ import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, Chev
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
+import { getThemedWaveColorJS } from './colorScales';
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
@@ -209,6 +210,20 @@ export var MapWeatherControls = ({
     };
 
     return config;
+  }, [theme]);
+
+  // Surf-mode legend: rescaled to the nearshore surf range (0-13 ft) so the color key matches the coastal
+  // band's getSurfT() mapping. Same per-theme ramp (theme-aware), just surf breakpoints + ft labels.
+  const surfLegend = useMemo(() => {
+    const bpsM = [0, 0.3, 0.9, 1.8, 3.0, 4.0];          // meters
+    const labelsFt = ['0', '1', '3', '6', '10', '13+']; // ~ft equivalents
+    const alphas = [0.0, 0.5, 0.7, 0.8, 0.9, 0.95];
+    const stopsCSS = bpsM.map((bp, i) => {
+      const [r, g, b] = getThemedWaveColorJS(bp, theme, true);
+      const pct = Math.round((bp / 4.0) * 100);
+      return `rgba(${r},${g},${b},${alphas[i]}) ${pct}%`;
+    }).join(', ');
+    return { gradientCSS: `linear-gradient(to right, ${stopsCSS})`, stops: labelsFt };
   }, [theme]);
 
   const maxForecastDays = resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]);
@@ -561,9 +576,9 @@ export var MapWeatherControls = ({
                 </button>
               )}
             </div>
-            <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
+            <div className="h-1.5 w-full rounded-full" style={{ background: (surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)) ? surfLegend.gradientCSS : legendConfig[activeLayer].gradientCSS }} />
             <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
-              {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+              {((surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)) ? surfLegend.stops : legendConfig[activeLayer].stops).map((s, i) => <span key={i}>{s}</span>)}
             </div>
           </div>
         )}

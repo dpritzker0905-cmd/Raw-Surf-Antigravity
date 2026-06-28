@@ -50,6 +50,7 @@ uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
+uniform float u_surfMode;   // 1.0 = Swell↔Surf coastal-band mode: rescale the color ramp to the surf range
 uniform highp float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
@@ -80,8 +81,27 @@ float getNonlinearT(float h) {
   }
 }
 
-vec3 getThemedWaveColor(float h, float theme) {
-  float t = getNonlinearT(h);
+float getSurfT(float h) {
+  // Swell↔Surf mode: nearshore BREAKING height is ~0-4 m (0-13 ft), not the 0-10 m offshore swell range,
+  // so the offshore ramp would compress all surf into its flat low end. Rescale to industry surf bands so a
+  // coastal band differentiates well: ~1 ft (0.3 m), ~3 ft (0.9 m), ~6 ft (1.8 m), ~10 ft (3.0 m), 13 ft+.
+  if (h < 0.3) {
+    return (h / 0.3) * 0.15;
+  } else if (h < 0.9) {
+    return 0.15 + ((h - 0.3) / 0.6) * 0.35;   // the 1-3 ft "small but rideable" band gets the most range
+  } else if (h < 1.8) {
+    return 0.50 + ((h - 0.9) / 0.9) * 0.30;
+  } else if (h < 3.0) {
+    return 0.80 + ((h - 1.8) / 1.2) * 0.12;
+  } else {
+    return 0.92 + clamp((h - 3.0) / 1.0, 0.0, 1.0) * 0.08;
+  }
+}
+
+vec3 getThemedWaveColor(float h, float theme, float surfMode) {
+  // Reuse the existing per-theme ramps (already theme-aware: beach/light/dark) but pick the height->color
+  // mapping by mode so the surf coastal band uses the full ramp across the surf range.
+  float t = surfMode > 0.5 ? getSurfT(h) : getNonlinearT(h);
   
   vec3 c0, c1, c2, c3, c4, c5;
   
@@ -226,7 +246,7 @@ void main() {
   vec3 shallowWaterShelfGlow = shallowWaterShelfGlowColor * shelfGlowFactor;
 
   // ── LAYER 4: THEMED WAVE HEATMAP COLORS & BASE BLENDING ──
-  vec3 waveColor = getThemedWaveColor(displayHeight, u_theme);
+  vec3 waveColor = getThemedWaveColor(displayHeight, u_theme, u_surfMode);
   
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
