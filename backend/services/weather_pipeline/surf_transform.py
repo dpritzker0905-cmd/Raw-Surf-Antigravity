@@ -97,3 +97,54 @@ def transform_surf(Hs_m, Tp_s, depth_m):
     if H_shoaled >= H_break_limit:
         return float(H_break_limit), 'breaking'
     return float(H_shoaled), 'shoaling'
+
+
+# Shelf bottom-friction attenuation: tuned so a typical wide shallow shelf (e.g. Florida east coast,
+# ~30-40 m at the 0.25° offshore cell, ~10 s swell) survives ~0.7 of the offshore height, while a
+# steep/deep shelf passes ~all of it. Tunable against known spots later.
+SHELF_CF = 0.65
+
+
+def shelf_factor(Tp_s, depth_m, cf: float = SHELF_CF) -> float:
+    """Fraction of offshore swell HEIGHT that survives crossing a shelf of the given depth, from bottom
+    friction. ~1.0 in deep water (the wave doesn't feel the bottom); <1 over a shallow shelf where the
+    wave's near-bed orbital velocity (~1/sinh(kd)) drives dissipation.
+
+    Form: Kf = sinh(kd)/(sinh(kd)+cf) — bounded (0, 1], monotonic increasing in depth, -> 1 as kd grows.
+    This is the coarse-grid driver of the 'wide shallow shelf bleeds swell energy' effect (Florida vs a
+    steep-shelf coast). cf tunes the strength."""
+    if Tp_s is None or Tp_s <= 0 or depth_m is None or depth_m <= 0:
+        return 1.0
+    k = wavenumber(Tp_s, depth_m)
+    if not k or k <= 0:
+        return 1.0
+    kd = k * depth_m
+    if kd > 10.0:            # deep water: sinh(kd) overflows and Kf is ~1 anyway
+        return 1.0
+    s = math.sinh(kd)
+    return s / (s + cf)
+
+
+def estimate_surf(Hs_m, Tp_s, depth_m):
+    """Shelf-scale SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp and the nearshore
+    shelf depth. Applies shelf bottom-friction attenuation, then the depth-limited breaking cap. This is the
+    coarse-grid Option-2 first cut — it captures the dominant 'wide shallow shelf bleeds swell energy' effect.
+
+    Returns ``(surf_height_m, regime)`` with regime in {calm, unknown, deep, shelf, breaking}. An ESTIMATE
+    from bulk parameters — callers MUST tag is_estimated and present it as surf, not authoritative output."""
+    if Hs_m is None or Tp_s is None:
+        return None, 'unknown'
+    if Hs_m <= 0:
+        return 0.0, 'calm'
+    if Tp_s <= 0:
+        return None, 'unknown'
+    if depth_m is None or depth_m <= 0:
+        return float(Hs_m), 'deep'                 # no shelf depth -> offshore swell passes through
+    Kf = shelf_factor(Tp_s, depth_m)
+    H = Kf * Hs_m
+    cap = GAMMA * depth_m
+    if H >= cap:
+        return float(cap), 'breaking'
+    if Kf < 0.985:
+        return float(H), 'shelf'
+    return float(Hs_m), 'deep'                      # deep shelf: negligible attenuation

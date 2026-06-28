@@ -148,6 +148,13 @@ class NormalizedPointResponse(BaseModel):
     staleReason: Optional[str] = None
     fallbackReason: Optional[str] = None
 
+    # Option-2 bathymetry surf transform (ESTIMATE): nearshore breaking ("surf") height derived from the
+    # offshore swell + bundled shelf bathymetry. Additive/Optional -> backward compatible. The headline
+    # 'speed' stays the offshore wave height; the frontend shows surf alongside it (and the Swell<->Surf map).
+    surf_height_m: Optional[float] = None       # transformed breaking/surf height, metres
+    surf_regime: Optional[str] = None           # calm | deep | shelf | breaking | unknown
+    shelf_depth_m: Optional[float] = None        # representative shelf depth used by the transform (m)
+
 class ManifestProduct(BaseModel):
     model: str
     provider: str

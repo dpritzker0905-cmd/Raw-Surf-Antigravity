@@ -1,0 +1,12 @@
+{
+  "source": "NOAA ERDDAP etopo180 (ETOPO1), strided to 0.25\u00b0",
+  "units": "metres, positive down; 0 == land/no-depth",
+  "nlat": 721,
+  "nlon": 1441,
+  "lat0": -90.0,
+  "lat1": 90.0,
+  "lon0": -180.0,
+  "lon1": 180.0,
+  "dlat": 0.25,
+  "dlon": 0.25
+}

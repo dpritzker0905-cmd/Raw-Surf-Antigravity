@@ -1,4 +1,5 @@
 import math
+import os
 import logging
 import asyncio
 from datetime import datetime, timezone
@@ -119,6 +120,29 @@ class PointResolutionService:
                     response = JSONResponse(status_code=response.status_code, content=body_dict)
                 except Exception:
                     pass
+
+        # ── Option-2 surf transform: augment a successful MARINE point with a bathymetry-derived surf
+        # height (additive — the offshore height/period in `point` are untouched). SINGLE injection point,
+        # so it covers every resolution path without touching their fetch/sample logic (the regression-safe
+        # pattern; the infobox 2-month history is all about fetch deps / flooding / unmount — none of which
+        # this touches). Pure in-process compute (bundled bathymetry), serve-only safe. Kill switch SURF_TRANSFORM=0.
+        if (
+            domain.lower() == "marine"
+            and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+            and isinstance(response, NormalizedPointResponse)
+            and response.point is not None
+            and os.environ.get("SURF_TRANSFORM", "1") != "0"
+        ):
+            try:
+                from services.weather_pipeline.bathymetry import shelf_depth_at
+                from services.weather_pipeline.surf_transform import estimate_surf
+                depth = shelf_depth_at(lat, lng)
+                surf, regime = estimate_surf(response.point.speed, response.point.period, depth)
+                response.surf_height_m = round(surf, 4) if surf is not None else None
+                response.surf_regime = regime
+                response.shelf_depth_m = round(depth, 1) if depth is not None else None
+            except Exception as _se:
+                logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
 
         return response
 
