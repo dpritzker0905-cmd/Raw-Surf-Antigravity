@@ -1,5 +1,6 @@
 import React, { useMemo, useState, useEffect, useRef } from 'react';
-import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle } from 'lucide-react';
+import { Lock, ChevronDown, MapPin, Check, Info, AlertTriangle, Waves } from 'lucide-react';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useTheme } from '../../contexts/ThemeContext';
 import {
   sampleFromMarineGrid,
@@ -63,6 +64,13 @@ export const MapForecastOverlay = ({
 
   const [isScrubbing, setIsScrubbing] = useState(false);
   const [settledOffset, setSettledOffset] = useState(timeOffsetHours);
+  // Option-2: reflect the Swell<->Surf toggle in the infobox (a "Surf" indicator under the header).
+  const [surfActive, setSurfActive] = useState(() => getSurfModeFlag());
+  useEffect(() => {
+    const onSurfToggle = () => setSurfActive(getSurfModeFlag());
+    window.addEventListener('rawsurf:surf-toggle', onSurfToggle);
+    return () => window.removeEventListener('rawsurf:surf-toggle', onSurfToggle);
+  }, []);
 
   useEffect(() => {
     setIsScrubbing(true);
@@ -574,6 +582,14 @@ export const MapForecastOverlay = ({
         </div>
         <ChevronDown className={`w-4 h-4 ml-3 ${textMuted} transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
       </div>
+
+      {/* Option-2: Surf-mode indicator — appears under the title/coords when the Swell<->Surf toggle is active */}
+      {surfActive && !isCollapsed && ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(activeLayer) && (
+        <div className="px-3 py-1 flex items-center gap-1.5 border-b border-emerald-500/20 bg-emerald-500/10">
+          <Waves className="w-3 h-3 text-emerald-400" />
+          <span className="text-[9px] font-bold uppercase tracking-wider text-emerald-300">Surf · estimate</span>
+        </div>
+      )}
 
       {/* Data cards */}
       <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'}`}>

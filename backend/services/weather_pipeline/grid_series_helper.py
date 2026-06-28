@@ -128,7 +128,7 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
     }
 
 
-async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None) -> dict:
+async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
@@ -166,7 +166,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     # — fast, no Copernicus), so they don't hang like a native per-hour EURO fetch would.
     loop_hours = hour_list
     prebuilt_frames = []  # native EURO frames carried over from the Copernicus fast path
-    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine" and not await _client_gone():
+    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine" and not surf and not await _client_gone():
         native_hours = [h for h in hour_list if h <= EURO_NATIVE_HOURS]
         estimated_hours = [h for h in hour_list if h > EURO_NATIVE_HOURS]
         if native_hours:
@@ -216,7 +216,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
                 product = await asyncio.wait_for(
                     resolve_grid(
                         model=model, domain=domain, layer=layer,
-                        valid_time=vt_str, bbox=bbox, background_tasks=BackgroundTasks()
+                        valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=BackgroundTasks()
                     ),
                     timeout=PER_HOUR_TIMEOUT,
                 )

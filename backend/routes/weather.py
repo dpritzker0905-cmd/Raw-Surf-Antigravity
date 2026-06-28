@@ -69,6 +69,7 @@ async def get_grid_series(
     layer: str = Query(..., pattern="^(waves|swell_1|swell_2|wind_waves|wind|pressure|precipitation)$"),
     bbox: str = Query(..., description="west,south,east,north viewport bbox"),
     hours: str = Query(..., description="comma-separated integer hour offsets from now, e.g. 0,3,6,9"),
+    surf: bool = Query(False, description="Option-2: surf-transform each frame (Swell<->Surf toggle)"),
     request: Request = None,
 ):
     """
@@ -89,7 +90,7 @@ async def get_grid_series(
     # viewport_service enables the EURO/Copernicus fast path (one full-range fetch + slice).
     # request is threaded through so a scrub-aborted connection cancels the remaining per-hour
     # builds instead of running the whole multi-hour series to completion (zombie OOM load).
-    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request)
+    return await build_grid_series(get_grid, viewport_service, model, domain, layer, bbox, hours, request=request, surf=surf)
 
 
 @router.get("/grid", response_model=NormalizedProduct)

@@ -21,6 +21,7 @@
 // and anything missing falls back to the existing per-hour fetch.
 
 import { API_BASE } from '../../lib/apiClient';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new Map();
@@ -126,7 +127,7 @@ function viewportKey(bounds) {
 }
 
 function pageKey(model, layer, bounds, page) {
-  return `${model || 'GFS'}_${layer || 'waves'}_${viewportKey(bounds)}_p${page}`;
+  return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}`;
 }
 
 // Defer adjacent-page prefetch to idle so it never competes with the current page or a
@@ -197,7 +198,8 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${bounds.west.toFixed(4)},${bounds.south.toFixed(4)},${bounds.east.toFixed(4)},${bounds.north.toFixed(4)}`
-    + `&hours=${hours.join(',')}`;
+    + `&hours=${hours.join(',')}`
+    + (getSurfModeFlag() ? '&surf=1' : '');
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
   const localController = new AbortController();
