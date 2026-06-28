@@ -625,7 +625,13 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       status: json.status || json.coverage_status || 'exact_success',
       is_estimated: json.is_estimated || false,
       estimate_basis: json.estimate_basis || null,
-      productId: json.product_id || null
+      productId: json.product_id || null,
+      // Option-2 bathymetry surf transform (estimate): nearshore breaking height. The backend /point returns
+      // these for EURO too, but this Copernicus-specific builder previously dropped them -> the EURO waves
+      // infobox had no "Surf" tab while GFS/ICON (which go through fetchBackendExactPoint) did. Carry them.
+      surf_height_m: (json.surf_height_m ?? null),
+      surf_regime: (json.surf_regime ?? null),
+      shelf_depth_m: (json.shelf_depth_m ?? null)
     };
 
     const details = {
