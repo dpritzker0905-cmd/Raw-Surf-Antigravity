@@ -16,6 +16,7 @@ import {
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { computeSurfRating } from './surfRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
 import { displayMatchesRequested } from './marineTransitionCoordinator';
@@ -382,6 +383,17 @@ export const MapForecastOverlay = ({
 
 
 
+  // Surf-quality rating (very_poor..epic): size + period + wind (offshore/onshore). Frontend mirror of
+  // surf_rating.py, fed by the backend surf_height_m + shore_normal_deg. Degrades gracefully — speed-only
+  // wind when no shore-normal, neutral when no wind. windSpeed is in KNOTS (display unit) -> convert to m/s.
+  const surfRating = computeSurfRating(
+    useExactPoint?.surf_height_m,
+    wavePeriod,
+    windSpeed != null ? windSpeed / 1.943844 : null,
+    windDir,
+    useExactPoint?.shore_normal_deg
+  );
+
   const cards = compileForecastCards({
     activeLayer,
     activeModel,
@@ -398,6 +410,7 @@ export const MapForecastOverlay = ({
     isExactPointError,
     exactPointStatus: effectiveExactPointStatus,
     useExactPoint,
+    surfRating,
     waveHeight,
     wavePeriod,
     waveDir,
@@ -599,7 +612,11 @@ export const MapForecastOverlay = ({
                       style={(card.rotate !== undefined && card.rotate !== null) ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
                     />
                     <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
-                    <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
+                    {card.badgeColor ? (
+                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
+                    ) : (
+                      <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
+                    )}
                   </div>
                 );
               })}

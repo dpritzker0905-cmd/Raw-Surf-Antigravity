@@ -1,4 +1,5 @@
 import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer, Cloud, Eye } from 'lucide-react';
+import { RATING_LABEL, RATING_COLOR } from './surfRating';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -32,6 +33,7 @@ export function compileForecastCards({
   isExactPointError,
   exactPointStatus,
   useExactPoint,
+  surfRating,
   waveHeight,
   wavePeriod,
   waveDir,
@@ -201,6 +203,22 @@ export function compileForecastCards({
     }
 
     cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
+    // Surf-quality RATING badge (very_poor..epic) — the headline "how good is it?": size + period + wind
+    // (offshore/onshore via shore_normal). Same coastal-break geography gate as the Surf row; colored pill
+    // by level (backend surf_rating.py is the source of truth, this shows the JS-mirror result).
+    {
+      const _reg = useExactPoint?.surf_regime;
+      const _coastal = _reg && _reg !== 'open_ocean' && _reg !== 'calm' && _reg !== 'unknown';
+      if (_coastal && surfRating && surfRating.score != null && surfRating.level && surfRating.level !== 'unknown') {
+        cards.push({
+          icon: Waves,
+          label: 'Rating',
+          value: RATING_LABEL[surfRating.level] || '—',
+          color: 'text-emerald-300',
+          badgeColor: RATING_COLOR[surfRating.level],
+        });
+      }
+    }
     // Option-2 bathymetry SURF transform (ESTIMATE): nearshore breaking height (cross-shelf bottom friction
     // + shoaling + depth-limited breaking). Shown for any coastal break regime (shelf/shoaling/breaking);
     // hidden for 'open_ocean' (no shore to break on) and calm/unknown. The coastal gate is geography-based,
