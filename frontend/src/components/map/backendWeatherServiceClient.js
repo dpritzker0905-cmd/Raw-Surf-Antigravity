@@ -275,10 +275,15 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       const gfsVectors = gfsGrid?.grid?.vectors || [];
       const euroVectors = euroGrid?.grid?.vectors || [];
 
-      // If both failed, fall back to whichever is available; if neither, return unsupported
-      const primaryVectors = gfsVectors.length > 0 ? gfsVectors : euroVectors;
-      const secondaryVectors = gfsVectors.length > 0 ? euroVectors : [];
-      const primaryGrid = gfsVectors.length > 0 ? gfsGrid?.grid : euroGrid?.grid;
+      // Anchor the blend on the grid with MORE vectors (the finer/fuller resolution). FIX: GFS swell_2 can
+      // come back as a coarse fallback (e.g. 60 vectors) while EURO returns a rich dynamic grid (629 vectors,
+      // 348 nonzero in the Gulf) — anchoring on GFS + an exact (lat*100)|0 key DROPPED EURO's real secondary
+      // swell, leaving the "Gulf/Antarctica square of no swell_2". Anchor on the fuller grid so that coverage
+      // is preserved; then per-cell use whichever source actually has secondary swell.
+      const gfsIsPrimary = gfsVectors.length >= euroVectors.length;
+      const primaryVectors = gfsIsPrimary ? gfsVectors : euroVectors;
+      const secondaryVectors = gfsIsPrimary ? euroVectors : gfsVectors;
+      const primaryGrid = gfsIsPrimary ? gfsGrid?.grid : euroGrid?.grid;
 
       if (!primaryVectors.length) {
         // Both models failed — return unsupported
@@ -298,20 +303,28 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
         };
       }
 
-      // Build secondary lookup for blending (lat/lng → vector index)
+      // TOLERANT secondary lookup keyed at ~0.5° so a primary cell still matches a slightly-offset or
+      // coarser secondary cell (the old exact 0.01° key missed whenever the two grids' centres/resolutions
+      // differed — the root of the dropped-EURO bug). Keep the strongest secondary in each 0.5° bucket so a
+      // zero never overwrites real swell.
+      const skey = (lat, lng) => `${Math.round(lat * 2)},${Math.round(lng * 2)}`;
       let secondaryLookup = null;
       if (secondaryVectors.length > 0) {
         secondaryLookup = new Map();
         for (let i = 0; i < secondaryVectors.length; i++) {
           const sv = secondaryVectors[i];
-          const key = `${(sv.lat * 100) | 0},${(sv.lng * 100) | 0}`;
-          secondaryLookup.set(key, sv);
+          const key = skey(sv.lat, sv.lng);
+          const ex = secondaryLookup.get(key);
+          if (!ex || (sv.speed || 0) > (ex.speed || 0)) secondaryLookup.set(key, sv);
         }
       }
 
-      // Blend: for each primary vector, look up matching secondary and weighted-average
-      const GFS_WEIGHT = gfsVectors.length > 0 && secondaryVectors.length > 0 ? 0.6 : 1.0;
+      // Source weights (GFS 0.6 / EURO 0.4) applied by ORIGIN regardless of which grid is the anchor.
+      const bothPresent = gfsVectors.length > 0 && euroVectors.length > 0;
+      const GFS_WEIGHT = bothPresent ? 0.6 : (gfsVectors.length > 0 ? 1.0 : 0.0);
       const EURO_WEIGHT = 1.0 - GFS_WEIGHT;
+      const primaryW = gfsIsPrimary ? GFS_WEIGHT : EURO_WEIGHT;
+      const secondaryW = gfsIsPrimary ? EURO_WEIGHT : GFS_WEIGHT;
       let maxSpeed = 0, nonzeroCount = 0;
 
       const blendedVectors = primaryVectors.map(pv => {
@@ -320,16 +333,20 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
         let v = pv.v || 0;
         let period = pv.period || 0;
 
-        if (secondaryLookup) {
-          const key = `${(pv.lat * 100) | 0},${(pv.lng * 100) | 0}`;
-          const sv = secondaryLookup.get(key);
-          if (sv && (sv.speed || 0) > 0) {
-            speed = speed * GFS_WEIGHT + (sv.speed || 0) * EURO_WEIGHT;
-            u = u * GFS_WEIGHT + (sv.u || 0) * EURO_WEIGHT;
-            v = v * GFS_WEIGHT + (sv.v || 0) * EURO_WEIGHT;
-            period = period * GFS_WEIGHT + (sv.period || 0) * EURO_WEIGHT;
-          }
+        const sv = secondaryLookup ? secondaryLookup.get(skey(pv.lat, pv.lng)) : null;
+        const sSpeed = sv ? (sv.speed || 0) : 0;
+        if (sSpeed > 0 && speed > 0) {
+          // both sources have secondary swell here -> weighted blend
+          speed = speed * primaryW + sSpeed * secondaryW;
+          u = u * primaryW + (sv.u || 0) * secondaryW;
+          v = v * primaryW + (sv.v || 0) * secondaryW;
+          period = period * primaryW + (sv.period || 0) * secondaryW;
+        } else if (sSpeed > 0) {
+          // only the secondary source has it -> use it fully (fills the anchor grid's gaps, e.g. EURO in
+          // the Gulf where GFS is 0/coarse). This is what kills the no-swell square.
+          speed = sSpeed; u = sv.u || 0; v = sv.v || 0; period = sv.period || 0;
         }
+        // else: only the primary source (or neither) -> keep the primary value
 
         if (speed > maxSpeed) maxSpeed = speed;
         if (speed > 0) nonzeroCount++;
