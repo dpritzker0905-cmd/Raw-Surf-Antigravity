@@ -303,7 +303,7 @@ _SPOT_RATINGS_CONCURRENCY = int(os.environ.get("SPOT_RATINGS_CONCURRENCY", "6"))
 
 
 class SpotRatingItem(BaseModel):
-    spot_id: int
+    spot_id: str                          # SurfSpot.id is a UUID string
     name: Optional[str] = None
     latitude: float
     longitude: float

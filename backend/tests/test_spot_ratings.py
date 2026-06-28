@@ -48,10 +48,11 @@ def test_why_includes_surf_height_in_feet_and_period():
 
 
 def test_response_schema_roundtrips():
-    item = SpotRatingItem(spot_id=1, latitude=27.0, longitude=-80.0, score=72.5, level="good",
-                          confidence="high", surf_height_m=1.2, period_s=13.0, why="clean")
+    # spot_id is a UUID string (SurfSpot.id), not an int.
+    item = SpotRatingItem(spot_id="2c958ffd-8f5f-483c-83bd-63ac79f9ab07", latitude=27.0, longitude=-80.0,
+                          score=72.5, level="good", confidence="high", surf_height_m=1.2, period_s=13.0, why="clean")
     resp = SpotRatingsResponse(model="GFS", valid_time="2026-06-28T21:00:00Z", count=1, source="live", spots=[item])
     assert resp.count == 1 and resp.spots[0].level == "good"
     # An unrated spot (no surf) is allowed with score=None / level 'unknown'.
-    blank = SpotRatingItem(spot_id=2, latitude=10.0, longitude=20.0)
+    blank = SpotRatingItem(spot_id="abc-123", latitude=10.0, longitude=20.0)
     assert blank.score is None and blank.level == "unknown"
