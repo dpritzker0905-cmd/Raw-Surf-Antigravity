@@ -51,12 +51,22 @@ export function windQuality(speedMs, windFromDeg = null, shoreNormalDeg = null) 
   return _clamp(base * sf, 0.05, 1.0);
 }
 
-export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null) {
+/** Swell-ANGLE exposure [0..1]: can the swell reach this coast head-on (1) / grazing / blocked (->0.1)?
+ *  shoreNormal points seaward; swell aligned with it arrives head-on. 1.0 when geometry unknown (no penalty). */
+export function swellExposure(swellFromDeg, shoreNormalDeg) {
+  if (swellFromDeg == null || shoreNormalDeg == null) return 1.0;
+  const align = Math.cos(((swellFromDeg - shoreNormalDeg) * Math.PI) / 180);
+  return _clamp(0.10 + 0.90 * Math.max(0.0, align), 0.0, 1.0);
+}
+
+export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null) {
   const sg = sizeScore(h);
   if (sg <= 0.0) return 0.0;
+  const ex = swellExposure(swellFromDeg, shoreNormalDeg);
+  if (ex <= 0.0) return 0.0;
   const wq = windQuality(speedMs, windFromDeg, shoreNormalDeg);
   const pq = periodQuality(tp);
-  return Math.round(100.0 * sg * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  return Math.round(100.0 * sg * ex * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
@@ -67,9 +77,9 @@ export function scoreToLevel(score) {
 }
 
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null) {
+export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg);
+  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg);
   return { score, level: scoreToLevel(score) };
 }
 

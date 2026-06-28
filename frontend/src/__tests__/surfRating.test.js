@@ -1,12 +1,27 @@
 import {
   computeSurfRating, ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
-  scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
+  swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
 describe('surfRating (JS mirror of surf_rating.py)', () => {
   test('the 7 surf-quality levels', () => {
     expect(RATING_LEVELS).toEqual(['very_poor', 'poor', 'poor_fair', 'fair', 'fair_good', 'good', 'epic']);
+  });
+
+  test('swell exposure: head-on / grazing / blocked / unknown', () => {
+    expect(swellExposure(270, 270)).toBe(1.0);          // head-on
+    expect(Math.abs(swellExposure(180, 270) - 0.10)).toBeLessThan(0.02); // along-shore
+    expect(swellExposure(90, 270)).toBeLessThanOrEqual(0.11);            // from behind -> floored
+    expect(swellExposure(null, 270)).toBe(1.0);         // unknown -> neutral
+    expect(swellExposure(220, null)).toBe(1.0);
+  });
+
+  test('swell angle gates the rating (head-on > grazing; unknown == prior)', () => {
+    const headOn = computeSurfRating(1.5, 14, 3.0, 90, 270, 270).score;
+    const grazing = computeSurfRating(1.5, 14, 3.0, 90, 270, 180).score;
+    expect(headOn).toBeGreaterThan(grazing);
+    expect(computeSurfRating(1.5, 14, 3.0, 90, 270).score).toBe(headOn); // unknown swell-from unchanged
   });
 
   test('flat is very_poor regardless of wind/period', () => {

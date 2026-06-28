@@ -12,11 +12,14 @@ I/O, no numpy — so it runs in-process on the serve-only box (cheap, per-cell +
 unit-testable.
 
 Model:
-    rating = size_gate(surf_height) * (0.60 * wind_quality + 0.40 * period_quality)   -> 0..100
+    rating = size_gate(surf_height) * swell_exposure(angle) * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
   - size_gate: there must be a rideable wave (0 when flat; saturates chest-high+). Bigger is NOT penalized
     here — a big CLEAN long-period wave is exactly what 'epic' means; wind + period grade it.
+  - swell_exposure: the swell ANGLE must be able to reach this coast. Head-on (swell FROM the seaward
+    shore-normal) = full; grazing/along-shore = reduced; from behind the coast = blocked (->0.1 floor). Uses
+    the shore-normal when known, else neutral 1.0 (no penalty).
   - wind_quality: the dominant cleanliness factor. Offshore/light grooms the face (high); onshore/strong
-    is blown out (low). Uses the shore-normal (offshore vs onshore) when known, else speed-only.
+    is blown out (low); sideshore/cross is moderate. Uses the shore-normal when known, else speed-only.
   - period_quality: long-period groundswell is powerful + organized (high); short windswell is chop (low).
 mapped to a 7-level surf-quality scale: very_poor, poor, poor_fair, fair, fair_good, good, epic.
 """
@@ -98,14 +101,31 @@ def wind_quality(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
     return _clamp(base * sf, 0.05, 1.0)
 
 
-def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
-    """Composite 0..100 surf-quality score: size_gate * (0.60*wind + 0.40*period). 0 when flat."""
+def swell_exposure(swell_from_deg, shore_normal_deg):
+    """Swell-ANGLE factor [0..1]: can this swell actually reach the coast, head-on or grazing? ``shore_normal_deg``
+    points OUT TO SEA; a swell whose FROM-bearing aligns with it arrives head-on (best energy). Beyond ~90° off
+    the shore-normal the swell travels along/behind the coast and can't build a rideable wave. Softened incidence
+    projection (refraction bends swell shore-normal, so gentler than a hard cosine) with a small floor so coarse
+    shore-normal noise can't fully zero a real swell. Returns 1.0 when geometry is unknown (no penalty)."""
+    if swell_from_deg is None or shore_normal_deg is None:
+        return 1.0
+    align = math.cos(math.radians(swell_from_deg - shore_normal_deg))  # +1 head-on, 0 at 90°, -1 from behind
+    return _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
+
+
+def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None):
+    """Composite 0..100 surf-quality score: size_gate * swell_exposure * (0.60*wind + 0.40*period).
+    0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral
+    when its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure)."""
     sg = size_score(surf_h_m)
     if sg <= 0.0:
         return 0.0
+    ex = swell_exposure(swell_from_deg, shore_normal_deg)
+    if ex <= 0.0:
+        return 0.0
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
     pq = period_quality(tp_s)
-    return round(100.0 * sg * (W_WIND * wq + W_PERIOD * pq), 1)
+    return round(100.0 * sg * ex * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):
@@ -118,15 +138,16 @@ def score_to_level(score):
     return "epic"
 
 
-def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
+def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
     wind_from_deg: local wind (meteorological FROM). shore_normal_deg: seaward bearing (optional; enables
-    offshore/onshore grading)."""
+    offshore/onshore wind grading AND the swell-angle exposure gate). swell_from_deg: dominant swell FROM
+    bearing (optional; with shore_normal gates whether the swell angle can reach the coast)."""
     if surf_h_m is None:
         return None, "unknown"
-    score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg)
+    score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg)
     return score, score_to_level(score)
 
 
@@ -190,7 +211,9 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
                 shore_normal = shore_normal_fn(lat, lng)
             except Exception:
                 shore_normal = None
-        score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal)
+        # The cell's wave/swell FROM bearing → swell-angle exposure gate (paired with shore_normal).
+        swell_from = getattr(vec, "direction", None)
+        score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal, swell_from)
         if score is None or score <= 0:
             continue                                   # no rideable wave -> nothing to rate
         # Encode score/10 into the height channel: the marine texture packs height as clamp(h/10,0,1), and the

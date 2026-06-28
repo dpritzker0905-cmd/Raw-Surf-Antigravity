@@ -1,8 +1,30 @@
 """Unit tests for the multivariable surf-quality rating (surf_rating.py)."""
 from services.weather_pipeline.surf_rating import (
     compute_surf_rating, rating_score, size_score, period_quality,
-    wind_quality, offshoreness, score_to_level, LEVELS,
+    wind_quality, offshoreness, swell_exposure, score_to_level, LEVELS,
 )
+
+
+def test_swell_exposure_head_on_grazing_blocked_unknown():
+    # shore faces west: seaward normal 270. Swell FROM the west (270) arrives head-on.
+    assert swell_exposure(270, 270) == 1.0
+    # along-shore (90° off the normal) -> grazing, floored low.
+    assert abs(swell_exposure(180, 270) - 0.10) < 0.02
+    # from behind the coast (FROM the east) -> can't reach, floored at 0.10.
+    assert swell_exposure(90, 270) <= 0.11
+    # unknown geometry -> neutral, no penalty.
+    assert swell_exposure(None, 270) == 1.0
+    assert swell_exposure(220, None) == 1.0
+
+
+def test_swell_angle_gates_the_rating():
+    # Identical size/period/wind; a head-on swell must rate well above a poorly-angled (along-shore) one.
+    head_on = compute_surf_rating(1.5, 14.0, 3.0, wind_from_deg=90, shore_normal_deg=270, swell_from_deg=270)[0]
+    grazing = compute_surf_rating(1.5, 14.0, 3.0, wind_from_deg=90, shore_normal_deg=270, swell_from_deg=180)[0]
+    assert head_on > grazing
+    # Unknown swell angle must not change the score vs the prior (no-exposure) behavior.
+    neutral = compute_surf_rating(1.5, 14.0, 3.0, wind_from_deg=90, shore_normal_deg=270)[0]
+    assert neutral == head_on
 
 
 def test_levels_scale_is_the_seven_surfline_buckets():

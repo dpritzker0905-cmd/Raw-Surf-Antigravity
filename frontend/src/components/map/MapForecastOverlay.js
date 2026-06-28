@@ -383,15 +383,17 @@ export const MapForecastOverlay = ({
 
 
 
-  // Surf-quality rating (very_poor..epic): size + period + wind (offshore/onshore). Frontend mirror of
-  // surf_rating.py, fed by the backend surf_height_m + shore_normal_deg. Degrades gracefully — speed-only
-  // wind when no shore-normal, neutral when no wind. windSpeed is in KNOTS (display unit) -> convert to m/s.
+  // Surf-quality rating (very_poor..epic): size + period + wind (offshore/onshore/sideshore) + swell-ANGLE
+  // exposure. Frontend mirror of surf_rating.py, fed by the backend surf_height_m + shore_normal_deg. Degrades
+  // gracefully — speed-only wind + full exposure when no shore-normal, neutral when no wind. windSpeed is in
+  // KNOTS (display unit) -> convert to m/s. swell-from uses the primary swell dir, falling back to the combined.
   const surfRating = computeSurfRating(
     useExactPoint?.surf_height_m,
     wavePeriod,
     windSpeed != null ? windSpeed / 1.943844 : null,
     windDir,
-    useExactPoint?.shore_normal_deg
+    useExactPoint?.shore_normal_deg,
+    useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null
   );
 
   const cards = compileForecastCards({
