@@ -148,11 +148,27 @@ def tide_fit(tide_norm, best_tide_band):
     return _clamp(1.0 - 1.3 * dist, 0.5, 1.0)
 
 
+def breaker_type_quality(xi):
+    """Breaker-TYPE quality factor [0.82..1.0] from the Iribarren number ξ0 (surf_transform.iribarren).
+    PLUNGING waves (hollow, powerful — ξ0 ~0.5..3.3) are the prized type → 1.0; SPILLING (mushy, ξ0<0.5) and
+    SURGING/closeout (ξ0>3.3) score lower. Bounded + gentle (breaker type REFINES, never dominates). Neutral
+    1.0 when ξ0 is unknown — so this is a no-op until a finer slope asset feeds a real Iribarren."""
+    if xi is None:
+        return 1.0
+    if xi < 0.5:                                  # spilling: ramps 0.85 (ξ→0) up to 1.0 at the plunging edge
+        return _clamp(0.85 + 0.30 * xi, 0.82, 1.0)
+    if xi <= 3.3:                                 # plunging: the ideal
+        return 1.0
+    return _clamp(1.0 - 0.06 * (xi - 3.3), 0.82, 1.0)  # surging/closeout: gentle taper
+
+
 def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                 tide_norm=None, best_tide=None):
-    """Composite 0..100 surf-quality score: size_gate * swell_exposure * tide_fit * (0.60*wind + 0.40*period).
+                 tide_norm=None, best_tide=None, breaker_xi=None):
+    """Composite 0..100 surf-quality score:
+    size_gate * swell_exposure * tide_fit * breaker_type_quality * (0.60*wind + 0.40*period).
     0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
-    its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide -> neutral)."""
+    its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide / no Iribarren
+    -> neutral)."""
     sg = size_score(surf_h_m)
     if sg <= 0.0:
         return 0.0
@@ -160,9 +176,10 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     if ex <= 0.0:
         return 0.0
     tf = tide_fit(tide_norm, parse_best_tide(best_tide))
+    bt = breaker_type_quality(breaker_xi)
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
     pq = period_quality(tp_s)
-    return round(100.0 * sg * ex * tf * (W_WIND * wq + W_PERIOD * pq), 1)
+    return round(100.0 * sg * ex * tf * bt * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):
@@ -176,7 +193,7 @@ def score_to_level(score):
 
 
 def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                        tide_norm=None, best_tide=None):
+                        tide_norm=None, best_tide=None, breaker_xi=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
@@ -184,11 +201,12 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
     offshore/onshore wind grading AND the swell-angle exposure gate). swell_from_deg: dominant swell FROM
     bearing (optional; with shore_normal gates whether the swell angle can reach the coast). tide_norm:
     normalized tide level 0..1 (optional; with best_tide applies the tide_fit factor). best_tide: the spot's
-    free-text tide preference prior (optional)."""
+    free-text tide preference prior (optional). breaker_xi: Iribarren number (optional; applies the breaker-type
+    quality factor — neutral when None)."""
     if surf_h_m is None:
         return None, "unknown"
     score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
-                         tide_norm, best_tide)
+                         tide_norm, best_tide, breaker_xi)
     return score, score_to_level(score)
 
 

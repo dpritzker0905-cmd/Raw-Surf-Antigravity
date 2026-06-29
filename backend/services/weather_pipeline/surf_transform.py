@@ -72,6 +72,36 @@ def wavenumber(period_s: float, depth_m: float):
     return k
 
 
+def iribarren(slope, Hs_m, Tp_s):
+    """Deep-water Iribarren (surf-similarity) number ξ0 = tan(β) / sqrt(H0/L0), L0 = gTp²/2π. Governs the
+    BREAKER TYPE (Battjes 1974): the relative steepness of the BEACH (slope) vs the swell. Returns None if any
+    input is missing/non-physical. `slope` is the bed slope (rise/run, m/m). NOTE: needs a true nearshore beach
+    slope to be quantitative — the bundled 0.25° ETOPO is too coarse (shelf-scale), which is why the
+    breaker-type rating factor only activates with a finer slope asset (build_bathymetry_asset.py --slope)."""
+    if slope is None or Hs_m is None or Tp_s is None or slope <= 0 or Hs_m <= 0 or Tp_s <= 0:
+        return None
+    L0 = G * Tp_s * Tp_s / (2.0 * math.pi)
+    if L0 <= 0:
+        return None
+    s0 = Hs_m / L0                              # deep-water steepness
+    if s0 <= 0:
+        return None
+    return slope / math.sqrt(s0)
+
+
+def breaker_type(xi):
+    """Breaker TYPE from the Iribarren number ξ0 (Battjes 1974): spilling (mushy, gentle/steep-swell),
+    plunging (hollow + powerful — the prized type), surging/collapsing (very steep shore, often closeout).
+    Returns 'unknown' when ξ0 is None."""
+    if xi is None:
+        return "unknown"
+    if xi < 0.5:
+        return "spilling"
+    if xi < 3.3:
+        return "plunging"
+    return "surging"
+
+
 def shoaling_coefficient(period_s: float, depth_m: float) -> float:
     """Linear shoaling coefficient Ks = sqrt(Cg_deep / Cg(depth)). ~1.0 in deep water; dips slightly at
     intermediate depth then rises sharply approaching the breakpoint. Returns 1.0 if it can't be solved."""

@@ -1,7 +1,7 @@
 import {
   computeSurfRating, ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
   swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
-  parseBestTide, tideFit,
+  parseBestTide, tideFit, breakerTypeQuality,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -128,5 +128,19 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(wrong).toBeLessThan(base);
     expect(right).toBeCloseTo(base, 5);
     expect(wrong).toBeGreaterThan(0);
+  });
+
+  test('breakerTypeQuality + factor (mirror of py)', () => {
+    expect(breakerTypeQuality(null)).toBe(1.0);
+    expect(breakerTypeQuality(1.5)).toBe(1.0);   // plunging ideal
+    expect(breakerTypeQuality(0.1)).toBeLessThan(1.0);  // spilling
+    expect(breakerTypeQuality(8.0)).toBeLessThan(1.0);  // surging
+    expect(breakerTypeQuality(0.0)).toBeGreaterThanOrEqual(0.82);
+    const base = computeSurfRating(1.5, 14, 1.0, 200, 270, 270).score;
+    const plunging = computeSurfRating(1.5, 14, 1.0, 200, 270, 270, null, null, 1.5).score;
+    const spilling = computeSurfRating(1.5, 14, 1.0, 200, 270, 270, null, null, 0.1).score;
+    expect(plunging).toBeCloseTo(base, 5);
+    expect(spilling).toBeLessThan(base);
+    expect(spilling).toBeGreaterThan(0);
   });
 });

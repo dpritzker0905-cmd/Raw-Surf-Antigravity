@@ -24,9 +24,19 @@ _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _NPY = os.path.join(_DATA_DIR, "etopo_depth_0p25.npy")
 _META = os.path.join(_DATA_DIR, "etopo_depth_0p25.meta.json")
 
+# Optional FINER bed-slope asset (built by build_bathymetry_asset.py --slope from a finer ETOPO stride). Absent
+# by default → bed_slope_at returns None → the Iribarren breaker-type rating factor stays neutral (we do NOT
+# derive slope from the coarse 0.25° depth — a 28 km baseline is shelf-scale and would misclassify breaker type).
+_SLOPE_NPY = os.path.join(_DATA_DIR, "etopo_slope_0p1.npy")
+_SLOPE_META = os.path.join(_DATA_DIR, "etopo_slope_0p1.meta.json")
+_SLOPE_SCALE = 10000.0   # int16 storage: slope (m/m) × 1e4 (so 0..3.2767 m/m fits int16)
+
 _lock = threading.Lock()
 _grid = None
 _meta = None
+_slope_grid = None
+_slope_meta = None
+_slope_missing = False
 
 
 def _load():
@@ -214,6 +224,59 @@ def _seaward_bearing(sub, dlat, dlon):
     if east == 0.0 and north == 0.0:
         return None
     return math.degrees(math.atan2(east, north)) % 360.0
+
+
+def _load_slope():
+    """Lazy-load the optional finer slope asset. Sets _slope_missing so we only stat the disk once."""
+    global _slope_grid, _slope_meta, _slope_missing
+    if _slope_grid is None and not _slope_missing:
+        with _lock:
+            if _slope_grid is None and not _slope_missing:
+                if not (os.path.exists(_SLOPE_NPY) and os.path.exists(_SLOPE_META)):
+                    _slope_missing = True
+                    return None, None
+                import numpy as np
+                with open(_SLOPE_META) as f:
+                    _slope_meta = json.load(f)
+                _slope_grid = np.load(_SLOPE_NPY, mmap_mode="r")
+    return _slope_grid, _slope_meta
+
+
+def slope_available() -> bool:
+    """True if the finer bed-slope asset is bundled (so the breaker-type rating factor can activate)."""
+    grid, _ = _load_slope()
+    return grid is not None
+
+
+@lru_cache(maxsize=200_000)
+def bed_slope_at(lat: float, lng: float) -> Optional[float]:
+    """Nearshore bed SLOPE (rise/run, m/m) at a coastal point, for the Iribarren breaker-type factor. Reads the
+    FINER slope asset only — returns None when it's absent (the breaker-type factor then stays neutral). We
+    deliberately do NOT fall back to the coarse 0.25° depth grid: a 28 km baseline slope is shelf-scale, not the
+    surf-zone beach slope the Iribarren needs, and would systematically misclassify breaker type."""
+    grid, meta = _load_slope()
+    if grid is None or meta is None:
+        return None
+    nlat, nlon = meta["nlat"], meta["nlon"]
+    lat0, lon0, dlat, dlon = meta["lat0"], meta["lon0"], meta["dlat"], meta["dlon"]
+    lng = ((float(lng) + 180.0) % 360.0) - 180.0
+    r = int(round((float(lat) - lat0) / dlat))
+    c = int(round((lng - lon0) / dlon))
+    if r < 0 or r >= nlat or c < 0 or c >= nlon:
+        return None
+    v = int(grid[r, c])
+    if v <= 0:
+        # exact cell has no slope (land/no-data) → nearest cell with a slope in a small window (coastal offset)
+        best = 0
+        for dr in range(-2, 3):
+            for dc in range(-2, 3):
+                rr, cc = r + dr, c + dc
+                if 0 <= rr < nlat and 0 <= cc < nlon:
+                    vv = int(grid[rr, cc])
+                    if vv > best:
+                        best = vv
+        v = best
+    return (v / _SLOPE_SCALE) if v > 0 else None
 
 
 @lru_cache(maxsize=200_000)

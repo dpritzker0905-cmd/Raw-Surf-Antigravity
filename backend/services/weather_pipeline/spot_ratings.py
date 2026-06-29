@@ -93,8 +93,18 @@ async def rate_one_spot(resolver, spot, model, valid_time) -> dict:
                 tide_norm = tide_state.get("norm")
         except Exception as e:
             logger.debug(f"[spot-ratings] tide resolve failed for {spot.get('id')}: {e}")
+    # Breaker TYPE (Iribarren): bed slope + swell steepness → plunging/spilling/surging quality. Gated
+    # RATING_BREAKER_TYPE (default off) AND neutral unless the FINER slope asset is bundled (bed_slope_at→None).
+    breaker_xi = None
+    if os.environ.get("RATING_BREAKER_TYPE", "0") == "1":
+        try:
+            from services.weather_pipeline.bathymetry import bed_slope_at
+            from services.weather_pipeline.surf_transform import iribarren
+            breaker_xi = iribarren(bed_slope_at(lat, lng), surf_h, period)
+        except Exception as e:
+            logger.debug(f"[spot-ratings] breaker-type resolve failed for {spot.get('id')}: {e}")
     score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from,
-                                       tide_norm, best_tide)
+                                       tide_norm, best_tide, breaker_xi)
     why = rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()

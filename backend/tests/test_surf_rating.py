@@ -3,8 +3,27 @@ import pytest
 from services.weather_pipeline.surf_rating import (
     compute_surf_rating, rating_score, size_score, period_quality,
     wind_quality, offshoreness, swell_exposure, score_to_level, LEVELS,
-    parse_best_tide, tide_fit,
+    parse_best_tide, tide_fit, breaker_type_quality,
 )
+
+
+def test_breaker_type_quality():
+    assert breaker_type_quality(None) == 1.0                 # unknown -> neutral
+    assert breaker_type_quality(1.5) == 1.0                  # plunging = ideal
+    assert breaker_type_quality(3.0) == 1.0
+    assert breaker_type_quality(0.1) < 1.0                   # spilling (mushy) lower
+    assert breaker_type_quality(8.0) < 1.0                   # surging/closeout lower
+    assert 0.82 <= breaker_type_quality(0.0) <= 1.0         # bounded floor
+    assert breaker_type_quality(0.4) > breaker_type_quality(0.1)  # toward plunging -> better
+
+
+def test_breaker_type_factor_lowers_spilling_not_plunging():
+    base = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0)[0]                 # no ξ0 -> neutral
+    plunging = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0, breaker_xi=1.5)[0]
+    spilling = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0, breaker_xi=0.1)[0]
+    assert plunging == pytest.approx(base)                  # plunging factor 1.0 == neutral
+    assert spilling < base                                  # mushy spilling knocks it down
+    assert spilling > 0
 
 
 def test_parse_best_tide_bands():

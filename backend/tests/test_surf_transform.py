@@ -92,6 +92,23 @@ def test_depth_limited_break_is_taller_for_longer_period():
     assert long == pytest.approx(st.breaker_index(16.0) * 2.0, rel=1e-6)
 
 
+def test_iribarren_and_breaker_type():
+    # ξ0 = slope / sqrt(Hs/L0). Steeper slope or longer period (smaller s0) -> higher ξ0.
+    assert st.iribarren(None, 1.5, 12.0) is None
+    assert st.iribarren(0.05, None, 12.0) is None
+    assert st.iribarren(0.0, 1.5, 12.0) is None              # non-physical slope
+    steep = st.iribarren(0.10, 1.5, 14.0)
+    gentle = st.iribarren(0.005, 1.5, 14.0)
+    assert steep > gentle > 0
+    assert st.breaker_type(gentle) == "spilling" if gentle < 0.5 else True
+    assert st.breaker_type(1.5) == "plunging"
+    assert st.breaker_type(0.2) == "spilling"
+    assert st.breaker_type(5.0) == "surging"
+    assert st.breaker_type(None) == "unknown"
+    # longer period raises ξ0 (lower steepness) for the same slope
+    assert st.iribarren(0.05, 1.5, 18.0) > st.iribarren(0.05, 1.5, 8.0)
+
+
 def test_intermediate_depth_shoals_without_breaking():
     # Small swell over moderate depth: shoals but nowhere near the depth-limited cap.
     surf, regime = st.transform_surf(1.0, 14.0, 30.0)
