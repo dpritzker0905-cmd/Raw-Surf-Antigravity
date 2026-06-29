@@ -11,6 +11,7 @@ Additive: nothing here changes the existing /grid path.
 """
 import asyncio
 import logging
+import os
 import time
 from datetime import datetime, timezone, timedelta
 
@@ -33,6 +34,8 @@ OVERALL_DEADLINE = 35.0
 # only the FIRST EURO series load pays this; later ones are instant.
 EURO_SERIES_TIMEOUT = 40.0
 EURO_NATIVE_HOURS = 240  # EURO marine native horizon; 241..336h are stored ESTIMATED products
+# GFS/ICON marine full-range fast path budget (kept under the client's 45s fetch timeout).
+OPENMETEO_SERIES_TIMEOUT = 30.0
 
 
 async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hour_list, base):
@@ -128,6 +131,91 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
     }
 
 
+async def _build_openmeteo_marine_series(viewport_service, model: str, layer: str, bbox: str, hour_list, base):
+    """GFS/ICON marine fast path — the SCRUB analog of the regional-tile warm (mirrors _build_euro_marine_series).
+
+    WHY: the generic per-hour loop calls resolve_grid, whose Step-3.7 serves the instant GLOBAL coarse preview
+    for a cold viewport, so a zoomed-in scrub stays coarse-clamped across ALL hours — and enclosed seas are
+    land-masked at the 10° coarse resolution (the Gulf-of-Mexico "no-data square" while scrubbing GFS waves).
+    Instead, fetch the FULL forecast range ONCE from Open-Meteo for the viewport bbox and normalize EVERY
+    requested hour from that single response, so the whole scrub renders the REGIONAL 0.25° grid (the Gulf
+    fully resolved). One fetch per series page (provider-cached 5 min), reusing the SAME normalizer the generic
+    dynamic path uses. Additive + GFS/ICON-marine-only + fall-through: on ANY problem returns None so
+    build_grid_series uses the generic per-hour loop unchanged. Gated by GFS_ICON_SERIES_FASTPATH (default off)
+    because it trades the manifest-coarse instant render for a live regional fetch (latency + open-meteo load)."""
+    from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+    from services.weather_pipeline.route_helpers import parse_bbox, generate_bbox_coords
+    from services.weather_pipeline.normalizer import WeatherNormalizer
+
+    w, s, e, n = parse_bbox(bbox)
+    bbox_dict = {"west": w, "south": s, "east": e, "north": n}
+
+    # Adaptive resolution + 500-point cap, mirroring the dynamic builder so the grid matches /grid's.
+    resolution = 0.25
+    steps = [0.25, 0.5, 1.0, 2.0, 2.5, 5.0, 10.0, 15.0, 20.0, 30.0, 40.0]
+    lats, lons = generate_bbox_coords(w, s, e, n, resolution)
+    while len(lats) > 500 and resolution != steps[-1]:
+        resolution = steps[min(len(steps) - 1, steps.index(resolution) + 1)]
+        lats, lons = generate_bbox_coords(w, s, e, n, resolution)
+    if not lats:
+        return None
+
+    max_h = max(hour_list) if hour_list else 72
+    forecast_days = min(16, max(3, (max_h // 24) + 2))
+
+    provider = OpenMeteoProvider()
+    # Shield the fetch (like EURO) so a cancelled request still warms the provider's 5-min cache for next time.
+    raw = await asyncio.shield(provider.fetch_grid(
+        model=model, domain="marine", layer=layer, bbox=bbox_dict,
+        resolution=resolution, forecast_days=forecast_days, precomputed_coords=(lats, lons),
+    ))
+    if not raw:
+        return None
+    raw_list = raw if isinstance(raw, list) else [raw]
+    times = (raw_list[0].get("hourly") or {}).get("time") or []
+    if not times:
+        return None
+
+    frames = []
+    shared_bounds = None
+    shared_cols = shared_rows = 0
+    region_id = f"viewport_series_{w:.2f}_{s:.2f}_{e:.2f}_{n:.2f}"
+    for h in hour_list:
+        target_dt = base + timedelta(hours=h)
+        idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
+        if idx is None:
+            continue
+        t_str = times[idx]
+        t_actual = datetime.fromisoformat((t_str if t_str.endswith("Z") else t_str + "Z").replace("Z", "+00:00"))
+        normalized = await viewport_service.normalizer.normalize_async(
+            model=model, provider="open-meteo", domain="marine", layer=layer,
+            raw_results=raw_list, bbox=bbox_dict, resolution=resolution,
+            target_time=t_actual, coverage_mode="viewport", region_id=region_id,
+        )
+        if not normalized or not getattr(normalized, "grid", None) or not normalized.grid.vectors:
+            continue
+        g = normalized.grid
+        b = {"west": g.bounds.west, "south": g.bounds.south, "east": g.bounds.east, "north": g.bounds.north} if g.bounds else None
+        if shared_bounds is None and b:
+            shared_bounds, shared_cols, shared_rows = b, g.cols, g.rows
+        frames.append({
+            "hour_offset": h,
+            "valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "cols": g.cols, "rows": g.rows, "bounds": b,
+            "vectors": g.vectors,
+            "provider": getattr(normalized, "provider", "open-meteo"),
+            "is_estimated": getattr(normalized, "is_estimated", False),
+        })
+
+    frames.sort(key=lambda f: f["hour_offset"])
+    return {
+        "model": model, "domain": "marine", "layer": layer,
+        "base_time": base.strftime("%Y-%m-%dT%H:%M:%SZ"),
+        "bounds": shared_bounds, "cols": shared_cols, "rows": shared_rows,
+        "frame_count": len(frames), "frames": frames,
+    }
+
+
 async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
@@ -195,6 +283,28 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
                 logger.warning(f"[grid_series] EURO fast path failed ({type(e).__name__}: {e}); serving estimated-only, native hours warming")
         # native_hours empty (page entirely >240h): loop_hours stays = hour_list (all estimated)
         # and the per-hour loop resolves the stored estimated EURO products directly.
+
+    # GFS/ICON marine fast path (flag-gated GFS_ICON_SERIES_FASTPATH, default OFF): fetch the FULL forecast
+    # range ONCE from Open-Meteo for the viewport + slice EVERY hour, so a zoomed-in scrub renders the REGIONAL
+    # 0.25° grid for all hours instead of the global-coarse frame (which masks enclosed seas → the Gulf-of-Mexico
+    # no-data square during scrub). Additive + fall-through: on any failure the generic per-hour loop below runs
+    # unchanged. Default off because it trades the instant manifest-coarse render for a live regional fetch.
+    if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
+            and viewport_service is not None
+            and model.upper() in ("GFS", "ICON")
+            and domain.lower() == "marine"
+            and not surf
+            and not await _client_gone()):
+        try:
+            fp = await asyncio.wait_for(
+                _build_openmeteo_marine_series(viewport_service, model, layer, bbox, hour_list, base),
+                timeout=OPENMETEO_SERIES_TIMEOUT,
+            )
+            if fp and fp.get("frame_count", 0) > 0:
+                return fp
+            logger.warning(f"[grid_series] {model} marine fast path returned no frames; using the per-hour loop.")
+        except BaseException as e:
+            logger.warning(f"[grid_series] {model} marine fast path failed ({type(e).__name__}: {e}); using the per-hour loop.")
 
     # Bound concurrency so we don't spike CPU/memory on the 1-CPU box re-normalizing many
     # hours at once (each hour after the first is a cheap re-slice of the cached fetch).

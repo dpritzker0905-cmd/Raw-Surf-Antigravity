@@ -112,3 +112,47 @@ def test_gfs_series_first_hour_warms_regional_via_none_background_tasks():
     # ... and EXACTLY one hour did, with all others using a real (throwaway) BackgroundTasks.
     assert sum(1 for (_, is_none) in calls if is_none) == 1
     assert all(is_none is False for (_, is_none) in calls[1:])
+
+
+def _fast_path_frames(hour_list):
+    return {
+        "model": "GFS", "domain": "marine", "layer": "waves", "base_time": "x",
+        "bounds": {"west": -90, "south": 24, "east": -84, "north": 29}, "cols": 16, "rows": 8,
+        "frame_count": len(hour_list),
+        "frames": [{
+            "hour_offset": h, "valid_time": "2026-06-29T00:00:00Z", "cols": 16, "rows": 8,
+            "bounds": {"west": -90, "south": 24, "east": -84, "north": 29},
+            "vectors": [{"lat": 26, "lng": -87, "speed": 0.6}], "provider": "open-meteo", "is_estimated": False,
+        } for h in hour_list],
+    }
+
+
+def test_gfs_fast_path_used_when_flag_on(monkeypatch):
+    """GFS_ICON_SERIES_FASTPATH=1 → grid_series serves the full-range fast path (REGIONAL for all hours) and
+    NEVER falls to the per-hour generic loop (which would serve global-coarse → the Gulf scrub square)."""
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+
+    async def fake_fp(viewport_service, model, layer, bbox, hour_list, base):
+        return _fast_path_frames(hour_list)
+    monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", fake_fp)
+
+    used_generic = []
+    async def resolve(*, model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, request=None):
+        used_generic.append(valid_time)
+        return _gfs_product()
+
+    out = asyncio.run(build_grid_series(resolve, _FakeVP(), "GFS", "marine", "waves", "-90,24,-84,29", "0,3,6"))
+    assert out["frame_count"] == 3 and out["cols"] == 16          # came from the fast path
+    assert used_generic == []                                     # generic per-hour loop NOT used
+
+
+def test_gfs_fast_path_skipped_when_flag_off(monkeypatch):
+    monkeypatch.delenv("GFS_ICON_SERIES_FASTPATH", raising=False)
+
+    used_generic = []
+    async def resolve(*, model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, request=None):
+        used_generic.append(valid_time)
+        return _gfs_product()
+
+    out = asyncio.run(build_grid_series(resolve, _FakeVP(), "GFS", "marine", "waves", "-90,24,-84,29", "0,3,6"))
+    assert out["frame_count"] == 3 and len(used_generic) == 3     # generic loop ran (flag off)
