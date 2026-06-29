@@ -1,0 +1,10 @@
+{
+  "source": "NOAA ERDDAP etopo180 (ETOPO1) stride 3=0.05\u00b0, |grad(depth)| max-pooled to 0.1\u00b0",
+  "units": "slope (rise/run, m/m) \u00d7 10000; 0 == land/no-slope",
+  "nlat": 1800,
+  "nlon": 3600,
+  "lat0": -90.0,
+  "lon0": -180.0,
+  "dlat": 0.1000555864369094,
+  "dlon": 0.1000277854959711
+}
