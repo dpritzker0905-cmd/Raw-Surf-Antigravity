@@ -1,0 +1,47 @@
+# Decoupled precompute + calibration — restores products from Supabase L2 and rates every spot OFF the heavy
+# ingest path, so the high-value glyph precompute can never be starved by a slow/timed-out ingestion cycle.
+# Manual dispatch (and a light schedule so glyphs refresh even between full ingests).
+#   Actions -> "Precompute Spot Ratings (decoupled)" -> Run workflow.
+name: Precompute Spot Ratings (decoupled)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '45 1,7,13,19 * * *'   # 4x/day, offset from the :15 ingest so it reads a settled L2 manifest
+
+permissions:
+  contents: read
+
+concurrency:
+  group: precompute
+  cancel-in-progress: false
+
+jobs:
+  precompute:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Restore from L2 + precompute ratings + calibration
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          RENDER: 'true'                # match production grid resolution + point-resolution paths
+          SPOT_RATINGS_PRECOMPUTE: '1'
+          BUOY_CALIBRATION: '1'
+          REPORT_CALIBRATION: '1'
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+        run: python scripts/precompute_ci.py
