@@ -22,8 +22,31 @@ Pure ``math`` only — no I/O, no network, no numpy dependency — so it runs in
 import math
 
 G = 9.81            # gravitational acceleration (m/s^2)
-GAMMA = 0.78        # depth-limited breaking index: H_break ~= GAMMA * depth
+GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / McCowan limit); used when the
+                    # period is unknown and as the centre of the period-dependent breaker_index() below.
+GAMMA_MIN = 0.62    # short-period windchop breaks low + mushy (spilling)
+GAMMA_MAX = 1.05    # long-period groundswell breaks tall + violent (plunging)
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
+
+
+def _clamp(x, lo, hi):
+    return lo if x < lo else hi if x > hi else x
+
+
+def breaker_index(Tp_s):
+    """Depth-limited breaker index gamma_b = H_b / h_b as a function of swell PERIOD (the f(s0,kh) breaker
+    index of the nearshore literature — Galvin 1968; Battjes 1974 via the Iribarren number; Goda 2010).
+
+    The fixed 0.78 ignores that LONG-PERIOD groundswell breaks TALLER and more violently (plunging, high
+    gamma_b) while short-period windchop breaks lower and mushier (spilling, low gamma_b): the breaker index
+    rises as deep-water steepness s0 = Hs/L0 FALLS, and for fixed Hs the PERIOD is the dominant steepness
+    lever (L0 = gTp^2/2pi). We key gamma_b to Tp ONLY — not Hs — so the depth-limited cap stays INDEPENDENT
+    of offshore height (a 5 m and a 2 m swell of the same period still break to the same depth-limited height,
+    the shelf physics). Centred so a typical ~10.5 s swell ~= the legacy 0.78; bounded [GAMMA_MIN, GAMMA_MAX].
+    The full Iribarren breaker TYPE (which also needs a per-cell beach slope) is the next refinement."""
+    if Tp_s is None or Tp_s <= 0:
+        return GAMMA
+    return _clamp(0.78 + (Tp_s - 10.5) * 0.027, GAMMA_MIN, GAMMA_MAX)
 
 
 def wavenumber(period_s: float, depth_m: float):
@@ -78,7 +101,7 @@ def transform_surf(Hs_m, Tp_s, depth_m):
       - ``'deep'``     depth beyond the shoaling zone (d/L0 > 0.5) OR no usable depth -> offshore Hs passes
                        through unchanged (no surf transformation in deep water)
       - ``'shoaling'`` intermediate depth: height = Ks(depth) * Hs, below the breaking cap
-      - ``'breaking'`` depth-limited: height capped at GAMMA * depth (the dominant shelf effect)
+      - ``'breaking'`` depth-limited: height capped at breaker_index(Tp) * depth (period-dependent)
     """
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
@@ -95,7 +118,7 @@ def transform_surf(Hs_m, Tp_s, depth_m):
         return float(Hs_m), 'deep'
     Ks = shoaling_coefficient(Tp_s, depth_m)
     H_shoaled = Ks * Hs_m
-    H_break_limit = GAMMA * depth_m
+    H_break_limit = breaker_index(Tp_s) * depth_m
     if H_shoaled >= H_break_limit:
         return float(H_break_limit), 'breaking'
     return float(H_shoaled), 'shoaling'
@@ -183,7 +206,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
       1. Cross-shelf bottom friction (Kf, ``shelf_dissipation``): swell crossing a WIDE SHALLOW shelf loses
          energy to the bed (Ardhuin 2003; Kurian 1987). Scaled by shelf WIDTH and 1/sinh(kd).
       2. Local shoaling (Ks) from deep/intermediate water to the shelf-cell depth (linear wave theory).
-      3. Depth-limited breaking: capped at GAMMA*depth.
+      3. Depth-limited breaking: capped at breaker_index(Tp)*depth (period-dependent: long-period plunges taller).
       4. Surf only exists near a shore: an OPEN-OCEAN point (no nearby land) carries swell but no surf ->
          regime 'open_ocean', offshore height returned, callers hide/transparency-mask it.
 
@@ -206,7 +229,7 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)
     Ks = shoaling_coefficient(Tp_s, depth_m)
     H = Kf * Ks * Hs_m
-    cap = GAMMA * depth_m
+    cap = breaker_index(Tp_s) * depth_m            # period-dependent: long-period swell breaks taller
     if H >= cap:
         return float(cap), 'breaking'              # depth-limited on a shallow shelf cell
     return (float(H), 'shelf') if H <= Hs_m else (float(H), 'shoaling')

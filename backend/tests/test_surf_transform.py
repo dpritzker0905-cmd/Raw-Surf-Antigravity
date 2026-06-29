@@ -58,7 +58,7 @@ def test_deep_water_passes_offshore_through_unchanged():
 def test_shallow_water_is_depth_limited_breaking():
     surf, regime = st.transform_surf(2.0, 12.0, 2.0)
     assert regime == 'breaking'
-    assert surf == pytest.approx(st.GAMMA * 2.0, rel=1e-6)   # capped at gamma * depth = 1.56 m
+    assert surf == pytest.approx(st.breaker_index(12.0) * 2.0, rel=1e-6)   # period-dependent cap
 
 
 def test_depth_limit_is_independent_of_offshore_size():
@@ -68,6 +68,28 @@ def test_depth_limit_is_independent_of_offshore_size():
     assert r1 == r2 == 'breaking'
     assert surf_small == pytest.approx(surf_big)             # both depth-limited to gamma*depth
     assert surf_big < 5.0                                    # genuinely smaller than the offshore swell
+
+
+def test_breaker_index_period_dependence():
+    # gamma_b rises with period (long-period plunges taller; short-period spills lower), centred on the
+    # legacy 0.78 at a typical ~10.5 s swell, and bounded.
+    assert st.breaker_index(10.5) == pytest.approx(0.78, abs=1e-9)
+    assert st.breaker_index(5.0) < st.breaker_index(10.5) < st.breaker_index(16.0)
+    assert st.GAMMA_MIN <= st.breaker_index(2.0) <= st.GAMMA_MAX
+    assert st.GAMMA_MIN <= st.breaker_index(25.0) <= st.GAMMA_MAX
+    assert st.breaker_index(2.0) == st.GAMMA_MIN          # clamped low
+    assert st.breaker_index(25.0) == st.GAMMA_MAX         # clamped high
+    assert st.breaker_index(None) == st.GAMMA and st.breaker_index(0) == st.GAMMA  # unknown -> reference
+
+
+def test_depth_limited_break_is_taller_for_longer_period():
+    # NEW physics: on the SAME shallow shelf cell, a long-period groundswell breaks TALLER than short-period
+    # windchop (the depth-limited cap is now period-dependent). Both still depth-limited (independent of size).
+    short, r1 = st.transform_surf(3.0, 7.0, 2.0)
+    long, r2 = st.transform_surf(3.0, 16.0, 2.0)
+    assert r1 == r2 == 'breaking'
+    assert long > short                                    # longer period -> taller break at same depth
+    assert long == pytest.approx(st.breaker_index(16.0) * 2.0, rel=1e-6)
 
 
 def test_intermediate_depth_shoals_without_breaking():
@@ -118,9 +140,9 @@ def test_estimate_surf_regimes():
     # steep / deep coast (no shelf to cross) -> passes ~through, never amplified above offshore
     s, r = st.estimate_surf(2.0, 12.0, 2000.0, coastal=True, shelf_width_km=0.0)
     assert s == pytest.approx(2.0, rel=0.1) and s <= 2.0 + 1e-9
-    # very shallow + big swell -> depth-limited breaking cap binds
+    # very shallow + big swell -> depth-limited breaking cap binds (period-dependent breaker index)
     s, r = st.estimate_surf(5.0, 14.0, 1.0, coastal=True, shelf_width_km=5.0)
-    assert r == 'breaking' and s == pytest.approx(st.GAMMA * 1.0, rel=1e-6)
+    assert r == 'breaking' and s == pytest.approx(st.breaker_index(14.0) * 1.0, rel=1e-6)
     # calm / unknown
     assert st.estimate_surf(0.0, 10.0, 20.0) == (0.0, 'calm')
     assert st.estimate_surf(None, 10.0, 20.0) == (None, 'unknown')
