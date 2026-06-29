@@ -110,6 +110,47 @@ export function computeSpotRatings(spotClusters, grid, surfMode) {
 }
 
 /**
+ * PURE: pick the BEST (highest-score) rating among a cluster's leaf spots. `leaves` are supercluster leaf
+ * features (each `properties.spotId`); `spotRatings` is the spotId -> rating map. Returns the best rating
+ * augmented with `count` (how many leaves were rated), or null when the cluster has no rated spots. Used to
+ * TINT cluster bubbles so toggling Rating visibly recolours the map even when spots are clustered (zoomed out)
+ * — the gap that made the toggle look like "nothing happens" at regional zoom.
+ */
+export function aggregateLeafRatings(leaves, spotRatings) {
+  if (!Array.isArray(leaves) || !spotRatings) return null;
+  let best = null;
+  let count = 0;
+  for (const lf of leaves) {
+    const id = lf && lf.properties && lf.properties.spotId;
+    const r = id != null ? spotRatings[id] : null;
+    if (!r) continue;
+    count += 1;
+    if (best == null || r.score > best.score) best = r;
+  }
+  if (!best) return null;
+  return { color: best.color, level: best.level, score: best.score, label: best.label, count };
+}
+
+/**
+ * PURE: clusterId(`cluster.id`) -> aggregated best rating, for the cluster markers in view. Skips non-clusters
+ * and clusters with no rated leaves (→ plain orange bubble, graceful). `supercluster.getLeaves` is capped at
+ * `leafCap` so a giant zoomed-out cluster can't stall the render (best-of-a-sample is plenty for a tint).
+ */
+export function computeClusterRatings(spotClusters, spotRatings, supercluster, leafCap = 100) {
+  const out = {};
+  if (!Array.isArray(spotClusters) || !spotRatings || !supercluster) return out;
+  if (Object.keys(spotRatings).length === 0) return out;
+  for (const c of spotClusters) {
+    if (!c || !c.isCluster) continue;
+    let leaves;
+    try { leaves = supercluster.getLeaves(c.clusterId, leafCap); } catch (e) { continue; }
+    const agg = aggregateLeafRatings(leaves, spotRatings);
+    if (agg) out[c.id] = agg;
+  }
+  return out;
+}
+
+/**
  * Map of spotId -> { score, level, color, label, confidence, why } for the visible spots while Rating mode is on.
  *
  * Two-source (P1 increment 2): the per-spot backend endpoint (/api/weather/spot-ratings) is the ACCURATE source

@@ -35,6 +35,23 @@ regional rating grid exists. This session's clamp/warming fixes (§4) make the b
 
 ---
 
+## 0b. LIVE TEST 2026‑06‑28 (later session, post‑`dda208f3` deploy) — what the diag PROVED
+Captured on `dev--rawsurf`, FL east coast, GFS waves, zoom 7–10:
+- **Endpoint + telemetry WORK:** `[spot-ratings] 24/24 rated · src=live · -81.5,28,-79.75,28.75` — all 24 in‑view spots
+  rated. Tighter box → `0/0` (no spots there). So the rating DATA path is fully healthy end‑to‑end.
+- **Why "nothing happens to the heatmap":** (1) the BAND is honest‑swell at coarse BY DESIGN (Option‑A) and the
+  **clamp pinned the viewport on coarse/global** (`Render backstop: … grid at zoomed‑in viewport … willSharpen:false`,
+  `regional_too_small fw:999.0 covers:false`) → the band never became a rating band. (2) At zoom 7–9 the 24 rated
+  spots are **CLUSTERED** → they render as orange count‑bubbles, not glyphs → the per‑spot rating was invisible.
+- **Fix shipped (`<next commit>`):** **cluster rating tinting** — `computeClusterRatings`/`aggregateLeafRatings`
+  (pure, tested) tint each cluster bubble by the BEST rating among its leaf spots, wired MapWebGL→MapMarkerLayers.
+  Now toggling Rating recolours the map at EVERY zoom (clustered bubbles + individual glyphs), not just at
+  spot‑level zoom. Falls back to orange when a cluster has no rated spot.
+- **STILL OPEN:** the heatmap **clamp** (`willSharpen:false` on a regional_too_small frame) is the active
+  blocker for the *band* recolouring at regional zoom — that's the engine‑plan P0 #1, separate from rating.
+
+---
+
 ## 1. THE FEATURE (as built this session) — two layers
 - **Map "Swell ⇄ Rating" toggle** (`MapWeatherControls.js` L82‑89): flips `__SURF_MODE__` (localStorage +
   window), updates local `surfMode`, dispatches `window` event `rawsurf:surf-toggle`. The legend label flips

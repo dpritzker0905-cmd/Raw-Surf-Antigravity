@@ -38,6 +38,7 @@ var MapMarkerLayers = ({
   mapRef,
   surfMode = false,
   spotRatings = null,
+  clusterRatings = null,
 }) => {
   const [hoveredSpotId, setHoveredSpotId] = useState(null);
   return (
@@ -46,10 +47,18 @@ var MapMarkerLayers = ({
       {spotClusters.map(cluster => {
         const [lng, lat] = [cluster.longitude, cluster.latitude];
         if (cluster.isCluster) {
+          // Rating mode: tint the bubble by the BEST rating among the cluster's spots so toggling Rating is
+          // visible even when zoomed out / clustered (falls back to orange when no spot in it is rated).
+          const cRating = surfMode && clusterRatings ? clusterRatings[cluster.id] : null;
           return (
             <Marker key={cluster.id} longitude={lng} latitude={lat} anchor="center">
               <div
-                className="w-10 h-10 rounded-full bg-orange-500 bg-opacity-80 flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
+                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
+                style={cRating ? {
+                  backgroundColor: cRating.color,
+                  boxShadow: `0 0 10px 2px ${cRating.color}, 0 2px 6px rgba(0,0,0,0.45)`,
+                } : { backgroundColor: 'rgba(249,115,22,0.8)' }}
+                title={cRating ? `Best here: ${cRating.label}` : undefined}
                 onClick={(e) => {
                   e.stopPropagation();
                   mapRef.current.flyTo({

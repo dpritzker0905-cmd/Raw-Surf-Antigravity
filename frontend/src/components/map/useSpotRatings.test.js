@@ -1,4 +1,4 @@
-import { sampleRatingScoreFromGrid, computeSpotRatings, summarizeSpotRatings, writeSpotRatingsDiag } from './useSpotRatings';
+import { sampleRatingScoreFromGrid, computeSpotRatings, summarizeSpotRatings, writeSpotRatingsDiag, aggregateLeafRatings, computeClusterRatings } from './useSpotRatings';
 
 // Build a cols×rows rating grid over [west..east]×[south..north]; cell (x,y) value -> vectors[y*cols+x].speed.
 function makeGrid({ cols, rows, west, south, east, north, cells }) {
@@ -97,6 +97,64 @@ describe('summarizeSpotRatings — diagnostics', () => {
 
   it('defaults a missing level to unknown in the tally', () => {
     expect(summarizeSpotRatings({ a: {}, b: { level: 'poor' } }).levels).toEqual({ unknown: 1, poor: 1 });
+  });
+});
+
+describe('aggregateLeafRatings — cluster tint', () => {
+  const leaf = (spotId) => ({ properties: { spotId } });
+  const ratings = {
+    a: { score: 20, level: 'poor', color: '#f59e2c', label: 'Poor' },
+    b: { score: 75, level: 'good', color: '#7c3aed', label: 'Good' },
+    c: { score: 40, level: 'poor_fair', color: '#f7d038', label: 'Poor to Fair' },
+  };
+
+  it('picks the highest-scoring rated leaf and counts the rated ones', () => {
+    const out = aggregateLeafRatings([leaf('a'), leaf('b'), leaf('c'), leaf('z')], ratings);
+    expect(out.level).toBe('good');      // b has the top score (75)
+    expect(out.color).toBe('#7c3aed');
+    expect(out.count).toBe(3);            // a,b,c rated; z (unrated) ignored
+  });
+
+  it('returns null when no leaf is rated', () => {
+    expect(aggregateLeafRatings([leaf('x'), leaf('y')], ratings)).toBeNull();
+  });
+
+  it('tolerates malformed leaves / missing ratings', () => {
+    expect(aggregateLeafRatings(null, ratings)).toBeNull();
+    expect(aggregateLeafRatings([leaf('a')], null)).toBeNull();
+    expect(aggregateLeafRatings([{}, { properties: {} }, leaf('a')], ratings).level).toBe('poor');
+  });
+});
+
+describe('computeClusterRatings — wiring + cap', () => {
+  const ratings = { a: { score: 20, level: 'poor', color: '#1', label: 'Poor' }, b: { score: 90, level: 'epic', color: '#2', label: 'Epic' } };
+  // Fake supercluster: clusterId 1 -> [a,b], clusterId 2 -> [unrated].
+  const supercluster = {
+    getLeaves: (id) => (id === 1 ? [{ properties: { spotId: 'a' } }, { properties: { spotId: 'b' } }]
+      : [{ properties: { spotId: 'z' } }]),
+  };
+  const clusters = [
+    { id: 'cluster-1', isCluster: true, clusterId: 1 },
+    { id: 'cluster-2', isCluster: true, clusterId: 2 },
+    { id: 'a', isCluster: false },             // individual spot — skipped
+  ];
+
+  it('keys aggregated ratings by cluster.id and skips clusters with no rated leaves', () => {
+    const out = computeClusterRatings(clusters, ratings, supercluster);
+    expect(out['cluster-1'].level).toBe('epic');  // best of a,b
+    expect(out['cluster-2']).toBeUndefined();      // only an unrated leaf
+    expect(out['a']).toBeUndefined();              // non-cluster
+  });
+
+  it('returns {} with no ratings / no supercluster', () => {
+    expect(computeClusterRatings(clusters, {}, supercluster)).toEqual({});
+    expect(computeClusterRatings(clusters, ratings, null)).toEqual({});
+  });
+
+  it('passes the leaf cap through to getLeaves', () => {
+    const spy = { getLeaves: jest.fn(() => [{ properties: { spotId: 'b' } }]) };
+    computeClusterRatings([{ id: 'cluster-1', isCluster: true, clusterId: 1 }], ratings, spy, 50);
+    expect(spy.getLeaves).toHaveBeenCalledWith(1, 50);
   });
 });
 

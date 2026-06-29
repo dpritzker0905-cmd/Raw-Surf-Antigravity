@@ -28,7 +28,7 @@ import { useMapInitialization } from './useMapInitialization';
 import { useMapViewState } from './useMapViewState';
 import { useMapLongPress } from './useMapLongPress';
 import { useSpotClusteringData } from './useSpotClusteringData';
-import { useSpotRatings } from './useSpotRatings';
+import { useSpotRatings, computeClusterRatings } from './useSpotRatings';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { useSatelliteBackgroundSync } from './useSatelliteBackgroundSync';
 import { useOpenMeteoTileUrls } from './useOpenMeteoTileUrls';
@@ -151,7 +151,7 @@ const MapWebGL = ({
   }, []);
 
   // 6. Spot Clustering Data
-  const { spotClusters, spotGeoJSON } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState, surfMode });
+  const { spotClusters, spotGeoJSON, supercluster } = useSpotClusteringData({ surfSpots, filter, mapInstance, viewState, surfMode });
 
   const animFrameRef = useRef(null);
   
@@ -205,6 +205,13 @@ const MapWebGL = ({
   // Per-spot surf-quality ratings for the Rating-overlay glyphs: the backend /spot-ratings endpoint (precise
   // per-spot resolution) with the rating-grid sample as an instant fallback. See useSpotRatings.js.
   const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, activeModel, timeOffsetHours });
+  // Aggregate per-spot ratings up to the CLUSTER bubbles so toggling Rating recolours the map even when spots
+  // are clustered (zoomed out) — without this the toggle looks like "nothing happens" until you zoom to
+  // individual spots. Memoized: recomputes only when the clusters or ratings change (not per frame).
+  const clusterRatings = useMemo(
+    () => (surfMode ? computeClusterRatings(spotClusters, spotRatings, supercluster) : {}),
+    [surfMode, spotClusters, spotRatings, supercluster]
+  );
   // FCE: Field Composition Engine — Single Source of Truth
   const { field: simulationField, diagnostics: fieldDiagnostics } = useSimulationField({
     windData,
@@ -635,6 +642,7 @@ const MapWebGL = ({
           mapRef={innerMapRef}
           surfMode={surfMode}
           spotRatings={spotRatings}
+          clusterRatings={clusterRatings}
         />
         {/* Keep the WebGL wind engine RESIDENT (gated by `active`) — same rationale as the
             marine layer above: avoid disposing/rebuilding the 147,456-particle engine on
