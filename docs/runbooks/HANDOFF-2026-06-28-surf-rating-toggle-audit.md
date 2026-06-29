@@ -43,7 +43,7 @@ Captured on `dev--rawsurf`, FL east coast, GFS waves, zoom 7–10:
   **clamp pinned the viewport on coarse/global** (`Render backstop: … grid at zoomed‑in viewport … willSharpen:false`,
   `regional_too_small fw:999.0 covers:false`) → the band never became a rating band. (2) At zoom 7–9 the 24 rated
   spots are **CLUSTERED** → they render as orange count‑bubbles, not glyphs → the per‑spot rating was invisible.
-- **Fix shipped (`<next commit>`):** **cluster rating tinting** — `computeClusterRatings`/`aggregateLeafRatings`
+- **Fix shipped (`6e5189c7`):** **cluster rating tinting** — `computeClusterRatings`/`aggregateLeafRatings`
   (pure, tested) tint each cluster bubble by the BEST rating among its leaf spots, wired MapWebGL→MapMarkerLayers.
   Now toggling Rating recolours the map at EVERY zoom (clustered bubbles + individual glyphs), not just at
   spot‑level zoom. Falls back to orange when a cluster has no rated spot.
