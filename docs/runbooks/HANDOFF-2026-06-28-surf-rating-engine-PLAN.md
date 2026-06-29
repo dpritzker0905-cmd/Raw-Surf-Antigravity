@@ -41,11 +41,13 @@
   to the buoy's WVHT/DPD). CI hook flag‑gated `BUOY_CALIBRATION=1` (writes L2 report); `GET /api/weather/buoy-calibration`
   reads it. Additive, never changes a rating. 9 tests. NEXT: enable the flag on the cron → read the live MAE/bias.
 - **FORENSIC BLOCKERS found this session (data/ops, not code):**
-  - **Tide (`tide_fit`):** CO‑OPS fetcher EXISTS (`surf_conditions.get_noaa_tide_data`) but is US‑station‑only AND
-    there is NO per‑spot tide‑station mapping (`SurfSpot` has `noaa_buoy_id`, no `noaa_tide_station`; the only
-    station dict is hardcoded slugs that don't map to DB UUIDs). UNBLOCK = add+populate a `noaa_tide_station`
-    column (US first), then apply tide_fit in `rate_one_spot` (precompute path, gated `RATING_TIDE`). Neutral for
-    non‑US spots until a global tide model is ingested.
+  - **Tide (`tide_fit`): ✅ SOLVED `a9f912c3` (P4 done, gated).** Skipped the CO‑OPS dead‑end (US‑only + no
+    per‑spot station map) for **Open‑Meteo Marine `sea_level_height_msl`** — GLOBAL, free, no key, by lat/lng →
+    no schema change. `tide.py` (TTL‑cached fetch + pure `tide_state_at`/`normalize_tide`); `surf_rating.py`⇄
+    `surfRating.js` `parse_best_tide`+`tide_fit` threaded through `compute_surf_rating` (optional, neutral when
+    unknown); `rate_one_spot` applies it gated `RATING_TIDE`. ACTIVATE on the **cron precompute** path
+    (SPOT_RATINGS_PRECOMPUTE=1 + RATING_TIDE=1) so the per‑spot tide fetches stay OFF the 1‑CPU serve box; avoid
+    RATING_TIDE on Render live (N external fetches/request). 44 BE + 17 JS tests.
   - **Finer bathymetry → Iribarren breaker TYPE / refraction:** needs GEBCO (~450m, multi‑GB) to build a
     coastal slope asset; ETOPO 0.25° slope is shelf‑scale (redundant with shelf_dissipation). UNBLOCK = a cron
     job that downloads GEBCO, builds a downsampled COASTAL slope npy (like `build_bathymetry_asset.py`), bundles
