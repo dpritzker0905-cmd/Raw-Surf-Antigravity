@@ -1,4 +1,4 @@
-import { useState, useCallback, useEffect } from 'react';
+import { useState, useCallback, useEffect, useRef } from 'react';
 import apiClient from '../lib/apiClient';
 import logger from '../utils/logger';
 
@@ -37,20 +37,35 @@ export const useMapData = (userId = null, userLocation = null) => {
     }))
   });
 
-  const fetchSurfSpots = useCallback(async (viewport = null) => {
+  // Live ref to the latest fetchSurfSpots so the retry timer can re-invoke it without a self-dependency.
+  const fetchSurfSpotsRef = useRef(null);
+  const fetchSurfSpots = useCallback(async (viewport = null, attempt = 0) => {
+    // Backend cold-starts (Render) make this fetch transiently fail; the service worker then serves a STALE
+    // cached spot list (or an {offline, data:[]} marker), which strands the map on the last region (the
+    // "only Central FL spots show worldwide" report). So: retry with backoff on failure/offline-fallback,
+    // and NEVER clobber a good spot list with an empty one — keep what we have until a real fetch succeeds.
+    const RETRY_DELAYS = [1500, 3000, 6000, 12000];
+    const retry = (err) => {
+      if (attempt < RETRY_DELAYS.length) {
+        // Recurse via a ref (not the callback itself) so this doesn't need to depend on itself.
+        setTimeout(() => { if (fetchSurfSpotsRef.current) fetchSurfSpotsRef.current(viewport, attempt + 1); }, RETRY_DELAYS[attempt]);
+      } else {
+        logger.error('Error fetching surf spots (gave up after retries):', err);
+      }
+    };
     try {
       // Build query params for Privacy Shield geofencing
       const params = new URLSearchParams();
-      
+
       if (userId) {
         params.append('user_id', userId);
       }
-      
+
       if (userLat && userLng) {
         params.append('user_lat', userLat);
         params.append('user_lon', userLng);
       }
-      
+
       // Viewport filtering for performance
       if (viewport) {
         params.append('viewport_only', 'true');
@@ -59,16 +74,22 @@ export const useMapData = (userId = null, userLocation = null) => {
         params.append('min_lon', viewport.minLng);
         params.append('max_lon', viewport.maxLng);
       }
-      
+
       const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiClient.get(url);
-      const data = Array.isArray(response.data) ? response.data : [];
+      const payload = response.data;
+      // SW offline-fallback marker, or an empty GLOBAL load (no viewport ⇒ there are always spots), means a
+      // transient cold-start, not a real result → retry without overwriting the existing spots.
+      if (payload && payload.offline) { retry(new Error('sw-offline-fallback')); return; }
+      const data = Array.isArray(payload) ? payload : [];
+      if (data.length === 0 && !viewport) { retry(new Error('empty-global-spots')); return; }
       setSurfSpots(data);
       setSurfSpotsGeoJSON(toGeoJSON(data));
     } catch (error) {
-      logger.error('Error fetching surf spots:', error);
+      retry(error);   // network error (cold-start) — keep current spots + retry
     }
   }, [userId, userLat, userLng]);
+  fetchSurfSpotsRef.current = fetchSurfSpots;
 
   const fetchLivePhotographers = useCallback(async () => {
     try {
