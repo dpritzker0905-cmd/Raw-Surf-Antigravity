@@ -25,6 +25,16 @@
   badge in `MapForecastOverlay.js` passes primary swell dir; parity tests 15 (py) / 14 (js).
 - VERIFIED: rating DOES fuse wind on REGIONAL tiles (`/grid?surf=true` → `surf_transform {wind:True}`). The
   backend is accurate; the gaps are (a) coarse/global path, (b) the clamp, (c) deeper nature physics.
+- `f96ee1f8` (2026‑06‑28 later) — **CLAMP degree‑boundary fix** (`padRegionalBbox` in `marineGridSeries.js`):
+  the `regional_too_small`/`found:false` clamp was a frontend bug (0.5° viewportKey + strict bboxContains +
+  TTL dedup pinned a non‑covering tile); padding the grid_series request +0.5° fixes it. The REMAINING clamp
+  everywhere else is a backend DATA‑COVERAGE gap (most regions return global‑coarse) → needs the worldwide
+  coastal cron ingestion, NOT more code. Rating overlay confirmed correct live (24/24 spot‑id intersection).
+- `8f1ce966` (2026‑06‑28 later) — **P2 #1 STARTED: period‑dependent breaker index** (`breaker_index(Tp)` in
+  `surf_transform.py`) replaces the fixed γ=0.78. Keyed to PERIOD (not height) so the depth‑limited cap stays
+  size‑independent; long‑period groundswell now breaks taller (plunging, γ_b→1.05), windchop lower (spilling,
+  γ_b→0.62), centred 0.78 at ~10.5s. 34 tests. NEXT in P2: bed‑slope→Iribarren breaker TYPE (needs per‑cell
+  slope), then refraction focus/defocus.
 
 ---
 
