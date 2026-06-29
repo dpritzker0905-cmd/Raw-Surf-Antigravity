@@ -45,9 +45,7 @@ jobs:
           if git diff --cached --quiet; then
             echo "No change to the slope asset — nothing to commit."
           else
-            git commit -m "chore(bathymetry): build finer bed-slope asset (etopo_slope_0p1) [skip ci]
-
-Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+            git commit -m "chore(bathymetry): build finer bed-slope asset (etopo_slope_0p1) [skip ci]" -m "Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
             git push origin HEAD:${GITHUB_REF_NAME}
             echo "Committed + pushed the slope asset to ${GITHUB_REF_NAME}."
           fi
