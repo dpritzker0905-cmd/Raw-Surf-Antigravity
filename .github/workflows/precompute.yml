@@ -36,6 +36,7 @@ jobs:
         env:
           NODE_ENV: production
           RENDER: 'true'                # match production grid resolution + point-resolution paths
+          PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)
           SPOT_RATINGS_PRECOMPUTE: '1'
           BUOY_CALIBRATION: '1'
           REPORT_CALIBRATION: '1'

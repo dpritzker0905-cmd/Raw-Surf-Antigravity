@@ -297,7 +297,19 @@ def run_spot_ratings_precompute() -> tuple:
     resolver = _make_point_resolver()
     obj = asyncio.run(precompute_spot_ratings(resolver, spots, models, hours))
     n_frames = len(obj.get("frames", []))
+    # Coverage guard: NEVER stomp the served object with an all-null precompute (e.g. grids weren't warmed, so
+    # every resolve_point returned None). A null object would replace the working live-compute fallback with
+    # "unknown" glyphs — strictly worse. Require a minimum fraction of spots to have a real score before upload.
+    rated = sum(1 for fr in obj.get("frames", []) for s in fr.get("spots", []) if s.get("score") is not None)
+    total = sum(len(fr.get("spots", [])) for fr in obj.get("frames", [])) or 1
+    coverage = rated / total
+    min_cov = float(os.environ.get("SPOT_RATINGS_MIN_COVERAGE", "0.05"))
+    if coverage < min_cov:
+        logger.error("[spot-ratings] precompute coverage %.1f%% (%d/%d) below floor %.0f%% — NOT uploading "
+                     "(refusing to stomp the live fallback with nulls; are the grids warmed?).",
+                     coverage * 100, rated, total, min_cov * 100)
+        return len(spots), 0  # n_frames=0 signals "computed but withheld"
     upload_spot_ratings_l2(ProductStore(), obj)
-    logger.info("[spot-ratings] precompute uploaded L2: %d spots × %d frames (%s × hours %s).",
-                len(spots), n_frames, models, hours)
+    logger.info("[spot-ratings] precompute uploaded L2: %d spots × %d frames (%s × hours %s), coverage %.0f%%.",
+                len(spots), n_frames, models, hours, coverage * 100)
     return len(spots), n_frames

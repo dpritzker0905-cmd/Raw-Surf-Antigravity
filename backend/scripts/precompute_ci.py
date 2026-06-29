@@ -54,6 +54,19 @@ def main() -> int:
         logger.error("No products restored from L2 — nothing to rate (has an ingest cycle run yet?). Aborting.")
         return 1
 
+    # restore_from_supabase loads the MANIFEST ONLY (lazy products). The point resolver samples GRID FILES
+    # from local L1, so on a fresh runner every resolve_point hits an empty cache and returns None → all-null
+    # ratings (the in-process ingest path doesn't need this because ingestion already wrote the grids to L1).
+    # Warm the near-term grids L2→L1 first — the exact serve-box boot pattern (prefetch_supabase_products).
+    import asyncio
+    try:
+        from services.weather_pipeline.prefetcher import prefetch_supabase_products
+        asyncio.run(prefetch_supabase_products())
+        logger.info("Grid prewarm (L2→L1) complete — point resolver can now sample real grids.")
+    except Exception as e:
+        logger.error("Grid prewarm FAILED — ratings would be null without it; aborting: %s", e, exc_info=True)
+        return 1
+
     rc = 0
 
     if os.environ.get("SPOT_RATINGS_PRECOMPUTE", "0") == "1":
