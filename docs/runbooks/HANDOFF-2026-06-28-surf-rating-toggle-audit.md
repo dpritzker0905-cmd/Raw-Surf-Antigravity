@@ -47,7 +47,7 @@ Captured on `dev--rawsurf`, FL east coast, GFS waves, zoom 7–10:
   (pure, tested) tint each cluster bubble by the BEST rating among its leaf spots, wired MapWebGL→MapMarkerLayers.
   Now toggling Rating recolours the map at EVERY zoom (clustered bubbles + individual glyphs), not just at
   spot‑level zoom. Falls back to orange when a cluster has no rated spot.
-- **CLAMP ROOT FOUND + FIXED (`<clamp commit>`):** the `regional_too_small` / `found:false` clamp was a
+- **CLAMP ROOT FOUND + FIXED (`f96ee1f8`):** the `regional_too_small` / `found:false` clamp was a
   FRONTEND bug, not backend. Proven by curl: the backend returns a CONTAINING tile for the exact viewport
   (`-82,27,-79,29` contains south 27.96). But the frontend's 0.5° `viewportKey` snap groups viewports, and the
   served tile cached under that key fails `getMarineSeriesFrame`'s STRICT `bboxContains` for a later same‑key
