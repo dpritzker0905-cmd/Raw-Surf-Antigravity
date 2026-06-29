@@ -35,6 +35,23 @@
   size‑independent; long‑period groundswell now breaks taller (plunging, γ_b→1.05), windchop lower (spilling,
   γ_b→0.62), centred 0.78 at ~10.5s. 34 tests. NEXT in P2: bed‑slope→Iribarren breaker TYPE (needs per‑cell
   slope), then refraction focus/defocus.
+- `1f65c39b` (2026‑06‑28 later) — **P5 STARTED: buoy calibration harness** (`buoy_calibration.py`). Measure‑first
+  model‑vs‑NOAA‑NDBC ground truth: pure `parse_ndbc_realtime`/`compare_obs_to_model`/`aggregate_residuals`
+  (MAE/bias) + `calibrate_spots` loop (resolves the offshore model at each spot with a `noaa_buoy_id`, compares
+  to the buoy's WVHT/DPD). CI hook flag‑gated `BUOY_CALIBRATION=1` (writes L2 report); `GET /api/weather/buoy-calibration`
+  reads it. Additive, never changes a rating. 9 tests. NEXT: enable the flag on the cron → read the live MAE/bias.
+- **FORENSIC BLOCKERS found this session (data/ops, not code):**
+  - **Tide (`tide_fit`):** CO‑OPS fetcher EXISTS (`surf_conditions.get_noaa_tide_data`) but is US‑station‑only AND
+    there is NO per‑spot tide‑station mapping (`SurfSpot` has `noaa_buoy_id`, no `noaa_tide_station`; the only
+    station dict is hardcoded slugs that don't map to DB UUIDs). UNBLOCK = add+populate a `noaa_tide_station`
+    column (US first), then apply tide_fit in `rate_one_spot` (precompute path, gated `RATING_TIDE`). Neutral for
+    non‑US spots until a global tide model is ingested.
+  - **Finer bathymetry → Iribarren breaker TYPE / refraction:** needs GEBCO (~450m, multi‑GB) to build a
+    coastal slope asset; ETOPO 0.25° slope is shelf‑scale (redundant with shelf_dissipation). UNBLOCK = a cron
+    job that downloads GEBCO, builds a downsampled COASTAL slope npy (like `build_bathymetry_asset.py`), bundles
+    it; then `bed_slope_at` → Iribarren ξ → `breaker_type_quality`. (Local disk was 100% full — can't fetch now.)
+  - **Worldwide coastal coverage (the remaining clamp visuals):** OPS — dispatch the `forecast-ingest` Action with
+    `WORLDWIDE_REGIONS_PER_CYCLE` over many cycles to warm regional tiles globally; storage/cost implications.
 
 ---
 
