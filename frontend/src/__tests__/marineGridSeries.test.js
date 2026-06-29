@@ -8,6 +8,8 @@ import {
   ensureMarineSeries,
   getMarineSeriesFrame,
   prewarmMarineSeries,
+  padRegionalBbox,
+  SERIES_BBOX_PAD_DEG,
   _resetMarineSeriesForTest,
 } from '../components/map/marineGridSeries';
 
@@ -217,5 +219,44 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     resolve();
     await Promise.all([a, b]);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  // Degree-boundary clamp fix (live 2026-06-28): the request bbox is padded outward so the backend's
+  // degree-snapped tile contains the viewport (+ same-0.5°-key pans), instead of failing strict containment.
+  it('requests a PADDED bbox so the served tile contains the viewport', async () => {
+    window.__MARINE_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    const url = global.fetch.mock.calls[0][0];
+    // bounds = {west:-81.7, south:27.8, east:-79.6, north:28.8}; padded by 0.5 → -82.2,27.3,-79.1,29.3
+    expect(url).toContain(`bbox=${(bounds.west - 0.5).toFixed(4)},${(bounds.south - 0.5).toFixed(4)},${(bounds.east + 0.5).toFixed(4)},${(bounds.north + 0.5).toFixed(4)}`);
+  });
+});
+
+describe('padRegionalBbox — degree-boundary clamp fix', () => {
+  it('pads a regional bbox outward by SERIES_BBOX_PAD_DEG on every edge', () => {
+    const out = padRegionalBbox({ west: -81.7, south: 27.8, east: -79.6, north: 28.8 });
+    expect(out).toEqual({ west: -82.2, south: 27.3, east: -79.1, north: 29.3 });
+    expect(SERIES_BBOX_PAD_DEG).toBe(0.5);
+  });
+
+  it('makes the padded box contain a same-key viewport that straddles a whole-degree boundary', () => {
+    // The live failure: tile warmed at south≥28 didn't contain a later viewport at south 27.96.
+    const padded = padRegionalBbox({ west: -81.45, south: 28.0, east: -79.78, north: 28.7 });
+    const laterViewport = { west: -81.45, south: 27.96, east: -79.78, north: 28.7 };
+    // floor/ceil snapping aside, the padded south (27.5) already covers 27.96.
+    expect(padded.south).toBeLessThanOrEqual(laterViewport.south);
+  });
+
+  it('does NOT pad wide/near-wide viewports (avoids the 15° global-coarse threshold)', () => {
+    const wide = { west: -100, south: 10, east: -82, north: 28 };  // 18° span
+    expect(padRegionalBbox(wide)).toBe(wide);
+  });
+
+  it('clamps latitude to [-89.5, 89.5] when a REGIONAL box sits against a pole', () => {
+    const south = padRegionalBbox({ west: 0, south: -89.4, east: 2, north: -86 }); // 3.4° span → padded
+    expect(south.south).toBe(-89.5);   // -89.9 clamped
+    const north = padRegionalBbox({ west: 0, south: 86, east: 2, north: 89.4 });
+    expect(north.north).toBe(89.5);    // 89.9 clamped
   });
 });

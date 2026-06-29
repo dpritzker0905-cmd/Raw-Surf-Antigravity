@@ -130,6 +130,28 @@ function pageKey(model, layer, bounds, page) {
   return `${model || 'GFS'}_${layer || 'waves'}_${getSurfModeFlag() ? 'surf' : 'swell'}_${viewportKey(bounds)}_p${page}`;
 }
 
+// Pad a REGIONAL request bbox outward by ~0.5° so the backend's degree-snapped tile reliably CONTAINS the
+// viewport — and any sub-cell pan that maps to the SAME 0.5° viewportKey. Without this, a viewport whose edge
+// sits just outside the served tile (live 2026-06-28: viewport south 27.96 vs served tile south 28.0) fails
+// getMarineSeriesFrame's strict bboxContains → found:false → the heatmap stays CLAMPED until the 5-min TTL
+// expires, because the TTL dedup refuses to re-fetch a tile that would contain it. Proven by curl: the padded
+// request returns a tile that contains the unpadded viewport. Only pads comfortably-regional spans so padding
+// can never push a near-15° viewport over the backend's wide/global-coarse threshold. Latitude clamped.
+export const SERIES_BBOX_PAD_DEG = 0.5;
+export function padRegionalBbox(b) {
+  if (!b) return b;
+  const spanLng = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+  const spanLat = Math.abs(b.north - b.south);
+  if (spanLng >= 12 || spanLat >= 12) return b;   // wide/near-wide: leave alone (avoid the 15° threshold)
+  const p = SERIES_BBOX_PAD_DEG;
+  return {
+    west: b.west - p,
+    east: b.east + p,
+    south: Math.max(-89.5, b.south - p),
+    north: Math.min(89.5, b.north + p),
+  };
+}
+
 // Defer adjacent-page prefetch to idle so it never competes with the current page or a
 // scrub. requestIdleCallback when available; otherwise a macrotask (NOT a microtask, so it
 // can't fire inside a caller's await — keeps the synchronous "one fetch" test invariant).
@@ -195,9 +217,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
 
   const hours = buildPageHours(page);
   if (hours.length === 0) return;
+  // Request a padded box so the served tile contains the viewport (+small pans) — fixes the degree-boundary
+  // clamp. Cache key + coarse-preview detection below still use the UNPADDED `bounds` (the user's viewport).
+  const reqBox = padRegionalBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
-    + `&bbox=${bounds.west.toFixed(4)},${bounds.south.toFixed(4)},${bounds.east.toFixed(4)},${bounds.north.toFixed(4)}`
+    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`
     + (getSurfModeFlag() ? '&surf=1' : '');
 

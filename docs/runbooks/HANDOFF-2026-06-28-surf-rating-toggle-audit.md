@@ -47,8 +47,18 @@ Captured on `dev--rawsurf`, FL east coast, GFS waves, zoom 7–10:
   (pure, tested) tint each cluster bubble by the BEST rating among its leaf spots, wired MapWebGL→MapMarkerLayers.
   Now toggling Rating recolours the map at EVERY zoom (clustered bubbles + individual glyphs), not just at
   spot‑level zoom. Falls back to orange when a cluster has no rated spot.
-- **STILL OPEN:** the heatmap **clamp** (`willSharpen:false` on a regional_too_small frame) is the active
-  blocker for the *band* recolouring at regional zoom — that's the engine‑plan P0 #1, separate from rating.
+- **CLAMP ROOT FOUND + FIXED (`<clamp commit>`):** the `regional_too_small` / `found:false` clamp was a
+  FRONTEND bug, not backend. Proven by curl: the backend returns a CONTAINING tile for the exact viewport
+  (`-82,27,-79,29` contains south 27.96). But the frontend's 0.5° `viewportKey` snap groups viewports, and the
+  served tile cached under that key fails `getMarineSeriesFrame`'s STRICT `bboxContains` for a later same‑key
+  viewport that straddles a whole‑degree boundary (live: viewport south 27.96 vs cached tile south 28.0), while
+  the TTL dedup refuses to re‑fetch → clamp pinned for the 5‑min TTL. FIX: `padRegionalBbox` pads the
+  grid_series request outward by 0.5° (regional spans only, so it can't cross the 15° wide threshold) → the
+  served tile contains the viewport + any same‑key pan. Cache key + coarse‑preview detection still use the
+  unpadded viewport. 15 series tests green. ⏳ pending live verify (clamp should stop; band can then sharpen).
+- **RATING OVERLAY CONFIRMED CORRECT (live):** `/surf-spots` and `/spot-ratings` return the SAME 24 FL spot ids
+  (intersection 24/24) — the glyph/cluster spot‑id match is proven, not assumed. "Don't see cluster tinting"
+  was a stale‑bundle tab (deployed `007fb3ed` is correct) — a hard reload shows it.
 
 ---
 
