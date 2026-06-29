@@ -190,8 +190,15 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
     let bounds;
     try { bounds = mapInstance.getBounds(); } catch (e) { return; }
     if (!bounds) return;
-    const snap = (v) => Math.round(v * 4) / 4;          // 0.25° — no refetch on sub-cell pans
-    const bbox = `${snap(bounds.getWest())},${snap(bounds.getSouth())},${snap(bounds.getEast())},${snap(bounds.getNorth())}`;
+    // Snap OUTWARD to the 0.25° grid (floor W/S, ceil E/N) so the bbox always CONTAINS the viewport and can
+    // never collapse to zero area. A plain round() collapsed a sub-0.25° viewport at high zoom (z13+) to a
+    // single point (live: "0/0 rated · -122.5,37.5,-122.5,37.5") → no spots → glyphs vanished when zoomed in.
+    const fl = (v) => Math.floor(v * 4) / 4;
+    const ce = (v) => Math.ceil(v * 4) / 4;
+    let bw = fl(bounds.getWest()), bs = fl(bounds.getSouth()), be = ce(bounds.getEast()), bn = ce(bounds.getNorth());
+    if (be <= bw) be = bw + 0.25;                        // guarantee a non-degenerate span at any zoom
+    if (bn <= bs) bn = bs + 0.25;
+    const bbox = `${bw},${bs},${be},${bn}`;
     let validTime;
     try { validTime = getSharedValidTime(timeOffsetHours, 'waves', activeModel || 'GFS'); } catch (e) { return; }
     const key = `${bbox}|${validTime}|${activeModel}`;
@@ -201,7 +208,10 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
       lastKeyRef.current = key;
       const model = activeModel || 'GFS';
       writeSpotRatingsDiag({ status: 'fetching', surfMode: true, lastBbox: bbox, lastValidTime: validTime, lastModel: model });
-      fetchSpotRatings({ bbox, validTime, model, limit: 80, signal: controller.signal })
+      // limit=160 (backend cap 200): a regional viewport can hold >80 spots (dense coasts like SoCal); 80
+      // truncated the rated set → only SOME spots glyphed ("some but not all" report). 160 covers typical
+      // regional views; the deterministic verified-peak-first order means the best spots are always included.
+      fetchSpotRatings({ bbox, validTime, model, limit: 160, signal: controller.signal })
         .then((resp) => {
           const mapped = mapSpotRatingsResponse(resp && resp.spots);
           setEndpointRatings(mapped);
