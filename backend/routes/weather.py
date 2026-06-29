@@ -325,6 +325,15 @@ class SpotRatingsResponse(BaseModel):
     spots: list[SpotRatingItem]
 
 
+# Live-path TTL cache: rating a viewport on the 1-CPU serve box is 7-22s, so a re-view (or another user) would
+# pay it again and most fetches abort on pan before finishing. Cache the computed response per
+# (bbox|time|model|limit) for a few minutes so a completed compute is reused instantly. Keyed by valid_time, so
+# it self-freshens each hour. The PRECOMPUTE path (cron → L2) is the real fix; this just bridges the gap.
+_LIVE_RATINGS_CACHE: dict = {}
+_LIVE_RATINGS_TTL_S = 600.0
+_LIVE_RATINGS_CACHE_MAX = 400
+
+
 @router.get("/spot-ratings", response_model=SpotRatingsResponse)
 async def get_spot_ratings(
     bbox: str = Query(..., description="west,south,east,north viewport bbox"),
@@ -352,6 +361,13 @@ async def get_spot_ratings(
         items = [SpotRatingItem(**sp) for sp in pre[:limit]]
         count = sum(1 for it in items if it.score is not None)
         return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="precomputed", spots=items)
+
+    # Live-path cache hit (a recent identical viewport already paid the 7-22s compute)?
+    import time as _time
+    ckey = f"{bbox}|{valid_time}|{model}|{limit}"
+    _hit = _LIVE_RATINGS_CACHE.get(ckey)
+    if _hit is not None and (_time.time() - _hit[0]) < _LIVE_RATINGS_TTL_S:
+        return _hit[1]
 
     # LIVE fallback: query the spots in the bbox + rate each at its precise location (bounded concurrency).
     stmt = (
@@ -387,7 +403,12 @@ async def get_spot_ratings(
 
     items = list(await asyncio.gather(*[_rate(sp) for sp in rows])) if rows else []
     count = sum(1 for it in items if it.score is not None)
-    return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="live", spots=items)
+    resp = SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="live", spots=items)
+    if count > 0:                                    # cache only a real result (not an empty cold-start)
+        if len(_LIVE_RATINGS_CACHE) >= _LIVE_RATINGS_CACHE_MAX:
+            _LIVE_RATINGS_CACHE.clear()
+        _LIVE_RATINGS_CACHE[ckey] = (_time.time(), resp)
+    return resp
 
 
 @router.get("/buoy-calibration")

@@ -46,6 +46,7 @@ jobs:
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # ingest 2 worldwide coastal regions/cycle (was default 1) → all 8 (Hawaii, Iberia, UK, E-Australia, Indonesia, Brazil, S-Africa, Mexico) refreshed every ~4 cycles / 12h, fixing worldwide regional marine coverage
           BUOY_CALIBRATION: '1'         # measure-first: compare the ingested model to NOAA NDBC buoys -> L2 report (guarded, never fails the cycle)
           REPORT_CALIBRATION: '1'       # forward RATING calibration: snapshot per-spot predictions -> rolling L2 archive + match surfer logs (guarded)
+          SPOT_RATINGS_PRECOMPUTE: '1'  # rate ALL spots OFFLINE on the multi-CPU runner -> L2, so /spot-ratings serves glyphs INSTANTLY (the live 1-CPU path is 7-22s for a viewport → fetches abort on pan → "not all spots light up"). select_precomputed serves it; live remains the fallback.
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # EURO marine (Copernicus) — set these to the SAME names/values your Render service uses.
