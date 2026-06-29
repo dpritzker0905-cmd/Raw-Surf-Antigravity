@@ -366,6 +366,9 @@ async def get_spot_ratings(
         stmt = stmt.where(SurfSpot.longitude >= w, SurfSpot.longitude <= e)
     else:  # antimeridian-crossing viewport
         stmt = stmt.where(or_(SurfSpot.longitude >= w, SurfSpot.longitude <= e))
+    # Deterministic order so the rated subset is STABLE across refetches (no glyph flicker when a dense viewport
+    # has more spots than `limit`) — verified peaks first (best spots get glyphs), then a stable id tiebreak.
+    stmt = stmt.order_by(SurfSpot.is_verified_peak.desc().nullslast(), SurfSpot.id)
     rows = (await db.execute(stmt.limit(limit))).scalars().all()
 
     sem = asyncio.Semaphore(max(1, _SPOT_RATINGS_CONCURRENCY))

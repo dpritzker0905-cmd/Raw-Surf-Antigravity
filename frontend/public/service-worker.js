@@ -111,16 +111,19 @@ self.addEventListener('fetch', (event) => {
     event.respondWith(
       fetch(event.request)
         .then((response) => {
-          // Clone the response for caching
-          const responseClone = response.clone();
-          safeOpenCache(SPOT_CACHE_NAME).then((cache) => {
-            if (!cache) return;
-            try {
-              cache.put(event.request, responseClone);
-            } catch (e) {
-              // Clone failed during SW transition — ignore
-            }
-          }).catch(() => {});
+          // Only cache SUCCESSFUL responses — never cache a cold-start 502/4xx (it would poison the cache
+          // and get served as "spots" on the next failure).
+          if (response && response.ok) {
+            const responseClone = response.clone();
+            safeOpenCache(SPOT_CACHE_NAME).then((cache) => {
+              if (!cache) return;
+              try {
+                cache.put(event.request, responseClone);
+              } catch (e) {
+                // Clone failed during SW transition — ignore
+              }
+            }).catch(() => {});
+          }
           return response;
         })
         .catch(async () => {
@@ -131,7 +134,17 @@ self.addEventListener('fetch', (event) => {
             if (cache) {
               const cachedResponse = await cache.match(event.request);
               if (cachedResponse) {
-                return cachedResponse;
+                // Tag the cache-fallback so the client can tell a transient cold-start (retry → fresh global
+                // spots) from genuine offline (keep stale). Without this the stale viewport cache was served
+                // as if real → the app got stuck on a stale spot list (the "only Central FL spots" report).
+                try {
+                  const body = await cachedResponse.clone().text();
+                  const headers = new Headers(cachedResponse.headers);
+                  headers.set('X-SW-Cache-Fallback', '1');
+                  return new Response(body, { status: cachedResponse.status, statusText: cachedResponse.statusText, headers });
+                } catch (e) {
+                  return cachedResponse;
+                }
               }
             }
           } catch (e) {

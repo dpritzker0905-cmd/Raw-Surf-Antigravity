@@ -41,6 +41,10 @@ export function mapSpotRatingsResponse(spots) {
       color: RATING_COLOR[level],
       label: RATING_LABEL[level],
       confidence: sp.confidence || 'low',
+      // Live conditions for the hover display — the endpoint already resolved them per-spot; carrying them
+      // (not just the prose `why`) lets the tooltip show the surf height + period as structured fields.
+      surfHeightM: sp.surf_height_m != null ? sp.surf_height_m : null,
+      periodS: sp.period_s != null ? sp.period_s : null,
       why: sp.why || null,
       source: 'endpoint',
     };

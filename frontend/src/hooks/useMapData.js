@@ -78,10 +78,15 @@ export const useMapData = (userId = null, userLocation = null) => {
       const url = `/surf-spots${params.toString() ? '?' + params.toString() : ''}`;
       const response = await apiClient.get(url);
       const payload = response.data;
-      // SW offline-fallback marker, or an empty GLOBAL load (no viewport ⇒ there are always spots), means a
-      // transient cold-start, not a real result → retry without overwriting the existing spots.
+      // SW no-cache offline response → cold-start, retry.
       if (payload && payload.offline) { retry(new Error('sw-offline-fallback')); return; }
+      // SW served STALE cache (network failed). If we're actually online it's a transient cold-start — retry
+      // so we don't get stuck on a stale spot list ("only Central FL spots"). If genuinely offline, accept it.
+      const swStale = !!(response.headers && (response.headers['x-sw-cache-fallback'] || response.headers['X-SW-Cache-Fallback']));
+      const isOnline = (typeof navigator === 'undefined') || navigator.onLine !== false;
+      if (swStale && isOnline) { retry(new Error('sw-stale-coldstart')); return; }
       const data = Array.isArray(payload) ? payload : [];
+      // An empty GLOBAL load (no viewport ⇒ there are always spots) is also a transient cold-start.
       if (data.length === 0 && !viewport) { retry(new Error('empty-global-spots')); return; }
       setSurfSpots(data);
       setSurfSpotsGeoJSON(toGeoJSON(data));

@@ -167,8 +167,15 @@ var MapMarkerLayers = ({
                     <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: rating ? rating.color : '#22d3ee' }}></span>
                     <span>{cluster.name || 'Surf Spot'}{rating ? ` · ${rating.label}` : ''}</span>
                   </div>
-                  {/* Rating reasoning (surf height, period, wind, tide) + confidence — the endpoint's explainable
-                      `why`, so the glyph isn't just a coloured dot but says WHY it's rated that way. */}
+                  {/* LIVE surf height + period, as structured fields (the endpoint resolved them per-spot). Shown
+                      whenever a rating exists so the hover always carries the current surf height, not just prose. */}
+                  {rating && rating.surfHeightM != null && (
+                    <div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
+                      <span>{(rating.surfHeightM * 3.28084).toFixed(1)} ft</span>
+                      {rating.periodS != null && <span className="text-zinc-400 font-normal">· {Math.round(rating.periodS)}s period</span>}
+                    </div>
+                  )}
+                  {/* Rating reasoning (wind, tide) + confidence — the endpoint's explainable `why`. */}
                   {rating && rating.why && (
                     <div className="mt-0.5 text-[10px] font-normal text-zinc-300" style={{ maxWidth: 220, whiteSpace: 'normal' }}>
                       <span>{rating.why}</span>

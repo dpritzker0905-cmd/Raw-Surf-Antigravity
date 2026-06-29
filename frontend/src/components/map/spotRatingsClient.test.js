@@ -4,7 +4,7 @@ import { RATING_COLOR, RATING_LABEL } from './surfRating';
 describe('mapSpotRatingsResponse', () => {
   it('maps a rated spot to the glyph shape, keyed by spot_id', () => {
     const out = mapSpotRatingsResponse([
-      { spot_id: 'uuid-a', score: 72.4, level: 'good', confidence: 'high', why: 'clean 12s' },
+      { spot_id: 'uuid-a', score: 72.4, level: 'good', confidence: 'high', why: 'clean 12s', surf_height_m: 1.83, period_s: 12.4 },
     ]);
     expect(out['uuid-a']).toEqual({
       score: 72,                       // rounded
@@ -12,9 +12,17 @@ describe('mapSpotRatingsResponse', () => {
       color: RATING_COLOR['good'],
       label: RATING_LABEL['good'],
       confidence: 'high',
+      surfHeightM: 1.83,               // carried for the hover (live surf height)
+      periodS: 12.4,
       why: 'clean 12s',
       source: 'endpoint',
     });
+  });
+
+  it('carries null surf height/period when the endpoint omits them', () => {
+    const out = mapSpotRatingsResponse([{ spot_id: 'x', score: 40, level: 'fair' }]);
+    expect(out.x.surfHeightM).toBeNull();
+    expect(out.x.periodS).toBeNull();
   });
 
   it('skips unrated spots (null score) — they fall back to a plain pin', () => {
