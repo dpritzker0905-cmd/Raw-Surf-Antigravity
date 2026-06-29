@@ -1,0 +1,53 @@
+# One-shot asset builder for the finer bed-SLOPE bathymetry asset (the Iribarren breaker-type input).
+# Runs on a clean CI runner (the local dev env is disk-impaired) and commits etopo_slope_0p1.npy back to the
+# branch. Manual dispatch only — bathymetry is near-static, rebuild only when refreshing the source.
+#   Actions -> "Build Bathymetry Slope Asset" -> Run workflow.
+# After it commits the asset, validate breaker-type ratings, then enable RATING_BREAKER_TYPE on the
+# precompute path (see HANDOFF-2026-06-28-surf-rating-engine-PLAN.md).
+name: Build Bathymetry Slope Asset
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: write          # commit the generated asset back to the branch
+
+concurrency:
+  group: build-bathymetry
+  cancel-in-progress: false
+
+jobs:
+  build-slope:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install build deps
+        run: pip install numpy requests xarray netCDF4
+
+      - name: Build the slope asset (ETOPO1 @0.05° -> 0.1° slope)
+        working-directory: backend
+        run: python scripts/build_bathymetry_asset.py --slope
+
+      - name: Commit the asset if it changed
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          ASSET_DIR="backend/services/weather_pipeline/data"
+          git add "$ASSET_DIR/etopo_slope_0p1.npy" "$ASSET_DIR/etopo_slope_0p1.meta.json"
+          if git diff --cached --quiet; then
+            echo "No change to the slope asset — nothing to commit."
+          else
+            git commit -m "chore(bathymetry): build finer bed-slope asset (etopo_slope_0p1) [skip ci]
+
+Co-Authored-By: Claude Opus 4.8 <noreply@anthropic.com>"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "Committed + pushed the slope asset to ${GITHUB_REF_NAME}."
+          fi
