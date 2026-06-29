@@ -1,0 +1,49 @@
+# One-shot DIAGNOSTIC: why does the CI service_role key 403 on /rest/v1/surf_spots even though the
+# catalog GRANT exists? Decodes the key's role/ref claims (NOT the token — GitHub masks secret values)
+# and replays the EXACT precompute request. Distinguishes (A) wrong key/role vs (B) stale PostgREST cache.
+# Delete after diagnosis.   Actions -> "Diag PostgREST Auth" -> Run workflow.
+name: Diag PostgREST Auth
+
+on:
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+jobs:
+  diag:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+      - name: Decode key claims + replay surf_spots request
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import os, json, base64, urllib.request, urllib.error
+          from urllib.parse import urlparse
+          url = os.environ.get("SUPABASE_URL", "")
+          key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY", "")
+          print("SUPABASE_URL host:", urlparse(url).hostname or "(none)")
+          print("key present:", bool(key), "len:", len(key))
+          def claims(jwt):
+              try:
+                  p = jwt.split(".")[1]; p += "=" * (-len(p) % 4)
+                  return json.loads(base64.urlsafe_b64decode(p))
+              except Exception as e:
+                  return {"_decode_error": str(e)}
+          c = claims(key)
+          print("key role claim:", c.get("role"))
+          print("key ref  claim:", c.get("ref"), "(expected: jnfbxcvcbtndtsvscppt)")
+          req_url = url.rstrip("/") + "/rest/v1/surf_spots?select=id&is_active=eq.true&limit=1"
+          req = urllib.request.Request(req_url, headers={"apikey": key, "Authorization": "Bearer " + key})
+          try:
+              with urllib.request.urlopen(req, timeout=20) as r:
+                  print("PostgREST status:", r.status, "  body:", r.read(300).decode())
+          except urllib.error.HTTPError as e:
+              print("PostgREST status:", e.code, "  body:", e.read(400).decode())
+          PY
