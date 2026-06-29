@@ -385,6 +385,18 @@ async def get_spot_ratings(
     return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="live", spots=items)
 
 
+@router.get("/buoy-calibration")
+async def get_buoy_calibration():
+    """GET /api/weather/buoy-calibration — the latest model-vs-NOAA-buoy residual report (height/period MAE +
+    bias per buoy, measure-first ground truth). Read-only from the L2 object the cron writes when
+    BUOY_CALIBRATION=1; returns {available:false} when no report has been generated yet."""
+    from services.weather_pipeline.buoy_calibration import load_calibration_l2_cached
+    report = await asyncio.to_thread(load_calibration_l2_cached)
+    if not report:
+        return {"available": False, "summary": None, "spots": []}
+    return {"available": True, **report}
+
+
 @router.get("/status")
 async def get_status():
     """

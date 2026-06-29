@@ -79,6 +79,17 @@ def main() -> int:
         except Exception as _spe:
             logger.warning("Spot-ratings precompute skipped (non-fatal, ingestion already persisted): %s", _spe)
 
+    # Buoy calibration (measure-first ground truth): compare the freshly-ingested offshore model to NOAA NDBC
+    # buoy obs at every spot with a noaa_buoy_id and upload a residual report (MAE/bias) to L2 for an admin
+    # view. Flag-gated OFF + fully guarded (never fails the ingest cycle). Enable with BUOY_CALIBRATION=1.
+    if os.environ.get("BUOY_CALIBRATION", "0") == "1":
+        try:
+            from services.weather_pipeline.buoy_calibration import run_buoy_calibration
+            n_buoys, mae = run_buoy_calibration()
+            logger.info("Buoy calibration complete: %d buoy spots, height MAE %s m → L2.", n_buoys, mae)
+        except Exception as _bce:
+            logger.warning("Buoy calibration skipped (non-fatal, ingestion already persisted): %s", _bce)
+
     # The store records L2 outcomes at class level, so a fresh instance reads this process's results.
     from services.weather_pipeline.store import ProductStore
     diag = ProductStore().get_persistence_diagnostics()
