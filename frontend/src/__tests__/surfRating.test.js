@@ -1,6 +1,7 @@
 import {
   computeSurfRating, ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
   swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
+  parseBestTide, tideFit,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -95,5 +96,37 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
       expect(RATING_LABEL[lvl]).toBeTruthy();
       expect(RATING_COLOR[lvl]).toMatch(/^#/);
     });
+  });
+
+  test('parseBestTide bands (mirror of py)', () => {
+    expect(parseBestTide('Low')).toEqual([0.0, 0.35]);
+    expect(parseBestTide('Mid')).toEqual([0.33, 0.67]);
+    expect(parseBestTide('High')).toEqual([0.65, 1.0]);
+    expect(parseBestTide('Low to mid')).toEqual([0.0, 0.60]); // compound beats 'low'
+    expect(parseBestTide('Mid to high')).toEqual([0.40, 1.0]);
+    expect(parseBestTide('All tides')).toBeNull();
+    expect(parseBestTide('')).toBeNull();
+    expect(parseBestTide(null)).toBeNull();
+    expect(parseBestTide('incoming')).toBeNull();
+  });
+
+  test('tideFit band + taper + neutral (mirror of py)', () => {
+    const band = [0.65, 1.0];
+    expect(tideFit(0.8, band)).toBe(1.0);
+    expect(tideFit(0.65, band)).toBe(1.0);
+    expect(tideFit(0.0, band)).toBeCloseTo(Math.max(0.5, 1.0 - 1.3 * 0.65), 5);
+    expect(tideFit(0.5, band)).toBeCloseTo(1.0 - 1.3 * 0.15, 5);
+    expect(tideFit(null, band)).toBe(1.0);
+    expect(tideFit(0.5, null)).toBe(1.0);
+    expect(tideFit(0.0, band)).toBeGreaterThanOrEqual(0.5);
+  });
+
+  test('wrong tide lowers the score but never zeroes it (parity)', () => {
+    const base = computeSurfRating(1.5, 14, 1.0, 200, 270, 270).score;          // no tide -> neutral
+    const wrong = computeSurfRating(1.5, 14, 1.0, 200, 270, 270, 0.0, 'High').score;
+    const right = computeSurfRating(1.5, 14, 1.0, 200, 270, 270, 0.9, 'High').score;
+    expect(wrong).toBeLessThan(base);
+    expect(right).toBeCloseTo(base, 5);
+    expect(wrong).toBeGreaterThan(0);
   });
 });

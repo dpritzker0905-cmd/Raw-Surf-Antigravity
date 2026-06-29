@@ -59,14 +59,40 @@ export function swellExposure(swellFromDeg, shoreNormalDeg) {
   return _clamp(0.10 + 0.90 * Math.max(0.0, align), 0.0, 1.0);
 }
 
-export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null) {
+// Preferred tide bands (0 = low water, 1 = high water) from a spot's free-text best_tide prior. Compound first.
+const _TIDE_BANDS = [
+  ['low to mid', [0.0, 0.60]], ['low-mid', [0.0, 0.60]], ['mid to low', [0.0, 0.60]],
+  ['mid to high', [0.40, 1.0]], ['mid-high', [0.40, 1.0]], ['high to mid', [0.40, 1.0]],
+  ['low', [0.0, 0.35]], ['high', [0.65, 1.0]], ['mid', [0.33, 0.67]], ['medium', [0.33, 0.67]],
+];
+
+/** Parse a free-text best_tide prior into a preferred normalized band [lo,hi] (0..1), or null (no level pref). */
+export function parseBestTide(text) {
+  if (!text || typeof text !== 'string') return null;
+  const t = text.trim().toLowerCase();
+  if (!t || t.includes('all') || t.includes('any')) return null;
+  for (const [phrase, band] of _TIDE_BANDS) if (t.includes(phrase)) return band;
+  return null;
+}
+
+/** Tide-quality factor [0.5..1.0]: 1.0 inside the preferred band, tapering outside, floored at 0.5. Neutral
+ *  1.0 when tide level or preference is unknown — tide REFINES, never zeroes a good swell. */
+export function tideFit(tideNorm, bestTideBand) {
+  if (tideNorm == null || !bestTideBand) return 1.0;
+  const [lo, hi] = bestTideBand;
+  const dist = Math.max(0.0, lo - tideNorm, tideNorm - hi);
+  return _clamp(1.0 - 1.3 * dist, 0.5, 1.0);
+}
+
+export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null) {
   const sg = sizeScore(h);
   if (sg <= 0.0) return 0.0;
   const ex = swellExposure(swellFromDeg, shoreNormalDeg);
   if (ex <= 0.0) return 0.0;
+  const tf = tideFit(tideNorm, parseBestTide(bestTide));
   const wq = windQuality(speedMs, windFromDeg, shoreNormalDeg);
   const pq = periodQuality(tp);
-  return Math.round(100.0 * sg * ex * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  return Math.round(100.0 * sg * ex * tf * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
@@ -77,9 +103,9 @@ export function scoreToLevel(score) {
 }
 
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null) {
+export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg);
+  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide);
   return { score, level: scoreToLevel(score) };
 }
 

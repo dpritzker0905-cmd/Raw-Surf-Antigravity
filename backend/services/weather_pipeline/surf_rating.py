@@ -113,19 +113,56 @@ def swell_exposure(swell_from_deg, shore_normal_deg):
     return _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
 
 
-def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None):
-    """Composite 0..100 surf-quality score: size_gate * swell_exposure * (0.60*wind + 0.40*period).
-    0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral
-    when its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure)."""
+# Preferred tide bands (normalized tide level: 0 = low water, 1 = high water) parsed from a spot's free-text
+# ``best_tide`` prior. Compound phrases first so "low to mid" wins over "low".
+_TIDE_BANDS = [
+    ("low to mid", (0.0, 0.60)), ("low-mid", (0.0, 0.60)), ("mid to low", (0.0, 0.60)),
+    ("mid to high", (0.40, 1.0)), ("mid-high", (0.40, 1.0)), ("high to mid", (0.40, 1.0)),
+    ("low", (0.0, 0.35)), ("high", (0.65, 1.0)), ("mid", (0.33, 0.67)), ("medium", (0.33, 0.67)),
+]
+
+
+def parse_best_tide(best_tide_text):
+    """Parse a spot's free-text ``best_tide`` prior into a preferred normalized tide band (lo, hi) in 0..1
+    (0 = low water, 1 = high water), or None when there's no usable LEVEL preference ('all tides', empty, or a
+    trend-only note like 'incoming'/'rising'). Compound phrases match first so 'low to mid' beats 'low'."""
+    if not best_tide_text or not isinstance(best_tide_text, str):
+        return None
+    t = best_tide_text.strip().lower()
+    if not t or "all" in t or "any" in t:
+        return None
+    for phrase, band in _TIDE_BANDS:
+        if phrase in t:
+            return band
+    return None
+
+
+def tide_fit(tide_norm, best_tide_band):
+    """Tide-quality factor [0.5..1.0]: 1.0 inside the spot's preferred band, tapering with distance outside,
+    FLOORED at 0.5 — tide REFINES a rating (a wrong tide knocks it down) but never zeroes a good swell. Neutral
+    1.0 when the tide level (``tide_norm``) or the preference (``best_tide_band``) is unknown."""
+    if tide_norm is None or not best_tide_band:
+        return 1.0
+    lo, hi = best_tide_band
+    dist = max(0.0, lo - tide_norm, tide_norm - hi)   # 0 inside the band; grows outside
+    return _clamp(1.0 - 1.3 * dist, 0.5, 1.0)
+
+
+def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
+                 tide_norm=None, best_tide=None):
+    """Composite 0..100 surf-quality score: size_gate * swell_exposure * tide_fit * (0.60*wind + 0.40*period).
+    0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
+    its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide -> neutral)."""
     sg = size_score(surf_h_m)
     if sg <= 0.0:
         return 0.0
     ex = swell_exposure(swell_from_deg, shore_normal_deg)
     if ex <= 0.0:
         return 0.0
+    tf = tide_fit(tide_norm, parse_best_tide(best_tide))
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
     pq = period_quality(tp_s)
-    return round(100.0 * sg * ex * (W_WIND * wq + W_PERIOD * pq), 1)
+    return round(100.0 * sg * ex * tf * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):
@@ -138,16 +175,20 @@ def score_to_level(score):
     return "epic"
 
 
-def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None):
+def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
+                        tide_norm=None, best_tide=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
     wind_from_deg: local wind (meteorological FROM). shore_normal_deg: seaward bearing (optional; enables
     offshore/onshore wind grading AND the swell-angle exposure gate). swell_from_deg: dominant swell FROM
-    bearing (optional; with shore_normal gates whether the swell angle can reach the coast)."""
+    bearing (optional; with shore_normal gates whether the swell angle can reach the coast). tide_norm:
+    normalized tide level 0..1 (optional; with best_tide applies the tide_fit factor). best_tide: the spot's
+    free-text tide preference prior (optional)."""
     if surf_h_m is None:
         return None, "unknown"
-    score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg)
+    score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
+                         tide_norm, best_tide)
     return score, score_to_level(score)
 
 

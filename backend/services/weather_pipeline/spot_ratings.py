@@ -80,7 +80,24 @@ async def rate_one_spot(resolver, spot, model, valid_time) -> dict:
             wind_from = wind.point.direction
     except Exception as e:
         logger.debug(f"[spot-ratings] wind resolve failed for {spot.get('id')}: {e}")
-    score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from)
+    # Tide (global, lat/lng): the tide level + the spot's best_tide prior → tide_fit factor. Gated RATING_TIDE
+    # (default off) so it's opt-in; a tide miss leaves tide_norm None → neutral, never breaks the rating.
+    tide_norm = None
+    tide_state = None
+    best_tide = spot.get("best_tide")
+    if os.environ.get("RATING_TIDE", "0") == "1":
+        try:
+            from services.weather_pipeline.tide import tide_norm_at
+            tide_state = await tide_norm_at(lat, lng, valid_time)
+            if tide_state:
+                tide_norm = tide_state.get("norm")
+        except Exception as e:
+            logger.debug(f"[spot-ratings] tide resolve failed for {spot.get('id')}: {e}")
+    score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from,
+                                       tide_norm, best_tide)
+    why = rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal)
+    if why and tide_state and best_tide:
+        why += f", {tide_state.get('trend', '')} tide".rstrip()
     return {
         "spot_id": str(spot["id"]),
         "name": spot.get("name"),
@@ -91,7 +108,8 @@ async def rate_one_spot(resolver, spot, model, valid_time) -> dict:
         "confidence": spot_confidence(spot.get("accuracy_flag"), spot.get("is_verified_peak")),
         "surf_height_m": round(surf_h, 3) if surf_h is not None else None,
         "period_s": round(period, 1) if period is not None else None,
-        "why": rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal),
+        "tide": tide_state,
+        "why": why,
     }
 
 
@@ -216,7 +234,7 @@ def fetch_active_spots_via_rest(limit: int = 5000) -> list:
     if not base or not key:
         return []
     import requests
-    url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,accuracy_flag,is_verified_peak"
+    url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,accuracy_flag,is_verified_peak,best_tide"
            f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null&limit={limit}")
     resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
     resp.raise_for_status()

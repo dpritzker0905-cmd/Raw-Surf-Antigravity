@@ -1,8 +1,41 @@
 """Unit tests for the multivariable surf-quality rating (surf_rating.py)."""
+import pytest
 from services.weather_pipeline.surf_rating import (
     compute_surf_rating, rating_score, size_score, period_quality,
     wind_quality, offshoreness, swell_exposure, score_to_level, LEVELS,
+    parse_best_tide, tide_fit,
 )
+
+
+def test_parse_best_tide_bands():
+    assert parse_best_tide("Low") == (0.0, 0.35)
+    assert parse_best_tide("Mid") == (0.33, 0.67)
+    assert parse_best_tide("High") == (0.65, 1.0)
+    assert parse_best_tide("Low to mid") == (0.0, 0.60)     # compound beats 'low'
+    assert parse_best_tide("Mid to high") == (0.40, 1.0)
+    assert parse_best_tide("All tides") is None             # no level preference
+    assert parse_best_tide("") is None and parse_best_tide(None) is None
+    assert parse_best_tide("incoming") is None              # trend-only -> neutral
+
+
+def test_tide_fit_band_and_taper():
+    band = (0.65, 1.0)                                       # prefers high tide
+    assert tide_fit(0.8, band) == 1.0                       # inside the band
+    assert tide_fit(0.65, band) == 1.0                      # on the edge
+    assert tide_fit(0.0, band) == pytest.approx(max(0.5, 1.0 - 1.3 * 0.65))  # far low -> floored taper
+    assert tide_fit(0.5, band) == pytest.approx(1.0 - 1.3 * 0.15)            # just below the band
+    assert tide_fit(None, band) == 1.0 and tide_fit(0.5, None) == 1.0        # unknown -> neutral
+    assert tide_fit(0.0, band) >= 0.5                       # never below the floor
+
+
+def test_tide_lowers_score_when_wrong_tide():
+    # Identical good conditions; wrong tide vs neutral. Wrong tide must score LOWER but not zero.
+    base = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0)[0]                 # no tide -> neutral
+    wrong = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0, tide_norm=0.0, best_tide="High")[0]
+    right = compute_surf_rating(1.5, 14.0, 1.0, 200.0, 270.0, 270.0, tide_norm=0.9, best_tide="High")[0]
+    assert wrong < base                                      # wrong tide knocks it down
+    assert right == pytest.approx(base)                     # right tide == neutral (factor 1.0)
+    assert wrong > 0                                         # but never zeroed
 
 
 def test_swell_exposure_head_on_grazing_blocked_unknown():

@@ -313,6 +313,7 @@ class SpotRatingItem(BaseModel):
     confidence: str = "low"              # low|medium|high (bathymetry/verification-aware)
     surf_height_m: Optional[float] = None
     period_s: Optional[float] = None
+    tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
     why: Optional[str] = None            # short human explanation
 
 
@@ -375,6 +376,7 @@ async def get_spot_ratings(
             "latitude": spot.latitude, "longitude": spot.longitude,
             "accuracy_flag": getattr(spot, "accuracy_flag", None),
             "is_verified_peak": getattr(spot, "is_verified_peak", False),
+            "best_tide": getattr(spot, "best_tide", None),
         }
         async with sem:
             d = await rate_one_spot(point_resolution_service, spot_dict, model, valid_time)
