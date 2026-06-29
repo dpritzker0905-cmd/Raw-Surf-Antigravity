@@ -253,11 +253,19 @@ def fetch_active_spots_via_rest(limit: int = 5000) -> list:
 
 def _make_point_resolver():
     """Build a PointResolutionService the same way the /weather routes do — for the CI precompute, which has
-    the ingested products in the store but not the route module's singletons."""
+    the ingested products in the store but not the route module's singletons.
+
+    Pass our OWN DynamicProductIndex (file-backed, no DB) so resolve_point never falls back to
+    routes.weather.dynamic_index — importing routes.weather pulls in database.py, which on the ingest runner
+    (no DATABASE_URL) instantiates a `sqlite+aiosqlite` engine and raises ModuleNotFoundError: aiosqlite for
+    EVERY resolve, silently zeroing the ratings. With our own index resolve_point stays DB-free (empty index →
+    manifest-scan over the restored/ingested grids). The serve box dodged this only because it has DATABASE_URL=postgres."""
     from services.weather_pipeline.point_resolution import PointResolutionService
     from services.weather_pipeline.sampler import PointSampler
     from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
-    return PointResolutionService(sampler=PointSampler(), provider=OpenMeteoProvider())
+    from services.weather_pipeline.dynamic_index import DynamicProductIndex
+    return PointResolutionService(sampler=PointSampler(), provider=OpenMeteoProvider(),
+                                  dynamic_index=DynamicProductIndex())
 
 
 def _top_of_hour_utc():
