@@ -48,10 +48,15 @@
     unknown); `rate_one_spot` applies it gated `RATING_TIDE`. ACTIVATE on the **cron precompute** path
     (SPOT_RATINGS_PRECOMPUTE=1 + RATING_TIDE=1) so the per‑spot tide fetches stay OFF the 1‑CPU serve box; avoid
     RATING_TIDE on Render live (N external fetches/request). 44 BE + 17 JS tests.
-  - **Finer bathymetry → Iribarren breaker TYPE / refraction:** needs GEBCO (~450m, multi‑GB) to build a
-    coastal slope asset; ETOPO 0.25° slope is shelf‑scale (redundant with shelf_dissipation). UNBLOCK = a cron
-    job that downloads GEBCO, builds a downsampled COASTAL slope npy (like `build_bathymetry_asset.py`), bundles
-    it; then `bed_slope_at` → Iribarren ξ → `breaker_type_quality`. (Local disk was 100% full — can't fetch now.)
+  - **Iribarren breaker TYPE: ✅ MODEL DONE `82fa6d6f` (P2 #2), DATA pending the finer asset.** No GEBCO needed —
+    `build_bathymetry_asset.py --slope` builds a finer slope asset from ETOPO1 @0.05° (ERDDAP server-side stride;
+    |grad(depth)| max‑pooled to a 0.1° int16 asset). `surf_transform.iribarren`/`breaker_type` +
+    `surf_rating.breaker_type_quality` (plunging=ideal) threaded through `compute_surf_rating` (py⇄js parity).
+    `bathymetry.bed_slope_at` reads the FINER asset ONLY (returns None if absent — we refuse the coarse 0.25°
+    shelf‑scale slope), so `rate_one_spot` (gated `RATING_BREAKER_TYPE`) is DOUBLE‑safe: neutral until the asset
+    exists AND the flag is on. **REMAINING = run `--slope` in CI / a healthy env to bundle `etopo_slope_0p1.npy`**
+    (the local build env is disk‑impaired: xarray/pip hang). Then validate + enable. Refraction focus/defocus still
+    needs the same slope asset (next).
   - **Worldwide coastal coverage (the remaining clamp visuals):** OPS — dispatch the `forecast-ingest` Action with
     `WORLDWIDE_REGIONS_PER_CYCLE` over many cycles to warm regional tiles globally; storage/cost implications.
 
