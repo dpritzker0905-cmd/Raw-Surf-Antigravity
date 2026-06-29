@@ -444,6 +444,30 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       heatmapOpacity = 1.0;
     }
 
+    // Coarse-grid fade (2026-06-29): when the ONLY marine data covering this viewport is the coarse-global
+    // fallback (~10°/cell, 37×17) and the camera is zoomed in past it, a single flat cell fills the screen.
+    // The old behavior painted that as a solid wash that reads as "wrong data" (the close-zoom "clamp").
+    // Fade the heatmap out instead so it reads as "no fine data here" — the inherent 0.25°/10° resolution
+    // limit, not a render bug. Per-spot rating glyphs (drawn in MapMarkerLayers, not this shader) stay visible.
+    // Gate on cellDeg>1° so regional tiles (<0.3°/cell) NEVER fade, and the fade only engages once <2 cells
+    // span the view (so zoomed-out global stays full). Kill switch: window.__RAW_DISABLE_COARSE_FADE__ = true
+    let coarseFade = 1.0;
+    if (window.__RAW_DISABLE_COARSE_FADE__ !== true && window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ !== true) {
+      const gb = (waveGrid && waveGrid.bounds) || waveBounds; // grid extent (matches waveGrid.cols); waveBounds is the same grid on the non-series path
+      const gcols = waveGrid && waveGrid.cols;
+      if (gb && gcols > 0 && typeof gb.west === 'number' && typeof gb.east === 'number') {
+        const gridLonSpan = (gb.east < gb.west) ? (gb.east + 360 - gb.west) : (gb.east - gb.west);
+        const cellDeg = gridLonSpan / gcols;                 // grid cell size in ° of longitude
+        const vLonSpan = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
+        if (cellDeg > 1.0 && vLonSpan > 0) {                 // only the coarse-global fallback qualifies
+          const cellsAcross = vLonSpan / cellDeg;            // how many grid cells span the viewport
+          coarseFade = smoothstepVal(0.5, 2.0, cellsAcross); // ≤0.5 cell → 0 (fade out); ≥2 cells → 1 (full)
+        }
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;
+    }
+    heatmapOpacity *= coarseFade;
+
     heatmapOpacity *= mult;
 
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
