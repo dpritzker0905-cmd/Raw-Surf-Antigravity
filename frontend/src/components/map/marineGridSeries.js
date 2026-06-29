@@ -184,6 +184,9 @@ function frameToMarineData(frame, model, layer) {
     is_estimated: !!frame.is_estimated,
     is_dynamic_viewport_product: true,
     __fromSeries: true,
+    // Carry the surf-RATING signal so the shader paints the rating band on series-committed frames (clamp/scrub
+    // commit series frames; without this the rating band never rendered even with surf=1). See _frame_rating_mode.
+    ratingMode: !!frame.rating_mode,
   };
   return {
     type: 'FeatureCollection',

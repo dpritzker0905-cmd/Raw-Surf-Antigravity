@@ -223,6 +223,22 @@ describe('marineGridSeries — flag-gated time-series client', () => {
 
   // Degree-boundary clamp fix (live 2026-06-28): the request bbox is padded outward so the backend's
   // degree-snapped tile contains the viewport (+ same-0.5°-key pans), instead of failing strict containment.
+  it('propagates the backend rating_mode flag onto the committed grid (rating band on series frames)', async () => {
+    window.__MARINE_SERIES__ = true;
+    const rated = mockSeriesResponse();
+    rated.frames.forEach((f) => { f.rating_mode = true; });   // backend marked these surf-rating frames
+    global.fetch.mockResolvedValue({ ok: true, json: async () => rated });
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    const frame = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    expect(frame).toBeTruthy();
+    expect(frame.grid.ratingMode).toBe(true);                 // shader/glyph gate sees it
+    // a non-rating series (no flag) stays false (honest swell)
+    _resetMarineSeriesForTest();
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);
+    expect(getMarineSeriesFrame('GFS', 'waves', bounds, 0).grid.ratingMode).toBe(false);
+  });
+
   it('requests a PADDED bbox so the served tile contains the viewport', async () => {
     window.__MARINE_SERIES__ = true;
     global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });

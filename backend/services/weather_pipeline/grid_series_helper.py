@@ -22,6 +22,19 @@ logger = logging.getLogger(__name__)
 
 MAX_FRAMES = 48
 CONCURRENCY = 4
+
+
+def _frame_rating_mode(grid) -> bool:
+    """True when a series frame is a genuine surf-RATING grid (surf=1 + regional → rating_transform_grid ran,
+    diagnostics.surf_transform.value_kind == 'surf_rating'). The frontend conformer (frameToMarineData) keys
+    `grid.ratingMode` off this so the shader paints the rating band on series-committed frames (the clamp/scrub
+    paths commit series frames, so WITHOUT this the rating band never rendered — the 'no heatmap rating colour'
+    report). False for raw-height / coarse frames (honest swell)."""
+    try:
+        d = getattr(grid, "diagnostics", None) or {}
+        return bool((d.get("surf_transform") or {}).get("value_kind") == "surf_rating")
+    except Exception:
+        return False
 # A single hour must never hang the whole series. Models with pre-built regional/global
 # products (GFS/ICON via manifest) resolve in ms; models that fall to the slow dynamic
 # path (EURO/Copernicus) can stall — so cap each hour and the whole build, and return
@@ -120,6 +133,7 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
             "vectors": g.vectors,
             "provider": getattr(normalized, "provider", "copernicus"),
             "is_estimated": getattr(normalized, "is_estimated", False),
+            "rating_mode": _frame_rating_mode(g),
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -205,6 +219,7 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
             "vectors": g.vectors,
             "provider": getattr(normalized, "provider", "open-meteo"),
             "is_estimated": getattr(normalized, "is_estimated", False),
+            "rating_mode": _frame_rating_mode(g),
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -384,6 +399,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
             "vectors": g.vectors,
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
+            "rating_mode": _frame_rating_mode(g),
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames
