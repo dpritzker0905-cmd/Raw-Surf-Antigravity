@@ -86,7 +86,8 @@ def main() -> int:
                                     pt is not None, getattr(resp, "surf_height_m", None),
                                     getattr(resp, "fallback_reason", None), getattr(resp, "coverage_status", None))
                     except Exception as pe:
-                        logger.info("PROBE %s/%s %s: EXCEPTION %r", nm, dom, lay, pe)
+                        import traceback
+                        logger.info("PROBE %s/%s %s: EXCEPTION %r\n%s", nm, dom, lay, pe, traceback.format_exc())
         asyncio.run(_probe())
 
     rc = 0
