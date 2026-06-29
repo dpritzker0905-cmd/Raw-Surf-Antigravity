@@ -167,6 +167,16 @@ var MapMarkerLayers = ({
                     <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: rating ? rating.color : '#22d3ee' }}></span>
                     <span>{cluster.name || 'Surf Spot'}{rating ? ` · ${rating.label}` : ''}</span>
                   </div>
+                  {/* Rating reasoning (surf height, period, wind, tide) + confidence — the endpoint's explainable
+                      `why`, so the glyph isn't just a coloured dot but says WHY it's rated that way. */}
+                  {rating && rating.why && (
+                    <div className="mt-0.5 text-[10px] font-normal text-zinc-300" style={{ maxWidth: 220, whiteSpace: 'normal' }}>
+                      <span>{rating.why}</span>
+                      {rating.confidence && (
+                        <span className="text-[9px] uppercase tracking-wide text-zinc-500"> · {rating.confidence} conf</span>
+                      )}
+                    </div>
+                  )}
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950/95"></div>
                 </div>
               )}
