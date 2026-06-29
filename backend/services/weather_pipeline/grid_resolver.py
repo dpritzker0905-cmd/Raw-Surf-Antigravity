@@ -574,6 +574,14 @@ async def resolve_grid(
         and product.grid and product.grid.vectors
         and os.environ.get("SURF_TRANSFORM", "1") != "0"
     ):
+        # CACHE SAFETY (critical): the surf/rating transform mutates grid vectors IN PLACE (speed→score/10,
+        # u/v→0) and stamps diagnostics. `product` here is the SHARED CACHED dynamic product, so mutating it
+        # corrupts the cache for the OTHER surf state — a surf=1 request would rewrite the cached grid to ratings,
+        # then a surf=0 (Swell) request gets that rating grid (and vice-versa). Live-proven: fresh bbox surf=0 →
+        # wave_height, but after a surf=1 hit the same bbox surf=0 returned surf_rating. Deep-copy first so the
+        # cached base grid stays pristine and surf=0/surf=1 never cross-contaminate. (Only on surf requests.)
+        import copy as _copy
+        product = _copy.deepcopy(product)
         try:
             from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
             # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
