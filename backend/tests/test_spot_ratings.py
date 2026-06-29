@@ -7,8 +7,13 @@ round-trip needs the data stack, so these cover the pure pieces.
 import os
 os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 
+import asyncio
+from datetime import datetime, timezone
+
+from services.weather_pipeline import spot_ratings as sr
 from services.weather_pipeline.spot_ratings import (
     spot_confidence, rating_why, select_precomputed, _lng_in, build_l2_object, SPOT_RATINGS_L2_KEY,
+    precompute_spot_ratings,
 )
 from routes.weather import SpotRatingItem, SpotRatingsResponse
 
@@ -118,3 +123,35 @@ def test_l2_object_shape():
     obj = build_l2_object([{"model": "GFS", "valid_time": "t0", "spots": []}])
     assert obj["version"] == 1 and "generated_at" in obj and len(obj["frames"]) == 1
     assert SPOT_RATINGS_L2_KEY.endswith(".json")
+
+
+# ── precompute → L2 object → endpoint selector round-trip (increment 3) ──
+def test_precompute_round_trips_through_select(monkeypatch):
+    """The CI precompute (precompute_spot_ratings) must build frames the live endpoint's selector reads back —
+    same model, tolerant valid_time, bbox-filtered. Mocks rate_one_spot so it needs no data stack."""
+    spots = [
+        {"id": "a", "name": "A", "latitude": 26.0, "longitude": -80.0, "accuracy_flag": "verified", "is_verified_peak": True},
+        {"id": "b", "name": "B", "latitude": 40.0, "longitude": -80.0, "accuracy_flag": None, "is_verified_peak": False},  # outside the FL bbox
+    ]
+
+    async def fake_rate(resolver, spot, model, valid_time):
+        return {
+            "spot_id": str(spot["id"]), "name": spot["name"],
+            "latitude": spot["latitude"], "longitude": spot["longitude"],
+            "score": 55.0, "level": "fair", "confidence": "high",
+            "surf_height_m": 1.0, "period_s": 12.0, "why": "x",
+        }
+
+    monkeypatch.setattr(sr, "rate_one_spot", fake_rate)
+    base = datetime(2026, 6, 28, 21, 0, 0, tzinfo=timezone.utc)
+    obj = asyncio.run(precompute_spot_ratings(None, spots, ["GFS"], [0], base_dt=base))
+
+    assert obj["version"] == 1 and len(obj["frames"]) == 1
+    fr = obj["frames"][0]
+    assert fr["model"] == "GFS" and fr["valid_time"] == "2026-06-28T21:00:00Z" and len(fr["spots"]) == 2
+
+    # The endpoint reads it back: 20-min-off request still hits (tolerant), filtered to the FL bbox (a in, b out).
+    sel = select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-06-28T21:20:00Z")
+    assert sel is not None and [s["spot_id"] for s in sel] == ["a"]
+    # An hour with no frame falls back to live (None).
+    assert select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-06-29T05:00:00Z") is None
