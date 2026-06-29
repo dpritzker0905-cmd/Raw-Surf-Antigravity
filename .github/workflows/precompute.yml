@@ -5,11 +5,7 @@
 name: Precompute Spot Ratings (decoupled)
 
 on:
-  workflow_dispatch:
-    inputs:
-      probe:
-        description: '1 = run the resolve_point diagnostic probe (logs why ratings are null)'
-        default: '0'
+  workflow_dispatch: {}
   schedule:
     - cron: '45 1,7,13,19 * * *'   # 4x/day, offset from the :15 ingest so it reads a settled L2 manifest
 
@@ -41,7 +37,6 @@ jobs:
           NODE_ENV: production
           RENDER: 'true'                # match production grid resolution + point-resolution paths
           PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)
-          PRECOMPUTE_PROBE: ${{ github.event.inputs.probe || '0' }}
           SPOT_RATINGS_PRECOMPUTE: '1'
           BUOY_CALIBRATION: '1'
           REPORT_CALIBRATION: '1'
