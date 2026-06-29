@@ -254,9 +254,14 @@ def run_report_calibration() -> tuple:
 
     model = os.environ.get("REPORT_CALIBRATION_MODEL", "GFS").strip().upper()
     valid_time = _top_of_hour_utc().strftime("%Y-%m-%dT%H:00:00Z")
-    spots = fetch_active_spots_via_rest()
+    # BOUND the snapshot so this can't blow the cron's job budget: cap the spot count and wall-clock the rating
+    # pass (partial archive is fine — it accrues over cycles). The cap is the safety guard for a step added to
+    # every cron cycle on an as-yet-unproven resolver-in-CI path.
+    max_spots = max(1, int(os.environ.get("REPORT_CALIBRATION_MAX_SPOTS", "2000")))
+    budget_s = float(os.environ.get("REPORT_CALIBRATION_BUDGET_S", "600"))
+    spots = fetch_active_spots_via_rest()[:max_spots]
 
-    # (1) snapshot — rate active spots now, keep the compact prediction fields.
+    # (1) snapshot — rate the (capped) spot set now, keep the compact prediction fields.
     new_entries = []
     if spots:
         resolver = _make_point_resolver()
@@ -270,7 +275,11 @@ def run_report_calibration() -> tuple:
             return {"spot_id": d["spot_id"], "valid_time": valid_time,
                     "score": d["score"], "surf_height_m": d.get("surf_height_m")}
 
-        rated = asyncio.run(_gather_snapshot(_one, spots))
+        try:
+            rated = asyncio.run(asyncio.wait_for(_gather_snapshot(_one, spots), timeout=budget_s))
+        except (asyncio.TimeoutError, Exception) as _se:
+            logger.warning("[report-calibration] snapshot bounded/failed (%s) — archiving what's available.", _se)
+            rated = []
         new_entries = [e for e in rated if e]
 
     store = ProductStore()
