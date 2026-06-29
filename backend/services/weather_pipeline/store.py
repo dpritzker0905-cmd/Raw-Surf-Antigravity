@@ -141,10 +141,33 @@ class ProductStore:
             ProductStore._last_upload_errors = (ProductStore._last_upload_errors + [err_msg])[-10:]
 
     def _delete_from_supabase(self, filename: str):
-        sb = _get_supabase_storage()
-        if sb:
-            try: sb.storage.from_(WEATHER_BUCKET).remove([filename])
-            except Exception as e: logger.warning(f"[Product Store] L2 delete failed for {filename}: {e}")
+        """Delete a product from Supabase Storage L2 (best-effort, never raises).
+
+        Uses the Storage REST API directly (via requests) instead of storage3's sync .remove(): in the
+        pinned supabase==2.4.6 that method hits the same UnboundLocalError ("cannot access local variable
+        'response'") that broke the upload path (see _upload_to_supabase above). The bug is non-fatal here
+        — an un-pruned product just lingers until the next REST-based prune — but routing the DELETE through
+        REST stops the noise and actually prunes. Failures are swallowed/logged to preserve that semantics.
+        """
+        sb = _get_supabase_storage()  # gates on config + ensures the bucket exists
+        if sb is None:
+            return
+        base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+        if not base or not key:
+            return
+        try:
+            import requests
+            url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{filename}"
+            headers = {
+                "Authorization": f"Bearer {key}",
+                "apikey": key,
+            }
+            resp = requests.delete(url, headers=headers, timeout=30)
+            if resp.status_code not in (200, 204):
+                raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
+        except Exception as e:
+            logger.warning(f"[Product Store] L2 delete failed for {filename}: {e}")
 
     def restore_from_supabase(self) -> Tuple[int, List[str]]:
         """Restore weather products from Supabase Storage L2 into disk L1.
