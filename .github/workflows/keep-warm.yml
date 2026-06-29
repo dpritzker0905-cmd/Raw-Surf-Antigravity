@@ -8,7 +8,10 @@ name: keep-serve-box-warm
 
 on:
   schedule:
-    - cron: '*/10 * * * *'   # ~every 10 min (best-effort; GitHub may delay). Render free tier idles at ~15 min.
+    - cron: '*/5 * * * *'    # ~every 5 min: Render idles at ~15 min, and GitHub cron is BEST-EFFORT (often
+                             # delayed 10-20 min under load), so 5-min cadence gives ~3 chances per idle window
+                             # — a live user hit a cold-start with the 10-min cadence. For a HARD guarantee still
+                             # add an external monitor (UptimeRobot/cron-job.org, 5-min) on /api/health.
   workflow_dispatch: {}
 
 permissions:

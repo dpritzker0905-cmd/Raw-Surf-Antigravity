@@ -171,6 +171,8 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
   const [endpointRatings, setEndpointRatings] = useState({});
   const [moveNonce, setMoveNonce] = useState(0);
   const lastKeyRef = useRef(null);
+  const retryRef = useRef({ key: null, n: 0 });   // cold-start auto-recovery: bounded retries per viewport
+  const retryTimerRef = useRef(null);
 
   // moveend fires once per pan/zoom settle (not per frame) → a clean refetch trigger.
   useEffect(() => {
@@ -213,6 +215,7 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
       // regional views; the deterministic verified-peak-first order means the best spots are always included.
       fetchSpotRatings({ bbox, validTime, model, limit: 160, signal: controller.signal })
         .then((resp) => {
+          retryRef.current = { key: null, n: 0 };          // recovered → clear the cold-start retry budget
           const mapped = mapSpotRatingsResponse(resp && resp.spots);
           setEndpointRatings(mapped);
           const sum = summarizeSpotRatings(mapped);
@@ -226,10 +229,18 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
         })
         .catch((err) => {
           lastKeyRef.current = null; /* allow retry; keep last + grid fallback */
-          if (!(err && err.name === 'AbortError')) writeSpotRatingsDiag({ status: 'error', error: String(err && err.message || err) });
+          if (err && err.name === 'AbortError') return;    // superseded by a newer viewport — not a real failure
+          writeSpotRatingsDiag({ status: 'error', error: String(err && err.message || err) });
+          // COLD-START AUTO-RECOVERY: Render spin-down makes EVERY fetch fail (CORS/timeout) for ~30-60s, so
+          // toggling Rating during that window left glyphs blank until a manual re-toggle/pan. Retry THIS
+          // viewport a few times so glyphs reappear on their own once the box is warm; bounded per-viewport so
+          // a genuinely-down backend isn't hammered. AbortErrors (panning) are excluded above.
+          const r = retryRef.current;
+          if (r.key !== key) { r.key = key; r.n = 0; }
+          if (r.n < 4) { r.n += 1; retryTimerRef.current = setTimeout(() => setMoveNonce((n) => (n + 1) % 1000000), 3500); }
         });
     }, 450);
-    return () => { clearTimeout(t); controller.abort(); };
+    return () => { clearTimeout(t); controller.abort(); if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
   }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce]);
 
   // Endpoint ratings (accurate) override the instant grid-sample fallback.
