@@ -123,12 +123,17 @@ On `dev--rawsurf.netlify.app` (or local dev → Render backend, see [[local-dev-
 ```js
 (() => {
   const eng = window.__MARINE_ENGINE__, wg = eng && eng._waveData && eng._waveData.waveGrid;
-  const sr = window.__SPOT_RATINGS_DEBUG__; // (none yet — add one; see §6.1)
+  const sr = window.__SPOT_RATINGS_DIAG__; // ✅ now exposed by useSpotRatings (§6.1 DONE, commit pending)
   return { surfMode: window.__SURF_MODE__, ratingMode: wg && wg.ratingMode,
            gridScope: wg && wg.coverage_scope, gridCols: wg && wg.cols,
-           surfTransform: wg && wg.diagnostics, /* likely undefined — conformer drops diagnostics except ratingMode */ };
+           spotRatings: sr, /* {status,source,fetched,rawCount,mergedCount,eligibleSpots,ratingGrid,sampleIds,levels,lastBbox,error,ts} */ };
 })()
 ```
+   **Reading `__SPOT_RATINGS_DIAG__` (the new telemetry):** `status:'ok'` + `fetched>0` ⇒ the endpoint returned
+   rated spots → glyphs SHOULD paint; if you still see none, it's a spot-id mismatch or clustering (check
+   `eligibleSpots` — 0 means every spot is clustered at this zoom → zoom in). `status:'ok'` + `fetched:0` +
+   non-empty `rawCount` ⇒ spots returned but all unrated (`score:null`, flat/no-surf) → correct-but-empty; test a
+   known-surf coast. `status:'error'` ⇒ read `error`. `levels` tallies the glyph colours (e.g. `{very_poor:15}`).
    - `ratingMode:true` + you see a coloured band ⇒ band works (you were just at a coarse viewport before).
    - `ratingMode:false` ⇒ the loaded grid isn't a rating grid (coarse/unwarmed) ⇒ band correctly hidden ⇒ chase §3.
 3. For glyphs: in the Network panel confirm a `GET /api/weather/spot-ratings?...` fires on toggle and returns
@@ -138,10 +143,17 @@ On `dev--rawsurf.netlify.app` (or local dev → Render backend, see [[local-dev-
 
 ## 6. PRIORITIZED NEXT STEPS (the fresh context's plan)
 **P0 — make the overlay reliably VISIBLE (the user's actual complaint):**
-1. **Add glyph/rating debug telemetry** so this is never guesswork again: expose `window.__SPOT_RATINGS_DIAG__`
-   = { fetched, count, source, lastBbox, lastStatus, sampleIds } from `useSpotRatings`, and a one‑line log on
-   each fetch. (Mirror the marine `__MARINE_*__` diag pattern.)
-2. **Verify + fix the glyph spot‑id match** (§3.1) — the single highest‑impact suspect. If ids differ, map them.
+1. ✅ **DONE (code, commit pending) — glyph/rating debug telemetry.** `useSpotRatings.js` now exposes
+   `window.__SPOT_RATINGS_DIAG__` = {status, source, lastBbox, lastValidTime, lastModel, rawCount, fetched,
+   mergedCount, gridFallbackCount, eligibleSpots, ratingGrid, sampleIds, levels, error, ts} + a one‑line
+   `console.debug('[spot-ratings] …')` per fetch (pure `summarizeSpotRatings`/`writeSpotRatingsDiag`, 19 tests
+   green). Mirrors the `__MARINE_*__` pattern. See the §5 capture for how to read it.
+2. ✅ **VERIFIED (static) — the glyph spot‑id match is CORRECT.** `MapMarkerLayers` keys `spotRatings[cluster.id]`;
+   for an individual spot `cluster.id = feature.properties.spotId = spot.id` (`useMarkerClustering.js:114`,
+   sourced from `/surf-spots`). The endpoint returns `spot_id = str(SurfSpot.id)` (`spot_ratings.py:85`) and the
+   live route queries the SAME `SurfSpot` table; `mapSpotRatingsResponse` keys `out[sp.spot_id]`. Both are the
+   `surf_spots.id` UUID as a string ⇒ they match (no id‑mapping shim needed). Re‑confirm LIVE via §5: the diag's
+   `sampleIds` should equal on‑map spots' ids — but no code change is expected here.
 3. **Decide the BAND policy at coarse/unwarmed viewports**: either (a) accept it's glyph‑only there (and make the
    glyphs unmistakable — bigger, animated, a legend hint), or (b) show a *clearly‑labelled* coarse rating band at
    global zoom too (would require backend to rate coarse — reverses Bug #3's "leave coarse unrated"; only if the

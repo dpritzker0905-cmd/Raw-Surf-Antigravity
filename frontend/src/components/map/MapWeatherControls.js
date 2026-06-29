@@ -577,6 +577,12 @@ export var MapWeatherControls = ({
             <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
               {((surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)) ? surfLegend.stops : legendConfig[activeLayer].stops).map((s, i) => <span key={i}>{s}</span>)}
             </div>
+            {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+              <div className={`flex items-center gap-1 text-[8px] ${textMuted} mt-1 px-0.5`}>
+                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#2fd07a', boxShadow: '0 0 4px 1px #2fd07a' }} />
+                <span>Quality shown at each surf spot — zoom in to see</span>
+              </div>
+            )}
           </div>
         )}
 

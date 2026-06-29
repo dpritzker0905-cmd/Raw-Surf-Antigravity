@@ -15,6 +15,34 @@ import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
 /**
+ * PURE: summarize a spotId -> rating map for diagnostics. Returns { count, sampleIds, levels } where `levels`
+ * tallies how many glyphs fall in each rating level (so a live capture instantly shows "15 spots, all very_poor"
+ * vs "0 spots" — the difference between "flat but working" and "broken"). Unit-testable without React/DOM.
+ */
+export function summarizeSpotRatings(map) {
+  const ids = map ? Object.keys(map) : [];
+  const levels = {};
+  for (const id of ids) {
+    const lvl = (map[id] && map[id].level) || 'unknown';
+    levels[lvl] = (levels[lvl] || 0) + 1;
+  }
+  return { count: ids.length, sampleIds: ids.slice(0, 5), levels };
+}
+
+/**
+ * SSR-safe writer for window.__SPOT_RATINGS_DIAG__ — the rating-overlay's live truth window (mirrors the
+ * __MARINE_*__ diag pattern). Merges `patch` into the running diag and stamps `ts` so a console capture in §5
+ * of the handoff shows exactly WHY glyphs are/aren't showing (fetch status, source, counts, sample ids) instead
+ * of guesswork. No-op outside the browser. Never throws into the render path.
+ */
+export function writeSpotRatingsDiag(patch) {
+  if (typeof window === 'undefined') return;
+  try {
+    window.__SPOT_RATINGS_DIAG__ = { ...(window.__SPOT_RATINGS_DIAG__ || {}), ...patch, ts: Date.now() };
+  } catch (e) { /* diagnostics must never break rendering */ }
+}
+
+/**
  * Nearest rated coastal cell to (lat,lng) in a Rating-mode marine grid (speed = score/10; open-ocean = 0).
  * Indexed directly via cols/rows/bounds, then a small ±2-cell neighbourhood search so a coastal spot still
  * finds its adjacent rated cell when its exact nearest cell is land-masked. Returns a 0-100 score or null.
@@ -113,7 +141,11 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
 
   // Fetch accurate per-spot ratings for the viewport, debounced + deduped + abortable.
   useEffect(() => {
-    if (!surfMode || !mapInstance) { setEndpointRatings({}); lastKeyRef.current = null; return; }
+    if (!surfMode || !mapInstance) {
+      setEndpointRatings({}); lastKeyRef.current = null;
+      writeSpotRatingsDiag({ status: 'idle', surfMode: !!surfMode });
+      return;
+    }
     let bounds;
     try { bounds = mapInstance.getBounds(); } catch (e) { return; }
     if (!bounds) return;
@@ -126,13 +158,43 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
     const controller = new AbortController();
     const t = setTimeout(() => {
       lastKeyRef.current = key;
-      fetchSpotRatings({ bbox, validTime, model: activeModel || 'GFS', limit: 80, signal: controller.signal })
-        .then((resp) => setEndpointRatings(mapSpotRatingsResponse(resp && resp.spots)))
-        .catch(() => { lastKeyRef.current = null; /* allow retry; keep last + grid fallback */ });
+      const model = activeModel || 'GFS';
+      writeSpotRatingsDiag({ status: 'fetching', surfMode: true, lastBbox: bbox, lastValidTime: validTime, lastModel: model });
+      fetchSpotRatings({ bbox, validTime, model, limit: 80, signal: controller.signal })
+        .then((resp) => {
+          const mapped = mapSpotRatingsResponse(resp && resp.spots);
+          setEndpointRatings(mapped);
+          const sum = summarizeSpotRatings(mapped);
+          writeSpotRatingsDiag({
+            status: 'ok', source: (resp && resp.source) || 'live',
+            rawCount: (resp && Array.isArray(resp.spots)) ? resp.spots.length : 0,
+            fetched: sum.count, sampleIds: sum.sampleIds, levels: sum.levels, error: null,
+          });
+          // One concise line per fetch (fetches are debounced + deduped → not spammy).
+          try { console.debug(`[spot-ratings] ${sum.count}/${(resp && resp.spots || []).length} rated · src=${(resp && resp.source)} · ${bbox} @ ${validTime}`); } catch (e) { /* noop */ }
+        })
+        .catch((err) => {
+          lastKeyRef.current = null; /* allow retry; keep last + grid fallback */
+          if (!(err && err.name === 'AbortError')) writeSpotRatingsDiag({ status: 'error', error: String(err && err.message || err) });
+        });
     }, 450);
     return () => { clearTimeout(t); controller.abort(); };
   }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce]);
 
   // Endpoint ratings (accurate) override the instant grid-sample fallback.
-  return useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
+  const merged = useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
+
+  // Record the EFFECTIVE state (what actually reaches the glyphs) so a live capture distinguishes
+  // "endpoint empty but grid fallback covering" from "nothing at all". Eligible = non-cluster spots in view.
+  useEffect(() => {
+    const eligible = Array.isArray(spotClusters) ? spotClusters.filter((c) => c && !c.isCluster).length : 0;
+    writeSpotRatingsDiag({
+      mergedCount: Object.keys(merged).length,
+      gridFallbackCount: Object.keys(gridRatings).length,
+      eligibleSpots: eligible,
+      ratingGrid: !!(grid && grid.ratingMode),
+    });
+  }, [merged, gridRatings, spotClusters, grid]);
+
+  return merged;
 }

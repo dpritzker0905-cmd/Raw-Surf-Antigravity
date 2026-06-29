@@ -100,20 +100,21 @@ var MapMarkerLayers = ({
                   {/* expanding pulse ring — GPU-composited transform/opacity, honours reduced-motion */}
                   <span
                     className="absolute rounded-full animate-ping motion-reduce:animate-none"
-                    style={{ width: 24, height: 24, backgroundColor: rating.color, opacity: 0.4 }}
+                    style={{ width: 30, height: 30, backgroundColor: rating.color, opacity: 0.4 }}
                   />
-                  {/* soft static halo for depth */}
+                  {/* soft static halo for depth (sized to at least match the 32px location pin so Rating mode
+                      reads as the headline overlay, not a lesser marker) */}
                   <span
                     className="absolute rounded-full"
-                    style={{ width: 30, height: 30, background: `radial-gradient(circle, ${rating.color}59 0%, transparent 70%)` }}
+                    style={{ width: 38, height: 38, background: `radial-gradient(circle, ${rating.color}59 0%, transparent 70%)` }}
                   />
-                  {/* solid core dot in the rating colour */}
+                  {/* solid core dot in the rating colour — bold ring + colour glow makes it unmistakable */}
                   <span
                     className="relative rounded-full"
                     style={{
-                      width: 15, height: 15, backgroundColor: rating.color,
-                      border: '2px solid rgba(255,255,255,0.9)',
-                      boxShadow: `0 0 8px 2px ${rating.color}, 0 1px 3px rgba(0,0,0,0.45)`
+                      width: 19, height: 19, backgroundColor: rating.color,
+                      border: '2.5px solid rgba(255,255,255,0.92)',
+                      boxShadow: `0 0 10px 3px ${rating.color}, 0 1px 3px rgba(0,0,0,0.5)`
                     }}
                   />
                 </div>

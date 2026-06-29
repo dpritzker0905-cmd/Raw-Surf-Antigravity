@@ -1,4 +1,4 @@
-import { sampleRatingScoreFromGrid, computeSpotRatings } from './useSpotRatings';
+import { sampleRatingScoreFromGrid, computeSpotRatings, summarizeSpotRatings, writeSpotRatingsDiag } from './useSpotRatings';
 
 // Build a cols×rows rating grid over [west..east]×[south..north]; cell (x,y) value -> vectors[y*cols+x].speed.
 function makeGrid({ cols, rows, west, south, east, north, cells }) {
@@ -75,5 +75,41 @@ describe('computeSpotRatings — Option-A ratingMode gate', () => {
   it('skips cluster entries', () => {
     const clustered = [{ id: 'c1', latitude: 4, longitude: 4, isCluster: true }];
     expect(computeSpotRatings(clustered, ratingGrid, true)).toEqual({});
+  });
+});
+
+describe('summarizeSpotRatings — diagnostics', () => {
+  it('counts, samples ids, and tallies levels', () => {
+    const map = {
+      a: { level: 'very_poor' }, b: { level: 'very_poor' }, c: { level: 'good' },
+      d: { level: 'very_poor' }, e: { level: 'fair' }, f: { level: 'very_poor' },
+    };
+    const s = summarizeSpotRatings(map);
+    expect(s.count).toBe(6);
+    expect(s.sampleIds).toEqual(['a', 'b', 'c', 'd', 'e']); // capped at 5
+    expect(s.levels).toEqual({ very_poor: 4, good: 1, fair: 1 });
+  });
+
+  it('handles empty / null maps', () => {
+    expect(summarizeSpotRatings({})).toEqual({ count: 0, sampleIds: [], levels: {} });
+    expect(summarizeSpotRatings(null)).toEqual({ count: 0, sampleIds: [], levels: {} });
+  });
+
+  it('defaults a missing level to unknown in the tally', () => {
+    expect(summarizeSpotRatings({ a: {}, b: { level: 'poor' } }).levels).toEqual({ unknown: 1, poor: 1 });
+  });
+});
+
+describe('writeSpotRatingsDiag — window telemetry', () => {
+  afterEach(() => { try { delete window.__SPOT_RATINGS_DIAG__; } catch (e) { /* noop */ } });
+
+  it('merges patches into window.__SPOT_RATINGS_DIAG__ and stamps ts', () => {
+    writeSpotRatingsDiag({ status: 'fetching', lastBbox: '0,0,1,1' });
+    writeSpotRatingsDiag({ status: 'ok', fetched: 3 });
+    const d = window.__SPOT_RATINGS_DIAG__;
+    expect(d.status).toBe('ok');         // later patch wins
+    expect(d.lastBbox).toBe('0,0,1,1');  // earlier field retained
+    expect(d.fetched).toBe(3);
+    expect(typeof d.ts).toBe('number');
   });
 });
