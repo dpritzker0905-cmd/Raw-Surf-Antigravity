@@ -35,11 +35,17 @@
   size‑independent; long‑period groundswell now breaks taller (plunging, γ_b→1.05), windchop lower (spilling,
   γ_b→0.62), centred 0.78 at ~10.5s. 34 tests. NEXT in P2: bed‑slope→Iribarren breaker TYPE (needs per‑cell
   slope), then refraction focus/defocus.
-- `1f65c39b` (2026‑06‑28 later) — **P5 STARTED: buoy calibration harness** (`buoy_calibration.py`). Measure‑first
-  model‑vs‑NOAA‑NDBC ground truth: pure `parse_ndbc_realtime`/`compare_obs_to_model`/`aggregate_residuals`
-  (MAE/bias) + `calibrate_spots` loop (resolves the offshore model at each spot with a `noaa_buoy_id`, compares
-  to the buoy's WVHT/DPD). CI hook flag‑gated `BUOY_CALIBRATION=1` (writes L2 report); `GET /api/weather/buoy-calibration`
-  reads it. Additive, never changes a rating. 9 tests. NEXT: enable the flag on the cron → read the live MAE/bias.
+- `1f65c39b` (2026‑06‑28 later) — **P5: buoy calibration harness** (`buoy_calibration.py`). Measure‑first
+  model‑vs‑NOAA‑NDBC ground truth (offshore Hs/Tp): pure parse/compare/aggregate + `calibrate_spots`. CI hook
+  `BUOY_CALIBRATION=1` (✅ ENABLED on the cron `82fa6d6f`) → L2; `GET /api/weather/buoy-calibration`. 9 tests.
+- `8ff1e1a3` (2026‑06‑29) — **P5: forward REPORT calibration** (`report_calibration.py`) — the RATING‑side
+  ground truth. Forward loop: snapshot per‑spot rating predictions → rolling L2 archive (`prune_archive` 21d/60k)
+  each cron; match recent `surf_log_entries` (`conditions_rating` 1‑5 + `wave_height`) to the same‑spot archived
+  prediction nearest ±6h; aggregate star/height MAE+bias (bias>0 = model over‑rates surfers). Pure
+  parse_observed_height_m/score_to_stars/normalize_report/match_reports/compare_pair/aggregate_pairs (8 tests).
+  `GET /api/weather/report-calibration`; CI flag `REPORT_CALIBRATION=1` ✅ ENABLED. Archive ACCRUES over cycles —
+  matches grow as sessions are logged. Measure‑first; never changes a rating. CI asset builder (`build-bathymetry.yml`)
+  added (`3c82c8eb`) to bundle the slope asset off the impaired local env.
 - **FORENSIC BLOCKERS found this session (data/ops, not code):**
   - **Tide (`tide_fit`): ✅ SOLVED `a9f912c3` (P4 done, gated).** Skipped the CO‑OPS dead‑end (US‑only + no
     per‑spot station map) for **Open‑Meteo Marine `sea_level_height_msl`** — GLOBAL, free, no key, by lat/lng →
