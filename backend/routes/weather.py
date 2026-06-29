@@ -399,6 +399,18 @@ async def get_buoy_calibration():
     return {"available": True, **report}
 
 
+@router.get("/report-calibration")
+async def get_report_calibration():
+    """GET /api/weather/report-calibration — the latest model-RATING-vs-surfer-report residual report (star +
+    height MAE/bias from matching archived predictions to logged sessions; bias>0 = model over-rates). Read-only
+    from the L2 object the cron writes when REPORT_CALIBRATION=1; {available:false} until generated."""
+    from services.weather_pipeline.report_calibration import load_report_calibration_cached
+    report = await asyncio.to_thread(load_report_calibration_cached)
+    if not report:
+        return {"available": False, "summary": None, "residuals": []}
+    return {"available": True, **report}
+
+
 @router.get("/status")
 async def get_status():
     """

@@ -44,6 +44,7 @@ jobs:
           FORECAST_JOB_STAGGER_SEC: '0' # runner has no 1-CPU contention -> skip the inter-job staggers
           MARINE_INGEST_ALL: '1'        # ephemeral runner: ingest BOTH EURO+ICON marine (no alternation) so the manifest is complete
           BUOY_CALIBRATION: '1'         # measure-first: compare the ingested model to NOAA NDBC buoys -> L2 report (guarded, never fails the cycle)
+          REPORT_CALIBRATION: '1'       # forward RATING calibration: snapshot per-spot predictions -> rolling L2 archive + match surfer logs (guarded)
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # EURO marine (Copernicus) — set these to the SAME names/values your Render service uses.

@@ -90,6 +90,17 @@ def main() -> int:
         except Exception as _bce:
             logger.warning("Buoy calibration skipped (non-fatal, ingestion already persisted): %s", _bce)
 
+    # Forward RATING calibration: snapshot current per-spot predictions to a rolling L2 archive + match recent
+    # surfer logs to it (star/height MAE/bias). Flag-gated REPORT_CALIBRATION=1, fully guarded. The archive
+    # accrues over cron cycles; matches grow as new sessions are logged.
+    if os.environ.get("REPORT_CALIBRATION", "0") == "1":
+        try:
+            from services.weather_pipeline.report_calibration import run_report_calibration
+            n_arch, n_match = run_report_calibration()
+            logger.info("Report calibration complete: archived %d predictions, matched %d reports → L2.", n_arch, n_match)
+        except Exception as _rce:
+            logger.warning("Report calibration skipped (non-fatal, ingestion already persisted): %s", _rce)
+
     # The store records L2 outcomes at class level, so a fresh instance reads this process's results.
     from services.weather_pipeline.store import ProductStore
     diag = ProductStore().get_persistence_diagnostics()
