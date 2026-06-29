@@ -67,6 +67,28 @@ def main() -> int:
         logger.error("Grid prewarm FAILED — ratings would be null without it; aborting: %s", e, exc_info=True)
         return 1
 
+    # TEMP PROBE (gated PRECOMPUTE_PROBE=1): resolve a few known spots and log exactly what resolve_point returns,
+    # so we can see WHY ratings come back null (grid miss vs load_product None vs sample None vs exception).
+    if os.environ.get("PRECOMPUTE_PROBE") == "1":
+        from datetime import datetime, timezone
+        from services.weather_pipeline.spot_ratings import _make_point_resolver
+        vt = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0).strftime("%Y-%m-%dT%H:00:00Z")
+        r = _make_point_resolver()
+
+        async def _probe():
+            for nm, la, lo in [("Trestles", 33.387, -117.592), ("Pipeline", 21.665, -158.053), ("Hossegor", 43.66, -1.44)]:
+                for dom, lay in [("marine", "waves"), ("wind", "wind")]:
+                    try:
+                        resp = await r.resolve_point(model="GFS", domain=dom, layer=lay, lat=la, lng=lo, valid_time_str=vt)
+                        pt = getattr(resp, "point", None)
+                        logger.info("PROBE %s/%s %s: type=%s source=%s point=%s surf=%s fb=%s status=%s",
+                                    nm, dom, lay, type(resp).__name__, getattr(resp, "source", None),
+                                    pt is not None, getattr(resp, "surf_height_m", None),
+                                    getattr(resp, "fallback_reason", None), getattr(resp, "coverage_status", None))
+                    except Exception as pe:
+                        logger.info("PROBE %s/%s %s: EXCEPTION %r", nm, dom, lay, pe)
+        asyncio.run(_probe())
+
     rc = 0
 
     if os.environ.get("SPOT_RATINGS_PRECOMPUTE", "0") == "1":
