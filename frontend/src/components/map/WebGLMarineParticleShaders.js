@@ -483,8 +483,13 @@ void main() {
   shape *= tipFade;
 
   // === ROLLING WHITEWATER ACROSS RIBBON WIDTH ===
-  // Map acrossCrest [-1,1] to waveLocal [0,1]
-  float waveLocal = clamp(acrossCrest * 0.5 + 0.5, 0.0, 1.0);
+  // Map acrossCrest [-1,1] to waveLocal [0,1].
+  // DIRECTION FIX (2026-06-29): v_phase = fract(spatial - temporalSpeed) DECREASES over time, so the breaking
+  // foam front (waveLocal==rollFront) swept toward LOW acrossCrest = -waveDir — i.e. the whitewater rolled
+  // AGAINST the wave's travel direction, reading as "waves moving the wrong way" (the wave-train bands move
+  // correctly with +dir, so it was a foam/band mismatch). Negate acrossCrest so the front rolls toward +waveDir,
+  // with the trailing wash behind it — now consistent with both the advection and the bands.
+  float waveLocal = clamp(-acrossCrest * 0.5 + 0.5, 0.0, 1.0);
 
   // Rolling front sweeps 0→1 as v_phase advances
   float rollFront = fract(v_phase);
