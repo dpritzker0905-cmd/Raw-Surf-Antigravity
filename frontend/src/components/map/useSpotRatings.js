@@ -257,7 +257,8 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
           if (r.key !== key) { r.key = key; r.n = 0; }
           if (r.n < 4) { r.n += 1; retryTimerRef.current = setTimeout(() => setMoveNonce((n) => (n + 1) % 1000000), 3500); }
         });
-    }, 450);
+    }, 150);  // debounce: 450ms was tuned for the old 7-22s live path; precompute is instant now, so a short
+              // debounce makes glyphs light up ~300ms sooner on toggle/pan while still coalescing rapid moves.
     return () => { clearTimeout(t); controller.abort(); if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
   }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce, viewKey]);
 
