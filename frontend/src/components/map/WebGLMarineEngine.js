@@ -482,7 +482,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         const isRatingBand = !!(waveGrid && waveGrid.ratingMode);
         if (cellDeg > 1.0 && vLonSpan > 0 && !isRatingBand) { // only the coarse-global RAW wash qualifies
           const cellsAcross = vLonSpan / cellDeg;            // how many grid cells span the viewport
-          coarseFade = smoothstepVal(0.5, 2.0, cellsAcross); // ≤0.5 cell → 0 (fade out); ≥2 cells → 1 (full)
+          // FLOOR at 0.7 (2026-06-29): a full fade-to-0 made the heatmap "clear" at very close zoom — but most
+          // coastal viewports are STUCK on the coarse-global grid (regional tiles often don't cover them), so the
+          // fade was firing constantly and reading as "the heatmap disappeared". Dim to 70% instead so the data
+          // stays clearly visible (subtle coarseness cue) without vanishing. Kill switch still fully disables it.
+          coarseFade = 0.7 + 0.3 * smoothstepVal(0.5, 2.0, cellsAcross); // [0.7..1.0]: dims, never clears
         }
       }
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;
