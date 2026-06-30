@@ -391,7 +391,36 @@ class WeatherPipelineScheduler:
             "source_model": "ncep_gfswave025"
         }
 
-        if euro_results:
+        # CMEMS-hiccup WAVES consistency: on a Copernicus outage the swell layers KEEP their last-good
+        # copernicus_native product (the GFS-swell fallback only supersedes when GFS data is present), so don't
+        # DOWNGRADE `waves` to the open-meteo fallback either when a recent Copernicus-native waves was restored
+        # from the prior manifest — otherwise you get the split "waves=open-meteo, swells=copernicus". It self-
+        # heals on the next CMEMS-success cycle anyway; this just avoids the transient downgrade. Fail-safe (any
+        # error → existing fallback). Kill switch: EURO_KEEP_NATIVE_WAVES=0.
+        _keep_native_waves = False
+        if euro_results and os.environ.get("EURO_KEEP_NATIVE_WAVES", "1") != "0":
+            try:
+                _man = self.store.get_manifest()
+                _now = datetime.now(timezone.utc)
+                for _p in (getattr(_man, "products", None) or []):
+                    if (_p.model.upper() == "EURO" and _p.domain.lower() == "marine"
+                            and _p.layer.lower() == "waves" and (_p.region_id or "") == "global_coarse"):
+                        _src = (_p.source_dataset or "")
+                        if not _src and isinstance(_p.estimate_basis, dict):
+                            _src = _p.estimate_basis.get("type", "")
+                        _rt = _p.run_time
+                        if _rt is not None and _rt.tzinfo is None:
+                            _rt = _rt.replace(tzinfo=timezone.utc)
+                        if "copernicus" in _src.lower() and _rt is not None and (_now - _rt).total_seconds() <= 6 * 3600:
+                            _keep_native_waves = True
+                            break
+            except Exception as _ke:
+                logger.debug(f"[Pipeline Scheduler] keep-native-waves check failed (using open-meteo fallback): {_ke}")
+
+        if _keep_native_waves:
+            logger.info("[Pipeline Scheduler] EURO Copernicus down — KEEPING last-good copernicus_native waves "
+                        "(skipped the open-meteo downgrade; consistent with the swell layers).")
+        elif euro_results:
             count = await normalize_and_save_loop(
                 self.normalizer, self.store, euro_results,
                 model="EURO", provider="copernicus", domain="marine", layer="waves",
