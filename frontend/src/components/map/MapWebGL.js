@@ -204,7 +204,7 @@ const MapWebGL = ({
 
   // Per-spot surf-quality ratings for the Rating-overlay glyphs: the backend /spot-ratings endpoint (precise
   // per-spot resolution) with the rating-grid sample as an instant fallback. See useSpotRatings.js.
-  const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, activeModel, timeOffsetHours });
+  const spotRatings = useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, viewState, activeModel, timeOffsetHours });
   // Aggregate per-spot ratings up to the CLUSTER bubbles so toggling Rating recolours the map even when spots
   // are clustered (zoomed out) — without this the toggle looks like "nothing happens" until you zoom to
   // individual spots. Memoized: recomputes only when the clusters or ratings change (not per frame).

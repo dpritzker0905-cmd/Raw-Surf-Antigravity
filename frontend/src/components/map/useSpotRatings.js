@@ -159,7 +159,7 @@ export function computeClusterRatings(spotClusters, spotRatings, supercluster, l
  * (computeSpotRatings) is kept as an immediate fallback so glyphs appear with zero latency on toggle, then the
  * endpoint result overrides it. Endpoint failures keep the last result (no flicker); the grid fallback still covers.
  */
-export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, activeModel = 'GFS', timeOffsetHours = 0 }) {
+export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance, viewState = null, activeModel = 'GFS', timeOffsetHours = 0 }) {
   const grid = marineData && marineData.grid;
   const rev = (marineData && (marineData.__commitRevision || (grid && grid.__activeLayerNonzeroCount))) || 0;
   // Instant fallback from the already-loaded rating grid (gated on ratingMode — Option A).
@@ -171,6 +171,7 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
   const [endpointRatings, setEndpointRatings] = useState({});
   const [moveNonce, setMoveNonce] = useState(0);
   const lastKeyRef = useRef(null);
+  const baseKeyRef = useRef(null);                 // validTime|model — accumulated ratings reset when the frame/model changes
   const retryRef = useRef({ key: null, n: 0 });   // cold-start auto-recovery: bounded retries per viewport
   const retryTimerRef = useRef(null);
 
@@ -182,10 +183,19 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
     return () => { try { mapInstance.off('moveend', onMove); } catch (e) { /* map gone */ } };
   }, [mapInstance]);
 
+  // Pan trigger CONSISTENT WITH THE MARKERS: the spots (useSpotClusteringData) re-cluster off `viewState`, so
+  // derive the refetch trigger from that SAME viewState (rounded to the 0.25° fetch grid + zoom). Relying only on
+  // the native 'moveend' let the two signals diverge — markers moved to the new area but the ratings fetch didn't
+  // re-run, leaving panned-to spots as plain pins until a manual toggle off/on. Rounding means the effect only
+  // re-fires when the view crosses a fetch-relevant boundary (the snapped-bbox dedup below absorbs the rest).
+  const viewKey = (viewState && typeof viewState.longitude === 'number' && typeof viewState.latitude === 'number')
+    ? `${Math.round(viewState.longitude * 4)}:${Math.round(viewState.latitude * 4)}:${Math.round(viewState.zoom || 0)}`
+    : '';
+
   // Fetch accurate per-spot ratings for the viewport, debounced + deduped + abortable.
   useEffect(() => {
     if (!surfMode || !mapInstance) {
-      setEndpointRatings({}); lastKeyRef.current = null;
+      setEndpointRatings({}); lastKeyRef.current = null; baseKeyRef.current = null;
       writeSpotRatingsDiag({ status: 'idle', surfMode: !!surfMode });
       return;
     }
@@ -217,7 +227,15 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
         .then((resp) => {
           retryRef.current = { key: null, n: 0 };          // recovered → clear the cold-start retry budget
           const mapped = mapSpotRatingsResponse(resp && resp.spots);
-          setEndpointRatings(mapped);
+          // ACCUMULATE within the same forecast frame+model so spots you've already panned past STAY lit
+          // ("all spots in my viewport light up" as you explore the map); a new valid_time/model resets the set.
+          const baseKey = `${validTime}|${model}`;
+          if (baseKeyRef.current !== baseKey) {
+            baseKeyRef.current = baseKey;
+            setEndpointRatings(mapped);
+          } else {
+            setEndpointRatings((prev) => ({ ...prev, ...mapped }));
+          }
           const sum = summarizeSpotRatings(mapped);
           writeSpotRatingsDiag({
             status: 'ok', source: (resp && resp.source) || 'live',
@@ -241,7 +259,7 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
         });
     }, 450);
     return () => { clearTimeout(t); controller.abort(); if (retryTimerRef.current) clearTimeout(retryTimerRef.current); };
-  }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce]);
+  }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce, viewKey]);
 
   // Endpoint ratings (accurate) override the instant grid-sample fallback.
   const merged = useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
