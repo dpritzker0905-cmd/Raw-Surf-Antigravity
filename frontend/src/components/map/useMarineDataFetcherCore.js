@@ -49,6 +49,13 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
 // the watchdog acts. Kept short for fast recovery; govIdle prevents false positives.
 export const MARINE_FETCH_LEASE_MS = 4000;
 
+// HARD lease: a lock held this long is PROVABLY dead — no real marine fetch runs ~25s. The govIdle guard below
+// trusts the governor to flag a live fetch, but a stranded fetch can leave the governor's in-flight counters set
+// TOO (its decrement skipped alongside locks.isFetching), so govIdle stays false forever and the lock wedges
+// PERMANENTLY (forensically observed: grid stuck on a stale tile while panning, governor never clearing). Past the
+// hard lease we heal REGARDLESS of govIdle, so a doubly-stranded (lock + governor) wedge can still self-recover.
+export const MARINE_FETCH_HARD_LEASE_MS = 25000;
+
 /**
  * Stale-lock watchdog. A superseded marine fetch can strand locks.isFetching=true +
  * __MARINE_FETCH_PENDING__/__MARINE_FETCH_DEBOUNCING__ when its finally skips cleanup (the
@@ -63,7 +70,13 @@ export const MARINE_FETCH_LEASE_MS = 4000;
 export function releaseStaleMarineLock(locks, abortControllerRef) {
   if (!locks || !locks.isFetching) return false;
   const startedAt = locks.fetchStartedAt || 0;
-  if (!startedAt || Date.now() - startedAt <= MARINE_FETCH_LEASE_MS) return false;
+  if (!startedAt) return false;
+  const heldMs = Date.now() - startedAt;
+  if (heldMs <= MARINE_FETCH_LEASE_MS) return false;
+  // Past the HARD lease the fetch is provably dead — heal even if the governor (which can strand too) still
+  // shows it active, otherwise the wedge is permanent. Under the hard lease keep deferring to govIdle so we
+  // never abort a real slow request.
+  const provablyDead = heldMs > MARINE_FETCH_HARD_LEASE_MS;
   let govIdle = true;
   try {
     const gov = (typeof window !== 'undefined') && window.__MARINE_GOVERNOR_STATE__;
@@ -72,7 +85,7 @@ export function releaseStaleMarineLock(locks, abortControllerRef) {
                 !(gov.inFlightKeys && gov.inFlightKeys.length);
     }
   } catch (e) { govIdle = true; }
-  if (!govIdle) return false; // a real fetch is running — never abort it
+  if (!govIdle && !provablyDead) return false; // a real fetch may still be running — never abort it
   try {
     if (abortControllerRef.current && !abortControllerRef.current.signal?.aborted) {
       abortControllerRef.current.abort();
@@ -85,8 +98,10 @@ export function releaseStaleMarineLock(locks, abortControllerRef) {
     window.__MARINE_FETCH_PENDING__ = null;
     window.__MARINE_FETCH_DEBOUNCING__ = false;
   }
-  recordChurn('stale_lock_release', {});
-  console.warn('[Marine] Stale fetch lock released (held >lease, governor idle) — refetching to recover wedged heatmap.');
+  recordChurn('stale_lock_release', { provablyDead });
+  console.warn('[Marine] Stale fetch lock released (' +
+    (provablyDead ? `provably dead, held >${MARINE_FETCH_HARD_LEASE_MS}ms (governor may also be stranded)` : 'held >lease, governor idle') +
+    ') — refetching to recover wedged heatmap.');
   return true;
 }
 

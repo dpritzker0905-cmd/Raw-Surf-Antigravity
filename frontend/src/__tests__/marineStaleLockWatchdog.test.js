@@ -1,4 +1,4 @@
-import { releaseStaleMarineLock, MARINE_FETCH_LEASE_MS } from '../components/map/useMarineDataFetcherCore';
+import { releaseStaleMarineLock, MARINE_FETCH_LEASE_MS, MARINE_FETCH_HARD_LEASE_MS } from '../components/map/useMarineDataFetcherCore';
 
 // Watchdog that heals the stranded marine fetch-lock wedge (see marine-stranded-fetch-lock-wedge):
 // a superseded fetch can leave locks.isFetching=true forever, and the same-target dedup then skips
@@ -46,6 +46,27 @@ describe('releaseStaleMarineLock (stranded fetch-lock watchdog)', () => {
     expect(releaseStaleMarineLock(locks, { current: ctrl })).toBe(false);
     expect(locks.isFetching).toBe(true); // a real fetch must keep running
     expect(ctrl.signal.aborted).toBe(false);
+  });
+
+  it('still defers to a real slow fetch under the HARD lease (lease+5s, governor active) → no heal', () => {
+    window.__MARINE_GOVERNOR_STATE__ = { activeGridFetches: 1, activeCopernicusFetches: 0, inFlightKeys: ['k'] };
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_LEASE_MS + 5000), activeSource: 'manual' };
+    const ctrl = makeController();
+    expect(releaseStaleMarineLock(locks, { current: ctrl })).toBe(false);
+    expect(locks.isFetching).toBe(true);
+    expect(ctrl.signal.aborted).toBe(false);
+  });
+
+  it('heals a DOUBLY-stranded lock past the HARD lease even when the governor still shows activity (provably dead)', () => {
+    // The wedge: a stranded fetch leaves BOTH locks.isFetching=true AND the governor counters set, so govIdle
+    // never clears. Past the hard lease the lock is provably dead and must heal regardless of the governor.
+    window.__MARINE_GOVERNOR_STATE__ = { activeGridFetches: 1, activeCopernicusFetches: 0, inFlightKeys: ['k'] };
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_HARD_LEASE_MS + 1000), activeSource: 'manual' };
+    const ctrl = makeController();
+    expect(releaseStaleMarineLock(locks, { current: ctrl })).toBe(true);
+    expect(locks.isFetching).toBe(false);
+    expect(locks.fetchStartedAt).toBe(0);
+    expect(ctrl.signal.aborted).toBe(true);
   });
 
   it('heals a stranded lock: lease expired + governor idle → abort, clear, return true', () => {
