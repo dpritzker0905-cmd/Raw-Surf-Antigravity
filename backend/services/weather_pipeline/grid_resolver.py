@@ -124,8 +124,14 @@ async def resolve_grid(
 
                 if is_covered and not is_wider:
                     use_manifest_product = True
-                elif model.upper() == "EURO" and domain.lower() == "marine":
-                    # Reuse regional Copernicus tiles if the requested viewport overlaps the region and is not wider
+                elif domain.lower() == "marine" and os.environ.get("MARINE_REGIONAL_OVERLAP_REUSE", "1") != "0":
+                    # Reuse a regional marine tile when the viewport OVERLAPS it and isn't wider — even if not
+                    # FULLY covered. Without this, a zoomed-in viewport that spills slightly past the tile edge
+                    # (e.g. a z9 Florida view ~0.4° wider than the 2° FL pilot tile) fell back to the global-
+                    # COARSE grid (live: "no covering regional frame for coarse_global") — which is blocky AND
+                    # skips the rating band (the surf transform is skipped on coarse/global extent). Extended
+                    # from EURO-only to ALL marine models (GFS/ICON pilots too) so close-up coasts get FINE data
+                    # plus the rating band. Kill switch: MARINE_REGIONAL_OVERLAP_REUSE=0.
                     overlap_area = calculate_bbox_intersection_area(
                         req_w, req_s, req_e, req_n,
                         cov.west, cov.south, cov.east, cov.north
