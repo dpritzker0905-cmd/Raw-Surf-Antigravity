@@ -66,5 +66,18 @@ describe('WebGLMarineShaders', () => {
       expect(HEATMAP_FS).toContain('uniform sampler2D u_oceanMaskTexture;');
       expect(HEATMAP_FS).toContain('uniform highp float u_lng_offset;');
     });
+
+    it('HEATMAP_FS exposes the BLEND-BOTH height-alpha uniforms (regional-over-coarse composite)', () => {
+      expect(HEATMAP_FS).toContain('uniform float u_heightAlphaEnabled;');
+      expect(HEATMAP_FS).toContain('uniform float u_heightAlphaLo;');
+      expect(HEATMAP_FS).toContain('uniform float u_heightAlphaHi;');
+    });
+
+    it('HEATMAP_FS only applies height-alpha when explicitly enabled (default-off → no-op on every other path)', () => {
+      // The fade must be guarded by u_heightAlphaEnabled so a default-0 uniform leaves alpha untouched; the
+      // factor itself is a smoothstep over displayHeight between the lo/hi bounds.
+      expect(HEATMAP_FS).toContain('if (u_heightAlphaEnabled > 0.5)');
+      expect(HEATMAP_FS).toMatch(/alpha\s*\*=\s*smoothstep\(u_heightAlphaLo,\s*u_heightAlphaHi,\s*displayHeight\)/);
+    });
   });
 });

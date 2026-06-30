@@ -194,7 +194,12 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, row
 // --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
 // --- The Ocean GPU Grid Texture Compressor ---
 
-export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
+export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
+  // standalone (BLEND BOTH coarse-base capture): create FRESH, independently-owned textures and never touch the
+  // engine's resident wave/chl/bath set or its cached land mask. Required because the resident textures are
+  // reused/realloc'd in place on every commit — a naive "retain the old coarse textures" would hand back a
+  // texture the next regional commit deletes. The caller (engine._captureCoarseBase) owns + frees these.
+  const standalone = !!(opts && opts.standalone);
   const { vectors, cols, rows, bounds } = waveGrid;
   if (!vectors?.length || !cols || !rows || cols < 2 || rows < 2) return null;
 
@@ -578,7 +583,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
   const allocatedTextures = [];
   let waveTex, chlTex, bathTex, maskTex;
   try {
-    if (engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
+    if (!standalone && engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
       waveTex = engine._residentWaveTex;
       chlTex = engine._residentChlTex;
       bathTex = engine._residentBathTex;
@@ -586,7 +591,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       updateTexture(gl, chlTex, dataChl, cols, rows);
       updateTexture(gl, bathTex, dataBath, cols, rows);
     } else {
-      if (engine) {
+      if (!standalone && engine) {
         if (engine._residentWaveTex) {
           safeDeleteTexture(gl, engine._residentWaveTex, engine);
           safeDeleteTexture(gl, engine._residentChlTex, engine);
@@ -603,7 +608,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       if (chlTex) allocatedTextures.push(chlTex);
       bathTex = createTexture(gl, gl.LINEAR, dataBath, cols, rows);
       if (bathTex) allocatedTextures.push(bathTex);
-      if (engine) {
+      if (!standalone && engine) {
         engine._residentWaveTex = waveTex;
         engine._residentChlTex = chlTex;
         engine._residentBathTex = bathTex;
@@ -612,7 +617,37 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
       }
     }
 
-    if (landGeoJSON) {
+    if (standalone) {
+      // Coarse-base wash needs a HIGH-RES MERCATOR mask, NOT the grid mask. The heatmap shader samples the ocean
+      // mask with a mercator-projected mask_v (built for renderMaskToCanvas output); the grid mask is linear in
+      // latitude, so sampling it with mask_v reads the wrong row (e.g. lat 28° → ~lat 7°) and masks the wash out
+      // entirely. Render a dedicated mercator mask for THIS grid's bounds, owned by the base (never engine-cached).
+      if (landGeoJSON) {
+        try {
+          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
+          const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+          const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+          maskTex = gl.createTexture();
+          if (maskTex) allocatedTextures.push(maskTex);
+          gl.bindTexture(gl.TEXTURE_2D, maskTex);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+          gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+          gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
+          gl.bindTexture(gl.TEXTURE_2D, prevTex);
+        } catch (e) {
+          console.warn('[WebGLMarineTextureEncoder] standalone high-res mask failed, falling back to grid mask:', e && e.message);
+          maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+          if (maskTex) allocatedTextures.push(maskTex);
+        }
+      } else {
+        maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
+        if (maskTex) allocatedTextures.push(maskTex);
+      }
+    } else if (landGeoJSON) {
       const boundsChanged = !engine || !engine._cachedMaskBounds ||
         engine._cachedMaskBounds.west !== bounds.west ||
         engine._cachedMaskBounds.south !== bounds.south ||
@@ -680,7 +715,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine) {
         gl.deleteTexture(tex);
       } catch (e) {}
     }
-    if (engine) {
+    if (engine && !standalone) {
       engine._residentWaveTex = null;
       engine._residentChlTex = null;
       engine._residentBathTex = null;

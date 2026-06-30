@@ -35,6 +35,50 @@ function latToMercatorY(lat) {
   return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
 }
 
+// Zoom-based base heatmap opacity ladder (shared by the main heatmap pass and the BLEND-BOTH coarse base wash).
+function heatmapZoomOpacity(z) {
+  if (z <= 2) return 0.55;
+  if (z <= 5) return 0.55 + (z - 2) / 3 * 0.10;
+  if (z <= 8) return 0.65 + (z - 5) / 3 * 0.10;
+  if (z <= 12) return 0.75 + (z - 8) / 4 * 0.05;
+  return 0.85;
+}
+
+// Longitude span of a grid's bounds in degrees (antimeridian-safe).
+function boundsLonSpan(b) {
+  if (!b || typeof b.west !== 'number' || typeof b.east !== 'number') return 0;
+  return (b.east < b.west) ? (b.east + 360 - b.west) : (b.east - b.west);
+}
+
+// A regional tile covers a sub-global longitude span (< 359°). The coarse-global fallback spans the whole world.
+function isRegionalBounds(b) {
+  const span = boundsLonSpan(b);
+  return span > 0 && span < 359.0;
+}
+
+// The coarse-global fallback: spans the world AND has large (~10°) cells. A hypothetical full-width FINE grid
+// (cellDeg < 1°) is NOT a coarse base — mirrors the cellDeg>1° gate used by the close-zoom coarse-fade.
+function isCoarseGlobalGrid(waveGrid) {
+  const b = waveGrid && waveGrid.bounds;
+  const cols = waveGrid && waveGrid.cols;
+  if (!b || !cols) return false;
+  const span = boundsLonSpan(b);
+  if (span < 359.0) return false;
+  return (span / cols) > 1.0;
+}
+
+// Identity of a captured coarse base so we re-encode only when the underlying coarse grid actually changes.
+function coarseBaseKey(waveGrid) {
+  const b = (waveGrid && waveGrid.bounds) || {};
+  return [
+    waveGrid && waveGrid.__sourceModel || 'GFS',
+    waveGrid && waveGrid.__componentLayer || 'waves',
+    waveGrid && waveGrid.cols, waveGrid && waveGrid.rows,
+    b.west, b.south, b.east, b.north,
+    waveGrid && waveGrid.hourOffset || 0
+  ].join('|');
+}
+
 // --- Engine Definition ---
 
 function WebGLMarineEngine() {
@@ -168,6 +212,22 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     } catch (e) {
       console.warn('[WebGLMarineEngine] Error during safe deletion of old textures:', e);
     }
+  }
+
+  // BLEND BOTH: whenever the committed grid is the GLOBAL-COARSE fallback, snapshot it into a standalone,
+  // independently-owned texture set (the resident wave/chl/bath textures get reused/realloc'd in place on the
+  // next commit, so the old coarse textures can't simply be "retained"). A later regional commit then composites
+  // over this faded base instead of reading as a cleared heatmap. Re-encode only when the coarse grid changes.
+  try {
+    const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
+    if (blendEnabled && newWaveData && isCoarseGlobalGrid(waveGrid)) {
+      const key = coarseBaseKey(waveGrid);
+      if (!this._coarseBaseData || this._coarseBaseData.__key !== key) {
+        this._captureCoarseBase(gl, waveGrid, key);
+      }
+    }
+  } catch (e) {
+    console.warn('[WebGLMarineEngine] coarse-base capture skipped:', e && e.message);
   }
 
   console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
@@ -316,7 +376,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     if (isHighZoom) {
       // v3.23: Use -3 instead of -5 so the tile is 8x larger than the screen instead of 32x.
-      var tileZoom = Math.max(0, Math.floor(z) - 3);
+      // The tile is the particle-advection domain; only ~(screen/tile)² of particles land on screen, so the bigger
+      // the tile, the fewer usable on-screen crests (and the deeper the per-zoom density sawtooth). Backoff is the
+      // root density-headroom lever: 3 = 8×screen (default, max pan-stability); 2 = 4×screen (4× more on-screen
+      // crests, slightly more reseed-on-pan). Default-neutral; tune live via window.__RAW_TILE_BACKOFF__.
+      var _tileBackoff = (typeof window !== 'undefined' && typeof window.__RAW_TILE_BACKOFF__ === 'number') ? window.__RAW_TILE_BACKOFF__ : 2;
+      var tileZoom = Math.max(0, Math.floor(z) - _tileBackoff);
       tileWidth = 1.0 / Math.pow(2.0, tileZoom);
 
       var tileWidthChanged = (this._lastTileWidth !== undefined && tileWidth !== this._lastTileWidth);
@@ -357,12 +422,52 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const motionScale = (0.75 + 0.25 * smoothstepVal(4.0, 7.0, z)) * zoomFactor;
     this.motionScale = motionScale;
 
+    // BLEND BOTH: engage when the active grid is a REGIONAL tile and we retained a same-model/same-layer
+    // global-coarse base. The coarse wash is drawn first (faded), then the regional on top with height-based
+    // alpha so faint/near-zero regional cells let the wash show through — GFS's accurate-but-faint regional
+    // swap then never reads as a "cleared" heatmap. Non-rating only (the rating band has its own coarse-fade
+    // exemption). Kill switch: window.__RAW_DISABLE_BLEND_BOTH__ = true.
+    const _gridForBlend = this._waveData && this._waveData.waveGrid;
+    let blendEngaged = false;
+    {
+      const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
+      const cg = this._coarseBaseData;
+      const isRating = !!(_gridForBlend && _gridForBlend.ratingMode);
+      const curModel = (_gridForBlend && _gridForBlend.__sourceModel) || 'GFS';
+      const curLayer = (_gridForBlend && _gridForBlend.__componentLayer) || 'waves';
+      if (blendEnabled && !isRating && cg && cg.u_waveTexture &&
+          isRegionalBounds(this._waveData.bounds) &&
+          cg.__sourceModel === curModel && cg.__componentLayer === curLayer &&
+          window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ !== true) {
+        blendEngaged = true;
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.blendBoth = {
+          engaged: blendEngaged,
+          haveCoarseBase: !!(cg && cg.u_waveTexture),
+          baseModel: cg && cg.__sourceModel,
+          baseLayer: cg && cg.__componentLayer,
+          curModel, curLayer,
+          curRegional: isRegionalBounds(this._waveData.bounds),
+          isRating
+        };
+      }
+    }
+    const _blendBaseWash = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_BASE_WASH__ === 'number')
+      ? window.__RAW_BLEND_BASE_WASH__ : 0.72;
+    const baseWashOpacity = heatmapZoomOpacity(z) * mult * _blendBaseWash;
+
     // ==========================================
     // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
     // Draw base heatmap instantly using fallback grid mask texture if land mask is loading.
     // ==========================================
     gl.enable(gl.BLEND);
     gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    // PHASE 0 (BLEND BOTH): faded coarse-global wash painted under the regional tile (same premultiplied blend).
+    if (blendEngaged) {
+      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity);
+    }
 
     gl.useProgram(this.heatmapProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
@@ -465,12 +570,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
 
-    var heatmapOpacity;
-    if (z <= 2) heatmapOpacity = 0.55;
-    else if (z <= 5) heatmapOpacity = 0.55 + (z - 2) / 3 * 0.10;
-    else if (z <= 8) heatmapOpacity = 0.65 + (z - 5) / 3 * 0.10;
-    else if (z <= 12) heatmapOpacity = 0.75 + (z - 8) / 4 * 0.05;
-    else heatmapOpacity = 0.85;
+    // BLEND BOTH: on the regional overlay pass, fade near-flat cells so the coarse base wash shows through.
+    // Off (0) on every non-blend frame → the shader factor is forced to 1 → no behavior change. lo/hi tunable live.
+    const _haLo = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_HEIGHT_LO__ === 'number') ? window.__RAW_BLEND_HEIGHT_LO__ : 0.05;
+    // 1.4m crossover: below it the faint regional lets the coarse wash bleed through (lifts the nearshore where
+    // surf is small); above it the regional dominates (real swell still reads as the precise regional tile).
+    const _haHi = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_HEIGHT_HI__ === 'number') ? window.__RAW_BLEND_HEIGHT_HI__ : 1.4;
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), blendEngaged ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), _haLo);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
+
+    var heatmapOpacity = heatmapZoomOpacity(z);
 
     if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
       heatmapOpacity = 1.0;
@@ -559,6 +669,30 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
+
+      // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
+      // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share
+      // of that tile (onScreenFrac) lets us solve the cull fraction so total × onScreenFrac × threshold = target.
+      // Default ON at 1650 on-screen seeds (≈ the previously-liked integer-zoom density), now held CONSTANT across
+      // every zoom — verified via telemetry: count stays ~1650 from z9..z16 and across fractional zooms (was a ~4×
+      // sawtooth: sparse just-before-integer, dense at integer). Reachable thanks to TILE_BACKOFF=2. Tunable live
+      // via window.__RAW_PART_TARGET__ (set 0 to fall back to the legacy per-zoom curve). Telemetry: __RAW_GPU__.particleDensity.
+      let densityBase = 0.0;
+      const _partTarget = (typeof window !== 'undefined' && typeof window.__RAW_PART_TARGET__ === 'number')
+        ? window.__RAW_PART_TARGET__ : 1650;
+      if (_partTarget > 0 && z > 6.0 && tileWidth > 0) {
+        const vWest = vb[0], vEast = vb[2];
+        const lonSpan = (vEast < vWest) ? (vEast + 360 - vWest) : (vEast - vWest);
+        const vMercX = Math.min(1.0, Math.max(0, lonSpan) / 360.0);
+        const vMercY = Math.abs(latToMercatorY(vb[3]) - latToMercatorY(vb[1]));
+        const onScreenFrac = Math.max(1e-6, Math.min(1.0, (vMercX * vMercY) / (tileWidth * tileWidth)));
+        const totalParticles = this.particleRes * this.particleRes;
+        densityBase = Math.max(0.02, Math.min(0.97, _partTarget / (totalParticles * onScreenFrac)));
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.particleDensity = { zoom: +z.toFixed(2), onScreenFrac: +onScreenFrac.toFixed(4), densityBase: +densityBase.toFixed(3), targetSeeds: _partTarget, estInViewport: Math.round(totalParticles * onScreenFrac) };
+        }
+      }
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
 
       let drawDebugModeVal = 0.0;
       if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
@@ -733,9 +867,111 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
 
+// BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
+WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
+  if (!gl) return;
+  this._freeCoarseBase(gl);
+  let base = null;
+  try {
+    // Pass the land GeoJSON so the standalone encode renders a high-res MERCATOR ocean mask (the heatmap shader
+    // samples mask_v in mercator; a grid mask would be read at the wrong latitude and hide the wash).
+    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, { standalone: true });
+  } catch (e) {
+    console.warn('[WebGLMarineEngine] coarse-base encode failed:', e && e.message);
+    base = null;
+  }
+  if (base && base.u_waveTexture) {
+    base.waveGrid = waveGrid;
+    base.__key = key || coarseBaseKey(waveGrid);
+    base.__sourceModel = waveGrid.__sourceModel || 'GFS';
+    base.__componentLayer = waveGrid.__componentLayer || 'waves';
+    this._coarseBaseData = base;
+  }
+};
+
+WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
+  const b = this._coarseBaseData;
+  if (!b) return;
+  this._coarseBaseData = null;
+  if (!gl) return;
+  try {
+    if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this);
+    if (b.u_chlorophyllTexture) safeDeleteTexture(gl, b.u_chlorophyllTexture, this);
+    if (b.u_bathymetryTexture) safeDeleteTexture(gl, b.u_bathymetryTexture, this);
+    if (b.u_oceanMaskTexture) safeDeleteTexture(gl, b.u_oceanMaskTexture, this);
+  } catch (e) {}
+};
+
+// Draw the retained coarse-global grid as a faded background wash. Same heatmap program + premultiplied blend as
+// the main pass; height-alpha OFF (solid wash) and edge-feather OFF (it's global, no regional rectangle to soften).
+WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, time, baseOpacity) {
+  const base = this._coarseBaseData;
+  if (!base || !base.u_waveTexture || !base.bounds) return;
+  const bb = base.bounds;
+
+  let debugModeVal = 0.0;
+  if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
+    const mode = window.__GPU_DEBUG__.mode;
+    if (mode === 'uv') debugModeVal = 1.0;
+    else if (mode === 'mask') debugModeVal = 2.0;
+    else if (mode === 'grid') debugModeVal = 3.0;
+    else if (mode === 'mercator') debugModeVal = 4.0;
+  }
+
+  gl.useProgram(this.heatmapProgram);
+  gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
+
+  bindTexture(gl, base.u_waveTexture, 0);
+  bindTexture(gl, base.u_chlorophyllTexture, 1);
+  bindTexture(gl, base.u_bathymetryTexture, 2);
+  bindTexture(gl, base.u_oceanMaskTexture, 3);
+
+  const heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
+  let heatUVLoc = -1;
+  if (this.heatmapVAO) {
+    gl.bindVertexArray(this.heatmapVAO);
+  } else {
+    heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+    gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
+    gl.enableVertexAttribArray(heatUVLoc);
+    gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
+    gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
+  }
+
+  const worldOffsets = [0.0, -360.0, 360.0];
+  for (let wi = 0; wi < worldOffsets.length; wi++) {
+    gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
+    gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.drawCallsPerFrame++;
+  }
+
+  if (this.heatmapVAO) {
+    gl.bindVertexArray(null);
+  } else if (heatUVLoc !== -1) {
+    gl.disableVertexAttribArray(heatUVLoc);
+  }
+};
+
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
   if (!gl) return;
   console.log('[WebGLMarineEngine-Clear] Clearing resident wave textures and waveData');
+  this._freeCoarseBase(gl);
   if (this._waveData) {
     if (this._waveData.u_waveTexture && this._waveData.u_waveTexture !== this._residentWaveTex) {
       safeDeleteTexture(gl, this._waveData.u_waveTexture, this);

@@ -201,6 +201,7 @@ uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
+uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>6); <=0 → legacy per-zoom curve
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -300,20 +301,17 @@ void main() {
     return;
   }
 
-  // === v5.8: AGGRESSIVE ZOOM-DENSITY CURVE ===
-  // zoom 2 → ~12%, zoom 4-5 → ~25%, zoom 7-8 → ~55%, zoom 10+ → ~90%
-  // v7.1 CLOSE-ZOOM RICHNESS: past z12 the 0.25° flow field fills the screen and the sea can look sparse/uniform,
-  // so lift density + crest size + foam to read as a livelier, more detailed break when zoomed right in. Gated by
-  // the closeup factor so the well-tuned zoomed-OUT view is UNCHANGED. Revert: zero the three closeup contributions.
+  // === CONSTANT-SCREEN-DENSITY CULL (flow-viz best practice) ===
+  // The old ad-hoc per-zoom fraction (0.12→0.90 with a close-zoom cut) pinned density to ZOOM, not to the screen,
+  // so the same sea read crisp at z11, sparse at z13, blobby at z15. Best practice (Agafonkin/webgl-wind render to
+  // a screen-sized buffer; flow-viz density-control research) is to hold a CONSTANT on-screen seed count at every
+  // zoom and let the field thin calm areas. The engine computes that cull fraction (u_densityBase) from the
+  // viewport's share of the particle tile. heightBoost still lets storms read a touch denser. u_densityBase<=0 →
+  // legacy per-zoom curve (z<=6 path + safety fallback). Refs: blog.mapbox.com webgl-wind; Springer 10.1007/978-3-030-61864-3_26.
   float closeup = smoothstep(12.0, 15.0, u_zoom);
-  // v7.2 DENSITY: REDUCE particle count at close zoom (was +0.06, too dense). At z12+ the 0.25° flow field is
-  // uniform across the screen, and flow-viz research is consistent: over-seeding a uniform field causes clutter
-  // and occlusion — fewer, more salient crests read better than many. So thin out close-up (and lean on the
-  // crest-size + foam boosts below for legibility instead). Net z15 density ≈ 0.60 vs 0.90 at z10.
-  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom)) - closeup * 0.30;
-  // Height boost: big waves survive culling even at far zoom, but capped
   float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
-  float densityThreshold = clamp(baseVisibility + heightBoost, 0.08, 0.97);
+  float effBase = u_densityBase > 0.0 ? u_densityBase : mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom));
+  float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97);
 
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);

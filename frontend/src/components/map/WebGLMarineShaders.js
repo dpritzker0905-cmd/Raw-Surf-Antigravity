@@ -52,6 +52,9 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_is_estimated;
 uniform float u_surfMode;   // 1.0 = Swell↔Surf coastal-band mode: rescale the color ramp to the surf range
 uniform float u_time;       // seconds — drives the rating band's subtle living shimmer (free: render loop already runs)
+uniform float u_heightAlphaEnabled; // BLEND BOTH: 1.0 on the regional overlay pass → fade near-flat cells so the retained coarse base shows through. Default 0.0 (no change anywhere else).
+uniform float u_heightAlphaLo;       // height (m) below which a regional cell is fully translucent
+uniform float u_heightAlphaHi;       // height (m) at/above which a regional cell is fully opaque
 uniform highp float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
@@ -346,6 +349,15 @@ void main() {
   float alpha = u_opacity;
   float maskFade = smoothstep(0.3, 0.8, oceanAlpha);
   alpha *= maskFade;
+
+  // BLEND BOTH (regional-over-coarse composite): on the regional OVERLAY pass, fade near-flat cells to
+  // translucent so the retained, faded coarse-global base painted underneath shows through where the regional
+  // signal is ~0. Low surf encodes a near-black color on the dark basemap, which read as "the heatmap cleared"
+  // when GFS swapped its vivid global-coarse preview for the accurate-but-faint regional tile. Default off
+  // (u_heightAlphaEnabled = 0 → factor forced to 1), so every other render path is byte-for-byte unchanged.
+  if (u_heightAlphaEnabled > 0.5) {
+    alpha *= smoothstep(u_heightAlphaLo, u_heightAlphaHi, displayHeight);
+  }
 
   // Smoothstep edge feathering to dissolve regional bounds softly
   if (u_edgeFeatherEnabled > 0.5) {
