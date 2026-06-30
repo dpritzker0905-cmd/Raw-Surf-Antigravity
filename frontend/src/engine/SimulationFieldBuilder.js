@@ -93,6 +93,13 @@ export function injectMarineData(field, marineData) {
   if (!marineData?.grid?.vectors?.length) return field;
   if (marineData.__renderable === false || marineData.grid?.__renderable === false) return field;
 
+  // Surf-RATING grid: scalar 0-10 score lives in vec.waves.speed; u/v are zeroed (rating has no direction),
+  // so the sqrt(u^2+v^2) height below would be 0 → an empty render (the "rating band not showing" bug). Carry
+  // the SCORE into waveHeight instead and stamp field.ratingMode so fieldToMarineGrid + the engine gate paint
+  // the band. Kill switch: window.__RAW_RATING_FIELD_PASSTHROUGH__ = false reverts to the old (broken) behaviour.
+  const isRating = !!marineData.grid.ratingMode
+    && (typeof window === 'undefined' || window.__RAW_RATING_FIELD_PASSTHROUGH__ !== false);
+
   const gridVectors = marineData.grid.vectors;
   const srcCols = marineData.grid.cols || Math.round(Math.sqrt(gridVectors.length));
   const srcRows = marineData.grid.rows || srcCols;
@@ -215,8 +222,9 @@ export function injectMarineData(field, marineData) {
       const nearestV = getSourceVector(nearestX, nearestY);
       const isOcean = nearestV ? nearestV.isOcean : (waveSpeed > 0);
 
-      field.grid.waveHeight[dstIdx] = waveSpeed;
-      field.grid.waveDir[dstIdx] = waveSpeed > 0
+      // RATING: store the 0-10 surf-quality score (from vec.waves.speed) directly; else the swell magnitude.
+      field.grid.waveHeight[dstIdx] = isRating ? interpVal(v => v?.waves?.speed) : waveSpeed;
+      field.grid.waveDir[dstIdx] = (!isRating && waveSpeed > 0)
         ? (Math.atan2(-waveU, -waveV) * (180 / Math.PI) + 360) % 360
         : 0;
       field.grid.wavePeriod[dstIdx] = wavePeriod;
@@ -245,6 +253,7 @@ export function injectMarineData(field, marineData) {
 
   field.sources.marine = true;
   field.sources.landMask = true;
+  field.ratingMode = isRating;  // carry the rating flag through evolution → fieldToMarineGrid → engine gate
   return field;
 }
 

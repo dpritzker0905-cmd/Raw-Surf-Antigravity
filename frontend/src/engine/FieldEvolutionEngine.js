@@ -73,6 +73,11 @@ export function evolveField(field, dt, simTime) {
   // Skip if no data populated
   if (!field.sources.wind && !field.sources.marine) return field;
 
+  // Surf-RATING overlay: grid.waveHeight holds a STATIC 0-10 quality SCORE, not a physical wave field.
+  // Running wave-energy propagation / normalization on it would smear + clamp the scores as if they were
+  // metres of swell. The rating band is a static colour zone, not an animation — leave the field untouched.
+  if (field.ratingMode) { field.time = Date.now(); return field; }
+
   // ---- PHASE A: Wind Field Evolution ----
   if (field.sources.wind && grid.windU && grid.windV) {
     evolveWindField(grid.windU, grid.windV, cols, rows, dt, simTime);

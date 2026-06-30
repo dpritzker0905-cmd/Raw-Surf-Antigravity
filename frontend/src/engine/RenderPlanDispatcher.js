@@ -339,6 +339,9 @@ function fieldToWindGrid(field) {
 function fieldToMarineGrid(field, activeMarineLayer) {
   if (!field || !field.sources.marine) return null;
 
+  // RATING band: waveHeight carries the 0-10 score (scalar, no direction). Keep u/v zeroed so the engine
+  // renders a static band (no advection) and re-stamp ratingMode so the Option-A gate paints it.
+  const isRating = !!field.ratingMode;
   const { waveHeight, waveDir, swellHeight, swellDir, swell2Height, swell2Dir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, swell2Period, windWavePeriod } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;
@@ -379,11 +382,11 @@ function fieldToMarineGrid(field, activeMarineLayer) {
     // Convert wave height + direction to u/v for advection visualization (meteorological velocity vector)
     // isOcean flag is REQUIRED by WebGLMarineEngine's shader (alpha channel = land mask)
     vectors[i] = {
-      u: -h * Math.sin(dir),
-      v: -h * Math.cos(dir),
+      u: isRating ? 0 : -h * Math.sin(dir),
+      v: isRating ? 0 : -h * Math.cos(dir),
       speed: h,
       height: h,
-      direction: dirSrc ? dirSrc[i] : waveDir[i],
+      direction: isRating ? 0 : (dirSrc ? dirSrc[i] : waveDir[i]),
       period: period,
       swellHeight: swellHeight ? swellHeight[i] : 0,
       swellDir: swellDir ? swellDir[i] : 0,
@@ -404,7 +407,8 @@ function fieldToMarineGrid(field, activeMarineLayer) {
     },
     nonzeroCount,
     maxHeight,
-    meanHeight
+    meanHeight,
+    ratingMode: isRating  // carry the flag so setWaveData → engine Option-A gate paints the band
   };
 }
 

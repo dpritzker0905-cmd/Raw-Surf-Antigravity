@@ -111,6 +111,12 @@ export function createEmptyField(cols, rows, bounds, model = 'GFS') {
       pressure: false,
       landMask: false,
     },
+    // Surf-RATING overlay flag. When true, grid.waveHeight carries the 0-10 surf-quality SCORE (not metres)
+    // and the marine layer must paint the rating BAND, not the swell heatmap. The rating grid is scalar
+    // (u/v zeroed by the backend), so the normal sqrt(u^2+v^2) height derivation yields 0 → an empty render.
+    // injectMarineData sets this from the conformed grid's ratingMode; cloneField (...field) carries it, and
+    // fieldToMarineGrid re-stamps it so the engine's Option-A gate paints the band.
+    ratingMode: false,
   };
 }
 
