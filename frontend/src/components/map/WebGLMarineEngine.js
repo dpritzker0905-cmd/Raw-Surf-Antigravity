@@ -430,6 +430,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (surfModeVal > 0.0 && !(waveGrid && waveGrid.ratingMode)) {
       surfModeVal = 0.0;
     }
+    // Telemetry to localize a "no rating band" report in ONE console read (window.__RAW_GPU__.ratingBand): the
+    // backend serves rating_mode=true on regional tiles (verified), the series conformer stamps grid.ratingMode,
+    // and the shader paints the band when u_surfMode>0.5 — so a missing band is one of: flag off, grid not a
+    // rating grid (propagation), or downstream. No render effect; reads the same inputs the gate above uses.
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      var _rawFlag = (window.__SURF_MODE__ !== undefined)
+        ? !!window.__SURF_MODE__
+        : (typeof window.localStorage !== 'undefined' && window.localStorage.getItem('__SURF_MODE__') === 'true');
+      window.__RAW_GPU__.ratingBand = {
+        flag: _rawFlag,                                            // is the Surf/Rating toggle's global flag set?
+        gridRatingMode: !!(waveGrid && waveGrid.ratingMode),       // did a rating grid reach the engine?
+        forcedOff: _rawFlag && !(waveGrid && waveGrid.ratingMode), // gate killing the band (flag on, grid not rating)
+        active: surfModeVal > 0.5,                                 // is the band actually being painted?
+        gridCols: (waveGrid && waveGrid.cols) || 0,
+        fromSeries: !!(waveGrid && waveGrid.__fromSeries),         // which fetch path produced the rendered grid
+      };
+    }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
 
