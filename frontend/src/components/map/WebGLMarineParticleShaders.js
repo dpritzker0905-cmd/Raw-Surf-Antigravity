@@ -302,10 +302,14 @@ void main() {
 
   // === v5.8: AGGRESSIVE ZOOM-DENSITY CURVE ===
   // zoom 2 → ~12%, zoom 4-5 → ~25%, zoom 7-8 → ~55%, zoom 10+ → ~90%
-  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom));
+  // v7.1 CLOSE-ZOOM RICHNESS: past z12 the 0.25° flow field fills the screen and the sea can look sparse/uniform,
+  // so lift density + crest size + foam to read as a livelier, more detailed break when zoomed right in. Gated by
+  // the closeup factor so the well-tuned zoomed-OUT view is UNCHANGED. Revert: zero the three closeup contributions.
+  float closeup = smoothstep(12.0, 15.0, u_zoom);
+  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom)) + closeup * 0.06;
   // Height boost: big waves survive culling even at far zoom, but capped
   float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
-  float densityThreshold = clamp(baseVisibility + heightBoost, 0.08, 0.95);
+  float densityThreshold = clamp(baseVisibility + heightBoost, 0.08, 0.97);
 
   if (!bypassDiscard && particleHash > densityThreshold) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
@@ -350,8 +354,8 @@ void main() {
   // Crest THICKNESS: 6-16 CSS px total (halfThickness = 3-8)
   float halfThickness = mix(3.0, 8.0, sizeEnergy) + smallBoost * 2.0;
 
-  // Zoom scaling (gentler)
-  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * 0.6 + 0.4;
+  // Zoom scaling (gentler) + v7.1 close-zoom crest lift → more defined crests when zoomed right in
+  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * 0.6 + 0.4 + closeup * 0.20;
   halfLength *= zoomScale;
   halfThickness *= zoomScale;
 
@@ -424,8 +428,8 @@ void main() {
   v_alpha *= edgeFade;
 
   // === WHITECAP STRENGTH (separate from base ripple) ===
-  // Only significant for waves with real breaking potential
-  v_whitecap = smoothstep(0.5, 3.0, waveHeight);
+  // Only significant for waves with real breaking potential. v7.1: more breaking foam at close zoom.
+  v_whitecap = smoothstep(0.5, 3.0, waveHeight) * (1.0 + closeup * 0.5);
 }
 `;
 
