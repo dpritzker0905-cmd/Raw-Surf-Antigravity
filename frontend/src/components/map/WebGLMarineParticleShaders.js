@@ -306,7 +306,11 @@ void main() {
   // so lift density + crest size + foam to read as a livelier, more detailed break when zoomed right in. Gated by
   // the closeup factor so the well-tuned zoomed-OUT view is UNCHANGED. Revert: zero the three closeup contributions.
   float closeup = smoothstep(12.0, 15.0, u_zoom);
-  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom)) + closeup * 0.06;
+  // v7.2 DENSITY: REDUCE particle count at close zoom (was +0.06, too dense). At z12+ the 0.25° flow field is
+  // uniform across the screen, and flow-viz research is consistent: over-seeding a uniform field causes clutter
+  // and occlusion — fewer, more salient crests read better than many. So thin out close-up (and lean on the
+  // crest-size + foam boosts below for legibility instead). Net z15 density ≈ 0.60 vs 0.90 at z10.
+  float baseVisibility = mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom)) - closeup * 0.30;
   // Height boost: big waves survive culling even at far zoom, but capped
   float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
   float densityThreshold = clamp(baseVisibility + heightBoost, 0.08, 0.97);

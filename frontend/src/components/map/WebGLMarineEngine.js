@@ -446,6 +446,21 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         gridCols: (waveGrid && waveGrid.cols) || 0,
         fromSeries: !!(waveGrid && waveGrid.__fromSeries),         // which fetch path produced the rendered grid
       };
+      // Loud, throttled breadcrumb so a "no band" report is self-diagnosing in the console (no need to know the
+      // var name). Once per ~2s, only while the Surf/Rating toggle is on. Names the exact break.
+      if (_rawFlag && typeof console !== 'undefined') {
+        var _rbNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+        if (!this._ratingBandLogT || (_rbNow - this._ratingBandLogT) > 2000) {
+          this._ratingBandLogT = _rbNow;
+          var _rb = window.__RAW_GPU__.ratingBand;
+          console.log('[rating-band]', _rb.active
+            ? 'PAINTING ✓ (band on)'
+            : (_rb.forcedOff
+                ? 'OFF — rendered grid is NOT a rating grid (ratingMode=false): the backend surf=1/regional tile is not reaching the engine for this viewport'
+                : 'OFF — surf flag not set'),
+            'cols=' + _rb.gridCols, 'fromSeries=' + _rb.fromSeries, _rb);
+        }
+      }
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
