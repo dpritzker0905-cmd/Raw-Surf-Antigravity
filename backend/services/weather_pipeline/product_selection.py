@@ -176,3 +176,58 @@ def select_best_candidate(
     if best_auth:
         return best_auth
     return best_est
+
+
+def pick_surf_regional_override(
+    authoritative_candidates: List[Tuple[Any, float]],
+    estimated_candidates: List[Tuple[Any, float]],
+    req_w: Optional[float] = None,
+    req_s: Optional[float] = None,
+    req_e: Optional[float] = None,
+    req_n: Optional[float] = None,
+    max_span_deg: float = 15.0,
+) -> Optional[Any]:
+    """Pick the REGIONAL tile with the largest overlap with the viewport, for surf=1 marine requests.
+
+    The surf-RATING band is a COASTAL feature. ``select_best_candidate`` ranks purely by viewport-
+    intersection area, and the global coarse product always intersects at the FULL viewport area — so the
+    moment the (frontend-padded) viewport pokes just past a regional tile's offshore edge, global wins, the
+    resolver serves the coarse global extent, the surf transform is skipped (``coarse_extent``), and the band
+    vanishes (live root cause: the Florida tile's offshore edge -79° is ~1° off the -80° surf coast and the
+    series client pads the request +0.5°). For surf requests over a NON-wide viewport, prefer a regional tile
+    that overlaps the viewport (the resolver clips it to the viewport) so the band paints on its coastal cells;
+    the offshore remainder is masked open-ocean anyway. Returns the best overlapping regional manifest item
+    (coverage longitude span < 350°), or None when the request is wide (a continental view should keep the
+    honest global field, not a tiny floating band) or no regional tile overlaps. Pure selection-only —
+    resolve_grid applies the choice. Kill switch lives at the call site (SURF_REGIONAL_PREFER=0)."""
+    if req_w is None or req_s is None or req_e is None or req_n is None:
+        return None
+
+    if req_w <= req_e:
+        req_span_lng = req_e - req_w
+    else:
+        req_span_lng = (180.0 - req_w) + (req_e + 180.0)
+    req_span_lat = abs(req_n - req_s)
+    if req_span_lng > max_span_deg or req_span_lat > max_span_deg:
+        return None  # continental view → honest global field, not a tiny band
+
+    best_item = None
+    best_overlap = 0.0
+    for p, _diff in list(authoritative_candidates) + list(estimated_candidates):
+        cov = getattr(p, "coverage", None)
+        if cov is None:
+            continue
+        if cov.west <= cov.east:
+            p_span = cov.east - cov.west
+        else:
+            p_span = (180.0 - cov.west) + (cov.east + 180.0)
+        if p_span >= 350.0:
+            continue  # skip global products — we want the high-res coastal tile
+        overlap = bbox_intersection_area(req_w, req_s, req_e, req_n, cov)
+        if overlap > best_overlap + 1e-9:
+            best_overlap = overlap
+            best_item = p
+
+    if best_item is not None and best_overlap > 0.0001:
+        return best_item
+    return None

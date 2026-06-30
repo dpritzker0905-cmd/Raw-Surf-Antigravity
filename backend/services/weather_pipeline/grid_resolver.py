@@ -173,6 +173,41 @@ async def resolve_grid(
             manifest_preview_item = None
             matching_manifest_item = None
 
+    # ── SURF RATING regional preference (kill switch SURF_REGIONAL_PREFER=0) ──
+    # The rating band is a COASTAL feature. When the (frontend-padded) viewport pokes just past a regional
+    # tile's offshore edge, select_best_candidate above picks the GLOBAL coarse product on raw intersection
+    # area, use_manifest_product ends up False (or the global is_wider/coverage check fails), the resolver
+    # serves the coarse global extent, and the surf transform is skipped (coarse_extent) → the band vanishes.
+    # Live root cause: the FL tile's offshore edge -79° is ~1° off the -80° surf coast and the series client
+    # pads +0.5°. For surf requests over a NON-wide viewport, re-select the regional tile that overlaps the
+    # viewport (Step 3 clips it to the snapped bbox; the offshore remainder is masked open-ocean) so the band
+    # paints on its coastal cells. Fixes every narrow coast worldwide without touching tile ingest extents.
+    if (
+        surf
+        and not use_manifest_product
+        and domain.lower() == "marine"
+        and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        and req_w is not None
+        and os.environ.get("SURF_REGIONAL_PREFER", "1") != "0"
+    ):
+        from services.weather_pipeline.product_selection import pick_surf_regional_override
+        surf_regional_item = pick_surf_regional_override(
+            authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
+        )
+        if surf_regional_item is not None:
+            matching_manifest_item = surf_regional_item
+            manifest_preview_item = None
+            use_manifest_product = True
+            _cov = surf_regional_item.coverage
+            if _cov.west <= _cov.east:
+                regional_span_lng = _cov.east - _cov.west
+            else:
+                regional_span_lng = (180.0 - _cov.west) + (_cov.east + 180.0)
+            logger.info(
+                f"[Grid Route] Surf regional-prefer: serving regional tile "
+                f"'{getattr(surf_regional_item, 'filename', '?')}' over global so the rating band paints."
+            )
+
     # Step-wise product resolution
     product = None
 
