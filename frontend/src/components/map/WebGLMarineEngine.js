@@ -459,7 +459,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         const gridLonSpan = (gb.east < gb.west) ? (gb.east + 360 - gb.west) : (gb.east - gb.west);
         const cellDeg = gridLonSpan / gcols;                 // grid cell size in ° of longitude
         const vLonSpan = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
-        if (cellDeg > 1.0 && vLonSpan > 0) {                 // only the coarse-global fallback qualifies
+        // RATING MODE IS EXEMPT: the surf-quality BAND is a smoothed coastal quality ZONE (not a literal
+        // value), with accurate per-spot glyphs on top — it's wanted at close zoom even from coarse data, so
+        // only the raw-height marine wash fades. Without this exemption the band vanished when zoomed in.
+        const isRatingBand = !!(waveGrid && waveGrid.ratingMode);
+        if (cellDeg > 1.0 && vLonSpan > 0 && !isRatingBand) { // only the coarse-global RAW wash qualifies
           const cellsAcross = vLonSpan / cellDeg;            // how many grid cells span the viewport
           coarseFade = smoothstepVal(0.5, 2.0, cellsAcross); // ≤0.5 cell → 0 (fade out); ≥2 cells → 1 (full)
         }
