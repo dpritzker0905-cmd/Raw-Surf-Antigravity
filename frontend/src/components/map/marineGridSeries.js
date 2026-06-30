@@ -170,6 +170,16 @@ function scheduleIdlePrefetch(fn) {
 function frameToMarineData(frame, model, layer) {
   const provider = frame.provider || (model === 'EURO' ? 'copernicus' : 'open-meteo');
   const renderable = Array.isArray(frame.vectors) && frame.vectors.length > 0;
+  // True data origin for the HUD provenance. `provider` is the deliberate 'open-meteo' contract key (kept
+  // byte-identical across the NOAA-direct + open-meteo paths), so without __sourceDataset the HUD mislabels
+  // NOAA-direct GFS as "open-meteo". Prefer the backend's per-frame source_dataset; else derive from the model
+  // (on the decoupled ingest runner open-meteo is unreachable, so GFS marine is always NOAA-direct ncep_gfswave025,
+  // ICON=GWAM/DWD, EURO=Copernicus). The HUD's __basicSourceName maps these → NOAA / DWD / Copernicus.
+  const __sourceDataset = frame.source_dataset || (
+    model === 'GFS' ? 'ncep_gfswave025' :
+    model === 'ICON' ? 'gwam_dwd' :
+    model === 'EURO' ? 'copernicus_cmems' : null
+  );
   const grid = {
     vectors: frame.vectors,
     cols: frame.cols,
@@ -178,6 +188,7 @@ function frameToMarineData(frame, model, layer) {
     __renderable: renderable,
     __componentLayer: layer,
     __sourceModel: model,
+    __sourceDataset,
     __gridProvider: provider,
     provider,
     hourOffset: frame.hour_offset,
