@@ -440,7 +440,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // suppress): window.__RAW_DIR_COHERENCE_MIN__ = <0..1>. Echo: __RAW_GPU__.anim.dirCoherenceMin (2 = suppressed).
     const _residentCoarseGlobal = isCoarseGlobalGrid(this._waveData && this._waveData.waveGrid);
     let dirCoherenceMin = 0.0;
-    if (_residentCoarseGlobal && z > 3.5) {
+    // Suppress ONLY in the vortex band — where a coarse ~10°/cell grid shows 1-2 whole cells on screen so the
+    // divergent per-cell headings rotate across the viewport (empirically z4.02–5.88). ABOVE ~z7 you are inside a
+    // single coarse cell (near-uniform direction, no vortex) and BELOW ~z3.5 you see many cells (a global field, no
+    // per-cell swirl) — in both cases the coarse crests are fine, so DON'T suppress (fixes "no animation at z9" and
+    // "crests gone when zoomed all the way in" that the broad z>3.5-only gate caused). Bounds tunable if needed.
+    if (_residentCoarseGlobal && z > 3.5 && z < 7.0) {
       const _killSuppress = (typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true);
       const _override = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : null;
       dirCoherenceMin = _killSuppress ? 0.0 : (_override !== null ? _override : 2.0); // 2.0 (>1) discards all crests
