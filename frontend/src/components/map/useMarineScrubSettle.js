@@ -1,5 +1,6 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
+import { _marineDataSignature } from './useMarineOrchestratorDiag';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -83,6 +84,46 @@ function recordMarineFreeze(reason, payload) {
   window.__MARINE_FREEZE_DIAG__ = store;
 }
 
+// Fallback revision sequence for callers (tests/legacy) that don't wire the shared marineRevision ref.
+const _fallbackRevision = { current: 0 };
+
+/**
+ * Stamp a series-frame commit so it actually RENDERS. Root cause of the "committed covering frame
+ * never sticks at the engine" clamp (regional_too_small, 2026-07-01): WebGLMarineLayer's upload
+ * effect keys on the `revision` prop (marineData.__commitRevision) — it has NO `data` dependency —
+ * and series frames from getMarineSeriesFrame carry neither __commitRevision nor
+ * grid.__activeLayerNonzeroCount, so MapWebGL's revision computed to 0 for EVERY series commit. A
+ * series→series commit (the clamp sharpen: same model/layer/hour, only the data changed) therefore
+ * left revision 0→0 and the upload effect never fired — the engine kept the stale non-covering
+ * grid (engineGw=3.0 vs frameFw=4.0 in the live log). Re-drives then re-committed the SAME cached
+ * object, which React's setState bails out on entirely, so no retry could ever recover.
+ * Fix: bump the SHARED marineRevision (the same monotonic sequence every other commit path uses —
+ * orchestrator instant cache-hit, commitMarineData, SWR) and commit a shallow CLONE: the fresh
+ * object identity defeats the setState bailout, the fresh __commitRevision fires the upload effect.
+ * The grid stays shared by reference (cheap — no vector copy).
+ */
+export function stampSeriesCommit(frame, marineRevision) {
+  const rev = marineRevision || _fallbackRevision;
+  rev.current = (rev.current || 0) + 1;
+  return { ...frame, __commitRevision: rev.current };
+}
+
+/**
+ * Record a scrub-settle commit in the fetcher's duplicate-commit ledger. Without this the sharpen
+ * left lastCommittedSigRef pointing at the PRE-sharpen product (e.g. the coarse-global preview), so
+ * the next legitimate fetch that returned that same product hit commitMarineData's
+ * `duplicate_commit_skipped` and never committed — no revision change, no layer effect re-run, and
+ * the display wedged on a zoom-out-rejected regional rectangle (live-reproduced in preview,
+ * 2026-07-01: zoom 9→4.55 re-fetched the cached coarse-global, sig matched the pre-sharpen ledger,
+ * engine stuck rendering the 13×13 regional at a 10°-wide viewport). Recording the sharpened
+ * frame's own signature keeps true duplicates (same content) skipped while letting a REAL product
+ * change (coarse↔regional) commit normally.
+ */
+function recordSettleCommitSig(lastCommittedSigRef, frame, layer) {
+  if (!lastCommittedSigRef) return;
+  try { lastCommittedSigRef.current = _marineDataSignature(frame, layer); } catch (e) { lastCommittedSigRef.current = null; }
+}
+
 // Scrub-settle safety net + blank-heatmap backstop, extracted VERBATIM from useMarineOrchestrator to
 // keep that module under the 800-LOC cap. Behavior is unchanged: the effects run at the same call
 // site, with the same dependency arrays, reading the same live refs (passed in via params).
@@ -91,11 +132,13 @@ function recordMarineFreeze(reason, payload) {
 // requested hour and, if not (or if blank / a coarse-global grid is held while zoomed in), re-drive a
 // fetch or commit the regional series frame. Terminal-bypass (coverage/unsupported) + a 3-retry cap
 // per {hour,model,layer} stop it looping on a genuinely-empty layer. Pure — reads everything via ctx.
-function runScrubSettleCheck(ctx) {
+// Exported for tests (commit-stamping + engine-empty recovery regression coverage).
+export function runScrubSettleCheck(ctx) {
   const {
     marineData, mapInstance, setMarineData,
     timeOffsetRef, activeModelRef, activeMarineLayerRef,
     safetyNetRetryRef, clampRefetchRef, marineFetchLocksRef, updateMarineGridRef,
+    marineRevision, lastCommittedSigRef,
   } = ctx;
 
   if (window.isScrubbingTimeline) return;
@@ -130,7 +173,11 @@ function runScrubSettleCheck(ctx) {
       if (canSharpen) {
         if (typeof window !== 'undefined') window.__MARINE_GRIDMISMATCH_COUNT__ = (window.__MARINE_GRIDMISMATCH_COUNT__ || 0) + 1;
         console.log(`[SCRUB-SETTLE] Sharpening ${kind} grid: committing covering regional series frame.`);
-        setMarineData(frame);
+        // Stamped CLONE, not the raw cached frame — see stampSeriesCommit. Without this the commit
+        // never re-fired WebGLMarineLayer's revision-keyed upload effect (revision 0→0) and the
+        // engine stayed on the stale non-covering grid — the regional_too_small clamp (2026-07-01).
+        setMarineData(stampSeriesCommit(frame, marineRevision));
+        recordSettleCommitSig(lastCommittedSigRef, frame, layer);
       } else {
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
         // tick sharpens. FORCE past the TTL dedup (#8 root, 2026-07-01): after a pan beyond the warmed
@@ -157,6 +204,39 @@ function runScrubSettleCheck(ctx) {
     } catch (e) { /* map/series not ready — defer */ }
     return;
   }
+
+  // ZOOM-OUT CLEAR RECOVERY (§2b, 2026-07-01): on zoom-out the display gate rejects the resident
+  // regional grid (isZoomedOutRegionalReject in useMarineWindData) and WebGLMarineLayer CLEARS the
+  // engine — but marineData still holds that regional frame, so NO existing branch could recover:
+  // detectClamp no-ops at a zoomed-out viewport, and noData is false (state still has vectors). The
+  // render backstop then re-drove this check forever as a silent no-op — the "heatmap clears with no
+  // coarse fallback" bug. Recover by committing a covering warmed series frame: at a wide viewport
+  // the series key collapses to 'global', so this serves the cached coarse-global world grid —
+  // visually clean now that coarse crests are suppressed in the vortex band (4520300e/fe7431c3), and
+  // every getMarineSeriesFrame result COVERS the viewport by construction. If nothing covering is
+  // warmed yet, load the series for THIS viewport so the next backstop tick can commit it.
+  try {
+    const eng = typeof window !== 'undefined' ? window.__MARINE_ENGINE__ : null;
+    const engineEmpty = !!(eng && !eng._waveData);
+    const pendingNow = typeof window !== 'undefined' && !!window.__MARINE_FETCH_PENDING__;
+    if (engineEmpty && !pendingNow && mapInstance && activeMarineLayerRef.current &&
+        marineData && marineData.grid?.vectors?.length) {
+      const b = mapInstance.getBounds();
+      const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+      const model = activeModelRef.current;
+      const layer = activeMarineLayerRef.current || 'waves';
+      const frame = getMarineSeriesFrame(model, layer, vb, currentHour);
+      if (frame && frame.grid && frame.grid.vectors && frame.grid.vectors.length > 0 && setMarineData) {
+        if (typeof window !== 'undefined') window.__MARINE_ENGINE_EMPTY_RECOVER__ = (window.__MARINE_ENGINE_EMPTY_RECOVER__ || 0) + 1;
+        console.log('[SCRUB-SETTLE] Engine empty at settled viewport — committing covering series frame (coarse fallback after zoom-out clear).');
+        setMarineData(stampSeriesCommit(frame, marineRevision));
+        recordSettleCommitSig(lastCommittedSigRef, frame, layer);
+        return;
+      }
+      ensureMarineSeries(model, layer, vb, currentHour, undefined, true);
+      return;
+    }
+  } catch (e) { /* map/series not ready — fall through to the hour/data checks */ }
 
   if (hourMismatch || noData) {
     // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net.
@@ -200,7 +280,10 @@ function runScrubSettleCheck(ctx) {
       if (sf && sf.grid && sf.grid.vectors && sf.grid.vectors.length > 0 && setMarineData) {
         if (typeof window !== 'undefined') window.__MARINE_SCRUBSETTLE_SERIESHIT__ = (window.__MARINE_SCRUBSETTLE_SERIESHIT__ || 0) + 1;
         console.log(`[SCRUB-SETTLE] Series hit for hour=${currentHour} — committing warmed frame (no fetch).`);
-        setMarineData(sf);
+        // Stamped clone for the same reason as the clamp sharpen above: an unstamped series frame
+        // only rendered by luck (when the hour prop happened to change too).
+        setMarineData(stampSeriesCommit(sf, marineRevision));
+        recordSettleCommitSig(lastCommittedSigRef, sf, activeMarineLayerRef.current || 'waves');
         return;
       }
     } catch (e) { /* series not ready — fall through to the authoritative fetch */ }
@@ -216,7 +299,7 @@ function runScrubSettleCheck(ctx) {
 export function useMarineScrubSettle({
   mapInstance, marineData, setMarineData,
   timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef,
-  marineFetchLocksRef, updateMarineGridRef,
+  marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef,
 }) {
   const scrubSettleTimerRef = useRef(null);
   // Caps safety-net refetches per {hour,model,layer} so a fetch that keeps failing can't re-fire
@@ -231,6 +314,7 @@ export function useMarineScrubSettle({
       marineData, mapInstance, setMarineData,
       timeOffsetRef, activeModelRef, activeMarineLayerRef,
       safetyNetRetryRef, clampRefetchRef, marineFetchLocksRef, updateMarineGridRef,
+      marineRevision, lastCommittedSigRef,
     });
   }, [marineData]);
 

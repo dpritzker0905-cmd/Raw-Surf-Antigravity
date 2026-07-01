@@ -625,7 +625,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useMarineScrubSettle({
     mapInstance, marineData, setMarineData,
     timeOffsetRef, activeModelRef, activeMarineLayerRef, activeMarineLayersRef,
-    marineFetchLocksRef, updateMarineGridRef,
+    marineFetchLocksRef, updateMarineGridRef, marineRevision, lastCommittedSigRef,
   });
 
   // Option 1 (flag-gated): background-load the marine time-series for the active
