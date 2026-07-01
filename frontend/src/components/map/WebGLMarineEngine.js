@@ -696,6 +696,21 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
       const _crestDirJitter = (typeof window !== 'undefined' && typeof window.__RAW_CREST_DIR_JITTER__ === 'number') ? window.__RAW_CREST_DIR_JITTER__ : 0.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
+
+      // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
+      // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
+      const _trochoidal = (typeof window !== 'undefined' && typeof window.__RAW_TROCHOIDAL__ === 'number') ? window.__RAW_TROCHOIDAL__ : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trochoidal'), _trochoidal);
+      // Orbital pitch: phase-synced forward/back sway (CSS px) so crests pitch, not just translate. window.__RAW_ORBITAL_PITCH__.
+      const _orbitalPitch = (typeof window !== 'undefined' && typeof window.__RAW_ORBITAL_PITCH__ === 'number') ? window.__RAW_ORBITAL_PITCH__ : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_orbitalPitch'), _orbitalPitch);
+      // Shoaling foam: extra whitecap in shallow water via bathymetry. GATED on a resident bath texture so the
+      // sampler (bound to unit 3 below) is never READ unbound. window.__RAW_SHOAL_FOAM__.
+      const _hasBathTex = !!(this._waveData && this._waveData.u_bathymetryTexture);
+      const _shoalFoam = (_hasBathTex && typeof window !== 'undefined' && typeof window.__RAW_SHOAL_FOAM__ === 'number') ? window.__RAW_SHOAL_FOAM__ : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_shoalFoam'), _shoalFoam);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_bathTexture'), 3);
+
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
@@ -721,6 +736,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         }
       }
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
+
+      // TRUTHFULNESS ECHO: publish the exact animation values the engine is applying THIS frame (+ live zoom)
+      // so the tuner can prove the sliders reach the GPU and show what's active per zoom. Read every frame.
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        const _g = (k, d) => (typeof window[k] === 'number' ? window[k] : d);
+        window.__RAW_GPU__.anim = {
+          zoom: +z.toFixed(2),
+          trochoidal: _trochoidal,
+          orbitalPitch: _orbitalPitch,
+          shoalFoam: _shoalFoam,
+          shoalActive: _hasBathTex,            // false → shoaling foam is inert (no bathymetry bound at this view)
+          crestJitter: _crestDirJitter,
+          waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
+          speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
+          partTarget: _partTarget,
+          densityBase: +densityBase.toFixed(3),
+          tileZoomMin: tileZoomMin
+        };
+      }
 
       let drawDebugModeVal = 0.0;
       if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
@@ -749,6 +783,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       bindTexture(gl, this.particleStateA, 0);
       bindTexture(gl, this._waveData.u_waveTexture, 1);
       bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
+      // Bind bathymetry to unit 3 for the (gated) shoaling-foam sampler. Fall back to the wave texture when no
+      // bath texture is resident, so unit 3 is always a valid bound texture — the sampler is only READ when
+      // u_shoalFoam>0, which the engine forces to 0 without a bath texture (so the fallback is never sampled).
+      bindTexture(gl, (this._waveData.u_bathymetryTexture ? this._waveData.u_bathymetryTexture : this._waveData.u_waveTexture), 3);
 
       var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
       if (this.drawVAO) {

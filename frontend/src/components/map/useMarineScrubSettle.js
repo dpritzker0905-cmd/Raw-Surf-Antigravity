@@ -375,17 +375,25 @@ export function useMarineScrubSettle({
       //   frameFound:true + frameCovers:false -> served grid doesn't contain the viewport (containment/snap).
       const _sd = (typeof window !== 'undefined' && window.__MARINE_SHARPEN_DIAG__) || {};
       const _ser = (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) || {};
-      // No-progress cap: a CLAMP whose last sharpen attempt could NOT resolve (willSharpen:false) on the SAME
-      // held grid is unrecoverable by re-driving — the only covering frame is global (fw>=340) and the gate
-      // rightly won't commit it; more re-drives just churn (the rAF-jank loop in the 2026-06-28 repro). Cap it
-      // and stop until the view changes (a moveend re-triggers checkScrubSettle for the new viewport).
+      // No-progress cap: a CLAMP whose held ENGINE grid signature does not change across re-drives is making
+      // no progress, and re-driving just churns (rAF jank + a particle-state reset every ~6s). This covers
+      // BOTH failure modes: (a) willSharpen:false — the only covering frame is global (fw>=340) and the gate
+      // rightly won't commit it; and (b) willSharpen:true but the committed "covering" series frame never
+      // STICKS at the engine (the infinite re-commit loop from the 2026-06-30 log: Sharpening fires every
+      // cycle, hits climb 3→20, yet detectClamp still reads regional_too_small because the engine grid never
+      // became the committed frame). Both are unrecoverable by re-driving alone → cap on an unchanged engine
+      // signature and stop until the view changes (a moveend re-triggers checkScrubSettle for a new viewport).
+      // A sharpen that DOES stick changes the engine bounds → sig changes → counter resets → clamp clears
+      // naturally, so this never caps a genuinely-progressing recovery. (Previously the cap required
+      // willSharpen===false, so mode (b) reset the counter every cycle and looped forever.)
       if (clamp) {
         let gb = null;
         try { gb = eng && eng._waveData && eng._waveData.waveGrid && eng._waveData.waveGrid.bounds; } catch (e) { gb = null; }
+        const gw = gb ? ((gb.east < gb.west) ? (gb.east + 360) - gb.west : gb.east - gb.west) : null;
         const sig = gb
           ? `${kind}|${gb.west.toFixed(1)},${gb.south.toFixed(1)},${gb.east.toFixed(1)},${gb.north.toFixed(1)}`
           : kind;
-        if (sig === clampSig && _sd.willSharpen === false) {
+        if (sig === clampSig) {   // held engine grid unchanged since last re-drive → no progress (either mode)
           clampNoProgress++;
         } else {
           clampSig = sig;
@@ -394,10 +402,13 @@ export function useMarineScrubSettle({
         if (clampNoProgress >= 3) {
           if (clampNoProgress === 3 && typeof window !== 'undefined') {
             window.__MARINE_CLAMP_GIVEUP_COUNT__ = (window.__MARINE_CLAMP_GIVEUP_COUNT__ || 0) + 1;
-            console.warn(`[Marine] Clamp backstop: no covering regional frame for ${kind} after 3 tries `
-              + `(best available is global fw=${_sd.fw}); stopping re-drive churn until the view changes.`);
+            // Diagnostic for P2: if willSharpen was true yet the engine grid stayed narrower than the frame
+            // (engineGw < frameFw), the committed covering frame is NOT reaching the engine — the real
+            // coverage bug that leaves a sub-viewport rectangle. That's fixed separately (hold a covering base).
+            console.warn(`[Marine] Clamp backstop: ${kind} made no progress after 3 re-drives — stopping churn `
+              + `until the view changes. (sharpen willSharpen=${_sd.willSharpen} frameFw=${_sd.fw}; engineGw=${gw && gw.toFixed ? gw.toFixed(1) : gw})`);
           }
-          return;  // suppress further no-progress re-drives (breaks the infinite loop + rAF jank)
+          return;  // suppress further no-progress re-drives (breaks the infinite re-commit loop + particle-reset churn)
         }
       }
       console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`,

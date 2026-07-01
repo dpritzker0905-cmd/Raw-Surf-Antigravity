@@ -3,6 +3,8 @@
 // products from 241..336h (240 native + 96 estimated), so the display max is 336h — matching
 // capabilities.max_forecast_hours. (The native/estimate boundary, 240h, lives in the backend
 // estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
+import { getMarineSeriesFrame } from './marineGridSeries';
+
 export const EURO_NATIVE_HOURS = 240;
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
 export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 336;
@@ -353,8 +355,43 @@ export function commitMarineData({
       });
     }
   }
+  // ── Inverse-guard the zoom-out heatmap ping-pong (live-test 2026-06-30) ──
+  // A STALE global-COARSE single-/grid frame (width ≥ 340°, e.g. 37×17) committed on moveend/zoom-out
+  // texture-realloc-clobbers the covering REGIONAL series frame (e.g. 11×9) for the same viewport → the
+  // "heatmap clears on zoom out" flicker (the documented single-grid↔series dimension ping-pong). When a
+  // COVERING REGIONAL series frame already exists for this viewport+hour, commit IT instead so the two
+  // paths agree on grid dimensions (no realloc). Non-scrub only (scrub keeps its own anti-flicker guard
+  // below). SAFE: only ever redirects to a known-covering REGIONAL frame — never blanks; on any miss it
+  // falls straight through to the normal commit. Kill switch: window.__RAW_DISABLE_PINGPONG_GUARD__ = true.
+  try {
+    const _incomingStale = !!(data?.stale || data?.grid?.stale);
+    const _dgb = data?.grid?.bounds;
+    const _dW = _dgb ? ((_dgb.east < _dgb.west) ? (_dgb.east + 360 - _dgb.west) : (_dgb.east - _dgb.west)) : 0;
+    const _guardOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_PINGPONG_GUARD__ === true);
+    if (!_guardOff && source !== 'timeline_scrub' && _incomingStale && _dW >= 340.0 && bounds
+        && typeof getMarineSeriesFrame === 'function') {
+      const _sf = getMarineSeriesFrame(model, layer, bounds, timeOffsetRef.current);
+      const _sfb = _sf && _sf.grid && _sf.grid.bounds;
+      if (_sfb && _sf.grid.vectors && _sf.grid.vectors.length > 0) {
+        const _sfW = (_sfb.east < _sfb.west) ? (_sfb.east + 360 - _sfb.west) : (_sfb.east - _sfb.west);
+        if (_sfW < 340.0) { // a covering REGIONAL series frame — prefer it over the stale coarse-global
+          const _sig = _marineDataSignature(_sf, layer);
+          consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
+          if (_sig && _sig !== lastCommittedSigRef.current) {
+            lastCommittedSigRef.current = _sig;
+            marineRevision.current += 1;
+            _sf.__commitRevision = marineRevision.current;
+            logPipelineEventHelper('pingpong_guard_series_preferred', { model, layer, hour: timeOffset, coarseW: Math.round(_dW), seriesW: Math.round(_sfW) });
+            setMarineData(_sf);
+          }
+          return;
+        }
+      }
+    }
+  } catch (e) { /* fall through to the normal commit */ }
+
   consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
-  
+
   logPipelineEventHelper('data_committed', { model, layer, hour: timeOffset, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
   isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
   if (source === 'timeline_scrub' && timeOffsetRef.current !== timeOffset) {

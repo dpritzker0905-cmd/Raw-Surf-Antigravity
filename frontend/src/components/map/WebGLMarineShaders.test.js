@@ -85,4 +85,30 @@ describe('WebGLMarineShaders', () => {
       expect(HEATMAP_FS).toMatch(/alpha\s*\*=\s*smoothstep\(u_heightAlphaLo,\s*u_heightAlphaHi,\s*displayHeight\)/);
     });
   });
+
+  describe('Animation upgrades (§5 #2) — gated, default-off', () => {
+    it('DRAW_FS trochoidal crest is gated and warps the across-wave coordinate only when enabled', () => {
+      expect(DRAW_FS).toContain('uniform float u_trochoidal;');
+      expect(DRAW_FS).toContain('if (u_trochoidal > 0.001)');
+      // Default path must keep the symmetric ellipse: acWarp starts as acrossCrest and is only mixed toward
+      // the warped profile inside the guard, so u_trochoidal=0 → length(vec2(alongCrest, acrossCrest)) unchanged.
+      expect(DRAW_FS).toContain('float acWarp = acrossCrest;');
+      expect(DRAW_FS).toContain('float ellipseDist = length(vec2(alongCrest, acWarp));');
+    });
+
+    it('DRAW_VS orbital pitch is gated and sways pixel0 along waveDir only when enabled', () => {
+      expect(DRAW_VS).toContain('uniform float u_orbitalPitch;');
+      expect(DRAW_VS).toContain('if (u_orbitalPitch > 0.0001)');
+      expect(DRAW_VS).toContain('pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;');
+    });
+
+    it('DRAW_VS shoaling foam is gated and samples the bathymetry depthFactor only when enabled', () => {
+      expect(DRAW_VS).toContain('uniform sampler2D u_bathTexture;');
+      expect(DRAW_VS).toContain('uniform float u_shoalFoam;');
+      expect(DRAW_VS).toContain('if (u_shoalFoam > 0.0001)');
+      // shelfProximity = 1 - depthFactor (0=deep → no boost, 1=shelf/reef → full boost); whitecap scaled up only.
+      expect(DRAW_VS).toContain('float shelfProximity = clamp(1.0 - depthFactor, 0.0, 1.0);');
+      expect(DRAW_VS).toContain('v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;');
+    });
+  });
 });

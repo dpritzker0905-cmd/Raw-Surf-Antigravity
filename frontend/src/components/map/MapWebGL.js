@@ -15,6 +15,7 @@ import { useMapRenderContract } from './useMapRenderContract';
 import { useMarineOrchestrator } from './useMarineOrchestrator';
 import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
+import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { useMarineWindData } from './useMarineWindData';
 import { resolveForecastWindow } from './LayerAccessResolver';
@@ -464,6 +465,9 @@ const MapWebGL = ({
         simFrameIndex={simFrameIndex}
         isTransitioning={isTransitioning}
       />
+
+      {/* Dev-only live marine-animation tuner (renders null unless ?tuner=1 / localStorage.__RAW_TUNER__). */}
+      <MarineAnimTuner />
 
       <Map
         ref={innerMapRef}

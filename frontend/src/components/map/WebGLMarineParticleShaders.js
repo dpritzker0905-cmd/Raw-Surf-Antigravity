@@ -205,6 +205,9 @@ uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
+uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
+uniform sampler2D u_bathTexture;    // bathymetry depthFactor (R: 0=shelf/reef shallow, 1=deep ocean) — same encoding the heatmap uses; for shoaling foam.
+uniform float u_shoalFoam;          // boost whitecap strength in shallow water (shelfProximity·u_shoalFoam). 0 = off. Engine forces 0 unless a bath texture is bound.
 uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
@@ -391,6 +394,18 @@ void main() {
   float deviceHalfLength = halfLength * dpr;
   float deviceHalfThickness = halfThickness * dpr;
 
+  // === ORBITAL PITCH (gated) — phase-synced forward/back sway of the whole crest along waveDir, so crests
+  // PITCH with the wave orbit instead of only translating. Synced to the SAME wave-train phase as the foam
+  // roll below (so the sway and the breaking front agree). 0 = off (legacy). Live: window.__RAW_ORBITAL_PITCH__.
+  if (u_orbitalPitch > 0.0001) {
+    float mp = waveData.a * 20.0;
+    float pv = mp > 0.5 ? mp : (6.0 + waveHeight * 2.0);
+    float sf = clamp(800.0 / max(36.0, pv * pv), 3.0, 25.0);
+    float ts = (u_time * u_motion_scale) / max(2.0, pv);
+    float orbPhase = fract(dot(global_pos, dir) * sf - ts) * 6.28318530718;
+    pixel0 += waveDir * sin(orbPhase) * u_orbitalPitch * dpr;
+  }
+
   // === OFFSET QUAD CORNER IN PIXEL SPACE, CONVERT BACK TO CLIP ===
   vec2 cornerPixel = pixel0
     + crestDir * cornerUV.x * deviceHalfLength
@@ -449,6 +464,16 @@ void main() {
   // === WHITECAP STRENGTH (separate from base ripple) ===
   // Only significant for waves with real breaking potential. v7.1: more breaking foam at close zoom.
   v_whitecap = smoothstep(0.5, 3.0, waveHeight) * (1.0 + closeup * 0.5);
+
+  // === SHOALING FOAM (gated) — real waves shoal and break as they run onto the continental shelf / reefs, so
+  // intensify whitecap where the water is shallow. Samples the SAME bathymetry depthFactor the heatmap uses
+  // (R: 0=shelf/reef shallow, 1=deep ocean) at the wave-grid coord. 0 = off (legacy). Live: window.__RAW_SHOAL_FOAM__.
+  // The engine forces u_shoalFoam=0 unless a bathymetry texture is bound, so u_bathTexture is never read unbound.
+  if (u_shoalFoam > 0.0001) {
+    float depthFactor = texture2D(u_bathTexture, tex_uv).r;
+    float shelfProximity = clamp(1.0 - depthFactor, 0.0, 1.0);
+    v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
+  }
 }
 `;
 
@@ -462,6 +487,7 @@ varying highp float v_period_norm; // normalized period [0=short choppy, 1=long 
 varying highp float v_whitecap;    // v5.3: whitecap strength (0=ripple only, 1=full whitecap)
 varying highp vec4 v_debug_color;
 uniform float u_theme;
+uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 
 // Multi-octave procedural noise for organic foam breakup
 float foamHash(vec2 p) {
@@ -492,9 +518,19 @@ void main() {
   float alongCrest = v_local_uv.x;
   float acrossCrest = v_local_uv.y;
 
-  // === RIBBON SHAPE: soft ellipse without aspect compression ===
-  // Length/thickness already handled in VS quad expansion
-  float ellipseDist = length(v_local_uv);
+  // === RIBBON SHAPE: soft ellipse (default) → asymmetric TROCHOIDAL crest (gated) ===
+  // A real wave crest is not a symmetric ellipse: the forward (leading, +waveDir) face is steep and the
+  // trailing back is broad/gentle (trochoidal / Gerstner profile). u_trochoidal in [0,1] warps the across-wave
+  // coordinate so the leading half falls off sooner (sharp face) and the trailing half later (broad back).
+  // 0 = unchanged symmetric ellipse (legacy v5.x). Live-tunable: window.__RAW_TROCHOIDAL__.
+  float acWarp = acrossCrest;
+  if (u_trochoidal > 0.001) {
+    float lead = max(0.0, -acrossCrest);   // leading (+waveDir) side, 0..1  (waveLocal = -acrossCrest*0.5+0.5)
+    float trail = max(0.0, acrossCrest);   // trailing side, 0..1
+    float warped = -pow(lead, 0.65) + pow(trail, 1.5); // sharpen leading, broaden trailing
+    acWarp = mix(acrossCrest, warped, clamp(u_trochoidal, 0.0, 1.0));
+  }
+  float ellipseDist = length(vec2(alongCrest, acWarp));
   float shape = 1.0 - smoothstep(0.55, 1.0, ellipseDist);
 
   // Soften ribbon tips along crest axis
