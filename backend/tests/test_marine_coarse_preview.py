@@ -56,7 +56,7 @@ class _FakeViewport:
     async def get_cached_dynamic_product(self, **k):
         return None
 
-    async def _find_any_cached_product(self, model, domain, layer, target_dt, bbox):
+    async def _find_any_cached_product(self, model, domain, layer, target_dt, bbox, require_coverage=False):
         return self._preview
 
     async def _revalidate_fetch(self, *a, **k):

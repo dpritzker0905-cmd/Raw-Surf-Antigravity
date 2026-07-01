@@ -317,7 +317,15 @@ async def resolve_grid(
     ):
         preview = None
         try:
-            preview = await viewport_service._find_any_cached_product(model, domain, layer, target_dt, bbox)
+            # Require the instant preview to fully COVER the viewport (kills the zoom-out clamp: a
+            # smaller overlapping viewport tile would otherwise render as a floating sub-viewport
+            # rectangle). When nothing covers, the helper returns the covering global-coarse instead,
+            # and the background revalidation below sharpens to the exact viewport tile on the next
+            # request. Kill switch MARINE_PREVIEW_REQUIRE_COVERAGE=0 restores the prior overlap reuse.
+            _preview_require_cov = os.environ.get("MARINE_PREVIEW_REQUIRE_COVERAGE", "1") != "0"
+            preview = await viewport_service._find_any_cached_product(
+                model, domain, layer, target_dt, bbox, require_coverage=_preview_require_cov
+            )
         except Exception as preview_err:
             logger.warning(f"[Grid Route] Coarse preview lookup failed for {model} {layer}: {preview_err}")
         if (

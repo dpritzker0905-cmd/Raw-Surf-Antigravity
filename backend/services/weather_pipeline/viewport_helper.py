@@ -4,6 +4,7 @@ import os
 import math
 import gc
 from datetime import datetime, timezone, timedelta
+from types import SimpleNamespace
 from typing import Optional, Dict, Any, List
 
 from services.weather_pipeline.route_helpers import (
@@ -43,9 +44,20 @@ async def find_any_cached_product_helper(
     target_dt: datetime,
     dynamic_index,
     store,
-    bbox_str: Optional[str] = None
+    bbox_str: Optional[str] = None,
+    require_coverage: bool = False
 ) -> Optional[NormalizedProduct]:
-    """Searches dynamic index and manifest for any product matching model/layer and target time, choosing the closest."""
+    """Searches dynamic index and manifest for any product matching model/layer and target time, choosing the closest.
+
+    ``require_coverage``: when True (the instant-preview path in grid_resolver Step 3.7), a NON-wide
+    requested viewport must be FULLY covered by the chosen cached tile — a merely-overlapping tile is
+    rejected. This kills the zoom-out clamp: without it the dynamic-index branch picks the smallest
+    time-diff OVERLAPPING viewport tile (e.g. a 5°×3° tile) and the tie-break below prefers it over the
+    covering global-coarse manifest product, so a tiny tile is served as a floating sub-viewport
+    rectangle for the ~1-3s SWR window. With coverage required, no cached tile covers → best_item stays
+    None → the covering global-coarse manifest wins → an honest covering coarse wash that the background
+    revalidation then sharpens to the exact viewport tile. Default False so the rate-limit / self-heal
+    stale-fallback callers are byte-for-byte unchanged (they intentionally serve any overlapping tile)."""
     req_w, req_s, req_e, req_n = None, None, None, None
     if bbox_str:
         try:
@@ -94,7 +106,21 @@ async def find_any_cached_product_helper(
                             
                             if is_wide_req and cand_is_regional:
                                 continue
-                            
+
+                            # Clamp fix: for the instant-preview path a NON-wide viewport must be
+                            # FULLY covered by the cached tile, not merely overlapped — otherwise a
+                            # smaller viewport tile is served as a floating sub-viewport rectangle
+                            # (the zoom-out clamp). When nothing covers, best_item stays None and the
+                            # covering global-coarse manifest product wins below. Rate-limit/self-heal
+                            # fallbacks pass require_coverage=False so their overlap behavior is intact.
+                            if require_coverage and not is_wide_req:
+                                if not is_bbox_covered_by(
+                                    req_w, req_s, req_e, req_n,
+                                    SimpleNamespace(west=cw, south=cs, east=ce, north=cn),
+                                    margin=0.05,
+                                ):
+                                    continue
+
                             # Simple overlap check
                             lat_overlap = not (req_n < cs or req_s > cn)
                             if cw <= ce:

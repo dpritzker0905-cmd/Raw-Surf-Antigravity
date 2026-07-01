@@ -726,9 +726,14 @@ class ViewportService:
         domain: str,
         layer: str,
         target_dt: datetime,
-        bbox_str: Optional[str] = None
+        bbox_str: Optional[str] = None,
+        require_coverage: bool = False
     ) -> Optional[NormalizedProduct]:
-        """Searches dynamic index and manifest for any product matching model/layer and target time, choosing the closest."""
+        """Searches dynamic index and manifest for any product matching model/layer and target time, choosing the closest.
+
+        ``require_coverage`` forwards to find_any_cached_product_helper — set True only for the Step 3.7
+        instant-preview so a non-wide viewport gets a COVERING tile (kills the zoom-out clamp); the
+        rate-limit / self-heal callers leave it False to keep serving any overlapping stale tile."""
         from services.weather_pipeline.viewport_helper import find_any_cached_product_helper
         return await find_any_cached_product_helper(
             model=model,
@@ -737,5 +742,6 @@ class ViewportService:
             target_dt=target_dt,
             dynamic_index=self.dynamic_index,
             store=self.store,
-            bbox_str=bbox_str
+            bbox_str=bbox_str,
+            require_coverage=require_coverage
         )
