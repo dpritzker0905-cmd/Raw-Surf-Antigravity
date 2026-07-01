@@ -221,6 +221,24 @@ describe('marineGridSeries — flag-gated time-series client', () => {
     expect(global.fetch).toHaveBeenCalledTimes(1);
   });
 
+  // #8 clamp fix (2026-07-01): after a pan beyond warmed tiles the engine is HELD on a stale non-covering
+  // regional tile; the covering tile the backend serves never lands because the TTL dedup refuses to re-fetch
+  // the same viewport key. `force` (used by the clamp backstop) bypasses the TTL dedup so the covering tile
+  // is re-fetched, while a normal re-request stays deduped (no storm during ordinary re-drives).
+  it('force bypasses the TTL dedup so a stuck clamp can re-fetch the covering tile (#8)', async () => {
+    window.__MARINE_SERIES__ = true;
+    global.fetch.mockResolvedValue({ ok: true, json: async () => mockSeriesResponse() });
+
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);          // warm (1 fetch)
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true);          // normal re-request → TTL-deduped
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+
+    await ensureMarineSeries('GFS', 'waves', bounds, 0, undefined, true, true);    // force=true → re-fetches (the fix)
+    expect(global.fetch).toHaveBeenCalledTimes(2);
+  });
+
   // Degree-boundary clamp fix (live 2026-06-28): the request bbox is padded outward so the backend's
   // degree-snapped tile contains the viewport (+ same-0.5°-key pans), instead of failing strict containment.
   it('propagates the backend rating_mode flag onto the committed grid (rating band on series frames)', async () => {

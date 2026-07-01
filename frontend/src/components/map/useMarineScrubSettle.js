@@ -133,8 +133,13 @@ function runScrubSettleCheck(ctx) {
         setMarineData(frame);
       } else {
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
-        // tick sharpens. Deduped + TTL'd + concurrency-capped, so repeated backstop ticks are cheap.
-        ensureMarineSeries(model, layer, clampVb, currentHour);
+        // tick sharpens. FORCE past the TTL dedup (#8 root, 2026-07-01): after a pan beyond the warmed
+        // tiles the cache holds only NON-covering frames for earlier viewports, and the normal TTL dedup
+        // then refuses to re-fetch the covering tile the backend readily serves (curl-proven) — leaving
+        // the engine stuck on a stale sub-viewport rectangle (regional_too_small). force+currentPageOnly
+        // re-fetches just the covering current-hour tile; bounded by the render-backstop's 3-try
+        // no-progress cap + the series concurrency slot, so it can't storm the 1-CPU backend.
+        ensureMarineSeries(model, layer, clampVb, currentHour, undefined, true, true);
       }
       // UPGRADE the clamp to the FULLER regional tile. The committed series frame "covers" the viewport
       // but can be a small/coarse viewport grid (the "clamped to a small patch" report). A plain refetch
@@ -405,8 +410,11 @@ export function useMarineScrubSettle({
             // Diagnostic for P2: if willSharpen was true yet the engine grid stayed narrower than the frame
             // (engineGw < frameFw), the committed covering frame is NOT reaching the engine — the real
             // coverage bug that leaves a sub-viewport rectangle. That's fixed separately (hold a covering base).
+            const _eb = gb ? `W${gb.west.toFixed(2)} E${gb.east.toFixed(2)} S${gb.south.toFixed(2)} N${gb.north.toFixed(2)}` : 'none';
+            const _vp = _sd.vb ? `W${_sd.vb.w} E${_sd.vb.e} S${_sd.vb.s} N${_sd.vb.n}` : 'none';
             console.warn(`[Marine] Clamp backstop: ${kind} made no progress after 3 re-drives — stopping churn `
-              + `until the view changes. (sharpen willSharpen=${_sd.willSharpen} frameFw=${_sd.fw}; engineGw=${gw && gw.toFixed ? gw.toFixed(1) : gw})`);
+              + `until the view changes. (sharpen willSharpen=${_sd.willSharpen} frameFw=${_sd.fw}; engineGw=${gw && gw.toFixed ? gw.toFixed(1) : gw})`
+              + ` engineBounds=[${_eb}] viewport=[${_vp}] series={loads:${_ser.loads},hits:${_ser.hits},misses:${_ser.misses}}`);
           }
           return;  // suppress further no-progress re-drives (breaks the infinite re-commit loop + particle-reset churn)
         }

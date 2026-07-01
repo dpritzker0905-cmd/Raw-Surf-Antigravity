@@ -215,13 +215,16 @@ function frameToMarineData(frame, model, layer) {
 }
 
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
-async function loadSeriesPage(model, layer, bounds, page, signal) {
+async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
   if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
   const key = pageKey(model, layer, bounds, page);
   const existing = _seriesCache.get(key);
-  if (existing) {
+  if (existing && !force) {
     // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
-    // grid replaces the cold global frame; otherwise honour the normal TTL dedup.
+    // grid replaces the cold global frame; otherwise honour the normal TTL dedup. `force` bypasses the
+    // TTL dedup entirely — used by the clamp backstop (#8) when the engine is HELD on a stale non-covering
+    // tile and the cache has no covering frame for the panned viewport: the TTL dedup would otherwise
+    // refuse to re-fetch the covering tile the backend readily serves. Still de-duped against `_inFlight`.
     const coarseRetryDue = existing.coarsePreview &&
       (existing.revalCount || 0) < COARSE_REVAL_MAX &&
       Date.now() - existing.ts >= COARSE_REVAL_INTERVAL_MS;
@@ -328,10 +331,10 @@ async function loadSeriesPage(model, layer, bounds, page, signal) {
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
  * flag is off. Never throws. hourOffset defaults to 0 (near page) for legacy callers.
  */
-export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false) {
+export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false) {
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset);
-  await loadSeriesPage(model, layer, bounds, page, signal);
+  await loadSeriesPage(model, layer, bounds, page, signal, force);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
   // pages (future-hour frames, for scrubbing) would be wasted 1-CPU backend load on the siblings.
