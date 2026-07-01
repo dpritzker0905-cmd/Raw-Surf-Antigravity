@@ -436,10 +436,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // global (a fine regional grid streams cleanly — leave it alone) and ramped smoothstep(4,5.5,z) so a true GLOBAL
     // view (z<4, many cells on screen, no per-cell swirl) is untouched. Default 0.5 (ON); set
     // window.__RAW_DIR_COHERENCE_MIN__=0 to disable, or tune. Shared by draw+advect; echo __RAW_GPU__.anim.dirCoherenceMin.
-    const _dcmRaw = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : 0.5;
+    const _dcmRaw = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : 0.7;
     const _residentCoarseGlobal = isCoarseGlobalGrid(this._waveData && this._waveData.waveGrid);
-    let _dcmT = _residentCoarseGlobal ? Math.max(0.0, Math.min(1.0, (z - 4.0) / 1.5)) : 0.0;
-    _dcmT = _dcmT * _dcmT * (3.0 - 2.0 * _dcmT); // smoothstep(4,5.5,z), gated on a coarse-global resident grid
+    // Full strength across the WHOLE coarse-magnified band: the vortex shows anywhere the coarse-global grid is the
+    // resident advection source at a regional view (organic repro hit it at z4.84 AND z5.6). Ramp full by z4 so it
+    // is not weak at the low end; only a true global view (z<3, many cells on screen) is spared. smoothstep(3,4,z).
+    let _dcmT = _residentCoarseGlobal ? Math.max(0.0, Math.min(1.0, (z - 3.0) / 1.0)) : 0.0;
+    _dcmT = _dcmT * _dcmT * (3.0 - 2.0 * _dcmT); // smoothstep(3,4,z), gated on a coarse-global resident grid
     const dirCoherenceMin = _dcmRaw * _dcmT;
 
     var tileOriginX = 0.0;
