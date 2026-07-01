@@ -426,24 +426,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
     this._lastZoom = z;
 
-    // === DIRECTION-COHERENCE FLOOR — kills the coarse-global bilinear-interpolation VORTEX (default ON) ===
-    // Repro (2026-07-01, localhost z5.61): after REACTIVATING waves while zoomed out, the instant cache-hit commits
-    // the coarse-GLOBAL 37×17 grid (rev7, stable); at z~5–6 you see only ~1–2 of its ~10°/cell cells magnified to
-    // fill the screen, so bilinear filtering of the DIVERGENT global direction field (different ocean basins) rotates
-    // the sampled heading smoothly across the viewport → a full-screen "clockwise spin". For unit-direction texels the
-    // interpolated magnitude is ≈cos(θ/2), so a coherence floor drops the divergent transition zones (0.5 ≈ >120°,
-    // 0.7 ≈ >90°) while keeping coherent cell interiors streaming. Applied ONLY when the RESIDENT grid is coarse-
-    // global (a fine regional grid streams cleanly — leave it alone) and ramped smoothstep(4,5.5,z) so a true GLOBAL
-    // view (z<4, many cells on screen, no per-cell swirl) is untouched. Default 0.5 (ON); set
-    // window.__RAW_DIR_COHERENCE_MIN__=0 to disable, or tune. Shared by draw+advect; echo __RAW_GPU__.anim.dirCoherenceMin.
-    const _dcmRaw = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : 0.7;
+    // === COARSE-GLOBAL CREST SUPPRESSION — the real vortex fix (default ON) ===
+    // The "clockwise spin" is NOT merely a bilinear-interpolation artifact: the coarse-GLOBAL 37×17 grid's direction
+    // field is GENUINELY ROTATIONAL at regional magnification (measured curl 1.769 across ocean basins). A partial
+    // coherence-floor cull removes only the cell-BOUNDARY particles (low interpolated magnitude) but KEEPS the
+    // cell-CENTER particles (magnitude ≈1), and those still advect the divergent per-cell headings → the field
+    // still rotates → vortex persists at ANY floor <1 (confirmed: 0.7 didn't kill it, z4.02–5.88). The honest fix is
+    // to NOT animate crests on a coarse-global grid once it's magnified past a global view: the heatmap already
+    // conveys wave height, and the coarse direction is not meaningful for per-crest animation there. We force the
+    // discard floor ABOVE the max unit magnitude (>1 → discards EVERY crest) whenever a coarse-global grid is the
+    // resident advection source and z>3.5. Regional/fine grids are untouched (crests stream normally). Heatmap pass
+    // is unaffected. Kill: window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__=true. Tune (partial cull instead of full
+    // suppress): window.__RAW_DIR_COHERENCE_MIN__ = <0..1>. Echo: __RAW_GPU__.anim.dirCoherenceMin (2 = suppressed).
     const _residentCoarseGlobal = isCoarseGlobalGrid(this._waveData && this._waveData.waveGrid);
-    // Full strength across the WHOLE coarse-magnified band: the vortex shows anywhere the coarse-global grid is the
-    // resident advection source at a regional view (organic repro hit it at z4.84 AND z5.6). Ramp full by z4 so it
-    // is not weak at the low end; only a true global view (z<3, many cells on screen) is spared. smoothstep(3,4,z).
-    let _dcmT = _residentCoarseGlobal ? Math.max(0.0, Math.min(1.0, (z - 3.0) / 1.0)) : 0.0;
-    _dcmT = _dcmT * _dcmT * (3.0 - 2.0 * _dcmT); // smoothstep(3,4,z), gated on a coarse-global resident grid
-    const dirCoherenceMin = _dcmRaw * _dcmT;
+    let dirCoherenceMin = 0.0;
+    if (_residentCoarseGlobal && z > 3.5) {
+      const _killSuppress = (typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true);
+      const _override = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : null;
+      dirCoherenceMin = _killSuppress ? 0.0 : (_override !== null ? _override : 2.0); // 2.0 (>1) discards all crests
+    }
 
     var tileOriginX = 0.0;
     var tileOriginY = 0.0;
