@@ -312,18 +312,36 @@ root.render(
 // --- Service Worker Registration ---
 // Enables offline caching, push notifications, and PWA installability.
 if ('serviceWorker' in navigator) {
-  window.addEventListener('load', () => {
-    navigator.serviceWorker.register('/service-worker.js')
-      .then((registration) => {
-        // Check for updates every 60 minutes
-        setInterval(() => {
-          registration.update();
-        }, 60 * 60 * 1000);
-      })
-      .catch((error) => {
-        console.warn('[SW] Registration failed:', error);
-      });
-  });
+  // DEV GUARD: NEVER run the service worker on localhost. A resident SW (skipWaiting + clients.claim, hourly
+  // update check) silently pins an old build and serves stale JS across reloads — which repeatedly masked freshly
+  // built code during debugging (a whole marine-render session was lost to it). On localhost we instead UNREGISTER
+  // any existing SW and purge its rawsurf-* caches so `npm start` always serves exactly what you just compiled.
+  const _host = window.location.hostname;
+  const _isLocalhost = _host === 'localhost' || _host === '127.0.0.1' || _host === '0.0.0.0' || _host === '[::1]';
+  if (_isLocalhost) {
+    navigator.serviceWorker.getRegistrations()
+      .then((regs) => regs.forEach((r) => r.unregister()))
+      .catch(() => {});
+    if (window.caches && caches.keys) {
+      caches.keys()
+        .then((keys) => keys.forEach((k) => { if (k.startsWith('rawsurf-')) caches.delete(k).catch(() => {}); }))
+        .catch(() => {});
+    }
+    console.log('[SW] Localhost — service worker unregistered + caches purged (dev always serves fresh code).');
+  } else {
+    window.addEventListener('load', () => {
+      navigator.serviceWorker.register('/service-worker.js')
+        .then((registration) => {
+          // Check for updates every 60 minutes
+          setInterval(() => {
+            registration.update();
+          }, 60 * 60 * 1000);
+        })
+        .catch((error) => {
+          console.warn('[SW] Registration failed:', error);
+        });
+    });
+  }
 }
 
 // --- Core Web Vitals Monitoring ---
