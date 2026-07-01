@@ -365,7 +365,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     var cx = (centerLng + 180.0) / 360.0;
     var cy = latToMercatorY(centerLat);
 
-    var isHighZoom = z > 6.0;
+    // Zoom above which particles use the camera-centered TILE (concentrated → adequate on-screen density). Below
+    // it they seed across the whole data domain (global = sparse in any viewport), which caused the dense→sparse
+    // CLIFF at z6 when zooming out. Lowered to 4.0 so the concentrated mode (and the constant-screen-density below)
+    // covers the regional zoom-out range; tunable via window.__RAW_TILE_ZOOM_MIN__. Must match u_tileZoomMin.
+    var tileZoomMin = (typeof window !== 'undefined' && typeof window.__RAW_TILE_ZOOM_MIN__ === 'number') ? window.__RAW_TILE_ZOOM_MIN__ : 4.0;
+    var isHighZoom = z > tileZoomMin;
     var prevHighZoom = this._lastZoom > 6.0;
     var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
     this._lastZoom = z;
@@ -488,6 +493,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         : 'full_coverage';
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+
+    // CLAMP SOFTENER: a regional tile narrower than the viewport (a sub-viewport tile committed during zoom-out)
+    // otherwise renders as a hard-edged rectangle against the fainter coarse base. When the blend coarse base is
+    // filling outside it, widen the regional edge-feather in proportion to how undersized the tile is, so it
+    // dissolves smoothly into the coarse field instead of a hard clamp line. Default 0.18 (unchanged) when the
+    // tile covers the viewport or there's no coarse base. Kill: window.__RAW_DISABLE_CLAMP_SOFTEN__ = true.
+    let edgeFeatherWidthVal = 0.18;
+    if (blendEngaged && (typeof window === 'undefined' || window.__RAW_DISABLE_CLAMP_SOFTEN__ !== true)) {
+      const rLon = boundsLonSpan(waveBounds);
+      const vLon = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
+      const coverage = (vLon > 0 && rLon > 0) ? Math.min(1, rLon / vLon) : 1;
+      edgeFeatherWidthVal = 0.18 + (1 - coverage) * 0.32; // → up to ~0.5 as the tile shrinks below the viewport
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.clampSoften = { coverage: +coverage.toFixed(2), featherWidth: +edgeFeatherWidthVal.toFixed(2) };
+      }
+    }
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherWidth'), edgeFeatherWidthVal);
 
     if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
       window.__GPU_DEBUG__ = { mode: null };
@@ -668,6 +690,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherWidth'), edgeFeatherWidthVal);
+      // Directional-spectrum spread (breaks the parallel-crest lattice over uniform/coarse fields). OPT-IN until
+      // visually verified + tuned on real swell data (default 0 = legacy parallel crests, no regression). Enable +
+      // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
+      const _crestDirJitter = (typeof window !== 'undefined' && typeof window.__RAW_CREST_DIR_JITTER__ === 'number') ? window.__RAW_CREST_DIR_JITTER__ : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
@@ -680,7 +708,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       let densityBase = 0.0;
       const _partTarget = (typeof window !== 'undefined' && typeof window.__RAW_PART_TARGET__ === 'number')
         ? window.__RAW_PART_TARGET__ : 1650;
-      if (_partTarget > 0 && z > 6.0 && tileWidth > 0) {
+      if (_partTarget > 0 && z > tileZoomMin && tileWidth > 0) {
         const vWest = vb[0], vEast = vb[2];
         const lonSpan = (vEast < vWest) ? (vEast + 360 - vWest) : (vEast - vWest);
         const vMercX = Math.min(1.0, Math.max(0, lonSpan) / 360.0);
@@ -708,6 +736,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tileZoomMin'), tileZoomMin);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
@@ -755,7 +784,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // ==========================================
       // PHASE 3: PARTICLE ADVECTION SYSTEM (Simulate next state)
       // ==========================================
-      const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale;
+      // Overall drift-speed multiplier (separate from the per-wave height cap below): lets the whole field be
+      // slowed if mid-zoom motion reads too fast. Default 1.0 (unchanged); tunable live via window.__RAW_WAVE_SPEED__.
+      const _waveSpeedMult = (typeof window !== 'undefined' && typeof window.__RAW_WAVE_SPEED__ === 'number') ? window.__RAW_WAVE_SPEED__ : 1.0;
+      const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale * _waveSpeedMult;
 
       gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
       gl.useProgram(this.advectProgram);
@@ -765,10 +797,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
+      // Cap the height term that drives drift speed (big swell otherwise drifts ~linearly with height → unnaturally
+      // fast at mid-zoom over the coarse-global). Default 3.0 m; tunable live via window.__RAW_SPEED_HEIGHT_CAP__.
+      const _speedHeightCap = (typeof window !== 'undefined' && typeof window.__RAW_SPEED_HEIGHT_CAP__ === 'number') ? window.__RAW_SPEED_HEIGHT_CAP__ : 3.0;
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speedHeightCap'), _speedHeightCap);
 
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_zoom'), z);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tileZoomMin'), tileZoomMin);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
 

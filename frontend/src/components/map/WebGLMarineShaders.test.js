@@ -73,6 +73,11 @@ describe('WebGLMarineShaders', () => {
       expect(HEATMAP_FS).toContain('uniform float u_heightAlphaHi;');
     });
 
+    it('HEATMAP_FS drives the edge feather from u_edgeFeatherWidth (zoom-out clamp softener)', () => {
+      expect(HEATMAP_FS).toContain('uniform float u_edgeFeatherWidth;');
+      expect(HEATMAP_FS).toContain('smoothstep(0.0, max(u_edgeFeatherWidth, 0.01), minEdgeDist)');
+    });
+
     it('HEATMAP_FS only applies height-alpha when explicitly enabled (default-off → no-op on every other path)', () => {
       // The fade must be guarded by u_heightAlphaEnabled so a default-0 uniform leaves alpha untouched; the
       // factor itself is a smoothstep over displayHeight between the lo/hi bounds.

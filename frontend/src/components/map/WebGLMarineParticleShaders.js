@@ -19,11 +19,13 @@ uniform sampler2D u_particles;
 uniform sampler2D u_waveTexture;
 uniform sampler2D u_oceanMaskTexture;
 uniform float u_speed_scale;
+uniform float u_speedHeightCap;   // cap (m) on the height term that drives drift speed: big swell otherwise drifts ~linearly with height (7m ≈ 7×), reading as unnaturally fast at mid-zoom. Real phase speed scales with period, not height.
 uniform vec2 u_dataBounds_min;
 uniform vec2 u_dataBounds_max;
 uniform float u_rand_seed;
 uniform float u_drop_rate;
 uniform float u_zoom;
+uniform float u_tileZoomMin;   // zoom above which particles use the camera-centered tile (concentrated). Below it they seed globally (sparse). Lowering it extends adequate density into the zoom-out range.
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 varying vec2 v_uv;
@@ -64,7 +66,7 @@ void main() {
   vec2 pos = decodePos(encoded);
 
   // Convert global Mercator coordinates to geographic lng/lat
-  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
+  vec2 global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + pos * u_tile_width) : pos;
   float lng = global_pos.x * 360.0 - 180.0;
   float lat = mercatorYToLat(global_pos.y);
 
@@ -100,11 +102,14 @@ void main() {
   
   float energyBoost = 1.0 + smoothstep(1.0, 5.0, waveHeight) * 0.3;
   // v4.0: waveVec is now a unit direction vector (RG encode direction only).
-  // Scale by waveHeight * 0.1 to restore height-proportional advection speed.
-  vec2 offset = (waveVec * waveHeight * 0.1 / merc_scale) * u_speed_scale * energyBoost;
+  // Scale by waveHeight * 0.1 for height-proportional drift, but CAP the height so big swell doesn't race
+  // unnaturally (a 7m wave would otherwise drift ~7× a 1m wave). Above the cap, speed flattens — closer to the
+  // physical fact that phase speed depends on period, not height. Tunable via window.__RAW_SPEED_HEIGHT_CAP__.
+  float driftHeight = min(waveHeight, u_speedHeightCap);
+  vec2 offset = (waveVec * driftHeight * 0.1 / merc_scale) * u_speed_scale * energyBoost;
   
   vec2 nextPos;
-  if (u_zoom > 6.0) {
+  if (u_zoom > u_tileZoomMin) {
     nextPos = pos + (offset / u_tile_width);
     nextPos = fract(nextPos);
   } else {
@@ -114,7 +119,7 @@ void main() {
   }
 
   // Check land / oob for next position
-  vec2 next_global_pos = (u_zoom > 6.0) ? (u_tile_origin + nextPos * u_tile_width) : nextPos;
+  vec2 next_global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + nextPos * u_tile_width) : nextPos;
   float next_lng = next_global_pos.x * 360.0 - 180.0;
   float next_lat = mercatorYToLat(next_global_pos.y);
   float next_tex_u;
@@ -148,14 +153,14 @@ void main() {
     drop = 1.0;
   }
 
-  if (u_zoom <= 6.0) {
+  if (u_zoom <= u_tileZoomMin) {
     float oobY = step(1.0, nextPos.y) + step(0.0, -nextPos.y);
     drop = max(drop, step(0.5, oobY));
   }
 
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
   vec2 newPos;
-  if (u_zoom > 6.0) {
+  if (u_zoom > u_tileZoomMin) {
     newPos = randVal;
   } else {
     float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
@@ -173,7 +178,7 @@ void main() {
   }
 
   // Prevent pole clamping leakage
-  if (u_zoom <= 6.0) {
+  if (u_zoom <= u_tileZoomMin) {
     pos.y = clamp(pos.y, 0.001, 0.999);
   }
 
@@ -192,11 +197,14 @@ uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
 uniform float u_time;              // elapsed time in seconds
 uniform float u_zoom;              // map zoom level
+uniform float u_tileZoomMin;       // zoom above which the camera-centered tile is used (matches ADVECT_FS)
 uniform float u_merc_offset;       // world-copy offset (-1.0, 0.0, or +1.0)
 uniform float u_debug_mode;        // debug mode selector
 uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
+uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
+uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
@@ -251,7 +259,7 @@ void main() {
     encodedPos.b + encodedPos.a / 255.0
   );
 
-  vec2 global_pos = (u_zoom > 6.0) ? (u_tile_origin + pos * u_tile_width) : pos;
+  vec2 global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + pos * u_tile_width) : pos;
   float lng = global_pos.x * 360.0 - 180.0;
   float lat = mercatorYToLat(global_pos.y);
 
@@ -333,6 +341,15 @@ void main() {
   // === v5.4: STABILIZED SCREEN-SPACE DIRECTION ===
   // Higher magnitude threshold prevents jittery near-zero directions
   vec2 dir = length(waveVec) > 0.01 ? normalize(waveVec) : vec2(1.0, 0.0);
+
+  // Directional-spectrum spread: real seas are NOT perfectly parallel. Rotate each crest by a small per-particle
+  // random heading so a uniform/coarse direction field stops reading as a rigid parallel LATTICE ("grid"). Visual
+  // only — does not change advection (that's ADVECT_FS). u_crestDirJitter = 0 → unchanged (legacy parallel crests).
+  if (u_crestDirJitter > 0.0001) {
+    float jitterAng = (particleHash - 0.5) * 2.0 * u_crestDirJitter;
+    float cj = cos(jitterAng), sj = sin(jitterAng);
+    dir = vec2(dir.x * cj - dir.y * sj, dir.x * sj + dir.y * cj);
+  }
 
   vec2 vertexPos = global_pos;
   vertexPos.x += u_merc_offset;
@@ -425,7 +442,7 @@ void main() {
     float distToEdgeX = min(tex_u, 1.0 - tex_u);
     float distToEdgeY = min(tex_v, 1.0 - tex_v);
     float minDistToEdge = min(distToEdgeX, distToEdgeY);
-    edgeFade = smoothstep(0.0, 0.18, minDistToEdge);
+    edgeFade = smoothstep(0.0, max(u_edgeFeatherWidth, 0.01), minDistToEdge);
   }
   v_alpha *= edgeFade;
 

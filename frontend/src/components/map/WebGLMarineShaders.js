@@ -49,6 +49,7 @@ uniform float u_opacity;
 uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
+uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER: how far the regional edge dissolves (grid-uv); engine widens it when a sub-viewport tile would otherwise show a hard rectangular clamp edge. Default 0.18.
 uniform float u_is_estimated;
 uniform float u_surfMode;   // 1.0 = Swell↔Surf coastal-band mode: rescale the color ramp to the surf range
 uniform float u_time;       // seconds — drives the rating band's subtle living shimmer (free: render loop already runs)
@@ -359,12 +360,12 @@ void main() {
     alpha *= smoothstep(u_heightAlphaLo, u_heightAlphaHi, displayHeight);
   }
 
-  // Smoothstep edge feathering to dissolve regional bounds softly
+  // Smoothstep edge feathering to dissolve regional bounds softly (width adapts to soften the zoom-out clamp)
   if (u_edgeFeatherEnabled > 0.5) {
     float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);
     float edgeDistY = min(grid_uv.y, 1.0 - grid_uv.y);
     float minEdgeDist = min(edgeDistX, edgeDistY);
-    float feather = smoothstep(0.0, 0.18, minEdgeDist);
+    float feather = smoothstep(0.0, max(u_edgeFeatherWidth, 0.01), minEdgeDist);
     alpha *= feather;
   }
 
