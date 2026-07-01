@@ -67,6 +67,35 @@ function isCoarseGlobalGrid(waveGrid) {
   return (span / cols) > 1.0;
 }
 
+// === NO-DOWNGRADE decision (pure; exported for tests) ===
+// True when `incoming` is the global-COARSE fallback that would DOWNGRADE a resident REGIONAL grid of the SAME
+// component layer + hour while the map is zoomed IN — the coarse⇄regional ping-pong that resets the particle FBO
+// and re-orients the (different) direction field on every commit, i.e. the "clockwise spin" (live repro
+// 2026-07-01, Cocoa z9: 13×13 series_GFS_waves_h0 resident, overwritten by 37×17 gfs_marine_waves_global_coarse,
+// rev 1→3→5→7 flipping shapes with a particle reset + traceId-race MISMATCH each time). Blocks ONLY the downgrade:
+// coarse→regional (sharpen/UPGRADE), a scrub to a DIFFERENT hour, zoomed-out, no resident, or a resident regional
+// that no longer COVERS the viewport (stale after a pan) all return false — so the guard can never strand a
+// non-covering rectangle nor re-create the coarse-global CLAMP that 7f6c39be/54e289b5 fixed.
+export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled) {
+  if (disabled || !resident || !incoming) return false;
+  if (!isCoarseGlobalGrid(incoming)) return false;         // incoming must be the coarse-global fallback
+  if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
+  const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
+  const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
+    && incoming.hourOffset === resident.hourOffset;
+  const zoomedIn = (lastZoom === undefined) || (lastZoom > 6.5);
+  const residentRenderable = resident.__renderable !== false && !!(resident.vectors && resident.vectors.length);
+  // Keep the resident regional ONLY if it still covers the current viewport; otherwise it's stale after a pan and
+  // coarse (or a fresh regional) should be allowed to replace it (no stranded non-covering regional rectangle).
+  const rb = resident.bounds;
+  let covers = true;
+  if (viewportBounds && rb) {
+    const vw = viewportBounds[0], vs = viewportBounds[1], ve = viewportBounds[2], vn = viewportBounds[3];
+    covers = rb.west <= vw + 1e-6 && rb.east >= ve - 1e-6 && rb.south <= vs + 1e-6 && rb.north >= vn - 1e-6;
+  }
+  return !!(sameLayer && sameHour && zoomedIn && residentRenderable && covers);
+}
+
 // Identity of a captured coarse base so we re-encode only when the underlying coarse grid actually changes.
 function coarseBaseKey(waveGrid) {
   const b = (waveGrid && waveGrid.bounds) || {};
@@ -124,7 +153,28 @@ WebGLMarineEngine.prototype.isHighResMaskLoaded = function() {
 
 WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   if (!waveGrid?.vectors?.length) return;
-  
+
+  // === NO-DOWNGRADE GUARD — kills the coarse⇄regional ping-pong "spin" at the single engine choke point every
+  // commit source funnels through (orchestrator data_commit + SWR, WebGLMarineLayer land_mask_res_swap, the
+  // instant cache-hit on toggle, and the sync overlay). Refuse to overwrite a resident REGIONAL grid with the
+  // global-COARSE fallback for the same layer+hour while zoomed in over a covered viewport — that swap resets the
+  // particle FBO and re-orients the direction field (the spin). Hour/coverage-scoped + directional, so coarse→
+  // regional sharpen, a scrub to a new hour, a pan off the tile, and zoom-out all pass through untouched. Kill:
+  // window.__RAW_DISABLE_NO_DOWNGRADE__. Telemetry: window.__MARINE_NO_DOWNGRADE__.count.
+  if (this._waveData && this._waveData.waveGrid &&
+      shouldRejectResolutionDowngrade(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds,
+        typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__)) {
+    const _res = this._waveData.waveGrid;
+    if (typeof window !== 'undefined') {
+      const nd = window.__MARINE_NO_DOWNGRADE__ || (window.__MARINE_NO_DOWNGRADE__ = { count: 0 });
+      nd.count++;
+      nd.last = { residentDims: `${_res.cols}×${_res.rows}`, rejectedDims: `${waveGrid.cols}×${waveGrid.rows}`,
+        layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now() };
+    }
+    console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected global-coarse ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
+    return;
+  }
+
   if (landGeoJSON) {
     this._landGeoJSON = landGeoJSON;
   }
@@ -356,6 +406,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // v3.22: Compute camera center and tile origin for high-precision advection
     var vb = viewportBounds || [-180, -80, 180, 85];
+    this._lastViewportBounds = vb;   // snapshot for the no-downgrade guard's coverage check in setWaveData
     var centerLng = (vb[0] + vb[2]) * 0.5;
     if (vb[2] < vb[0]) {
       centerLng = (vb[0] + vb[2] + 360) * 0.5;
@@ -374,6 +425,22 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     var prevHighZoom = this._lastZoom > 6.0;
     var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
     this._lastZoom = z;
+
+    // === DIRECTION-COHERENCE FLOOR — kills the coarse-global bilinear-interpolation VORTEX (default ON) ===
+    // Repro (2026-07-01, localhost z5.61): after REACTIVATING waves while zoomed out, the instant cache-hit commits
+    // the coarse-GLOBAL 37×17 grid (rev7, stable); at z~5–6 you see only ~1–2 of its ~10°/cell cells magnified to
+    // fill the screen, so bilinear filtering of the DIVERGENT global direction field (different ocean basins) rotates
+    // the sampled heading smoothly across the viewport → a full-screen "clockwise spin". For unit-direction texels the
+    // interpolated magnitude is ≈cos(θ/2), so a coherence floor drops the divergent transition zones (0.5 ≈ >120°,
+    // 0.7 ≈ >90°) while keeping coherent cell interiors streaming. Applied ONLY when the RESIDENT grid is coarse-
+    // global (a fine regional grid streams cleanly — leave it alone) and ramped smoothstep(4,5.5,z) so a true GLOBAL
+    // view (z<4, many cells on screen, no per-cell swirl) is untouched. Default 0.5 (ON); set
+    // window.__RAW_DIR_COHERENCE_MIN__=0 to disable, or tune. Shared by draw+advect; echo __RAW_GPU__.anim.dirCoherenceMin.
+    const _dcmRaw = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : 0.5;
+    const _residentCoarseGlobal = isCoarseGlobalGrid(this._waveData && this._waveData.waveGrid);
+    let _dcmT = _residentCoarseGlobal ? Math.max(0.0, Math.min(1.0, (z - 4.0) / 1.5)) : 0.0;
+    _dcmT = _dcmT * _dcmT * (3.0 - 2.0 * _dcmT); // smoothstep(4,5.5,z), gated on a coarse-global resident grid
+    const dirCoherenceMin = _dcmRaw * _dcmT;
 
     var tileOriginX = 0.0;
     var tileOriginY = 0.0;
@@ -696,6 +763,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
       const _crestDirJitter = (typeof window !== 'undefined' && typeof window.__RAW_CREST_DIR_JITTER__ === 'number') ? window.__RAW_CREST_DIR_JITTER__ : 0.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
+      // Direction-coherence floor: discard crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
+      // synthetic close-zoom vortex). Engine-computed close-zoom ramp above; 0 = off (legacy). Matches ADVECT_FS.
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
 
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
@@ -748,6 +818,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           shoalFoam: _shoalFoam,
           shoalActive: _hasBathTex,            // false → shoaling foam is inert (no bathymetry bound at this view)
           crestJitter: _crestDirJitter,
+          dirCoherenceMin: +dirCoherenceMin.toFixed(3),  // applied close-zoom coherence floor (0 = off / far zoom)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
           partTarget: _partTarget,
@@ -839,6 +910,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // fast at mid-zoom over the coarse-global). Default 3.0 m; tunable live via window.__RAW_SPEED_HEIGHT_CAP__.
       const _speedHeightCap = (typeof window !== 'undefined' && typeof window.__RAW_SPEED_HEIGHT_CAP__ === 'number') ? window.__RAW_SPEED_HEIGHT_CAP__ : 3.0;
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speedHeightCap'), _speedHeightCap);
+      // Direction-coherence floor (matches DRAW): drop particles advecting through interpolated divergent-direction
+      // zones so they can't spiral the synthetic vortex. Engine-computed close-zoom ramp above; 0 = off (legacy).
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
 
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);

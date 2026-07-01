@@ -28,6 +28,7 @@ uniform float u_zoom;
 uniform float u_tileZoomMin;   // zoom above which particles use the camera-centered tile (concentrated). Below it they seed globally (sparse). Lowering it extends adequate density into the zoom-out range.
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
+uniform float u_dirCoherenceMin;   // close-zoom coherence floor: drop particles where |bilinear-interp waveVec| < this (kills the synthetic divergent-direction vortex). 0 = off (engine ramps it in only at close zoom).
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -149,7 +150,7 @@ void main() {
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
                 next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
-  if (waveHeight < 0.01 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
+  if (waveHeight < 0.01 || length(waveVec) < max(0.005, u_dirCoherenceMin) || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
@@ -206,6 +207,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
+uniform float u_dirCoherenceMin;    // close-zoom coherence floor: discard crests where |bilinear-interp waveVec| < this (matches ADVECT_FS, kills the divergent-direction vortex). 0 = off.
 uniform sampler2D u_bathTexture;    // bathymetry depthFactor (R: 0=shelf/reef shallow, 1=deep ocean) — same encoding the heatmap uses; for shoaling foam.
 uniform float u_shoalFoam;          // boost whitecap strength in shallow water (shelfProximity·u_shoalFoam). 0 = off. Engine forces 0 unless a bath texture is bound.
 uniform float u_motion_scale;
@@ -305,7 +307,7 @@ void main() {
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < max(0.02, u_dirCoherenceMin) || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);

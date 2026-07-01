@@ -111,4 +111,19 @@ describe('WebGLMarineShaders', () => {
       expect(DRAW_VS).toContain('v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;');
     });
   });
+
+  describe('Direction-coherence floor (close-zoom vortex fix) — gated, default-off', () => {
+    it('ADVECT_FS declares u_dirCoherenceMin and folds it into the particle drop gate via max() with the legacy floor', () => {
+      expect(ADVECT_FS).toContain('uniform float u_dirCoherenceMin;');
+      // The legacy 0.005 literal stays INSIDE max(), so a default uniform of 0.0 → max(0.005, 0.0) = 0.005 →
+      // byte-identical to the pre-fix drop gate (no regression until the engine ramps the floor in at close zoom).
+      expect(ADVECT_FS).toContain('length(waveVec) < max(0.005, u_dirCoherenceMin)');
+    });
+
+    it('DRAW_VS declares u_dirCoherenceMin and folds it into the crest discard gate via max() with the legacy floor', () => {
+      expect(DRAW_VS).toContain('uniform float u_dirCoherenceMin;');
+      // Same default-neutral guarantee: max(0.02, 0.0) = 0.02 preserves the legacy discard threshold.
+      expect(DRAW_VS).toContain('length(waveVec) < max(0.02, u_dirCoherenceMin)');
+    });
+  });
 });
