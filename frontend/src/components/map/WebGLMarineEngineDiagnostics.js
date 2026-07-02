@@ -28,10 +28,13 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
     return Math.max(ht, 2.5) * 2;
   };
 
-  // v5.8 density survival calculation
+  // v5.8 density survival calculation — MUST mirror the DRAW shader's legacy curve exactly
+  // (mix(0.128, 0.90, smoothstep(2,10,z))). Was linear + floor 0.12: overstated mid zooms (said 32% at z4,
+  // shader truth 24%). Floor 0.120→0.128 (2026-07-02): +5% crest density below the tileZoomMin=3 solve floor.
   var densityAtZoom = function(zVal) {
     var t = Math.min(1, Math.max(0, (zVal - 2) / 8));
-    return (0.12 + t * (0.90 - 0.12)) * 100;
+    var s = t * t * (3 - 2 * t);
+    return (0.128 + s * (0.90 - 0.128)) * 100;
   };
 
   window.__CREST_DIAG__ = {
@@ -51,7 +54,7 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
     densityCurve_v58: {
       zoom: z,
       survivalPercent: densityAtZoom(z).toFixed(1) + '%',
-      lowZoomTarget: '~12% at zoom 2',
+      lowZoomTarget: '~12.8% at zoom 2',
       heightBoost: 'smoothstep(1.0,4.0,h) * mix(0.02,0.10, smoothstep(5,10,zoom))',
       estimatedVisibleParticles: Math.round(numParts * densityAtZoom(z) / 100),
       worldOffsetPasses: 3,

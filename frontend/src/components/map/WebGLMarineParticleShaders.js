@@ -344,7 +344,7 @@ void main() {
   // legacy per-zoom curve (z<=6 path + safety fallback). Refs: blog.mapbox.com webgl-wind; Springer 10.1007/978-3-030-61864-3_26.
   float closeup = smoothstep(12.0, 15.0, u_zoom);
   float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
-  float effBase = u_densityBase > 0.0 ? u_densityBase : mix(0.12, 0.90, smoothstep(2.0, 10.0, u_zoom));
+  float effBase = u_densityBase > 0.0 ? u_densityBase : mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom));
   float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97);
 
   if (!bypassDiscard && particleHash > densityThreshold) {
