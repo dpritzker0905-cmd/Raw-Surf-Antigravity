@@ -20,6 +20,37 @@ os.environ.setdefault("SUPABASE_SERVICE_KEY", "test-service-key")
 os.environ.setdefault("TESTING", "1")
 
 
+def pytest_collection_modifyitems(config, items):
+    """Live-server integration skip (2026-07-02): a large legacy estate of iteration tests
+    (bookings/admin/social/buoy smoke tests) reads
+        BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
+    and drives `requests` against a DEPLOYED backend. With the env var unset every request in
+    those modules raises requests.exceptions.MissingSchema ('/api/...' has no scheme), turning
+    an offline `pytest` run red for reasons unrelated to the code under test.
+
+    Policy: when REACT_APP_BACKEND_URL is unset, SKIP (not fake-pass) every module that defines a
+    module-level BASE_URL — the live-estate marker. That includes the ones that bake a fallback URL
+    (e.g. the netlify dev deployment): those were found returning 401s against long-rotated admin
+    test credentials (2026-07-02) — point-in-time smoke suites, not offline CI signal. Set
+    REACT_APP_BACKEND_URL to run the live estate deliberately against a chosen instance."""
+    if os.environ.get('REACT_APP_BACKEND_URL'):
+        return
+    skip_live = pytest.mark.skip(
+        reason="live-server integration test — set REACT_APP_BACKEND_URL to a deployed backend to run"
+    )
+    _missing = object()
+    for item in items:
+        module = getattr(item, 'module', None)
+        if module is None:
+            continue
+        base_url = getattr(module, 'BASE_URL', _missing)
+        # str = the estate's env-or-fallback pattern; None = the variant that does
+        # os.environ.get(...) with no default (e.g. test_reviews_xp_system). The _missing
+        # sentinel keeps modules WITHOUT a BASE_URL out of the skip.
+        if isinstance(base_url, str) or base_url is None:
+            item.add_marker(skip_live)
+
+
 @pytest_asyncio.fixture
 async def client():
     """
@@ -27,7 +58,11 @@ async def client():
     Each test gets a fresh client instance. No real DB connections are made.
     """
     try:
-        from server import app
+        from server import app, ensure_database_tables
+        # ASGITransport does NOT run the app lifespan, so the startup schema migration never
+        # fires and newer tables (galleries, reviews, ...) are missing from the sqlite test DB
+        # ('no such table: galleries', 2026-07-02). ensure_database_tables() is idempotent.
+        await ensure_database_tables()
         transport = ASGITransport(app=app)
         async with AsyncClient(transport=transport, base_url="http://testserver") as ac:
             yield ac
