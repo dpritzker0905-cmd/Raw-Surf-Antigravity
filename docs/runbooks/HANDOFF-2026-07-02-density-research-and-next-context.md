@@ -15,7 +15,26 @@
    tuner V2 (`386ab799`), nearest-cell band mode (`efd3624a`), `.env.local`→Render, SW guards (both paths).
 6. **USER CONFIRMED "it looks better"** after `1105f625`. Remaining visual nit → §1.
 
-## 1. NEW ITEM — z3.02–3.93 crest SPARSITY (mechanism KNOWN, fix designed, NOT implemented)
+## 1. z3.02–3.93 crest SPARSITY — **RESOLVED (2026-07-02 PM): tileZoomMin default 4.0→3.0 SHIPPED**
+**Experiment ran as designed (zero-code first, then shipped).** Live results on 3001 (preview harness, wheel-zoom
+recipe): baseline z3.4 = legacy curve 25.7% over world-scattered pool (visibly near-empty Gulf/Atlantic);
+`__RAW_TILE_ZOOM_MIN__=3.0` → density solve active across the whole band (densityBase 0.15–0.53, holds 1650
+exactly; echo live at z3.33/3.4/3.61/3.66/3.94). **Zero reinit on the live flip** (both zooms above the new floor →
+flag never toggles; uniform pos remap is distribution-neutral). **Zero reseeds panning 6.5° in-band** (tile = HALF
+the world at z3.x → recenter threshold effectively unreachable). Exactly ONE reinit per z3.0 crossing (the cliff
+moved below the reported band, into the deliberate globe-thinning zone — z2.7 verified uncluttered). No solve-clamp
+saturation. SHIPPED: engine default 3.0 (`WebGLMarineEngine.js` tileZoomMin block), tuner `def: 3`, PLUS a one-time
+localStorage migration in `MarineAnimTuner.loadVals` (every slider edit persists the FULL blob → a stored `4` is
+the captured old default; dropped once + blob rewritten so re-set 4s stick. Verified live: seeded blob {4, 1.2} →
+{1.2}, GPU echo 3). Tuner is localhost-only so prod always had the engine default. U1 (continuous blend) remains
+the "no cliffs anywhere" upgrade if the z3.0 boundary ever bothers; U2/U3 unchanged in §2.
+**⚠️ Forensic note for future sessions:** a mid-boot Waves double-toggle (automation clicking while
+`__MARINE_BOOT_DIAG__` still initializing) can strand the engine on a stale regional texture WITH cache HITS for
+`global_coarse` (upload never lands) — looks exactly like a data bug. Clean toggle after full boot + staged
+zoom-out with dwells self-heals normally (blank-backstop fired once at z6.21, global committed on dwell — the
+known OPEN item 4 transition polish, NOT a regression).
+
+## 1-old. Original analysis (kept for the record)
 **Report:** particles noticeably sparser in z3.02–3.93 than everywhere else.
 **Mechanism (documented, HANDOFF-2026-06-30 §3.1):** `tileZoomMin = 4.0` is the floor of the constant-density
 regime. Above it: particles seed in a camera-anchored tile (2^backoff × screen) and the engine SOLVES the cull
