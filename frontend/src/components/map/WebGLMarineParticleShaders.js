@@ -167,9 +167,11 @@ void main() {
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
                 next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
-  // Sanity floor on the ADVECTED vector stays at 0.005; the coherence floor tests the BILINEAR magnitude
-  // (dirCoherence) so it works in nearest mode too — culling seam strips between divergent cells.
-  if (waveHeight < 0.01 || length(waveVec) < 0.005 || dirCoherence < u_dirCoherenceMin || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
+  // Sanity floor on the ADVECTED vector stays at 0.005. The coherence test drops only the seam CORE
+  // (< half the floor): the first cut dropped everything under the full floor and bilinear seams span
+  // whole degrees on a 10° grid — visible GAPS in the crest field (live regression report 2026-07-02).
+  // The DRAW shader fades alpha over [0.5·floor, floor] so the transition is soft, not a hole.
+  if (waveHeight < 0.01 || length(waveVec) < 0.005 || dirCoherence < u_dirCoherenceMin * 0.5 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
@@ -347,7 +349,7 @@ void main() {
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || dirCoherence < u_dirCoherenceMin || oceanFlag < 0.3 || isNan || isOob)) {
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || dirCoherence < u_dirCoherenceMin * 0.5 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -498,6 +500,13 @@ void main() {
 
   // Per-particle brightness variation (±10%) — subtle, NOT on phase speed
   v_alpha *= 0.9 + particleHash * 0.2;
+
+  // SEAM FADE (2026-07-02): soften the divergent-cell seam cull — crests FADE over coherence
+  // [0.5·floor, floor] instead of vanishing across the whole strip (the binary cull left visible
+  // GAPS: bilinear seams span degrees on a 10° grid). Hard discard above handles only the core.
+  if (u_dirCoherenceMin > 0.001) {
+    v_alpha *= smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence);
+  }
 
   // Smoothstep boundary feathering so particles dissolve softly near grid edges
   float edgeFade = 1.0;

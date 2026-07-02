@@ -118,16 +118,17 @@ describe('WebGLMarineShaders', () => {
     // captured from the bilinear sample BEFORE the nearest override (dirCoherence), and the legacy sanity
     // floors (0.005 advect / 0.02 draw) stay as separate literal tests on the ADVECTED vector. A floor
     // uniform of 0.0 keeps the gates byte-equivalent to legacy (dirCoherence < 0.0 is never true).
-    it('ADVECT_FS keeps the legacy sanity floor and gates on the bilinear coherence separately', () => {
+    it('ADVECT_FS keeps the legacy sanity floor and hard-drops only the seam CORE (half the floor)', () => {
       expect(ADVECT_FS).toContain('uniform float u_dirCoherenceMin;');
       expect(ADVECT_FS).toContain('length(waveVec) < 0.005');
-      expect(ADVECT_FS).toContain('dirCoherence < u_dirCoherenceMin');
+      expect(ADVECT_FS).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
     });
 
-    it('DRAW_VS keeps the legacy sanity floor and gates on the bilinear coherence separately', () => {
+    it('DRAW_VS keeps the legacy sanity floor, hard-discards the seam core, and FADES the edge', () => {
       expect(DRAW_VS).toContain('uniform float u_dirCoherenceMin;');
       expect(DRAW_VS).toContain('length(waveVec) < 0.02');
-      expect(DRAW_VS).toContain('dirCoherence < u_dirCoherenceMin');
+      expect(DRAW_VS).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
+      expect(DRAW_VS).toContain('smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence)');
     });
   });
 });

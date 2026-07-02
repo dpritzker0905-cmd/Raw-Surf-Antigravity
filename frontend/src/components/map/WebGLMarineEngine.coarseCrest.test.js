@@ -75,8 +75,12 @@ describe('nearest-direction shader plumbing', () => {
       const overrideIdx = src.indexOf('u_coarseNearestDir > 0.5');
       expect(cohIdx).toBeGreaterThan(-1);
       expect(cohIdx).toBeLessThan(overrideIdx);
-      expect(src).toContain('dirCoherence < u_dirCoherenceMin');
+      // Hard cull only below HALF the floor (the seam core) — the full-floor binary cull left
+      // degree-wide GAPS in the crest field (live regression, 2026-07-02).
+      expect(src).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
     }
+    // …and DRAW fades alpha over [0.5·floor, floor] so the seam edge is soft, not a hole.
+    expect(DRAW_VS).toContain('smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence)');
   });
 
   it('U2 stratified reseeding + U3 far-zoom size floor are plumbed', () => {
