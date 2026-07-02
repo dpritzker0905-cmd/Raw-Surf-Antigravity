@@ -548,9 +548,13 @@ void main() {
   // 0 = unchanged symmetric ellipse (legacy v5.x). Live-tunable: window.__RAW_TROCHOIDAL__.
   float acWarp = acrossCrest;
   if (u_trochoidal > 0.001) {
-    float lead = max(0.0, -acrossCrest);   // leading (+waveDir) side, 0..1  (waveLocal = -acrossCrest*0.5+0.5)
-    float trail = max(0.0, acrossCrest);   // trailing side, 0..1
-    float warped = -pow(lead, 0.65) + pow(trail, 1.5); // sharpen leading, broaden trailing
+    // ORIENTATION FIX (2026-07-02): acrossCrest = +1 is the LEADING (+waveDir/travel) side — the corner offset
+    // is +waveDir*cornerUV.y and the (visually verified) foam roll sweeps toward +1. The original warp had
+    // lead/trail swapped, so the sharp face pointed BACKWARDS (broad slope forward) — crests read as traveling
+    // the wrong way ("rolling out to sea") once Natural defaults enabled trochoidal on 2026-07-01.
+    float lead = max(0.0, acrossCrest);    // leading (+waveDir) side, 0..1
+    float trail = max(0.0, -acrossCrest);  // trailing (-waveDir) side, 0..1
+    float warped = pow(lead, 0.65) - pow(trail, 1.5); // sharpen leading, broaden trailing
     acWarp = mix(acrossCrest, warped, clamp(u_trochoidal, 0.0, 1.0));
   }
   float ellipseDist = length(vec2(alongCrest, acWarp));
