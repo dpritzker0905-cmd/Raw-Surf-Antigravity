@@ -1,5 +1,12 @@
 # HANDOFF — Wave-animation density research + next-context to-dos (2026-07-02, context rollover)
 
+> **★ RELEASED (2026-07-02 EVE): main ff `4583c39b`→`e925eb5e`, 154 commits** (user-directed §22 handshake;
+> gates green: 472/472 FE + prod build + backend 463 passed/0 failed offline). Same push: z2.7–3.0 density
+> second pass (+0.0076 localized, 16.2% @z2.89 verified; user console showed LCP 2368ms good, was 5.8s) and
+> dead deck.gl/GPUWaveLayer removal (5 package entries; moment gone from the tree). Prod verification when
+> netlify finishes: bundle-marker check first (e.g. `u_coarseNearestDir` / `MARINE_ZOOMED_OUT_MAX_ZOOM` echo
+> `__MARINE_ZOOM_THRESHOLDS__` in the MapPage chunk), no deploy loop-polling.
+
 ## 0-PM2. SECOND PASS (2026-07-02 PM, user feedback round) — ALL remaining §3 items closed
 1. **z2.91 "+5% density"** (`da19437b`): legacy low-zoom curve floor 0.120→0.128 (+5.1% at z2.91); diag
    mirror was LINEAR vs the shader's smoothstep (said 32% at z4, truth 24%) — now formula-exact.
