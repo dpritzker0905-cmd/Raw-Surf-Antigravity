@@ -42,10 +42,18 @@
         <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
         <!-- Preconnect to Mapbox tile API for faster map loading -->
         <link rel="preconnect" href="https://api.mapbox.com" crossorigin />
+        <!-- Preconnect to the weather-data backend: /map fires its first data fetches only after the JS
+             bundles parse, so warming DNS+TLS to the (cold-start-prone) Render origin ahead of time takes
+             that setup off the critical path. Harmless if a deployment overrides the backend URL. -->
+        <link rel="preconnect" href="https://raw-surf-antigravity.onrender.com" crossorigin />
         <link href="https://fonts.googleapis.com/css2?family=Inter:wght@600&display=swap" rel="stylesheet" />
         <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@400;500;600;700&display=swap" rel="stylesheet" />
-        <link href="https://unpkg.com/maplibre-gl@4.7.1/dist/maplibre-gl.css" rel="stylesheet" />
-        <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.1/css/all.min.css" crossorigin="anonymous" />
+        <!-- LCP pass (2026-07-02): removed two RENDER-BLOCKING third-party stylesheets that sat on the
+             first-paint critical path of EVERY route (cold DNS+TLS+fetch each):
+             1. unpkg maplibre-gl@4.7.1 CSS — a redundant, version-DRIFTED duplicate (installed maplibre-gl
+                is 5.24.0 and its own CSS is already bundled into the map chunk's stylesheet).
+             2. cdnjs font-awesome 6.5.1 — zero fa-* usage anywhere in src/ or public/ (dead weight). -->
+
         <!--
         manifest.json provides metadata used when your web app is installed on a
         user's mobile device or desktop. See https://developers.google.com/web/fundamentals/web-app-manifest/
