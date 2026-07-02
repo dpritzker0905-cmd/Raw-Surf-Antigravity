@@ -32,7 +32,16 @@ export function useWebRTCSignaling(userId, onMessage) {
  // WebSocket Connection 
   const connectSignaling = useCallback(() => {
     if (!userId) return;
-    
+
+    // Dev-mock users have no signaling endpoint on the backend (the socket is rejected by design),
+    // so the ALWAYS-reconnect loop below just floods the console and burns a socket attempt every
+    // 30s forever (observed at attempt 65+, 2026-07-02). Skip signaling entirely for them — real
+    // users (including real users on localhost) keep the full connect/reconnect behavior.
+    if (String(userId).startsWith('dev-mock')) {
+      logger.debug('[WebRTC] Dev-mock user — signaling WS skipped (no backend endpoint).');
+      return;
+    }
+
     // Don't reconnect if already open
     if (wsRef.current && wsRef.current.readyState === WebSocket.OPEN) return;
     
