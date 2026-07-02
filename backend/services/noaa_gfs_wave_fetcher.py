@@ -72,6 +72,46 @@ def _coarse_axis(lo, hi, step):
     return vals
 
 
+# direction variable -> the height variable that weights its energy mean (E ∝ H²)
+DIR_TO_HEIGHT = {
+    "wave_direction": "wave_height",
+    "swell_wave_direction": "swell_wave_height",
+    "secondary_swell_wave_direction": "secondary_swell_wave_height",
+    "wind_wave_direction": "wind_wave_height",
+}
+
+
+def energy_mean_direction_block(dir_arr, h_arr, r, c, half, wrap_cols):
+    """ENERGY-WEIGHTED CIRCULAR-MEAN direction (deg, FROM-convention preserved) over the (2·half)² block of
+    native 0.25° cells centred on (r, c) — the standard spectral mean wave direction θm = atan2(ΣE·sinθ, ΣE·cosθ),
+    E ∝ H². WHY (vortex forensics 2026-07-02): the coarse product used to POINT-SAMPLE DIRPW every 10°, and the
+    dominant-partition direction switches discontinuously between neighbouring sample points (measured on the live
+    grid: mean adjacent-cell delta 41°, p90 117°, 15% of pairs >90°, near-180° flips inside 2-4 m swell). Magnified
+    at z4-6 that aliased field advects crests in a rotating pattern — the "vortex". The energy mean over ~1600
+    underlying cells is smooth across neighbours and physically meaningful; individual point values were genuine
+    but unrepresentative. Latitude clamps at the poles; longitude WRAPS (global grid). NaN-safe. Returns the plain
+    point sample when the block carries no energy (calm/land) so degenerate areas keep legacy behaviour.
+    Pure (numpy only) — unit-tested in backend/tests/test_noaa_wave_blockmean.py."""
+    import numpy as np
+    nrows, ncols = dir_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = np.arange(c - half, c + half) % ncols if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
+    d = dir_arr[r0:r1][:, cols_idx]
+    h = h_arr[r0:r1][:, cols_idx]
+    ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+    if not ok.any():
+        x = dir_arr[r, c]
+        return float(x) if x == x else float("nan")
+    e = h[ok] ** 2
+    rad = np.deg2rad(d[ok])
+    s = float(np.sum(e * np.sin(rad)))
+    co = float(np.sum(e * np.cos(rad)))
+    if s == 0.0 and co == 0.0:
+        x = dir_arr[r, c]
+        return float(x) if x == x else float("nan")
+    return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+
+
 def _pick_cycle(requests, now, max_f):
     """Probe AWS Open Data newest-first for a COMPLETE GFS-Wave cycle (f000 + the requested last hour
     both present). Returns (cycle_dt, file_prefix) or (None, None)."""
@@ -192,11 +232,23 @@ def fetch_global_coarse(payload):
                         c = int(np.abs(lon1d - target).argmin())
                         idx_map.append((r, c))
 
+            # Decode every message up-front so DIRECTION vars can pair with their HEIGHT var (energy weight).
+            arrs = {}
             for mi, om in enumerate(OM_ORDER):
                 vals = msgs[mi].values  # masked array (land/missing masked)
-                arr = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
+                arrs[om] = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
+            # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
+            blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
+            half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
+            for om in OM_ORDER:
+                arr = arrs[om]
+                h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                 for pi, (r, c) in enumerate(idx_map):
-                    x = arr[r, c]
+                    if h_arr is not None:
+                        # global.0p25 grid → longitude always wraps
+                        x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                    else:
+                        x = arr[r, c]
                     series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN
             grbs.close()
 
