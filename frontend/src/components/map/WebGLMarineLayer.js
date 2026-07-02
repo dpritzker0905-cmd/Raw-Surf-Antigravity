@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear } from './marineTransitionCoordinator';
@@ -607,7 +608,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
           const ew = vb.getWest(), ee = vb.getEast();
           const vWidth = (ee < ew) ? (ee + 360) - ew : ee - ew;
           const vHeight = vb.getNorth() - vb.getSouth();
-          const viewportZoomedOut = (mapInstance.getZoom() <= 6.5) || (vWidth > 15.0 || vHeight > 15.0);
+          const viewportZoomedOut = (mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vWidth > 15.0 || vHeight > 15.0);
           isResidentRegionalAtGlobalViewport = residentRegional && viewportZoomedOut;
         }
       } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }

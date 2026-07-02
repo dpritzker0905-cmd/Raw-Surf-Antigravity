@@ -4,6 +4,7 @@
 // capabilities.max_forecast_hours. (The native/estimate boundary, 240h, lives in the backend
 // estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
 import { getMarineSeriesFrame } from './marineGridSeries';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export const EURO_NATIVE_HOURS = 240;
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
@@ -57,7 +58,7 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
   }
 
   const isGlobalSupported = (model === 'GFS' || model === 'ICON');
-  const isViewportZoomedOut = (zoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+  const isViewportZoomedOut = (zoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
 
   const isGridRegional = gridWidth < 340.0;
   let isContained = true;

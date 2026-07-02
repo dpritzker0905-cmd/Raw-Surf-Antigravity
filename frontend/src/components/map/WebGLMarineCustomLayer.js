@@ -1,4 +1,5 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -155,7 +156,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             const vpHeight = en - es;
 
             const currentZoom = map.getZoom();
-            const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+            const isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
 
             const isGridRegional = gridWidth < 340.0;
             let isContained = true;
@@ -215,7 +216,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             const currentZoom = map.getZoom();
             const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
             const isZoomingOrMoving = map.isZooming() || map.isMoving() || window.isScrubbingTimeline || isTransitioning;
-            if (currentZoom <= 6.5 && isGlobalSupported && gridWidth < 340.0) {
+            if (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM && isGlobalSupported && gridWidth < 340.0) {
               if (!isZoomingOrMoving) {
                 this._wasActive = false;
                 return;

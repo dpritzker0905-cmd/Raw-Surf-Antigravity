@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
 function gridCoversViewport(gb, vb) {
@@ -26,7 +27,7 @@ function detectClamp(mapInstance) {
     const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
     const vwid = (vb.east < vb.west) ? (vb.east + 360) - vb.west : vb.east - vb.west;
     const vhgt = vb.north - vb.south;
-    const regionalZoom = mapInstance.getZoom() > 6.5 && vwid < 15 && vhgt < 15;
+    const regionalZoom = mapInstance.getZoom() > MARINE_ZOOMED_OUT_MAX_ZOOM && vwid < 15 && vhgt < 15;
     if (!regionalZoom) return { clamp: false, vb };
     if (renderedGlobal) return { clamp: true, kind: 'coarse_global', vb };
     // Regional grid SMALLER than the viewport (with a 0.25° tolerance) → too-small clamp.
@@ -235,7 +236,7 @@ export function runScrubSettleCheck(ctx) {
       const vwid = (vb.east < vb.west) ? (vb.east + 360) - vb.west : vb.east - vb.west;
       const vhgt = Math.abs(vb.north - vb.south);
       let zoomedOutGate = vwid > 15.0 || vhgt > 15.0;
-      try { zoomedOutGate = zoomedOutGate || mapInstance.getZoom() <= 6.5; } catch (e) { /* keep span-based */ }
+      try { zoomedOutGate = zoomedOutGate || mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM; } catch (e) { /* keep span-based */ }
       const reqBounds = zoomedOutGate ? { west: -180, south: -85, east: 180, north: 85 } : vb;
       const frame = getMarineSeriesFrame(model, layer, reqBounds, currentHour);
       if (frame && frame.grid && frame.grid.vectors && frame.grid.vectors.length > 0 && setMarineData) {

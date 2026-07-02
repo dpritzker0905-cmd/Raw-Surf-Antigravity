@@ -5,6 +5,7 @@ import { findClosestHourIndex } from './marineControllerUtils';
 import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { getMarineSeriesFrame } from './marineGridSeries';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
@@ -91,7 +92,7 @@ export function useMarineOrchestratorScrubCache({
         vpWidth = (ew < ew_w) ? (ew + 360) - ew_w : ew - ew_w;
         vpHeight = Math.abs(vpBounds.north - vpBounds.south);
       }
-      isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+      isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
 
       let isGridWidthRegional = false;
       let isContained = true;

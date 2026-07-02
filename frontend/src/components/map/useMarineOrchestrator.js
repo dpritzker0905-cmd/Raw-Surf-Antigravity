@@ -11,6 +11,7 @@ import { ensureMarineSeries, getMarineSeriesFrame, prewarmMarineSeries } from '.
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { useMarineScrubSettle } from './useMarineScrubSettle';
 
 // Module-level scrub log throttle (max once per 2s)
@@ -381,7 +382,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const cz = mapInstance.getZoom();
             const vw = (ivp.east < ivp.west) ? (ivp.east + 360) - ivp.west : ivp.east - ivp.west;
             const vh = Math.abs(ivp.north - ivp.south);
-            const zoomedOut = (cz <= 6.5) || (vw > 15.0 || vh > 15.0);
+            const zoomedOut = (cz <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vw > 15.0 || vh > 15.0);
             let vW = ivp.west, vE = ivp.east; if (vE < vW) vE += 360;
             let gW = gw, gE = ge; if (gE < gW) gE += 360;
             const contained = ivp.south >= ab.south && ivp.north <= ab.north && vW >= gW && vE <= gE;
@@ -463,7 +464,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             vpHeight = Math.abs(vpBounds.north - vpBounds.south);
           }
           const currentZoom = mapInstance.getZoom();
-          const isViewportZoomedOut = (currentZoom <= 6.5) || (vpWidth > 15.0 || vpHeight > 15.0);
+          const isViewportZoomedOut = (currentZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpWidth > 15.0 || vpHeight > 15.0);
 
           const actualBounds = cached.grid?.bounds || cached.bounds;
           let isGridWidthRegional = false;

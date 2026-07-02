@@ -22,6 +22,7 @@ import {
 } from './WebGLMarineTextureEncoder';
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
+import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
 import {
   reinitParticles,
   reseedParticleStateInPlace,
@@ -83,7 +84,7 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
   const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
     && incoming.hourOffset === resident.hourOffset;
-  const zoomedIn = (lastZoom === undefined) || (lastZoom > 6.5);
+  const zoomedIn = (lastZoom === undefined) || (lastZoom > MARINE_ZOOMED_OUT_MAX_ZOOM);
   const residentRenderable = resident.__renderable !== false && !!(resident.vectors && resident.vectors.length);
   // Keep the resident regional ONLY if it still covers the current viewport; otherwise it's stale after a pan and
   // coarse (or a fresh regional) should be allowed to replace it (no stranded non-covering regional rectangle).
@@ -501,7 +502,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // cell (near-uniform direction, no vortex) and BELOW ~z3.5 you see many cells (a global field, no
     // per-cell swirl). In the band, resolveCoarseCrestControls picks the crest strategy — default 'nearest'
     // (cell-center direction sampling: crests animate, no swirl); 'suppress' = the 2026-07-01 full discard.
-    const _inVortexBand = _residentCoarseGlobal && z > 3.5 && z < 7.0;
+    const _inVortexBand = _residentCoarseGlobal && z > COARSE_CREST_BAND_MIN_ZOOM && z <= MARINE_ZOOMED_OUT_MAX_ZOOM;
     const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null);
     let dirCoherenceMin = _ccc.dirCoherenceMin;
     const coarseNearestDir = _ccc.coarseNearestDir;
