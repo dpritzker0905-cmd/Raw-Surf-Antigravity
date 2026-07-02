@@ -143,6 +143,44 @@ class TestBlockMulti:
         out = energy_mean_direction_block_multi([(nanarr, zeros), (nanarr, zeros)], dirpw, 10, 10, 5, False)
         assert out == pytest.approx(123.0)
 
+    def test_trimodal_cancellation_defers_to_coherent_dirpw(self):
+        # THE BAJA CASE (2026-07-02, live): three partitions whose energy vectors mutually cancel —
+        # swell1 1.0m FROM 343 (TO 163) vs swell2 0.8m FROM 152 (TO 332) annihilate, leaving the
+        # windwave 1.1m FROM 77 (TO 257) as the blend's residual winner → crests animated E→W. The
+        # model's OWN total (DIRPW) is stably FROM ~186 (TO ~6) across the block. With total_h_arr
+        # passed, the coherence gate must return ≈DIRPW's mean, not the partition residual.
+        shape = (80, 80)
+        s1d, s1h = np.full(shape, 343.0), np.full(shape, 1.0)
+        s2d, s2h = np.full(shape, 152.0), np.full(shape, 0.8)
+        wwd, wwh = np.full(shape, 77.0), np.full(shape, 1.1)
+        dirpw = np.full(shape, 186.0)
+        total_h = np.full(shape, 1.96)
+        pairs = [(wwd, wwh), (s1d, s1h), (s2d, s2h)]
+        out = energy_mean_direction_block_multi(pairs, dirpw, 40, 40, 20, False, total_h)
+        d = abs(out - 186.0) % 360.0
+        assert min(d, 360.0 - d) < 5.0, f"expected ≈DIRPW 186, got {out}"
+        # and WITHOUT the total field (legacy signature) the residual-winner behavior is preserved
+        legacy = energy_mean_direction_block_multi(pairs, dirpw, 40, 40, 20, False)
+        dl = abs(legacy - 77.0) % 360.0
+        assert min(dl, 360.0 - dl) < 30.0, f"legacy path should land near the windwave, got {legacy}"
+
+    def test_bimodal_flip_zone_still_uses_the_partition_blend_with_total_h(self):
+        # DIRPW flipping cell-to-cell between two systems (the N-Atl regime the partition blend was
+        # built for): its block resultant R_d is LOW → the gate must keep the partition blend even
+        # when total_h_arr is provided.
+        rng = np.random.default_rng(3)
+        ww_d = np.full((100, 200), 90.0)
+        sw_d = np.full((100, 200), 250.0)
+        ww_h = 2.0 + 0.1 * rng.standard_normal((100, 200))
+        sw_h = 2.0 + 0.1 * rng.standard_normal((100, 200))
+        dirpw = np.where(ww_h > sw_h, ww_d, sw_d)
+        total_h = np.hypot(ww_h, sw_h)
+        pairs = [(ww_d, ww_h), (sw_d, sw_h)]
+        gated = energy_mean_direction_block_multi(pairs, dirpw, 50, 60, 20, False, total_h)
+        legacy = energy_mean_direction_block_multi(pairs, dirpw, 50, 60, 20, False)
+        d = abs(gated - legacy) % 360.0
+        assert min(d, 360.0 - d) < 10.0, f"low-coherence DIRPW must not hijack the blend: {gated} vs {legacy}"
+
     def test_total_sea_partitions_reference_real_product_variables(self):
         om_all = {om for _, om, _ in IDX_TO_OM}
         for d, h in TOTAL_SEA_PARTITIONS:

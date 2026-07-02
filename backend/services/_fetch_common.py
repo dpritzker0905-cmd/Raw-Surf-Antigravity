@@ -106,16 +106,37 @@ def energy_mean_direction_block(dir_arr, h_arr, r: int, c: int, half: int, wrap_
     return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
 
 
-def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, half: int, wrap_cols: bool) -> float:
-    """TOTAL-SEA mean direction over the block, synthesized from PARTITIONS: θ = atan2(ΣₚΣ E·sinθₚ,
-    ΣₚΣ E·cosθₚ), E ∝ Hₚ², accumulated across all (dir, height) partition pairs AND all block cells.
-    WHY (2026-07-02, second-pass forensics): the single-field block mean of a PEAK direction (NOAA DIRPW)
-    only improved the field 41°→31° mean neighbor delta — in two-system water (e.g. trade windsea vs
-    groundswell, the N-Atlantic viewport measured mean 50° / max 154°) the per-cell DIRPW is BIMODAL
-    (~180° apart) and an energy mean of a bimodal field nearly cancels → unstable, still flips between
-    blocks. Blending the partitions (each unimodal, with its own height) by energy gives the stable
-    spectral mean the smooth reference fields (open-meteo, CMEMS VMDR, GWAM mwd) expose. Falls back to
-    the point sample of fallback_dir_arr (DIRPW) when the block carries no partition energy."""
+# Coherence ramp for the two-tier total-sea direction (see energy_mean_direction_block_multi):
+# below RAMP_LO the model's own total-direction field (DIRPW) is treated as incoherent (bimodal
+# flip-zone) and the partition blend is used alone; above RAMP_HI DIRPW is fully trusted; between,
+# the two are mixed continuously (unit-vector blend) so adjacent blocks can never seam across the gate.
+DIR_TOTAL_COHERENCE_RAMP_LO = 0.35
+DIR_TOTAL_COHERENCE_RAMP_HI = 0.65
+
+
+def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, half: int, wrap_cols: bool,
+                                      total_h_arr=None) -> float:
+    """TOTAL-SEA mean direction over the block — coherence-gated two-tier (third pass, 2026-07-02).
+
+    Tier 1 (partitions): θ = atan2(ΣₚΣ E·sinθₚ, ΣₚΣ E·cosθₚ), E ∝ Hₚ², across all (dir, height)
+    partition pairs AND block cells. Introduced because the per-cell PEAK direction (NOAA DIRPW) is
+    BIMODAL in two-system water — its block mean cancels and flips (N-Atl measured mean 50°/max 154°).
+
+    Tier 2 (the model's own total field): the partition reconstruction has its OWN failure mode,
+    found live off Baja (block 20°N,-120°, user-visible east→west crest motion): in TRI-modal water
+    the partition energy vectors mutually cancel (swell1 TO≈163 vs swell2 TO≈332 annihilate) and the
+    blend lands on the residual minority system (windwave, TO≈257) while the model's own
+    full-spectrum total (DIRPW) is stably N across the block (TO 16–18 at 7/9 pinned-reference
+    points; H²-weighted block mean TO=6; ECMWF best_match TO≈348). A 3-partition-peaks
+    reconstruction cannot see the full 2-D spectrum; DIRPW can.
+
+    Gate: R_d = |Σ E·unit(DIRPW)| / Σ E over the block (circular-statistics resultant length,
+    E ∝ total-H²). R_d high → DIRPW's block mean IS the stable truth (use it). R_d low → DIRPW is
+    flip-zone bimodal → partition blend (its verified-at-parity regime). In between: continuous
+    unit-vector mix (no block seams). total_h_arr=None disables tier 2 (legacy partition-only —
+    the callers' NOAA_COARSE_DIR_TOTAL_FIELD=0 kill-switch path).
+
+    Falls back to the point sample of fallback_dir_arr (DIRPW) when the block carries no energy."""
     nrows, ncols = fallback_dir_arr.shape
     r0, r1 = max(0, r - half), min(nrows, r + half)
     cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
@@ -133,10 +154,41 @@ def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, h
         rad = np.deg2rad(d[ok])
         s += float(np.sum(e * np.sin(rad)))
         co += float(np.sum(e * np.cos(rad)))
-    if not any_ok or (s == 0.0 and co == 0.0):
-        x = fallback_dir_arr[r, c]
-        return float(x) if x == x else float("nan")
-    return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+
+    # Tier 2: block mean + coherence of the model's own total-direction field, weighted by total H².
+    w = 0.0
+    ds = dco = 0.0
+    if total_h_arr is not None:
+        dt = fallback_dir_arr[r0:r1][:, cols_idx]
+        ht = total_h_arr[r0:r1][:, cols_idx]
+        okt = np.isfinite(dt) & np.isfinite(ht) & (ht > 0.0)
+        if okt.any():
+            et = ht[okt] ** 2
+            radt = np.deg2rad(dt[okt])
+            ds = float(np.sum(et * np.sin(radt)))
+            dco = float(np.sum(et * np.cos(radt)))
+            e_sum = float(np.sum(et))
+            if e_sum > 0.0:
+                r_d = float(np.hypot(ds, dco)) / e_sum
+                w = min(1.0, max(0.0, (r_d - DIR_TOTAL_COHERENCE_RAMP_LO)
+                                 / (DIR_TOTAL_COHERENCE_RAMP_HI - DIR_TOTAL_COHERENCE_RAMP_LO)))
+
+    have_partition = any_ok and not (s == 0.0 and co == 0.0)
+    have_total = w > 0.0 and not (ds == 0.0 and dco == 0.0)
+    if have_partition and have_total:
+        # continuous mix of the two UNIT vectors — degrees-safe, seam-free across the gate
+        pm = float(np.hypot(s, co)) or 1.0
+        tm = float(np.hypot(ds, dco)) or 1.0
+        mx = (1.0 - w) * (s / pm) + w * (ds / tm)
+        my = (1.0 - w) * (co / pm) + w * (dco / tm)
+        if mx != 0.0 or my != 0.0:
+            return float(np.rad2deg(np.arctan2(mx, my)) % 360.0)
+    if have_total and not have_partition:
+        return float(np.rad2deg(np.arctan2(ds, dco)) % 360.0)
+    if have_partition:
+        return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+    x = fallback_dir_arr[r, c]
+    return float(x) if x == x else float("nan")
 
 
 def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):

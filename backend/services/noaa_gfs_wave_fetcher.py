@@ -226,14 +226,20 @@ def fetch_global_coarse(payload):
                 arrs[om] = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
             # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
             blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
+            # Kill switch NOAA_COARSE_DIR_TOTAL_FIELD=0 → partition-blend only (no DIRPW coherence tier).
+            # Default ON (third pass, 2026-07-02): in tri-modal water the partition vectors cancel and the
+            # blend lands on a minority system (Baja block 20,-120 read TO≈257 while DIRPW says TO≈6) —
+            # the coherence-gated DIRPW tier in energy_mean_direction_block_multi fixes exactly that.
+            total_field = os.environ.get("NOAA_COARSE_DIR_TOTAL_FIELD", "1") != "0"
             half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
+            _total_h = arrs.get("wave_height") if total_field else None
             for om in OM_ORDER:
                 arr = arrs[om]
                 if blockmean and om == "wave_direction":
-                    # total-sea direction: energy blend of the partitions (DIRPW itself is bimodal)
+                    # total-sea direction: coherence-gated blend of DIRPW-block-mean and partitions
                     for pi, (r, c) in enumerate(idx_map):
-                        x = energy_mean_direction_block_multi(_partition_pairs, arr, r, c, half, True)
+                        x = energy_mean_direction_block_multi(_partition_pairs, arr, r, c, half, True, _total_h)
                         series[pi][om].append(round(float(x), 4) if x == x else None)
                     continue
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
