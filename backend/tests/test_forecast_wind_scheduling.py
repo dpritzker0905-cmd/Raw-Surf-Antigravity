@@ -35,8 +35,17 @@ def test_forecast_task_staggers_marine_globals_keeping_all_three_referenced():
     """ICON marine global went 4 days stale: all three heavy global-marine fetches ran in ONE cycle,
     open-meteo 429'd the 3rd (ICON, always last) every run, so hours past its stale coverage fell to
     the OOM-prone dynamic /grid -> CORS-less 500 -> blank ICON heatmap. The fix keeps GFS every-run and
-    ALTERNATES EURO/ICON (<=2 heavy marine fetches per cycle). Guard both halves of that fix."""
+    ALTERNATES EURO/ICON (<=2 heavy marine fetches per cycle) on the 1-CPU Render box, while the
+    decoupled CI runner (EPHEMERAL store — alternating there loses one model per manifest) ingests
+    BOTH via MARINE_INGEST_ALL. The mechanism was renamed _marine_alt -> _marine_jobs when the
+    MARINE_INGEST_ALL branch landed (this test previously asserted the old name and went stale —
+    2026-07-02). Guard the CURRENT behavior: all three models referenced, the alternation/ingest-all
+    selector present, and GFS marine NOT inside the alternated selection (it must run every cycle)."""
     src = inspect.getsource(forecast.ingest_marine_forecast_task)
     for fn in ("ingest_gfs_marine_global", "ingest_euro_marine_global", "ingest_icon_marine_global"):
         assert fn in src, f"{fn} is not referenced in ingest_marine_forecast_task (marine would go stale)"
-    assert "_marine_alt" in src, "marine stagger (_marine_alt) missing — all-three-per-cycle starves ICON (429)"
+    assert "_marine_jobs" in src, "marine stagger selector (_marine_jobs) missing — all-three-per-cycle starves the box"
+    assert "MARINE_INGEST_ALL" in src, "CI ingest-all branch missing — ephemeral-store runs would drop one marine model"
+    # GFS marine must be scheduled unconditionally (outside _marine_jobs), before the alternated pair.
+    assert src.index("ingest_gfs_marine_global") < src.index("*_marine_jobs"), \
+        "GFS marine must run every cycle, not inside the alternated EURO/ICON selection"
