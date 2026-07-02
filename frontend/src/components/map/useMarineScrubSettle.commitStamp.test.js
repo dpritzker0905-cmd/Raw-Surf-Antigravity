@@ -166,6 +166,9 @@ describe('runScrubSettleCheck — engine-empty recovery (the §2b zoom-out clear
     expect(committed.grid).toBe(globalFrame.grid);
     expect(committed.__commitRevision).toBe(4);
     expect(window.__MARINE_ENGINE_EMPTY_RECOVER__).toBe(1);
+    // Gate-compatible selection: at a zoomed-out viewport the display gate rejects ALL regional-width
+    // grids, so the recovery must request the GLOBAL series (not the smallest containing regional).
+    expect(getMarineSeriesFrame).toHaveBeenCalledWith('GFS', 'waves', { west: -180, south: -85, east: 180, north: 85 }, 0);
   });
 
   it('loads the series (currentPageOnly) instead of committing when nothing covering is warmed', () => {
@@ -179,6 +182,7 @@ describe('runScrubSettleCheck — engine-empty recovery (the §2b zoom-out clear
     const args = ensureMarineSeries.mock.calls[0];
     expect(args[0]).toBe('GFS');
     expect(args[1]).toBe('waves');
+    expect(args[2]).toEqual({ west: -180, south: -85, east: 180, north: 85 }); // global warm at a zoomed-out viewport
     expect(args[3]).toBe(0);            // current hour
     expect(args[5]).toBe(true);         // currentPageOnly — no adjacent-page fan-out for a backstop
   });

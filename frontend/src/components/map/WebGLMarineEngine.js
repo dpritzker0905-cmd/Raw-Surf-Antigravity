@@ -96,6 +96,29 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   return !!(sameLayer && sameHour && zoomedIn && residentRenderable && covers);
 }
 
+// === COARSE-BAND CREST CONTROLS (pure; exported for tests) ===
+// How crests behave on a magnified coarse-global grid in the vortex band (z3.5–7). The 2026-07-01 fix
+// SUPPRESSED all crests there (dirCoherenceMin=2 → shader discards everything), which killed the vortex but
+// left the whole band crest-less — the "wave animations clear from z3.61 to z6.89, restore at 7.04" report.
+// Default is now 'nearest' (2026-07-02): sample the crest DIRECTION at the nearest coarse CELL CENTER
+// (u_coarseNearestDir). The vortex was the bilinear BLEND of divergent ~10°-cell headings synthesizing a
+// smooth rotation; uniform per-cell headings cannot swirl, so crests animate in the band again with no spin.
+// Modes via window.__RAW_COARSE_CREST_MODE__: 'nearest' (default) | 'suppress' (the 2026-07-01 behavior;
+// __RAW_DIR_COHERENCE_MIN__ 0..1 = partial cull) | 'off'. Kill switch (legacy bilinear crests — vortex risk,
+// forensics only): window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ = true.
+export function resolveCoarseCrestControls(inVortexBand, win) {
+  if (!inVortexBand) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true || w.__RAW_COARSE_CREST_MODE__ === 'off') {
+    return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'killed' };
+  }
+  if (w.__RAW_COARSE_CREST_MODE__ === 'suppress') {
+    const o = (typeof w.__RAW_DIR_COHERENCE_MIN__ === 'number') ? w.__RAW_DIR_COHERENCE_MIN__ : null;
+    return { dirCoherenceMin: o !== null ? o : 2.0, coarseNearestDir: 0.0, mode: 'suppress' };
+  }
+  return { dirCoherenceMin: 0.0, coarseNearestDir: 1.0, mode: 'nearest' };
+}
+
 // === NATURAL ANIMATION DEFAULTS (baked 2026-07-01) ===
 // The §5#2 animation upgrades (trochoidal crest shape, orbital pitch, shoaling foam, crest direction-jitter)
 // shipped as gated shader uniforms DEFAULT-OFF pending visual dial-in — but the dial-in was never baked, so
@@ -461,17 +484,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // is unaffected. Kill: window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__=true. Tune (partial cull instead of full
     // suppress): window.__RAW_DIR_COHERENCE_MIN__ = <0..1>. Echo: __RAW_GPU__.anim.dirCoherenceMin (2 = suppressed).
     const _residentCoarseGlobal = isCoarseGlobalGrid(this._waveData && this._waveData.waveGrid);
-    let dirCoherenceMin = 0.0;
-    // Suppress ONLY in the vortex band — where a coarse ~10°/cell grid shows 1-2 whole cells on screen so the
-    // divergent per-cell headings rotate across the viewport (empirically z4.02–5.88). ABOVE ~z7 you are inside a
-    // single coarse cell (near-uniform direction, no vortex) and BELOW ~z3.5 you see many cells (a global field, no
-    // per-cell swirl) — in both cases the coarse crests are fine, so DON'T suppress (fixes "no animation at z9" and
-    // "crests gone when zoomed all the way in" that the broad z>3.5-only gate caused). Bounds tunable if needed.
-    if (_residentCoarseGlobal && z > 3.5 && z < 7.0) {
-      const _killSuppress = (typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true);
-      const _override = (typeof window !== 'undefined' && typeof window.__RAW_DIR_COHERENCE_MIN__ === 'number') ? window.__RAW_DIR_COHERENCE_MIN__ : null;
-      dirCoherenceMin = _killSuppress ? 0.0 : (_override !== null ? _override : 2.0); // 2.0 (>1) discards all crests
-    }
+    // The vortex band: a coarse ~10°/cell grid shows 1-2 whole cells on screen so the divergent per-cell
+    // headings rotate across the viewport (empirically z4.02–5.88). ABOVE ~z7 you are inside a single coarse
+    // cell (near-uniform direction, no vortex) and BELOW ~z3.5 you see many cells (a global field, no
+    // per-cell swirl). In the band, resolveCoarseCrestControls picks the crest strategy — default 'nearest'
+    // (cell-center direction sampling: crests animate, no swirl); 'suppress' = the 2026-07-01 full discard.
+    const _inVortexBand = _residentCoarseGlobal && z > 3.5 && z < 7.0;
+    const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null);
+    let dirCoherenceMin = _ccc.dirCoherenceMin;
+    const coarseNearestDir = _ccc.coarseNearestDir;
+    const _wgCols = (this._waveData.waveGrid && this._waveData.waveGrid.cols) || 2;
+    const _wgRows = (this._waveData.waveGrid && this._waveData.waveGrid.rows) || 2;
 
     var tileOriginX = 0.0;
     var tileOriginY = 0.0;
@@ -797,6 +820,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Direction-coherence floor: discard crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
       // synthetic close-zoom vortex). Engine-computed close-zoom ramp above; 0 = off (legacy). Matches ADVECT_FS.
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
+      // Coarse-band nearest-cell direction (vortex band, default mode): crest orientation snaps to the nearest
+      // coarse cell-center heading — matches ADVECT so orientation == motion. 0 outside the band.
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows);
 
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
@@ -850,6 +877,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           shoalActive: _hasBathTex,            // false → shoaling foam is inert (no bathymetry bound at this view)
           crestJitter: _crestDirJitter,
           dirCoherenceMin: +dirCoherenceMin.toFixed(3),  // applied close-zoom coherence floor (0 = off / far zoom)
+          coarseNearestDir: coarseNearestDir,            // 1 = vortex-band nearest-cell direction sampling active
+          coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
           partTarget: _partTarget,
@@ -947,6 +976,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Direction-coherence floor (matches DRAW): drop particles advecting through interpolated divergent-direction
       // zones so they can't spiral the synthetic vortex. Engine-computed close-zoom ramp above; 0 = off (legacy).
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
+      // Coarse-band nearest-cell direction (matches DRAW): advect along the nearest cell-center heading so the
+      // per-cell motion is uniform — the bilinear swirl cannot form. 0 outside the vortex band.
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_coarseNearestDir'), coarseNearestDir);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_waveGridSize'), _wgCols, _wgRows);
 
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_rand_seed'), Math.random());
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_drop_rate'), this.dropRate);

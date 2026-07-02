@@ -29,6 +29,8 @@ uniform float u_tileZoomMin;   // zoom above which particles use the camera-cent
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_dirCoherenceMin;   // close-zoom coherence floor: drop particles where |bilinear-interp waveVec| < this (kills the synthetic divergent-direction vortex). 0 = off (engine ramps it in only at close zoom).
+uniform float u_coarseNearestDir;  // >0.5: advect along the NEAREST coarse cell-center heading. On a magnified coarse-global grid, bilinear blending of divergent ~10°-cell headings synthesizes the smooth full-screen vortex; uniform per-cell headings cannot swirl, so crests may animate in the vortex band again. Matches DRAW_VS.
+uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — cell-center snapping for the nearest-direction sample
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -90,6 +92,15 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // COARSE-BAND NEAREST DIRECTION (2026-07-02): take the heading from the nearest CELL CENTER instead of the
+  // bilinear blend. LINEAR-sampling exactly at a texel center returns that texel unblended, so each ~10° cell
+  // advects uniformly — the swirl (a synthesis of divergent neighbouring headings) cannot form. HEIGHT keeps
+  // the smooth bilinear sample below (drift speed / sizes stay continuous across cells).
+  if (u_coarseNearestDir > 0.5) {
+    vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
+    vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
+    waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
+  }
   // v5.5: Negate y for Mercator convention. Geographic +v=northward, but
   // Mercator +y=southward (y=0 is North Pole). Without this flip, the N-S
   // component of all wave advection is inverted (e.g. ENE swell travels
@@ -208,6 +219,8 @@ uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen t
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
 uniform float u_dirCoherenceMin;    // close-zoom coherence floor: discard crests where |bilinear-interp waveVec| < this (matches ADVECT_FS, kills the divergent-direction vortex). 0 = off.
+uniform float u_coarseNearestDir;   // >0.5: orient crests along the NEAREST coarse cell-center heading (vortex band; matches ADVECT_FS so orientation == motion).
+uniform vec2 u_waveGridSize;        // wave texture texel dims (cols, rows) for cell-center snapping.
 uniform sampler2D u_bathTexture;    // bathymetry depthFactor (R: 0=shelf/reef shallow, 1=deep ocean) — same encoding the heatmap uses; for shoaling foam.
 uniform float u_shoalFoam;          // boost whitecap strength in shallow water (shelfProximity·u_shoalFoam). 0 = off. Engine forces 0 unless a bath texture is bound.
 uniform float u_motion_scale;
@@ -286,6 +299,14 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // COARSE-BAND NEAREST DIRECTION (2026-07-02): heading from the nearest CELL CENTER instead of the bilinear
+  // blend — matches ADVECT_FS exactly, so crest orientation always agrees with crest motion. Height keeps the
+  // smooth bilinear sample (sizes stay continuous across cells).
+  if (u_coarseNearestDir > 0.5) {
+    vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
+    vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
+    waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
+  }
   // v5.5: Negate y for Mercator convention (geographic +v=north, Mercator +y=south).
   // Without this, the N-S component of wave travel direction is inverted.
   waveVec.y = -waveVec.y;
