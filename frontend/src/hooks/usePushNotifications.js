@@ -21,13 +21,26 @@ export const usePushNotifications = (userId) => {
       
       if (supported) {
         setPermission(Notification.permission);
-        
+
+        // DEV GUARD (mirrors index.js `1dba14ce`): NEVER register the service worker on localhost.
+        // This was the SECOND registration path that re-installed the SW after index.js unregistered
+        // it — a resident SW silently pins an old build and serves stale JS across reloads (a whole
+        // marine-render session was lost to that). Push notifications are a production capability;
+        // on localhost we report unsupported and skip registration entirely.
+        const _host = window.location.hostname;
+        const _isLocalhost = _host === 'localhost' || _host === '127.0.0.1' || _host === '0.0.0.0' || _host === '[::1]';
+        if (_isLocalhost) {
+          logger.debug('[Push] Localhost — service worker registration skipped (dev always serves fresh code).');
+          setIsSupported(false);
+          return;
+        }
+
         // Register service worker
         try {
           const reg = await navigator.serviceWorker.register('/service-worker.js');
           setRegistration(reg);
           logger.debug('[Push] Service worker registered:', reg);
-          
+
           // Check existing subscription
           const subscription = await reg.pushManager.getSubscription();
           setIsSubscribed(!!subscription);
