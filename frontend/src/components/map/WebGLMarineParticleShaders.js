@@ -28,9 +28,11 @@ uniform float u_zoom;
 uniform float u_tileZoomMin;   // zoom above which particles use the camera-centered tile (concentrated). Below it they seed globally (sparse). Lowering it extends adequate density into the zoom-out range.
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
-uniform float u_dirCoherenceMin;   // close-zoom coherence floor: drop particles where |bilinear-interp waveVec| < this (kills the synthetic divergent-direction vortex). 0 = off (engine ramps it in only at close zoom).
+uniform float u_dirCoherenceMin;   // close-zoom coherence floor: drop particles where the BILINEAR |waveVec| < this. In nearest mode this culls SEAM STRIPS between divergent cells (side-by-side opposite motion, Baja 2026-07-02); bilinear magnitude is measured BEFORE the nearest override so the signal survives. 0 = off.
 uniform float u_coarseNearestDir;  // >0.5: advect along the NEAREST coarse cell-center heading. On a magnified coarse-global grid, bilinear blending of divergent ~10°-cell headings synthesizes the smooth full-screen vortex; uniform per-cell headings cannot swirl, so crests may animate in the vortex band again. Matches DRAW_VS.
 uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — cell-center snapping for the nearest-direction sample
+uniform float u_particles_res;     // particle state texture resolution — stratum width for stratified reseeding
+uniform float u_stratifiedReseed;  // >0.5: respawn each particle inside ITS OWN stratum (its state-texel footprint) instead of uniform-random — Jobard–Lefer-style even coverage, kills reseed clumps at low density (U2, 2026-07-02)
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -92,6 +94,10 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // SEAM COHERENCE (2026-07-02): the BILINEAR magnitude, captured BEFORE the nearest override. ~1 inside
+  // cells and between AGREEING cells; drops toward 0 mid-seam between DIVERGENT cells — exactly the strips
+  // where nearest-snapped neighbours animate in opposite directions side by side (Baja live report).
+  float dirCoherence = length(waveVec);
   // COARSE-BAND NEAREST DIRECTION (2026-07-02): take the heading from the nearest CELL CENTER instead of the
   // bilinear blend. LINEAR-sampling exactly at a texel center returns that texel unblended, so each ~10° cell
   // advects uniformly — the swirl (a synthesis of divergent neighbouring headings) cannot form. HEIGHT keeps
@@ -161,7 +167,9 @@ void main() {
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
                 next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
-  if (waveHeight < 0.01 || length(waveVec) < max(0.005, u_dirCoherenceMin) || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
+  // Sanity floor on the ADVECTED vector stays at 0.005; the coherence floor tests the BILINEAR magnitude
+  // (dirCoherence) so it works in nearest mode too — culling seam strips between divergent cells.
+  if (waveHeight < 0.01 || length(waveVec) < 0.005 || dirCoherence < u_dirCoherenceMin || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
@@ -173,7 +181,14 @@ void main() {
   vec2 randVal = vec2(rand(seed + 1.3), rand(seed + 2.1));
   vec2 newPos;
   if (u_zoom > u_tileZoomMin) {
-    newPos = randVal;
+    // U2 STRATIFIED RESEED (2026-07-02): uniform-random respawn leaves visible clumps/voids at low density
+    // (flow-viz best practice is EVEN image-space spacing — Jobard–Lefer). Each particle's own state-texel
+    // coordinate (v_uv, a perfect res×res lattice over the tile) is its stratum: respawn jittered WITHIN it.
+    // Full ±half-texel jitter tiles the strata seamlessly — evenly-spaced seeds at every density, still random
+    // inside each stratum. Kill: window.__RAW_STRATIFIED_RESEED__ = 0 (legacy uniform-random).
+    newPos = (u_stratifiedReseed > 0.5)
+      ? fract(v_uv + (randVal - 0.5) / max(u_particles_res, 1.0))
+      : randVal;
   } else {
     float span = u_dataBounds_max.x + 360.0 - u_dataBounds_min.x;
     float randLng = u_dataBounds_min.x > u_dataBounds_max.x
@@ -218,7 +233,8 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
-uniform float u_dirCoherenceMin;    // close-zoom coherence floor: discard crests where |bilinear-interp waveVec| < this (matches ADVECT_FS, kills the divergent-direction vortex). 0 = off.
+uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec| (measured before the nearest override; matches ADVECT_FS) — culls divergent-cell seam strips. 0 = off.
+uniform float u_farzoomSizeFloor;   // U3: crest size scale at far zoom (0.55 default; 0.4 = legacy). smoothstep(2,12,z) ramps from this floor to 1.
 uniform float u_coarseNearestDir;   // >0.5: orient crests along the NEAREST coarse cell-center heading (vortex band; matches ADVECT_FS so orientation == motion).
 uniform vec2 u_waveGridSize;        // wave texture texel dims (cols, rows) for cell-center snapping.
 uniform sampler2D u_bathTexture;    // bathymetry depthFactor (R: 0=shelf/reef shallow, 1=deep ocean) — same encoding the heatmap uses; for shoaling foam.
@@ -299,6 +315,9 @@ void main() {
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
+  // SEAM COHERENCE (2026-07-02): bilinear magnitude BEFORE the nearest override — matches ADVECT_FS, culls
+  // the divergent-cell seam strips where nearest-snapped crests would move opposite ways side by side.
+  float dirCoherence = length(waveVec);
   // COARSE-BAND NEAREST DIRECTION (2026-07-02): heading from the nearest CELL CENTER instead of the bilinear
   // blend — matches ADVECT_FS exactly, so crest orientation always agrees with crest motion. Height keeps the
   // smooth bilinear sample (sizes stay continuous across cells).
@@ -328,7 +347,7 @@ void main() {
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < max(0.02, u_dirCoherenceMin) || oceanFlag < 0.3 || isNan || isOob)) {
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || dirCoherence < u_dirCoherenceMin || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -403,8 +422,10 @@ void main() {
   // Crest THICKNESS: 6-16 CSS px total (halfThickness = 3-8)
   float halfThickness = mix(3.0, 8.0, sizeEnergy) + smallBoost * 2.0;
 
-  // Zoom scaling (gentler) + v7.1 close-zoom crest lift → more defined crests when zoomed right in
-  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * 0.6 + 0.4 + closeup * 0.20;
+  // Zoom scaling (gentler) + v7.1 close-zoom crest lift → more defined crests when zoomed right in.
+  // U3 DENSITY-AWARE SIZE (2026-07-02): the far-zoom size floor is now a uniform (default 0.55, legacy 0.4)
+  // so low-zoom crests read larger and coverage FEELS constant where the seed count is capped.
+  float zoomScale = smoothstep(2.0, 12.0, u_zoom) * (1.0 - u_farzoomSizeFloor) + u_farzoomSizeFloor + closeup * 0.20;
   halfLength *= zoomScale;
   halfThickness *= zoomScale;
 

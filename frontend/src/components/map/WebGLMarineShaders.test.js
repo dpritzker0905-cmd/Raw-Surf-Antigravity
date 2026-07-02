@@ -112,18 +112,22 @@ describe('WebGLMarineShaders', () => {
     });
   });
 
-  describe('Direction-coherence floor (close-zoom vortex fix) — gated, default-off', () => {
-    it('ADVECT_FS declares u_dirCoherenceMin and folds it into the particle drop gate via max() with the legacy floor', () => {
+  describe('Direction-coherence floor — measured on the BILINEAR sample (seam-cull update, 2026-07-02)', () => {
+    // The floor moved off length(waveVec): in nearest mode the sampled vector is the cell-center value
+    // (magnitude ~1), which made any floor inert exactly where the seam cull is needed. Coherence is now
+    // captured from the bilinear sample BEFORE the nearest override (dirCoherence), and the legacy sanity
+    // floors (0.005 advect / 0.02 draw) stay as separate literal tests on the ADVECTED vector. A floor
+    // uniform of 0.0 keeps the gates byte-equivalent to legacy (dirCoherence < 0.0 is never true).
+    it('ADVECT_FS keeps the legacy sanity floor and gates on the bilinear coherence separately', () => {
       expect(ADVECT_FS).toContain('uniform float u_dirCoherenceMin;');
-      // The legacy 0.005 literal stays INSIDE max(), so a default uniform of 0.0 → max(0.005, 0.0) = 0.005 →
-      // byte-identical to the pre-fix drop gate (no regression until the engine ramps the floor in at close zoom).
-      expect(ADVECT_FS).toContain('length(waveVec) < max(0.005, u_dirCoherenceMin)');
+      expect(ADVECT_FS).toContain('length(waveVec) < 0.005');
+      expect(ADVECT_FS).toContain('dirCoherence < u_dirCoherenceMin');
     });
 
-    it('DRAW_VS declares u_dirCoherenceMin and folds it into the crest discard gate via max() with the legacy floor', () => {
+    it('DRAW_VS keeps the legacy sanity floor and gates on the bilinear coherence separately', () => {
       expect(DRAW_VS).toContain('uniform float u_dirCoherenceMin;');
-      // Same default-neutral guarantee: max(0.02, 0.0) = 0.02 preserves the legacy discard threshold.
-      expect(DRAW_VS).toContain('length(waveVec) < max(0.02, u_dirCoherenceMin)');
+      expect(DRAW_VS).toContain('length(waveVec) < 0.02');
+      expect(DRAW_VS).toContain('dirCoherence < u_dirCoherenceMin');
     });
   });
 });

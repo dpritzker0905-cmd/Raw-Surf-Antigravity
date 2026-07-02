@@ -113,11 +113,15 @@ export function resolveCoarseCrestControls(inVortexBand, win) {
   if (w.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true || w.__RAW_COARSE_CREST_MODE__ === 'off') {
     return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'killed' };
   }
+  const o = (typeof w.__RAW_DIR_COHERENCE_MIN__ === 'number') ? w.__RAW_DIR_COHERENCE_MIN__ : null;
   if (w.__RAW_COARSE_CREST_MODE__ === 'suppress') {
-    const o = (typeof w.__RAW_DIR_COHERENCE_MIN__ === 'number') ? w.__RAW_DIR_COHERENCE_MIN__ : null;
     return { dirCoherenceMin: o !== null ? o : 2.0, coarseNearestDir: 0.0, mode: 'suppress' };
   }
-  return { dirCoherenceMin: 0.0, coarseNearestDir: 1.0, mode: 'nearest' };
+  // Nearest mode now carries a SEAM floor (2026-07-02, Baja live report): the shaders measure coherence on
+  // the BILINEAR magnitude before the nearest override, so 0.7 culls only the strips between cells whose
+  // headings differ by ≳90° — the "opposite motion side by side" seams — while agreeing-cell seams and cell
+  // interiors keep full crests. Override via __RAW_DIR_COHERENCE_MIN__ (0 = no seam cull).
+  return { dirCoherenceMin: o !== null ? o : 0.7, coarseNearestDir: 1.0, mode: 'nearest' };
 }
 
 // === NATURAL ANIMATION DEFAULTS (baked 2026-07-01) ===
@@ -898,6 +902,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           densityBase: +densityBase.toFixed(3),
           tileZoomMin: tileZoomMin,
           tileBackoff: _g('__RAW_TILE_BACKOFF__', 2),
+          stratifiedReseed: (typeof window.__RAW_STRATIFIED_RESEED__ === 'number' ? window.__RAW_STRATIFIED_RESEED__ !== 0 : true),
+          farzoomSizeFloor: _g('__RAW_FARZOOM_SIZE_FLOOR__', 0.55),
           blendWash: _blendBaseWash,
           legacyAnim: window.__RAW_ANIM_LEGACY__ === true   // true → Natural defaults killed (flat pre-2026-07 look)
         };
@@ -918,6 +924,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tileZoomMin'), tileZoomMin);
+      // U3 density-aware crest size: far-zoom size floor (0.55 default; 0.4 = legacy pre-2026-07-02 look).
+      const _fzFloor = (typeof window !== 'undefined' && typeof window.__RAW_FARZOOM_SIZE_FLOOR__ === 'number')
+        ? window.__RAW_FARZOOM_SIZE_FLOOR__ : 0.55;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_farzoomSizeFloor'), _fzFloor);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motion_scale'), motionScale);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);
@@ -1000,6 +1010,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tileZoomMin'), tileZoomMin);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
+      // U2 stratified reseeding (default ON): respawn each particle inside its own state-texel stratum for
+      // Jobard–Lefer-style even seed spacing (kills uniform-random reseed clumps at low density). Kill:
+      // window.__RAW_STRATIFIED_RESEED__ = 0.
+      const _stratified = (typeof window !== 'undefined' && window.__RAW_STRATIFIED_RESEED__ === 0) ? 0.0 : 1.0;
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_stratifiedReseed'), _stratified);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_particles_res'), this.particleRes);
 
       bindTexture(gl, null, 0);
       bindTexture(gl, null, 1);

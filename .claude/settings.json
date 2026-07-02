@@ -1,0 +1,10 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(gh run cancel *)",
+      "Bash(\"/c/Program Files/GitHub CLI/gh.exe\" run cancel *)",
+      "PowerShell(gh run cancel *)",
+      "PowerShell(& 'C:\\Program Files\\GitHub CLI\\gh.exe' run cancel *)"
+    ]
+  }
+}

@@ -13,8 +13,16 @@ describe('resolveCoarseCrestControls (vortex-band crest strategy)', () => {
     expect(resolveCoarseCrestControls(false, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
   });
 
-  it('in the band, default: NEAREST mode (crests animate, no suppression floor)', () => {
-    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 1.0, mode: 'nearest' });
+  it('in the band, default: NEAREST mode with the SEAM floor (0.7 culls divergent-cell seam strips)', () => {
+    // 2026-07-02 Baja live report: at boundaries between cells whose headings differ ≳90°, nearest-snapped
+    // crests animated in OPPOSITE directions side by side. The shaders measure coherence on the bilinear
+    // magnitude BEFORE the nearest override, so 0.7 culls only those seam strips.
+    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.7, coarseNearestDir: 1.0, mode: 'nearest' });
+  });
+
+  it('nearest mode honours the __RAW_DIR_COHERENCE_MIN__ override (0 = no seam cull)', () => {
+    expect(resolveCoarseCrestControls(true, { __RAW_DIR_COHERENCE_MIN__: 0 }).dirCoherenceMin).toBe(0);
+    expect(resolveCoarseCrestControls(true, { __RAW_DIR_COHERENCE_MIN__: 0.5 }).dirCoherenceMin).toBe(0.5);
   });
 
   it("mode 'suppress' restores the 2026-07-01 full-discard behavior", () => {
@@ -59,5 +67,23 @@ describe('nearest-direction shader plumbing', () => {
       expect(overrideIdx).toBeGreaterThan(-1);
       expect(flipIdx).toBeGreaterThan(overrideIdx);
     }
+  });
+
+  it('seam coherence is measured on the BILINEAR sample BEFORE the nearest override (both shaders)', () => {
+    for (const src of [ADVECT_FS, DRAW_VS]) {
+      const cohIdx = src.indexOf('float dirCoherence = length(waveVec);');
+      const overrideIdx = src.indexOf('u_coarseNearestDir > 0.5');
+      expect(cohIdx).toBeGreaterThan(-1);
+      expect(cohIdx).toBeLessThan(overrideIdx);
+      expect(src).toContain('dirCoherence < u_dirCoherenceMin');
+    }
+  });
+
+  it('U2 stratified reseeding + U3 far-zoom size floor are plumbed', () => {
+    expect(ADVECT_FS).toContain('uniform float u_stratifiedReseed;');
+    expect(ADVECT_FS).toContain('uniform float u_particles_res;');
+    expect(ADVECT_FS).toContain('fract(v_uv + (randVal - 0.5) / max(u_particles_res, 1.0))');
+    expect(DRAW_VS).toContain('uniform float u_farzoomSizeFloor;');
+    expect(DRAW_VS).toContain('(1.0 - u_farzoomSizeFloor) + u_farzoomSizeFloor');
   });
 });
