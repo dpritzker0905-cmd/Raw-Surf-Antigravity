@@ -1,5 +1,32 @@
 # HANDOFF — Wave-animation density research + next-context to-dos (2026-07-02, context rollover)
 
+## 0-PM2. SECOND PASS (2026-07-02 PM, user feedback round) — ALL remaining §3 items closed
+1. **z2.91 "+5% density"** (`da19437b`): legacy low-zoom curve floor 0.120→0.128 (+5.1% at z2.91); diag
+   mirror was LINEAR vs the shader's smoothstep (said 32% at z4, truth 24%) — now formula-exact.
+2. **"Waves roll out to sea"** (`bd43d84d`): DATA verified honest (our GFS propagation at reference parity at 12
+   coastal points; the offshore regions — off-NJ, Portugal — are offshore in open-meteo TOO: real windsea). The
+   render root: the TROCHOIDAL warp had lead/trail SWAPPED vs quad geometry (anchored by the verified 06-29 roll
+   fix: cornerUV.y=+1 = +waveDir) → sharp face painted on the TRAILING side = backwards-facing crests, visible
+   since Natural defaults enabled trochoidal 0.7 (07-01). Sharp face now leads. AWAITING user motion re-check.
+3. **z6.4–7.6 transition** (`d951bd0b`): marine zoomed-out boundary aligned with the crest-band top —
+   `marineZoomThresholds.js` = single source of truth (7.0), replacing 6.5 in 8 marine sites incl. the engine
+   no-downgrade guard (which was REJECTING the coarse commit at 6.5–7.0 whenever a covering regional was
+   resident — the stuck zone). Truth echo `__MARINE_ZOOM_THRESHOLDS__`. Wind keeps 6.5 (own lineage). Live
+   round-trip verified: z9→6.56 coarse+nearest promptly; →7.72 sharpens regional back.
+4. **Surf toggle** (session-verified): pill Swell→Rating works, 34 ratings merged `source=precomputed`
+   (0 grid-fallback), rating legend gradient live. Band visual polish still needs user eyes.
+5. **Backend suite offline-green** (`5e9564ea`): conftest gates the ~100-file live estate (skip when
+   `REACT_APP_BACKEND_URL` unset), ASGI client fixture now runs `ensure_database_tables()` (ASGITransport skips
+   lifespan → 'no such table: galleries'), test_single_request env-gated + real assert.
+6. **LCP quick wins** (`991bd372`): removed unpkg maplibre-css (redundant + version-drifted 4.7.1-vs-5.24.0;
+   bundled copy verified) and cdnjs font-awesome (zero usage) — both were render-blocking on every route; added
+   preconnect to the Render origin. REMAINING candidates: main 1.1MB / maplibre 1.09MB / MapPage 1.0MB minified;
+   source-map-explorer blocked by CRA column-Infinity quirk; dead deck.gl dep flagged as spawn-task.
+**Gotchas added:** CRA serves `public/index.html` from startup — template edits need a dev-server RESTART;
+narrow preview viewport ⇒ mobile UI breakpoint ⇒ engine boots with the MOBILE particle pool (particleRes 192,
+36,864) — check `__CREST_DIAG__.particleRes` before judging density; preview explicit-resize can break the
+screenshot buffer (use the native preset).
+
 **Branch `dev` = `1105f625`** (all pushed). Read `MEMORY.md` top lines + `[[vortex-data-root-blockmean-2026-07-02]]`
 + `[[verify-bundle-hash-first]]` (bundle-marker check — MANDATORY before diagnosing any "still broken").
 
