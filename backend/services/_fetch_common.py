@@ -106,6 +106,39 @@ def energy_mean_direction_block(dir_arr, h_arr, r: int, c: int, half: int, wrap_
     return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
 
 
+def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, half: int, wrap_cols: bool) -> float:
+    """TOTAL-SEA mean direction over the block, synthesized from PARTITIONS: θ = atan2(ΣₚΣ E·sinθₚ,
+    ΣₚΣ E·cosθₚ), E ∝ Hₚ², accumulated across all (dir, height) partition pairs AND all block cells.
+    WHY (2026-07-02, second-pass forensics): the single-field block mean of a PEAK direction (NOAA DIRPW)
+    only improved the field 41°→31° mean neighbor delta — in two-system water (e.g. trade windsea vs
+    groundswell, the N-Atlantic viewport measured mean 50° / max 154°) the per-cell DIRPW is BIMODAL
+    (~180° apart) and an energy mean of a bimodal field nearly cancels → unstable, still flips between
+    blocks. Blending the partitions (each unimodal, with its own height) by energy gives the stable
+    spectral mean the smooth reference fields (open-meteo, CMEMS VMDR, GWAM mwd) expose. Falls back to
+    the point sample of fallback_dir_arr (DIRPW) when the block carries no partition energy."""
+    nrows, ncols = fallback_dir_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
+    s = 0.0
+    co = 0.0
+    any_ok = False
+    for dir_arr, h_arr in pairs:
+        d = dir_arr[r0:r1][:, cols_idx]
+        h = h_arr[r0:r1][:, cols_idx]
+        ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+        if not ok.any():
+            continue
+        any_ok = True
+        e = h[ok] ** 2
+        rad = np.deg2rad(d[ok])
+        s += float(np.sum(e * np.sin(rad)))
+        co += float(np.sum(e * np.cos(rad)))
+    if not any_ok or (s == 0.0 and co == 0.0):
+        x = fallback_dir_arr[r, c]
+        return float(x) if x == x else float("nan")
+    return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+
+
 def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):
     """Per-TIMESTEP energy-weighted circular-mean direction over a LONGITUDE window (all band rows).
     For the thin-latitude-band fetcher (Copernicus CMEMS): the full 10° 2-D block is never in memory

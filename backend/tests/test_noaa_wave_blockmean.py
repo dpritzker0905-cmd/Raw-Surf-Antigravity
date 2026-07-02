@@ -11,8 +11,10 @@ import math
 import numpy as np
 import pytest
 
-from services.noaa_gfs_wave_fetcher import energy_mean_direction_block, DIR_TO_HEIGHT, IDX_TO_OM
-from services._fetch_common import energy_mean_direction_lonspan
+from services.noaa_gfs_wave_fetcher import (
+    energy_mean_direction_block, DIR_TO_HEIGHT, IDX_TO_OM, TOTAL_SEA_PARTITIONS,
+)
+from services._fetch_common import energy_mean_direction_lonspan, energy_mean_direction_block_multi
 
 
 def _grid(shape, direction, height):
@@ -102,6 +104,52 @@ def test_gwam_and_copernicus_pairings_cover_their_direction_variables():
     assert cop_dirs == set(COP_D2H.keys())
     cop_all = {om for _, om, _ in COP_MAP}
     assert set(COP_D2H.values()) <= cop_all
+
+
+class TestBlockMulti:
+    """energy_mean_direction_block_multi — total-sea direction from partitions (the bimodality fix)."""
+
+    def test_bimodal_peak_direction_is_stabilized_by_partition_blend(self):
+        # The residual-flip mechanism: DIRPW flips ~180° between cells where windsea and swell trade
+        # dominance, so its single-field block mean is unstable. The partitions themselves are stable:
+        # windsea from 90° (H 1.9-2.1m), swell from 250° (H 1.9-2.1m). The partition blend of two
+        # ADJACENT blocks must agree closely even though DIRPW point samples flip.
+        rng = np.random.default_rng(3)
+        ww_d = np.full((100, 200), 90.0)
+        sw_d = np.full((100, 200), 250.0)
+        ww_h = 2.0 + 0.1 * rng.standard_normal((100, 200))
+        sw_h = 2.0 + 0.1 * rng.standard_normal((100, 200))
+        dirpw = np.where(ww_h > sw_h, ww_d, sw_d)   # peak direction flips cell-to-cell
+        pairs = [(ww_d, ww_h), (sw_d, sw_h)]
+        a = energy_mean_direction_block_multi(pairs, dirpw, 50, 60, 20, False)
+        b = energy_mean_direction_block_multi(pairs, dirpw, 50, 100, 20, False)
+        delta = abs(a - b) % 360.0
+        assert min(delta, 360.0 - delta) < 5.0     # adjacent blocks agree
+        # and the result is the circular blend of 90/250 at equal energy (≈170° ±360-wrap side), not either peak
+        assert 120.0 < a < 220.0
+
+    def test_dominant_partition_wins_when_energy_is_lopsided(self):
+        big = np.full((80, 80), 300.0)
+        small = np.full((80, 80), 90.0)
+        pairs = [(big, np.full((80, 80), 3.0)), (small, np.full((80, 80), 0.5))]
+        out = energy_mean_direction_block_multi(pairs, big, 40, 40, 20, False)
+        d = abs(out - 300.0) % 360.0
+        assert min(d, 360.0 - d) < 10.0            # 36:1 energy ratio → hugs the big swell
+
+    def test_no_partition_energy_falls_back_to_the_peak_point_sample(self):
+        nanarr = np.full((40, 40), np.nan)
+        zeros = np.zeros((40, 40))
+        dirpw = np.full((40, 40), 123.0)
+        out = energy_mean_direction_block_multi([(nanarr, zeros), (nanarr, zeros)], dirpw, 10, 10, 5, False)
+        assert out == pytest.approx(123.0)
+
+    def test_total_sea_partitions_reference_real_product_variables(self):
+        om_all = {om for _, om, _ in IDX_TO_OM}
+        for d, h in TOTAL_SEA_PARTITIONS:
+            assert d in om_all and h in om_all
+        # every pair must also be internally consistent with DIR_TO_HEIGHT
+        for d, h in TOTAL_SEA_PARTITIONS:
+            assert DIR_TO_HEIGHT[d] == h
 
 
 class TestLonspan:

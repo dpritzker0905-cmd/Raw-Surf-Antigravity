@@ -82,11 +82,21 @@ DIR_TO_HEIGHT = {
 
 
 # Energy-weighted circular-mean direction over the coarse block — the vortex-root fix (2026-07-02).
-# Shared with the DWD GWAM fetcher; full rationale + tests live with the helper.
+# Shared with the DWD GWAM fetcher; full rationale + tests live with the helpers.
 try:
-    from _fetch_common import energy_mean_direction_block      # script-by-path (python .../x_fetcher.py)
+    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi  # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_block  # package context
+    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi  # package
+
+# The TOTAL-SEA direction (om 'wave_direction') is synthesized from the three PARTITIONS instead of
+# block-averaging DIRPW: DIRPW is a PEAK direction and is BIMODAL in two-system water, so its block
+# mean stays unstable (measured: only 41°→31° mean neighbor delta; N-Atlantic still 50°). Each
+# partition is unimodal with its own height, so the energy blend is stable. (dir_om, height_om) pairs:
+TOTAL_SEA_PARTITIONS = [
+    ("wind_wave_direction", "wind_wave_height"),
+    ("swell_wave_direction", "swell_wave_height"),
+    ("secondary_swell_wave_direction", "secondary_swell_wave_height"),
+]
 
 
 def _pick_cycle(requests, now, max_f):
@@ -217,8 +227,15 @@ def fetch_global_coarse(payload):
             # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
             blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
             half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
+            _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             for om in OM_ORDER:
                 arr = arrs[om]
+                if blockmean and om == "wave_direction":
+                    # total-sea direction: energy blend of the partitions (DIRPW itself is bimodal)
+                    for pi, (r, c) in enumerate(idx_map):
+                        x = energy_mean_direction_block_multi(_partition_pairs, arr, r, c, half, True)
+                        series[pi][om].append(round(float(x), 4) if x == x else None)
+                    continue
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                 for pi, (r, c) in enumerate(idx_map):
                     if h_arr is not None:
