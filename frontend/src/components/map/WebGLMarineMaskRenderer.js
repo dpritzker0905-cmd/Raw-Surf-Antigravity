@@ -3,10 +3,19 @@ import { getCenterLng, wrapLngRelative } from './mapUtils';
 // --- Coordinate Projection and Land Mask Renderer ---
 
 export function renderMaskToCanvas(geojson, bounds) {
-  // Use a fixed resolution of 1024x512 to avoid massive rendering/memory overhead on high-DPI (Retina) screens.
-  // Linear filtering (gl.LINEAR) keeps the clipping completely smooth.
-  const width = 1024;
-  const height = 512;
+  // Base resolution 1024x512 avoids massive rendering/memory overhead on high-DPI (Retina) screens;
+  // linear filtering (gl.LINEAR) keeps the clipping smooth. REGIONAL grids get 2048x1024 (2026-07-02):
+  // on a ~3° coastal tile 1024px is ~340 m/px — too coarse for barrier islands/inlets, which is the
+  // residual crest LAND-BLEED the user saw at z9.1 even with the 10m polygons loaded. 2048x1024 on a
+  // small tile is ~170 m/px for one extra 8 MB texture — only paid when the tile is regional (<30°),
+  // so the global mask keeps the cheap footprint.
+  const _lonSpanFor = (b) => {
+    if (!b) return 360;
+    return (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+  };
+  const isRegional = _lonSpanFor(bounds) < 30;
+  const width = isRegional ? 2048 : 1024;
+  const height = isRegional ? 1024 : 512;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;

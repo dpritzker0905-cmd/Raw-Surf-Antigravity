@@ -31,10 +31,10 @@ if (typeof window !== 'undefined') {
   const getBackendUrl = () => {
     if (window.__BACKEND_URL__) return window.__BACKEND_URL__;
     if (window.localStorage.getItem('__BACKEND_URL__')) return window.localStorage.getItem('__BACKEND_URL__');
-    const hostname = window.location.hostname;
-    if (hostname === 'localhost' || hostname === '127.0.0.1') {
-      return 'http://localhost:8000';
-    }
+    // No hardcoded localhost→:8000 branch (removed 2026-07-02): it outranked REACT_APP_BACKEND_URL and
+    // pointed capabilities at a dead local backend whenever the localStorage override was absent — the
+    // third instance of the dead-:8000 trap (see .env.local note). Local-backend dev opts in via
+    // localStorage.setItem('__BACKEND_URL__','http://127.0.0.1:8000'), same as every other API path.
     return (typeof process !== 'undefined' && process.env && process.env.REACT_APP_BACKEND_URL) || 'https://raw-surf-antigravity.onrender.com';
   };
 

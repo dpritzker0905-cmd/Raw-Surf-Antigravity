@@ -386,10 +386,12 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   // Isolated from the fetch/commit pipeline — worst case is a coarser mask, never a wedge.
   // Kill switch: window.__MARINE_HIRES_MASK__ === false.
   // Lowered 11→9 (2026-06-29): waves bled over barrier islands/thin coast at "somewhat close" zooms (z9-z11)
-  // where the coarse 50m mask still simplifies the coastline. The 1024×512 mask canvas is fine enough at z9
-  // (~0.9km/px over a regional viewport) for the 10m polygons to help. Below z9 the coastline is tiny on screen
-  // (bleed imperceptible) so we keep the cheap 50m mask. Kill switch unchanged: window.__MARINE_HIRES_MASK__=false.
-  const HIRES_MASK_MIN_ZOOM = 9;
+  // where the coarse 50m mask still simplifies the coastline. Lowered 9→8 (2026-07-02): the user reported crests
+  // "partially over land, in a grid" at z8.39 — below the old threshold the 50m mask still simplified the FL
+  // barrier islands while the regional 13×13 tile was (correctly) resident. The regional mask canvas is now
+  // 2048×1024 (WebGLMarineMaskRenderer), fine enough for the 10m polygons to pay off from z8. Kill switch
+  // unchanged: window.__MARINE_HIRES_MASK__=false.
+  const HIRES_MASK_MIN_ZOOM = 8;
   useEffect(() => {
     if (!mapInstance) return;
 

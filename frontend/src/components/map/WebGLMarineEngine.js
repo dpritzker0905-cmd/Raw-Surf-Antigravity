@@ -467,8 +467,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // covers the regional zoom-out range; tunable via window.__RAW_TILE_ZOOM_MIN__. Must match u_tileZoomMin.
     var tileZoomMin = (typeof window !== 'undefined' && typeof window.__RAW_TILE_ZOOM_MIN__ === 'number') ? window.__RAW_TILE_ZOOM_MIN__ : 4.0;
     var isHighZoom = z > tileZoomMin;
-    var prevHighZoom = this._lastZoom > 6.0;
+    // THE z4–6 "VORTEX" ROOT (2026-07-02): prevHighZoom kept the OLD hardcoded 6.0 threshold when the
+    // density-cliff fix moved isHighZoom onto tileZoomMin (default 4.0). For any zoom stably inside
+    // (tileZoomMin, 6.0] the two flags disagreed on EVERY frame → zoomStateChanged stayed true →
+    // reinitParticles() ran EVERY FRAME — full-field particle churn exactly in z4–6, the band of every
+    // vortex report (z4.02–5.88, 3.9–5.93, 4.13–5.91). Both sides must use the SAME threshold; a
+    // per-frame reseed can never be a valid steady state. Telemetry: window.__MARINE_ZOOMSTATE_REINITS__.
+    var prevHighZoom = this._lastZoom > tileZoomMin;
     var zoomStateChanged = (this._lastZoom !== undefined && isHighZoom !== prevHighZoom);
+    if (zoomStateChanged && typeof window !== 'undefined') {
+      window.__MARINE_ZOOMSTATE_REINITS__ = (window.__MARINE_ZOOMSTATE_REINITS__ || 0) + 1;
+    }
     this._lastZoom = z;
 
     // === COARSE-GLOBAL CREST SUPPRESSION — the real vortex fix (default ON) ===
