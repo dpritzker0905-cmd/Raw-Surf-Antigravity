@@ -39,6 +39,24 @@ VARIABLE_MAP = [
 ]
 COPERNICUS_VARS = [v[0] for v in VARIABLE_MAP]
 
+# direction variable -> its energy-weighting height variable (E ∝ H²). Same vortex-root fix as the
+# GFS/GWAM fetchers (2026-07-02): point-sampling direction every 10° aliases into a rotating field at
+# regional magnification. This fetcher only ever holds THIN latitude bands (~0.2° tall by design), so
+# the smoothing is LONGITUDINAL-ONLY (energy_mean_direction_lonspan over ±half-block columns) — CMEMS
+# VMDR is already a MEAN direction (far smoother than a peak/partition direction), so the 1-D mean is
+# sufficient to kill the spatial aliasing. Kill switch: COPERNICUS_DIR_BLOCKMEAN=0 -> legacy point sample.
+DIR_TO_HEIGHT = {
+    "wave_direction": "wave_height",
+    "swell_wave_direction": "swell_wave_height",
+    "secondary_swell_wave_direction": "secondary_swell_wave_height",
+    "wind_wave_direction": "wind_wave_height",
+}
+
+try:
+    from _fetch_common import energy_mean_direction_lonspan      # script-by-path
+except ImportError:
+    from services._fetch_common import energy_mean_direction_lonspan  # package context
+
 
 def _coarse_axis(lo, hi, step):
     """Coarse axis matching the open-meteo grid generator: lo, lo+step, ... < hi."""
@@ -131,6 +149,10 @@ def fetch_global_coarse(payload):
             for cop, om, _ in VARIABLE_MAP:
                 arrs[om] = (np.ma.filled(np.ma.asarray(nc.variables[cop][:]).astype(float), np.nan)
                             if cop in nc.variables else None)
+            # Longitudinal energy-mean window for direction vars: ±half-block in native columns.
+            blockmean = os.environ.get("COPERNICUS_DIR_BLOCKMEAN", "1") != "0"
+            dlon = float(abs(band_lons[1] - band_lons[0])) if len(band_lons) > 1 else 0.083
+            half_cols = max(1, int(round((resolution / 2.0) / max(dlon, 1e-6))))
             for lon in lons:
                 target_lon = (lon % 360.0) if is_360 else lon
                 col = int(np.abs(band_lons - target_lon).argmin())
@@ -139,6 +161,9 @@ def fetch_global_coarse(payload):
                     a = arrs[om]
                     if a is None:
                         hourly[om] = [None] * len(times)
+                    elif blockmean and om in DIR_TO_HEIGHT and arrs.get(DIR_TO_HEIGHT[om]) is not None:
+                        vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
+                        hourly[om] = [_sanitize_om(om, x) for x in vals]
                     else:
                         series = a[:, row, col]
                         hourly[om] = [_sanitize_om(om, x) for x in series]

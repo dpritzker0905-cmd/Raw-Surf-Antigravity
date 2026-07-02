@@ -81,35 +81,12 @@ DIR_TO_HEIGHT = {
 }
 
 
-def energy_mean_direction_block(dir_arr, h_arr, r, c, half, wrap_cols):
-    """ENERGY-WEIGHTED CIRCULAR-MEAN direction (deg, FROM-convention preserved) over the (2·half)² block of
-    native 0.25° cells centred on (r, c) — the standard spectral mean wave direction θm = atan2(ΣE·sinθ, ΣE·cosθ),
-    E ∝ H². WHY (vortex forensics 2026-07-02): the coarse product used to POINT-SAMPLE DIRPW every 10°, and the
-    dominant-partition direction switches discontinuously between neighbouring sample points (measured on the live
-    grid: mean adjacent-cell delta 41°, p90 117°, 15% of pairs >90°, near-180° flips inside 2-4 m swell). Magnified
-    at z4-6 that aliased field advects crests in a rotating pattern — the "vortex". The energy mean over ~1600
-    underlying cells is smooth across neighbours and physically meaningful; individual point values were genuine
-    but unrepresentative. Latitude clamps at the poles; longitude WRAPS (global grid). NaN-safe. Returns the plain
-    point sample when the block carries no energy (calm/land) so degenerate areas keep legacy behaviour.
-    Pure (numpy only) — unit-tested in backend/tests/test_noaa_wave_blockmean.py."""
-    import numpy as np
-    nrows, ncols = dir_arr.shape
-    r0, r1 = max(0, r - half), min(nrows, r + half)
-    cols_idx = np.arange(c - half, c + half) % ncols if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
-    d = dir_arr[r0:r1][:, cols_idx]
-    h = h_arr[r0:r1][:, cols_idx]
-    ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
-    if not ok.any():
-        x = dir_arr[r, c]
-        return float(x) if x == x else float("nan")
-    e = h[ok] ** 2
-    rad = np.deg2rad(d[ok])
-    s = float(np.sum(e * np.sin(rad)))
-    co = float(np.sum(e * np.cos(rad)))
-    if s == 0.0 and co == 0.0:
-        x = dir_arr[r, c]
-        return float(x) if x == x else float("nan")
-    return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+# Energy-weighted circular-mean direction over the coarse block — the vortex-root fix (2026-07-02).
+# Shared with the DWD GWAM fetcher; full rationale + tests live with the helper.
+try:
+    from _fetch_common import energy_mean_direction_block      # script-by-path (python .../x_fetcher.py)
+except ImportError:
+    from services._fetch_common import energy_mean_direction_block  # package context
 
 
 def _pick_cycle(requests, now, max_f):

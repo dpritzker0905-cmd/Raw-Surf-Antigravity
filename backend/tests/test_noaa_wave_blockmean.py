@@ -12,6 +12,7 @@ import numpy as np
 import pytest
 
 from services.noaa_gfs_wave_fetcher import energy_mean_direction_block, DIR_TO_HEIGHT, IDX_TO_OM
+from services._fetch_common import energy_mean_direction_lonspan
 
 
 def _grid(shape, direction, height):
@@ -88,3 +89,56 @@ def test_dir_to_height_covers_every_direction_variable_in_the_product():
     om_all = {om for _, om, _ in IDX_TO_OM}
     for h in DIR_TO_HEIGHT.values():
         assert h in om_all
+
+
+def test_gwam_and_copernicus_pairings_cover_their_direction_variables():
+    from services.dwd_gwam_fetcher import VAR_MAP as GWAM_MAP, DIR_TO_HEIGHT as GWAM_D2H
+    from services.copernicus_global_fetcher import VARIABLE_MAP as COP_MAP, DIR_TO_HEIGHT as COP_D2H
+    gwam_dirs = {om for _, om, unit in GWAM_MAP if unit == "°"}
+    assert gwam_dirs == set(GWAM_D2H.keys())
+    gwam_all = {om for _, om, _ in GWAM_MAP}
+    assert set(GWAM_D2H.values()) <= gwam_all
+    cop_dirs = {om for _, om, unit in COP_MAP if unit == "°"}
+    assert cop_dirs == set(COP_D2H.keys())
+    cop_all = {om for _, om, _ in COP_MAP}
+    assert set(COP_D2H.values()) <= cop_all
+
+
+class TestLonspan:
+    """energy_mean_direction_lonspan — the thin-band (Copernicus) longitudinal variant."""
+
+    def test_uniform_field_per_timestep(self):
+        d = np.full((3, 2, 100), 210.0)
+        h = np.full((3, 2, 100), 2.0)
+        out = energy_mean_direction_lonspan(d, h, 50, 30)
+        assert out.shape == (3,)
+        assert np.allclose(out, 210.0)
+
+    def test_circular_mean_across_north(self):
+        d = np.full((1, 1, 100), 350.0)
+        d[:, :, 50:] = 10.0
+        h = np.full((1, 1, 100), 2.0)
+        out = energy_mean_direction_lonspan(d, h, 50, 50)[0]
+        assert min(out, 360.0 - out) < 1e-6
+
+    def test_energy_weighting_pulls_toward_the_big_swell(self):
+        d = np.full((1, 1, 100), 90.0)
+        d[:, :, :50] = 0.0
+        h = np.full((1, 1, 100), 3.0)
+        h[:, :, :50] = 1.0
+        out = energy_mean_direction_lonspan(d, h, 50, 50)[0]
+        assert 70.0 < out < 90.0
+
+    def test_window_clamps_at_the_band_edge(self):
+        d = np.full((2, 1, 20), 45.0)
+        h = np.full((2, 1, 20), 1.0)
+        out = energy_mean_direction_lonspan(d, h, 1, 10)  # window pokes past col 0
+        assert np.allclose(out, 45.0)
+
+    def test_no_energy_falls_back_to_the_point_sample_per_timestep(self):
+        d = np.full((2, 1, 10), np.nan)
+        d[1, 0, 4] = 77.0
+        h = np.zeros((2, 1, 10))
+        out = energy_mean_direction_lonspan(d, h, 4, 3)
+        assert math.isnan(out[0])
+        assert out[1] == pytest.approx(77.0)

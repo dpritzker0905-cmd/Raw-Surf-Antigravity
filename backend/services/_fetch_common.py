@@ -72,6 +72,67 @@ def coarse_axis(lo: float, hi: float, step: float) -> List[float]:
     return vals
 
 
+# ─────────────────────────── direction downsampling ───────────────────────────
+# WHY (vortex forensics 2026-07-02): the coarse products used to POINT-SAMPLE the wave-direction
+# variable at one native cell per 10° coarse point. Primary/partition direction switches
+# discontinuously between neighbouring sample points (live GFS grid: mean adjacent-cell delta 41°,
+# p90 117°, 15% of pairs >90°, near-180° flips inside 2-4 m swell) — magnified at z4-6 that aliased
+# field advects crests in a rotating pattern (the "vortex"). These helpers replace the point sample
+# with the standard spectral MEAN wave direction θm = atan2(ΣE·sinθ, ΣE·cosθ), E ∝ H², which is
+# smooth across neighbours and physically meaningful. FROM-convention degrees in and out.
+
+def energy_mean_direction_block(dir_arr, h_arr, r: int, c: int, half: int, wrap_cols: bool) -> float:
+    """Energy-weighted circular-mean direction (deg) over the (2·half)² block of native cells centred
+    on (r, c). Latitude clamps at the array edge; longitude WRAPS when the native grid is global
+    (wrap_cols=True). NaN-safe; a block with no energy (calm/land) falls back to the plain point
+    sample so degenerate areas keep legacy behaviour. Used by the full-array fetchers (NOAA GFS-Wave,
+    DWD GWAM). Pure — unit-tested in backend/tests/test_noaa_wave_blockmean.py."""
+    nrows, ncols = dir_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
+    d = dir_arr[r0:r1][:, cols_idx]
+    h = h_arr[r0:r1][:, cols_idx]
+    ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+    if not ok.any():
+        x = dir_arr[r, c]
+        return float(x) if x == x else float("nan")
+    e = h[ok] ** 2
+    rad = np.deg2rad(d[ok])
+    s = float(np.sum(e * np.sin(rad)))
+    co = float(np.sum(e * np.cos(rad)))
+    if s == 0.0 and co == 0.0:
+        x = dir_arr[r, c]
+        return float(x) if x == x else float("nan")
+    return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+
+
+def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):
+    """Per-TIMESTEP energy-weighted circular-mean direction over a LONGITUDE window (all band rows).
+    For the thin-latitude-band fetcher (Copernicus CMEMS): the full 10° 2-D block is never in memory
+    (bands are ~0.2° tall by design), so smoothing is longitudinal-only — CMEMS VMDR is already a MEAN
+    direction (far smoother than a peak/partition direction), so 1-D smoothing suffices to kill the
+    spatial aliasing. Inputs shaped (T, Y, X); columns CLAMP at the band edge (band subsets are not
+    360°-continuous). Returns a (T,) float array of degrees, with the plain point sample (dir[:, row0,
+    col]) per timestep wherever the window has no energy, and NaN where nothing is valid."""
+    T, Y, X = dir_tyx.shape
+    c0, c1 = max(0, col - half_cols), min(X, col + half_cols)
+    d = dir_tyx[:, :, c0:c1]
+    h = h_tyx[:, :, c0:c1]
+    ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+    e = np.where(ok, h, 0.0) ** 2
+    rad = np.deg2rad(np.where(ok, d, 0.0))
+    s = np.sum(e * np.sin(rad), axis=(1, 2))
+    co = np.sum(e * np.cos(rad), axis=(1, 2))
+    out = np.rad2deg(np.arctan2(s, co)) % 360.0
+    # timesteps with no energy in the window -> fall back to the point sample (row nearest the coarse lat is
+    # the caller's `row`, but any band row is equivalent at 0.083°; use the window centre column, first row)
+    empty = ~ok.any(axis=(1, 2))
+    if empty.any():
+        point = dir_tyx[:, 0, col]
+        out = np.where(empty, point, out)
+    return out
+
+
 # ─────────────────────────────── sanitizers ───────────────────────────────
 # Each maps NaN/masked/out-of-physical-range -> None. (Inputs already np.ma.filled(..., nan) upstream.)
 def sanitize_pressure_hpa(x) -> Optional[float]:

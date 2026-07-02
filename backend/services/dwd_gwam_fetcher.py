@@ -53,6 +53,23 @@ VAR_MAP = [
 OM_UNITS = {om: u for _, om, u in VAR_MAP}
 OM_ORDER = [om for _, om, _ in VAR_MAP]
 
+# direction variable -> the height variable that weights its energy mean (E ∝ H²). VAR_MAP lists each
+# height IMMEDIATELY BEFORE its direction, so the height array is always already decoded (and retained
+# for the hour) when its direction is processed. Same vortex-root fix as the GFS fetcher (2026-07-02):
+# point-sampling a partition direction every 10° aliases into a rotating field; the energy-weighted
+# circular mean over the 10° block (energy_mean_direction_block) is smooth + physically meaningful.
+# Kill switch: DWD_GWAM_DIR_BLOCKMEAN=0 -> legacy point sampling.
+DIR_TO_HEIGHT = {
+    "wave_direction": "wave_height",
+    "swell_wave_direction": "swell_wave_height",
+    "wind_wave_direction": "wind_wave_height",
+}
+
+try:
+    from _fetch_common import energy_mean_direction_block      # script-by-path
+except ImportError:
+    from services._fetch_common import energy_mean_direction_block  # package context
+
 
 def _coarse_axis(lo, hi, step):
     vals = []
@@ -143,8 +160,15 @@ def fetch_global_coarse(payload):
     steps_ok = 0
     steps_failed = 0
 
+    # Native GWAM grid is global 0.25° -> half-block in native cells; longitude always wraps.
+    blockmean = os.environ.get("DWD_GWAM_DIR_BLOCKMEAN", "1") != "0"
+    half = max(1, int(round(resolution / 0.25 / 2.0)))
+
     for f in f_hours:
         target_len = steps_ok + steps_failed + 1
+        # Height arrays retained for THIS hour so each direction variable can energy-weight its block
+        # mean (VAR_MAP orders every height immediately before its direction). Reset per hour.
+        height_arrs = {}
         try:
             # Decode each variable's single-message file for this forecast hour.
             for var, om, _u in VAR_MAP:
@@ -168,8 +192,15 @@ def fetch_global_coarse(payload):
                                 idx_map.append((r, c))
                     arr = np.ma.filled(np.ma.asarray(msg.values).astype(float), np.nan)
                     grbs.close()
+                    if om in DIR_TO_HEIGHT.values():
+                        height_arrs[om] = arr
+                    h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                     for pi, (r, c) in enumerate(idx_map):
-                        series[pi][om].append(_sanitize_om(om, arr[r, c]))
+                        if h_arr is not None:
+                            x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                        else:
+                            x = arr[r, c]
+                        series[pi][om].append(_sanitize_om(om, x))
                 except Exception as ve:
                     # one variable failed this hour -> None for it; keep series lengths aligned
                     for pi in range(n_pts):
