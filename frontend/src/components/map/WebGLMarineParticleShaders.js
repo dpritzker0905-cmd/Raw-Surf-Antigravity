@@ -344,7 +344,11 @@ void main() {
   // legacy per-zoom curve (z<=6 path + safety fallback). Refs: blog.mapbox.com webgl-wind; Springer 10.1007/978-3-030-61864-3_26.
   float closeup = smoothstep(12.0, 15.0, u_zoom);
   float heightBoost = smoothstep(1.0, 4.0, waveHeight) * mix(0.02, 0.10, smoothstep(5.0, 10.0, u_zoom));
-  float effBase = u_densityBase > 0.0 ? u_densityBase : mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom));
+  // Legacy curve now only governs z<=tileZoomMin(3) + the partTarget=0 fallback. The +0.0076 term is the
+  // second user-tuned density pass (2026-07-02): ~+5% visible crests across z2.7–3.0 specifically (ramped in
+  // over 2.4→2.7 so the deliberate z2 globe-thinning floor stays put). Mirror: WebGLMarineEngineDiagnostics.
+  float effBase = u_densityBase > 0.0 ? u_densityBase
+    : (mix(0.128, 0.90, smoothstep(2.0, 10.0, u_zoom)) + 0.0076 * smoothstep(2.4, 2.7, u_zoom));
   float densityThreshold = clamp(effBase + heightBoost, 0.02, 0.97);
 
   if (!bypassDiscard && particleHash > densityThreshold) {

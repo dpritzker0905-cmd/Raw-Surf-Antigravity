@@ -34,7 +34,10 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
   var densityAtZoom = function(zVal) {
     var t = Math.min(1, Math.max(0, (zVal - 2) / 8));
     var s = t * t * (3 - 2 * t);
-    return (0.128 + s * (0.90 - 0.128)) * 100;
+    // +0.0076 band bump (z2.7–3.0, ramped 2.4→2.7) — second user density pass 2026-07-02; matches the shader.
+    var tb = Math.min(1, Math.max(0, (zVal - 2.4) / 0.3));
+    var sb = tb * tb * (3 - 2 * tb);
+    return (0.128 + s * (0.90 - 0.128) + 0.0076 * sb) * 100;
   };
 
   window.__CREST_DIAG__ = {
