@@ -4,6 +4,7 @@
  * Shared utility functions and constants for wind, marine, and pressure data fetching.
  * Extracted from marineController.js for LOC compliance.
  */
+import { isHandheldDevice } from './deviceTier';
 
 /**
  * Max/min over an array WITHOUT the spread operator. `Math.max(...arr)` pushes every
@@ -277,11 +278,11 @@ export function viewportCacheKey(bounds, prefix) {
  * caller param: wind uses full grid, marine capped at 80 lat (API rejects polar regions)
  */
 export function computeGridPoints(bounds, caller = 'wind') {
+  // Handheld-AND-narrow: reduced fetch-grid density is a bandwidth concession for small handheld
+  // viewports; a desktop with a narrow window (or a wide tablet) keeps full grids (see deviceTier.js).
   let isMobile = false;
   if (typeof window !== 'undefined') {
-    const ua = navigator.userAgent || '';
-    const isHandheld = /Mobi|Android|iPhone|iPad|iPod/i.test(ua);
-    isMobile = isHandheld && window.innerWidth < 768;
+    isMobile = isHandheldDevice() && window.innerWidth < 768;
   }
   const lngSpan = bounds.east - bounds.west;
   const latSpan = bounds.north - bounds.south;

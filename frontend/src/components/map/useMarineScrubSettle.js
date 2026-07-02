@@ -11,7 +11,7 @@ function gridCoversViewport(gb, vb) {
          gb.south <= vb.south + e && gb.north >= vb.north - e;
 }
 
-// Detect a heatmap CLAMP: at a regional viewport (zoom > 6.5, span < 15°) the engine grid does NOT
+// Detect a heatmap CLAMP: at a regional viewport (zoom > MARINE_ZOOMED_OUT_MAX_ZOOM, span < 15°) the engine grid does NOT
 // cover the viewport — either a coarse-GLOBAL grid held while zoomed in (renders blocky) OR a stale
 // too-SMALL regional grid held after a zoom-out/pan (renders into a sub-rectangle). Both look clamped.
 // Returns { clamp, kind, vb } reading the LIVE engine grid + map viewport. tol guards float jitter so a
@@ -226,7 +226,7 @@ export function runScrubSettleCheck(ctx) {
       const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
       const model = activeModelRef.current;
       const layer = activeMarineLayerRef.current || 'waves';
-      // GATE-COMPATIBLE frame selection (live-caught 2026-07-02): at a ZOOMED-OUT viewport (zoom ≤ 6.5
+      // GATE-COMPATIBLE frame selection (live-caught 2026-07-02): at a ZOOMED-OUT viewport (zoom ≤ MARINE_ZOOMED_OUT_MAX_ZOOM
       // or span > 15° — the display gate's isViewportZoomedOut) useMarineWindData rejects EVERY
       // regional-width grid (gridWidth < 340 → isZoomedOutRegionalReject), and getMarineSeriesFrame
       // prefers the smallest CONTAINING regional tile — so this branch was committing frames the gate

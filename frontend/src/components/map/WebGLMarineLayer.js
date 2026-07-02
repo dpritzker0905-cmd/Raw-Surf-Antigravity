@@ -9,6 +9,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { getMarineParticleRes } from './deviceTier';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear } from './marineTransitionCoordinator';
@@ -462,8 +463,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const engine = new WebGLMarineEngine();
     engineRef.current = engine;
 
-    const isMobile = window.innerWidth < 768;
-    engine.particleRes = isMobile ? 192 : 296;
+    // Device-capability tier, NOT window width: a desktop with a momentarily narrow window used to
+    // get the halved mobile pool here and keep it for the engine's lifetime (see deviceTier.js).
+    engine.particleRes = getMarineParticleRes();
 
     const customLayer = createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef, activeModelRef);
 

@@ -70,6 +70,7 @@ function interpolateWind(windGrid, lng, lat, prevGrid = null, transitionProgress
  */
 import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
+import { isHandheldDevice, isWeakDevice } from './deviceTier';
 
 // --- SINGLETON REGISTRY: Prevents duplicate RAF loops ---
 var ACTIVE_ENGINES = new Set();
@@ -154,8 +155,8 @@ export function WindParticleCanvas({ mapInstance, active, data, revision, id = "
     let cw = dims.w, ch = dims.h;
 
     // v3.11.2: Doubled particle counts for visible density
-    const isMobile = window.innerWidth < 768;
-    const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
+    const isMobile = isHandheldDevice();
+    const isWeak = isWeakDevice();
     const zoom = mapInstance.getZoom();
     const baseCount = isMobile ? (isWeak ? 2000 : 4000) : (isWeak ? 8000 : 16000);
     const PARTICLE_COUNT = zoom < 3 ? Math.round(baseCount * 0.3) : zoom < 5 ? Math.round(baseCount * 0.6) : baseCount;

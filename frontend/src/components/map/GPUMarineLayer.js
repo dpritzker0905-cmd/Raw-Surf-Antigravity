@@ -12,6 +12,7 @@ import { useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 import { wrapLongitude, wrapLngRelative, getCenterLng, isLngInBounds } from './mapUtils';
 import { recordChurn } from './marineTransitionCoordinator';
+import { isHandheldDevice, isWeakDevice } from './deviceTier';
 
 // --- SINGLETON REGISTRY ---
 var ACTIVE_MARINE_ENGINES = new Set();
@@ -308,8 +309,8 @@ export function MarineParticleCanvas({ mapInstance, active, data, revision, id =
     const dims = resize() || { w: 800, h: 600 };
     let cw = dims.w, ch = dims.h;
 
-    const isMobile = window.innerWidth < 768;
-    const isWeak = (navigator.hardwareConcurrency || 4) <= 4;
+    const isMobile = isHandheldDevice();
+    const isWeak = isWeakDevice();
     // v3.16: Optimized baseline particle count to prevent panning lag
     const PARTICLE_COUNT = isMobile ? (isWeak ? 500 : 1000) : (isWeak ? 1200 : 2200);
     console.log(`[Marine] Spawning up to ${PARTICLE_COUNT} foam particles (max baseline)`);
