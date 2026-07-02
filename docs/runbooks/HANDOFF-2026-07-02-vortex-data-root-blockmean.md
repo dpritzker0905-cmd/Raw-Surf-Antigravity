@@ -37,8 +37,17 @@ real ocean physics — it was our own downsampling**:
 
 Heights/periods stay point-sampled (heatmap look unchanged). NaN-safe; zero-energy blocks fall back to the point
 sample. Longitude wraps on global grids; Copernicus bands clamp. Tests: `backend/tests/test_noaa_wave_blockmean.py`
-(13). Also repaired the stale `test_forecast_wind_scheduling` source-assert (`_marine_alt` → `_marine_jobs` +
+(21). Also repaired the stale `test_forecast_wind_scheduling` source-assert (`_marine_alt` → `_marine_jobs` +
 `MARINE_INGEST_ALL` + GFS-outside-alternation ordering).
+
+**SECOND PASS (`87a7d65a`) — DIRPW bimodality.** The single-field block mean verified 41.2°→31.1° mean neighbor
+delta but near-180° flips survived (N-Atlantic window still mean 50°): DIRPW is a PEAK direction, bimodal per cell
+in two-system water, and an energy mean of a bimodal field nearly cancels. GFS `wave_direction` is therefore now
+SYNTHESIZED from the three partitions (`energy_mean_direction_block_multi`, `TOTAL_SEA_PARTITIONS`): each partition
+is unimodal with its own height → θ = atan2(ΣHₚ²sinθₚ, ΣHₚ²cosθₚ) across partitions and block cells. GFS-only
+(GWAM `mwd` / CMEMS `VMDR` are already mean directions). DIRPW point sample stays the zero-energy fallback.
+**Pass bar for the NEXT verification: global mean <15° AND the N-Atlantic window (rows 9–12 × cols 9–15) well
+under its 50.2° baseline, no ~180° flips in energetic water.**
 
 ## 3. Deploy + verification path (data changes need an INGEST, not a deploy)
 
