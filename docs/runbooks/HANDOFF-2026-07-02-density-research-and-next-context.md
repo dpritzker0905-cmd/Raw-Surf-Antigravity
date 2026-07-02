@@ -100,8 +100,10 @@ and [mapbox/webgl-wind](https://github.com/mapbox/webgl-wind). Key practices fou
    (6.5) vs suppression band top (7.0) leaves a 6.5–7.0 zone where regional is rejected but coarse+nearest is fine.
    If the user still dislikes it, consider aligning gate/band thresholds or committing the coarse base preemptively
    on zoomstart. Regression-prone lineage — evidence first.
-5. **Verify ICON/EURO direction fields** (both rebuilt with block-mean in the 09:39Z+ cycles): run the
-   neighbor-delta analysis per model (script pattern in `[[vortex-data-root-blockmean-2026-07-02]]`).
+5. **Verify ICON/EURO direction fields** — ✅ **DONE (2026-07-02 PM)**: neighbor-delta on served 18:00Z coarse
+   grids (all from block-mean-fixed runs; producing-run headSha checked ⊇ `b6db704b`): GFS mean 33.4°/N-Atl 43.1°,
+   ICON 31.0°/43.3°, EURO 34.6°/53.5° — all at GFS/reference parity (pre-fix pathology was 41.2° mean, 15.3%>90°;
+   now 7.9–9.2%>90°). Grid payload shape: `grid={bounds,cols,rows,vectors,diagnostics}`, vectors flat row-major.
 6. **Verification debt** (shipped, never eyeballed): rating-band fixes (`4fb2359f`/`0755fc2d`/`b623c39d`), stranded
    -pending freeze recovery. One live session with the Surf toggle.
 7. **codebase-memory MCP read-path broken** (all read tools reject the listed project; reindex doesn't heal) —
