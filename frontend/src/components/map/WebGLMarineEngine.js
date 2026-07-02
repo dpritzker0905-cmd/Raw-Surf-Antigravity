@@ -463,9 +463,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // Zoom above which particles use the camera-centered TILE (concentrated → adequate on-screen density). Below
     // it they seed across the whole data domain (global = sparse in any viewport), which caused the dense→sparse
-    // CLIFF at z6 when zooming out. Lowered to 4.0 so the concentrated mode (and the constant-screen-density below)
-    // covers the regional zoom-out range; tunable via window.__RAW_TILE_ZOOM_MIN__. Must match u_tileZoomMin.
-    var tileZoomMin = (typeof window !== 'undefined' && typeof window.__RAW_TILE_ZOOM_MIN__ === 'number') ? window.__RAW_TILE_ZOOM_MIN__ : 4.0;
+    // CLIFF at z6 when zooming out — and, after the 4.0 lowering, its shadow at z3.02–3.93. Now 3.0: the
+    // constant-screen-density solve covers everything down to z3 (at z3.x the tile is HALF the world → pans
+    // basically never re-anchor), while below z3 the legacy globe-thinning curve stays deliberate. Live-verified
+    // 2026-07-02: solve holds 1650 across z3.0–4.0 (densityBase 0.15–0.53), one reinit per 3.0 crossing, none
+    // while panning in-band. Tunable via window.__RAW_TILE_ZOOM_MIN__. Must match u_tileZoomMin.
+    var tileZoomMin = (typeof window !== 'undefined' && typeof window.__RAW_TILE_ZOOM_MIN__ === 'number') ? window.__RAW_TILE_ZOOM_MIN__ : 3.0;
     var isHighZoom = z > tileZoomMin;
     // THE z4–6 "VORTEX" ROOT (2026-07-02): prevHighZoom kept the OLD hardcoded 6.0 threshold when the
     // density-cliff fix moved isHighZoom onto tileZoomMin (default 4.0). For any zoom stably inside

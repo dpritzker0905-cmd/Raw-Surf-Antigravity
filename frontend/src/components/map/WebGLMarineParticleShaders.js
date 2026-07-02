@@ -227,7 +227,7 @@ uniform float u_motion_scale;
 uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
-uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>6); <=0 → legacy per-zoom curve
+uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 
 varying highp float v_alpha;
 varying highp float v_wave_height;

@@ -35,7 +35,7 @@ const CONTROLS = [
   { key: '__RAW_WAVE_SPEED__',       tkey: 'waveSpeed',      label: 'Wave speed',       min: 0.3, max: 1.5,  step: 0.05, def: 1,    hint: 'Overall drift-speed multiplier' },
   { key: '__RAW_SPEED_HEIGHT_CAP__', tkey: 'speedHeightCap', label: 'Speed height cap', min: 1,   max: 8,    step: 0.5,  def: 3,    hint: 'Caps how fast big swell drifts (m)' },
   { key: '__RAW_PART_TARGET__',      tkey: 'partTarget',     label: 'Crest density',    min: 600, max: 3000, step: 50,   def: 1650, hint: 'On-screen crest count (held constant across zoom)' },
-  { key: '__RAW_TILE_ZOOM_MIN__',    tkey: 'tileZoomMin',    label: 'Tile zoom min',    min: 2,   max: 7,    step: 0.5,  def: 4,    hint: 'Zoom where the dense tile mode kicks in' },
+  { key: '__RAW_TILE_ZOOM_MIN__',    tkey: 'tileZoomMin',    label: 'Tile zoom min',    min: 2,   max: 7,    step: 0.5,  def: 3,    hint: 'Zoom where the dense tile mode kicks in' },
   { key: '__RAW_TILE_BACKOFF__',     tkey: 'tileBackoff',    label: 'Tile backoff',     min: 1,   max: 3,    step: 1,    def: 2,    hint: 'Particle tile vs screen: 2 = 4× (denser); 3 = 8× (steadier pans)' },
   { key: '__RAW_BLEND_BASE_WASH__',  tkey: 'blendWash',      label: 'Coarse wash',      min: 0,   max: 1,    step: 0.02, def: 0.72, hint: 'Faded coarse under-wash strength beneath a regional tile' },
 ];
@@ -64,6 +64,13 @@ function loadVals() {
   try {
     const saved = JSON.parse(window.localStorage.getItem(LS_VALS) || 'null');
     if (saved && typeof saved === 'object') {
+      // One-time migration (2026-07-02): tileZoomMin default moved 4→3 (z3.02–3.93 sparsity cliff). Every slider
+      // edit persists the FULL blob, so a stored 4 is almost surely the captured OLD default, not intent — drop it
+      // ONCE and rewrite, so the new default applies while a deliberately re-set 4 sticks from then on.
+      if (saved['__RAW_TILE_ZOOM_MIN__'] === 4) {
+        delete saved['__RAW_TILE_ZOOM_MIN__'];
+        try { window.localStorage.setItem(LS_VALS, JSON.stringify(saved)); } catch (e) { /* ignore */ }
+      }
       for (const c of CONTROLS) if (typeof saved[c.key] === 'number') base[c.key] = saved[c.key];
     }
   } catch (e) { /* ignore */ }
