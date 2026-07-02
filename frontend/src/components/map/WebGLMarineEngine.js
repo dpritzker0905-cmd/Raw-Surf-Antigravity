@@ -96,6 +96,28 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   return !!(sameLayer && sameHour && zoomedIn && residentRenderable && covers);
 }
 
+// === NATURAL ANIMATION DEFAULTS (baked 2026-07-01) ===
+// The §5#2 animation upgrades (trochoidal crest shape, orbital pitch, shoaling foam, crest direction-jitter)
+// shipped as gated shader uniforms DEFAULT-OFF pending visual dial-in — but the dial-in was never baked, so
+// production always rendered the legacy flat look and the tuner's "Natural" preset had to be re-applied by hand
+// every session. These are the designed Natural values (MarineAnimTuner PRESET_NATURAL). Resolution order per
+// frame: explicit window.__RAW_*__ (tuner slider / console) → legacy kill (window.__RAW_ANIM_LEGACY__ = true →
+// 0, the pre-2026-07-01 look) → Natural default. All values are DRAW-shader-only (crest visuals); advection is
+// untouched, so motion/physics cannot regress. Exported for tests + the tuner (single source of truth).
+export const NATURAL_ANIM_DEFAULTS = {
+  __RAW_TROCHOIDAL__: 0.7,        // asymmetric crest: sharp leading face, broad trailing back
+  __RAW_ORBITAL_PITCH__: 2.5,     // phase-synced fwd/back sway (px); keep ≤3 to avoid banding
+  __RAW_SHOAL_FOAM__: 1.5,        // extra whitecap in shallow water (inert without bathymetry)
+  __RAW_CREST_DIR_JITTER__: 0.2,  // rad of per-crest heading spread (breaks the parallel-crest lattice)
+};
+export function resolveAnimValue(key) {
+  if (typeof window !== 'undefined') {
+    if (typeof window[key] === 'number') return window[key];
+    if (window.__RAW_ANIM_LEGACY__ === true) return 0.0;
+  }
+  return NATURAL_ANIM_DEFAULTS[key] !== undefined ? NATURAL_ANIM_DEFAULTS[key] : 0.0;
+}
+
 // Identity of a captured coarse base so we re-encode only when the underlying coarse grid actually changes.
 function coarseBaseKey(waveGrid) {
   const b = (waveGrid && waveGrid.bounds) || {};
@@ -770,7 +792,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Directional-spectrum spread (breaks the parallel-crest lattice over uniform/coarse fields). OPT-IN until
       // visually verified + tuned on real swell data (default 0 = legacy parallel crests, no regression). Enable +
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
-      const _crestDirJitter = (typeof window !== 'undefined' && typeof window.__RAW_CREST_DIR_JITTER__ === 'number') ? window.__RAW_CREST_DIR_JITTER__ : 0.0;
+      const _crestDirJitter = resolveAnimValue('__RAW_CREST_DIR_JITTER__');
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
       // Direction-coherence floor: discard crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
       // synthetic close-zoom vortex). Engine-computed close-zoom ramp above; 0 = off (legacy). Matches ADVECT_FS.
@@ -778,15 +800,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
-      const _trochoidal = (typeof window !== 'undefined' && typeof window.__RAW_TROCHOIDAL__ === 'number') ? window.__RAW_TROCHOIDAL__ : 0.0;
+      const _trochoidal = resolveAnimValue('__RAW_TROCHOIDAL__');
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_trochoidal'), _trochoidal);
       // Orbital pitch: phase-synced forward/back sway (CSS px) so crests pitch, not just translate. window.__RAW_ORBITAL_PITCH__.
-      const _orbitalPitch = (typeof window !== 'undefined' && typeof window.__RAW_ORBITAL_PITCH__ === 'number') ? window.__RAW_ORBITAL_PITCH__ : 0.0;
+      const _orbitalPitch = resolveAnimValue('__RAW_ORBITAL_PITCH__');
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_orbitalPitch'), _orbitalPitch);
       // Shoaling foam: extra whitecap in shallow water via bathymetry. GATED on a resident bath texture so the
       // sampler (bound to unit 3 below) is never READ unbound. window.__RAW_SHOAL_FOAM__.
       const _hasBathTex = !!(this._waveData && this._waveData.u_bathymetryTexture);
-      const _shoalFoam = (_hasBathTex && typeof window !== 'undefined' && typeof window.__RAW_SHOAL_FOAM__ === 'number') ? window.__RAW_SHOAL_FOAM__ : 0.0;
+      const _shoalFoam = _hasBathTex ? resolveAnimValue('__RAW_SHOAL_FOAM__') : 0.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_shoalFoam'), _shoalFoam);
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_bathTexture'), 3);
 
@@ -832,7 +854,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
           partTarget: _partTarget,
           densityBase: +densityBase.toFixed(3),
-          tileZoomMin: tileZoomMin
+          tileZoomMin: tileZoomMin,
+          tileBackoff: _g('__RAW_TILE_BACKOFF__', 2),
+          blendWash: _blendBaseWash,
+          legacyAnim: window.__RAW_ANIM_LEGACY__ === true   // true → Natural defaults killed (flat pre-2026-07 look)
         };
       }
 

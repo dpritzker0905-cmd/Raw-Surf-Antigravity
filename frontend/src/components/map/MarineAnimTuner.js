@@ -13,27 +13,40 @@ import { createPortal } from 'react-dom';
  * animation when you crossed into an untuned band on zoom-out — that regression is removed. If deliberate
  * per-zoom curves are wanted later, add them explicitly on top of a stable render pipeline.)
  *
+ * NATURAL IS THE DEFAULT (2026-07-01): the engine bakes NATURAL_ANIM_DEFAULTS (trochoidal/orbital/shoal/jitter),
+ * so a fresh panel starts at the Natural look; "Flat (legacy)" restores the pre-2026-07 symmetric-ellipse look.
+ * Engine kill switch (no tuner needed): window.__RAW_ANIM_LEGACY__ = true.
+ *
  * FLOATS ABOVE EVERYTHING: portal to document.body, position:fixed, max z-index; draggable header; collapsible.
  * PROD-SAFE: only on localhost (or ?tuner=1 / localStorage.__RAW_TUNER__='1'); opt out with __RAW_TUNER__='0'.
  * Pure UI — writes window globals the engine already reads; never imports the engine (engine-boundaries.md).
  */
 
 // tkey = the field the engine echoes into window.__RAW_GPU__.anim, for the live "GPU applied" readout.
+// The four shape defs MIRROR the engine's baked NATURAL_ANIM_DEFAULTS (WebGLMarineEngine.js) — Natural is the
+// DEFAULT look since 2026-07-01, not an opt-in preset. Kept in sync by test (engine-boundaries.md forbids this
+// panel importing the engine), enforced in MarineAnimTuner.defaults.test.js. Kill to legacy-flat:
+// window.__RAW_ANIM_LEGACY__ = true.
 const CONTROLS = [
-  { key: '__RAW_TROCHOIDAL__',       tkey: 'trochoidal',     label: 'Trochoidal crest', min: 0,   max: 1,    step: 0.05, def: 0,    hint: 'Sharp leading face, broad trailing back (0 = symmetric)' },
-  { key: '__RAW_ORBITAL_PITCH__',    tkey: 'orbitalPitch',   label: 'Orbital pitch',    min: 0,   max: 4,    step: 0.25, def: 0,    hint: 'Crests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.' },
-  { key: '__RAW_SHOAL_FOAM__',       tkey: 'shoalFoam',      label: 'Shoaling foam',    min: 0,   max: 3,    step: 0.1,  def: 0,    hint: 'Extra whitecap in shallow water (needs bathymetry — zoom to a coast)' },
-  { key: '__RAW_CREST_DIR_JITTER__', tkey: 'crestJitter',    label: 'Crest jitter',     min: 0,   max: 0.5,  step: 0.02, def: 0,    hint: 'Breaks the parallel-crest "grid" over uniform fields (rad)' },
+  { key: '__RAW_TROCHOIDAL__',       tkey: 'trochoidal',     label: 'Trochoidal crest', min: 0,   max: 1,    step: 0.05, def: 0.7,  hint: 'Sharp leading face, broad trailing back (0 = symmetric)' },
+  { key: '__RAW_ORBITAL_PITCH__',    tkey: 'orbitalPitch',   label: 'Orbital pitch',    min: 0,   max: 4,    step: 0.25, def: 2.5,  hint: 'Crests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.' },
+  { key: '__RAW_SHOAL_FOAM__',       tkey: 'shoalFoam',      label: 'Shoaling foam',    min: 0,   max: 3,    step: 0.1,  def: 1.5,  hint: 'Extra whitecap in shallow water (needs bathymetry — zoom to a coast)' },
+  { key: '__RAW_CREST_DIR_JITTER__', tkey: 'crestJitter',    label: 'Crest jitter',     min: 0,   max: 0.5,  step: 0.02, def: 0.2,  hint: 'Breaks the parallel-crest "grid" over uniform fields (rad)' },
   { key: '__RAW_WAVE_SPEED__',       tkey: 'waveSpeed',      label: 'Wave speed',       min: 0.3, max: 1.5,  step: 0.05, def: 1,    hint: 'Overall drift-speed multiplier' },
   { key: '__RAW_SPEED_HEIGHT_CAP__', tkey: 'speedHeightCap', label: 'Speed height cap', min: 1,   max: 8,    step: 0.5,  def: 3,    hint: 'Caps how fast big swell drifts (m)' },
   { key: '__RAW_PART_TARGET__',      tkey: 'partTarget',     label: 'Crest density',    min: 600, max: 3000, step: 50,   def: 1650, hint: 'On-screen crest count (held constant across zoom)' },
   { key: '__RAW_TILE_ZOOM_MIN__',    tkey: 'tileZoomMin',    label: 'Tile zoom min',    min: 2,   max: 7,    step: 0.5,  def: 4,    hint: 'Zoom where the dense tile mode kicks in' },
+  { key: '__RAW_TILE_BACKOFF__',     tkey: 'tileBackoff',    label: 'Tile backoff',     min: 1,   max: 3,    step: 1,    def: 2,    hint: 'Particle tile vs screen: 2 = 4× (denser); 3 = 8× (steadier pans)' },
+  { key: '__RAW_BLEND_BASE_WASH__',  tkey: 'blendWash',      label: 'Coarse wash',      min: 0,   max: 1,    step: 0.02, def: 0.72, hint: 'Faded coarse under-wash strength beneath a regional tile' },
 ];
 
 function defaults() { const o = {}; for (const c of CONTROLS) o[c.key] = c.def; return o; }
 
+// == the engine's NATURAL_ANIM_DEFAULTS (now also the CONTROLS defs above)
 const PRESET_NATURAL = { __RAW_TROCHOIDAL__: 0.7, __RAW_ORBITAL_PITCH__: 2.5, __RAW_SHOAL_FOAM__: 1.5, __RAW_CREST_DIR_JITTER__: 0.2 };
-const LS_VALS = '__RAW_TUNER_VALUES__';
+// V2 (2026-07-01): key bumped when Natural became the default — stale saved zeros from pre-Natural sessions
+// would otherwise mask the new baked look on every tuner-enabled host (the tuner seeds globals on mount).
+const LS_VALS = '__RAW_TUNER_VALUES_V2__';
 
 function isEnabled() {
   if (typeof window === 'undefined') return false;
@@ -139,8 +152,8 @@ export default function MarineAnimTuner() {
           {!live && <div style={{ fontSize: 10, color: '#ffb0b0', marginBottom: 6 }}>No engine echo yet — turn on Waves (GFS → Waves) and keep this tab focused.</div>}
 
           <div style={{ display: 'flex', gap: 6, marginBottom: 8 }}>
-            <button style={btn} onClick={() => applyPreset(PRESET_NATURAL)}>🌊 Natural</button>
-            <button style={btn} onClick={() => applyPreset({ __RAW_TROCHOIDAL__: 0, __RAW_ORBITAL_PITCH__: 0, __RAW_SHOAL_FOAM__: 0, __RAW_CREST_DIR_JITTER__: 0 })}>Reset (off)</button>
+            <button style={btn} onClick={() => applyPreset(PRESET_NATURAL)}>🌊 Natural (default)</button>
+            <button style={btn} onClick={() => applyPreset({ __RAW_TROCHOIDAL__: 0, __RAW_ORBITAL_PITCH__: 0, __RAW_SHOAL_FOAM__: 0, __RAW_CREST_DIR_JITTER__: 0 })}>Flat (legacy)</button>
           </div>
 
           {CONTROLS.map(c => {
