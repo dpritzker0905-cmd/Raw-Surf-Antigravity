@@ -255,6 +255,9 @@ class WeatherNormalizer:
             dir_list = pt_hourly.get(d_key, [])
             period_list = pt_hourly.get(p_key, []) if p_key else []
             gust_list = pt_hourly.get(gust_key, []) if gust_key else []
+            # §0B-a render-confidence: coarse NOAA products export the direction estimator's
+            # resultant length as an extra series; absent everywhere else (stays None).
+            conf_list = pt_hourly.get(f"{d_key}_confidence", []) if d_key else []
 
             # Fallback estimation for missing marine component layers (e.g. ecmwf_wam025 swells)
             if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
@@ -289,6 +292,7 @@ class WeatherNormalizer:
             direction = dir_list[time_idx] if time_idx < len(dir_list) else None
             period = period_list[time_idx] if (p_key and time_idx < len(period_list)) else None
             gust = gust_list[time_idx] if (gust_key and time_idx < len(gust_list)) else None
+            dir_confidence = conf_list[time_idx] if time_idx < len(conf_list) else None
 
             # Guard against invalid or land null coordinates
             is_scalar = (direction_key is None)
@@ -335,7 +339,8 @@ class WeatherNormalizer:
                     period=round(period, 2) if period is not None else 0.0,
                     gust=round(gust, 4) if gust is not None else None,
                     value=round(speed, 4) if is_scalar else None,
-                    is_valid=True
+                    is_valid=True,
+                    dir_confidence=round(dir_confidence, 4) if dir_confidence is not None else None
                 )
             
             grid_data[(lat, lng)] = vector

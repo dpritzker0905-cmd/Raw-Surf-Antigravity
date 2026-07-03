@@ -116,6 +116,12 @@ DIR_TOTAL_COHERENCE_RAMP_HI = 0.65
 
 def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, half: int, wrap_cols: bool,
                                       total_h_arr=None) -> float:
+    """Direction-only wrapper — see energy_mean_direction_block_multi_conf for the full contract."""
+    return energy_mean_direction_block_multi_conf(pairs, fallback_dir_arr, r, c, half, wrap_cols, total_h_arr)[0]
+
+
+def energy_mean_direction_block_multi_conf(pairs, fallback_dir_arr, r: int, c: int, half: int, wrap_cols: bool,
+                                           total_h_arr=None):
     """TOTAL-SEA mean direction over the block — coherence-gated two-tier (third pass, 2026-07-02).
 
     Tier 1 (partitions): θ = atan2(ΣₚΣ E·sinθₚ, ΣₚΣ E·cosθₚ), E ∝ Hₚ², across all (dir, height)
@@ -136,12 +142,23 @@ def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, h
     unit-vector mix (no block seams). total_h_arr=None disables tier 2 (legacy partition-only —
     the callers' NOAA_COARSE_DIR_TOTAL_FIELD=0 kill-switch path).
 
-    Falls back to the point sample of fallback_dir_arr (DIRPW) when the block carries no energy."""
+    Falls back to the point sample of fallback_dir_arr (DIRPW) when the block carries no energy.
+
+    Returns (direction_deg, confidence) — confidence is the circular resultant length of whatever
+    estimator produced the direction (0..1, §0B-a render-confidence export, 2026-07-03):
+      · partition-only tier → R_p = |Σ E·unit(θₚ)| / Σ E (LOW exactly when partitions annihilate —
+        the (20,-120) Baja class whose blend direction is a meaningless residual);
+      · DIRPW tier → R_d (the gate value itself);
+      · mixed tier → the w-blend of the two, additionally scaled by |mixed unit vector| (→0 when
+        the two tiers point opposite ways — the direction between them is arbitrary);
+      · point-sample fallback → None (no blockwise evidence either way).
+    Consumers fade crest rendering below ~0.65 (heatmap untouched): show nothing confidently wrong."""
     nrows, ncols = fallback_dir_arr.shape
     r0, r1 = max(0, r - half), min(nrows, r + half)
     cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
     s = 0.0
     co = 0.0
+    e_sum_p = 0.0
     any_ok = False
     for dir_arr, h_arr in pairs:
         d = dir_arr[r0:r1][:, cols_idx]
@@ -154,9 +171,11 @@ def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, h
         rad = np.deg2rad(d[ok])
         s += float(np.sum(e * np.sin(rad)))
         co += float(np.sum(e * np.cos(rad)))
+        e_sum_p += float(np.sum(e))
 
     # Tier 2: block mean + coherence of the model's own total-direction field, weighted by total H².
     w = 0.0
+    r_d = 0.0
     ds = dco = 0.0
     if total_h_arr is not None:
         dt = fallback_dir_arr[r0:r1][:, cols_idx]
@@ -173,6 +192,8 @@ def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, h
                 w = min(1.0, max(0.0, (r_d - DIR_TOTAL_COHERENCE_RAMP_LO)
                                  / (DIR_TOTAL_COHERENCE_RAMP_HI - DIR_TOTAL_COHERENCE_RAMP_LO)))
 
+    r_p = (float(np.hypot(s, co)) / e_sum_p) if e_sum_p > 0.0 else 0.0
+
     have_partition = any_ok and not (s == 0.0 and co == 0.0)
     have_total = w > 0.0 and not (ds == 0.0 and dco == 0.0)
     if have_partition and have_total:
@@ -182,13 +203,14 @@ def energy_mean_direction_block_multi(pairs, fallback_dir_arr, r: int, c: int, h
         mx = (1.0 - w) * (s / pm) + w * (ds / tm)
         my = (1.0 - w) * (co / pm) + w * (dco / tm)
         if mx != 0.0 or my != 0.0:
-            return float(np.rad2deg(np.arctan2(mx, my)) % 360.0)
+            conf = ((1.0 - w) * r_p + w * r_d) * float(np.hypot(mx, my))
+            return float(np.rad2deg(np.arctan2(mx, my)) % 360.0), min(1.0, max(0.0, conf))
     if have_total and not have_partition:
-        return float(np.rad2deg(np.arctan2(ds, dco)) % 360.0)
+        return float(np.rad2deg(np.arctan2(ds, dco)) % 360.0), min(1.0, max(0.0, r_d))
     if have_partition:
-        return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+        return float(np.rad2deg(np.arctan2(s, co)) % 360.0), min(1.0, max(0.0, r_p))
     x = fallback_dir_arr[r, c]
-    return float(x) if x == x else float("nan")
+    return (float(x) if x == x else float("nan")), None
 
 
 def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):

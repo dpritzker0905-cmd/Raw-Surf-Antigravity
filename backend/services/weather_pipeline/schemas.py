@@ -19,6 +19,11 @@ class GridVector(BaseModel):
     gust: Optional[float] = None
     value: Optional[float] = None
     is_valid: bool = True
+    # §0B-a render-confidence (2026-07-03): circular resultant length (0..1) of the direction
+    # estimator over the source block — LOW where multi-system seas annihilate and the exported
+    # direction is a residual with no stable truth (the (20,-120) Baja class). None = not exported
+    # (regional/legacy products, non-marine layers). Consumers fade crest rendering, never the heatmap.
+    dir_confidence: Optional[float] = None
 
 class NormalizedGrid(BaseModel):
     bounds: CoverageBounds

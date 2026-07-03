@@ -14,7 +14,10 @@ import pytest
 from services.noaa_gfs_wave_fetcher import (
     energy_mean_direction_block, DIR_TO_HEIGHT, IDX_TO_OM, TOTAL_SEA_PARTITIONS,
 )
-from services._fetch_common import energy_mean_direction_lonspan, energy_mean_direction_block_multi
+from services._fetch_common import (
+    energy_mean_direction_lonspan, energy_mean_direction_block_multi,
+    energy_mean_direction_block_multi_conf,
+)
 
 
 def _grid(shape, direction, height):
@@ -188,6 +191,77 @@ class TestBlockMulti:
         # every pair must also be internally consistent with DIR_TO_HEIGHT
         for d, h in TOTAL_SEA_PARTITIONS:
             assert DIR_TO_HEIGHT[d] == h
+
+
+class TestConfidenceExport:
+    """energy_mean_direction_block_multi_conf — §0B-a render-confidence (2026-07-03).
+
+    The confidence is the resultant length of whatever estimator produced the direction: LOW exactly
+    where the exported direction is a cancellation residual with no stable truth (the (20,-120)
+    class), HIGH where a single coherent system (or a coherent DIRPW field) drives it."""
+
+    def test_uniform_single_system_is_fully_confident(self):
+        d, h = _grid((80, 80), 137.0, 2.0)
+        out, conf = energy_mean_direction_block_multi_conf([(d, h)], d, 40, 40, 20, False)
+        assert out == pytest.approx(137.0, abs=1e-6)
+        assert conf == pytest.approx(1.0, abs=1e-6)
+
+    def test_bimodal_5050_residual_direction_is_low_confidence(self):
+        # 90° vs 250° at equal energy: the blend lands on a residual (~170°) that is NOT a real
+        # system's direction — R_p ≈ 0.17. This is precisely the cell class the crest fade must catch.
+        ww_d, ww_h = _grid((80, 80), 90.0, 2.0)
+        sw_d, sw_h = _grid((80, 80), 250.0, 2.0)
+        pairs = [(ww_d, ww_h), (sw_d, sw_h)]
+        _out, conf = energy_mean_direction_block_multi_conf(pairs, ww_d, 40, 40, 20, False)
+        assert conf is not None and conf < 0.35
+
+    def test_trimodal_partition_annihilation_flags_low_confidence_when_dirpw_incoherent(self):
+        # The live (20,-120) regime: three partitions partially cancel (R_p ≈ 0.48) AND the model's
+        # own DIRPW is flip-zone bimodal (R_d ≈ 0) → the gate keeps the partition blend and the
+        # exported confidence must sit below the ~0.65 fade threshold.
+        shape = (80, 80)
+        s1d, s1h = np.full(shape, 163.0), np.full(shape, 1.0)
+        s2d, s2h = np.full(shape, 332.0), np.full(shape, 0.8)
+        wwd, wwh = np.full(shape, 257.0), np.full(shape, 1.1)
+        dirpw = np.full(shape, 20.0)
+        dirpw[:, ::2] = 200.0                      # alternating anti-parallel → R_d ≈ 0
+        total_h = np.full(shape, 1.96)
+        pairs = [(wwd, wwh), (s1d, s1h), (s2d, s2h)]
+        _out, conf = energy_mean_direction_block_multi_conf(pairs, dirpw, 40, 40, 20, False, total_h)
+        assert conf is not None and conf < 0.65
+
+    def test_coherent_dirpw_tier_reports_the_gate_r_d(self):
+        # The Baja FIX regime: partitions cancel but DIRPW is uniform (R_d = 1.0) → the gate serves
+        # DIRPW's mean and the confidence is R_d-high (the direction IS stable truth).
+        shape = (80, 80)
+        s1d, s1h = np.full(shape, 343.0), np.full(shape, 1.0)
+        s2d, s2h = np.full(shape, 152.0), np.full(shape, 0.8)
+        wwd, wwh = np.full(shape, 77.0), np.full(shape, 1.1)
+        dirpw = np.full(shape, 186.0)
+        total_h = np.full(shape, 1.96)
+        pairs = [(wwd, wwh), (s1d, s1h), (s2d, s2h)]
+        out, conf = energy_mean_direction_block_multi_conf(pairs, dirpw, 40, 40, 20, False, total_h)
+        d = abs(out - 186.0) % 360.0
+        assert min(d, 360.0 - d) < 5.0
+        assert conf is not None and conf > 0.9
+
+    def test_point_sample_fallback_has_no_confidence(self):
+        nanarr = np.full((40, 40), np.nan)
+        zeros = np.zeros((40, 40))
+        dirpw = np.full((40, 40), 123.0)
+        out, conf = energy_mean_direction_block_multi_conf(
+            [(nanarr, zeros), (nanarr, zeros)], dirpw, 10, 10, 5, False)
+        assert out == pytest.approx(123.0)
+        assert conf is None
+
+    def test_direction_wrapper_is_byte_identical_to_the_conf_variant(self):
+        # The wrapper keeps every existing caller/test contract: same direction, no tuple.
+        ww_d, ww_h = _grid((80, 80), 90.0, 2.0)
+        sw_d, sw_h = _grid((80, 80), 250.0, 3.0)
+        pairs = [(ww_d, ww_h), (sw_d, sw_h)]
+        a = energy_mean_direction_block_multi(pairs, ww_d, 40, 40, 20, False)
+        b, _ = energy_mean_direction_block_multi_conf(pairs, ww_d, 40, 40, 20, False)
+        assert a == b
 
 
 class TestLonspan:

@@ -84,9 +84,15 @@ DIR_TO_HEIGHT = {
 # Energy-weighted circular-mean direction over the coarse block — the vortex-root fix (2026-07-02).
 # Shared with the DWD GWAM fetcher; full rationale + tests live with the helpers.
 try:
-    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi  # script-by-path
+    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi  # package
+    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # package
+
+# §0B-a render-confidence export (2026-07-03): the gate's own resultant length rides along as an
+# extra hourly series so the frontend can FADE crest animation where the direction estimator is
+# incoherent (the (20,-120)-class GFS-vs-ECMWF divergence blocks — no stable direction exists).
+# Extra series, never replaces a whitelisted variable. Kill switch NOAA_COARSE_DIR_CONFIDENCE=0.
+DIR_CONFIDENCE_OM = "wave_direction_confidence"
 
 # The TOTAL-SEA direction (om 'wave_direction') is synthesized from the three PARTITIONS instead of
 # block-averaging DIRPW: DIRPW is a PEAK direction and is BIMODAL in two-system water, so its block
@@ -180,9 +186,17 @@ def fetch_global_coarse(payload):
         return [], 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
-    # accumulator: point index -> {om_var -> [values per timestep]}
+    # Env-constant switches, read once (also referenced by the per-step decode loop below).
+    # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
+    blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
+    # Kill switch NOAA_COARSE_DIR_TOTAL_FIELD=0 → partition-blend only (no DIRPW coherence tier).
+    total_field = os.environ.get("NOAA_COARSE_DIR_TOTAL_FIELD", "1") != "0"
+    export_confidence = blockmean and os.environ.get("NOAA_COARSE_DIR_CONFIDENCE", "1") != "0"
+    # accumulator: point index -> {om_var -> [values per timestep]}; the confidence series is
+    # initialized WITH the whitelisted variables so failed steps keep every series time-aligned.
     n_pts = len(lats) * len(lons)
-    series = [{om: [] for om in OM_ORDER} for _ in range(n_pts)]
+    series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
+    series = [{om: [] for om in series_keys} for _ in range(n_pts)]
     idx_map = None  # (row, col) per coarse point, built from the first decoded grid
     times = []
     steps_ok = 0
@@ -224,13 +238,10 @@ def fetch_global_coarse(payload):
             for mi, om in enumerate(OM_ORDER):
                 vals = msgs[mi].values  # masked array (land/missing masked)
                 arrs[om] = np.ma.filled(np.ma.asarray(vals, dtype=float), np.nan)
-            # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
-            blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
-            # Kill switch NOAA_COARSE_DIR_TOTAL_FIELD=0 → partition-blend only (no DIRPW coherence tier).
-            # Default ON (third pass, 2026-07-02): in tri-modal water the partition vectors cancel and the
-            # blend lands on a minority system (Baja block 20,-120 read TO≈257 while DIRPW says TO≈6) —
-            # the coherence-gated DIRPW tier in energy_mean_direction_block_multi fixes exactly that.
-            total_field = os.environ.get("NOAA_COARSE_DIR_TOTAL_FIELD", "1") != "0"
+            # blockmean/total_field/export_confidence hoisted above the hour loop (env-constant).
+            # total_field default ON (third pass, 2026-07-02): in tri-modal water the partition vectors
+            # cancel and the blend lands on a minority system (Baja block 20,-120 read TO≈257 while DIRPW
+            # says TO≈6) — the coherence-gated DIRPW tier in the _conf helper fixes exactly that.
             half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             _total_h = arrs.get("wave_height") if total_field else None
@@ -239,8 +250,12 @@ def fetch_global_coarse(payload):
                 if blockmean and om == "wave_direction":
                     # total-sea direction: coherence-gated blend of DIRPW-block-mean and partitions
                     for pi, (r, c) in enumerate(idx_map):
-                        x = energy_mean_direction_block_multi(_partition_pairs, arr, r, c, half, True, _total_h)
+                        x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
                         series[pi][om].append(round(float(x), 4) if x == x else None)
+                        if export_confidence:
+                            series[pi][DIR_CONFIDENCE_OM].append(
+                                round(float(conf), 4) if conf is not None else None
+                            )
                     continue
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                 for pi, (r, c) in enumerate(idx_map):
@@ -257,7 +272,7 @@ def fetch_global_coarse(payload):
         except Exception as e:
             # keep the time-axis aligned: append None for this timestep so all series stay equal length
             for pi in range(n_pts):
-                for om in OM_ORDER:
+                for om in series_keys:
                     if len(series[pi][om]) < steps_ok + steps_failed + 1:
                         series[pi][om].append(None)
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
@@ -279,14 +294,17 @@ def fetch_global_coarse(payload):
     for la in lats:
         for lo in lons:
             hourly = {"time": times}
-            for om in OM_ORDER:
+            for om in series_keys:
                 hourly[om] = series[pi][om]
+            units = {"time": "iso8601", **OM_UNITS}
+            if export_confidence:
+                units[DIR_CONFIDENCE_OM] = "fraction"
             points.append({
                 "latitude": float(la), "longitude": float(lo),
                 "generationtime_ms": 0, "utc_offset_seconds": 0,
                 "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
                 "__provider": "noaa",
-                "hourly_units": {"time": "iso8601", **OM_UNITS},
+                "hourly_units": units,
                 "hourly": hourly,
             })
             pi += 1

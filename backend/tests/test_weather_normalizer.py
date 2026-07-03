@@ -287,3 +287,35 @@ def test_gfs_direction_to_uv_convention():
         # Match with small tolerance for floating point precision of sin/cos
         assert math.isclose(v.u, tc["expected_u"], abs_tol=1e-4)
         assert math.isclose(v.v, tc["expected_v"], abs_tol=1e-4)
+
+
+def test_weather_normalizer_dir_confidence_plumb_through():
+    """§0B-a render-confidence (2026-07-03): a coarse NOAA product's wave_direction_confidence
+    hourly series must land on GridVector.dir_confidence; absent series -> None (regional/legacy)."""
+    normalizer = WeatherNormalizer()
+    base = {
+        "latitude": 27.5,
+        "longitude": -80.0,
+        "hourly_units": {"wave_height": "m", "wave_direction": "°", "wave_period": "s"},
+        "hourly": {
+            "time": ["2026-06-01T15:00:00Z"],
+            "wave_height": [2.5],
+            "wave_direction": [90.0],
+            "wave_period": [8.0],
+        },
+    }
+    target_dt = datetime.fromisoformat("2026-06-01T15:00:00+00:00")
+    kwargs = dict(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        bbox={"west": -80.0, "south": 27.5, "east": -80.0, "north": 27.5},
+        resolution=0.25, target_time=target_dt,
+    )
+
+    # With the confidence series exported (the coarse fetcher path)
+    with_conf = {**base, "hourly": {**base["hourly"], "wave_direction_confidence": [0.4321]}}
+    product = normalizer.normalize(raw_results=[with_conf], **kwargs)
+    assert product.grid.vectors[0].dir_confidence == pytest.approx(0.4321)
+
+    # Without it (regional tiles, other providers) the field stays None — fully backward compatible
+    product_legacy = normalizer.normalize(raw_results=[base], **kwargs)
+    assert product_legacy.grid.vectors[0].dir_confidence is None
