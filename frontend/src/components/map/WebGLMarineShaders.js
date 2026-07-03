@@ -72,17 +72,20 @@ float latToMercatorY(float lat) {
 }
 
 float getNonlinearT(float h) {
-  // v4.1: Refined breakpoints — 0.5-1.5m gets 35% of color range for best open-ocean differentiation
+  // v4.2 (2026-07-03): +20% low-range contrast — flat-to-small waves were hard to tell apart while
+  // big waves saturate early anyway. 0-0.5m 15%->18% of the ramp and 0.5-1.5m 35%->42% (both +20%
+  // slope); the 1.5-3m band gives back what the low range gains; >3m keeps its saturated colors.
+  // Surf mode (getSurfT) is untouched. Anchor heights stay 0.5/1.5/3/5m — colors per theme unchanged.
   if (h < 0.5) {
-    return (h / 0.5) * 0.15;
+    return (h / 0.5) * 0.18;
   } else if (h < 1.5) {
-    return 0.15 + ((h - 0.5) / 1.0) * 0.35;
+    return 0.18 + ((h - 0.5) / 1.0) * 0.42;
   } else if (h < 3.0) {
-    return 0.50 + ((h - 1.5) / 1.5) * 0.30;
+    return 0.60 + ((h - 1.5) / 1.5) * 0.24;
   } else if (h < 5.0) {
-    return 0.80 + ((h - 3.0) / 2.0) * 0.12;
+    return 0.84 + ((h - 3.0) / 2.0) * 0.10;
   } else {
-    return 0.92 + clamp((h - 5.0) / 5.0, 0.0, 1.0) * 0.08;
+    return 0.94 + clamp((h - 5.0) / 5.0, 0.0, 1.0) * 0.06;
   }
 }
 
@@ -141,17 +144,23 @@ vec3 getThemedWaveColor(float h, float theme, float surfMode) {
     c5 = vec3(1.00, 1.00, 1.00); // 10.0m+ - Pure Glowing Neon White
   }
   
-  // v4.1: Interpolation bands aligned to new getNonlinearT breakpoints
-  if (t < 0.15) {
-    return mix(c0, c1, t / 0.15);
-  } else if (t < 0.50) {
-    return mix(c1, c2, (t - 0.15) / 0.35);
-  } else if (t < 0.80) {
-    return mix(c2, c3, (t - 0.50) / 0.30);
-  } else if (t < 0.92) {
-    return mix(c3, c4, (t - 0.80) / 0.12);
+  // v4.2: Interpolation band splits follow each MODE's t-curve so anchor heights keep their anchor
+  // colors: non-surf uses the reshaped getNonlinearT splits (0.18/0.60/0.84/0.94); surf mode keeps
+  // the original 0.15/0.50/0.80/0.92 so the tuned surf colormap stays byte-identical.
+  float b1 = surfMode > 0.5 ? 0.15 : 0.18;
+  float b2 = surfMode > 0.5 ? 0.50 : 0.60;
+  float b3 = surfMode > 0.5 ? 0.80 : 0.84;
+  float b4 = surfMode > 0.5 ? 0.92 : 0.94;
+  if (t < b1) {
+    return mix(c0, c1, t / b1);
+  } else if (t < b2) {
+    return mix(c1, c2, (t - b1) / (b2 - b1));
+  } else if (t < b3) {
+    return mix(c2, c3, (t - b2) / (b3 - b2));
+  } else if (t < b4) {
+    return mix(c3, c4, (t - b3) / (b4 - b3));
   } else {
-    return mix(c4, c5, (t - 0.92) / 0.08);
+    return mix(c4, c5, (t - b4) / (1.0 - b4));
   }
 }
 
@@ -327,7 +336,9 @@ void main() {
   // Conformal 3D-Volumetric Blending:
   // Flat water shows detailed natural floor/shelf, rising waves smoothly overlay waveColors
   // while keeping volumetric shadows and reefs highlights fully intact.
-  float waveBlend = smoothstep(0.0, 0.25, displayHeight);
+  // v4.2: threshold 0.25->0.18 m so genuinely-small waves tint the water instead of hiding
+  // under the base color (part of the flat-vs-small contrast fix; flat water still shows the floor).
+  float waveBlend = smoothstep(0.0, 0.18, displayHeight);
   vec3 baseColor = baseDepthColor + shallowWaterShelfGlow;
   vec3 baseWithChl = mix(baseColor, baseColor + chlorophyllGreen * chlDensity, 0.4);
   

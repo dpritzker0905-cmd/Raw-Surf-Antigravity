@@ -228,15 +228,17 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
       t = 0.92 + Math.min(1.0, (h - 3.7) / 1.3) * 0.08;
     }
   } else if (h < 0.5) {
-    t = (h / 0.5) * 0.15;
+    // v4.2 mirror (2026-07-03): +20% low-range contrast — keep in sync with getNonlinearT in
+    // WebGLMarineShaders.js (0.18/0.60/0.84/0.94 anchors; surf branch above unchanged).
+    t = (h / 0.5) * 0.18;
   } else if (h < 1.5) {
-    t = 0.15 + ((h - 0.5) / 1.0) * 0.35;
+    t = 0.18 + ((h - 0.5) / 1.0) * 0.42;
   } else if (h < 3.0) {
-    t = 0.50 + ((h - 1.5) / 1.5) * 0.30;
+    t = 0.60 + ((h - 1.5) / 1.5) * 0.24;
   } else if (h < 5.0) {
-    t = 0.80 + ((h - 3.0) / 2.0) * 0.12;
+    t = 0.84 + ((h - 3.0) / 2.0) * 0.10;
   } else {
-    t = 0.92 + Math.min(1.0, (h - 5.0) / 5.0) * 0.08;
+    t = 0.94 + Math.min(1.0, (h - 5.0) / 5.0) * 0.06;
   }
 
   let c0, c1, c2, c3, c4, c5;
@@ -263,37 +265,43 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
     c5 = [255, 255, 255];
   }
 
+  // v4.2: band splits follow the mode's t-curve (mirror of getThemedWaveColor in
+  // WebGLMarineShaders.js) — non-surf reshaped to 0.18/0.60/0.84/0.94, surf unchanged.
+  const b1 = surfMode ? 0.15 : 0.18;
+  const b2 = surfMode ? 0.50 : 0.60;
+  const b3 = surfMode ? 0.80 : 0.84;
+  const b4 = surfMode ? 0.92 : 0.94;
   let rgb;
-  if (t < 0.15) {
-    let factor = t / 0.15;
+  if (t < b1) {
+    let factor = t / b1;
     rgb = [
       c0[0] + (c1[0] - c0[0]) * factor,
       c0[1] + (c1[1] - c0[1]) * factor,
       c0[2] + (c1[2] - c0[2]) * factor
     ];
-  } else if (t < 0.50) {
-    let factor = (t - 0.15) / 0.35;
+  } else if (t < b2) {
+    let factor = (t - b1) / (b2 - b1);
     rgb = [
       c1[0] + (c2[0] - c1[0]) * factor,
       c1[1] + (c2[1] - c1[1]) * factor,
       c1[2] + (c2[2] - c1[2]) * factor
     ];
-  } else if (t < 0.80) {
-    let factor = (t - 0.50) / 0.30;
+  } else if (t < b3) {
+    let factor = (t - b2) / (b3 - b2);
     rgb = [
       c2[0] + (c3[0] - c2[0]) * factor,
       c2[1] + (c3[1] - c2[1]) * factor,
       c2[2] + (c3[2] - c2[2]) * factor
     ];
-  } else if (t < 0.92) {
-    let factor = (t - 0.80) / 0.12;
+  } else if (t < b4) {
+    let factor = (t - b3) / (b4 - b3);
     rgb = [
       c3[0] + (c4[0] - c3[0]) * factor,
       c3[1] + (c4[1] - c3[1]) * factor,
       c3[2] + (c4[2] - c3[2]) * factor
     ];
   } else {
-    let factor = (t - 0.92) / 0.08;
+    let factor = (t - b4) / (1.0 - b4);
     rgb = [
       c4[0] + (c5[0] - c4[0]) * factor,
       c4[1] + (c5[1] - c4[1]) * factor,
