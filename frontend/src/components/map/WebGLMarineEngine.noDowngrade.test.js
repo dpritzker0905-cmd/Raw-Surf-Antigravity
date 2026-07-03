@@ -55,8 +55,13 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, coveredVp, true)).toBe(false);
   });
 
-  it('treats undefined viewport/zoom conservatively but still requires same hour + regional resident', () => {
-    // No viewport → coverage assumed true; undefined zoom → treated as zoomed-in. Still blocks the same-hour downgrade.
-    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), undefined, undefined, false)).toBe(true);
+  it('FAILS OPEN on unknown zoom — a wrong reject is permanent, a wrong accept self-heals (2026-07-03)', () => {
+    // _lastZoom is only written by the render loop; a commit racing a zoom change (or arriving before
+    // the first frame / while rAF is paused) reads undefined. Treating that as "zoomed in" rejected the
+    // coarse while the commit dedup recorded it — every retry then dup-skipped and the band displayed a
+    // stranded 3° regional rectangle until an hour scrub (live 3Hz×40min loop). Unknown zoom must allow.
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), undefined, undefined, false)).toBe(false);
+    // A KNOWN zoomed-in zoom with an unknown viewport still blocks (coverage assumed true).
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, undefined, false)).toBe(true);
   });
 });

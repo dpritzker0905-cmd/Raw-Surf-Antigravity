@@ -84,7 +84,13 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
   const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
     && incoming.hourOffset === resident.hourOffset;
-  const zoomedIn = (lastZoom === undefined) || (lastZoom > MARINE_ZOOMED_OUT_MAX_ZOOM);
+  // UNKNOWN zoom must FAIL OPEN (2026-07-03): _lastZoom is only written by the render loop, so a
+  // commit racing a zoom change (or arriving before the first frame / while rAF is paused) reads
+  // undefined-or-stale. Treating unknown as "zoomed in" made the guard reject the coarse WHILE the
+  // commit ledger recorded it — every retry then dup-skipped and the band displayed a stranded 3°
+  // regional rectangle until an hour scrub (live 3Hz×40min loop, 2026-07-03). A wrong ACCEPT costs
+  // one particle reset and self-heals via the sharpen path; a wrong REJECT was permanent.
+  const zoomedIn = (typeof lastZoom === 'number') && (lastZoom > MARINE_ZOOMED_OUT_MAX_ZOOM);
   const residentRenderable = resident.__renderable !== false && !!(resident.vectors && resident.vectors.length);
   // Keep the resident regional ONLY if it still covers the current viewport; otherwise it's stale after a pan and
   // coarse (or a fresh regional) should be allowed to replace it (no stranded non-covering regional rectangle).
@@ -226,8 +232,15 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
         layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now() };
     }
     console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected global-coarse ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
+    // SELF-HEAL STASH (2026-07-03): a rejected grid must never be lost — the commit path records its
+    // signature, so it will NEVER be re-committed (dup-skip) and a wrong rejection (stale _lastZoom)
+    // would strand the display permanently. Stash it; the render loop re-evaluates the guard with the
+    // CURRENT zoom/viewport every frame and swaps it in the moment rejection no longer holds.
+    this._pendingDowngrade = waveGrid;
     return;
   }
+  // Any ACCEPTED commit supersedes a stashed reject (newer data won; the stash must not resurrect).
+  this._pendingDowngrade = null;
 
   if (landGeoJSON) {
     this._landGeoJSON = landGeoJSON;
@@ -491,6 +504,24 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       window.__MARINE_ZOOMSTATE_REINITS__ = (window.__MARINE_ZOOMSTATE_REINITS__ || 0) + 1;
     }
     this._lastZoom = z;
+
+    // SELF-HEAL a stashed no-downgrade rejection (2026-07-03): re-evaluate with the zoom/viewport we
+    // JUST recorded — the guard call inside setWaveData reads these same fields, so acceptance here is
+    // authoritative. This releases the wedge where a coarse commit was rejected against a stale zoom
+    // and the commit dedup then blocked every retry (stranded 3° regional at band zoom, live repro ×2).
+    if (this._pendingDowngrade) {
+      const _pd = this._pendingDowngrade;
+      const _pdDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__;
+      if (!shouldRejectResolutionDowngrade(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled)) {
+        this._pendingDowngrade = null;
+        if (typeof window !== 'undefined') {
+          const nd = window.__MARINE_NO_DOWNGRADE__ || (window.__MARINE_NO_DOWNGRADE__ = { count: 0 });
+          nd.selfHealed = (nd.selfHealed || 0) + 1;
+        }
+        console.log(`[WebGLMarineEngine] No-downgrade self-heal: stashed ${_pd.cols}×${_pd.rows} grid accepted at zoom ${z.toFixed(1)}.`);
+        this.setWaveData(gl, _pd, null);
+      }
+    }
 
     // === COARSE-GLOBAL CREST SUPPRESSION — the real vortex fix (default ON) ===
     // The "clockwise spin" is NOT merely a bilinear-interpolation artifact: the coarse-GLOBAL 37×17 grid's direction

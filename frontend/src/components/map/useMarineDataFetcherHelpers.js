@@ -378,13 +378,19 @@ export function commitMarineData({
         if (_sfW < 340.0) { // a covering REGIONAL series frame — prefer it over the stale coarse-global
           const _sig = _marineDataSignature(_sf, layer);
           consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
-          if (_sig && _sig !== lastCommittedSigRef.current) {
+          // Dedup against prev's OWN signature (2026-07-03), same as the main commit path: comparing
+          // against the side ledger skipped commits whenever the ledger diverged from state (an
+          // engine-rejected commit records its sig) — and this path returns without committing at all.
+          setMarineData(prev => {
+            const _prevSig = prev ? (prev.__committedSig || _marineDataSignature(prev, prev?.grid?.__componentLayer || layer)) : null;
+            if (!_sig || _sig === _prevSig) return prev;
             lastCommittedSigRef.current = _sig;
             marineRevision.current += 1;
             _sf.__commitRevision = marineRevision.current;
+            _sf.__committedSig = _sig;
             logPipelineEventHelper('pingpong_guard_series_preferred', { model, layer, hour: timeOffset, coarseW: Math.round(_dW), seriesW: Math.round(_sfW) });
-            setMarineData(_sf);
-          }
+            return _sf;
+          });
           return;
         }
       }
@@ -441,11 +447,19 @@ export function commitMarineData({
       return prev;
     }
     const newSig = _marineDataSignature(data, layer);
-    if (newSig && newSig === lastCommittedSigRef.current) {
+    // Duplicate test against what React state ACTUALLY holds (prev), not the side ledger (2026-07-03).
+    // lastCommittedSigRef records sigs for commits the ENGINE may still reject downstream (the
+    // no-downgrade guard racing a stale _lastZoom) — comparing against it wedged the display: ledger
+    // said "committed", state/engine held a different grid, and every retry dup-skipped (live 3Hz×40min
+    // loop + stranded 3° regional at band zoom, twice tonight). prev's own signature cannot diverge
+    // from state by construction. The ledger stays updated for telemetry (__MARINE_PIPELINE_TRUTH__).
+    const prevSig = prev ? (prev.__committedSig || _marineDataSignature(prev, prevLayer)) : null;
+    if (newSig && newSig === prevSig) {
       logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig });
       return prev;
     }
     lastCommittedSigRef.current = newSig;
+    data.__committedSig = newSig;
     marineRevision.current += 1;
     data.__commitRevision = marineRevision.current;
     if (typeof window !== 'undefined' && model === 'GFS' && layer === 'waves' && timeOffset === 0) {
