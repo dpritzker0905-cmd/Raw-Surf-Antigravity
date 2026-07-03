@@ -226,6 +226,18 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
         fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'GFS', gridProductIdParam, gridBboxParam),
         fetchBackendExactPoint(lat, lng, hourOffset, signal, 'swell_2', 'EURO', gridProductIdParam, gridBboxParam)
       ]);
+      // An abort (model/layer switch cancels the shared signal) is NOT data-unavailability:
+      // falling through to the terminal 'unsupported' response here let the caller CACHE
+      // 'unsupported' for the point/hour, so the infobox stayed "no source data" long after
+      // the switch storm ended (live console repro 2026-07-04 at 19.9,-119.58). Re-throw the
+      // abort so the redirect wrapper propagates it and nothing gets cached.
+      const isAbortRejection = (r) => r.status === 'rejected' &&
+        (r.reason?.name === 'AbortError' || r.reason?.message?.toLowerCase().includes('abort'));
+      if (signal?.aborted || (isAbortRejection(gfsS2) && isAbortRejection(euroS2))) {
+        const abortErr = new Error('ICON swell_2 blend aborted (model/layer switch)');
+        abortErr.name = 'AbortError';
+        throw abortErr;
+      }
       const gfsVal = gfsS2.status === 'fulfilled' ? gfsS2.value : null;
       const euroVal = euroS2.status === 'fulfilled' ? euroS2.value : null;
       const hKey = 'secondary_swell_wave_height', dKey = 'secondary_swell_wave_direction', pKey = 'secondary_swell_wave_period';
@@ -267,6 +279,9 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       }
       // Both GFS and EURO swell_2 unavailable — fall through to the unsupported response below.
     } catch (err) {
+      if (err.name === 'AbortError' || err.message?.toLowerCase().includes('abort') || signal?.aborted) {
+        throw err; // abort is not unavailability — propagate so nothing caches 'unsupported'
+      }
       console.error('[Backend Weather Client Point] ICON swell_2 GFS/EURO blend failed:', err);
       // fall through to unsupported
     }

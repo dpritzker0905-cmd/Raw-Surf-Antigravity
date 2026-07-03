@@ -46,7 +46,17 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
   const model = cachedResponse.requestedModel || 'GFS';
   const activeLayer = cachedResponse.activeLayer || 'waves';
 
-  if (typeof window !== 'undefined') {
+  // The point response is AUTHORITATIVE when it carries usable hourly data: the global grid diag
+  // below reflects the last GRID fetch, and a grid coverage failure (viewport clamp, switch race,
+  // cold backend) must never veto a successful point fetch. Without this guard, one stale
+  // fallbackReason at the matching hour (usually 0) blanked every subsequent infobox read for the
+  // model — the live-observed "EURO waves no_coverage mid-Pacific while the cache held real data".
+  const cachedHasUsableHourly = !!(cachedResponse.hourly && Array.isArray(cachedResponse.hourly.time)
+    && cachedResponse.hourly.time.length > 0)
+    && !['unsupported', 'no_coverage', 'no_backend_coverage', 'no_copernicus_coverage',
+         'out_of_bounds/no_coverage'].includes(cachedResponse.status);
+
+  if (typeof window !== 'undefined' && !cachedHasUsableHourly) {
     let diag = null;
     let fallbackReasonValue = null;
     if (model === 'EURO') {
@@ -62,8 +72,12 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
       fallbackReasonValue = 'no_backend_coverage';
     }
 
-    if (diag && 
-        (diag.fallbackReason === fallbackReasonValue || diag.fallbackReason?.includes(fallbackReasonValue)) && 
+    // A diag written for a DIFFERENT layer says nothing about this request — require a match
+    // when the diag carries one (marine diags default their layer; wind diags may not).
+    const diagLayerMatches = !diag?.layer || diag.layer === activeLayer;
+
+    if (diag && diagLayerMatches &&
+        (diag.fallbackReason === fallbackReasonValue || diag.fallbackReason?.includes(fallbackReasonValue)) &&
         (diag.requestedHour === offset || diag.lastGridFetch?.hourOffset === offset)) {
       updateDeprecationDiag({
         model,
@@ -145,7 +159,10 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     };
   }
 
-  if (!cachedResponse.hourly?.time) return null;
+  // Empty time array (a failure response whose reason string isn't in the no-coverage set above,
+  // e.g. a raw backend detail) must bail here too — [] is truthy, and falling through crashed on
+  // times[bestIdx].endsWith. Treat as no selectable hour.
+  if (!cachedResponse.hourly?.time || cachedResponse.hourly.time.length === 0) return null;
 
   if (cachedResponse.status === 'unsupported') {
     updateDeprecationDiag({

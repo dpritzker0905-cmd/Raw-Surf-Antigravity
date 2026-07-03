@@ -36,6 +36,29 @@ const RECENT_FAILED_TTL = 30000;
 const _inFlightExactPointRequests = new Map();
 const EXACT_POINT_CACHE_TTL = 10 * 60 * 1000;
 
+// Terminal no-data statuses a backend-redirect point fetch can return INSTEAD of throwing.
+// These must never be cached at the full 10-min TTL: one transient miss (aborted sub-fetch
+// during a model/layer switch, cold backend 404, coverage race) otherwise poisons the infobox
+// for 10 minutes — the live-observed "EURO waves stuck at no_coverage mid-Pacific" and
+// "ICON swell_2 stuck unsupported" (2026-07-04 console repro: "Cache hit resolved at entry"
+// followed by a failure status, forever). Failures get the 30s failure TTL so they self-heal.
+const TERMINAL_POINT_FAILURE_STATUSES = new Set([
+  'unsupported', 'no_coverage', 'no_backend_coverage', 'no_copernicus_coverage',
+  'out_of_bounds/no_coverage'
+]);
+
+function isTerminalPointFailure(pointResult) {
+  return !!(pointResult && TERMINAL_POINT_FAILURE_STATUSES.has(pointResult.status));
+}
+
+// Cache a redirect point result: successes at the full TTL, terminal failures at the short
+// failure TTL (per-entry ttl honored by getCachedPointResponse).
+function cachePointResult(cacheKey, pointResult) {
+  const entry = { data: pointResult, timestamp: Date.now() };
+  if (isTerminalPointFailure(pointResult)) entry.ttl = RECENT_FAILED_TTL;
+  _exactPointCache.set(cacheKey, entry);
+}
+
 // v7.1: Periodic cleanup of expired failure entries to prevent unbounded Map growth
 setInterval(() => {
   const now = Date.now();
@@ -76,7 +99,7 @@ export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', t
     const validTimeStr = getSharedValidTime(timeOffsetHours, activeLayer, model || 'GFS');
     const cacheKey = `${(model || 'GFS').toUpperCase()}_weather_precipitation_${rLat.toFixed(2)}_${rLng.toFixed(2)}_${validTimeStr}_${provider}`;
     const cachedPrecip = _exactPointCache.get(cacheKey);
-    if (cachedPrecip && Date.now() - cachedPrecip.timestamp < EXACT_POINT_CACHE_TTL) {
+    if (cachedPrecip && Date.now() - cachedPrecip.timestamp < (cachedPrecip.ttl || EXACT_POINT_CACHE_TTL)) {
       return cachedPrecip.data;
     }
     const cachedPrecipBC = precipitationPointCache.get(cacheKey);
@@ -93,7 +116,7 @@ export function getCachedPointResponse(lat, lng, model, activeLayer = 'waves', t
     : `${rLat}_${rLng}_${model || 'GFS'}_${activeLayer || 'waves'}_${provider}`;
 
   const cached = _exactPointCache.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < EXACT_POINT_CACHE_TTL) {
+  if (cached && Date.now() - cached.timestamp < (cached.ttl || EXACT_POINT_CACHE_TTL)) {
     return cached.data;
   }
   return null;
@@ -162,7 +185,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {
@@ -190,7 +213,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {
@@ -218,7 +241,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {
@@ -246,7 +269,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {
@@ -274,7 +297,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {
@@ -302,7 +325,7 @@ export async function fetchExactMarinePoint(lat, lng, model, activeLayer = 'wave
           fallbackReason: 'backend_redirect_active',
           conformedPoint: pointResult
         });
-        _exactPointCache.set(cacheKey, { data: pointResult, timestamp: Date.now() });
+        cachePointResult(cacheKey, pointResult);
         return pointResult;
       }
     } catch (err) {

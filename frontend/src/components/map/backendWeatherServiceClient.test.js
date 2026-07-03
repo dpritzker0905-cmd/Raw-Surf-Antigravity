@@ -261,8 +261,39 @@ describe('backendWeatherServiceClient', () => {
     });
   });
 
+  describe('ICON swell_2 point blend abort handling (2026-07-04)', () => {
+    it('re-throws an abort instead of returning terminal unsupported (so nothing caches it)', async () => {
+      // Model/layer switch aborts the shared signal mid-blend. The old code fell through to
+      // {status:'unsupported'}, which the caller cached — the infobox then stayed "no source
+      // data" long after the switch storm (live repro at 19.9,-119.58).
+      global.fetch = jest.fn().mockImplementation(() => {
+        const err = new Error('signal is aborted without reason');
+        err.name = 'AbortError';
+        return Promise.reject(err);
+      });
+      await expect(fetchBackendExactPoint(19.9, -119.58, 0, undefined, 'swell_2', 'ICON'))
+        .rejects.toMatchObject({ name: 'AbortError' });
+    });
+
+    it('still returns unsupported when both sources genuinely fail (non-abort)', async () => {
+      global.fetch = jest.fn().mockImplementation(() =>
+        Promise.resolve({ ok: false, status: 500, json: () => Promise.resolve({ detail: 'boom' }) })
+      );
+      const res = await fetchBackendExactPoint(19.9, -119.58, 0, undefined, 'swell_2', 'ICON');
+      expect(res.status).toBe('unsupported');
+    });
+  });
+
   describe('selectExactPointHour with grid diagnostics', () => {
-    it('returns status no_backend_coverage when GFS grid fallbackReason is set', () => {
+    afterEach(() => {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__ = null;
+    });
+
+    it('grid-diag no_backend_coverage does NOT veto a cached point response carrying usable data (point-authoritative, 2026-07-04)', () => {
+      // /point resolves through its own ladder (regional tile -> direct 0.25deg fallbacks) and can
+      // succeed where the GRID clamp failed. The old contract let one stale grid fallbackReason at
+      // the matching hour blank every infobox read for the model — the live-observed "EURO waves
+      // no_coverage mid-Pacific while the cache held real data" poison.
       window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
         fallbackReason: 'no_backend_coverage',
         requestedHour: 72,
@@ -283,8 +314,47 @@ describe('backendWeatherServiceClient', () => {
       };
 
       const res = selectExactPointHour(cachedResponse, 72);
+      expect(res.status).not.toBe('no_backend_coverage');
+    });
+
+    it('returns no_backend_coverage from the grid diag when the cached response has NO usable data', () => {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
+        fallbackReason: 'no_backend_coverage',
+        requestedHour: 72,
+        lastGridFetch: { hourOffset: 72 }
+      };
+
+      const cachedResponse = {
+        requestedLat: 28.4,
+        requestedLng: -80.0,
+        requestedModel: 'GFS',
+        activeLayer: 'waves',
+        hourly: { time: [] }
+      };
+
+      const res = selectExactPointHour(cachedResponse, 72);
       expect(res.status).toBe('no_backend_coverage');
       expect(res.wave_height).toBeNull();
+    });
+
+    it('a diag written for a DIFFERENT layer never applies', () => {
+      window.__BACKEND_WEATHER_SERVICE_DIAG__ = {
+        fallbackReason: 'no_backend_coverage',
+        layer: 'swell_1',
+        requestedHour: 72,
+        lastGridFetch: { hourOffset: 72 }
+      };
+
+      const cachedResponse = {
+        requestedLat: 28.4,
+        requestedLng: -80.0,
+        requestedModel: 'GFS',
+        activeLayer: 'waves',
+        hourly: { time: [] }
+      };
+
+      const res = selectExactPointHour(cachedResponse, 72);
+      expect(res?.status).not.toBe('no_backend_coverage');
     });
   });
 });
