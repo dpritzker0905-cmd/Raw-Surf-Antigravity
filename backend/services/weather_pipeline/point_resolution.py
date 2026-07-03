@@ -22,12 +22,11 @@ from services.weather_pipeline.route_helpers import (
 
 logger = logging.getLogger(__name__)
 
-def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
-    """Safely retrieves the index element of list from dict_obj, returning default_val if missing or out of bounds."""
-    if dict_obj and isinstance(dict_obj.get(key), list) and index < len(dict_obj[key]):
-        val = dict_obj[key][index]
-        return val if val is not None else default_val
-    return default_val
+# safe_index_get + the WIND / WEATHER-scalar direct-point builders moved to
+# point_direct_fallbacks (800-LOC split, 2026-07-03); re-exported for existing importers.
+from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
+    safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response
+)
 
 class PointResolutionService:
     """
@@ -361,7 +360,13 @@ class PointResolutionService:
                 interp = getattr(response.point, "interpolation_method", None) if response.point else None
                 degraded = interp in (
                     "unavailable", "nearest_ocean_coarse_masked",
-                    "nearest_ocean_fallback", "out_of_bounds_fallback"
+                    "nearest_ocean_fallback", "out_of_bounds_fallback",
+                    # 2026-07-03 global gulf/bay sweep: at 10° resolution a MASKED bilinear
+                    # (1-3 land corners) renormalizes onto whatever open-ocean neighbors exist and
+                    # smears their swell into enclosed water — Gulf of Oman read 3.07 m where GFS
+                    # says 0.66 m (Arabian-Sea monsoon swell), Tonkin 0.47 vs 1.58, German Bight
+                    # 0.75 vs 2.28. Full 4-corner bilinear (open ocean) stays grid-served.
+                    "bilinear_ocean_masked",
                 )
                 if is_global_coarse and degraded and domain.lower() == "marine":
                     # Gulf-of-Mexico class: every bracketing 10° coarse center is land, so the
@@ -379,64 +384,9 @@ class PointResolutionService:
 
         # 2c. Fallback to direct point query
         if domain.lower() == "wind" and layer.lower() == "wind":
-            try:
-                # Use model-appropriate forecast_days for point fallback
-                point_forecast_days = {"ICON": 5, "EURO": 15, "GFS": 16}.get(model.upper(), 2)
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
-                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
-                    from services.weather_pipeline.normalizer import WeatherNormalizer
-                    times = raw_point["hourly"]["time"]
-                    idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
-                    if idx is not None:
-                        speed = safe_index_get(raw_point["hourly"], "wind_speed_10m", idx, 0.0)
-                        direction = safe_index_get(raw_point["hourly"], "wind_direction_10m", idx, 0.0)
-                        gust = safe_index_get(raw_point["hourly"], "wind_gusts_10m", idx, None)
-                        
-                        rad = direction * (math.pi / 180.0)
-                        u = -speed * math.sin(rad)
-                        v = -speed * math.cos(rad)
-                        
-                        detail = NormalizedPointDetail(
-                            requested_lat=lat,
-                            requested_lng=lng,
-                            sampled_lat=lat,
-                            sampled_lng=lng,
-                            speed=round(speed, 4),
-                            direction=round(direction, 2),
-                            u=round(u, 4),
-                            v=round(v, 4),
-                            gust=round(gust, 4) if gust is not None else None,
-                            interpolation_method="direct_point_api"
-                        )
-                        
-                        upstream_model = self.provider.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
-                        
-                        return NormalizedPointResponse(
-                            model=model.upper(),
-                            provider="open-meteo",
-                            domain="wind",
-                            layer="wind",
-                            run_time=datetime.now(timezone.utc),
-                            valid_time=target_dt,
-                            is_forecast_authoritative=True,
-                            is_estimated=False,
-                            point=detail,
-                            value_kind="wind_speed",
-                            value_unit="kn",
-                            display_unit_hint="kn",
-                            source_variables=["wind_speed_10m", "wind_direction_10m"],
-                            freshness_sec=1800,
-                            source="backend_direct_point",
-                            coverage_status="outside_grid_tile",
-                            fallback_attempted=True,
-                            fallback_reason="no_matching_grid_product",
-                            upstream_provider="open-meteo",
-                            upstream_model=upstream_model,
-                            grid_parity=False,
-                            gridParity=False
-                        )
-            except Exception as ex:
-                logger.error(f"[Point Fallback] Failed fetching point for {model} wind at ({lat}, {lng}): {ex}")
+            wind_resp = await build_wind_direct_point_response(self.provider, model, lat, lng, target_dt)
+            if wind_resp is not None:
+                return wind_resp
 
         elif domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and model.upper() in ("GFS", "ICON", "EURO"):
             try:
@@ -517,9 +467,20 @@ class PointResolutionService:
                             layer_vars = ("wind_wave_height", "wind_wave_direction", "wind_wave_period")
                         else:
                             layer_vars = ("wave_height", "wave_direction", "wave_period")
-                        
+
                         speed_key, dir_key, period_key = layer_vars
-                        
+
+                        # Upstream NULL at the target hour = GFS does not model this water/land point
+                        # (deep-inland pins reach here via the coarse-gap fall-through). Do NOT coerce
+                        # to 0.0 and serve it as data — fall through to the stashed coarse sample
+                        # (whose 'unavailable' interpolation the frontend conforms to "--") or the 404.
+                        _raw_h_series = raw_point["hourly"].get(speed_key, [])
+                        _raw_h_at_idx = _raw_h_series[idx] if idx < len(_raw_h_series) else None
+                        if _raw_h_at_idx is None:
+                            if coarse_last_resort is not None:
+                                return coarse_last_resort
+                            return make_no_coverage_point_response(model, layer, lat, lng, valid_time_str, grid_product_id)
+
                         speed = safe_index_get(raw_point["hourly"], speed_key, idx, 0.0)
                         direction = safe_index_get(raw_point["hourly"], dir_key, idx, 0.0)
                         period = safe_index_get(raw_point["hourly"], period_key, idx, 0.0)
@@ -611,71 +572,9 @@ class PointResolutionService:
                 logger.error(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex}")
 
         elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
-            try:
-                point_forecast_days = {"ICON": 5, "EURO": 15, "GFS": 16}.get(model.upper(), 2)
-                raw_point = await self.provider.fetch_point(model=model, domain=domain, layer=layer, lat=lat, lng=lng, forecast_days=point_forecast_days)
-                if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
-                    from services.weather_pipeline.normalizer import WeatherNormalizer
-                    times = raw_point["hourly"]["time"]
-                    idx = WeatherNormalizer.find_closest_time_index(times, target_dt)
-                    if idx is not None:
-                        val_key = "pressure_msl" if layer.lower() == "pressure" else "precipitation"
-                        val = safe_index_get(raw_point["hourly"], val_key, idx, 0.0)
-                        
-                        detail = NormalizedPointDetail(
-                            requested_lat=lat,
-                            requested_lng=lng,
-                            sampled_lat=lat,
-                            sampled_lng=lng,
-                            speed=0.0,
-                            direction=0.0,
-                            u=0.0,
-                            v=0.0,
-                            period=0.0,
-                            gust=None,
-                            value=round(val, 4),
-                            interpolation_method="direct_point_api"
-                        )
-                        
-                        upstream_model = self.provider.FORECAST_MODELS.get(model.upper(), "gfs_seamless")
-                        value_kind = "pressure" if layer.lower() == "pressure" else "precipitation"
-                        value_unit = "hPa" if layer.lower() == "pressure" else "mm"
-                        display_unit_hint = value_unit
-                        
-                        units = {
-                            "value": value_unit
-                        }
-                        
-                        fb_reason = "point_only_precipitation_backend" if layer.lower() == "precipitation" else "no_matching_grid_product"
-                        g_parity = "point_only" if layer.lower() == "precipitation" else False
-                        
-                        return NormalizedPointResponse(
-                            model=model.upper(),
-                            provider="open-meteo",
-                            domain="weather",
-                            layer=layer.lower(),
-                            run_time=datetime.now(timezone.utc),
-                            valid_time=target_dt,
-                            is_forecast_authoritative=True,
-                            is_estimated=False,
-                            point=detail,
-                            value_kind=value_kind,
-                            value_unit=value_unit,
-                            display_unit_hint=display_unit_hint,
-                            source_variables=[val_key],
-                            freshness_sec=1800,
-                            source="backend_direct_point",
-                            coverage_status="outside_grid_tile",
-                            fallback_attempted=True,
-                            fallback_reason=fb_reason,
-                            upstream_provider="open-meteo",
-                            upstream_model=upstream_model,
-                            units=units,
-                            grid_parity=g_parity,
-                            gridParity=g_parity
-                        )
-            except Exception as ex:
-                logger.error(f"[Point Fallback] Failed fetching point for {model} weather/{layer} at ({lat}, {lng}): {ex}")
+            scalar_resp = await build_scalar_direct_point_response(self.provider, model, layer, lat, lng, target_dt)
+            if scalar_resp is not None:
+                return scalar_resp
 
         # Direct point failed/unavailable: serve the stashed degraded coarse sample rather than a
         # 404 (fail-open — it is labeled fallback_attempted + coarse_sample_degraded so the

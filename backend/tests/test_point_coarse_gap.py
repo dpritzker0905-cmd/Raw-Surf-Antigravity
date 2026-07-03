@@ -30,10 +30,11 @@ COARSE_FILENAME = "gfs_marine_waves_global_coarse_test.json"
 
 
 def _coarse_global_product():
-    """10-deg coarse grid reproducing the live Gulf pattern: the (20/30, -90/-100) centers are
-    land-masked; the Atlantic column at -80 is valid; the southern row at 10 is valid."""
+    """10-deg coarse grid reproducing the live Gulf pattern: the northern-Gulf centers
+    (30, -90/-100) are land-masked; the Atlantic column at -80, the southern rows at 10/20 are
+    valid — so Galveston gets a MASKED bilinear (the smear class) and (35,-95) gets nothing."""
     cov = CoverageBounds(west=-100.0, south=10.0, east=-80.0, north=40.0)
-    valid = {(10, -100), (10, -90), (10, -80), (20, -80), (30, -80), (40, -80)}
+    valid = {(10, -100), (10, -90), (10, -80), (20, -100), (20, -90), (20, -80), (30, -80), (40, -80)}
     vectors = []
     for la in (10, 20, 30, 40):
         for lo in (-100, -90, -80):
@@ -126,8 +127,9 @@ def _resolve(service, lat, lng):
 
 
 def test_gulf_degraded_coarse_prefers_direct_point():
-    # Galveston: bracketing coarse centers land-masked -> the coarse sample would be the Atlantic
-    # cell 14.7 deg away. The resolver must prefer the true upstream 0.25-deg point instead.
+    # Galveston: a MASKED bilinear at 10-deg (2 land corners) renormalizes onto whatever open-ocean
+    # neighbors exist — the smear class (Gulf of Oman read 3.07 m where GFS says 0.66 m). The
+    # resolver must prefer the true upstream 0.25-deg point instead.
     provider = _FakeProvider()
     resp = _resolve(_service(provider), 29.2, -94.7)
     assert provider.calls, "expected the direct point API to be consulted"
@@ -150,21 +152,51 @@ def test_gulf_direct_point_failure_falls_back_to_coarse_sample():
     assert resp.coverage_status == "inside_global_coarse"
     assert resp.fallback_attempted is True
     assert resp.fallback_reason == "coarse_sample_degraded_direct_point_failed"
-    assert resp.point.interpolation_method == "nearest_ocean_coarse_masked"
+    assert resp.point.interpolation_method == "bilinear_ocean_masked"
     assert resp.grid_parity is False
     assert resp.gridParity is False
 
 
-def test_global_coarse_healthy_sample_keeps_grid_serve_with_honest_label():
-    # (12,-88): 3 of 4 bracketing corners valid -> honest ocean-masked bilinear from ADJACENT
-    # cells (matches the heatmap). No upstream call; only the label changes
+def test_global_coarse_full_bilinear_keeps_grid_serve_with_honest_label():
+    # (15,-95): ALL 4 bracketing corners valid -> honest open-ocean bilinear (no land in the
+    # block, no smear possible). Stays grid-served — no upstream call; only the label changed
     # (inside_global_coarse, was the inside_regional_tile mislabel).
     provider = _FakeProvider()
-    resp = _resolve(_service(provider), 12.0, -88.0)
-    assert not provider.calls, "healthy coarse sample must not hit upstream"
+    resp = _resolve(_service(provider), 15.0, -95.0)
+    assert not provider.calls, "healthy full-bilinear coarse sample must not hit upstream"
     assert resp.source == "grid_file"
     assert resp.coverage_status == "inside_global_coarse"
     assert resp.fallback_attempted is False
-    assert resp.point.interpolation_method in ("bilinear", "bilinear_ocean_masked")
+    assert resp.point.interpolation_method == "bilinear"
     assert resp.point.speed > 0.0
     assert resp.grid_parity is True
+
+
+class _NullProvider(_FakeProvider):
+    """Upstream responds, but with NULL wave heights (GFS does not model this point — inland)."""
+    async def fetch_point(self, model, domain, layer, lat, lng, *args, **kwargs):
+        self.calls.append((model, domain, layer, lat, lng))
+        return {
+            "latitude": lat, "longitude": lng,
+            "hourly": {
+                "time": [VALID_TIME_STR],
+                "wave_height": [None],
+                "wave_direction": [None],
+                "wave_period": [None],
+            },
+        }
+
+
+def test_deep_inland_null_upstream_never_serves_zeros():
+    # (35,-95) Kansas-class: every bracketing corner masked AND nearest valid ocean >15 deg ->
+    # sampler 'unavailable' -> falls through to direct point -> upstream returns NULLs (GFS does
+    # not model land). The resolver must NOT coerce null->0.0 and serve it as data (live
+    # regression probe 2026-07-03: Kansas read "0.0 m @ 0" as coarse_gap_direct_point); it must
+    # return the stashed unavailable sample, whose 'unavailable' interpolation the frontend
+    # conforms to "--".
+    provider = _NullProvider()
+    resp = _resolve(_service(provider), 35.0, -95.0)
+    assert provider.calls, "direct point should be attempted"
+    assert resp.source == "grid_file"
+    assert resp.point.interpolation_method == "unavailable"
+    assert resp.fallback_attempted is True
