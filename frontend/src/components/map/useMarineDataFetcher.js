@@ -212,6 +212,7 @@ export function useMarineDataFetcher({
 
   return {
     marineData,
+    marineDataRef,
     setMarineData,
     marineRevision,
     marineRequestIdRef,

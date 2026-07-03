@@ -30,6 +30,16 @@ let _lastMarineScrubLogTime = 0;
 // downstream. (Does NOT touch the 150ms scrub coalescing or engine residency.)
 const SWITCH_FETCH_COALESCE_MS = 350;
 
+// State-authoritative dedup decision (the bd61afda pattern, extended to the orchestrator sites
+// 2026-07-03): the sig LEDGER alone records commits the ENGINE may still reject downstream
+// (no-downgrade guard racing a stale _lastZoom), so a ledger-only skip can wedge the display on
+// data that never actually landed. Skip ONLY when the ledger AND the prev state's own signature
+// both match the candidate — either disagreeing lets the commit through (a wrong pass costs one
+// redundant upload, never a wedge; a nulled ledger is the deliberate recovery hatch).
+export function shouldSkipDuplicateCommit(sig, ledgerSig, prevStateSig) {
+  return !!sig && sig === ledgerSig && sig === prevStateSig;
+}
+
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const timeOffsetRef = useRef(timeOffsetHours);
   const activeModelRef = useRef(activeModel);
@@ -76,6 +86,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
   const {
     marineData,
+    marineDataRef,
     setMarineData,
     marineRevision,
     activeMarineLayersRef,
@@ -110,6 +121,16 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     return ['waves', 'swell_1', 'swell_2', 'wind_waves'].some(l => activeLayers.includes(l));
   }, [activeLayers]);
   activeMarineLayersRef.current = hasMarineLayers;
+
+  // prev STATE's own signature for shouldSkipDuplicateCommit — reads refs only, so
+  // effect-closure staleness is harmless.
+  const prevCommittedSig = () => {
+    const prev = marineDataRef.current;
+    if (!prev) return null;
+    try {
+      return prev.__committedSig || _marineDataSignature(prev, prev?.grid?.__componentLayer || 'waves');
+    } catch (e) { return null; }
+  };
 
   // Open a transition during render if model/layer changes, BEFORE the child WebGL layer
   // can clear buffers. beginTransition is idempotent on {model,layer} and ownership-tracked
@@ -391,8 +412,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         }
         if (safe) {
           const sig = _marineDataSignature(cachedNow, activeMarineLayer);
-          if (sig && sig !== lastCommittedSigRef.current) {
+          if (sig && !shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
             lastCommittedSigRef.current = sig;
+            cachedNow.__committedSig = sig;
             marineRevision.current += 1;
             cachedNow.__commitRevision = marineRevision.current;
             console.log(`[SWITCH] [Marine] Instant cache-hit commit for ${activeMarineLayer} (no coalesce wait).`);
@@ -506,13 +528,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
           if (prodId && (!isRegional || regionalValidInPlace)) {
             const sig = _marineDataSignature(cached, activeMarineLayer);
             if (sig) {
-              if (sig === lastCommittedSigRef.current) {
+              if (shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
                 lastFetchedLayerRef.current = activeMarineLayer;
                 endCurrentTransition();
                 return;
               }
               console.log(`[WEATHER_TRUTH] [Marine] Layer switch backend cache HIT for ${activeMarineLayer}: ${prodId}`);
               lastCommittedSigRef.current = sig;
+              cached.__committedSig = sig;
               marineRevision.current += 1;
               cached.__commitRevision = marineRevision.current;
               
@@ -559,7 +582,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
             const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
             if (remapped?.grid?.vectors?.length > 0) {
               const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
-              if (sig && sig === lastCommittedSigRef.current) {
+              if (shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
                 logPipelineEventHelper('duplicate_commit_skipped', { signature: sig });
                 lastFetchedLayerRef.current = activeMarineLayer;
                 endCurrentTransition();
@@ -568,8 +591,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
               console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
               logPipelineEventHelper(evtType, { model: activeModelRef.current, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
-              
-              lastCommittedSigRef.current = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
+
+              lastCommittedSigRef.current = sig; remapped.__committedSig = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
               const vHash = getViewportHash();
               if (vHash) { marineFetchLocksRef.current.lastHash = vHash; marineFetchLocksRef.current.lastTime = Date.now(); }
  
