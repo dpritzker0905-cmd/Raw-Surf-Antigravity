@@ -107,8 +107,19 @@ function getEncoderScratchBuffers(N) {
 // nothing confidently wrong. Height/period/mask channels untouched → the HEATMAP is unaffected.
 // Clamped ≥0.05 so a low-confidence cell can never re-enter the zero-direction regime
 // (|u,v|≤0.001) that dilateDirectionField would refill with a full-strength neighbor direction.
-export function scaleUnitDirByConfidence(unitU, unitV, conf) {
-  const c = (typeof conf === 'number' && conf >= 0 && conf <= 1) ? Math.max(0.05, conf) : 1.0;
+export function scaleUnitDirByConfidence(unitU, unitV, conf, strength = 0.75) {
+  // v2 COMPRESSED MAPPING (2026-07-03 eve, user report "fading of waves in patches z2.6-5.7"):
+  // confidence rides the SAME channel as seam coherence (dim threshold 0.7) — the original LINEAR
+  // conf→magnitude map dimmed every cell below ~0.7 confidence (~60+ mid-confidence patches
+  // worldwide), far beyond the ~dozen truly-incoherent cells the design targets. The quadratic
+  // compression `1 − (1−conf)²·strength` keeps mid-confidence ABOVE the dim threshold
+  // (conf 0.65 → 0.908, conf 0.5 → 0.813 → NO dim) while genuine annihilation still dims:
+  // conf 0.2 → 0.52 (crest alpha ≈ 0.63), Baja-class conf 0.09 → 0.38 (dim shimmer, never dead).
+  // Strength override: window.__RAW_CONF_FADE_STRENGTH__ (default 0.75; 0 = confidence fade off).
+  if (!(typeof conf === 'number' && conf >= 0 && conf <= 1)) return [unitU, unitV];
+  const s = (typeof strength === 'number' && strength >= 0 && strength <= 1) ? strength : 0.75;
+  const d = 1.0 - conf;
+  const c = Math.max(0.05, 1.0 - d * d * s);
   return [unitU * c, unitV * c];
 }
 
@@ -659,6 +670,8 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   // §0B-a: confidence consumption gate + telemetry. Kill switch __RAW_DISABLE_DIR_CONFIDENCE__=true
   // restores full-strength unit directions everywhere (forensic A/B).
   const confEnabled = typeof window === 'undefined' || window.__RAW_DISABLE_DIR_CONFIDENCE__ !== true;
+  const confStrength = (typeof window !== 'undefined' && typeof window.__RAW_CONF_FADE_STRENGTH__ === 'number')
+    ? window.__RAW_CONF_FADE_STRENGTH__ : 0.75;
   let confScaledCells = 0;
   let confMin = 1.0;
 
@@ -674,7 +687,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       let su = u / mag;
       let sv = v_y / mag;
       if (confEnabled && confArr[i] < 1.0) {
-        const scaled = scaleUnitDirByConfidence(su, sv, confArr[i]);
+        const scaled = scaleUnitDirByConfidence(su, sv, confArr[i], confStrength);
         su = scaled[0]; sv = scaled[1];
         confScaledCells++;
         if (confArr[i] < confMin) confMin = confArr[i];
@@ -696,7 +709,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
   if (typeof window !== 'undefined') {
     window.__MARINE_DIR_CONFIDENCE__ = {
-      enabled: confEnabled, scaledCells: confScaledCells,
+      enabled: confEnabled, scaledCells: confScaledCells, strength: confStrength,
       min: +confMin.toFixed(3), cols, rows, at: Date.now()
     };
   }
@@ -766,7 +779,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         if (confEnabled) {
           const cWrap = Math.min(confArr[r * cols], confArr[r * cols + cols - 1]);
           if (cWrap < 1.0) {
-            const scaled = scaleUnitDirByConfidence(su, sv, cWrap);
+            const scaled = scaleUnitDirByConfidence(su, sv, cWrap, confStrength);
             su = scaled[0]; sv = scaled[1];
           }
         }
