@@ -50,6 +50,27 @@ var MapPageContent = () => {
   const { getEffectiveRole } = usePersona();
   const isLight = theme === 'light';
   const mapInstanceRef = useRef(null);
+  const mapPageContainerRef = useRef(null);
+
+  // Keep the WebGL map canvas sized to its container (2026-07-03). The container's left offset now
+  // follows the sidebar rail width per breakpoint (md:left-16 xl:left-[200px]) — it was a hardcoded
+  // 200px at ALL md+ widths, so tablets/15" laptops (md–lg: 64px rail) showed a 136px dead strip the
+  // map never reclaimed. The map lib only auto-resizes on window `resize`; a container box change
+  // WITHOUT one (breakpoint class swap, browser zoom, immersive toggle) leaves a stale canvas — so
+  // observe the container box directly and resize the map whenever it changes.
+  useEffect(() => {
+    const el = mapPageContainerRef.current;
+    if (!el || typeof ResizeObserver === 'undefined') return;
+    let raf = 0;
+    const ro = new ResizeObserver(() => {
+      cancelAnimationFrame(raf);
+      raf = requestAnimationFrame(() => {
+        try { mapInstanceRef.current && mapInstanceRef.current.resize(); } catch (e) { /* map not ready */ }
+      });
+    });
+    ro.observe(el);
+    return () => { cancelAnimationFrame(raf); ro.disconnect(); };
+  }, []);
 
   const {
     selectedSpot,
@@ -350,7 +371,7 @@ var MapPageContent = () => {
   if (loading) {
     return (
       <div 
-        className={`fixed ${isLight ? 'bg-white' : 'bg-black'} md:left-[200px] flex items-center justify-center`}
+        className={`fixed ${isLight ? 'bg-white' : 'bg-black'} md:left-16 xl:left-[200px] flex items-center justify-center`}
         style={{ 
           top: '56px', // Below TopNav
           left: 0, 
@@ -365,8 +386,9 @@ var MapPageContent = () => {
   }
 
   return (
-    <div 
-      className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50] ${isImmersiveMode ? 'immersive' : ''}`}
+    <div
+      ref={mapPageContainerRef}
+      className={`fixed top-[56px] md:top-0 left-0 right-0 bottom-0 md:left-16 xl:left-[200px] ${isLight ? 'bg-gray-50' : 'bg-black'} z-[50] ${isImmersiveMode ? 'immersive' : ''}`}
       data-testid="map-page-container"
     >
       {/* Map Container - Fill entire view */}
