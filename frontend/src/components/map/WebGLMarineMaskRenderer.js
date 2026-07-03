@@ -2,6 +2,40 @@ import { getCenterLng, wrapLngRelative } from './mapUtils';
 
 // --- Coordinate Projection and Land Mask Renderer ---
 
+// Per-POLYGON bounding box (outer ring only — holes lie within it). Cached on the coordinates
+// array. Exported for tests.
+export function getPolygonBbox(polyCoords) {
+  if (polyCoords.__bbox) return polyCoords.__bbox;
+  let west = Infinity, east = -Infinity, south = Infinity, north = -Infinity;
+  const ring = polyCoords[0] || [];
+  for (const pt of ring) {
+    if (pt[0] < west) west = pt[0];
+    if (pt[0] > east) east = pt[0];
+    if (pt[1] < south) south = pt[1];
+    if (pt[1] > north) north = pt[1];
+  }
+  polyCoords.__bbox = { west, east, south, north };
+  return polyCoords.__bbox;
+}
+
+// True when a polygon's bbox overlaps the (wrapped) target bounds. Exported for tests.
+// THE ALL-BLACK REGIONAL MASK ROOT (2026-07-03): the 10m land file has ~10 CONTINENT-scale
+// MultiPolygon features, so the FEATURE-level bbox test passes for nearly all of them on any
+// regional target. Their far-side member polygons (e.g. Eurasia for a Florida tile) then project
+// through wrapLngRelative with lng jumps of ±360° near the anti-center meridian — the filled path
+// sweeps across the ENTIRE canvas and paints it black. An all-black ocean mask makes the advect
+// shader drop every particle and masks out the regional heatmap: the "crests dead at close zoom
+// until any bounds-changing commit" state (live repro + isolated deterministic replica, FL tile:
+// 9/10 features drawn → 0% ocean). Culling per member POLYGON keeps only genuinely nearby land.
+export function polygonOverlapsTarget(bbox, wrappedWest, wrappedEast, south, north, center) {
+  const pad = 1.0;
+  if (bbox.south > north + pad || bbox.north < south - pad) return false;
+  const pCenter = (bbox.west + bbox.east) * 0.5;
+  const projected = wrapLngRelative(pCenter, center);
+  const halfSpan = (bbox.east - bbox.west) * 0.5;
+  return (projected - halfSpan <= wrappedEast + pad) && (projected + halfSpan >= wrappedWest - pad);
+}
+
 export function renderMaskToCanvas(geojson, bounds) {
   // Base resolution 1024x512 avoids massive rendering/memory overhead on high-DPI (Retina) screens;
   // linear filtering (gl.LINEAR) keeps the clipping smooth. REGIONAL grids get 2048x1024 (2026-07-02):
@@ -106,6 +140,14 @@ export function renderMaskToCanvas(geojson, bounds) {
     }
     
     const drawPolygon = (coords) => {
+      // Per-POLYGON cull on regional targets (2026-07-03): the feature-level bbox test above is
+      // useless against continent-scale 10m features — a member polygon on the far side of the
+      // globe wraps its projected x by ±360° near the anti-center meridian and its fill sweeps the
+      // whole canvas black (the dead-crest close-zoom state). Only draw member polygons whose own
+      // bbox is actually near the target box.
+      if (!isGlobalTarget && !polygonOverlapsTarget(getPolygonBbox(coords), wrappedWest, wrappedEast, south, north, center)) {
+        return;
+      }
       ctx.beginPath();
       coords.forEach((ring) => {
         if (!ring || !ring.length) return;
@@ -119,7 +161,7 @@ export function renderMaskToCanvas(geojson, bounds) {
       ctx.fill();
       ctx.stroke();
     };
-    
+
     if (geom.type === 'Polygon') {
       drawPolygon(geom.coordinates);
     } else if (geom.type === 'MultiPolygon') {
