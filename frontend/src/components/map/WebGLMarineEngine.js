@@ -838,9 +838,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
       const _crestDirJitter = resolveAnimValue('__RAW_CREST_DIR_JITTER__');
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestDirJitter'), _crestDirJitter);
-      // Direction-coherence floor: discard crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
+      // Direction-coherence floor: DIM crests sampled from bilinear-interpolated DIVERGENT-direction zones (the
       // synthetic close-zoom vortex). Engine-computed close-zoom ramp above; 0 = off (legacy). Matches ADVECT_FS.
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dirCoherenceMin'), dirCoherenceMin);
+      // Seam-fade alpha FLOOR (2026-07-03): incoherent-direction zones dim to this instead of vanishing —
+      // the zero-alpha fade made divergence hotspots (Baja rows 177° apart) a crest DEAD ZONE across the
+      // whole band. 0.3 keeps motion visible at low emphasis. Tune live: __RAW_SEAM_FADE_FLOOR_ALPHA__.
+      const _seamFadeFloor = (typeof window !== 'undefined' && typeof window.__RAW_SEAM_FADE_FLOOR_ALPHA__ === 'number')
+        ? window.__RAW_SEAM_FADE_FLOOR_ALPHA__ : 0.3;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_seamFadeFloor'), _seamFadeFloor);
       // Coarse-band nearest-cell direction (vortex band, default mode): crest orientation snaps to the nearest
       // coarse cell-center heading — matches ADVECT so orientation == motion. 0 outside the band.
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
@@ -898,6 +904,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           shoalActive: _hasBathTex,            // false → shoaling foam is inert (no bathymetry bound at this view)
           crestJitter: _crestDirJitter,
           dirCoherenceMin: +dirCoherenceMin.toFixed(3),  // applied close-zoom coherence floor (0 = off / far zoom)
+          seamFadeFloor: _g('__RAW_SEAM_FADE_FLOOR_ALPHA__', 0.3), // alpha floor of the seam DIM (crests never vanish in incoherent zones)
           coarseNearestDir: coarseNearestDir,            // 1 = vortex-band nearest-cell direction sampling active
           coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),

@@ -112,23 +112,30 @@ describe('WebGLMarineShaders', () => {
     });
   });
 
-  describe('Direction-coherence floor — measured on the BILINEAR sample (seam-cull update, 2026-07-02)', () => {
-    // The floor moved off length(waveVec): in nearest mode the sampled vector is the cell-center value
-    // (magnitude ~1), which made any floor inert exactly where the seam cull is needed. Coherence is now
-    // captured from the bilinear sample BEFORE the nearest override (dirCoherence), and the legacy sanity
-    // floors (0.005 advect / 0.02 draw) stay as separate literal tests on the ADVECTED vector. A floor
-    // uniform of 0.0 keeps the gates byte-equivalent to legacy (dirCoherence < 0.0 is never true).
-    it('ADVECT_FS keeps the legacy sanity floor and hard-drops only the seam CORE (half the floor)', () => {
+  describe('Direction-coherence seam DIM — measured on the BILINEAR sample (dead-zone fix, 2026-07-03)', () => {
+    // Coherence is captured from the bilinear sample BEFORE the nearest override (dirCoherence). The
+    // 2026-07-02 seam CULL (advect core-drop + draw core-discard + zero-alpha fade) made divergence
+    // hotspots a band-wide crest DEAD ZONE (Baja live report: neighbor rows 177° apart → coherence ~0
+    // across a strip degrees wide). Crests now only DIM to u_seamFadeFloor — no coherence-based drop
+    // or discard anywhere. Legacy sanity floors (0.005 advect / 0.02 draw) stay.
+    it('ADVECT_FS keeps the legacy sanity floor, never drops on coherence, and damps drift in confused seas', () => {
       expect(ADVECT_FS).toContain('uniform float u_dirCoherenceMin;');
       expect(ADVECT_FS).toContain('length(waveVec) < 0.005');
-      expect(ADVECT_FS).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
+      expect(ADVECT_FS).not.toContain('dirCoherence < u_dirCoherenceMin');
+      // Confused-sea damping: the nearest-cell heading is a coin-flip between opposing systems at a
+      // seam — drift slows toward the core instead of streaming confidently the wrong way.
+      expect(ADVECT_FS).toContain('offset *= mix(0.35, 1.0, smoothstep(0.0, u_dirCoherenceMin, dirCoherence));');
     });
 
-    it('DRAW_VS keeps the legacy sanity floor, hard-discards the seam core, and FADES the edge', () => {
+    it('DRAW_VS keeps the legacy sanity floor and DIMS the seam two-segment (never discards)', () => {
       expect(DRAW_VS).toContain('uniform float u_dirCoherenceMin;');
+      expect(DRAW_VS).toContain('uniform float u_seamFadeFloor;');
       expect(DRAW_VS).toContain('length(waveVec) < 0.02');
-      expect(DRAW_VS).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
-      expect(DRAW_VS).toContain('smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence)');
+      expect(DRAW_VS).not.toContain('dirCoherence < u_dirCoherenceMin');
+      // Mild seams dim to the floor; only the thin anti-parallel core line approaches invisible.
+      expect(DRAW_VS).toContain('float seamT = smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence);');
+      expect(DRAW_VS).toContain('float coreT = smoothstep(0.0, u_dirCoherenceMin * 0.5, dirCoherence);');
+      expect(DRAW_VS).toContain('v_alpha *= mix(u_seamFadeFloor * coreT, 1.0, seamT);');
     });
   });
 });

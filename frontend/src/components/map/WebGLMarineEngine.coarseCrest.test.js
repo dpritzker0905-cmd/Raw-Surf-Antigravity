@@ -76,12 +76,15 @@ describe('nearest-direction shader plumbing', () => {
       const overrideIdx = src.indexOf('u_coarseNearestDir > 0.5');
       expect(cohIdx).toBeGreaterThan(-1);
       expect(cohIdx).toBeLessThan(overrideIdx);
-      // Hard cull only below HALF the floor (the seam core) — the full-floor binary cull left
-      // degree-wide GAPS in the crest field (live regression, 2026-07-02).
-      expect(src).toContain('dirCoherence < u_dirCoherenceMin * 0.5');
+      // NO coherence-based drop/discard anywhere (2026-07-03): even the half-floor "core" cull made
+      // divergence hotspots (Baja: neighbor rows 177° apart → coherence ~0 across a strip degrees
+      // wide) a band-wide crest DEAD ZONE. Seam de-emphasis is a DIM, never a cull.
+      expect(src).not.toContain('dirCoherence < u_dirCoherenceMin');
     }
-    // …and DRAW fades alpha over [0.5·floor, floor] so the seam edge is soft, not a hole.
-    expect(DRAW_VS).toContain('smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence)');
+    // DRAW dims alpha two-segment down to u_seamFadeFloor (only the anti-parallel core line nears 0);
+    // ADVECT damps drift in the same zones — dim slow shimmer, never a hole or wrong-way streaming.
+    expect(DRAW_VS).toContain('v_alpha *= mix(u_seamFadeFloor * coreT, 1.0, seamT);');
+    expect(ADVECT_FS).toContain('offset *= mix(0.35, 1.0, smoothstep(0.0, u_dirCoherenceMin, dirCoherence));');
   });
 
   it('U2 stratified reseeding + U3 far-zoom size floor are plumbed', () => {

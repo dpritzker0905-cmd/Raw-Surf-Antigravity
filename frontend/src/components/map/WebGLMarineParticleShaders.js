@@ -125,6 +125,14 @@ void main() {
   // physical fact that phase speed depends on period, not height. Tunable via window.__RAW_SPEED_HEIGHT_CAP__.
   float driftHeight = min(waveHeight, u_speedHeightCap);
   vec2 offset = (waveVec * driftHeight * 0.1 / merc_scale) * u_speed_scale * energyBoost;
+  // CONFUSED-SEA drift damping (2026-07-03): where neighboring cell directions conflict (low bilinear
+  // coherence), the nearest-cell heading is a coin-flip between opposing systems — streaming crests
+  // confidently along it reads as "waves moving the wrong way" (Baja live report: split paths at a
+  // 177° seam). Physically a crossing-sea zone has no clean propagation direction, so drift slows
+  // toward the seam core (0.35× floor) instead of racing the wrong way. 0 floor = off (legacy).
+  if (u_dirCoherenceMin > 0.001) {
+    offset *= mix(0.35, 1.0, smoothstep(0.0, u_dirCoherenceMin, dirCoherence));
+  }
   
   vec2 nextPos;
   if (u_zoom > u_tileZoomMin) {
@@ -167,11 +175,13 @@ void main() {
   bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
                 next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
 
-  // Sanity floor on the ADVECTED vector stays at 0.005. The coherence test drops only the seam CORE
-  // (< half the floor): the first cut dropped everything under the full floor and bilinear seams span
-  // whole degrees on a 10° grid — visible GAPS in the crest field (live regression report 2026-07-02).
-  // The DRAW shader fades alpha over [0.5·floor, floor] so the transition is soft, not a hole.
-  if (waveHeight < 0.01 || length(waveVec) < 0.005 || dirCoherence < u_dirCoherenceMin * 0.5 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
+  // Sanity floor on the ADVECTED vector stays at 0.005. NO coherence-based drop here (2026-07-03):
+  // even the half-floor "seam core" cull produced a crest DEAD ZONE at divergence hotspots — at Baja
+  // the fusion-era rows were 177° apart, so coherence ~0 across a strip DEGREES wide right where the
+  // user sat (live report z3.74-6.9). Advection under nearest-cell mode is per-cell coherent anyway;
+  // seam de-emphasis is now the DRAW shader's job alone, which dims alpha to a floor instead of
+  // culling — always-visible motion, never a hole. dirCoherence stays computed for DRAW parity.
+  if (waveHeight < 0.01 || length(waveVec) < 0.005 || oceanFlag < 0.3 || nextOceanFlag < 0.3 || isNan || isOob) {
     drop = 1.0;
   }
 
@@ -235,7 +245,8 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
-uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec| (measured before the nearest override; matches ADVECT_FS) — culls divergent-cell seam strips. 0 = off.
+uniform float u_dirCoherenceMin;    // coherence floor on the BILINEAR |waveVec| (measured before the nearest override; matches ADVECT_FS) — dims divergent-cell seam strips. 0 = off.
+uniform float u_seamFadeFloor;      // alpha FLOOR of the seam fade (2026-07-03): crests in incoherent-direction zones dim to this, never vanish — a dead ocean at divergence hotspots (Baja) reads as a bug; a dimmed one reads as low confidence.
 uniform float u_farzoomSizeFloor;   // U3: crest size scale at far zoom (0.55 default; 0.4 = legacy). smoothstep(2,12,z) ramps from this floor to 1.
 uniform float u_coarseNearestDir;   // >0.5: orient crests along the NEAREST coarse cell-center heading (vortex band; matches ADVECT_FS so orientation == motion).
 uniform vec2 u_waveGridSize;        // wave texture texel dims (cols, rows) for cell-center snapping.
@@ -349,7 +360,9 @@ void main() {
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || dirCoherence < u_dirCoherenceMin * 0.5 || oceanFlag < 0.3 || isNan || isOob)) {
+  // NO coherence discard here (2026-07-03): incoherent-direction seams DIM via u_seamFadeFloor below
+  // instead of vanishing — the core discard made divergence hotspots a band-wide crest dead zone.
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);
@@ -501,11 +514,18 @@ void main() {
   // Per-particle brightness variation (±10%) — subtle, NOT on phase speed
   v_alpha *= 0.9 + particleHash * 0.2;
 
-  // SEAM FADE (2026-07-02): soften the divergent-cell seam cull — crests FADE over coherence
-  // [0.5·floor, floor] instead of vanishing across the whole strip (the binary cull left visible
-  // GAPS: bilinear seams span degrees on a 10° grid). Hard discard above handles only the core.
+  // SEAM FADE (2026-07-02; dim-not-kill 2026-07-03): two-segment coherence dim.
+  //  [0.5·floor, floor]  → alpha ramps u_seamFadeFloor..1 (mild seams stay visible, de-emphasized)
+  //  [0, 0.5·floor]      → the floor itself ramps 0..u_seamFadeFloor, so only the thin ANTI-PARALLEL
+  //                        core line (coherence→0, headings ~180° apart) approaches invisible.
+  // The 2026-07-02 zero-alpha CULL of the whole strip made divergence hotspots a band-wide crest dead
+  // zone (Baja); a flat 0.3 floor instead showed half-bright crests streaming opposite ways ("split
+  // paths", same live session). Pairs with ADVECT's confused-sea drift damping: conflict zones render
+  // as dim, slow shimmer — never a hole, never confident wrong-way motion.
   if (u_dirCoherenceMin > 0.001) {
-    v_alpha *= smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence);
+    float seamT = smoothstep(u_dirCoherenceMin * 0.5, u_dirCoherenceMin, dirCoherence);
+    float coreT = smoothstep(0.0, u_dirCoherenceMin * 0.5, dirCoherence);
+    v_alpha *= mix(u_seamFadeFloor * coreT, 1.0, seamT);
   }
 
   // Smoothstep boundary feathering so particles dissolve softly near grid edges
