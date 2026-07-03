@@ -67,7 +67,7 @@ export const MARINE_FETCH_HARD_LEASE_MS = 25000;
  * lease AND the governor shows no active marine fetch (so we never abort a real slow request) —
  * letting the caller fall through to a fresh fetch. Returns true if it healed a stranded lock.
  */
-export function releaseStaleMarineLock(locks, abortControllerRef) {
+export function releaseStaleMarineLock(locks, abortControllerRef, inFlight = null) {
   if (!locks || !locks.isFetching) return false;
   const startedAt = locks.fetchStartedAt || 0;
   if (!startedAt) return false;
@@ -77,6 +77,20 @@ export function releaseStaleMarineLock(locks, abortControllerRef) {
   // shows it active, otherwise the wedge is permanent. Under the hard lease keep deferring to govIdle so we
   // never abort a real slow request.
   const provablyDead = heldMs > MARINE_FETCH_HARD_LEASE_MS;
+  // The governor only sees legacy proxy requests (governMarineRequest); BACKEND-redirect grid fetches
+  // (fetchBackendMarineGrid / fetchBackendCopernicusGrid — plain fetch()) never register there, so
+  // govIdle reads true while one is live. On a slow backend (>4s) the old code then ABORTED the live
+  // fetch every lease period — an infinite kill/refetch loop (live console repro 2026-07-04: "Stale
+  // fetch lock released… → Grid fetch error: signal is aborted" cycling every ~4.5s). The in-flight
+  // REGISTRY does track these: a FOREGROUND entry whose controller is the current, un-aborted one is
+  // a live fetch — never a stranded lock (any completion path deletes the entry in complete()).
+  if (!provablyDead && inFlight && typeof inFlight.find === 'function') {
+    const ctrl = abortControllerRef?.current;
+    if (ctrl && !ctrl.signal?.aborted && ctrl.__intent) {
+      const entry = inFlight.find(ctrl.__intent);
+      if (entry && entry.state === 'foreground' && entry.controller === ctrl) return false;
+    }
+  }
   let govIdle = true;
   try {
     const gov = (typeof window !== 'undefined') && window.__MARINE_GOVERNOR_STATE__;
@@ -217,7 +231,7 @@ export function useMarineDataFetcherCore({
 
       // Heal a stranded lock before trusting it (otherwise the same-target dedup below skips
       // this recovery fetch forever → permanent blank heatmap). No-op for a healthy in-flight fetch.
-      releaseStaleMarineLock(locks, abortControllerRef);
+      releaseStaleMarineLock(locks, abortControllerRef, inFlight);
       if (locks.isFetching) {
         // Same-target dedup (see enqueueMarineUpdate): never abort an in-flight fetch that's
         // already loading this exact model/layer/hour — the activation multi-trigger would
@@ -311,10 +325,24 @@ export function useMarineDataFetcherCore({
       // covers the "activate a layer and it never loads" wedge. A newer fetch clears this timer
       // (above), and a clean completion clears it in finally, so only a truly-stuck fetch re-drives.
       if (locks._staleLockTimer) clearTimeout(locks._staleLockTimer);
-      locks._staleLockTimer = setTimeout(() => {
-        locks._staleLockTimer = null;
-        if (locks.isFetching && updateMarineGridRef.current) updateMarineGridRef.current('stale_lock_watchdog');
-      }, MARINE_FETCH_LEASE_MS + 500);
+      const armStaleLockWatchdog = () => {
+        locks._staleLockTimer = setTimeout(() => {
+          locks._staleLockTimer = null;
+          if (!locks.isFetching) return;
+          // A LIVE slow backend fetch (foreground registry entry, controller un-aborted) is not a
+          // wedge — keep watching for another lease period instead of re-driving into the
+          // same-target dedup. The HARD lease still bounds a genuine hang: past it the re-drive
+          // fires and releaseStaleMarineLock heals regardless.
+          const ctrl = abortControllerRef.current;
+          const heldMs = Date.now() - (locks.fetchStartedAt || 0);
+          const liveEntry = ctrl && !ctrl.signal?.aborted && ctrl.__intent && typeof inFlight.find === 'function'
+            ? inFlight.find(ctrl.__intent) : null;
+          const isLive = liveEntry && liveEntry.state === 'foreground' && liveEntry.controller === ctrl;
+          if (isLive && heldMs <= MARINE_FETCH_HARD_LEASE_MS) { armStaleLockWatchdog(); return; }
+          if (updateMarineGridRef.current) updateMarineGridRef.current('stale_lock_watchdog');
+        }, MARINE_FETCH_LEASE_MS + 500);
+      };
+      armStaleLockWatchdog();
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
         window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
@@ -609,7 +637,7 @@ export function useMarineDataFetcherCore({
     const now = Date.now();
     const locks = marineFetchLocksRef.current;
     // Heal a stranded lock before trusting it (same watchdog as updateMarineGrid).
-    releaseStaleMarineLock(locks, abortControllerRef);
+    releaseStaleMarineLock(locks, abortControllerRef, inFlight);
     if (locks.isFetching) {
       const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
       const isAborted = abortControllerRef.current?.signal?.aborted;

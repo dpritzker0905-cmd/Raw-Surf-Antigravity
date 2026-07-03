@@ -69,6 +69,43 @@ describe('releaseStaleMarineLock (stranded fetch-lock watchdog)', () => {
     expect(ctrl.signal.aborted).toBe(true);
   });
 
+  it('does NOT abort a live BACKEND-redirect fetch (governor idle, but the in-flight registry shows a live foreground entry)', () => {
+    // Backend-redirect grid fetches (fetchBackendMarineGrid etc.) never register in the governor,
+    // so govIdle reads true while one is live. On a slow backend the old code aborted the live
+    // fetch every lease period — the 2026-07-04 "Stale fetch lock released → signal is aborted"
+    // kill/refetch loop. The registry's foreground entry is the live-fetch signal.
+    window.__MARINE_GOVERNOR_STATE__ = idleGov();
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_LEASE_MS + 5000), activeSource: 'manual' };
+    const ctrl = makeController();
+    ctrl.__intent = { model: 'GFS', rawModel: 'GFS', layer: 'waves', hour: 0, boundsKey: 'k' };
+    const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: ctrl, intent }) };
+    expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(false);
+    expect(locks.isFetching).toBe(true);
+    expect(ctrl.signal.aborted).toBe(false);
+  });
+
+  it('still heals past the HARD lease even with a live-looking registry entry (bounded hang recovery)', () => {
+    window.__MARINE_GOVERNOR_STATE__ = idleGov();
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_HARD_LEASE_MS + 1000), activeSource: 'manual' };
+    const ctrl = makeController();
+    ctrl.__intent = { model: 'GFS', rawModel: 'GFS', layer: 'waves', hour: 0, boundsKey: 'k' };
+    const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: ctrl, intent }) };
+    expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(true);
+    expect(locks.isFetching).toBe(false);
+    expect(ctrl.signal.aborted).toBe(true);
+  });
+
+  it('heals when the registry entry belongs to a DIFFERENT controller (the lock really is stranded)', () => {
+    window.__MARINE_GOVERNOR_STATE__ = idleGov();
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_LEASE_MS + 1000), activeSource: 'manual' };
+    const ctrl = makeController();
+    ctrl.__intent = { model: 'GFS', rawModel: 'GFS', layer: 'waves', hour: 0, boundsKey: 'k' };
+    const otherCtrl = makeController();
+    const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: otherCtrl, intent }) };
+    expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(true);
+    expect(locks.isFetching).toBe(false);
+  });
+
   it('heals a stranded lock: lease expired + governor idle → abort, clear, return true', () => {
     window.__MARINE_GOVERNOR_STATE__ = idleGov();
     window.__MARINE_FETCH_PENDING__ = { model: 'GFS', layer: 'waves', hour: 0 };
