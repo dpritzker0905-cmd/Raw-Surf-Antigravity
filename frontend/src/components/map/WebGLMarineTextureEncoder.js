@@ -391,8 +391,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     // §0B-a: per-cell direction confidence (coarse NOAA products only; null/absent = 1.0). Ocean
     // cells only — land/invalid texels keep 1.0 so dilated/extrapolated directions stay full-strength
     // (they're mask-culled for rendering; their job is stabilizing the bilinear direction field).
+    // Read chain covers every vector shape that reaches the engine: mapper camelCase (top-level +
+    // subs), the useMarineWindData conform (top-level + active-layer sub), raw backend snake_case
+    // (series frames commit flat GridVector dicts), and the waves-mirror sub.
     const confVal = hasSub && typeof sub.dirConfidence === 'number' ? sub.dirConfidence
-      : (typeof v.dirConfidence === 'number' ? v.dirConfidence : null);
+      : (hasSub && typeof sub.dir_confidence === 'number' ? sub.dir_confidence
+         : (typeof v.dirConfidence === 'number' ? v.dirConfidence
+            : (typeof v.dir_confidence === 'number' ? v.dir_confidence
+               : (waveSub && typeof waveSub.dirConfidence === 'number' ? waveSub.dirConfidence
+                  : (waveSub && typeof waveSub.dir_confidence === 'number' ? waveSub.dir_confidence : null)))));
     if (isOcean && confVal !== null) {
       confArr[i] = Math.max(0, Math.min(1, confVal));
     }

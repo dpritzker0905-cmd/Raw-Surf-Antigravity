@@ -92,6 +92,16 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
                 ? (v[activeMarineLayer] || v['waves'])
                 : v[activeMarineLayer])); // no fallback — will be {u:0,v:0,speed:0}
                 
+      // §0B-a: this conform is the LAST rebuild before the engine — it re-emits vectors with an
+      // explicit field list (the known "mirror drops is_valid" landmine lives here too), so the
+      // per-cell direction confidence must be carried explicitly or the encoder never sees it
+      // for the waves layer (found live 2026-07-03: waves.dirConfidence present, top-level
+      // absent → scaledCells 0). Accepts both the mapper's camelCase and the raw backend
+      // snake_case (series frames commit flat backend vectors).
+      const dirConfidence = layerData && typeof layerData.dirConfidence === 'number' ? layerData.dirConfidence
+        : (layerData && typeof layerData.dir_confidence === 'number' ? layerData.dir_confidence
+           : (v && typeof v.dirConfidence === 'number' ? v.dirConfidence
+              : (v && typeof v.dir_confidence === 'number' ? v.dir_confidence : null)));
       return {
         lat: v.lat,
         lng: v.lng,
@@ -102,6 +112,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         height: layerData?.height !== undefined ? layerData.height : (layerData?.speed || 0),
         direction: layerData?.direction !== undefined ? layerData.direction : undefined,
         isOcean: v.isOcean,
+        dirConfidence,
         [activeMarineLayer]: layerData
       };
     });
