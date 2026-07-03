@@ -1,6 +1,17 @@
 # Weather & Marine Simulation System Codebase Tracker
 *System Brain & Codebase Organizational Tracking Ledger*
 
+> [!WARNING]
+> **PARTIALLY STALE (flagged by the 2026-07-03 system audit — last substantive update 2026-06-02).**
+> The FCE / SimulationLoop / RenderPlanDispatcher pipeline documented below is **DISABLED for the
+> MARINE path** (kill: `__ALLOW_FCE_MARINE_UPLOAD__`): marine renders via
+> `useMarineOrchestrator` → `useMarineDataFetcher*` → `useMarineWindData` (the LAST vector
+> conform before the GPU — fields not on its explicit list are DROPPED) →
+> `WebGLMarineLayer` → `WebGLMarineEngine` + `WebGLMarineTextureEncoder`/`ParticleShaders`.
+> Ingestion is DECOUPLED (GitHub-Action cron → Supabase L2 → Render serve-only; NOAA/DWD/Copernicus
+> direct). Before debugging from this document, read
+> `docs/audits/AUDIT-2026-07-03-weather-system.md` §4 for the current front-to-back map.
+
 This document serves as the high-fidelity source of truth for the **Raw Surf OS Map Weather & Marine Simulation System**. It details the architectural bounds, component contracts, binary WASM protocols, GPU-accelerated rendering pipelines, and stabilization checklists necessary to maintain pristine performance and zero regressions.
 
 > [!NOTE]

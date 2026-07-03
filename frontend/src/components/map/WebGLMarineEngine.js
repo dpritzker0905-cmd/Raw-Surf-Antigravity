@@ -956,6 +956,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)
           crestContrast: +_crestContrast.toFixed(3),     // zoom-band self-contrast strength (1 in z~3.5-4.4, 0 outside; __RAW_CREST_CONTRAST__ overrides)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
+          reducedMotion: !!this._prefersReducedMotion || window.__RAW_REDUCED_MOTION__ === true, // a11y damp (0.15× drift; heatmap untouched)
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
           partTarget: _partTarget,
           densityBase: +densityBase.toFixed(3),
@@ -1041,7 +1042,22 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Overall drift-speed multiplier (separate from the per-wave height cap below): lets the whole field be
       // slowed if mid-zoom motion reads too fast. Default 1.0 (unchanged); tunable live via window.__RAW_WAVE_SPEED__.
       const _waveSpeedMult = (typeof window !== 'undefined' && typeof window.__RAW_WAVE_SPEED__ === 'number') ? window.__RAW_WAVE_SPEED__ : 1.0;
-      const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale * _waveSpeedMult;
+      // ACCESSIBILITY (2026-07-03 audit §6.4): honor prefers-reduced-motion by damping crest drift
+      // to 0.15× — the heatmap (the actual data) is untouched; only the decorative particle motion
+      // slows. Cached matchMedia (evaluated once; OS-level changes re-evaluate on reload, which is
+      // the norm for this media feature). Override for testing: window.__RAW_REDUCED_MOTION__
+      // (true = force damp, false = force off); tuner __RAW_WAVE_SPEED__ still multiplies on top.
+      if (this._prefersReducedMotion === undefined) {
+        try {
+          this._prefersReducedMotion = typeof window !== 'undefined' && window.matchMedia
+            && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+        } catch (e) { this._prefersReducedMotion = false; }
+      }
+      const _rmOverride = (typeof window !== 'undefined' && typeof window.__RAW_REDUCED_MOTION__ === 'boolean')
+        ? window.__RAW_REDUCED_MOTION__ : null;
+      const _reducedMotion = _rmOverride !== null ? _rmOverride : this._prefersReducedMotion;
+      const _rmScale = _reducedMotion ? 0.15 : 1.0;
+      const stableSpeedScale = this.speedFactor * Math.pow(0.5, Math.max(0, z - 6)) * 1.5e-5 * motionScale * _waveSpeedMult * _rmScale;
 
       gl.disable(gl.BLEND); // CRITICAL: Disable blend to prevent position texture corruption!
       gl.useProgram(this.advectProgram);
