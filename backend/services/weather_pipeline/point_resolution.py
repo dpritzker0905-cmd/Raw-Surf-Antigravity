@@ -330,6 +330,7 @@ class PointResolutionService:
         elif best_est:
             matching_item = best_est[0]
 
+        coarse_last_resort = None
         if matching_item:
             product = await asyncio.to_thread(self.store.load_product, matching_item.filename)
             if product:
@@ -347,12 +348,34 @@ class PointResolutionService:
                 response.valid_time = target_dt
                 response.product_id = matching_item.filename
                 response.source = "grid_file"
-                response.coverage_status = "inside_regional_tile"
+                is_global_coarse = (
+                    getattr(product, "coverage_mode", None) == "global_tile"
+                    or "global_coarse" in matching_item.filename
+                )
+                # Honest labeling: the 10° global coarse is NOT a regional tile.
+                response.coverage_status = "inside_global_coarse" if is_global_coarse else "inside_regional_tile"
                 response.fallback_attempted = False
                 response.fallback_reason = None
                 response.grid_parity = True
                 response.gridParity = True
-                return response
+                interp = getattr(response.point, "interpolation_method", None) if response.point else None
+                degraded = interp in (
+                    "unavailable", "nearest_ocean_coarse_masked",
+                    "nearest_ocean_fallback", "out_of_bounds_fallback"
+                )
+                if is_global_coarse and degraded and domain.lower() == "marine":
+                    # Gulf-of-Mexico class: every bracketing 10° coarse center is land, so the
+                    # sampler serves the nearest "ocean" cell — which can be an ATLANTIC cell
+                    # 12–15° away (Galveston was getting (30,-80) Florida water). That sample is
+                    # not the user's water. Prefer the true 0.25° upstream point (PATH 2c below);
+                    # keep this sample only as a last resort if the upstream fetch fails.
+                    coarse_last_resort = response
+                    coarse_last_resort.grid_parity = False
+                    coarse_last_resort.gridParity = False
+                    coarse_last_resort.fallback_attempted = True
+                    coarse_last_resort.fallback_reason = "coarse_sample_degraded_direct_point_failed"
+                else:
+                    return response
 
         # 2c. Fallback to direct point query
         if domain.lower() == "wind" and layer.lower() == "wind":
@@ -575,9 +598,9 @@ class PointResolutionService:
                             source_variables=list(layer_vars),
                             freshness_sec=1800,
                             source="backend_direct_point",
-                            coverage_status="outside_grid_tile",
+                            coverage_status="coarse_gap_direct_point" if coarse_last_resort is not None else "outside_grid_tile",
                             fallback_attempted=True,
-                            fallback_reason="copernicus_missing_fallback" if is_fallback_active else "no_matching_grid_product",
+                            fallback_reason="copernicus_missing_fallback" if is_fallback_active else ("coarse_sample_degraded" if coarse_last_resort is not None else "no_matching_grid_product"),
                             upstream_provider="gfs_estimated_fallback" if is_fallback_active else ("copernicus" if model.upper() == "EURO" else "open-meteo"),
                             upstream_model=upstream_model,
                             units=units,
@@ -653,6 +676,12 @@ class PointResolutionService:
                         )
             except Exception as ex:
                 logger.error(f"[Point Fallback] Failed fetching point for {model} weather/{layer} at ({lat}, {lng}): {ex}")
+
+        # Direct point failed/unavailable: serve the stashed degraded coarse sample rather than a
+        # 404 (fail-open — it is labeled fallback_attempted + coarse_sample_degraded so the
+        # frontend/diagnostics can see it is NOT the user's water).
+        if coarse_last_resort is not None:
+            return coarse_last_resort
 
         # If fallback not applicable or failed, return structured 404 response
         return make_no_coverage_point_response(model, layer, lat, lng, valid_time_str, grid_product_id)
