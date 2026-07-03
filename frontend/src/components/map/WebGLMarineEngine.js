@@ -117,11 +117,14 @@ export function resolveCoarseCrestControls(inVortexBand, win) {
   if (w.__RAW_COARSE_CREST_MODE__ === 'suppress') {
     return { dirCoherenceMin: o !== null ? o : 2.0, coarseNearestDir: 0.0, mode: 'suppress' };
   }
-  // Nearest mode now carries a SEAM floor (2026-07-02, Baja live report): the shaders measure coherence on
-  // the BILINEAR magnitude before the nearest override, so 0.7 culls only the strips between cells whose
-  // headings differ by ≳90° — the "opposite motion side by side" seams — while agreeing-cell seams and cell
-  // interiors keep full crests. Override via __RAW_DIR_COHERENCE_MIN__ (0 = no seam cull).
-  return { dirCoherenceMin: o !== null ? o : 0.7, coarseNearestDir: 1.0, mode: 'nearest' };
+  // SEAM floor DEFAULT-OFF (2026-07-03, "missing patches all over" regression): the bilinear |waveVec|
+  // coherence measure cannot distinguish a divergent-direction seam from proximity to a ZERO-direction
+  // texel — the encoder writes (0.5,0.5) for land / is_valid:false / unreachable cells, so on the 10°
+  // coarse grid the floor faded/culled up to a full cell-width of ocean beside EVERY such cell (all
+  // coastlines). The fade machinery stays (re-enable via __RAW_DIR_COHERENCE_MIN__) but the floor stays 0
+  // until coherence is land-aware — the designed fix is direction-only dilation into zero cells at ENCODE
+  // time (height stays 0; ocean mask still gates rendering), see HANDOFF-2026-07-03.
+  return { dirCoherenceMin: o !== null ? o : 0.0, coarseNearestDir: 1.0, mode: 'nearest' };
 }
 
 // === NATURAL ANIMATION DEFAULTS (baked 2026-07-01) ===

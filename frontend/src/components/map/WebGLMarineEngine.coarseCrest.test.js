@@ -13,11 +13,12 @@ describe('resolveCoarseCrestControls (vortex-band crest strategy)', () => {
     expect(resolveCoarseCrestControls(false, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
   });
 
-  it('in the band, default: NEAREST mode with the SEAM floor (0.7 culls divergent-cell seam strips)', () => {
-    // 2026-07-02 Baja live report: at boundaries between cells whose headings differ ≳90°, nearest-snapped
-    // crests animated in OPPOSITE directions side by side. The shaders measure coherence on the bilinear
-    // magnitude BEFORE the nearest override, so 0.7 culls only those seam strips.
-    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.7, coarseNearestDir: 1.0, mode: 'nearest' });
+  it('in the band, default: NEAREST mode with the seam floor OFF (land-blind coherence regression)', () => {
+    // 2026-07-03: the bilinear-|waveVec| coherence cannot tell a divergent seam from proximity to a
+    // ZERO-direction texel (land / is_valid:false encode as (0.5,0.5)), so any default floor fades/culls
+    // ocean beside every coastline on the 10° grid ("missing patches all over"). Floor stays 0 until the
+    // encoder dilates DIRECTION into zero cells; the fade machinery remains reachable via the override.
+    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 1.0, mode: 'nearest' });
   });
 
   it('nearest mode honours the __RAW_DIR_COHERENCE_MIN__ override (0 = no seam cull)', () => {

@@ -157,15 +157,8 @@ class TestBlockMulti:
         total_h = np.full(shape, 1.96)
         pairs = [(wwd, wwh), (s1d, s1h), (s2d, s2h)]
         out = energy_mean_direction_block_multi(pairs, dirpw, 40, 40, 20, False, total_h)
-        # Under energy-vector FUSION the coherent DIRPW sum (E ∝ 1.96²) dominates the self-cancelling
-        # partition residual: analytically ≈166° FROM here (TO≈346 — inside the ECMWF reference range
-        # 335–348 for the live Baja block). Must land near DIRPW, far from the windwave residual (77°).
-        d_dirpw = abs(out - 186.0) % 360.0
-        d_dirpw = min(d_dirpw, 360.0 - d_dirpw)
-        d_ww = abs(out - 77.0) % 360.0
-        d_ww = min(d_ww, 360.0 - d_ww)
-        assert d_dirpw < 35.0, f"expected near DIRPW 186, got {out}"
-        assert d_ww > 60.0, f"must not land on the windwave residual 77, got {out}"
+        d = abs(out - 186.0) % 360.0
+        assert min(d, 360.0 - d) < 5.0, f"expected ≈DIRPW 186, got {out}"
         # and WITHOUT the total field (legacy signature) the residual-winner behavior is preserved
         legacy = energy_mean_direction_block_multi(pairs, dirpw, 40, 40, 20, False)
         dl = abs(legacy - 77.0) % 360.0
