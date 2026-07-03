@@ -318,6 +318,12 @@ export function useMarineDataFetcherCore({
       if (typeof window !== 'undefined') {
         window.__MARINE_FETCH_DEBOUNCING__ = false;
         window.__MARINE_FETCH_PENDING__ = { model: rawModel, layer, hour: timeOffset, timestamp: new Date().toISOString() };
+        // Remember OUR exact stamp (object identity) so the finally can clear it even when this
+        // request has been superseded (requestId mismatch). Without this, a detached/stale
+        // request's stamp survives forever when the NEW target commits via cache paths that
+        // never re-enter this fetch body — the night-1 "fetchPending wedged true" stranding
+        // (network_request_started stayed 0 the whole session; everything cache-served).
+        if (myController) myController.__fetchPendingStamp = window.__MARINE_FETCH_PENDING__;
       }
       // Take ownership of the open transition ONLY if this fetch's target identity matches it.
       // A viewport/moveend refetch (different intent) leaves capturedTransitionGen null and
@@ -535,6 +541,13 @@ export function useMarineDataFetcherCore({
           inFlight.noteWakeEnqueued(inFlight.key(myController.__intent));
           setTimeout(() => { enqueueMarineUpdateRef.current && enqueueMarineUpdateRef.current('detached_wake'); }, 0);
         }
+      }
+      // Clear the pending stamp if it is still OURS (object identity — a newer request that
+      // stamped after us is untouched). Runs for superseded requests too, so a stranded
+      // "pending" from a detached/stale fetch can no longer wedge __MARINE_FETCH_PENDING__ true.
+      if (typeof window !== 'undefined' && myController && myController.__fetchPendingStamp
+          && window.__MARINE_FETCH_PENDING__ === myController.__fetchPendingStamp) {
+        window.__MARINE_FETCH_PENDING__ = null;
       }
       if (requestId === marineRequestIdRef.current) {
         locks.isFetching = false;

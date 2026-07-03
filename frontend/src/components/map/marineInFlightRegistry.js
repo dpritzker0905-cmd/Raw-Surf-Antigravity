@@ -182,18 +182,23 @@ export function createMarineInFlightRegistry(opts = {}) {
       return { entry: null, shouldWake: false };
     }
     entry.completionStatus = status;
-    if (status === 'success') {
-      record('detached_cache_completed', { key, foreground: entry.state === 'foreground' });
-    } else {
-      record('detached_failed', { key, reason: status });
-    }
     // Wake on success OR failure (not deliberate abort): a wanted detached request that
     // finished must re-drive the current target — success => cache-warm hit, failure =>
     // fresh re-fetch. Combined with "cap never evicts a wanted entry" (pickEvictionVictim),
     // this guarantees a wanted detached request always completes and wakes, so the early-
     // return dedup in the fetcher can never strand a transition.
     const shouldWake = entry.state === 'detached' && entry.wantedAgain && status !== 'abort';
+    const wasForeground = entry.state === 'foreground';
+    // Delete BEFORE recording (2026-07-03): record() refreshes the window mirror's `active`
+    // list, so recording first left the completed entry visible in __MARINE_INFLIGHT__.active
+    // until the NEXT event — the night-1 "foreground entry stayed active 6+ min after its
+    // detached_cache_completed" phantom that masked real pending state.
     entries.delete(key);
+    if (status === 'success') {
+      record('detached_cache_completed', { key, foreground: wasForeground });
+    } else {
+      record('detached_failed', { key, reason: status });
+    }
     return { entry, shouldWake };
   }
 
