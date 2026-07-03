@@ -144,7 +144,14 @@ export function getSurfModeFlag() {
   if (typeof window === 'undefined') return false;
   if (window.__SURF_MODE__ !== undefined) return !!window.__SURF_MODE__;
   try {
-    return window.localStorage.getItem('__SURF_MODE__') === 'true';
+    const persisted = window.localStorage.getItem('__SURF_MODE__') === 'true';
+    // BOOT-RACE PIN (2026-07-03): stamp the window flag on FIRST read so every reader —
+    // including the raw `window.__SURF_MODE__` inline reads in the engine — agrees for the whole
+    // boot. Before this, code reading the window flag directly saw `undefined` (falsy) until the
+    // first toggle wrote it, while localStorage said 'true' → plain and surf-banded frames mixed
+    // across the boot sequence (night-1 z7.12 "heatmap cleared").
+    window.__SURF_MODE__ = persisted;
+    return persisted;
   } catch (e) { return false; }
 }
 

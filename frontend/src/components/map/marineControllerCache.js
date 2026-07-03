@@ -10,6 +10,7 @@ import {
   getBackendCopernicusFlag,
   getBackendIconMarineFlag,
   getSharedValidTime,
+  getSurfModeFlag,
   updateDiagnostics,
   updateCopernicusDiagnostics,
   updateProjectionDiag,
@@ -155,7 +156,8 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   // stale/coarse) are still cached as before.
   const vecLen = data.grid?.vectors?.length || 0;
   if (vecLen === 0 || data.grid?.renderable === false) return;
-  const layerPart = _isAllVarModel(model) ? 'all' : (layer || 'waves');
+  // Mode-keyed (2026-07-03): surf-banded and plain products must never cross-hit (frame mixing).
+  const layerPart = (_isAllVarModel(model) ? 'all' : (layer || 'waves')) + (getSurfModeFlag() ? '~surf' : '');
   const tileId = data.tile_id || data.region_id || data.grid?.region_id || 'unknown';
   const key = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;
   
@@ -311,7 +313,7 @@ export function isContainedInMarineCache(bounds, model, hourOffset = 0, layer = 
   const isBackendActive = isGfsBackend || isIconBackend || isCopernicusBackend;
 
   if (isBackendActive) {
-    const layerPart = _isAllVarModel(model) ? 'all' : layer;
+    const layerPart = (_isAllVarModel(model) ? 'all' : layer) + (getSurfModeFlag() ? '~surf' : '');
     const clampRes = clampViewportBbox(bounds, layer, model, 'marine');
     const tileId = clampRes.selectedTileId || 'outside';
     const lookupKey = `${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`;

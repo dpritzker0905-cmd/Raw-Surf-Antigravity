@@ -1,6 +1,7 @@
 import { useMemo, useRef } from 'react';
 import { isGridLayerSupported } from './marineControllerUtils';
 import { markDisplayed } from './marineTransitionCoordinator';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
 
 function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
@@ -303,7 +304,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       // instead of returning null which triggers WebGL clearBuffers and visual flash
       const isSameTarget = lastValidKeyRef.current &&
                            lastValidKeyRef.current.model === activeModel &&
-                           lastValidKeyRef.current.layer === activeMarineLayer;
+                           lastValidKeyRef.current.layer === activeMarineLayer &&
+                           lastValidKeyRef.current.surf === getSurfModeFlag();
       if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
@@ -438,7 +440,8 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     if (!res.__renderable) {
       const isSameTarget = lastValidKeyRef.current &&
                            lastValidKeyRef.current.model === activeModel &&
-                           lastValidKeyRef.current.layer === activeMarineLayer;
+                           lastValidKeyRef.current.layer === activeMarineLayer &&
+                           lastValidKeyRef.current.surf === getSurfModeFlag();
       if ((isTransitioning || isSameTarget) && lastValidDataRef.current) {
         return returnHeld();
       }
@@ -446,8 +449,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     }
     // Fresh renderable frame: it passed the mismatch checks above, so its identity IS the
     // currently requested {model, layer, hour}. Tag the held slot and report it as displayed.
+    // The Swell↔Surf MODE is part of the identity (2026-07-03): a held surf-banded frame must
+    // never satisfy a plain request (or vice versa) — the plain/surf frame-mixing family.
     lastValidDataRef.current = res;
-    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset };
+    lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset, surf: getSurfModeFlag() };
     markDisplayed(lastValidKeyRef.current);
     return res;
   }, [conformedGridBase, timeOffsetHours, mapInstance, viewState, marineData]);

@@ -14,6 +14,7 @@ import {
   getBackendIconMarineFlag,
   getBackendMarineSystemFlag,
   getSharedValidTime,
+  getSurfModeFlag,
   updateDiagnostics,
   updateProjectionDiag,
   fetchBackendMarineGrid,
@@ -154,7 +155,12 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
 
   const _perModelHourCache = getPerModelHourCache();
 
-  const layerPart = _isAllVarModel(wanted) ? 'all' : wantedLayer;
+  // SURF-MODE IDENTITY (2026-07-03): the per-model-hour cache key must carry the Swell↔Surf mode —
+  // surf-banded and plain products for the same tile+hour are DIFFERENT fields (open ocean
+  // is_valid:false in surf mode), and a cross-mode cache hit committed the other mode's frame
+  // (the plain/surf frame-mixing family). Folded into layerPart so every key template AND the
+  // prefix-scan fallbacks inherit it.
+  const layerPart = (_isAllVarModel(wanted) ? 'all' : wantedLayer) + (getSurfModeFlag() ? '~surf' : '');
   let exact = null;
   if (bounds) {
     const clampRes = clampViewportBbox(bounds, wantedLayer, wanted, 'marine');
@@ -419,7 +425,8 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   const _perModelHourCache = getPerModelHourCache();
 
   if (!forceFetch) {
-    const layerPart = _isAllVarModel(model) ? 'all' : activeLayer;
+    // Mode-keyed like getModelSafeMarine (surf/plain frames must never cross-hit).
+    const layerPart = (_isAllVarModel(model) ? 'all' : activeLayer) + (getSurfModeFlag() ? '~surf' : '');
     const tileId = clampRes.selectedTileId || 'outside';
     const exact = _perModelHourCache.get(`${model || 'GFS'}_${layerPart}_${tileId}_${hourOffset}`);
     if (exact && Date.now() - exact.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
