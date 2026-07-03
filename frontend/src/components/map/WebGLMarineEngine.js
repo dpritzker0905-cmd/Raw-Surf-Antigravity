@@ -883,6 +883,22 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_coarseNearestDir'), coarseNearestDir);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_waveGridSize'), _wgCols, _wgRows);
 
+      // Zoom-band crest SELF-CONTRAST (2026-07-03): full strength where the crest palette collides
+      // with the heatmap palette (user-reported z3.65–4.25 wash-out), ramping in from z3.0 and out
+      // by z4.9. Internal dark-skirt/bright-core gradient — no theme palette change, 0 elsewhere.
+      // Override live: window.__RAW_CREST_CONTRAST__ (0 = off everywhere, 1 = on everywhere).
+      let _crestContrast;
+      const _ccOverride = (typeof window !== 'undefined' && typeof window.__RAW_CREST_CONTRAST__ === 'number')
+        ? window.__RAW_CREST_CONTRAST__ : null;
+      if (_ccOverride !== null) {
+        _crestContrast = _ccOverride;
+      } else {
+        const _ccUp = Math.min(1, Math.max(0, (z - 3.0) / 0.5));
+        const _ccDown = 1 - Math.min(1, Math.max(0, (z - 4.4) / 0.5));
+        _crestContrast = Math.max(0, Math.min(_ccUp, _ccDown));
+      }
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestContrast'), _crestContrast);
+
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
       const _trochoidal = resolveAnimValue('__RAW_TROCHOIDAL__');
@@ -938,6 +954,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           seamFadeFloor: _g('__RAW_SEAM_FADE_FLOOR_ALPHA__', 0.3), // alpha floor of the seam DIM (crests never vanish in incoherent zones)
           coarseNearestDir: coarseNearestDir,            // 1 = vortex-band nearest-cell direction sampling active
           coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)
+          crestContrast: +_crestContrast.toFixed(3),     // zoom-band self-contrast strength (1 in z~3.5-4.4, 0 outside; __RAW_CREST_CONTRAST__ overrides)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),
           partTarget: _partTarget,
