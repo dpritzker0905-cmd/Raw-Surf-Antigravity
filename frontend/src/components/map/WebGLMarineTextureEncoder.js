@@ -420,7 +420,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     encodeMarineTexture._geoCache = new Map();
   }
 
-  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}`;
+  // Cache key includes the OCEAN-CELL COUNT (2026-07-03): products of identical shape+bounds can
+  // carry radically different validity masks — a surf-banded grid (open ocean is_valid:false, ~3%
+  // ocean) and the plain grid (~60% ocean) share cols/rows/bounds, so whichever encoded FIRST used
+  // to win the cached mask/bathymetry/chlorophyll for every later product of that shape (audit
+  // finding, 2026-07-03). The ocean count discriminates the validity profile at zero hash cost.
+  let _oceanCount = 0;
+  for (let i = 0; i < N; i++) _oceanCount += oceanArr[i];
+  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}_o${_oceanCount}`;
   let geoData = encodeMarineTexture._geoCache.get(cacheKey);
 
   if (!geoData) {
@@ -606,6 +613,11 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
     geoData = { dataBath, dataChl, dataMask, grid };
     encodeMarineTexture._geoCache.set(cacheKey, geoData);
+    // Bound the cache (audit 2026-07-03): keys vary with viewport bounds + ocean count, so panning
+    // across many viewports grew it without limit (~150KB/entry regional). FIFO-evict the oldest.
+    if (encodeMarineTexture._geoCache.size > 12) {
+      encodeMarineTexture._geoCache.delete(encodeMarineTexture._geoCache.keys().next().value);
+    }
   }
 
   const { dataBath, dataChl, dataMask } = geoData;

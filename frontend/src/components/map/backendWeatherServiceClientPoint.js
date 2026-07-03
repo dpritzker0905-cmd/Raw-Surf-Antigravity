@@ -451,24 +451,34 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       wind_wave_peak_period: [null]
     };
 
+    // /point returns ZEROS with interpolation_method 'unavailable' when no ocean cell is reachable —
+    // e.g. the Gulf of Mexico: no regional tile AND every surrounding 10° coarse cell center is land,
+    // so the nearest-ocean search finds nothing (Texas coast live report, 2026-07-03). Conform those
+    // to NULL so the infobox shows its no-data state instead of a confident "0.0 ft / N 0" — the same
+    // contract as the all-land grid-cell fix (3f45d004).
+    const _ptUnavailable = !json.point || json.point.interpolation_method === 'unavailable';
+    const _ptSpeed = _ptUnavailable ? null : (json.point.speed || 0);
+    const _ptDir = _ptUnavailable ? null : (json.point.direction || 0);
+    const _ptPer = _ptUnavailable ? null : (json.point.period || 0);
+
     if (layer === 'waves') {
-      conformedHourly.wave_height = [json.point.speed || 0];
-      conformedHourly.wave_direction = [json.point.direction || 0];
-      conformedHourly.wave_period = [json.point.period || 0];
+      conformedHourly.wave_height = [_ptSpeed];
+      conformedHourly.wave_direction = [_ptDir];
+      conformedHourly.wave_period = [_ptPer];
       conformedHourly.wave_peak_period = [null];
     } else if (layer === 'swell_1') {
-      conformedHourly.swell_wave_height = [json.point.speed || 0];
-      conformedHourly.swell_wave_direction = [json.point.direction || 0];
-      conformedHourly.swell_wave_period = [json.point.period || 0];
+      conformedHourly.swell_wave_height = [_ptSpeed];
+      conformedHourly.swell_wave_direction = [_ptDir];
+      conformedHourly.swell_wave_period = [_ptPer];
       conformedHourly.swell_wave_peak_period = [null];
     } else if (layer === 'swell_2') {
-      conformedHourly.secondary_swell_wave_height = [json.point.speed || 0];
-      conformedHourly.secondary_swell_wave_direction = [json.point.direction || 0];
-      conformedHourly.secondary_swell_wave_period = [json.point.period || 0];
+      conformedHourly.secondary_swell_wave_height = [_ptSpeed];
+      conformedHourly.secondary_swell_wave_direction = [_ptDir];
+      conformedHourly.secondary_swell_wave_period = [_ptPer];
     } else if (layer === 'wind_waves') {
-      conformedHourly.wind_wave_height = [json.point.speed || 0];
-      conformedHourly.wind_wave_direction = [json.point.direction || 0];
-      conformedHourly.wind_wave_period = [json.point.period || 0];
+      conformedHourly.wind_wave_height = [_ptSpeed];
+      conformedHourly.wind_wave_direction = [_ptDir];
+      conformedHourly.wind_wave_period = [_ptPer];
       conformedHourly.wind_wave_peak_period = [null];
     }
 

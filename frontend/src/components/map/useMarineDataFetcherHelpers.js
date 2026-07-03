@@ -378,12 +378,13 @@ export function commitMarineData({
         if (_sfW < 340.0) { // a covering REGIONAL series frame — prefer it over the stale coarse-global
           const _sig = _marineDataSignature(_sf, layer);
           consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
-          // Dedup against prev's OWN signature (2026-07-03), same as the main commit path: comparing
-          // against the side ledger skipped commits whenever the ledger diverged from state (an
-          // engine-rejected commit records its sig) — and this path returns without committing at all.
+          // Dedup with BOTH authorities agreeing (2026-07-03), same as the main commit path: the side
+          // ledger alone wedged when it diverged from state (an engine-rejected commit records its
+          // sig) — and this path returns without committing at all; prev-sig alone would break the
+          // ledger-null recovery hatch.
           setMarineData(prev => {
             const _prevSig = prev ? (prev.__committedSig || _marineDataSignature(prev, prev?.grid?.__componentLayer || layer)) : null;
-            if (!_sig || _sig === _prevSig) return prev;
+            if (!_sig || (_sig === _prevSig && _sig === lastCommittedSigRef.current)) return prev;
             lastCommittedSigRef.current = _sig;
             marineRevision.current += 1;
             _sf.__commitRevision = marineRevision.current;
@@ -447,14 +448,17 @@ export function commitMarineData({
       return prev;
     }
     const newSig = _marineDataSignature(data, layer);
-    // Duplicate test against what React state ACTUALLY holds (prev), not the side ledger (2026-07-03).
-    // lastCommittedSigRef records sigs for commits the ENGINE may still reject downstream (the
-    // no-downgrade guard racing a stale _lastZoom) — comparing against it wedged the display: ledger
-    // said "committed", state/engine held a different grid, and every retry dup-skipped (live 3Hz×40min
-    // loop + stranded 3° regional at band zoom, twice tonight). prev's own signature cannot diverge
-    // from state by construction. The ledger stays updated for telemetry (__MARINE_PIPELINE_TRUTH__).
+    // Duplicate test needs BOTH authorities to agree (2026-07-03 audit):
+    //  • prev state's own signature — the ledger alone records commits the ENGINE may still reject
+    //    downstream (no-downgrade guard racing a stale _lastZoom); ledger≠state wedged the display
+    //    permanently (3Hz×40min dup-skip loop + stranded 3° regional at band zoom, twice tonight).
+    //  • the ledger — recovery paths (engine-empty §2b, toggle re-feed, model switch) deliberately
+    //    NULL it to force an identical-content re-commit through; skipping on prev-sig alone would
+    //    break that escape hatch (a re-fetched identical product must re-fire the upload effect).
+    // Skip only when the content matches state AND no invalidation is pending — either disagreeing
+    // lets the commit through, and a wrong pass costs one redundant upload, never a wedge.
     const prevSig = prev ? (prev.__committedSig || _marineDataSignature(prev, prevLayer)) : null;
-    if (newSig && newSig === prevSig) {
+    if (newSig && newSig === prevSig && newSig === lastCommittedSigRef.current) {
       logPipelineEventHelper('duplicate_commit_skipped', { signature: newSig });
       return prev;
     }

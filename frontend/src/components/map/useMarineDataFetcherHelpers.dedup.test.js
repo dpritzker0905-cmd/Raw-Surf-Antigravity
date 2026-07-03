@@ -72,13 +72,27 @@ describe('commitMarineData duplicate detection (state-authoritative, 2026-07-03)
     expect(events.some(e => e.type === 'duplicate_commit_skipped')).toBe(false);
   });
 
-  it('SKIPS a true duplicate (state already holds this exact product)', () => {
+  it('SKIPS a true duplicate (state holds this exact product AND the ledger agrees)', () => {
     const coarse = makeMarineData(0, 37, 17);
     const prev = makeMarineData(0, 37, 17); // identical content → identical signature
-    const ledger = { current: null };
+    const ledger = { current: _marineDataSignature(prev, 'waves') };
     const { committed, events } = runCommit(coarse, prev, ledger);
     expect(committed).toBe(prev);
     expect(events.some(e => e.type === 'duplicate_commit_skipped')).toBe(true);
+  });
+
+  it('COMMITS an identical product after a ledger invalidation (the §2b/toggle recovery hatch)', () => {
+    // Recovery paths (engine-empty, toggle re-feed, model switch) null the ledger to FORCE the next
+    // commit through even when the re-fetched product is content-identical to state — the engine may
+    // have lost its texture while React state retained the data, and only a fresh __commitRevision
+    // re-fires the upload effect.
+    const coarse = makeMarineData(0, 37, 17);
+    const prev = makeMarineData(0, 37, 17);
+    const ledger = { current: null }; // invalidated
+    const { committed, events } = runCommit(coarse, prev, ledger);
+    expect(committed).toBe(coarse);
+    expect(committed.__commitRevision).toBe(1);
+    expect(events.some(e => e.type === 'duplicate_commit_skipped')).toBe(false);
   });
 
   it('stamps __committedSig on commit so the next dedup reads prev without rehashing', () => {
