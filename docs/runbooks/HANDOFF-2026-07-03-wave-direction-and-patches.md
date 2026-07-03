@@ -29,6 +29,18 @@ netlify production is still pinned to a June-4 deploy, user-dashboard unlock pen
   index lattice; the sin-based `particleHash(index)` cull could show structured survivor patterns at
   high cull fractions. A/B in seconds: `window.__RAW_STRATIFIED_RESEED__ = 0` + reload. If patches
   persist with floor 0 AND stratified off → new forensics needed.
+- **BUILT 2026-07-03 (fresh context) — and the root had a SECOND COSTUME.** Live forensics on the
+  committed coarse grid found land cells are not always zero-vector: coarse products mirror the
+  `v.waves` sub-record to the top level WITHOUT `is_valid`, so land arrives as `{direction: 0, u: 0,
+  v: 0}` and the encoder's direction→unit-vector synthesis stamped a phantom due-SOUTH vector on every
+  landmass — same coastline fade wherever real sea direction differs from south by >90°. Shipped fix
+  (all in `WebGLMarineTextureEncoder.js`): ① synthesis now gated on `isOcean`, and `isOcean` consults
+  `v.waves.is_valid` for the waves layer; ② `dilateDirectionField` BFS-fills direction-only into every
+  remaining zero-direction texel (height/period/mask untouched). Verified live: 37×17 coarse global
+  encodes with `filled: 4` (deep-continental interiors only — the extrapolation ring handles the rest),
+  fade ON at 0.7 in the band, crests run to every coastline (FL/Gulf/Cuba view). Kills:
+  `__RAW_DISABLE_DIR_DILATION__` (encoder), `__RAW_DIR_COHERENCE_MIN__ = 0` (fade). Telemetry:
+  `__MARINE_DIR_DILATION__` = {filled, cols, rows, isGlobal, at} per encode.
 
 ### Symptom B — "waves still moving the wrong direction" ⚠️ PARTIALLY REAL, PARTIALLY MODEL DIVERGENCE
 Four passes of data-side work (full lineage in §2). The decisive late findings:

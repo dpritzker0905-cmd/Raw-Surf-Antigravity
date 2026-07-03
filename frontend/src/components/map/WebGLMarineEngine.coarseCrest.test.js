@@ -13,12 +13,12 @@ describe('resolveCoarseCrestControls (vortex-band crest strategy)', () => {
     expect(resolveCoarseCrestControls(false, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
   });
 
-  it('in the band, default: NEAREST mode with the seam floor OFF (land-blind coherence regression)', () => {
-    // 2026-07-03: the bilinear-|waveVec| coherence cannot tell a divergent seam from proximity to a
-    // ZERO-direction texel (land / is_valid:false encode as (0.5,0.5)), so any default floor fades/culls
-    // ocean beside every coastline on the 10° grid ("missing patches all over"). Floor stays 0 until the
-    // encoder dilates DIRECTION into zero cells; the fade machinery remains reachable via the override.
-    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 1.0, mode: 'nearest' });
+  it('in the band, default: NEAREST mode with the seam floor ON at 0.7 (land-aware coherence)', () => {
+    // 2026-07-03: the encoder's direction-only dilation (dilateDirectionField) fills a unit direction
+    // into every zero-direction texel, so the bilinear-|waveVec| coherence measure no longer collapses
+    // beside coastlines (the land-BLIND floor was the "missing patches all over" regression) — the seam
+    // fade is safe to default on. 0.7 fades seams where neighbor headings differ by more than ~90°.
+    expect(resolveCoarseCrestControls(true, {})).toEqual({ dirCoherenceMin: 0.7, coarseNearestDir: 1.0, mode: 'nearest' });
   });
 
   it('nearest mode honours the __RAW_DIR_COHERENCE_MIN__ override (0 = no seam cull)', () => {

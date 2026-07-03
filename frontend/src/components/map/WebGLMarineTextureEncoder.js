@@ -191,6 +191,113 @@ export function extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, row
     }
   }
 }
+// --- Direction-only dilation (land-aware seam coherence, 2026-07-03) ---
+// The seam fade measures coherence as the bilinear |waveVec|, but the encode loop writes the ZERO
+// vector (0.5,0.5) for any texel with no direction — land, is_valid:false, cells the 2-ring
+// extrapolateOceanData pass doesn't reach. Bilinear samples collapse in magnitude within a full texel
+// of such a cell, so on the 10° coarse grid the coherence floor faded/culled up to a cell-width of
+// ocean beside every coastline ("missing patches all over" — HANDOFF-2026-07-03 §0A). This pass fills
+// the DIRECTION of the nearest direction-bearing cell into every zero-direction texel. Direction ONLY:
+// height, period and the ocean mask are untouched, so nothing new becomes renderable — but the bilinear
+// magnitude now collapses only at true divergent-direction seams, making the fade safe to default on.
+let dirResolvedScratch = null;
+let dirResolvedReadScratch = null;
+
+export function dilateDirectionField(uArr, vArr, cols, rows, isGlobal = true) {
+  if (cols < 2 || rows < 2) return 0;
+  const N = cols * rows;
+
+  if (!dirResolvedScratch || dirResolvedScratch.length < N) {
+    dirResolvedScratch = new Uint8Array(N);
+    dirResolvedReadScratch = new Uint8Array(N);
+  }
+  const resolved = dirResolvedScratch.subarray(0, N);
+  const resolvedRead = dirResolvedReadScratch.subarray(0, N);
+
+  // Same zero test the encode loop applies (|u,v| > 0.001): anything it would write as (0.5,0.5)
+  // is a fill target; everything else is a BFS source and is never modified.
+  let sources = 0;
+  for (let i = 0; i < N; i++) {
+    const m2 = uArr[i] * uArr[i] + vArr[i] * vArr[i];
+    const isSource = m2 > 1e-6 ? 1 : 0;
+    resolved[i] = isSource;
+    sources += isSource;
+  }
+  if (sources === 0 || sources === N) return 0;
+
+  // Ring-by-ring relaxation (same structure as extrapolateOceanData, but unbounded passes — every
+  // reachable texel must end up direction-bearing). Reads gate on the previous ring's snapshot, so
+  // the fill is order-independent within a ring; terminates when a ring fills nothing (≤ max(cols,
+  // rows) rings). Filled cells hold UNIT vectors — the encode loop normalizes anyway, and nothing
+  // downstream reads uArr/vArr magnitude.
+  let filled = 0;
+  for (;;) {
+    resolvedRead.set(resolved);
+    let changes = 0;
+
+    for (let r = 0; r < rows; r++) {
+      const rCols = r * cols;
+      for (let c = 0; c < cols; c++) {
+        const idx = rCols + c;
+        if (resolvedRead[idx] !== 0) continue;
+
+        let sumU = 0, sumV = 0, count = 0;
+        let fallbackIdx = -1;
+
+        for (let dr = -1; dr <= 1; dr++) {
+          const nr = r + dr;
+          if (nr < 0 || nr >= rows) continue;
+          const nrCols = nr * cols;
+          for (let dc = -1; dc <= 1; dc++) {
+            if (dr === 0 && dc === 0) continue;
+            let nc = c + dc;
+            if (isGlobal) {
+              if (nc < 0) nc = cols - 1;
+              if (nc >= cols) nc = 0;
+            } else if (nc < 0 || nc >= cols) {
+              continue;
+            }
+
+            const nIdx = nrCols + nc;
+            if (resolvedRead[nIdx] === 0) continue;
+            const nu = uArr[nIdx];
+            const nv = vArr[nIdx];
+            const mag = Math.sqrt(nu * nu + nv * nv);
+            if (mag <= 0) continue;
+            if (fallbackIdx < 0) fallbackIdx = nIdx;
+            // Normalize per neighbor: raw source magnitudes must not weight the direction average.
+            sumU += nu / mag;
+            sumV += nv / mag;
+            count++;
+          }
+        }
+
+        if (count === 0) continue;
+        const sumMag = Math.sqrt(sumU * sumU + sumV * sumV);
+        if (sumMag > 1e-3) {
+          uArr[idx] = sumU / sumMag;
+          vArr[idx] = sumV / sumMag;
+        } else {
+          // Opposing neighbors self-cancel — the exact failure mode this pass exists to remove.
+          // Copy one neighbor's unit direction deterministically instead of writing another zero.
+          const fu = uArr[fallbackIdx];
+          const fv = vArr[fallbackIdx];
+          const fm = Math.sqrt(fu * fu + fv * fv);
+          uArr[idx] = fu / fm;
+          vArr[idx] = fv / fm;
+        }
+        resolved[idx] = 1;
+        filled++;
+        changes++;
+      }
+    }
+
+    if (changes === 0) break;
+  }
+
+  return filled;
+}
+
 // --- Land Mask Rendering imported from WebGLMarineMaskRenderer ---
 // --- The Ocean GPU Grid Texture Compressor ---
 
@@ -234,19 +341,28 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     const period = hasSub && typeof sub.period === 'number' ? sub.period : (typeof v.period === 'number' ? v.period : 0);
     
     const direction = hasSub && typeof sub.direction === 'number' ? sub.direction : (typeof v.direction === 'number' ? v.direction : undefined);
-    
-    // Conform direction directly to unit vectors in uArr/vArr if uVal/vVal are zero
-    if (uVal === 0 && vVal === 0 && direction !== undefined) {
-      const dirRad = direction * (Math.PI / 180);
-      uVal = -Math.sin(dirRad);
-      vVal = -Math.cos(dirRad);
-    }
-    
+
+    // The waves layer reads TOP-LEVEL u/v/direction, but coarse products mirror those from a v.waves
+    // sub-record whose is_valid:false does NOT survive the mirror — land cells arrive top-level as
+    // {direction: 0, u: 0, v: 0} with no is_valid. Consult the sub-record so land is land (2026-07-03).
+    const waveSub = activeLayer === 'waves' && v.waves && typeof v.waves === 'object' ? v.waves : null;
+
     // Honor the backend's explicit is_valid=false (land / no-data / surf-band open-ocean mask) so those cells
     // render transparent. Only falls through to it when isOcean isn't set, so existing isOcean logic is intact.
     const isOcean = hasSub && sub.isOcean !== undefined ? sub.isOcean
       : (v.isOcean !== undefined ? v.isOcean
-         : (v.is_valid === false ? false : true));
+         : (v.is_valid === false || (waveSub && waveSub.is_valid === false) ? false : true));
+
+    // Conform direction directly to unit vectors in uArr/vArr if uVal/vVal are zero — OCEAN cells only
+    // (2026-07-03): invalid cells carry direction 0 as a PLACEHOLDER, and synthesizing from it stamped a
+    // phantom due-south unit vector on every landmass — a coastline-wide fake direction seam against any
+    // northish sea (the land-blind fade's second costume, after the zero-vector one). Left at zero here,
+    // such cells get a REAL neighbor direction from extrapolateOceanData / dilateDirectionField below.
+    if (uVal === 0 && vVal === 0 && direction !== undefined && isOcean) {
+      const dirRad = direction * (Math.PI / 180);
+      uVal = -Math.sin(dirRad);
+      vVal = -Math.cos(dirRad);
+    }
     
     uArr[i] = uVal;
     vArr[i] = vVal;
@@ -287,6 +403,17 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   const isGlobal = bounds ? !(bounds.east - bounds.west < 359.0) : false;
 
   extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
+
+  // LAND-AWARE SEAM COHERENCE (2026-07-03): fill DIRECTION into the zero-vector texels the pass above
+  // doesn't reach, so the shaders' bilinear-|waveVec| coherence measure stops collapsing beside every
+  // coastline (the "missing patches" regression). Direction only — height/period/mask untouched.
+  // Kill switch (forensics): window.__RAW_DISABLE_DIR_DILATION__ = true.
+  if (typeof window === 'undefined' || window.__RAW_DISABLE_DIR_DILATION__ !== true) {
+    const dilatedCount = dilateDirectionField(uArr, vArr, cols, rows, isGlobal);
+    if (typeof window !== 'undefined') {
+      window.__MARINE_DIR_DILATION__ = { filled: dilatedCount, cols, rows, isGlobal, at: Date.now() };
+    }
+  }
 
   // Initialize geo data cache if it doesn't exist
   if (!encodeMarineTexture._geoCache) {
