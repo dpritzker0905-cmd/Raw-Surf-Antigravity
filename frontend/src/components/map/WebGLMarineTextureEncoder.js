@@ -75,6 +75,7 @@ let vArrScratch = null;
 let hArrScratch = null;
 let pArrScratch = null;
 let oceanArrScratch = null;
+let confArrScratch = null;
 let dataWaveScratch = null;
 
 function getEncoderScratchBuffers(N) {
@@ -84,6 +85,7 @@ function getEncoderScratchBuffers(N) {
     hArrScratch = new FloatArrayConstructor(N);
     pArrScratch = new FloatArrayConstructor(N);
     oceanArrScratch = new Uint8Array(N);
+    confArrScratch = new FloatArrayConstructor(N);
     dataWaveScratch = new Uint8Array(N * 4);
   }
   return {
@@ -92,8 +94,22 @@ function getEncoderScratchBuffers(N) {
     hArr: hArrScratch,
     pArr: pArrScratch,
     oceanArr: oceanArrScratch,
+    confArr: confArrScratch,
     dataWave: dataWaveScratch
   };
+}
+
+// §0B-a render-confidence consumption (2026-07-03): scale the encoded UNIT direction vector by the
+// backend's per-cell direction confidence (GridVector.dir_confidence = the R_d-gate estimator's
+// circular resultant length). The shaders' bilinear-|waveVec| coherence measure — the seam-dim /
+// confused-sea machinery — then fades crest animation exactly where the exported direction is a
+// cancellation residual with no stable truth (the (20,-120) GFS-vs-ECMWF divergence class): show
+// nothing confidently wrong. Height/period/mask channels untouched → the HEATMAP is unaffected.
+// Clamped ≥0.05 so a low-confidence cell can never re-enter the zero-direction regime
+// (|u,v|≤0.001) that dilateDirectionField would refill with a full-strength neighbor direction.
+export function scaleUnitDirByConfidence(unitU, unitV, conf) {
+  const c = (typeof conf === 'number' && conf >= 0 && conf <= 1) ? Math.max(0.05, conf) : 1.0;
+  return [unitU * c, unitV * c];
 }
 
 export function extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal = true) {
@@ -320,7 +336,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   const hArr = scratch.hArr.subarray(0, N);
   const pArr = scratch.pArr.subarray(0, N);
   const oceanArr = scratch.oceanArr.subarray(0, N);
+  const confArr = scratch.confArr.subarray(0, N);
   const dataWave = scratch.dataWave.subarray(0, N * 4);
+  confArr.fill(1.0);   // default: fully confident (products without dir_confidence are unchanged)
 
   const numGridToProcess = Math.min(vectors.length, N);
   let flatSpeedNonzeroCount = 0;
@@ -369,6 +387,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     hArr[i] = height;
     pArr[i] = period;
     oceanArr[i] = isOcean ? 1 : 0;
+
+    // §0B-a: per-cell direction confidence (coarse NOAA products only; null/absent = 1.0). Ocean
+    // cells only — land/invalid texels keep 1.0 so dilated/extrapolated directions stay full-strength
+    // (they're mask-culled for rendering; their job is stabilizing the bilinear direction field).
+    const confVal = hasSub && typeof sub.dirConfidence === 'number' ? sub.dirConfidence
+      : (typeof v.dirConfidence === 'number' ? v.dirConfidence : null);
+    if (isOcean && confVal !== null) {
+      confArr[i] = Math.max(0, Math.min(1, confVal));
+    }
 
     if (speed > 0) {
       flatSpeedNonzeroCount++;
@@ -622,6 +649,12 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
   const { dataBath, dataChl, dataMask } = geoData;
 
+  // §0B-a: confidence consumption gate + telemetry. Kill switch __RAW_DISABLE_DIR_CONFIDENCE__=true
+  // restores full-strength unit directions everywhere (forensic A/B).
+  const confEnabled = typeof window === 'undefined' || window.__RAW_DISABLE_DIR_CONFIDENCE__ !== true;
+  let confScaledCells = 0;
+  let confMin = 1.0;
+
   for (let i = 0; i < N; i++) {
     const u = uArr[i];
     const v_y = vArr[i];
@@ -631,8 +664,16 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     let nu, nv;
     const mag = Math.sqrt(u * u + v_y * v_y);
     if (mag > 0.001) {
-      nu = Math.max(0.0, Math.min(1.0, (u / mag) * 0.5 + 0.5));
-      nv = Math.max(0.0, Math.min(1.0, (v_y / mag) * 0.5 + 0.5));
+      let su = u / mag;
+      let sv = v_y / mag;
+      if (confEnabled && confArr[i] < 1.0) {
+        const scaled = scaleUnitDirByConfidence(su, sv, confArr[i]);
+        su = scaled[0]; sv = scaled[1];
+        confScaledCells++;
+        if (confArr[i] < confMin) confMin = confArr[i];
+      }
+      nu = Math.max(0.0, Math.min(1.0, su * 0.5 + 0.5));
+      nv = Math.max(0.0, Math.min(1.0, sv * 0.5 + 0.5));
     } else {
       nu = 0.5;
       nv = 0.5;
@@ -644,6 +685,13 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     dataWave[i * 4 + 1] = Math.floor(nv * 255);
     dataWave[i * 4 + 2] = Math.floor(hEnc * 255);
     dataWave[i * 4 + 3] = Math.floor(periodEnc * 255);
+  }
+
+  if (typeof window !== 'undefined') {
+    window.__MARINE_DIR_CONFIDENCE__ = {
+      enabled: confEnabled, scaledCells: confScaledCells,
+      min: +confMin.toFixed(3), cols, rows, at: Date.now()
+    };
   }
 
   // Compute WebGL texture stats for GFS waves live trace
@@ -705,8 +753,18 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
       let nu = 0.5, nv = 0.5;
       if (mag > 0.001) {
-        nu = Math.max(0.0, Math.min(1.0, (avgU / mag) * 0.5 + 0.5));
-        nv = Math.max(0.0, Math.min(1.0, (avgV / mag) * 0.5 + 0.5));
+        let su = avgU / mag;
+        let sv = avgV / mag;
+        // Re-normalizing strips the §0B-a confidence scale — reapply the weaker edge's confidence.
+        if (confEnabled) {
+          const cWrap = Math.min(confArr[r * cols], confArr[r * cols + cols - 1]);
+          if (cWrap < 1.0) {
+            const scaled = scaleUnitDirByConfidence(su, sv, cWrap);
+            su = scaled[0]; sv = scaled[1];
+          }
+        }
+        nu = Math.max(0.0, Math.min(1.0, su * 0.5 + 0.5));
+        nv = Math.max(0.0, Math.min(1.0, sv * 0.5 + 0.5));
       }
 
       const avgH = Math.floor((dataWave[idx0 + 2] + dataWave[idxN + 2]) * 0.5);

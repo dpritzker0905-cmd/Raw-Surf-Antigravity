@@ -206,8 +206,12 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     const height = activeSource.height !== undefined ? activeSource.height : speed;
     const direction = activeSource.direction !== undefined ? activeSource.direction : ((Math.atan2(-u, -v_val) * 180 / Math.PI + 360) % 360);
     const isOcean = activeSource.is_valid !== false && activeSource.isOcean !== false;
+    // §0B-a: per-cell direction confidence (coarse NOAA products; absent elsewhere → null). Must be
+    // carried explicitly — this mapper rebuilds vectors field-by-field, so unknown fields are dropped.
+    const dirConfidence = typeof activeSource.dir_confidence === 'number' ? activeSource.dir_confidence
+      : (typeof activeSource.dirConfidence === 'number' ? activeSource.dirConfidence : null);
 
-    const componentUV = { u, v: v_val, speed, period, height, direction, isOcean };
+    const componentUV = { u, v: v_val, speed, period, height, direction, isOcean, dirConfidence };
 
     const getConjoinedLayer = (layerName) => {
       if (v[layerName]) {
@@ -219,7 +223,9 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
         const subHeight = sub.height !== undefined ? sub.height : subSpeed;
         const subDirection = sub.direction !== undefined ? sub.direction : ((Math.atan2(-subU, -subV) * 180 / Math.PI + 360) % 360);
         const subIsOcean = sub.isOcean !== undefined ? sub.isOcean : (sub.is_valid !== false && isOcean);
-        return { u: subU, v: subV, speed: subSpeed, period: subPeriod, height: subHeight, direction: subDirection, isOcean: subIsOcean };
+        const subDirConfidence = typeof sub.dir_confidence === 'number' ? sub.dir_confidence
+          : (typeof sub.dirConfidence === 'number' ? sub.dirConfidence : null);
+        return { u: subU, v: subV, speed: subSpeed, period: subPeriod, height: subHeight, direction: subDirection, isOcean: subIsOcean, dirConfidence: subDirConfidence };
       }
       return layer === layerName ? componentUV : zeroVec;
     };
@@ -234,6 +240,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       height,
       direction,
       isOcean,
+      dirConfidence,
       waves: getConjoinedLayer('waves'),
       swell_1: getConjoinedLayer('swell_1'),
       swell_2: getConjoinedLayer('swell_2'),
