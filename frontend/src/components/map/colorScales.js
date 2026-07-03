@@ -227,16 +227,17 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
     } else {
       t = 0.92 + Math.min(1.0, (h - 3.7) / 1.3) * 0.08;
     }
-  } else if (h < 0.5) {
-    // v4.2 mirror (2026-07-03): +20% low-range contrast — keep in sync with getNonlinearT in
-    // WebGLMarineShaders.js (0.18/0.60/0.84/0.94 anchors; surf branch above unchanged).
-    t = (h / 0.5) * 0.18;
-  } else if (h < 1.5) {
-    t = 0.18 + ((h - 0.5) / 1.0) * 0.42;
-  } else if (h < 3.0) {
-    t = 0.60 + ((h - 1.5) / 1.5) * 0.24;
+  } else if (h < 0.6) {
+    // v5 mirror (2026-07-04): anchors re-seated on the legend ticks (0.6/1.2/2.4/5m = 2/4/8/16 ft)
+    // — keep in sync with getNonlinearT in WebGLMarineShaders.js (0.20/0.46/0.72/0.94 splits;
+    // surf branch above unchanged).
+    t = (h / 0.6) * 0.20;
+  } else if (h < 1.2) {
+    t = 0.20 + ((h - 0.6) / 0.6) * 0.26;
+  } else if (h < 2.4) {
+    t = 0.46 + ((h - 1.2) / 1.2) * 0.26;
   } else if (h < 5.0) {
-    t = 0.84 + ((h - 3.0) / 2.0) * 0.10;
+    t = 0.72 + ((h - 2.4) / 2.6) * 0.22;
   } else {
     t = 0.94 + Math.min(1.0, (h - 5.0) / 5.0) * 0.06;
   }
@@ -265,11 +266,21 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
     c5 = [255, 255, 255];
   }
 
-  // v4.2: band splits follow the mode's t-curve (mirror of getThemedWaveColor in
-  // WebGLMarineShaders.js) — non-surf reshaped to 0.18/0.60/0.84/0.94, surf unchanged.
-  const b1 = surfMode ? 0.15 : 0.18;
-  const b2 = surfMode ? 0.50 : 0.60;
-  const b3 = surfMode ? 0.80 : 0.84;
+  // v5 (2026-07-04): non-surf low-band hue rotation — c1 (the 2 ft anchor) moves to the green
+  // family so 0/2/4 ft carry distinct HUES, not just lightness (mirror of getThemedWaveColor in
+  // WebGLMarineShaders.js). Beach already rotates turquoise->coral here — unchanged. Surf mode
+  // keeps the original anchors + splits so the tuned surf colormap stays byte-identical.
+  if (!surfMode) {
+    if (theme === 'light') {
+      c1 = [26, 166, 138];  // 2ft/0.6m - Sea Green (was sky-cyan)
+    } else if (theme !== 'beach') {
+      c1 = [0, 209, 130];   // 2ft/0.6m - Neon Spring Green (was teal)
+    }
+  }
+  // Band splits follow the mode's t-curve — non-surf v5 0.20/0.46/0.72/0.94, surf unchanged.
+  const b1 = surfMode ? 0.15 : 0.20;
+  const b2 = surfMode ? 0.50 : 0.46;
+  const b3 = surfMode ? 0.80 : 0.72;
   const b4 = surfMode ? 0.92 : 0.94;
   let rgb;
   if (t < b1) {

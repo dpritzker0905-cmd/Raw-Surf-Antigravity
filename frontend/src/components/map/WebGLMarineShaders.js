@@ -72,18 +72,20 @@ float latToMercatorY(float lat) {
 }
 
 float getNonlinearT(float h) {
-  // v4.2 (2026-07-03): +20% low-range contrast — flat-to-small waves were hard to tell apart while
-  // big waves saturate early anyway. 0-0.5m 15%->18% of the ramp and 0.5-1.5m 35%->42% (both +20%
-  // slope); the 1.5-3m band gives back what the low range gains; >3m keeps its saturated colors.
-  // Surf mode (getSurfT) is untouched. Anchor heights stay 0.5/1.5/3/5m — colors per theme unchanged.
-  if (h < 0.5) {
-    return (h / 0.5) * 0.18;
-  } else if (h < 1.5) {
-    return 0.18 + ((h - 0.5) / 1.0) * 0.42;
-  } else if (h < 3.0) {
-    return 0.60 + ((h - 1.5) / 1.5) * 0.24;
+  // v5 (2026-07-04): anchors re-seated ON the legend ticks. v4.2's +20% slope wasn't enough —
+  // 0/2/4 ft still lived inside ONE hue segment (teal->cyan, ~12 deg of hue), differing only in
+  // lightness (user report: "can't tell 0 or 2 ft from 4 ft"). Colormap best practice (Moreland /
+  // ColorCET; Windy's wave scale) wants a HUE step per legend step at the low end. Anchor heights
+  // move 0.5/1.5/3/5m -> 0.6/1.2/2.4/5m (= the 2/4/8/16 ft legend ticks), so each legend color IS
+  // an anchor color: 0ft=c0, 2ft=c1, 4ft=c2, 8ft=c3. Surf mode (getSurfT) is untouched.
+  if (h < 0.6) {
+    return (h / 0.6) * 0.20;
+  } else if (h < 1.2) {
+    return 0.20 + ((h - 0.6) / 0.6) * 0.26;
+  } else if (h < 2.4) {
+    return 0.46 + ((h - 1.2) / 1.2) * 0.26;
   } else if (h < 5.0) {
-    return 0.84 + ((h - 3.0) / 2.0) * 0.10;
+    return 0.72 + ((h - 2.4) / 2.6) * 0.22;
   } else {
     return 0.94 + clamp((h - 5.0) / 5.0, 0.0, 1.0) * 0.06;
   }
@@ -144,12 +146,29 @@ vec3 getThemedWaveColor(float h, float theme, float surfMode) {
     c5 = vec3(1.00, 1.00, 1.00); // 10.0m+ - Pure Glowing Neon White
   }
   
-  // v4.2: Interpolation band splits follow each MODE's t-curve so anchor heights keep their anchor
-  // colors: non-surf uses the reshaped getNonlinearT splits (0.18/0.60/0.84/0.94); surf mode keeps
-  // the original 0.15/0.50/0.80/0.92 so the tuned surf colormap stays byte-identical.
-  float b1 = surfMode > 0.5 ? 0.15 : 0.18;
-  float b2 = surfMode > 0.5 ? 0.50 : 0.60;
-  float b3 = surfMode > 0.5 ? 0.80 : 0.84;
+  // v5 (2026-07-04): non-surf low-band HUE rotation — the 0-8 ft range read as one cyan family
+  // (only lightness varied), so 2 ft vs 4 ft was unreadable on the animated map. c1 (now the 2 ft
+  // anchor, see getNonlinearT v5) rotates to the green family — the same low-band hue step every
+  // major wave map uses (Windy: blue->green->yellow) — giving the legend ladder distinct hues:
+  // dark  navy -> spring green -> electric cyan -> blue-violet -> magenta -> white
+  // light mist -> sea green    -> deep azure    -> royal purple -> orchid  -> white
+  // beach already rotates turquoise->coral across this band — unchanged.
+  // Surf mode keeps the ORIGINAL anchors + splits so the tuned surf colormap stays byte-identical.
+  if (surfMode < 0.5) {
+    if (theme > 1.5) {
+      // beach: anchors unchanged
+    } else if (theme > 0.5) {
+      c1 = vec3(0.10, 0.65, 0.54); // 2ft/0.6m - Sea Green (was sky-cyan)
+    } else {
+      c1 = vec3(0.00, 0.82, 0.51); // 2ft/0.6m - Neon Spring Green (was teal)
+    }
+  }
+  // Interpolation band splits follow each MODE's t-curve so anchor heights keep their anchor
+  // colors: non-surf uses the v5 getNonlinearT splits (0.20/0.46/0.72/0.94); surf mode keeps
+  // the original 0.15/0.50/0.80/0.92.
+  float b1 = surfMode > 0.5 ? 0.15 : 0.20;
+  float b2 = surfMode > 0.5 ? 0.50 : 0.46;
+  float b3 = surfMode > 0.5 ? 0.80 : 0.72;
   float b4 = surfMode > 0.5 ? 0.92 : 0.94;
   if (t < b1) {
     return mix(c0, c1, t / b1);
