@@ -145,7 +145,7 @@ vec3 getThemedWaveColor(float h, float theme, float surfMode) {
     c5 = vec3(1.00, 1.00, 1.00); // 10.0m+ - Pure Crisp White
   } else {
     // Dark Mode: cosmic navy → subtle teal → electric cyan → blue-violet → magenta → white
-    c0 = vec3(0.01, 0.02, 0.08); // 0.0m - Deep Cosmic Navy-Indigo
+    c0 = vec3(0.01, 0.02, 0.08); // 0.0m - Deep Cosmic Navy-Indigo (surf mode keeps this; non-surf lifts below)
     c1 = vec3(0.00, 0.55, 0.75); // 0.5m - Cool Deep Teal (subtle, not blinding)
     c2 = vec3(0.00, 0.92, 1.00); // 1.5m - Electric Cyan (vivid mid-range)
     c3 = vec3(0.35, 0.15, 1.00); // 3.0m - Vivid Electric Blue-Violet
@@ -168,6 +168,13 @@ vec3 getThemedWaveColor(float h, float theme, float surfMode) {
       c1 = vec3(0.10, 0.65, 0.54); // 2ft/0.6m - Sea Green (was sky-cyan)
     } else {
       c1 = vec3(0.00, 0.82, 0.51); // 2ft/0.6m - Neon Spring Green (was teal)
+      // c0 LIFTED 2026-07-04 (low-wave legibility, NON-SURF DARK only — surf mode byte-identical):
+      // the near-black navy floor made genuinely CALM water (0.1-0.3m — sheltered bays / light-swell
+      // days: Kvarner Gulf 0.14m NOAA-confirmed) indistinguishable from the dark basemap = the user's
+      // "heatmap cleared" at every calm coastal zoom. Deep ocean blue keeps the "calm" read (darkest
+      // hue, below the 2ft spring-green anchor) while making small-but-real waves legible. Mirror of
+      // colorScales.js dark non-surf c0.
+      c0 = vec3(0.05, 0.19, 0.36); // 0.0m - Deep Ocean Blue (visible calm floor)
     }
   }
   // Interpolation band splits follow each MODE's t-curve so anchor heights keep their anchor

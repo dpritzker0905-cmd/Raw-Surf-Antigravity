@@ -258,7 +258,7 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
     c4 = [217, 46, 128];
     c5 = [255, 255, 255];
   } else {
-    c0 = [3, 5, 20];
+    c0 = [3, 5, 20];      // surf mode keeps this near-black; non-surf lifts it below
     c1 = [0, 140, 191];
     c2 = [0, 235, 255];
     c3 = [89, 38, 255];
@@ -275,6 +275,10 @@ export function getThemedWaveColorJS(h, theme, surfMode = false) {
       c1 = [26, 166, 138];  // 2ft/0.6m - Sea Green (was sky-cyan)
     } else if (theme !== 'beach') {
       c1 = [0, 209, 130];   // 2ft/0.6m - Neon Spring Green (was teal)
+      // c0 LIFTED 2026-07-04 (low-wave legibility, NON-SURF DARK only — surf byte-identical): near-black
+      // [3,5,20] made calm water (0.1-0.3m sheltered bays / light-swell days: Kvarner 0.14m) invisible on
+      // the dark basemap = "heatmap cleared". Deep ocean blue keeps the calm read, small waves legible.
+      c0 = [13, 48, 92];    // mirror of WebGLMarineShaders.js dark non-surf c0 vec3(0.05,0.19,0.36)
     }
   }
   // Band splits follow the mode's t-curve — non-surf v5 0.20/0.46/0.72/0.94, surf unchanged.
