@@ -5,7 +5,7 @@
  * and the render backstop never re-drove — the coarse grid block-means to ~0 at the coast and read
  * near-blank forever. The new kind 'regional_too_coarse' flags it so the backstop sharpens.
  */
-import { detectClamp, CLAMP_COARSE_CELL_DEG, CLAMP_MIN_CELLS_ACROSS } from './useMarineScrubSettle';
+import { detectClamp, CLAMP_COARSE_CELL_DEG, CLAMP_MIN_CELLS_ACROSS, isRetainedRegionalZoomedOut } from './useMarineScrubSettle';
 
 // Minimal live-engine + map mocks. mapInstance.getBounds() returns maplibre-style accessors.
 const setEngineGrid = (grid) => {
@@ -65,5 +65,32 @@ describe('detectClamp — covers-but-too-coarse (regional_too_coarse)', () => {
   it('exports sane threshold constants', () => {
     expect(CLAMP_COARSE_CELL_DEG).toBe(0.5);
     expect(CLAMP_MIN_CELLS_ACROSS).toBe(3);
+  });
+});
+
+describe('isRetainedRegionalZoomedOut — the "cleared at ~z6.95" zoom-out reject (2026-07-04)', () => {
+  const engWith = (bounds) => ({ _waveData: { waveGrid: { bounds } } });
+  const regional = { west: 12, east: 17, south: 42, north: 46.5 }; // span 5° = regional
+  const global = { west: -180, east: 180, south: -85, north: 85 }; // span 360° = global
+
+  it('TRUE for a regional grid at a zoomed-out viewport (z ≤ 7.0) — the wedge', () => {
+    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(6.95, { west: 12.8, south: 42.3, east: 17.9, north: 46.2 }))).toBe(true);
+  });
+
+  it('FALSE for a GLOBAL grid at a zoomed-out viewport (it displays correctly — do not recover over it)', () => {
+    expect(isRetainedRegionalZoomedOut(engWith(global), mkMap(6.95, { west: 12.8, south: 42.3, east: 17.9, north: 46.2 }))).toBe(false);
+  });
+
+  it('FALSE for a regional grid when zoomed IN (z > 7.0 — the gate accepts it, no reject)', () => {
+    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(9.5, { west: 14.0, south: 44.5, east: 15.0, north: 45.3 }))).toBe(false);
+  });
+
+  it('FALSE when the engine has no data (that is the plain engineEmpty path)', () => {
+    expect(isRetainedRegionalZoomedOut({ _waveData: null }, mkMap(6.5, { west: 12, south: 42, east: 18, north: 46 }))).toBe(false);
+    expect(isRetainedRegionalZoomedOut(null, mkMap(6.5, { west: 12, south: 42, east: 18, north: 46 }))).toBe(false);
+  });
+
+  it('TRUE via wide viewport span even above z7 (span > 15° is the gate\'s other zoomed-out trigger)', () => {
+    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(7.5, { west: 0, south: 35, east: 20, north: 50 }))).toBe(true);
   });
 });

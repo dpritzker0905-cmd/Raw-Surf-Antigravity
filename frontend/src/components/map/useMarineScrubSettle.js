@@ -66,6 +66,27 @@ export function detectClamp(mapInstance) {
   }
 }
 
+// RETAINED-REGIONAL zoom-out detector (2026-07-04, "cleared at ~z6.95"): the zoom-flash fix
+// (56465397) RETAINS the stale regional grid on a zoom-out reject instead of clearing the engine, so
+// `engineEmpty` is false; the display gate (WebGLMarineCustomLayer: gridWidth<340 at a zoomed-out
+// viewport) then fades that regional grid to opacityMultiplier 0 / skips its render, leaving a BLANK
+// heatmap with no global-coarse fallback. A retained REGIONAL grid at a zoomed-out viewport is
+// display-equivalent to empty → both the §2b recovery AND the blank backstop must treat it as such
+// so the GLOBAL-coarse frame gets fetched + committed. Exported for tests.
+export function isRetainedRegionalZoomedOut(eng, mapInstance) {
+  try {
+    const eg = eng && eng._waveData && eng._waveData.waveGrid;
+    const egb = eg && eg.bounds;
+    if (!egb || !mapInstance) return false;
+    const egSpan = (egb.east < egb.west) ? (egb.east + 360 - egb.west) : (egb.east - egb.west);
+    if (!(egSpan > 0 && egSpan < 340)) return false;   // only a REGIONAL grid can be zoom-out-rejected
+    const b = mapInstance.getBounds();
+    const vw = (b.getEast() < b.getWest()) ? (b.getEast() + 360 - b.getWest()) : (b.getEast() - b.getWest());
+    const vh = Math.abs(b.getNorth() - b.getSouth());
+    return vw > 15.0 || vh > 15.0 || mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM;
+  } catch (e) { return false; }
+}
+
 // How long a marine fetch-PENDING flag may persist with no live fetch backing it before we treat it as
 // STRANDED. Symmetric to MARINE_FETCH_LEASE_MS (the isFetching lease in useMarineDataFetcherCore) but for
 // the wedge the isFetching-gated watchdog CANNOT see: __MARINE_FETCH_PENDING__ stuck non-null while
@@ -283,7 +304,11 @@ export function runScrubSettleCheck(ctx) {
     const eng = typeof window !== 'undefined' ? window.__MARINE_ENGINE__ : null;
     const engineEmpty = !!(eng && !eng._waveData);
     const pendingNow = typeof window !== 'undefined' && !!window.__MARINE_FETCH_PENDING__;
-    if (engineEmpty && !pendingNow && mapInstance && activeMarineLayerRef.current &&
+    // A retained REGIONAL grid at a zoomed-out viewport is display-equivalent to empty (rejected +
+    // faded to op 0 by the gate) → run the same GLOBAL-frame recovery. Self-limiting: once the global
+    // (span≥340) commits, the grid is no longer regional → this stops (no loop). See the helper.
+    const retainedRegionalZoomedOut = !engineEmpty && isRetainedRegionalZoomedOut(eng, mapInstance);
+    if ((engineEmpty || retainedRegionalZoomedOut) && !pendingNow && mapInstance && activeMarineLayerRef.current &&
         marineData && marineData.grid?.vectors?.length) {
       const b = mapInstance.getBounds();
       const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
@@ -527,7 +552,14 @@ export function useMarineScrubSettle({
         }
       }
 
-      const needsRefetch = (!(eng && eng._waveData) || clamp) && !window.__MARINE_FETCH_PENDING__ && govIdle;
+      // RETAINED-REGIONAL zoom-out (2026-07-04, "cleared at ~z6.95"): a regional grid held (retained,
+      // not empty) at a zoomed-out viewport is faded to op 0 by the display gate → display-empty. The
+      // §2b recovery commits the GLOBAL frame, but on a COLD global cache it must fetch first, and the
+      // moveend that fired the recovery once won't re-fire to commit the warmed frame — so the backstop
+      // must keep re-driving until the global (span≥340) commits. Add it to needsRefetch; self-limiting
+      // (once global commits it's no longer regional → false).
+      const retainedRegionalZoomedOut = isRetainedRegionalZoomedOut(eng, mapInstance);
+      const needsRefetch = (!(eng && eng._waveData) || clamp || retainedRegionalZoomedOut) && !window.__MARINE_FETCH_PENDING__ && govIdle;
       if (!needsRefetch) { blankStreak = 0; clampNoProgress = 0; clampSig = null; return; }
       blankStreak++;
       if (blankStreak < 3) return;                   // require ~3s sustained (ignores the brief load gap)
