@@ -488,11 +488,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       if (z < BASEMAP_MASK_MIN_ZOOM) return;
       const now = Date.now();
       if (now - basemapMaskThrottleRef.current < 700) return;
-      basemapMaskThrottleRef.current = now;
       const engine = engineRef.current;
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
       if (engine && gl && engine.refreshMaskWithBasemapWater) {
-        if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
+        // Consume the throttle ONLY when a paint actually happened (2026-07-04, "rectangle
+        // holes"): a moveend attempt that the tile-readiness gate (or hysteresis) skipped used to
+        // eat the window and starve the `idle` refresh that would have painted real truth —
+        // missing-tile rectangles then persisted until the next gesture. Skipped attempts are
+        // cheap (bounds math only), so leaving the window open costs nothing.
+        if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) {
+          basemapMaskThrottleRef.current = now;
+          mapInstance.triggerRepaint();
+        }
       }
     };
     // idle fires after moveend AND after tile loads settle — the water tiles we sample from are

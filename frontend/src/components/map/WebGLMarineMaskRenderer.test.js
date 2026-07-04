@@ -8,7 +8,7 @@
  * commit" state (live repro at (-79.9, 28.3) z9; isolated replica: FL tile drew 9/10 features →
  * 0% ocean; global control 63.8% ocean).
  */
-import { getPolygonBbox, polygonOverlapsTarget, overlayBasemapWaterOnMask, classifySheltered } from './WebGLMarineMaskRenderer';
+import { getPolygonBbox, polygonOverlapsTarget, overlayBasemapWaterOnMask, classifySheltered, makeMaskProjector, isBasemapWaterSourceReady, pickBasinVerdict } from './WebGLMarineMaskRenderer';
 
 // jsdom has no 2D canvas — keep the sheltered-water canvas wrapper out of the painter tests
 // (its pure grid core is covered directly by the classifySheltered describe below).
@@ -120,6 +120,80 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
   });
 });
 
+describe('overlayBasemapWaterOnMask — STRICT-viewport truth region (the "rectangle holes", 2026-07-04)', () => {
+  // Both tile queries only see tiles covering the CURRENT viewport, so any padded patch rect
+  // black-fills a ring the water polygons can never repaint white — a black land frame baked into
+  // the mask that pans/zoom-outs scrolled on screen as giant straight-edged heatmap holes. The
+  // truth patch must therefore be the STRICT viewport; outside it the NE base canvas stands.
+  const mkCtx = () => {
+    const calls = [];
+    const ctx = { fillStyle: '#000' };
+    for (const m of ['save', 'beginPath', 'rect', 'clip', 'fillRect', 'moveTo', 'lineTo', 'closePath', 'fill', 'restore']) {
+      ctx[m] = (...a) => calls.push([m, ...a]);
+    }
+    return { ctx, calls };
+  };
+  const bounds = { west: 11, south: 44, east: 13, north: 46 };
+  const viewport = { west: 12.2, south: 45.3, east: 12.5, north: 45.5 };
+  const oceanFeat = {
+    properties: { class: 'ocean' },
+    geometry: { type: 'Polygon', coordinates: [[[11.5, 44.5], [12.5, 44.5], [12.5, 45.5], [11.5, 45.5], [11.5, 44.5]]] },
+  };
+  const mkMap = () => ({
+    getStyle: () => ({ layers: [{ id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' }] }),
+    getBounds: () => ({ getWest: () => viewport.west, getEast: () => viewport.east, getSouth: () => viewport.south, getNorth: () => viewport.north }),
+    queryRenderedFeatures: jest.fn(() => [oceanFeat]),
+    querySourceFeatures: jest.fn(() => []),
+  });
+
+  it('black-fills EXACTLY the strict viewport — no pad ring beyond tile-query coverage', () => {
+    const { ctx, calls } = mkCtx();
+    const ok = overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, mkMap());
+    expect(ok).toBe(true);
+    const project = makeMaskProjector(bounds, 256, 128);
+    const [ex0, ey0] = project(viewport.west, viewport.north);
+    const [ex1, ey1] = project(viewport.east, viewport.south);
+    const rectCall = calls.find(([m]) => m === 'rect');
+    expect(rectCall).toBeDefined();
+    const [, rx, ry, rw, rh] = rectCall;
+    expect(rx).toBeCloseTo(Math.min(ex0, ex1), 5);
+    expect(ry).toBeCloseTo(Math.min(ey0, ey1), 5);
+    expect(rx + rw).toBeCloseTo(Math.max(ex0, ex1), 5);
+    expect(ry + rh).toBeCloseTo(Math.max(ey0, ey1), 5);
+  });
+});
+
+describe('isBasemapWaterSourceReady — tile-readiness gate (the "rectangle holes", 2026-07-04)', () => {
+  const mkMap = (isSourceLoaded) => ({
+    getStyle: () => ({ layers: [{ id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' }] }),
+    ...(isSourceLoaded !== undefined ? { isSourceLoaded } : {}),
+  });
+
+  it('blocks painting while the water source is mid-load', () => {
+    expect(isBasemapWaterSourceReady(mkMap(jest.fn(() => false)))).toBe(false);
+  });
+
+  it('allows painting once the water source reports loaded', () => {
+    const load = jest.fn(() => true);
+    const map = mkMap(load);
+    expect(isBasemapWaterSourceReady(map)).toBe(true);
+    expect(load).toHaveBeenCalledWith('composite');
+  });
+
+  it('fails OPEN when the readiness answer is non-boolean (missing source id) or the API is absent', () => {
+    expect(isBasemapWaterSourceReady(mkMap(jest.fn(() => undefined)))).toBe(true);
+    expect(isBasemapWaterSourceReady(mkMap(undefined))).toBe(true);
+  });
+
+  it('fails OPEN when the style query throws (style mid-load)', () => {
+    expect(isBasemapWaterSourceReady({ getStyle: () => { throw new Error('not loaded'); }, isSourceLoaded: () => false })).toBe(true);
+  });
+
+  it('returns false without a map instance', () => {
+    expect(isBasemapWaterSourceReady(null)).toBe(false);
+  });
+});
+
 describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lagoon marshes, 2026-07-04)', () => {
   // Sea-connected lagoons arrive as OCEAN-class water (OSM coastline convention), so marshes drawn
   // on top as landcover WETLAND polygons must repaint black or crest dashes march over visible land.
@@ -182,6 +256,31 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     expect(overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map)).toBe(true);
     const fills = calls.filter(([m]) => m === 'fill');
     expect(fills.filter(([, s]) => s === '#000000').length).toBe(0); // nothing painted black beyond hole pass
+  });
+});
+
+describe('pickBasinVerdict — basin-verdict cache selection (Canal Grande at deep zoom, 2026-07-04)', () => {
+  // Crisp deep-zoom canvases can't classify sheltered water themselves (sub-basin windows
+  // mis-read connectivity), so they darken with a cached basin-scale verdict: the FINEST entry
+  // whose bounds CONTAIN the target.
+  const entry = (west, south, east, north, mPerPx) => ({ bounds: { west, south, east, north }, mPerPx });
+  const target = { west: 12.31, south: 45.41, east: 12.36, north: 45.46 }; // the Canal Grande view
+
+  it('picks the finest containing verdict, not the newest', () => {
+    const grid154 = entry(11, 44, 13, 46, 154);       // regional grid canvas verdict
+    const basin53 = entry(11.99, 45.07, 12.69, 45.77, 53); // world-window 0.7° basinScale verdict
+    expect(pickBasinVerdict([grid154, basin53], target)).toBe(basin53);
+    expect(pickBasinVerdict([basin53, grid154], target)).toBe(basin53);
+  });
+
+  it('ignores verdicts that do not fully contain the target', () => {
+    const offSite = entry(-81, 27, -79, 29, 53);      // Florida verdict cannot serve Venice
+    const partial = entry(12.33, 45.0, 13.0, 45.44, 53); // cuts through the target box
+    expect(pickBasinVerdict([offSite, partial], target)).toBe(null);
+  });
+
+  it('returns null for an empty cache', () => {
+    expect(pickBasinVerdict([], target)).toBe(null);
   });
 });
 

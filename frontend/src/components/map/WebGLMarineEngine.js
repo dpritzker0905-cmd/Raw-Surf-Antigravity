@@ -20,7 +20,7 @@ import {
   createTexture,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
-import { renderMaskToCanvas, overlayBasemapWaterOnMask } from './WebGLMarineMaskRenderer';
+import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
@@ -671,21 +671,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // Close-zoom damp (2026-07-04, Long Beach land-bleed report): the coarse base is the WORLD grid
     // whose land-mask canvas is 1024x512 (~39 km/texel) — at harbor zooms the wash paints softly over
     // land/waterways no matter how good the polygons are. The regional tile fully covers the viewport
-    // at these zooms, so the wash adds nothing there; fade it out entirely across z8→9.5.
-    const _washZoomDamp = 1.0 - smoothstepVal(8.0, 9.5, z);
+    // at these zooms, so the wash adds nothing there — damp it across z8→9.5. FLOOR 0.35, never 0
+    // (live 2026-07-04 zoom-out report): during a zoom-out the ring revealed beyond the regional
+    // tile has ONLY this wash to show — a zero damp blanked it ("the heatmap cleared, then came
+    // back") until z<8 restored it. Dim reads as loading; blank reads as a bug — the same lesson
+    // as the coarse-fade 0.7 and no-truth 0.3 floors.
+    const _washZoomDamp = 1.0 - 0.65 * smoothstepVal(8.0, 9.5, z);
     const baseWashOpacity = heatmapZoomOpacity(z) * mult * _blendBaseWash * _washZoomDamp;
-
-    // ==========================================
-    // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
-    // Draw base heatmap instantly using fallback grid mask texture if land mask is loading.
-    // ==========================================
-    gl.enable(gl.BLEND);
-    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
-
-    // PHASE 0 (BLEND BOTH): faded coarse-global wash painted under the regional tile (same premultiplied blend).
-    if (blendEngaged) {
-      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity);
-    }
 
     // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different
     // geography than the data grid — refreshMaskWithBasemapWater rebuilds it VIEWPORT-scoped while
@@ -708,6 +700,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, bounds: overlayOn ? ob : null };
+    }
+
+    // ==========================================
+    // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
+    // Draw base heatmap instantly using fallback grid mask texture if land mask is loading.
+    // ==========================================
+    gl.enable(gl.BLEND);
+    gl.blendFunc(gl.ONE, gl.ONE_MINUS_SRC_ALPHA);
+
+    // PHASE 0 (BLEND BOTH): faded coarse-global wash painted under the regional tile (same
+    // premultiplied blend). The base is a WORLD grid, so when a viewport-truth overlay exists it
+    // REPLACES the base's 39 km mask inside its bounds — the floored wash is then land-clipped at
+    // meter truth wherever truth has been painted.
+    if (blendEngaged) {
+      const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds)
+        ? { tex: this._overlayMaskTex, bounds: this._overlayMaskBounds } : null;
+      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity, baseOverlay);
     }
 
     gl.useProgram(this.heatmapProgram);
@@ -1344,6 +1353,11 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     } catch (e3) { /* enhancement only */ }
     return false;
   }
+  // TILE-READINESS GATE (the "rectangle holes" root, 2026-07-04): painting while the water source
+  // is mid-load bakes missing-tile rectangles into the mask as false land, and the hysteresis
+  // above then keeps the bad paint. Skip entirely — the resident mask (NE truth) serves, and the
+  // layer's `idle` listener re-drives this refresh once every covering tile is queryable.
+  if (!isBasemapWaterSourceReady(mapInstance)) return false;
   try {
     const canvas = renderMaskToCanvas(geo, bounds);
     const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
@@ -1355,14 +1369,12 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
     gl.bindTexture(gl.TEXTURE_2D, prevTex);
-    // Record the patched region (mirror of the painter's 40% pad) for the hysteresis above.
+    // Record the TRUTH box for the hysteresis above — the STRICT viewport the painter actually
+    // repainted (the old 40%-padded box claimed truth over a ring the tile queries can never
+    // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
+    // still skip; any pan escaping it repaints (throttled + tile-gated at the layer).
     if (curView) {
-      const pw = (curView.east - curView.west) * 0.4;
-      const ph = (curView.north - curView.south) * 0.4;
-      this._regionalPatchState = {
-        gridKey,
-        box: { west: curView.west - pw, south: curView.south - ph, east: curView.east + pw, north: curView.north + ph },
-      };
+      this._regionalPatchState = { gridKey, box: { ...curView } };
     }
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };
@@ -1398,9 +1410,11 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   // and the padded viewport outgrows the useful canvas tiers.
   if (z < 7) return false;
   let bounds;
+  let view = null;
   let viewSpan = 0;
   try {
     const b = mapInstance.getBounds();
+    view = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
     viewSpan = b.getEast() - b.getWest();
     // 50% pad (was 15%): each paint survives several pan/zoom gestures before the hysteresis
     // below forces a repaint — the paint itself is the choppiness (stair-climb forensics: 38
@@ -1427,18 +1441,24 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       const cy = (bounds.north + bounds.south) / 2;
       bounds.south = Math.max(-85, cy - MIN_SPAN / 2); bounds.north = Math.min(85, cy + MIN_SPAN / 2);
     }
-    // HYSTERESIS (the stair-climb fix): if the previous overlay still CONTAINS the current padded
-    // viewport AND its resolution is still adequate (span not more than ~5× the viewport — i.e.
-    // the user hasn't zoomed far past its texel density), skip the repaint entirely. Small pans
-    // and zoom-ins inside the painted region cost NOTHING; escaping it repaints once.
+    // HYSTERESIS (the stair-climb fix): if the previous paint's TRUTH box (the strict viewport it
+    // actually repainted from tile truth — NOT the padded texture bounds, whose ring is only NE
+    // base truth) still CONTAINS the current viewport AND its resolution is still adequate (span
+    // not more than ~5× the viewport — i.e. the user hasn't zoomed far past its texel density),
+    // skip the repaint entirely. Zoom-ins inside the truth box cost NOTHING; escaping it repaints
+    // once (throttled at the layer, tile-gated below).
     const prev = this._overlayMaskBounds;
-    if (prev && this._overlayMaskTex &&
-        prev.west <= bounds.west && prev.east >= bounds.east &&
-        prev.south <= bounds.south && prev.north >= bounds.north &&
+    const prevTruth = this._overlayMaskTruthBox;
+    if (prev && prevTruth && this._overlayMaskTex &&
+        prevTruth.west <= view.west && prevTruth.east >= view.east &&
+        prevTruth.south <= view.south && prevTruth.north >= view.north &&
         (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
       return false; // still fresh — no repaint, no upload
     }
   } catch (e) { return false; }
+  // TILE-READINESS GATE (the "rectangle holes" root): never paint truth from a mid-load source —
+  // skip and let the `idle`-driven refresh land the paint when every covering tile is queryable.
+  if (!isBasemapWaterSourceReady(mapInstance)) return false;
   try {
     // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
     // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
@@ -1461,8 +1481,11 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
     gl.bindTexture(gl.TEXTURE_2D, prevTex);
     this._overlayMaskBounds = bounds;
+    // The region the painter truth-painted from tiles = the strict viewport at paint time; the
+    // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
+    this._overlayMaskTruthBox = view;
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString(), overlay: true, bounds };
+      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString(), overlay: true, bounds, truthBox: view };
     }
     return true;
   } catch (e) {
@@ -1508,7 +1531,7 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
 
 // Draw the retained coarse-global grid as a faded background wash. Same heatmap program + premultiplied blend as
 // the main pass; height-alpha OFF (solid wash) and edge-feather OFF (it's global, no regional rectangle to soften).
-WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, time, baseOpacity) {
+WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, time, baseOpacity, overlay) {
   const base = this._coarseBaseData;
   if (!base || !base.u_waveTexture || !base.bounds) return;
   const bb = base.bounds;
@@ -1529,10 +1552,16 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
-  // No viewport overlay on the base wash (it only draws under a REGIONAL grid, which carries the
-  // basemap truth itself); fallback-bind unit 4 so the sampler stays complete.
+  // Viewport-truth overlay on the base wash (2026-07-04 zoom-out): the base is a WORLD grid whose
+  // 39 km mask bleeds over land at z8+ — inside the overlay's bounds REPLACE the base sample at
+  // meter truth (same rationale as the wide-grid main pass); per-pixel fallback everywhere else.
+  const _bovOn = !!(overlay && overlay.tex && overlay.bounds);
+  const _bob = _bovOn ? overlay.bounds : { west: 0, south: 0, east: 0, north: 0 };
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
-  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), _bovOn ? 1.0 : 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), _bovOn ? 1.0 : 0.0);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), _bob.west, _bob.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), _bob.east, _bob.north);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
@@ -1552,7 +1581,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
   bindTexture(gl, base.u_oceanMaskTexture, 3);
-  bindTexture(gl, base.u_oceanMaskTexture, 4);
+  bindTexture(gl, _bovOn ? overlay.tex : base.u_oceanMaskTexture, 4);
 
   const heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
   let heatUVLoc = -1;

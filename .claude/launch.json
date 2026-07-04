@@ -27,6 +27,12 @@
       "port": 3001
     },
     {
+      "name": "frontend-verify",
+      "runtimeExecutable": "node",
+      "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',PORT:'3009',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
+      "port": 3009
+    },
+    {
       "name": "frontend-preview",
       "runtimeExecutable": "node",
       "runtimeArgs": ["-e", "const cp=require('child_process');const env=Object.assign({},process.env,{NODE_OPTIONS:'--openssl-legacy-provider',BROWSER:'none',CI:'false'});cp.spawn('npm start',{cwd:'C:/Users/dprit/Raw-Surf/frontend',stdio:'inherit',env,shell:true});"],
