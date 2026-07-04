@@ -24,10 +24,11 @@ uniform vec2 u_dataBounds_min;
 uniform vec2 u_dataBounds_max;
 uniform vec2 u_maskBounds_min;     // ocean-mask texture bounds (== the data grid; kept separate for auditability)
 uniform vec2 u_maskBounds_max;
-uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — overrides the base ONLY inside u_overlayBounds (stale-safe fallback outside)
+uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — applies ONLY inside u_overlayBounds (stale-safe fallback outside)
 uniform vec2 u_overlayBounds_min;
 uniform vec2 u_overlayBounds_max;
 uniform float u_overlayMaskEnabled;
+uniform float u_overlayReplace;    // 1 = replace the base sample (wide grid); 0 = min() combine (regional base already truthful)
 uniform float u_rand_seed;
 uniform float u_drop_rate;
 uniform float u_zoom;
@@ -136,7 +137,8 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      oceanFlag = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      float ovs = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      oceanFlag = (u_overlayReplace > 0.5) ? ovs : min(oceanFlag, ovs);
     }
   }
 
@@ -197,7 +199,8 @@ void main() {
     float no_u = (next_lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float no_v = (oMercMaxY - next_global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (no_u > 0.0 && no_u < 1.0 && no_v > 0.0 && no_v < 1.0) {
-      nextOceanFlag = texture2D(u_overlayMaskTexture, vec2(no_u, no_v)).r;
+      float novs = texture2D(u_overlayMaskTexture, vec2(no_u, no_v)).r;
+      nextOceanFlag = (u_overlayReplace > 0.5) ? novs : min(nextOceanFlag, novs);
     }
   }
 
@@ -275,10 +278,11 @@ uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
 uniform vec2 u_maskBounds_min;     // ocean-mask texture bounds (== the data grid; kept separate for auditability)
 uniform vec2 u_maskBounds_max;
-uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — overrides the base ONLY inside u_overlayBounds (stale-safe fallback outside)
+uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — applies ONLY inside u_overlayBounds (stale-safe fallback outside)
 uniform vec2 u_overlayBounds_min;
 uniform vec2 u_overlayBounds_max;
 uniform float u_overlayMaskEnabled;
+uniform float u_overlayReplace;    // 1 = replace the base sample (wide grid); 0 = min() combine (regional base already truthful)
 uniform float u_time;              // elapsed time in seconds
 uniform float u_zoom;              // map zoom level
 uniform float u_tileZoomMin;       // zoom above which the camera-centered tile is used (matches ADVECT_FS)
@@ -407,7 +411,8 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      oceanFlag = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      float ovs = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      oceanFlag = (u_overlayReplace > 0.5) ? ovs : min(oceanFlag, ovs);
     }
   }
 
@@ -634,7 +639,8 @@ void main() {
         float eo_u = (endLng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
         float eo_v = (oMercMaxY - endMerc.y) / max(oMercMaxY - oMercMinY, 0.0001);
         if (eo_u > 0.0 && eo_u < 1.0 && eo_v > 0.0 && eo_v < 1.0) {
-          endFlag = texture2D(u_overlayMaskTexture, vec2(eo_u, eo_v)).r;
+          float eovs = texture2D(u_overlayMaskTexture, vec2(eo_u, eo_v)).r;
+          endFlag = (u_overlayReplace > 0.5) ? eovs : min(endFlag, eovs);
         }
       }
       v_alpha *= smoothstep(0.20, 0.45, endFlag);

@@ -229,7 +229,14 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   //    land's 0 for mask-debug readability. Whole-canvas analysis so a bay whose entrance is off
   //    the viewport still classifies correctly. Kill: __RAW_DISABLE_SHELTERED_WATER__ = true.
   try {
-    if (typeof window === 'undefined' || window.__RAW_DISABLE_SHELTERED_WATER__ !== true) {
+    // Basin-scale canvases only (≥0.5° span): the classifier treats border-touching water as
+    // OPEN, so a window smaller than a basin cuts through it and mis-classifies; and its
+    // downsampled verdict upscales into mottled blocks on a crisp deep-zoom overlay (live z16
+    // report). Regional grid canvases (1°+) qualify; small viewport overlays skip — their
+    // sheltered truth arrives via the shader's min() combine with the regional base mask.
+    const _spanForSheltered = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+    if (_spanForSheltered >= 0.5 &&
+        (typeof window === 'undefined' || window.__RAW_DISABLE_SHELTERED_WATER__ !== true)) {
       const stats = suppressShelteredWater(canvas, bounds);
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.shelteredWater = stats || { applied: false };

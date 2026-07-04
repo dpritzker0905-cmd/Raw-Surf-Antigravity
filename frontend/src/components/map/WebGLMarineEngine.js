@@ -678,14 +678,21 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // carve any island — the Pianosa class). Every mask sample in the shaders uses these bounds.
     const maskBounds = (this._cachedMaskBounds && this._waveData.u_oceanMaskTexture === this._cachedMaskTex)
       ? this._cachedMaskBounds : waveBounds;
-    // Viewport-truth OVERLAY mask (refreshViewportOverlayMask): shaders consult it only inside its
-    // bounds, and only while a WIDE grid is resident — regional masks already carry the basemap
-    // truth at equal resolution, and the per-pixel fallback makes a stale overlay harmless.
+    // Viewport-truth OVERLAY mask (refreshViewportOverlayMask): shaders consult it only inside
+    // its bounds; per-pixel fallback makes a stale overlay harmless. Two regimes:
+    //  - WIDE (world) grid: overlay REPLACES the base sample (the 39 km base is too coarse to
+    //    trust anywhere near a coast).
+    //  - REGIONAL grid at deep zoom: overlay min()-COMBINES with the base (base is already
+    //    truthful incl. the sheltered-water verdict; the crisp overlay only ever removes wash —
+    //    the 27 m regional texels haloed over waterfront roads past ~z12).
     const _gwSpan = (waveBounds.east < waveBounds.west) ? (waveBounds.east + 360) - waveBounds.west : waveBounds.east - waveBounds.west;
-    const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds && _gwSpan >= 340);
+    const _ovSpan = this._overlayMaskBounds ? (this._overlayMaskBounds.east - this._overlayMaskBounds.west) : 0;
+    const _overlayReplace = _gwSpan >= 340;
+    const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds &&
+      (_overlayReplace || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5)));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, bounds: overlayOn ? ob : null };
     }
 
     gl.useProgram(this.heatmapProgram);
@@ -701,6 +708,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), ob.west, ob.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), ob.east, ob.north);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
@@ -1010,6 +1018,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_min'), ob.west, ob.south);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_max'), ob.east, ob.north);
 
@@ -1148,6 +1157,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskTexture'), 3);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_min'), ob.west, ob.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
@@ -1309,6 +1319,14 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };
     }
+    // DEEP-ZOOM CRISPNESS (2026-07-04 round 6): past ~z12 the regional canvas (1° @ 4096 ≈ 27 m/
+    // texel) halos the wash over waterfront roads — ALSO paint the crisp viewport overlay. The
+    // shaders min()-combine it with the regional base for non-wide grids, so the regional
+    // sheltered verdict and land truth both survive; the overlay only ever REMOVES wash.
+    try {
+      let _z2; try { _z2 = mapInstance.getZoom(); } catch (e2) { _z2 = 0; }
+      if (_z2 >= 12) this.refreshViewportOverlayMask(gl, mapInstance);
+    } catch (e2) { /* overlay is an enhancement */ }
     return true;
   } catch (e) {
     console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message);
@@ -1342,13 +1360,12 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       east: b.getEast() + padX,
       north: Math.min(85, b.getNorth() + padY),
     };
-    // MINIMUM SPAN 0.7° (≈60 km): the sheltered-water classifier treats border-touching water as
-    // OPEN by construction, so the analysis window must contain a basin's FULL extent — a 13 km
-    // window at z16 cut through the middle of the Venetian lagoon, the lagoon touched the border,
-    // and the channels came back to life (inconsistent with z11). 0.7° holds lagoon-scale basins
-    // whole, keeps 4096 px at ~19 m/texel (the regional 1° tier is 27 m — same class), and one
-    // overlay stays valid across an entire z10→z18 zoom session without repainting.
-    const MIN_SPAN = 0.7;
+    // MINIMUM SPAN 0.05° (≈4 km): only a degenerate-box floor. The overlay's job is CRISP
+    // viewport truth — a 0.7° attempt dropped deep zoom to 19 m/texel and the wash haloed over
+    // canal-side roads (live z16 report). Sheltered-water classification is deliberately NOT this
+    // canvas's job (the painter skips it below 0.5° span): basins classify on the basin-scale
+    // regional canvas, and the regional verdict survives via the min() combine in the shaders.
+    const MIN_SPAN = 0.05;
     if (bounds.east - bounds.west < MIN_SPAN) {
       const cx = (bounds.east + bounds.west) / 2;
       bounds.west = cx - MIN_SPAN / 2; bounds.east = cx + MIN_SPAN / 2;

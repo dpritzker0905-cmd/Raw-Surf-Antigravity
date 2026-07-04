@@ -64,7 +64,8 @@ uniform highp vec2 u_maskBounds_max;   // [east, north]
 uniform sampler2D u_overlayMaskTexture; // VIEWPORT-truth land mask (basemap water polygons) — valid only inside u_overlayBounds
 uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixels OUTSIDE fall back to u_oceanMaskTexture (stale-safe by construction)
 uniform highp vec2 u_overlayBounds_max; // [east, north]
-uniform float u_overlayMaskEnabled;     // 1.0 only when a wide (world) grid is resident and an overlay has been painted
+uniform float u_overlayMaskEnabled;     // 1.0 when a painted overlay applies to the resident grid (wide grid, or regional at deep zoom)
+uniform float u_overlayReplace;         // 1.0 = overlay REPLACES the base sample (wide grid, base too coarse); 0.0 = min() combine (regional base already truthful; overlay only removes wash)
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -266,7 +267,8 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      oceanAlpha = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      float ovs = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      oceanAlpha = (u_overlayReplace > 0.5) ? ovs : min(oceanAlpha, ovs);
     }
   }
   vec4 waveData = texture2D(u_waveTexture, grid_uv);
