@@ -1,6 +1,6 @@
 /* eslint-disable no-empty */
 import { useEffect, useRef, useState, useCallback } from 'react';
-import { findMarineInsertionLayer } from './mapUtils';
+import { findMarineInsertionLayer, getSharedLandGeoJSONHiRes } from './mapUtils';
 
 /**
  * OceanMask v15 — Pristine GeoJSON Land Masking & Dynamic Coastline Blending.
@@ -203,6 +203,7 @@ function buildLandMask(landGeoJSON) {
 export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
+  const hiResUpgradedRef = useRef(false);
   const syncingRef = useRef(false);
   const timeoutRef = useRef(null);
   const deactivateTimerRef = useRef(null);
@@ -278,6 +279,41 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
     loadLand();
   }, []);
+
+  // Lazy 10m upgrade for the STYLE-level land fill (2026-07-04, close-zoom land bleed): the
+  // engine's GPU mask already swaps to the 10m polygons at z>=8 (WebGLMarineLayer
+  // HIRES_MASK_MIN_ZOOM), but this component's fill/buffer/line layers stayed on the 50m
+  // polygons FOREVER — km-scale coastline error at harbor zooms, so the wave canvas showed
+  // through over true land wherever 50m said ocean (Long Beach port / inner-island report).
+  // The style fill is vector — no texel limit — so this is the strongest close-zoom cover.
+  // First zoom past the threshold swaps the source data in place; CDN failure keeps 50m
+  // (graceful, retryable). Never downgrades back (one-time upgrade per session).
+  useEffect(() => {
+    if (!mapInstance) return;
+    const HIRES_ZOOM = 8;
+    const tryUpgrade = () => {
+      if (hiResUpgradedRef.current) return;
+      let z;
+      try { z = mapInstance.getZoom(); } catch (e) { return; }
+      if (z < HIRES_ZOOM) return;
+      hiResUpgradedRef.current = true;
+      getSharedLandGeoJSONHiRes()
+        .then(geojson => {
+          const mask = geojson && buildLandMask(geojson);
+          if (!mask) { hiResUpgradedRef.current = false; return; }
+          setMaskData(mask);
+          try {
+            const src = mapInstance.getSource(MASK_SOURCE);
+            if (src && typeof src.setData === 'function') src.setData(mask);
+          } catch (e) { /* source not added yet — setMaskData covers the next sync */ }
+          console.log(`[OceanMask] Land fill upgraded to 10m polygons for close zoom (${geojson.features?.length} features).`);
+        })
+        .catch(() => { hiResUpgradedRef.current = false; /* keep 50m, retry on next zoomend */ });
+    };
+    tryUpgrade();
+    mapInstance.on('zoomend', tryUpgrade);
+    return () => { try { mapInstance.off('zoomend', tryUpgrade); } catch (e) {} };
+  }, [mapInstance]);
 
   // Maintain a stateRef updated on every render to completely prevent stale closure races
   const stateRef = useRef({ mapInstance, active, activeMarineLayer, theme, beforeId, maskData });

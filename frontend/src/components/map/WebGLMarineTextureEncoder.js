@@ -865,13 +865,33 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         if (maskTex) allocatedTextures.push(maskTex);
       }
     } else if (landGeoJSON) {
+      // LAST-MILE mask-source authority (2026-07-04, the Palos-Verdes "half underwater" root):
+      // commits funnel in from many paths (data_commit, scrub-settle sharpen, series frames,
+      // land_mask_res_swap) each carrying whatever landGeoJSON reference its caller held — a
+      // commit racing the 50m→10m swap re-encoded a REGIONAL mask from the 50m polygons, whose
+      // generalization error cuts ~2 km inland at PV Estates (debug-mode 'mask' showed the ocean
+      // intrusion while the separately-cached 10m texture read correct land). Choose the mask
+      // source HERE, at the single point every commit passes through: regional bounds always
+      // prefer the 10m cache once it exists (global spans keep the cheap 50m — 1024px world
+      // masks cannot resolve 10m detail anyway).
+      let effectiveGeoJSON = landGeoJSON;
+      try {
+        const _hires = (typeof window !== 'undefined') && window.__LAND_GEOJSON_HIRES_CACHE__;
+        const _span = bounds
+          ? (((bounds.east < bounds.west) ? bounds.east + 360 : bounds.east) - bounds.west)
+          : 360;
+        if (_hires && _hires.features && _hires.features.length && _span < 30) {
+          effectiveGeoJSON = _hires;
+        }
+      } catch (e) { /* keep the caller's geojson */ }
+
       const boundsChanged = !engine || !engine._cachedMaskBounds ||
         engine._cachedMaskBounds.west !== bounds.west ||
         engine._cachedMaskBounds.south !== bounds.south ||
         engine._cachedMaskBounds.east !== bounds.east ||
         engine._cachedMaskBounds.north !== bounds.north;
 
-      if (engine && engine._cachedMaskTex && landGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
+      if (engine && engine._cachedMaskTex && effectiveGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
         maskTex = engine._cachedMaskTex;
       } else {
         if (engine && engine._cachedMaskTex) {
@@ -885,7 +905,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           engine._cachedMaskTex = null;
         }
         try {
-          const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
+          const maskCanvas = renderMaskToCanvas(effectiveGeoJSON, bounds);
           const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
           const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
           maskTex = gl.createTexture();
@@ -895,16 +915,16 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
           gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
-          
+
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
           gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, maskCanvas);
-          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);        
+          gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
           gl.bindTexture(gl.TEXTURE_2D, prevTex);
           console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
-          
+
           if (engine) {
             engine._cachedMaskTex = maskTex;
-            engine._cachedMaskGeoJSON = landGeoJSON;
+            engine._cachedMaskGeoJSON = effectiveGeoJSON;
             engine._cachedMaskBounds = { ...bounds };
             if (typeof window !== 'undefined' && window.__RAW_GPU__) {
               window.__RAW_GPU__.textureCount++;

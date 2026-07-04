@@ -633,7 +633,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     const _blendBaseWash = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_BASE_WASH__ === 'number')
       ? window.__RAW_BLEND_BASE_WASH__ : 0.72;
-    const baseWashOpacity = heatmapZoomOpacity(z) * mult * _blendBaseWash;
+    // Close-zoom damp (2026-07-04, Long Beach land-bleed report): the coarse base is the WORLD grid
+    // whose land-mask canvas is 1024x512 (~39 km/texel) — at harbor zooms the wash paints softly over
+    // land/waterways no matter how good the polygons are. The regional tile fully covers the viewport
+    // at these zooms, so the wash adds nothing there; fade it out entirely across z8→9.5.
+    const _washZoomDamp = 1.0 - smoothstepVal(8.0, 9.5, z);
+    const baseWashOpacity = heatmapZoomOpacity(z) * mult * _blendBaseWash * _washZoomDamp;
 
     // ==========================================
     // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)

@@ -47,9 +47,13 @@ export function renderMaskToCanvas(geojson, bounds) {
     if (!b) return 360;
     return (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
   };
-  const isRegional = _lonSpanFor(bounds) < 30;
-  const width = isRegional ? 2048 : 1024;
-  const height = isRegional ? 1024 : 512;
+  const lonSpan = _lonSpanFor(bounds);
+  const isRegional = lonSpan < 30;
+  // <10°-span tiles get 4096x2048 (2026-07-04, Long Beach report): at 2048 a ~6° tile is still
+  // ~330 m/px — harbor/inlet edges stair-step visibly at z10+ even with the 10m polygons. ~165 m/px
+  // halves the blockiness; the larger canvas is only paid on close-zoom regional commits.
+  const width = lonSpan < 10 ? 4096 : (isRegional ? 2048 : 1024);
+  const height = lonSpan < 10 ? 2048 : (isRegional ? 1024 : 512);
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
