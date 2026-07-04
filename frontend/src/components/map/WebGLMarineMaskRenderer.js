@@ -219,7 +219,169 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   } catch (e) { /* wetland truth unavailable — water-only patch stands */ }
 
   ctx.restore();
+
+  // 5. SHELTERED-WATER SUPPRESSION (2026-07-04, "waves shouldn't run up the intracoastal
+  //    waterway"): sea-connected lagoons / enclosed harbor basins are OCEAN-class in the tiles
+  //    (OSM coastline convention), so no class rule can exclude them — but ocean swell dies at a
+  //    narrow entrance. Classify by CONNECTIVITY on the finished mask: water that cannot reach
+  //    the canvas border through a channel wider than ~__RAW_SHELTERED_GAP_M__ (default 600 m)
+  //    repaints to 0.25 — below BOTH the heatmap's 0.5 discard and the particle 0.3 cull, above
+  //    land's 0 for mask-debug readability. Whole-canvas analysis so a bay whose entrance is off
+  //    the viewport still classifies correctly. Kill: __RAW_DISABLE_SHELTERED_WATER__ = true.
+  try {
+    if (typeof window === 'undefined' || window.__RAW_DISABLE_SHELTERED_WATER__ !== true) {
+      const stats = suppressShelteredWater(canvas, bounds);
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.shelteredWater = stats || { applied: false };
+      }
+    }
+  } catch (e) { /* classifier unavailable — open-water mask stands */ }
+
   return painted > 0;
+}
+
+// ── SHELTERED-WATER CLASSIFIER ──────────────────────────────────────────────────────────────────
+// Pure grid core (exported for tests): given a binary water grid, mark water pixels that cannot
+// reach the border through a channel of half-width > nPx. Erode water by nPx (Chebyshev distance
+// to land), flood-fill the eroded core from the border, then re-dilate the flooded core by nPx —
+// water not covered is enclosed. Two-pass chamfer transforms + one BFS: O(w·h).
+export function classifySheltered(water, w, h, nPx) {
+  const INF = 0x3fffffff;
+  const size = w * h;
+  // distance-to-LAND (Chebyshev, 8-neighbour chamfer)
+  const dist = new Int32Array(size);
+  for (let i = 0; i < size; i++) dist[i] = water[i] ? INF : 0;
+  const chamfer = (d) => {
+    for (let y = 0; y < h; y++) {
+      for (let x = 0; x < w; x++) {
+        const i = y * w + x;
+        if (d[i] === 0) continue;
+        let m = d[i];
+        if (x > 0 && d[i - 1] + 1 < m) m = d[i - 1] + 1;
+        if (y > 0) {
+          const up = i - w;
+          if (d[up] + 1 < m) m = d[up] + 1;
+          if (x > 0 && d[up - 1] + 1 < m) m = d[up - 1] + 1;
+          if (x < w - 1 && d[up + 1] + 1 < m) m = d[up + 1] + 1;
+        }
+        d[i] = m;
+      }
+    }
+    for (let y = h - 1; y >= 0; y--) {
+      for (let x = w - 1; x >= 0; x--) {
+        const i = y * w + x;
+        if (d[i] === 0) continue;
+        let m = d[i];
+        if (x < w - 1 && d[i + 1] + 1 < m) m = d[i + 1] + 1;
+        if (y < h - 1) {
+          const dn = i + w;
+          if (d[dn] + 1 < m) m = d[dn] + 1;
+          if (x > 0 && d[dn - 1] + 1 < m) m = d[dn - 1] + 1;
+          if (x < w - 1 && d[dn + 1] + 1 < m) m = d[dn + 1] + 1;
+        }
+        d[i] = m;
+      }
+    }
+  };
+  chamfer(dist);
+  // BFS the ERODED core (dist > nPx) from every border core pixel.
+  const flooded = new Uint8Array(size);
+  const queue = new Int32Array(size);
+  let qh = 0, qt = 0;
+  const push = (i) => { if (!flooded[i] && dist[i] > nPx) { flooded[i] = 1; queue[qt++] = i; } };
+  for (let x = 0; x < w; x++) { push(x); push((h - 1) * w + x); }
+  for (let y = 0; y < h; y++) { push(y * w); push(y * w + (w - 1)); }
+  while (qh < qt) {
+    const i = queue[qh++];
+    const x = i % w, y = (i / w) | 0;
+    if (x > 0) push(i - 1);
+    if (x < w - 1) push(i + 1);
+    if (y > 0) push(i - w);
+    if (y < h - 1) push(i + w);
+  }
+  // distance-to-FLOODED-core; open water = within nPx of the core. Water beyond it is enclosed.
+  const dist2 = new Int32Array(size);
+  for (let i = 0; i < size; i++) dist2[i] = flooded[i] ? 0 : INF;
+  chamfer(dist2);
+  const sheltered = new Uint8Array(size);
+  let count = 0;
+  for (let i = 0; i < size; i++) {
+    if (water[i] && dist2[i] > nPx) { sheltered[i] = 1; count++; }
+  }
+  // MINIMUM-AREA FILTER (live calibration 2026-07-04, "breaks in the heatmap between islands"):
+  // a long NARROW passage between islands also fails the erode-flood reachability test, but it is
+  // open fairway, not an enclosed basin — suppressing it punched blocky gaps into the heatmap at
+  // z12–16. Keep only basin-scale components: connected sheltered regions smaller than ~(4·nPx)²
+  // pixels (≈ a few km² at the default gap) are released back to open water. True lagoons and
+  // harbor basins are orders of magnitude larger.
+  if (count) {
+    const minArea = 16 * nPx * nPx;
+    const seen = new Uint8Array(size);
+    const comp = new Int32Array(size);
+    for (let s = 0; s < size; s++) {
+      if (!sheltered[s] || seen[s]) continue;
+      let ch = 0, ct = 0;
+      comp[ct++] = s; seen[s] = 1;
+      while (ch < ct) {
+        const i = comp[ch++];
+        const x = i % w, y = (i / w) | 0;
+        if (x > 0 && sheltered[i - 1] && !seen[i - 1]) { seen[i - 1] = 1; comp[ct++] = i - 1; }
+        if (x < w - 1 && sheltered[i + 1] && !seen[i + 1]) { seen[i + 1] = 1; comp[ct++] = i + 1; }
+        if (y > 0 && sheltered[i - w] && !seen[i - w]) { seen[i - w] = 1; comp[ct++] = i - w; }
+        if (y < h - 1 && sheltered[i + w] && !seen[i + w]) { seen[i + w] = 1; comp[ct++] = i + w; }
+      }
+      if (ct < minArea) {
+        for (let k = 0; k < ct; k++) sheltered[comp[k]] = 0;
+        count -= ct;
+      }
+    }
+  }
+  return { sheltered, count };
+}
+
+// Canvas wrapper: downsample the finished mask, classify, and repaint enclosed water to 0.25.
+// Close-zoom tiers only (<10° span) — coarser masks can't resolve entrance widths anyway.
+export function suppressShelteredWater(canvas, bounds) {
+  if (!canvas || !bounds || typeof document === 'undefined') return false;
+  const spanLon = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+  if (spanLon >= 10 || spanLon <= 0) return false;
+  // 1000 m default: seals every Venice inlet (widest ~900 m — at 600 the Porto di Lido stayed open
+  // and its channel network kept animating, live user report) while Golden-Gate-class entrances
+  // (≥1.6 km) stay open. Seas larger than the mask tile always touch the canvas border and are
+  // open by construction, so the gap only ever decides basins smaller than ~1-2°.
+  const gapM = (typeof window !== 'undefined' && Number(window.__RAW_SHELTERED_GAP_M__)) || 1000;
+  const dsW = Math.min(1024, canvas.width);
+  const scale = dsW / canvas.width;
+  const dsH = Math.max(2, Math.round(canvas.height * scale));
+  const latMid = (bounds.north + bounds.south) / 2;
+  const mPerPx = (spanLon * 111320 * Math.abs(Math.cos(latMid * Math.PI / 180))) / dsW;
+  const nPx = Math.max(1, Math.round((gapM / 2) / Math.max(1e-6, mPerPx)));
+  if (nPx > 48) return false;   // extreme zoom-in: entrances resolve wider than the analysis radius
+  const ds = document.createElement('canvas');
+  ds.width = dsW; ds.height = dsH;
+  const dctx = ds.getContext('2d', { willReadFrequently: true });
+  if (!dctx) return false;
+  dctx.imageSmoothingEnabled = false;
+  dctx.drawImage(canvas, 0, 0, dsW, dsH);
+  const img = dctx.getImageData(0, 0, dsW, dsH);
+  const px = img.data;
+  const size = dsW * dsH;
+  const water = new Uint8Array(size);
+  for (let i = 0; i < size; i++) water[i] = px[i * 4] >= 128 ? 1 : 0;
+  const { sheltered, count } = classifySheltered(water, dsW, dsH, nPx);
+  if (!count) return { applied: true, shelteredFrac: 0, nPx, mPerPx: Math.round(mPerPx) };
+  // Paint enclosed water 0.25 (64) and stamp back at full resolution, hard-edged.
+  for (let i = 0; i < size; i++) {
+    if (sheltered[i]) { px[i * 4] = 64; px[i * 4 + 1] = 64; px[i * 4 + 2] = 64; px[i * 4 + 3] = 255; }
+    else { px[i * 4 + 3] = 0; }
+  }
+  dctx.putImageData(img, 0, 0);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const prevSmooth = ctx.imageSmoothingEnabled;
+  ctx.imageSmoothingEnabled = false;
+  ctx.drawImage(ds, 0, 0, canvas.width, canvas.height);
+  ctx.imageSmoothingEnabled = prevSmooth;
+  return { applied: true, shelteredFrac: +(count / Math.max(1, size)).toFixed(4), nPx, mPerPx: Math.round(mPerPx) };
 }
 
 export function renderMaskToCanvas(geojson, bounds) {

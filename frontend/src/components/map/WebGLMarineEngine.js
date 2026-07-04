@@ -821,10 +821,22 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         if (cellDeg > 1.0 && vLonSpan > 0 && !isRatingBand) { // only the coarse-global RAW wash qualifies
           const cellsAcross = vLonSpan / cellDeg;            // how many grid cells span the viewport
           // FLOOR at 0.7 (2026-06-29): a full fade-to-0 made the heatmap "clear" at very close zoom — but most
-          // coastal viewports are STUCK on the coarse-global grid (regional tiles often don't cover them), so the
-          // fade was firing constantly and reading as "the heatmap disappeared". Dim to 70% instead so the data
-          // stays clearly visible (subtle coarseness cue) without vanishing. Kill switch still fully disables it.
-          coarseFade = 0.7 + 0.3 * smoothstepVal(0.5, 2.0, cellsAcross); // [0.7..1.0]: dims, never clears
+          // coastal viewports were STUCK on the coarse-global grid back then, so the fade fired constantly and
+          // read as "the heatmap disappeared". Dim to 70% instead so the data stays visible.
+          // EXTREME-OVERZOOM RAMP (2026-07-04, Pianosa report): that floor also painted the WORLD grid's wash
+          // at 70% over sub-kilometre islands during the sharpen window — its 1024×512 mask (~39 km/texel)
+          // physically cannot carve them, so the wash reads as data over land. When the viewport is far
+          // narrower than ONE coarse cell (cellsAcross → 0, i.e. island/harbour zooms on the world grid) the
+          // floor itself now ramps to 0: "no fine data yet" instead of a wrong claim. The sharpen re-drive
+          // (coarse-reval backoff + cap probe) bounds the blank window; regional tiles (cellDeg < 1°) never
+          // enter this branch. Kill switch unchanged: window.__RAW_DISABLE_COARSE_FADE__ = true.
+          // Ramp window [0.002, 0.02] cells-across ≈ viewport 0.02°–0.2° on a 10° cell — the fade
+          // to zero only engages past ~z11.5 (island/harbour scale) and completes by ~z15. At the
+          // z9–11 harbor overview the legacy 0.7 wash stays fully visible (live calibration
+          // 2026-07-04: a [0.02, 0.5] window cleared the wash on a z10.3 zoom-out, reading as a
+          // blank-heatmap bug while the viewport product was still loading).
+          const floorRamp = smoothstepVal(0.002, 0.02, cellsAcross);
+          coarseFade = 0.7 * floorRamp + 0.3 * smoothstepVal(0.5, 2.0, cellsAcross); // [0..1]: clears only when a cell utterly dwarfs the view
         }
       }
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;

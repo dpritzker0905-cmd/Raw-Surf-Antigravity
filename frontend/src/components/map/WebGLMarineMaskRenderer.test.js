@@ -8,7 +8,12 @@
  * commit" state (live repro at (-79.9, 28.3) z9; isolated replica: FL tile drew 9/10 features →
  * 0% ocean; global control 63.8% ocean).
  */
-import { getPolygonBbox, polygonOverlapsTarget, overlayBasemapWaterOnMask } from './WebGLMarineMaskRenderer';
+import { getPolygonBbox, polygonOverlapsTarget, overlayBasemapWaterOnMask, classifySheltered } from './WebGLMarineMaskRenderer';
+
+// jsdom has no 2D canvas — keep the sheltered-water canvas wrapper out of the painter tests
+// (its pure grid core is covered directly by the classifySheltered describe below).
+beforeAll(() => { window.__RAW_DISABLE_SHELTERED_WATER__ = true; });
+afterAll(() => { delete window.__RAW_DISABLE_SHELTERED_WATER__; });
 
 // A rectangular polygon-coordinates array (outer ring only).
 const rect = (west, south, east, north) => [[
@@ -177,5 +182,79 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     expect(overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map)).toBe(true);
     const fills = calls.filter(([m]) => m === 'fill');
     expect(fills.filter(([, s]) => s === '#000000').length).toBe(0); // nothing painted black beyond hole pass
+  });
+});
+
+describe('classifySheltered — enclosed-basin connectivity (sheltered-water suppression, 2026-07-04)', () => {
+  // Build a binary water grid from ASCII rows: '.' = water, '#' = land.
+  const gridFrom = (rows) => {
+    const h = rows.length, w = rows[0].length;
+    const water = new Uint8Array(w * h);
+    rows.forEach((r, y) => { for (let x = 0; x < w; x++) water[y * w + x] = r[x] === '.' ? 1 : 0; });
+    return { water, w, h };
+  };
+  const W = 30, H = 15;
+  // Base scene: open sea in cols 0-9 (touches the border), land everywhere else unless carved.
+  const mkRows = (carve) => {
+    const rows = [];
+    for (let y = 0; y < H; y++) {
+      let r = '';
+      for (let x = 0; x < W; x++) r += (x < 10 || carve(x, y)) ? '.' : '#';
+      rows.push(r);
+    }
+    return rows;
+  };
+  const lagoon = (x, y) => (x >= 21 && x <= 28 && y >= 4 && y <= 11);
+  const at = (w) => (x, y) => y * w + x;
+
+  it('a lagoon behind a channel NARROWER than the gap threshold is SHELTERED', () => {
+    // 1-px channel at row 7 → erosion radius 2 seals it.
+    const { water, w, h } = gridFrom(mkRows((x, y) => lagoon(x, y) || (y === 7 && x >= 10 && x <= 20)));
+    const { sheltered, count } = classifySheltered(water, w, h, 2);
+    const i = at(w);
+    expect(sheltered[i(24, 7)]).toBe(1);   // lagoon center suppressed
+    expect(sheltered[i(4, 7)]).toBe(0);    // open sea untouched
+    expect(count).toBeGreaterThan(20);
+  });
+
+  it('the same lagoon behind a WIDE entrance stays OPEN', () => {
+    // 7-row channel (rows 4-10) → core survives erosion → flood reaches the lagoon.
+    const { water, w, h } = gridFrom(mkRows((x, y) => lagoon(x, y) || (y >= 4 && y <= 10 && x >= 10 && x <= 20)));
+    const { sheltered, count } = classifySheltered(water, w, h, 2);
+    expect(sheltered[at(w)(24, 7)]).toBe(0);
+    expect(count).toBe(0);
+  });
+
+  it('open sea alone marks nothing sheltered', () => {
+    const rows = []; for (let y = 0; y < H; y++) rows.push('.'.repeat(W));
+    const { water, w, h } = gridFrom(rows);
+    expect(classifySheltered(water, w, h, 2).count).toBe(0);
+  });
+
+  it('a fully enclosed BASIN-SCALE water body is entirely sheltered', () => {
+    // 16x10 = 160 px ≥ the min-area gate (16·nPx² = 64) — a real lagoon/harbor basin.
+    const pond = (x, y) => (x >= 12 && x <= 27 && y >= 3 && y <= 12);
+    const { water, w, h } = gridFrom(mkRows(pond));
+    const { sheltered, count } = classifySheltered(water, w, h, 2);
+    expect(sheltered[at(w)(19, 7)]).toBe(1);
+    expect(count).toBe(160);   // the whole pond
+  });
+
+  it('a narrow PASSAGE between two open seas is released by the min-area gate (no heatmap breaks between islands)', () => {
+    // Two border-connected seas linked by a long 1-px channel: the channel middle fails the
+    // erode-flood reachability test, but it is fairway, not a basin — its component is far below
+    // the basin-scale minimum and must be released (live report: blocky heatmap gaps at z12-16).
+    const rows = [];
+    for (let y = 0; y < H; y++) {
+      let r = '';
+      for (let x = 0; x < W; x++) {
+        const leftSea = x < 10, rightSea = x >= 25, channel = (y === 7 && x >= 10 && x < 25);
+        r += (leftSea || rightSea || channel) ? '.' : '#';
+      }
+      rows.push(r);
+    }
+    const { water, w, h } = gridFrom(rows);
+    const { count } = classifySheltered(water, w, h, 2);
+    expect(count).toBe(0);
   });
 });
