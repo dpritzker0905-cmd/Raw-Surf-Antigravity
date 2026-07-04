@@ -1351,6 +1351,21 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
   // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
   if (span >= 30) return this.refreshViewportOverlayMask(gl, mapInstance, true);
+  // STALE-OVERLAY CLEAR (2026-07-04, the "bright rectangle block" at Punat z9.44 after a z12.5 zoom):
+  // the viewport-truth overlay is a DEEP-ZOOM (z≥12) crispness enhancement painted for a SMALL box.
+  // Zooming back out below z12 leaves that box resident, and it then applies its sheltered/crisp
+  // verdict over a SUB-VIEWPORT rectangle (min()-combine) while the surrounding viewport uses the
+  // base mask — a hard rectangular seam that pans with the map (live repro: z12.5→z9.44). Below the
+  // overlay-active zone for a REGIONAL grid (span<30, z<12) the overlay is never legitimately
+  // painted OR rendered, so a resident box is always stale — drop it. Wide grids (span≥30, handled
+  // above) keep their overlay: they use it at every zoom via REPLACE. Proven fix: clearing the
+  // bounds alone (no re-patch) removes the block.
+  try {
+    if (mapInstance.getZoom() < 12 && this._overlayMaskBounds) {
+      this._overlayMaskBounds = null;
+      this._overlayMaskTruthBox = null;
+    }
+  } catch (e) { /* zoom unavailable — leave overlay untouched */ }
   // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
   // a texture nothing binds (and skipping avoids fighting an in-flight commit).
   if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
