@@ -394,17 +394,25 @@ async def resolve_grid(
                             model="GFS", domain=domain, layer=layer, valid_time_str=valid_time, target_dt=target_dt, bbox_str=bbox
                         )
                         if product:
-                            from services.copernicus_marine_service import is_test_environment
-                            is_test = is_test_environment()
                             product.model = "EURO"
                             if _is_euro_wind:
                                 product.provider = "gfs_fallback"
                                 product.is_estimated = True
                                 product.is_forecast_authoritative = False
                             else:
-                                product.provider = "gfs_estimated_fallback" if is_test else "copernicus"
-                                product.is_estimated = True if is_test else False
-                                product.is_forecast_authoritative = False if is_test else True
+                                # GFS data relabeled EURO is an ESTIMATE in every environment
+                                # (2026-07-04): the old prod branch stamped it provider="copernicus"/
+                                # is_estimated=False — GFS served as native CMEMS, the exact
+                                # provenance lie the audit banned. Tests and prod now agree.
+                                product.provider = "gfs_estimated_fallback"
+                                product.is_estimated = True
+                                product.is_forecast_authoritative = False
+                                if not getattr(product, "estimate_basis", None):
+                                    product.estimate_basis = {
+                                        "type": "gfs_estimated_fallback",
+                                        "method": "gfs_wave_fallback",
+                                        "source_model": "ncep_gfswave025",
+                                    }
                             if product.grid:
                                 if product.grid.diagnostics is None:
                                     product.grid.diagnostics = {}
@@ -592,15 +600,12 @@ async def resolve_grid(
                 vectors=product.grid.vectors if product.grid else []
             )
 
-    from services.copernicus_marine_service import is_test_environment
-    if product and model.upper() == "EURO" and domain.lower() == "marine" and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves") and not is_test_environment():
-        product.provider = "copernicus"
-        product.is_estimated = False
-        product.is_forecast_authoritative = True
-        if product.grid:
-            if product.grid.diagnostics is None:
-                product.grid.diagnostics = {}
-            product.grid.diagnostics["provider"] = "copernicus"
+    # REMOVED (2026-07-04): the blanket EURO-marine production override (provider="copernicus",
+    # is_estimated=False, is_forecast_authoritative=True on EVERY response) compensated for the
+    # ingestion bug that stamped native CMEMS products estimated — but it also WHITEWASHED genuine
+    # estimates (the GFS 10-14d tail, live upstream fallbacks) as native Copernicus. Ingestion now
+    # labels truthfully at save (scheduler estimated_after_index fix), so provenance flows from the
+    # product unmodified: real data reads real, estimates read estimated — in every environment.
 
     if product and _is_oversized_grid(product):
         logger.warning(

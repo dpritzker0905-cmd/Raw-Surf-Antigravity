@@ -333,7 +333,12 @@ class WeatherPipelineScheduler:
                     region_id="global_coarse", coverage_mode="global_tile",
                     is_test_env=env["is_test_env"], step=1,
                     log_prefix=f"[Pipeline Scheduler] EURO {layer} (copernicus native) global_coarse",
-                    estimated_after_index=0, estimate_basis=_cop_basis
+                    # NATIVE data (2026-07-04): no estimated_after_index — these are REAL CMEMS partitions,
+                    # and stamping them estimated_after_index=0 mis-labeled every native hour (the
+                    # "all 108 EURO products _estimated-named" audit finding). The basis still rides
+                    # along as fetch-method provenance; the normalizer derives the truthful
+                    # is_estimated=False / is_forecast_authoritative=True / cmems source_dataset.
+                    estimate_basis=_cop_basis
                 )
                 e_cnt = 0
                 if gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
