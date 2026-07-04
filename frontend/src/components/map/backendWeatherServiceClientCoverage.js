@@ -231,6 +231,37 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       };
     }
 
+    // FINE VIEWPORT TILE (2026-07-04, the "cleared/coarse at z9.22 Kvarner" root, curl-proven): the
+    // backend serves a fine 0.25° viewport grid ONLY when the request fits within a SINGLE 2°-aligned
+    // tile; a request that straddles a 2° boundary falls back to global_coarse (10°/cell). The old 1°
+    // floor/ceil snap turned a ~1.5° viewport into e.g. 13→16, which spans the 12–14 AND 14–16 tiles
+    // → global_coarse → the enclosed coast renders near-blank. Live curl: bbox 14,44,16,46 → viewport
+    // 0.25°; 14,44,17,46 (two tiles wide) → global_coarse; 14,44,15,47 (two tiles tall) → global.
+    // So when the viewport fits a fine tile (span ≤ 2° in BOTH dims — the z9+ close-zoom case that was
+    // clearing), request the single 2°-aligned tile CONTAINING THE VIEWPORT CENTER. Guarantees a
+    // one-tile request → the fine grid the user is looking at. Wider spans keep the 1° snap below
+    // (the backend has no fine product beyond a 2° tile; 2–5° → 1° snap, > 5° → global above).
+    if ((modelName || '').toUpperCase() === 'GFS' && spanLng <= 2.0 && spanLat <= 2.0) {
+      const cLng = east < west ? (((west + east + 360) / 2) % 360) : (west + east) / 2;
+      const cLat = (south + north) / 2;
+      const tW = Math.floor(cLng / 2) * 2;
+      const tS = Math.floor(cLat / 2) * 2;
+      let bW = tW, bE = tW + 2;
+      if (bW < -180) bW += 360;
+      if (bE > 180) bE -= 360;
+      return {
+        isInside: true,
+        clampedBbox: { west: bW, south: tS, east: bE, north: tS + 2 },
+        fallbackReason: null,
+        coverageBounds: PILOT_COVERAGE,
+        // Match the backend region_id shape (viewport_W.00_S.00_E.00_N.00) so cache store/lookup keys align.
+        selectedTileId: `viewport_${tW.toFixed(2)}_${tS.toFixed(2)}_${(tW + 2).toFixed(2)}_${(tS + 2).toFixed(2)}`,
+        availableTileIds: REGIONAL_TILES.map(t => t.id),
+        rejectedTileIds: [],
+        tileFallbackReason: null
+      };
+    }
+
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
     const snapW = Math.floor(west / tileSize) * tileSize;
     const snapS = Math.floor(south / tileSize) * tileSize;
