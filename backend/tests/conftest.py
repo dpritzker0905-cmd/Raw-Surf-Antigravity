@@ -227,3 +227,38 @@ def mock_weather_setup(tmp_path, monkeypatch):
     monkeypatch.setattr(OpenMeteoProvider, "fetch_point", mock_fetch_point)
     monkeypatch.setattr(CopernicusProvider, "fetch_grid", mock_copernicus_fetch_grid)
     return temp_store, dynamic_idx
+
+
+@pytest.fixture
+def hermetic_om_wind(monkeypatch):
+    """Make a scheduler's open-meteo WIND grid fetch hermetic (2026-07-04 test hygiene).
+
+    The provider's test-env mocks deliberately EXCLUDE domain "wind" (is_test and domain != "wind"),
+    so the wind fallback tests were hitting the LIVE open-meteo API and failing on boxes without
+    network/proxy access. Apply this to a scheduler instance to replace om_provider.fetch_grid with
+    a synthetic open-meteo-shaped wind grid — the fallback path under test runs end-to-end with no
+    network. Returns the points it will serve.
+    """
+    def _apply(scheduler, hours=48):
+        from datetime import datetime, timedelta, timezone
+        base = datetime.now(timezone.utc).replace(minute=0, second=0, microsecond=0)
+        times = [(base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:%M") for h in range(hours)]
+        pts = []
+        for la in (-10.0, 0.0, 10.0):
+            for lo in (-10.0, 0.0, 10.0):
+                pts.append({
+                    "latitude": la, "longitude": lo,
+                    "hourly": {
+                        "time": list(times),
+                        "wind_speed_10m": [10.0 + (h % 5) for h in range(hours)],
+                        "wind_direction_10m": [200.0] * hours,
+                        "wind_gusts_10m": [14.0] * hours,
+                    },
+                })
+
+        async def _fake_fetch_grid(*args, **kwargs):
+            return pts
+
+        monkeypatch.setattr(scheduler.om_provider, "fetch_grid", _fake_fetch_grid)
+        return pts
+    return _apply

@@ -53,13 +53,14 @@ async def test_icon_wind_dwd_direct_ingestion(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_icon_wind_dwd_fallback_to_open_meteo(tmp_path, monkeypatch):
+async def test_icon_wind_dwd_fallback_to_open_meteo(tmp_path, monkeypatch, hermetic_om_wind):
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
 
     temp_store = ProductStore(cache_dir=tmp_path)
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
+    hermetic_om_wind(scheduler)  # wind is excluded from the provider test mocks - keep this test off the network
 
     ok = await scheduler.ingest_icon_wind_global()
     assert ok is True

@@ -60,7 +60,7 @@ async def test_gfs_wind_noaa_direct_ingestion(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_gfs_wind_noaa_fallback_to_open_meteo(tmp_path, monkeypatch):
+async def test_gfs_wind_noaa_fallback_to_open_meteo(tmp_path, monkeypatch, hermetic_om_wind):
     """
     When NOAA-direct yields nothing (returns None), ingest_gfs_wind_global must fall through to the
     existing open-meteo path with no regression. In a test env the real fetch_gfs_wind_global_coarse
@@ -72,6 +72,7 @@ async def test_gfs_wind_noaa_fallback_to_open_meteo(tmp_path, monkeypatch):
     temp_store = ProductStore(cache_dir=tmp_path)
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
+    hermetic_om_wind(scheduler)  # wind is excluded from the provider test mocks - keep this test off the network
 
     success = await scheduler.ingest_gfs_wind_global()
     assert success is True

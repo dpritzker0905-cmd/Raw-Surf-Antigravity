@@ -52,7 +52,7 @@ async def test_euro_wind_ecmwf_direct_ingestion(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_euro_wind_ecmwf_fallback_to_open_meteo(tmp_path, monkeypatch):
+async def test_euro_wind_ecmwf_fallback_to_open_meteo(tmp_path, monkeypatch, hermetic_om_wind):
     """Real ecmwf_wind_service returns None in the test env -> the open-meteo path runs unchanged."""
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
@@ -60,6 +60,7 @@ async def test_euro_wind_ecmwf_fallback_to_open_meteo(tmp_path, monkeypatch):
     temp_store = ProductStore(cache_dir=tmp_path)
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
+    hermetic_om_wind(scheduler)  # wind is excluded from the provider test mocks - keep this test off the network
 
     ok = await scheduler.ingest_euro_wind_global()
     assert ok is True
@@ -72,7 +73,7 @@ async def test_euro_wind_ecmwf_fallback_to_open_meteo(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
-async def test_euro_wind_ecmwf_kill_switch(tmp_path, monkeypatch):
+async def test_euro_wind_ecmwf_kill_switch(tmp_path, monkeypatch, hermetic_om_wind):
     """EURO_WIND_ECMWF_DIRECT=0 must skip ECMWF entirely before the service is consulted."""
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore
@@ -81,6 +82,7 @@ async def test_euro_wind_ecmwf_kill_switch(tmp_path, monkeypatch):
     temp_store = ProductStore(cache_dir=tmp_path)
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
+    hermetic_om_wind(scheduler)  # wind is excluded from the provider test mocks - keep this test off the network
     monkeypatch.setenv("EURO_WIND_ECMWF_DIRECT", "0")
 
     called = {"ecmwf": False}
