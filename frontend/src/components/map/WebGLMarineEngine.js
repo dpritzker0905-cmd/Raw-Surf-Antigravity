@@ -567,6 +567,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const _ovb = this._overlayMaskBounds;
     const _overlayCoversViewport = !!(this._overlayMaskTex && _ovb &&
       _ovb.west <= vb[0] && _ovb.east >= vb[2] && _ovb.south <= vb[1] && _ovb.north >= vb[3]);
+    // INTERSECTS is the fade guard's bar (not CONTAINS): every pan breaks containment for a beat
+    // until the moveend repaint, and a contains-keyed fade blanked the whole wash per gesture
+    // ("heatmaps clearing at z13", live). While the overlay still OVERLAPS the view, uncovered
+    // pixels fall back per-pixel to the base mask — open water renders fine; only a brief
+    // near-land edge bleed rides the repaint latency. Full fade is reserved for NO overlay at all
+    // (boot) or a teleport whose old overlay doesn't even touch the view.
+    const _overlayIntersectsViewport = !!(this._overlayMaskTex && _ovb &&
+      _ovb.west < vb[2] && _ovb.east > vb[0] && _ovb.south < vb[3] && _ovb.north > vb[1]);
     if (_residentCoarseGlobal && z >= 8.0 && !_overlayCoversViewport &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true)) {
       dirCoherenceMin = 2.0; // > max unit magnitude -> every crest discards (the proven suppress path)
@@ -886,8 +894,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // meter truth). Keyed on MASK COVERAGE, not zoom — the two earlier zoom-keyed fades both read
     // as "blank heatmap" bugs because they fired even when masking was fine. Mirrors the crest
     // suppression condition above, so heatmap and particles agree about the window.
-    if (_residentCoarseGlobal && z >= 8.0 && !_overlayCoversViewport) {
-      heatmapOpacity *= Math.max(0, 1 - (z - 8.0));  // 1→0 across z8→9; hidden past z9 until covered
+    if (_residentCoarseGlobal && z >= 8.0 && !_overlayIntersectsViewport) {
+      heatmapOpacity *= Math.max(0, 1 - (z - 8.0));  // 1→0 across z8→9; hidden past z9 until an overlay touches the view
     }
 
     heatmapOpacity *= mult;
