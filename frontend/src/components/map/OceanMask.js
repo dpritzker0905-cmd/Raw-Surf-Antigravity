@@ -697,6 +697,36 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     };
   }, [mapInstance, triggerSync]);
 
+  // FERRY-ROUTE HIDE (2026-07-04, user decision — the "lines in the water labeled with city
+  // names"): the basemap ships labeled ferry/vaporetto routes worldwide (`ferry`/`ferry-auto`
+  // line layers + `ferry-aerialway-label` symbols — Catalina Express, the Venice vaporetto grid).
+  // On a surf map they read as weather-layer artifacts, so hide them map-wide. Re-asserted on
+  // styledata because a style reload resurrects basemap layers (same precedent as the mask
+  // layers). Restore live: window.__RAW_SHOW_FERRY_ROUTES__ = true (takes effect next styledata).
+  useEffect(() => {
+    if (!mapInstance) return;
+    const FERRY_LAYERS = ['ferry', 'ferry-auto', 'ferry-aerialway-label'];
+    let rafId = null;
+    const applyFerryVisibility = () => {
+      if (rafId !== null) return; // coalesce styledata bursts to one apply per frame
+      rafId = requestAnimationFrame(() => {
+        rafId = null;
+        const show = typeof window !== 'undefined' && window.__RAW_SHOW_FERRY_ROUTES__ === true;
+        for (const lid of FERRY_LAYERS) {
+          try {
+            if (mapInstance.getLayer(lid)) mapInstance.setLayoutProperty(lid, 'visibility', show ? 'visible' : 'none');
+          } catch (e) { /* style mid-load — the next styledata re-applies */ }
+        }
+      });
+    };
+    applyFerryVisibility();
+    mapInstance.on('styledata', applyFerryVisibility);
+    return () => {
+      mapInstance.off('styledata', applyFerryVisibility);
+      if (rafId !== null) cancelAnimationFrame(rafId);
+    };
+  }, [mapInstance]);
+
   // Dedicated marine-raster repositioning listener to ensure slots sit below buffer.
   // styledata can fire several times per frame during transitions; coalesce to one
   // reposition per animation frame, and reposition all 12 slot layers with a single
