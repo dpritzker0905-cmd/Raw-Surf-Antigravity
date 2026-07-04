@@ -99,8 +99,20 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   let covers = true;
   const coverageKnown = !!(viewportBounds && rb);
   if (coverageKnown) {
+    // FRACTIONAL coverage (2026-07-04, the coverage-boundary flip): exact containment made the
+    // guard release the moment the viewport crept ONE texel past the tile edge — a small pan at
+    // z7.2 or the z6.89 rung of a zoom-out swapped the whole field to the world grid (direction/
+    // color flip) even though the tile still filled ~99% of the screen. Keep the regional while
+    // it covers ≥80% of the viewport: the blend base wash already draws under it, so the
+    // uncovered ring shows coarse wash either way — only the CENTER truth is at stake. Below the
+    // threshold the tile is genuinely a fraction of the screen and coarse must take over.
     const vw = viewportBounds[0], vs = viewportBounds[1], ve = viewportBounds[2], vn = viewportBounds[3];
-    covers = rb.west <= vw + 1e-6 && rb.east >= ve - 1e-6 && rb.south <= vs + 1e-6 && rb.north >= vn - 1e-6;
+    const vpArea = Math.max(1e-9, (ve - vw) * (vn - vs));
+    const ix = Math.max(0, Math.min(rb.east, ve) - Math.max(rb.west, vw));
+    const iy = Math.max(0, Math.min(rb.north, vn) - Math.max(rb.south, vs));
+    const frac = (ix * iy) / vpArea;
+    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    covers = frac >= minFrac;
   }
   // COVERAGE, not zoom, is the real predicate (2026-07-04, "waves flip direction + height color
   // around z7.0-7.74, then correct"): dipping below the z7.0 threshold let the 37×17 world grid

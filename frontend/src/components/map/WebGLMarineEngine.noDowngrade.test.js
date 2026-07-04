@@ -33,8 +33,18 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
   });
 
   it('ALLOWS coarse at zoom-out once the viewport outgrows the regional tile (the real-world zoom-out)', () => {
-    const wideVp = [-84, 25, -76, 32]; // z~5.5 viewport — the 3° tile no longer covers
+    const wideVp = [-84, 25, -76, 32]; // z~5.5 viewport — the 3° tile covers only ~11%
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 5, wideVp, false)).toBe(false);
+  });
+
+  it('FRACTIONAL coverage: a small pan past the tile edge (~89% covered) keeps the regional; ~50% releases', () => {
+    // Exact containment released the regional the moment the viewport crept one texel past the
+    // tile edge — a small pan at z7.2 flipped the whole field to the world grid. ≥80% coverage
+    // keeps the finer grid (the blend base wash fills the ring); well below it, coarse takes over.
+    const edgeVp = [-81.5, 27.5, -78.7, 28.5]; // 2.5/2.8 ≈ 0.89 of the viewport covered
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 7.2, edgeVp, false)).toBe(true);
+    const halfVp = [-80.5, 27.5, -77.5, 28.5]; // 1.5/3 = 0.5 covered
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 7.2, halfVp, false)).toBe(false);
   });
 
   it('ALLOWS coarse for a DIFFERENT hour (scrub) — never freezes a new hour on a stale regional', () => {
