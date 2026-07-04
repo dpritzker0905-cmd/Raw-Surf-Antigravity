@@ -156,3 +156,32 @@ describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/
     expect(DRAW_VS).toContain('oceanFlag < 0.3');
   });
 });
+
+describe('decoupled mask bounds (2026-07-04, viewport-scoped mask over the world grid)', () => {
+  it('every mask-sampling shader derives mask uv from u_maskBounds, never u_dataBounds', () => {
+    for (const src of [HEATMAP_FS, ADVECT_FS, DRAW_VS]) {
+      expect(src).toMatch(/uniform (highp )?vec2 u_maskBounds_min;/);
+      expect(src).toMatch(/uniform (highp )?vec2 u_maskBounds_max;/);
+      // the mercator rows of the mask come from the MASK bounds
+      expect(src).toContain('latToMercatorY(u_maskBounds_max.y)');
+      expect(src).toContain('latToMercatorY(u_maskBounds_min.y)');
+    }
+    // the ribbon-endpoint fade samples with mask bounds too
+    expect(DRAW_VS).toContain('if (u_maskBounds_min.x > u_maskBounds_max.x) {');
+  });
+
+  it('viewport-truth OVERLAY overrides the base mask ONLY inside its bounds (stale-safe fallback)', () => {
+    // The retarget-in-place attempt regressed live (Istria/Susak): out-of-bounds samples clamped
+    // to edge-water and disabled land masking wholesale. The overlay pattern must therefore be
+    // enabled-gated AND bounds-gated at every sampling site, with the base sample taken FIRST.
+    for (const src of [HEATMAP_FS, ADVECT_FS, DRAW_VS]) {
+      expect(src).toContain('uniform sampler2D u_overlayMaskTexture;');
+      expect(src).toContain('uniform float u_overlayMaskEnabled;');
+      expect(src).toContain('if (u_overlayMaskEnabled > 0.5)');
+    }
+    // in-bounds gate present wherever the overlay is sampled
+    expect(HEATMAP_FS).toContain("if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0)");
+    expect(ADVECT_FS).toContain("if (no_u > 0.0 && no_u < 1.0 && no_v > 0.0 && no_v < 1.0)");
+    expect(DRAW_VS).toContain("if (eo_u > 0.0 && eo_u < 1.0 && eo_v > 0.0 && eo_v < 1.0)");
+  });
+});

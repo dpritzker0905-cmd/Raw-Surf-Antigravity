@@ -240,11 +240,14 @@ export function disposeEngine(engine, gl) {
   if (engine._residentChlTex) gl.deleteTexture(engine._residentChlTex);
   if (engine._residentBathTex) gl.deleteTexture(engine._residentBathTex);
   if (engine._cachedMaskTex) gl.deleteTexture(engine._cachedMaskTex);
-  
+  if (engine._overlayMaskTex) gl.deleteTexture(engine._overlayMaskTex);
+
   engine._residentWaveTex = null;
   engine._residentChlTex = null;
   engine._residentBathTex = null;
   engine._cachedMaskTex = null;
+  engine._overlayMaskTex = null;
+  engine._overlayMaskBounds = null;
   engine._cachedMaskGeoJSON = null;
   engine._landGeoJSON = null;
   engine._initialized = false;

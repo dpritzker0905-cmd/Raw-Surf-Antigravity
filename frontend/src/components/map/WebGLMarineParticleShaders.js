@@ -22,6 +22,12 @@ uniform float u_speed_scale;
 uniform float u_speedHeightCap;   // cap (m) on the height term that drives drift speed: big swell otherwise drifts ~linearly with height (7m ≈ 7×), reading as unnaturally fast at mid-zoom. Real phase speed scales with period, not height.
 uniform vec2 u_dataBounds_min;
 uniform vec2 u_dataBounds_max;
+uniform vec2 u_maskBounds_min;     // ocean-mask texture bounds (== the data grid; kept separate for auditability)
+uniform vec2 u_maskBounds_max;
+uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — overrides the base ONLY inside u_overlayBounds (stale-safe fallback outside)
+uniform vec2 u_overlayBounds_min;
+uniform vec2 u_overlayBounds_max;
+uniform float u_overlayMaskEnabled;
 uniform float u_rand_seed;
 uniform float u_drop_rate;
 uniform float u_zoom;
@@ -86,11 +92,19 @@ void main() {
   float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
-  // Calculate Web Mercator mask coordinates
-  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  // Calculate Web Mercator mask coordinates from the MASK's own bounds (decoupled from the data
+  // grid, 2026-07-04 — the resident mask can be a viewport-scoped basemap-truth texture).
+  float mercMinY = latToMercatorY(u_maskBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_maskBounds_min.y); // South
+  float mask_u;
+  if (u_maskBounds_min.x > u_maskBounds_max.x) {
+    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    mask_u = mod(lng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
+  } else {
+    mask_u = (lng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+  }
   float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
-  vec2 mask_uv = vec2(tex_u, mask_v);
+  vec2 mask_uv = vec2(mask_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
@@ -114,6 +128,17 @@ void main() {
   waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
   float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
+  // back to the base mask (stale-safe — see HEATMAP_FS note).
+  float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
+  float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
+  if (u_overlayMaskEnabled > 0.5) {
+    float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+    float o_v = (oMercMaxY - global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
+    if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
+      oceanFlag = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+    }
+  }
 
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
@@ -157,10 +182,24 @@ void main() {
   }
   float next_tex_v = (next_lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   
+  float next_mask_u;
+  if (u_maskBounds_min.x > u_maskBounds_max.x) {
+    float nmspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    next_mask_u = mod(next_lng - u_maskBounds_min.x, 360.0) / max(nmspan, 0.0001);
+  } else {
+    next_mask_u = (next_lng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+  }
   float next_mask_v = (mercMaxY - next_global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
-  vec2 next_mask_uv = vec2(next_tex_u, next_mask_v);
+  vec2 next_mask_uv = vec2(next_mask_u, next_mask_v);
   
   float nextOceanFlag = texture2D(u_oceanMaskTexture, next_mask_uv).r;
+  if (u_overlayMaskEnabled > 0.5) {
+    float no_u = (next_lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+    float no_v = (oMercMaxY - next_global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
+    if (no_u > 0.0 && no_u < 1.0 && no_v > 0.0 && no_v < 1.0) {
+      nextOceanFlag = texture2D(u_overlayMaskTexture, vec2(no_u, no_v)).r;
+    }
+  }
 
   vec2 seed = (nextPos + v_uv) * u_rand_seed;
   float drop = step(1.0 - u_drop_rate, rand(seed));
@@ -234,6 +273,12 @@ uniform float u_particles_res;     // resolution of position texture
 uniform mat4 u_matrix;             // MapLibre projection matrix
 uniform vec2 u_dataBounds_min;     // bounds [west, south]
 uniform vec2 u_dataBounds_max;     // bounds [east, north]
+uniform vec2 u_maskBounds_min;     // ocean-mask texture bounds (== the data grid; kept separate for auditability)
+uniform vec2 u_maskBounds_max;
+uniform sampler2D u_overlayMaskTexture; // viewport-truth land mask — overrides the base ONLY inside u_overlayBounds (stale-safe fallback outside)
+uniform vec2 u_overlayBounds_min;
+uniform vec2 u_overlayBounds_max;
+uniform float u_overlayMaskEnabled;
 uniform float u_time;              // elapsed time in seconds
 uniform float u_zoom;              // map zoom level
 uniform float u_tileZoomMin;       // zoom above which the camera-centered tile is used (matches ADVECT_FS)
@@ -321,11 +366,19 @@ void main() {
   float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   vec2 tex_uv = vec2(tex_u, tex_v);
 
-  // Calculate Web Mercator mask coordinates
-  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
+  // Calculate Web Mercator mask coordinates from the MASK's own bounds (decoupled from the data
+  // grid, 2026-07-04 — matches ADVECT_FS exactly).
+  float mercMinY = latToMercatorY(u_maskBounds_max.y); // North
+  float mercMaxY = latToMercatorY(u_maskBounds_min.y); // South
+  float mask_u;
+  if (u_maskBounds_min.x > u_maskBounds_max.x) {
+    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    mask_u = mod(lng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
+  } else {
+    mask_u = (lng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+  }
   float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
-  vec2 mask_uv = vec2(tex_u, mask_v);
+  vec2 mask_uv = vec2(mask_u, mask_v);
 
   vec4 waveData = texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
@@ -346,6 +399,17 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
   float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
+  // back to the base mask (stale-safe — see HEATMAP_FS note). Matches ADVECT_FS exactly.
+  float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
+  float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
+  if (u_overlayMaskEnabled > 0.5) {
+    float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+    float o_v = (oMercMaxY - global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
+    if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
+      oceanFlag = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+    }
+  }
 
   float particleHash = fract(sin(particleIndex * 12.9898) * 43758.5453);
 
@@ -558,14 +622,21 @@ void main() {
       vec2 endMerc = global_pos + mercDelta;
       float endLng = endMerc.x * 360.0 - 180.0;
       float end_u;
-      if (u_dataBounds_min.x > u_dataBounds_max.x) {
-        float endSpan = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
-        end_u = mod(endLng - u_dataBounds_min.x, 360.0) / max(endSpan, 0.0001);
+      if (u_maskBounds_min.x > u_maskBounds_max.x) {
+        float endSpan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+        end_u = mod(endLng - u_maskBounds_min.x, 360.0) / max(endSpan, 0.0001);
       } else {
-        end_u = (endLng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
+        end_u = (endLng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
       }
       float end_v = (mercMaxY - endMerc.y) / max(mercMaxY - mercMinY, 0.0001);
       float endFlag = texture2D(u_oceanMaskTexture, vec2(end_u, end_v)).r;
+      if (u_overlayMaskEnabled > 0.5) {
+        float eo_u = (endLng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+        float eo_v = (oMercMaxY - endMerc.y) / max(oMercMaxY - oMercMinY, 0.0001);
+        if (eo_u > 0.0 && eo_u < 1.0 && eo_v > 0.0 && eo_v < 1.0) {
+          endFlag = texture2D(u_overlayMaskTexture, vec2(eo_u, eo_v)).r;
+        }
+      }
       v_alpha *= smoothstep(0.20, 0.45, endFlag);
     }
   }

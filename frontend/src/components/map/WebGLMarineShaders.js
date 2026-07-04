@@ -59,6 +59,12 @@ uniform float u_heightAlphaHi;       // height (m) at/above which a regional cel
 uniform highp float u_lng_offset;
 uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
+uniform highp vec2 u_maskBounds_min;   // [west, south] of the OCEAN-MASK texture (== the data grid; kept separate for auditability)
+uniform highp vec2 u_maskBounds_max;   // [east, north]
+uniform sampler2D u_overlayMaskTexture; // VIEWPORT-truth land mask (basemap water polygons) — valid only inside u_overlayBounds
+uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixels OUTSIDE fall back to u_oceanMaskTexture (stale-safe by construction)
+uniform highp vec2 u_overlayBounds_max; // [east, north]
+uniform float u_overlayMaskEnabled;     // 1.0 only when a wide (world) grid is resident and an overlay has been painted
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -232,12 +238,37 @@ void main() {
   float tex_v = (lat - u_dataBounds_min.y) / max(u_dataBounds_max.y - u_dataBounds_min.y, 0.0001);
   vec2 grid_uv = vec2(tex_u, tex_v);
 
-  float mercMinY = latToMercatorY(u_dataBounds_max.y); // North
-  float mercMaxY = latToMercatorY(u_dataBounds_min.y); // South
-  float mask_v = (mercMaxY - v_mercator_xy.y) / max(mercMaxY - mercMinY, 0.0001);
-  vec2 mask_uv = vec2(tex_u, mask_v);
+  // DECOUPLED MASK BOUNDS (2026-07-04): the ocean mask can cover different geography than the
+  // data grid (a viewport-scoped basemap-truth mask while the WORLD grid is resident), so its uv
+  // derives from u_maskBounds, never u_dataBounds.
+  float maskMercMinY = latToMercatorY(u_maskBounds_max.y); // North
+  float maskMercMaxY = latToMercatorY(u_maskBounds_min.y); // South
+  float mask_u;
+  if (u_maskBounds_min.x > u_maskBounds_max.x) {
+    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    mask_u = mod(lng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
+  } else {
+    mask_u = (lng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+  }
+  float mask_v = (maskMercMaxY - v_mercator_xy.y) / max(maskMercMaxY - maskMercMinY, 0.0001);
+  vec2 mask_uv = vec2(mask_u, mask_v);
 
   float oceanAlpha = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // VIEWPORT-TRUTH OVERLAY (2026-07-04): while the WORLD grid is resident its 1024×512 mask
+  // (~39 km/texel) cannot carve islands/harbours — a second, viewport-scoped basemap-truth mask
+  // overrides the base ONLY where this pixel lies inside the overlay's bounds. Outside (stale
+  // overlay after a pan, or no overlay yet) the base mask stands — masking can never be WORSE
+  // than the grid's own mask (the u_maskBounds-retarget attempt broke here: out-of-bounds samples
+  // clamped to edge-water and disabled land masking wholesale — live Istria/Susak regression).
+  if (u_overlayMaskEnabled > 0.5) {
+    float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
+    float oMercMaxY = latToMercatorY(u_overlayBounds_min.y);
+    float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
+    float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
+    if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
+      oceanAlpha = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+    }
+  }
   vec4 waveData = texture2D(u_waveTexture, grid_uv);
   float depthFactor = texture2D(u_bathymetryTexture, grid_uv).r;
   float waveHeight = waveData.b * 10.0;

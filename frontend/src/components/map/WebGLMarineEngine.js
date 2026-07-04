@@ -665,17 +665,39 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity);
     }
 
+    // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different
+    // geography than the data grid — refreshMaskWithBasemapWater rebuilds it VIEWPORT-scoped while
+    // the WORLD grid is resident at close zoom (the 1024×512 world mask is ~39 km/texel and cannot
+    // carve any island — the Pianosa class). Every mask sample in the shaders uses these bounds.
+    const maskBounds = (this._cachedMaskBounds && this._waveData.u_oceanMaskTexture === this._cachedMaskTex)
+      ? this._cachedMaskBounds : waveBounds;
+    // Viewport-truth OVERLAY mask (refreshViewportOverlayMask): shaders consult it only inside its
+    // bounds, and only while a WIDE grid is resident — regional masks already carry the basemap
+    // truth at equal resolution, and the per-pixel fallback makes a stale overlay harmless.
+    const _gwSpan = (waveBounds.east < waveBounds.west) ? (waveBounds.east + 360) - waveBounds.west : waveBounds.east - waveBounds.west;
+    const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds && _gwSpan >= 340);
+    const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, bounds: overlayOn ? ob : null };
+    }
+
     gl.useProgram(this.heatmapProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
 
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
     gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_oceanMaskTexture'), 3);
+    gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayBounds_max'), ob.east, ob.north);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
-    
+
     const isRegionalGrid = (waveBounds.east - waveBounds.west < 359.9);
     const edgeFeatherEnabledVal = isRegionalGrid ? 1.0 : 0.0;
     if (typeof window !== 'undefined') {
@@ -823,20 +845,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           // FLOOR at 0.7 (2026-06-29): a full fade-to-0 made the heatmap "clear" at very close zoom — but most
           // coastal viewports were STUCK on the coarse-global grid back then, so the fade fired constantly and
           // read as "the heatmap disappeared". Dim to 70% instead so the data stays visible.
-          // EXTREME-OVERZOOM RAMP (2026-07-04, Pianosa report): that floor also painted the WORLD grid's wash
-          // at 70% over sub-kilometre islands during the sharpen window — its 1024×512 mask (~39 km/texel)
-          // physically cannot carve them, so the wash reads as data over land. When the viewport is far
-          // narrower than ONE coarse cell (cellsAcross → 0, i.e. island/harbour zooms on the world grid) the
-          // floor itself now ramps to 0: "no fine data yet" instead of a wrong claim. The sharpen re-drive
-          // (coarse-reval backoff + cap probe) bounds the blank window; regional tiles (cellDeg < 1°) never
-          // enter this branch. Kill switch unchanged: window.__RAW_DISABLE_COARSE_FADE__ = true.
-          // Ramp window [0.002, 0.02] cells-across ≈ viewport 0.02°–0.2° on a 10° cell — the fade
-          // to zero only engages past ~z11.5 (island/harbour scale) and completes by ~z15. At the
-          // z9–11 harbor overview the legacy 0.7 wash stays fully visible (live calibration
-          // 2026-07-04: a [0.02, 0.5] window cleared the wash on a z10.3 zoom-out, reading as a
-          // blank-heatmap bug while the viewport product was still loading).
-          const floorRamp = smoothstepVal(0.002, 0.02, cellsAcross);
-          coarseFade = 0.7 * floorRamp + 0.3 * smoothstepVal(0.5, 2.0, cellsAcross); // [0..1]: clears only when a cell utterly dwarfs the view
+          // 2026-07-04 (Pianosa/world-window saga): two fade-to-zero ramps were tried here and BOTH
+          // read as a "blank heatmap" bug within minutes of live driving. The real fix landed
+          // elsewhere — refreshMaskWithBasemapWater now rebuilds the mask VIEWPORT-scoped while a
+          // wide grid is resident (u_maskBounds decoupling), so the wash is land-clipped at meter
+          // truth and can stay visible over water at every zoom. The legacy 0.7 floor stands.
+          coarseFade = 0.7 + 0.3 * smoothstepVal(0.5, 2.0, cellsAcross); // [0.7..1.0]: dims, never clears
         }
       }
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;
@@ -847,6 +861,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
 
+    // Overlay on unit 4 (fallback-bind the base mask so the sampler is always complete).
+    bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 4);
     bindTexture(gl, this._waveData.u_waveTexture, 0);
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
@@ -973,6 +989,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
       const _endpointLandFade = (typeof window !== 'undefined' && window.__RAW_DISABLE_ENDPOINT_LAND_FADE__ === true) ? 0.0 : 1.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_endpointLandFade'), _endpointLandFade);
+      // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_max'), ob.east, ob.north);
 
       // TRUTHFULNESS ECHO: publish the exact animation values the engine is applying THIS frame (+ live zoom)
       // so the tuner can prove the sliders reach the GPU and show what's active per zoom. Read every frame.
@@ -1017,6 +1038,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tileZoomMin'), tileZoomMin);
@@ -1040,6 +1063,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // bath texture is resident, so unit 3 is always a valid bound texture — the sampler is only READ when
       // u_shoalFoam>0, which the engine forces to 0 without a bath texture (so the fallback is never sampled).
       bindTexture(gl, (this._waveData.u_bathymetryTexture ? this._waveData.u_bathymetryTexture : this._waveData.u_waveTexture), 3);
+      bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 4);
 
       var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
       if (this.drawVAO) {
@@ -1102,6 +1126,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskTexture'), 3);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_min'), ob.west, ob.south);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
       // Cap the height term that drives drift speed (big swell otherwise drifts ~linearly with height → unnaturally
       // fast at mid-zoom over the coarse-global). Default 3.0 m; tunable live via window.__RAW_SPEED_HEIGHT_CAP__.
@@ -1166,6 +1196,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         bindTexture(gl, this.particleStateA, 0);
         bindTexture(gl, this._waveData.u_waveTexture, 1);
         bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
+        bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 3);
 
         if (this.advectVAO) {
           gl.bindVertexArray(this.advectVAO);
@@ -1233,11 +1264,16 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   if (typeof window !== 'undefined' && window.__RAW_BASEMAP_WATER_MASK__ === false) return false;
   if (!gl || !mapInstance) return false;
   const geo = this._cachedMaskGeoJSON;
-  const bounds = this._cachedMaskBounds;
   const tex = this._cachedMaskTex;
+  const bounds = this._cachedMaskBounds;
   if (!geo || !bounds || !tex) return false;
   const span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
-  if (span >= 30) return false;
+  // WIDE (world) grids: the grid's own 1024×512 mask (~39 km/texel) cannot hold viewport detail —
+  // paint a SEPARATE viewport-truth OVERLAY texture instead (see refreshViewportOverlayMask). The
+  // base mask is never touched, so a stale overlay can only ever fall back to base behavior.
+  // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
+  // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
+  if (span >= 30) return this.refreshViewportOverlayMask(gl, mapInstance);
   // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
   // a texture nothing binds (and skipping avoids fighting an in-flight commit).
   if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
@@ -1258,6 +1294,60 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     return true;
   } catch (e) {
     console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message);
+    return false;
+  }
+};
+
+// VIEWPORT-TRUTH OVERLAY MASK (2026-07-04): while a WIDE (world) grid is resident at close zoom,
+// paint the basemap-truth mask for the PADDED VIEWPORT into a dedicated texture the shaders
+// consult ONLY inside its bounds (u_overlayMask* uniforms). Per-pixel fallback to the grid's own
+// mask makes staleness harmless: after a fast pan the overlay covers where the user WAS, those
+// pixels are off-screen, and everything visible degrades to the coarse-but-sane base mask until
+// the idle/zoomend refresh repaints. Kill switch rides __RAW_BASEMAP_WATER_MASK__ (caller-gated).
+WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstance) {
+  const geo = this._cachedMaskGeoJSON;
+  if (!geo || !gl || !mapInstance) return false;
+  let z;
+  try { z = mapInstance.getZoom(); } catch (e) { return false; }
+  if (z < 9) return false;
+  let bounds;
+  try {
+    const b = mapInstance.getBounds();
+    const padX = (b.getEast() - b.getWest()) * 0.15;
+    const padY = (b.getNorth() - b.getSouth()) * 0.15;
+    bounds = {
+      west: b.getWest() - padX,
+      south: Math.max(-85, b.getSouth() - padY),
+      east: b.getEast() + padX,
+      north: Math.min(85, b.getNorth() + padY),
+    };
+  } catch (e) { return false; }
+  try {
+    const canvas = renderMaskToCanvas(geo, bounds);
+    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    if (!applied) return false;
+    if (!this._overlayMaskTex) {
+      this._overlayMaskTex = gl.createTexture();
+      gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MIN_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_MAG_FILTER, gl.LINEAR);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_S, gl.CLAMP_TO_EDGE);
+      gl.texParameteri(gl.TEXTURE_2D, gl.TEXTURE_WRAP_T, gl.CLAMP_TO_EDGE);
+    }
+    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+    gl.bindTexture(gl.TEXTURE_2D, this._overlayMaskTex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
+    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    this._overlayMaskBounds = bounds;
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString(), overlay: true, bounds };
+    }
+    return true;
+  } catch (e) {
+    console.warn('[WebGLMarineEngine] viewport overlay mask refresh skipped:', e && e.message);
     return false;
   }
 };
@@ -1317,6 +1407,13 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
+  // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
+  // No viewport overlay on the base wash (it only draws under a REGIONAL grid, which carries the
+  // basemap truth itself); fallback-bind unit 4 so the sampler stays complete.
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskTexture'), 4);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_overlayMaskEnabled'), 0.0);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_waveTexture'), 0);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_chlorophyllTexture'), 1);
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_bathymetryTexture'), 2);
@@ -1336,6 +1433,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
   bindTexture(gl, base.u_oceanMaskTexture, 3);
+  bindTexture(gl, base.u_oceanMaskTexture, 4);
 
   const heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
   let heatUVLoc = -1;
