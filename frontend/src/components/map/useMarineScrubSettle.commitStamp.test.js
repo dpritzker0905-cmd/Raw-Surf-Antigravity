@@ -9,7 +9,7 @@
  * The fix commits a shallow CLONE stamped from the SHARED marineRevision sequence
  * (stampSeriesCommit). Also covers the engine-empty (zoom-out clear) recovery branch.
  */
-import { runScrubSettleCheck, stampSeriesCommit } from './useMarineScrubSettle';
+import { runScrubSettleCheck, stampSeriesCommit, evaluateClampCapProbe, CLAMP_CAP_REARM_MS } from './useMarineScrubSettle';
 import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
 
 jest.mock('./marineGridSeries', () => ({
@@ -206,5 +206,33 @@ describe('runScrubSettleCheck — engine-empty recovery (the §2b zoom-out clear
     const setMarineData = jest.fn();
     runScrubSettleCheck(mkCtx({ mapInstance: wideMap(), setMarineData, marineData: staleRegional() }));
     expect(setMarineData).not.toHaveBeenCalled();
+  });
+});
+
+describe('evaluateClampCapProbe (pure) — slow re-arm for the no-progress cap (sharpen re-drive root, 2026-07-04)', () => {
+  it('below the threshold: not capped, no probe (normal re-drives continue)', () => {
+    expect(evaluateClampCapProbe({ noProgress: 0, sinceLastProbeMs: 999999 }))
+      .toEqual({ capped: false, probe: false });
+    expect(evaluateClampCapProbe({ noProgress: 2, sinceLastProbeMs: 999999 }))
+      .toEqual({ capped: false, probe: false });
+  });
+
+  it('capped but inside the rearm window: silent (no churn — the cap still breaks the ~6s re-commit loop)', () => {
+    expect(evaluateClampCapProbe({ noProgress: 3, sinceLastProbeMs: 0 }))
+      .toEqual({ capped: true, probe: false });
+    expect(evaluateClampCapProbe({ noProgress: 10, sinceLastProbeMs: CLAMP_CAP_REARM_MS - 1 }))
+      .toEqual({ capped: true, probe: false });
+  });
+
+  it('capped and past the rearm window: fires ONE probe (never permanent silence for a held coarse_global)', () => {
+    // The wedge this guards: coarse_global engine bounds are always the world, so the engine-sig
+    // reset never fires and an idle viewport stayed wedged until a moveend — even after the
+    // backend regional build completed.
+    expect(evaluateClampCapProbe({ noProgress: 5, sinceLastProbeMs: CLAMP_CAP_REARM_MS }))
+      .toEqual({ capped: true, probe: true });
+  });
+
+  it('rearm cadence is slow enough to never reintroduce the particle-reset churn (≥30s)', () => {
+    expect(CLAMP_CAP_REARM_MS).toBeGreaterThanOrEqual(30000);
   });
 });

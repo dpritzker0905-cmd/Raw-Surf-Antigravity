@@ -10,6 +10,7 @@ import {
   prewarmMarineSeries,
   padRegionalBbox,
   SERIES_BBOX_PAD_DEG,
+  coarseRevalDelayMs,
   _resetMarineSeriesForTest,
 } from '../components/map/marineGridSeries';
 
@@ -292,5 +293,71 @@ describe('padRegionalBbox — degree-boundary clamp fix', () => {
     expect(south.south).toBe(-89.5);   // -89.9 clamped
     const north = padRegionalBbox({ west: 0, south: 86, east: 2, north: 89.4 });
     expect(north.north).toBe(89.5);    // 89.9 clamped
+  });
+});
+
+describe('coarseRevalDelayMs — exponential backoff for the coarse-preview revalidation (sharpen re-drive root, 2026-07-04)', () => {
+  it('keeps the early snappiness, doubles per attempt, and caps at 30s', () => {
+    expect(coarseRevalDelayMs(1)).toBe(1200);
+    expect(coarseRevalDelayMs(2)).toBe(2400);
+    expect(coarseRevalDelayMs(3)).toBe(4800);
+    expect(coarseRevalDelayMs(4)).toBe(9600);
+    expect(coarseRevalDelayMs(5)).toBe(19200);
+    expect(coarseRevalDelayMs(6)).toBe(30000);
+    expect(coarseRevalDelayMs(13)).toBe(30000);   // stays capped
+    expect(coarseRevalDelayMs(0)).toBe(1200);     // degenerate input → base delay
+  });
+
+  it('total budget spans the 5-min series TTL — a slow backend regional build is still caught', () => {
+    // The wedge: the old fixed 8×1.2s (~10s) budget exhausted while the 1-CPU backend was still
+    // building the regional grid, caching the GLOBAL preview for the full TTL with no driver left.
+    // 14 attempts under this schedule must cover at least the TTL window (5 min).
+    let total = 0;
+    for (let n = 1; n <= 14; n++) total += coarseRevalDelayMs(n);
+    expect(total).toBeGreaterThanOrEqual(5 * 60 * 1000);
+  });
+});
+
+describe('coarse-preview revalidation keeps re-driving past the old 8-attempt budget', () => {
+  beforeEach(() => {
+    _resetMarineSeriesForTest();
+    window.__MARINE_SERIES__ = true;
+    global.fetch = jest.fn();
+    jest.useFakeTimers();
+  });
+  afterEach(() => {
+    jest.useRealTimers();
+    delete window.__MARINE_SERIES__;
+  });
+
+  // Flush the microtask queue so awaited fetch mocks settle under fake timers.
+  const flush = async () => { for (let i = 0; i < 12; i++) await Promise.resolve(); };
+
+  it('a persistent GLOBAL preview for a REGIONAL request revalidates 15 times on the backoff schedule, then stops', async () => {
+    const regional = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 };
+    const worldBounds = { west: -180, south: -85, east: 180, north: 85 };
+    const coarseResp = {
+      model: 'GFS', domain: 'marine', layer: 'waves', cols: 4, rows: 4,
+      frames: [{ hour_offset: 0, valid_time: '2026-06-20T06:00:00Z', cols: 4, rows: 4, bounds: worldBounds, vectors: [{ lat: 0, lng: 0, u: 0, v: 0, speed: 1, direction: 90, period: 8 }], provider: 'open-meteo' }],
+    };
+    global.fetch.mockResolvedValue({ ok: true, json: async () => coarseResp });
+
+    await ensureMarineSeries('GFS', 'waves', regional, 0, undefined, true);
+    await flush();
+    expect(global.fetch).toHaveBeenCalledTimes(1);   // initial load → coarse preview, revalCount=1
+
+    // Walk the backoff chain: after N coarse results the next attempt fires coarseRevalDelayMs(N) later.
+    for (let n = 1; n < 15; n++) {
+      jest.advanceTimersByTime(coarseRevalDelayMs(n));
+      await flush();
+      expect(global.fetch).toHaveBeenCalledTimes(n + 1);
+    }
+    // Past the old 10s budget: attempt 9+ proves the wedge fix (old MAX was 8).
+    expect(global.fetch.mock.calls.length).toBeGreaterThan(8);
+
+    // Budget exhausted at 15 — a genuinely global-only region cannot loop forever.
+    jest.advanceTimersByTime(10 * 60 * 1000);
+    await flush();
+    expect(global.fetch).toHaveBeenCalledTimes(15);
   });
 });

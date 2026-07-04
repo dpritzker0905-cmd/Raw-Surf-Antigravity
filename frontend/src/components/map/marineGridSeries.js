@@ -30,12 +30,25 @@ const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 32;              // bounded; ~10 distinct (model,layer,viewport) targets × pages
 // Coarse-preview revalidation: a COLD regional viewport gets an instant GLOBAL coarse_preview from the
-// backend (SWR — it builds the precise regional grid in the background). Re-fetch the page a few times,
-// spaced out, until the backend returns the regional grid — else we'd cache the global frame and the
-// heatmap renders coarse/clamped at the viewport forever (the zoom-out clamp). Bounded so a viewport
-// that is genuinely global-only can't loop.
-const COARSE_REVAL_MAX = 8;
-const COARSE_REVAL_INTERVAL_MS = 1200;
+// backend (SWR — it builds the precise regional grid in the background). Re-fetch the page, spaced out,
+// until the backend returns the regional grid — else we'd cache the global frame and the heatmap renders
+// coarse/clamped at the viewport forever (the zoom-out clamp). Bounded so a viewport that is genuinely
+// global-only can't loop.
+// EXPONENTIAL BACKOFF (sharpen re-drive root, 2026-07-04): the old fixed 8×1.2s window (~10s) assumed the
+// backend's regional build finishes fast, but under 1-CPU ingestion contention it can run MINUTES — the
+// budget exhausted, the GLOBAL preview got cached for the full 5-min TTL, and with the render backstop's
+// no-progress cap also engaged NOTHING re-fetched until the user moved the map (the "world grid resident
+// for minutes at a fresh site" wedge, observed live at Venice). Backoff keeps the early snappiness
+// (1.2s/2.4s/4.8s…) but stretches the total budget past the SERIES_TTL, while late retries are 30s apart
+// so total backend load stays negligible (the build-in-progress responses are served from the SWR cache).
+const COARSE_REVAL_MAX = 15;   // 14 backoff delays ≈ 307s — covers the full SERIES_TTL window
+const COARSE_REVAL_BASE_MS = 1200;
+const COARSE_REVAL_MAX_INTERVAL_MS = 30000;
+// Delay before revalidation attempt N+1, after N coarse results so far. Exported for tests.
+export function coarseRevalDelayMs(revalCount) {
+  const n = Math.max(1, Math.floor(revalCount) || 1);
+  return Math.min(COARSE_REVAL_BASE_MS * Math.pow(2, n - 1), COARSE_REVAL_MAX_INTERVAL_MS);
+}
 
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
 // once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
@@ -227,7 +240,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     // refuse to re-fetch the covering tile the backend readily serves. Still de-duped against `_inFlight`.
     const coarseRetryDue = existing.coarsePreview &&
       (existing.revalCount || 0) < COARSE_REVAL_MAX &&
-      Date.now() - existing.ts >= COARSE_REVAL_INTERVAL_MS;
+      Date.now() - existing.ts >= coarseRevalDelayMs(existing.revalCount || 1);
     if (!coarseRetryDue && Date.now() - existing.ts < SERIES_TTL_MS) return;
   }
   if (_inFlight.has(key)) return;
@@ -295,7 +308,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
-        const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal); }, COARSE_REVAL_INTERVAL_MS);
+        const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal); }, coarseRevalDelayMs(revalCount));
         _idleTimers.add(t);
       } else if (!isCoarsePreview && typeof window !== 'undefined') {
         // A REGIONAL frame just landed. Notify so a held coarse-global / clamped grid is sharpened

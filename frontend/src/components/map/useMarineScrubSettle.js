@@ -85,6 +85,26 @@ function recordMarineFreeze(reason, payload) {
   window.__MARINE_FREEZE_DIAG__ = store;
 }
 
+// How often a CAPPED no-progress clamp may fire a slow PROBE re-drive. The cap itself is right (it
+// breaks the ~6s re-commit/particle-reset churn), but its reset signature is the ENGINE grid bounds —
+// for a held coarse_global grid those are always ±180/±85, so no pan ever resets the interval's cap
+// and an idle user got PERMANENT silence: with the series coarse-reval budget also exhausted, nothing
+// re-fetched until a moveend (the Venice "world grid resident for minutes" wedge, 2026-07-04). A probe
+// every ~45s re-runs checkScrubSettle: if the backend's regional build finished meanwhile, the series
+// force-fetch pulls it and the sharpen commits (event-driven via marine_series_revalidated); if not,
+// it costs one bounded background fetch — no commit, so no particle-reset churn.
+export const CLAMP_CAP_REARM_MS = 45000;
+
+/**
+ * Decide whether a no-progress-capped clamp should fire a slow probe re-drive. Pure + unit-testable.
+ * `noProgress` = consecutive backstop passes with an unchanged engine-grid signature;
+ * `sinceLastProbeMs` = elapsed since the cap engaged or the last probe fired.
+ */
+export function evaluateClampCapProbe({ noProgress, sinceLastProbeMs, threshold = 3, rearmMs = CLAMP_CAP_REARM_MS }) {
+  if (noProgress < threshold) return { capped: false, probe: false };
+  return { capped: true, probe: sinceLastProbeMs >= rearmMs };
+}
+
 // Fallback revision sequence for callers (tests/legacy) that don't wire the shared marineRevision ref.
 const _fallbackRevision = { current: 0 };
 
@@ -401,6 +421,7 @@ export function useMarineScrubSettle({
     // can't conjure one). Resets on any viewport/grid change, so normal sharpening is unaffected.
     let clampSig = null;
     let clampNoProgress = 0;
+    let lastCapProbe = 0;  // when the no-progress cap engaged / last slow probe fired
     const id = setInterval(() => {
       // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
       // interval is created once and never churns (preserving the blank streak across re-renders).
@@ -504,16 +525,30 @@ export function useMarineScrubSettle({
         if (clampNoProgress >= 3) {
           if (clampNoProgress === 3 && typeof window !== 'undefined') {
             window.__MARINE_CLAMP_GIVEUP_COUNT__ = (window.__MARINE_CLAMP_GIVEUP_COUNT__ || 0) + 1;
+            lastCapProbe = Date.now();  // arm the slow-probe clock from the moment the cap engages
             // Diagnostic for P2: if willSharpen was true yet the engine grid stayed narrower than the frame
             // (engineGw < frameFw), the committed covering frame is NOT reaching the engine — the real
             // coverage bug that leaves a sub-viewport rectangle. That's fixed separately (hold a covering base).
             const _eb = gb ? `W${gb.west.toFixed(2)} E${gb.east.toFixed(2)} S${gb.south.toFixed(2)} N${gb.north.toFixed(2)}` : 'none';
             const _vp = _sd.vb ? `W${_sd.vb.w} E${_sd.vb.e} S${_sd.vb.s} N${_sd.vb.n}` : 'none';
-            console.warn(`[Marine] Clamp backstop: ${kind} made no progress after 3 re-drives — stopping churn `
-              + `until the view changes. (sharpen willSharpen=${_sd.willSharpen} frameFw=${_sd.fw}; engineGw=${gw && gw.toFixed ? gw.toFixed(1) : gw})`
+            console.warn(`[Marine] Clamp backstop: ${kind} made no progress after 3 re-drives — slowing to a `
+              + `${(CLAMP_CAP_REARM_MS / 1000)}s probe cadence. (sharpen willSharpen=${_sd.willSharpen} frameFw=${_sd.fw}; engineGw=${gw && gw.toFixed ? gw.toFixed(1) : gw})`
               + ` engineBounds=[${_eb}] viewport=[${_vp}] series={loads:${_ser.loads},hits:${_ser.hits},misses:${_ser.misses}}`);
+            return;
           }
-          return;  // suppress further no-progress re-drives (breaks the infinite re-commit loop + particle-reset churn)
+          // Slow re-arm probe: the engine-sig cap never resets for a held coarse_global grid (its bounds
+          // are always the world), so without this an idle viewport stayed wedged on the world grid until
+          // a moveend — even after the backend's regional build completed. One probe per rearm window:
+          // sharpens instantly when a covering regional frame is now available, else fires one bounded
+          // background series fetch (no commit → no churn).
+          const cp = evaluateClampCapProbe({ noProgress: clampNoProgress, sinceLastProbeMs: Date.now() - lastCapProbe });
+          if (cp.probe) {
+            lastCapProbe = Date.now();
+            if (typeof window !== 'undefined') window.__MARINE_CLAMP_CAP_PROBE_COUNT__ = (window.__MARINE_CLAMP_CAP_PROBE_COUNT__ || 0) + 1;
+            console.warn(`[Marine] Clamp backstop: capped ${kind} slow probe — re-checking for a landed regional product.`);
+            if (checkScrubSettleRef.current) checkScrubSettleRef.current();
+          }
+          return;  // suppress fast no-progress re-drives (breaks the infinite re-commit loop + particle-reset churn)
         }
       }
       console.warn(`[Marine] Render backstop: ${clamp ? (kind + ' grid at zoomed-in viewport') : 'engine empty'} + idle ≥3s — re-driving.`,
