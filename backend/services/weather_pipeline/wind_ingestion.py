@@ -132,6 +132,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
             "global_coarse",
             batch_size=_WIND_GLOBAL_BATCH_SIZE
         )
+    from_cache = False
     if not results:
         logger.warning("[Pipeline Scheduler] GFS wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
         fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
@@ -141,7 +142,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
                     cached_data = json.load(f)
                 
                 if len(cached_data) < 100:
-                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Skipping this cycle (no mock is generated in production).")
                     results = None
                 else:
                     base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -168,6 +169,7 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
                             item["hourly"]["wind_direction_10m"] = new_direction
                             
                     results = cached_data
+                    from_cache = True
                     logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
             except Exception as cache_err:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
@@ -181,13 +183,18 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
     # NOAA GFS is natively 3-hourly (step=1 keeps every step); open-meteo all-wind is hourly (step=3 ->
     # 3-hourly products). Same 3-hourly product cadence either way. (forecast_cache fallback is hourly too.)
     save_step = 1 if from_noaa else 3
+    # Recycled-cache products are ESTIMATES (2026-07-04): the last-resort fallback time-shifts a
+    # stale snapshot onto current dates — that must never serve labeled as a live forecast.
+    _cache_basis = {"type": "stale_cache_recycled", "method": "time_shifted_forecast_cache",
+                    "source_model": "gfs_seamless"} if from_cache else None
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="GFS", provider="open-meteo", domain="wind", layer="wind",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
         is_test_env=env["is_test_env"], step=save_step,
-        log_prefix="[Pipeline Scheduler] GFS wind global_coarse"
+        log_prefix="[Pipeline Scheduler] GFS wind global_coarse",
+        estimated_after_index=0 if from_cache else None, estimate_basis=_cache_basis
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind global coarse grid files.")
     if count > 0:
@@ -239,6 +246,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
             "global_coarse",
             batch_size=_WIND_GLOBAL_BATCH_SIZE
         )
+    from_cache = False
     if not results:
         logger.warning("[Pipeline Scheduler] EURO wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
         fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
@@ -248,7 +256,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
                     cached_data = json.load(f)
                 
                 if len(cached_data) < 100:
-                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Skipping this cycle (no mock is generated in production).")
                     results = None
                 else:
                     base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -275,6 +283,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
                             item["hourly"]["wind_direction_10m"] = new_direction
                             
                     results = cached_data
+                    from_cache = True
                     logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
             except Exception as cache_err:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
@@ -288,13 +297,17 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
     # ECMWF is native 3/6-hourly (step=1 keeps every step); open-meteo all-wind + forecast_cache are
     # hourly (step=3 -> 3-hourly products). Same product cadence either way.
     save_step = 1 if from_ecmwf else 3
+    # Recycled-cache products are ESTIMATES (2026-07-04) — see the GFS block above.
+    _cache_basis = {"type": "stale_cache_recycled", "method": "time_shifted_forecast_cache",
+                    "source_model": "gfs_seamless"} if from_cache else None
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="EURO", provider="open-meteo", domain="wind", layer="wind",
         bbox=global_region, resolution=resolution, run_time=run_time,
         region_id="global_coarse", coverage_mode="global_tile",
         is_test_env=env["is_test_env"], step=save_step,
-        log_prefix="[Pipeline Scheduler] EURO wind global_coarse"
+        log_prefix="[Pipeline Scheduler] EURO wind global_coarse",
+        estimated_after_index=0 if from_cache else None, estimate_basis=_cache_basis
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind global coarse grid files.")
     if count > 0:
@@ -397,6 +410,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                     if orig_gusts:
                         item["hourly"]["wind_gusts_10m"] = new_gusts
 
+    from_cache = False
     if not results:
         logger.warning("[Pipeline Scheduler] ICON wind global_coarse fetch failed. Trying to load from forecast_cache fallback...")
         fallback_path = Path(__file__).parent.parent.parent / "uploads" / "forecast_cache" / "wind_global.json"
@@ -406,7 +420,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                     cached_data = json.load(f)
                 
                 if len(cached_data) < 100:
-                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Generating full global mock grid fallback instead.")
+                    logger.warning(f"[Pipeline Scheduler] Fallback file has only {len(cached_data)} points (too small for global). Skipping this cycle (no mock is generated in production).")
                     results = None
                 else:
                     base_date = run_time.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -433,6 +447,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                             item["hourly"]["wind_direction_10m"] = new_direction
                             
                     results = cached_data
+                    from_cache = True
                     logger.info(f"[Pipeline Scheduler] Successfully loaded and time-shifted {len(results)} points from forecast_cache fallback.")
             except Exception as cache_err:
                 logger.error(f"[Pipeline Scheduler] Failed to load forecast_cache fallback: {cache_err}")
@@ -451,10 +466,13 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
     }
 
     # DWD-direct is real 3-hourly data to ~180h -> authoritative, step=1, no estimation. open-meteo path
-    # is hourly to 120h + cyclic-filled -> step=3, estimated beyond index 120.
+    # is hourly to 120h + cyclic-filled -> step=3, estimated beyond index 120. A recycled forecast_cache
+    # (2026-07-04) is an ESTIMATE from hour 0 — time-shifted stale data must never serve as live.
     save_step = 1 if from_dwd else 3
-    est_after = None if from_dwd else 120
-    est_basis = None if from_dwd else icon_estimate_basis
+    est_after = None if from_dwd else (0 if from_cache else 120)
+    est_basis = None if from_dwd else (
+        {"type": "stale_cache_recycled", "method": "time_shifted_forecast_cache", "source_model": "gfs_seamless"}
+        if from_cache else icon_estimate_basis)
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="ICON", provider="open-meteo", domain="wind", layer="wind",
