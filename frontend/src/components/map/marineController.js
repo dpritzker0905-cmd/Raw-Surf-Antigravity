@@ -42,6 +42,21 @@ import { extractMarineAtOffset } from './marineControllerExtractor';
 
 import { ensureMarineSeries, getMarineSeriesFrame } from './marineGridSeries';
 
+// GLOBAL-COARSE grid prewarm (2026-07-04, the "heatmap clears 3-5s on FIRST zoom-out" root, traced):
+// on zoom-out past z7 the display gate rejects the regional grid (op 0) and the GLOBAL-coarse grid
+// must take over — but on a COLD cache that /grid fetch is ~5s (1-CPU backend), a long blank window
+// (only ~1s once warm). Warm the ACTIVE layer's global-coarse into the SAME result cache the zoom-out
+// lookup uses, WHILE the user is still zoomed in. SAFE vs the documented landmine (which COMMITTED a
+// coarse grid at a zoomed-IN viewport → tripped the backstop → clear): this only CACHES via
+// _cacheMarineResult under the 'global_coarse' tile key. A zoomed-IN fetchMarineData keys by the
+// VIEWPORT tile (viewport_...), never global_coarse, so the cached global can only be RETRIEVED +
+// committed once the viewport is wide (zoomed out) — its correct context. Bounded: deduped, skipped
+// once cached, gated to zoomed-in viewports, rides the sibling-prewarm kill switch, silent (no
+// truth-stage pollution). No abort signal → the background warm survives the pan/zoom that would
+// otherwise cancel it (the global is location-independent, so a stray completion is harmless).
+const _globalGridPrewarmInFlight = new Set();
+const _GLOBAL_BOUNDS = { west: -180, south: -80, east: 180, north: 85 };
+
 export { getBackendWindFlag, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getBackendMarineSystemFlag } from './backendWeatherServiceClient';
 
 // Re-export wind controller components for timeline scrubs and observers
@@ -137,6 +152,45 @@ export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLaye
         .catch(() => { /* best-effort: miss/abort is fine, the toggle still works per-layer */ })
         .finally(() => { _siblingPrewarmInFlight.delete(key); });
     }
+  } catch (e) { /* never let prewarm break the active fetch */ }
+}
+
+export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) {
+  try {
+    if (!isMarineSiblingPrewarmEnabled()) return;
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
+    if (!bounds || bounds.east === undefined || bounds.north === undefined) return;
+    // Only while ZOOMED IN (regional viewport ≤ 15°) — that's when a zoom-out is the next likely
+    // gesture and the global is cold. At a wide viewport we already hold or are actively fetching it.
+    const vw = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+    const vh = Math.abs(bounds.north - bounds.south);
+    if (vw > 15 || vh > 15) return;
+    const m = model || 'GFS';
+    const key = `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
+    if (_globalGridPrewarmInFlight.has(key)) return;
+    // Already have the global-coarse cached (from a prior zoom-out or prewarm)? Nothing to do.
+    const cached = getModelSafeMarine(m, hourOffset, activeLayer, _GLOBAL_BOUNDS);
+    if (cached && cached.grid && Array.isArray(cached.grid.vectors) && cached.grid.vectors.length > 0) {
+      const cb = cached.grid.bounds;
+      const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 0;
+      if (cw >= 340) return; // a global-width frame is cached → warm
+    }
+    _globalGridPrewarmInFlight.add(key);
+    // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
+    // would otherwise cancel it. The global-coarse is location-independent, so it warms once and
+    // serves every subsequent zoom-out.
+    Promise.resolve()
+      .then(() => (m === 'ICON')
+        ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
+        : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer))
+      .then((result) => {
+        const g = result && result.grid;
+        if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
+          _cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent: no truth-stage pollution */);
+        }
+      })
+      .catch(() => { /* best-effort: a cold zoom-out just falls back to the live fetch */ })
+      .finally(() => { _globalGridPrewarmInFlight.delete(key); });
   } catch (e) { /* never let prewarm break the active fetch */ }
 }
 
@@ -464,7 +518,17 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
         if (g?.vectors?.length > 0 && g.bounds) {
           const ew = resolvedBounds.west, ee = resolvedBounds.east, es = bounds.south, en = bounds.north;
           const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
-          const containsLng = ge < gw 
+          // NEVER serve a coarse-GLOBAL cache entry at a ZOOMED-IN viewport (2026-07-04): the global
+          // grid (bounds ±180) CONTAINS every regional viewport, so this containment fallback would
+          // return it whenever a global entry is cached (after any zoom-out, or the global-coarse
+          // prewarm) — leaving the map stuck on 10°/cell at z9 instead of fetching the fine tile. The
+          // exact-key path above still serves the global when the request itself RESOLVED to
+          // 'global_coarse' (i.e. genuinely zoomed out). Skip global entries only when this request
+          // is for a regional tile → force the fresh fine-tile fetch (the backend returns global
+          // anyway where no fine product exists, so coverage is never lost).
+          const gwid = (ge < gw) ? (ge + 360 - gw) : (ge - gw);
+          if (gwid >= 340 && clampRes.selectedTileId !== 'global_coarse') continue;
+          const containsLng = ge < gw
             ? (ew >= gw || ew <= ge) && (ee >= gw || ee <= ge)
             : ew >= gw && ee <= ge;
           const containsLat = es >= gs && en <= gn;
@@ -505,6 +569,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer);
       _cacheMarineResult('GFS', hourOffset, result, activeLayer);
       prewarmSiblingMarineSeries('GFS', hourOffset, bounds, activeLayer, signal);
+      prewarmGlobalMarineGrid('GFS', hourOffset, bounds, activeLayer);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
@@ -534,6 +599,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
       const result = await fetchBackendMarineGrid(bounds, hourOffset, signal, snappedBounds, activeLayer, 'ICON');
       _cacheMarineResult('ICON', hourOffset, result, activeLayer);
       prewarmSiblingMarineSeries('ICON', hourOffset, bounds, activeLayer, signal);
+      prewarmGlobalMarineGrid('ICON', hourOffset, bounds, activeLayer);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {
