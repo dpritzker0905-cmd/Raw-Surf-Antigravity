@@ -339,7 +339,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       let _z;
       try { _z = mapInstance.getZoom(); } catch (e) { _z = 0; }
       const _engine = engineRef.current;
-      if (_z >= 9 && _engine && _engine.refreshMaskWithBasemapWater) {
+      if (_z >= 7 && _engine && _engine.refreshMaskWithBasemapWater) {
         if (_engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
       }
     } catch (e) { /* mask overlay is an enhancement — never fail an upload over it */ }
@@ -478,7 +478,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   const basemapMaskThrottleRef = useRef(0);
   useEffect(() => {
     if (!mapInstance) return;
-    const BASEMAP_MASK_MIN_ZOOM = 9;
+    // z≥7 (was 9) so the viewport OVERLAY mask keeps refreshing through the zoom-out band where
+    // the 39 km world mask is still visibly wrong along coasts ("land covered for a while").
+    const BASEMAP_MASK_MIN_ZOOM = 7;
     const refresh = () => {
       if (!activeRef.current) return;
       let z;
@@ -494,12 +496,17 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       }
     };
     // idle fires after moveend AND after tile loads settle — the water tiles we sample from are
-    // guaranteed queryable there; moveend alone can race tile parsing on fast pans.
+    // guaranteed queryable there. moveend added too (2026-07-04): during a zoom-out sequence idle
+    // can lag seconds behind each gesture, leaving the viewport OVERLAY mask pinned to the old
+    // (smaller) view — land showed the world wash "for a while". The 700 ms throttle above keeps
+    // repaint cost sane; a moveend that races tile parsing just paints the best truth available
+    // and the following idle repaints it right.
     mapInstance.on('idle', refresh);
     mapInstance.on('zoomend', refresh);
+    mapInstance.on('moveend', refresh);
     refresh();
     return () => {
-      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); } catch (e) {}
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); } catch (e) {}
     };
   }, [mapInstance]);
 
@@ -511,7 +518,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     let z;
     try { z = mapInstance.getZoom(); } catch (e) { return; }
-    if (z >= 9 && engine && gl && engine.refreshMaskWithBasemapWater) {
+    if (z >= 7 && engine && gl && engine.refreshMaskWithBasemapWater) {
       if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
     }
   }, [revision, mapInstance]);

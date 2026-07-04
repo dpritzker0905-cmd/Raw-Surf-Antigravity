@@ -549,11 +549,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // itself on zoom-out"): above the vortex band the old logic re-ENABLED crests on a coarse
     // WORLD grid, assuming a single near-uniform cell — but the world grid's 1024x512 land mask
     // (~39 km/texel) cannot resolve ANY coastline, so during the sharpen window (seconds warm,
-    // minutes on a cold backend) crests race over cities and inland water. Until a regional/
-    // viewport product replaces the world grid, suppress crest particles past z8 (the heatmap
-    // stays — soft, and BLEND-BOTH/regional swap restores full crests the moment sharpen lands).
+    // minutes on a cold backend) crests race over cities and inland water.
+    // OVERLAY-AWARE RELAXATION (2026-07-04 round 4): when the viewport-truth overlay mask COVERS
+    // the current viewport, land is clipped at meter truth even on the world grid — crests behave
+    // NORMALLY in the sharpen window (the suppressed dim/slow crests read as "broken animation",
+    // live report at z17). Suppression remains only while the viewport is NOT overlay-covered
+    // (stale overlay right after a pan, below the refresh cutoff, or painting unavailable) —
+    // exactly where the 39 km mask is the only land guard.
     // Kill switch: the existing __RAW_DISABLE_COARSE_CREST_SUPPRESS__.
-    if (_residentCoarseGlobal && z >= 8.0 &&
+    const _ovb = this._overlayMaskBounds;
+    const _overlayCoversViewport = !!(this._overlayMaskTex && _ovb &&
+      _ovb.west <= vb[0] && _ovb.east >= vb[2] && _ovb.south <= vb[1] && _ovb.north >= vb[3]);
+    if (_residentCoarseGlobal && z >= 8.0 && !_overlayCoversViewport &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true)) {
       dirCoherenceMin = 2.0; // > max unit magnitude -> every crest discards (the proven suppress path)
     }
@@ -856,6 +863,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;
     }
     heatmapOpacity *= coarseFade;
+
+    // NO-TRUTH WINDOW GUARD (2026-07-04): a wide grid at close zoom with NO overlay covering the
+    // viewport has only the ~39 km world mask — the wash paints roads/cities (boot at close zoom,
+    // or the instants between a pan and the moveend/idle overlay repaint). Fade the wash for
+    // exactly that window; it returns the moment the overlay covers the view (land then clipped at
+    // meter truth). Keyed on MASK COVERAGE, not zoom — the two earlier zoom-keyed fades both read
+    // as "blank heatmap" bugs because they fired even when masking was fine. Mirrors the crest
+    // suppression condition above, so heatmap and particles agree about the window.
+    if (_residentCoarseGlobal && z >= 8.0 && !_overlayCoversViewport) {
+      heatmapOpacity *= Math.max(0, 1 - (z - 8.0));  // 1→0 across z8→9; hidden past z9 until covered
+    }
 
     heatmapOpacity *= mult;
 
@@ -1309,7 +1327,10 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   if (!geo || !gl || !mapInstance) return false;
   let z;
   try { z = mapInstance.getZoom(); } catch (e) { return false; }
-  if (z < 9) return false;
+  // z≥7 (was 9): between z7-9 the 39 km world mask is still visibly wrong along coasts — the
+  // "land covered while zooming out for a while" report. Below z7 coarse texels read acceptably
+  // and the padded viewport outgrows the useful canvas tiers.
+  if (z < 7) return false;
   let bounds;
   try {
     const b = mapInstance.getBounds();
@@ -1321,6 +1342,21 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       east: b.getEast() + padX,
       north: Math.min(85, b.getNorth() + padY),
     };
+    // MINIMUM SPAN 0.7° (≈60 km): the sheltered-water classifier treats border-touching water as
+    // OPEN by construction, so the analysis window must contain a basin's FULL extent — a 13 km
+    // window at z16 cut through the middle of the Venetian lagoon, the lagoon touched the border,
+    // and the channels came back to life (inconsistent with z11). 0.7° holds lagoon-scale basins
+    // whole, keeps 4096 px at ~19 m/texel (the regional 1° tier is 27 m — same class), and one
+    // overlay stays valid across an entire z10→z18 zoom session without repainting.
+    const MIN_SPAN = 0.7;
+    if (bounds.east - bounds.west < MIN_SPAN) {
+      const cx = (bounds.east + bounds.west) / 2;
+      bounds.west = cx - MIN_SPAN / 2; bounds.east = cx + MIN_SPAN / 2;
+    }
+    if (bounds.north - bounds.south < MIN_SPAN) {
+      const cy = (bounds.north + bounds.south) / 2;
+      bounds.south = Math.max(-85, cy - MIN_SPAN / 2); bounds.north = Math.min(85, cy + MIN_SPAN / 2);
+    }
   } catch (e) { return false; }
   try {
     const canvas = renderMaskToCanvas(geo, bounds);
