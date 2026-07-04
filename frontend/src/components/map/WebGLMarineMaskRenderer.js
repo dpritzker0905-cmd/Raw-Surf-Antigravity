@@ -189,6 +189,35 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
       ctx.fill();
     }
   });
+
+  // 4. WETLAND/TIDAL-FLAT BLACK-OUT (2026-07-04, Venice lagoon marshes): OSM puts sea-connected
+  //    lagoons on the WATER side of the coastline, so the whole lagoon arrives as ocean-class water
+  //    and steps 2-3 leave it wave-eligible — but the tiles ALSO ship the marshes (barene) as
+  //    WETLAND polygons drawn on top. They are visibly land; crest dashes marching over them was
+  //    the live user report. Painted from querySourceFeatures, NOT queryRenderedFeatures: this
+  //    app's style has no layer that renders wetlands, so a render query can never see them — and
+  //    for painting land BLACK a parent tile's simplified wetland over-covers in the SAFE direction
+  //    (a little less wave over marsh-adjacent water, never wave over marsh). Schema-agnostic:
+  //    Mapbox Streets ships wetlands in `landuse_overlay` (class wetland/wetland_noveg),
+  //    OpenMapTiles in `landcover` (class wetland, subclass incl. tidalflat).
+  try {
+    ctx.fillStyle = '#000000';
+    for (const sl of ['landuse_overlay', 'landcover']) {
+      let fs = [];
+      try { fs = mapInstance.querySourceFeatures(waterSource, { sourceLayer: sl }) || []; } catch (e) { fs = []; }
+      for (const f of fs) {
+        const cls = f.properties && f.properties.class;
+        const sub = f.properties && f.properties.subclass;
+        if (cls !== 'wetland' && cls !== 'wetland_noveg' && sub !== 'wetland' && sub !== 'tidalflat') continue;
+        const geom = f.geometry;
+        if (!geom) continue;
+        const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
+        if (!polys) continue;
+        for (const poly of polys) tracePoly(poly);
+      }
+    }
+  } catch (e) { /* wetland truth unavailable — water-only patch stands */ }
+
   ctx.restore();
   return painted > 0;
 }

@@ -86,7 +86,9 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
     const ok = overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map);
     expect(ok).toBe(true);
     expect(map.queryRenderedFeatures).toHaveBeenCalledWith({ layers: ['water'] });
-    expect(map.querySourceFeatures).not.toHaveBeenCalled();
+    // WATER polygons must never come from the all-levels source query (the wetland pass may
+    // source-query landuse_overlay/landcover — painting land black is parent-tile-safe).
+    expect(map.querySourceFeatures).not.toHaveBeenCalledWith('composite', { sourceLayer: 'water' });
   });
 
   it('falls back to querySourceFeatures when the render query returns nothing', () => {
@@ -110,5 +112,70 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
     const map = mkMap({ rendered: [], source: [] });
     expect(overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map)).toBe(false);
     expect(calls.filter(([m]) => m === 'fillRect').length).toBe(0);
+  });
+});
+
+describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lagoon marshes, 2026-07-04)', () => {
+  // Sea-connected lagoons arrive as OCEAN-class water (OSM coastline convention), so marshes drawn
+  // on top as landcover WETLAND polygons must repaint black or crest dashes march over visible land.
+  const mkCtx = () => {
+    const calls = [];
+    const ctx = {};
+    let style = '#000';
+    Object.defineProperty(ctx, 'fillStyle', { get: () => style, set: (v) => { style = v; calls.push(['fillStyle', v]); } });
+    for (const m of ['save', 'beginPath', 'rect', 'clip', 'fillRect', 'moveTo', 'lineTo', 'closePath', 'restore']) {
+      ctx[m] = (...a) => calls.push([m, ...a]);
+    }
+    ctx.fill = (...a) => calls.push(['fill', style, ...a]);
+    return { ctx, calls };
+  };
+  const bounds = { west: 11, south: 44, east: 13, north: 46 };
+  const oceanFeat = {
+    properties: { class: 'ocean' },
+    geometry: { type: 'Polygon', coordinates: [[[11.5, 44.5], [12.5, 44.5], [12.5, 45.5], [11.5, 45.5], [11.5, 44.5]]] },
+  };
+  const marshFeat = {
+    properties: { class: 'wetland' },
+    geometry: { type: 'Polygon', coordinates: [[[12.28, 45.42], [12.34, 45.42], [12.34, 45.47], [12.28, 45.47], [12.28, 45.42]]] },
+  };
+  const grassFeat = {
+    properties: { class: 'grass' },
+    geometry: { type: 'Polygon', coordinates: [[[12.2, 45.2], [12.3, 45.2], [12.3, 45.3], [12.2, 45.3], [12.2, 45.2]]] },
+  };
+  const mkMap = () => ({
+    getStyle: () => ({ layers: [
+      { id: 'water', type: 'fill', source: 'composite', 'source-layer': 'water' },
+    ] }),
+    getBounds: () => ({ getWest: () => 12.2, getEast: () => 12.5, getSouth: () => 45.3, getNorth: () => 45.5 }),
+    queryRenderedFeatures: jest.fn(({ layers }) => (layers.includes('water') ? [oceanFeat] : [])),
+    // Wetlands come from the SOURCE query (the style renders no wetland layer, so a render query
+    // can never see them); Mapbox Streets schema: landuse_overlay.
+    querySourceFeatures: jest.fn((src, { sourceLayer }) =>
+      (sourceLayer === 'landuse_overlay' ? [marshFeat, grassFeat] : [])),
+  });
+
+  it('paints wetland polygons BLACK after the water passes; non-wetland classes are ignored', () => {
+    const { ctx, calls } = mkCtx();
+    const map = mkMap();
+    const ok = overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map);
+    expect(ok).toBe(true);
+    expect(map.querySourceFeatures).toHaveBeenCalledWith('composite', { sourceLayer: 'landuse_overlay' });
+    expect(map.querySourceFeatures).toHaveBeenCalledWith('composite', { sourceLayer: 'landcover' });
+    const fills = calls.filter(([m]) => m === 'fill');
+    // Order: white water fill(s) first, then black passes; the LAST fill is the black marsh polygon
+    // (grass filtered out — only one wetland feature traces after the whites).
+    expect(fills[0][1]).toBe('#ffffff');
+    expect(fills[fills.length - 1][1]).toBe('#000000');
+    const blackFills = fills.filter(([, s]) => s === '#000000');
+    expect(blackFills.length).toBe(1);   // exactly the marsh — grass did NOT paint
+  });
+
+  it('keeps the water-only patch when the tiles carry no wetland features', () => {
+    const { ctx, calls } = mkCtx();
+    const map = mkMap();
+    map.querySourceFeatures = jest.fn(() => []);
+    expect(overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map)).toBe(true);
+    const fills = calls.filter(([m]) => m === 'fill');
+    expect(fills.filter(([, s]) => s === '#000000').length).toBe(0); // nothing painted black beyond hole pass
   });
 });
