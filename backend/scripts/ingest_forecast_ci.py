@@ -66,6 +66,20 @@ def main() -> int:
     from scheduler.forecast import ingest_marine_forecast_task
     ingest_marine_forecast_task()  # synchronous; manages its own event loop + per-job isolation
 
+    # ── Duplicate-valid_time sweep (2026-07-04, manifest-bloat audit) ────────────────────────────────
+    # Per-layer prune_superseded only runs after a layer's save loop completes, so CANCELLED runs
+    # (concurrency-superseded) upload early hours and never prune — GFS accumulated ~763 products/layer
+    # (~6-7 run generations) vs EURO 112, bloating the manifest every client boot-fetches. This sweep
+    # keeps only the newest run_time per (model, domain, layer, region, valid_time): coverage-safe
+    # (hours only an older run covers keep their sole product), and every COMPLETED run clears the
+    # debt left by any cancelled predecessors. Guarded — can never fail the ingest cycle.
+    try:
+        from services.weather_pipeline.store import ProductStore as _PS
+        n_dupes = _PS().prune_duplicate_valid_times()
+        logger.info("Duplicate-valid_time sweep: pruned %d superseded products.", n_dupes)
+    except Exception as _pe:
+        logger.warning("Duplicate-valid_time sweep skipped (non-fatal): %s", _pe)
+
     # ── P1 increment 3: precompute per-spot surf ratings → L2 (off the 1-CPU serve box) ──────────────────
     # AFTER ingestion (so the store holds fresh marine + wind products), rate every active surf spot for the
     # current frame and upload a small JSON object to L2; the serve box reads it (source="precomputed") and

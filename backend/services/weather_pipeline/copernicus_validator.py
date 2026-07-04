@@ -296,6 +296,63 @@ def prune_old_products_helper(store, before_time: datetime):
         logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
 
 
+def prune_duplicate_valid_times_helper(store) -> int:
+    """Manifest-wide sweep (2026-07-04, manifest-bloat audit): for every
+    (model, domain, layer, region, valid_time) keep ONLY the product with the newest run_time and
+    delete older duplicates from manifest/disk/L2. Returns the number pruned.
+
+    WHY: per-layer prune_superseded_products only runs after a layer's save loop completes, so a
+    CANCELLED ingestion run (concurrency-superseded — the audited 2h45m cancellation) uploads its
+    early hours and never prunes; over cycles GFS accumulated ~763 products/layer (~6-7 run
+    generations) vs EURO 112, bloating the manifest every client downloads at boot. Per-valid_time
+    dedup is SAFE where a blanket run_time prune is not: hours only an OLDER run covers (a newer
+    cancelled run stopped early) keep their only product — no coverage loss, only true duplicates go.
+    """
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor
+    manifest = store.get_manifest()
+
+    best = {}
+    for p in manifest.products:
+        key = (
+            p.model.upper(), p.domain.lower(), p.layer.lower(),
+            p.region_id or getattr(p, "coverage_mode", None) or "",
+            p.valid_time_start,
+        )
+        cur = best.get(key)
+        if cur is None or (p.run_time and cur.run_time and p.run_time > cur.run_time):
+            best[key] = p
+
+    keep = set(id(p) for p in best.values())
+    remaining = []
+    pruned = 0
+    for p in manifest.products:
+        if id(p) in keep:
+            remaining.append(p)
+            continue
+        filepath = store.cache_dir / p.filename
+        if filepath.exists():
+            try:
+                os.remove(filepath)
+            except Exception as e:
+                logger.warning(f"[Product Store] Failed to delete duplicate-valid_time file {p.filename}: {e}")
+        _upload_executor.submit(store._delete_from_supabase, p.filename)
+        pruned += 1
+
+    if pruned > 0:
+        manifest.products = remaining
+        manifest.last_manifest_update = datetime.now(timezone.utc)
+        store._save_manifest(manifest)
+        try:
+            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
+        except Exception as e:
+            logger.warning(f"[Product Store] Manifest L2 upload submit after duplicate sweep failed: {e}")
+        logger.info(f"[Product Store] Duplicate-valid_time sweep pruned {pruned} superseded products.")
+    else:
+        logger.info("[Product Store] Duplicate-valid_time sweep found no duplicates.")
+    return pruned
+
+
 def prune_superseded_products_helper(
     store, model: str, domain: str, layer: str, region_id: str, latest_run_time: datetime
 ):

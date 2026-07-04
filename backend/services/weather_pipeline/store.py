@@ -530,6 +530,13 @@ class ProductStore:
         from services.weather_pipeline.copernicus_validator import prune_superseded_products_helper
         return prune_superseded_products_helper(self, model, domain, layer, region_id, latest_run_time)
 
+    def prune_duplicate_valid_times(self) -> int:
+        """Manifest-wide sweep: keep only the newest run_time per (model, domain, layer, region,
+        valid_time); deletes true duplicates left behind by CANCELLED ingestion runs (which upload
+        early hours but never reach their per-layer prune). Coverage-safe by construction."""
+        from services.weather_pipeline.copernicus_validator import prune_duplicate_valid_times_helper
+        return prune_duplicate_valid_times_helper(self)
+
     def validate_copernicus_product(
         self,
         product: NormalizedProduct,
