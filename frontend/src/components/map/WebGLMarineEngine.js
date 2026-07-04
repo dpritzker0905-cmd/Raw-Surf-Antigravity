@@ -215,6 +215,13 @@ WebGLMarineEngine.prototype.isHighResMaskLoaded = function() {
 WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   if (!waveGrid?.vectors?.length) return;
 
+  // Every commit (re-)encodes the mask WITHOUT the basemap-truth patch — the repaint hysteresis
+  // must forget its "already painted" state or it SKIPS the re-apply and the freshly-encoded
+  // NE-only mask leaks the heatmap over fine-grained land (live "leaking all over the place"
+  // report: hour scrubs/sharpens/toggles re-commit constantly). The layer's revision effect
+  // re-patches immediately after the commit; this line just lets it through.
+  this._regionalPatchState = null;
+
   // === NO-DOWNGRADE GUARD — kills the coarse⇄regional ping-pong "spin" at the single engine choke point every
   // commit source funnels through (orchestrator data_commit + SWR, WebGLMarineLayer land_mask_res_swap, the
   // instant cache-hit on toggle, and the sync overlay). Refuse to overwrite a resident REGIONAL grid with the
