@@ -1305,6 +1305,27 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
   // a texture nothing binds (and skipping avoids fighting an in-flight commit).
   if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
+  // HYSTERESIS (stair-climb choppiness fix): the painter patches the viewport padded 40%; while
+  // the SAME grid is resident and the current viewport is still INSIDE the last patch, a repaint
+  // adds nothing — skip the 50–250 ms canvas+upload. Deep-zoom crispness still refreshes via the
+  // overlay branch below (its own hysteresis).
+  let curView = null;
+  try {
+    const b = mapInstance.getBounds();
+    curView = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+  } catch (e) { curView = null; }
+  const gridKey = `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}`;
+  const rp = this._regionalPatchState;
+  if (curView && rp && rp.gridKey === gridKey && rp.box &&
+      rp.box.west <= curView.west && rp.box.east >= curView.east &&
+      rp.box.south <= curView.south && rp.box.north >= curView.north) {
+    // Base patch still covers the view — only the deep-zoom overlay may need work.
+    try {
+      let _z3; try { _z3 = mapInstance.getZoom(); } catch (e3) { _z3 = 0; }
+      if (_z3 >= 12) return this.refreshViewportOverlayMask(gl, mapInstance);
+    } catch (e3) { /* enhancement only */ }
+    return false;
+  }
   try {
     const canvas = renderMaskToCanvas(geo, bounds);
     const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
@@ -1316,6 +1337,15 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
     gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
     gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    // Record the patched region (mirror of the painter's 40% pad) for the hysteresis above.
+    if (curView) {
+      const pw = (curView.east - curView.west) * 0.4;
+      const ph = (curView.north - curView.south) * 0.4;
+      this._regionalPatchState = {
+        gridKey,
+        box: { west: curView.west - pw, south: curView.south - ph, east: curView.east + pw, north: curView.north + ph },
+      };
+    }
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };
     }
@@ -1350,10 +1380,15 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   // and the padded viewport outgrows the useful canvas tiers.
   if (z < 7) return false;
   let bounds;
+  let viewSpan = 0;
   try {
     const b = mapInstance.getBounds();
-    const padX = (b.getEast() - b.getWest()) * 0.15;
-    const padY = (b.getNorth() - b.getSouth()) * 0.15;
+    viewSpan = b.getEast() - b.getWest();
+    // 50% pad (was 15%): each paint survives several pan/zoom gestures before the hysteresis
+    // below forces a repaint — the paint itself is the choppiness (stair-climb forensics: 38
+    // paints × 50–250 ms main-thread each in a 22 s interaction).
+    const padX = viewSpan * 0.5;
+    const padY = (b.getNorth() - b.getSouth()) * 0.5;
     bounds = {
       west: b.getWest() - padX,
       south: Math.max(-85, b.getSouth() - padY),
@@ -1374,9 +1409,22 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       const cy = (bounds.north + bounds.south) / 2;
       bounds.south = Math.max(-85, cy - MIN_SPAN / 2); bounds.north = Math.min(85, cy + MIN_SPAN / 2);
     }
+    // HYSTERESIS (the stair-climb fix): if the previous overlay still CONTAINS the current padded
+    // viewport AND its resolution is still adequate (span not more than ~5× the viewport — i.e.
+    // the user hasn't zoomed far past its texel density), skip the repaint entirely. Small pans
+    // and zoom-ins inside the painted region cost NOTHING; escaping it repaints once.
+    const prev = this._overlayMaskBounds;
+    if (prev && this._overlayMaskTex &&
+        prev.west <= bounds.west && prev.east >= bounds.east &&
+        prev.south <= bounds.south && prev.north >= bounds.north &&
+        (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
+      return false; // still fresh — no repaint, no upload
+    }
   } catch (e) { return false; }
   try {
-    const canvas = renderMaskToCanvas(geo, bounds);
+    // 2048 cap: an overlay spans ≤ ~1°, so 2048 px keeps ≤ ~3 m/texel at deep zoom while the
+    // paint + texImage2D upload cost 4× less than the 4096 tier (8 MB vs 32 MB per refresh).
+    const canvas = renderMaskToCanvas(geo, bounds, { maxWidth: 2048 });
     const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
     if (!applied) return false;
     if (!this._overlayMaskTex) {

@@ -112,12 +112,14 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   }
   if (!feats || !feats.length) return false;
 
-  // Padded viewport in geographic coords — the truth patch region.
+  // Padded viewport in geographic coords — the truth patch region. 40% pad (was 15%): paints are
+  // 50–250 ms of main thread each (stair-climb forensics), so a patch must survive several pan
+  // gestures; the engine-side hysteresis skips repaints while the viewport stays inside it.
   let vb;
   try {
     const b = mapInstance.getBounds();
-    const padX = (b.getEast() - b.getWest()) * 0.15;
-    const padY = (b.getNorth() - b.getSouth()) * 0.15;
+    const padX = (b.getEast() - b.getWest()) * 0.4;
+    const padY = (b.getNorth() - b.getSouth()) * 0.4;
     vb = { west: b.getWest() - padX, south: b.getSouth() - padY, east: b.getEast() + padX, north: b.getNorth() + padY };
   } catch (e) {
     return false;
@@ -391,7 +393,7 @@ export function suppressShelteredWater(canvas, bounds) {
   return { applied: true, shelteredFrac: +(count / Math.max(1, size)).toFixed(4), nPx, mPerPx: Math.round(mPerPx) };
 }
 
-export function renderMaskToCanvas(geojson, bounds) {
+export function renderMaskToCanvas(geojson, bounds, opts) {
   // Base resolution 1024x512 avoids massive rendering/memory overhead on high-DPI (Retina) screens;
   // linear filtering (gl.LINEAR) keeps the clipping smooth. REGIONAL grids get 2048x1024 (2026-07-02):
   // on a ~3° coastal tile 1024px is ~340 m/px — too coarse for barrier islands/inlets, which is the
@@ -407,8 +409,11 @@ export function renderMaskToCanvas(geojson, bounds) {
   // <10°-span tiles get 4096x2048 (2026-07-04, Long Beach report): at 2048 a ~6° tile is still
   // ~330 m/px — harbor/inlet edges stair-step visibly at z10+ even with the 10m polygons. ~165 m/px
   // halves the blockiness; the larger canvas is only paid on close-zoom regional commits.
-  const width = lonSpan < 10 ? 4096 : (isRegional ? 2048 : 1024);
-  const height = lonSpan < 10 ? 2048 : (isRegional ? 1024 : 512);
+  let width = lonSpan < 10 ? 4096 : (isRegional ? 2048 : 1024);
+  // opts.maxWidth: small viewport OVERLAY canvases cap at 2048 — the 4096 tier costs 4× the paint
+  // + texImage2D upload and its extra density is wasted on a ≤1° box (stair-climb choppiness fix).
+  if (opts && opts.maxWidth && width > opts.maxWidth) width = opts.maxWidth;
+  const height = width / 2;
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
