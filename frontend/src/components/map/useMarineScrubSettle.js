@@ -16,7 +16,21 @@ function gridCoversViewport(gb, vb) {
 // too-SMALL regional grid held after a zoom-out/pan (renders into a sub-rectangle). Both look clamped.
 // Returns { clamp, kind, vb } reading the LIVE engine grid + map viewport. tol guards float jitter so a
 // thin pan-edge sliver (grid still ~covers) is NOT treated as a clamp (avoids refetch churn/flash).
-function detectClamp(mapInstance) {
+// Cell size (degrees) above which a grid is coarser than ANY fine regional tile: fine tiles observed
+// live are ≤0.25°/cell (13×13 over ~2-3°); a resident grid coarser than 0.5°/cell at a zoomed-in
+// viewport is a degraded/intermediate product, never the finest available. Exported for tests.
+export const CLAMP_COARSE_CELL_DEG = 0.5;
+// Minimum grid cells that should span a zoomed-in viewport before the render reads as blocky/near-
+// blank. Below this the coarse grid block-means to ~0 at the coast and looks "cleared". Deep zoom over
+// a genuinely FINE tile also shows few cells — but small ones — so the CLAMP_COARSE_CELL_DEG gate above
+// excludes it, and only a truly coarse tile trips both.
+export const CLAMP_MIN_CELLS_ACROSS = 3;
+
+// Detect a heatmap CLAMP: at a regional viewport (zoom > MARINE_ZOOMED_OUT_MAX_ZOOM, span < 15°) the engine grid either
+// does NOT cover the viewport (coarse-GLOBAL blob or stale too-SMALL regional sub-rectangle) OR covers
+// it but is far too COARSE to render detail (a degraded ~1°/cell tile held where a fine tile is expected).
+// Returns { clamp, kind, vb } reading the LIVE engine grid + map viewport. Exported for tests.
+export function detectClamp(mapInstance) {
   try {
     const wg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
     if (!wg || !wg.bounds || !mapInstance) return { clamp: false };
@@ -33,7 +47,20 @@ function detectClamp(mapInstance) {
     // Regional grid SMALLER than the viewport (with a 0.25° tolerance) → too-small clamp.
     const ghgt = gb.north - gb.south;
     const tooSmall = !gridCoversViewport(gb, vb) && (gwid < vwid - 0.25 || ghgt < vhgt - 0.25);
-    return { clamp: tooSmall, kind: tooSmall ? 'regional_too_small' : undefined, vb };
+    if (tooSmall) return { clamp: true, kind: 'regional_too_small', vb };
+    // COVERS-BUT-TOO-COARSE (2026-07-04, live "heatmap cleared at z9.34, hasn't fixed itself"): the grid
+    // contains the viewport but its cells are so large (a degraded/intermediate ~1°/cell tile held where
+    // a fine regional tile is expected) that only a cell or two span the view — it block-means to ~0 at
+    // the coast and reads near-blank. detectClamp missed this (covers → not too-small; span < 340 → not
+    // global) so the backstop never re-drove and it sat forever. Flag it when cells are clearly coarser
+    // than any fine tile AND too few span the viewport; the re-drive's clamp_resharpen pulls the fuller
+    // viewport tile, and the no-progress cap bounds it if the region genuinely has no finer product.
+    const cols = Math.max(1, wg.cols || 1), rows = Math.max(1, wg.rows || 1);
+    const cellLng = gwid / cols, cellLat = ghgt / rows;
+    const cellDeg = Math.max(cellLng, cellLat);
+    const cellsAcross = Math.min(vwid / Math.max(cellLng, 1e-6), vhgt / Math.max(cellLat, 1e-6));
+    const tooCoarse = gridCoversViewport(gb, vb) && cellDeg > CLAMP_COARSE_CELL_DEG && cellsAcross < CLAMP_MIN_CELLS_ACROSS;
+    return { clamp: tooCoarse, kind: tooCoarse ? 'regional_too_coarse' : undefined, vb };
   } catch (e) {
     return { clamp: false };
   }
@@ -183,7 +210,23 @@ export function runScrubSettleCheck(ctx) {
       const fb = frame && frame.grid && frame.grid.bounds;
       const fw = fb ? ((fb.east < fb.west) ? (fb.east + 360) - fb.west : fb.east - fb.west) : 999;
       const frameCovers = fb && gridCoversViewport(fb, clampVb);
-      const canSharpen = !!(frame && fw < 340 && frameCovers && setMarineData);
+      // For regional_too_coarse the covering series frame is usually the SAME coarse grid already
+      // resident, so committing it just churns particles with no visual gain (2026-07-04). Only
+      // sharpen-commit when the frame is MEANINGFULLY finer than what's resident; otherwise fall to
+      // the dedup-bypassing clamp_resharpen fetch below, which pulls the fuller/finer viewport tile.
+      let frameFinerEnough = true;
+      if (kind === 'regional_too_coarse' && frame && frame.grid) {
+        try {
+          const rg = window.__MARINE_ENGINE__ && window.__MARINE_ENGINE__._waveData && window.__MARINE_ENGINE__._waveData.waveGrid;
+          if (rg && rg.bounds && rg.cols) {
+            const rw = (rg.bounds.east < rg.bounds.west ? rg.bounds.east + 360 : rg.bounds.east) - rg.bounds.west;
+            const rCell = rw / Math.max(1, rg.cols);
+            const fCell = fw / Math.max(1, frame.grid.cols || 1);
+            frameFinerEnough = fCell < rCell * 0.9;   // meaningfully finer, not the same coarse grid
+          }
+        } catch (e) { /* default true — never block a legitimate sharpen */ }
+      }
+      const canSharpen = !!(frame && fw < 340 && frameCovers && setMarineData && frameFinerEnough);
       if (typeof window !== 'undefined') {
         window.__MARINE_SHARPEN_DIAG__ = {
           kind, frameFound: !!frame, frameCovers: !!frameCovers, fw,
