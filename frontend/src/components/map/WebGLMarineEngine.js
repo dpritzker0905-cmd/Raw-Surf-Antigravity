@@ -575,7 +575,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // (boot) or a teleport whose old overlay doesn't even touch the view.
     const _overlayIntersectsViewport = !!(this._overlayMaskTex && _ovb &&
       _ovb.west < vb[2] && _ovb.east > vb[0] && _ovb.south < vb[3] && _ovb.north > vb[1]);
-    if (_residentCoarseGlobal && z >= 8.0 && !_overlayCoversViewport &&
+    if (_residentCoarseGlobal && z >= 8.0 && !_overlayIntersectsViewport &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true)) {
       dirCoherenceMin = 2.0; // > max unit magnitude -> every crest discards (the proven suppress path)
     }
@@ -895,7 +895,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // as "blank heatmap" bugs because they fired even when masking was fine. Mirrors the crest
     // suppression condition above, so heatmap and particles agree about the window.
     if (_residentCoarseGlobal && z >= 8.0 && !_overlayIntersectsViewport) {
-      heatmapOpacity *= Math.max(0, 1 - (z - 8.0));  // 1→0 across z8→9; hidden past z9 until an overlay touches the view
+      // FLOOR 0.3, never 0 (live "heatmap clears occasionally" on fast long pans): a blank map
+      // reads as a bug every time; a briefly-dimmed wash with ~1 s of soft near-land bleed reads
+      // as loading. The overlay repaint (moveend/idle, 700 ms throttle) restores full truth.
+      heatmapOpacity *= Math.max(0.3, 1 - (z - 8.0));
     }
 
     heatmapOpacity *= mult;
@@ -1316,7 +1319,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   // base mask is never touched, so a stale overlay can only ever fall back to base behavior.
   // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
   // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
-  if (span >= 30) return this.refreshViewportOverlayMask(gl, mapInstance);
+  if (span >= 30) return this.refreshViewportOverlayMask(gl, mapInstance, true);
   // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
   // a texture nothing binds (and skipping avoids fighting an in-flight commit).
   if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
@@ -1385,7 +1388,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
 // mask makes staleness harmless: after a fast pan the overlay covers where the user WAS, those
 // pixels are off-screen, and everything visible degrades to the coarse-but-sane base mask until
 // the idle/zoomend refresh repaints. Kill switch rides __RAW_BASEMAP_WATER_MASK__ (caller-gated).
-WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstance) {
+WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstance, basinScale) {
   const geo = this._cachedMaskGeoJSON;
   if (!geo || !gl || !mapInstance) return false;
   let z;
@@ -1410,12 +1413,12 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       east: b.getEast() + padX,
       north: Math.min(85, b.getNorth() + padY),
     };
-    // MINIMUM SPAN 0.05° (≈4 km): only a degenerate-box floor. The overlay's job is CRISP
-    // viewport truth — a 0.7° attempt dropped deep zoom to 19 m/texel and the wash haloed over
-    // canal-side roads (live z16 report). Sheltered-water classification is deliberately NOT this
-    // canvas's job (the painter skips it below 0.5° span): basins classify on the basin-scale
-    // regional canvas, and the regional verdict survives via the min() combine in the shaders.
-    const MIN_SPAN = 0.05;
+    // TWO SPANS by combine mode (live lagoon-bleed catch at z12.5): overlays for REGIONAL grids
+    // min()-combine with a base that already carries the sheltered verdict, so they stay CRISP
+    // (0.05° floor, ~1 m/texel — the 0.7° attempt haloed canal-side roads). Overlays for WIDE
+    // grids REPLACE the base sample, so they must be basin-scale (0.7° ⇒ the painter's ≥0.5°
+    // sheltered gate runs and enclosed lagoons stay suppressed through the world-grid window).
+    const MIN_SPAN = basinScale ? 0.7 : 0.05;
     if (bounds.east - bounds.west < MIN_SPAN) {
       const cx = (bounds.east + bounds.west) / 2;
       bounds.west = cx - MIN_SPAN / 2; bounds.east = cx + MIN_SPAN / 2;

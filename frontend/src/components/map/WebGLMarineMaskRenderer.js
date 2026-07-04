@@ -325,21 +325,27 @@ export function classifySheltered(water, w, h, nPx) {
   // harbor basins are orders of magnitude larger.
   if (count) {
     const minArea = 16 * nPx * nPx;
+    const nearOpen = 2 * nPx;   // "next to the open core" distance for the passage-vs-canal test
     const seen = new Uint8Array(size);
     const comp = new Int32Array(size);
     for (let s = 0; s < size; s++) {
       if (!sheltered[s] || seen[s]) continue;
-      let ch = 0, ct = 0;
+      let ch = 0, ct = 0, near = 0;
       comp[ct++] = s; seen[s] = 1;
       while (ch < ct) {
         const i = comp[ch++];
+        if (dist2[i] <= nearOpen) near++;
         const x = i % w, y = (i / w) | 0;
         if (x > 0 && sheltered[i - 1] && !seen[i - 1]) { seen[i - 1] = 1; comp[ct++] = i - 1; }
         if (x < w - 1 && sheltered[i + 1] && !seen[i + 1]) { seen[i + 1] = 1; comp[ct++] = i + 1; }
         if (y > 0 && sheltered[i - w] && !seen[i - w]) { seen[i - w] = 1; comp[ct++] = i - w; }
         if (y < h - 1 && sheltered[i + w] && !seen[i + w]) { seen[i + w] = 1; comp[ct++] = i + w; }
       }
-      if (ct < minArea) {
+      // Release a small component ONLY when it is genuinely a PASSAGE — most of it hugs the open
+      // core (inter-island fairways, the round-3 "breaks between islands" catch). A long dead-end
+      // urban canal (Canal Grande, live z16 catch) touches the core only at its mouth, so it stays
+      // suppressed no matter how small its area is.
+      if (ct < minArea && near > ct * 0.5) {
         for (let k = 0; k < ct; k++) sheltered[comp[k]] = 0;
         count -= ct;
       }
@@ -393,6 +399,11 @@ export function suppressShelteredWater(canvas, bounds) {
   return { applied: true, shelteredFrac: +(count / Math.max(1, size)).toFixed(4), nPx, mPerPx: Math.round(mPerPx) };
 }
 
+// Pristine-canvas LRU for renderMaskToCanvas (see comment at its cache-read site).
+const _maskCanvasCache = new Map();
+let _maskCanvasCacheGeo = null;
+const MASK_CANVAS_CACHE_MAX = 3;
+
 export function renderMaskToCanvas(geojson, bounds, opts) {
   // Base resolution 1024x512 avoids massive rendering/memory overhead on high-DPI (Retina) screens;
   // linear filtering (gl.LINEAR) keeps the clipping smooth. REGIONAL grids get 2048x1024 (2026-07-02):
@@ -414,14 +425,32 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   // + texImage2D upload and its extra density is wasted on a ≤1° box (stair-climb choppiness fix).
   if (opts && opts.maxWidth && width > opts.maxWidth) width = opts.maxWidth;
   const height = width / 2;
+  // PRISTINE-CANVAS LRU (zoom-in/out choppiness): every commit re-renders this canvas — 100-250 ms
+  // of main-thread polygon fill — and cycling zoom bands re-commits the SAME few bounds over and
+  // over. A hit returns a fast BLIT COPY (callers mutate their canvas; the cached one stays
+  // pristine). Keyed on geojson identity + bounds + size; 3 entries ≈ ≤96 MB worst-case, cleared
+  // whenever the land geojson upgrades. Kill: window.__RAW_DISABLE_MASK_CANVAS_CACHE__ = true.
+  const cacheOn = typeof window === 'undefined' || window.__RAW_DISABLE_MASK_CANVAS_CACHE__ !== true;
+  const cacheKey = (bounds ? `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}` : 'global') + `_${width}`;
+  if (cacheOn) {
+    if (_maskCanvasCacheGeo !== geojson) { _maskCanvasCache.clear(); _maskCanvasCacheGeo = geojson; }
+    const hit = _maskCanvasCache.get(cacheKey);
+    if (hit) {
+      _maskCanvasCache.delete(cacheKey); _maskCanvasCache.set(cacheKey, hit); // LRU touch
+      const copy = document.createElement('canvas');
+      copy.width = hit.width; copy.height = hit.height;
+      copy.getContext('2d', { willReadFrequently: true }).drawImage(hit, 0, 0);
+      return copy;
+    }
+  }
   const canvas = document.createElement('canvas');
   canvas.width = width;
   canvas.height = height;
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
-  
+
   ctx.fillStyle = '#ffffff';
   ctx.fillRect(0, 0, width, height);
-  
+
   if (!geojson?.features?.length) return canvas;
   
   ctx.fillStyle = '#000000';
@@ -532,6 +561,22 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
       geom.coordinates.forEach(polyCoords => drawPolygon(polyCoords));
     }
   });
-  
+
+  // Store a PRISTINE copy for the LRU (the returned canvas gets mutated by the basemap/wetland/
+  // sheltered painters); a later same-bounds render becomes a ~5-10 ms blit instead of a
+  // 100-250 ms polygon fill.
+  if (cacheOn) {
+    try {
+      const keep = document.createElement('canvas');
+      keep.width = canvas.width; keep.height = canvas.height;
+      keep.getContext('2d').drawImage(canvas, 0, 0);
+      _maskCanvasCache.delete(cacheKey);
+      _maskCanvasCache.set(cacheKey, keep);
+      while (_maskCanvasCache.size > MASK_CANVAS_CACHE_MAX) {
+        _maskCanvasCache.delete(_maskCanvasCache.keys().next().value);
+      }
+    } catch (e) { /* caching is an optimization only */ }
+  }
+
   return canvas;
 }

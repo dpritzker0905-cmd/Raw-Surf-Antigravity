@@ -240,21 +240,28 @@ describe('classifySheltered — enclosed-basin connectivity (sheltered-water sup
     expect(count).toBe(160);   // the whole pond
   });
 
-  it('a narrow PASSAGE between two open seas is released by the min-area gate (no heatmap breaks between islands)', () => {
-    // Two border-connected seas linked by a long 1-px channel: the channel middle fails the
-    // erode-flood reachability test, but it is fairway, not a basin — its component is far below
-    // the basin-scale minimum and must be released (live report: blocky heatmap gaps at z12-16).
-    const rows = [];
-    for (let y = 0; y < H; y++) {
-      let r = '';
-      for (let x = 0; x < W; x++) {
-        const leftSea = x < 10, rightSea = x >= 25, channel = (y === 7 && x >= 10 && x < 25);
-        r += (leftSea || rightSea || channel) ? '.' : '#';
+  it('a SHORT narrow passage between open seas releases; a LONG one stays suppressed (Canal Grande, live z16)', () => {
+    // The passage-vs-canal discriminator is PROXIMITY TO THE OPEN CORE, not area alone: a short
+    // strait hugs the core at both ends (>50% of its pixels within 2·nPx of open water) and is
+    // fairway; a long dead-end-like channel (an urban canal at ds resolution) only touches the
+    // core at its mouth — swell honestly dies in it, so it stays sheltered.
+    const mk = (chanFrom, chanTo, rightSeaFrom) => {
+      const rows = [];
+      for (let y = 0; y < H; y++) {
+        let r = '';
+        for (let x = 0; x < W; x++) {
+          const leftSea = x < 10, rightSea = x >= rightSeaFrom, channel = (y === 7 && x >= chanFrom && x < chanTo);
+          r += (leftSea || rightSea || channel) ? '.' : '#';
+        }
+        rows.push(r);
       }
-      rows.push(r);
-    }
-    const { water, w, h } = gridFrom(rows);
-    const { count } = classifySheltered(water, w, h, 2);
-    expect(count).toBe(0);
+      return gridFrom(rows);
+    };
+    // SHORT: 6-px channel between the seas → released (fairway).
+    const shortCase = mk(10, 16, 16);
+    expect(classifySheltered(shortCase.water, shortCase.w, shortCase.h, 2).count).toBe(0);
+    // LONG: 15-px channel → the middle is far from any open core → stays sheltered.
+    const longCase = mk(10, 25, 25);
+    expect(classifySheltered(longCase.water, longCase.w, longCase.h, 2).count).toBeGreaterThan(0);
   });
 });
