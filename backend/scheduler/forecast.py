@@ -74,7 +74,19 @@ def ingest_marine_forecast_task():
                     else ("ICON Marine Global", weather_scheduler.ingest_icon_marine_global)
                 ]
 
-            jobs = [
+            # INGEST_PILOTS: 'include' (default — the historical single-cycle behavior) | 'skip' |
+            # 'only'. 2026-07-04 timeout forensics: the regional pilots consume ~67 min of a cycle
+            # (GFS marine pilot 21m + wind pilots 46m, measured run 28673349217) on top of ~45 min
+            # of core globals — full cycles brushed the 165-min workflow timeout and periodically
+            # tripped it (GitHub reports a job timeout as "cancelled": the audited 2h45m runs).
+            # Timed-out runs upload their early hours but never prune -> superseded-product debt.
+            # The split: the CORE workflow runs with INGEST_PILOTS=skip (always finishes well under
+            # budget — the global layers that feed every heatmap + /point can no longer be lost to
+            # a timeout), and a companion workflow (forecast-ingest-pilots.yml) runs the pilots
+            # with INGEST_PILOTS=only on an offset schedule with its own full budget.
+            _pilots_mode = os.environ.get("INGEST_PILOTS", "include").lower()
+
+            core_jobs = [
                 # Wind global-coarse for ALL THREE models. GFS + EURO were missing here (only ICON was
                 # scheduled), so their *_wind_global_coarse products went stale — EURO wind's last run
                 # was 2 weeks old, leaving no current/forecast products, which is why the on-demand
@@ -97,30 +109,33 @@ def ingest_marine_forecast_task():
                 # AFTER the marine globals (its GFS/EURO/ICON anchors) but BEFORE the slow regional pilots so
                 # a CI timeout can't skip the fix. Compute-only (no GRIB fetch). Kill switch EURO_MARINE_EXTEND=0.
                 ("EURO Marine Extended Estimates", weather_scheduler.ingest_euro_marine_extended_estimates),
-
-                # Regional GFS marine pilot (FL+SoCal 0.25°) runs LAST: its NOAA-direct GRIB fetches are
-                # slow (~5-15 min x2 regions, added by the A1 off-open-meteo regional migration), so placing
-                # it after the core global marine+pressure layers means a worst-case CI timeout can only cost
-                # the nice-to-have coastal regionals — NEVER a core global layer (which blanks a whole model's
-                # heatmap; the ICON/EURO marine + pressure drop seen mid-run 2026-06-27 was this fragility).
-                # The pilot has no downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
-                # EURO Marine Global job reuses), so moving it is dependency-safe.
-                ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
             ]
 
+            pilot_jobs = [
+                # Regional GFS marine pilot (FL+SoCal 0.25°): slow NOAA-direct GRIB fetches (~5-15 min
+                # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
+                # EURO Marine Global job reuses), so isolating it is dependency-safe.
+                ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
+            ]
             # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
             # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per
-            # request for any zoomed-in wind view ("wind takes minutes to load"). Like the marine pilot these
-            # are slow regional NOAA/DWD/ECMWF GRIB fetches with NO downstream dependents, so they run LAST:
-            # a worst-case CI timeout can only cost the nice-to-have coastal wind regionals, never a core
-            # global layer. Once a regional wind tile is in the manifest, resolve_grid serves it (is_regional
-            # branch) instead of fetching upstream. Kill switch: WIND_PILOT_INGEST=0.
+            # request for any zoomed-in wind view ("wind takes minutes to load"). Slow regional
+            # NOAA/DWD/ECMWF GRIB fetches with NO downstream dependents. Once a regional wind tile is in
+            # the manifest, resolve_grid serves it (is_regional branch) instead of fetching upstream.
+            # Kill switch: WIND_PILOT_INGEST=0.
             if os.environ.get("WIND_PILOT_INGEST", "1") != "0":
-                jobs += [
+                pilot_jobs += [
                     ("GFS Wind Pilot", weather_scheduler.ingest_gfs_wind_pilot),
                     ("ICON Wind Pilot", weather_scheduler.ingest_icon_wind_pilot),
                     ("EURO Wind Pilot", weather_scheduler.ingest_euro_wind_pilot),
                 ]
+
+            if _pilots_mode == "only":
+                jobs = pilot_jobs
+            elif _pilots_mode == "skip":
+                jobs = core_jobs
+            else:  # 'include' — historical single-cycle behavior (Render box, local dev)
+                jobs = core_jobs + pilot_jobs
 
             # Inter-job stagger lets the 1-CPU Render box settle (gc) between heavy jobs. The decoupled
             # GitHub runner (2 CPU, no serving contention) doesn't need it -> CI sets FORECAST_JOB_STAGGER_SEC=0

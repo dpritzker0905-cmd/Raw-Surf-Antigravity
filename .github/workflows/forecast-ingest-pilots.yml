@@ -1,0 +1,54 @@
+# Regional-pilot ingestion, split from the core forecast cycle (2026-07-04 timeout fix).
+#
+# WHY: measured phase timings (run 28673349217) — core globals ~45 min, but the regional pilots
+# add ~67 min (GFS marine pilot 21m + GFS/ICON/EURO wind pilots 46m). Full single-cycle runs
+# brushed the 165-min job timeout and periodically tripped it (GitHub reports a timeout as
+# "cancelled"); timed-out runs upload early hours but never reach their prunes → superseded-
+# product debt (the audited GFS ~763 products/layer). Splitting gives the CORE cycle (the global
+# layers every heatmap + /point depends on) a guaranteed finish, and the pilots their own budget.
+#
+# SERIALIZATION: SAME concurrency group as forecast-ingest.yml — the two workflows must never run
+# concurrently (each restores the manifest, ingests, and uploads manifest.json last-writer-wins;
+# concurrent runs would clobber each other's product registrations). With the shared group this
+# run simply QUEUES until the core cycle finishes. Cron offset :45 next-hour lands after the
+# core's ~60-75 min normal finish.
+name: Forecast Ingestion Pilots (regional tiles)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '45 1-23/3 * * *'   # 01:45, 04:45, ... — after the :15 core cycle's normal finish
+
+concurrency:
+  group: forecast-ingest        # SHARED with forecast-ingest.yml — serializes manifest access
+  cancel-in-progress: false
+
+jobs:
+  ingest-pilots:
+    runs-on: ubuntu-latest
+    timeout-minutes: 165
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+
+      - name: Run regional-pilot ingestion -> Supabase L2
+        working-directory: backend
+        env:
+          NODE_ENV: production
+          RENDER: 'true'
+          FORECAST_JOB_STAGGER_SEC: '0'
+          INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
+          WORLDWIDE_REGIONS_PER_CYCLE: '2'  # worldwide coastal marine rotation lives in the marine pilot
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+          COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
+          COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
+          WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+        run: python scripts/ingest_forecast_ci.py

@@ -43,6 +43,10 @@ jobs:
           RENDER: 'true'                # match the production grid resolution + fetch paths
           FORECAST_JOB_STAGGER_SEC: '0' # runner has no 1-CPU contention -> skip the inter-job staggers
           MARINE_INGEST_ALL: '1'        # ephemeral runner: ingest BOTH EURO+ICON marine (no alternation) so the manifest is complete
+          INGEST_PILOTS: 'skip'         # 2026-07-04 timeout fix: the regional pilots (~67 min measured) pushed full cycles into the
+                                        # 165-min job timeout ("cancelled" runs). Core globals run here (~45-60 min, always finish);
+                                        # forecast-ingest-pilots.yml runs the pilots with INGEST_PILOTS=only in the SAME concurrency
+                                        # group (serialized - concurrent manifest uploads would clobber each other).
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # ingest 2 worldwide coastal regions/cycle (was default 1) → all 8 (Hawaii, Iberia, UK, E-Australia, Indonesia, Brazil, S-Africa, Mexico) refreshed every ~4 cycles / 12h, fixing worldwide regional marine coverage
           BUOY_CALIBRATION: '1'         # measure-first: compare the ingested model to NOAA NDBC buoys -> L2 report (guarded, never fails the cycle)
           REPORT_CALIBRATION: '1'       # forward RATING calibration: snapshot per-spot predictions -> rolling L2 archive + match surfer logs (guarded)
