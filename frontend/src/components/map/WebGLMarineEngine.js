@@ -545,6 +545,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const _inVortexBand = _residentCoarseGlobal && z > COARSE_CREST_BAND_MIN_ZOOM && z <= MARINE_ZOOMED_OUT_MAX_ZOOM;
     const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null);
     let dirCoherenceMin = _ccc.dirCoherenceMin;
+    // COARSE-GLOBAL CLOSE-ZOOM crest suppression (2026-07-04, "waves over Venice z7.67-22, fixes
+    // itself on zoom-out"): above the vortex band the old logic re-ENABLED crests on a coarse
+    // WORLD grid, assuming a single near-uniform cell — but the world grid's 1024x512 land mask
+    // (~39 km/texel) cannot resolve ANY coastline, so during the sharpen window (seconds warm,
+    // minutes on a cold backend) crests race over cities and inland water. Until a regional/
+    // viewport product replaces the world grid, suppress crest particles past z8 (the heatmap
+    // stays — soft, and BLEND-BOTH/regional swap restores full crests the moment sharpen lands).
+    // Kill switch: the existing __RAW_DISABLE_COARSE_CREST_SUPPRESS__.
+    if (_residentCoarseGlobal && z >= 8.0 &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true)) {
+      dirCoherenceMin = 2.0; // > max unit magnitude -> every crest discards (the proven suppress path)
+    }
     const coarseNearestDir = _ccc.coarseNearestDir;
     const _wgCols = (this._waveData.waveGrid && this._waveData.waveGrid.cols) || 2;
     const _wgRows = (this._waveData.waveGrid && this._waveData.waveGrid.rows) || 2;
