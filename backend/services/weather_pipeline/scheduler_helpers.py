@@ -357,15 +357,16 @@ async def normalize_and_save_loop(
                     product.estimate_basis = estimate_basis
                     if estimate_basis and isinstance(estimate_basis, dict) and "type" in estimate_basis:
                         product.source_dataset = estimate_basis["type"]
-                elif estimate_basis is not None:
-                    # NATIVE provenance basis (2026-07-04): callers may describe HOW native data was
-                    # fetched/resampled (e.g. the CMEMS thin-band subset) WITHOUT flipping the estimated
-                    # flags — real data must be labeled real. Before this, the native Copernicus save
-                    # loop passed estimated_after_index=0, stamping EVERY native CMEMS hour
-                    # is_estimated=True (all 108 live EURO waves products were "_estimated"-named while
-                    # /point proved the content native). Basis rides along as provenance only;
-                    # is_estimated / is_forecast_authoritative / source_dataset stay whatever the
-                    # normalizer truthfully derived.
+                elif estimated_after_index is None and estimate_basis is not None:
+                    # NATIVE provenance basis (2026-07-04): a caller passing a basis WITHOUT any
+                    # estimated_after_index horizon describes HOW native data was fetched/resampled
+                    # (e.g. the CMEMS thin-band subset) WITHOUT flipping the estimated flags — real
+                    # data must be labeled real. (Callers that DO pass a horizon keep the old
+                    # contract exactly: hours before the horizon carry NO basis — ICON pressure's
+                    # native <120h hours pin this in test_icon_pressure_global_ingestion.) Before
+                    # this, the native Copernicus save loop passed estimated_after_index=0, stamping
+                    # EVERY native CMEMS hour is_estimated=True (all 108 live EURO waves products
+                    # were "_estimated"-named while /point proved the content native).
                     product.estimate_basis = estimate_basis
                 
                 products_to_save.append((product, resolution))
