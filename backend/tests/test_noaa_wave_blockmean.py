@@ -302,3 +302,74 @@ class TestLonspan:
         out = energy_mean_direction_lonspan(d, h, 4, 3)
         assert math.isnan(out[0])
         assert out[1] == pytest.approx(77.0)
+
+
+# ─────────── scalar block aggregation (wind_waves tri-model forensics, 2026-07-04) ───────────
+# PARTITIONED WW3 fields (WVHGT/SWELL_2) are exact-0.0 wherever a subcell classifies to another
+# partition, and that classification flickers per forecast hour. Center-point sampling turned
+# partially-windsea 10-deg blocks into flickering 0.0 heatmap pixels (live: cell (-60,-50) read
+# 0.0@T00 / 4.7@T12 in our product while open-meteo AND our own /point direct ladder read 7.64 m;
+# 9/629 cells contradicted the reference). Heights now block-RMS; periods H^2-weighted block mean.
+from services._fetch_common import energy_mean_height_block, energy_mean_scalar_block
+
+
+def test_height_block_rms_recovers_partial_windsea_block():
+    # Center subcell classified to swell (0.0) but half the block carries 4 m windsea:
+    # the point sample said 0.0; the block RMS must report the block's real energy.
+    h = np.zeros((80, 80))
+    h[:, 40:] = 4.0
+    out = energy_mean_height_block(h, 40, 39, 20, False)  # center on a 0.0 subcell
+    assert h[40, 39] == 0.0
+    # window cols 19..58 -> 19 of 40 columns carry 4 m: RMS = sqrt(19*16/40) ≈ 2.76
+    assert out == pytest.approx(math.sqrt(19 * 16.0 / 40.0), rel=1e-6)
+    assert out > 2.5  # the point sample said 0.0; the block reports real energy
+
+
+def test_height_block_rms_keeps_calm_blocks_honest_zero():
+    h = np.zeros((80, 80))
+    assert energy_mean_height_block(h, 40, 40, 20, False) == 0.0
+
+
+def test_height_block_rms_excludes_masked_land_but_counts_calm_ocean():
+    h = np.full((80, 80), 2.0)
+    h[:, :40] = np.nan  # land-masked half must NOT drag the RMS toward zero
+    out = energy_mean_height_block(h, 40, 40, 20, False)
+    assert out == pytest.approx(2.0, rel=1e-6)
+
+
+def test_height_block_all_nan_falls_back_to_point_sample_nan():
+    h = np.full((80, 80), np.nan)
+    out = energy_mean_height_block(h, 40, 40, 20, False)
+    assert out != out  # NaN -> caller serializes None
+
+
+def test_height_block_uniform_field_equals_point_sample():
+    # Smooth fields (total waves, EURO/ICON-like) must be unchanged by the aggregation.
+    h = np.full((80, 80), 2.37)
+    assert energy_mean_height_block(h, 40, 40, 20, False) == pytest.approx(2.37, rel=1e-9)
+
+
+def test_period_block_energy_weighted_mean_follows_dominant_energy():
+    # Half the block: 4 m @ 14 s; other half: 1 m @ 4 s. E ~ H^2 = 16:1 -> mean pulls near 14 s.
+    p = np.full((80, 80), 14.0)
+    p[:, :40] = 4.0
+    h = np.full((80, 80), 4.0)
+    h[:, :40] = 1.0
+    out = energy_mean_scalar_block(p, h, 40, 40, 20, False)
+    assert 13.0 < out < 14.0
+
+
+def test_period_block_no_energy_falls_back_to_point_sample():
+    p = np.full((80, 80), 9.0)
+    h = np.zeros((80, 80))
+    out = energy_mean_scalar_block(p, h, 40, 40, 20, False)
+    assert out == pytest.approx(9.0)
+
+
+def test_period_block_wraps_longitude_on_global_grid():
+    p = np.full((10, 20), 8.0)
+    p[:, :3] = 12.0
+    h = np.full((10, 20), 2.0)
+    # centered at the wrap seam: window spans the array edge without clamping
+    out = energy_mean_scalar_block(p, h, 5, 0, 4, True)
+    assert 8.0 < out < 12.0

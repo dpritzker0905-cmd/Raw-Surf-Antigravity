@@ -84,9 +84,29 @@ DIR_TO_HEIGHT = {
 # Energy-weighted circular-mean direction over the coarse block — the vortex-root fix (2026-07-02).
 # Shared with the DWD GWAM fetcher; full rationale + tests live with the helpers.
 try:
-    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # script-by-path
+    from _fetch_common import (  # script-by-path
+        energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+        energy_mean_height_block, energy_mean_scalar_block,
+    )
 except ImportError:
-    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # package
+    from services._fetch_common import (  # package
+        energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+        energy_mean_height_block, energy_mean_scalar_block,
+    )
+
+# Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
+# periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
+# fields (WVHGT/SWELL_2) are exact-0 wherever a subcell classifies elsewhere; center-point
+# sampling turned partially-windsea 10° blocks into flickering 0.0 heatmap pixels (live:
+# (-60,-50) 0.0@T00 / 4.7@T12 vs reference 7.64 m). Kill switch NOAA_COARSE_SCALAR_BLOCKMEAN=0
+# → legacy center-point sampling.
+HEIGHT_VARS = {"wave_height", "swell_wave_height", "secondary_swell_wave_height", "wind_wave_height"}
+PERIOD_TO_HEIGHT = {
+    "wave_period": "wave_height",
+    "wind_wave_period": "wind_wave_height",
+    "swell_wave_period": "swell_wave_height",
+    "secondary_swell_wave_period": "secondary_swell_wave_height",
+}
 
 # §0B-a render-confidence export (2026-07-03): the gate's own resultant length rides along as an
 # extra hourly series so the frontend can FADE crest animation where the direction estimator is
@@ -189,6 +209,8 @@ def fetch_global_coarse(payload):
     # Env-constant switches, read once (also referenced by the per-step decode loop below).
     # Kill switch NOAA_COARSE_DIR_BLOCKMEAN=0 → legacy raw point-sampling of directions.
     blockmean = os.environ.get("NOAA_COARSE_DIR_BLOCKMEAN", "1") != "0"
+    # Kill switch NOAA_COARSE_SCALAR_BLOCKMEAN=0 → legacy center-point sampling of heights/periods.
+    scalar_blockmean = blockmean and os.environ.get("NOAA_COARSE_SCALAR_BLOCKMEAN", "1") != "0"
     # Kill switch NOAA_COARSE_DIR_TOTAL_FIELD=0 → partition-blend only (no DIRPW coherence tier).
     total_field = os.environ.get("NOAA_COARSE_DIR_TOTAL_FIELD", "1") != "0"
     export_confidence = blockmean and os.environ.get("NOAA_COARSE_DIR_CONFIDENCE", "1") != "0"
@@ -258,10 +280,16 @@ def fetch_global_coarse(payload):
                             )
                     continue
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
+                is_height = scalar_blockmean and om in HEIGHT_VARS
+                p_h_arr = arrs.get(PERIOD_TO_HEIGHT[om]) if (scalar_blockmean and om in PERIOD_TO_HEIGHT) else None
                 for pi, (r, c) in enumerate(idx_map):
                     if h_arr is not None:
                         # global.0p25 grid → longitude always wraps
                         x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                    elif is_height:
+                        x = energy_mean_height_block(arr, r, c, half, True)
+                    elif p_h_arr is not None:
+                        x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
                     else:
                         x = arr[r, c]
                     series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN

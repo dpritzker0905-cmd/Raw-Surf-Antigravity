@@ -213,6 +213,48 @@ def energy_mean_direction_block_multi_conf(pairs, fallback_dir_arr, r: int, c: i
     return (float(x) if x == x else float("nan")), None
 
 
+def energy_mean_height_block(h_arr, r: int, c: int, half: int, wrap_cols: bool) -> float:
+    """RMS significant height over the (2·half)² block of native cells centred on (r, c) —
+    Hs² ∝ energy, so the block's honest Hs is the root-mean-square of subcell heights over VALID
+    (finite) subcells. Land/ice-masked NaN subcells are excluded; genuine 0.0 ocean subcells are
+    INCLUDED so calm blocks stay honest. Falls back to the point sample when the block is all-NaN.
+
+    WHY (wind_waves tri-model forensics 2026-07-04): PARTITIONED fields (WW3 WVHGT / SWELL_2) are
+    exact-0.0 wherever a subcell classifies to another partition, and that classification flickers
+    per forecast hour. Center-point sampling turned partially-windsea 10° blocks into 0.0 heatmap
+    pixels that pothole in time — live: cell (-60,-50) read 0.0 at T00 / 4.7 m at T12 in OUR product
+    while both the open-meteo reference and our own /point direct ladder read 7.64 m; 9/629 cells
+    contradicted the reference. Directions already block-aggregate (energy_mean_direction_block);
+    this is the symmetric height treatment."""
+    nrows, ncols = h_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
+    h = h_arr[r0:r1][:, cols_idx]
+    ok = np.isfinite(h)
+    if not ok.any():
+        x = h_arr[r, c]
+        return float(x) if x == x else float("nan")
+    return float(np.sqrt(np.mean(h[ok] ** 2)))
+
+
+def energy_mean_scalar_block(x_arr, h_arr, r: int, c: int, half: int, wrap_cols: bool) -> float:
+    """Energy-weighted (E ∝ H²) block mean of a scalar PAIRED with a height field (wave periods).
+    Subcells without energy (h ≤ 0 / NaN) carry no meaningful period and are excluded. Falls back
+    to the point sample when the block carries no energy — same degenerate-block contract as
+    energy_mean_direction_block."""
+    nrows, ncols = x_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(max(0, c - half), min(ncols, c + half))
+    xs = x_arr[r0:r1][:, cols_idx]
+    h = h_arr[r0:r1][:, cols_idx]
+    ok = np.isfinite(xs) & np.isfinite(h) & (h > 0.0)
+    if not ok.any():
+        x = x_arr[r, c]
+        return float(x) if x == x else float("nan")
+    e = h[ok] ** 2
+    return float(np.sum(e * xs[ok]) / np.sum(e))
+
+
 def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):
     """Per-TIMESTEP energy-weighted circular-mean direction over a LONGITUDE window (all band rows).
     For the thin-latitude-band fetcher (Copernicus CMEMS): the full 10° 2-D block is never in memory
