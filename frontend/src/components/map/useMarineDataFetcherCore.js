@@ -164,6 +164,10 @@ export function useMarineDataFetcherCore({
   lastInvocationRef
 }) {
   const updateMarineGrid = useCallback(async (source = 'unknown') => {
+    // Null-map guard: this runs from deferred timers/rAF (see the dispatcher below) that can fire
+    // after the map is torn down; without it the first `mapInstance.getZoom()` / `.isMoving()` below
+    // throws (`Cannot read properties of null`). No map = nothing to fetch or render — bail.
+    if (!mapInstance) return;
     let phase = 'init';
     // Phase 2: this invocation's controller + outcome, for identity-safe registry bookkeeping
     // in `finally` (a detached/stale request must still be removed from the registry).
@@ -714,6 +718,10 @@ export function useMarineDataFetcherCore({
       const stableDelay = (isCached || source === 'manual' || source === 'timeline_scrub') ? 20 : 300;
       timeoutIdRef.current = setTimeout(() => {
         timeoutIdRef.current = null;
+        // Map can be torn down during the stableDelay (unmount / style reload / route change) —
+        // this deferred callback then derefs a null mapInstance (`Cannot read properties of null
+        // (reading 'isMoving')`, live 2026-07-04). Nothing to render on a dead map: bail.
+        if (!mapInstance) return;
         if (isTimelineScrub || (!mapInstance.isMoving() && !mapInstance.isZooming())) {
           updateMarineGrid(source);
         } else {
