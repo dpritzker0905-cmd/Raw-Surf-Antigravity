@@ -24,8 +24,17 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(coarseGlobal(), regional(), 9, coveredVp, false)).toBe(false);
   });
 
-  it('ALLOWS coarse when zoomed OUT (z<=6.5 — coarse legitimately fills the view)', () => {
-    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 5, coveredVp, false)).toBe(false);
+  it('BLOCKS coarse below the z7.0 threshold while the regional still COVERS the viewport (the z7.0-7.74 direction/color flip, 2026-07-04)', () => {
+    // Coverage, not zoom, is the predicate: crossing z7.0 used to swap the display to the world
+    // grid whose 10° cells flip direction + height color at coasts, then the sharpen "corrected"
+    // it — the live glitch cycle. While the finer grid covers the view, keep it at any zoom.
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 6.9, coveredVp, false)).toBe(true);
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 5, coveredVp, false)).toBe(true);
+  });
+
+  it('ALLOWS coarse at zoom-out once the viewport outgrows the regional tile (the real-world zoom-out)', () => {
+    const wideVp = [-84, 25, -76, 32]; // z~5.5 viewport — the 3° tile no longer covers
+    expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 5, wideVp, false)).toBe(false);
   });
 
   it('ALLOWS coarse for a DIFFERENT hour (scrub) — never freezes a new hour on a stale regional', () => {

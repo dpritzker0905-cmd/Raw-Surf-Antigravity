@@ -97,11 +97,21 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // coarse (or a fresh regional) should be allowed to replace it (no stranded non-covering regional rectangle).
   const rb = resident.bounds;
   let covers = true;
-  if (viewportBounds && rb) {
+  const coverageKnown = !!(viewportBounds && rb);
+  if (coverageKnown) {
     const vw = viewportBounds[0], vs = viewportBounds[1], ve = viewportBounds[2], vn = viewportBounds[3];
     covers = rb.west <= vw + 1e-6 && rb.east >= ve - 1e-6 && rb.south <= vs + 1e-6 && rb.north >= vn - 1e-6;
   }
-  return !!(sameLayer && sameHour && zoomedIn && residentRenderable && covers);
+  // COVERAGE, not zoom, is the real predicate (2026-07-04, "waves flip direction + height color
+  // around z7.0-7.74, then correct"): dipping below the z7.0 threshold let the 37×17 world grid
+  // displace a regional tile that still fully covered the viewport — its 10° cells carry leaked
+  // directions and block-mean heights at coasts, so every threshold crossing flipped the field on
+  // screen (instrumented soak: commits ping-ponged span 360 ⇄ span 3-6 through the band). While
+  // KNOWN coverage holds, keep the finer grid at ANY zoom; the swap to coarse then happens at the
+  // natural coverage boundary, where the tile is a small part of the screen. The double-unknown
+  // case (no zoom AND no viewport) still fails OPEN, and a wrong reject self-heals via the
+  // _pendingDowngrade stash re-evaluated every frame with the current zoom/viewport.
+  return !!(sameLayer && sameHour && residentRenderable && covers && (zoomedIn || coverageKnown));
 }
 
 // === COARSE-BAND CREST CONTROLS (pure; exported for tests) ===
