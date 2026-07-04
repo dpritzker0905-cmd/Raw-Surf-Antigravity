@@ -206,8 +206,25 @@ export function handleRegionalGridClearing({ mapInstance, isActivation, marineDa
   if (marineData && marineData.grid && marineData.grid.bounds) {
     const shouldClear = checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, layer });
     if (shouldClear) {
-      console.log('[Marine-Bounds-Clear] Clearing stale regional grid from marineData.');
-      setMarineData(null);
+      // RETAIN-STALE, don't null (2026-07-04, user-reported zoom flash): setMarineData(null) blanked
+      // the heatmap for the window between the null-clear and the replacement commit — the only spot
+      // in the pipeline that cleared BEFORE the successor existed (everywhere else "retains stale view
+      // while fetching"). Stamping stale keeps the old grid rendering at its true geo bounds (plus the
+      // BLEND-BOTH coarse base beneath it) while forcing the refetch exactly like the null did: the
+      // dedup gates read marineData.stale/grid.stale (bypassDedupe) and the sig ledger is reset below.
+      setMarineData(prev => {
+        if (!prev) return prev;
+        // Stamp ONCE: while the viewport stays outside the tile, every updateMarineGrid invocation
+        // re-enters here — returning the same object keeps React state identity stable (no render
+        // churn, no re-upload retriggers) until the covering grid actually replaces it.
+        if (prev.stale && prev.grid?.stale) return prev;
+        console.log('[Marine-Bounds-Clear] Viewport left the regional grid — stamping STALE (view retained while the covering grid fetches).');
+        return {
+          ...prev,
+          stale: true,
+          grid: prev.grid ? { ...prev.grid, stale: true, staleReason: 'viewport_left_regional_bounds' } : prev.grid
+        };
+      });
       lastCommittedSigRef.current = null;
     }
   }

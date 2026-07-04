@@ -217,11 +217,20 @@ export function recordTruthStage(stageName, data, file, functionName) {
   let mismatchReason = null;
 
   if ((isGfsWaves || isWindLayer) && stageName !== 'pointRequest' && stageName !== 'pointResponse' && stageName !== 'infoboxDisplay') {
-    const previousStages = trace.stages.filter(s => 
-      s.truthTag && 
-      s.truthTag.model === truthTag.model && 
+    // Lineage = PRODUCT (2026-07-04): stages are compared only within the same product_id.
+    // Zoom-driven coarse<->regional swaps, the render-backstop sharpen, and land_mask_res_swap
+    // re-uploads all legitimately move to a DIFFERENT product for the same model/layer/valid_time
+    // without an orchestratorCommit first — the old cross-product comparison fired a console.error
+    // MISMATCH on every zoom transition (and console.error feeds the telemetry error interceptor
+    // → false HUD violations). Within-product divergence (same product_id, different
+    // dataHash/boundsHash across stages) remains fully compared — that is the real "rendered
+    // something other than what was committed" detector.
+    const previousStages = trace.stages.filter(s =>
+      s.truthTag &&
+      s.truthTag.model === truthTag.model &&
       s.truthTag.layer === truthTag.layer &&
       s.truthTag.valid_time === truthTag.valid_time &&
+      (s.truthTag.product_id || s.truthTag.grid_product_id) === productId &&
       s.stage !== 'pointRequest' &&
       s.stage !== 'pointResponse' &&
       s.stage !== 'infoboxDisplay'
