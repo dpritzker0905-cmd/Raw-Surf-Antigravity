@@ -329,6 +329,20 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     };
 
     runDiagnosticsUpdate('upload_success');
+
+    // BASEMAP-WATER TRUTH re-apply (2026-07-04, the Venice regression of the Gull-Park fix): a
+    // commit re-encodes the mask WITHOUT the basemap overlay, and backstop/sharpen commits arrive
+    // with NO map event and NO React revision bump — so the idle/zoomend/revision triggers never
+    // re-applied it and the NE-only mask (which lacks Venice/Lido entirely) stayed resident.
+    // safeUploadWaveData is the one wrapper EVERY upload path funnels through, so re-apply here.
+    try {
+      let _z;
+      try { _z = mapInstance.getZoom(); } catch (e) { _z = 0; }
+      const _engine = engineRef.current;
+      if (_z >= 9 && _engine && _engine.refreshMaskWithBasemapWater) {
+        if (_engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
+      }
+    } catch (e) { /* mask overlay is an enhancement — never fail an upload over it */ }
   };
 
   safeUploadRef.current = safeUploadWaveData;
@@ -456,6 +470,51 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   useEffect(() => {
     if (evaluateMaskRef.current) evaluateMaskRef.current();
   }, [active, revision, mapInstance]);
+
+  // BASEMAP-WATER TRUTH refresh (2026-07-04): at z>=9 repaint the resident mask from the basemap's
+  // own water polygons inside the viewport (port landfill / piers / canals — detail no Natural
+  // Earth dataset carries; the "Gull Park under water" class). Throttled on moveend/zoomend and
+  // re-applied after commits (a fresh commit re-encodes the mask WITHOUT the overlay).
+  const basemapMaskThrottleRef = useRef(0);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const BASEMAP_MASK_MIN_ZOOM = 9;
+    const refresh = () => {
+      if (!activeRef.current) return;
+      let z;
+      try { z = mapInstance.getZoom(); } catch (e) { return; }
+      if (z < BASEMAP_MASK_MIN_ZOOM) return;
+      const now = Date.now();
+      if (now - basemapMaskThrottleRef.current < 700) return;
+      basemapMaskThrottleRef.current = now;
+      const engine = engineRef.current;
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (engine && gl && engine.refreshMaskWithBasemapWater) {
+        if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
+      }
+    };
+    // idle fires after moveend AND after tile loads settle — the water tiles we sample from are
+    // guaranteed queryable there; moveend alone can race tile parsing on fast pans.
+    mapInstance.on('idle', refresh);
+    mapInstance.on('zoomend', refresh);
+    refresh();
+    return () => {
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); } catch (e) {}
+    };
+  }, [mapInstance]);
+
+  // A fresh data commit re-encodes the mask without the basemap overlay — re-apply it.
+  useEffect(() => {
+    if (!mapInstance) return;
+    basemapMaskThrottleRef.current = 0; // commits bypass the throttle
+    const engine = engineRef.current;
+    const gl = glRef.current || mapInstance?.painter?.context?.gl;
+    let z;
+    try { z = mapInstance.getZoom(); } catch (e) { return; }
+    if (z >= 9 && engine && gl && engine.refreshMaskWithBasemapWater) {
+      if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
+    }
+  }, [revision, mapInstance]);
 
   useEffect(() => {
     if (!mapInstance) return;

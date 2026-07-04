@@ -36,6 +36,144 @@ export function polygonOverlapsTarget(bbox, wrappedWest, wrappedEast, south, nor
   return (projected - halfSpan <= wrappedEast + pad) && (projected + halfSpan >= wrappedWest - pad);
 }
 
+// Shared canvas projector for the mask renderers: Web-Mercator Y, wrap-relative X, scaled to the
+// canvas. Same math renderMaskToCanvas uses internally — exported so the basemap-water overlay
+// registers EXACTLY like the base mask.
+export function makeMaskProjector(bounds, width, height) {
+  const { west, south, east, north } = bounds;
+  const latToMercatorY = (l) => {
+    const latClamped = Math.max(-85.051129, Math.min(85.051129, l));
+    const rad = latClamped * Math.PI / 180;
+    return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
+  };
+  const center = getCenterLng(west, east);
+  const wrappedWest = wrapLngRelative(west, center);
+  const wrappedEast = wrapLngRelative(east, center);
+  const mercMinX = (wrappedWest + 180.0) / 360.0;
+  const mercMaxX = (wrappedEast + 180.0) / 360.0;
+  const mercMinY = latToMercatorY(north);
+  const mercMaxY = latToMercatorY(south);
+  const mercXSpan = mercMaxX - mercMinX;
+  const mercYSpan = mercMaxY - mercMinY;
+  return (lng, lat) => {
+    const projectedLng = wrapLngRelative(lng, center);
+    const mx = (projectedLng + 180.0) / 360.0;
+    const my = latToMercatorY(lat);
+    return [((mx - mercMinX) / mercXSpan) * width, ((my - mercMinY) / mercYSpan) * height];
+  };
+}
+
+// ── BASEMAP-WATER TRUTH OVERLAY (2026-07-04, "Gull Park / Pier 15-16 under water") ──────────────
+// Natural Earth (any resolution) has NO man-made port landfill, piers, or inner-island detail, so
+// an NE-based mask can never keep waves off Port-of-Long-Beach-class terrain. The BASEMAP's own
+// vector water polygons are OSM-derived and meter-accurate. Within the (padded) viewport, repaint
+// the mask from that truth: land-black everywhere, then ONLY ocean/sea-class water white. Two user
+// reports fixed at once: port landfill stops reading "under water" (it isn't in the water polys),
+// and ocean waves stop animating up NON-ocean waterways (canals/rivers/marina basins are water but
+// not ocean-class, so they stay black for the WAVE mask — the basemap still renders them as water).
+// Outside the viewport the NE mask remains (tiles there aren't loaded). Returns true when applied.
+export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
+  if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
+  let waterSource = 'composite';
+  let waterSourceLayer = 'water';
+  try {
+    const style = mapInstance.getStyle();
+    const baseWater = style?.layers?.find(l => l.id === 'water');
+    if (baseWater) {
+      if (baseWater.source) waterSource = baseWater.source;
+      if (baseWater['source-layer']) waterSourceLayer = baseWater['source-layer'];
+    }
+  } catch (e) { /* defaults */ }
+
+  let feats;
+  try {
+    feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
+  } catch (e) {
+    return false;
+  }
+  if (!feats || !feats.length) return false;
+
+  // Padded viewport in geographic coords — the truth patch region.
+  let vb;
+  try {
+    const b = mapInstance.getBounds();
+    const padX = (b.getEast() - b.getWest()) * 0.15;
+    const padY = (b.getNorth() - b.getSouth()) * 0.15;
+    vb = { west: b.getWest() - padX, south: b.getSouth() - padY, east: b.getEast() + padX, north: b.getNorth() + padY };
+  } catch (e) {
+    return false;
+  }
+
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  const project = makeMaskProjector(bounds, canvas.width, canvas.height);
+
+  // 1. Land-black the viewport patch (clipped to the canvas).
+  const [px0, py0] = project(vb.west, vb.north);
+  const [px1, py1] = project(vb.east, vb.south);
+  const rx = Math.max(0, Math.min(px0, px1)), ry = Math.max(0, Math.min(py0, py1));
+  const rw = Math.min(canvas.width, Math.max(px0, px1)) - rx;
+  const rh = Math.min(canvas.height, Math.max(py0, py1)) - ry;
+  if (rw <= 1 || rh <= 1) return false;
+  ctx.save();
+  ctx.beginPath();
+  ctx.rect(rx, ry, rw, rh);
+  ctx.clip();
+  ctx.fillStyle = '#000000';
+  ctx.fillRect(rx, ry, rw, rh);
+
+  // 2. Paint ocean/sea-class water white inside the patch. Features without a class are treated
+  //    as ocean (some styles omit class on the open-ocean polygon).
+  const forEachPoly = (fn) => {
+    for (const f of feats) {
+      const cls = f.properties && f.properties.class;
+      if (cls !== undefined && cls !== 'ocean' && cls !== 'sea') continue;
+      const geom = f.geometry;
+      if (!geom) continue;
+      const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
+      if (!polys) continue;
+      for (const poly of polys) fn(poly);
+    }
+  };
+  const tracePoly = (rings) => {
+    ctx.beginPath();
+    for (const ring of rings) {
+      if (!ring || !ring.length) continue;
+      ring.forEach((pt, i) => {
+        const [x, y] = project(pt[0], pt[1]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+    }
+    ctx.fill('evenodd');
+  };
+
+  ctx.fillStyle = '#ffffff';
+  let painted = 0;
+  forEachPoly((poly) => { tracePoly(poly); painted++; });
+
+  // 3. RE-ASSERT LAND HOLES (the Venice regression, 2026-07-04): querySourceFeatures returns water
+  //    polygons from EVERY loaded tile level — an overzoomed PARENT tile's simplified polygon has
+  //    small land islands (Venice, Lido) simplified away, so painting it white erases the fine
+  //    tile's correct hole. Second pass: every hole ring (land island) paints BLACK after all the
+  //    whites, so the finest-detail land always wins regardless of tile paint order.
+  ctx.fillStyle = '#000000';
+  forEachPoly((poly) => {
+    for (let h = 1; h < poly.length; h++) {
+      const ring = poly[h];
+      if (!ring || !ring.length) continue;
+      ctx.beginPath();
+      ring.forEach((pt, i) => {
+        const [x, y] = project(pt[0], pt[1]);
+        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+      });
+      ctx.closePath();
+      ctx.fill();
+    }
+  });
+  ctx.restore();
+  return painted > 0;
+}
+
 export function renderMaskToCanvas(geojson, bounds) {
   // Base resolution 1024x512 avoids massive rendering/memory overhead on high-DPI (Retina) screens;
   // linear filtering (gl.LINEAR) keeps the clipping smooth. REGIONAL grids get 2048x1024 (2026-07-02):

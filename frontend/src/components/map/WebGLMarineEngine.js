@@ -20,6 +20,7 @@ import {
   createTexture,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
+import { renderMaskToCanvas, overlayBasemapWaterOnMask } from './WebGLMarineMaskRenderer';
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
@@ -1191,6 +1192,45 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 };
 
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
+
+// BASEMAP-WATER TRUTH REFRESH (2026-07-04, "Gull Park / Pier 15-16 under water"): repaint the
+// CACHED mask texture in place with the basemap's own water polygons inside the viewport (see
+// overlayBasemapWaterOnMask). In-place texImage2D on the SAME texture object means the resident
+// waveData (which binds that object) picks it up on the next frame — no re-encode, no commit.
+// Regional grids only (a world mask can't hold viewport detail at 1024px anyway). Idempotent and
+// throttle-friendly: cheap enough for moveend. Kill switch window.__RAW_BASEMAP_WATER_MASK__=false.
+WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstance) {
+  if (typeof window !== 'undefined' && window.__RAW_BASEMAP_WATER_MASK__ === false) return false;
+  if (!gl || !mapInstance) return false;
+  const geo = this._cachedMaskGeoJSON;
+  const bounds = this._cachedMaskBounds;
+  const tex = this._cachedMaskTex;
+  if (!geo || !bounds || !tex) return false;
+  const span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+  if (span >= 30) return false;
+  // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
+  // a texture nothing binds (and skipping avoids fighting an in-flight commit).
+  if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
+  try {
+    const canvas = renderMaskToCanvas(geo, bounds);
+    const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
+    if (!applied) return false;
+    const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
+    const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
+    gl.bindTexture(gl.TEXTURE_2D, tex);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, true);
+    gl.texImage2D(gl.TEXTURE_2D, 0, gl.RGBA, gl.RGBA, gl.UNSIGNED_BYTE, canvas);
+    gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
+    gl.bindTexture(gl.TEXTURE_2D, prevTex);
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };
+    }
+    return true;
+  } catch (e) {
+    console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message);
+    return false;
+  }
+};
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
