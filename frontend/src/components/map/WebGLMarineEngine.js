@@ -957,6 +957,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_densityBase'), densityBase);
 
+      // Ribbon-endpoint land fade (2026-07-04): crest quads dissolve toward a land end instead of
+      // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
+      const _endpointLandFade = (typeof window !== 'undefined' && window.__RAW_DISABLE_ENDPOINT_LAND_FADE__ === true) ? 0.0 : 1.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_endpointLandFade'), _endpointLandFade);
+
       // TRUTHFULNESS ECHO: publish the exact animation values the engine is applying THIS frame (+ live zoom)
       // so the tuner can prove the sliders reach the GPU and show what's active per zoom. Read every frame.
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
@@ -982,6 +987,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           tileBackoff: _g('__RAW_TILE_BACKOFF__', 2),
           stratifiedReseed: (typeof window.__RAW_STRATIFIED_RESEED__ === 'number' ? window.__RAW_STRATIFIED_RESEED__ !== 0 : true),
           farzoomSizeFloor: _g('__RAW_FARZOOM_SIZE_FLOOR__', 0.55),
+          endpointLandFade: _endpointLandFade === 1.0,  // crest ribbons dissolve toward land ends (kill: __RAW_DISABLE_ENDPOINT_LAND_FADE__)
           blendWash: _blendBaseWash,
           legacyAnim: window.__RAW_ANIM_LEGACY__ === true   // true → Natural defaults killed (flat pre-2026-07 look)
         };

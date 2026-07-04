@@ -257,6 +257,7 @@ uniform vec2 u_tile_origin;
 uniform float u_tile_width;
 uniform float u_opacity;
 uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
+uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -537,6 +538,37 @@ void main() {
     edgeFade = smoothstep(0.0, max(u_edgeFeatherWidth, 0.01), minDistToEdge);
   }
   v_alpha *= edgeFade;
+
+  // === RIBBON-ENDPOINT LAND FADE (2026-07-04, "dashes crossing Venice/Lido") ===
+  // The ocean cull above tests only the particle CENTER, so a water-centered ribbon OVERHANGS land:
+  // at z11+ a crest quad is 32–96 CSS px long along the crest axis — comparable to an entire barrier
+  // island (Lido is ~500 m wide; live texel forensics showed the island line masked 0 yet dashes
+  // still crossed it). Convert THIS corner's along-crest pixel offset back to MERCATOR (invert the
+  // pixel-per-mercator 2×2 jacobian already available from the matrix columns), sample the ocean
+  // mask at the ribbon END, and scale this corner's alpha by it. Fragments interpolate the corner
+  // alphas, so a ribbon dissolves per-pixel toward a land end; a ribbon fully in water is untouched
+  // (both factors 1). Kill: u_endpointLandFade=0 via window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
+  if (u_endpointLandFade > 0.5) {
+    vec2 jx = matCol0 * 0.5 * u_viewport / max(clipPos.w, 0.001);
+    vec2 jy = matCol1 * 0.5 * u_viewport / max(clipPos.w, 0.001);
+    float jdet = jx.x * jy.y - jy.x * jx.y;
+    if (abs(jdet) > 0.000000001) {
+      vec2 pxDelta = crestDir * (deviceHalfLength * cornerUV.x);
+      vec2 mercDelta = vec2(jy.y * pxDelta.x - jy.x * pxDelta.y, jx.x * pxDelta.y - jx.y * pxDelta.x) / jdet;
+      vec2 endMerc = global_pos + mercDelta;
+      float endLng = endMerc.x * 360.0 - 180.0;
+      float end_u;
+      if (u_dataBounds_min.x > u_dataBounds_max.x) {
+        float endSpan = (u_dataBounds_max.x + 360.0) - u_dataBounds_min.x;
+        end_u = mod(endLng - u_dataBounds_min.x, 360.0) / max(endSpan, 0.0001);
+      } else {
+        end_u = (endLng - u_dataBounds_min.x) / max(u_dataBounds_max.x - u_dataBounds_min.x, 0.0001);
+      }
+      float end_v = (mercMaxY - endMerc.y) / max(mercMaxY - mercMinY, 0.0001);
+      float endFlag = texture2D(u_oceanMaskTexture, vec2(end_u, end_v)).r;
+      v_alpha *= smoothstep(0.20, 0.45, endFlag);
+    }
+  }
 
   // === WHITECAP STRENGTH (separate from base ripple) ===
   // Only significant for waves with real breaking potential. v7.1: more breaking foam at close zoom.

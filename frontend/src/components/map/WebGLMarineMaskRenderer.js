@@ -85,11 +85,30 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   } catch (e) { /* defaults */ }
 
-  let feats;
+  // FINEST-TILE TRUTH (2026-07-04, the Lido gap-island): querySourceFeatures returns polygons from
+  // EVERY loaded tile LEVEL. An overzoomed PARENT tile's simplified ocean boundary cuts ACROSS
+  // gap-islands — land that separates two water polygons (barrier islands: Lido) without being a
+  // hole ring in either — so painting it white drowns them, and the hole-reassert pass below has
+  // nothing to restore (live texel read at Venice z11.5: Venice hole 0 ✓, Lido 255 ✗ → crest
+  // particles visibly ran over Lido). queryRenderedFeatures returns only the tiles actually being
+  // RENDERED (the finest loaded), so a parent's wrong boundary never paints once the real tile is
+  // in. Falls back to the source query when the render query fails or returns nothing (patch is
+  // then parent-vulnerable but never blank; the painter re-runs on map events + wave uploads).
+  let feats = null;
   try {
-    feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
-  } catch (e) {
-    return false;
+    if (typeof mapInstance.queryRenderedFeatures === 'function') {
+      const layerIds = (mapInstance.getStyle()?.layers || [])
+        .filter(l => l.type === 'fill' && l.source === waterSource && l['source-layer'] === waterSourceLayer)
+        .map(l => l.id);
+      if (layerIds.length) feats = mapInstance.queryRenderedFeatures({ layers: layerIds });
+    }
+  } catch (e) { feats = null; }
+  if (!feats || !feats.length) {
+    try {
+      feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
+    } catch (e) {
+      return false;
+    }
   }
   if (!feats || !feats.length) return false;
 

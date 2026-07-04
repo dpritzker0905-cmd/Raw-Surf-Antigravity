@@ -139,3 +139,20 @@ describe('WebGLMarineShaders', () => {
     });
   });
 });
+
+describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/Lido)', () => {
+  it('is gated on u_endpointLandFade and fades the corner alpha by the ribbon-END ocean flag', () => {
+    expect(DRAW_VS).toContain('uniform float u_endpointLandFade;');
+    expect(DRAW_VS).toContain('if (u_endpointLandFade > 0.5)');
+    // Samples the SAME mask sampler the center cull uses, at the corner endpoint uv.
+    expect(DRAW_VS).toContain('float endFlag = texture2D(u_oceanMaskTexture, vec2(end_u, end_v)).r;');
+    // Fades alpha (dissolve toward land) instead of hard-discarding the whole ribbon.
+    expect(DRAW_VS).toContain('v_alpha *= smoothstep(0.20, 0.45, endFlag);');
+    // Endpoint is derived from the along-crest pixel offset inverted back to mercator.
+    expect(DRAW_VS).toContain('vec2 pxDelta = crestDir * (deviceHalfLength * cornerUV.x);');
+  });
+
+  it('keeps the legacy center cull intact (endpoint fade is additive, not a replacement)', () => {
+    expect(DRAW_VS).toContain('oceanFlag < 0.3');
+  });
+});
