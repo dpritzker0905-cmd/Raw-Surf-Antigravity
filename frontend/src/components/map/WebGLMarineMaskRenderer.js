@@ -561,6 +561,25 @@ export function suppressShelteredWater(canvas, bounds, opts) {
   return { applied: true, shelteredFrac: +(count / Math.max(1, size)).toFixed(4), nPx, mPerPx: Math.round(mPerPx) };
 }
 
+// Mask canvas width tier by the MASK BOUNDS' longitude span (pure; exported for tests).
+// <10°-span tiles get 4096x2048 (2026-07-04, Long Beach report): at 2048 a ~6° tile is still
+// ~330 m/px — harbor/inlet edges stair-step visibly at z10+ even with the 10m polygons.
+// 10-30° (mid clips) keep 2048 (≤0.015°/px — already sub-pixel at those zooms).
+// WORLD spans get 4096 too (2026-07-05, "land coastline shows over the heatmap below ~z5.8,
+// corrects at z6.1"): while the GLOBAL grid is resident the mask bounds span 360°, so the old
+// 1024x512 world tier = ~0.35°/px (~39 km) — the mask edge retreated a grey band (~15-25 px at
+// z4.9) from every coastline and islands ballooned into blobs; the same view at mid/fine
+// residency uses the finer tiers and adheres, which is why zooming past ~z6 "corrected" it.
+// 4096 over 360° = ~0.088°/px (~10 km): the band shrinks to ~4 px at z4.9. Cost: one 32 MB
+// texture + a 100-250 ms world polygon paint amortized by the pristine-canvas LRU below.
+// Live override for the world tier: window.__RAW_WORLD_MASK_WIDTH__ (1024 restores legacy).
+export function maskCanvasWidthForSpan(lonSpan) {
+  if (lonSpan < 10) return 4096;
+  if (lonSpan < 30) return 2048;
+  const ov = typeof window !== 'undefined' ? Number(window.__RAW_WORLD_MASK_WIDTH__) : 0;
+  return ov > 0 ? ov : 4096;
+}
+
 // Pristine-canvas LRU for renderMaskToCanvas (see comment at its cache-read site).
 const _maskCanvasCache = new Map();
 let _maskCanvasCacheGeo = null;
@@ -579,10 +598,7 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
   };
   const lonSpan = _lonSpanFor(bounds);
   const isRegional = lonSpan < 30;
-  // <10°-span tiles get 4096x2048 (2026-07-04, Long Beach report): at 2048 a ~6° tile is still
-  // ~330 m/px — harbor/inlet edges stair-step visibly at z10+ even with the 10m polygons. ~165 m/px
-  // halves the blockiness; the larger canvas is only paid on close-zoom regional commits.
-  let width = lonSpan < 10 ? 4096 : (isRegional ? 2048 : 1024);
+  let width = maskCanvasWidthForSpan(lonSpan);
   // opts.maxWidth: small viewport OVERLAY canvases cap at 2048 — the 4096 tier costs 4× the paint
   // + texImage2D upload and its extra density is wasted on a ≤1° box (stair-climb choppiness fix).
   if (opts && opts.maxWidth && width > opts.maxWidth) width = opts.maxWidth;
