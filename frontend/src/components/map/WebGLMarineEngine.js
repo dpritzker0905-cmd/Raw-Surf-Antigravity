@@ -69,6 +69,17 @@ function isCoarseGlobalGrid(waveGrid) {
   return (span / cols) > 1.0;
 }
 
+// Per-cell longitude size in degrees; null when unknowable. Feeds the CELL-SIZE branch of the
+// no-downgrade guard (a mid 2°/cell clip is "regional" by bounds but a hard resolution downgrade
+// over a resident 0.25° tile).
+function gridCellDeg(waveGrid) {
+  const b = waveGrid && waveGrid.bounds;
+  const cols = waveGrid && waveGrid.cols;
+  if (!b || !cols || cols < 2) return null;
+  const span = boundsLonSpan(b);
+  return span > 0 ? span / (cols - 1) : null;
+}
+
 // === NO-DOWNGRADE decision (pure; exported for tests) ===
 // True when `incoming` is the global-COARSE fallback that would DOWNGRADE a resident REGIONAL grid of the SAME
 // component layer + hour while the map is zoomed IN — the coarse⇄regional ping-pong that resets the particle FBO
@@ -80,7 +91,19 @@ function isCoarseGlobalGrid(waveGrid) {
 // non-covering rectangle nor re-create the coarse-global CLAMP that 7f6c39be/54e289b5 fixed.
 export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled) {
   if (disabled || !resident || !incoming) return false;
-  if (!isCoarseGlobalGrid(incoming)) return false;         // incoming must be the coarse-global fallback
+  // Two downgrade shapes are blocked (everything else falls through unguarded):
+  //  (1) the coarse-GLOBAL fallback displacing a regional (the original 07-01 ping-pong), and
+  //  (2) CELL-SIZE downgrades ≥2× — e.g. the 2°/cell global_mid clip displacing a still-covering
+  //      0.25° fine tile (live 2026-07-05, z7.38→7.54 Channel Islands: the 30%-padded request
+  //      bbox pokes past the 6° socal fine tile in exactly that band, the resolver hands the mid
+  //      clip, and this gate — coarse-global-only until now — waved it through: dark smeared
+  //      island shadow + visible 2° lattice, stuck 12s+ until a pan). Upgrades and ≈equal-res
+  //      replacements (<2×) always pass; every safety predicate below (same layer+hour, resident
+  //      renderable + covers ≥80%) applies to this branch identically.
+  const _rc = gridCellDeg(resident);
+  const _ic = gridCellDeg(incoming);
+  const cellDowngrade = _rc !== null && _ic !== null && _ic >= _rc * 2.0;
+  if (!isCoarseGlobalGrid(incoming) && !cellDowngrade) return false;
   if (!isRegionalBounds(resident.bounds)) return false;    // resident must itself be a regional tile
   const sameLayer = (incoming.__componentLayer || 'waves') === (resident.__componentLayer || 'waves');
   const sameHour = incoming.hourOffset !== undefined && resident.hourOffset !== undefined
@@ -261,7 +284,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
       nd.last = { residentDims: `${_res.cols}×${_res.rows}`, rejectedDims: `${waveGrid.cols}×${waveGrid.rows}`,
         layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now() };
     }
-    console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected global-coarse ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
+    console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected coarser ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
     // SELF-HEAL STASH (2026-07-03): a rejected grid must never be lost — the commit path records its
     // signature, so it will NEVER be re-committed (dup-skip) and a wrong rejection (stale _lastZoom)
     // would strand the display permanently. Stash it; the render loop re-evaluates the guard with the

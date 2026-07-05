@@ -84,3 +84,49 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, undefined, false)).toBe(true);
   });
 });
+
+// CELL-SIZE downgrade branch (2026-07-05, "z7.38->7.54 grid shapes behind the Channel Islands"):
+// zooming IN across the tile-fit boundary makes the 30%-padded request bbox poke past the 6-deg
+// socal fine tile, the resolver hands the 2-deg/cell global_mid clip, and the coarse-GLOBAL-only
+// gate waved it through — displacing a still-covering 0.25-deg resident (dark smeared island
+// shadow + visible 2-deg lattice, stuck until a pan). Any >=2x cell-size downgrade is now blocked
+// under the same safety predicate; upgrades and <2x replacements pass untouched.
+const midClip = (over = {}) => ({
+  bounds: { west: -131, east: -115, south: 26, north: 42 },
+  cols: 9, rows: 9, __componentLayer: 'waves', hourOffset: 0,
+  vectors: new Array(81), __renderable: true, coverage_scope: 'regional', ...over,
+});
+const fineSocal = (over = {}) => ({
+  bounds: { west: -123, east: -117, south: 31, north: 36 },
+  cols: 25, rows: 21, __componentLayer: 'waves', hourOffset: 0,
+  vectors: new Array(525), __renderable: true, coverage_scope: 'regional', ...over,
+});
+const socalVp = [-122.1, 32.4, -117.6, 35.0]; // z7.5 Channel Islands viewport, inside the fine tile
+
+describe('shouldRejectResolutionDowngrade — cell-size branch (mid over fine)', () => {
+  it('BLOCKS the 2-deg mid clip overwriting a covering 0.25-deg fine tile (the z7.38->7.54 lattice)', () => {
+    expect(shouldRejectResolutionDowngrade(fineSocal(), midClip(), 7.54, socalVp, false)).toBe(true);
+  });
+
+  it('ALLOWS the mid->fine SHARPEN (upgrades are never blocked)', () => {
+    expect(shouldRejectResolutionDowngrade(midClip(), fineSocal(), 7.54, socalVp, false)).toBe(false);
+  });
+
+  it('ALLOWS a near-equal-resolution replacement (<2x cell growth is a refresh, not a downgrade)', () => {
+    const slightlyCoarser = fineSocal({ cols: 15, rows: 13, vectors: new Array(195) }); // 6/14 ~= 0.43 deg < 2x 0.25
+    expect(shouldRejectResolutionDowngrade(fineSocal(), slightlyCoarser, 7.54, socalVp, false)).toBe(false);
+  });
+
+  it('ALLOWS mid once the fine tile no longer covers the viewport (pan off the tile)', () => {
+    const bajaVp = [-116.5, 27.0, -112.0, 30.0]; // fully outside the socal fine tile
+    expect(shouldRejectResolutionDowngrade(fineSocal(), midClip(), 7.5, bajaVp, false)).toBe(false);
+  });
+
+  it('ALLOWS mid for a DIFFERENT hour (scrub must never freeze on a stale fine frame)', () => {
+    expect(shouldRejectResolutionDowngrade(fineSocal({ hourOffset: 0 }), midClip({ hourOffset: 24 }), 7.5, socalVp, false)).toBe(false);
+  });
+
+  it('respects the kill switch', () => {
+    expect(shouldRejectResolutionDowngrade(fineSocal(), midClip(), 7.54, socalVp, true)).toBe(false);
+  });
+});
