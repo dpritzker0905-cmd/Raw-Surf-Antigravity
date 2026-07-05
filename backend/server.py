@@ -6,6 +6,7 @@ import sys
 import subprocess
 import asyncio
 import logging
+from typing import Optional
 from pathlib import Path
 from dotenv import load_dotenv
 
@@ -264,7 +265,10 @@ async def run_background_cache_population():
         has_gfs_waves = has_product_conformed("GFS", "marine", "waves")
         has_gfs_waves_global = has_product_conformed("GFS", "marine", "waves", region_id="global_coarse")
         # For GFS wind, we specifically need the global coarse wind product as well.
-        from typing import Optional
+        # (2026-07-05: the stray `from typing import Optional` that lived HERE made `Optional` a LOCAL
+        # of this function, so the nested def's annotation at its definition line raised
+        # "cannot access local variable 'Optional'" and killed the whole background cache population.
+        # Optional is imported at module top now.)
         has_gfs_wind = (
             has_product_conformed("GFS", "wind", "wind", region_id="global_coarse")
             and has_product_conformed("GFS", "wind", "wind", region_id="florida_east_coast")

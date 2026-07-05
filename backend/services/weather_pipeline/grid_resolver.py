@@ -320,6 +320,11 @@ async def resolve_grid(
             store, model=model, domain=domain, layer=layer, bbox=bbox,
             req_w=req_w, req_s=req_s, req_e=req_e, req_n=req_n,
             mid_auth=_mid_auth, mid_est=_mid_est, current_product=product,
+            # SWR sharpen (#2): the tier serves the mid INSTANTLY and schedules the same background
+            # fine-viewport revalidation Step 3.7 uses (span-capped at MARINE_MID_REVAL_MAX_SPAN=5°),
+            # so dwelling viewports sharpen 2° → 0.25° — the pre-mid steady state restored.
+            viewport_service=viewport_service, valid_time=valid_time, target_dt=target_dt,
+            background_tasks=background_tasks,
         )
         if _mid_product is not None:
             product = _mid_product

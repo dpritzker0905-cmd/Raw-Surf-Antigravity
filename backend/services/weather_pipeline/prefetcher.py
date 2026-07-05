@@ -83,6 +83,14 @@ async def prefetch_supabase_products():
             continue
         if (p.domain.lower(), p.layer.lower()) not in _WARM_LAYERS:
             continue
+        # MID-RES EXCLUSION (2026-07-05, the Render dev-deploy MEMORY FAILURES): `global_mid` products
+        # are ~15k vectors (~1.5-3 MB JSON) — ~24x the coarse products this 400-product warm budget was
+        # tuned for. With GFS 14d x 4 layers + ICON 7d x 3 layers in the manifest, the warm set filled
+        # with mid products and the boot burst OOM'd the 512 MB serve box. The resolver's Step 3.6
+        # loads mid products lazily per request (one ~2 MB parse on a cold hour) — boot-warming them
+        # is unnecessary. Re-enable deliberately with PREFETCH_INCLUDE_MID=1.
+        if getattr(p, "region_id", None) == "global_mid" and os.environ.get("PREFETCH_INCLUDE_MID", "0") != "1":
+            continue
         if start_time <= p.valid_time_start <= end_time:
             candidates.append(p)
 

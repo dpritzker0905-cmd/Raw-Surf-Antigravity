@@ -91,6 +91,10 @@ async def try_serve_mid_res_tier(
     mid_auth,
     mid_est,
     current_product,
+    viewport_service=None,
+    valid_time=None,
+    target_dt=None,
+    background_tasks=None,
 ):
     """Serve (or replace with) the clipped global_mid when the request sits in the mid span band.
 
@@ -142,11 +146,42 @@ async def try_serve_mid_res_tier(
                 f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},"
                 f"{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
             )
+    # SWR SHARPEN (2026-07-05, #2 — the Irvine straddle second pass): the mid grid is the INSTANT
+    # covering preview; schedule the SAME background fine-viewport revalidation Step 3.7 uses so a
+    # dwelling viewport sharpens 2° → 0.25° on the next request (pre-mid, fine WAS the steady state
+    # for these spans — Step 3.6 serving before Step 4 had silently removed that). SPAN-CAPPED
+    # (MARINE_MID_REVAL_MAX_SPAN, default 5°): wide zoom-outs keep the mid steady-state — a 15° fine
+    # upstream fetch is a heavy call the pre-mid path never made either. is_viewport_enabled also
+    # gates model horizons (EURO 240h / ICON 168h), so estimated tail hours never spawn dead fetches.
+    _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "5.0"))
+    if (
+        viewport_service is not None and valid_time is not None
+        and span <= _reval_cap
+        and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
+    ):
+        product.stale = True
+        product.staleReason = "swr_revalidation_pending"
+        product.cache_hit = "mid_res_preview"
+        reval_key = f"{model.lower()}_{domain.lower()}_{layer.lower()}_{valid_time}_{bbox}"
+        if reval_key not in viewport_service.ACTIVE_REVALIDATIONS:
+            viewport_service.ACTIVE_REVALIDATIONS.add(reval_key)
+            if background_tasks:
+                background_tasks.add_task(
+                    viewport_service._revalidate_fetch,
+                    model, domain, layer, valid_time, target_dt, bbox, reval_key
+                )
+            else:
+                asyncio.create_task(
+                    viewport_service._revalidate_fetch(
+                        model, domain, layer, valid_time, target_dt, bbox, reval_key
+                    )
+                )
     logger.info(
         f"[Grid Route] Mid-res tier: serving global_mid '{mid_item.filename}' clipped to viewport "
         f"({span:.1f}°) for {model} {layer}"
         + (" [estimated mirror hour]" if getattr(mid_item, "is_estimated", False) else "")
         + (" [replaced unclipped global]" if current_product is not None else "")
+        + (" [SWR → fine reval scheduled]" if getattr(product, "cache_hit", None) == "mid_res_preview" else "")
         + " — regional-quality at zoom-out."
     )
     return product

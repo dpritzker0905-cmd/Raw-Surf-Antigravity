@@ -261,6 +261,35 @@ def test_world_zoom_never_serves_global_mid(monkeypatch):
             f"({order}) mid tier must not fire on a wide request"
 
 
+def test_mid_res_tier_swr_revalidation_for_small_spans(monkeypatch):
+    """#2 SWR sharpen: spans ≤ MARINE_MID_REVAL_MAX_SPAN (5°) serve the mid INSTANTLY but stale, with a
+    background fine-viewport revalidation scheduled (the pre-mid steady state for these spans was the
+    0.25° dynamic product — the tier must not silently remove that)."""
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-124,33,-121,36")  # 3° span ≤ 5° cap
+
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True
+    assert out.stale is True
+    assert out.staleReason == "swr_revalidation_pending"
+    assert out.cache_hit == "mid_res_preview"
+    assert len(vp.ACTIVE_REVALIDATIONS) == 1, "fine-viewport revalidation must be scheduled"
+
+
+def test_mid_res_tier_no_revalidation_for_wide_spans(monkeypatch):
+    """Wide zoom-outs (span > 5°) keep the mid steady-state — a 8-15° fine upstream fetch is a heavy
+    call the pre-mid path never made either."""
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-126,32,-118,40")  # 8° span > 5° cap
+
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True
+    assert getattr(out, "cache_hit", None) != "mid_res_preview"
+    assert len(vp.ACTIVE_REVALIDATIONS) == 0, "no heavy fine fetch for wide spans"
+
+
 def test_mid_res_tier_kill_switch(monkeypatch):
     monkeypatch.setenv("MARINE_MID_RES_TIER", "0")
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())

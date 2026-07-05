@@ -257,17 +257,29 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       let bW = tW, bE = tW + 2;
       if (bW < -180) bW += 360;
       if (bE > 180) bE -= 360;
-      return {
-        isInside: true,
-        clampedBbox: { west: bW, south: tS, east: bE, north: tS + 2 },
-        fallbackReason: null,
-        coverageBounds: PILOT_COVERAGE,
-        // Match the backend region_id shape (viewport_W.00_S.00_E.00_N.00) so cache store/lookup keys align.
-        selectedTileId: `viewport_${tW.toFixed(2)}_${tS.toFixed(2)}_${(tW + 2).toFixed(2)}_${(tS + 2).toFixed(2)}`,
-        availableTileIds: REGIONAL_TILES.map(t => t.id),
-        rejectedTileIds: [],
-        tileFallbackReason: null
-      };
+      // STRADDLE GUARD (2026-07-05, the Irvine report: "clamping below / cleared above" = the tile's
+      // north+west edges cutting through the viewport): the single-center-tile shortcut is only right
+      // when the viewport is FULLY INSIDE that tile — a straddling viewport (span ≤2° but crossing a
+      // 2° boundary) got fine data over ~half the screen and a dead coarse-wash ring over the rest.
+      // Straddlers fall through to the 1° snap below → a 2-4° covering request → the backend mid tier
+      // serves a COVERING clipped grid instantly (and the SWR revalidation sharpens it to the fine
+      // 0.25° viewport grid). Kill (restore center-tile-always): __RAW_DISABLE_STRADDLE_GUARD__.
+      const _inTile = west >= bW - 0.001 && east <= bE + 0.001 && south >= tS - 0.001 && north <= tS + 2 + 0.001;
+      const _straddleGuardOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_STRADDLE_GUARD__ === true);
+      if (_inTile || _straddleGuardOff) {
+        return {
+          isInside: true,
+          clampedBbox: { west: bW, south: tS, east: bE, north: tS + 2 },
+          fallbackReason: null,
+          coverageBounds: PILOT_COVERAGE,
+          // Match the backend region_id shape (viewport_W.00_S.00_E.00_N.00) so cache store/lookup keys align.
+          selectedTileId: `viewport_${tW.toFixed(2)}_${tS.toFixed(2)}_${(tW + 2).toFixed(2)}_${(tS + 2).toFixed(2)}`,
+          availableTileIds: REGIONAL_TILES.map(t => t.id),
+          rejectedTileIds: [],
+          tileFallbackReason: null
+        };
+      }
+      // straddling → fall through to the snap path (covering request)
     }
 
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;

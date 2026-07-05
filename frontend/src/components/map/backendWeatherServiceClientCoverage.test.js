@@ -89,12 +89,22 @@ describe('backendWeatherServiceClientCoverage', () => {
     // 0.25° grid ONLY when the request fits within a SINGLE 2°-aligned tile. A close-zoom GFS viewport
     // (span ≤ 2° both dims) must snap to the ONE 2° tile containing its center — not the old 1° snap,
     // which could straddle a 2° boundary and fall back to global_coarse.
-    it('GFS snaps a close-zoom (≤2°) viewport to the single 2°-aligned tile containing its center', () => {
-      // Kvarner ~z9.22 viewport straddling the 14° boundary — the OLD 1° snap made 13→16 (two tiles).
-      const res = clampViewportBbox({ west: 13.9, south: 44.6, east: 15.1, north: 45.4 }, 'waves', 'GFS');
+    it('GFS keeps the single-2°-tile fast path when the viewport is FULLY INSIDE the tile', () => {
+      const res = clampViewportBbox({ west: 14.2, south: 44.3, east: 15.8, north: 45.7 }, 'waves', 'GFS');
       expect(res.isInside).toBe(true);
       expect(res.clampedBbox).toEqual({ west: 14, south: 44, east: 16, north: 46 }); // one 2° tile
       expect(res.selectedTileId).toBe('viewport_14.00_44.00_16.00_46.00');
+    });
+
+    it('GFS STRADDLING ≤2° viewport falls to the covering 1° snap (2026-07-05 straddle guard)', () => {
+      // Kvarner viewport straddling the 14° boundary: the center-tile shortcut left a dead coarse-wash
+      // ring over the sliver outside the tile (the Irvine "clamping below / cleared above" report).
+      // A straddler now requests the covering snap → the backend mid tier serves a COVERING clipped
+      // grid instantly and the SWR revalidation sharpens it to the fine 0.25° viewport grid.
+      const res = clampViewportBbox({ west: 13.9, south: 44.6, east: 15.1, north: 45.4 }, 'waves', 'GFS');
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox).toEqual({ west: 13, south: 44, east: 16, north: 46 }); // covering snap
+      expect(res.selectedTileId).not.toBe('viewport_14.00_44.00_16.00_46.00');
     });
 
     it('GFS keeps global for a wide viewport and does NOT hit the fine-tile branch above 2°', () => {
