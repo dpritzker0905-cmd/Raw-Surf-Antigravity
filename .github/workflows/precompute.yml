@@ -19,7 +19,13 @@ concurrency:
 jobs:
   precompute:
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # 30 → 60 (2026-07-05): the EURO spot-rating path does ~300 native Copernicus per-point
+    # downloads at ~5.7s each (≈28.5 min measured in run 28753314599 AFTER the WEATHER_PROXY_URL
+    # fix) — the 30-min cap cancelled every run since 07-03 20:43Z, leaving glyphs stale. This lane
+    # is decoupled precisely so it may run long; cron is 6-hourly and the concurrency group
+    # serializes. Real fix queued: batch the Copernicus point fetches spatially (one subset
+    # download covers many spots) — then drop this back toward 30.
+    timeout-minutes: 60
     steps:
       - uses: actions/checkout@v4
 
