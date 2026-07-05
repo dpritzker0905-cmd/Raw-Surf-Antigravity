@@ -136,7 +136,21 @@ async def try_serve_mid_res_tier(
     product.requested_bbox_original = bbox
     product.query_bbox = bbox
     product.requested_bbox = bbox
-    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+    # PAD BY ONE MID CELL (2026-07-05, the San Diego "clamp+clear" second-pass report): the clip keeps
+    # vectors whose CENTERS fall inside the bbox, and the served grid.bounds are the outermost cell
+    # centers — losing up to a HALF-CELL (~1°) ring versus the viewport. Depending on alignment the
+    # coverage fraction lands under the display gate's 0.8 (live: SD viewport 29.34..34.49 vs served
+    # 30..34 → ~0.73 → hidden at z<7 → wash/clamp). Pad the snap by one full mid cell each side so the
+    # served grid always OVERHANGS the viewport ≥ half a cell → coverage ~1.0 deterministically.
+    try:
+        from services.weather_pipeline.route_helpers import parse_bbox as _pb
+        _sw, _ss, _se, _sn = _pb(get_snapped_bbox(bbox, model))
+        _pad = float(os.environ.get("MARINE_MID_CLIP_PAD_DEG", "2.0"))
+        _pw = max(-180.0, _sw - _pad); _ps = max(-80.0, _ss - _pad)
+        _pe = min(180.0, _se + _pad); _pn = min(85.0, _sn + _pad)
+        product = filter_grid_to_bbox(product, f"{_pw:.4f},{_ps:.4f},{_pe:.4f},{_pn:.4f}")
+    except Exception:
+        product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
     if product.grid:
         if product.grid.diagnostics is None:
             product.grid.diagnostics = {}
