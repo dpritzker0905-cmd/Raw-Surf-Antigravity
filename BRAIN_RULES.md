@@ -274,6 +274,29 @@ When working on weather simulation system features, follow these rules, tools, a
 * **Previous stable commits**: Focus on `b5bbaa7d` and `f5f6a3d` to audit changes.
 * **Regression archaeology**: Any regression notes, logs, or "archaeology" artifacts already in the repo.
 
+### 🕑 14-Day Forecast Horizon & Subscription-Tier Contract (LOCKED — do not regress)
+All three models expose a **336h / 14-day timeline**. GFS reaches it natively; EURO and ICON reach it
+through purpose-built extension mechanisms. **Never cap the scrubber to a model's native horizon**
+(that regression already happened once and was reverted in `fff3cd90`), and **never rebuild the blends**.
+
+| Model | Native | 14-day mechanism |
+|---|---|---|
+| **GFS** | **336h+ native** (capabilities advertise 384h/16d ceiling) | None needed — serves natively through 336h (mid tier ingests at 14d parity: `GFS_MID_RES_FORECAST_DAYS=14`) |
+| **ICON** | 168h (7d) | >168h = frontend extended blend `fetchBackendMarineGridIconExtended` (`backendWeatherServiceClientHelpers.js`): ≤240h = ICON@168 + GFS@168 anchor trend-extrapolation (persistence→GFS weight shift over 5 days, confidence −0.15/day floor 0.10, anchors deduped per viewport, 5-min TTL); >240h = GFS/EURO blend. `swell_2` special-case: gwam has no native secondary swell. |
+| **EURO** | 240h (10d Copernicus) | 241–336h = stored **ESTIMATED** products (`8f6731fb` contract: "truthful 240 native + 96 estimated = 336 max"; `EURO_NATIVE_HOURS=240` in `grid_series_helper.py` — fast path serves native from ONE full-range Copernicus fetch, per-hour loop resolves stored estimated). |
+
+* **Capabilities = the single source of truth for horizons** (`78b9fde9`): `/api/weather/capabilities`
+  `max_forecast_hours` (GFS 384 / ICON 336 / EURO 336). Never hardcode horizons elsewhere.
+* **Subscription-tier firewall**: `LayerAccessResolver.js` is the ONLY permissions authority.
+  guest/free = GFS only, 3 days (72h) · basic/tier_2 = all models, 7 days (168h) ·
+  premium/pro/admin/tier_3/tier_4 = all models, **14 days (336h)**.
+  Scrubber max = `min(tier days, capabilities hours/24)` via `resolveForecastWindow` — verified live
+  2026-07-05: premium → slider max 336, tierless → 72. `MapPage` passes
+  `user.subscription_tier || user.tier_id`; do NOT add parallel gating anywhere else.
+* **Series paging** (`marineGridSeries.js`): `MARINE_SERIES_MAX_HOURS=336`, 48-frame pages
+  (0–141 / 144–285 / 288–336); current page first, adjacent at idle, ALL pages prewarm on scrub
+  start for GFS/ICON; EURO is excluded from eager prewarm (Copernicus cost) by design.
+
 ### 📊 Weather Simulation Diagnostics & HUD Rules
 * **Unified Diagnostics HUD (`TruthOverlay.js`)**: All client-side diagnostics (Truth Inspector, Events Trace logs, WebGL shader debug view toggles, and GPU/FCE Telemetry) must be integrated into this single tabbed HUD panel. Do not create separate floating debug panels.
 * **Events Trace Logging**: Any new weather event types (requests, loaded files, timeouts, fallbacks) must be routed to `WeatherTelemetry` in the frontend so they are visible in the HUD events log.
