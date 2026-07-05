@@ -89,6 +89,15 @@ class ProductStore:
     # Products are small (regional ~117 vec, global-coarse ~629 vec ≈ <1MB parsed), so 128 ≈ tens of MB.
     # Env-tunable for the serve box: PRODUCT_CACHE_LIMIT.
     _PRODUCT_CACHE_LIMIT = int(os.environ.get("PRODUCT_CACHE_LIMIT", "128"))
+    # VECTOR-WEIGHTED budget (2026-07-05, Render OOM root): the 128-item count limit was sized for
+    # <1MB parsed products, but a global_mid product is ~15,000 vectors (~12MB parsed) — 128 of
+    # those ≈ 1.5-1.9GB, the EXACT resident plateau measured (Render metrics, 60s resolution) on
+    # the 2Gi standard instance before every one of the 29 oomKilled events on 2026-07-05. Cap the
+    # cache by TOTAL VECTORS so mid-era products can't balloon the count assumption: 120k vectors
+    # ≈ the old-world budget (128 × ~900) ≈ 8 resident full mid products. Env-tunable:
+    # PRODUCT_CACHE_VECTOR_BUDGET.
+    _PRODUCT_CACHE_VECTOR_BUDGET = int(os.environ.get("PRODUCT_CACHE_VECTOR_BUDGET", "120000"))
+    _product_cache_vectors: Dict[str, int] = {}  # filename -> vector count (budget bookkeeping)
 
     def __init__(self, cache_dir: Optional[Path] = None):
         if cache_dir:
@@ -430,6 +439,7 @@ class ProductStore:
                     return cloned
                 else:
                     ProductStore._product_cache.pop(filename, None)
+                    ProductStore._product_cache_vectors.pop(filename, None)
 
         filepath = self.cache_dir / filename
         if not filepath.exists():
@@ -502,12 +512,21 @@ class ProductStore:
                 if not product.product_id:
                     product.product_id = filename
                 
-                # Cache the product before returning a deepcopy
+                # Cache the product before returning a deepcopy. Evict LRU until BOTH the count
+                # limit and the vector budget hold (insertion order == LRU here; big mid products
+                # displace many small ones instead of silently multiplying resident memory ~25×).
                 with ProductStore._product_cache_lock:
-                    if len(ProductStore._product_cache) >= ProductStore._PRODUCT_CACHE_LIMIT:
+                    nvec = len(product.grid.vectors) if (product.grid and product.grid.vectors) else 0
+                    while ProductStore._product_cache and (
+                        len(ProductStore._product_cache) >= ProductStore._PRODUCT_CACHE_LIMIT
+                        or sum(ProductStore._product_cache_vectors.values()) + nvec
+                            > ProductStore._PRODUCT_CACHE_VECTOR_BUDGET
+                    ):
                         oldest_key = next(iter(ProductStore._product_cache.keys()))
                         ProductStore._product_cache.pop(oldest_key, None)
+                        ProductStore._product_cache_vectors.pop(oldest_key, None)
                     ProductStore._product_cache[filename] = (product, time.time())
+                    ProductStore._product_cache_vectors[filename] = nvec
 
                 cloned = product.model_copy()
                 if cloned.grid is not None:
