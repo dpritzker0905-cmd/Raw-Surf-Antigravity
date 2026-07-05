@@ -151,6 +151,12 @@ async def find_any_cached_product_helper(
             and p.domain.lower() == domain.lower()
             and p.layer.lower() == layer.lower()
         ):
+            # global_mid (~15k vectors) is served ONLY by grid_resolver's Step 3.6 tier, CLIPPED. In this
+            # preview/stale-fallback scan it ties with global_coarse on time-diff (same valid_times, both
+            # cover) and would win or lose by MANIFEST ORDER — serving a ~24x payload where the 629-vector
+            # coarse was intended. Skip it here; the coarse remains the honest instant preview.
+            if getattr(p, "region_id", None) == "global_mid":
+                continue
             diff = abs(p.valid_time_start.timestamp() - target_ts)
             # Allow up to 24 hours stale product fallback for rate limit
             if diff < min_manifest_diff and diff <= 24 * 3600:

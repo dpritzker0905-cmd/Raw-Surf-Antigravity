@@ -502,6 +502,19 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
         "north": 85.0,
         "resolution": 10.0
     }
+    # MID-RES mirror (2026-07-05): the z6-7 tier's `global_mid` products must carry the SAME 240→336h
+    # estimated extension as global_coarse, or scrubbing past EURO's native horizon at zoom-out drops
+    # back to the 10° lattice. This machinery is already region-parameterized (anchors/targets keyed on
+    # region_id; estimate_euro_grid carries region_id + the anchor's resolution through) — adding the
+    # region is a per-layer NO-OP until EURO global_mid native anchors exist (EURO mid ingest is
+    # default-OFF), while GFS global_mid targets (14d) are already ingested.
+    regions_to_process["global_mid"] = {
+        "west": -180.0,
+        "south": -80.0,
+        "east": 180.0,
+        "north": 85.0,
+        "resolution": float(os.environ.get("EURO_MID_RES", os.environ.get("GFS_MID_RES", "2.0")))
+    }
     
     for region_id, region in regions_to_process.items():
         logger.info(f"[Pipeline Scheduler] Processing region for estimates: {region_id}")

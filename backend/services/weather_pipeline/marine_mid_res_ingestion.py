@@ -39,7 +39,12 @@ async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
     run_time = datetime.now(timezone.utc)
     total_saved = 0
     resolution = float(os.environ.get("GFS_MID_RES", "2.0"))
-    forecast_days = int(os.environ.get("GFS_MID_RES_FORECAST_DAYS", "2" if env["is_test_env"] else "10"))
+    # 14 days (was 10) MIRRORS ingest_gfs_marine_global's horizon (GFS_GLOBAL_FORECAST_DAYS=14): the
+    # forecast timeline must not change resolution mid-scrub. This also FEEDS the blend mirror — the
+    # frontend's ICON >168h and ICON swell_2 blends recursively fetch GFS component grids (which now
+    # resolve to this mid product at z6-7), and the EURO extended-estimates machinery uses GFS
+    # global_mid targets to build the EURO mid 240→336h estimated extension.
+    forecast_days = int(os.environ.get("GFS_MID_RES_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
 
     noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
     results = None
@@ -138,10 +143,13 @@ async def ingest_icon_marine_global_mid_impl(scheduler) -> bool:
 
 
 async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
-    """MID-RES global EURO/Copernicus waves — CMEMS native at EURO_MID_RES (default 2°), PRIMARY horizon
-    only (the far 10-14d tail gracefully falls back to global_coarse at zoom-out). ⚠️ COST: a SECOND
-    Copernicus fetch (~15-30 min) per cycle → default-OFF at the registration site
-    (EURO_MARINE_MID_RES_INGEST); enable once the cron budget is confirmed."""
+    """MID-RES global EURO/Copernicus waves — CMEMS native at EURO_MID_RES (default 2°), PRIMARY horizon.
+    The 240→336h ESTIMATED extension (the coarse sibling's blend mirror) is NOT built here: the
+    region-parameterized ingest_euro_marine_extended_estimates job now includes region 'global_mid', so
+    once these native anchors exist it generates the mid-res persistence+GFS/ICON-blend tail with honest
+    estimate provenance — exactly the machinery the coarse products use. ⚠️ COST: a SECOND Copernicus
+    fetch (~15-30 min) per cycle → default-OFF at the registration site (EURO_MARINE_MID_RES_INGEST);
+    enable once the cron budget is confirmed."""
     logger.info("[Pipeline Scheduler] Starting EURO Marine Global MID-RES Ingestion job...")
     env = get_env_flags()
     run_time = datetime.now(timezone.utc)
