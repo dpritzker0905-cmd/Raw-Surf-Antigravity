@@ -166,6 +166,14 @@ def generate_mock_open_meteo_response(lats: list, lons: list, hourly_vars_str: s
         })
     return results
 
+DEFAULT_WEATHER_PROXY_URL = "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy"
+
+def resolve_weather_proxy_url() -> str:
+    # `or` (not a .get default): CI injects WEATHER_PROXY_URL as an EMPTY string when the
+    # secret is unset, which would otherwise shadow the default and break every proxied fetch
+    # ("Request URL is missing an 'http://' or 'https://' protocol").
+    return os.environ.get("WEATHER_PROXY_URL") or DEFAULT_WEATHER_PROXY_URL
+
 class OpenMeteoProvider:
     """
     Open-Meteo API provider for the Weather Ingestion Pipeline.
@@ -327,8 +335,8 @@ class OpenMeteoProvider:
         if len(lats) > 100:
             logger.info(f"[Open-Meteo Provider] Grid size {len(lats)} > 100. Bypassing weather proxy for global/large background runs.")
             use_proxy = False
-            
-        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy")
+
+        proxy_url = resolve_weather_proxy_url()
 
         async with httpx.AsyncClient() as client:
             try:
@@ -541,7 +549,7 @@ class OpenMeteoProvider:
             return None
 
         use_proxy = bool(os.environ.get("USE_WEATHER_PROXY", "true" if os.environ.get("RENDER") == "true" else "false").lower() == "true")
-        proxy_url = os.environ.get("WEATHER_PROXY_URL", "https://dev--rawsurf.netlify.app/.netlify/functions/weather-proxy")
+        proxy_url = resolve_weather_proxy_url()
 
         if use_proxy:
             proxy_type = "marine" if domain == "marine" else ("pressure" if domain == "weather" else "wind")
