@@ -19,12 +19,17 @@ function gridCoversViewport(gb, vb) {
 // Cell size (degrees) above which a grid is coarser than ANY fine regional tile: fine tiles observed
 // live are ≤0.25°/cell (13×13 over ~2-3°); a resident grid coarser than 0.5°/cell at a zoomed-in
 // viewport is a degraded/intermediate product, never the finest available. Exported for tests.
-export const CLAMP_COARSE_CELL_DEG = 0.5;
-// Minimum grid cells that should span a zoomed-in viewport before the render reads as blocky/near-
-// blank. Below this the coarse grid block-means to ~0 at the coast and looks "cleared". Deep zoom over
-// a genuinely FINE tile also shows few cells — but small ones — so the CLAMP_COARSE_CELL_DEG gate above
-// excludes it, and only a truly coarse tile trips both.
-export const CLAMP_MIN_CELLS_ACROSS = 3;
+// 2026-07-05 dwell-sharpen fix (the Baja "animations clamp, then you pan and they adjust" report):
+// the live capture was 0.44°/cell (9×9 span-4°) at z8.3 — under the old 0.5 gate AND over the old
+// 3-cells-across floor, so detectClamp never fired and only a pan pulled the sharpened fine grid.
+// 0.3 excludes the genuinely-fine 0.25° tiles at ANY zoom (so deep zoom over fine data never loops).
+export const CLAMP_COARSE_CELL_DEG = 0.3;
+// Minimum grid cells that should span a zoomed-in viewport before the render reads as blocky. Raised
+// 3 → 8 (zoom-relative legibility: ~7 cells across still reads blocky at z8+; the 0.44° Baja capture
+// was 6.8 across). A genuinely FINE tile with few cells stays excluded by the 0.3° gate above, and
+// the clamp_resharpen driver is capped at 2 per {viewport,hour,model,layer} so a coarse-only region
+// cannot refetch-storm.
+export const CLAMP_MIN_CELLS_ACROSS = 8;
 
 // Detect a heatmap CLAMP: at a regional viewport (zoom > MARINE_ZOOMED_OUT_MAX_ZOOM, span < 15°) the engine grid either
 // does NOT cover the viewport (coarse-GLOBAL blob or stale too-SMALL regional sub-rectangle) OR covers

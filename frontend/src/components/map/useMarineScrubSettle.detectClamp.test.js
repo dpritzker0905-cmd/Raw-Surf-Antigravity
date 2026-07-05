@@ -37,11 +37,13 @@ describe('detectClamp — covers-but-too-coarse (regional_too_coarse)', () => {
     expect(r.clamp).toBe(false);
   });
 
-  it('does NOT flag the same coarse grid at a WIDER zoom where ≥3 cells span the view', () => {
-    // z7.4 viewport ~4° over the 0.91°/cell grid → ~4.4 cells across → acceptable, no re-drive churn.
+  it('DOES flag the same coarse grid at a wider zoom with <8 cells across (2026-07-05 dwell-sharpen)', () => {
+    // z7.4 viewport ~4° over the 0.91°/cell grid → ~4.4 cells across. The old ≥3 floor called this
+    // acceptable — but the live Baja report (0.44°/cell, 6.8 across) read as CLAMPED and only a pan
+    // pulled the fine grid. <8 across on >0.3°/cell cells now re-drives the sharpen (capped at 2).
     setEngineGrid(coarseAdriatic);
     const r = detectClamp(mkMap(7.4, { west: 12.0, south: 43.0, east: 16.0, north: 46.5 }));
-    expect(r.clamp).toBe(false);
+    expect(r).toMatchObject({ clamp: true, kind: 'regional_too_coarse' });
   });
 
   it('still flags a coarse-GLOBAL grid as coarse_global (unchanged), not too_coarse', () => {
@@ -63,8 +65,8 @@ describe('detectClamp — covers-but-too-coarse (regional_too_coarse)', () => {
   });
 
   it('exports sane threshold constants', () => {
-    expect(CLAMP_COARSE_CELL_DEG).toBe(0.5);
-    expect(CLAMP_MIN_CELLS_ACROSS).toBe(3);
+    expect(CLAMP_COARSE_CELL_DEG).toBe(0.3);
+    expect(CLAMP_MIN_CELLS_ACROSS).toBe(8);
   });
 });
 
