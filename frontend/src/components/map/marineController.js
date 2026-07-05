@@ -155,6 +155,46 @@ export function prewarmSiblingMarineSeries(model, hourOffset, bounds, activeLaye
   } catch (e) { /* never let prewarm break the active fetch */ }
 }
 
+// ZOOM-OUT ANTICIPATION prewarm (2026-07-05, the "~1s before animations unclamp and expand on a fast
+// zoom-out"): the moveend-driven fetch only STARTS after the gesture ends, so the wider view waits a
+// full network round-trip before the grid expands. Fire this the moment a zoom-out gesture is detected
+// (WebGLMarineLayer 'zoom' listener): it warms a ~2.5×-span grid for the SAME center into the marine
+// result cache — the post-gesture lookup then serves it via the containment fallback (19e9d7c0) and
+// commits near-instantly. Spans that would exceed the 15° mid-band delegate to the global prewarm.
+// Fire-and-forget, dedup'd, silent. Kill switch rides the sibling-prewarm master switch.
+const _zoomOutPrewarmInFlight = new Set();
+export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer) {
+  try {
+    if (!isMarineSiblingPrewarmEnabled()) return;
+    if (typeof window !== 'undefined' && window.isScrubbingTimeline) return;
+    if (!bounds || bounds.east === undefined || bounds.north === undefined) return;
+    const cLng = (bounds.west + bounds.east) / 2;
+    const cLat = (bounds.south + bounds.north) / 2;
+    const spanLng = bounds.east - bounds.west;
+    const spanLat = bounds.north - bounds.south;
+    const span = Math.max(spanLng, spanLat) * 2.5;
+    if (span > 15.0) { prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer); return; }
+    const exp = {
+      west: Math.max(-180, cLng - span / 2), east: Math.min(180, cLng + span / 2),
+      south: Math.max(-80, cLat - span / 2), north: Math.min(85, cLat + span / 2)
+    };
+    const m = model || 'GFS';
+    const key = `${m}_${hourOffset}_${activeLayer}_ZO_${exp.west.toFixed(0)}_${exp.south.toFixed(0)}`;
+    if (_zoomOutPrewarmInFlight.has(key)) return;
+    _zoomOutPrewarmInFlight.add(key);
+    Promise.resolve()
+      .then(() => fetchBackendMarineGrid(exp, hourOffset, undefined, exp, activeLayer, m))
+      .then((result) => {
+        const g = result && result.grid;
+        if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
+          _cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent */);
+        }
+      })
+      .catch(() => { /* best-effort */ })
+      .finally(() => { _zoomOutPrewarmInFlight.delete(key); });
+  } catch (e) { /* never break the active path */ }
+}
+
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) {
   try {
     if (!isMarineSiblingPrewarmEnabled()) return;

@@ -121,7 +121,27 @@ async def try_serve_mid_res_tier(
     if mid_item is None:
         return None
 
-    candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
+    # LOAD GUARDS (2026-07-05, the 18:56Z Render OOM during a timeline scrub): a grid_series request
+    # resolves 17 hours, and EACH hour L1-missed a global_mid → downloaded + parsed the FULL ~15k-vector
+    # product (~15MB of Python objects) just to clip it to a few dozen cells — concurrently ≈ 250MB+
+    # transient on the 512MB box. (a) A small LRU of CLIPPED results (tiny) kills repeat parses for the
+    # same hour+viewport; (b) a load semaphore bounds concurrent full-product parses to 2.
+    global _CLIP_CACHE, _LOAD_SEM
+    try:
+        _CLIP_CACHE
+    except NameError:
+        _CLIP_CACHE = {}
+        _LOAD_SEM = asyncio.Semaphore(max(1, int(os.environ.get("MARINE_MID_LOAD_CONCURRENCY", "2"))))
+    _snap = get_snapped_bbox(bbox, model)
+    _ckey = f"{mid_item.filename}|{_snap}"
+    _hit = _CLIP_CACHE.get(_ckey)
+    if _hit is not None:
+        import copy as _copy
+        product = _copy.deepcopy(_hit)  # callers mutate (surf transform) — never hand out the cached object
+        return product
+
+    async with _LOAD_SEM:
+        candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
     if not candidate_product or not candidate_product.grid:
         return None
     if _is_oversized_grid(candidate_product):
@@ -172,9 +192,14 @@ async def try_serve_mid_res_tier(
     # stopped its fine sharpen (live: z7.20→7.35 off LA flips mid↔fine = a visible color step at the
     # cap boundary). 8° ≈ the old 5° raw reach × the pad factor; a ~1k-cell background fine fetch.
     _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
+    # QUEUE CAP (2026-07-05 OOM #3): a 17-hour grid_series scheduled 17 revals in one burst — the
+    # semaphore serialized them but the queue ground the box for minutes. Cap the OUTSTANDING reval
+    # queue; skipped hours sharpen on a later request (the user dwells on one hour at a time anyway).
+    _reval_queue_max = int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2"))
     if (
         viewport_service is not None and valid_time is not None
         and span <= _reval_cap
+        and len(getattr(viewport_service, "ACTIVE_REVALIDATIONS", ())) < _reval_queue_max
         and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
     ):
         product.stale = True
@@ -194,6 +219,14 @@ async def try_serve_mid_res_tier(
                         model, domain, layer, valid_time, target_dt, bbox, reval_key
                     )
                 )
+    # Store the fully-built CLIPPED product (tiny, ~dozens of cells) in the LRU; hits deepcopy it out.
+    try:
+        import copy as _copy2
+        _CLIP_CACHE[_ckey] = _copy2.deepcopy(product)
+        if len(_CLIP_CACHE) > int(os.environ.get("MARINE_MID_CLIP_CACHE_MAX", "24")):
+            _CLIP_CACHE.pop(next(iter(_CLIP_CACHE)))  # FIFO evict oldest
+    except Exception:
+        pass
     logger.info(
         f"[Grid Route] Mid-res tier: serving global_mid '{mid_item.filename}' clipped to viewport "
         f"({span:.1f}°) for {model} {layer}"

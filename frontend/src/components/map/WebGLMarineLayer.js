@@ -10,7 +10,7 @@ import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } 
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { getMarineParticleRes } from './deviceTier';
-import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine } from './marineController';
+import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
@@ -577,9 +577,30 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       refresh();
     };
     mapInstance.on('sourcedata', onSourceData);
+    // ZOOM-OUT ANTICIPATION (2026-07-05, the "~1s unclamp on fast zoom-out"): the moveend fetch only
+    // starts AFTER the gesture — warm the ~2.5×-span grid the moment the gesture is clearly a
+    // zoom-OUT (>0.4 drop from gesture start, one-shot per gesture), so the post-gesture lookup
+    // serves it from cache via the containment fallback and the crest field expands near-instantly.
+    let _zoStartZoom = null, _zoFired = false;
+    const onZoomStart = () => { try { _zoStartZoom = mapInstance.getZoom(); _zoFired = false; } catch (e) {} };
+    const onZoom = () => {
+      if (_zoFired || _zoStartZoom == null || !activeRef.current) return;
+      let z; try { z = mapInstance.getZoom(); } catch (e) { return; }
+      if (_zoStartZoom - z > 0.4) {
+        _zoFired = true;
+        try {
+          const b = mapInstance.getBounds();
+          const vb = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
+          const lyr = activeLayersRef.current?.find(l => ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(l)) || 'waves';
+          prewarmZoomOutMarineGrid(activeModelRef.current, timeOffsetHoursRef.current, vb, lyr);
+        } catch (e) { /* anticipation is best-effort */ }
+      }
+    };
+    mapInstance.on('zoomstart', onZoomStart);
+    mapInstance.on('zoom', onZoom);
     refresh();
     return () => {
-      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); } catch (e) {}
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); mapInstance.off('zoomstart', onZoomStart); mapInstance.off('zoom', onZoom); } catch (e) {}
     };
   }, [mapInstance]);
 

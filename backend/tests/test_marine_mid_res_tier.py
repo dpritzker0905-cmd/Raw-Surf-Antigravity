@@ -128,6 +128,11 @@ class _FakeViewport:
 def _resolve(store, vp, monkeypatch, bbox):
     import services.weather_pipeline.store as store_mod
     monkeypatch.setattr(store_mod, "is_test_environment", lambda: False)
+    # The clipped-result LRU keys by filename (content identity in prod) — fakes reuse filenames
+    # across tests with different payloads, so clear it per resolve.
+    from services.weather_pipeline import mid_res_tier as _mrt
+    if hasattr(_mrt, "_CLIP_CACHE"):
+        _mrt._CLIP_CACHE.clear()
     return asyncio.run(grid_resolver.resolve_grid(
         store, vp, model="GFS", domain="marine", layer="waves",
         valid_time=_VT, bbox=bbox,
