@@ -920,11 +920,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           gl.deleteTexture(engine._cachedMaskTex);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
             window.__RAW_GPU__.textureCount--;
-            const w = 1024;
-            const h = 512;
-            window.__RAW_GPU__.gpuMemoryEstimate -= w * h * 4;
+            // Decrement with the RECORDED dims (2026-07-05): this was hardcoded 1024×512, but mask
+            // canvases are tiered up to 4096×2048 — every rebuild leaked +31.5MB into the estimate,
+            // poisoning the very telemetry the OOM forensics rely on.
+            const _dims = engine._cachedMaskTexDims || { w: 1024, h: 512 };
+            window.__RAW_GPU__.gpuMemoryEstimate -= _dims.w * _dims.h * 4;
           }
           engine._cachedMaskTex = null;
+          engine._cachedMaskTexDims = null;
         }
         try {
           const maskCanvas = renderMaskToCanvas(effectiveGeoJSON, bounds);
@@ -946,6 +949,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
           if (engine) {
             engine._cachedMaskTex = maskTex;
+            engine._cachedMaskTexDims = { w: maskCanvas.width, h: maskCanvas.height };
             engine._cachedMaskGeoJSON = effectiveGeoJSON;
             engine._cachedMaskBounds = { ...bounds };
             if (typeof window !== 'undefined' && window.__RAW_GPU__) {

@@ -113,18 +113,22 @@ export function useWebRTCSignaling(userId, onMessage) {
       };
 
       ws.onclose = () => {
-        console.debug('[WebRTC] Signaling WS closed');
+        // Log the first 3 attempts, then go silent (2026-07-05): an unreachable signaling server
+        // retries forever by design, and the closed/error/reconnect trio per attempt flooded the
+        // console (~500 entries) and drowned the marine forensic logs. Reconnect behavior unchanged.
+        const attempts = reconnectAttemptsRef.current || 0;
+        if (attempts < 3) console.debug('[WebRTC] Signaling WS closed');
+        if (attempts === 3) console.warn('[WebRTC] Signaling unreachable — retrying silently (backoff caps at 30s).');
         if (keepaliveRef.current) clearInterval(keepaliveRef.current);
  // ALWAYS reconnect the receiver must stay connected to receive incoming calls
-        const attempts = reconnectAttemptsRef.current || 0;
  const delay = Math.min(2000 * Math.pow(1.5, attempts), 30000); // 2s 3s 4.5s ... max 30s
         reconnectAttemptsRef.current = attempts + 1;
-        console.debug(`[WebRTC] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
+        if (attempts < 3) console.debug(`[WebRTC] Reconnecting in ${delay}ms (attempt ${attempts + 1})`);
         reconnectTimerRef.current = setTimeout(() => connectSignaling(), delay);
       };
 
       ws.onerror = (err) => {
-        console.error('[WebRTC] Signaling WS error:', err);
+        if ((reconnectAttemptsRef.current || 0) < 3) console.error('[WebRTC] Signaling WS error:', err);
       };
     } catch (e) {
       console.error('[WebRTC] Failed to connect signaling:', e);
