@@ -76,8 +76,16 @@ export function checkShouldClearRegionalGrid({ marineData, bounds, zoom, model, 
 
   let shouldClear = false;
   if (isGridRegional) {
+    // COVERAGE-ALIGNED (2026-07-05): same exemption as the display gate (Fix A) + the useMarineWindData
+    // conform — a regional COVERING ≥0.8 of the viewport is display-acceptable at zoomed-out (the mid
+    // tier commits covering clipped grids at z5-7); only a non-covering regional clears. Same levers.
+    const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
+    const _zoomedOutClear = _coverAlignOff
+      ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
+      : (overlapRatio < _coverFrac);
     shouldClear = isGlobalSupported
-      ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+      ? (isViewportZoomedOut ? _zoomedOutClear : (overlapWidth <= 0 || intSouth >= intNorth))
       : (overlapWidth <= 0 || intSouth >= intNorth);
 
     const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;

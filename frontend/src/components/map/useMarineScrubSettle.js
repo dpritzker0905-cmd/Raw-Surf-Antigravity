@@ -83,7 +83,26 @@ export function isRetainedRegionalZoomedOut(eng, mapInstance) {
     const b = mapInstance.getBounds();
     const vw = (b.getEast() < b.getWest()) ? (b.getEast() + 360 - b.getWest()) : (b.getEast() - b.getWest());
     const vh = Math.abs(b.getNorth() - b.getSouth());
-    return vw > 15.0 || vh > 15.0 || mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM;
+    const zoomedOut = vw > 15.0 || vh > 15.0 || mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM;
+    if (!zoomedOut) return false;
+    // COVERAGE EXEMPTION (2026-07-05, gate↔guard↔recovery alignment): the display gate now SHOWS a
+    // regional that covers ≥ the shared 0.8 fraction of the viewport even below z7 (Fix A) — and the
+    // zoomed-out fetch path now requests the viewport bbox up to 15° span, committing a COVERING
+    // clipped `global_mid` grid at z5-7. That grid is a HEALTHY display, not the ⑦ wedge — flagging
+    // it here would loop the §2b recovery + blank-backstop refetching a global frame that never
+    // commits (the fetch path returns the covering mid again). Only a NON-covering retained regional
+    // (the gate hides it → blank) is display-equivalent to empty. Same lever as the gate/guard:
+    // __RAW_DOWNGRADE_COVER_FRAC__ (default 0.8).
+    const vWest = b.getWest(), vEast0 = b.getEast(), vSouth = b.getSouth(), vNorth = b.getNorth();
+    const vEast = (vEast0 < vWest) ? vEast0 + 360 : vEast0;
+    let gWest = egb.west, gEast = egb.east;
+    if (gEast < gWest) gEast += 360;
+    const ix = Math.max(0, Math.min(gEast, vEast) - Math.max(gWest, vWest));
+    const iy = Math.max(0, Math.min(egb.north, vNorth) - Math.max(egb.south, vSouth));
+    const vpArea = Math.max(1e-9, (vEast - vWest) * (vNorth - vSouth));
+    const frac = (ix * iy) / vpArea;
+    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    return frac < minFrac;
   } catch (e) { return false; }
 }
 
@@ -325,7 +344,14 @@ export function runScrubSettleCheck(ctx) {
       const vhgt = Math.abs(vb.north - vb.south);
       let zoomedOutGate = vwid > 15.0 || vhgt > 15.0;
       try { zoomedOutGate = zoomedOutGate || mapInstance.getZoom() <= MARINE_ZOOMED_OUT_MAX_ZOOM; } catch (e) { /* keep span-based */ }
-      const reqBounds = zoomedOutGate ? { west: -180, south: -85, east: 180, north: 85 } : vb;
+      // MID-RES BAND (2026-07-05): the GLOBAL frame is only mandatory when the SPAN outgrows the
+      // backend's mid tier (>15°). At z≤7 with span ≤15° request the VIEWPORT instead — the fetch
+      // path resolves it to the clipped ~2° global_mid, which COVERS the viewport by construction,
+      // so the coverage-aligned gate (Fix A) displays it: regional-quality at z5-7 instead of the
+      // 10° lattice. Kill (revert to z-based global): __RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__.
+      const _wideSpanOnly = (typeof window === 'undefined' || window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ !== true)
+        ? (vwid > 15.0 || vhgt > 15.0) : zoomedOutGate;
+      const reqBounds = _wideSpanOnly ? { west: -180, south: -85, east: 180, north: 85 } : vb;
       const frame = getMarineSeriesFrame(model, layer, reqBounds, currentHour);
       if (frame && frame.grid && frame.grid.vectors && frame.grid.vectors.length > 0 && setMarineData) {
         if (typeof window !== 'undefined') window.__MARINE_ENGINE_EMPTY_RECOVER__ = (window.__MARINE_ENGINE_EMPTY_RECOVER__ || 0) + 1;

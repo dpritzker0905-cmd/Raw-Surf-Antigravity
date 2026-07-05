@@ -73,8 +73,17 @@ describe('isRetainedRegionalZoomedOut — the "cleared at ~z6.95" zoom-out rejec
   const regional = { west: 12, east: 17, south: 42, north: 46.5 }; // span 5° = regional
   const global = { west: -180, east: 180, south: -85, north: 85 }; // span 360° = global
 
-  it('TRUE for a regional grid at a zoomed-out viewport (z ≤ 7.0) — the wedge', () => {
-    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(6.95, { west: 12.8, south: 42.3, east: 17.9, north: 46.2 }))).toBe(true);
+  it('TRUE for a NON-covering regional grid at a zoomed-out viewport (z ≤ 7.0) — the wedge', () => {
+    // Viewport extends well past the tile's east edge (coverage ~0.59 < 0.8): the display gate hides
+    // it → blank → recovery must fire.
+    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(6.95, { west: 12.8, south: 42.3, east: 19.9, north: 46.2 }))).toBe(true);
+  });
+
+  it('FALSE for a COVERING regional at a zoomed-out viewport (2026-07-05 gate↔recovery alignment)', () => {
+    // Fix A shows a regional covering ≥0.8 of the viewport even below z7, and the zoomed-out fetch
+    // path commits covering clipped global_mid grids at z5-7 — a HEALTHY display. Flagging it would
+    // loop the §2b recovery/backstop refetching a global that never commits.
+    expect(isRetainedRegionalZoomedOut(engWith(regional), mkMap(6.95, { west: 13, south: 43, east: 16, north: 46 }))).toBe(false);
   });
 
   it('FALSE for a GLOBAL grid at a zoomed-out viewport (it displays correctly — do not recover over it)', () => {

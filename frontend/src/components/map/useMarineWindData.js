@@ -232,8 +232,20 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
           let shouldReject = false;
           if (isGridRegional) {
+            // COVERAGE-ALIGNED (2026-07-05, the z6.27 clear — this conform is a REPLICA of the display
+            // gate and still nulled every regional-width grid at zoomed-out AFTER Fix A fixed the gate):
+            // a regional that COVERS ≥ the shared 0.8 of the viewport is display-acceptable at ANY
+            // zoom-out — the zoomed-out fetch path now commits covering clipped `global_mid` grids at
+            // z5-7, and nulling them here cleared the heatmap until the global recovery re-committed
+            // the 10° coarse. Same lever + kill as the gate: __RAW_DOWNGRADE_COVER_FRAC__ /
+            // __RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__.
+            const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+            const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
+            const _zoomedOutReject = _coverAlignOff
+              ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
+              : (overlapRatio < _coverFrac);
             shouldReject = isGlobalSupported
-              ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+              ? (isViewportZoomedOut ? _zoomedOutReject : (overlapWidth <= 0 || intSouth >= intNorth))
               : (overlapWidth <= 0 || intSouth >= intNorth);
 
             const canBypassRegionalRejection = !isViewportZoomedOut || !isGlobalSupported;

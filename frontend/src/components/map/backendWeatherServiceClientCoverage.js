@@ -212,9 +212,17 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
 
     // For marine heatmaps, if the viewport span is wide, request global coverage
     // to prevent visible rectangular edges and clamping at zoomed-out views.
+    // MID-RES BAND (2026-07-05, the z6.27 "clear then fix" + z7.44 color-flip report): the global
+    // threshold was 5° — but the backend now serves a ~2° `global_mid` viewport grid for spans up to
+    // 15° (grid_resolver Step 3.6, live-verified), so requesting the GLOBAL at 5-15° threw away the
+    // mid tier exactly where the user zooms (z~5.1-7): the 10° coarse lattice + the color flip at the
+    // 5° span crossing. Raised to 15° (= MARINE_MID_RES_MAX_SPAN + the backend's wide-request
+    // boundary): spans 5-15° now request the viewport bbox → clipped mid → one consistent texture
+    // across z5.1-8.8. Tune/restore: window.__RAW_MARINE_GLOBAL_SPAN__ (=5 reverts to old behavior).
     const spanLng = east < west ? (180 - west) + (east + 180) : east - west;
     const spanLat = Math.abs(north - south);
-    if ((modelName || '').toUpperCase() !== 'EURO' && (spanLng > 5.0 || spanLat > 5.0)) {
+    const _globalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 15.0;
+    if ((modelName || '').toUpperCase() !== 'EURO' && (spanLng > _globalSpan || spanLat > _globalSpan)) {
       return {
         isInside: true,
         clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
