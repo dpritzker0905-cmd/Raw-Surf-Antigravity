@@ -37,7 +37,29 @@ events/metrics BEFORE trusting "backend healthy" (recipes in memory
 - **Render**: 29 OOMs mapped hour-by-hour to the mid-serving era; OOM-triad guards ended the
   17-18Z storm; zero kills 20:16→22:30Z through 4 deploys + load tests.
 
+## 2b. NEW user report, DIAGNOSED-CANDIDATE (not yet fixed): "odd little rectangles — cleared
+areas that populate on zoom-in, correct on zoom-out"
+
+Scripted-gesture repro attempts (LA/Huntington z8.4→11.4 step bursts) did NOT deterministically
+reproduce discrete rectangles, so the fix is parked as chip **task_51b3c132** with two evidenced
+candidates rather than a guess:
+1. **PRIMARY (hard data evidence)**: regional 0.25° products carry land-masked GFS-Wave cells as
+   `is_valid:true` + speed EXACTLY 0.00 (live probe: 134 such cells in the socal fine grid, ZERO
+   `is_valid:false` anywhere — while the global_mid product for the same region flags them
+   properly). The encoder only extrapolates polygon-LAND cells, so valid-zero OCEAN cells render
+   as ~cell-sized dark/cleared rectangles at close zoom; zoom-out heals because coarser grids
+   replace fine. Fix = normalizer/regional-ingestion sets is_valid:false for model-mask fills
+   (compare marine_mid_res_ingestion.py which gets it right); mind the is_valid conform landmines.
+2. Secondary (rule out while testing): basemap-water mask patch rectangles applied while water
+   tiles are mid-load (the `8a0260ca` rect-holes class) — but the `41bfebca` sourcedata re-drive
+   should self-heal those IN PLACE; "heals only on zoom-out" points to candidate 1.
+Ask the user for the exact spot/zoom of a live occurrence to close the loop. Related observation
+at z11.4 Long Beach: bay wash ~absent (plausibly the valid-zero class) while MARINA basins animate
+green patches — the latter is the pre-existing open item ② (lagoon/sheltered-water animation).
+
 ## 3. OPEN — next session, in order
+0. **Zoom-in cleared rectangles** (LIVE user report, chip task_51b3c132): §2b above — start from
+   the valid-zero candidate; get the user's exact spot/zoom first.
 1. **Copernicus spatial batching** (chip task_2d50cd81): one regional subset per group of spots →
    restore native-CMEMS authority to batch lanes AND drop the precompute cap back toward 30.
 2. **Cold-start hardening** (chip task_e618f9ff): first mid grid_series after a restart returns
