@@ -282,11 +282,32 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       // straddling → fall through to the snap path (covering request)
     }
 
+    // GESTURE FETCH-PAD (2026-07-05, the "grid of animations toward the screen edges on pan/zoom-out"
+    // report): requesting exactly the (snapped) viewport means every pan reveals an UNFETCHED ring —
+    // coarse bridge cells until the refetch lands. Pad the request by ~30% of the span (min 0.5°) so
+    // the committed grid OVERHANGS the screen: small pans/zooms land inside already-loaded fine data
+    // with zero transient. CAPPED so the padded span never exceeds the backend's 15° mid-band ceiling
+    // (padding past it would resolve to the 10° coarse — a regression). Payload cost at 0.25°: a 3°
+    // viewport fetches ~4.8° ≈ 2.5× cells — trivial. Tune/kill: __RAW_MARINE_FETCH_PAD_FRAC__ (0 = off).
+    let _padW = west, _padS = south, _padE = east, _padN = north;
+    {
+      const _fr = (typeof window !== 'undefined' && window.__RAW_MARINE_FETCH_PAD_FRAC__ !== undefined)
+        ? Number(window.__RAW_MARINE_FETCH_PAD_FRAC__) : 0.3;
+      if (_fr > 0) {
+        const _span = Math.max(spanLng, spanLat);
+        let _pad = Math.max(0.5, _fr * _span);
+        _pad = Math.min(_pad, Math.max(0, (15.0 - _span) / 2)); // never pad past the mid-band ceiling
+        _padW = Math.max(-180, west - _pad);
+        _padS = Math.max(-80, south - _pad);
+        _padE = Math.min(180, east + _pad);
+        _padN = Math.min(85, north + _pad);
+      }
+    }
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
-    const snapW = Math.floor(west / tileSize) * tileSize;
-    const snapS = Math.floor(south / tileSize) * tileSize;
-    const snapE = Math.ceil(east / tileSize) * tileSize;
-    const snapN = Math.ceil(north / tileSize) * tileSize;
+    const snapW = Math.floor(_padW / tileSize) * tileSize;
+    const snapS = Math.floor(_padS / tileSize) * tileSize;
+    const snapE = Math.ceil(_padE / tileSize) * tileSize;
+    const snapN = Math.ceil(_padN / tileSize) * tileSize;
 
     if ((modelName || '').toUpperCase() === 'EURO') {
       const tileResult = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);

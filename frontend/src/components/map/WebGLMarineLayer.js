@@ -558,9 +558,28 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     mapInstance.on('idle', refresh);
     mapInstance.on('zoomend', refresh);
     mapInstance.on('moveend', refresh);
+    // SOURCEDATA re-drive (2026-07-05, the Florida "heatmap fills intracoastal/lakes initially"
+    // report): the FIRST paint after a commit uses the NE-resolution mask (no lagoon/lake detail —
+    // heatmap floods them) and `idle` can lag seconds during continuous interaction before the
+    // basemap patch carves them out. Water tiles becoming queryable fire `sourcedata` immediately —
+    // re-drive the SAME gated+throttled refresh there so the carve lands the moment truth exists,
+    // not at the next idle. Skipped attempts stay cheap (the readiness gate runs before any canvas
+    // work). Kill: __RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__.
+    // Pre-throttled to 250ms (the 5290f1e9 precedent: sourcedata fires at high frequency, and even
+    // the "cheap" gate checks — getStyle().layers.find per event — add up during tile churn).
+    let _lastSrcDataCheck = 0;
+    const onSourceData = (e) => {
+      if (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_SOURCEDATA_REDRIVE__ === true) return;
+      if (!e || !e.isSourceLoaded) return;
+      const now = Date.now();
+      if (now - _lastSrcDataCheck < 250) return;
+      _lastSrcDataCheck = now;
+      refresh();
+    };
+    mapInstance.on('sourcedata', onSourceData);
     refresh();
     return () => {
-      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); } catch (e) {}
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); } catch (e) {}
     };
   }, [mapInstance]);
 
