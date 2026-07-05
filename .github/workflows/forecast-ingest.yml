@@ -52,6 +52,7 @@ jobs:
           REPORT_CALIBRATION: '1'       # forward RATING calibration: snapshot per-spot predictions -> rolling L2 archive + match surfer logs (guarded)
           SPOT_RATINGS_PRECOMPUTE: '1'  # rate ALL spots OFFLINE on the multi-CPU runner -> L2, so /spot-ratings serves glyphs INSTANTLY (the live 1-CPU path is 7-22s for a viewport → fetches abort on pan → "not all spots light up"). select_precomputed serves it; live remains the fallback.
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for ALL 3 models (was GFS-only → on EURO/ICON the map fell back to the slow src=live path; now instant on every model)
+          POINT_SKIP_NATIVE_COPERNICUS: '1'  # batch lanes: CMEMS throttles under serial per-point volume (138×25s timeouts in run 28754458502); the open-meteo proxy fallback answers sub-second
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           # EURO marine (Copernicus) — set these to the SAME names/values your Render service uses.

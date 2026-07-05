@@ -375,6 +375,16 @@ class PointResolutionService:
                 is_fallback_active = False
                 if model.upper() == "EURO":
                     try:
+                        # CI batch lanes skip the native CMEMS point (POINT_SKIP_NATIVE_COPERNICUS=1,
+                        # 2026-07-05): precompute/report-calibration fire hundreds of these serially
+                        # and CMEMS throttles under that volume — run 28754458502 burned 138 × the
+                        # full 25s subprocess timeout (57.5 of its 60 minutes) while the open-meteo
+                        # proxy fallback answered every point sub-second. Raising into the existing
+                        # except → the standard provider fallback path. Live /point keeps
+                        # native-first authority (flag unset on the serve box); the real cure is
+                        # spatial batching of the CMEMS fetches.
+                        if os.environ.get("POINT_SKIP_NATIVE_COPERNICUS") == "1":
+                            raise RuntimeError("native CMEMS point skipped (POINT_SKIP_NATIVE_COPERNICUS=1)")
                         from services.copernicus_marine_service import fetch_euro_marine
                         if layer.lower() == "waves":
                             variables = ["wave_height", "wave_direction", "wave_period"]
