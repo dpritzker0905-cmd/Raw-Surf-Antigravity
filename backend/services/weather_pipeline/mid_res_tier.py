@@ -167,7 +167,11 @@ async def try_serve_mid_res_tier(
     # (MARINE_MID_REVAL_MAX_SPAN, default 5°): wide zoom-outs keep the mid steady-state — a 15° fine
     # upstream fetch is a heavy call the pre-mid path never made either. is_viewport_enabled also
     # gates model horizons (EURO 240h / ICON 168h), so estimated tail hours never spawn dead fetches.
-    _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "5.0"))
+    # 8.0 (was 5.0, 2026-07-05 same-day fix): the frontend's 30% gesture fetch-pad (41bfebca) grows
+    # the REQUESTED span — a raw ~3.1-3.8° viewport now requests 5-6.1°, and the 5° cap silently
+    # stopped its fine sharpen (live: z7.20→7.35 off LA flips mid↔fine = a visible color step at the
+    # cap boundary). 8° ≈ the old 5° raw reach × the pad factor; a ~1k-cell background fine fetch.
+    _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
     if (
         viewport_service is not None and valid_time is not None
         and span <= _reval_cap

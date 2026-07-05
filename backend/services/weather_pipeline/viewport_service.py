@@ -707,13 +707,25 @@ class ViewportService:
         bbox_str: str,
         reval_key: str
     ):
-        """Asynchronously refetches a viewport grid and updates cache without throwing errors to response."""
-        try:
-            await self.fetch_viewport_grid(
-                model=model, domain=domain, layer=layer,
-                valid_time_str=valid_time_str, target_dt=target_dt,
-                bbox_str=bbox_str, force_refresh=True
+        """Asynchronously refetches a viewport grid and updates cache without throwing errors to response.
+
+        SERIALIZED (2026-07-05, the 18:40Z Render OOM while panning with the mid-tier SWR live): the
+        per-key ACTIVE_REVALIDATIONS dedup does NOT bound CONCURRENCY across keys — a pan/scrub spawns
+        several revalidations (different hours/layers/bboxes), each a full upstream fetch + normalize,
+        and the 512MB 1-CPU serve box OOMs. A class-level semaphore (MARINE_REVAL_CONCURRENCY, default
+        1) serializes them: the serve path stays instant (previews), sharpening queues instead of
+        stampeding."""
+        if not hasattr(type(self), "_REVAL_SEMAPHORE"):
+            type(self)._REVAL_SEMAPHORE = asyncio.Semaphore(
+                max(1, int(os.environ.get("MARINE_REVAL_CONCURRENCY", "1")))
             )
+        try:
+            async with type(self)._REVAL_SEMAPHORE:
+                await self.fetch_viewport_grid(
+                    model=model, domain=domain, layer=layer,
+                    valid_time_str=valid_time_str, target_dt=target_dt,
+                    bbox_str=bbox_str, force_refresh=True
+                )
             logger.info(f"[Dynamic Viewport] SWR background revalidation succeeded for {reval_key}")
         except Exception as e:
             logger.warning(f"[Dynamic Viewport] SWR background revalidation failed for {reval_key}: {e}")

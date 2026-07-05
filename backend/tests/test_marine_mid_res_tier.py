@@ -278,11 +278,11 @@ def test_mid_res_tier_swr_revalidation_for_small_spans(monkeypatch):
 
 
 def test_mid_res_tier_no_revalidation_for_wide_spans(monkeypatch):
-    """Wide zoom-outs (span > 5°) keep the mid steady-state — a 8-15° fine upstream fetch is a heavy
-    call the pre-mid path never made either."""
+    """Wide zoom-outs (span > 8° — the cap tracks the frontend's 30% fetch-pad: raw ~5° × pad) keep
+    the mid steady-state — a >8° fine upstream fetch is a heavy call the pre-mid path never made."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
     vp = _FakeViewport()
-    out = _resolve(store, vp, monkeypatch, bbox="-126,32,-118,40")  # 8° span > 5° cap
+    out = _resolve(store, vp, monkeypatch, bbox="-128,30,-116,42")  # 12° span > 8° cap
 
     assert out is not None
     assert out.grid.diagnostics.get("mid_res_tier") is True
