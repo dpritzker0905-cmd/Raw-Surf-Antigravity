@@ -50,12 +50,29 @@ const THEME_COLORS = {
   beach: { fill: 'hsl(31, 24%, 91%)',  line: 'rgba(0, 0, 0, 0.18)', lw: 1.0, ocean: 'rgba(173, 213, 242, 0.90)' },
 };
 
-// Beautiful low-end wave/swell color scale matching for smooth nearshore blending
+// LEGACY bright per-layer buffer colors (opt-in only, see resolveBufferColor). They assumed the
+// nearshore water always renders ~0.6-1.2m cyan; over calm/deep water the 10-60px offset line
+// read as a glowing halo hugging every coastline instead of blending.
 const MARINE_BUFFER_COLORS = {
   waves: 'rgba(34, 211, 238, 0.70)',       // Cyan matching 0.6m–1.2m waves
   swell_1: 'rgba(34, 211, 238, 0.70)',     // Cyan matching swell_1 scale
   swell_2: 'rgba(192, 132, 252, 0.60)',    // Lavender matching secondary swell scale
   wind_waves: 'rgba(20, 184, 166, 0.65)',  // Soft teal matching wind wave scale
+};
+
+// Buffer color (2026-07-05, "land mask appears around the coastlines z2→~5.8"): while the GLOBAL
+// coarse grid is resident (viewport span >15°) its blocky GPU land mask leaves a masked nearshore
+// band, exposing this buffer line — with the bright per-layer colors it glowed as a cyan halo on
+// every coast; once mid/fine grids cover to the coast (z≳5.8 on a wide window) the heatmap hides
+// it, which is why the artifact "disappeared" when zooming in. The buffer must sit visually UNDER
+// the water at EVERY zoom, so it now takes the THEME ocean color (matches the basemap water the
+// gap actually shows). Legacy scale-colors: window.__RAW_MARINE_BUFFER_SCALE_COLORS__ = true.
+export const resolveBufferColor = (activeMarineLayer, tc) => {
+  const legacy = typeof window !== 'undefined' && window.__RAW_MARINE_BUFFER_SCALE_COLORS__ === true;
+  if (legacy && activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer]) {
+    return MARINE_BUFFER_COLORS[activeMarineLayer];
+  }
+  return (tc && tc.ocean) || 'rgba(16, 29, 43, 0.90)';
 };
 
 const landuseKeywords = ['landuse', 'park', 'wood', 'forest', 'glacier', 'sand', 'pitch', 'grass', 'cemetery', 'hospital', 'school', 'university'];
@@ -343,9 +360,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
     const coreSig = `${active}_${theme}_${beforeId || ''}_${!!maskData}_${styleVersionRef.current}`;
     if (active && maskData && lastSyncCoreRef.current === coreSig && mapInstance.getLayer(MASK_BUFFER)) {
       const tcFast = THEME_COLORS[theme] || THEME_COLORS.dark;
-      const oceanColorFast = (activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer])
-        ? MARINE_BUFFER_COLORS[activeMarineLayer]
-        : (tcFast.ocean || 'rgba(16, 29, 43, 0.90)');
+      const oceanColorFast = resolveBufferColor(activeMarineLayer, tcFast);
       // MASK_BUFFER is a 'line' layer (full-sync recolors it via 'line-color' below) — using
       // 'fill-color' here threw silently, so the recolor fast-path never actually recolored.
       try { mapInstance.setPaintProperty(MASK_BUFFER, 'line-color', oceanColorFast); } catch (e) {}
@@ -402,10 +417,9 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         
-        // Dynamically recolor the buffer based on the active marine layer to hide nearshore GFS gaps
-        const oceanColor = (activeMarineLayer && MARINE_BUFFER_COLORS[activeMarineLayer])
-          ? MARINE_BUFFER_COLORS[activeMarineLayer]
-          : (tc.ocean || 'rgba(16, 29, 43, 0.90)');
+        // Buffer takes the theme-ocean color so it blends under the water at every zoom
+        // (legacy bright scale-colors behind __RAW_MARINE_BUFFER_SCALE_COLORS__).
+        const oceanColor = resolveBufferColor(activeMarineLayer, tc);
 
         // Resolve base vector water properties from the Mapbox style dynamically
         let waterSource = 'composite';
