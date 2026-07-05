@@ -1043,6 +1043,24 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestContrast'), _crestContrast);
 
+      // LOW-HEIGHT crest self-contrast (2026-07-05): the zoom band above fixes the palette
+      // collision at world zoom, but the SAME collision happens at any zoom where height <~0.75 m
+      // — live-proven in the Catalina/San Clemente swell shadow ("hard line, animations don't
+      // cover the heatmap east of it"): dashes rendered wash-camouflaged and __RAW_CREST_CONTRAST__=1
+      // made them read instantly. The fragment ramps this term out by 1.05 m; the existing
+      // __RAW_CREST_CONTRAST__ override still means "0 = off everywhere / 1 = on everywhere".
+      // Kill: __RAW_DISABLE_LOWH_CREST_CONTRAST__ = true. Tune: __RAW_LOWH_CREST_CONTRAST__ [0..1].
+      let _lowHCC;
+      if (_ccOverride !== null) {
+        _lowHCC = _ccOverride;
+      } else if (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWH_CREST_CONTRAST__ === true) {
+        _lowHCC = 0.0;
+      } else {
+        _lowHCC = (typeof window !== 'undefined' && typeof window.__RAW_LOWH_CREST_CONTRAST__ === 'number')
+          ? Math.max(0, Math.min(1, window.__RAW_LOWH_CREST_CONTRAST__)) : 1.0;
+      }
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowHCrestContrast'), _lowHCC);
+
       // === ANIMATION UPGRADES (§5 #2) — all gated, default-off → byte-identical render until enabled ===
       // Trochoidal crest shape: asymmetric ribbon (sharp leading face, broad trailing back). window.__RAW_TROCHOIDAL__ [0..1].
       const _trochoidal = resolveAnimValue('__RAW_TROCHOIDAL__');
@@ -1110,6 +1128,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           coarseNearestDir: coarseNearestDir,            // 1 = vortex-band nearest-cell direction sampling active
           coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)
           crestContrast: +_crestContrast.toFixed(3),     // zoom-band self-contrast strength (1 in z~3.5-4.4, 0 outside; __RAW_CREST_CONTRAST__ overrides)
+          lowHCrestContrast: +_lowHCC.toFixed(3),        // low-height (<~0.75m) self-contrast strength — island swell-shadow dash camouflage (kill: __RAW_DISABLE_LOWH_CREST_CONTRAST__)
           waveSpeed: _g('__RAW_WAVE_SPEED__', 1.0),
           reducedMotion: !!this._prefersReducedMotion || window.__RAW_REDUCED_MOTION__ === true, // a11y damp (0.15× drift; heatmap untouched)
           speedHeightCap: _g('__RAW_SPEED_HEIGHT_CAP__', 3.0),

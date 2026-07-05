@@ -675,6 +675,7 @@ varying highp vec4 v_debug_color;
 uniform float u_theme;
 uniform float u_trochoidal;   // [0..1] warp the symmetric ribbon into an asymmetric TROCHOIDAL crest (sharp leading face, broad trailing back). 0 = legacy symmetric ellipse.
 uniform float u_crestContrast; // [0..1] zoom-band SELF-CONTRAST (2026-07-03): dark skirt + brighter core + slight white lift so crests read on any heatmap hue. Engine ramps it in around z3.65-4.25 where the crest and heatmap palettes collide (dark: mint on teal/cyan; light: navy on azure). 0 = legacy (byte-identical).
+uniform float u_lowHCrestContrast; // [0..1] LOW-HEIGHT self-contrast (2026-07-05): the same palette collision happens at ANY zoom wherever crest height <~0.75 m (island swell shadows: pale dash on pale wash = "animations don't cover the heatmap"). Ramped out by 1.05 m in main(). 0 = legacy.
 
 // Multi-octave procedural noise for organic foam breakup
 float foamHash(vec2 p) {
@@ -816,16 +817,21 @@ void main() {
   float whiteBlend = whitecapRoll * 0.45;
   vec3 finalColor = mix(baseColor, foamHighlight, whiteBlend);
 
-  // === ZOOM-BAND SELF-CONTRAST (2026-07-03) ===
+  // === SELF-CONTRAST: zoom band (2026-07-03) + low-height band (2026-07-05) ===
   // In the coarse band the crest palette can land on a same-hue heatmap (mint on teal, navy on
-  // azure) and the ribbon washes out. Give each crest an INTERNAL luminance gradient — darkened
-  // skirt, boosted + slightly whitened core — so it reads on any background color without
-  // changing any theme palette. Gated: u_crestContrast is 0 outside the band → byte-identical.
-  if (u_crestContrast > 0.001) {
+  // azure) and the ribbon washes out. The SAME collision happens at any zoom wherever the wave is
+  // small (<~0.75 m): the low end of the wash ramp and the crest color converge, so island
+  // swell-shadow zones (Catalina/San Clemente lee) render dashes in wash-camouflage — "animations
+  // don't cover the heatmap". Give each crest an INTERNAL luminance gradient — darkened skirt,
+  // boosted + slightly whitened core — so it reads on any background color without changing any
+  // theme palette. Gated: both terms 0 → byte-identical legacy output.
+  float crestContrastEff = max(u_crestContrast,
+    u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height)));
+  if (crestContrastEff > 0.001) {
     float core = 1.0 - smoothstep(0.15, 0.85, ellipseDist);
     float lum = mix(0.55, 1.30, core);
     vec3 contrasted = finalColor * lum + foamHighlight * core * 0.18;
-    finalColor = mix(finalColor, contrasted, clamp(u_crestContrast, 0.0, 1.0));
+    finalColor = mix(finalColor, contrasted, clamp(crestContrastEff, 0.0, 1.0));
   }
 
   // Premultiplied alpha output (gl.ONE, gl.ONE_MINUS_SRC_ALPHA)

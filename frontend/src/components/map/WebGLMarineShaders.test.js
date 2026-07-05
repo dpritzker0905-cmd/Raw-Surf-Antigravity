@@ -185,3 +185,20 @@ describe('decoupled mask bounds (2026-07-04, viewport-scoped mask over the world
     expect(DRAW_VS).toContain("if (eo_u > 0.0 && eo_u < 1.0 && eo_v > 0.0 && eo_v < 1.0)");
   });
 });
+
+// LOW-HEIGHT crest self-contrast (2026-07-05): the zoom-band self-contrast fixed the z3.65-4.25
+// palette collision, but the SAME collision happens at any zoom where wave height <~0.75 m —
+// island swell shadows (Catalina/San Clemente lee) rendered crest dashes wash-camouflaged: the
+// user-visible "hard line where animations do not cover the heatmap". Lock the fragment onto the
+// max(band, low-height) effective strength so a refactor cannot silently re-gate it to zoom only.
+describe('low-height crest self-contrast (island swell-shadow dash camouflage)', () => {
+  it('declares the low-height uniform and ramps it out by 1.05 m', () => {
+    expect(DRAW_FS).toContain('uniform float u_lowHCrestContrast;');
+    expect(DRAW_FS).toContain('u_lowHCrestContrast * (1.0 - smoothstep(0.75, 1.05, v_wave_height))');
+  });
+  it('applies the EFFECTIVE strength (max of zoom band and low-height), not the band alone', () => {
+    expect(DRAW_FS).toContain('float crestContrastEff = max(u_crestContrast,');
+    expect(DRAW_FS).toContain('if (crestContrastEff > 0.001)');
+    expect(DRAW_FS).toContain('clamp(crestContrastEff, 0.0, 1.0)');
+  });
+});
