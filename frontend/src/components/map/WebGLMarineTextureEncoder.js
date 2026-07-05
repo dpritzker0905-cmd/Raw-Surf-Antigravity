@@ -894,6 +894,26 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       if (engine && engine._cachedMaskTex && effectiveGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
         maskTex = engine._cachedMaskTex;
         if (engine) engine._lastMaskEncodeMode = 'reuse'; // DIAG (item ①): patched mask retained → source_not_ready no-op is HARMLESS
+      } else if (
+        // ITEM ① RETAIN-PATCHED (2026-07-05, live-confirmed): a REBUILD arriving while the basemap-water
+        // source is mid-load encodes PATCH-LESS, and the trailing refreshMaskWithBasemapWater no-ops
+        // (source_not_ready) → piers/canals animate for one commit until the idle/source-ready re-drive
+        // (the Long Beach idle glitch-cycle). Keep the resident PATCHED texture for THIS commit instead:
+        // the render's decoupled maskBounds (engine.js ~708) sample it at its OWN _cachedMaskBounds, so
+        // retaining is geometry-safe — and the layer only sets _maskRetainPatchedOk when the viewport is
+        // fully INSIDE those bounds (a pan to a different coast falls through to the normal rebuild).
+        // _cachedMaskGeoJSON/_cachedMaskBounds stay untouched (they describe the retained texture); the
+        // next source-ready commit rebuilds normally. Fail-open: undefined stamps (other setWaveData
+        // callers) skip this branch. Kill switch: window.__RAW_DISABLE_MASK_RETAIN__ = true.
+        engine && engine._cachedMaskTex &&
+        engine._maskSourceReady === false && engine._maskRetainPatchedOk === true &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN__ === true)
+      ) {
+        maskTex = engine._cachedMaskTex;
+        engine._lastMaskEncodeMode = 'retain_patched_src_not_ready';
+        if (typeof window !== 'undefined') {
+          window.__RAW_MASK_RETAIN_COUNT__ = (window.__RAW_MASK_RETAIN_COUNT__ || 0) + 1;
+        }
       } else {
         if (engine) engine._lastMaskEncodeMode = 'rebuild'; // DIAG (item ①): fresh patch-less mask → source_not_ready no-op = the GLITCH
         if (engine && engine._cachedMaskTex) {

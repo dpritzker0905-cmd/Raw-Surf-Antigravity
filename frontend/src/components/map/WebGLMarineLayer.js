@@ -14,6 +14,7 @@ import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, 
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
+import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
@@ -252,6 +253,29 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     console.log(`[WebGLMarine] setWaveData (${reason}): ${grid.vectors.length} vectors, max=${maxS.toFixed(2)}m (forecast-authoritative)`);
 
     const uploadStart = Date.now();
+    // ITEM ① RETAIN-PATCHED stamp (2026-07-05, live-confirmed glitch: {result:false,
+    // branch:'source_not_ready', maskMode:'rebuild'} @z7.66): tell the encoder whether the
+    // basemap-water source is queryable RIGHT NOW and whether the current viewport sits fully
+    // inside the resident patched mask's bounds. When a mask REBUILD would land while the source
+    // is mid-load, the trailing re-patch is guaranteed to no-op and one PATCH-LESS frame renders
+    // (the Long Beach idle glitch-cycle) — the encoder instead retains the patched texture for
+    // that commit (see WebGLMarineTextureEncoder). Stamped fresh EVERY commit; undefined fails
+    // open to the old rebuild path (other setWaveData callers).
+    try {
+      const _srcReady = isBasemapWaterSourceReady(mapInstance);
+      engine._maskSourceReady = _srcReady;
+      let _retainOk = false;
+      if (!_srcReady && engine._cachedMaskTex && engine._cachedMaskBounds && mapInstance) {
+        const _mb = mapInstance.getBounds();
+        const _cb = engine._cachedMaskBounds;
+        _retainOk = _mb.getWest() >= _cb.west - 0.05 && _mb.getEast() <= _cb.east + 0.05 &&
+                    _mb.getSouth() >= _cb.south - 0.05 && _mb.getNorth() <= _cb.north + 0.05;
+      }
+      engine._maskRetainPatchedOk = _retainOk;
+    } catch (e) {
+      engine._maskSourceReady = true; // fail open — old behavior
+      engine._maskRetainPatchedOk = false;
+    }
     engine._dispatcherActive = false;
     try {
       engine.setWaveData(gl, grid, geojson);
