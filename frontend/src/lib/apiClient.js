@@ -64,7 +64,11 @@ apiClient.interceptors.request.use(
  // Malformed localStorage -- silently skip; 401 interceptor below will handle
     }
 
-    if (process.env.NODE_ENV === 'development') {
+    // Per-request debug is OPT-IN (window.__RAW_API_DEBUG__ = true): the dispatch/unread-count
+    // pollers fire every few seconds, so the old always-on dev line flooded the console within a
+    // minute and drowned the marine forensic logs. Errors/warnings below stay always-on in dev.
+    if (process.env.NODE_ENV === 'development'
+        && typeof window !== 'undefined' && window.__RAW_API_DEBUG__ === true) {
       console.debug(`[apiClient] ${config.method?.toUpperCase()} ${config.url}`);
     }
     return config;
