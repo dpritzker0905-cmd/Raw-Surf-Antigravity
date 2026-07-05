@@ -419,6 +419,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     return;
   }
 
+  // COARSE-BASE SEED consume (2026-07-04, Part 2 of the z7 zoom-out bridge): a cold coast never commits a
+  // coarse grid, so prewarmGlobalMarineGrid stages the global here — snapshot it into the bridge base NOW,
+  // inside the render callback where the GL context is valid (never from the prewarm's detached Promise).
+  if (this._pendingCoarseBaseGrid && !this._coarseBaseData) {
+    const _seed = this._pendingCoarseBaseGrid;
+    this._pendingCoarseBaseGrid = null;
+    try {
+      if (isCoarseGlobalGrid(_seed)) this._captureCoarseBase(gl, _seed, coarseBaseKey(_seed));
+    } catch (e) { /* best-effort seed — the live zoom-out fetch still commits the global */ }
+  }
+
   if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {
     gl.clearColor(0.05, 0.05, 0.08, 1.0);
     gl.clear(gl.COLOR_BUFFER_BIT);
@@ -699,7 +710,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // back") until z<8 restored it. Dim reads as loading; blank reads as a bug — the same lesson
     // as the coarse-fade 0.7 and no-truth 0.3 floors.
     const _washZoomDamp = 1.0 - 0.65 * smoothstepVal(8.0, 9.5, z);
-    const baseWashOpacity = heatmapZoomOpacity(z) * mult * _blendBaseWash * _washZoomDamp;
+    // COARSE-BASE BRIDGE (2026-07-04, the z8.84↔z6.32 zoom-out clear): when the display gate hides a
+    // rejected REGIONAL grid at zoomed-out (mult→0; WebGLMarineCustomLayer sets __coarseBridgeActive)
+    // but the retained coarse-global base is engaged, the base wash must NOT collapse to 0 — it bridges
+    // the ~1s gap until the real global commits at moveend. Gated on blendEngaged so it only floors the
+    // opacity when PHASE 0 will actually draw. The regional heatmap (heatmapOpacity*=mult below) and the
+    // crests (u_opacity=mult) STAY hidden at mult 0 — no clamped-rectangle regression. Kill switch:
+    // __RAW_DISABLE_COARSE_BRIDGE__ (layer-side). Tune: __RAW_COARSE_BRIDGE_OPACITY__ (default 1.0).
+    const _bridgeActive = !!this.__coarseBridgeActive && blendEngaged;
+    const _baseMult = _bridgeActive
+      ? ((typeof window !== 'undefined' && typeof window.__RAW_COARSE_BRIDGE_OPACITY__ === 'number') ? window.__RAW_COARSE_BRIDGE_OPACITY__ : 1.0)
+      : mult;
+    const baseWashOpacity = heatmapZoomOpacity(z) * _baseMult * _blendBaseWash * _washZoomDamp;
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseBridgeActive = _bridgeActive;
 
     // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different
     // geography than the data grid — refreshMaskWithBasemapWater rebuilds it VIEWPORT-scoped while
@@ -1343,14 +1366,15 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   const geo = this._cachedMaskGeoJSON;
   const tex = this._cachedMaskTex;
   const bounds = this._cachedMaskBounds;
-  if (!geo || !bounds || !tex) return false;
+  if (!geo || !bounds || !tex) { this._lastMaskRepatchReason = 'no_cache'; return false; }
+  this._lastMaskRepatchReason = 'enter';
   const span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
   // WIDE (world) grids: the grid's own 1024×512 mask (~39 km/texel) cannot hold viewport detail —
   // paint a SEPARATE viewport-truth OVERLAY texture instead (see refreshViewportOverlayMask). The
   // base mask is never touched, so a stale overlay can only ever fall back to base behavior.
   // (A first attempt retargeted THIS texture to viewport bounds in place: one pan later the
   // out-of-bounds samples clamped to edge-water and land masking died wholesale — Istria/Susak.)
-  if (span >= 30) return this.refreshViewportOverlayMask(gl, mapInstance, true);
+  if (span >= 30) { this._lastMaskRepatchReason = 'wide_delegate'; return this.refreshViewportOverlayMask(gl, mapInstance, true); }
   // STALE-OVERLAY CLEAR (2026-07-04, the "bright rectangle block" at Punat z9.44 after a z12.5 zoom):
   // the viewport-truth overlay is a DEEP-ZOOM (z≥12) crispness enhancement painted for a SMALL box.
   // Zooming back out below z12 leaves that box resident, and it then applies its sheltered/crisp
@@ -1368,7 +1392,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   } catch (e) { /* zoom unavailable — leave overlay untouched */ }
   // The resident frame must actually be USING the cached texture — otherwise refreshing it paints
   // a texture nothing binds (and skipping avoids fighting an in-flight commit).
-  if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) return false;
+  if (!this._waveData || this._waveData.u_oceanMaskTexture !== tex) { this._lastMaskRepatchReason = 'tex_mismatch'; return false; }
   // HYSTERESIS (stair-climb choppiness fix): the painter patches the viewport padded 40%; while
   // the SAME grid is resident and the current viewport is still INSIDE the last patch, a repaint
   // adds nothing — skip the 50–250 ms canvas+upload. Deep-zoom crispness still refreshes via the
@@ -1388,17 +1412,18 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
       let _z3; try { _z3 = mapInstance.getZoom(); } catch (e3) { _z3 = 0; }
       if (_z3 >= 12) return this.refreshViewportOverlayMask(gl, mapInstance);
     } catch (e3) { /* enhancement only */ }
+    this._lastMaskRepatchReason = 'hysteresis_covered';
     return false;
   }
   // TILE-READINESS GATE (the "rectangle holes" root, 2026-07-04): painting while the water source
   // is mid-load bakes missing-tile rectangles into the mask as false land, and the hysteresis
   // above then keeps the bad paint. Skip entirely — the resident mask (NE truth) serves, and the
   // layer's `idle` listener re-drives this refresh once every covering tile is queryable.
-  if (!isBasemapWaterSourceReady(mapInstance)) return false;
+  if (!isBasemapWaterSourceReady(mapInstance)) { this._lastMaskRepatchReason = 'source_not_ready'; return false; }
   try {
     const canvas = renderMaskToCanvas(geo, bounds);
     const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
-    if (!applied) return false;
+    if (!applied) { this._lastMaskRepatchReason = 'overlay_not_applied'; return false; }
     const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
     const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
     gl.bindTexture(gl.TEXTURE_2D, tex);
@@ -1424,6 +1449,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
       let _z2; try { _z2 = mapInstance.getZoom(); } catch (e2) { _z2 = 0; }
       if (_z2 >= 12) this.refreshViewportOverlayMask(gl, mapInstance);
     } catch (e2) { /* overlay is an enhancement */ }
+    this._lastMaskRepatchReason = 'applied';
     return true;
   } catch (e) {
     console.warn('[WebGLMarineEngine] basemap-water mask refresh skipped:', e && e.message);

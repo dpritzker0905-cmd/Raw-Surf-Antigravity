@@ -893,7 +893,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
       if (engine && engine._cachedMaskTex && effectiveGeoJSON === engine._cachedMaskGeoJSON && !boundsChanged) {
         maskTex = engine._cachedMaskTex;
+        if (engine) engine._lastMaskEncodeMode = 'reuse'; // DIAG (item ①): patched mask retained → source_not_ready no-op is HARMLESS
       } else {
+        if (engine) engine._lastMaskEncodeMode = 'rebuild'; // DIAG (item ①): fresh patch-less mask → source_not_ready no-op = the GLITCH
         if (engine && engine._cachedMaskTex) {
           gl.deleteTexture(engine._cachedMaskTex);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {

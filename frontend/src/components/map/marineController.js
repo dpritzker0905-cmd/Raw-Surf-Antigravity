@@ -187,6 +187,20 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
         const g = result && result.grid;
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
           _cacheMarineResult(m, hourOffset, result, activeLayer, true /* silent: no truth-stage pollution */);
+          // COARSE-BASE SEED (2026-07-04, Part 2 of the z7 zoom-out bridge): a COLD coast (fresh session
+          // straight to a coast, never zoomed out) never commits a coarse grid → engine._coarseBaseData is
+          // empty → the zoom-out bridge can't engage. Stage the prewarmed global (tagged for blend match) so
+          // the ENGINE snapshots it into the bridge base at its next render (proper render-loop GL timing —
+          // never do GL work in this detached callback). Kill: __RAW_DISABLE_COARSE_BRIDGE__.
+          try {
+            const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
+            if (eng && !eng._coarseBaseData && !eng._pendingCoarseBaseGrid &&
+                (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true)) {
+              if (!g.__sourceModel) g.__sourceModel = m;
+              if (!g.__componentLayer) g.__componentLayer = activeLayer;
+              eng._pendingCoarseBaseGrid = g;
+            }
+          } catch (e) { /* seed is best-effort */ }
         }
       })
       .catch(() => { /* best-effort: a cold zoom-out just falls back to the live fetch */ })

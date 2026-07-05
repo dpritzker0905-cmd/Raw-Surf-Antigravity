@@ -340,7 +340,30 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       try { _z = mapInstance.getZoom(); } catch (e) { _z = 0; }
       const _engine = engineRef.current;
       if (_z >= 7 && _engine && _engine.refreshMaskWithBasemapWater) {
-        if (_engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
+        const _repatched = _engine.refreshMaskWithBasemapWater(gl, mapInstance);
+        if (_repatched) mapInstance.triggerRepaint();
+        // DIAG (item ① Long Beach idle glitch-cycle, 2026-07-04): every recommit re-encodes the
+        // mask patch-less in setWaveData, then re-patches here. If this re-patch NO-OPs, the
+        // patch-less mask renders (piers/canals animate) until the idle listener re-drives. Record
+        // reason+branch so an idle sit reveals WHICH branch no-ops. Read window.__RAW_MASK_REPATCH_LOG__.
+        if (typeof window !== 'undefined') {
+          try {
+            const _log = (window.__RAW_MASK_REPATCH_LOG__ = window.__RAW_MASK_REPATCH_LOG__ || []);
+            // maskMode distinguishes the HARMLESS no-op (reuse: patched tex retained) from the GLITCH
+            // (rebuild: patch-less tex bound). A confirmed item-① firing = {result:false,
+            // branch:'source_not_ready', maskMode:'rebuild'}.
+            const _maskMode = _engine._lastMaskEncodeMode || null;
+            _log.push({ reason, z: +Number(_z).toFixed(2), result: _repatched,
+              branch: _engine._lastMaskRepatchReason || null, maskMode: _maskMode, t: new Date().toISOString() });
+            if (_log.length > 80) _log.shift();
+            if (!_repatched) {
+              window.__RAW_MASK_REPATCH_NOOP_COUNT__ = (window.__RAW_MASK_REPATCH_NOOP_COUNT__ || 0) + 1;
+              if (_maskMode === 'rebuild') {
+                window.__RAW_MASK_GLITCH_COUNT__ = (window.__RAW_MASK_GLITCH_COUNT__ || 0) + 1;
+              }
+            }
+          } catch (_e) { /* diag only */ }
+        }
       }
     } catch (e) { /* mask overlay is an enhancement — never fail an upload over it */ }
   };

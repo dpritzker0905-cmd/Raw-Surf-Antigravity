@@ -111,6 +111,9 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       }
 
       this._wasActive = true;
+      // COARSE-BASE BRIDGE flag — reset every frame; set true only in the regional-rejected-zoomed-out
+      // branch below when a retained coarse base exists (bridges the z<7 zoom-out clear).
+      if (engine) engine.__coarseBridgeActive = false;
       const map = mapRef.current;
       if (!map) return;
 
@@ -174,8 +177,22 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
 
             let shouldReject = false;
             if (isGridRegional) {
+              // COVERAGE-ALIGNED GATE (2026-07-05, CA-coast z7.14↔6.99 report): a regional that COVERS the
+              // viewport (overlapRatio ≥ __RAW_DOWNGRADE_COVER_FRAC__, the SAME 0.8 the engine no-downgrade
+              // guard uses to KEEP it resident) must RENDER even below z7 — else the gate hides a 100%-
+              // covering regional the guard deliberately kept, so crossing z7.0 flips the SAME fine grid from
+              // shown (fine heatmap + crests) to a faded coarse wash with no crests (the two subsystems
+              // disagreed: guard=coverage, gate=zoom). Only a NON-covering regional (a sub-viewport clamped
+              // tile / genuine zoom-out) is rejected → the coarse bridge/global takes over. The uncovered ≤20%
+              // ring shows the blend coarse wash either way. Kill (revert to the old zoom-based hide):
+              // window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ = true.
+              const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+              const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
+              const _zoomedOutRegionalReject = _coverAlignOff
+                ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
+                : (overlapRatio < _coverFrac);
               shouldReject = isGlobalSupported
-                ? (isViewportZoomedOut ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15) : (overlapWidth <= 0 || intSouth >= intNorth))
+                ? (isViewportZoomedOut ? _zoomedOutRegionalReject : (overlapWidth <= 0 || intSouth >= intNorth))
                 : (overlapWidth <= 0 || intSouth >= intNorth);
 
               const g = engine._waveData?.waveGrid;
@@ -193,11 +210,21 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             if (shouldReject) {
               const isTransitioning = typeof window !== 'undefined' && (!!window.__MARINE_TRANSITIONING__ || !!window.__MARINE_FETCH_PENDING__ || !!window.__MARINE_FETCH_DEBOUNCING__);
               const isZoomingOrMoving = map.isZooming() || map.isMoving() || window.isScrubbingTimeline || isTransitioning;
-              if (!isZoomingOrMoving) {
+              // COARSE-BASE BRIDGE (2026-07-04, the z8.84↔z6.32 zoom-out clear): a resident REGIONAL grid is
+              // hidden at z<7 (op 0) while the global-coarse commits at moveend — a ~1s blank. When the retained
+              // coarse-global base (BLEND BOTH) is still held, keep rendering so the engine paints that base wash
+              // under the hidden regional instead of blanking. The regional heatmap + crests stay dark (mult 0),
+              // so no clamped-rectangle regression — the viewport degrades gracefully to the coarse global field
+              // until the real global commits and supersedes it. Kill: __RAW_DISABLE_COARSE_BRIDGE__.
+              const hasCoarseBridge = !!(engine._coarseBaseData && engine._coarseBaseData.u_waveTexture) &&
+                (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true);
+              if (isViewportZoomedOut && isGridRegional && hasCoarseBridge) {
+                opacityMultiplier = 0.0;
+                engine.__coarseBridgeActive = true;
+              } else if (!isZoomingOrMoving) {
                 this._wasActive = false;
                 return;
-              }
-              if (isViewportZoomedOut && isGridRegional) {
+              } else if (isViewportZoomedOut && isGridRegional) {
                 opacityMultiplier = 0.0;
               } else {
                 // Calculate fade out during zoom transition or low overlap
