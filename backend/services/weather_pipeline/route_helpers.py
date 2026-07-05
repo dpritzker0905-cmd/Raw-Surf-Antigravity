@@ -570,9 +570,11 @@ def compute_truth_tag(
     # 1. Compute dataHash
     serialized_parts = []
     nonzero_count = 0
+    invalid_count = 0
+    valid_zero_count = 0
     min_speed = float('inf')
     max_speed = float('-inf')
-    
+
     for v in vectors:
         lat_f = f"{v.lat:.4f}"
         lng_f = f"{v.lng:.4f}"
@@ -583,9 +585,17 @@ def compute_truth_tag(
         period_f = f"{period_val:.4f}"
         is_val = 1 if (hasattr(v, 'is_valid') and v.is_valid) else 0
         serialized_parts.append(f"{lat_f},{lng_f},{speed_f},{u_f},{v_f},{period_f},{is_val}")
-        
+
         if v.speed > 0.0:
             nonzero_count += 1
+        # Validity census (zoom-in cleared-rect forensics, 2026-07-05): a cleared rectangle is a
+        # DATA hole only if the served grid carries invalid or VALID-ZERO cells; a healthy count
+        # here shifts suspicion to mask/patch rendering. validZeroCount > 0 on a waves grid is the
+        # land-cell-leak signature (total-sea height is never exactly 0.0 in real ocean).
+        if not is_val:
+            invalid_count += 1
+        elif v.speed == 0.0:
+            valid_zero_count += 1
         if v.speed < min_speed:
             min_speed = v.speed
         if v.speed > max_speed:
@@ -647,6 +657,8 @@ def compute_truth_tag(
         "rows": rows,
         "vectorCount": len(vectors),
         "nonzeroCount": nonzero_count,
+        "invalidCount": invalid_count,
+        "validZeroCount": valid_zero_count,
         "minSpeed": round(min_speed, 4),
         "maxSpeed": round(max_speed, 4),
         "dataHash": data_hash,

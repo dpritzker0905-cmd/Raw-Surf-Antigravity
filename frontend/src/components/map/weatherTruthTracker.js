@@ -155,6 +155,22 @@ export function recordTruthStage(stageName, data, file, functionName) {
         }
         return nz;
       })(),
+      // Validity census (zoom-in cleared-rect forensics, 2026-07-05). Shape-agnostic: raw backend
+      // vectors carry is_valid (snake_case), mapper-rebuilt vectors carry isOcean ONLY — a probe
+      // that checks is_valid on mapper vectors reads every land cell as "valid + speed 0.00"
+      // (the misleading 134-valid-zero signature). These counts make the committed grid's real
+      // validity readable at every stage without knowing which vector shape it holds.
+      ...(() => {
+        let invalid = 0, validZero = 0;
+        const vecs = data.grid.vectors;
+        for (let i = 0; i < vecs.length; i++) {
+          const v = vecs[i];
+          if (!v) continue;
+          if (v.is_valid === false || v.isOcean === false) invalid++;
+          else if ((v.speed || 0) === 0) validZero++;
+        }
+        return { invalidCount: invalid, validZeroCount: validZero };
+      })(),
       minSpeed: (() => {
         let minS = Infinity;
         const len = data.grid.vectors.length;
