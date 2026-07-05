@@ -298,6 +298,62 @@ async def resolve_grid(
                     f"({len(candidate_product.grid.vectors)} vectors) in Step 3.5."
                 )
 
+    # Step 3.6: MID-RES GLOBAL TIER (2026-07-05, the z6-7 coarse-lattice quality upgrade). Between the
+    # close-zoom regional tiles (Step 3) and the 10° global_coarse (Step 3.7) there was a resolution CLIFF:
+    # a z6-7 viewport WIDER than any regional tile fell to the 10° global — at an ~8° viewport that's <1 cell
+    # across the screen, so every crest shares one direction (uniform "grid" lattice, the user report) and
+    # the heatmap is one flat cell. Serve the pre-computed mid-res global (region_id 'global_mid', ~2°)
+    # CLIPPED to the viewport instead: the clip makes served span<350 so the frontend treats it as a
+    # regional-like FINE grid (real per-cell direction + color, normal crests). Purely additive — a no-op
+    # until the cron ships a global_mid product, and only inside the mid span band; the global_coarse SWR
+    # path below still runs when there is no global_mid. Kill switch: MARINE_MID_RES_TIER=0.
+    if (
+        not product
+        and bbox and req_w is not None
+        and domain.lower() == "marine"
+        and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
+        and not is_test_environment()
+        and os.environ.get("MARINE_MID_RES_TIER", "1") != "0"
+    ):
+        if req_w <= req_e:
+            _mid_span_lng = req_e - req_w
+        else:
+            _mid_span_lng = (180.0 - req_w) + (req_e + 180.0)
+        _mid_span = max(_mid_span_lng, abs(req_n - req_s))
+        _mid_lo = float(os.environ.get("MARINE_MID_RES_MIN_SPAN", "2.0"))
+        _mid_hi = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "15.0"))
+        if _mid_lo < _mid_span <= _mid_hi:
+            mid_item = next(
+                (p for p, _d in authoritative_candidates if getattr(p, "region_id", None) == "global_mid"),
+                None,
+            )
+            if mid_item is not None:
+                candidate_product = await asyncio.to_thread(store.load_product, mid_item.filename)
+                if candidate_product and candidate_product.grid and not _is_oversized_grid(candidate_product):
+                    product = candidate_product
+                    product.product_id = mid_item.filename
+                    product.coverage_scope = "regional"     # served clipped → regional-like on the client
+                    product.coverage_mode = "regional_tile"  # so filter_grid_to_bbox clips it below
+                    product.partial_coverage = False
+                    product.requested_bbox_original = bbox
+                    product.query_bbox = bbox
+                    product.requested_bbox = bbox
+                    product = filter_grid_to_bbox(product, get_snapped_bbox(bbox, model))
+                    if product.grid:
+                        if product.grid.diagnostics is None:
+                            product.grid.diagnostics = {}
+                        product.grid.diagnostics["mid_res_tier"] = True  # surf gate keeps this coarse-ish tier honest
+                        if product.grid.bounds:
+                            product.served_bbox = f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
+                    logger.info(
+                        f"[Grid Route] Mid-res tier: serving global_mid '{mid_item.filename}' clipped to "
+                        f"viewport ({_mid_span:.1f}°) for {model} {layer} — regional-quality at zoom-out."
+                    )
+                elif candidate_product:
+                    logger.warning(
+                        f"[Grid Resolver] Skipping oversized global_mid product {mid_item.filename} in Step 3.6."
+                    )
+
     # Step 3.7: Instant coarse preview for marine (SWR). On a cold viewport (Step 1&2 cache
     # miss) the response would otherwise BLOCK on the slow upstream fetch — notably EURO's
     # multi-second Copernicus call (~7s) and ICON's gwam call — leaving the heatmap blank until
@@ -646,11 +702,15 @@ async def resolve_grid(
             # deep cell; now it's intentional + the math is also hardened in shoaling_coefficient.)
             _b = product.grid.bounds
             _span = ((_b.east - _b.west) if (_b and _b.east >= _b.west) else ((_b.east + 360.0 - _b.west) if _b else 0.0))
-            if _b is not None and _span >= 350.0:
+            # The mid-res tier (Step 3.6) is served clipped so span<350, but its ~2° cells are still too
+            # coarse for a trustworthy shore-normal — skip the rating band on it exactly as on the global
+            # coarse (the z6-7 surf-mode behavior was 'honest swell' before this tier existed; keep it).
+            _is_mid_res = bool(product.grid.diagnostics and product.grid.diagnostics.get("mid_res_tier"))
+            if (_b is not None and _span >= 350.0) or _is_mid_res:
                 if product.grid.diagnostics is None:
                     product.grid.diagnostics = {}
-                product.grid.diagnostics["surf_transform"] = {"skipped": "coarse_extent"}
-                logger.info(f"[Grid Route] Surf rating skipped on global/coarse extent ({_span:.0f}°) — honest swell served for {model} {layer}.")
+                product.grid.diagnostics["surf_transform"] = {"skipped": "mid_res_tier" if _is_mid_res else "coarse_extent"}
+                logger.info(f"[Grid Route] Surf rating skipped on {'mid-res' if _is_mid_res else 'global/coarse'} extent ({_span:.0f}°) — honest swell served for {model} {layer}.")
             else:
                 # The "surf" toggle renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
                 # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the

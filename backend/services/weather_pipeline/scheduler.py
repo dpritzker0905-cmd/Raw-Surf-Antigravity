@@ -234,6 +234,12 @@ class WeatherPipelineScheduler:
         await self._cleanup_and_pause(results, 0)
         return total_saved > 0
 
+    async def ingest_gfs_marine_global_mid(self) -> bool:
+        """MID-RES (z6-7 tier) global GFS/NOAA waves. Delegates to marine_mid_res_ingestion (keeps this
+        file under the 800-LOC ceiling). Kill switch: GFS_MARINE_MID_RES_INGEST=0."""
+        from services.weather_pipeline.marine_mid_res_ingestion import ingest_gfs_marine_global_mid_impl
+        return await ingest_gfs_marine_global_mid_impl(self)
+
     async def ingest_euro_marine_global(self) -> bool:
         """
         Ingests EURO waves grid forecast globally at a coarse resolution.
@@ -561,6 +567,18 @@ class WeatherPipelineScheduler:
 
         await self._cleanup_and_pause(results, 0)
         return total_saved > 0
+
+    async def ingest_icon_marine_global_mid(self) -> bool:
+        """MID-RES (z6-7 tier) global ICON/DWD waves. Delegates to marine_mid_res_ingestion (keeps this
+        file under the 800-LOC ceiling). Kill switch: ICON_MARINE_MID_RES_INGEST=0."""
+        from services.weather_pipeline.marine_mid_res_ingestion import ingest_icon_marine_global_mid_impl
+        return await ingest_icon_marine_global_mid_impl(self)
+
+    async def ingest_euro_marine_global_mid(self) -> bool:
+        """MID-RES (z6-7 tier) global EURO/Copernicus waves. Delegates to marine_mid_res_ingestion.
+        ⚠️ 2nd ~15-30min CMEMS fetch/cycle — DEFAULT-OFF (EURO_MARINE_MID_RES_INGEST at registration)."""
+        from services.weather_pipeline.marine_mid_res_ingestion import ingest_euro_marine_global_mid_impl
+        return await ingest_euro_marine_global_mid_impl(self)
 
     async def ingest_gfs_pressure_global(self) -> bool:
         """Ingests GFS pressure grid forecast globally at a coarse resolution."""

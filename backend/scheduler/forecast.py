@@ -98,6 +98,19 @@ def ingest_marine_forecast_task():
                 ("GFS Wind Global", weather_scheduler.ingest_gfs_wind_global),
                 ("EURO Wind Global", weather_scheduler.ingest_euro_wind_global),
                 ("GFS Marine Global", weather_scheduler.ingest_gfs_marine_global),
+                # GFS Marine MID-RES global (z6-7 quality tier, 2026-07-05): a ~2° global served CLIPPED to
+                # the viewport by grid_resolver's mid-res tier — kills the <1-cell coarse lattice + flat color
+                # at zoom-out. Runs right after (and reuses the NOAA-direct path of) GFS Marine Global, before
+                # the alternated EURO/ICON pair. Coarse+fast relative to the regional pilots. Kill: GFS_MARINE_MID_RES_INGEST=0.
+                *([("GFS Marine Global Mid", weather_scheduler.ingest_gfs_marine_global_mid)]
+                  if os.environ.get("GFS_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                # ICON mid-res (DWD-direct, ~5-10 min like its coarse sibling) default ON; EURO mid-res is a
+                # SECOND Copernicus fetch (~15-30 min) so it is default OFF — enable EURO_MARINE_MID_RES_INGEST=1
+                # only once the cron budget is confirmed (this cycle has hit timeouts before).
+                *([("ICON Marine Global Mid", weather_scheduler.ingest_icon_marine_global_mid)]
+                  if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
+                  if os.environ.get("EURO_MARINE_MID_RES_INGEST", "0") != "0" else []),
                 *_marine_jobs,  # both EURO+ICON in CI (MARINE_INGEST_ALL=1); alternated on the 1-CPU Render box
 
                 ("GFS Pressure Global", weather_scheduler.ingest_gfs_pressure_global),
