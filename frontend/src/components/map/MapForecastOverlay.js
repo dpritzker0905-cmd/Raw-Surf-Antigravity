@@ -15,6 +15,7 @@ import {
   hasCacheForModel
 } from './forecastSamplers';
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
+import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
 import { computeSurfRating } from './surfRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
@@ -387,14 +388,19 @@ export const MapForecastOverlay = ({
   // exposure. Frontend mirror of surf_rating.py, fed by the backend surf_height_m + shore_normal_deg. Degrades
   // gracefully — speed-only wind + full exposure when no shore-normal, neutral when no wind. windSpeed is in
   // KNOTS (display unit) -> convert to m/s. swell-from uses the primary swell dir, falling back to the combined.
-  const surfRating = computeSurfRating(
-    useExactPoint?.surf_height_m,
-    wavePeriod,
-    windSpeed != null ? windSpeed / 1.943844 : null,
-    windDir,
-    useExactPoint?.shore_normal_deg,
-    useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null
-  );
+  // RATING-MODE GATE (2026-07-05, item ③): the Rating card renders ONLY when the surf-rating overlay
+  // toggle is ON — the same __SURF_MODE__ source of truth the shader band + glyphs key on. In plain
+  // Swell mode the infobox shows the honest physical values without a quality verdict.
+  const surfRating = getSurfModeFlag()
+    ? computeSurfRating(
+        useExactPoint?.surf_height_m,
+        wavePeriod,
+        windSpeed != null ? windSpeed / 1.943844 : null,
+        windDir,
+        useExactPoint?.shore_normal_deg,
+        useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null
+      )
+    : null;
 
   const cards = compileForecastCards({
     activeLayer,

@@ -191,13 +191,22 @@ export function compileForecastCards({
       const isEst = false;
       const hFt = mToFt(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
-      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
+      // TWO-PHASE PROVISIONAL MARKER (2026-07-05, item ③ "first set vs second set conflict"): the first
+      // paint shows GRID-SAMPLED values while the exact-point fetch is in flight; when it completes,
+      // isExactPointAuthority flips and the values silently change to the authoritative set. Mark the
+      // provisional set with a trailing ellipsis (reads "still refining") instead of suppressing it —
+      // instant feedback kept, the swap is expected, the marker disappears when authority lands. Only
+      // while the authoritative fetch is genuinely in flight: a grid-only view (no exact fetch running)
+      // has no second set coming and stays unmarked.
+      const isProvisional = !isExactPointAuthority && isExactPointLoading;
+      const _prov = isProvisional ? '…' : '';
+      displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
+      if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
       }
       if (waveDir != null) {
-        displayDir = `${Math.round(waveDir)}${isEst ? '° (est.)' : ''}`;
+        displayDir = `${Math.round(waveDir)}${isEst ? '° (est.)' : ''}${_prov}`;
         displayCompass = degToCompass(waveDir);
       }
     }
