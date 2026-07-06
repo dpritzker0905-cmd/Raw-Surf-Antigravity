@@ -1,4 +1,5 @@
 import { getCenterLng, wrapLngRelative } from './mapUtils';
+import { applyInlandWaterGuard, snapshotNeTruth } from './inlandWaterGuard';
 
 // --- Coordinate Projection and Land Mask Renderer ---
 
@@ -153,6 +154,12 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   const project = makeMaskProjector(bounds, canvas.width, canvas.height);
 
+  // NE-truth snapshot BEFORE any painting (the canvas is NE-only at entry): the inland-water
+  // guard below limits basemap-water trust to ~10 km of this truth. See inlandWaterGuard.js —
+  // Mapbox Streets v8 water is class-less, so the ocean/sea class filter is a no-op on this
+  // basemap and inland seas (Salton, Laguna Salada) would otherwise whiten as "ocean".
+  const neSnapshot = snapshotNeTruth(canvas);
+
   // 1. Land-black the viewport patch (clipped to the canvas).
   const [px0, py0] = project(vb.west, vb.north);
   const [px1, py1] = project(vb.east, vb.south);
@@ -216,6 +223,17 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
       ctx.fill();
     }
   });
+
+  // 3b. INLAND-WATER GUARD (2026-07-06, the Salton Sea / Laguna Salada leak): re-black painted
+  //     water farther than ~10 km from NE water — the basemap refines the coastline, it cannot
+  //     invent new seas. Runs BEFORE the wetland + sheltered passes so they classify the
+  //     corrected water field. Kill: __RAW_DISABLE_INLAND_WATER_GUARD__; tune: __RAW_INLAND_WATER_KM__.
+  {
+    const gStats = applyInlandWaterGuard(canvas, neSnapshot, bounds);
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.inlandWaterGuard = gStats;
+    }
+  }
 
   // 4. WETLAND/TIDAL-FLAT BLACK-OUT (2026-07-04, Venice lagoon marshes): OSM puts sea-connected
   //    lagoons on the WATER side of the coastline, so the whole lagoon arrives as ocean-class water
