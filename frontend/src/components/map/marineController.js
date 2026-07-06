@@ -195,6 +195,27 @@ export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer)
   } catch (e) { /* never break the active path */ }
 }
 
+// Stage a global-width grid as the zoom-out bridge's coarse-base seed (engine snapshots it at its
+// next render — GL-timing-safe). Shared by the prewarm's fetch path and its cache-warm early-return
+// (2026-07-06: the early-return used to skip seeding, leaving the bridge baseless after an engine
+// clear — the "rectangle before the heatmap expands" zoom-out transient). Best-effort, never throws.
+// Kill: __RAW_DISABLE_COARSE_BRIDGE__. Telemetry: __MARINE_BRIDGE_SEED__ {count,lastFrom,lastAt}.
+function _stageCoarseBridgeSeed(g, m, activeLayer, from) {
+  try {
+    const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
+    if (eng && g && !eng._coarseBaseData && !eng._pendingCoarseBaseGrid &&
+        (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true)) {
+      if (!g.__sourceModel) g.__sourceModel = m;
+      if (!g.__componentLayer) g.__componentLayer = activeLayer;
+      eng._pendingCoarseBaseGrid = g;
+      if (typeof window !== 'undefined') {
+        const t = window.__MARINE_BRIDGE_SEED__ = window.__MARINE_BRIDGE_SEED__ || { count: 0 };
+        t.count++; t.lastFrom = from || 'fetch'; t.lastAt = new Date().toISOString();
+      }
+    }
+  } catch (e) { /* seed is best-effort */ }
+}
+
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) {
   try {
     if (!isMarineSiblingPrewarmEnabled()) return;
@@ -208,12 +229,20 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
     const m = model || 'GFS';
     const key = `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
     if (_globalGridPrewarmInFlight.has(key)) return;
-    // Already have the global-coarse cached (from a prior zoom-out or prewarm)? Nothing to do.
+    // Already have the global-coarse cached (from a prior zoom-out or prewarm)? Nothing to FETCH —
+    // but the bridge seed below must still run: the engine's coarse base can be empty even while
+    // the cache is warm (engine re-created or cleared on a layer/model switch AFTER the zoom-out
+    // that cached this frame). The old bare early-return left the zoom-out bridge BASELESS in
+    // exactly that state — the "rectangle before the heatmap expands into the next resolution"
+    // report (2026-07-06). Stage the CACHED global (zero network) before returning.
     const cached = getModelSafeMarine(m, hourOffset, activeLayer, _GLOBAL_BOUNDS);
     if (cached && cached.grid && Array.isArray(cached.grid.vectors) && cached.grid.vectors.length > 0) {
       const cb = cached.grid.bounds;
       const cw = cb ? ((cb.east < cb.west) ? (cb.east + 360) - cb.west : cb.east - cb.west) : 0;
-      if (cw >= 340) return; // a global-width frame is cached → warm
+      if (cw >= 340) {
+        _stageCoarseBridgeSeed(cached.grid, m, activeLayer, 'cache_warm');
+        return;
+      }
     }
     _globalGridPrewarmInFlight.add(key);
     // No abort signal: this is a background best-effort warm that must survive the pan/zoom which
@@ -232,15 +261,7 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
           // empty → the zoom-out bridge can't engage. Stage the prewarmed global (tagged for blend match) so
           // the ENGINE snapshots it into the bridge base at its next render (proper render-loop GL timing —
           // never do GL work in this detached callback). Kill: __RAW_DISABLE_COARSE_BRIDGE__.
-          try {
-            const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
-            if (eng && !eng._coarseBaseData && !eng._pendingCoarseBaseGrid &&
-                (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true)) {
-              if (!g.__sourceModel) g.__sourceModel = m;
-              if (!g.__componentLayer) g.__componentLayer = activeLayer;
-              eng._pendingCoarseBaseGrid = g;
-            }
-          } catch (e) { /* seed is best-effort */ }
+          _stageCoarseBridgeSeed(g, m, activeLayer);
         }
       })
       .catch(() => { /* best-effort: a cold zoom-out just falls back to the live fetch */ })

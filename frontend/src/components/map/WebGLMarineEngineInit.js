@@ -43,6 +43,20 @@ export function reinitParticles(engine, gl) {
   engine.particleStateB = initParticleTexture(gl, engine.particleRes);
 }
 
+// PARTICLE CARRY predicate (2026-07-06, Part 9 ② zoom-out ladder): particle positions live in
+// TILE/MERCATOR space (ADVECT_FS global_pos), not data-grid space, so a grid bounds/dims swap
+// does not invalidate them geographically — carrying them kills the "crests clear then rebuild
+// from the bottom" blink on every sharpen/zoom-band swap. BUT the reseed also doubles as a LAND
+// SWEEP: a particle carried from a coarse-mask era can sit over fine-mask land with ~zero field
+// velocity, and the advect shader's next-position land check never fires for a particle that
+// doesn't move (live regression 2026-07-06: "wave particles up close going over land" + resolution
+// swaps reading as stale). DEFAULT OFF until the carry gains a swap-time land cull — opt in via
+// __RAW_ENABLE_PARTICLE_CARRY__ = true for tuning. Carry requires both state textures.
+export function shouldCarryParticlesOnGridSwap(win, hasStateA, hasStateB) {
+  if (!hasStateA || !hasStateB) return false;
+  return !!(win && win.__RAW_ENABLE_PARTICLE_CARRY__ === true);
+}
+
 // Reseed the particle-state textures IN PLACE (texSubImage2D) instead of delete+realloc.
 // particleRes is constant, so the textures never change size — on a grid shift/resize we only
 // need fresh start positions, not new GPU allocations. Eliminates per-switch texture churn
