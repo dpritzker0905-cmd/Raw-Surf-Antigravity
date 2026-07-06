@@ -1,5 +1,6 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { shouldHoldClearOnDeactivate } from './marineTransitionCoordinator';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -104,8 +105,14 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       }
       if (!activeRef.current || errorCount > 3) {
         if (this._wasActive) {
-          engine.clearBuffers(_gl);
-          this._wasActive = false;
+          // TRANSITION HOLD (2026-07-06): a model/layer switch blinks activeRef false for a
+          // beat — keep the resident textures through it (see shouldHoldClearOnDeactivate);
+          // _wasActive stays true so a deactivation that OUTLIVES the transition still clears
+          // on the next frame once the flags drop.
+          if (!shouldHoldClearOnDeactivate()) {
+            engine.clearBuffers(_gl);
+            this._wasActive = false;
+          }
         }
         return;
       }

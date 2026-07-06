@@ -12,7 +12,7 @@ import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 import { getMarineParticleRes } from './deviceTier';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
-import { recordClear } from './marineTransitionCoordinator';
+import { recordClear, shouldHoldClearOnDeactivate } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
@@ -683,7 +683,11 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
     if (!engine || !gl) return;
 
     if (!active) {
-      if (engine._waveData) {
+      // TRANSITION HOLD (2026-07-06): a model/layer switch blinks `active` false during the
+      // style transition — keep the resident textures AND the upload signature through it so
+      // the reactivation refeed dup-skips instead of paying a full re-encode + particle reset
+      // (see shouldHoldClearOnDeactivate). A real toggle-off still clears here.
+      if (engine._waveData && !shouldHoldClearOnDeactivate()) {
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {

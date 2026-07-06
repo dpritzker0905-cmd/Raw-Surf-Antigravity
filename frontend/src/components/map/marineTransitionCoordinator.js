@@ -32,6 +32,29 @@ const _subs = new Set();
 
 const transitionKey = (model, layer) => `${model ?? ''}|${layer ?? ''}`;
 
+// TRANSITION-HOLD predicate (2026-07-06, "models not switching fast between GFS/EURO/ICON"):
+// a model/layer switch blinks the marine layer INACTIVE during the style transition, and both
+// clear sites (the custom layer's per-frame !activeRef edge and the React layer's !active
+// effect) threw away all resident GPU state on that blink — forcing a full re-encode plus TWO
+// particle resets per switch (clear → reactivate_refeed → data_commit). Live log: Engine-Clear
+// dozens of times and ~112 SimLoop field rebinds in one short toggling session. While the
+// coordinator (or a queued/debounced fetch) is in flight, deactivation HOLDS the residents:
+// nothing renders while inactive, and the reactivation commit replaces them anyway. A real
+// toggle-off (no transition in flight) still clears — and a held deactivation that OUTLIVES the
+// transition clears on the next frame/effect once the flags drop. Kill: __RAW_DISABLE_CLEAR_HOLD__;
+// telemetry: __MARINE_CLEAR_HELD__.
+export function shouldHoldClearOnDeactivate() {
+  if (typeof window === 'undefined') return false;
+  if (window.__RAW_DISABLE_CLEAR_HOLD__ === true) return false;
+  const hold = window.__MARINE_TRANSITIONING__ === true ||
+    !!window.__MARINE_FETCH_PENDING__ ||
+    !!window.__MARINE_FETCH_DEBOUNCING__;
+  if (hold) {
+    window.__MARINE_CLEAR_HELD__ = (window.__MARINE_CLEAR_HELD__ || 0) + 1;
+  }
+  return hold;
+}
+
 function emit() {
   // Mirror pending status to the legacy global so un-migrated readers keep working.
   if (typeof window !== 'undefined') {
