@@ -20,6 +20,7 @@ import { useMemo, useRef } from 'react';
 import { buildSimulationField } from './SimulationFieldBuilder';
 import { getFieldDiagnostics, isFieldPopulated } from './SimulationField';
 import { computeGridContentHash } from '../components/map/marineGridHash';
+import { shouldRejectResolutionDowngrade } from '../components/map/WebGLMarineEngine';
 
 
 
@@ -51,14 +52,52 @@ export function useSimulationField({
   const lastFieldRef = useRef(null);
   const lastFieldSigRef = useRef('');
 
-  const isMarineValid = marineData && 
-                        marineData.grid?.vectors && 
-                        marineData.grid.vectors.length > 0 && 
-                        marineData.__provider !== 'fallback_safe_zero' && 
-                        marineData.grid?.__provider !== 'fallback_safe_zero' && 
+  const isMarineValid = marineData &&
+                        marineData.grid?.vectors &&
+                        marineData.grid.vectors.length > 0 &&
+                        marineData.__provider !== 'fallback_safe_zero' &&
+                        marineData.grid?.__provider !== 'fallback_safe_zero' &&
                         marineData.grid?.__renderable !== false &&
                         marineData.__renderable !== false;
-  const effectiveMarineData = isMarineValid ? marineData : null;
+  let effectiveMarineData = isMarineValid ? marineData : null;
+
+  // ENGINE-PARITY NO-DOWNGRADE (2026-07-06, the z7→z5.3 zoom-out glitch): the marine ENGINE's
+  // no-downgrade guard keeps its resident regional texture and rejects a coarser same-layer/hour
+  // commit — but this hook used to bind that REJECTED grid into the SimulationLoop anyway (live
+  // log proof: "No-downgrade: kept resident regional 10×8 ... rejected coarser 37×17" immediately
+  // followed by "[SimLoop] New field bound: 37×17"). The RK4 particle field then diverges from
+  // the rendered heatmap and ping-pongs 10×8⇄37×17 through the residency band — crest motion
+  // resetting/re-orienting against an unchanged wash. Apply the SAME exported predicate (same
+  // kill switch __RAW_DISABLE_NO_DOWNGRADE__) against the last grid this hook actually bound:
+  // holding keeps effectiveMarineData IDENTICAL to the previous render, so the memo dedups and
+  // the SimLoop keeps its field — zero rebind churn. When zoom genuinely drops out of the band
+  // the predicate passes (mirroring the engine's self-heal) and the coarse grid binds normally.
+  // Telemetry: window.__MARINE_FIELD_NO_DOWNGRADE__.
+  const lastBoundMarineRef = useRef(null);
+  if (effectiveMarineData && lastBoundMarineRef.current &&
+      lastBoundMarineRef.current.grid !== effectiveMarineData.grid) {
+    try {
+      const m = typeof window !== 'undefined' ? window.map : null;
+      const z = m && typeof m.getZoom === 'function' ? m.getZoom() : null;
+      let vb = null;
+      if (m && typeof m.getBounds === 'function') {
+        const b = m.getBounds();
+        vb = [b.getWest(), b.getSouth(), b.getEast(), b.getNorth()];
+      }
+      if (typeof z === 'number' && vb &&
+          shouldRejectResolutionDowngrade(
+            lastBoundMarineRef.current.grid, effectiveMarineData.grid, z, vb,
+            typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__)) {
+        effectiveMarineData = lastBoundMarineRef.current;
+        if (typeof window !== 'undefined') {
+          const t = window.__MARINE_FIELD_NO_DOWNGRADE__ = window.__MARINE_FIELD_NO_DOWNGRADE__ || { count: 0 };
+          t.count++;
+          t.lastAt = new Date().toISOString();
+        }
+      }
+    } catch (e) { /* map unavailable — bind as before (fail open, engine's own rationale) */ }
+  }
+  if (effectiveMarineData) lastBoundMarineRef.current = effectiveMarineData;
 
   // Compute stable primitive dependency keys to bypass React object reference changes on every frame
   const windDep = windData ? `${windData.vectors?.length || 0}-${windData.bounds?.west || 0}-${windData.revision || 0}` : 'null';

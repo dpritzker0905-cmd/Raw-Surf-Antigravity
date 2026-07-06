@@ -88,7 +88,15 @@ export function isBasemapWaterSourceReady(mapInstance) {
     if (baseWater && baseWater.source) waterSource = baseWater.source;
     if (typeof mapInstance.isSourceLoaded === 'function') {
       const v = mapInstance.isSourceLoaded(waterSource);
-      return typeof v === 'boolean' ? v : true;
+      if (typeof v === 'boolean' && !v) return false;
+    }
+    // BELT-AND-BRACES (grey-rectangle class, 2026-07-06, El Salvador repro): isSourceLoaded
+    // answers for REQUESTED tiles of one source, but mid-gesture the map can still be fetching —
+    // areTilesLoaded() is the global tile-load truth. A paint that slips through here bakes
+    // missing-tile rectangles into the mask as false land, and on a WIDE-grid residency the
+    // overlay REPLACE renders that rect at every zoom until the repaint hysteresis escapes.
+    if (typeof mapInstance.areTilesLoaded === 'function' && mapInstance.areTilesLoaded() === false) {
+      return false;
     }
     return true;
   } catch (e) {
@@ -119,6 +127,12 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   // in. Falls back to the source query when the render query fails or returns nothing (patch is
   // then parent-vulnerable but never blank; the painter re-runs on map events + wave uploads).
   let feats = null;
+  // DEGRADED-PAINT tracking (grey-rectangle class, 2026-07-06): the source-query fallback is
+  // PARENT-VULNERABLE (overzoomed tiles, simplified/partial water) — the original design assumed
+  // "the painter re-runs on map events", but the repaint HYSTERESIS locks a fallback paint in
+  // like a first-class one. Report the degradation so callers stamp it and let the next refresh
+  // bypass the hysteresis (self-heal once finest tiles are queryable).
+  let usedSourceFallback = false;
   try {
     if (typeof mapInstance.queryRenderedFeatures === 'function') {
       const layerIds = (mapInstance.getStyle()?.layers || [])
@@ -128,6 +142,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   } catch (e) { feats = null; }
   if (!feats || !feats.length) {
+    usedSourceFallback = true;
     try {
       feats = mapInstance.querySourceFeatures(waterSource, { sourceLayer: waterSourceLayer });
     } catch (e) {
@@ -313,7 +328,9 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   } catch (e) { /* classifier unavailable — open-water mask stands */ }
 
-  return painted > 0;
+  // Truthy result preserves every `if (!applied)` caller; `degraded` marks a parent-vulnerable
+  // paint that must NOT be hysteresis-locked or become a patch-carry source.
+  return painted > 0 ? { painted, degraded: usedSourceFallback } : false;
 }
 
 // ── SHELTERED-WATER CLASSIFIER ──────────────────────────────────────────────────────────────────

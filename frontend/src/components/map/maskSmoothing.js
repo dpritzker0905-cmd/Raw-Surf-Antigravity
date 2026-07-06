@@ -72,6 +72,14 @@ export function applyPatchCarry(maskCanvas, dstBounds, patchState) {
     if (!maskCanvas || !dstBounds || !patchState || !patchState.canvas || !patchState.bounds || !patchState.box) {
       return false;
     }
+    // Never transplant onto WIDE/world canvases (2026-07-06, grey-rectangle hardening): world
+    // residency gets its viewport truth from the overlay REPLACE path, so a carry adds nothing
+    // visually — but it WOULD ride the world mask at every zoom if the retained box were ever
+    // bad. Regional canvases (<30°) remain the whole point of the carry.
+    const dstSpan = (dstBounds.east < dstBounds.west)
+      ? (dstBounds.east + 360) - dstBounds.west
+      : dstBounds.east - dstBounds.west;
+    if (dstSpan >= 30) return false;
     const rects = computePatchCarryRects(
       patchState.box, patchState.bounds, patchState.canvas.width, patchState.canvas.height,
       dstBounds, maskCanvas.width, maskCanvas.height

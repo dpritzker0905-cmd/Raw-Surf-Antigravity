@@ -1446,7 +1446,9 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   } catch (e) { curView = null; }
   const gridKey = `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}`;
   const rp = this._regionalPatchState;
-  if (curView && rp && rp.gridKey === gridKey && rp.box &&
+  // A DEGRADED previous paint (parent-vulnerable source-query fallback) never earns the
+  // hysteresis skip — the next refresh repaints with finest-tile truth (grey-rect self-heal).
+  if (curView && rp && !rp.degraded && rp.gridKey === gridKey && rp.box &&
       rp.box.west <= curView.west && rp.box.east >= curView.east &&
       rp.box.south <= curView.south && rp.box.north >= curView.north) {
     // Base patch still covers the view — only the deep-zoom overlay may need work.
@@ -1478,12 +1480,17 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // cover; that ring was black land = the pan/zoom "rectangle holes"). Zoom-ins inside the box
     // still skip; any pan escaping it repaints (throttled + tile-gated at the layer).
     if (curView) {
-      this._regionalPatchState = { gridKey, box: { ...curView } };
+      const degraded = !!(applied && applied.degraded);
+      this._regionalPatchState = { gridKey, box: { ...curView }, degraded };
       // PATCH CARRY-FORWARD source (2026-07-06, "bays flicker on rapid zoom"): retain the painted
       // canvas so the NEXT mask rebuild (bounds change / geojson swap) transplants this truth box
       // synchronously instead of flashing NE-only until the async repatch (see maskSmoothing.js).
-      // The canvas is a fresh renderMaskToCanvas copy — nothing else aliases it.
-      this._lastPatchedMask = { canvas, bounds: { ...bounds }, box: { ...curView } };
+      // The canvas is a fresh renderMaskToCanvas copy — nothing else aliases it. NEVER stash a
+      // DEGRADED paint (grey-rectangle class): the carry would propagate a parent-vulnerable
+      // paint into every rebuild until a good repaint replaced it.
+      if (!degraded) {
+        this._lastPatchedMask = { canvas, bounds: { ...bounds }, box: { ...curView } };
+      }
     }
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };
@@ -1559,7 +1566,11 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     // once (throttled at the layer, tile-gated below).
     const prev = this._overlayMaskBounds;
     const prevTruth = this._overlayMaskTruthBox;
-    if (prev && prevTruth && this._overlayMaskTex &&
+    // A DEGRADED previous paint (parent-vulnerable fallback) never earns the skip — this is the
+    // El Salvador grey-rectangle self-heal (2026-07-06): a bad box on a WIDE-grid residency
+    // REPLACES the base mask at every zoom and used to persist until the 5× resolution rule
+    // finally escaped (the user had to zoom extremely close). Now the next refresh repaints it.
+    if (prev && prevTruth && this._overlayMaskTex && !this._overlayPaintDegraded &&
         prevTruth.west <= view.west && prevTruth.east >= view.east &&
         prevTruth.south <= view.south && prevTruth.north >= view.north &&
         (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
@@ -1594,8 +1605,9 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     // The region the painter truth-painted from tiles = the strict viewport at paint time; the
     // canvas ring outside it holds NE base truth (sane but coarser). Hysteresis keys on this box.
     this._overlayMaskTruthBox = view;
+    this._overlayPaintDegraded = !!(applied && applied.degraded);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString(), overlay: true, bounds, truthBox: view };
+      window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString(), overlay: true, bounds, truthBox: view, degraded: this._overlayPaintDegraded };
     }
     return true;
   } catch (e) {

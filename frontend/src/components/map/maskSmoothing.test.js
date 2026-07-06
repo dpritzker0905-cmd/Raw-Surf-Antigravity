@@ -111,7 +111,8 @@ describe('applyPatchCarry', () => {
   it('draws the transplant with the exact computed rects', () => {
     const drawImage = jest.fn();
     const maskCanvas = { width: 2048, height: 1024, getContext: () => ({ drawImage }) };
-    const ok = applyPatchCarry(maskCanvas, { west: -140, south: 20, east: -100, north: 45 }, patchState());
+    // Destination span must stay <30° — wider canvases are excluded by the world-canvas guard.
+    const ok = applyPatchCarry(maskCanvas, { west: -130, south: 22, east: -105, north: 42 }, patchState());
     expect(ok).toBe(true);
     expect(drawImage).toHaveBeenCalledTimes(1);
     const args = drawImage.mock.calls[0];
@@ -134,6 +135,14 @@ describe('applyPatchCarry', () => {
       getContext: () => ({ drawImage: () => { throw new Error('boom'); } }),
     };
     expect(applyPatchCarry(maskCanvas, SOCAL, patchState())).toBe(false);
+  });
+
+  it('never transplants onto a WIDE/world canvas (grey-rectangle hardening)', () => {
+    const drawImage = jest.fn();
+    const worldCanvas = { width: 4096, height: 2048, getContext: () => ({ drawImage }) };
+    const world = { west: -180, south: -80, east: 180, north: 85 };
+    expect(applyPatchCarry(worldCanvas, world, patchState())).toBe(false);
+    expect(drawImage).not.toHaveBeenCalled();
   });
 });
 

@@ -89,7 +89,8 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
     const { ctx } = mkCtx();
     const map = mkMap({ rendered: [oceanFeat], source: [oceanFeat] });
     const ok = overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map);
-    expect(ok).toBe(true);
+    expect(ok).toBeTruthy();
+    expect(ok.degraded).toBe(false); // finest-tile paint — first-class, hysteresis may lock it
     expect(map.queryRenderedFeatures).toHaveBeenCalledWith({ layers: ['water'] });
     // WATER polygons must never come from the all-levels source query (the wetland pass may
     // source-query landuse_overlay/landcover — painting land black is parent-tile-safe).
@@ -100,7 +101,8 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
     const { ctx } = mkCtx();
     const map = mkMap({ rendered: [], source: [oceanFeat] });
     const ok = overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map);
-    expect(ok).toBe(true);
+    expect(ok).toBeTruthy();
+    expect(ok.degraded).toBe(true); // parent-vulnerable fallback — must NOT be hysteresis-locked
     expect(map.querySourceFeatures).toHaveBeenCalledWith('composite', { sourceLayer: 'water' });
   });
 
@@ -108,7 +110,9 @@ describe('overlayBasemapWaterOnMask — finest-tile truth (the Lido gap-island, 
     const { ctx } = mkCtx();
     const map = mkMap({ rendered: [], source: [oceanFeat] });
     map.queryRenderedFeatures = jest.fn(() => { throw new Error('style not loaded'); });
-    expect(overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map)).toBe(true);
+    const ok = overlayBasemapWaterOnMask(mkCanvas(ctx), bounds, map);
+    expect(ok).toBeTruthy();
+    expect(ok.degraded).toBe(true); // fallback path — marked degraded
     expect(map.querySourceFeatures).toHaveBeenCalled();
   });
 
@@ -149,7 +153,7 @@ describe('overlayBasemapWaterOnMask — STRICT-viewport truth region (the "recta
   it('black-fills EXACTLY the strict viewport — no pad ring beyond tile-query coverage', () => {
     const { ctx, calls } = mkCtx();
     const ok = overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, mkMap());
-    expect(ok).toBe(true);
+    expect(ok).toBeTruthy();
     const project = makeMaskProjector(bounds, 256, 128);
     const [ex0, ey0] = project(viewport.west, viewport.north);
     const [ex1, ey1] = project(viewport.east, viewport.south);
@@ -237,7 +241,7 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     const { ctx, calls } = mkCtx();
     const map = mkMap();
     const ok = overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map);
-    expect(ok).toBe(true);
+    expect(ok).toBeTruthy();
     expect(map.querySourceFeatures).toHaveBeenCalledWith('composite', { sourceLayer: 'landuse_overlay' });
     expect(map.querySourceFeatures).toHaveBeenCalledWith('composite', { sourceLayer: 'landcover' });
     const fills = calls.filter(([m]) => m === 'fill');
@@ -253,7 +257,7 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     const { ctx, calls } = mkCtx();
     const map = mkMap();
     map.querySourceFeatures = jest.fn(() => []);
-    expect(overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map)).toBe(true);
+    expect(overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map)).toBeTruthy();
     const fills = calls.filter(([m]) => m === 'fill');
     expect(fills.filter(([, s]) => s === '#000000').length).toBe(0); // nothing painted black beyond hole pass
   });
