@@ -49,12 +49,22 @@ function releaseAbandonedFetch(inFlight, controller, site, activeSource, source)
 // the watchdog acts. Kept short for fast recovery; govIdle prevents false positives.
 export const MARINE_FETCH_LEASE_MS = 4000;
 
-// HARD lease: a lock held this long is PROVABLY dead — no real marine fetch runs ~25s. The govIdle guard below
-// trusts the governor to flag a live fetch, but a stranded fetch can leave the governor's in-flight counters set
-// TOO (its decrement skipped alongside locks.isFetching), so govIdle stays false forever and the lock wedges
-// PERMANENTLY (forensically observed: grid stuck on a stale tile while panning, governor never clearing). Past the
-// hard lease we heal REGARDLESS of govIdle, so a doubly-stranded (lock + governor) wedge can still self-recover.
+// HARD lease: a lock held this long is treated as dead UNLESS the in-flight registry proves otherwise. The
+// govIdle guard below trusts the governor to flag a live fetch, but a stranded fetch can leave the governor's
+// in-flight counters set TOO (its decrement skipped alongside locks.isFetching), so govIdle stays false forever
+// and the lock wedges PERMANENTLY (forensically observed: grid stuck on a stale tile while panning, governor
+// never clearing). Past the hard lease we heal regardless of govIdle, so a doubly-stranded (lock + governor)
+// wedge can still self-recover.
 export const MARINE_FETCH_HARD_LEASE_MS = 25000;
+
+// LIVE-FETCH CEILING (2026-07-06, the post-deploy abort loop): "held >25s" is NOT "provably dead" on a
+// cold-restoring backend — a real EURO 48-frame grid_series measured 40.7s live. The hard-lease heal
+// aborted that live fetch, the recovery refetch hit the same wall, and the loop cycled forever
+// (requestId 40→45 in one console capture; heatmaps starved of every commit). When the in-flight
+// registry still shows OUR controller as the live foreground entry, extend the lease to this absolute
+// ceiling instead; a zombie hang (entry never deleted, fetch never settles) still heals here. True
+// strands (no entry / different controller) keep healing at the hard lease exactly as before.
+export const MARINE_FETCH_LIVE_CEILING_MS = 120000;
 
 /**
  * Stale-lock watchdog. A superseded marine fetch can strand locks.isFetching=true +
@@ -63,9 +73,11 @@ export const MARINE_FETCH_HARD_LEASE_MS = 25000;
  * The same-target dedup below then trusts the dead-but-not-aborted abortControllerRef and skips
  * EVERY recovery fetch → the heatmap wedges blank forever until a scrub/pan releases the lock
  * (the "sometimes the heatmap won't load / won't track the scrub" + "clears after toggling" churn,
- * reproduced live on dev). This releases the lock ONLY when it's provably dead — held past the
- * lease AND the governor shows no active marine fetch (so we never abort a real slow request) —
- * letting the caller fall through to a fresh fetch. Returns true if it healed a stranded lock.
+ * reproduced live on dev). This releases the lock ONLY when it's dead by every available signal —
+ * held past the lease, the governor shows no active marine fetch, and the in-flight registry has no
+ * live foreground entry for our controller (a live entry extends the lease to the absolute ceiling,
+ * so a slow cold-backend fetch is never aborted) — letting the caller fall through to a fresh fetch.
+ * Returns true if it healed a stranded lock.
  */
 export function releaseStaleMarineLock(locks, abortControllerRef, inFlight = null) {
   if (!locks || !locks.isFetching) return false;
@@ -73,7 +85,7 @@ export function releaseStaleMarineLock(locks, abortControllerRef, inFlight = nul
   if (!startedAt) return false;
   const heldMs = Date.now() - startedAt;
   if (heldMs <= MARINE_FETCH_LEASE_MS) return false;
-  // Past the HARD lease the fetch is provably dead — heal even if the governor (which can strand too) still
+  // Past the HARD lease the lock is treated as dead — heal even if the governor (which can strand too) still
   // shows it active, otherwise the wedge is permanent. Under the hard lease keep deferring to govIdle so we
   // never abort a real slow request.
   const provablyDead = heldMs > MARINE_FETCH_HARD_LEASE_MS;
@@ -84,11 +96,25 @@ export function releaseStaleMarineLock(locks, abortControllerRef, inFlight = nul
   // fetch lock released… → Grid fetch error: signal is aborted" cycling every ~4.5s). The in-flight
   // REGISTRY does track these: a FOREGROUND entry whose controller is the current, un-aborted one is
   // a live fetch — never a stranded lock (any completion path deletes the entry in complete()).
-  if (!provablyDead && inFlight && typeof inFlight.find === 'function') {
+  // Past the hard lease the SAME live-entry signal extends the lease to MARINE_FETCH_LIVE_CEILING_MS
+  // (2026-07-06: the 25s heal was murdering live 40s cold-backend series fetches in an endless
+  // abort/refetch loop). Kill: __RAW_DISABLE_LOCK_LIVE_EXTEND__. Telemetry: __MARINE_LOCK_LIVE_EXTENDED__.
+  if (inFlight && typeof inFlight.find === 'function') {
     const ctrl = abortControllerRef?.current;
     if (ctrl && !ctrl.signal?.aborted && ctrl.__intent) {
       const entry = inFlight.find(ctrl.__intent);
-      if (entry && entry.state === 'foreground' && entry.controller === ctrl) return false;
+      if (entry && entry.state === 'foreground' && entry.controller === ctrl) {
+        if (!provablyDead) return false;
+        const extendDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_LOCK_LIVE_EXTEND__;
+        if (!extendDisabled && heldMs <= MARINE_FETCH_LIVE_CEILING_MS) {
+          if (typeof window !== 'undefined') {
+            const t = window.__MARINE_LOCK_LIVE_EXTENDED__ = window.__MARINE_LOCK_LIVE_EXTENDED__ || { count: 0 };
+            t.count++; t.lastHeldMs = heldMs; t.lastAt = new Date().toISOString();
+          }
+          recordChurn('stale_lock_live_extend', { heldMs });
+          return false;
+        }
+      }
     }
   }
   let govIdle = true;

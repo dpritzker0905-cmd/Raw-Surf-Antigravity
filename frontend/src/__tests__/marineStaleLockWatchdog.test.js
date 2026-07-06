@@ -1,4 +1,4 @@
-import { releaseStaleMarineLock, MARINE_FETCH_LEASE_MS, MARINE_FETCH_HARD_LEASE_MS } from '../components/map/useMarineDataFetcherCore';
+import { releaseStaleMarineLock, MARINE_FETCH_LEASE_MS, MARINE_FETCH_HARD_LEASE_MS, MARINE_FETCH_LIVE_CEILING_MS } from '../components/map/useMarineDataFetcherCore';
 
 // Watchdog that heals the stranded marine fetch-lock wedge (see marine-stranded-fetch-lock-wedge):
 // a superseded fetch can leave locks.isFetching=true forever, and the same-target dedup then skips
@@ -19,6 +19,7 @@ describe('releaseStaleMarineLock (stranded fetch-lock watchdog)', () => {
       window.__MARINE_GOVERNOR_STATE__ = realGov;
       window.__MARINE_FETCH_PENDING__ = undefined;
       window.__MARINE_FETCH_DEBOUNCING__ = undefined;
+      window.__MARINE_LOCK_LIVE_EXTENDED__ = undefined;
     }
   });
 
@@ -84,15 +85,43 @@ describe('releaseStaleMarineLock (stranded fetch-lock watchdog)', () => {
     expect(ctrl.signal.aborted).toBe(false);
   });
 
-  it('still heals past the HARD lease even with a live-looking registry entry (bounded hang recovery)', () => {
+  it('EXTENDS the lease past the HARD lease when the registry entry is live (2026-07-06 abort-loop fix: a real cold-backend series fetch measured 40.7s — killing it at 25s looped forever)', () => {
     window.__MARINE_GOVERNOR_STATE__ = idleGov();
     const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_HARD_LEASE_MS + 1000), activeSource: 'manual' };
+    const ctrl = makeController();
+    ctrl.__intent = { model: 'EURO', rawModel: 'EURO', layer: 'waves', hour: 0, boundsKey: 'k' };
+    const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: ctrl, intent }) };
+    expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(false);
+    expect(locks.isFetching).toBe(true);   // live slow fetch keeps running
+    expect(ctrl.signal.aborted).toBe(false);
+    expect(window.__MARINE_LOCK_LIVE_EXTENDED__ && window.__MARINE_LOCK_LIVE_EXTENDED__.count).toBeGreaterThan(0);
+  });
+
+  it('still heals past the ABSOLUTE ceiling even with a live-looking registry entry (bounded zombie-hang recovery)', () => {
+    window.__MARINE_GOVERNOR_STATE__ = idleGov();
+    const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_LIVE_CEILING_MS + 1000), activeSource: 'manual' };
     const ctrl = makeController();
     ctrl.__intent = { model: 'GFS', rawModel: 'GFS', layer: 'waves', hour: 0, boundsKey: 'k' };
     const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: ctrl, intent }) };
     expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(true);
     expect(locks.isFetching).toBe(false);
     expect(ctrl.signal.aborted).toBe(true);
+  });
+
+  it('kill switch __RAW_DISABLE_LOCK_LIVE_EXTEND__ restores the old hard-lease heal for a live entry', () => {
+    window.__MARINE_GOVERNOR_STATE__ = idleGov();
+    window.__RAW_DISABLE_LOCK_LIVE_EXTEND__ = true;
+    try {
+      const locks = { isFetching: true, fetchStartedAt: Date.now() - (MARINE_FETCH_HARD_LEASE_MS + 1000), activeSource: 'manual' };
+      const ctrl = makeController();
+      ctrl.__intent = { model: 'GFS', rawModel: 'GFS', layer: 'waves', hour: 0, boundsKey: 'k' };
+      const inFlight = { find: (intent) => ({ key: 'k', state: 'foreground', controller: ctrl, intent }) };
+      expect(releaseStaleMarineLock(locks, { current: ctrl }, inFlight)).toBe(true);
+      expect(locks.isFetching).toBe(false);
+      expect(ctrl.signal.aborted).toBe(true);
+    } finally {
+      delete window.__RAW_DISABLE_LOCK_LIVE_EXTEND__;
+    }
   });
 
   it('heals when the registry entry belongs to a DIFFERENT controller (the lock really is stranded)', () => {
