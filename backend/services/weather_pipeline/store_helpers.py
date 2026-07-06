@@ -274,10 +274,35 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
 
     logger.info("[Product Store] Starting L2 restore from Supabase Storage...")
 
-    # Step 1: Download manifest
+    # Step 1: Download manifest — CACHE-BUSTED (2026-07-06, the stale-manifest root): the client
+    # .download() hit Supabase's CDN, whose edges held manifest.json copies up to an HOUR stale
+    # (upload-time max-age 3600) and inconsistently — the serve box's periodic restore oscillated
+    # between manifest versions and the rebuilt EURO estimated tail vanished from serving after
+    # briefly appearing. A unique query param bypasses every edge copy; request no-cache headers
+    # are belt-and-braces. Falls back to the plain client download on any failure.
     manifest_data = None
     try:
-        manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
+        manifest_bytes = None
+        try:
+            import requests
+            from services.weather_pipeline.store import manifest_download_url
+            base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+            key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+            if base and key:
+                resp = requests.get(
+                    manifest_download_url(base, WEATHER_BUCKET),
+                    headers={"Authorization": f"Bearer {key}", "apikey": key,
+                             "Cache-Control": "no-cache", "Pragma": "no-cache"},
+                    timeout=30,
+                )
+                if resp.status_code == 200:
+                    manifest_bytes = resp.content
+                else:
+                    logger.warning(f"[Product Store] Cache-busted manifest GET -> HTTP {resp.status_code}; falling back to client download")
+        except Exception as cb_err:
+            logger.warning(f"[Product Store] Cache-busted manifest GET failed ({cb_err}); falling back to client download")
+        if manifest_bytes is None:
+            manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
         if manifest_bytes:
             manifest_data = json.loads(manifest_bytes.decode("utf-8"))
             logger.info(f"[Product Store] Downloaded manifest from L2 ({len(manifest_data.get('products', []))} entries)")

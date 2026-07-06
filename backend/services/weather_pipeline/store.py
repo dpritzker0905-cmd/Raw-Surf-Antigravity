@@ -16,6 +16,20 @@ from services.weather_pipeline.copernicus_validator import is_test_environment
 
 # ── Supabase Storage L2 persistence ──────────────────────────────────────
 WEATHER_BUCKET = "weather-products"
+
+
+def manifest_cache_control(filename: str) -> str:
+    """Upload cache-control (seconds → CDN max-age): '0' for the hot-mutating manifest so every
+    edge revalidates; 3600 for immutable-per-filename products (valid_time in the name)."""
+    return "0" if filename == "manifest.json" else "3600"
+
+
+def manifest_download_url(base: str, bucket: str) -> str:
+    """Cache-busted manifest GET URL: a unique query param defeats any CDN edge copy uploaded
+    under the OLD max-age=3600 policy (objects keep their upload-time headers until re-uploaded,
+    so download-side busting is required for the transition — and is harmless forever after)."""
+    import time as _time
+    return f"{base}/storage/v1/object/{bucket}/manifest.json?cb={int(_time.time() * 1000)}"
 _supabase_client = None
 _bucket_created_checked = False
 _bucket_lock = threading.Lock()
@@ -137,7 +151,14 @@ class ProductStore:
                 "apikey": key,
                 "Content-Type": "application/json",
                 "x-upsert": "true",
-                "cache-control": "3600",
+                # CDN cache policy (2026-07-06, the stale-manifest root): manifest.json mutates
+                # every few minutes but was uploaded with max-age 3600 — Supabase's CDN edges
+                # served the serve-box periodic L2 restore copies up to an HOUR stale and
+                # INCONSISTENTLY (live: restore counts oscillated 6218→6210→6338→6211; the
+                # rebuilt EURO estimated tail appeared at the 05:37Z pull and VANISHED at
+                # 06:07Z). Products are immutable-per-filename (valid_time in the name) so
+                # caching them hard is right; the manifest must always revalidate.
+                "cache-control": manifest_cache_control(filename),
             }
             resp = requests.post(url, headers=headers, data=data_bytes, timeout=30)
             if resp.status_code not in (200, 201):
