@@ -1479,6 +1479,11 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // still skip; any pan escaping it repaints (throttled + tile-gated at the layer).
     if (curView) {
       this._regionalPatchState = { gridKey, box: { ...curView } };
+      // PATCH CARRY-FORWARD source (2026-07-06, "bays flicker on rapid zoom"): retain the painted
+      // canvas so the NEXT mask rebuild (bounds change / geojson swap) transplants this truth box
+      // synchronously instead of flashing NE-only until the async repatch (see maskSmoothing.js).
+      // The canvas is a fresh renderMaskToCanvas copy — nothing else aliases it.
+      this._lastPatchedMask = { canvas, bounds: { ...bounds }, box: { ...curView } };
     }
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.basemapWaterMask = { applied: true, at: new Date().toISOString() };

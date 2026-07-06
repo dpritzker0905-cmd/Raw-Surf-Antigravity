@@ -1,5 +1,6 @@
 import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
 import { renderMaskToCanvas } from './WebGLMarineMaskRenderer';
+import { applyPatchCarry } from './maskSmoothing';
 import {
   createShader,
   createProgram,
@@ -931,6 +932,18 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         }
         try {
           const maskCanvas = renderMaskToCanvas(effectiveGeoJSON, bounds);
+          // PATCH CARRY-FORWARD (2026-07-06, "bays flicker on rapid zoom"): a rebuild paints
+          // NE-only truth and the basemap-water repatch is async (throttled + tile-gated —
+          // legitimately blocked mid-gesture), so bays/piers flash wrong for a beat on every
+          // bounds-changing commit. Transplant the last painted truth box into this canvas NOW
+          // (geometrically exact — see maskSmoothing.js); the async repaint still follows with
+          // fresher truth. Kill: window.__RAW_DISABLE_MASK_PATCH_CARRY__ = true.
+          if (engine && bounds &&
+              !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_PATCH_CARRY__ === true) &&
+              applyPatchCarry(maskCanvas, bounds, engine._lastPatchedMask) &&
+              typeof window !== 'undefined') {
+            window.__RAW_MASK_PATCH_CARRY__ = (window.__RAW_MASK_PATCH_CARRY__ || 0) + 1;
+          }
           const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
           const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
           maskTex = gl.createTexture();

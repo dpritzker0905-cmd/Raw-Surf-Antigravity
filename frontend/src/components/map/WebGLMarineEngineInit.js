@@ -249,6 +249,7 @@ export function disposeEngine(engine, gl) {
   engine._overlayMaskTex = null;
   engine._overlayMaskBounds = null;
   engine._cachedMaskGeoJSON = null;
+  engine._lastPatchedMask = null;
   engine._landGeoJSON = null;
   engine._initialized = false;
   console.log('[WebGLMarine] Engine Disposed');

@@ -15,6 +15,7 @@ import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from '
 import { recordClear } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
+import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
@@ -454,7 +455,9 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
   // barrier islands while the regional 13×13 tile was (correctly) resident. The regional mask canvas is now
   // 2048×1024 (WebGLMarineMaskRenderer), fine enough for the 10m polygons to pay off from z8. Kill switch
   // unchanged: window.__MARINE_HIRES_MASK__=false.
-  const HIRES_MASK_MIN_ZOOM = 8;
+  // HYSTERESIS (2026-07-06, rapid-zoom churn): enter hires at z≥8, exit below z7.3 — a single
+  // threshold fired a full land_mask_res_swap re-upload per gesture when zoom cycling straddled
+  // z8 (see desiredMaskRes in maskSmoothing.js).
   useEffect(() => {
     if (!mapInstance) return;
 
@@ -476,17 +479,18 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
       const hiresAllowed = typeof window === 'undefined' || window.__MARINE_HIRES_MASK__ !== false;
       let z;
       try { z = mapInstance.getZoom(); } catch (e) { return; }
-      const desired = (hiresAllowed && z >= HIRES_MASK_MIN_ZOOM) ? 'hires' : 'standard';
+      const desired = desiredMaskRes(z, maskResRef.current, hiresAllowed);
       if (desired === maskResRef.current) return;
 
       if (desired === 'hires') {
         getSharedLandGeoJSONHiRes()
           .then(geojson => {
             if (!geojson) return;
-            // The 10m fetch can be slow (~18 MB on first load) — re-check the user is still zoomed in.
+            // The 10m fetch can be slow (~18 MB on first load) — re-check the user is still zoomed in
+            // (EXIT threshold: while the fetch ran we were logically in hires; only a real exit reverts).
             let zNow;
             try { zNow = mapInstance.getZoom(); } catch (e) { return; }
-            if (window.__MARINE_HIRES_MASK__ === false || zNow < HIRES_MASK_MIN_ZOOM) return;
+            if (window.__MARINE_HIRES_MASK__ === false || zNow < HIRES_MASK_EXIT_ZOOM) return;
             if (!activeRef.current) return;
             maskResRef.current = 'hires';
             reuploadMask(geojson);
