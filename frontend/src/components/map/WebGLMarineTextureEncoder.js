@@ -922,7 +922,16 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN_UPGRADE_GUARD__ === true) ||
           !engine._cachedMaskTexDims || !engine._cachedMaskBounds ||
           maskDensityPxPerDeg(engine._cachedMaskTexDims, engine._cachedMaskBounds) >=
-            incomingMaskDensityPxPerDeg(bounds) * 0.75
+            incomingMaskDensityPxPerDeg(bounds) * 0.75 ||
+          // CLOSE-ZOOM CARVE-OUT (2026-07-06 same-day regression, "heatmap covering land at close
+          // zoom"): a forced rebuild here is NE-coastline-ONLY — the basemap-water patch that
+          // carves intracoastal/waterfront land is async and tile-gated (legitimately blocked
+          // mid-gesture), so at close zoom the upgrade rebuild showed waves over fine-grained
+          // land until the repaint. NE truth is only adequate at the mid/wide tiers (the halo
+          // class this guard exists for), so the forced rebuild requires incoming span ≥ 8°;
+          // closer commits retain the patched resident as before — the next source-ready commit
+          // rebuilds crisp AND patched (the pre-guard behavior the user verified as self-fixing).
+          (bounds ? ((bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west) : 360) < 8
         )
       ) {
         maskTex = engine._cachedMaskTex;

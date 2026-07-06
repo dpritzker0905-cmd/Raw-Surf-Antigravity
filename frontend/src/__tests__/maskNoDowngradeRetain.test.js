@@ -73,4 +73,13 @@ describe('src-not-ready retain upgrade guard density math', () => {
     const incomingMid = incomingMaskDensityPxPerDeg({ west: -90, south: 20, east: -74, north: 36 }); // 128 px/°
     expect(resident).toBeGreaterThanOrEqual(incomingMid * UPGRADE_GUARD_FACTOR); // → retain
   });
+
+  it('CLOSE-ZOOM CARVE-OUT: incoming span < 8° always retains — a forced rebuild there is NE-only (basemap land patch async/tile-gated) and showed waves over intracoastal land (same-day regression)', () => {
+    // The guard's forced rebuild is scoped to mid/wide tiers (span ≥ 8°) where NE truth is
+    // adequate; the halo class it fixes IS a mid-tier rebuild, so the fix is preserved.
+    const closeSpan = ((b) => (b.east < b.west ? b.east + 360 : b.east) - b.west)({ west: -80.6, south: 26.1, east: -79.5, north: 27.2 });
+    expect(closeSpan).toBeLessThan(8); // → retain (patched resident holds until a src-ready commit)
+    const midSpan = ((b) => (b.east < b.west ? b.east + 360 : b.east) - b.west)({ west: -90, south: 20, east: -74, north: 36 });
+    expect(midSpan).toBeGreaterThanOrEqual(8); // → the halo-class forced rebuild still fires
+  });
 });
