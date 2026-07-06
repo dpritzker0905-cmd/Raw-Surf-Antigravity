@@ -25,19 +25,39 @@ export const RADAR_FORECAST_CAP_MIN = { EURO: 120, GFS: 240, ICON: 120 };
 // readable; IEM's refp WMS layers are hourly.
 export const RADAR_FORECAST_STEP_MIN = { EURO: 30, GFS: 60, ICON: 30 };
 
-// PER-MODEL FEEDS (2026-07-06, "GFS and ICON look exactly the same — they should be different"):
-// each model rides its own agency-lineage radar-forecast product —
-//   GFS  → IEM HRRR simulated reflectivity (NOAA, CONUS, +4h)
-//   ICON → DWD WN-product (radar composite WITH prediction — DWD is ICON's home agency; EU, +2h)
-//   EURO → DWD RV-product (RADVOR quantitative precip forecast — a DISTINCT product; EU, +2h)
-export const RADAR_FORECAST_SOURCE = { GFS: 'iem_hrrr', ICON: 'dwd_wn', EURO: 'dwd_rv' };
+// REGION-AWARE PER-MODEL FEEDS (2026-07-06 v2 — "EURO/ICON radar clears past the nowcast": the
+// v1 model→feed map sent EURO/ICON to DWD everywhere, but DWD covers GERMANY/EU only — a CONUS
+// viewport got transparent tiles, reading as "clears". Radar-forecast feeds are REGIONAL by
+// nature, so the feed follows the VIEWPORT and the model differentiation applies within the
+// region's available products:
+//   CONUS (IEM HRRR, +4h): ALL models ride HRRR — the only public forecast-radar feed there.
+//   EU    (DWD, +2h):      EURO → RV-product (RADVOR QPF), GFS/ICON → WN-product (prediction
+//                          composite) — distinct products where multiple feeds exist.
+//   elsewhere:             no feed → no future frames (truthful; past stays RainViewer-global).
+export function radarRegionForCenter(lng, lat) {
+  if (typeof lng !== 'number' || typeof lat !== 'number' || !isFinite(lng) || !isFinite(lat)) return 'NONE';
+  if (lng >= -126 && lng <= -66 && lat >= 23 && lat <= 51) return 'CONUS';
+  if (lng >= 2 && lng <= 18 && lat >= 44 && lat <= 57) return 'EU';
+  return 'NONE';
+}
 
-export function radarFutureFramesForModel(model, nowMs = Date.now(), win) {
+export function radarForecastSourceFor(model, region) {
+  const m = (model || 'GFS').toUpperCase();
+  if (region === 'CONUS') return 'iem_hrrr';
+  if (region === 'EU') return m === 'EURO' ? 'dwd_rv' : 'dwd_wn';
+  return null;
+}
+
+const SOURCE_CAP_MIN = { iem_hrrr: 240, dwd_wn: 120, dwd_rv: 120 };
+const SOURCE_STEP_MIN = { iem_hrrr: 60, dwd_wn: 30, dwd_rv: 30 };
+
+export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS') {
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RADAR_FUTURE_DISABLED__ === true) return [];
-  const m = (model || 'GFS').toUpperCase();
-  const cap = RADAR_FORECAST_CAP_MIN[m] ?? RADAR_FORECAST_CAP_MIN.GFS;
-  const step = RADAR_FORECAST_STEP_MIN[m] ?? RADAR_FORECAST_STEP_MIN.GFS;
+  const source = radarForecastSourceFor(model, region);
+  if (!source) return [];
+  const cap = SOURCE_CAP_MIN[source];
+  const step = SOURCE_STEP_MIN[source];
   const frames = [];
   for (let min = step; min <= cap; min += step) {
     frames.push({
@@ -45,7 +65,7 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win) {
       minutes: min,
       // unix seconds, matching RainViewer past-frame shape (frame.time) for any UI that reads it
       time: Math.floor(nowMs / 1000) + min * 60,
-      source: RADAR_FORECAST_SOURCE[m] ?? RADAR_FORECAST_SOURCE.GFS,
+      source,
     });
   }
   return frames;

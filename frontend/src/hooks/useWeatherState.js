@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
-import { radarFutureFramesForModel } from '../components/map/radarForecastSources';
+import { radarFutureFramesForModel, radarRegionForCenter } from '../components/map/radarForecastSources';
 import logger from '../utils/logger';
 
 /**
@@ -78,13 +78,35 @@ export function useWeatherState({ user }) {
     return () => { disposed = true; clearInterval(refresh); };
   }, []);
 
+  // RADAR REGION (2026-07-06 v2): forecast-radar feeds are REGIONAL (HRRR = CONUS, DWD = EU) —
+  // the feed must follow the VIEWPORT or out-of-footprint tiles render transparent ("clears past
+  // the nowcast", the Florida-on-EURO report). Tracked with a light 2s poll of the map center
+  // while the radar layer is active; state only changes on region-label transitions (continental
+  // pans), so re-renders are rare.
+  const [radarRegion, setRadarRegion] = useState('CONUS');
+  useEffect(() => {
+    if (!activeLayers.includes('radar')) return;
+    const tick = () => {
+      try {
+        const c = window.__MAP_INSTANCE__ && window.__MAP_INSTANCE__.getCenter && window.__MAP_INSTANCE__.getCenter();
+        if (c) {
+          const r = radarRegionForCenter(c.lng, c.lat);
+          setRadarRegion(prev => (prev === r ? prev : r));
+        }
+      } catch (e) { /* map not ready — keep the last region */ }
+    };
+    tick();
+    const id = setInterval(tick, 2000);
+    return () => clearInterval(id);
+  }, [activeLayers]);
+
   // RADAR FORECAST FRAMES (2026-07-06): RainViewer's nowcast is gone, so the timeline extends
-  // into the future via model-aware forecast feeds (EURO → DWD WN +2h; GFS/ICON → IEM HRRR +4h;
-  // see radarForecastSources.js). Same exported name — consumers see one longer frame list with
-  // the "now" frame still at radarPastFrames.length - 1. Kill: __RAW_RADAR_FUTURE_DISABLED__.
+  // into the future via region+model-aware forecast feeds (see radarForecastSources.js). Same
+  // exported name — consumers see one longer frame list with the "now" frame still at
+  // radarPastFrames.length - 1. Kill: __RAW_RADAR_FUTURE_DISABLED__.
   const radarFrames = useMemo(
-    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel)],
-    [radarPastFrames, activeModel]
+    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel, Date.now(), undefined, radarRegion)],
+    [radarPastFrames, activeModel, radarRegion]
   );
 
   // Model switches can shorten the composed list — keep the index in range.

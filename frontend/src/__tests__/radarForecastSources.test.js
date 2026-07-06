@@ -1,7 +1,8 @@
 import {
   radarFutureFramesForModel,
   radarForecastTileUrl,
-  RADAR_FORECAST_CAP_MIN,
+  radarRegionForCenter,
+  radarForecastSourceFor,
 } from '../components/map/radarForecastSources';
 
 // 2026-07-06: RainViewer's nowcast is discontinued — the radar timeline extends into the future
@@ -10,38 +11,41 @@ import {
 describe('radarFutureFramesForModel', () => {
   const now = Date.UTC(2026, 6, 6, 12, 0, 0);
 
-  it('EURO: DWD RV (RADVOR) frames every 30 min to +120', () => {
-    const f = radarFutureFramesForModel('EURO', now, {});
-    expect(f.map(x => x.minutes)).toEqual([30, 60, 90, 120]);
-    expect(f.every(x => x.future && x.source === 'dwd_rv')).toBe(true);
-    expect(f[0].time).toBe(Math.floor(now / 1000) + 30 * 60);
+  it('CONUS: ALL models ride HRRR (+4h hourly) — the only forecast-radar feed there (v2: the FL-on-EURO "clears past nowcast" fix)', () => {
+    for (const m of ['GFS', 'ICON', 'EURO']) {
+      const f = radarFutureFramesForModel(m, now, {}, 'CONUS');
+      expect(f.map(x => x.minutes)).toEqual([60, 120, 180, 240]);
+      expect(f.every(x => x.future && x.source === 'iem_hrrr')).toBe(true);
+    }
   });
 
-  it('ICON: DWD WN (prediction composite) frames every 30 min to +120 — DISTINCT from GFS', () => {
-    const f = radarFutureFramesForModel('ICON', now, {});
-    expect(f.map(x => x.minutes)).toEqual([30, 60, 90, 120]);
-    expect(f.every(x => x.source === 'dwd_wn')).toBe(true);
+  it('EU: EURO → DWD RV, GFS/ICON → DWD WN (+2h, 30-min frames) — differentiation where feeds overlap', () => {
+    const euro = radarFutureFramesForModel('EURO', now, {}, 'EU');
+    expect(euro.map(x => x.minutes)).toEqual([30, 60, 90, 120]);
+    expect(euro.every(x => x.source === 'dwd_rv')).toBe(true);
+    expect(euro[0].time).toBe(Math.floor(now / 1000) + 30 * 60);
+    for (const m of ['GFS', 'ICON']) {
+      expect(radarFutureFramesForModel(m, now, {}, 'EU').every(x => x.source === 'dwd_wn')).toBe(true);
+    }
   });
 
-  it('GFS: HRRR frames every 60 min to +240', () => {
-    const f = radarFutureFramesForModel('GFS', now, {});
-    expect(f.map(x => x.minutes)).toEqual([60, 120, 180, 240]);
-    expect(f.every(x => x.source === 'iem_hrrr')).toBe(true);
+  it('outside both footprints: no future frames (truthful — past stays RainViewer-global)', () => {
+    expect(radarFutureFramesForModel('EURO', now, {}, 'NONE')).toEqual([]);
+    expect(radarForecastSourceFor('GFS', 'NONE')).toBeNull();
   });
 
-  it('all three models ride DIFFERENT feeds (2026-07-06 "GFS and ICON look the same" fix)', () => {
-    const srcs = ['GFS', 'ICON', 'EURO'].map(m => radarFutureFramesForModel(m, now, {})[0].source);
-    expect(new Set(srcs).size).toBe(3);
+  it('kill switch empties the future everywhere', () => {
+    expect(radarFutureFramesForModel('EURO', now, { __RAW_RADAR_FUTURE_DISABLED__: true }, 'EU')).toEqual([]);
   });
+});
 
-  it('unknown model falls back to the GFS feed; kill switch empties the future', () => {
-    expect(radarFutureFramesForModel(undefined, now, {}).length).toBe(4);
-    expect(radarFutureFramesForModel('EURO', now, { __RAW_RADAR_FUTURE_DISABLED__: true })).toEqual([]);
-  });
-
-  it('caps match the feeds (DWD 120 / HRRR 240)', () => {
-    expect(RADAR_FORECAST_CAP_MIN.EURO).toBe(120);
-    expect(RADAR_FORECAST_CAP_MIN.GFS).toBe(240);
+describe('radarRegionForCenter', () => {
+  it('classifies CONUS, EU (DWD footprint), and elsewhere', () => {
+    expect(radarRegionForCenter(-80.6, 28.3)).toBe('CONUS');   // Florida
+    expect(radarRegionForCenter(-118.5, 33.9)).toBe('CONUS');  // socal
+    expect(radarRegionForCenter(9.9, 51.3)).toBe('EU');        // Germany
+    expect(radarRegionForCenter(153.5, -28.2)).toBe('NONE');   // Australia
+    expect(radarRegionForCenter(undefined, 28)).toBe('NONE');  // degenerate
   });
 });
 
