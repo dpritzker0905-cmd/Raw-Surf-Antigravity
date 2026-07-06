@@ -42,6 +42,24 @@ def _frame_rating_mode(grid) -> bool:
 # per-hour flow for missing hours.
 PER_HOUR_TIMEOUT = 10.0
 OVERALL_DEADLINE = 35.0
+# COLD-START budget (2026-07-06, chip task_e618f9ff): during the post-deploy L2 restore, product
+# loads block on Supabase downloads and the 10s cap expired EVERY hour — the first mid-tier series
+# after a restart returned frame_count:0 and the client treated it as no-coverage until the next
+# gesture. While the restore is in flight each hour gets this budget instead (OVERALL_DEADLINE
+# still bounds the series well under the client's 45s fetch timeout).
+PER_HOUR_TIMEOUT_COLD = 25.0
+
+
+def _restore_in_progress() -> bool:
+    try:
+        from services.weather_pipeline.store import ProductStore
+        return bool(getattr(ProductStore, "_restore_in_progress", False))
+    except Exception:
+        return False
+
+
+def _per_hour_timeout() -> float:
+    return PER_HOUR_TIMEOUT_COLD if _restore_in_progress() else PER_HOUR_TIMEOUT
 # EURO/Copernicus fast path budget. Kept under the client's 45s fetch timeout so the
 # backend always answers first. The Copernicus full-range fetch is cached (10 min), so
 # only the FIRST EURO series load pays this; later ones are instant.
@@ -345,17 +363,19 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
                 # Pass None for the FIRST hour so the regional revalidation actually fires (warming the tile once
                 # for the bbox); throwaway for the rest so we don't fan out N background fetches on the 1-CPU box.
                 bg = None if warm_regional else BackgroundTasks()
-                # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole series.
+                # Per-hour timeout so a slow/stalled model (EURO dynamic) can't hang the whole
+                # series; cold budget while the L2 restore is in flight (see PER_HOUR_TIMEOUT_COLD).
+                _t = _per_hour_timeout()
                 product = await asyncio.wait_for(
                     resolve_grid(
                         model=model, domain=domain, layer=layer,
                         valid_time=vt_str, bbox=bbox, surf=surf, background_tasks=bg
                     ),
-                    timeout=PER_HOUR_TIMEOUT,
+                    timeout=_t,
                 )
             return (h, product)
         except asyncio.TimeoutError:
-            logger.warning(f"[grid_series] hour +{h}h timed out after {PER_HOUR_TIMEOUT}s")
+            logger.warning(f"[grid_series] hour +{h}h timed out after {_per_hour_timeout()}s")
             return (h, None)
         except BaseException as e:  # incl. CancelledError — one hour must never sink the series
             logger.warning(f"[grid_series] hour +{h}h failed: {type(e).__name__}: {e}")
@@ -413,7 +433,7 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
                     shared_bounds, shared_cols, shared_rows = pf["bounds"], pf.get("cols", 0), pf.get("rows", 0)
 
     frames.sort(key=lambda f: f["hour_offset"])
-    return {
+    resp = {
         "model": model,
         "domain": domain,
         "layer": layer,
@@ -424,3 +444,9 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
         "frame_count": len(frames),
         "frames": frames,
     }
+    # COLD-START marker (chip task_e618f9ff): an EMPTY series built while the L2 restore is in
+    # flight is a warming artifact, not "no coverage" — the client retries with backoff instead
+    # of abandoning the viewport to the per-hour fallback until the next gesture.
+    if not frames and _restore_in_progress():
+        resp["warming"] = True
+    return resp

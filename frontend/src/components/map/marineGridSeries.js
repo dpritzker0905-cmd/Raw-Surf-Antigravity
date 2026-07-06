@@ -274,7 +274,26 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) return;
       const json = await res.json();
-      if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
+      if (!json || !Array.isArray(json.frames) || json.frames.length === 0) {
+        // COLD-START retry (2026-07-06, chip task_e618f9ff): an empty series marked `warming`
+        // means the backend is mid L2-restore (every deploy opens this window) — retry with the
+        // existing backoff instead of abandoning the viewport to the per-hour fallback until the
+        // next gesture. Bounded by COARSE_REVAL_MAX; never stomps an entry that has frames.
+        if (json && json.warming === true && !localController.signal.aborted) {
+          const prevWarm = (existing && existing.warmingRetries) || 0;
+          if (prevWarm < COARSE_REVAL_MAX) {
+            if (!existing || !(existing.frames && existing.frames.size)) {
+              _seriesCache.set(key, {
+                ts: Date.now(), frames: new Map(), hours: [], bounds: null,
+                model, layer, page, warming: true, warmingRetries: prevWarm + 1,
+              });
+            }
+            const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1));
+            _idleTimers.add(t);
+          }
+        }
+        return;
+      }
       const frames = new Map();
       const hoursList = [];
       for (const f of json.frames) {

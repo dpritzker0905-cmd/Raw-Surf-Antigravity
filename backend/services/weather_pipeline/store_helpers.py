@@ -248,6 +248,19 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
 def restore_from_supabase_helper(store) -> Tuple[int, List[str]]:
     """Helper implementing restore_from_supabase for ProductStore."""
     from services.weather_pipeline.store import _get_supabase_storage, WEATHER_BUCKET, ProductStore
+    # COLD-START flag (2026-07-06, chip task_e618f9ff): requests race this restore on every
+    # deploy — grid_series reads it to extend its per-hour budget and mark empty responses
+    # `warming` (an empty series mid-restore is an artifact, not "no coverage"). Class attr,
+    # same pattern as _restore_errors/_last_restore_time; ALWAYS cleared in the finally.
+    ProductStore._restore_in_progress = True
+    try:
+        return _restore_from_supabase_inner(store)
+    finally:
+        ProductStore._restore_in_progress = False
+
+
+def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
+    from services.weather_pipeline.store import _get_supabase_storage, WEATHER_BUCKET, ProductStore
     errors: List[str] = []
     restored = 0
     sb = _get_supabase_storage()
