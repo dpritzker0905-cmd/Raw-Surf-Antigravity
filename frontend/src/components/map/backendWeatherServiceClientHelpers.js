@@ -406,6 +406,41 @@ function getCachedIconAnchor(model, layer, bounds, snappedBounds, fetchBackendMa
   return promise;
 }
 
+// ── ICON >240h BOUNDARY CONTINUITY (2026-07-06; pure, exported for tests) ──────────────────────
+// The ≤240 branch is anchored (icon168 + GFS trend, weights at the 240 endpoint: 0.2 persistence /
+// 0.8 trend → value = icon168 + 0.8·(gfs240 − gfs168)); the >240 mix is 0.6·GFS + 0.4·EURO. The
+// offset makes the mix equal the anchored value AT the boundary and decay to the pure locked mix
+// by hour 288. Heights ride `speed` (backend speed IS wave height).
+export function iconExtendedContinuityDecay(hourOffset) {
+  return Math.max(0, 1 - (Math.max(240, hourOffset) - 240) / 48);
+}
+
+export function iconExtendedContinuityOffset(icon168, gfs168, gfs240, euro240, gfsWeight) {
+  if (!icon168 || !gfs168 || !gfs240) return null;
+  const h = (c) => (c && (c.speed || c.height)) || 0;
+  const p = (c) => (c && c.period) || 0;
+  const trendH = Math.max(0, h(icon168) + 0.8 * (h(gfs240) - h(gfs168)));
+  const mixH = gfsWeight * h(gfs240) + (1 - gfsWeight) * (euro240 ? h(euro240) : h(gfs240));
+  const trendP = Math.max(0, p(icon168) + 0.8 * (p(gfs240) - p(gfs168)));
+  const mixP = gfsWeight * p(gfs240) + (1 - gfsWeight) * (euro240 ? p(euro240) : p(gfs240));
+  return { dH: trendH - mixH, dP: trendP - mixP };
+}
+
+export function applySubContinuity(sub, off, decay) {
+  if (!sub || !off || !(decay > 0)) return sub;
+  const h0 = sub.speed || 0;
+  const h1 = Math.max(0, h0 + off.dH * decay);
+  const scale = h0 > 0 ? h1 / h0 : 0;
+  return {
+    ...sub,
+    speed: h1,
+    height: h1,
+    u: (sub.u || 0) * scale,
+    v: (sub.v || 0) * scale,
+    period: Math.max(0, (sub.period || 0) + off.dP * decay),
+  };
+}
+
 /**
  * Handle DWD ICON extended-range grid fetching and blending.
  */
@@ -574,13 +609,33 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
       };
     } else {
       // hourOffset > 240
-      const [gfsTargetResult, euroTargetResult] = await Promise.allSettled([
+      // BOUNDARY CONTINUITY (2026-07-06, "the heatmap changes colors dramatically at the
+      // native→extended handoff"): the ≤240 branch is ANCHORED (icon168 + GFS trend — continuous
+      // by construction), but this branch was a RAW 0.6/0.4 GFS/EURO mix — a level jump at the
+      // 240 boundary wherever the mix's climatology differs from the anchored value. The locked
+      // 14-day contract keeps this mix as the far-tail mechanism, so the fix is ADDITIVE bias
+      // correction: est(t) = mix(t) + [trend(240) − mix(240)]·decay(t), decaying to the pure mix
+      // by hour 288. Offsets apply to height/period (the colormap drivers) per cell per sublayer;
+      // the boundary anchors ride the SAME cached @168 anchors the ≤240 branch uses plus one
+      // cache-hot GFS/EURO fetch @240. Kill: __RAW_DISABLE_ICON_TAIL_CONTINUITY__.
+      const [gfsTargetResult, euroTargetResult, icon168Result, gfs168Result, gfs240Result, euro240Result] = await Promise.allSettled([
         fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'GFS'),
-        fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'EURO')
+        fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'EURO'),
+        getCachedIconAnchor('ICON', layer, bounds, snappedBounds, fetchBackendMarineGridRecur),
+        getCachedIconAnchor('GFS', layer, bounds, snappedBounds, fetchBackendMarineGridRecur),
+        fetchBackendMarineGridRecur(bounds, 240, signal, snappedBounds, layer, 'GFS'),
+        fetchBackendMarineGridRecur(bounds, 240, signal, snappedBounds, layer, 'EURO')
       ]);
 
       const gfsTargetGrid = gfsTargetResult.status === 'fulfilled' ? gfsTargetResult.value : null;
       const euroTargetGrid = euroTargetResult.status === 'fulfilled' ? euroTargetResult.value : null;
+      const _cIcon168 = icon168Result.status === 'fulfilled' ? (icon168Result.value?.grid?.vectors || []) : [];
+      const _cGfs168 = gfs168Result.status === 'fulfilled' ? (gfs168Result.value?.grid?.vectors || []) : [];
+      const _cGfs240 = gfs240Result.status === 'fulfilled' ? (gfs240Result.value?.grid?.vectors || []) : [];
+      const _cEuro240 = euro240Result.status === 'fulfilled' ? (euro240Result.value?.grid?.vectors || []) : [];
+      const _decay = iconExtendedContinuityDecay(hourOffset);
+      const _continuityOn = _decay > 0 && _cIcon168.length > 0 && _cGfs168.length > 0 && _cGfs240.length > 0 &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_ICON_TAIL_CONTINUITY__ === true);
 
       const gfsVectors = gfsTargetGrid?.grid?.vectors || [];
       const euroVectors = euroTargetGrid?.grid?.vectors || [];
@@ -623,10 +678,25 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
           continue;
         }
 
-        const blendedWaves = blendSubVector(pv.waves || pv, sv?.waves || sv, GFS_WEIGHT, EURO_WEIGHT);
-        const blendedSwell1 = blendSubVector(pv.swell_1, sv?.swell_1, GFS_WEIGHT, EURO_WEIGHT);
-        const blendedSwell2 = blendSubVector(pv.swell_2, sv?.swell_2, GFS_WEIGHT, EURO_WEIGHT);
-        const blendedWindWaves = blendSubVector(pv.wind_waves, sv?.wind_waves, GFS_WEIGHT, EURO_WEIGHT);
+        let blendedWaves = blendSubVector(pv.waves || pv, sv?.waves || sv, GFS_WEIGHT, EURO_WEIGHT);
+        let blendedSwell1 = blendSubVector(pv.swell_1, sv?.swell_1, GFS_WEIGHT, EURO_WEIGHT);
+        let blendedSwell2 = blendSubVector(pv.swell_2, sv?.swell_2, GFS_WEIGHT, EURO_WEIGHT);
+        let blendedWindWaves = blendSubVector(pv.wind_waves, sv?.wind_waves, GFS_WEIGHT, EURO_WEIGHT);
+
+        if (_continuityOn) {
+          const _find = (arr) => arr[i] && Math.abs(arr[i].lat - pv.lat) < 0.01 && Math.abs(arr[i].lng - pv.lng) < 0.01
+            ? arr[i] : arr.find(v => Math.abs(v.lat - pv.lat) < 0.01 && Math.abs(v.lng - pv.lng) < 0.01);
+          const a168i = _find(_cIcon168), a168g = _find(_cGfs168), a240g = _find(_cGfs240), a240e = _find(_cEuro240);
+          const _sub = (cell, key) => cell ? (key === 'waves' ? (cell.waves || cell) : cell[key]) : null;
+          for (const key of ['waves', 'swell_1', 'swell_2', 'wind_waves']) {
+            const off = iconExtendedContinuityOffset(_sub(a168i, key), _sub(a168g, key), _sub(a240g, key), _sub(a240e, key), GFS_WEIGHT);
+            if (!off) continue;
+            if (key === 'waves') blendedWaves = applySubContinuity(blendedWaves, off, _decay);
+            else if (key === 'swell_1') blendedSwell1 = applySubContinuity(blendedSwell1, off, _decay);
+            else if (key === 'swell_2') blendedSwell2 = applySubContinuity(blendedSwell2, off, _decay);
+            else blendedWindWaves = applySubContinuity(blendedWindWaves, off, _decay);
+          }
+        }
 
         const activeBlended = layer === 'waves' ? blendedWaves
                           : layer === 'swell_1' ? blendedSwell1

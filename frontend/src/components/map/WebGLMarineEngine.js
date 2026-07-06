@@ -830,16 +830,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (blendEngaged) {
       const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds)
         ? { tex: this._overlayMaskTex, bounds: this._overlayMaskBounds } : null;
-      // CRISP-MASK CLIP (2026-07-06, "shadow underneath the coastal edge" — A/B-proven on the FL
-      // panhandle): the base's own mask is the 39 km world canvas, and its soft coastal edge IS the
-      // dark band under the regional's crisp coastline. When the resident viewport-scoped mask
-      // fully contains the viewport, clip the wash with IT (the exact mask the main pass samples):
-      // the wash dies at the same crisp coast as the regional, while the blend's intended
-      // show-through in faint open water (the Gulf lesson) is fully preserved — unlike the
-      // coverage gate this replaces. Kill: __RAW_DISABLE_BASE_CRISP_MASK__.
+      // CRISP-MASK OVERLAY (2026-07-06, "shadow underneath the coastal edge" — A/B-proven on the
+      // FL panhandle; REWORKED same day after the "intermittent land halo band" regression): the
+      // base's own mask is the 39 km world canvas whose soft coastal edge IS the dark band under
+      // the regional's crisp coastline. V1 swapped the base's slot-3 mask for the viewport-scoped
+      // crisp mask — but the phase-0 wash draws the WHOLE WORLD, and outside the crisp bounds the
+      // mask UV clamps to edge, stretching the border row into a visible band whenever a gesture
+      // revealed it (the intermittent halo). V2 rides the pass's EXISTING overlay mechanism
+      // instead: crisp mask on the OVERLAY slot (replace-inside-bounds, per-pixel fallback to the
+      // base 39 km mask everywhere else) — crisp coast where it matters, no band, and a real
+      // viewport-truth overlay still takes priority. Kill: __RAW_DISABLE_BASE_CRISP_MASK__.
       // Telemetry: __RAW_GPU__.baseCrispMask.
       let baseCrispMask = null;
-      if (this._cachedMaskTex && this._cachedMaskBounds &&
+      if (!baseOverlay && this._cachedMaskTex && this._cachedMaskBounds &&
           !(typeof window !== 'undefined' && window.__RAW_DISABLE_BASE_CRISP_MASK__ === true)) {
         const _mb = this._cachedMaskBounds;
         if (_mb.west <= vb[0] && _mb.east >= vb[2] && _mb.south <= vb[1] && _mb.north >= vb[3]) {
@@ -847,7 +850,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         }
       }
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
-      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity, baseOverlay, baseCrispMask);
+      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity, baseOverlay || baseCrispMask);
     }
 
     gl.useProgram(this.heatmapProgram);
@@ -919,7 +922,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         waveGrid.estimate_basis.type === 'euro_persistence_gfs_blend'
       ))
     );
-    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), isEstimatedBlend ? 1.0 : 0.0);
+    // ESTIMATED POWER-LAW NEUTRALIZED (2026-07-06, "the heatmap changes colors dramatically at
+    // the native→extended handoff"): the shader's u_is_estimated branch applies pow(h,0.45)·0.95
+    // — a 4 m sea displays as 1.78 m, 8 m as 2.42 m — so the colormap collapsed the moment the
+    // timeline crossed into the estimated tail, on BOTH EURO (>240h) and ICON (>168h). The
+    // estimator emits PHYSICAL meters (anchor-offset deltas, continuous at the boundary by
+    // construction), so the transform is a relic of the pre-`7b89eadf` mislabeling era and
+    // scientifically distorting today. Estimated frames now render through the SAME colormap as
+    // native (estimated-ness stays visible via the HUD provenance badge + confidence).
+    // Forensics lever: __RAW_ESTIMATED_POWERLAW__ = true restores the old curve.
+    const _estPowerLaw = isEstimatedBlend &&
+      (typeof window !== 'undefined' && window.__RAW_ESTIMATED_POWERLAW__ === true);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), _estPowerLaw ? 1.0 : 0.0);
 
     // Swell↔Surf coastal-band mode: rescale the color ramp to the surf range (0-4 m) so the band
     // differentiates. Read the flag inline (mirrors getSurfModeFlag) to avoid an engine import cycle; it
@@ -1716,15 +1730,10 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
 
 // Draw the retained coarse-global grid as a faded background wash. Same heatmap program + premultiplied blend as
 // the main pass; height-alpha OFF (solid wash) and edge-feather OFF (it's global, no regional rectangle to soften).
-WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, time, baseOpacity, overlay, crispMask) {
+WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, time, baseOpacity, overlay) {
   const base = this._coarseBaseData;
   if (!base || !base.u_waveTexture || !base.bounds) return;
   const bb = base.bounds;
-  // CRISP-MASK CLIP (2026-07-06): when the caller verified the resident viewport-scoped mask
-  // contains the viewport, sample IT instead of the base's 39 km world mask — every visible pixel
-  // lies inside its bounds, so the wash clips at the same crisp coastline as the regional pass.
-  const _crispOn = !!(crispMask && crispMask.tex && crispMask.bounds);
-  const _mbb = _crispOn ? crispMask.bounds : bb;
 
   let debugModeVal = 0.0;
   if (typeof window !== 'undefined' && window.__GPU_DEBUG__) {
@@ -1739,10 +1748,11 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
-  // The base binds its OWN world mask (encoded with the base grid) unless the crisp resident mask
-  // took over above — then the mask bounds follow the crisp mask's geography.
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), _mbb.west, _mbb.south);
-  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), _mbb.east, _mbb.north);
+  // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
+  // Crisp coastal truth arrives via the OVERLAY slot below (replace-inside-bounds, per-pixel
+  // fallback) — never by swapping this base mask, whose bounds must match the world draw.
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), bb.west, bb.south);
+  gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_max'), bb.east, bb.north);
   // Viewport-truth overlay on the base wash (2026-07-04 zoom-out): the base is a WORLD grid whose
   // 39 km mask bleeds over land at z8+ — inside the overlay's bounds REPLACE the base sample at
   // meter truth (same rationale as the wide-grid main pass); per-pixel fallback everywhere else.
@@ -1771,8 +1781,8 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   bindTexture(gl, base.u_waveTexture, 0);
   bindTexture(gl, base.u_chlorophyllTexture, 1);
   bindTexture(gl, base.u_bathymetryTexture, 2);
-  bindTexture(gl, _crispOn ? crispMask.tex : base.u_oceanMaskTexture, 3);
-  bindTexture(gl, _bovOn ? overlay.tex : (_crispOn ? crispMask.tex : base.u_oceanMaskTexture), 4);
+  bindTexture(gl, base.u_oceanMaskTexture, 3);
+  bindTexture(gl, _bovOn ? overlay.tex : base.u_oceanMaskTexture, 4);
 
   const heatLngOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
   let heatUVLoc = -1;
