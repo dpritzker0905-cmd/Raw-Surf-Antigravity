@@ -17,6 +17,7 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
+import { radarForecastTileUrl } from './radarForecastSources';
 import { useMarineWindData } from './useMarineWindData';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
@@ -301,7 +302,12 @@ const MapWebGL = ({
   const radarTileUrl = useMemo(() => {
     if (!radarFrames?.length || radarFrameIndex == null) return null;
     const frame = radarFrames[radarFrameIndex];
-    if (!frame?.path) return null;
+    if (!frame) return null;
+    // RADAR FORECAST (2026-07-06): future frames come from model-aware forecast WMS feeds
+    // (EURO → DWD WN +2h, GFS/ICON → IEM HRRR +4h — radarForecastSources.js); RainViewer's
+    // nowcast was discontinued Jan 2026 so past frames stay RainViewer, future swaps feeds.
+    if (frame.future) return radarForecastTileUrl(frame);
+    if (!frame.path) return null;
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 

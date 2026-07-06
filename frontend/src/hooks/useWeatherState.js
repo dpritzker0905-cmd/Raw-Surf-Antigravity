@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
+import { radarFutureFramesForModel } from '../components/map/radarForecastSources';
 import logger from '../utils/logger';
 
 /**
@@ -45,8 +46,8 @@ export function useWeatherState({ user }) {
   const [showWeatherControls, setShowWeatherControls] = useState(false);
   const [isTimelineCollapsed, setIsTimelineCollapsed] = useState(false);
 
-  // --- Radar animation state (RainViewer) ---
-  const [radarFrames, setRadarFrames] = useState([]);
+  // --- Radar animation state (RainViewer past + model-aware forecast frames) ---
+  const [radarPastFrames, setRadarPastFrames] = useState([]);
   const [radarFrameIndex, setRadarFrameIndex] = useState(0);
   const radarIntervalRef = useRef(null);
   const forecastIntervalRef = useRef(null);
@@ -59,12 +60,28 @@ export function useWeatherState({ user }) {
  // Nowcast discontinued Jan 2026 only past frames available
         const past = data?.radar?.past || [];
         if (past.length > 0) {
-          setRadarFrames(past);
+          setRadarPastFrames(past);
           setRadarFrameIndex(past.length - 1);
         }
       })
       .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
   }, []);
+
+  // RADAR FORECAST FRAMES (2026-07-06): RainViewer's nowcast is gone, so the timeline extends
+  // into the future via model-aware forecast feeds (EURO → DWD WN +2h; GFS/ICON → IEM HRRR +4h;
+  // see radarForecastSources.js). Same exported name — consumers see one longer frame list with
+  // the "now" frame still at radarPastFrames.length - 1. Kill: __RAW_RADAR_FUTURE_DISABLED__.
+  const radarFrames = useMemo(
+    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel)],
+    [radarPastFrames, activeModel]
+  );
+
+  // Model switches can shorten the composed list — keep the index in range.
+  useEffect(() => {
+    if (radarFrameIndex >= radarFrames.length && radarFrames.length > 0) {
+      setRadarFrameIndex(radarFrames.length - 1);
+    }
+  }, [radarFrames.length, radarFrameIndex]);
 
   // --- Derived booleans ---
   const isRadarActive = activeLayers.includes('radar');
