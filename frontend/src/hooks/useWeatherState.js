@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
-import { radarFutureFramesForModel, radarRegionForCenter } from '../components/map/radarForecastSources';
+import { radarFutureFramesForModel, radarRegionForCenter, discoverHrrrRun, HRRR_RUN_TTL_MS } from '../components/map/radarForecastSources';
 import logger from '../utils/logger';
 
 /**
@@ -100,13 +100,32 @@ export function useWeatherState({ user }) {
     return () => clearInterval(id);
   }, [activeLayers]);
 
+  // HRRR RUN (2026-07-06 v3): IEM's static refp leads are run-relative — future frames need the
+  // latest completed run to pin exact valid times (the "forecast doesn't tie to the nowcast"
+  // root: frames labeled now+N showed run+N, ~1.7h behind). Discovered by a tiny WMS probe,
+  // refreshed on the run-cache TTL while radar is active in CONUS. Frames stay empty (truthful)
+  // until the first discovery resolves — sub-second in practice.
+  const [hrrrRunMs, setHrrrRunMs] = useState(null);
+  useEffect(() => {
+    if (!activeLayers.includes('radar') || radarRegion !== 'CONUS') return;
+    let disposed = false;
+    const refreshRun = () => {
+      discoverHrrrRun(Date.now())
+        .then(runMs => { if (!disposed) setHrrrRunMs(prev => (prev === runMs ? prev : runMs)); })
+        .catch(err => logger.error('[MAP] HRRR run discovery failed:', err));
+    };
+    refreshRun();
+    const id = setInterval(refreshRun, HRRR_RUN_TTL_MS);
+    return () => { disposed = true; clearInterval(id); };
+  }, [activeLayers, radarRegion]);
+
   // RADAR FORECAST FRAMES (2026-07-06): RainViewer's nowcast is gone, so the timeline extends
   // into the future via region+model-aware forecast feeds (see radarForecastSources.js). Same
   // exported name — consumers see one longer frame list with the "now" frame still at
   // radarPastFrames.length - 1. Kill: __RAW_RADAR_FUTURE_DISABLED__.
   const radarFrames = useMemo(
-    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel, Date.now(), undefined, radarRegion)],
-    [radarPastFrames, activeModel, radarRegion]
+    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel, Date.now(), undefined, radarRegion, hrrrRunMs)],
+    [radarPastFrames, activeModel, radarRegion, hrrrRunMs]
   );
 
   // Model switches can shorten the composed list — keep the index in range.

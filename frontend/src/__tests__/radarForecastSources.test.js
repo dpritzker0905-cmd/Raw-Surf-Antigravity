@@ -3,6 +3,8 @@ import {
   radarForecastTileUrl,
   radarRegionForCenter,
   radarForecastSourceFor,
+  discoverHrrrRun,
+  hrrrRunParams,
 } from '../components/map/radarForecastSources';
 
 // 2026-07-06: RainViewer's nowcast is discontinued — the radar timeline extends into the future
@@ -11,12 +13,34 @@ import {
 describe('radarFutureFramesForModel', () => {
   const now = Date.UTC(2026, 6, 6, 12, 0, 0);
 
-  it('CONUS: ALL models ride HRRR (+4h hourly) — the only forecast-radar feed there (v2: the FL-on-EURO "clears past nowcast" fix)', () => {
+  it('CONUS: ALL models ride HRRR, frames pinned to the discovered run (v3: leads are run-relative — now-relative labeling was the "forecast does not tie to the nowcast" root)', () => {
+    const runMs = Date.UTC(2026, 6, 6, 10, 0, 0); // latest completed run 10z, now 12:05z
+    const nowMs = Date.UTC(2026, 6, 6, 12, 5, 0);
     for (const m of ['GFS', 'ICON', 'EURO']) {
-      const f = radarFutureFramesForModel(m, now, {}, 'CONUS');
-      expect(f.map(x => x.minutes)).toEqual([60, 120, 180, 240]);
-      expect(f.every(x => x.future && x.source === 'iem_hrrr')).toBe(true);
+      const f = radarFutureFramesForModel(m, nowMs, {}, 'CONUS', runMs);
+      expect(f.length).toBeGreaterThan(0);
+      expect(f.every(x => x.future && x.source === 'iem_hrrr' && x.runMs === runMs)).toBe(true);
+      // Leads live on the run's 15-min grid; valid time = run + lead, exactly.
+      expect(f.every(x => x.f % 15 === 0)).toBe(true);
+      expect(f.every(x => x.time === Math.floor((runMs + x.f * 60000) / 1000))).toBe(true);
+      // First frame is the first grid point at/after now (+10 min here) — continuous with the
+      // observed frames; nothing earlier than now sneaks in (the old backward-jump).
+      expect(f[0].f).toBe(135);
+      expect(f[0].minutes).toBe(10);
+      expect(f.every(x => x.time * 1000 >= nowMs)).toBe(true);
+      // 30-min cadence, capped at +4h from now.
+      expect(f[1].minutes - f[0].minutes).toBe(30);
+      expect(f[f.length - 1].minutes).toBeLessThanOrEqual(240);
     }
+  });
+
+  it('CONUS without a discovered run: no future frames (truthful) — and the forced-run lever wins', () => {
+    expect(radarFutureFramesForModel('GFS', now, {}, 'CONUS')).toEqual([]);
+    expect(radarFutureFramesForModel('GFS', now, {}, 'CONUS', null)).toEqual([]);
+    const forced = Date.UTC(2026, 6, 6, 9, 0, 0);
+    const f = radarFutureFramesForModel('GFS', now, { __RAW_RADAR_HRRR_RUN_MS__: forced }, 'CONUS', null);
+    expect(f.length).toBeGreaterThan(0);
+    expect(f[0].runMs).toBe(forced);
   });
 
   it('EU: EURO → DWD RV, GFS/ICON → DWD WN (+2h, 30-min frames) — differentiation where feeds overlap', () => {
@@ -63,10 +87,20 @@ describe('radarForecastTileUrl', () => {
     expect(overridden).toContain('layers=dwd%3ACustom');
   });
 
-  it('HRRR frame: IEM refp WMS with 4-digit minutes layer', () => {
-    const frame = { future: true, minutes: 180, time: 0, source: 'iem_hrrr' };
+  it('HRRR run-pinned frame: archive-backed refp-t with run params + 4-digit lead (GetMap-proven 2026-07-06)', () => {
+    const runMs = Date.UTC(2026, 6, 6, 10, 0, 0);
+    const frame = { future: true, minutes: 10, time: 0, source: 'iem_hrrr', runMs, f: 135 };
     const url = radarForecastTileUrl(frame, {});
     expect(url).toContain('mesonet.agron.iastate.edu/cgi-bin/wms/hrrr/refp.cgi');
+    expect(url).toContain('layers=refp-t');
+    expect(url).toContain('year=2026&month=07&day=06&hour=10');
+    expect(url).toContain('f=0135');
+    expect(url).toContain('{bbox-epsg-3857}');
+  });
+
+  it('HRRR frame without run info: legacy static-lead layer (back-compat only)', () => {
+    const frame = { future: true, minutes: 180, time: 0, source: 'iem_hrrr' };
+    const url = radarForecastTileUrl(frame, {});
     expect(url).toContain('layers=refp_0180');
     expect(url).toContain('{bbox-epsg-3857}');
   });
@@ -74,5 +108,32 @@ describe('radarForecastTileUrl', () => {
   it('non-future or missing frames return null', () => {
     expect(radarForecastTileUrl(null, {})).toBeNull();
     expect(radarForecastTileUrl({ path: '/v2/radar/x' }, {})).toBeNull();
+  });
+});
+
+describe('discoverHrrrRun', () => {
+  it('probes newest-hour-first and lands on the newest run whose f=0000 renders (missing runs answer WMS XML), then serves from cache', async () => {
+    const nowMs = Date.UTC(2026, 6, 6, 21, 42, 0);
+    const available = new Set(['hour=20', 'hour=19', 'hour=18']);
+    const calls = [];
+    const fetchFn = (url) => {
+      calls.push(url);
+      const hit = [...available].some(h => url.includes(h));
+      return Promise.resolve({
+        ok: true,
+        headers: { get: () => (hit ? 'image/png' : 'text/xml') },
+      });
+    };
+    const runMs = await discoverHrrrRun(nowMs, { fetch: fetchFn });
+    expect(runMs).toBe(Date.UTC(2026, 6, 6, 20, 0, 0)); // 21z not there yet → 20z
+    expect(calls.length).toBe(2); // 21z (XML) then 20z (PNG)
+    // Within the TTL the cache answers — no further probes.
+    const again = await discoverHrrrRun(nowMs + 60000, { fetch: fetchFn });
+    expect(again).toBe(runMs);
+    expect(calls.length).toBe(2);
+  });
+
+  it('hrrrRunParams renders UTC run-hour parts zero-padded', () => {
+    expect(hrrrRunParams(Date.UTC(2026, 0, 3, 5, 0, 0))).toBe('year=2026&month=01&day=03&hour=05');
   });
 });
