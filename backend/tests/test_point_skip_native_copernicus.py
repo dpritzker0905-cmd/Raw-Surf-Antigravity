@@ -29,10 +29,11 @@ def test_euro_native_point_branch_honors_the_skip_gate():
 def test_batch_workflows_guard_the_cmems_point_volume():
     """Every cron lane that fires per-point EURO fetches must guard the CMEMS volume ONE way:
     either SKIP native points (proxy fallback) or SPATIALLY BATCH them (one subset per spot
-    cluster, native authority — 2026-07-06 staged rollout: precompute.yml batches first;
-    forecast-ingest.yml keeps the skip until the batched lane proves out). Setting BOTH in one
-    lane is a bug: the skip flag turns the pre-warm into a wasted no-op. The serve box sets
-    NEITHER (live /point keeps native-first authority)."""
+    cluster, native authority). Rollout COMPLETE 2026-07-06: precompute.yml proved the batched
+    lane (run 28771531702: 107/107 boxes, 977 points, 0 failed, 25m27s total) and
+    forecast-ingest.yml flipped to batching the same day. Setting BOTH in one lane is a bug:
+    the skip flag turns the pre-warm into a wasted no-op. The serve box sets NEITHER (live
+    /point keeps native-first authority)."""
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[2]
     for wf in ("precompute.yml", "forecast-ingest.yml"):
