@@ -164,6 +164,45 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
 
   if (isViewportEnabled) {
     if ((modelName || '').toUpperCase() === 'EURO') {
+      // NULL-ISLAND ROOT (2026-07-06, chip task_57426922 — log-proven bbox=-10,-10,10,10 at
+      // z2.49): the 20° cost-cap below, fed a WORLD viewport, centers itself on (0,0) ±10 — a
+      // Gulf-of-Guinea request the user never looked at (far-hour scrubs then 404-looped on it).
+      // Wide spans want the pre-ingested euro global_coarse MANIFEST product — the exact branch
+      // GFS/ICON take further down (cheap, no Copernicus subset cost). The 20° cap below remains
+      // the guard for genuinely regional dynamic subsets. Same lever as the GFS/ICON branch:
+      // __RAW_MARINE_GLOBAL_SPAN__.
+      const _euroSpanLng = east < west ? (180 - west) + (east + 180) : east - west;
+      const _euroSpanLat = Math.abs(north - south);
+      const _euroGlobalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 15.0;
+      if (_euroSpanLng > _euroGlobalSpan || _euroSpanLat > _euroGlobalSpan) {
+        // Globalize ONLY when the wide viewport actually intersects EURO coverage (same
+        // manifest-tile test as the outside_coverage_clear check below) — a wide viewport wholly
+        // OUTSIDE coverage falls through and keeps the honest clear contract (pinned test).
+        const _tr = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);
+        const _wideIntersects = (_tr.tiles || []).some(t => {
+          const cov = t.bounds;
+          let sW = west, sE = east; if (sE < sW) sE += 360;
+          let cW = cov.west, cE = cov.east; if (cE < cW) cE += 360;
+          const oLng = Math.max(sW, cW) < Math.min(sE, cE) ||
+                       Math.max(sW - 360, cW) < Math.min(sE - 360, cE) ||
+                       Math.max(sW + 360, cW) < Math.min(sE + 360, cE);
+          const oLat = Math.max(south, cov.south) < Math.min(north, cov.north);
+          return oLng && oLat;
+        });
+        if (_wideIntersects) {
+          return {
+            isInside: true,
+            clampedBbox: { west: -180, south: -80, east: 180, north: 85 },
+            fallbackReason: null,
+            coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+            selectedTileId: 'global_coarse',
+            availableTileIds: REGIONAL_TILES.map(t => t.id),
+            rejectedTileIds: [],
+            tileFallbackReason: null
+          };
+        }
+        // fall through: the 20° clamp + the coverage check below produce the honest clear
+      }
       // Cap the maximum query span to 20.0 degrees to prevent timeouts/expensive downloads on zoomed-out views.
       const maxSpan = 20.0;
       

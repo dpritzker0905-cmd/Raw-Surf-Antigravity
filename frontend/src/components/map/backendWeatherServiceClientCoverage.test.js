@@ -74,15 +74,36 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(resGFS.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
       expect(resGFS.selectedTileId).toBe('global_coarse');
 
+      // 2026-07-06 (chip task_57426922): EURO now takes the SAME global branch for wide spans —
+      // the old center-clamped viewport box, fed a WORLD viewport, centered on (0,0)±10 = the
+      // log-proven null-island bbox (-10,-10,10,10) that far-hour scrubs 404-looped on.
       const resEURO = clampViewportBbox(bboxWide, 'waves', 'EURO');
       expect(resEURO.isInside).toBe(true);
-      expect(resEURO.clampedBbox).toEqual({ west: -100, south: 20, east: -80, north: 40 });
-      expect(resEURO.selectedTileId).toBe('viewport_-100.00_20.00_-80.00_40.00');
+      expect(resEURO.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+      expect(resEURO.selectedTileId).toBe('global_coarse');
 
       const resICON = clampViewportBbox(bboxWide, 'waves', 'ICON');
       expect(resICON.isInside).toBe(true);
       expect(resICON.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
       expect(resICON.selectedTileId).toBe('global_coarse');
+    });
+
+    it('EURO world viewport NEVER produces the null-island box (2026-07-06 regression pin)', () => {
+      const world = { west: -180, south: -85, east: 180, north: 85 };
+      const res = clampViewportBbox(world, 'waves', 'EURO');
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+      expect(res.clampedBbox).not.toEqual({ west: -10, south: -10, east: 10, north: 10 });
+      expect(res.selectedTileId).toBe('global_coarse');
+    });
+
+    it('EURO regional spans (≤15°) keep the dynamic-subset path with the 20° cost cap intact', () => {
+      const regional = { west: -122, south: 30, east: -114, north: 38 }; // 8° span
+      const res = clampViewportBbox(regional, 'waves', 'EURO');
+      expect(res.isInside).toBe(true);
+      // not globalized — stays a viewport-scoped request
+      expect(res.clampedBbox.east - res.clampedBbox.west).toBeLessThanOrEqual(20.0);
+      expect(res.selectedTileId).not.toBe('global_coarse');
     });
 
     // FINE VIEWPORT TILE (2026-07-04, the "cleared/coarse at z9.22" root): the backend serves a fine
