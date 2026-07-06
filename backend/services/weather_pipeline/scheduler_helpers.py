@@ -476,6 +476,33 @@ def find_nearest_manifest_product(
     return None
 
 
+def euro_estimate_anchor_pool(products, region_id: str, layer: str, is_test_or_local: bool) -> list:
+    """Anchor candidates for the EURO extended-estimates job: the NATIVE (non-estimated) EURO
+    products of this region+layer — estimates extend FROM the native horizon, never from a prior
+    estimate (compounding drift).
+
+    REGRESSION NOTE (2026-07-05, the "EURO loses its last 4 days" outage): the global_coarse branch
+    used to require `p.is_estimated` — written in the era when native CMEMS global products were
+    MISLABELED estimated (pre-7b89eadf). Once provenance was fixed (native → is_estimated:false),
+    the filter matched only leftover stale estimated tails; the first full re-ingestion after the
+    07-03→07-05 cron outage pruned those, the pool went EMPTY, every layer skipped, and no
+    241-336h products were built — EURO 404'd past ~240h and ICON's >168h blend (which needs the
+    EURO component) died with it. Anchor on natives for EVERY region.
+    """
+    is_global = region_id in ("global_coarse", "global_mid")
+    return [
+        p for p in products
+        if (
+            p.model == "EURO"
+            and p.domain == "marine"
+            and p.layer == layer
+            and p.region_id == region_id
+            and (p.is_forecast_authoritative if (not is_global and not is_test_or_local) else True)
+            and (not p.is_estimated or is_test_or_local)
+        )
+    ]
+
+
 async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
     """Implementation of ingest_euro_marine_extended_estimates delegated from scheduler.
 
@@ -521,21 +548,14 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
         layers = ["waves", "swell_1", "swell_2", "wind_waves"]
         
         for layer in layers:
-            # 1. Find the last conformed/authoritative EURO product (the anchor)
-            is_global = (region_id == "global_coarse")
-            euro_products = [
-                p for p in manifest.products
-                if (
-                    p.model == "EURO"
-                    and p.domain == "marine"
-                    and p.layer == layer
-                    and p.region_id == region_id
-                    and (p.is_forecast_authoritative if (not is_global and not is_test_or_local) else True)
-                    and (p.is_estimated if is_global else (not p.is_estimated or is_test_or_local))
-                )
-            ]
+            # 1. Find the last NATIVE EURO product (the anchor) — see euro_estimate_anchor_pool.
+            euro_products = euro_estimate_anchor_pool(
+                manifest.products, region_id, layer, is_test_or_local
+            )
             if not euro_products:
-                logger.debug(f"[Pipeline Scheduler] No EURO marine {layer} products found for region {region_id}. Skipping layer.")
+                # INFO, not debug: an empty pool on global_coarse is exactly the silent-skip that
+                # collapsed the EURO horizon to 10 days (2026-07-05) — keep it visible in cron logs.
+                logger.info(f"[Pipeline Scheduler] No EURO marine {layer} anchor candidates for region {region_id}. Skipping layer.")
                 continue
             
             # The anchor is the one with the maximum valid_time_start
