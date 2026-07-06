@@ -45,3 +45,32 @@ describe('mask density helpers', () => {
     expect(d).toBeCloseTo(2048 / 20, 3);
   });
 });
+
+// RETAIN UPGRADE GUARD (2026-07-06, "halo band on islands at mid zoom after a full zoom-out"):
+// the src-not-ready retain must not hold a WORLD-tier resident (whose bounds contain every
+// viewport, so the containment stamp is trivially true) in place of a meaningfully finer mid
+// rebuild. Retain requires residentDensity >= incomingDensity × UPGRADE_GUARD_FACTOR.
+const UPGRADE_GUARD_FACTOR = 0.75;
+
+describe('src-not-ready retain upgrade guard density math', () => {
+  const worldBounds = { west: -180, south: -80, east: 180, north: 85 };
+
+  it('world-tier resident vs a mid rebuild: guard DECLINES the retain (the island-halo class)', () => {
+    const resident = maskDensityPxPerDeg({ w: maskCanvasWidthForSpan(360), h: 2048 }, worldBounds); // ~11 px/°
+    const incomingMid = incomingMaskDensityPxPerDeg({ west: -90, south: 20, east: -74, north: 36 }); // 128 px/°
+    expect(resident).toBeLessThan(incomingMid * UPGRADE_GUARD_FACTOR); // → rebuild_upgrade_over_retain
+  });
+
+  it('same-viewport commit mid-load (the designed Long Beach case): equal density → retain still fires', () => {
+    const b = { west: -120, south: 32, east: -116, north: 36 }; // span 4
+    const resident = maskDensityPxPerDeg({ w: maskCanvasWidthForSpan(4), h: 2048 }, b);
+    const incoming = incomingMaskDensityPxPerDeg(b);
+    expect(resident).toBeGreaterThanOrEqual(incoming * UPGRADE_GUARD_FACTOR); // → retain
+  });
+
+  it('fine resident vs mid rebuild (the no-downgrade class): guard permits the retain', () => {
+    const resident = maskDensityPxPerDeg({ w: 4096, h: 2048 }, { west: -85, south: 25, east: -79, north: 31 }); // ~683 px/°
+    const incomingMid = incomingMaskDensityPxPerDeg({ west: -90, south: 20, east: -74, north: 36 }); // 128 px/°
+    expect(resident).toBeGreaterThanOrEqual(incomingMid * UPGRADE_GUARD_FACTOR); // → retain
+  });
+});

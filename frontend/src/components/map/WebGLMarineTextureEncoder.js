@@ -908,7 +908,22 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         // callers) skip this branch. Kill switch: window.__RAW_DISABLE_MASK_RETAIN__ = true.
         engine && engine._cachedMaskTex &&
         engine._maskSourceReady === false && engine._maskRetainPatchedOk === true &&
-        !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN__ === true)
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN__ === true) &&
+        // RETAIN UPGRADE GUARD (2026-07-06, "halo band on islands at mid zoom after a full
+        // zoom-out"): after a world round-trip the resident is the WORLD-tier mask, whose bounds
+        // contain EVERY viewport — so the containment stamp holds on the way back in while
+        // basemap tiles load, and this branch silently held the ~11 px/° world mask in place of
+        // the ~128 px/° mid rebuild (a downgrade-hold: soft island edges render as the halo,
+        // stuck until the next ladder step forces a commit). Retaining is only for a resident at
+        // least comparable in density to what this rebuild would produce; the rebuild path keeps
+        // patch truth via carry-forward (2a894207). Fail-open on missing dims (older callers).
+        // Kill: __RAW_DISABLE_MASK_RETAIN_UPGRADE_GUARD__ (restores the unconditional retain).
+        (
+          (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN_UPGRADE_GUARD__ === true) ||
+          !engine._cachedMaskTexDims || !engine._cachedMaskBounds ||
+          maskDensityPxPerDeg(engine._cachedMaskTexDims, engine._cachedMaskBounds) >=
+            incomingMaskDensityPxPerDeg(bounds) * 0.75
+        )
       ) {
         maskTex = engine._cachedMaskTex;
         engine._lastMaskEncodeMode = 'retain_patched_src_not_ready';
@@ -939,7 +954,18 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           window.__RAW_MASK_RES_RETAIN_COUNT__ = (window.__RAW_MASK_RES_RETAIN_COUNT__ || 0) + 1;
         }
       } else {
-        if (engine) engine._lastMaskEncodeMode = 'rebuild'; // DIAG (item ①): fresh patch-less mask → source_not_ready no-op = the GLITCH
+        if (engine) {
+          // DIAG (item ①): fresh patch-less mask → source_not_ready no-op = the GLITCH.
+          // 'rebuild_upgrade_over_retain' = the upgrade guard above declined a src-not-ready
+          // retain because the resident was meaningfully coarser (the island-halo class).
+          const _upgradeOverRetain = engine._cachedMaskTex &&
+            engine._maskSourceReady === false && engine._maskRetainPatchedOk === true &&
+            !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RETAIN__ === true);
+          engine._lastMaskEncodeMode = _upgradeOverRetain ? 'rebuild_upgrade_over_retain' : 'rebuild';
+          if (_upgradeOverRetain && typeof window !== 'undefined') {
+            window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ = (window.__RAW_MASK_RETAIN_UPGRADE_REBUILD__ || 0) + 1;
+          }
+        }
         if (engine && engine._cachedMaskTex) {
           gl.deleteTexture(engine._cachedMaskTex);
           if (typeof window !== 'undefined' && window.__RAW_GPU__) {
