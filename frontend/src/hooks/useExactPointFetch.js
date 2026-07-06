@@ -9,6 +9,19 @@ import {
 } from '../components/map/forecastSamplers';
 import { isInCooldown, clearCooldown } from '../components/map/marineControllerUtils';
 
+// EXACT-POINT FETCH BUDGET (2026-07-06): the shared 12s abort guaranteed a first-look "Timeout"
+// on EURO — a COLD native CMEMS point measured 17s live (GFS 0.9s / ICON 2.5s), so every first
+// EURO marker lookup died at 12s, and only a retry (hitting the by-then-warm server cache)
+// could save it. Give Copernicus its realistic cold budget; fast models keep the interactive 12s.
+// Levers: __RAW_EXACT_POINT_TIMEOUT_MS__ (non-EURO), __RAW_EXACT_POINT_EURO_TIMEOUT_MS__.
+export function resolveExactPointTimeoutMs(model, win) {
+  const w = win || {};
+  const isEuro = model === 'EURO';
+  const lever = Number(isEuro ? w.__RAW_EXACT_POINT_EURO_TIMEOUT_MS__ : w.__RAW_EXACT_POINT_TIMEOUT_MS__);
+  if (isFinite(lever) && lever >= 1000) return lever;
+  return isEuro ? 25000 : 12000;
+}
+
 export function useExactPointFetch({
   pointLat,
   pointLng,
@@ -175,13 +188,14 @@ export function useExactPointFetch({
     const timeoutId = setTimeout(() => {
       if (token.cancelled || gen !== fetchGenRef.current) return;
 
-      // 12s (was 18s): the infobox point is interactive — an 18s hang on "Loading…" for a
-      // stalled/far-hour request felt broken. On a warm backend a valid point resolves in
-      // a few seconds; on timeout the overlay flips to grid fallback / "No coverage" (a
-      // truthful, in-sync state) rather than holding "Loading…". Tunable.
+      // Model-aware budget (2026-07-06, was a flat 12s): 12s stays for the fast models (GFS 0.9s /
+      // ICON 2.5s live) — interactive, flips to grid fallback rather than hanging. EURO gets 25s:
+      // a COLD native CMEMS point measured 17s live, so the flat 12s aborted every first EURO
+      // lookup into "Timeout" (the user's stuck-loading-then-timeout report). The overlay shows
+      // grid-fallback values while it waits, so the longer EURO budget is loading-truthful.
       const fetchTimeoutId = setTimeout(() => {
         controller.abort();
-      }, 12000);
+      }, resolveExactPointTimeoutMs(activeModel, typeof window !== 'undefined' ? window : null));
 
       const grid = marineDataRef.current?.grid;
       const gridProductId = grid?.productId || grid?.product_id || null;
