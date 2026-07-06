@@ -174,7 +174,11 @@ export function radarForecastTileUrl(frame, win) {
   // was the "forecast doesn't tie to the nowcast" root — ~now−run behind the labeled time).
   if (typeof frame.runMs === 'number' && typeof frame.f === 'number') {
     const ff = String(frame.f).padStart(4, '0');
-    return 'https://mesonet.agron.iastate.edu/cgi-bin/wms/hrrr/refp.cgi?service=WMS&version=1.1.1&request=GetMap' +
+    // RECOLOR PROTOCOL (2026-07-06): IEM paints precip-type ramps (green rain) while the past
+    // frames are RainViewer scheme-7 (pale blue) — the palette family jumped at "now". The
+    // hrrr-rv:// protocol repaints each tile to scheme 7 client-side (radarTileRecolor.js).
+    const recolor = w.__RAW_RADAR_RECOLOR_DISABLED__ === true ? '' : 'hrrr-rv://';
+    return `${recolor}https://mesonet.agron.iastate.edu/cgi-bin/wms/hrrr/refp.cgi?service=WMS&version=1.1.1&request=GetMap` +
       '&layers=refp-t&styles=&format=image%2Fpng&transparent=true' +
       `&srs=EPSG%3A3857&width=256&height=256&${hrrrRunParams(frame.runMs)}&f=${ff}` +
       '&bbox={bbox-epsg-3857}';

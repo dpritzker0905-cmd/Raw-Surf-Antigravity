@@ -1,6 +1,7 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
 import { radarFutureFramesForModel, radarRegionForCenter, discoverHrrrRun, HRRR_RUN_TTL_MS } from '../components/map/radarForecastSources';
+import { registerRadarRecolorProtocol } from '../components/map/radarTileRecolor';
 import logger from '../utils/logger';
 
 /**
@@ -108,6 +109,8 @@ export function useWeatherState({ user }) {
   const [hrrrRunMs, setHrrrRunMs] = useState(null);
   useEffect(() => {
     if (!activeLayers.includes('radar') || radarRegion !== 'CONUS') return;
+    // Palette-parity protocol for the HRRR future tiles (idempotent; see radarTileRecolor.js).
+    registerRadarRecolorProtocol();
     let disposed = false;
     const refreshRun = () => {
       discoverHrrrRun(Date.now())
