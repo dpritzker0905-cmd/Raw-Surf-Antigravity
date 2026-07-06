@@ -1,5 +1,5 @@
 import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
-import { renderMaskToCanvas } from './WebGLMarineMaskRenderer';
+import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { applyPatchCarry } from './maskSmoothing';
 import {
   createShader,
@@ -914,6 +914,29 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
         engine._lastMaskEncodeMode = 'retain_patched_src_not_ready';
         if (typeof window !== 'undefined') {
           window.__RAW_MASK_RETAIN_COUNT__ = (window.__RAW_MASK_RETAIN_COUNT__ || 0) + 1;
+        }
+      } else if (
+        // MASK NO-DOWNGRADE RETAIN (2026-07-06, the Florida z9-10.5 "waves/heatmap over land and
+        // intracoastal for a second" report): a MID-TIER grid commit (span 10-30°) rebuilds this
+        // mask at the 2048 tier (~870 m/px at span 16), replacing a crisp 4096 resident until the
+        // fine grid returns ~1s later — the mid mask cannot carve barrier islands or the
+        // intracoastal, so waves visibly ride over land in the window. When the RESIDENT texture
+        // is meaningfully denser (px/° > 1.5× what this rebuild would produce) AND the layer
+        // stamped viewport containment (_maskRetainPatchedOk — the same geometry safety as the
+        // retain-patched branch above: decoupled maskBounds sample the texture at its OWN
+        // geography), keep it for this commit; a commit whose rebuild would be as fine or finer
+        // (the returning fine grid) falls through and rebuilds normally.
+        // Kill: __RAW_DISABLE_MASK_NO_DOWNGRADE__. Telemetry: __RAW_MASK_RES_RETAIN_COUNT__.
+        engine && engine._cachedMaskTex && engine._cachedMaskTexDims && engine._cachedMaskBounds &&
+        engine._maskRetainPatchedOk === true &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_NO_DOWNGRADE__ === true) &&
+        maskDensityPxPerDeg(engine._cachedMaskTexDims, engine._cachedMaskBounds) >
+          incomingMaskDensityPxPerDeg(bounds) * 1.5
+      ) {
+        maskTex = engine._cachedMaskTex;
+        engine._lastMaskEncodeMode = 'retain_res_no_downgrade';
+        if (typeof window !== 'undefined') {
+          window.__RAW_MASK_RES_RETAIN_COUNT__ = (window.__RAW_MASK_RES_RETAIN_COUNT__ || 0) + 1;
         }
       } else {
         if (engine) engine._lastMaskEncodeMode = 'rebuild'; // DIAG (item ①): fresh patch-less mask → source_not_ready no-op = the GLITCH

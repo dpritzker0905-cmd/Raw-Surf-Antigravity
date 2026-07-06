@@ -615,6 +615,23 @@ export function maskCanvasWidthForSpan(lonSpan) {
   return ov > 0 ? ov : 4096;
 }
 
+// MASK DENSITY HELPERS (2026-07-06, the mask no-downgrade retain — pure, exported for tests).
+// Density = horizontal px per degree of a mask texture over its own bounds; the retain guard in
+// the texture encoder compares the RESIDENT texture's density against what a rebuild for the
+// incoming grid bounds WOULD produce (tier table above), so a mid-tier commit (span 10-30° →
+// 2048 tier ≈ 870 m/px at span 16) can't replace a crisp coastal mask for the second before the
+// fine grid returns — the Florida z9-10.5 "waves over land + intracoastal" transient.
+export function maskDensityPxPerDeg(dims, b) {
+  if (!dims || !dims.w || !b) return 0;
+  const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+  return span > 0 ? dims.w / span : 0;
+}
+export function incomingMaskDensityPxPerDeg(bounds) {
+  if (!bounds) return 0;
+  const span = (bounds.east < bounds.west) ? (bounds.east + 360) - bounds.west : bounds.east - bounds.west;
+  return span > 0 ? maskCanvasWidthForSpan(span) / span : 0;
+}
+
 // Pristine-canvas LRU for renderMaskToCanvas (see comment at its cache-read site).
 const _maskCanvasCache = new Map();
 let _maskCanvasCacheGeo = null;
