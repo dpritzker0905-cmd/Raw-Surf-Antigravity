@@ -51,6 +51,19 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(regional({ hourOffset: 0 }), coarseGlobal({ hourOffset: 24 }), 9, coveredVp, false)).toBe(false);
   });
 
+  it('ALLOWS a CROSS-MODEL commit regardless of resolution (2026-07-06 live: GFS 9×9 resident rejected EURO 37×17 mid — the map kept DISPLAYING GFS under the EURO selection, permanently)', () => {
+    // A model switch is a deliberate replacement: EURO's mid grid is its close-zoom CEILING
+    // (no fine tiles), so a resolution comparison against the old model's regional is
+    // meaningless and holding the old grid mislabels the data.
+    expect(shouldRejectResolutionDowngrade(
+      regional({ __sourceModel: 'GFS' }), coarseGlobal({ __sourceModel: 'EURO' }), 11.4, coveredVp, false
+    )).toBe(false);
+    // Same-model downgrades stay blocked (unchanged behavior; default model is GFS on both sides).
+    expect(shouldRejectResolutionDowngrade(
+      regional({ __sourceModel: 'EURO' }), coarseGlobal({ __sourceModel: 'EURO' }), 9, coveredVp, false
+    )).toBe(true);
+  });
+
   it('ALLOWS coarse when the resident regional no longer COVERS the viewport (stale after a pan)', () => {
     const farVp = [-100, 10, -60, 40]; // regional tile (-82..-79) cannot cover this
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, farVp, false)).toBe(false);

@@ -101,6 +101,15 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   //      island shadow + visible 2° lattice, stuck 12s+ until a pan). Upgrades and ≈equal-res
   //      replacements (<2×) always pass; every safety predicate below (same layer+hour, resident
   //      renderable + covers ≥80%) applies to this branch identically.
+  // MODEL SWITCH IS NEVER A DOWNGRADE (2026-07-06, live-proven at z11.4: GFS 9×9 regional resident
+  // rejected EURO's 37×17 mid — EURO's close-zoom CEILING, it has no fine tiles — same layer+hour,
+  // so the map kept DISPLAYING GFS data under the EURO selection, permanently: the self-heal stash
+  // re-evaluates only zoom/coverage, which keep holding. A cross-model commit is a deliberate
+  // replacement; resolution comparison across models is meaningless and holding the old model's
+  // grid mislabels the data (truth violation). Kill shared: __RAW_DISABLE_NO_DOWNGRADE__.
+  const _rm = resident.__sourceModel || 'GFS';
+  const _im = incoming.__sourceModel || 'GFS';
+  if (_rm !== _im) return false;
   const _rc = gridCellDeg(resident);
   const _ic = gridCellDeg(incoming);
   const cellDowngrade = _rc !== null && _ic !== null && _ic >= _rc * 2.0;

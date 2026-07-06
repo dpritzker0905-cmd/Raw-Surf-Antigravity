@@ -199,6 +199,15 @@ function frameToMarineData(frame, model, layer) {
     rows: frame.rows,
     bounds: frame.bounds,
     __renderable: renderable,
+    // MISSING STAMP = the EURO series stall (2026-07-06): every REAL fetch path stamps
+    // __gridSupportsLayer (mapper/copernicusGridFetcher/backend clients), and useMarineWindData's
+    // hasCopernicusGrid REQUIRES it === true for provider 'copernicus'/'backend-weather-service' —
+    // so a series-committed EURO frame (the clamp sharpen's ONLY route at close zoom, and the
+    // scrub safety-net's fast path) conformed to hasCopernicusGrid:false and the gate NULLED it.
+    // The raw marineData still fed useSimulationField, hence the log signature "series frames
+    // bind to the SIM FIELD but the ENGINE keeps coarse_global". The series endpoint returns
+    // frames FOR the requested layer, so vectors-present ⇒ the grid supports it: truthful stamp.
+    __gridSupportsLayer: renderable,
     __componentLayer: layer,
     __sourceModel: model,
     __sourceDataset,
