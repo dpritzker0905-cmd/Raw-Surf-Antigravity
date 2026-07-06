@@ -52,19 +52,30 @@ export function useWeatherState({ user }) {
   const radarIntervalRef = useRef(null);
   const forecastIntervalRef = useRef(null);
 
-  // Fetch RainViewer radar frames once on mount (satellite IR discontinued Jan 2026)
+  // Fetch RainViewer radar frames on mount AND on a refresh interval (2026-07-06): the catalog
+  // rotates every ~10 min and old frame paths EXPIRE — a mount-only fetch left stale paths that
+  // 404'd tile-by-tile (the tilecache 404 + MapLibre error storm in the 07-06 console capture).
+  // Refresh keeps paths live; the frame index is re-pinned to "now" only on the first load so a
+  // user mid-scrub isn't yanked.
   useEffect(() => {
-    fetch('https://api.rainviewer.com/public/weather-maps.json')
-      .then(r => r.json())
-      .then(data => {
+    let disposed = false;
+    let first = true;
+    const loadCatalog = () => {
+      fetch('https://api.rainviewer.com/public/weather-maps.json')
+        .then(r => r.json())
+        .then(data => {
  // Nowcast discontinued Jan 2026 only past frames available
-        const past = data?.radar?.past || [];
-        if (past.length > 0) {
-          setRadarPastFrames(past);
-          setRadarFrameIndex(past.length - 1);
-        }
-      })
-      .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
+          const past = data?.radar?.past || [];
+          if (!disposed && past.length > 0) {
+            setRadarPastFrames(past);
+            if (first) { setRadarFrameIndex(past.length - 1); first = false; }
+          }
+        })
+        .catch(err => logger.error('[MAP] RainViewer fetch failed:', err));
+    };
+    loadCatalog();
+    const refresh = setInterval(loadCatalog, 5 * 60 * 1000);
+    return () => { disposed = true; clearInterval(refresh); };
   }, []);
 
   // RADAR FORECAST FRAMES (2026-07-06): RainViewer's nowcast is gone, so the timeline extends
