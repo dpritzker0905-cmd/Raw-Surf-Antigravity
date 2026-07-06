@@ -40,6 +40,18 @@ events/metrics BEFORE trusting "backend healthy" (recipes in memory
 ## 2b. NEW user report, DIAGNOSED-CANDIDATE (not yet fixed): "odd little rectangles — cleared
 areas that populate on zoom-in, correct on zoom-out"
 
+> **⚠️ CORRECTION (2026-07-06 ~00:30Z, next session): candidate 1 is DISCONFIRMED — do NOT ship
+> the normalizer fix.** End-to-end probes: ALL 65 L2 socal frames + live /grid + /grid_series
+> (plain+surf) flag land correctly (544 is_valid:false, ZERO valid-zero); both recent pilots runs
+> were NOAA-direct; open-meteo returns nearest-ocean values or nulls inland, never exact 0.0; no
+> backend GridVector construction site can emit valid-zero land. The "134 valid-zero / zero
+> is_valid:false" probe signature matches inspecting MAPPER-rebuilt vectors (which carry isOcean
+> ONLY — is_valid is dropped by mapNormalizedGridToWebGL) with a snake_case is_valid check.
+> truthTag now carries invalidCount/validZeroCount at both ends (`d0e4d834`) so the next live
+> occurrence is attributable from the HUD alone. Candidate 2 (the `8a0260ca` mask-patch class)
+> remains the open suspect — still need the user's exact spot/zoom. Full forensics:
+> memory `cleared-rect-validzero-verdict-2026-07-05`.
+
 Scripted-gesture repro attempts (LA/Huntington z8.4→11.4 step bursts) did NOT deterministically
 reproduce discrete rectangles, so the fix is parked as chip **task_51b3c132** with two evidenced
 candidates rather than a guess:
