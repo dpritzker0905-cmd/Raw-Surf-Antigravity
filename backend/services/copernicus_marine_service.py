@@ -173,6 +173,24 @@ import time
 _point_cache = {}
 POINT_CACHE_TTL = 600.0  # 10 minutes
 
+
+def _point_cache_cap() -> int:
+    """Cache capacity — batch lanes (spatial batching, 2026-07-06) hold one entry per spot and
+    set POINT_CACHE_MAX high (e.g. 6000); default keeps the serve box's old bound."""
+    try:
+        return int(os.environ.get("POINT_CACHE_MAX", "100"))
+    except ValueError:
+        return 100
+
+
+def _batched_entry_ttl() -> float:
+    """TTL for pre-warmed BATCHED entries (see copernicus_point_batching): entries belong to one
+    model run and the pre-warm→consume gap in a rating loop exceeds the 10-min point TTL."""
+    try:
+        return float(os.environ.get("POINT_BATCH_TTL_SEC", "10800"))
+    except ValueError:
+        return 10800.0
+
 import threading
 _copernicus_sync_lock = threading.RLock()
 
@@ -204,7 +222,21 @@ async def fetch_euro_marine(
         if now - timestamp < POINT_CACHE_TTL:
             logger.info(f"[Copernicus Backend Cache] HIT for cache_key={cache_key}")
             return copy.deepcopy(cached_data)
-            
+
+    # SPATIAL-BATCHING lookup (2026-07-06, chip task_2d50cd81): batch lanes pre-warm ONE
+    # full-variable, full-horizon entry per point (copernicus_point_batching). A single-point
+    # request for ANY layer subset / valid_time is answered from it — the full variable set
+    # supersets every per-layer list, and the full horizon supersets any valid_time window
+    # (consumers sample their target hour by timestamp). Longer TTL than the exact-key cache:
+    # a rating loop's pre-warm→consume gap exceeds 10 minutes.
+    if len(rounded_lats) == 1 and len(rounded_lons) == 1:
+        batched_key = (rounded_lats, rounded_lons, forecast_days, None, None)
+        if batched_key != cache_key and batched_key in _point_cache:
+            cached_data, timestamp = _point_cache[batched_key]
+            if now - timestamp < _batched_entry_ttl():
+                logger.info(f"[Copernicus Backend Cache] BATCHED hit for point=({rounded_lats[0]},{rounded_lons[0]})")
+                return copy.deepcopy(cached_data)
+
     import asyncio
 
     # Run the blocking Copernicus fetch in a thread pool (serialized at the synchronous _fetch_sync level)
@@ -215,7 +247,8 @@ async def fetch_euro_marine(
     
     if results and len(results) > 0:
         _point_cache[cache_key] = (copy.deepcopy(results), now)
-        if len(_point_cache) > 100:
+        cap = _point_cache_cap()
+        while len(_point_cache) > cap:
             oldest_key = min(_point_cache.keys(), key=lambda k: _point_cache[k][1])
             _point_cache.pop(oldest_key, None)
             

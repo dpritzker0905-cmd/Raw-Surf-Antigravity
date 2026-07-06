@@ -280,6 +280,25 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     base = base_dt or _top_of_hour_utc()
     sem = asyncio.Semaphore(max(1, concurrency))
 
+    # SPATIAL-BATCHING pre-warm (2026-07-06, chip task_2d50cd81): the EURO pass below fires a
+    # native CMEMS point per spot — one subset subprocess each, and CMEMS throttles under the
+    # serial volume. Pre-warm ONE subset per ~5° spot cluster instead; the ladder's per-point
+    # calls then hit the batched cache (native authority, ~60-100 requests for ~1000 spots).
+    # Env-gated (POINT_BATCH_NATIVE_COPERNICUS=1, batch lanes only) and skip-flag-aware —
+    # a no-op everywhere else. Never fatal: a failed pre-warm just leaves the ladder's own
+    # per-point path (or its provider fallback) to serve.
+    if spots and any((m or "").upper() == "EURO" for m in models):
+        try:
+            from services.copernicus_point_batching import (
+                prewarm_euro_marine_point_cache, EURO_POINT_FORECAST_DAYS,
+            )
+            await prewarm_euro_marine_point_cache(
+                [(sp.get("latitude"), sp.get("longitude")) for sp in spots],
+                forecast_days=EURO_POINT_FORECAST_DAYS,
+            )
+        except Exception as _pe:
+            logger.warning(f"[spot-ratings] CMEMS pre-warm skipped: {_pe}")
+
     async def _one(resolver, sp, model, vt):
         async with sem:
             return await rate_one_spot(resolver, sp, model, vt)

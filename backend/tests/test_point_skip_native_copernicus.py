@@ -26,11 +26,18 @@ def test_euro_native_point_branch_honors_the_skip_gate():
     assert gate < fetch, "the gate must run BEFORE the native CMEMS fetch, not after"
 
 
-def test_batch_workflows_set_the_flag():
-    """Both cron lanes that fire per-point EURO fetches must set the flag; the serve box must NOT
-    (live /point keeps native-first authority)."""
+def test_batch_workflows_guard_the_cmems_point_volume():
+    """Every cron lane that fires per-point EURO fetches must guard the CMEMS volume ONE way:
+    either SKIP native points (proxy fallback) or SPATIALLY BATCH them (one subset per spot
+    cluster, native authority — 2026-07-06 staged rollout: precompute.yml batches first;
+    forecast-ingest.yml keeps the skip until the batched lane proves out). Setting BOTH in one
+    lane is a bug: the skip flag turns the pre-warm into a wasted no-op. The serve box sets
+    NEITHER (live /point keeps native-first authority)."""
     import pathlib
     root = pathlib.Path(__file__).resolve().parents[2]
     for wf in ("precompute.yml", "forecast-ingest.yml"):
         text = (root / ".github" / "workflows" / wf).read_text(encoding="utf-8")
-        assert re.search(r"POINT_SKIP_NATIVE_COPERNICUS:\s*'1'", text), f"{wf} must set POINT_SKIP_NATIVE_COPERNICUS"
+        skips = bool(re.search(r"POINT_SKIP_NATIVE_COPERNICUS:\s*'1'", text))
+        batches = bool(re.search(r"POINT_BATCH_NATIVE_COPERNICUS:\s*'1'", text))
+        assert skips or batches, f"{wf} must guard the CMEMS point volume (skip OR batch)"
+        assert not (skips and batches), f"{wf} sets BOTH flags — the skip makes batching a wasted no-op"

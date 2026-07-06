@@ -47,7 +47,8 @@ jobs:
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for all 3 models (match forecast-ingest)
           BUOY_CALIBRATION: '1'
           REPORT_CALIBRATION: '1'
-          POINT_SKIP_NATIVE_COPERNICUS: '1'  # batch lanes: CMEMS throttles under serial per-point volume (138×25s timeouts in run 28754458502); the open-meteo proxy fallback answers sub-second
+          POINT_BATCH_NATIVE_COPERNICUS: '1'  # SPATIAL BATCHING (2026-07-06, replaces POINT_SKIP here): ONE CMEMS subset per ~5° spot cluster pre-warms per-point entries → native EURO authority restored WITHOUT the serial per-point volume that made CMEMS throttle (138×25s, run 28754458502). forecast-ingest keeps POINT_SKIP until this lane proves out.
+          POINT_CACHE_MAX: '6000'             # batched entries: one per spot (~1000 spots × margin); default 100 is the serve-box bound
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
