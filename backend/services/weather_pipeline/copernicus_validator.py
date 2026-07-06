@@ -311,6 +311,15 @@ def prune_duplicate_valid_times_helper(store) -> int:
     from services.weather_pipeline.store import _upload_executor, _manifest_executor
     manifest = store.get_manifest()
 
+    # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
+    # CMEMS fetch made the native job save ESTIMATED fallbacks with a newer run_time; a pure
+    # newest-run_time rule let them displace the healthy natives at the same valid_times. At one
+    # valid_time an AUTHORITATIVE product now beats any estimated regardless of run_time; among
+    # same-provenance duplicates newest run_time still wins.
+    def _rank(prod):
+        rt = prod.run_time or datetime.min.replace(tzinfo=timezone.utc)
+        return (1 if prod.is_forecast_authoritative else 0, rt)
+
     best = {}
     for p in manifest.products:
         key = (
@@ -319,7 +328,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
             p.valid_time_start,
         )
         cur = best.get(key)
-        if cur is None or (p.run_time and cur.run_time and p.run_time > cur.run_time):
+        if cur is None or _rank(p) > _rank(cur):
             best[key] = p
 
     keep = set(id(p) for p in best.values())
@@ -356,25 +365,48 @@ def prune_duplicate_valid_times_helper(store) -> int:
 def prune_superseded_products_helper(
     store, model: str, domain: str, layer: str, region_id: str, latest_run_time: datetime
 ):
-    """Removes older superseded runs from manifest and disk/Supabase."""
+    """Removes older superseded runs from manifest and disk/Supabase.
+
+    PROVENANCE GUARD (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed CMEMS
+    waves fetch made the native job save ESTIMATED fallbacks, and this prune — keyed on
+    run_time alone — then deleted the healthy natives from the prior run AND the 241-336h
+    estimated tail (the extended-estimates anchor pool went empty, killing the lane).
+    AUTHORITATIVE products are now only superseded by a NEWER AUTHORITATIVE run in the same
+    lane; estimated products keep the plain newest-run rule. Lanes with no estimated products
+    (wind/pressure/GFS) behave exactly as before (latest authoritative == latest run).
+    """
     from services.weather_pipeline.store import _upload_executor, _manifest_executor
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
-    remaining_products = []
-    pruned_count = 0
-    for p in manifest.products:
+    def _lane_match(p):
         region_match = (
             p.region_id == region_id
             or (region_id and p.region_id is None and getattr(p, "coverage_mode", None) == "global_tile")
         )
-        if (
+        return (
             p.model.upper() == model.upper()
             and p.domain.lower() == domain.lower()
             and p.layer.lower() == layer.lower()
             and region_match
+        )
+
+    latest_auth_run_time = None
+    for p in manifest.products:
+        if _lane_match(p) and p.is_forecast_authoritative and p.run_time is not None:
+            if latest_auth_run_time is None or p.run_time > latest_auth_run_time:
+                latest_auth_run_time = p.run_time
+
+    remaining_products = []
+    pruned_count = 0
+    for p in manifest.products:
+        superseded = (
+            _lane_match(p)
             and p.run_time < latest_run_time
-        ):
+            and (not p.is_forecast_authoritative
+                 or (latest_auth_run_time is not None and p.run_time < latest_auth_run_time))
+        )
+        if superseded:
             filepath = store.cache_dir / p.filename
             if filepath.exists():
                 try:

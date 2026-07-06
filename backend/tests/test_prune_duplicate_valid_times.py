@@ -14,11 +14,12 @@ from services.weather_pipeline.schemas import ManifestProduct, PipelineManifest,
 from services.weather_pipeline.store import ProductStore
 
 
-def _prod(model, layer, valid_time, run_time, filename):
+def _prod(model, layer, valid_time, run_time, filename, authoritative=True):
     return ManifestProduct(
         model=model, provider="open-meteo", domain="marine", layer=layer,
         run_time=run_time, valid_time_start=valid_time, valid_time_end=valid_time,
-        resolution=10.0, freshness_sec=1800, is_forecast_authoritative=True,
+        resolution=10.0, freshness_sec=1800, is_forecast_authoritative=authoritative,
+        is_estimated=not authoritative,
         coverage=CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0),
         filename=filename, region_id="global_coarse", coverage_mode="global_tile",
         product_id=filename,
@@ -75,3 +76,82 @@ def test_sweep_prunes_only_true_duplicates(store_with_dupes, tmp_path):
 def test_sweep_is_idempotent(store_with_dupes):
     assert store_with_dupes.prune_duplicate_valid_times() == 2
     assert store_with_dupes.prune_duplicate_valid_times() == 0
+
+
+# ── PROVENANCE GUARD (2026-07-06, the EURO waves lane wipe — run 28786800982) ────────────────
+# A failed CMEMS fetch made the native job save ESTIMATED fallbacks with a NEWER run_time; the
+# provenance-blind prunes then deleted the healthy natives at the same valid_times AND the whole
+# lane's older products (including the 241-336h estimated tail, emptying the anchor pool).
+# Invariant: authoritative products are only superseded by a NEWER AUTHORITATIVE run.
+
+def test_sweep_never_lets_estimated_displace_authoritative(tmp_path):
+    store = ProductStore(cache_dir=tmp_path)
+    t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
+    native_run = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
+    fallback_run = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)  # newer but estimated
+    products = [
+        _prod("EURO", "waves", t0, native_run, "euro_waves_t0_native.json", authoritative=True),
+        _prod("EURO", "waves", t0, fallback_run, "euro_waves_t0_estfallback.json", authoritative=False),
+        # same-provenance duplicates still dedupe newest-wins
+        _prod("EURO", "waves", t0 + timedelta(hours=3), native_run, "euro_waves_t3_old_est.json", authoritative=False),
+        _prod("EURO", "waves", t0 + timedelta(hours=3), fallback_run, "euro_waves_t3_new_est.json", authoritative=False),
+    ]
+    store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
+    for p in products:
+        (tmp_path / p.filename).write_text("{}")
+
+    pruned = store.prune_duplicate_valid_times()
+    remaining = {p.filename for p in store.get_manifest().products}
+    assert "euro_waves_t0_native.json" in remaining      # native survives the newer estimated
+    assert "euro_waves_t0_estfallback.json" not in remaining
+    assert "euro_waves_t3_new_est.json" in remaining     # est-vs-est: newest still wins
+    assert "euro_waves_t3_old_est.json" not in remaining
+    assert pruned == 2
+
+
+def test_superseded_prune_estimated_batch_cannot_wipe_natives(tmp_path):
+    store = ProductStore(cache_dir=tmp_path)
+    t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
+    native_run = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
+    old_est_run = datetime(2026, 7, 6, 4, 25, tzinfo=timezone.utc)
+    fallback_run = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)
+    products = [
+        # healthy natives from the earlier run (distinct valid_times)
+        _prod("EURO", "waves", t0, native_run, "euro_waves_native_a.json", authoritative=True),
+        _prod("EURO", "waves", t0 + timedelta(hours=3), native_run, "euro_waves_native_b.json", authoritative=True),
+        # the old extended-estimates tail (older estimated run)
+        _prod("EURO", "waves", t0 + timedelta(hours=288), old_est_run, "euro_waves_tail_est.json", authoritative=False),
+        # the new estimated-fallback batch
+        _prod("EURO", "waves", t0 + timedelta(hours=6), fallback_run, "euro_waves_fallback_new.json", authoritative=False),
+    ]
+    store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
+    for p in products:
+        (tmp_path / p.filename).write_text("{}")
+
+    # the estimated-fallback batch completes and prunes with ITS run_time (the 11:19Z scenario)
+    store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", fallback_run)
+    remaining = {p.filename for p in store.get_manifest().products}
+    assert "euro_waves_native_a.json" in remaining   # natives survive an estimated batch
+    assert "euro_waves_native_b.json" in remaining
+    assert "euro_waves_tail_est.json" not in remaining  # older estimated still superseded
+    assert "euro_waves_fallback_new.json" in remaining
+
+
+def test_superseded_prune_native_batch_still_prunes_everything_older(tmp_path):
+    store = ProductStore(cache_dir=tmp_path)
+    t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
+    old_native = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
+    old_est = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)
+    new_native = datetime(2026, 7, 6, 14, 0, tzinfo=timezone.utc)
+    products = [
+        _prod("EURO", "waves", t0, old_native, "euro_waves_old_native.json", authoritative=True),
+        _prod("EURO", "waves", t0 + timedelta(hours=3), old_est, "euro_waves_old_est.json", authoritative=False),
+        _prod("EURO", "waves", t0, new_native, "euro_waves_new_native.json", authoritative=True),
+    ]
+    store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
+    for p in products:
+        (tmp_path / p.filename).write_text("{}")
+
+    store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", new_native)
+    remaining = {p.filename for p in store.get_manifest().products}
+    assert remaining == {"euro_waves_new_native.json"}  # a real native run heals the whole lane
