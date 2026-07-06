@@ -34,6 +34,26 @@ function latToMercatorY(lat) {
   return (1.0 - Math.log(Math.tan(rad) + 1.0 / Math.cos(rad)) / Math.PI) / 2.0;
 }
 
+// WIND ANIM TUNING (2026-07-06, user request: "+~10% wind animation presence at z3.3-4.69" and
+// "slower winds move slower, faster winds move faster"): motion was ALREADY linearly proportional
+// to |wind| (webgl-wind lineage — offset ∝ decoded u/v); gamma > 1 adds perceptual CONTRAST by
+// damping slow particles relative to fast ones (pow(speedNorm, gamma-1)); gamma 1.0 = exact linear.
+// Levers: __RAW_WIND_LOWBAND_BIAS__ (0..1, default 0.012 ≈ +10% on-screen in-band),
+// __RAW_WIND_SPEED_GAMMA__ (0.5..3, default 1.15), kill __RAW_DISABLE_WIND_SPEED_GAMMA__ → 1.0.
+export function resolveWindAnimTuning(win) {
+  const w = win || {};
+  let lowBandBias = 0.012;
+  if (typeof w.__RAW_WIND_LOWBAND_BIAS__ === 'number' && isFinite(w.__RAW_WIND_LOWBAND_BIAS__)) {
+    lowBandBias = Math.max(0, Math.min(1, w.__RAW_WIND_LOWBAND_BIAS__));
+  }
+  let speedGamma = 1.15;
+  if (typeof w.__RAW_WIND_SPEED_GAMMA__ === 'number' && isFinite(w.__RAW_WIND_SPEED_GAMMA__)) {
+    speedGamma = Math.max(0.5, Math.min(3, w.__RAW_WIND_SPEED_GAMMA__));
+  }
+  if (w.__RAW_DISABLE_WIND_SPEED_GAMMA__ === true) speedGamma = 1.0;
+  return { lowBandBias, speedGamma };
+}
+
 // --- Exported Constructor (var/function TDZ-immune) ---
 
 function WebGLWindEngine() {
@@ -386,6 +406,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_tile_width'), tileWidth);
+  // 2026-07-06 wind anim tuning: low-band density floor + speed-contrast gamma (levers in
+  // resolveWindAnimTuning; physics stays linearly speed-proportional at gamma 1.0).
+  const _windTune = resolveWindAnimTuning(typeof window !== 'undefined' ? window : null);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_lowband_bias'), _windTune.lowBandBias);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
+  const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);

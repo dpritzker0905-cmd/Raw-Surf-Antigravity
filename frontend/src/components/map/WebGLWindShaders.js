@@ -29,6 +29,9 @@ uniform float u_zoom;             // v3.16: current map zoom for viewport-biased
 uniform vec4 u_viewport_bounds;   // v3.16: [west, south, east, north] in degrees
 uniform vec2 u_tile_origin;       // v3.22: local tile origin for high zoom precision
 uniform float u_tile_width;       // v3.22: local tile width for high zoom precision
+uniform float u_lowband_bias;     // 2026-07-06: viewport-bias respawn floor in the z3.3-4.69 band (+~10% on-screen presence)
+uniform float u_speed_gamma;      // 2026-07-06: speed-contrast gamma; 1.0 = exact linear (physics), >1 damps slow relative to fast
+uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the gamma term (data units, from u_wind_max)
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -100,6 +103,12 @@ void main() {
   float lat_rad = lat * 3.141592653589793 / 180.0;
   float merc_scale = max(0.1, cos(lat_rad));
   vec2 offset = (windMerc / merc_scale) * u_speed_scale;
+  // SPEED-CONTRAST GAMMA (2026-07-06): motion is already LINEARLY proportional to |wind| (offset
+  // above ∝ the decoded u/v — the webgl-wind lineage physics). gamma > 1.0 additionally damps SLOW
+  // particles relative to fast ones (pow(speedNorm, gamma-1): →1 at max speed, <1 below) so speed
+  // differences read visibly on screen. gamma == 1.0 is a exact no-op (pure linear preserved).
+  float speedNorm = clamp(speed / max(u_speed_max, 1.0), 0.02, 1.0);
+  offset *= pow(speedNorm, u_speed_gamma - 1.0);
   
   vec2 nextPos;
   if (u_zoom > 6.0) {
@@ -155,7 +164,12 @@ void main() {
       float vpNorth = u_viewport_bounds.w;
       
       float spawnChoice = rand(seed + 3.7);
-      float viewportBias = smoothstep(4.0, 7.0, u_zoom) * 0.25;
+      // LOW-BAND DENSITY FLOOR (2026-07-06): the stock bias ramp starts at z4, leaving z3.3-4.69
+      // nearly unbiased (uniform-global respawn -> sparse on screen). A small viewport-bias floor
+      // there lifts on-screen presence ~10% (bias B redirects B of respawns into the padded
+      // viewport; at these spans ~0.01 B ≈ +10% relative). Soft edges avoid pops at the band rim.
+      float lowBand = smoothstep(3.1, 3.3, u_zoom) * (1.0 - smoothstep(4.69, 4.9, u_zoom));
+      float viewportBias = max(smoothstep(4.0, 7.0, u_zoom) * 0.25, u_lowband_bias * lowBand);
       
       if (spawnChoice < viewportBias && vpEast > vpWest) {
         float padLng = (vpEast - vpWest) * 0.15;
