@@ -106,8 +106,13 @@ export function bindField(field) {
     _lastFieldRevision = field.revision;
     _baseField = field;
 
-    // Clone for mutable evolution
+    // Clone for mutable evolution. cloneField consumes a fresh revision for the copy — realign it
+    // to the BASE revision (2026-07-06 churn forensics): the stray +1 made SimHealth log
+    // "revision (N+1)" against SimLoop's "rev=N" for the same bind, and the resulting +2 counter
+    // stride between binds read as "field rebinds TWICE per commit" in every log investigation.
+    // One commit = one bind; identity comparisons all key off the base field's revision.
     _evolvedField = cloneField(field);
+    _evolvedField.revision = field.revision;
 
     // Deep-clone typed arrays so evolution doesn't corrupt base data
     _evolvedField.grid = {
