@@ -1,5 +1,5 @@
 /* eslint-disable no-empty */
-import { useEffect, useRef, useState, useCallback } from 'react';
+import { memo, useEffect, useRef, useState, useCallback } from 'react';
 import { findMarineInsertionLayer, getSharedLandGeoJSONHiRes } from './mapUtils';
 
 /**
@@ -217,7 +217,11 @@ function buildLandMask(landGeoJSON) {
   return { type: 'FeatureCollection', features: polygons };
 }
 
-export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
+// memo (2026-07-07, chip task_c5366c79 slice 1): every prop consumed here is a primitive or a
+// stable ref, but MapWebGL re-renders on each radar frame step (radarFrameIndex prop) and this
+// component re-ran every time — part of the React-Scan "Source/Layer/OceanMask ×45 re-renders"
+// churn. Memoized, it re-renders only on real prop changes (layer/model/theme switches).
+function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, theme, beforeId }) {
   const [maskData, setMaskData] = useState(null);
   const fetchedRef = useRef(false);
   const hiResUpgradedRef = useRef(false);
@@ -783,5 +787,7 @@ export function OceanMask({ mapInstance, active: propActive, activeMarineLayer, 
 
   return null;
 }
+
+export const OceanMask = memo(OceanMaskInner);
 
 export default OceanMask;

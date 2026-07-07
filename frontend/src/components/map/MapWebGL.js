@@ -596,12 +596,13 @@ const MapWebGL = ({
         renderWorldCopies={true}
       >
         {/* Ocean Mask — Static land/ocean layers */}
+        {/* activeLayers prop dropped (2026-07-07, chip task_c5366c79 slice 1): OceanMask never
+            consumed it, and the array identity was a needless churn vector against the memo. */}
         <OceanMask
           mapInstance={mapInstance}
           active={oceanMaskActive}
           activeMarineLayer={activeMarineLayer}
           theme={theme}
-          activeLayers={activeLayers}
         />
 
         {/* --- WEATHER LAYERS --- */}

@@ -56,8 +56,13 @@ const IEM_PTYPE_RAMPS = {
 // its yellows/reds (user-caught visually 2026-07-06). The past frames' `1_0` URL options run
 // snow=0, so the rain column IS the whole past-frame palette — exact parity. <10 dBZ is fully
 // transparent; 30≈yellow, 40≈amber, 52.5+≈red (the SELEX-SI rainbow).
+// ⚠️ Indexes 0-3 (0-7.5 dBZ) are FULLY TRANSPARENT in RainViewer's published table, which
+// erased the soft "blue cloud" fringe the past frames visibly carry (their smoothing spreads
+// low echo) — user-caught 2026-07-07: "the blue areas of clouds aren't showing, but the reds/
+// yellows/oranges are". Restored as a graduated low-alpha teal ramp into the 10-dBZ teal, so
+// light precip reads as the same soft fringe on both sides of "now".
 const RV_SCHEME7 = [
-  '#00000000', '#00000000', '#00000000', '#00000000', '#009f9fff', '#00977dff',
+  '#009f9f26', '#009f9f40', '#009f9f59', '#009f9f73', '#009f9fff', '#00977dff',
   '#008c4bff', '#00b62dff', '#00d319ff', '#0de31cff', '#21fd22ff', '#a6fd1dff',
   '#fffd1bff', '#ffec10ff', '#ffd400ff', '#ffbb00ff', '#ffab00ff', '#ff9200ff',
   '#ff6e00ff', '#f63501ff', '#f01002ff', '#e30b0fff',

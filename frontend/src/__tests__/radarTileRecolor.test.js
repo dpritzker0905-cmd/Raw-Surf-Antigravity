@@ -28,10 +28,12 @@ describe('recolorRadarImageData', () => {
     expect([...rain]).toEqual([...snow]);
   });
 
-  it('low-dBZ pixels inherit scheme 7 alpha grading (index 0 = 0 dBZ → fully transparent)', () => {
-    const d = px(0xee, 0xf8, 0xea); // rain[0]
+  it('low-dBZ pixels keep a soft teal fringe (the "blue cloud" areas the past frames show — full transparency erased them, user-caught 2026-07-07)', () => {
+    const d = px(0xee, 0xf8, 0xea); // rain[0] = 0 dBZ
     recolorRadarImageData(d);
-    expect(d[3]).toBe(0); // #cfffff00 — the haze thresholds out like the past frames
+    expect([d[0], d[1], d[2]]).toEqual([0x00, 0x9f, 0x9f]); // teal family, matching 10 dBZ hue
+    expect(d[3]).toBeGreaterThan(0);      // visible…
+    expect(d[3]).toBeLessThan(0x80);      // …but soft (fringe, not core)
   });
 
   it('unknown colors and transparent pixels pass through unchanged (fail-open)', () => {
