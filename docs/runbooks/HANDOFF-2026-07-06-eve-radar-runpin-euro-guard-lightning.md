@@ -157,6 +157,16 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
   Do not chase. ⚠️ probe landmine: the WMS `hour` param needs ZERO-PADDING (hour=2 → XML error,
   hour=02 → PNG); 512px renders keep the exact 20-color palette (no antialiasing LUT risk).
 
+## 1i. PAN-CLEAR TRANSIENT — CLOSED AS HEALED (07-07 verdict, user-witnessed)
+
+6-pan soak at z9.2 along the FL coast on the final build: ZERO engine clears (the original
+complaint was hard blanks on pan), zero strand heals, engine resident throughout, debounce
+clean. Residual = a brief FIRST-pan coarse beat (user: "clamped very briefly on the first pan,
+the other pans seemed better") = the designed cold-tile sharpen self-heal; subsequent pans ride
+the 0.5° bbox pad + 50% overlay pad. The lease fix (36d5e503) + the stranded-debounce fix
+(5f3d12c9) removed the pathological causes. Do not chase further without a hard-clear repro
+(watch `__WEBGL_MARINE_CLEAR_COUNT__` — it should stay 0 through pans).
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
