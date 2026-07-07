@@ -295,4 +295,9 @@ var MapMarkerLayers = ({
   );
 };
 
-export default MapMarkerLayers;
+// memo (2026-07-07, chip task_c5366c79 slice 2): MapWebGL re-renders on every radar frame step
+// (~1.5s during animation) and this DOM-marker-heavy subtree re-rendered each time with
+// unchanged props. Shallow-compare skips it; when any prop identity changes (clusters,
+// photographers, filters, callbacks) it renders exactly as before — memo with occasionally-
+// unstable props degrades to the old behavior, never past it.
+export default React.memo(MapMarkerLayers);

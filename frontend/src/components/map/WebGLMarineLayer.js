@@ -4,7 +4,7 @@
  * Receives evolved wave field data from RenderPlanDispatcher.
  * Added once as a MapLibre custom layer — no stacking decisions.
  */
-import { useEffect, useRef, useState } from 'react';
+import { memo, useEffect, useRef, useState } from 'react';
 import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
@@ -20,7 +20,11 @@ import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
-export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers, activeModel = 'GFS', timeOffsetHours = 0 }) {
+// memo (2026-07-07, chip task_c5366c79 slice 2): re-rendered on every radar frame step with
+// unchanged props (MapWebGL re-renders on radarFrameIndex). All props are primitives or stable
+// memo outputs once the caller hoists onError (MapWebGL useCallback); ref syncs inside only
+// carry prop VALUES, so skipping renders with equal props is behavior-identical.
+function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedChange, onError, beforeId, theme, activeLayers, activeModel = 'GFS', timeOffsetHours = 0 }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -942,5 +946,7 @@ export function WebGLMarineLayer({ mapInstance, active, data, revision, onAddedC
 
   return null;
 }
+
+export const WebGLMarineLayer = memo(WebGLMarineLayerInner);
 
 export default WebGLMarineLayer;

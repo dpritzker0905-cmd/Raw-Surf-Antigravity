@@ -1,4 +1,4 @@
-import React, { useRef, useState, useMemo, useEffect } from 'react';
+import React, { useRef, useState, useMemo, useEffect, useCallback } from 'react';
 import Map, { Source, Layer } from 'react-map-gl/maplibre';
 import maplibregl from 'maplibre-gl';
 import { WeatherTelemetry } from './WeatherTelemetry';
@@ -316,6 +316,13 @@ const MapWebGL = ({
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
   // timeline animation steps frames, so detected lightning animates with the radar sweep.
+  // Stable identity so the memoized WebGLMarineLayer isn't re-rendered per radar frame step
+  // (chip task_c5366c79 slice 2 — an inline arrow here defeated the memo entirely).
+  const onMarineWebglError = useCallback(() => {
+    console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
+    setWebglMarineFailed(true);
+  }, []);
+
   // Lightning is rendered ONLY as the point-flash layers (imperative effect below); the raster
   // underlay + per-frame tile URL were removed in v3b — the strike feed is a direct viewport
   // GetMap into the extraction registry (see radarTileRecolor.refreshViewportStrikes).
@@ -711,10 +718,7 @@ const MapWebGL = ({
             activeLayers={activeLayers}
             timeOffsetHours={timeOffsetHours}
             activeModel={activeModel}
-            onError={() => {
-              console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
-              setWebglMarineFailed(true);
-            }}
+            onError={onMarineWebglError}
           />
         ) : (
           <MarineParticleCanvas 
