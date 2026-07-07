@@ -20,6 +20,26 @@
 - **ICON >240h POINT continuity CLOSED** (the last open handoff item): scalar mirror of the grid fix in `backendWeatherServiceClientPoint` >240 branch — `est = mix + [trend(240)−mix(240)]·decay`, shared helpers/kill, anchors ride the point cache, fail-open. `estimate_basis.continuity_offset` flags application.
 - **"Animations briefly clamped on the heatmap"** (user, during my HMR edits): telemetry showed detectClamp coarse_global → willSharpen:true → sharpen committed, ZERO clears = the designed transient self-heal, stretched by hot-reload churn. Not a regression; judge only on a clean build.
 
+## 1c. Lightning v3 point flashes `01f5e4e1` (user: "the bolts look terrible")
+
+Industry standard (Windy live tracker / Ventusky / Blitzortung): strikes = INDIVIDUAL white
+flashes at strike locations (core + glow, independent phases, fast decay). Ours: strike CORES
+extracted from the density raster (`extractLightningStrikes` — 16px-binned local maxima ≥ gold,
+pixel→3857→lng/lat) → geojson `lightning-strikes` + `lightning-glow`/`lightning-core` circle
+layers, per-point random flash (p=2%+6%·intensity/120ms → 1.0, ×0.45 decay). Feed = ONE direct
+viewport GetMap (`refreshViewportStrikes`, 55s throttle + moveend, 5-min slot), registry TTL 90s.
+Raster underlay REMOVED. Live-verified: 30 strikes/GA, maxF 1.0→0.45→reflash. Timeline note:
+flashes show CURRENT lightning (not per-scrub-frame) — truthful for a live strike feed.
+**Landmines burned (all live-diagnosed):** ① `new Map()` in MapWebGL = react-map-gl's default
+COMPONENT import shadows global Map ("default is not a constructor", map dead) — use
+`globalThis.Map`; ② protocol registration inside the radar-active effect RACED the source mount
+(tiles requested pre-registration, failed, never retried) — register at mount, om-pattern;
+③ maplibre refused ltg-flash:// raster tiles even registered (spec present, zero loads, zero
+errors — unresolved black box; the pivot to direct fetch made it moot; do NOT re-add a
+custom-protocol raster without proving tile loads); ④ preview_screenshot times out under the
+120ms setData repaint loop — verify flash dynamics numerically (serialize().data maxF trace).
+apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), closed stale.
+
 ## 2. Verdicts (do NOT re-litigate)
 
 - **"GFS/EURO/ICON radar all share the same data" in CONUS = DESIGN.** Past = observed RainViewer (model-independent physics). Future in CONUS = HRRR for all models (the only public forecast-radar feed there; the per-model view of precip is the Precip layer). EU differs per model (DWD RV vs WN).
