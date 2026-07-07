@@ -103,6 +103,26 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
   DELTAS; and radar render-mode suspends the marine engine (empty engine with waves+radar both
   toggled is DESIGNED) — toggle radar OFF before diagnosing marine.
 
+## 1f. Final rounds `d5ec3b96`/`19b2ec79` (07-07)
+
+- **Halo damp gate = TEXEL VISIBILITY** (user-caught AT the z6 boundary: clean at 6.36, halo at
+  5.49): world-mask texels ~0.088° exceed ~1.3 screen px above z≈4.4 → gate z≥6 → z≥4.4.
+  Verified: world resident at z5.49 → haloDamp true.
+- **Intracoastal z6-7 window**: basemap-water repatch was z≥7-gated at BOTH layer call sites —
+  between z6-7 the NE-only mid mask flooded lagoons with nothing to carve them. Gates → z≥6.
+- **Rectangle forensics**: transient "rectangle cut out of the heatmap" (healed before capture) —
+  patch-carry box geometry now records to `__RAW_MASK_PATCH_CARRY_LAST__`; next occurrence =
+  one-eval diagnosis (compare rectangle vs box). Also on record: stale deep-zoom overlay boxes
+  make rectangles too (engine ~line 1525 has the <z12 stale-overlay clear).
+- **Radar nowcast parity**: 512px GetMap renders on 256px tiles (2× supersample) + 1.5px blur in
+  the recolor pass → future frames match the smoothed organic nowcast look (visually verified).
+  Kill `__RAW_RADAR_SMOOTH_DISABLED__`.
+- **Titusville clamp report = HMR churn** (not reproducible on the clean build; fine 0.235° grid
+  covers through a zoom round-trip). Judge marine reports on clean builds only.
+- **Chip task_c5366c79 slices 3 complete**: WebGLWindLayer + WindParticleOverlay memoized
+  (onError hoisted). All heavy MapWebGL children now memo'd; remaining micro-slice =
+  react-map-gl Source/Layer reconciliation (optional polish).
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
