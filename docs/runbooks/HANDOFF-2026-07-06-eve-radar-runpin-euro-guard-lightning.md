@@ -488,3 +488,64 @@ a matched pair — never revert one without the other** (§7g / §6b).
 
 **Session status: CLOSED at `94072098`.** Runbook finished. dev +2 ahead of origin/dev (unpushed),
 tree clean, 540 FE tests green, all 10 session guards verified live in the committed source.
+
+---
+
+## 9. RE-OPEN (07-07, Opus 4.8) — Moxey Town / Mangrove Cay marsh flood (residual ② §8c), FIXED partial
+
+User live-tested `94072098` and caught heatmap over Moxey Town / the Bahamas. This IS §8c residual ②
+(the tidal-creek/marshy-cay class). Diagnosed with the `__MASK_PROBE__` harness + basemap source probes.
+
+### 9a. ROOT (forensic, all confirmed on the live preview)
+- **Data-floor, both ground-truth sources agree the marsh is ocean.** At Moxey Town's tidal-creek belt
+  (e.g. -77.60/24.24) NE 10m reads `neIsLand:false`, mask 255, screen teal — and the basemap `water`
+  polygon reads water at EVERY zoom through z14. The named settlements (Moxey Town -77.6777/24.2977,
+  Pinders, Congo Town…) are on NE-land and mask correctly (mask 0); the flood is the enclosed
+  creek/marsh water BETWEEN them that both datasets label ocean. (This is why `scoreVisual` read ~0.9%
+  while the eye saw a half-flooded island — the probe's NE/basemap truth undercounts, §7a lesson taken
+  to its end.)
+- **The basemap DOES ship the marsh as 29 `landuse_overlay/wetland` polygons** (Andros), and the
+  existing wetland black-out pass (step 4, `overlayBasemapWaterOnMask`) already masks their INTERIORS
+  (probe: 0% water inside polys). The leak is the **sub-pixel tidal creeks BETWEEN polygons** — 100-300 m
+  channels are <1.5 px at the mask's ~200-800 m/px. The sheltered classifier can't help either: it drops
+  sub-basin components (`classifySheltered` min-area filter releases the fine mesh), and at ~200 m/px the
+  creeks are at/below the pixel floor.
+
+### 9b. FIX — wetland black-out DILATION (WebGLMarineMaskRenderer.js, step 4)
+Stroke each wetland polygon by a small **meters-based** radius (default `__RAW_WETLAND_DILATE_M__` 900,
+clamped 0.75-5 px) to close the sub-pixel creek gaps. Meters-based (not fixed px) because the resident
+mask resolution swings ~200-800 m/px with the resident grid; fixed-m self-scales — ~300 m at 199 m/px,
+~900 m target closes the creeks, clamp caps over-cover at fine zoom. **Only ever ADDS black over
+already-wetland-classified marsh → cannot flood** (the pipeline's core "passes only darken" safety).
+- **A/B verified (creek-gap mask water-frac, valid rebuilds gated on `wetlandBlackout.dilatePx`):**
+  0 px 22.1% → 1.5 px 19.2% → 5 px 12.6%. **Open ocean stays 100% water** (wetland polys are interior,
+  > clamp px from the open coast) at z10.5 AND z13. Marsh reads predominantly solid land vs the
+  "moth-eaten" baseline (screenshots).
+- **540→694 FE tests green** (mask suite 37/37; added a kill-switch test; the mock needed a `stroke`
+  method — my `ctx.stroke()` threw on the old mock and the wetland try/catch swallowed it, aborting the
+  landcover query = the only failure, fixed). Kill `__RAW_DISABLE_WETLAND_DILATE__`; tune
+  `__RAW_WETLAND_DILATE_M__` / hard `__RAW_WETLAND_DILATE_PX__`; telemetry `__RAW_GPU__.wetlandBlackout`.
+- **RESIDUAL (still open, the true data-floor):** creek flood where NO wetland polygon reaches — the
+  dilation can only grow existing polys. Strength is resolution-dependent (weaker when the coarse
+  global-mid grid is resident: ~19%; stronger on the fine regional grid: ~12%). The complete fix is
+  still §8c's higher-res land source / marsh classifier for creek-dense coasts — unchanged.
+- ⚠️ Guard note: this is a NEW load-bearing darken-only pass in the §5c churn-hotspot file; it pairs
+  with the wetland fill (step 4) and the island re-assert (§7c) — all "only darken", none may flood.
+
+### 9c. NEW OPEN ITEM — z9 "grid outline / clamping" (PRE-EXISTING, not the mask fix)
+User also caught a visible **coarse grid outline** in the wave field at ~z9 over the Bahamas. Forensics
+(clean restart, single navigation — NOT churn): at z9 the resident marine grid is **`global_mid`
+(~16 cells across the viewport)** → visible cells; it upgrades to the **regional/viewport grid (75-86
+cells, smooth)** at z≥10 (verified). On the clean load the z9 view momentarily showed the regional
+`florida_east_coast` product (86 cells) then settled to `global_mid` (16) — the designed tier for that
+zoom band, but the finer→coarser flip is worth a look. **This is the marine DATA-GRID tier ladder, NOT
+the ocean mask — the wetland fix cannot affect it.** Reproducible on a clean build = pre-existing.
+**Next (separate investigation, verify on DEPLOYED dev not the churned preview):** either (a) smoother
+coarse-zoom interpolation so global_mid cells don't read as a grid, or (b) lower the regional/viewport
+grid threshold toward z9. Do NOT entangle with the marsh fix. See BRAIN_RULES 14-day tier contract +
+`marineControllerUtils.js` regional-zoom thresholds before touching the ladder.
+
+### 9d. State at round end
+Tree = wetland-dilation marsh fix (WebGLMarineMaskRenderer.js + .test.js) + this runbook. 694 FE tests
+green. Live-verified on preview 3007. Committed to dev (see git log); NOT pushed. z9 clamping logged as
+§9c for a separate session.

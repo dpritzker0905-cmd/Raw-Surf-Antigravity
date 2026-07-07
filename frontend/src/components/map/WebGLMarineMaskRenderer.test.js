@@ -206,7 +206,7 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     const ctx = {};
     let style = '#000';
     Object.defineProperty(ctx, 'fillStyle', { get: () => style, set: (v) => { style = v; calls.push(['fillStyle', v]); } });
-    for (const m of ['save', 'beginPath', 'rect', 'clip', 'fillRect', 'moveTo', 'lineTo', 'closePath', 'restore']) {
+    for (const m of ['save', 'beginPath', 'rect', 'clip', 'fillRect', 'moveTo', 'lineTo', 'closePath', 'restore', 'stroke']) {
       ctx[m] = (...a) => calls.push([m, ...a]);
     }
     ctx.fill = (...a) => calls.push(['fill', style, ...a]);
@@ -251,6 +251,24 @@ describe('overlayBasemapWaterOnMask — wetland/tidal-flat black-out (Venice lag
     expect(fills[fills.length - 1][1]).toBe('#000000');
     const blackFills = fills.filter(([, s]) => s === '#000000');
     expect(blackFills.length).toBe(1);   // exactly the marsh — grass did NOT paint
+    // SUB-PIXEL CREEK-MESH CLOSE (2026-07-07): the wetland polygon is also STROKED (dilated) to
+    // close the sub-pixel tidal-creek gaps the fill leaves between polygons. Default-on.
+    expect(calls.some(([m]) => m === 'stroke')).toBe(true);
+  });
+
+  it('does NOT dilate (stroke) wetland polygons when the kill switch is set', () => {
+    const { ctx, calls } = mkCtx();
+    const map = mkMap();
+    window.__RAW_DISABLE_WETLAND_DILATE__ = true;
+    try {
+      overlayBasemapWaterOnMask({ width: 256, height: 128, getContext: () => ctx }, bounds, map);
+      expect(calls.some(([m]) => m === 'stroke')).toBe(false);
+      // fill behaviour unchanged: marsh still painted black exactly once
+      const blackFills = calls.filter(([m, s]) => m === 'fill' && s === '#000000');
+      expect(blackFills.length).toBe(1);
+    } finally {
+      delete window.__RAW_DISABLE_WETLAND_DILATE__;
+    }
   });
 
   it('keeps the water-only patch when the tiles carry no wetland features', () => {

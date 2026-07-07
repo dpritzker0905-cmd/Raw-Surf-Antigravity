@@ -323,6 +323,42 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   //    OpenMapTiles in `landcover` (class wetland, subclass incl. tidalflat).
   try {
     ctx.fillStyle = '#000000';
+    // SUB-PIXEL CREEK-MESH CLOSE (2026-07-07, Andros / Mangrove Cay "heatmap over Moxey Town"):
+    // the basemap DOES ship the marsh as discrete WETLAND polygons (Andros: 29 landuse_overlay/
+    // wetland), and the fill above blacks them out — but the 100-300 m tidal creeks BETWEEN them
+    // are < 1.5 px at the mask's ~200 m/px (mangrove marsh is a fine land/water mosaic both NE 10m
+    // and the basemap water polygon generalise as ocean), so wash leaks through the gaps and the
+    // island reads half-flooded. Dilate each wetland polygon by a small FIXED-PIXEL stroke to close
+    // them. Fixed px self-scales in the right direction: ~300 m at z10 (where the leak lives) but
+    // ~15 m at z14 (creeks already resolve → negligible over-cover of open coast). Strokes the same
+    // path tracePoly just filled; the ctx.restore() below reverts the stroke state (no leak into the
+    // sheltered pass). Only ever ADDS black over already-wetland-classified marsh → cannot flood.
+    // Sized in METERS (clamped in px), not fixed px: the resident mask resolution swings ~200-800
+    // m/px with the resident grid, so a fixed-px dilation over-covers on coarse builds and under-
+    // covers on fine ones. A/B verified (Andros creek-gap flood): 0 px 22.1% → ~900 m 12.6%, open
+    // ocean stays 100% water (wetland polys are interior, > clamp px from the open coast). Kill:
+    // __RAW_DISABLE_WETLAND_DILATE__; tune: __RAW_WETLAND_DILATE_M__ (default 900) or hard px override
+    // __RAW_WETLAND_DILATE_PX__.
+    const _win = typeof window !== 'undefined' ? window : {};
+    const _wetDilOff = _win.__RAW_DISABLE_WETLAND_DILATE__ === true;
+    const _wlSpanDeg = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+    const _wlLatMid = (bounds.north + bounds.south) / 2;
+    const _wlMPerPx = (_wlSpanDeg > 0 && canvas.width > 0)
+      ? (111320 * Math.cos(_wlLatMid * Math.PI / 180) * _wlSpanDeg) / canvas.width : 0;
+    const _pxOverride = Number(_win.__RAW_WETLAND_DILATE_PX__);
+    const _targetM = Number(_win.__RAW_WETLAND_DILATE_M__) || 900;
+    let _wetDilPx;
+    if (_pxOverride > 0) _wetDilPx = _pxOverride;
+    else if (_wlMPerPx > 0) _wetDilPx = Math.max(0.75, Math.min(5, _targetM / _wlMPerPx));
+    else _wetDilPx = 1.5;
+    const _wetDilate = !_wetDilOff && _wetDilPx > 0;
+    if (_wetDilate) {
+      ctx.strokeStyle = '#000000';
+      ctx.lineJoin = 'round';
+      ctx.lineCap = 'round';
+      ctx.lineWidth = _wetDilPx * 2;   // stroke expands the filled region ~lineWidth/2 outward
+    }
+    let _wetPainted = 0;
     for (const sl of ['landuse_overlay', 'landcover']) {
       let fs = [];
       try { fs = mapInstance.querySourceFeatures(waterSource, { sourceLayer: sl }) || []; } catch (e) { fs = []; }
@@ -334,8 +370,15 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
         if (!geom) continue;
         const polys = geom.type === 'Polygon' ? [geom.coordinates] : (geom.type === 'MultiPolygon' ? geom.coordinates : null);
         if (!polys) continue;
-        for (const poly of polys) tracePoly(poly);
+        for (const poly of polys) { tracePoly(poly); if (_wetDilate) ctx.stroke(); _wetPainted++; }
       }
+    }
+    if (_win.__RAW_GPU__) {
+      window.__RAW_GPU__.wetlandBlackout = {
+        polys: _wetPainted,
+        dilatePx: _wetDilate ? +_wetDilPx.toFixed(2) : 0,
+        mPerPx: Math.round(_wlMPerPx),
+      };
     }
   } catch (e) { /* wetland truth unavailable — water-only patch stands */ }
 
