@@ -141,6 +141,22 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
   (the old way) = reload gap per step — NEVER go back to it. Second loop = ZERO network
   (frame sources keep their tile caches). Kill `__RAW_RADAR_MULTILAYER_DISABLED__`.
 
+## 1h. `883e292d` (07-07 latest): the z5 halo/island ROOT = overlay gated out of its own regime
+
+- **Live capture at z5**: overlay texture present, `bounds: null`, no repaint for minutes — BOTH
+  the idle driver (`BASEMAP_MASK_MIN_ZOOM=7`) and the engine painter (`z<7 return`) sat ABOVE
+  the zoom band where world grids live. The wide-grid REPLACE overlay (the ONLY crisp truth for
+  the world-mask regime) never ran where it was needed → "halo keeps trying to heal, only
+  zooming back in heals", "heatmap on islands during healing". Old premise "below z7 coarse
+  texels read acceptably" = disproven (texels >1.3 px down to z≈4.4). Overlay paints a FIXED
+  screen-res canvas — cost is span-independent. Gates now PATH-AWARE: wide masks (span≥30 →
+  overlay) z≥4.4; narrow (span-dependent base repaint) z≥6. Verified z5: overlay ON/REPLACE,
+  FL/Cuba/Hispaniola/Jamaica/Caymans/Bahamas cut clean.
+- **RADAR "dissipates everywhere in latter hours" = MODEL TRUTH** (raw IEM tiles pre-pipeline:
+  coverage 3.9%→1.0% across +1h→+5.7h, leads land 00-04 local = nocturnal convective collapse).
+  Do not chase. ⚠️ probe landmine: the WMS `hour` param needs ZERO-PADDING (hour=2 → XML error,
+  hour=02 → PNG); 512px renders keep the exact 20-color palette (no antialiasing LUT risk).
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
