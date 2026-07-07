@@ -206,3 +206,52 @@ no repro post-hard-refresh) = STALE-BUNDLE verdict (tab predated the model-blind
 Part-9-② reseed blink (swap-time land cull); manifest slimming (6.1MB entry count); pan-clear
 transient (§① abort-loop memory); intracoastal/sheltered-water exposure model (design);
 DWD/EU radar palette parity; radar realism eyeball items.
+
+---
+
+## 5. REGRESSION WATCHLIST — 3-month forensic ledger (read BEFORE touching the marine/radar stack)
+
+Mined from ~2,680 commits (2026-04-07 → 07-07). This is the "do-not-reopen" ledger: approaches
+already tried-and-reverted, the guards that must stay, and the hotspots where regressions land.
+
+### 5a. GRAVEYARD — approaches tried and REVERTED (do not re-attempt without new evidence)
+| Reverted approach | Commits | Why it failed / the settled truth |
+|---|---|---|
+| **Instant layer toggle via backend `/grid_conjoined` endpoint** | `370f2042` (revert) | Phase-1 conjoined endpoint reverted; dead plumbing later purged `f63e7ced`. |
+| **Instant toggle via sibling-layer prewarm** | `38b17b38` (revert), `f63e7ced` | Sibling-prewarm reverted too. Wind cross-model prewarm `3a5435c3` survives ONLY as **default-OFF**. Backend prewarm for instant toggles = graveyard. |
+| **Scrub-miss: show nearest cached hour (≤6h) instead of freezing** | `e8ebb385` (revert) | Reintroduced stale-frame confusion; the settled behavior is freeze-then-fetch. |
+| **Scrub-settle: use time-series frame instead of global fetch** | `42c61128` (revert) | "Doomed global fetch" pattern; capped/bypassed instead `eb067c7e`. |
+| **Retry terminal no-coverage grids (EURO)** | `32f38c49`, `9620e0d5` (reverts) | Retrying a *terminal* no-coverage grid = request storm. Settled fix = **STOP retrying** `2795b763`. |
+| **Retry transient wind errors instead of blanking** | `105c9161` (revert) | Reverted — do not add blanket wind retry. |
+| **`displayMatchesRequested` viewport-containment parity** | `65ab8c55` (revert) | Containment-parity in the coordinator regressed; reverted. |
+| **Cap ICON marine below native 14-day horizon** | `fff3cd90` (revert), `1e216323` | Horizon is CONTRACT-LOCKED (GFS 14d native / ICON blend / EURO estimated) — [[marine-14day-horizon-tier-contract]]. Never cap; fix completion via smaller batches, not truncation. |
+
+### 5b. LOAD-BEARING GUARDS — verified present 07-07, removing any silently reopens a closed bug
+Each has a documented **second duty**; the recurring "removal-fix" failure mode is deleting a
+mechanism to fix symptom A and silently reopening symptom B (§2 carve-out lesson, `cb241317`).
+- `shouldRejectResolutionDowngrade` (WebGLMarineEngine.js) — MUST stay model-aware; cross-model always passes (`68963755`). A model-blind identity check paints one model's data under another's label.
+- `__RAW_MASK_RETAIN_UPGRADE_REBUILD__` retain-upgrade guard + Bahamas ≥32 px/° floor (WebGLMarineTextureEncoder.js) — `f36fd5c9`/`3c7cf1e0`; guards the island halo after a world→mid round-trip. Scoped span≥8° so close-zoom patch-truth (`cb241317`) survives.
+- `__gridSupportsLayer` on committed frames (backendCopernicusServiceClient.js) — `68963755`; without it the EURO gate NULLs series frames while raw data feeds the sim = the "series binds field, engine stays coarse" stall.
+- `discoverHrrrRun` + `refp-t` run-pinning (radarForecastSources.js) — `cbbc9557`; forecast radar must tie to the nowcast at the "now" boundary.
+- `__RAW_RADAR_MULTILAYER_DISABLED__` per-frame-layer manager (MapWebGL.js) — `6e29694e`; NEVER revert to a single re-pointed source (reload gap per step).
+- `u_maskEdgeSharp` crisp coastline cut (WebGLMarineEngine.js) — `6e29694e`; the real halo painter was the heatmap `maskFade smoothstep(0.3,0.8)`.
+- overlay path-aware gate `z < (_rms>=30 ? 4.4 : 6)` (WebGLMarineLayer.js/WebGLMarineEngine.js) — `883e292d`; the z5 halo/island ROOT. `BASEMAP_MASK_MIN_ZOOM=7` was DELETED on purpose — do not "restore" it.
+- `evaluateMarkerWedge` + `__MARINE_DEBOUNCE_STRAND_HEAL__` (useMarineScrubSettle.js) — `1e919775`/`5f3d12c9`; the stranded-fetch/debounce self-heals. onMoveEnd must clear `__MARINE_FETCH_DEBOUNCING__` on ALL exit paths.
+- `__RAW_MASK_PATCH_CARRY_LAST__` carry guard, dst ≥32 px/° (WebGLMarineTextureEncoder.js) — `6e29694e`; never transplant crisp truth into a world mask (the rectangle box).
+
+### 5c. CHURN HOTSPOTS (3mo) = highest regression surface — edit with the full ritual
+`MapWebGL.js` **368**, `marineController.js` 178, `useMarineOrchestrator.js` 151,
+`WebGLMarineLayer.js` 135, `WebGLMarineEngine.js` / `OceanMask.js` 126, `MapForecastOverlay.js` 122.
+Concept churn: scrub 139 · mask 100 · clamp 100 · coverage 77 · overlay 53. These files are a
+web of interacting gates — a symptom fix in one almost always has a second duty elsewhere.
+
+### 5d. VERIFICATION DISCIPLINE (recurring false-alarm sources — apply before filing any "it broke")
+1. **Judge on CLEAN builds** — HMR churn masquerades as clamps/halos (Titusville, "animations clamped" both = HMR, not regressions).
+2. **[[verify-bundle-hash-first]]** — SW cache hash == dev HEAD before re-diagnosing (FL GFS clamp = stale bundle).
+3. **Take counter DELTAS** — cumulative `__RAW_*` counters span the tab's whole life.
+4. **Toggle radar OFF before diagnosing marine** — radar render-mode SUSPENDS the marine engine (empty engine with both on = DESIGNED).
+5. **Sample a tile, never derive palettes from docs** — cost the team 3 user-caught rounds (`5f3d12c9`).
+6. **Every dev push restarts Render — batch. NO main pushes** (prod = `main`, ~600 behind).
+
+**Session status: CLOSED at `c4b4ad74`.** Tree clean, dev == origin/dev, FE suite green, all 10
+session guards verified live in code. Next session (Opus 4.8): §3 order, then §5a graveyard stays closed.
