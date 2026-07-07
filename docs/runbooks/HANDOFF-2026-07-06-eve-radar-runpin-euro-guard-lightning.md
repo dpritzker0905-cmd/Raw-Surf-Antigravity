@@ -90,8 +90,16 @@ on stamp 0) and dedup-blocked every fetch — settle-backstop sibling heal (`eva
 `__MARINE_MARKER_WEDGE_HEAL__`, freeze-ring reason `marker_wedge_healed`). Fault injection NOT
 possible from console (locks aren't window-exposed) — predicate unit-tested, wiring parallel to
 the proven stranded-pending heal; watch the counter on the next organic wedge.
-Chip task_c5366c79 (OceanMask switch churn — ALSO the
-react re-render side of "layer transfer" slowness; the tile cache fixed the network side);
+Chip task_c5366c79 SLICE 1 SHIPPED `b720752c` (OceanMask React.memo + dead activeLayers prop
+dropped — verified live: mask layer present, engine binds, zero errors). REMAINING slices: the
+react-map-gl Source/Layer reconciliation per radar frame step (radarFrameIndex prop re-renders
+ALL of MapWebGL — the big one; needs subtree extraction or a context split, fresh-budget work)
++ the deactivate-per-switch OceanMask hide/show churn + follow-up fetch skip (the chip's
+original scope). Radar low-dBZ fringe: scheme-7 rain column 0-7.5 dBZ = fully transparent
+ERASED the blue cloud areas on future frames (user-caught) — fixed `b720752c` with a graduated
+low-alpha teal ramp (indexes 0-3, 0x26→0x73). FL GFS-waves clamp on deployed dev (toggle-fixed,
+no repro post-hard-refresh) = STALE-BUNDLE verdict (tab predated the model-blind-guard fix) —
+[[verify-bundle-hash-first]] applies, no code change;
 Part-9-② reseed blink (swap-time land cull); manifest slimming (6.1MB entry count); pan-clear
 transient (§① abort-loop memory); intracoastal/sheltered-water exposure model (design);
 DWD/EU radar palette parity; radar realism eyeball items.
