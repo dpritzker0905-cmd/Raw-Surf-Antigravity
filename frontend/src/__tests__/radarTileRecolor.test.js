@@ -1,4 +1,4 @@
-import { recolorRadarImageData, whitenLightningImageData, extractLightningStrikes } from '../components/map/radarTileRecolor';
+import { recolorRadarImageData, recolorDwdImageData, whitenLightningImageData, extractLightningStrikes } from '../components/map/radarTileRecolor';
 import { radarForecastTileUrl, radarLightningTileUrl } from '../components/map/radarForecastSources';
 
 // HRRR forecast tiles are painted with pyiem's precip-type ramps (green rain); the past frames
@@ -48,6 +48,43 @@ describe('recolorRadarImageData', () => {
     const clear = px(90, 183, 105, 0); // a ramp color but already transparent
     expect(recolorRadarImageData(clear)).toBe(0);
     expect(clear[3]).toBe(0);
+  });
+});
+
+// DWD/EU tiles are antialiased — nearest-match snaps each pixel to the closest of the 12 sampled
+// anchors, then repaints with that anchor's scheme-7 color. The gray scan-coverage mask drops out.
+describe('recolorDwdImageData — DWD/EU nearest-match to scheme 7', () => {
+  it('exact anchors map to their scheme-7 intensity (cyan→light blue, magenta→red)', () => {
+    const cyan = px(0x33, 0xff, 0xff);      // anchor → scheme7[4] = #005588
+    recolorDwdImageData(cyan);
+    expect([...cyan]).toEqual([0x00, 0x55, 0x88, 0xff]);
+    const hail = px(0xfb, 0x00, 0xff);      // magenta anchor → scheme7[21] = #e30b0f
+    recolorDwdImageData(hail);
+    expect([...hail]).toEqual([0xe3, 0x0b, 0x0f, 0xff]);
+  });
+
+  it('antialiased near-anchor pixels snap to the nearest anchor', () => {
+    const nearCyan = px(0x30, 0xf8, 0xf6);  // AA edge of #33ffff → still scheme7[4]
+    recolorDwdImageData(nearCyan);
+    expect([...nearCyan]).toEqual([0x00, 0x55, 0x88, 0xff]);
+  });
+
+  it('the gray scan-coverage mask (and its AA edges) drops to transparent — it is not precip', () => {
+    const gray = px(0x7e, 0x7e, 0x7e, 128);
+    expect(recolorDwdImageData(gray)).toBe(0);
+    expect(gray[3]).toBe(0);
+    const nearGray = px(0x84, 0x80, 0x88, 100); // low-saturation → also dropped
+    recolorDwdImageData(nearGray);
+    expect(nearGray[3]).toBe(0);
+  });
+
+  it('heavier intensity maps to a hotter scheme-7 color than lighter (monotonic)', () => {
+    const light = px(0x00, 0x99, 0x34);     // green → scheme7[9]
+    const heavy = px(0xff, 0xc4, 0x00);     // amber → scheme7[18]
+    recolorDwdImageData(light);
+    recolorDwdImageData(heavy);
+    // scheme7[18] is a warm yellow (#ffd200) vs scheme7[9] cool blue (#0077aa): red channel jumps.
+    expect(heavy[0]).toBeGreaterThan(light[0]);
   });
 });
 
@@ -117,5 +154,11 @@ describe('radarForecastTileUrl recolor wrapping', () => {
 
   it('kill switch emits the plain https URL (protocol bypassed entirely)', () => {
     expect(radarForecastTileUrl(frame, { __RAW_RADAR_RECOLOR_DISABLED__: true })).toMatch(/^https:\/\/mesonet/);
+  });
+
+  it('DWD forecast frames ride the dwd-rv:// protocol by default; kill emits plain https', () => {
+    const dwd = { future: true, minutes: 30, time: Math.floor(Date.UTC(2026, 6, 7, 6) / 1000), source: 'dwd_wn' };
+    expect(radarForecastTileUrl(dwd, {})).toMatch(/^dwd-rv:\/\/https:\/\/maps\.dwd\.de/);
+    expect(radarForecastTileUrl(dwd, { __RAW_RADAR_RECOLOR_DISABLED__: true })).toMatch(/^https:\/\/maps\.dwd\.de/);
   });
 });

@@ -307,6 +307,7 @@ uniform float u_tile_width;
 uniform float u_opacity;
 uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
+uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -432,7 +433,7 @@ void main() {
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
   // NO coherence discard here (2026-07-03): incoherent-direction seams DIM via u_seamFadeFloor below
   // instead of vanishing — the core discard made divergence hotspots a band-wide crest dead zone.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < 0.3 || isNan || isOob)) {
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < u_crestLandThreshold || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);

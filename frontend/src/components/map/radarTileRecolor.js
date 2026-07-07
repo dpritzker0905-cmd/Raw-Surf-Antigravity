@@ -105,6 +105,66 @@ export function recolorRadarImageData(data) {
   return mapped;
 }
 
+// DWD/EU FORECAST PALETTE PARITY (2026-07-07): the EU forecast feeds (dwd:Radar_wn-product /
+// Radar_rv_product) render their OWN intensity ramp — light cyan → green → yellow-green → yellow
+// → amber → orange → magenta(hail) — plus a semi-transparent gray (#7e7e7e a≈128) that is the
+// radar SCAN-COVERAGE mask, not precip. Crossing "now" that jumped palette families the same way
+// HRRR did in CONUS. Unlike IEM's indexed tiles, DWD tiles are ANTIALIASED (live sample: ~190
+// distinct colors around ~12 anchors — §1j predicted an exact-match LUT would not transfer), so
+// this is a NEAREST-MATCH: each opaque pixel snaps to the closest anchor by RGB distance and is
+// repainted with that anchor's RainViewer scheme-7 color; the coverage gray drops to transparent.
+// Anchors + intensity order tile-sampled 2026-07-07 (maps.dwd.de WN/RV over Germany). NEVER
+// re-derive from docs — these are observed tile colors. The index is into RV_SCHEME7 (0..21).
+const DWD_ANCHORS = [
+  [0x99, 0xff, 0xff, 2],   // palest cyan  — lightest
+  [0x33, 0xff, 0xff, 4],   // cyan
+  [0x00, 0xca, 0xca, 6],   // dark cyan
+  [0x1a, 0xcc, 0x9a, 8],   // RV teal-green
+  [0x00, 0x99, 0x34, 9],   // green
+  [0x4d, 0xbf, 0x1a, 11],  // bright green (≈#4db31b)
+  [0x99, 0xcc, 0x00, 13],  // yellow-green
+  [0xcc, 0xe6, 0x00, 15],  // chartreuse
+  [0xff, 0xff, 0x00, 17],  // yellow
+  [0xff, 0xc4, 0x00, 18],  // amber
+  [0xff, 0x89, 0x00, 20],  // orange
+  [0xfb, 0x00, 0xff, 21],  // magenta / hail — heaviest
+];
+const _dwdCache = new Map();   // packed rgb → scheme-7 RGBA (or null = drop to transparent)
+
+// Mutates the RGBA byte array in place. Low-saturation pixels (the gray scan-coverage mask and
+// its antialiased edges) are cleared; everything else snaps to the nearest DWD anchor's scheme-7
+// color. Memoized per unique color (tiles carry a few hundred at most).
+export function recolorDwdImageData(data) {
+  let mapped = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    const key = (r << 16) | (g << 8) | b;
+    let out = _dwdCache.get(key);
+    if (out === undefined) {
+      const mx = Math.max(r, g, b), mn = Math.min(r, g, b);
+      if (mx - mn < 30) {
+        out = null;                                        // scan-coverage gray → transparent
+      } else {
+        let bi = 0, bd = Infinity;
+        for (let a = 0; a < DWD_ANCHORS.length; a++) {
+          const A = DWD_ANCHORS[a];
+          const d = (r - A[0]) * (r - A[0]) + (g - A[1]) * (g - A[1]) + (b - A[2]) * (b - A[2]);
+          if (d < bd) { bd = d; bi = a; }
+        }
+        out = hexToRgba(RV_SCHEME7[DWD_ANCHORS[bi][3]]);
+      }
+      _dwdCache.set(key, out);
+    }
+    if (out === null) { data[i + 3] = 0; continue; }
+    data[i] = out[0]; data[i + 1] = out[1]; data[i + 2] = out[2]; data[i + 3] = out[3];
+    mapped++;
+  }
+  return mapped;
+}
+
+export const RADAR_DWD_PROTOCOL = 'dwd-rv';
+
 // LIGHTNING WHITE-HOT (2026-07-06, "lightning appears as heatmap coloring"): industry practice
 // (WeatherBug Spark, Blitzortung, RadarOmega) renders strikes as BRIGHT WHITE flashes — newest
 // brightest — never as a color-ramp density heatmap. nowCOAST's LDN style paints a 17-color
@@ -335,6 +395,7 @@ export function registerRadarRecolorProtocol() {
   if (_registered || !maplibregl?.addProtocol) return;
   _registered = true;
   maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData, 1.5));
+  maplibregl.addProtocol(RADAR_DWD_PROTOCOL, makeRecolorHandler(recolorDwdImageData, 1.0));
   maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(lightningTransform));
   // Published as window globals for MapWebGL's flash renderer (avoids adding another
   // maplibre-gl-importing edge into the heavy MapPage chunk).

@@ -152,8 +152,12 @@ describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/
     expect(DRAW_VS).toContain('vec2 pxDelta = crestDir * (deviceHalfLength * cornerUV.x);');
   });
 
-  it('keeps the legacy center cull intact (endpoint fade is additive, not a replacement)', () => {
-    expect(DRAW_VS).toContain('oceanFlag < 0.3');
+  it('keeps the center cull intact (endpoint fade is additive, not a replacement)', () => {
+    // The center-cull threshold is now a tunable uniform (2026-07-07): default 0.5 (set in the
+    // engine) matches the heatmap's discard so crests stop surviving on soft/partial-land mask
+    // values the wash rejects. Kept as a cull (not removed) — still gates crest centers on land.
+    expect(DRAW_VS).toContain('oceanFlag < u_crestLandThreshold');
+    expect(DRAW_VS).toContain('uniform float u_crestLandThreshold;');
   });
 });
 

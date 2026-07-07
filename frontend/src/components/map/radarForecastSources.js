@@ -185,7 +185,12 @@ export function radarForecastTileUrl(frame, win) {
     const fallback = frame.source === 'dwd_rv' ? 'dwd:Radar_rv_product_1x1km_ger' : 'dwd:Radar_wn-product_1x1km_ger';
     const layer = typeof w.__RAW_RADAR_DWD_LAYER__ === 'string' && w.__RAW_RADAR_DWD_LAYER__
       ? w.__RAW_RADAR_DWD_LAYER__ : fallback;
-    return 'https://maps.dwd.de/geoserver/dwd/wms?service=WMS&version=1.3.0&request=GetMap' +
+    // DWD/EU PALETTE PARITY (2026-07-07): recolor DWD's native cyan→green→magenta ramp to the
+    // RainViewer scheme-7 the past frames use, so the timeline reads as one product across "now"
+    // (nearest-match — DWD tiles are antialiased; see radarTileRecolor.recolorDwdImageData). Kill
+    // shares __RAW_RADAR_RECOLOR_DISABLED__ (→ native DWD palette).
+    const recolor = w.__RAW_RADAR_RECOLOR_DISABLED__ === true ? '' : 'dwd-rv://';
+    return recolor + 'https://maps.dwd.de/geoserver/dwd/wms?service=WMS&version=1.3.0&request=GetMap' +
       `&layers=${encodeURIComponent(layer)}&styles=&format=image%2Fpng&transparent=true` +
       `&crs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(iso)}` +
       '&bbox={bbox-epsg-3857}';

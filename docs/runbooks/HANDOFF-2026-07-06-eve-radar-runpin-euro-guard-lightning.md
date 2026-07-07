@@ -255,3 +255,166 @@ web of interacting gates — a symptom fix in one almost always has a second dut
 
 **Session status: CLOSED at `c4b4ad74`.** Tree clean, dev == origin/dev, FE suite green, all 10
 session guards verified live in code. Next session (Opus 4.8): §3 order, then §5a graveyard stays closed.
+
+---
+
+## 6. RE-DIG ROUND (07-07, Opus 4.8) — two "closed" issues REOPENED by the user, both roots CORRECTED
+
+The user reported both the radar dissipation and the z5 marine halo STILL persisting. Forensics
+(empirical tile probes + live GPU telemetry) proved my earlier verdicts WRONG. Two attempted fixes
+were **reverted** after the user live-tested them (they regressed / didn't help). One backlog item
+(DWD/EU palette parity) shipped. **Read this before re-attempting either issue.**
+
+### 6a. RADAR "dissipates everywhere in the latter hours" — ROOT = observed↔model coverage cliff (NOT nocturnal decay)
+Empirically measured (scripts in scratchpad; re-runnable):
+- **RainViewer OBSERVED past frames: 9.71% CONUS coverage. HRRR forecast frames: 3.27%.** A ~3×
+  drop at "now" — HRRR **simulated reflectivity under-detects light/stratiform echo** vs observed
+  radar. This is a DETECTION-FLOOR discontinuity between the two feeds, **not** temporal decay.
+- Coverage is near-FLAT across leads (newest run f0=3.34% → f360=2.80% → rises to f600=3.68%). The
+  earlier "nocturnal collapse 3.9→1.0%" verdict (§1h) was an artifact of the hour it was sampled —
+  **do not repeat it.** The newest run has data at ALL leads (availability artifact disconfirmed).
+- **LUT hit-rate on a live refp-t tile = 100%** (8577/8577) — the recolor pipeline is sound, NOT
+  the cause. RainViewer's `nowcast` array is EMPTY (discontinued confirmed — no dense bridge feed).
+  IEM exposes only `refp` (one product) — can't swap to a denser composite.
+- **ATTEMPTED + REVERTED:** persistence bridge (fading last-observed underlay beneath forecast
+  frames, MapWebGL frame manager) + HRRR cap 240→120. User live-verdict: *"still not holding the
+  proper colors into the future, it makes the weather dissipate visually"* (a linear-to-zero fade
+  leaves the LATTER frames un-bridged = still sparse — the exact frames complained about) **and**
+  *"the timeline is also slow to scrub, it was working well earlier"* (the bridge's per-frame
+  moveLayer + source recreate churned the style during scrub). Net-negative → reverted to HEAD.
+- **REAL fix (next session, big lift):** a proper **advection nowcast** — motion-extrapolate the
+  observed field into the near-term and blend toward HRRR — is the only thing that holds coverage
+  into the future without a frozen-ghost. A frozen persistence underlay cannot (stale = wrong
+  location; fade-to-zero = latter frames still bare). Do NOT re-attempt the frozen bridge.
+
+### 6b. MARINE z5 halo — ROOT = the viewport overlay FLOODS islands at low zoom (my "missing overlay" dx was WRONG)
+- Live GPU telemetry at z5 over Cuba/Bahamas: `overlayMask.replaceReason: "grid_global"`,
+  `on: true`, `gwSpan: 360` — the crisp viewport overlay **already REPLACES** the coarse base mask
+  at z5 (the §1h `_gwSpan≥340` path). My hypothesis that it "was built every gesture but never
+  painted (`_gwSpan<340`)" was FALSE for the world-grid case.
+- **The user then caught the real bug:** *"a lot of the islands are also covered in heatmap now."*
+  The overlay's `overlayBasemapWaterOnMask` step samples the **basemap water polygons, which at z5
+  are simplified and DROP small islands** → the overlay marks them as OCEAN → heatmap floods the
+  land. So the low-zoom overlay is the source of BOTH the halo (NE-coastline vs basemap-water
+  disagreement bands) AND the island flood. The original z≥7/z≥9 gate existed *because* basemap
+  water is only trustworthy zoomed in.
+- **ATTEMPTED + REVERTED:** extending REPLACE to `_baseMaskCoarse` (mid-grid residencies). This
+  would spread the SAME island-flooding overlay to more zoom/grid combos — strictly worse. Reverted
+  WebGLMarineEngine.js to HEAD.
+- **REAL fix (next session):** make the low-zoom overlay island-accurate — either skip the
+  `overlayBasemapWaterOnMask` step below ~z9 and paint the overlay from the **NE coastline geojson
+  only** (`_cachedMaskGeoJSON` HAS islands), or gate the basemap-water step to z≥9. The NE dataset
+  carries islands the basemap drops at z5; that is the layer to trust in the world-grid regime.
+
+### 6c. User live-verification findings (verbatim, 07-07) — carry forward
+1. Radar: *"still not holding the proper colors into the future, it makes the weather dissipate."*
+2. Marine: *"gfs waves didn't activate either just now"* → *"they did a second time"* (activation
+   flaky on the preview — worth a look; possibly the toggle-mid-fetch surf-key race in the backlog).
+3. Marine: *"a lot of the islands are also covered in heatmap now too"* (§6b overlay flood).
+4. Scrub: *"the timeline is also slow to scrub, it was working well earlier"* (§6a bridge churn —
+   gone after revert; confirm it's back to smooth on the clean build).
+
+### 6d. SHIPPED this round: DWD/EU forecast palette parity (§3.3 backlog item — the one clean win)
+- `radarTileRecolor.recolorDwdImageData` + `dwd-rv://` protocol: **nearest-match** each antialiased
+  DWD pixel to one of 12 tile-sampled anchors (cyan→green→yellow→amber→magenta) → RainViewer
+  scheme-7; the semi-transparent gray `#7e7e7e` scan-coverage mask drops to transparent. Wired into
+  `radarForecastTileUrl` DWD branch (shares kill `__RAW_RADAR_RECOLOR_DISABLED__`). §1j predicted an
+  exact-match LUT would not transfer (205 AA colors) — confirmed; nearest-match is the right tool.
+  Anchors tile-sampled live from maps.dwd.de WN/RV over Germany (NEVER derive from docs).
+- **5 unit tests added** (radarTileRecolor.test.js, all green). ⚠️ NOT live-verified — invisible from
+  a US viewport; needs an EU viewport eyeball. Isolated: CONUS radar path (hrrr-rv://) untouched.
+
+### 6e. State at end of the re-dig round
+Tree = DWD parity changes; the radar-bridge/cap and the FIRST marine overlay-REPLACE experiment were
+REVERTED. (Superseded by §7 — the marine mask work was then done properly.)
+
+---
+
+## 7. MARINE MASK OVERHAUL (07-07, Opus 4.8) — island/coastal heatmap flood + glitch, FIXED at EVERY zoom
+
+The user re-opened the island flood ("heatmap on Abaco/islands at various zooms", "very glitchy",
+"make it work at every zoom level"). Diagnosed and fixed with a purpose-built probe. **All changes
+kill-switched + telemetered; 540 FE tests green.**
+
+### 7a. THE DIAGNOSTIC HARNESS — `maskFloodProbe.js` (window.__MASK_PROBE__)
+The turning point: eyeballing single frames LIED (probe said 0% while the user saw flood). Built an
+objective, zoom-swept, temporal harness. Two read-back primitives on the engine:
+- **`probeMaskGPU(points)`** — attaches the live mask texture to an FBO and `readPixels` the exact
+  texel the shader used (0-255, ≥128=water). Mirrors the shader's overlay-REPLACE / min / base
+  selection via `this._probeState` (stashed each draw). Calibration exact (Orlando→0, Atlantic→255).
+- **`_screenProbeRequest/Result`** — one-shot gated read-back of the COMPOSITED framebuffer at the
+  end of `renderHeatmapAndParticles`, so the probe scores marine colour (crests + wash) on land —
+  what the eye sees, which the mask-only probe misses (this is why it lied).
+- Harness fns: `scoreFlood` (vs NE truth), `scoreVisual` (vs basemap truth, composited), `sweepVisual`
+  (jumps every zoom, waits for coverage, scores), `flicker`, `ab`, `calibVisual`.
+- **LESSON: NE 10m ground truth UNDERCOUNTS** (drops cays NE lacks) — score against basemap
+  (`queryRenderedFeatures` water) AND the composited screen, not just NE. And measure TEMPORALLY —
+  the flood spikes to ~69% DURING a zoom gesture then settles (the "glitchy").
+
+### 7b. Task 2 — CRESTS ON LAND (crest-on-land 3.7% → 0%)
+`WebGLMarineParticleShaders` DRAW_VS discarded crests only at `oceanFlag < 0.3` while the heatmap
+discards at 0.5 — so crests survived on soft/partial-land mask values (thin cays, coastal edges) the
+wash rejects. Made it a tunable uniform `u_crestLandThreshold` (engine default **0.5**, matches the
+heatmap). Tune: `__RAW_CREST_LAND_THRESH__`.
+
+### 7c. Task 3 — CAY / COASTAL WASH FLOOD, gated by RESOLUTION not zoom
+- **ROOT (forensic):** the basemap water polygons DROP small islands wherever the mask texel is
+  coarser than NE 10m (~90 m) — z5 **through z11**, not just low zoom (measured: z9 mask 205 px/°
+  floods Abaco 8-17%). The re-assert had a `z<9` gate, so it was OFF exactly where the flood lived.
+- **FIX:** `reassertNeLand` now MULTIPLIES the pristine **full-resolution** NE canvas back
+  (`neFull`, captured before the paint) — NE land (0) forces mask 0, NE water (255) untouched, so
+  port-landfill/canal/sheltered all survive; full res so thin cays survive (the old 1024 snapshot
+  averaged them away). **Gated by density** (`canvas.width/span < __RAW_ISLAND_REASSERT_MAX_DENSITY__`
+  default 1200 px/°) — engages at EVERY zoom the mask is coarse, auto-skips z12+ where the basemap is
+  finer (re-asserting coarse NE there would blockify the coast). Result: z9 8-17% → **0.3%**.
+
+### 7d. z5 HALO ROOT — overlay coverage-REPLACE (z5 65% → 6.4%)
+Live telemetry at z5.27: a **16° MID grid** resident under a ~60° viewport → `_gwSpan=16 < 340` →
+the built viewport-truth overlay sat UNUSED and the coarse fallback flooded the margins. Extended the
+REPLACE trigger: `_overlayReplace = _gwSpan>=340 || !baseCoversViewport`. SAFE now that the overlay
+carries the re-assert (this was the reverted §6b change — it flooded islands *because the overlay
+dropped them*; the re-assert fixes that, so the REPLACE extension is now correct). Deep-zoom regional
+masks that DO cover the viewport are unchanged (min-combine). Kill: `__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__`.
+
+### 7e. Task 3b — INTRACOASTAL 30-60s WASH LATENCY (zoom-in) → ~1s
+The base-mask hysteresis (`refreshMaskWithBasemapWater`) skipped ALL zoom-ins inside the patch box
+(its own comment said so), so after a zoom-in the sheltered-water verdict + finest basemap holes
+never refreshed until the next data commit — the intracoastal ran wash for 30-60s. Added a
+**zoom-delta rebuild**: store `z` in `_regionalPatchState`; a zoom change ≥0.75 forces a rebuild
+(fresh classify + finest tiles). Verified: z9→z10.2 fires `applied` in ~1s (was `hysteresis_covered`
+indefinitely). Throttle (700 ms at the layer) prevents churn. Kill: `__RAW_DISABLE_ZOOM_REBUILD__`.
+
+### 7f. Zoom-flood profile at end (visual %, basemap-truth, Abaco/FL)
+z5 **6.4%** · z6-8 **0-0.2%** · z9-10 **0.3%** · z11-12 **~2.5%** (deep-zoom basemap simplification of
+thin barrier islands — NE is finer-gated OFF there; residual is the tile-level water polygon, not
+fixable from NE). Crest-on-land **0%** everywhere. Was: z5 65%, z9 8-17%.
+
+### 7g. State at round end
+Tree = marine mask overhaul (WebGLMarineEngine.js, WebGLMarineMaskRenderer.js,
+WebGLMarineParticleShaders.js, maskFloodProbe.js NEW, +shader test) + DWD parity + this runbook.
+**540 FE tests green.** Preview on 3007. NOT committed pending user call. Kill switches:
+`__RAW_DISABLE_ISLAND_REASSERT__`, `__RAW_ISLAND_REASSERT_MAX_DENSITY__`, `__RAW_CREST_LAND_THRESH__`,
+`__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__`, `__RAW_DISABLE_ZOOM_REBUILD__`.
+⚠️ **DO NOT revert the re-assert without also reverting the overlay coverage-REPLACE** — the REPLACE
+relies on the re-assert to keep islands masked (the §6b lesson).
+
+### 7h. ZOOM-OUT RECTANGLE — eager-overlay redesign TRIED + REVERTED (graveyard)
+Remaining glitch: a **~600–900ms first-visit transient on zoom-out** (measured 22–51% flood + a
+box-edge rectangle) — the basemap patch covers only the strict viewport at paint time, so zoom-out
+reveals an NE-only/coarse ring until the rebuild (`source_not_ready` tile-load bound). My zoom-delta
+rebuild (§7e) shrank it but didn't kill it.
+**Attempted redesign (4 coupled edits, all kill-switched `__RAW_DISABLE_EAGER_OVERLAY__`):** (A) build
+an eager NE-only overlay when tiles aren't ready (the tile gate only needs to protect the basemap
+QUERY, not the NE render); (B) build that overlay in the regional base path when the patch can't
+cover; (C) `patch_gap` REPLACE trigger; (D) keep basin-scale overlays alive at z<12.
+**Result — REVERTED:** the probe's *numbers* looked good (transient → ~1 frame, settled clean) but
+the **visual regressed**: at z6 the overlay REPLACE engaged with a **partial-coverage** overlay →
+a **visible blue rectangle** at the overlay-bounds edge (the very seam it was meant to kill), plus a
+frame-rate dip. Reverting Edit D (keep-basin at z<12) is the prime suspect — a persistent basin
+overlay REPLACE'd a sub-viewport rect. **LESSON: the overlay REPLACE must never engage unless the
+overlay FULLY covers the viewport — per-pixel fallback is NOT enough to hide the wash-intensity seam
+at the bounds edge.** Any future attempt MUST gate REPLACE on `overlayCoversViewport` for ALL terms
+(world_grid + coverage_gap included, not just patch_gap), and verify VISUALLY (screenshot), not just
+by the flood %. The transient is tile-load-bound; the honest fix likely needs the overlay built
+DURING the zoom animation (on the `zoom` event, throttled), not at moveend — future work.
+State: reverted to the §7g state (all other fixes intact); rectangle gone, 30 FPS, 540 tests green.

@@ -104,6 +104,32 @@ export function isBasemapWaterSourceReady(mapInstance) {
   }
 }
 
+// ISLAND RE-ASSERT (2026-07-07, "islands/coastal land covered in heatmap at EVERY zoom"): wherever
+// the mask texel is coarser than Natural Earth 10m (~90 m) — z5 through ~z11, NOT just low zoom
+// (forensics: z9 mask 205 px/° floods Abaco 8-17%; re-assert → 0) — the basemap water polygons DROP
+// small islands (no hole in the ocean polygon), so overlayBasemapWaterOnMask's ocean-white pass
+// floods them and step-3's hole re-assert has nothing to restore. `neFull` is a FULL-mask-resolution
+// copy of the pristine NE canvas captured before the paint; MULTIPLY it back: mask * NE / 255 →
+// NE land (0) forces mask 0, NE water (255) leaves the mask untouched (open water, canals, sheltered
+// 64, and port-landfill land — all NE=water or already black — survive). Full resolution so thin cays
+// NE carries survive (the old 1024 snapshot averaged them to water). Exported for tests.
+export function reassertNeLand(canvas, neFull) {
+  if (!canvas || !neFull || typeof document === 'undefined') return { applied: false, reason: 'no_input' };
+  try {
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    const prevComp = ctx.globalCompositeOperation;
+    const prevSmooth = ctx.imageSmoothingEnabled;
+    ctx.globalCompositeOperation = 'multiply';
+    ctx.imageSmoothingEnabled = false;   // hard-edged — no gray coastline creep
+    ctx.drawImage(neFull, 0, 0, canvas.width, canvas.height);
+    ctx.globalCompositeOperation = prevComp;
+    ctx.imageSmoothingEnabled = prevSmooth;
+    return { applied: true, mode: 'multiply' };
+  } catch (e) {
+    return { applied: false, reason: 'error' };
+  }
+}
+
 export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   if (!canvas || !mapInstance || typeof mapInstance.querySourceFeatures !== 'function') return false;
   let waterSource = 'composite';
@@ -174,6 +200,24 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
   // Mapbox Streets v8 water is class-less, so the ocean/sea class filter is a no-op on this
   // basemap and inland seas (Salton, Laguna Salada) would otherwise whiten as "ocean".
   const neSnapshot = snapshotNeTruth(canvas);
+
+  // FULL-RES NE capture for the island re-assert (step 3c): copy the pristine NE canvas BEFORE step
+  // 1 destroys it, at full mask resolution. Gated by RESOLUTION, not zoom — re-assert only where the
+  // mask texel (canvas.width / span, px per degree) is coarser than NE 10m's own resolution, so it
+  // engages at every zoom the mask is coarse (z5-~z11) and self-disables where the basemap is
+  // genuinely finer (z12+ meter tiles — re-asserting coarse NE there would blockify the coast).
+  let neFull = null;
+  try {
+    const _raOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
+    const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+    const _densityPxDeg = _span > 0 ? canvas.width / _span : 0;
+    const _maxDensity = (typeof window !== 'undefined' && Number(window.__RAW_ISLAND_REASSERT_MAX_DENSITY__)) || 1200;
+    if (!_raOff && _densityPxDeg > 0 && _densityPxDeg < _maxDensity) {
+      neFull = document.createElement('canvas');
+      neFull.width = canvas.width; neFull.height = canvas.height;
+      neFull.getContext('2d', { willReadFrequently: true }).drawImage(canvas, 0, 0);
+    }
+  } catch (e) { neFull = null; }
 
   // 1. Land-black the viewport patch (clipped to the canvas).
   const [px0, py0] = project(vb.west, vb.north);
@@ -249,6 +293,23 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
       window.__RAW_GPU__.inlandWaterGuard = gStats;
     }
   }
+
+  // 3c. ISLAND RE-ASSERT (see reassertNeLand + the neFull capture above): multiply the pristine
+  //     full-res NE land back wherever the mask is coarser than NE (neFull is non-null only then).
+  //     Runs AFTER the inland guard so it overrides any island the basemap flooded; the wetland +
+  //     sheltered passes below only ever darken, so they can't re-flood it. Only darkens → the
+  //     port-landfill/canal/sheltered verdicts (NE=water) are all preserved.
+  try {
+    const _span = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+    const _dens = _span > 0 ? Math.round(canvas.width / _span) : null;
+    if (neFull) {
+      const rStats = reassertNeLand(canvas, neFull);
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.islandReassert = { ...rStats, densityPxDeg: _dens };
+    } else if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      const off = window.__RAW_DISABLE_ISLAND_REASSERT__ === true;
+      window.__RAW_GPU__.islandReassert = { applied: false, reason: off ? 'disabled' : 'fine_basemap', densityPxDeg: _dens };
+    }
+  } catch (e) { /* enhancement only — basemap patch stands */ }
 
   // 4. WETLAND/TIDAL-FLAT BLACK-OUT (2026-07-04, Venice lagoon marshes): OSM puts sea-connected
   //    lagoons on the WATER side of the coastline, so the whole lagoon arrives as ocean-class water

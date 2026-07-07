@@ -8,6 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
+import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 
 import {
   createShader,
@@ -840,13 +841,31 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     //    the 27 m regional texels haloed over waterfront roads past ~z12).
     const _gwSpan = (waveBounds.east < waveBounds.west) ? (waveBounds.east + 360) - waveBounds.west : waveBounds.east - waveBounds.west;
     const _ovSpan = this._overlayMaskBounds ? (this._overlayMaskBounds.east - this._overlayMaskBounds.west) : 0;
-    const _overlayReplace = _gwSpan >= 340;
+    // Does the BASE mask actually cover the current viewport? (2026-07-07, the z5.27 persistent
+    // halo): a MID grid (e.g. 16° span, gwSpan<340) resident under a ~60° viewport leaves the coarse
+    // fallback flooding the margins while the built viewport-truth overlay sits UNUSED — the old
+    // `_gwSpan>=340` REPLACE trigger only fired for near-global grids. REPLACE whenever the base
+    // can't cover the viewport (world grid OR mid grid too small): the crisp overlay is viewport-
+    // truth and its per-pixel fallback covers any stale margin. SAFE now that the overlay carries
+    // the island re-assert (islands stay masked). Deep-zoom regional masks that DO cover the viewport
+    // are unchanged (min()-combine below). Kill: __RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__.
+    const _mbCov = !!(maskBounds && maskBounds.west <= vb[0] && maskBounds.east >= vb[2] && maskBounds.south <= vb[1] && maskBounds.north >= vb[3]);
+    // PATCH-BOX coverage (2026-07-07 zoom-out transient): the base mask geographically covers the
+    // viewport, but its basemap-PATCHED region (strict viewport at paint time) may not — on zoom-out
+    // the ring outside it is NE-only/coarse (the transient rectangle + island flood). When the patch
+    // can't cover AND a basin-scale viewport overlay exists (eager-built in refreshMaskWithBasemapWater),
+    // REPLACE with it so islands stay masked through the transient.
+    const _covReplaceOff = typeof window !== 'undefined' && window.__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__ === true;
+    const _overlayReplace = _gwSpan >= 340 || (!_covReplaceOff && !_mbCov);
     const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds &&
       (_overlayReplace || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5)));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? 'min_combine' : 'off'), baseCoversView: _mbCov, bounds: overlayOn ? ob : null };
     }
+    // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
+    // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.
+    this._probeState = { overlayOn, replace: _overlayReplace, z, maskBounds, waveBounds };
 
     // ==========================================
     // PHASE 1: GPU HEATMAP BASE LAYER (Upgraded Multi-Texture)
@@ -1239,6 +1258,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // overhanging barrier islands (Venice/Lido). Kill: window.__RAW_DISABLE_ENDPOINT_LAND_FADE__=true.
       const _endpointLandFade = (typeof window !== 'undefined' && window.__RAW_DISABLE_ENDPOINT_LAND_FADE__ === true) ? 0.0 : 1.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_endpointLandFade'), _endpointLandFade);
+      // Crest-center land cut (2026-07-07, "crests on islands at various zooms"): align crests with
+      // the heatmap's 0.5 discard so they stop surviving on soft/partial-land mask values (thin cays,
+      // coastal edges) the wash already rejects. Tune live: __RAW_CREST_LAND_THRESH__ (0.3 = legacy).
+      const _crestLandThresh = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_CREST_LAND_THRESH__)) ? +window.__RAW_CREST_LAND_THRESH__ : 0.5;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestLandThreshold'), _crestLandThresh);
       // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
@@ -1503,6 +1527,29 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     }
   }
+
+  // COMPOSITED SCREEN READ-BACK (maskFloodProbe crest-on-land, 2026-07-07): one-shot + gated, so
+  // it costs a single null-check on normal frames. After the marine pass has drawn heatmap+crests
+  // into the framebuffer, sample the composited pixel at requested screen points — this captures
+  // what the eye sees (particle crests + soft wash on land), which the mask-only probe misses.
+  if (this._screenProbeRequest && this._screenProbeRequest.length) {
+    try {
+      const req = this._screenProbeRequest; this._screenProbeRequest = null;
+      const cvs = gl.canvas;
+      const dpr = (cvs && cvs.clientWidth) ? (gl.drawingBufferWidth / cvs.clientWidth) : 1;
+      const H = gl.drawingBufferHeight, W = gl.drawingBufferWidth;
+      const out = new Uint8Array(4);
+      const res = new Array(req.length);
+      for (let i = 0; i < req.length; i++) {
+        const rx = Math.round(req[i].x * dpr), ry = Math.round(H - req[i].y * dpr);
+        if (rx < 0 || ry < 0 || rx >= W || ry >= H) { res[i] = null; continue; }
+        gl.readPixels(rx, ry, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+        res[i] = [out[0], out[1], out[2], out[3]];
+      }
+      this._screenProbeResult = res;
+      this._screenProbeAt = Date.now();
+    } catch (e) { this._screenProbeResult = null; }
+  }
 };
 
 WebGLMarineEngine.prototype.render = WebGLMarineEngine.prototype.renderHeatmapAndParticles;
@@ -1557,15 +1604,23 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   } catch (e) { curView = null; }
   const gridKey = `${bounds.west}_${bounds.south}_${bounds.east}_${bounds.north}`;
   const rp = this._regionalPatchState;
+  let _curZoom = 0; try { _curZoom = mapInstance.getZoom(); } catch (e) { _curZoom = 0; }
+  // ZOOM-CHANGE REBUILD (2026-07-07, "intracoastal wash takes 30-60s to suppress at z9 on zoom-in"):
+  // the base hysteresis used to skip ALL zoom-ins inside the patch box (its comment even said so), so
+  // after a zoom-in the sheltered-water verdict + finest basemap holes for the closer view never
+  // refreshed until the next data commit — the 30-60s the user saw. Now a zoom change ≥0.75 forces a
+  // rebuild (fresh classify + finest tiles); pans inside the box and small zooms still skip, and the
+  // layer's 700 ms throttle keeps it from churning. Kill: __RAW_DISABLE_ZOOM_REBUILD__.
+  const _zoomRebuildOff = typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOM_REBUILD__ === true;
+  const _zoomStable = _zoomRebuildOff || typeof rp?.z !== 'number' || Math.abs(_curZoom - rp.z) < 0.75;
   // A DEGRADED previous paint (parent-vulnerable source-query fallback) never earns the
   // hysteresis skip — the next refresh repaints with finest-tile truth (grey-rect self-heal).
-  if (curView && rp && !rp.degraded && rp.gridKey === gridKey && rp.box &&
+  if (curView && rp && !rp.degraded && _zoomStable && rp.gridKey === gridKey && rp.box &&
       rp.box.west <= curView.west && rp.box.east >= curView.east &&
       rp.box.south <= curView.south && rp.box.north >= curView.north) {
     // Base patch still covers the view — only the deep-zoom overlay may need work.
     try {
-      let _z3; try { _z3 = mapInstance.getZoom(); } catch (e3) { _z3 = 0; }
-      if (_z3 >= 12) return this.refreshViewportOverlayMask(gl, mapInstance);
+      if (_curZoom >= 12) return this.refreshViewportOverlayMask(gl, mapInstance);
     } catch (e3) { /* enhancement only */ }
     this._lastMaskRepatchReason = 'hysteresis_covered';
     return false;
@@ -1592,7 +1647,7 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
     // still skip; any pan escaping it repaints (throttled + tile-gated at the layer).
     if (curView) {
       const degraded = !!(applied && applied.degraded);
-      this._regionalPatchState = { gridKey, box: { ...curView }, degraded };
+      this._regionalPatchState = { gridKey, box: { ...curView }, degraded, z: _curZoom };
       // PATCH CARRY-FORWARD source (2026-07-06, "bays flicker on rapid zoom"): retain the painted
       // canvas so the NEXT mask rebuild (bounds change / geojson swap) transplants this truth box
       // synchronously instead of flashing NE-only until the async repatch (see maskSmoothing.js).
@@ -1728,6 +1783,61 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     console.warn('[WebGLMarineEngine] viewport overlay mask refresh skipped:', e && e.message);
     return false;
   }
+};
+
+// GPU MASK READ-BACK (maskFloodProbe.js diagnostic, 2026-07-07 — "innovate a better way to test"):
+// sample the ACTUAL ocean-mask texel the shader used at each lng/lat by attaching the live mask
+// texture to an FBO and readPixels (persistent texture; no draw-timing games, no preserveDrawingBuffer).
+// Returns per-point { base, overlay, effective, src } as 0-255 red (≥128 = water). `effective`
+// mirrors the shader's per-pixel selection (overlay REPLACE, z≥12 min-combine, or base) using the
+// state stashed during the last draw. Dev tool only; no effect on rendering.
+WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
+  const gl = glIn || (typeof window !== 'undefined' && window.map && window.map.painter && window.map.painter.context && window.map.painter.context.gl);
+  if (!gl || !Array.isArray(points)) return null;
+  const ps = this._probeState || {};
+  const merc = (lat) => { const c = Math.max(-85.051129, Math.min(85.051129, lat)) * Math.PI / 180; return (1 - Math.log(Math.tan(c) + 1 / Math.cos(c)) / Math.PI) / 2; };
+  const wrap = (lng, center) => { let p = lng; while (p - center > 180) p -= 360; while (p - center < -180) p += 360; return p; };
+  const dimsForOverlay = (b) => { const span = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west; let w = span < 10 ? 4096 : (span < 30 ? 2048 : 4096); if (w > 2048) w = 2048; return { w, h: w / 2 }; };
+  const prevFbo = gl.getParameter(gl.FRAMEBUFFER_BINDING);
+  const fbo = gl.createFramebuffer();
+  const out = new Uint8Array(4);
+  const read = (tex, b, dims, lng, lat) => {
+    if (!tex || !b || !dims) return null;
+    const center = (b.west + b.east) / 2;
+    const wW = wrap(b.west, center), wE = wrap(b.east, center), pl = wrap(lng, center);
+    const mnX = (wW + 180) / 360, mxX = (wE + 180) / 360, mnY = merc(b.north), mxY = merc(b.south);
+    if (mxX <= mnX || mxY <= mnY) return null;
+    const u = ((pl + 180) / 360 - mnX) / (mxX - mnX);
+    const v = (merc(lat) - mnY) / (mxY - mnY);          // 0 = north (canvas top)
+    if (u < 0 || u > 1 || v < 0 || v > 1) return null;
+    const tx = Math.max(0, Math.min(dims.w - 1, Math.round(u * (dims.w - 1))));
+    const tyC = Math.max(0, Math.min(dims.h - 1, Math.round(v * (dims.h - 1))));
+    const ty = dims.h - 1 - tyC;                          // mask uploaded UNPACK_FLIP_Y=true
+    gl.bindFramebuffer(gl.FRAMEBUFFER, fbo);
+    gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, tex, 0);
+    if (gl.checkFramebufferStatus(gl.FRAMEBUFFER) !== gl.FRAMEBUFFER_COMPLETE) return null;
+    gl.readPixels(tx, ty, 1, 1, gl.RGBA, gl.UNSIGNED_BYTE, out);
+    return out[0];
+  };
+  const inBounds = (b, lng, lat) => {
+    if (!b || lat < b.south || lat > b.north) return false;
+    const c = (b.west + b.east) / 2, pl = wrap(lng, c), wW = wrap(b.west, c), wE = wrap(b.east, c);
+    return pl >= wW && pl <= wE;
+  };
+  const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
+  const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
+  const res = points.map(({ lng, lat }) => {
+    const base = read(baseTex, baseB, baseD, lng, lat);
+    const overlay = read(ovTex, ovB, ovD, lng, lat);
+    let effective = base, src = 'base';
+    if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
+      if (ps.replace) { effective = overlay; src = 'overlay_replace'; }
+      else { effective = (base == null) ? overlay : Math.min(base, overlay); src = 'overlay_min'; }
+    }
+    return { lng, lat, base, overlay, effective, src };
+  });
+  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) {}
+  return res;
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
