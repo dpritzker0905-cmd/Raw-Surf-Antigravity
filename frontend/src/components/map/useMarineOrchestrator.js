@@ -226,6 +226,17 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const onMoveEnd = () => {
       if (window.isScrubbingTimeline) return;
 
+      // STRANDED-DEBOUNCE ROOT (2026-07-07, live-caught: engine empty + renderable data +
+      // govIdle, nothing healing): every `move`/`zoom` event sets __MARINE_FETCH_DEBOUNCING__
+      // unconditionally (below), but the flag was only cleared on the path that schedules a
+      // fetch — the camera-hash dedup and degenerate-bounds early returns SKIPPED that path and
+      // stranded the flag TRUE forever (any gesture ending at the same camera hash). A stranded
+      // "transitioning" flag makes ~8 gates hold stale frames indefinitely: the close-zoom
+      // "clamped animation resolution" and the returned land halo are its downstream faces.
+      // The gesture is OVER when moveend fires — clear first; the schedule path re-arms it.
+      if (typeof window !== 'undefined') {
+        window.__MARINE_FETCH_DEBOUNCING__ = false;
+      }
       let b = null;
       try {
         b = mapInstance.getBounds();

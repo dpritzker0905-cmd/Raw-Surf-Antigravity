@@ -56,16 +56,19 @@ const IEM_PTYPE_RAMPS = {
 // its yellows/reds (user-caught visually 2026-07-06). The past frames' `1_0` URL options run
 // snow=0, so the rain column IS the whole past-frame palette — exact parity. <10 dBZ is fully
 // transparent; 30≈yellow, 40≈amber, 52.5+≈red (the SELEX-SI rainbow).
-// ⚠️ Indexes 0-3 (0-7.5 dBZ) are FULLY TRANSPARENT in RainViewer's published table, which
-// erased the soft "blue cloud" fringe the past frames visibly carry (their smoothing spreads
-// low echo) — user-caught 2026-07-07: "the blue areas of clouds aren't showing, but the reds/
-// yellows/oranges are". Restored as a graduated low-alpha teal ramp into the 10-dBZ teal, so
-// light precip reads as the same soft fringe on both sides of "now".
+// ⚠️ GROUND-TRUTH PALETTE (2026-07-07 v3, user-caught TWICE): rainviewer.com's published
+// color-table page does NOT describe what their tile server actually renders — real scheme-7
+// tiles (sampled live over the GA storms: tilecache …/7/1_0.png) draw light precip as an
+// OPAQUE DARK-BLUE→BLUE→CYAN ramp (the "cloud cover" areas), then yellow→amber cores. Two
+// documentation-derived attempts (SELEX rainbow, then a teal fringe) both failed the eyeball
+// because the doc palette ≠ the rendered palette. These 22 steps are the OBSERVED tile colors,
+// darkest-blue at 0 dBZ through the sampled yellows/ambers, red extrapolated for the 50+ cap.
+// NEVER re-derive this from the color-schemes page — sample a real tile.
 const RV_SCHEME7 = [
-  '#009f9f26', '#009f9f40', '#009f9f59', '#009f9f73', '#009f9fff', '#00977dff',
-  '#008c4bff', '#00b62dff', '#00d319ff', '#0de31cff', '#21fd22ff', '#a6fd1dff',
-  '#fffd1bff', '#ffec10ff', '#ffd400ff', '#ffbb00ff', '#ffab00ff', '#ff9200ff',
-  '#ff6e00ff', '#f63501ff', '#f01002ff', '#e30b0fff',
+  '#004768ff', '#004a70ff', '#004e78ff', '#005180ff', '#005588ff', '#005b8eff',
+  '#006295ff', '#00699cff', '#0070a3ff', '#0077aaff', '#007fb4ff', '#0088bfff',
+  '#0091caff', '#009ad5ff', '#00a3e0ff', '#1baee2ff', '#6cd1ebff', '#ffee00ff',
+  '#ffd200ff', '#ffaa00ff', '#ff7800ff', '#e30b0fff',
 ];
 
 function hexToRgba(h) {

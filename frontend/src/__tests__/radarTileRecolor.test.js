@@ -7,17 +7,24 @@ import { radarForecastTileUrl, radarLightningTileUrl } from '../components/map/r
 
 const px = (r, g, b, a = 255) => new Uint8ClampedArray([r, g, b, a]);
 
+// ⚠️ The LUT targets are OBSERVED tile colors (sampled live from tilecache …/7/1_0.png over an
+// active storm) — NOT the color-schemes documentation page, which renders differently (two
+// doc-derived palettes failed the eyeball; see RV_SCHEME7's note). Blue→cyan = light precip
+// ("cloud cover"), yellow→amber→red = cores.
 describe('recolorRadarImageData', () => {
-  it('maps a rain-ramp color to the scheme-7 RAIN color of the SAME dBZ (index 16 = 40 dBZ: #ffe81a → amber #ffab00 — heavy precip KEEPS its yellows/reds)', () => {
+  it('maps a rain-ramp color to the OBSERVED scheme-7 color of the SAME dBZ (index 16 = 40 dBZ → light cyan #6cd1eb)', () => {
     const d = px(255, 232, 26); // rain[16]
     expect(recolorRadarImageData(d)).toBe(1);
-    expect([...d]).toEqual([0xff, 0xab, 0x00, 0xff]); // RV_SCHEME7[16] (rain column, not the snow blues)
+    expect([...d]).toEqual([0x6c, 0xd1, 0xeb, 0xff]);
   });
 
-  it('extreme reflectivity renders red (index 21 = 52.5+ dBZ → #e30b0f)', () => {
+  it('extreme reflectivity renders red (index 21 = 52.5+ dBZ → #e30b0f) and 45 dBZ renders amber-yellow', () => {
     const d = px(0xff, 0xa0, 0x00); // rain[21]
     recolorRadarImageData(d);
     expect([...d]).toEqual([0xe3, 0x0b, 0x0f, 0xff]);
+    const mid = px(255, 197, 5);    // rain[18] = 45 dBZ
+    recolorRadarImageData(mid);
+    expect([...mid]).toEqual([0xff, 0xd2, 0x00, 0xff]);
   });
 
   it('snow and rain of equal dBZ converge to the same target (ptype collapsed to intensity)', () => {
@@ -28,12 +35,10 @@ describe('recolorRadarImageData', () => {
     expect([...rain]).toEqual([...snow]);
   });
 
-  it('low-dBZ pixels keep a soft teal fringe (the "blue cloud" areas the past frames show — full transparency erased them, user-caught 2026-07-07)', () => {
+  it('low-dBZ pixels render the OPAQUE dark-blue "cloud cover" the past frames actually show (doc palettes made them invisible — user-caught twice)', () => {
     const d = px(0xee, 0xf8, 0xea); // rain[0] = 0 dBZ
     recolorRadarImageData(d);
-    expect([d[0], d[1], d[2]]).toEqual([0x00, 0x9f, 0x9f]); // teal family, matching 10 dBZ hue
-    expect(d[3]).toBeGreaterThan(0);      // visible…
-    expect(d[3]).toBeLessThan(0x80);      // …but soft (fringe, not core)
+    expect([...d]).toEqual([0x00, 0x47, 0x68, 0xff]); // darkest observed blue, full alpha
   });
 
   it('unknown colors and transparent pixels pass through unchanged (fail-open)', () => {

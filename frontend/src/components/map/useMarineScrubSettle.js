@@ -529,6 +529,9 @@ export function useMarineScrubSettle({
     // a lease start stamp — the strand releaseStaleMarineLock cannot heal (its lease math bails
     // on fetchStartedAt=0), which dedup-blocks every fetch with zero network activity.
     let zeroStampSince = 0;
+    // Stranded-debounce tracking (2026-07-07): how long __MARINE_FETCH_DEBOUNCING__ has stuck
+    // true under an idle governor — legit windows are ≤900ms.
+    let debouncingSince = 0;
     // No-progress cap (organic repro 2026-06-28): at extreme zoom the series only has a GLOBAL covering frame
     // (fw 360) so runScrubSettleCheck's `fw < 340` gate can NEVER sharpen — the backstop re-drove forever
     // (loads 24→161+, rAF-jank). Track the stuck-clamp signature; after a few no-progress fires, stop
@@ -582,6 +585,25 @@ export function useMarineScrubSettle({
         console.warn(`[Marine] Stranded fetch-pending released (idle ${(pendingAge / 1000).toFixed(1)}s, isFetching=false, governor idle) — re-driving wedged heatmap.`);
         if (checkScrubSettleRef.current) checkScrubSettleRef.current();
         return;
+      }
+
+      // ── Stranded-debounce watchdog (2026-07-07, the SAME family as stranded-pending): a
+      //    legitimate debounce window is ≤900ms (orchestrator moveend), so a
+      //    __MARINE_FETCH_DEBOUNCING__ that persists >8s while the governor is idle and nothing
+      //    is pending is a strand (the moveend early-return leak was the root — fixed at the
+      //    source, this is the belt). ~8 gates read the flag as "transitioning" and hold stale
+      //    frames while it sticks — the close-zoom clamped-resolution face.
+      if (typeof window !== 'undefined' && window.__MARINE_FETCH_DEBOUNCING__ === true &&
+          govIdle && !window.__MARINE_FETCH_PENDING__ && !isFetching) {
+        if (!debouncingSince) debouncingSince = Date.now();
+        if (Date.now() - debouncingSince > 8000) {
+          debouncingSince = 0;
+          window.__MARINE_FETCH_DEBOUNCING__ = false;
+          window.__MARINE_DEBOUNCE_STRAND_HEAL__ = (window.__MARINE_DEBOUNCE_STRAND_HEAL__ || 0) + 1;
+          console.warn('[Marine] Stranded __MARINE_FETCH_DEBOUNCING__ cleared (idle 8s+, no pending, not fetching) — transition gates released.');
+        }
+      } else {
+        debouncingSince = 0;
       }
 
       // ── Marker-wedge heal (chip task_59bcc036, the 07-06 "zero network requests" dead-wedge):
