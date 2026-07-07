@@ -314,10 +314,22 @@ const MapWebGL = ({
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
   // timeline animation steps frames, so detected lightning animates with the radar sweep.
+  // STABLE SOURCE (2026-07-07 runtime-error fix): mounting the source only on past frames
+  // unmounted/remounted it EVERY animation loop (null on future frames), racing maplibre's
+  // raster draw with texture-less tiles ("Cannot read properties of undefined (reading 'bind')"
+  // in Object.raster). The source now stays mounted on the newest applicable PAST frame and
+  // future frames hide the LAYER instead — truth preserved (nothing drawn), no mount churn.
   const lightningTileUrl = useMemo(() => {
     if (!radarFrames?.length || radarFrameIndex == null) return null;
-    return radarLightningTileUrl(radarFrames[radarFrameIndex]);
+    const frame = radarFrames[radarFrameIndex];
+    if (!frame) return null;
+    if (!frame.future) return radarLightningTileUrl(frame);
+    for (let i = radarFrames.length - 1; i >= 0; i--) {
+      if (!radarFrames[i].future) return radarLightningTileUrl(radarFrames[i]);
+    }
+    return null;
   }, [radarFrames, radarFrameIndex]);
+  const lightningFrameIsPast = !!(radarFrames?.[radarFrameIndex] && !radarFrames[radarFrameIndex].future);
 
   // LIGHTNING STROBE (2026-07-06 v2, "appears as heatmap coloring instead of flashes"): the
   // industry pattern (WeatherBug Spark / Blitzortung / RadarOmega) is strikes that FLASH —
@@ -571,7 +583,7 @@ const MapWebGL = ({
             <Layer
               id="lightning-layer"
               type="raster"
-              layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
+              layout={{ visibility: activeLayers.includes('radar') && lightningFrameIsPast ? 'visible' : 'none' }}
               paint={{ 'raster-opacity': 0.9 }}
             />
           </Source>
