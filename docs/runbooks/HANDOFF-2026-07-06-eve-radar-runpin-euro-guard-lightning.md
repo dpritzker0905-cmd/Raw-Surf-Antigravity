@@ -64,3 +64,27 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
 - **nowCOAST default TIME can be days ahead of now** — always pass explicit `time=`; `nearestValue=1` snaps.
 - **Model buttons are zero-rect while the weather drawer is closed** — drive previews via the window setters (`setActiveModel`/`toggleLayer`/`setTimeOffsetHours`) + `__FORCE_PREMIUM_TIER__` (tier gate silently reverts non-allowed models).
 - The preview screenshot viewport can go mobile-narrow with the tuner overlay covering the map — verify at the data level (protocol-initiated network fetches, telemetry counters) when pixels are obstructed.
+
+## 1d. Refinement round `a978db02` (final Fable-5 commits)
+
+- **Lightning calm cadence**: 240ms tick, ×0.82 decay (~2s fade), glow peak 0.32, SCREEN-NORMALIZED
+  flash rate (~0.35 flashes/s viewport-wide, split by intensity — storm size doesn't change the
+  feel). Verified trace: full flash 2/20 ticks, long gentle decays. Levers `__RAW_LTG_TICK_MS__`,
+  `__RAW_LTG_DECAY__`, `__RAW_LTG_P_SCALE__`.
+- **Radar scrub tile cache**: recolored HRRR tiles LRU-cached in the protocol handler (10-min TTL,
+  160 cap, in-flight dedupe) — loop pass 2 verified 4/4 hits. `__RAW_RADAR_TILE_CACHE__` telemetry,
+  `__RAW_RADAR_TILE_CACHE_OFF__` kill. First loop still pays the WMS render (server-side).
+- **Marine halo damp**: wash ×0.35 while resident mask <32 px/° at z≥6 (the heal window whose
+  pulses read as "band halo glitching"); full wash returns when a denser mask lands. Render-time
+  only. Kill `__RAW_DISABLE_HALO_DAMP__`, telemetry `__RAW_GPU__.haloDamp`. ⚠️ EYEBALL OWED.
+- **Zoom-out clear rectangle: preview-3007-only** (cold cache, no SW, forced camera jumps expose
+  the baseless-bridge window; EURO-no-prewarm caveat stands) — NOT reproducible on deployed dev,
+  no code change. Judge bridge issues on deployments only.
+
+## REMAINING BACKLOG (next session / Opus 4.8)
+
+Chips task_59bcc036 (fetch-marker wedge) + task_c5366c79 (OceanMask switch churn — ALSO the
+react re-render side of "layer transfer" slowness; the tile cache fixed the network side);
+Part-9-② reseed blink (swap-time land cull); manifest slimming (6.1MB entry count); pan-clear
+transient (§① abort-loop memory); intracoastal/sheltered-water exposure model (design);
+DWD/EU radar palette parity; radar realism eyeball items.
