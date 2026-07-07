@@ -20,7 +20,7 @@ import {
   createTexture,
   encodeMarineTexture
 } from './WebGLMarineTextureEncoder';
-import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
+import { renderMaskToCanvas, overlayBasemapWaterOnMask, isBasemapWaterSourceReady, maskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 
 import { populateCrestDiagnostics } from './WebGLMarineEngineDiagnostics';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM, COARSE_CREST_BAND_MIN_ZOOM } from './marineZoomThresholds';
@@ -796,10 +796,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         _baseCoverGated = ((_ix * _iy) / _vpArea) >= _minFrac;
       }
     }
-    const baseWashOpacity = _baseCoverGated ? 0.0 : heatmapZoomOpacity(z) * _baseMult * _blendBaseWash * _washZoomDamp;
+    let baseWashOpacity = _baseCoverGated ? 0.0 : heatmapZoomOpacity(z) * _baseMult * _blendBaseWash * _washZoomDamp;
+    // HALO DAMP (2026-07-07, "band halo glitching as it works to cover up the bands"): while the
+    // RESIDENT mask is world-tier (<32 px/° — it cannot render a crisp coastline) at mid+ zoom,
+    // the wash's soft mask edge IS the visible halo band, and every heal step (retain → mid
+    // rebuild → patched → fine) pulses it. Quiet the wash to 35% for exactly that window; the
+    // moment a denser mask lands the full wash returns. Render-time multiplier only — no mask
+    // lifecycle, commit, or clip changes. Kill: __RAW_DISABLE_HALO_DAMP__.
+    // Telemetry: __RAW_GPU__.haloDamp.
+    let _haloDamped = false;
+    if (baseWashOpacity > 0 && z >= 6 && this._cachedMaskTexDims && this._cachedMaskBounds &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
+        maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32) {
+      baseWashOpacity *= 0.35;
+      _haloDamped = true;
+    }
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.coarseBridgeActive = _bridgeActive;
       window.__RAW_GPU__.baseWashGated = _baseCoverGated;
+      window.__RAW_GPU__.haloDamp = _haloDamped;
     }
 
     // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different

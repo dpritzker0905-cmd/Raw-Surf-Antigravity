@@ -351,17 +351,17 @@ const MapWebGL = ({
           mapInstance.addLayer({
             id: 'lightning-glow', type: 'circle', source: SRC,
             paint: {
-              'circle-radius': ['+', 10, ['*', 14, ['get', 'f']]],
+              'circle-radius': ['+', 8, ['*', 10, ['get', 'f']]],
               'circle-color': '#fff7cc', 'circle-blur': 1.2,
-              'circle-opacity': ['*', 0.55, ['get', 'f']],
+              'circle-opacity': ['*', 0.32, ['get', 'f']],
             },
           });
           mapInstance.addLayer({
             id: 'lightning-core', type: 'circle', source: SRC,
             paint: {
-              'circle-radius': ['+', 1.5, ['*', 3, ['get', 'f']]],
+              'circle-radius': ['+', 1.2, ['*', 2.2, ['get', 'f']]],
               'circle-color': '#ffffff',
-              'circle-opacity': ['min', 1, ['*', 1.4, ['get', 'f']]],
+              'circle-opacity': ['min', 0.95, ['*', 1.1, ['get', 'f']]],
             },
           });
         }
@@ -369,11 +369,24 @@ const MapWebGL = ({
       } catch (e) { return false; }   // style mid-load — next tick retries
     };
     const staticMode = typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_FLASH_DISABLED__ === true;
+    // SUBTLE CADENCE (2026-07-07 v3c, "more subtle, not so fast" — Blitzortung/LightningMaps
+    // age strikes over MINUTES with seconds-long fades, never sub-second strobes): 240ms tick,
+    // ×0.82 decay ≈ a ~2s fade per flash, and p = 0.6% + 2%·intensity per tick ≈ each strike
+    // flashing every ~15-40s (a calm screen-wide shimmer, not a storm of blinking).
+    // Levers: __RAW_LTG_TICK_MS__, __RAW_LTG_DECAY__, __RAW_LTG_P_SCALE__.
+    const w = typeof window !== 'undefined' ? window : {};
+    const tickMs = typeof w.__RAW_LTG_TICK_MS__ === 'number' ? w.__RAW_LTG_TICK_MS__ : 240;
+    const decay = typeof w.__RAW_LTG_DECAY__ === 'number' ? w.__RAW_LTG_DECAY__ : 0.82;
+    const pScale = typeof w.__RAW_LTG_P_SCALE__ === 'number' ? w.__RAW_LTG_P_SCALE__ : 1.0;
     const id = setInterval(() => {
       if (!ensure()) return;
       try {
         const pts = (typeof window !== 'undefined' && typeof window.__LTG_STRIKES__ === 'function')
           ? window.__LTG_STRIKES__() : [];
+        // SCREEN-NORMALIZED flash rate: ~0.35 flashes/second across the WHOLE viewport split
+        // over the points (weighted by intensity) — a big storm doesn't strobe harder than a
+        // small one, and the overall feel stays at "one calm flash every ~3s somewhere".
+        const pBase = ((0.35 * tickMs) / 1000 / Math.max(1, pts.length)) * pScale;
         const features = pts.map((p) => {
           const key = `${p.lng.toFixed(3)},${p.lat.toFixed(3)}`;
           let f;
@@ -381,7 +394,8 @@ const MapWebGL = ({
             f = 0.5 * p.intensity;
           } else {
             const prev = flash.get(key) || 0;
-            f = Math.random() < 0.02 + 0.06 * p.intensity ? 1.0 : Math.max(0.08 * p.intensity, prev * 0.45);
+            f = Math.random() < pBase * (0.5 + p.intensity)
+              ? 1.0 : Math.max(0.05 * p.intensity, prev * decay);
             flash.set(key, f);
           }
           return { type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { f } };
@@ -389,7 +403,7 @@ const MapWebGL = ({
         if (flash.size > 2000) flash.clear();   // bound stale-key growth across long sessions
         mapInstance.getSource(SRC).setData({ type: 'FeatureCollection', features });
       } catch (e) { /* style transition — next tick retries */ }
-    }, 120);
+    }, tickMs);
     return () => {
       clearInterval(id);
       clearInterval(refreshId);

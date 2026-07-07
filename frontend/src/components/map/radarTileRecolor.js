@@ -229,29 +229,68 @@ export async function refreshViewportStrikes(map) {
   }
 }
 
+// SCRUB/LOOP TILE CACHE (2026-07-07, "slow and churning between layer transfers and scrubbing"):
+// each HRRR future tile is a server-side WMS RENDER (400-600ms) with no cache headers, so every
+// animation loop and scrub pass re-paid the full render latency per tile. Recolored results are
+// LRU-cached (10-min TTL — inside the 5-min run-discovery cadence a given run+lead+bbox tile is
+// immutable) and concurrent requests for the same tile share one in-flight promise.
+// Telemetry: __RAW_RADAR_TILE_CACHE__ {hits, misses}. Kill: __RAW_RADAR_TILE_CACHE_OFF__.
+const _tileCache = new Map();     // httpsUrl → { buf: ArrayBuffer, ts }
+const _tileInflight = new Map();  // httpsUrl → Promise<{data}>
+const TILE_CACHE_TTL_MS = 10 * 60 * 1000;
+const TILE_CACHE_MAX = 160;
+
 function makeRecolorHandler(transform) {
   return async (params) => {
     // Tile URLs are '<scheme>://https://...' — strip only the custom scheme prefix.
     const httpsUrl = params.url.replace(/^[a-z-]+:\/\/(?=https:\/\/)/, '');
-    const resp = await fetch(httpsUrl);
-    const buf = await resp.arrayBuffer();
-    try {
-      const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/png' }));
-      const canvas = typeof OffscreenCanvas !== 'undefined'
-        ? new OffscreenCanvas(bitmap.width, bitmap.height)
-        : Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height });
-      const ctx = canvas.getContext('2d', { willReadFrequently: true });
-      ctx.drawImage(bitmap, 0, 0);
-      const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-      transform(img.data, bitmap.width, bitmap.height, httpsUrl);
-      ctx.putImageData(img, 0, 0);
-      const blob = canvas.convertToBlob
-        ? await canvas.convertToBlob({ type: 'image/png' })
-        : await new Promise((res) => canvas.toBlob(res, 'image/png'));
-      return { data: await blob.arrayBuffer() };
-    } catch (e) {
-      return { data: buf };   // decode/canvas failure: serve the original tile (native palette)
+    const w = typeof window !== 'undefined' ? window : {};
+    const cacheOn = w.__RAW_RADAR_TILE_CACHE_OFF__ !== true;
+    const tel = w.__RAW_RADAR_TILE_CACHE__ || (w.__RAW_RADAR_TILE_CACHE__ = { hits: 0, misses: 0 });
+    if (cacheOn) {
+      const hit = _tileCache.get(httpsUrl);
+      if (hit && Date.now() - hit.ts < TILE_CACHE_TTL_MS) {
+        tel.hits++;
+        return { data: hit.buf.slice(0) };
+      }
+      const inflight = _tileInflight.get(httpsUrl);
+      if (inflight) return inflight;
     }
+    const work = (async () => {
+      tel.misses++;
+      const resp = await fetch(httpsUrl);
+      const buf = await resp.arrayBuffer();
+      try {
+        const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/png' }));
+        const canvas = typeof OffscreenCanvas !== 'undefined'
+          ? new OffscreenCanvas(bitmap.width, bitmap.height)
+          : Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height });
+        const ctx = canvas.getContext('2d', { willReadFrequently: true });
+        ctx.drawImage(bitmap, 0, 0);
+        const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+        transform(img.data, bitmap.width, bitmap.height, httpsUrl);
+        ctx.putImageData(img, 0, 0);
+        const blob = canvas.convertToBlob
+          ? await canvas.convertToBlob({ type: 'image/png' })
+          : await new Promise((res) => canvas.toBlob(res, 'image/png'));
+        const out = await blob.arrayBuffer();
+        if (cacheOn) {
+          _tileCache.set(httpsUrl, { buf: out.slice(0), ts: Date.now() });
+          if (_tileCache.size > TILE_CACHE_MAX) {
+            const oldest = [..._tileCache.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+            if (oldest) _tileCache.delete(oldest[0]);
+          }
+        }
+        return { data: out };
+      } catch (e) {
+        return { data: buf };   // decode/canvas failure: serve the original tile (native palette)
+      }
+    })();
+    if (cacheOn) {
+      _tileInflight.set(httpsUrl, work);
+      work.finally(() => _tileInflight.delete(httpsUrl));
+    }
+    return work;
   };
 }
 
