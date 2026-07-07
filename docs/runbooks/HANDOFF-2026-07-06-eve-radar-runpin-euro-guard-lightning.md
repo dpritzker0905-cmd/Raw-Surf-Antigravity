@@ -532,20 +532,37 @@ already-wetland-classified marsh → cannot flood** (the pipeline's core "passes
 - ⚠️ Guard note: this is a NEW load-bearing darken-only pass in the §5c churn-hotspot file; it pairs
   with the wetland fill (step 4) and the island re-assert (§7c) — all "only darken", none may flood.
 
-### 9c. NEW OPEN ITEM — z9 "grid outline / clamping" (PRE-EXISTING, not the mask fix)
-User also caught a visible **coarse grid outline** in the wave field at ~z9 over the Bahamas. Forensics
-(clean restart, single navigation — NOT churn): at z9 the resident marine grid is **`global_mid`
-(~16 cells across the viewport)** → visible cells; it upgrades to the **regional/viewport grid (75-86
-cells, smooth)** at z≥10 (verified). On the clean load the z9 view momentarily showed the regional
-`florida_east_coast` product (86 cells) then settled to `global_mid` (16) — the designed tier for that
-zoom band, but the finer→coarser flip is worth a look. **This is the marine DATA-GRID tier ladder, NOT
-the ocean mask — the wetland fix cannot affect it.** Reproducible on a clean build = pre-existing.
-**Next (separate investigation, verify on DEPLOYED dev not the churned preview):** either (a) smoother
-coarse-zoom interpolation so global_mid cells don't read as a grid, or (b) lower the regional/viewport
-grid threshold toward z9. Do NOT entangle with the marsh fix. See BRAIN_RULES 14-day tier contract +
-`marineControllerUtils.js` regional-zoom thresholds before touching the ladder.
+### 9c. NEW OPEN ITEM — z9 "heatmap + animations clamping" (PRE-EXISTING, not the mask fix; ROOT nailed)
+User caught it on **deployed dev** (their console log) AND I reproduced it on a **warm** preview — so it
+is NOT the cold-start. Precise forensics (warm Render, timed):
+- **It is NOT the coarse-global bridge.** During a warm pan/zoom at z9 FL: `coarseBridgeSamples: 0`,
+  product stays `florida_east_coast` throughout (no `global_coarse`/`global_mid` flash). The coarse
+  bridge only appears on a COLD cache-miss — the user's first report was during the Render cold-start
+  from my push (their log shows a FAILED `spot-ratings` fetch = cold backend; capabilities/spot-ratings
+  now 200 @ 0.2-0.4s). Cold Render stretches the bridge window; warm it flashes by. The 3h-stale FL
+  regional (18Z vs 21Z global) was the same push/precompute lag — now caught up (21Z).
+- **ROOT (warm, the real thing) = the GFS-native grid is visibly coarse at z9.** `[SimLoop] New field
+  bound` = **13×13** for a z9 FL viewport: the `florida_east_coast` regional product is GFS ~0.25°
+  native, so a small z9 viewport contains only ~13 cells across → the heatmap reads as blocky cells
+  ("grid outline"). The denser per-viewport product (75 cells, smooth) only loads at **z≥10** — a
+  resolution cliff at z9. **"Animations clamping"** = `[WebGLMarineEngine] Resetting particle state
+  textures due to grid shift/resize` fires on EVERY grid re-crop during a pan → the crest animation
+  restarts repeatedly.
+- **This is the marine DATA-GRID + particle subsystem, NOT the ocean mask — the wetland fix cannot
+  touch it.** Reproducible on a clean/warm build = pre-existing.
+- ⚠️ **GRAVEYARD LANDMINE — do NOT "fix" by raising grid density.** `marineControllerUtils.js:298-303`
+  documents the forensic matrix: 27×27 optimal, **31×31 → 429 rate-limited, 41×41 → 429 + BLANKED
+  marine entirely (the v5.6 regression)**. Reactively densifying the z9 grid to kill the clamp reopens
+  a WORSE bug (rate-limit blanking). This is exactly why it was NOT hacked this session.
+- **REAL fix (focused next session, verify on DEPLOYED dev):** either (a) bilinear-interpolate/smooth
+  the coarse grid in the heatmap shader so 13×13 doesn't read as hard cells, or (b) smooth particle
+  carry-over across grid shifts instead of a full reset, or (c) a denser regional product WITHOUT
+  raising live open-meteo fetch density (backend precompute, respecting the 27×27 rate ceiling). All
+  three are deep engine/shader/backend changes needing careful A/B against §5a — NOT a reactive tweak.
 
 ### 9d. State at round end
-Tree = wetland-dilation marsh fix (WebGLMarineMaskRenderer.js + .test.js) + this runbook. 694 FE tests
-green. Live-verified on preview 3007. Committed to dev (see git log); NOT pushed. z9 clamping logged as
-§9c for a separate session.
+Marsh dilation fix committed `a4795435` + PUSHED to origin/dev; deployed-dev bundle verified
+(`service-worker BUILD_VERSION == a4795435`). 694 FE tests green. z9 clamping = §9c, ROOT nailed
+(GFS-0.25°-visible-at-z9 + particle reset on grid shift), deferred as a focused next-session item
+because the obvious density fix is a documented v5.6-regression landmine. Marsh fix is this session's
+shipped win; the clamping fix is intentionally NOT rushed into the churn-hotspot.
