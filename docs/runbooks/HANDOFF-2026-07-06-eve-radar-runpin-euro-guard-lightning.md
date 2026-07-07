@@ -83,7 +83,14 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
 
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
-Chips task_59bcc036 (fetch-marker wedge) + task_c5366c79 (OceanMask switch churn — ALSO the
+~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
+(isFetching=true, fetchStartedAt=0) was unhealable by releaseStaleMarineLock (lease math bails
+on stamp 0) and dedup-blocked every fetch — settle-backstop sibling heal (`evaluateMarkerWedge`,
+10s sustained + govIdle; kill `__RAW_DISABLE_MARKER_WEDGE_HEAL__`, counter
+`__MARINE_MARKER_WEDGE_HEAL__`, freeze-ring reason `marker_wedge_healed`). Fault injection NOT
+possible from console (locks aren't window-exposed) — predicate unit-tested, wiring parallel to
+the proven stranded-pending heal; watch the counter on the next organic wedge.
+Chip task_c5366c79 (OceanMask switch churn — ALSO the
 react re-render side of "layer transfer" slowness; the tile cache fixed the network side);
 Part-9-② reseed blink (swap-time land cull); manifest slimming (6.1MB entry count); pan-clear
 transient (§① abort-loop memory); intracoastal/sheltered-water exposure model (design);
