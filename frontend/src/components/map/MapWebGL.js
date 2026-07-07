@@ -17,7 +17,9 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
-import { radarForecastTileUrl, radarLightningTileUrl } from './radarForecastSources';
+import { radarForecastTileUrl } from './radarForecastSources';
+// Strike points come via window.__LTG_STRIKES__ / __LTG_REFRESH__ (published by radarTileRecolor
+// at protocol registration) — keeps this heavy chunk free of a direct maplibre-gl-importing edge.
 import { useMarineWindData } from './useMarineWindData';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
@@ -314,54 +316,91 @@ const MapWebGL = ({
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
   // timeline animation steps frames, so detected lightning animates with the radar sweep.
-  // STABLE SOURCE (2026-07-07 runtime-error fix): mounting the source only on past frames
-  // unmounted/remounted it EVERY animation loop (null on future frames), racing maplibre's
-  // raster draw with texture-less tiles ("Cannot read properties of undefined (reading 'bind')"
-  // in Object.raster). The source now stays mounted on the newest applicable PAST frame and
-  // future frames hide the LAYER instead — truth preserved (nothing drawn), no mount churn.
-  const lightningTileUrl = useMemo(() => {
-    if (!radarFrames?.length || radarFrameIndex == null) return null;
-    const frame = radarFrames[radarFrameIndex];
-    if (!frame) return null;
-    if (!frame.future) return radarLightningTileUrl(frame);
-    for (let i = radarFrames.length - 1; i >= 0; i--) {
-      if (!radarFrames[i].future) return radarLightningTileUrl(radarFrames[i]);
-    }
-    return null;
-  }, [radarFrames, radarFrameIndex]);
-  const lightningFrameIsPast = !!(radarFrames?.[radarFrameIndex] && !radarFrames[radarFrameIndex].future);
+  // Lightning is rendered ONLY as the point-flash layers (imperative effect below); the raster
+  // underlay + per-frame tile URL were removed in v3b — the strike feed is a direct viewport
+  // GetMap into the extraction registry (see radarTileRecolor.refreshViewportStrikes).
 
-  // LIGHTNING STROBE (2026-07-06 v2, "appears as heatmap coloring instead of flashes"): the
-  // industry pattern (WeatherBug Spark / Blitzortung / RadarOmega) is strikes that FLASH —
-  // bright burst, fast decay, dim glow between. With a density raster the equivalent is an
-  // opacity strobe on the whole layer: random bursts to full brightness (p≈0.18 per 130ms
-  // tick ≈ a flash every ~0.7s while storms are on screen) decaying ×0.55/tick toward a 0.3
-  // resting glow. Paint-property-only — no re-render, no tile refetch.
-  // Kill: __RAW_RADAR_LIGHTNING_FLASH_DISABLED__ = true → steady 0.9.
+  // LIGHTNING POINT FLASHES (2026-07-07 v3, "the lightning bolts look terrible"): the industry
+  // look (Windy live lightning / Ventusky / Blitzortung — all point-fed) is INDIVIDUAL bright
+  // white flashes at strike locations with a soft glow halo and fast decay — never a raster
+  // strobe. Strike cores are extracted from the density tiles by the ltg-flash protocol
+  // (radarTileRecolor.getLightningStrikePoints); this imperative island renders them as a
+  // geojson source with GLOW + CORE circle layers, each point on its OWN random flash phase:
+  // p = 2% + 6%·intensity per 120ms tick → pop to full, ×0.45 decay to a faint resting ember.
+  // Imperative (no React state) — setData every tick is cheap for ≤ a few hundred points.
+  // Kill: __RAW_RADAR_LIGHTNING_FLASH_DISABLED__ = true → steady dim points, no flicker.
   useEffect(() => {
-    if (!mapInstance || !lightningTileUrl || !activeLayers.includes('radar')) return;
-    if (typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_FLASH_DISABLED__ === true) {
-      try { mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', 0.9); } catch (e) { /* layer mid-mount */ }
-      return;
-    }
-    let opacity = 0.3;
-    const id = setInterval(() => {
-      opacity = Math.random() < 0.18 ? 1.0 : Math.max(0.3, opacity * 0.55);
+    if (!mapInstance || !activeLayers.includes('radar')) return;
+    if (typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_DISABLED__ === true) return;
+    const SRC = 'lightning-strikes';
+    // Strike feed: direct viewport GetMap (radarTileRecolor.refreshViewportStrikes) — the tile
+    // pipeline refused the custom-protocol raster (v3b note there). Refresh now, on moveend,
+    // and every 60s; the registry TTL ages strikes out between refreshes.
+    const refresh = () => { try { window.__LTG_REFRESH__ && window.__LTG_REFRESH__(mapInstance); } catch (e) { /* best-effort */ } };
+    refresh();
+    const refreshId = setInterval(refresh, 60000);
+    mapInstance.on('moveend', refresh);
+    // ⚠️ `Map` in this module is react-map-gl's default component import — `new Map()` here
+    // constructed the React component ("default is not a constructor", map dead at radar
+    // activation, live 2026-07-07). Use the global explicitly.
+    const flash = new globalThis.Map();   // point key → current flash value 0..1
+    const ensure = () => {
       try {
-        if (mapInstance.getLayer('lightning-layer')) {
-          mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', opacity);
+        if (!mapInstance.getSource(SRC)) {
+          mapInstance.addSource(SRC, { type: 'geojson', data: { type: 'FeatureCollection', features: [] } });
+          mapInstance.addLayer({
+            id: 'lightning-glow', type: 'circle', source: SRC,
+            paint: {
+              'circle-radius': ['+', 10, ['*', 14, ['get', 'f']]],
+              'circle-color': '#fff7cc', 'circle-blur': 1.2,
+              'circle-opacity': ['*', 0.55, ['get', 'f']],
+            },
+          });
+          mapInstance.addLayer({
+            id: 'lightning-core', type: 'circle', source: SRC,
+            paint: {
+              'circle-radius': ['+', 1.5, ['*', 3, ['get', 'f']]],
+              'circle-color': '#ffffff',
+              'circle-opacity': ['min', 1, ['*', 1.4, ['get', 'f']]],
+            },
+          });
         }
+        return true;
+      } catch (e) { return false; }   // style mid-load — next tick retries
+    };
+    const staticMode = typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_FLASH_DISABLED__ === true;
+    const id = setInterval(() => {
+      if (!ensure()) return;
+      try {
+        const pts = (typeof window !== 'undefined' && typeof window.__LTG_STRIKES__ === 'function')
+          ? window.__LTG_STRIKES__() : [];
+        const features = pts.map((p) => {
+          const key = `${p.lng.toFixed(3)},${p.lat.toFixed(3)}`;
+          let f;
+          if (staticMode) {
+            f = 0.5 * p.intensity;
+          } else {
+            const prev = flash.get(key) || 0;
+            f = Math.random() < 0.02 + 0.06 * p.intensity ? 1.0 : Math.max(0.08 * p.intensity, prev * 0.45);
+            flash.set(key, f);
+          }
+          return { type: 'Feature', geometry: { type: 'Point', coordinates: [p.lng, p.lat] }, properties: { f } };
+        });
+        if (flash.size > 2000) flash.clear();   // bound stale-key growth across long sessions
+        mapInstance.getSource(SRC).setData({ type: 'FeatureCollection', features });
       } catch (e) { /* style transition — next tick retries */ }
-    }, 130);
+    }, 120);
     return () => {
       clearInterval(id);
+      clearInterval(refreshId);
+      try { mapInstance.off('moveend', refresh); } catch (e) { /* disposed */ }
       try {
-        if (mapInstance.getLayer('lightning-layer')) {
-          mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', 0.9);
-        }
-      } catch (e) { /* disposed */ }
+        if (mapInstance.getLayer('lightning-core')) mapInstance.removeLayer('lightning-core');
+        if (mapInstance.getLayer('lightning-glow')) mapInstance.removeLayer('lightning-glow');
+        if (mapInstance.getSource(SRC)) mapInstance.removeSource(SRC);
+      } catch (e) { /* map disposed */ }
     };
-  }, [mapInstance, lightningTileUrl, activeLayers]);
+  }, [mapInstance, activeLayers]);
 
   // Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
@@ -571,23 +610,8 @@ const MapWebGL = ({
           </Source>
         )}
 
-        {/* Lightning strike density (nowCOAST NLDN) — rides the radar timeline, past frames only */}
-        {lightningTileUrl && (
-          <Source
-            id="lightning-source"
-            type="raster"
-            tiles={[lightningTileUrl]}
-            tileSize={256}
-            maxzoom={7}
-          >
-            <Layer
-              id="lightning-layer"
-              type="raster"
-              layout={{ visibility: activeLayers.includes('radar') && lightningFrameIsPast ? 'visible' : 'none' }}
-              paint={{ 'raster-opacity': 0.9 }}
-            />
-          </Source>
-        )}
+        {/* Lightning (nowCOAST NLDN): point-flash layers only — added imperatively by the
+            strike-flash effect; no raster underlay (v3b). */}
 
         {/* ESRI True Satellite Imagery */}
         <Source

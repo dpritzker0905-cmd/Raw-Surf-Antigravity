@@ -106,11 +106,15 @@ export function useWeatherState({ user }) {
   // root: frames labeled now+N showed run+N, ~1.7h behind). Discovered by a tiny WMS probe,
   // refreshed on the run-cache TTL while radar is active in CONUS. Frames stay empty (truthful)
   // until the first discovery resolves — sub-second in practice.
+  // Recolor protocols MUST be registered before any radar/lightning source mounts — inside the
+  // radar-active effect they raced the source mount in the SAME commit and maplibre requested
+  // ltg-flash:// tiles against an unregistered scheme (failed, never retried → zero lightning
+  // fetches, live 2026-07-07). Mount-time, idempotent — the om protocol's pattern.
+  useEffect(() => { registerRadarRecolorProtocol(); }, []);
+
   const [hrrrRunMs, setHrrrRunMs] = useState(null);
   useEffect(() => {
     if (!activeLayers.includes('radar') || radarRegion !== 'CONUS') return;
-    // Palette-parity protocol for the HRRR future tiles (idempotent; see radarTileRecolor.js).
-    registerRadarRecolorProtocol();
     let disposed = false;
     const refreshRun = () => {
       discoverHrrrRun(Date.now())

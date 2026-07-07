@@ -125,6 +125,110 @@ export function whitenLightningImageData(data) {
 
 export const LIGHTNING_FLASH_PROTOCOL = 'ltg-flash';
 
+// STRIKE-POINT EXTRACTION (2026-07-07, "the lightning bolts look terrible"): the industry look
+// (Windy's live lightning tracker, Ventusky, Blitzortung — all point-fed) is INDIVIDUAL white
+// flashes at strike locations, not a raster wash. Our public feed is a density raster, but the
+// protocol handler already decodes every tile AND the tile URL carries its real EPSG:3857 bbox —
+// so density CORES are extracted as geo-points here and MapWebGL renders per-point flash
+// animations (glow + core circles, independent random phases). Grid-binned local maxima keep it
+// to ≤ ~40 points/tile; the registry prunes by age so frame changes retire old strikes.
+const MERC_R = 20037508.342789244;
+const _strikeRegistry = new Map();   // tileUrl → { points: [{lng,lat,intensity}], ts }
+const STRIKE_TTL_MS = 90 * 1000;
+
+export function extractLightningStrikes(data, w, h, bbox) {
+  // bbox = [west, south, east, north] in EPSG:3857 meters. Bin 16px, keep the strongest
+  // detected pixel per bin at intensity ≥ 0.45 (gold and hotter — cores, not fringe).
+  const BIN = 16;
+  const best = new Map();
+  for (let y = 0; y < h; y++) {
+    for (let x = 0; x < w; x++) {
+      const i = (y * w + x) * 4;
+      if (data[i + 3] === 0) continue;
+      const r = data[i], g = data[i + 1];
+      let rank;
+      if (r >= 250 && g >= 250) rank = 0.25;
+      else if (r >= 250 && g >= 120) rank = 0.5;
+      else if (r >= 250) rank = 0.8;
+      else if (r >= 120) rank = 0.9;
+      else rank = 0.7;
+      if (rank < 0.45) continue;
+      const key = ((y / BIN) | 0) * 1024 + ((x / BIN) | 0);
+      const prev = best.get(key);
+      if (!prev || rank > prev.rank) best.set(key, { x, y, rank });
+    }
+  }
+  const [wst, sth, est, nth] = bbox;
+  const pts = [];
+  for (const { x, y, rank } of best.values()) {
+    const mx = wst + ((x + 0.5) / w) * (est - wst);
+    const my = nth - ((y + 0.5) / h) * (nth - sth);
+    const lng = (mx / MERC_R) * 180;
+    const lat = (Math.atan(Math.sinh((my / MERC_R) * Math.PI)) * 180) / Math.PI;
+    pts.push({ lng, lat, intensity: rank });
+    if (pts.length >= 40) break;
+  }
+  return pts;
+}
+
+function recordStrikes(url, points) {
+  _strikeRegistry.set(url, { points, ts: Date.now() });
+  if (_strikeRegistry.size > 64) {
+    const oldest = [..._strikeRegistry.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+    if (oldest) _strikeRegistry.delete(oldest[0]);
+  }
+}
+
+export function getLightningStrikePoints() {
+  const now = Date.now();
+  const out = [];
+  for (const [url, e] of _strikeRegistry) {
+    if (now - e.ts > STRIKE_TTL_MS) { _strikeRegistry.delete(url); continue; }
+    out.push(...e.points);
+  }
+  return out;
+}
+
+// DIRECT VIEWPORT FETCH (2026-07-07 v3b): maplibre silently refused to request the ltg-flash://
+// raster tiles (spec present, zero loads, no errors — protocol black box), so the strike feed
+// no longer rides the tile pipeline at all: ONE plain-https GetMap for the current viewport,
+// decoded here, cores extracted into the same registry the flash renderer reads. Refreshed by
+// the caller (~60s + on move) — CURRENT lightning only, which is the truthful read of a live
+// strike feed. Throttled + deduped; failures leave the registry untouched (flashes just age out).
+let _lastViewportFetch = { key: '', ts: 0 };
+export async function refreshViewportStrikes(map) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_DISABLED__ === true) return 0;
+    const b = map.getBounds();
+    const toMx = (lng) => (lng / 180) * MERC_R;
+    const toMy = (lat) => Math.log(Math.tan(Math.PI / 4 + (lat * Math.PI) / 360)) / Math.PI * MERC_R;
+    const bbox = [toMx(b.getWest()), toMy(Math.max(-85, b.getSouth())), toMx(b.getEast()), toMy(Math.min(85, b.getNorth()))];
+    const t5 = Math.round((Date.now() - 6 * 60000) / 300000) * 300000;   // newest settled 5-min slot
+    const key = `${bbox.map(v => v.toFixed(0)).join(',')}_${t5}`;
+    if (_lastViewportFetch.key === key && Date.now() - _lastViewportFetch.ts < 55000) return -1;
+    _lastViewportFetch = { key, ts: Date.now() };
+    const iso = new Date(t5).toISOString().replace(/\.\d{3}Z$/, '.000Z');
+    const url = 'https://nowcoast.noaa.gov/geoserver/lightning_detection/ows?service=WMS&version=1.3.0&request=GetMap' +
+      '&layers=ldn_lightning_strike_density&styles=&format=image%2Fpng&transparent=true' +
+      `&crs=EPSG%3A3857&width=512&height=512&time=${encodeURIComponent(iso)}` +
+      `&bbox=${bbox.join(',')}`;
+    const resp = await fetch(url);
+    if (!resp.ok || (resp.headers.get('content-type') || '').indexOf('image') !== 0) return 0;
+    const bitmap = await createImageBitmap(await resp.blob());
+    const canvas = typeof OffscreenCanvas !== 'undefined'
+      ? new OffscreenCanvas(bitmap.width, bitmap.height)
+      : Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height });
+    const ctx = canvas.getContext('2d', { willReadFrequently: true });
+    ctx.drawImage(bitmap, 0, 0);
+    const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
+    const pts = extractLightningStrikes(img.data, bitmap.width, bitmap.height, bbox);
+    recordStrikes(`viewport_${key}`, pts);
+    return pts.length;
+  } catch (e) {
+    return 0;   // network/decode hiccup — registry keeps prior strikes until TTL
+  }
+}
+
 function makeRecolorHandler(transform) {
   return async (params) => {
     // Tile URLs are '<scheme>://https://...' — strip only the custom scheme prefix.
@@ -139,7 +243,7 @@ function makeRecolorHandler(transform) {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(bitmap, 0, 0);
       const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-      transform(img.data);
+      transform(img.data, bitmap.width, bitmap.height, httpsUrl);
       ctx.putImageData(img, 0, 0);
       const blob = canvas.convertToBlob
         ? await canvas.convertToBlob({ type: 'image/png' })
@@ -151,10 +255,27 @@ function makeRecolorHandler(transform) {
   };
 }
 
+// Extract strike cores from the ORIGINAL palette (ranks live there), then whiten for display.
+function lightningTransform(data, w, h, url) {
+  try {
+    const m = /[?&]bbox=([-0-9.]+),([-0-9.]+),([-0-9.]+),([-0-9.]+)/.exec(url);
+    if (m && w && h) {
+      recordStrikes(url, extractLightningStrikes(data, w, h, [+m[1], +m[2], +m[3], +m[4]]));
+    }
+  } catch (e) { /* extraction is best-effort — the whitened raster still renders */ }
+  whitenLightningImageData(data);
+}
+
 let _registered = false;
 export function registerRadarRecolorProtocol() {
   if (_registered || !maplibregl?.addProtocol) return;
   _registered = true;
   maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData));
-  maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(whitenLightningImageData));
+  maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(lightningTransform));
+  // Published as window globals for MapWebGL's flash renderer (avoids adding another
+  // maplibre-gl-importing edge into the heavy MapPage chunk).
+  if (typeof window !== 'undefined') {
+    window.__LTG_STRIKES__ = getLightningStrikePoints;
+    window.__LTG_REFRESH__ = refreshViewportStrikes;
+  }
 }

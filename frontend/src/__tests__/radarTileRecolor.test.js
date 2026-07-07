@@ -1,4 +1,4 @@
-import { recolorRadarImageData, whitenLightningImageData } from '../components/map/radarTileRecolor';
+import { recolorRadarImageData, whitenLightningImageData, extractLightningStrikes } from '../components/map/radarTileRecolor';
 import { radarForecastTileUrl, radarLightningTileUrl } from '../components/map/radarForecastSources';
 
 // HRRR forecast tiles are painted with pyiem's precip-type ramps (green rain); the past frames
@@ -60,6 +60,36 @@ describe('whitenLightningImageData — strikes flash white, not heatmap colors',
     const clear = px(255, 0, 0, 0);
     expect(whitenLightningImageData(clear)).toBe(0);
     expect(clear[3]).toBe(0);
+  });
+});
+
+describe('extractLightningStrikes — density cores become geo-points for the flash renderer', () => {
+  // 32×32 synthetic tile over a known mercator bbox: one red core (high density), one pale
+  // yellow fringe pixel (below the core threshold), rest transparent.
+  const W = 32, H = 32;
+  const bbox = [-9000000, 3000000, -8900000, 3100000]; // 100km square, EPSG:3857
+  const makeTile = () => {
+    const d = new Uint8ClampedArray(W * H * 4);
+    const put = (x, y, r, g, b) => { const i = (y * W + x) * 4; d[i] = r; d[i+1] = g; d[i+2] = b; d[i+3] = 255; };
+    put(16, 16, 255, 0, 0);       // red core → intensity 0.8
+    put(4, 4, 255, 255, 204);     // pale yellow fringe → 0.25, below the 0.45 core threshold
+    return d;
+  };
+
+  it('extracts the core as a lng/lat point inside the bbox; fringe pixels are ignored', () => {
+    const pts = extractLightningStrikes(makeTile(), W, H, bbox);
+    expect(pts.length).toBe(1);
+    expect(pts[0].intensity).toBeCloseTo(0.8, 5);
+    // Center-ish of the bbox: lng ≈ merc x / R × 180
+    expect(pts[0].lng).toBeGreaterThan(-81); expect(pts[0].lng).toBeLessThan(-79);
+    expect(pts[0].lat).toBeGreaterThan(25); expect(pts[0].lat).toBeLessThan(27);
+  });
+
+  it('grid-binning declusters: a 3×3 red blob inside one 16px bin yields ONE point; empty tiles yield none', () => {
+    const d = new Uint8ClampedArray(W * H * 4);
+    for (let y = 4; y <= 6; y++) for (let x = 4; x <= 6; x++) { const i = (y * W + x) * 4; d[i] = 255; d[i+3] = 255; }
+    expect(extractLightningStrikes(d, W, H, bbox).length).toBe(1);
+    expect(extractLightningStrikes(new Uint8ClampedArray(W * H * 4), W, H, bbox)).toEqual([]);
   });
 });
 
