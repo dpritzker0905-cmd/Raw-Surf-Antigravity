@@ -544,18 +544,23 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   const basemapMaskThrottleRef = useRef(0);
   useEffect(() => {
     if (!mapInstance) return;
-    // z≥7 (was 9) so the viewport OVERLAY mask keeps refreshing through the zoom-out band where
-    // the 39 km world mask is still visibly wrong along coasts ("land covered for a while").
-    const BASEMAP_MASK_MIN_ZOOM = 7;
+    // PATH-AWARE zoom gate (2026-07-07, the z5 "halo keeps trying to heal / only zooming back
+    // in heals it" + "heatmap on islands"): the WIDE-mask path (span ≥30 → viewport overlay,
+    // fixed screen-res paint) must refresh down to the texel-visibility floor z≥4.4 — the
+    // world-grid regime lives BELOW the old z≥7 gate, so its only crisp-truth mechanism never
+    // ran exactly where it was needed. The narrow path (base-mask repaint, span-dependent cost)
+    // keeps z≥6 (aligned with the commit-time sites).
     const refresh = () => {
       if (!activeRef.current) return;
       let z;
       try { z = mapInstance.getZoom(); } catch (e) { return; }
-      if (z < BASEMAP_MASK_MIN_ZOOM) return;
-      const now = Date.now();
-      if (now - basemapMaskThrottleRef.current < 700) return;
       const engine = engineRef.current;
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      const _rmb = engine && engine._cachedMaskBounds;
+      const _rms = _rmb ? ((_rmb.east < _rmb.west ? _rmb.east + 360 : _rmb.east) - _rmb.west) : 0;
+      if (z < (_rms >= 30 ? 4.4 : 6)) return;
+      const now = Date.now();
+      if (now - basemapMaskThrottleRef.current < 700) return;
       if (engine && gl && engine.refreshMaskWithBasemapWater) {
         // Consume the throttle ONLY when a paint actually happened (2026-07-04, "rectangle
         // holes"): a moveend attempt that the tile-readiness gate (or hysteresis) skipped used to

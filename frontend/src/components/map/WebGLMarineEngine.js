@@ -1633,10 +1633,13 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
   if (!geo || !gl || !mapInstance) return false;
   let z;
   try { z = mapInstance.getZoom(); } catch (e) { return false; }
-  // z≥7 (was 9): between z7-9 the 39 km world mask is still visibly wrong along coasts — the
-  // "land covered while zooming out for a while" report. Below z7 coarse texels read acceptably
-  // and the padded viewport outgrows the useful canvas tiers.
-  if (z < 7) return false;
+  // z≥4.4 (was 7, was 9 — 2026-07-07, the z5 "halo keeps trying to heal + heatmap on islands"):
+  // "below z7 coarse texels read acceptably" was WRONG — world-mask texels stay visibly wide
+  // (>1.3 screen px) down to z≈4.4, and the world-GRID regime (span≥30, where this overlay is
+  // the ONLY crisp truth) lives mostly below z7. The paint is a fixed screen-resolution canvas,
+  // so cost does not grow with span; at z<4.4 the texels go sub-pixel and the base mask reads
+  // fine, so the gate self-limits.
+  if (z < 4.4) return false;
   let bounds;
   let view = null;
   let viewSpan = 0;
