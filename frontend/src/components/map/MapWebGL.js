@@ -316,11 +316,15 @@ const MapWebGL = ({
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
   // timeline animation steps frames, so detected lightning animates with the radar sweep.
-  // Stable identity so the memoized WebGLMarineLayer isn't re-rendered per radar frame step
-  // (chip task_c5366c79 slice 2 — an inline arrow here defeated the memo entirely).
+  // Stable identities so the memoized layers aren't re-rendered per radar frame step
+  // (chip task_c5366c79 slices 2-3 — inline arrows here defeated the memos entirely).
   const onMarineWebglError = useCallback(() => {
     console.warn('[MapWebGL] Fallback to Canvas2D Marine overlay triggered');
     setWebglMarineFailed(true);
+  }, []);
+  const onWindWebglError = useCallback(() => {
+    console.warn('[MapWebGL] Fallback to Canvas2D Wind overlay triggered');
+    setWebglWindFailed(true);
   }, []);
 
   // Lightning is rendered ONLY as the point-flash layers (imperative effect below); the raster
@@ -777,10 +781,7 @@ const MapWebGL = ({
             data={windData}
             revision={windRevision?.current || 0}
             theme={theme}
-            onError={() => {
-              console.warn('[MapWebGL] Fallback to Canvas2D Wind overlay triggered');
-              setWebglWindFailed(true);
-            }}
+            onError={onWindWebglError}
           />
         ) : (
           <WindParticleOverlay

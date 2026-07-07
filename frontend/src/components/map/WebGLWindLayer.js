@@ -10,7 +10,7 @@
  *   - data: wind grid object { vectors, cols, rows, bounds }
  *   - revision: cache-bust revision ID
  */
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import WebGLWindEngine from './WebGLWindEngine';
 import { registerWindEngine, unregisterWindEngine } from '../../engine/RenderPlanDispatcher';
 
@@ -189,7 +189,10 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
   };
 }
 
-export function WebGLWindLayer({ mapInstance, active, data, revision, onError, theme }) {
+// memo (2026-07-07, chip task_c5366c79 slice 3): MapWebGL re-renders per radar frame step;
+// all props here are primitives or stable refs once the caller hoists onError. Skipping
+// renders on equal props is behavior-identical (effects key on the same prop values).
+function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, theme }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -373,5 +376,7 @@ export function WebGLWindLayer({ mapInstance, active, data, revision, onError, t
  // No DOM element this renders directly into MapLibre's WebGL context
   return null;
 }
+
+export const WebGLWindLayer = memo(WebGLWindLayerInner);
 
 export default WebGLWindLayer;

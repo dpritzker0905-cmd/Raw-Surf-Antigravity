@@ -13,7 +13,7 @@
  *   has WebGL state conflicts that prevent reliable compositing. Canvas2D
  *   is proven to work (MarineParticleCanvas renders perfectly).
  */
-import { useEffect, useRef } from 'react';
+import { memo, useEffect, useRef } from 'react';
 import { getAnimationCoordinator } from './CanvasAnimationCoordinator';
 import { sampleRamp, THEME_RAMPS } from './WindColorRamp';
 
@@ -183,7 +183,10 @@ function spawnParticle(mapInstance, preAge, stratifyIdx, stratifyTotal) {
     noiseSeed: Math.random() * 100 };
 }
 
-export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
+// memo (2026-07-07, chip task_c5366c79 slice 3): MapWebGL re-renders per radar frame step;
+// all props here are primitives or stable refs once the caller hoists onError. Skipping
+// renders on equal props is behavior-identical (effects key on the same prop values).
+function WindParticleOverlayInner({ mapInstance, active, data, id, theme }) {
   var layerId = id || 'wind-particle-overlay';
   var canvasRef = useRef(null);
   var dataRef = useRef(null);
@@ -508,5 +511,7 @@ export function WindParticleOverlay({ mapInstance, active, data, id, theme }) {
     />
   );
 }
+
+export const WindParticleOverlay = memo(WindParticleOverlayInner);
 
 export default WindParticleOverlay;
