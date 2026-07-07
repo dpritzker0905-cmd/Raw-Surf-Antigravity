@@ -468,6 +468,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     return;
   }
 
+  // WORLD-WRAP CULL (perf 2026-07-07, "paint faster on pan/zoom"): the heatmap grid pass and the
+  // 525k-vert crest ribbon pass below are each drawn 3× at lng/merc offsets {0, ±1 world} so the
+  // field tiles across the antimeridian when the map renders more than one world horizontally. At
+  // close zoom mid-globe only ONE world copy is on screen, so the ±offset draws render a whole world
+  // OFF-SCREEN — 2 of every 3 draws are wasted vertex work every frame (measured: pan FPS 30→18 at
+  // z9). Cull to the main copy unless the viewport can actually see a world edge (low zoom, or near
+  // ±180). Render-time only, imperceptible. Kill: __RAW_DISABLE_WRAP_CULL__.
+  const _needWrap = (typeof window !== 'undefined' && window.__RAW_DISABLE_WRAP_CULL__ === true)
+    || !viewportBounds || viewportBounds.east < viewportBounds.west
+    || viewportBounds.west < -170 || viewportBounds.east > 170
+    || typeof zoom !== 'number' || zoom < 4;
+
   // COARSE-BASE SEED consume (2026-07-04, Part 2 of the z7 zoom-out bridge): a cold coast never commits a
   // coarse grid, so prewarmGlobalMarineGrid stages the global here — snapshot it into the bridge base NOW,
   // inside the render callback where the GL context is valid (never from the prewarm's detached Promise).
@@ -1130,7 +1142,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
     }
 
-    var worldOffsets = [0.0, -360.0, 360.0];
+    var worldOffsets = _needWrap ? [0.0, -360.0, 360.0] : [0.0];
     for (var wi = 0; wi < worldOffsets.length; wi++) {
       gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
       gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
@@ -1353,7 +1365,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
       var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
-      var worldOffsets = [0.0, -1.0, 1.0];
+      var worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
       for (var wi = 0; wi < worldOffsets.length; wi++) {
         gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
         gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
