@@ -167,6 +167,23 @@ the 0.5° bbox pad + 50% overlay pad. The lease fix (36d5e503) + the stranded-de
 (5f3d12c9) removed the pathological causes. Do not chase further without a hard-clear repro
 (watch `__WEBGL_MARINE_CLEAR_COUNT__` — it should stay 0 through pans).
 
+## 1j. Session close-out notes (07-07 final)
+
+- **"I don't see the radar improvements" (late-night check) = CONTENT, not pipeline**: at the
+  2:00 AM frames the model has ~1% precip coverage (the verified nocturnal decay) — there is
+  almost nothing to render. Frame-layer manager confirmed live (11 layers, correct opacity
+  window); palette/smoothing verified on storm-bearing frames. Judge radar visuals on frames
+  WITH echoes (first future hour, or daytime convection).
+- **DWD/EU radar palette parity — SCOPED, not started**: sampled a live WN tile (Germany):
+  205 distinct colors = ANTIALIASED/blended rendering — the exact-match LUT approach (IEM's
+  indexed 20-color tiles) will NOT transfer. Needs nearest-match in RGB space or a threshold
+  classifier. Sample palette (dominant): greens (0,153,52)→(77,191,26)→(153,204,0)→(204,230,0)
+  → yellow (255,255,0) → amber (255,196,0) → orange (255,137,0) → magenta (251,0,255 = hail?);
+  cyans (153,255,255)/(51,255,255)/(0,202,202) = light precip; gray 50% (126,126,126,128) =
+  coverage. Invisible from a US viewport — low priority.
+- Remaining untouched: sheltered-water design, reseed blink (GPU land cull), manifest slimming
+  (backend), satellite black patches (triage recipe in memory), toggle-mid-fetch surf-key race.
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
