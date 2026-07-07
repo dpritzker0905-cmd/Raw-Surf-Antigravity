@@ -931,7 +931,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           // class this guard exists for), so the forced rebuild requires incoming span ≥ 8°;
           // closer commits retain the patched resident as before — the next source-ready commit
           // rebuilds crisp AND patched (the pre-guard behavior the user verified as self-fixing).
-          (bounds ? ((bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west) : 360) < 8
+          // ⚠️ DENSITY FLOOR (same-day #2, "heatmap covering land over the Bahamas"): the FL
+          // regression's wrongly-rebuilt resident was a DENSE mid mask (~256 px/°, patched) —
+          // worth retaining. A WORLD-tier resident (~11 px/°) cannot carve island cays AT ALL,
+          // so retaining it at close zoom paints waves straight over the Bahamas; it must
+          // rebuild (NE-10m carves cays crisply; no basemap-patch dependency out there). Retain
+          // only residents dense enough to hold island truth (≥32 px/° ≈ 3.5 km/px).
+          ((bounds ? ((bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west) : 360) < 8 &&
+            maskDensityPxPerDeg(engine._cachedMaskTexDims, engine._cachedMaskBounds) >= 32)
         )
       ) {
         maskTex = engine._cachedMaskTex;

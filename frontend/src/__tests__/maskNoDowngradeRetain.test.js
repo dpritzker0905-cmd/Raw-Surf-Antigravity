@@ -74,12 +74,20 @@ describe('src-not-ready retain upgrade guard density math', () => {
     expect(resident).toBeGreaterThanOrEqual(incomingMid * UPGRADE_GUARD_FACTOR); // → retain
   });
 
-  it('CLOSE-ZOOM CARVE-OUT: incoming span < 8° always retains — a forced rebuild there is NE-only (basemap land patch async/tile-gated) and showed waves over intracoastal land (same-day regression)', () => {
+  it('CLOSE-ZOOM CARVE-OUT: incoming span < 8° retains — a forced rebuild there is NE-only (basemap land patch async/tile-gated) and showed waves over intracoastal land (same-day regression)', () => {
     // The guard's forced rebuild is scoped to mid/wide tiers (span ≥ 8°) where NE truth is
     // adequate; the halo class it fixes IS a mid-tier rebuild, so the fix is preserved.
     const closeSpan = ((b) => (b.east < b.west ? b.east + 360 : b.east) - b.west)({ west: -80.6, south: 26.1, east: -79.5, north: 27.2 });
     expect(closeSpan).toBeLessThan(8); // → retain (patched resident holds until a src-ready commit)
     const midSpan = ((b) => (b.east < b.west ? b.east + 360 : b.east) - b.west)({ west: -90, south: 20, east: -74, north: 36 });
     expect(midSpan).toBeGreaterThanOrEqual(8); // → the halo-class forced rebuild still fires
+  });
+
+  it('CARVE-OUT DENSITY FLOOR (Bahamas): a WORLD-tier resident (~11 px/°) cannot carve cays — it never retains at close zoom; the FL mid-tier patched resident (~256 px/°) does', () => {
+    const FLOOR = 32; // px/° ≈ 3.5 km/px — the minimum island-truth density worth holding
+    const world = maskDensityPxPerDeg({ w: maskCanvasWidthForSpan(360), h: 2048 }, { west: -180, south: -80, east: 180, north: 85 });
+    expect(world).toBeLessThan(FLOOR);                    // → rebuild (crisp NE-10m carves the cays)
+    const flMid = maskDensityPxPerDeg({ w: 2048, h: 1024 }, { west: -84, south: 24, east: -76, north: 30 }); // span 8
+    expect(flMid).toBeGreaterThanOrEqual(FLOOR);          // → retain (patched intracoastal truth holds)
   });
 });

@@ -1,5 +1,5 @@
-import { recolorRadarImageData } from '../components/map/radarTileRecolor';
-import { radarForecastTileUrl } from '../components/map/radarForecastSources';
+import { recolorRadarImageData, whitenLightningImageData } from '../components/map/radarTileRecolor';
+import { radarForecastTileUrl, radarLightningTileUrl } from '../components/map/radarForecastSources';
 
 // HRRR forecast tiles are painted with pyiem's precip-type ramps (green rain); the past frames
 // are RainViewer scheme 7 (alpha-graded pale blue). The recolor collapses every ptype ramp onto
@@ -41,6 +41,33 @@ describe('recolorRadarImageData', () => {
     const clear = px(90, 183, 105, 0); // a ramp color but already transparent
     expect(recolorRadarImageData(clear)).toBe(0);
     expect(clear[3]).toBe(0);
+  });
+});
+
+describe('whitenLightningImageData — strikes flash white, not heatmap colors', () => {
+  it('every detected pixel becomes hot white; density ranks the alpha (pale yellow dim, red core bright)', () => {
+    const low = px(255, 255, 204);  // pale yellow = low density
+    const high = px(255, 0, 0);     // red = high density
+    whitenLightningImageData(low);
+    whitenLightningImageData(high);
+    expect([low[0], low[1], low[2]]).toEqual([255, 255, 240]);
+    expect([high[0], high[1], high[2]]).toEqual([255, 255, 240]);
+    expect(high[3]).toBeGreaterThan(low[3]); // core pops brighter
+    expect(low[3]).toBeGreaterThanOrEqual(140);
+  });
+
+  it('transparent pixels stay transparent', () => {
+    const clear = px(255, 0, 0, 0);
+    expect(whitenLightningImageData(clear)).toBe(0);
+    expect(clear[3]).toBe(0);
+  });
+});
+
+describe('radarLightningTileUrl flash-recolor wrapping', () => {
+  const frame = { time: Math.floor(Date.UTC(2026, 6, 7, 0, 30) / 1000), path: '/v2/radar/x' };
+  it('past frames ride ltg-flash:// by default; recolor kill emits plain https', () => {
+    expect(radarLightningTileUrl(frame, {})).toMatch(/^ltg-flash:\/\/https:\/\/nowcoast/);
+    expect(radarLightningTileUrl(frame, { __RAW_RADAR_RECOLOR_DISABLED__: true })).toMatch(/^https:\/\/nowcoast/);
   });
 });
 

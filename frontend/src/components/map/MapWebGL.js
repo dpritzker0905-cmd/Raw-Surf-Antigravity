@@ -319,6 +319,38 @@ const MapWebGL = ({
     return radarLightningTileUrl(radarFrames[radarFrameIndex]);
   }, [radarFrames, radarFrameIndex]);
 
+  // LIGHTNING STROBE (2026-07-06 v2, "appears as heatmap coloring instead of flashes"): the
+  // industry pattern (WeatherBug Spark / Blitzortung / RadarOmega) is strikes that FLASH —
+  // bright burst, fast decay, dim glow between. With a density raster the equivalent is an
+  // opacity strobe on the whole layer: random bursts to full brightness (p≈0.18 per 130ms
+  // tick ≈ a flash every ~0.7s while storms are on screen) decaying ×0.55/tick toward a 0.3
+  // resting glow. Paint-property-only — no re-render, no tile refetch.
+  // Kill: __RAW_RADAR_LIGHTNING_FLASH_DISABLED__ = true → steady 0.9.
+  useEffect(() => {
+    if (!mapInstance || !lightningTileUrl || !activeLayers.includes('radar')) return;
+    if (typeof window !== 'undefined' && window.__RAW_RADAR_LIGHTNING_FLASH_DISABLED__ === true) {
+      try { mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', 0.9); } catch (e) { /* layer mid-mount */ }
+      return;
+    }
+    let opacity = 0.3;
+    const id = setInterval(() => {
+      opacity = Math.random() < 0.18 ? 1.0 : Math.max(0.3, opacity * 0.55);
+      try {
+        if (mapInstance.getLayer('lightning-layer')) {
+          mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', opacity);
+        }
+      } catch (e) { /* style transition — next tick retries */ }
+    }, 130);
+    return () => {
+      clearInterval(id);
+      try {
+        if (mapInstance.getLayer('lightning-layer')) {
+          mapInstance.setPaintProperty('lightning-layer', 'raster-opacity', 0.9);
+        }
+      } catch (e) { /* disposed */ }
+    };
+  }, [mapInstance, lightningTileUrl, activeLayers]);
+
   // Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 

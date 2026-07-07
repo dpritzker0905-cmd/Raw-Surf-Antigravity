@@ -97,12 +97,38 @@ export function recolorRadarImageData(data) {
   return mapped;
 }
 
-let _registered = false;
-export function registerRadarRecolorProtocol() {
-  if (_registered || !maplibregl?.addProtocol) return;
-  _registered = true;
-  maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, async (params) => {
-    const httpsUrl = params.url.replace(`${RADAR_RECOLOR_PROTOCOL}://`, '');
+// LIGHTNING WHITE-HOT (2026-07-06, "lightning appears as heatmap coloring"): industry practice
+// (WeatherBug Spark, Blitzortung, RadarOmega) renders strikes as BRIGHT WHITE flashes — newest
+// brightest — never as a color-ramp density heatmap. nowCOAST's LDN style paints a 17-color
+// yellow→red→magenta density ramp (tile-sampled 2026-07-06); every detected pixel is remapped
+// to hot white with alpha ranked by that ramp so cores read as the brightest flash centers.
+// The strobe itself is the layer-opacity flicker in MapWebGL (bursts + decay).
+export function whitenLightningImageData(data) {
+  let mapped = 0;
+  for (let i = 0; i < data.length; i += 4) {
+    if (data[i + 3] === 0) continue;
+    const r = data[i], g = data[i + 1], b = data[i + 2];
+    // Rank density from the warm ramp: pale yellow (low) → red/magenta (high). Cool outliers
+    // (blue/green classes in the LDN style) land mid-high. 0..1 scalar from simple channel cues.
+    let rank;
+    if (r >= 250 && g >= 250) rank = 0.25;             // pale yellow / yellow — low density
+    else if (r >= 250 && g >= 120) rank = 0.5;         // gold / amber
+    else if (r >= 250) rank = 0.8;                     // orange / red / magenta family
+    else if (r >= 120) rank = 0.9;                     // dark red / purple
+    else rank = 0.7;                                   // cool outliers — mid-high
+    data[i] = 255; data[i + 1] = 255; data[i + 2] = 240;
+    data[i + 3] = Math.round(140 + 115 * rank);        // 0.55..1.0 alpha — white-hot core pops
+    mapped++;
+  }
+  return mapped;
+}
+
+export const LIGHTNING_FLASH_PROTOCOL = 'ltg-flash';
+
+function makeRecolorHandler(transform) {
+  return async (params) => {
+    // Tile URLs are '<scheme>://https://...' — strip only the custom scheme prefix.
+    const httpsUrl = params.url.replace(/^[a-z-]+:\/\/(?=https:\/\/)/, '');
     const resp = await fetch(httpsUrl);
     const buf = await resp.arrayBuffer();
     try {
@@ -113,7 +139,7 @@ export function registerRadarRecolorProtocol() {
       const ctx = canvas.getContext('2d', { willReadFrequently: true });
       ctx.drawImage(bitmap, 0, 0);
       const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
-      recolorRadarImageData(img.data);
+      transform(img.data);
       ctx.putImageData(img, 0, 0);
       const blob = canvas.convertToBlob
         ? await canvas.convertToBlob({ type: 'image/png' })
@@ -122,5 +148,13 @@ export function registerRadarRecolorProtocol() {
     } catch (e) {
       return { data: buf };   // decode/canvas failure: serve the original tile (native palette)
     }
-  });
+  };
+}
+
+let _registered = false;
+export function registerRadarRecolorProtocol() {
+  if (_registered || !maplibregl?.addProtocol) return;
+  _registered = true;
+  maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData));
+  maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(whitenLightningImageData));
 }

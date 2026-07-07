@@ -1,4 +1,5 @@
 import { getSharedValidTime, pointCache, POINT_URL, blendDirection, blendPeriod } from './backendWeatherServiceClient';
+import { iconExtendedContinuityDecay, iconExtendedContinuityOffset } from './backendWeatherServiceClientHelpers';
 import { recordTruthStage } from './weatherTruthTracker';
 import { updateDiagnostics } from './backendWeatherServiceClientDiag';
 
@@ -111,10 +112,22 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
             }
           };
         } else {
-          // hourOffset > 240: 60/40 GFS/EURO Weighted Average blend
-          const [gfsTarget, euroTarget] = await Promise.allSettled([
+          // hourOffset > 240: 60/40 GFS/EURO Weighted Average blend.
+          // BOUNDARY CONTINUITY (2026-07-06, the POINT mirror of the GRID fix in
+          // backendWeatherServiceClientHelpers — infobox/heatmap coherence): the raw mix jumps
+          // at the 240 boundary wherever its climatology differs from the ≤240 anchored trend,
+          // so the infobox disagreed with the (already-fixed) heatmap across 240h. Same additive
+          // correction, scalar form: est(t) = mix(t) + [trend(240) − mix(240)]·decay(t), decay
+          // 1→0 over 240→288h; height/period only, direction untouched — identical to the grid.
+          // Anchor points ride the point cache (168h anchors are the ≤240 branch's own inputs).
+          // Fail-open: any missing anchor → the raw mix. Kill: __RAW_DISABLE_ICON_TAIL_CONTINUITY__.
+          const [gfsTarget, euroTarget, icon168R, gfs168R, gfs240R, euro240R] = await Promise.allSettled([
             fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
-            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'EURO', gridProductIdParam, gridBboxParam)
+            fetchBackendExactPoint(lat, lng, hourOffset, signal, layer, 'EURO', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'ICON', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, 168, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, 240, signal, layer, 'GFS', gridProductIdParam, gridBboxParam),
+            fetchBackendExactPoint(lat, lng, 240, signal, layer, 'EURO', gridProductIdParam, gridBboxParam)
           ]);
 
           const gfsVal = gfsTarget.status === 'fulfilled' ? gfsTarget.value : null;
@@ -161,6 +174,25 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
             usedEuroWeight = 1.0;
           }
 
+          // Additive continuity offset (see branch comment above). The shared grid helpers take
+          // {height, period} cells, so the scalar hourly values are wrapped; a null anchor makes
+          // iconExtendedContinuityOffset return null → raw mix unchanged (fail-open).
+          let continuityApplied = false;
+          const _decay = iconExtendedContinuityDecay(hourOffset);
+          if (_decay > 0 && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ICON_TAIL_CONTINUITY__ === true)) {
+            const _pt = (r) => (r && r.status === 'fulfilled' && r.value ? r.value : null);
+            const _cell = (v) => v && v.hourly?.[hKey]?.[0] != null
+              ? { height: v.hourly[hKey][0] || 0, period: v.hourly?.[pKey]?.[0] || 0 } : null;
+            const off = iconExtendedContinuityOffset(
+              _cell(_pt(icon168R)), _cell(_pt(gfs168R)), _cell(_pt(gfs240R)), _cell(_pt(euro240R)), usedGfsWeight
+            );
+            if (off) {
+              blendedHeight = Math.max(0, blendedHeight + off.dH * _decay);
+              blendedPeriod = Math.max(0, (blendedPeriod || 0) + off.dP * _decay);
+              continuityApplied = true;
+            }
+          }
+
           const conformedHourly = {
             time: [validTimeStr.replace(/\.\d+Z$/, 'Z')],
             wave_height: [null], wave_direction: [null], wave_period: [null], wave_peak_period: [null],
@@ -203,7 +235,8 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
               type: 'icon_extended_blend',
               method: 'weighted_average',
               gfs_weight: usedGfsWeight,
-              euro_weight: usedEuroWeight
+              euro_weight: usedEuroWeight,
+              continuity_offset: continuityApplied
             }
           };
         }

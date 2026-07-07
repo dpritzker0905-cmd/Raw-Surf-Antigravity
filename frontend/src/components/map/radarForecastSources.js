@@ -163,7 +163,10 @@ export function radarLightningTileUrl(frame, win) {
   if (!frame || frame.future || typeof frame.time !== 'number') return null;
   const t5 = Math.round((frame.time * 1000) / 300000) * 300000;
   const iso = new Date(t5).toISOString().replace(/\.\d{3}Z$/, '.000Z');
-  return 'https://nowcoast.noaa.gov/geoserver/lightning_detection/ows?service=WMS&version=1.3.0&request=GetMap' +
+  // White-hot flash recolor (industry look: strikes = bright white, not a density heatmap) —
+  // see radarTileRecolor.js. Kill shares the layer's switch plus __RAW_RADAR_RECOLOR_DISABLED__.
+  const recolor = w.__RAW_RADAR_RECOLOR_DISABLED__ === true ? '' : 'ltg-flash://';
+  return recolor + 'https://nowcoast.noaa.gov/geoserver/lightning_detection/ows?service=WMS&version=1.3.0&request=GetMap' +
     '&layers=ldn_lightning_strike_density&styles=&format=image%2Fpng&transparent=true' +
     `&crs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(iso)}` +
     '&bbox={bbox-epsg-3857}';
