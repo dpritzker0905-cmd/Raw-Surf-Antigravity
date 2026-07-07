@@ -392,7 +392,8 @@ fixable from NE). Crest-on-land **0%** everywhere. Was: z5 65%, z9 8-17%.
 ### 7g. State at round end
 Tree = marine mask overhaul (WebGLMarineEngine.js, WebGLMarineMaskRenderer.js,
 WebGLMarineParticleShaders.js, maskFloodProbe.js NEW, +shader test) + DWD parity + this runbook.
-**540 FE tests green.** Preview on 3007. NOT committed pending user call. Kill switches:
+**540 FE tests green.** Preview on 3007. **COMMITTED `94072098`** (dev, +2 ahead of origin/dev,
+NOT pushed — prod is Netlify `main`; see §8). Kill switches:
 `__RAW_DISABLE_ISLAND_REASSERT__`, `__RAW_ISLAND_REASSERT_MAX_DENSITY__`, `__RAW_CREST_LAND_THRESH__`,
 `__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__`, `__RAW_DISABLE_ZOOM_REBUILD__`.
 ⚠️ **DO NOT revert the re-assert without also reverting the overlay coverage-REPLACE** — the REPLACE
@@ -418,3 +419,72 @@ at the bounds edge.** Any future attempt MUST gate REPLACE on `overlayCoversView
 by the flood %. The transient is tile-load-bound; the honest fix likely needs the overlay built
 DURING the zoom animation (on the `zoom` event, throttled), not at moveend — future work.
 State: reverted to the §7g state (all other fixes intact); rectangle gone, 30 FPS, 540 tests green.
+
+---
+
+## 8. SESSION CLOSE (07-07, Opus 4.8) — final state + the two OPEN residuals
+
+**Final HEAD `94072098`** `fix(marine): island/coastal heatmap flood fixed at every zoom + mask-flood probe`.
+Tree CLEAN. **dev is +2 ahead of `origin/dev`** (which sits at `c4b4ad74`) — `084b28a1` (§5 3-month
+watchlist) and `94072098` (this overhaul) are **committed but NOT pushed**. Prod is Netlify `main`
+(~600 behind, [[verify-bundle-hash-first]]); no main push. **540 FE tests green as committed.**
+
+### 8a. What `94072098` actually shipped (9 files, +718/−11)
+Marine mask overhaul + the `maskFloodProbe.js` harness (259 LOC, NEW) that made it possible, DWD/EU
+forecast palette parity, and the §7 runbook write-up. Per-fix detail is §7a–§7h; the load-bearing
+guards it adds/keeps are folded into §5b. Verified in the committed source this session:
+- All 5 kill switches present (`__RAW_DISABLE_ISLAND_REASSERT__`, `__RAW_ISLAND_REASSERT_MAX_DENSITY__`
+  default 1200 px/°, `__RAW_CREST_LAND_THRESH__`, `__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__`,
+  `__RAW_DISABLE_ZOOM_REBUILD__`) across maskFloodProbe.js / WebGLMarineEngine.js / WebGLMarineMaskRenderer.js.
+- `reassertNeLand` MULTIPLIES the full-res pristine NE canvas (`neFull`) back, non-null only when
+  `canvas.width/span < _maxDensity` (WebGLMarineMaskRenderer.js:116,214) — darken-only, so the
+  sheltered/canal/port-landfill verdicts survive.
+- Flood profile at close: z5 **6.4%** · z6–8 **0–0.2%** · z9–10 **0.3%** · z11–12 **~2.5%**; crest-on-land
+  **0%** everywhere (was z5 65%, z9 8–17%).
+
+### 8b. OPEN residual ① — sub-second zoom-out transient (the graveyard-flagged one, §7h)
+A **~600–900 ms first-visit flood spike on zoom-out** (22–51% + a box-edge rectangle) while the basemap
+patch still covers only the strict pre-zoom viewport (`source_not_ready`, tile-load-bound). The zoom-delta
+rebuild (§7e) shrank it; the eager-NE-overlay redesign (§7h) **was tried and REVERTED** — at z6 a
+partial-coverage overlay engaged REPLACE and drew a **visible blue rectangle** at the overlay-bounds seam
+(the very artefact it meant to kill). **Settled fix direction (do NOT re-attempt the reverted shape):**
+build the overlay **DURING the zoom animation** on a throttled `zoom` event (not at `moveend`), and gate
+REPLACE on `overlayCoversViewport` for **every** term (world_grid + coverage_gap, not just patch_gap).
+**Verify VISUALLY (screenshot), never by flood % alone** — the % looked green while the seam was visible.
+
+### 8c. OPEN residual ② — tidal-creek / marshy-cay flood (Andros / Moxey Town class)
+The residual z11–12 **~2.5%** flood lives on **creek-dense and marshy coasts** where the land itself is
+a fine mesh of 100–300 m tidal channels. **Root (verified in committed source):**
+- **Both ground-truth sources generalize these away.** NE 10m and the basemap water polygons each
+  simplify tidal creeks into solid land or solid water at the tile level → `reassertNeLand` **cannot
+  restore what NE never carried** (it only multiplies NE land back; NE has already dropped the creeks).
+- **The sheltered-water classifier culls sub-basin water.** `classifySheltered` (WebGLMarineMaskRenderer.js:402)
+  keeps **only basin-scale connected components** — regions smaller than ~(4·nPx)² are dropped
+  (line 468) — so a narrow creek/marsh network is either erased as "too small" or, running at
+  basin resolution (too coarse for 100–300 m channels), classified as open water = wash.
+- **Fix direction (next session, design):** a **higher-resolution sheltered-water classifier scoped to
+  creek-dense coasts** — a finer nPx / per-tile classify over Andros-class geometry, or a dedicated
+  marsh/creek land source the reassert can trust. This is the `[[marine-14day-horizon-tier-contract]]`-
+  adjacent "sheltered-water exposure model" backlog item, now with a pinned failing class (Andros,
+  Moxey Town). Not fixable from NE — the NE dataset does not contain the creeks.
+
+### 8d. NEXT-SESSION order (supersedes the §3 / §5 close lines)
+1. Residual ② tidal-creek/marshy-cay classifier (§8c) — the last visible marine flood class.
+2. Residual ① zoom-out transient (§8b) — overlay-built-during-zoom, coverage-gated, visually verified.
+3. Radar advection nowcast (§6a) — the observed↔HRRR coverage cliff; the ONLY real fix (big lift; the
+   frozen-persistence bridge is graveyard, §6a).
+4. Backlog carryovers (unchanged): ICON >240h POINT continuity (if any infobox drift remains), DWD/EU
+   palette **live-verify from an EU viewport**, reseed blink, manifest slimming, chip task_c5366c79
+   react-map-gl Source/Layer reconciliation, sheltered-water design (folds into #1).
+5. **When ready to deploy: push dev → origin/dev (restarts Render, batch it).** No main push without the
+   §22 explicit-instruction + confirmation handshake.
+
+### 8e. Do-not-re-litigate carry-forward (the whole ledger)
+§2 verdicts, §5a graveyard, §5b load-bearing guards, §5d verification discipline, §6a/§6b re-dig roots,
+and §7h eager-overlay graveyard all stand. The recurring failure mode across this stack is the
+**removal-fix** (delete a mechanism to fix symptom A, silently reopen symptom B, §2 carve-out lesson) —
+every guard in §5b has a documented second duty. ⚠️ **The re-assert and the overlay coverage-REPLACE are
+a matched pair — never revert one without the other** (§7g / §6b).
+
+**Session status: CLOSED at `94072098`.** Runbook finished. dev +2 ahead of origin/dev (unpushed),
+tree clean, 540 FE tests green, all 10 session guards verified live in the committed source.
