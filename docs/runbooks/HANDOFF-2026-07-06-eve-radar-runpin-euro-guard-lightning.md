@@ -566,3 +566,32 @@ Marsh dilation fix committed `a4795435` + PUSHED to origin/dev; deployed-dev bun
 (GFS-0.25°-visible-at-z9 + particle reset on grid shift), deferred as a focused next-session item
 because the obvious density fix is a documented v5.6-regression landmine. Marsh fix is this session's
 shipped win; the clamping fix is intentionally NOT rushed into the churn-hotspot.
+
+### 9e. z9 CLAMPING — BACKEND-TRACED FINAL ROOT (07-07, supersedes §9c "denser product" option)
+Traced through the backend resolver (`grid_resolver.py`) + live `/api/weather/grid` probes on warm
+Render. **There is no denser real product to serve — GFS wave is 0.25° NATIVE, and the resolver
+already serves the finest available:**
+- z9 FL bbox `-81.45,27.96,-79.78,28.70` → `florida_east_coast` **13×9 = 117 vec**, `coverage_scope=
+  regional`, `cache_hit=None`, **stable across repeated calls (NO sharpen)**. That grid is ~0.25°
+  (3°/13, 2°/9) = GFS native.
+- An offshore bbox with no regional tile → **`global_coarse` 37×17**, `is_dynamic_viewport_product=
+  False` — i.e. the dynamic per-viewport fetch is NOT producing a finer grid for GFS marine; the
+  resolver falls to the coarse manifest tiles. Product ladder for GFS marine = {global_coarse 37×17,
+  global_mid, regional 0.25° tiles}. None is finer than 0.25° because **GFS itself isn't.**
+- Resolver path at z9: Step 3 `use_manifest_product=True` via `MARINE_REGIONAL_OVERLAP_REUSE`
+  (grid_resolver.py:137-150) serves the FL tile and — unlike Steps 3.5/3.7 — does not schedule an SWR
+  revalidation. I nearly added that revalidation, then **disproved it**: a dynamic fetch yields no
+  finer real data (0.25° is the floor), so the SWR-sharpen would be pure churn/risk for zero benefit.
+  Deliberately NOT shipped (stability call).
+- The heatmap texture is ALREADY `gl.LINEAR` (`WebGLMarineTextureEncoder.js:823`) → the colour field is
+  bilinear-smooth. So the visible "grid outline" is the **crest particles binning to the 0.25° cells**
+  (uniform per-cell direction), visible once zoomed in enough that 0.25° cells span many screen px.
+- **What CAN move it (none add real detail; all are mitigations of the 0.25° floor):** (1) the built-in
+  **Marine Anim Tuner → "Crest jitter"** slider (default 0.2, `__RAW_CREST_DIR_JITTER__`) is explicitly
+  "breaks the parallel-crest grid over uniform fields" — the user-facing, reversible lever; (2) a
+  crest-rendering rework to sample direction fully bilinearly / dither the seed grid; (3) a genuinely
+  finer MODEL for close zoom (not GFS 0.25°) — large scope. There is **no honest "denser GFS" fix.**
+- ⚠️ Correction to §9c: its option "(c) denser backend precompute" is a DEAD END for GFS — you cannot
+  precompute finer than the model's 0.25° native. Keep options (a) shader/crest smoothing and (b)
+  particle carry-over; drop (c) for GFS. (A finer model or a different wave source is the only path to
+  real added detail.)
