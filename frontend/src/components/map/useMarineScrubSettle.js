@@ -142,6 +142,18 @@ export function evaluateStrandedPending({ hasPending, pendingAgeMs, govIdle, isF
   return { record, stranded };
 }
 
+// Marker-wedge predicate (chip task_59bcc036), pure + exported for tests: isFetching=true with
+// NO lease start stamp is the strand releaseStaleMarineLock cannot heal (its lease math bails
+// on fetchStartedAt=0) — every fetch dedup-blocks with zero network activity. A HEALTHY fetch
+// stamps the lease in the same tick it sets the marker, so tracking begins only on the
+// abnormal combination, and stranded requires it sustained (default 10s) under an idle governor.
+export const MARKER_WEDGE_LEASE_MS = 10 * 1000;
+export function evaluateMarkerWedge({ isFetching, hasStartStamp, govIdle, ageMs, leaseMs = MARKER_WEDGE_LEASE_MS }) {
+  const tracking = !!isFetching && !hasStartStamp;
+  const stranded = tracking && !!govIdle && ageMs > leaseMs;
+  return { tracking, stranded };
+}
+
 /**
  * Ring-buffer recorder for the "froze, needed a manual toggle" wedge (rating plan §8 #1). Read-only telemetry
  * — captures the lock/governor/pending state at the moment of a suspected freeze so the NEXT organic repro is
@@ -513,6 +525,10 @@ export function useMarineScrubSettle({
     let pendingSince = 0;
     let lastPendingRelease = 0;
     let lastFreezeRecord = 0;
+    // Marker-wedge tracking (chip task_59bcc036): how long isFetching=true has persisted WITHOUT
+    // a lease start stamp — the strand releaseStaleMarineLock cannot heal (its lease math bails
+    // on fetchStartedAt=0), which dedup-blocks every fetch with zero network activity.
+    let zeroStampSince = 0;
     // No-progress cap (organic repro 2026-06-28): at extreme zoom the series only has a GLOBAL covering frame
     // (fw 360) so runScrubSettleCheck's `fw < 340` gate can NEVER sharpen — the backstop re-drove forever
     // (loads 24→161+, rAF-jank). Track the stuck-clamp signature; after a few no-progress fires, stop
@@ -564,6 +580,31 @@ export function useMarineScrubSettle({
           window.__MARINE_PENDING_LEASE_RELEASE__ = (window.__MARINE_PENDING_LEASE_RELEASE__ || 0) + 1;
         }
         console.warn(`[Marine] Stranded fetch-pending released (idle ${(pendingAge / 1000).toFixed(1)}s, isFetching=false, governor idle) — re-driving wedged heatmap.`);
+        if (checkScrubSettleRef.current) checkScrubSettleRef.current();
+        return;
+      }
+
+      // ── Marker-wedge heal (chip task_59bcc036, the 07-06 "zero network requests" dead-wedge):
+      //    isFetching=true with NO lease start stamp is UNHEALABLE by releaseStaleMarineLock
+      //    (its lease math bails on fetchStartedAt=0) and dedup-blocks every fetch — the wedge
+      //    whose only user remedy was a hard refresh. Provably dead = governor idle + no start
+      //    stamp, sustained 10s (a healthy fetch stamps the lease within the same tick it sets
+      //    the marker). Heal the marker and re-drive; telemetry __MARINE_MARKER_WEDGE_HEAL__.
+      //    Kill: __RAW_DISABLE_MARKER_WEDGE_HEAL__.
+      const zeroStamp = evaluateMarkerWedge({
+        isFetching, hasStartStamp: !!(locks && locks.fetchStartedAt), govIdle,
+        ageMs: zeroStampSince ? Date.now() - zeroStampSince : 0,
+      });
+      if (zeroStamp.tracking) { if (!zeroStampSince) zeroStampSince = Date.now(); } else { zeroStampSince = 0; }
+      if (zeroStamp.stranded &&
+          !(typeof window !== 'undefined' && window.__RAW_DISABLE_MARKER_WEDGE_HEAL__ === true)) {
+        zeroStampSince = 0;
+        if (locks) { locks.isFetching = false; locks.activeSource = null; }
+        if (typeof window !== 'undefined') {
+          window.__MARINE_MARKER_WEDGE_HEAL__ = (window.__MARINE_MARKER_WEDGE_HEAL__ || 0) + 1;
+        }
+        recordMarineFreeze('marker_wedge_healed', { govIdle, isFetching: true, hadStartStamp: false });
+        console.warn('[Marine] isFetching marker wedge healed (no lease stamp, governor idle 10s+) — re-driving.');
         if (checkScrubSettleRef.current) checkScrubSettleRef.current();
         return;
       }

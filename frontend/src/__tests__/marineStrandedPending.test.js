@@ -58,3 +58,27 @@ describe('evaluateStrandedPending (stranded fetch-pending watchdog)', () => {
     expect(MARINE_PENDING_LEASE_MS).toBeGreaterThan(STRANDED_PENDING_RECORD_MS);
   });
 });
+
+// eslint-disable-next-line import/first
+import { evaluateMarkerWedge, MARKER_WEDGE_LEASE_MS } from '../components/map/useMarineScrubSettle';
+
+// Chip task_59bcc036: isFetching=true with NO lease start stamp is UNHEALABLE by
+// releaseStaleMarineLock (its lease math bails on fetchStartedAt=0) and dedup-blocks every
+// fetch with zero network activity — the "hard refresh was the only remedy" wedge.
+describe('evaluateMarkerWedge (isFetching marker wedge — the zero-stamp strand)', () => {
+  const base = { isFetching: true, hasStartStamp: false, govIdle: true, ageMs: MARKER_WEDGE_LEASE_MS + 1000 };
+
+  it('strands the sustained zero-stamp marker under an idle governor', () => {
+    expect(evaluateMarkerWedge(base)).toEqual({ tracking: true, stranded: true });
+  });
+
+  it('a healthy fetch (start stamp present) never tracks — releaseStaleMarineLock owns that lease', () => {
+    expect(evaluateMarkerWedge({ ...base, hasStartStamp: true })).toEqual({ tracking: false, stranded: false });
+  });
+
+  it('does not strand while fresh, while the governor is busy, or when not fetching', () => {
+    expect(evaluateMarkerWedge({ ...base, ageMs: 2000 }).stranded).toBe(false);
+    expect(evaluateMarkerWedge({ ...base, govIdle: false }).stranded).toBe(false);
+    expect(evaluateMarkerWedge({ ...base, isFetching: false })).toEqual({ tracking: false, stranded: false });
+  });
+});
