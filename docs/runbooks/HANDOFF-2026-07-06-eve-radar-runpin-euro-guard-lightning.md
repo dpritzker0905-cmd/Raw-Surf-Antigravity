@@ -123,6 +123,24 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
   (onError hoisted). All heavy MapWebGL children now memo'd; remaining micro-slice =
   react-map-gl Source/Layer reconciliation (optional polish).
 
+## 1g. `6e29694e` (07-07 late): crisp coarse-mask edge + per-frame radar layers
+
+- **THE halo's real painter** (user-caught at z5.71, past the damp): the HEATMAP pass's
+  `maskFade smoothstep(0.3,0.8)` — a multi-px partially-opaque band over land wherever coarse
+  mask texels span screen pixels. `u_maskEdgeSharp` (resident <32 px/° at z≥4.4, same verdict
+  as the damp) switches to a crisp `smoothstep(0.45,0.6)` midline cut on BOTH heatmap+wash
+  passes. Blocky-but-truthful coastline replaces the smear. Verified z5.71 FL/Cuba/Bahamas.
+- **The BOX = the patch-carry seam** (live capture: `__RAW_MASK_PATCH_CARRY_LAST__.box` ==
+  the visible rectangle): carry now requires dst density ≥32 px/° — never transplant crisp
+  truth into a world mask.
+- **Choppy zoom = my z6 repatch widening** (own regression): commit-time repatch sites now
+  also require mask span ≤16°; the idle driver keeps the wide-grid overlay path.
+- **Radar animation = RainViewer's documented per-frame-layer architecture**
+  (rainviewer-api-example): imperative manager, one source/layer per frame, current ±1
+  preloaded, 250ms opacity crossfade, prune on frame-list change. Single re-pointed source
+  (the old way) = reload gap per step — NEVER go back to it. Second loop = ZERO network
+  (frame sources keep their tile caches). Kill `__RAW_RADAR_MULTILAYER_DISABLED__`.
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
