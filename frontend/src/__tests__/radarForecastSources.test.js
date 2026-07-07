@@ -5,6 +5,7 @@ import {
   radarForecastSourceFor,
   discoverHrrrRun,
   hrrrRunParams,
+  radarLightningTileUrl,
 } from '../components/map/radarForecastSources';
 
 // 2026-07-06: RainViewer's nowcast is discontinued — the radar timeline extends into the future
@@ -108,6 +109,27 @@ describe('radarForecastTileUrl', () => {
   it('non-future or missing frames return null', () => {
     expect(radarForecastTileUrl(null, {})).toBeNull();
     expect(radarForecastTileUrl({ path: '/v2/radar/x' }, {})).toBeNull();
+  });
+});
+
+describe('radarLightningTileUrl', () => {
+  it('past frames get a nowCOAST NLDN URL with the frame time on the 5-min grid', () => {
+    const t = Math.floor(Date.UTC(2026, 6, 6, 21, 31, 40) / 1000);
+    const url = radarLightningTileUrl({ time: t, path: '/v2/radar/x' }, {});
+    expect(url).toContain('nowcoast.noaa.gov/geoserver/lightning_detection');
+    expect(url).toContain('layers=ldn_lightning_strike_density');
+    expect(url).toContain('time=2026-07-06T21%3A30%3A00.000Z');
+    expect(url).toContain('{bbox-epsg-3857}');
+  });
+
+  it('future frames carry NO lightning (observation product — never invented forward)', () => {
+    expect(radarLightningTileUrl({ future: true, time: 1783376000, source: 'iem_hrrr' }, {})).toBeNull();
+  });
+
+  it('kill switch and degenerate frames return null', () => {
+    expect(radarLightningTileUrl({ time: 1783376000 }, { __RAW_RADAR_LIGHTNING_DISABLED__: true })).toBeNull();
+    expect(radarLightningTileUrl(null, {})).toBeNull();
+    expect(radarLightningTileUrl({ path: '/v2/radar/x' }, {})).toBeNull();
   });
 });
 

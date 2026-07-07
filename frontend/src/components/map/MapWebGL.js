@@ -17,7 +17,7 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
-import { radarForecastTileUrl } from './radarForecastSources';
+import { radarForecastTileUrl, radarLightningTileUrl } from './radarForecastSources';
 import { useMarineWindData } from './useMarineWindData';
 import { resolveForecastWindow } from './LayerAccessResolver';
 import { markDOMReady, getInitState, onStateChange } from '../../engine/init-sequencer';
@@ -311,6 +311,14 @@ const MapWebGL = ({
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
   }, [radarFrames, radarFrameIndex]);
 
+  // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
+  // index as radar — PAST frames only (observation truth; future frames carry none). The
+  // timeline animation steps frames, so detected lightning animates with the radar sweep.
+  const lightningTileUrl = useMemo(() => {
+    if (!radarFrames?.length || radarFrameIndex == null) return null;
+    return radarLightningTileUrl(radarFrames[radarFrameIndex]);
+  }, [radarFrames, radarFrameIndex]);
+
   // Memoize map style to prevent full map re-render on ViewState change
   const currentMapStyle = useMemo(() => trace('map', 'resolve_style', 'MapWebGL', getMapStyle(theme, false)), [theme]);
 
@@ -510,11 +518,29 @@ const MapWebGL = ({
             tileSize={256}
             maxzoom={7}
           >
-            <Layer 
-              id="radar-layer" 
-              type="raster" 
+            <Layer
+              id="radar-layer"
+              type="raster"
               layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
-              paint={{ 'raster-opacity': 0.65 }} 
+              paint={{ 'raster-opacity': 0.65 }}
+            />
+          </Source>
+        )}
+
+        {/* Lightning strike density (nowCOAST NLDN) — rides the radar timeline, past frames only */}
+        {lightningTileUrl && (
+          <Source
+            id="lightning-source"
+            type="raster"
+            tiles={[lightningTileUrl]}
+            tileSize={256}
+            maxzoom={7}
+          >
+            <Layer
+              id="lightning-layer"
+              type="raster"
+              layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
+              paint={{ 'raster-opacity': 0.9 }}
             />
           </Source>
         )}

@@ -49,13 +49,18 @@ const IEM_PTYPE_RAMPS = {
   ).split(' '),
 };
 
-// RainViewer color scheme 7 (rain column), sampled at the same 2.5-dBZ steps from the published
-// color table (rainviewer.com/api/color-schemes.html, RGBA hex — alpha graded below 20 dBZ).
+// RainViewer color scheme 7 RAIN column, sampled at the same 2.5-dBZ steps from the published
+// color table (rainviewer.com/api/color-schemes.html). ⚠️ The page's colorData JSON lists every
+// dBZ TWICE — a rain row then a snow row; keep the FIRST occurrence. The initial extraction
+// keyed a dict by dBZ and silently kept the SNOW column (an all-blue ramp) — heavy precip lost
+// its yellows/reds (user-caught visually 2026-07-06). The past frames' `1_0` URL options run
+// snow=0, so the rain column IS the whole past-frame palette — exact parity. <10 dBZ is fully
+// transparent; 30≈yellow, 40≈amber, 52.5+≈red (the SELEX-SI rainbow).
 const RV_SCHEME7 = [
-  '#cfffff00', '#cdffff19', '#cbffff3f', '#c8ffff66', '#c7ffff7f', '#c5ffff99',
-  '#c3ffffbf', '#c0ffffe5', '#bfffffff', '#b2f2ffff', '#9fdfffff', '#8bcbffff',
-  '#7fbfffff', '#72b2ffff', '#5f9fffff', '#5595ffff', '#4f8fffff', '#4888ffff',
-  '#3f7fffff', '#3575ffff', '#2f6fffff', '#2868ffff',
+  '#00000000', '#00000000', '#00000000', '#00000000', '#009f9fff', '#00977dff',
+  '#008c4bff', '#00b62dff', '#00d319ff', '#0de31cff', '#21fd22ff', '#a6fd1dff',
+  '#fffd1bff', '#ffec10ff', '#ffd400ff', '#ffbb00ff', '#ffab00ff', '#ff9200ff',
+  '#ff6e00ff', '#f63501ff', '#f01002ff', '#e30b0fff',
 ];
 
 function hexToRgba(h) {

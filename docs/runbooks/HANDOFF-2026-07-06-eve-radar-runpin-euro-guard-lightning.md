@@ -1,0 +1,39 @@
+# HANDOFF — 2026-07-06 EVE: Radar Run-Pinning + Palette Parity + Lightning, EURO Model-Blind Guard, Mask Upgrade-Guard (+ same-day carve-out)
+
+**dev HEAD at handoff: see git log (base `f228c762`, this session `cbbc9557` → radar/lightning final). Tree CLEAN, FE suite green (85 suites / 677+ tests). Every fix kill-switched, telemetered, live-verified on preview 3007 (`frontend-preview`, autoPort — 3009 is often another session's server with STALE code).**
+
+## 1. What shipped (chronological)
+
+| Commit | What |
+|---|---|
+| `cbbc9557` | **RADAR RUN-PINNING** ("forecast doesn't tie to the nowcast", all models): IEM's static `refp_{NNNN}` layers are leads FROM THE LATEST COMPLETED RUN, not from now — run 20z at 21:42Z made the "+1h" frame show 21:00Z, BEFORE the last observed frame (~1.7h backward jump at the now boundary; all models identical because CONUS routes everything to HRRR). Fix: archive-backed `refp-t` accepts `year/month/day/hour` (run) + `f` (lead min, 15-min grid ≤1080) URL params — found via the WMS exception leaking its file template. `discoverHrrrRun` probes f=0000 newest-hour-first (PNG=present, XML=missing, check content-type), 5-min TTL; frames emitted on the run's 15-min VALID grid from the first point ≥ now, 30-min cadence. Levers `__RAW_RADAR_HRRR_RUN_MS__`, `__RAW_RADAR_FUTURE_DISABLED__`. DWD/EU was always valid-time-correct. |
+| `f36fd5c9` | **MASK RETAIN UPGRADE GUARD** ("halo on islands at mid zoom after a full zoom-out"): post-zoom-out the resident mask is WORLD-tier and its bounds contain EVERY viewport → the containment stamp held on the way back in while basemap tiles loaded → `retain_patched_src_not_ready` (07-05) had no density direction check and held the ~11 px/° world mask over a ~128 px/° mid rebuild. Guard: retain requires residentDensity ≥ incoming × 0.75. Mode `rebuild_upgrade_over_retain`, counter `__RAW_MASK_RETAIN_UPGRADE_REBUILD__`, kill `__RAW_DISABLE_MASK_RETAIN_UPGRADE_GUARD__`. |
+| `68963755` | **EURO STALL/INTERMITTENCY — two stacked roots.** (a) `shouldRejectResolutionDowngrade` was MODEL-BLIND (live-proven z11.4: GFS 9×9 regional resident rejected EURO's 37×17 mid — same layer+hour, covering — and the map DISPLAYED GFS DATA UNDER THE EURO LABEL permanently; the stash self-heal re-checks only zoom/coverage). Cross-model commits now always pass (engine + useSimulationField, shared predicate). (b) `frameToMarineData` omitted `__gridSupportsLayer` — every real fetch path stamps it and the gate's `hasCopernicusGrid` REQUIRES it for provider copernicus/backend-weather-service → the gate NULLED series-committed EURO frames while raw marineData still fed the sim field = the day-2 log signature "series frames bind the FIELD, engine keeps coarse_global". |
+| `cb241317` | **CLOSE-ZOOM CARVE-OUT (same-day regression of `f36fd5c9`, USER-CAUGHT)**: the upgrade guard's forced rebuild is NE-coastline-ONLY (basemap land patch async + tile-gated) → waves over intracoastal land at close zoom until the repaint. Forced rebuild now requires incoming span ≥ 8° (the halo class IS a mid-tier rebuild — fix preserved); closer commits retain the patched resident. |
+| `acf637c8` | **RADAR PALETTE PARITY v1**: past frames = RainViewer scheme 7; future = IEM refp PNGs indexed with pyiem `radar_ptype()` PRECIP-TYPE ramps (rain/snow/frzr/icep, 22 colors per 2.5 dBZ 0-55; authoritative akrherz/iem `hrrr_ref2raster.py`). MapLibre custom protocol `hrrr-rv://` (radarTileRecolor.js, om-protocol precedent) recolors tiles client-side: exact-match LUT color→dBZ→scheme-7 incl. alpha; ptypes collapse to intensity; fail-open. Kill `__RAW_RADAR_RECOLOR_DISABLED__`. |
+| (final) | **PALETTE FIX (USER-CAUGHT: "no yellows/reds in heavy precip")**: RainViewer's color-table JSON lists every dBZ TWICE (rain row then snow row) — the v1 extraction kept the LAST = the all-blue SNOW column. Corrected to the RAIN column (SELEX rainbow: <10 dBZ transparent, teal→green→yellow 30→amber 40→red 52.5+). Past frames run `1_0` options (snow=0) so the rain column IS the full past palette — exact parity. **+ LIGHTNING**: nowCOAST NLDN `ldn_lightning_strike_density` WMS (TIME-enabled, `nearestValue=1`, CORS `*`, CONUS) rides the radar timeline as `lightning-source`/`lightning-layer` — PAST frames only (observation truth; future frames carry none). `radarLightningTileUrl`, kill `__RAW_RADAR_LIGHTNING_DISABLED__`. |
+
+## 2. Verdicts (do NOT re-litigate)
+
+- **"GFS/EURO/ICON radar all share the same data" in CONUS = DESIGN.** Past = observed RainViewer (model-independent physics). Future in CONUS = HRRR for all models (the only public forecast-radar feed there; the per-model view of precip is the Precip layer). EU differs per model (DWD RV vs WN).
+- **EURO far-tail (>240h) at close zoom shows the estimated GLOBAL grid (sharpen diag fw=360, willSharpen:false) = TRUTHFUL** — EURO has no regional far-tail product. Don't chase.
+- **IEM refp tiles are indexed + nearest-neighbor resampled → NO blended intermediate colors → exact-match LUT recoloring is safe.** If IEM ever switches to bilinear, unknown colors fail open (native palette shows).
+- Cross-model resolution comparison is MEANINGLESS — any identity guard needs every identity axis (the model-blind lesson; same family as layer+hour).
+- The retain the upgrade guard bypassed was itself load-bearing at close zoom (patch truth) — scope guards to the tier where the bypassed mechanism's second duty is immaterial (the carve-out lesson; removal-fix class AGAIN).
+
+## 3. OPEN — next session order
+
+1. **ICON >240h POINT-path continuity** (day-2 leftover: grid path fixed additively, `backendWeatherServiceClientPoint` >240 branch still the raw 0.6/0.4 mix — infobox/heatmap coherence).
+2. **User eyeballs owed** (deployed at this handoff): ① radar future frames now yellow/red in heavy precip + one continuous palette across "now"; ② lightning hotspots animate with past frames where storms are active; ③ close-zoom coast clean during zoom-in (carve-out); ④ mid-zoom islands halo-free; ⑤ EURO close-zoom + hour 288.
+3. DWD/EU future-frame palette parity (clone of radarTileRecolor with DWD's palette — invisible from a US viewport, low priority).
+4. Day-2 §3 carryovers: chips (task_59bcc036 fetch-marker wedge, task_c5366c79 OceanMask churn), Part-9-② reseed blink, manifest slimming, pan-clear transient, sheltered-water design.
+
+## 4. Landmines (new this session)
+
+- **RainViewer color-schemes page: every dBZ appears TWICE (rain then snow)** — dict-by-dBZ extraction silently yields the SNOW palette. Rows = `[dbz, c0..c8]`, scheme 7 = index 8, keep FIRST occurrence.
+- **IEM refp is precip-type-indexed**: palette index = dBZ/2.5 + ptype segment offset (rain 1-22, snow 23-44, …). Four ramps, one dBZ axis. Source: pyiem `radar_ptype()`.
+- **The WMS exception text leaks the mapfile template** (`.../hrrr/%hour%/refp_%f%.png`) — that's how the run/lead URL-param form was discovered. Worth trying on any MapServer feed.
+- **HRRR products land on IEM ~1-2h after run start** — run discovery must probe ≥4-5 hours back.
+- **nowCOAST default TIME can be days ahead of now** — always pass explicit `time=`; `nearestValue=1` snaps.
+- **Model buttons are zero-rect while the weather drawer is closed** — drive previews via the window setters (`setActiveModel`/`toggleLayer`/`setTimeOffsetHours`) + `__FORCE_PREMIUM_TIER__` (tier gate silently reverts non-allowed models).
+- The preview screenshot viewport can go mobile-narrow with the tuner overlay covering the map — verify at the data level (protocol-initiated network fetches, telemetry counters) when pixels are obstructed.

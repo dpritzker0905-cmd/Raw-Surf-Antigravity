@@ -150,6 +150,25 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
   return frames;
 }
 
+// LIGHTNING COMPANION (2026-07-06): NOAA nowCOAST NLDN lightning strike density rides the radar
+// timeline. PAST frames only — it is an OBSERVATION product, so future frames truthfully carry
+// no lightning rather than inventing it. The layer is TIME-enabled with nearestValue=1
+// (GetCapabilities-proven), so each frame's timestamp snaps server-side to the nearest available
+// observation; CORS is open (ACAO: *). Coverage is CONUS (Vaisala NLDN) — outside, tiles render
+// transparent, the same regional-truth model as the HRRR forecast feed.
+// Kill: __RAW_RADAR_LIGHTNING_DISABLED__.
+export function radarLightningTileUrl(frame, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_RADAR_LIGHTNING_DISABLED__ === true) return null;
+  if (!frame || frame.future || typeof frame.time !== 'number') return null;
+  const t5 = Math.round((frame.time * 1000) / 300000) * 300000;
+  const iso = new Date(t5).toISOString().replace(/\.\d{3}Z$/, '.000Z');
+  return 'https://nowcoast.noaa.gov/geoserver/lightning_detection/ows?service=WMS&version=1.3.0&request=GetMap' +
+    '&layers=ldn_lightning_strike_density&styles=&format=image%2Fpng&transparent=true' +
+    `&crs=EPSG%3A3857&width=256&height=256&time=${encodeURIComponent(iso)}` +
+    '&bbox={bbox-epsg-3857}';
+}
+
 export function radarForecastTileUrl(frame, win) {
   if (!frame || !frame.future) return null;
   const w = win || (typeof window !== 'undefined' ? window : {});

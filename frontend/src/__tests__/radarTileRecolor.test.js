@@ -8,10 +8,16 @@ import { radarForecastTileUrl } from '../components/map/radarForecastSources';
 const px = (r, g, b, a = 255) => new Uint8ClampedArray([r, g, b, a]);
 
 describe('recolorRadarImageData', () => {
-  it('maps a rain-ramp color to the scheme-7 color of the SAME dBZ (index 16 = 40 dBZ: #ffe81a → #4f8fff)', () => {
+  it('maps a rain-ramp color to the scheme-7 RAIN color of the SAME dBZ (index 16 = 40 dBZ: #ffe81a → amber #ffab00 — heavy precip KEEPS its yellows/reds)', () => {
     const d = px(255, 232, 26); // rain[16]
     expect(recolorRadarImageData(d)).toBe(1);
-    expect([...d]).toEqual([0x4f, 0x8f, 0xff, 0xff]); // RV_SCHEME7[16]
+    expect([...d]).toEqual([0xff, 0xab, 0x00, 0xff]); // RV_SCHEME7[16] (rain column, not the snow blues)
+  });
+
+  it('extreme reflectivity renders red (index 21 = 52.5+ dBZ → #e30b0f)', () => {
+    const d = px(0xff, 0xa0, 0x00); // rain[21]
+    recolorRadarImageData(d);
+    expect([...d]).toEqual([0xe3, 0x0b, 0x0f, 0xff]);
   });
 
   it('snow and rain of equal dBZ converge to the same target (ptype collapsed to intensity)', () => {
