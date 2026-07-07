@@ -1008,6 +1008,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
               applyPatchCarry(maskCanvas, bounds, engine._lastPatchedMask) &&
               typeof window !== 'undefined') {
             window.__RAW_MASK_PATCH_CARRY__ = (window.__RAW_MASK_PATCH_CARRY__ || 0) + 1;
+            // Rectangle forensics (2026-07-07, the transient "rectangle cut out of the heatmap"
+            // report — healed before capture): the carry box is the only RECTANGULAR actor on
+            // this path, so record its geometry; when the next rectangle appears, one eval
+            // compares it against this box. Diagnosis aid only.
+            try {
+              const _bx = engine._lastPatchedMask && engine._lastPatchedMask.box;
+              if (_bx) window.__RAW_MASK_PATCH_CARRY_LAST__ = { box: { ..._bx }, ts: Date.now() };
+            } catch (e) { /* telemetry only */ }
           }
           const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
           const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);

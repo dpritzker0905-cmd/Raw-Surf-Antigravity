@@ -798,14 +798,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
     let baseWashOpacity = _baseCoverGated ? 0.0 : heatmapZoomOpacity(z) * _baseMult * _blendBaseWash * _washZoomDamp;
     // HALO DAMP (2026-07-07, "band halo glitching as it works to cover up the bands"): while the
-    // RESIDENT mask is world-tier (<32 px/° — it cannot render a crisp coastline) at mid+ zoom,
-    // the wash's soft mask edge IS the visible halo band, and every heal step (retain → mid
-    // rebuild → patched → fine) pulses it. Quiet the wash to 35% for exactly that window; the
-    // moment a denser mask lands the full wash returns. Render-time multiplier only — no mask
-    // lifecycle, commit, or clip changes. Kill: __RAW_DISABLE_HALO_DAMP__.
-    // Telemetry: __RAW_GPU__.haloDamp.
+    // RESIDENT mask is world-tier (<32 px/° — it cannot render a crisp coastline), the wash's
+    // soft mask edge IS the visible halo band, and every heal step (retain → mid rebuild →
+    // patched → fine) pulses it. Quiet the wash to 35% for exactly that window; the moment a
+    // denser mask lands the full wash returns. Render-time multiplier only.
+    // ZOOM GATE = TEXEL VISIBILITY, not a magic number (2026-07-07 refinement, user-caught at
+    // the boundary: damped/clean at z6.36, halo back at z5.49 under the old z≥6 gate): the
+    // world mask's ~0.088° texels exceed ~1.3 screen px above z≈4.4 (360/(256·2^z) °/px) —
+    // that is where the soft edge becomes a visible band, so that is where the damp engages.
+    // Below it the softness is sub-pixel and the full wash is correct.
+    // Kill: __RAW_DISABLE_HALO_DAMP__. Telemetry: __RAW_GPU__.haloDamp.
     let _haloDamped = false;
-    if (baseWashOpacity > 0 && z >= 6 && this._cachedMaskTexDims && this._cachedMaskBounds &&
+    if (baseWashOpacity > 0 && z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
         maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32) {
       baseWashOpacity *= 0.35;

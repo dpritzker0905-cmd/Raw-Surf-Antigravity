@@ -368,7 +368,12 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       let _z;
       try { _z = mapInstance.getZoom(); } catch (e) { _z = 0; }
       const _engine = engineRef.current;
-      if (_z >= 7 && _engine && _engine.refreshMaskWithBasemapWater) {
+      // Gate 7→6 (2026-07-07, "heatmap moves into the intracoastal at z6-7 until it heals"):
+      // between z6 and z7 the resident mask is the NE-only mid tier (no lagoon/bay detail) and
+      // NOTHING carved it — the patch was z≥7-gated on both call sites, so the flood persisted
+      // until a threshold crossing. Basemap water truth at z6 is coarser but strictly better
+      // than NE-only; the existing throttle/readiness gates keep the cost bounded.
+      if (_z >= 6 && _engine && _engine.refreshMaskWithBasemapWater) {
         const _repatched = _engine.refreshMaskWithBasemapWater(gl, mapInstance);
         if (_repatched) mapInstance.triggerRepaint();
         // DIAG (item ① Long Beach idle glitch-cycle, 2026-07-04): every recommit re-encodes the
@@ -620,7 +625,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     let z;
     try { z = mapInstance.getZoom(); } catch (e) { return; }
-    if (z >= 7 && engine && gl && engine.refreshMaskWithBasemapWater) {
+    // Gate 7→6 — see the safeUploadWaveData re-apply site for the z6-7 intracoastal-flood note.
+    if (z >= 6 && engine && gl && engine.refreshMaskWithBasemapWater) {
       if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
     }
   }, [revision, mapInstance]);

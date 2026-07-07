@@ -248,7 +248,7 @@ const _tileInflight = new Map();  // httpsUrl → Promise<{data}>
 const TILE_CACHE_TTL_MS = 10 * 60 * 1000;
 const TILE_CACHE_MAX = 160;
 
-function makeRecolorHandler(transform) {
+function makeRecolorHandler(transform, blurPx = 0) {
   return async (params) => {
     // Tile URLs are '<scheme>://https://...' — strip only the custom scheme prefix.
     const httpsUrl = params.url.replace(/^[a-z-]+:\/\/(?=https:\/\/)/, '');
@@ -270,7 +270,7 @@ function makeRecolorHandler(transform) {
       const buf = await resp.arrayBuffer();
       try {
         const bitmap = await createImageBitmap(new Blob([buf], { type: 'image/png' }));
-        const canvas = typeof OffscreenCanvas !== 'undefined'
+        let canvas = typeof OffscreenCanvas !== 'undefined'
           ? new OffscreenCanvas(bitmap.width, bitmap.height)
           : Object.assign(document.createElement('canvas'), { width: bitmap.width, height: bitmap.height });
         const ctx = canvas.getContext('2d', { willReadFrequently: true });
@@ -278,6 +278,23 @@ function makeRecolorHandler(transform) {
         const img = ctx.getImageData(0, 0, bitmap.width, bitmap.height);
         transform(img.data, bitmap.width, bitmap.height, httpsUrl);
         ctx.putImageData(img, 0, 0);
+        // SMOOTHING (2026-07-07, "forecast animations look terrible vs the nowcast"): RainViewer
+        // past tiles are smoothed; IEM renders hard nearest-neighbor blocks. A slight blur after
+        // recoloring (paired with the 512px supersampled GetMap in radarForecastSources) gives
+        // the future frames the same soft organic look. Kill: __RAW_RADAR_SMOOTH_DISABLED__.
+        if (blurPx > 0 && w.__RAW_RADAR_SMOOTH_DISABLED__ !== true) {
+          try {
+            const soft = typeof OffscreenCanvas !== 'undefined'
+              ? new OffscreenCanvas(canvas.width, canvas.height)
+              : Object.assign(document.createElement('canvas'), { width: canvas.width, height: canvas.height });
+            const sctx = soft.getContext('2d');
+            if (typeof sctx.filter === 'string' || sctx.filter !== undefined) {
+              sctx.filter = `blur(${blurPx}px)`;
+              sctx.drawImage(canvas, 0, 0);
+              canvas = soft;
+            }
+          } catch (e) { /* no filter support — serve unblurred */ }
+        }
         const blob = canvas.convertToBlob
           ? await canvas.convertToBlob({ type: 'image/png' })
           : await new Promise((res) => canvas.toBlob(res, 'image/png'));
@@ -317,7 +334,7 @@ let _registered = false;
 export function registerRadarRecolorProtocol() {
   if (_registered || !maplibregl?.addProtocol) return;
   _registered = true;
-  maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData));
+  maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData, 1.5));
   maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(lightningTransform));
   // Published as window globals for MapWebGL's flash renderer (avoids adding another
   // maplibre-gl-importing edge into the heavy MapPage chunk).
