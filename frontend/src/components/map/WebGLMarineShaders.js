@@ -46,6 +46,12 @@ uniform sampler2D u_chlorophyllTexture;
 uniform sampler2D u_bathymetryTexture;
 uniform sampler2D u_oceanMaskTexture;
 uniform float u_opacity;
+// 1.0 = crisp mask edge for COARSE resident masks (2026-07-07 halo fix): the world mask's
+// ~10 km texels bilinear-ramp across several screen px at mid zoom, and the wide
+// smoothstep(0.3,0.8) kept a multi-pixel band partially opaque OVER LAND — the visible halo
+// band. A narrow window around the texel midline cuts land cleanly (truthfully blocky at
+// coarse resolution) instead of smearing. Set by the engine when maskDensity < 32 px/°.
+uniform float u_maskEdgeSharp;
 uniform float u_debug_mode;
 uniform float u_theme;
 uniform float u_edgeFeatherEnabled;
@@ -418,7 +424,9 @@ void main() {
   vec3 finalColor = blendedWaveColor + directionalSwellLighting;
 
   float alpha = u_opacity;
-  float maskFade = smoothstep(0.3, 0.8, oceanAlpha);
+  float maskFade = (u_maskEdgeSharp > 0.5)
+    ? smoothstep(0.45, 0.6, oceanAlpha)   // coarse mask: crisp midline cut — no halo band
+    : smoothstep(0.3, 0.8, oceanAlpha);   // fine mask: legacy soft coastal feather
   alpha *= maskFade;
 
   // BLEND BOTH (regional-over-coarse composite): on the regional OVERLAY pass, fade near-flat cells to

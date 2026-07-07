@@ -809,9 +809,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // Below it the softness is sub-pixel and the full wash is correct.
     // Kill: __RAW_DISABLE_HALO_DAMP__. Telemetry: __RAW_GPU__.haloDamp.
     let _haloDamped = false;
-    if (baseWashOpacity > 0 && z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
-        !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
-        maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32) {
+    // Shared coarse-mask verdict: drives BOTH the wash damp and the shader's crisp mask edge
+    // (u_maskEdgeSharp — the heatmap pass's own soft edge was the halo the damp couldn't touch).
+    const _coarseMaskVisible = z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
+      maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32;
+    this._maskEdgeSharp = _coarseMaskVisible ? 1.0 : 0.0;
+    if (baseWashOpacity > 0 && _coarseMaskVisible) {
       baseWashOpacity *= 0.35;
       _haloDamped = true;
     }
@@ -1026,6 +1030,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), blendEngaged ? 1.0 : 0.0);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), _haLo);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), _haHi);
+    // Crisp mask edge for coarse residents (the heatmap pass's own halo — see the damp block).
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
 
     var heatmapOpacity = heatmapZoomOpacity(z);
 
@@ -1804,6 +1810,8 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaHi'), 1.0);
+  // Same crisp-edge verdict as the main pass — the wash's coarse mask edge was the other halo face.
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_maskEdgeSharp'), this._maskEdgeSharp || 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), baseOpacity);
 
   bindTexture(gl, base.u_waveTexture, 0);

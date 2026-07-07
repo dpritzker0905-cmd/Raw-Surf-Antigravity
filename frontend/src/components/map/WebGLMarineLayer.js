@@ -372,8 +372,14 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // between z6 and z7 the resident mask is the NE-only mid tier (no lagoon/bay detail) and
       // NOTHING carved it — the patch was z≥7-gated on both call sites, so the flood persisted
       // until a threshold crossing. Basemap water truth at z6 is coarser but strictly better
-      // than NE-only; the existing throttle/readiness gates keep the cost bounded.
-      if (_z >= 6 && _engine && _engine.refreshMaskWithBasemapWater) {
+      // than NE-only. SPAN GATE (same-day: "very choppy and slow to zoom"): repainting basemap
+      // water onto a WIDE mask canvas is 100-250ms of main thread per commit — during zoom
+      // transitions the resident mask can be mid/world-span, where the repaint is both heavy
+      // and visually useless. Only patch masks that can hold the detail (span ≤ 16°).
+      const _ms = _engine && _engine._cachedMaskBounds
+        ? ((_engine._cachedMaskBounds.east < _engine._cachedMaskBounds.west ? _engine._cachedMaskBounds.east + 360 : _engine._cachedMaskBounds.east) - _engine._cachedMaskBounds.west)
+        : 999;
+      if (_z >= 6 && _ms <= 16 && _engine && _engine.refreshMaskWithBasemapWater) {
         const _repatched = _engine.refreshMaskWithBasemapWater(gl, mapInstance);
         if (_repatched) mapInstance.triggerRepaint();
         // DIAG (item ① Long Beach idle glitch-cycle, 2026-07-04): every recommit re-encodes the
@@ -625,8 +631,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     let z;
     try { z = mapInstance.getZoom(); } catch (e) { return; }
-    // Gate 7→6 — see the safeUploadWaveData re-apply site for the z6-7 intracoastal-flood note.
-    if (z >= 6 && engine && gl && engine.refreshMaskWithBasemapWater) {
+    // Gate 7→6 + span ≤16° — see the safeUploadWaveData re-apply site for both notes.
+    const _mb2 = engine && engine._cachedMaskBounds;
+    const _ms2 = _mb2 ? ((_mb2.east < _mb2.west ? _mb2.east + 360 : _mb2.east) - _mb2.west) : 999;
+    if (z >= 6 && _ms2 <= 16 && engine && gl && engine.refreshMaskWithBasemapWater) {
       if (engine.refreshMaskWithBasemapWater(gl, mapInstance)) mapInstance.triggerRepaint();
     }
   }, [revision, mapInstance]);

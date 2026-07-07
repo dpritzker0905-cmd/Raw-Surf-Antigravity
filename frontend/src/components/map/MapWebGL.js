@@ -300,18 +300,83 @@ const MapWebGL = ({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
-  // Compute radar tile URL from frames + index
-  const radarTileUrl = useMemo(() => {
-    if (!radarFrames?.length || radarFrameIndex == null) return null;
-    const frame = radarFrames[radarFrameIndex];
+  // Per-frame tile URL (past = RainViewer path; future = model-aware forecast WMS —
+  // radarForecastSources.js; RainViewer's nowcast was discontinued Jan 2026).
+  const radarFrameUrl = (frame) => {
     if (!frame) return null;
-    // RADAR FORECAST (2026-07-06): future frames come from model-aware forecast WMS feeds
-    // (EURO → DWD WN +2h, GFS/ICON → IEM HRRR +4h — radarForecastSources.js); RainViewer's
-    // nowcast was discontinued Jan 2026 so past frames stay RainViewer, future swaps feeds.
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
     return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
-  }, [radarFrames, radarFrameIndex]);
+  };
+
+  // RADAR FRAME-LAYER MANAGER (2026-07-07, "animations don't visually match the nowcast"):
+  // RainViewer's own documented pattern (rainviewer-api-example) keeps ONE tile layer PER FRAME
+  // alive and animates by switching layer OPACITY — the maplibre paint transition then
+  // crossfades frames with zero reload gap. Our single re-pointed source reloaded tiles on
+  // EVERY step (a blank flicker per frame, worst on WMS future frames). This imperative island
+  // maintains sources/layers for the current frame ± neighbors (preload), swaps opacity to
+  // animate, and prunes frames that left the list. Sources persist while radar is active — no
+  // per-step unmount churn (the raster-draw 'bind' crash class). Kill: __RAW_RADAR_MULTILAYER_DISABLED__.
+  useEffect(() => {
+    if (!mapInstance) return;
+    const radarActive = activeLayers.includes('radar');
+    const killed = typeof window !== 'undefined' && window.__RAW_RADAR_MULTILAYER_DISABLED__ === true;
+    const PREFIX = 'radar-frame-';
+    const sid = (url) => {
+      let h = 5381;
+      for (let i = 0; i < url.length; i++) h = ((h << 5) + h + url.charCodeAt(i)) >>> 0;
+      return PREFIX + h.toString(36);
+    };
+    const removeAll = () => {
+      try {
+        const st = mapInstance.getStyle();
+        for (const l of st.layers.filter(x => x.id.startsWith(PREFIX))) { try { mapInstance.removeLayer(l.id); } catch (e) {} }
+        for (const s of Object.keys(st.sources).filter(x => x.startsWith(PREFIX))) { try { mapInstance.removeSource(s); } catch (e) {} }
+      } catch (e) { /* style mid-load */ }
+    };
+    if (!radarActive || killed || !radarFrames?.length || radarFrameIndex == null) { removeAll(); return; }
+    try {
+      const want = new globalThis.Map();   // sourceId → { url, opacity }
+      for (const off of [-1, 0, 1]) {
+        const i = radarFrameIndex + off;
+        if (i < 0 || i >= radarFrames.length) continue;
+        const url = radarFrameUrl(radarFrames[i]);
+        if (!url) continue;
+        const id = sid(url);
+        // Current frame wins if a neighbor shares the URL (dedup by source id).
+        if (!want.has(id) || off === 0) want.set(id, { url, opacity: off === 0 ? 0.65 : 0 });
+      }
+      const st = mapInstance.getStyle();
+      // Prune frame layers that are no longer wanted AND not still crossfading out (opacity>0
+      // handled by set-to-0 below; hard-remove only when outside the whole frame list).
+      const liveIds = new Set([...want.keys()]);
+      for (const l of st.layers.filter(x => x.id.startsWith(PREFIX))) {
+        if (!liveIds.has(l.id)) {
+          try { mapInstance.setPaintProperty(l.id, 'raster-opacity', 0); } catch (e) {}
+        }
+      }
+      const allFrameUrls = new Set(radarFrames.map(f => { const u = radarFrameUrl(f); return u ? sid(u) : null; }).filter(Boolean));
+      for (const s of Object.keys(st.sources).filter(x => x.startsWith(PREFIX))) {
+        if (!allFrameUrls.has(s)) {
+          try { if (mapInstance.getLayer(s)) mapInstance.removeLayer(s); } catch (e) {}
+          try { mapInstance.removeSource(s); } catch (e) {}
+        }
+      }
+      for (const [id, { url, opacity }] of want) {
+        if (!mapInstance.getSource(id)) {
+          mapInstance.addSource(id, { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 7 });
+        }
+        if (!mapInstance.getLayer(id)) {
+          mapInstance.addLayer({
+            id, type: 'raster', source: id,
+            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 } },
+          }, mapInstance.getLayer('lightning-glow') ? 'lightning-glow' : undefined);
+        }
+        mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
+      }
+    } catch (e) { /* style transition — next index change retries */ }
+    return undefined;
+  }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);
 
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
@@ -618,23 +683,9 @@ const MapWebGL = ({
 
         {/* --- WEATHER LAYERS --- */}
 
-        {/* Live Radar (RainViewer animated frames) */}
-        {radarTileUrl && (
-          <Source
-            id="radar-source"
-            type="raster"
-            tiles={[radarTileUrl]}
-            tileSize={256}
-            maxzoom={7}
-          >
-            <Layer
-              id="radar-layer"
-              type="raster"
-              layout={{ visibility: activeLayers.includes('radar') ? 'visible' : 'none' }}
-              paint={{ 'raster-opacity': 0.65 }}
-            />
-          </Source>
-        )}
+        {/* Live Radar: per-frame sources/layers are managed IMPERATIVELY by the frame-layer
+            manager effect (RainViewer's documented pattern — opacity crossfade, zero reload
+            gap per step). No JSX source here by design. */}
 
         {/* Lightning (nowCOAST NLDN): point-flash layers only — added imperatively by the
             strike-flash effect; no raster underlay (v3b). */}

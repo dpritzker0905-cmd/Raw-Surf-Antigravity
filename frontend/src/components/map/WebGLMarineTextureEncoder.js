@@ -1003,8 +1003,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           // bounds-changing commit. Transplant the last painted truth box into this canvas NOW
           // (geometrically exact — see maskSmoothing.js); the async repaint still follows with
           // fresher truth. Kill: window.__RAW_DISABLE_MASK_PATCH_CARRY__ = true.
+          // COARSE-DST CARRY GATE (2026-07-07, live-caught: the "rectangle/box shape" over south
+          // FL at z5.7 = the carry box's SEAM — crisp transplanted truth inside vs the 11 px/°
+          // world mask outside). A destination too coarse to hold island truth (<32 px/°, the
+          // same floor as the retain guards) cannot benefit from the transplant; it only paints
+          // a visible rectangular seam. Carry stays for same-scale rebuilds (its bay-flicker
+          // purpose): dst density ≥ 32 px/°.
           if (engine && bounds &&
               !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_PATCH_CARRY__ === true) &&
+              incomingMaskDensityPxPerDeg(bounds) >= 32 &&
               applyPatchCarry(maskCanvas, bounds, engine._lastPatchedMask) &&
               typeof window !== 'undefined') {
             window.__RAW_MASK_PATCH_CARRY__ = (window.__RAW_MASK_PATCH_CARRY__ || 0) + 1;
