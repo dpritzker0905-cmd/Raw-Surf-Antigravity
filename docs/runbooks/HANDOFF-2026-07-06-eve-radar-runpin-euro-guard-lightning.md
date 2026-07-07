@@ -81,6 +81,28 @@ apiClient debug-spam carryover = ALREADY FIXED (opt-in `__RAW_API_DEBUG__`), clo
   the baseless-bridge window; EURO-no-prewarm caveat stands) — NOT reproducible on deployed dev,
   no code change. Judge bridge issues on deployments only.
 
+## 1e. Night round `5f3d12c9`/`2cb4e709` (stranded debounce + observed palette + memo slice 2)
+
+- **STRANDED-DEBOUNCE ROOT (live-caught; explains "halo is back" + "close-zoom clamped animation
+  resolution" as ONE mechanism)**: every `move`/`zoom` sets `__MARINE_FETCH_DEBOUNCING__=true`
+  unconditionally; onMoveEnd cleared it ONLY on the fetch-scheduling path — the camera-hash dedup
+  and degenerate-bounds early returns stranded it TRUE forever (any gesture ending at the same
+  camera hash). ~8 gates read it as "transitioning" and hold stale frames indefinitely. Fixed at
+  the source (moveend clears first) + settle-backstop watchdog (>8s idle → clear, counter
+  `__MARINE_DEBOUNCE_STRAND_HEAL__`). Verified: same-camera double-jump leaves debouncing=false,
+  engine binds 9×9/2° (0.222°/cell) at z10.8 — pre-fix the engine stayed EMPTY indefinitely.
+- **RADAR PALETTE GROUND TRUTH (user-caught 3rd time — doc ≠ rendered)**: rainviewer.com's
+  color-table page does NOT describe the tile server's output. REAL scheme-7 tiles (sampled over
+  a live storm): light precip = OPAQUE dark-blue→blue→cyan ramp ("cloud cover"), cores =
+  yellow→amber. RV_SCHEME7 = the observed 22 colors. ⚠️ NEVER re-derive from the docs page —
+  SAMPLE A TILE. Verified visually: future frames show blue cloud fields + cyan/yellow cores.
+- **Memo slice 2 (chip task_c5366c79)**: WebGLMarineLayer (onError hoisted via useCallback —
+  an inline arrow was defeating the memo) + MapMarkerLayers memoized. Remaining: react-map-gl
+  Source/Layer reconciliation (subtree extraction).
+- **False-repro landmine**: cumulative counters (dupSkips etc.) span the TAB's whole life — take
+  DELTAS; and radar render-mode suspends the marine engine (empty engine with waves+radar both
+  toggled is DESIGNED) — toggle radar OFF before diagnosing marine.
+
 ## REMAINING BACKLOG (next session / Opus 4.8)
 
 ~~task_59bcc036 fetch-marker wedge~~ **CLOSED `1e919775`**: the zero-stamp strand
