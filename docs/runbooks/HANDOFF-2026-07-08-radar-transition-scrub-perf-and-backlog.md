@@ -402,3 +402,46 @@ change on the unproven assumption. `__SCRUB_PROBE__` + the memo kill switch are 
 
 **Session status: CLOSED at `32e7035e` + this doc.** One safe low-coupling win banked and verified; the
 higher-coupling subtree is correctly gated behind a measurement it needs and this environment can't provide.
+
+---
+
+## 10. SCRUB ATTRIBUTION RESOLVED (07-08 latest+1, Opus 4.8) — paint RULED OUT, subtree is the confirmed lever, but it has NO clean kill switch
+
+The §9d "attribute the ~62 ms" step is DONE — as far as headless allows — and it **resolves the direction.**
+Method: the preview's rAF is throttled to ~4 fps so the frame loop can't be sampled, but `map._render(0)` can
+be invoked SYNCHRONOUSLY and timed → the maplibre paint cost the throttled loop hid.
+
+### 10a. Findings (live, preview-3007, warm marine data confirmed by screenshot)
+- **maplibre CPU paint, NO marine layer: ~1.1 ms** median (0.8–2.1) for all **132** style layers.
+- **maplibre CPU paint, waves active: ~4.5 ms** median (2.5–9.5).
+- ∴ **paint is CHEAP** — not the ~62 ms. (GPU *execution* of the 87k particles is unmeasurable here — the
+  headless browser uses software WebGL — but the CPU draw-submission is cheap, and see 10b.)
+- React reconcile+commit per scrub step ≈ 9–10 ms via MessageChannel-flush (incl. scheduler overhead); the
+  static-child memo `32e7035e` removed ~1.3 ms of it.
+
+### 10b. Decisive corroboration (real-hardware, prior-me)
+§7b's **no-layer control drag was ~66 ms — layer-independent.** No marine layer ⇒ essentially no particle GPU
+work, yet the cost held. With 10a (paint ~1 ms), the ~62–66 ms is **main-thread React + react-map-gl reconcile,
+NOT GPU/paint.** ⇒ the §7c subtree (stop MapWebGL's body re-render → stop the `<Map>` reconcile) targets the
+CONFIRMED cost; the §9d "if GPU-bound the subtree won't help" risk is DISCONFIRMED.
+
+### 10c. ⚠️ The blocker → this is a real-browser SESSION, not a headless edit
+The subtree has **NO clean runtime kill switch.** It moves `useMarineOrchestrator`+`useMarineWindData` out of
+MapWebGL's body into a child; React's Rules of Hooks forbid conditionally calling hooks in one place vs another,
+so there is no `__RAW_..._DISABLED__` that flips prop-path↔subtree-path at runtime (unlike the memo, whose
+switch was a dep-array bust). It is **all-or-nothing with only git-revert as rollback**, on the **371-commit
+churn-hotspot** MapWebGL.js. Headless-verifiable: render-count→~0 on unchanged-data steps + tripwires 0/0 + FE
+green + visual correctness. NOT headless-verifiable: real-hardware FPS gain; the React Profiler flamegraph
+(needed to confirm MapWebGL-body is the dominant residual + catch the "second setState").
+
+### 10d. Verdict (Jacobian: value HIGH · coupling MAXIMAL · rollback POOR · headless-verifiability PARTIAL)
+Do the subtree in a **real-browser watched session** (Profiler + real-FPS A/B + iterate; git-revert acceptable
+when actively watched) — NOT a blind headless edit. The safe low-coupling wins are **EXHAUSTED** (the memo was
+the last; wrapping ALL `<Map>` children in one memo is impossible because `<WebGLMarineLayer>` needs the raw
+hour every step). Regression guardrails for that session (from the 3-mo archaeology, 371 MapWebGL commits):
+engine residency `9c89701e`/`15302d35`, synchronous scrub upload `6f173bc0`/`a9c30178`, the vector mirror
+(`useMarineWindData`), FCE-decoupled-in-normal-mode `40d28b9d`, and the `task_c5366c79` memo slices
+(`b720752c`/`2cb4e709`/`19b2ec79`) — the subtree must preserve EVERY one.
+
+**Session status: attribution complete.** Direction confirmed (React-bound), lever identified (§7c subtree),
+and correctly deferred to a real-browser session for the reasons in 10c. No further safe headless lever remains.
