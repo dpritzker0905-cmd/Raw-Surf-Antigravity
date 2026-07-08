@@ -352,3 +352,53 @@ one source/layer per frame and crossfades opacity. Plug advection in for the NEA
 
 **Session status: CLOSED at `d2e85c6e`.** FE suite green, diagnosis + specs complete for all three UX items, two
 low-coupling wins shipped (ratings churn, radar resilience), two big-lift items scoped for dedicated sessions.
+
+---
+
+## 9. SESSION CLOSE (07-08 latest, Opus 4.8) — scrub backlog #1: LOW-COUPLING slice SHIPPED, subtree DEFERRED pending a real-browser attribution
+
+**State:** `32e7035e` (scrub static-child memo) committed on dev; pushed batched with this doc. Tree clean.
+FE **85 suites / 696 tests green**. Preview warm on `:56865`.
+
+### 9a. What shipped — `32e7035e`
+Memoize MapWebGL's inline `<Map>` children — the esri raster, the **~12 always-mounted Open-Meteo raster
+slots** (rain/satellite/pressure/fog × 3, mounted even with no layer active), and the spot-geofences source —
+via `useMemo` keyed on their REAL deps (the hour deliberately absent). Kill switch / A/B lever
+`window.__RAW_SCRUB_MEMO_DISABLED__` (true → re-admits the hour into the dep arrays = pre-fix baseline).
+
+### 9b. The forensic reframe (why THIS before §7c)
+Re-derived from the code + the §7b **no-layer control (~66ms)**: the felt scrub cost is react-map-gl
+RE-RECONCILING MapWebGL's inline `<Source>/<Layer>` children every `timeOffsetHours` tick — none of which
+depend on the hour, and the heavy children (OceanMask/WebGLMarineLayer/WebGLWindLayer/MapMarkerLayers) are
+ALREADY `React.memo`'d. Holding the inline groups' element refs stable → React skips them → react-map-gl skips
+the reconcile. **LOW coupling (no marine-engine/§5b surface), reversible** — the Jacobian-optimal first cut
+vs the §7c subtree rewrite (which touches the most-guarded subsystem). The subtree remains the candidate for
+MapWebGL's OWN body re-render, but see 9d before committing to it.
+
+### 9c. A/B + verification (headless preview-56865)
+- rAF is **throttled to ~4fps** in the headless preview → rAF frame-sampling (the harness's `bench` mode) is
+  unusable here. Measured the **React reconcile+commit** instead via a MessageChannel-flushed drag (React 18's
+  scheduler flushes on MessageChannel macrotasks; the maplibre GPU repaint is deferred to the throttled rAF and
+  is NOT in this number).
+- **~1.3 ms/step removed, 4/4 runs positive** (per-run deltas 0.1 / 1.0 / 2.1 / 2.1). Tripwires
+  `newMarineClears` / `newParticleReinits` = **0** throughout.
+- Live: marine heatmap renders (Diagnostics HUD "No Causal Layer Violations"); rain om-slots still update across
+  scrub (slot URLs change t0→t48 = memo recomputes on `omTileUrls` change); FE 85/696 green.
+
+### 9d. ⚠️ HONEST SCOPE + the mandated next step (do NOT skip)
+This is the low-coupling **slice**, not "scrub fixed." The measured React reconcile+commit was ≈10.5 ms/step;
+this removed ~1.3 ms of it (the static children). The remainder is MapWebGL's OWN body re-render (~15 hooks/step)
++ the **maplibre GPU repaint**. CRITICAL: the headless env (rAF throttled) **could not measure the GPU repaint**,
+which may be the larger share of the felt ~62 ms. **Before** investing in the high-coupling §7c subtree lift,
+do a **REAL-BROWSER FPS/Profiler attribution** of the ~62 ms across {React reconcile / MapWebGL body / GPU
+repaint} (interactive DevTools — impossible headless). **If it's GPU-bound, the subtree won't help either** and
+the lever is elsewhere (fewer live maplibre layers / repaint suppression). Don't rush the maximal-coupling
+change on the unproven assumption. `__SCRUB_PROBE__` + the memo kill switch are the permanent A/B net.
+
+### 9e. Backlog carry-forward
+1. **Scrub perf** — SLICE SHIPPED (`32e7035e`); remaining = §7c subtree lift **AFTER** the real-browser FPS
+   attribution (9d) — that attribution is the true next step, and it needs an interactive browser.
+2–9 unchanged (radar advection §8c, z9 §10c, sheltered-water, uptime probe, eyeballs, reseed blink).
+
+**Session status: CLOSED at `32e7035e` + this doc.** One safe low-coupling win banked and verified; the
+higher-coupling subtree is correctly gated behind a measurement it needs and this environment can't provide.
