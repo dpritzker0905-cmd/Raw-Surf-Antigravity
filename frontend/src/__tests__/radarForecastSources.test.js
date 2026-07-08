@@ -155,6 +155,26 @@ describe('discoverHrrrRun', () => {
     expect(calls.length).toBe(2);
   });
 
+  it('feed-hiccup resilience: falls back to the last known run when a fresh probe fails (no future-frame blackout; no backward-jump), and the kill switch restores truthful null', async () => {
+    // Far-future nowMs so the module cache from the prior test is well past its TTL (fresh probe runs).
+    const seedNow = Date.UTC(2026, 6, 8, 12, 0, 0);
+    const okFetch = () => Promise.resolve({ ok: true, headers: { get: () => 'image/png' } });
+    const seeded = await discoverHrrrRun(seedNow, { fetch: okFetch });
+    expect(seeded).toBe(Date.UTC(2026, 6, 8, 12, 0, 0)); // top-of-hour run cached
+
+    // A day later the cache is expired AND every probe fails (IEM outage). Must fall back to the
+    // last known run — NOT null (which blanks the forecast side of the timeline). Its leads recompute
+    // from ITS run time downstream, so valid times stay wall-clock-correct (no ~1.7h backward jump).
+    const laterNow = seedNow + 24 * 3600000;
+    const failFetch = () => Promise.reject(new Error('feed down'));
+    const fellBack = await discoverHrrrRun(laterNow, { fetch: failFetch });
+    expect(fellBack).toBe(seeded);
+
+    // Kill switch: opt out → truthful null on total failure (past frames still render RainViewer).
+    const off = await discoverHrrrRun(laterNow, { fetch: failFetch, __RAW_RADAR_RUN_FALLBACK_DISABLED__: true });
+    expect(off).toBeNull();
+  });
+
   it('hrrrRunParams renders UTC run-hour parts zero-padded', () => {
     expect(hrrrRunParams(Date.UTC(2026, 0, 3, 5, 0, 0))).toBe('year=2026&month=01&day=03&hour=05');
   });

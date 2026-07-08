@@ -71,9 +71,20 @@ export async function discoverHrrrRun(nowMs = Date.now(), win) {
           _hrrrRunCache = { runMs, at: nowMs };
           return runMs;
         }
-      } catch (e) { /* network hiccup — try the older run, or give up truthfully */ }
+      } catch (e) { /* network hiccup — try the older run, or fall back to the last known run below */ }
     }
-    return null; // feed unreachable → no future frames (truthful; past stays RainViewer)
+    // FEED HICCUP RESILIENCE (2026-07-08, runbook §1c-a): every probe failed this cycle. Returning null
+    // makes radarFutureFramesForModel emit ZERO future frames → the forecast side of the timeline goes
+    // blank ("loses visuals when it switches into forecast") on a transient IEM outage. If we have a
+    // PRIOR run (now past its TTL, else line 55 would have served it), fall back to it: its leads are
+    // recomputed from ITS run time (radarFutureFramesForModel:125), so valid times stay wall-clock-correct
+    // — a staler forecast, NOT the ~1.7h backward jump the legacy run-relative form caused (cbbc9557).
+    // `at` is left stale so the next TTL cycle still re-probes for a fresh run (self-heals when the feed
+    // returns). Kill: __RAW_RADAR_RUN_FALLBACK_DISABLED__.
+    if (_hrrrRunCache.runMs != null && w.__RAW_RADAR_RUN_FALLBACK_DISABLED__ !== true) {
+      return _hrrrRunCache.runMs;
+    }
+    return null; // no prior run either → no future frames (truthful; past stays RainViewer)
   })();
   try { return await _hrrrRunInflight; } finally { _hrrrRunInflight = null; }
 }
