@@ -595,3 +595,52 @@ already serves the finest available:**
   precompute finer than the model's 0.25° native. Keep options (a) shader/crest smoothing and (b)
   particle carry-over; drop (c) for GFS. (A finer model or a different wave source is the only path to
   real added detail.)
+
+---
+
+## 10. COARSE→FINE "CLAMPING" BRIDGE — root fully decomposed + ready-to-execute fix spec (07-08)
+
+Chased the "clamping on close zoom / refresh" to ground with an instrumented commit-timeline harness.
+**Do NOT re-attempt the dead-ends below; execute the §10c spec instead.**
+
+### 10a. The mechanism, MEASURED (not guessed)
+The engine shows ONE resident grid. "Clamping" = a coarse grid (`global_coarse` 37×17 ~10°/cell) shown
+at a close zoom where the regional (`florida_east_coast` ~0.25°) belongs. Three parts:
+- **Settled view = RESOLVED** (crest jitter 0.2→0.26, `3d604a12`) — softens the parallel-crest grid
+  over the GFS-0.25° field. Steady z9 is smooth.
+- **Zoom-crossing bridge (~1s) = INTRINSIC + NARROW.** Harness (wrapped `eng.setWaveData` + moveend
+  marks): the regional commits **+9–74 ms AFTER moveend** — the commit is FAST. The bridge is the
+  ~600–780 ms zoom ANIMATION showing the resident coarse grid, and only on LARGE zoom-outs
+  (z9→z6→z9); small zoom/pan keeps the regional resident (no-downgrade guard). A 600 ms animation
+  showing the current grid is normal — no honest way to show fine data that hasn't loaded yet.
+- **Cold-load bridge (~2.5 s) = the real target, but LOAD-BEARING.** On refresh the coarse-global is
+  shown deliberately (anti-blank). The 2.5 s = cold fetch + engine-init + first commit.
+
+### 10b. PROVEN DEAD-ENDS (graveyard — do not repeat)
+- **Regional /grid prewarm** (`prewarmZoomInMarineGrid`, mirror of the zoom-OUT prewarm): CONFIRMED
+  NO-OP, tried + reverted 07-08. Two independent reasons: (1) `fetchBackendMarineGrid` returns a
+  COARSE-GLOBAL grid — the regional only exists in the `grid_series` path (marineController.js already
+  documents this as a "confirmed no-op"); (2) the commit is MOVEEND-GATED, so caching data can't move
+  the commit earlier. A/B: 1157 ms OFF vs 1328 ms ON (no gain).
+- **Backstop timing:** the `useMarineScrubSettle` re-drive is a >3 s SAFETY net; it wasn't firing in
+  the warm case, so shortening it does nothing for the common bridge.
+- **Faster fetch:** the fetch is NOT the bottleneck (prewarmed/cached data didn't shrink the bridge).
+
+### 10c. THE FIX SPEC (execute in a focused session w/ the harness)
+Commit the regional DURING the gesture instead of waiting for moveend — safely:
+1. On the `zoom`/`move` event (WebGLMarineLayer.js `onZoom`, where the zoom-OUT prewarm already
+   hooks), when the resident grid is COARSER than regional AND a cached regional grid **fully covers**
+   the current viewport (`getModelSafeMarine` + a strict `bounds contains viewport` check), commit it
+   immediately via the engine's normal setWaveData path.
+2. **Hard gates (both required):** (a) FULL coverage — never commit a partial/floating grid (that
+   reopens the sub-viewport-rectangle bug); (b) FINER-than-resident — never a downgrade (defer to
+   `shouldRejectResolutionDowngrade`). Throttle to one commit per gesture. Kill switch
+   `__RAW_DISABLE_MIDGESTURE_COMMIT__`.
+3. **Verify with the harness** (this session's probe): wrap `eng.setWaveData`, mark moveend, A/B the
+   coarse→fine transition time AND `__WEBGL_MARINE_CLEAR_COUNT__` / particle-reset count — the fix must
+   shrink the bridge with ZERO new clears/resets. Screenshot the z9 view mid-crossing (not just the %).
+4. **Cold-load variant:** on first layer-activation at a regional zoom, prefer committing the
+   `grid_series` current-hour REGIONAL frame over the coarse-global preview when it resolves fast —
+   but keep the coarse bridge as the fallback (it is the anti-blank mechanism; do NOT remove it).
+Risk: this is the marine COMMIT path (§5c churn-hotspot, §5a graveyard of reverted timing changes).
+It MUST be A/B'd against the graveyard, not shipped reactively. That is why it was scoped, not rushed.
