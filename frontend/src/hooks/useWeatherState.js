@@ -131,7 +131,9 @@ export function useWeatherState({ user }) {
   // exported name — consumers see one longer frame list with the "now" frame still at
   // radarPastFrames.length - 1. Kill: __RAW_RADAR_FUTURE_DISABLED__.
   const radarFrames = useMemo(
-    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel, Date.now(), undefined, radarRegion, hrrrRunMs)],
+    // radarPastFrames passed for the advection nowcast (backlog #2): advect frames warp the last two
+    // OBSERVED tiles forward. OFF by default (needs __RAW_RADAR_ADVECTION__=true) → no behavior change.
+    () => [...radarPastFrames, ...radarFutureFramesForModel(activeModel, Date.now(), undefined, radarRegion, hrrrRunMs, radarPastFrames)],
     [radarPastFrames, activeModel, radarRegion, hrrrRunMs]
   );
 

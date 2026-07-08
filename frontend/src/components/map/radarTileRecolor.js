@@ -21,6 +21,7 @@
  * protocol is bypassed entirely.
  */
 import maplibregl from 'maplibre-gl';
+import { estimateMotion, advectTile } from './radarAdvection';
 
 export const RADAR_RECOLOR_PROTOCOL = 'hrrr-rv';
 
@@ -390,6 +391,95 @@ function lightningTransform(data, w, h, url) {
   whitenLightningImageData(data);
 }
 
+export const RADAR_ADVECT_PROTOCOL = 'advect-rv';
+
+// ADVECTION NOWCAST protocol (backlog #2, runbook §8c). Unlike the recolor handlers, this fetches
+// TWO tiles — the last two OBSERVED RainViewer tiles at this z/x/y — estimates the dominant echo
+// motion ONCE per pair (cached, lead-independent), then warps the LATEST tile forward by
+// motion×leadFactor (radarAdvection.js). Advected RainViewer tiles are already scheme-7, so there
+// is NO recolor. URL: advect-rv://<leadFactor>|<prevTileHttpsUrl>|<currTileHttpsUrl> (maplibre fills
+// the shared {z}/{x}/{y} in all). Fail-open = TRANSPARENT tile (never a stale frozen echo — the §6a
+// graveyard). Dormant unless radarForecastSources emits advect frames (__RAW_RADAR_ADVECTION__=true).
+const _advectMotion = new Map();   // 'prevUrl|currUrl' → { dx, dy, confidence, ts }
+const _advectOut = new Map();      // full advect-rv:// url → { buf, ts }
+const _advectInflight = new Map();
+const ADVECT_TTL_MS = 10 * 60 * 1000;
+const ADVECT_CACHE_MAX = 256;
+let _blankTileBuf = null;
+
+function advCanvas(w, h) {
+  return typeof OffscreenCanvas !== 'undefined'
+    ? new OffscreenCanvas(w, h)
+    : Object.assign(document.createElement('canvas'), { width: w, height: h });
+}
+async function advCanvasToBuf(canvas) {
+  const blob = canvas.convertToBlob
+    ? await canvas.convertToBlob({ type: 'image/png' })
+    : await new Promise((res) => canvas.toBlob(res, 'image/png'));
+  return blob.arrayBuffer();
+}
+async function advDecodeTile(url) {
+  const resp = await fetch(url);
+  if (!resp.ok) throw new Error('advect tile ' + resp.status);
+  const bitmap = await createImageBitmap(await resp.blob());
+  const canvas = advCanvas(bitmap.width, bitmap.height);
+  const ctx = canvas.getContext('2d', { willReadFrequently: true });
+  ctx.drawImage(bitmap, 0, 0);
+  return { data: ctx.getImageData(0, 0, bitmap.width, bitmap.height).data, w: bitmap.width, h: bitmap.height };
+}
+async function advBlankTile(w = 256, h = 256) {
+  if (_blankTileBuf) return _blankTileBuf.slice(0);
+  _blankTileBuf = await advCanvasToBuf(advCanvas(w, h)); // untouched canvas = fully transparent
+  return _blankTileBuf.slice(0);
+}
+function advPrune(map) {
+  if (map.size <= ADVECT_CACHE_MAX) return;
+  const oldest = [...map.entries()].sort((a, b) => a[1].ts - b[1].ts)[0];
+  if (oldest) map.delete(oldest[0]);
+}
+
+function makeAdvectHandler() {
+  return async (params) => {
+    const now = Date.now();
+    const hit = _advectOut.get(params.url);
+    if (hit && now - hit.ts < ADVECT_TTL_MS) return { data: hit.buf.slice(0) };
+    const inflight = _advectInflight.get(params.url);
+    if (inflight) return inflight;
+    const work = (async () => {
+      try {
+        const rest = params.url.replace(/^advect-rv:\/\//, '');
+        const bar = rest.indexOf('|');
+        const leadFactor = parseFloat(rest.slice(0, bar));
+        const [prevUrl, currUrl] = rest.slice(bar + 1).split('|');
+        if (!prevUrl || !currUrl || !isFinite(leadFactor)) return { data: await advBlankTile() };
+        const curr = await advDecodeTile(currUrl);
+        // Motion is lead-INDEPENDENT — estimate once per (prev,curr) tile pair, reuse across leads.
+        const mkey = prevUrl + '|' + currUrl;
+        let motion = _advectMotion.get(mkey);
+        if (!motion || now - motion.ts > ADVECT_TTL_MS) {
+          const prev = await advDecodeTile(prevUrl);
+          motion = { ...estimateMotion(prev.data, curr.data, curr.w, curr.h), ts: now };
+          _advectMotion.set(mkey, motion);
+          advPrune(_advectMotion);
+        }
+        const warped = advectTile(curr.data, curr.w, curr.h, motion.dx * leadFactor, motion.dy * leadFactor);
+        const canvas = advCanvas(curr.w, curr.h);
+        canvas.getContext('2d').putImageData(new ImageData(warped, curr.w, curr.h), 0, 0);
+        const out = await advCanvasToBuf(canvas);
+        _advectOut.set(params.url, { buf: out.slice(0), ts: now });
+        advPrune(_advectOut);
+        return { data: out };
+      } catch (e) {
+        // Observed tile 404 (expired RainViewer path) / decode failure → transparent, NOT a frozen echo.
+        try { return { data: await advBlankTile() }; } catch (e2) { return { data: new ArrayBuffer(0) }; }
+      }
+    })();
+    _advectInflight.set(params.url, work);
+    work.finally(() => _advectInflight.delete(params.url));
+    return work;
+  };
+}
+
 let _registered = false;
 export function registerRadarRecolorProtocol() {
   if (_registered || !maplibregl?.addProtocol) return;
@@ -397,6 +487,7 @@ export function registerRadarRecolorProtocol() {
   maplibregl.addProtocol(RADAR_RECOLOR_PROTOCOL, makeRecolorHandler(recolorRadarImageData, 1.5));
   maplibregl.addProtocol(RADAR_DWD_PROTOCOL, makeRecolorHandler(recolorDwdImageData, 1.0));
   maplibregl.addProtocol(LIGHTNING_FLASH_PROTOCOL, makeRecolorHandler(lightningTransform));
+  maplibregl.addProtocol(RADAR_ADVECT_PROTOCOL, makeAdvectHandler());
   // Published as window globals for MapWebGL's flash renderer (avoids adding another
   // maplibre-gl-importing edge into the heavy MapPage chunk).
   if (typeof window !== 'undefined') {

@@ -117,7 +117,16 @@ const SOURCE_CAP_MIN = { iem_hrrr: 240, dwd_wn: 120, dwd_rv: 120 };
 // exist on a 15-min grid; 30-min frames tie the animation to the 10-min observed cadence better.
 const SOURCE_STEP_MIN = { iem_hrrr: 30, dwd_wn: 30, dwd_rv: 30 };
 
-export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS', hrrrRunMs = null) {
+// ADVECTION NOWCAST near-term cap/step, minutes (backlog #2, runbook §8c). Advected RainViewer
+// frames bridge the ~9.71%→3.27% observed↔HRRR coverage cliff by extrapolating the last observed
+// echo forward along its motion for the near term; HRRR takes over beyond the cap. OFF by default
+// (unverified without a live storm) — opt in with __RAW_RADAR_ADVECTION__=true; the documented kill
+// switch __RAW_RADAR_ADVECTION_DISABLED__ hard-disables it (wins once we flip the default post-verify).
+// Tunable: __RAW_RADAR_ADVECT_CAP_MIN__, __RAW_RADAR_ADVECT_STEP_MIN__.
+const ADVECT_CAP_MIN_DEFAULT = 30;
+const ADVECT_STEP_MIN_DEFAULT = 15;
+
+export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS', hrrrRunMs = null, pastFrames = []) {
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RADAR_FUTURE_DISABLED__ === true) return [];
   const source = radarForecastSourceFor(model, region);
@@ -126,17 +135,50 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
   const step = SOURCE_STEP_MIN[source];
   const frames = [];
   if (source === 'iem_hrrr') {
-    // Run-pinned frames (v3): leads live on the RUN's 15-min grid, so valid times are exact
-    // wall-clock — the first frame is the first grid point at/after "now", tying continuously
-    // to the last RainViewer observed frame. Without a discovered run there are no truthful
-    // future frames (discovery resolves in <1s; ~5 probe requests worst case).
+    // --- ADVECTION near-term nowcast frames (RainViewer-based, run-INDEPENDENT) ---
+    // Warp the last OBSERVED frame forward along its motion so the near term carries the observed
+    // echo (advected) instead of cliffing to HRRR's sparser QPF at "now". Emitted FIRST (earliest
+    // valid times) so the composed [past…future] list stays time-ordered; HRRR then covers the
+    // leads beyond the advect cap. Gated OFF by default → existing HRRR behavior is byte-identical
+    // unless a caller opts in.
+    let advectCapMin = 0;
+    const advectOn = w.__RAW_RADAR_ADVECTION__ === true && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
+      && Array.isArray(pastFrames) && pastFrames.length >= 2;
+    if (advectOn) {
+      const prevF = pastFrames[pastFrames.length - 2];
+      const currF = pastFrames[pastFrames.length - 1];
+      const obsSec = (prevF && currF && typeof prevF.time === 'number' && typeof currF.time === 'number')
+        ? (currF.time - prevF.time) : 0;
+      // Sane observed interval (RainViewer past frames are ~10 min apart) + both tiles present.
+      if (prevF && currF && prevF.path && currF.path && obsSec > 60 && obsSec < 3600) {
+        advectCapMin = typeof w.__RAW_RADAR_ADVECT_CAP_MIN__ === 'number' ? w.__RAW_RADAR_ADVECT_CAP_MIN__ : ADVECT_CAP_MIN_DEFAULT;
+        const advStep = typeof w.__RAW_RADAR_ADVECT_STEP_MIN__ === 'number' ? w.__RAW_RADAR_ADVECT_STEP_MIN__ : ADVECT_STEP_MIN_DEFAULT;
+        for (let leadMin = advStep; leadMin <= advectCapMin; leadMin += advStep) {
+          frames.push({
+            future: true,
+            advect: true,
+            source: 'advect',
+            minutes: leadMin,
+            time: Math.floor(nowMs / 1000) + leadMin * 60,
+            leadFactor: (leadMin * 60) / obsSec, // how many observed-intervals ahead this lead is
+            prevPath: prevF.path,
+            currPath: currF.path,
+          });
+        }
+      }
+    }
+    // --- HRRR forecast frames (run-pinned v3): leads live on the RUN's 15-min grid, so valid times
+    // are exact wall-clock — the first frame is the first grid point at/after "now". Without a
+    // discovered run there are no truthful HRRR frames (return whatever advect produced, else []).
     const runMs = typeof w.__RAW_RADAR_HRRR_RUN_MS__ === 'number' ? w.__RAW_RADAR_HRRR_RUN_MS__ : hrrrRunMs;
-    if (typeof runMs !== 'number' || !isFinite(runMs) || runMs > nowMs) return [];
+    if (typeof runMs !== 'number' || !isFinite(runMs) || runMs > nowMs) return frames;
     const gridMs = HRRR_LEAD_GRID_MIN * 60000;
     const firstLead = Math.ceil((nowMs - runMs) / gridMs) * HRRR_LEAD_GRID_MIN;
     for (let f = firstLead; f <= firstLead + cap && f <= HRRR_MAX_LEAD_MIN; f += step) {
       const validMs = runMs + f * 60000;
       if (validMs - nowMs > cap * 60000) break;
+      // The advect nowcast owns the near term — skip HRRR frames it already covers (no dup steps).
+      if (advectCapMin > 0 && (validMs - nowMs) <= advectCapMin * 60000) continue;
       frames.push({
         future: true,
         minutes: Math.round((validMs - nowMs) / 60000),
@@ -186,6 +228,16 @@ export function radarLightningTileUrl(frame, win) {
 export function radarForecastTileUrl(frame, win) {
   if (!frame || !frame.future) return null;
   const w = win || (typeof window !== 'undefined' ? window : {});
+  if (frame.source === 'advect') {
+    // ADVECTED near-term nowcast (backlog #2): warp the last OBSERVED RainViewer tile forward.
+    // Both observed tiles are ALREADY scheme-7 → NO recolor. The advect-rv:// protocol
+    // (radarTileRecolor.makeAdvectHandler) fetches prev+curr, estimates motion once/tile, and warps
+    // curr by motion×leadFactor. Encoding: advect-rv://<leadFactor>|<prevTileUrl>|<currTileUrl>,
+    // where each observed URL keeps its {z}/{x}/{y} (maplibre fills all with the SAME tile coords).
+    if (typeof frame.leadFactor !== 'number' || !frame.prevPath || !frame.currPath) return null;
+    const tile = (p) => `https://tilecache.rainviewer.com${p}/256/{z}/{x}/{y}/7/1_0.png`;
+    return `advect-rv://${frame.leadFactor}|${tile(frame.prevPath)}|${tile(frame.currPath)}`;
+  }
   if (frame.source === 'dwd_wn' || frame.source === 'dwd_rv') {
     // GeoServer TIME dimension: ISO8601 on the 5-min grid of the WN/RV products. Layer names
     // PROVEN via GetCapabilities + live GetMap PNGs 2026-07-06 ("dwd:WN-Produkt" is NOT defined):
