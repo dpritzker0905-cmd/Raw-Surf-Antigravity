@@ -66,6 +66,19 @@ def test_one_lane_lagging_is_warn():
     assert any("ICON/marine" in a and "lags" in a for a in rep["alerts"])
 
 
+def test_icon_native_short_horizon_is_NOT_warn():
+    # ICON native is only ~5-7d (DWD limit, blended to 14d on the frontend). A fixed 7d floor would
+    # cry-wolf on every ICON lane (the live-check false positive). Model-aware floor (ICON=96h) must
+    # pass ICON lanes at their normal ~120-165h horizon while still catching a real collapse.
+    products = [p for p in _all_healthy() if p.model != "ICON"]
+    products.append(_p("ICON", "marine", run_age_h=1.0, horizon_h=152.0))
+    products.append(_p("ICON", "wind", run_age_h=1.0, horizon_h=119.0))
+    products.append(_p("ICON", "weather", run_age_h=1.0, horizon_h=164.0))
+    rep = compute_data_health(_Store(products), now=NOW)
+    assert rep["status"] == "ok", f"ICON native horizons should not warn: {rep['alerts']}"
+    assert not any("ICON" in a for a in rep["alerts"])
+
+
 def test_short_horizon_is_warn():
     # EURO/marine present + fresh but only extends 48h ahead (tail-loss, the EURO-estimates class).
     products = [p for p in _all_healthy() if not (p.model == "EURO" and p.domain == "marine")]

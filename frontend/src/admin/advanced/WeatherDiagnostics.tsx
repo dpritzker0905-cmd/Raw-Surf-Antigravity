@@ -5,6 +5,8 @@ import {
 } from 'lucide-react';
 import { WeatherTelemetry } from '../../components/map/WeatherTelemetry';
 import apiClient from '../../lib/apiClient';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 import { toast } from 'sonner';
 
 export const WeatherDiagnostics: React.FC = () => {
@@ -103,6 +105,17 @@ export const WeatherDiagnostics: React.FC = () => {
     ? Math.round(report.tileStats.sumDecodeMs / report.tileStats.loaded)
     : 0;
 
+  // Theme-aware tokens for the Data Pipeline Health viewer (light / dark / beach).
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const dim = t.isLight || t.isBeach;  // light + beach backgrounds need darker accent shades for contrast
+  const healthText = (v: string) =>
+    v === 'ok' ? (dim ? 'text-emerald-600' : 'text-emerald-400')
+      : v === 'warn' ? (dim ? 'text-amber-600' : 'text-amber-400')
+        : (dim ? 'text-red-600' : 'text-red-400');
+  const healthBorder = (v: string) =>
+    v === 'ok' ? 'border-emerald-500/30' : v === 'warn' ? 'border-amber-500/30' : 'border-red-500/40';
+
   return (
     <div className="bg-[#0f172a]/80 backdrop-blur-md rounded-xl border border-slate-800 p-6 shadow-2xl space-y-6">
       
@@ -200,38 +213,33 @@ export const WeatherDiagnostics: React.FC = () => {
 
       </div>
 
-      {/* Data Pipeline Health — the decoupled cron's per-lane freshness (GET /api/health/data). */}
-      <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-5 shadow-xl">
-        <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-4">
-          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
-            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+      {/* Data Pipeline Health — the decoupled cron's per-lane freshness (GET /api/health/data). Theme-aware. */}
+      <div className={`${t.cardBgBorder} border rounded-xl p-5 shadow-xl`}>
+        <div className={`flex items-center justify-between border-b ${t.borderLight} pb-3 mb-4`}>
+          <span className={`text-[10px] font-bold ${t.textSecondary} uppercase tracking-widest flex items-center gap-1.5`}>
+            <Layers className={`w-3.5 h-3.5 ${dim ? 'text-cyan-600' : 'text-cyan-400'}`} />
             Data Pipeline Health — cron freshness per model×domain
           </span>
           {pipelineHealth && (
-            <span className={`text-[10px] px-2.5 py-1 rounded-lg uppercase font-bold tracking-wider border ${
-              pipelineHealth.status === 'ok' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
-                : pipelineHealth.status === 'warn' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
-                : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+            <span className={`text-[10px] px-2.5 py-1 rounded-lg uppercase font-bold tracking-wider border ${healthBorder(pipelineHealth.status)} ${healthText(pipelineHealth.status)}`}>
               {pipelineHealth.status}{pipelineHealth.freshest_run_age_h != null ? ` · freshest ${pipelineHealth.freshest_run_age_h}h` : ''}
             </span>
           )}
         </div>
         {!pipelineHealth ? (
-          <div className="text-slate-600 italic text-[11px]">{healthLoading ? 'Loading pipeline health…' : 'No health data.'}</div>
+          <div className={`${t.textMuted} italic text-[11px]`}>{healthLoading ? 'Loading pipeline health…' : 'No health data.'}</div>
         ) : (
           <>
             <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
               {Object.entries(pipelineHealth.lanes || {}).map(([lane, info]: [string, any]) => {
                 const v = info.verdict;
-                const border = v === 'ok' ? 'border-emerald-500/20' : v === 'warn' ? 'border-amber-500/20' : 'border-red-500/20';
-                const text = v === 'ok' ? 'text-emerald-400' : v === 'warn' ? 'text-amber-400' : 'text-red-400';
                 return (
-                  <div key={lane} className={`bg-slate-950/60 border rounded-lg px-3 py-2 ${border}`}>
+                  <div key={lane} className={`${t.cellBg} border ${healthBorder(v)} rounded-lg px-3 py-2`}>
                     <div className="flex items-center justify-between">
-                      <span className="text-[11px] font-bold text-slate-200 font-mono">{lane}</span>
-                      <span className={`text-[9px] uppercase font-bold ${text}`}>{v}</span>
+                      <span className={`text-[11px] font-bold ${t.textPrimary} font-mono`}>{lane}</span>
+                      <span className={`text-[9px] uppercase font-bold ${healthText(v)}`}>{v}</span>
                     </div>
-                    <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+                    <div className={`text-[9px] ${t.textMuted} font-mono mt-0.5`}>
                       {info.reason === 'missing' ? 'MISSING' : `age ${info.age_h}h${info.horizon_h != null ? ` · +${Math.round(info.horizon_h)}h` : ''}`}
                     </div>
                   </div>
@@ -241,7 +249,7 @@ export const WeatherDiagnostics: React.FC = () => {
             {pipelineHealth.alerts && pipelineHealth.alerts.length > 0 && (
               <div className="mt-3 space-y-1">
                 {pipelineHealth.alerts.map((a: string, i: number) => (
-                  <div key={i} className="text-[10px] text-amber-400/90 font-mono flex items-start gap-1.5">
+                  <div key={i} className={`text-[10px] ${dim ? 'text-amber-700' : 'text-amber-400/90'} font-mono flex items-start gap-1.5`}>
                     <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />{a}
                   </div>
                 ))}

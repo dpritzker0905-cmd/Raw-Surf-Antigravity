@@ -29,6 +29,12 @@ EXPECTED_LANES = [
     ("EURO", "marine"), ("EURO", "wind"), ("EURO", "weather"),
 ]
 
+# Model-aware horizon floors (hours). A FIXED floor cry-wolfs: ICON native is only ~5-7d (DWD limit,
+# blended to 14d on the frontend), GFS reaches ~14d, EURO ~10-14d (marine estimated, wind/pressure ~10d
+# native). These catch a real tail-LOSS per model (e.g. the EURO-estimates regression) without warning on
+# each model's NORMAL native horizon. Per-model override: HEALTH_MIN_HORIZON_HOURS_{GFS,EURO,ICON}.
+_HORIZON_DEFAULTS = {"GFS": 288.0, "EURO": 192.0, "ICON": 96.0}
+
 
 def _f(env: str, default: float) -> float:
     try:
@@ -57,7 +63,9 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
     now = _coerce_utc(now) or datetime.now(timezone.utc)
     stale_h = _f("HEALTH_STALE_HOURS", 6.0)        # a lane older than this while others are fresh = degraded
     critical_h = _f("HEALTH_CRITICAL_HOURS", 12.0)  # nothing this fresh anywhere = the cron is down
-    min_horizon_h = _f("HEALTH_MIN_HORIZON_HOURS", 168.0)  # 7d; premium tier advertises 14d, warn under 7d
+
+    def _min_horizon(model: str) -> float:
+        return _f(f"HEALTH_MIN_HORIZON_HOURS_{model.upper()}", _HORIZON_DEFAULTS.get(model.upper(), 96.0))
 
     try:
         manifest = store.get_manifest()
@@ -118,7 +126,7 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
             verdict = _worse(verdict, "critical"); reasons.append(f"stale {age_h}h")
         elif lag_h > stale_h:
             verdict = _worse(verdict, "warn"); reasons.append(f"lags freshest by {lag_h}h")
-        if horizon_h is not None and horizon_h < min_horizon_h:
+        if horizon_h is not None and horizon_h < _min_horizon(model):
             verdict = _worse(verdict, "warn"); reasons.append(f"horizon only {horizon_h}h")
         lanes[name] = {"verdict": verdict, "age_h": age_h, "lag_h": lag_h,
                        "horizon_h": horizon_h, "source": st["source"]}
