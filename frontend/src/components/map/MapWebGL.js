@@ -41,6 +41,7 @@ import { useMapDebugTools } from './useMapDebugTools';
 import { useWebGLGuardrail } from './useWebGLGuardrail';
 import 'maplibre-gl/dist/maplibre-gl.css';
 import LongPressMarker from './LongPressMarker';
+import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 
 const MapWebGL = ({
   effectiveLocation,
@@ -87,6 +88,16 @@ const MapWebGL = ({
     if (!forceWind) setWebglWindFailed(false);
     if (!forceMarine) setWebglMarineFailed(false);
   }, [activeModel, activeLayers]);
+
+  // Scrub-perf harness (backlog #1): count each render of this component and attribute it to the prop
+  // that changed, so scrubPerfProbe.bench() can quantify the per-tick MapWebGL churn the context-split
+  // decoupling targets. No dep array = runs on every commit; guarded so it's near-zero cost when the
+  // probe is disarmed (window.__SCRUB_PROBE_ON__ falsy).
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.__SCRUB_PROBE_ON__ && window.__SCRUB_PROBE__) {
+      window.__SCRUB_PROBE__.onRender({ radarFrameIndex, timeOffsetHours, activeModel, activeLayers });
+    }
+  });
 
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);

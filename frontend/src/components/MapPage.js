@@ -208,8 +208,11 @@ var MapPageContent = () => {
       window.setActiveModel = setActiveModel;
       window.setTimeOffsetHours = setTimeOffsetHours;
       window.toggleLayer = toggleLayer;
+      // Exposed for the scrub-perf harness (scrubPerfProbe.bench) — drives the real playback loop.
+      window.setRadarFrameIndex = setRadarFrameIndex;
+      window.setIsPlayingTimeline = setIsPlayingTimeline;
     }
-  }, [setActiveModel, setTimeOffsetHours, toggleLayer]);
+  }, [setActiveModel, setTimeOffsetHours, toggleLayer, setRadarFrameIndex, setIsPlayingTimeline]);
 
   // Snapped ocean/water coordinates to avoid querying land cells
   const forecastLat = snappedCoordinates?.lat;
