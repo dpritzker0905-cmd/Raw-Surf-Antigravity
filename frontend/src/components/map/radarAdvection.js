@@ -1,0 +1,171 @@
+/**
+ * radarAdvection.js — near-term radar NOWCAST by advecting the last OBSERVED frame (backlog #2).
+ *
+ * WHY (runbook §6a / §1b coverage cliff): when the radar timeline crosses "now" into forecast, the
+ * model (HRRR ~3.27% CONUS coverage) predicts precip over ~1/3 the AREA RainViewer just observed
+ * (~9.71%) — the visuals "dissipate" at the boundary. RainViewer's own nowcast array is EMPTY
+ * (discontinued Jan 2026), so there is no dense observed→forecast bridge feed. The fix is to
+ * EXTRAPOLATE the last observed frames FORWARD along their motion for the near term (≤~30–60 min),
+ * then cross-fade into HRRR for longer leads — carrying the observed echo continuously.
+ *
+ * ⚠️ GRAVEYARD (runbook §6a): a FROZEN-persistence underlay was TRIED and REVERTED — stale echoes
+ * held in place read as ghosting. This module is DIFFERENT: the echo MOVES along an estimated
+ * motion field (advection), it is NOT frozen. The eventual render integration MUST reuse the
+ * existing per-frame-layer architecture (opacity crossfade) — NO moveLayer / source-recreate per
+ * step (that churned the style during scrub).
+ *
+ * THIS FILE = the pure, DOM-free, unit-testable CORE only: estimate the dominant motion between two
+ * observed tiles and warp a tile forward. It performs NO fetching, NO canvas, NO protocol work —
+ * that is the `advect-rv://` protocol + frame wiring (separate, kill-switched:
+ * __RAW_RADAR_ADVECTION_DISABLED__) and is verified on a LIVE CONUS storm. Operating on plain
+ * `Uint8ClampedArray` RGBA + width/height keeps this layer testable headless with synthetic frames.
+ *
+ * Method (the SMALLEST version per §8c, before per-pixel optical flow): a single dominant motion
+ * vector via SAD block-match on a downsampled "echo" field (tile ALPHA — RainViewer scheme-7 is
+ * transparent where there's no precip), with parabolic sub-pixel refinement, echo/coherence gating,
+ * and a plausibility clamp. Bilinear warp advects the latest tile by motion × leadFactor.
+ */
+
+export const ADVECTION_DEFAULTS = {
+  gridSize: 64,       // downsample the S×S echo field the SAD search runs on (speed; 64 = 4px cells on a 256 tile)
+  searchRadius: 12,   // max shift searched, in GRID cells, each direction
+  minEchoFrac: 0.002, // need at least this fraction of echo cells in `curr` to trust a motion estimate
+  maxMotionCells: 10, // clamp |motion| per observed-interval, in grid cells (reject wild/wrapping matches)
+  minConfidence: 0.06,// below this the estimate is noise → treat as zero motion
+};
+
+/**
+ * Downsample an RGBA tile into an S×S scalar "echo" field in [0,1] by box-averaging the ALPHA
+ * channel (RainViewer scheme-7: alpha≈0 where no precip, ≈255 where precip). Pure.
+ * @returns {Float32Array} length S*S, row-major.
+ */
+export function echoField(rgba, width, height, S) {
+  const field = new Float32Array(S * S);
+  for (let j = 0; j < S; j++) {
+    const y0 = Math.floor((j * height) / S);
+    const y1 = Math.max(y0 + 1, Math.floor(((j + 1) * height) / S));
+    for (let i = 0; i < S; i++) {
+      const x0 = Math.floor((i * width) / S);
+      const x1 = Math.max(x0 + 1, Math.floor(((i + 1) * width) / S));
+      let sum = 0, n = 0;
+      for (let y = y0; y < y1; y++) {
+        const row = y * width;
+        for (let x = x0; x < x1; x++) { sum += rgba[(row + x) * 4 + 3]; n++; }
+      }
+      field[j * S + i] = n ? sum / (n * 255) : 0;
+    }
+  }
+  return field;
+}
+
+/** Fraction of cells with echo above `thresh` (default 0.1). */
+export function echoFraction(field, thresh = 0.1) {
+  let c = 0;
+  for (let k = 0; k < field.length; k++) if (field[k] > thresh) c++;
+  return field.length ? c / field.length : 0;
+}
+
+// Mean absolute difference between `curr` and `prev` shifted by (sx,sy) grid cells, over the valid
+// overlap. curr[i,j] is compared to prev[i-sx, j-sy] (i.e. prev shifted by (sx,sy) should match curr).
+function meanAD(prev, curr, S, sx, sy) {
+  let sum = 0, n = 0;
+  for (let j = 0; j < S; j++) {
+    const pj = j - sy;
+    if (pj < 0 || pj >= S) continue;
+    for (let i = 0; i < S; i++) {
+      const pi = i - sx;
+      if (pi < 0 || pi >= S) continue;
+      sum += Math.abs(curr[j * S + i] - prev[pj * S + pi]);
+      n++;
+    }
+  }
+  return n ? sum / n : Infinity;
+}
+
+// Parabolic sub-cell offset from three samples (left, center=min, right): peak of the fitted
+// parabola. Returns 0 when the samples are flat/degenerate. Clamped to [-0.5, 0.5].
+function subCell(a, b, c) {
+  const denom = a - 2 * b + c;
+  if (Math.abs(denom) < 1e-9) return 0;
+  const off = (0.5 * (a - c)) / denom;
+  return off < -0.5 ? -0.5 : off > 0.5 ? 0.5 : off;
+}
+
+/**
+ * Estimate the dominant motion of the echo from `prev`→`curr` (the two latest OBSERVED tiles).
+ * Returns motion in FULL-RESOLUTION tile pixels plus a [0,1] confidence.
+ * { dx, dy, confidence } — {0,0,0} when there's too little echo or no coherent match.
+ */
+export function estimateMotion(prevRgba, currRgba, width, height, opts = {}) {
+  const o = { ...ADVECTION_DEFAULTS, ...opts };
+  const S = o.gridSize, R = o.searchRadius;
+  const prev = echoField(prevRgba, width, height, S);
+  const curr = echoField(currRgba, width, height, S);
+  const ZERO = { dx: 0, dy: 0, confidence: 0 };
+
+  if (echoFraction(curr) < o.minEchoFrac) return ZERO;
+
+  const adZero = meanAD(prev, curr, S, 0, 0);
+  let best = adZero, bsx = 0, bsy = 0;
+  for (let sy = -R; sy <= R; sy++) {
+    for (let sx = -R; sx <= R; sx++) {
+      if (sx === 0 && sy === 0) continue;
+      const ad = meanAD(prev, curr, S, sx, sy);
+      if (ad < best) { best = ad; bsx = sx; bsy = sy; }
+    }
+  }
+
+  // No shift beat the zero-shift baseline → the field is static (or pure noise): no motion.
+  if (best >= adZero) return { dx: 0, dy: 0, confidence: adZero < 1e-4 ? 1 : 0 };
+
+  // Plausibility clamp: a match at the search edge is usually a wrap/aliasing artifact.
+  if (Math.abs(bsx) > o.maxMotionCells || Math.abs(bsy) > o.maxMotionCells) return ZERO;
+
+  // Parabolic sub-cell refinement along each axis around the integer optimum.
+  const axSx = subCell(meanAD(prev, curr, S, bsx - 1, bsy), best, meanAD(prev, curr, S, bsx + 1, bsy));
+  const axSy = subCell(meanAD(prev, curr, S, bsx, bsy - 1), best, meanAD(prev, curr, S, bsx, bsy + 1));
+  const fsx = bsx + axSx, fsy = bsy + axSy;
+
+  // Confidence = how much the best shift beat doing nothing (0..1). A cleanly-advecting storm
+  // drives adZero high (blob mismatched) and best→~0; a still/ambiguous field stays near 0.
+  const confidence = adZero > 1e-6 ? Math.max(0, Math.min(1, (adZero - best) / adZero)) : 0;
+  if (confidence < o.minConfidence) return ZERO;
+
+  const cellW = width / S, cellH = height / S;
+  return { dx: fsx * cellW, dy: fsy * cellH, confidence };
+}
+
+/**
+ * Warp an RGBA tile by (dx,dy) full-resolution pixels via bilinear sampling; out-of-source samples
+ * stay transparent. dst(x,y) = src(x-dx, y-dy). Pure — returns a new Uint8ClampedArray.
+ */
+export function advectTile(rgba, width, height, dx, dy) {
+  const out = new Uint8ClampedArray(rgba.length); // zero-filled = transparent everywhere
+  if (dx === 0 && dy === 0) { out.set(rgba); return out; }
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcX = x - dx, srcY = y - dy;
+      const x0 = Math.floor(srcX), y0 = Math.floor(srcY);
+      if (x0 < 0 || y0 < 0 || x0 >= width - 1 || y0 >= height - 1) continue; // out → transparent
+      const fx = srcX - x0, fy = srcY - y0;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      const i00 = (y0 * width + x0) * 4, i10 = i00 + 4, i01 = i00 + width * 4, i11 = i01 + 4;
+      const o = (y * width + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        out[o + c] = rgba[i00 + c] * w00 + rgba[i10 + c] * w10 + rgba[i01 + c] * w01 + rgba[i11 + c] * w11;
+      }
+    }
+  }
+  return out;
+}
+
+/**
+ * Predict a future tile at `leadFactor` (= leadMinutes / observedIntervalMinutes) from the two
+ * latest observed tiles: estimate prev→curr motion, then warp `curr` forward by motion × leadFactor.
+ * @returns {{ data: Uint8ClampedArray, dx: number, dy: number, confidence: number }}
+ */
+export function advectForecast(prevRgba, currRgba, width, height, leadFactor, opts = {}) {
+  const { dx, dy, confidence } = estimateMotion(prevRgba, currRgba, width, height, opts);
+  const wx = dx * leadFactor, wy = dy * leadFactor;
+  return { data: advectTile(currRgba, width, height, wx, wy), dx, dy, confidence };
+}
