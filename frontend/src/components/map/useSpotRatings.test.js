@@ -76,6 +76,19 @@ describe('computeSpotRatings — Option-A ratingMode gate', () => {
     const clustered = [{ id: 'c1', latitude: 4, longitude: 4, isCluster: true }];
     expect(computeSpotRatings(clustered, ratingGrid, true)).toEqual({});
   });
+
+  it('returns ONE stable frozen empty ref on every gated path (scrub-churn fix `63765848`)', () => {
+    // A fresh {} per call re-rendered gridRatings->merged->clusterRatings->MapMarkerLayers on EVERY
+    // scrub step with the overlay off (spotRatings drove 47/95 renders). All gated paths must share
+    // the SAME reference so the memoized markers bail. Frozen so a caller can never mutate the shared empty.
+    const noFlag = makeGrid({ cols: 5, rows: 5, west: 0, south: 0, east: 4, north: 4, cells: ratedCells });
+    const surfOff = computeSpotRatings(spots, ratingGrid, false);   // surf mode off
+    const rawFrame = computeSpotRatings(spots, noFlag, true);        // ratingMode missing
+    expect(surfOff).toEqual({});
+    expect(surfOff).toBe(rawFrame);              // identical reference across distinct gated calls
+    expect(computeSpotRatings(spots, ratingGrid, false)).toBe(surfOff);  // stable across repeated calls
+    expect(Object.isFrozen(surfOff)).toBe(true);
+  });
 });
 
 describe('summarizeSpotRatings — diagnostics', () => {
