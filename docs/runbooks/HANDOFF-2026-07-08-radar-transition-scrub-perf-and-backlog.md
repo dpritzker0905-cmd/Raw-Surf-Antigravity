@@ -220,3 +220,64 @@ focused session with its harness + A/B against the §5a graveyard. Do them one a
 **Session status: CLOSED at `35ab3b18`.** Tree clean, dev == origin/dev (pushed), health monitor green
 post-sweep, storage backlog reclaimed. The foundation (cron-hang, health check + monitor, orphan sweep) is
 now healthy end-to-end; next session is free to take on one of the high-coupling UX items (#1 or #2).
+
+---
+
+## 7. SCRUB-PERF DEEP-DIVE (07-08, Opus 4.8) — backlog #1 root-caused, cheap wins banked, refactor spec'd
+
+Built the harness (`3faf66d6`) and drove it live (warm preview-3007) to root-cause the "timeline scrub slow"
+complaint. **The forensics reframed the fix and ruled out the wrong ones — read before touching MapWebGL.**
+
+### 7a. What shipped
+- `3faf66d6` **scrubPerfProbe** — `window.__SCRUB_PROBE__`: counts MapWebGL renders/step with per-hook
+  attribution, samples frame times, watches `__WEBGL_MARINE_CLEAR_COUNT__` / `__MARINE_ZOOMSTATE_REINITS__`
+  (the 0-tripwire). `bench(mode,{durationMs})` drives real playback; for a manual DRAG, step `setTimeOffsetHours`
+  with `window.isScrubbingTimeline=true` (the real slider sets it, `MapWeatherControls.js:304`) or you bypass
+  the atmospheric debounce and over-count. rAF hangs when the preview tab is unfocused — pace with setTimeout.
+- `63765848` **ratings-churn fix** — `useSpotRatings` fired a fresh `{}` state-update every scrub step with the
+  overlay OFF (`spotRatings` drove 47/95 renders). Now returns a shared frozen `EMPTY_RATINGS` + no-ops the
+  idle setState. A/B: spotRatings 47→0, clusterRatings 47→2, clears/reinits 0/0. (Correct waste-removal; NOT
+  the dominant cost.) Rating-overlay ON path unchanged; live-verified glyphs still populate.
+
+### 7b. Root cause (measured, definitive)
+Manual drag 0→48h ≈ **2 MapWebGL renders/step at ~62 ms median**. The **no-layer isolation test held the same
+~62 ms** → the felt jank is the **parent MapWebGL re-render + react-map-gl `<Map>` reconcile + maplibre
+repaint**, layer-independent. It is NOT the marine data/GPU (that only adds the P95 tail), because:
+- the marine **upload path already tracks the scrubber** — `WebGLMarineLayer` uploads synchronously per commit
+  via `safeUploadRef`→`safeUploadWaveData` (rAF-coalesced input, content-diffed skip, scrub-aware holds:
+  `WebGLMarineLayer.js:752,840,918-932`);
+- the vector conform (**"the last vector mirror"**, §5b) is **already memoized** on `marineData` identity
+  (`useMarineWindData.js:55-160`) — it only re-runs on real data changes (~17× per drag, not per step);
+- the atmospheric-tile machinery **debounces** during a real (fast) drag (`useOpenMeteoTileUrls.js:57-68`).
+
+**∴ cheap/safe wins are EXHAUSTED with proof.** The `~62 ms` floor is `timeOffsetHours` re-rendering MapWebGL
+every step because the marine data hooks in its body need the hour. No memoization removes it.
+
+### 7c. READY-TO-EXECUTE SPEC — the imperative/subtree fix (the ONLY remaining lever; §5c churn-hotspot)
+Goal: MapWebGL stops re-rendering on a scrub step. The heatmap already updates imperatively; the parent
+re-render is pure waste on the ~⅔ of steps where `marineData` is even unchanged. Stage it, each step behind a
+kill switch + harness A/B, `clears/reinits=0` as the hard tripwire, verify on a CLEAN/WARM build:
+1. **Lift `timeOffsetHours` into a `<ScrubTimeProvider>` above MapPage** (owns the atom + the forecast/radar
+   playback intervals moved from `useWeatherState`). MapPage + its consumers (`useOpenMeteoForecast`, the
+   `__MARINE_BOOT_DIAG__` effect, `MapForecastOverlay`, both `MapWeatherControls`) read via `useContext`.
+   `props.children` isolation → MapPage goes inert on a scrub tick (no prop-stability audit needed — the win
+   doesn't depend on it, unlike a fragile `React.memo(MapWebGL)`). **Behavior-identical; verify first.**
+2. **Extract the heatmap into `<MarineHeatmapSubtree>`** (inside `<Map>`): it consumes the RAW scrub time from
+   context → `useMarineOrchestrator`→`useMarineWindData`→`WebGLMarineLayer`; re-renders per step (cheap, small
+   subtree). It **publishes `marineData` up DEBOUNCED** (a ref+throttled setState) for MapWebGL's NON-heatmap
+   consumers — `useSpotRatings`, `useSimulationField`/`useRenderPlanBridge` (FCE = diagnostics in normal mode,
+   not the heatmap driver), `useLayerTruthDiff`, `useMapDebugTools`, `onMarineDataChange`→`MapForecastOverlay`,
+   `TruthOverlay` — all of which are settle-tolerant. MapWebGL now re-renders only on the DEBOUNCED cadence.
+3. **A/B** with the harness (target: renders/step → ~0 on the ⅔ unchanged-data steps; median well under 16 ms);
+   confirm the mask stays correct (`__MASK_PROBE__`), zero new clears/reinits, and — the landmine — the
+   infobox/forecast panel still tracks (they now read debounced marineData; verify no stale-hour mislabel).
+- Kill switch `__RAW_SCRUB_DECOUPLE_DISABLED__` restores the prop path. Use the **React DevTools Profiler
+  flamegraph** to confirm which setState remains the second render/step before declaring done.
+- ⚠️ This touches the subsystem carrying the most §5b guards — do it as its own focused session, not a tail.
+  Do NOT attempt the fragile `React.memo(MapWebGL)` shape (≥10 props from various hooks, stability unaudited;
+  one unstable prop silently defeats it and "fixing" it in a shared hook ripples). Provider-isolation is safer.
+
+### 7d. State at deep-dive close
+dev `63765848`, **+3 ahead of origin/dev (unpushed** — 1 Render restart when batched): `52cccace` (runbook
+close), `3faf66d6` (harness), `63765848` (ratings fix). Tree clean. Diagnosis complete + bounded; the remaining
+fix is spec'd above for a dedicated execution. Harness is the permanent A/B + eventual CI-gate net.
