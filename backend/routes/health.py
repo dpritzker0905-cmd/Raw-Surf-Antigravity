@@ -194,3 +194,24 @@ async def simple_health_check():
     Returns minimal response for fast health probes.
     """
     return {"status": "ok", "timestamp": datetime.now(timezone.utc).isoformat()}
+
+
+@router.get("/health/data")
+async def data_freshness_health():
+    """
+    Data-freshness health for an EXTERNAL uptime monitor (2026-07-08). Computes lane freshness ON READ
+    from the served manifest (no DB, no fetch) so it catches a DEAD/timing-out forecast-ingest cron even
+    when the cron never runs to publish health.json — the manifest simply ages and this returns 503.
+    Point an UptimeRobot/cron-job.org probe here (like keep-warm) to get alerted BEFORE users see stale
+    data. 200 = ok/warn, 503 = critical (cron down or a lane missing). Never raises.
+    """
+    import asyncio
+    from fastapi.responses import JSONResponse
+    try:
+        from services.weather_pipeline.store import ProductStore
+        from services.weather_pipeline.data_health import compute_data_health
+        report = await asyncio.to_thread(compute_data_health, ProductStore())
+    except Exception as e:
+        return JSONResponse(status_code=503, content={"status": "critical", "error": str(e)})
+    code = 503 if report.get("status") == "critical" else 200
+    return JSONResponse(status_code=code, content=report)

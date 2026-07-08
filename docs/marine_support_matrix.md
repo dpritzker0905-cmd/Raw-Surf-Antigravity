@@ -2,6 +2,11 @@
 
 This document maps all marine models and layers available in Raw-Surf, showing source providers, datasets, backend routes, variables, forecast windows, and expected client rendering behaviors when backend weather service feature flags are active.
 
+> ⚠️ **UPDATED 2026-07-08 — the "Upstream Provider" and "Forecast Coverage" columns below predate two migrations. Read this note first (authoritative source-of-record: `~/.claude/.../memory/data-source-matrix-2026-07-08.md` + runbook §12):**
+> - **True grid source (post off-open-meteo campaign, 2026-06-26/27):** GFS marine = **NOAA GFS-Wave GRIB2** (`noaa_gfs_wave_fetcher`); ICON marine = **DWD GWAM GRIB2** (`dwd_marine_service`); EURO marine = **Copernicus CMEMS netCDF** (`copernicus_fetcher`). The `ncep_gfswave025`/`gwam` labels below are the **manifest CONTRACT label** (`provider="open-meteo"`, byte-identical) — the TRUE source is on `source_dataset`. **open-meteo is the FALLBACK, not the source** (except EURO marine, which is Copernicus-only with no fallback). Wind/pressure similarly: GFS→NOAA, ICON→DWD, EURO→ECMWF (all GRIB2).
+> - **Current forecast coverage (14-day horizon + tier contract):** GFS **14d native**; ICON 7d native + anchor-blend to 14d (>168h); EURO 10d native + stored-estimated to 14d (240→336h). The "8/7/5 days" and "West Florida bounding box" cells below are STALE (pre-decoupling); coverage is global + worldwide-regional, tiered guest 3d / basic 7d / premium 14d.
+> - The **layer support, source variables, and UI/infobox** columns below remain accurate.
+
 | Model | Layer | Upstream Provider | Upstream Model / Dataset | Backend API Routes | Source Variables | Supported | Forecast Coverage | Expected UI / Particle Rendering Behavior | Infobox Values / Labels |
 |---|---|---|---|---|---|---|---|---|---|
 | **GFS** | waves | Open-Meteo | `ncep_gfswave025` | `/api/weather/grid`<br>`/api/weather/point` | `wave_height`<br>`wave_direction`<br>`wave_period` | **YES** | 8 days (48h cached, 3h steps) | Full interactive WebGL flow particles over West Florida bounding box | Real wave height (ft), period (s), direction (compass + deg) |

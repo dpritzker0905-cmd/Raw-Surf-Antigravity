@@ -115,6 +115,31 @@ def main() -> int:
         except Exception as _rce:
             logger.warning("Report calibration skipped (non-fatal, ingestion already persisted): %s", _rce)
 
+    # ── Data-freshness HEALTH CHECK (2026-07-08) — the proactive signal the pipeline lacked ─────────────
+    # Every past stability incident (OOM, cron-403, the timeout hang, manifest staleness, EURO tail-loss)
+    # was found REACTIVELY. compute_data_health reads the just-written manifest and verifies every model×
+    # domain lane is fresh, present, in-parity, and full-horizon — logging a clear status and publishing
+    # health.json to L2 (an external monitor / admin view can poll it). Read-only + fully guarded: a health
+    # check must never break the cycle it watches. Tunable via HEALTH_* env; disable with DATA_HEALTH_CHECK=0.
+    if os.environ.get("DATA_HEALTH_CHECK", "1") == "1":
+        try:
+            import json as _json
+            from services.weather_pipeline.store import ProductStore as _HS
+            from services.weather_pipeline.data_health import compute_data_health
+            _store = _HS()
+            health = compute_data_health(_store)
+            _lvl = logging.ERROR if health["status"] == "critical" else (
+                logging.WARNING if health["status"] == "warn" else logging.INFO)
+            logger.log(_lvl, "DATA HEALTH: status=%s freshest=%sh alerts=%s",
+                       health["status"], health.get("freshest_run_age_h"), health["alerts"] or "none")
+            try:
+                _store._upload_to_supabase("health.json", _json.dumps(health, separators=(",", ":")).encode("utf-8"))
+                logger.info("DATA HEALTH: published health.json to L2 (status=%s).", health["status"])
+            except Exception as _hu:
+                logger.warning("DATA HEALTH: health.json upload skipped: %s", _hu)
+        except Exception as _he:
+            logger.warning("DATA HEALTH: check skipped (non-fatal): %s", _he)
+
     # The store records L2 outcomes at class level, so a fresh instance reads this process's results.
     from services.weather_pipeline.store import ProductStore
     diag = ProductStore().get_persistence_diagnostics()
