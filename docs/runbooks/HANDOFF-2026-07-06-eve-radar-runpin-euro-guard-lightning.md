@@ -726,3 +726,53 @@ first-occurrence of `Starting decoupled`, `Duplicate-valid_time sweep`, `Spot-ra
 for phase boundaries; count `Downloading subset via` / `timeout=180` vs `timeout=25` and **`BATCHED hit`**
 (0 = the pre-warm is being evicted) / `pre-warm complete` (`cached_points` vs the cap). A `cancelled` run's
 log TAIL shows the hang point (mid per-point CMEMS loop).
+
+## 12. DATA-SOURCE MATRIX (traced from code, 07-08) + point-fallback empty-error FIXED
+
+Traced end-to-end while fixing the GFS/ICON marine point-fallback empty-error, so the source-of-record
+for each model×domain is written down (prevents the recurring "should we use NOAA/GRIB here?" re-litigation
+and the class of regression where someone re-routes a lane to the wrong source).
+
+### 12a. GRIDS — every model×domain is DIRECT from the authoritative source (open-meteo = fallback only)
+The heatmap grids AND the point ladder's PATH-2 sample come from these; `provider="open-meteo"` on the
+saved product is the CONTRACT/channel label — the TRUE source is stamped on `source_dataset` (`830c4c7b`,
+`616e05cc`). Kill switches all default `1` (direct on); a direct-fetch failure fails over to open-meteo.
+
+| Model | Marine | Wind | Pressure |
+|---|---|---|---|
+| **GFS** | NOAA GFS-Wave **GRIB2** (`noaa_gfs_wave_fetcher`/`noaa_marine_service`, pygrib, byte-range) | NOAA **GRIB2** | NOAA PRMSL **GRIB2** |
+| **ICON** | DWD GWAM **GRIB2** (bz2, `dwd_marine_service`) | DWD icosahedral **GRIB** | DWD PMSL **GRIB** |
+| **EURO** | Copernicus CMEMS **netCDF** (`copernicus_fetcher`, copernicusmarine — **NOT GRIB**) | ECMWF Open Data **GRIB2** (`ecmwf_wind_service`, pygrib) | ECMWF **GRIB2** (`ecmwf_pressure_service`) |
+
+Kill switches: `GFS_{MARINE,WIND,PRESSURE}_NOAA_DIRECT`, `ICON_{MARINE,WIND,PRESSURE}_DWD_DIRECT`,
+`EURO_{WIND,PRESSURE}_ECMWF_DIRECT`. **EURO marine has NO ECMWF/GRIB switch — it is Copernicus-only**
+(that is why the whole `copernicus_fetcher.py` subprocess + `POINT_CACHE_MAX` saga (§11) is EURO-marine-specific).
+
+### 12b. POINTS — the fallback ladder (PATH 2c, when no grid covers the point)
+| Model | Marine point source |
+|---|---|
+| **GFS** | open-meteo `ncep_gfswave025` = **NOAA's GFS-Wave 0.25° model** served as a point API (NOAA ships GRIB grids, has no single-point JSON — this IS the NOAA data, finer than our coarse grid) |
+| **ICON** | open-meteo `gwam` = **DWD's ICON-wave model** as a point API |
+| **EURO** | **native CMEMS** `fetch_euro_marine` (copernicus subprocess) → open-meteo `ecmwf_wam025` if the native cell is masked |
+
+⚠️ **`7d3b8a71` (LOAD-BEARING, §5b — "cron point-volume detonator") deliberately prefers the 0.25° direct
+point over sampling our own 10° coarse grid** for a DEGRADED coastal/enclosed-water sample (the Gulf-of-Mexico
+wrong-water smear; `point_resolution.py:351-363`). **Do NOT "optimize" coastal points to sample the local
+coarse grid** — it reopens that bug. The direct point IS the correct NOAA/DWD data at the right resolution.
+
+### 12c. The empty-error — FIXED (diagnosability + level; NO ladder change)
+Forensics (run 28885657903): **49 `[Point Fallback] Failed fetching point for {GFS×14, ICON×35} marine … : `
+with EMPTY error text.** Characterized, not guessed: (1) all clustered in **two bursts** — ~19:04:29-19:05:04
+(first GFS point burst, right after the CMEMS pre-warm) and ~20:28-20:30 (ICON pass start + run tail); (2)
+**fast-fail 0.27s** (NOT the 15s timeout); (3) a **direct open-meteo curl for a "failing" point SUCCEEDS**
+(data exists — not a land/no-data case). ⇒ **transient transport failures at concurrency-burst boundaries**
+(each `fetch_point` opens its own `httpx.AsyncClient`; a burst churns connections). They are **handled fail-open**
+(`point_resolution.py:572-576`: degraded coarse sample, else structured no-coverage 404) — the only real defect
+was that the exception was **invisible** (both log sites used `{e}`/`{ex}`, and transport errors stringify to "").
+**Fix:** `{e!r}`/`{ex!r}` (repr carries the type even when str is empty) at both sites, and the point-resolution
+site ERROR→WARNING (it is a handled fallback-miss, not an error; a real outage still surfaces via volume + the
+ratings coverage-guard floor). Regression test `test_no_coarse_sample_and_upstream_raises_returns_structured_404_not_crash`
+locks the "no coarse sample + upstream raises → structured 404, never crash/None" branch. **No retries added**
+(the abort-loop / point-volume landmines) and **no ladder/source change** (§5c churn hotspot + the `7d3b8a71`
+guard). The exact exception TYPE will now self-reveal in the next cron's WARNING repr for a targeted follow-up
+if the ~2.4% rate ever warrants one (candidate: a shared `httpx.AsyncClient` to kill the per-call churn).

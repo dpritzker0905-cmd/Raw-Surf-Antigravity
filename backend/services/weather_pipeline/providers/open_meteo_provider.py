@@ -613,7 +613,12 @@ class OpenMeteoProvider:
                         return mock_res[0]
                     return None
                 else:
-                    logger.error(f"[Open-Meteo Provider] Single point request failed: {e}. Propagating exception in production.")
+                    # {e!r} (repr), not {e}: transport-level errors (connection reset/timeout at a
+                    # concurrency burst boundary) stringify to "" — the empty-message log that made
+                    # the forecast-ingest point-fallback failures undiagnosable (runbook §12). repr
+                    # always carries the type. The caller fails OPEN (coarse sample / no-coverage), so
+                    # this is informational for the propagated exception, not a hard failure.
+                    logger.warning(f"[Open-Meteo Provider] Single point request failed: {e!r}. Propagating exception (caller fails open).")
                     raise e
 
     @staticmethod

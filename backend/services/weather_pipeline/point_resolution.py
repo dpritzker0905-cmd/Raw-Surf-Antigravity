@@ -559,7 +559,11 @@ class PointResolutionService:
                             gridParity=False
                         )
             except Exception as ex:
-                logger.error(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex}")
+                # {ex!r} not {ex}: transport transients at a burst boundary stringify to "" (the
+                # undiagnosable empty-message log, runbook §12). WARNING not ERROR: this fails OPEN
+                # below (coarse_last_resort → no-coverage 404), so it is a handled fallback-miss, not
+                # an error. A systematic outage still surfaces via volume + the ratings coverage guard.
+                logger.warning(f"[Point Fallback] Failed fetching point for {model} marine at ({lat}, {lng}): {ex!r} (serving coarse/no-coverage fallback)")
 
         elif domain.lower() == "weather" and layer.lower() in ("pressure", "precipitation") and model.upper() in ("GFS", "ICON", "EURO"):
             scalar_resp = await build_scalar_direct_point_response(self.provider, model, layer, lat, lng, target_dt)

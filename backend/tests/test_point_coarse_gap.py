@@ -200,3 +200,15 @@ def test_deep_inland_null_upstream_never_serves_zeros():
     assert resp.source == "grid_file"
     assert resp.point.interpolation_method == "unavailable"
     assert resp.fallback_attempted is True
+
+
+def test_no_coarse_sample_and_upstream_raises_returns_structured_404_not_crash():
+    # Regression (runbook §12): the forecast-ingest point-fallback failures were transport
+    # transients raising out of provider.fetch_point at burst boundaries. When there is ALSO no
+    # coarse sample to fall back to (point outside every grid), the resolver must swallow the raise
+    # and return the structured no-coverage 404 — never let the exception escape (it would zero the
+    # spot's rating) and never return None. This is the branch the {ex!r}/WARNING log annotates.
+    provider = _FakeProvider(fail=True)
+    resp = _resolve(_service(provider), 60.0, 0.0)   # outside the -100..-80 / 10..40 coarse bbox
+    assert provider.calls, "direct point should be attempted"
+    assert getattr(resp, "status_code", None) == 404, "must fail open to the structured 404, not crash/None"

@@ -84,7 +84,9 @@ async def build_wind_direct_point_response(provider, model: str, lat: float, lng
                     gridParity=False
                 )
     except Exception as ex:
-        logger.error(f"[Point Fallback] Failed fetching point for {model} wind at ({lat}, {lng}): {ex}")
+        # {ex!r} + WARNING (runbook §12): transport transients stringify to "" and this fails open
+        # (returns None → caller serves coarse/no-coverage). repr keeps the type diagnosable.
+        logger.warning(f"[Point Fallback] Failed fetching point for {model} wind at ({lat}, {lng}): {ex!r} (fails open)")
     return None
 
 
@@ -155,5 +157,7 @@ async def build_scalar_direct_point_response(provider, model: str, layer: str, l
                     gridParity=g_parity
                 )
     except Exception as ex:
-        logger.error(f"[Point Fallback] Failed fetching point for {model} weather/{layer} at ({lat}, {lng}): {ex}")
+        # {ex!r} + WARNING (runbook §12): transport transients stringify to "" and this fails open
+        # (returns None → caller serves coarse/no-coverage). repr keeps the type diagnosable.
+        logger.warning(f"[Point Fallback] Failed fetching point for {model} weather/{layer} at ({lat}, {lng}): {ex!r} (fails open)")
     return None
