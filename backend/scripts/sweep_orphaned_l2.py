@@ -72,10 +72,24 @@ def main() -> int:
         print("ERROR: Supabase not configured (SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY).")
         return 1
 
-    manifest = ProductStore().get_manifest()
+    # CRITICAL: load the manifest from L2, not just local disk. On an ephemeral runner (or any box with
+    # an empty store) get_manifest() would be EMPTY -> every object reads as an orphan -> we'd delete every
+    # LIVE product. Restore from L2 first so manifest_names is the true set of live filenames.
+    store0 = ProductStore()
+    try:
+        store0.restore_from_supabase()
+    except Exception as e:
+        print(f"WARNING: L2 manifest restore failed ({e!r}); using local manifest.")
+    manifest = store0.get_manifest()
     manifest_names = {getattr(p, "filename", None) for p in getattr(manifest, "products", [])}
     manifest_names.discard(None)
     print(f"Manifest references {len(manifest_names)} live products.")
+    # SAFETY GUARD 1: an empty/partial manifest would flag everything as orphan -> refuse to sweep.
+    min_manifest = int(os.environ.get("SWEEP_MIN_MANIFEST", "500"))
+    if len(manifest_names) < min_manifest:
+        print(f"ABORT: manifest has only {len(manifest_names)} products (< {min_manifest}). Refusing to "
+              f"sweep — an empty/partial manifest would delete LIVE products.")
+        return 1
 
     now = datetime.now(timezone.utc)
     margin_h = args.older_than_hours
@@ -102,6 +116,13 @@ def main() -> int:
 
     print(f"Bucket has {total_objs} objects; {len(orphans)} are ORPHANS "
           f"(~{total_bytes / 1e6:.0f} MB) older than {margin_h}h and not in the manifest.")
+
+    # SAFETY GUARD 2: if we'd delete almost everything, the manifest almost certainly didn't load —
+    # bail rather than nuke the bucket.
+    if total_objs and len(orphans) > 0.95 * total_objs:
+        print(f"ABORT: {len(orphans)}/{total_objs} objects (>95%) flagged as orphans — manifest likely "
+              f"failed to load. Refusing to delete; investigate first.")
+        return 1
 
     if not args.delete:
         print("DRY-RUN: nothing deleted. Re-run with --delete --yes to prune (guarded by --max-delete).")

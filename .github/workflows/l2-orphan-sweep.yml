@@ -1,0 +1,50 @@
+# One-off L2 orphan cleanup in the CLOUD (2026-07-08) — so it runs to completion even with your
+# computer off. Manual trigger only (workflow_dispatch). DEFAULTS TO DRY-RUN; deletion requires
+# checking the `delete` input. The script is safe by construction (restores the manifest from L2
+# first, aborts if the manifest looks empty/partial or if >95% of objects would be deleted, spares
+# reserved keys + anything younger than older_than_hours). See backend/scripts/sweep_orphaned_l2.py.
+name: L2 Orphan Sweep
+
+on:
+  workflow_dispatch:
+    inputs:
+      delete:
+        description: "Actually delete orphans (unchecked = dry-run count only)"
+        type: boolean
+        default: false
+      older_than_hours:
+        description: "Only touch orphans older than N hours"
+        default: "24"
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forecast-ingest   # SHARE the ingest group so a sweep never races a live ingest's uploads/prunes
+  cancel-in-progress: false
+
+jobs:
+  sweep:
+    runs-on: ubuntu-latest
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+      - name: Install dependencies
+        run: pip install -r backend/requirements.txt
+      - name: Sweep orphaned L2 objects
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          if [ "${{ inputs.delete }}" = "true" ]; then
+            echo "Running sweep in DELETE mode (older-than ${{ inputs.older_than_hours }}h)..."
+            python scripts/sweep_orphaned_l2.py --delete --yes --older-than-hours "${{ inputs.older_than_hours }}"
+          else
+            echo "Running sweep in DRY-RUN mode..."
+            python scripts/sweep_orphaned_l2.py --older-than-hours "${{ inputs.older_than_hours }}"
+          fi
