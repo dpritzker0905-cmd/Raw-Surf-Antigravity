@@ -43,6 +43,13 @@ import 'maplibre-gl/dist/maplibre-gl.css';
 import LongPressMarker from './LongPressMarker';
 import './scrubPerfProbe';   // installs window.__SCRUB_PROBE__ (dev scrub/animation re-render harness, backlog #1)
 
+// Radar CURRENT-frame opacity, zoom-graded (2026-07-08): user reported the (global) radar echo was
+// "couldn't see it zoomed all the way out, but closer up it was visual." At global zoom precip cells
+// are only a few px and RainViewer scheme-7 paints light dBZ as a dark blue that camouflages against
+// the dark basemap — so the current frame is made MORE opaque when zoomed OUT and eases to the tuned
+// 0.65 zoomed in. Kill: __RAW_RADAR_FLAT_OPACITY__=true → flat 0.65 everywhere.
+const RADAR_CUR_OPACITY = ['interpolate', ['linear'], ['zoom'], 3, 0.9, 6, 0.78, 9, 0.65];
+
 const MapWebGL = ({
   effectiveLocation,
   surfSpots,
@@ -307,7 +314,12 @@ const MapWebGL = ({
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
-    return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
+    // 512px tiles on a 256 tileSize = 2x supersample (same crispness trick the HRRR future frames
+    // use, radarForecastSources §512) — RainViewer radar caps at ~z7 so past frames were overzoomed
+    // 4x and read BLOCKY at close zoom (user report). RainViewer serves 512 natively. Kill:
+    // __RAW_RADAR_256_TILES__=true → the old 256 path.
+    const px = (typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true) ? '256' : '512';
+    return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
   // RADAR FRAME-LAYER MANAGER (2026-07-07, "animations don't visually match the nowcast"):
@@ -338,6 +350,7 @@ const MapWebGL = ({
     if (!radarActive || killed || !radarFrames?.length || radarFrameIndex == null) { removeAll(); return; }
     try {
       const want = new globalThis.Map();   // sourceId → { url, opacity }
+      const curOp = (typeof window !== 'undefined' && window.__RAW_RADAR_FLAT_OPACITY__ === true) ? 0.65 : RADAR_CUR_OPACITY;
       for (const off of [-1, 0, 1]) {
         const i = radarFrameIndex + off;
         if (i < 0 || i >= radarFrames.length) continue;
@@ -345,7 +358,7 @@ const MapWebGL = ({
         if (!url) continue;
         const id = sid(url);
         // Current frame wins if a neighbor shares the URL (dedup by source id).
-        if (!want.has(id) || off === 0) want.set(id, { url, opacity: off === 0 ? 0.65 : 0 });
+        if (!want.has(id) || off === 0) want.set(id, { url, opacity: off === 0 ? curOp : 0 });
       }
       const st = mapInstance.getStyle();
       // Prune frame layers that are no longer wanted AND not still crossfading out (opacity>0
@@ -370,7 +383,8 @@ const MapWebGL = ({
         if (!mapInstance.getLayer(id)) {
           mapInstance.addLayer({
             id, type: 'raster', source: id,
-            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 } },
+            // linear resampling smooths the (necessarily) overzoomed z7 radar past ~z7.
+            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 }, 'raster-resampling': 'linear' },
           }, mapInstance.getLayer('lightning-glow') ? 'lightning-glow' : undefined);
         }
         mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
