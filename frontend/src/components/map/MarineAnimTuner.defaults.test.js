@@ -50,7 +50,7 @@ describe('resolveAnimValue resolution order', () => {
     expect(resolveAnimValue('__RAW_TROCHOIDAL__')).toBe(0.7);
     expect(resolveAnimValue('__RAW_ORBITAL_PITCH__')).toBe(2.5);
     expect(resolveAnimValue('__RAW_SHOAL_FOAM__')).toBe(1.5);
-    expect(resolveAnimValue('__RAW_CREST_DIR_JITTER__')).toBe(0.2);
+    expect(resolveAnimValue('__RAW_CREST_DIR_JITTER__')).toBe(0.26);
   });
 
   it('explicit window global (tuner slider / console) wins over everything', () => {

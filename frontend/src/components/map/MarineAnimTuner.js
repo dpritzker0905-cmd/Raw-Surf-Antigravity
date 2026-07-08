@@ -31,7 +31,7 @@ const CONTROLS = [
   { key: '__RAW_TROCHOIDAL__',       tkey: 'trochoidal',     label: 'Trochoidal crest', min: 0,   max: 1,    step: 0.05, def: 0.7,  hint: 'Sharp leading face, broad trailing back (0 = symmetric)' },
   { key: '__RAW_ORBITAL_PITCH__',    tkey: 'orbitalPitch',   label: 'Orbital pitch',    min: 0,   max: 4,    step: 0.25, def: 2.5,  hint: 'Crests bob fwd/back with the wave (px). Keep ≤3 to avoid banding.' },
   { key: '__RAW_SHOAL_FOAM__',       tkey: 'shoalFoam',      label: 'Shoaling foam',    min: 0,   max: 3,    step: 0.1,  def: 1.5,  hint: 'Extra whitecap in shallow water (needs bathymetry — zoom to a coast)' },
-  { key: '__RAW_CREST_DIR_JITTER__', tkey: 'crestJitter',    label: 'Crest jitter',     min: 0,   max: 0.5,  step: 0.02, def: 0.2,  hint: 'Breaks the parallel-crest "grid" over uniform fields (rad)' },
+  { key: '__RAW_CREST_DIR_JITTER__', tkey: 'crestJitter',    label: 'Crest jitter',     min: 0,   max: 0.5,  step: 0.02, def: 0.26, hint: 'Breaks the parallel-crest "grid" over uniform fields (rad)' },
   { key: '__RAW_WAVE_SPEED__',       tkey: 'waveSpeed',      label: 'Wave speed',       min: 0.3, max: 1.5,  step: 0.05, def: 1,    hint: 'Overall drift-speed multiplier' },
   { key: '__RAW_SPEED_HEIGHT_CAP__', tkey: 'speedHeightCap', label: 'Speed height cap', min: 1,   max: 8,    step: 0.5,  def: 3,    hint: 'Caps how fast big swell drifts (m)' },
   { key: '__RAW_PART_TARGET__',      tkey: 'partTarget',     label: 'Crest density',    min: 600, max: 3000, step: 50,   def: 1650, hint: 'On-screen crest count (held constant across zoom)' },
@@ -43,7 +43,7 @@ const CONTROLS = [
 function defaults() { const o = {}; for (const c of CONTROLS) o[c.key] = c.def; return o; }
 
 // == the engine's NATURAL_ANIM_DEFAULTS (now also the CONTROLS defs above)
-const PRESET_NATURAL = { __RAW_TROCHOIDAL__: 0.7, __RAW_ORBITAL_PITCH__: 2.5, __RAW_SHOAL_FOAM__: 1.5, __RAW_CREST_DIR_JITTER__: 0.2 };
+const PRESET_NATURAL = { __RAW_TROCHOIDAL__: 0.7, __RAW_ORBITAL_PITCH__: 2.5, __RAW_SHOAL_FOAM__: 1.5, __RAW_CREST_DIR_JITTER__: 0.26 };
 // V2 (2026-07-01): key bumped when Natural became the default — stale saved zeros from pre-Natural sessions
 // would otherwise mask the new baked look on every tuner-enabled host (the tuner seeds globals on mount).
 const LS_VALS = '__RAW_TUNER_VALUES_V2__';

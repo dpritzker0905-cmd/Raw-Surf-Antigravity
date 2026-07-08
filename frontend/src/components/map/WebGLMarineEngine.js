@@ -203,7 +203,7 @@ export const NATURAL_ANIM_DEFAULTS = {
   __RAW_TROCHOIDAL__: 0.7,        // asymmetric crest: sharp leading face, broad trailing back
   __RAW_ORBITAL_PITCH__: 2.5,     // phase-synced fwd/back sway (px); keep ≤3 to avoid banding
   __RAW_SHOAL_FOAM__: 1.5,        // extra whitecap in shallow water (inert without bathymetry)
-  __RAW_CREST_DIR_JITTER__: 0.2,  // rad of per-crest heading spread (breaks the parallel-crest lattice)
+  __RAW_CREST_DIR_JITTER__: 0.26, // rad of per-crest heading spread (breaks the parallel-crest lattice; 0.2→0.26 2026-07-07, user-tuned to soften the z9 GFS-0.25° crest grid — runbook §9e)
 };
 export function resolveAnimValue(key) {
   if (typeof window !== 'undefined') {
