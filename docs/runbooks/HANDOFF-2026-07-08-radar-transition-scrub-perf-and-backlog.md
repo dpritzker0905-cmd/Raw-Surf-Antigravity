@@ -281,3 +281,74 @@ kill switch + harness A/B, `clears/reinits=0` as the hard tripwire, verify on a 
 dev `63765848`, **+3 ahead of origin/dev (unpushed** — 1 Render restart when batched): `52cccace` (runbook
 close), `3faf66d6` (harness), `63765848` (ratings fix). Tree clean. Diagnosis complete + bounded; the remaining
 fix is spec'd above for a dedicated execution. Harness is the permanent A/B + eventual CI-gate net.
+
+---
+
+## 8. SESSION CLOSE / FRESH-CONTEXT HANDOFF (07-08 late, Opus 4.8) — START HERE
+
+**State:** dev HEAD `d2e85c6e`. **origin/dev at `9ef2a14e`** (the `52cccace`→`9ef2a14e` batch is PUSHED);
+`3b8dfe73` (radar resilience) + `d2e85c6e` (ratings test) are **+2 LOCAL, unpushed** (1 batched Render restart
+when you push). Tree CLEAN. **Full FE suite audited GREEN: 85 suites / 696 tests** (this session added the
+harness + 2 regression locks, changed 5 code files, broke 0). Preview 3007 warm.
+
+### 8a. What shipped this session (a "finish the runbook" that became a backlog #1/#2 arc)
+| Commit | What |
+|---|---|
+| `52cccace` | Finished the runbook (§6) — L2 orphan sweep moved to a CLOUD workflow AND ran clean (21,133 orphans / ~908 MB reclaimed; health monitor green post-sweep = live data survived). |
+| `3faf66d6` | **scrubPerfProbe** (`window.__SCRUB_PROBE__`) — the scrub-FPS harness backlog #1 mandated. Counts MapWebGL renders/step with per-hook attribution + frame-time sampling + the `clears`/`reinits` 0-tripwire. |
+| `63765848` | **Ratings-churn fix** — `useSpotRatings` fired a fresh `{}` state-update every scrub step with the overlay OFF (`spotRatings` drove 47/95 renders). Now a shared frozen `EMPTY_RATINGS` + idle no-op setState. |
+| `9ef2a14e` | Scrub-perf deep-dive (§7) — root cause + cheap-wins-exhausted proof + the §7c refactor spec. |
+| `3b8dfe73` | **Radar feed-hiccup resilience** — `discoverHrrrRun` falls back to the last-known run on total-probe-failure instead of `null`→blank forecast. +test, 16/16. |
+| `d2e85c6e` | Test lock for the ratings stable-empty ref (prevents a silent churn regression). |
+
+### 8b. Backlog status after this session (Jacobian: value ÷ coupling)
+- **#1 scrub/toggle perf — ROOT-CAUSED, cheap wins BANKED, big fix SPEC'd (§7).** The ~62 ms/step jank is the
+  parent MapWebGL re-render + react-map-gl `<Map>` reconcile (layer-independent — proven by the no-layer test),
+  NOT marine GPU/data (upload already imperative + content-diffed; conform already memoized; atmospheric
+  debounces). Only lever left = the **§7c `ScrubTimeProvider` + `MarineHeatmapSubtree` refactor** (HIGH coupling,
+  §5b-guarded subsystem → dedicated session + React Profiler). Do NOT `React.memo(MapWebGL)` (fragile prop audit).
+- **#2 radar — cheap checks CLEAN, resilience SHIPPED, advection remains.** Live-verified over FL: `discoverHrrrRun`
+  works, boundary continuous (first HRRR frame now+3 min) → the two discrete-discontinuity quick wins ruled out.
+  Shipped the feed-hiccup fallback (`3b8dfe73`). Remaining = the **§6a coverage cliff** (RainViewer 9.71% vs HRRR
+  3.27%) → **advection nowcast** (MEDIUM coupling / radar-only, big lift; spec §8c). Needs a LIVE STORM to verify.
+- **#3 z9 clamping — VERDICT: dedicated session, don't rush (§10c ready in 07-06-eve).** Settled z9 already
+  resolved (crest-jitter `3d604a12`); residual is a ~600 ms INTRINSIC zoom-animation bridge + a load-bearing cold
+  bridge. The §10c mid-gesture-commit fix is MODEST value on the marine COMMIT path (§5c hotspot + §5a timing-change
+  graveyard) — "MUST be A/B'd against the graveyard, not shipped reactively." Same discipline as #1.
+
+### 8c. Radar advection spec (the #2 remaining fix — grounded in this session's pipeline map)
+Pipeline: `radarFutureFramesForModel` emits frame descriptors → `radarForecastTileUrl` builds a WMS URL with a
+recolor-protocol prefix (`hrrr-rv://`) → the per-frame-layer manager (`MapWebGL.js:320-379`, `6e29694e`) mounts
+one source/layer per frame and crossfades opacity. Plug advection in for the NEAR-TERM future leads:
+1. `radarAdvection.js` (new, pure + unit-testable): from the last 2 OBSERVED RainViewer tiles, estimate a motion
+   field. Start with the SMALLEST version — phase-correlation / block-match for a coarse-per-block (or single
+   dominant) vector — before per-pixel optical flow. Test with synthetic shifted frames → estimated motion == shift.
+2. `advect-rv://` protocol (mirror `radarTileRecolor`'s `hrrr-rv://`): for a near-term future frame at lead L,
+   sample the latest observed tile warped by `-motion·L`, recolor to scheme-7, output. Cache warped tiles (like the
+   scrub tile cache) — the warp is a per-tile canvas op.
+3. Frames: emit advected frames for CONUS leads ≤~30-60 min (`source:'advect'`); **cross-fade `alpha(lead)`
+   advected→HRRR** as lead grows (blend the two per-frame layers' opacity in the manager). HRRR is the authority
+   beyond ~60 min. Kill `__RAW_RADAR_ADVECTION_DISABLED__`.
+4. ⚠️ **Graveyard (§6a):** the FROZEN-persistence underlay was REVERTED (stale echoes = ghosting; and its per-frame
+   `moveLayer`+source-recreate churned the style during scrub). Advection differs (the field MOVES), but MUST reuse
+   the existing per-frame-layer architecture (NO moveLayer/source-recreate per step). Verify on a LIVE CONUS storm:
+   near-term coverage should ≈ observed (~9.7%), not cliff to HRRR's ~3.3%; and the scrub must stay smooth.
+
+### 8d. Landmines / carry-forward for the fresh context
+- **Harness bench fidelity:** a manual DRAG must set `window.isScrubbingTimeline=true` (the real slider does,
+  `MapWeatherControls.js:304`) or you bypass the atmospheric debounce and OVER-count. rAF hangs when the preview
+  tab is unfocused — pace `bench` steps with setTimeout, not double-rAF.
+- **Judge marine/radar on CLEAN/WARM builds** — the user's live observations this session (grid clamping,
+  intracoastal spill, zoom-out squares) were all KNOWN preview-3007-amplified transients (z9 data-floor / mask
+  self-heal / residual ①), not regressions; the harness's `clears`/`reinits` stayed 0 throughout.
+- Everything else in §4 + the 07-06-eve §5a graveyard / §5b guards / §5d verification-discipline still stands.
+
+### 8e. Recommended first move for the fresh context
+1. **Push the +2 local commits** (`git push origin dev`) — one Render restart; puts the harness+resilience on origin.
+2. Pick ONE dedicated item: **§7c scrub refactor** (biggest daily-UX win, needs the React Profiler) OR **§8c radar
+   advection** (needs a live CONUS storm). Both are focused-session work; do NOT interleave with the marine §5b
+   subsystem casually. Build/verify with the harness (#1) and `clears/reinits=0` (both), live-storm (advection).
+3. #3 z9 (§10c) only when you want a marine-commit A/B session against the §5a graveyard.
+
+**Session status: CLOSED at `d2e85c6e`.** FE suite green, diagnosis + specs complete for all three UX items, two
+low-coupling wins shipped (ratings churn, radar resilience), two big-lift items scoped for dedicated sessions.
