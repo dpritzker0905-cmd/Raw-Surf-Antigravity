@@ -7,6 +7,7 @@ Batching restores it: one subset per ~5° spot cluster, per-point BATCHED cache 
 fetch_euro_marine consults for any layer subset / valid_time.
 """
 import asyncio
+import os
 import time
 
 import pytest
@@ -121,6 +122,34 @@ def test_prewarm_fetches_one_box_per_cluster_and_caches_per_point(monkeypatch):
         assert variables is None and valid_time is None   # full vars, full horizon
     for la, lo in pts:                           # every point individually addressable
         assert batched_point_cache_key(la, lo, EURO_POINT_FORECAST_DAYS) in cms._point_cache
+
+
+def test_prewarm_does_not_evict_its_own_entries_when_cap_is_low(monkeypatch):
+    """Regression (2026-07-08, runbook §11): the per-box eviction trims _point_cache to
+    _point_cache_cap() (POINT_CACHE_MAX, default 100). A ~1000-spot pre-warm under the default cap
+    silently evicted ~90% of its own entries BEFORE the consume pass → 0 batched hits → every point
+    re-spawned a CMEMS subprocess (the forecast-ingest cron-hang). The self-correcting floor must
+    keep the WHOLE batch addressable even when the env cap is left at the default. The existing
+    tests used only 3 points so the cap never bit — this one crosses it."""
+    monkeypatch.setenv("POINT_BATCH_NATIVE_COPERNICUS", "1")
+    monkeypatch.delenv("POINT_SKIP_NATIVE_COPERNICUS", raising=False)
+    monkeypatch.setenv("POINT_CACHE_MAX", "100")   # the default that caused the hang
+
+    async def fake_fetch(latitudes, longitudes, forecast_days, variables, valid_time):
+        return [_fake_result(la, lo) for la, lo in zip(latitudes, longitudes)]
+
+    monkeypatch.setattr(cms, "fetch_euro_marine", fake_fetch)
+
+    # 150 unique-at-2dp coastal points (> the 100 cap) in one 5° box.
+    pts = [(round(30.0 + i * 0.02, 2), -80.0) for i in range(150)]
+    stats = asyncio.run(prewarm_euro_marine_point_cache(pts))
+
+    assert stats["cached_points"] == 150
+    # EVERY pre-warmed point survives and is individually addressable (pre-fix: only ~100 did).
+    for la, lo in pts:
+        assert batched_point_cache_key(la, lo, EURO_POINT_FORECAST_DAYS) in cms._point_cache
+    # The floor was raised above the default so the eviction can't trim the batch.
+    assert int(os.environ["POINT_CACHE_MAX"]) >= 150
 
 
 def test_prewarm_survives_a_failed_box_and_skips_error_stubs(monkeypatch):

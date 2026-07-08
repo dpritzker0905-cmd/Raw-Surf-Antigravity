@@ -644,3 +644,85 @@ Commit the regional DURING the gesture instead of waiting for moveend — safely
    but keep the coarse bridge as the fallback (it is the anti-blank mechanism; do NOT remove it).
 Risk: this is the marine COMMIT path (§5c churn-hotspot, §5a graveyard of reverted timing changes).
 It MUST be A/B'd against the graveyard, not shipped reactively. That is why it was scoped, not rushed.
+
+## 11. `forecast-ingest` CRON HANG — 2-3h runs root-caused (07-08, Opus 4.8) — DIAGNOSED, fix ranked (not yet shipped)
+
+**Symptom:** `forecast-ingest.yml` runs take 2.5-3h+ and periodically show `cancelled` (was "minutes"
+before the ratings/calibration tail was bolted on). Independent of the EURO estimate fix (`04b64846`);
+it's why the EURO fix is slow to verify (the shared-group queue + long jobs delay the *next* cycle).
+
+### 11a. The phase timeline, MEASURED (run 28885657903, `success`, job step 5 = 2h27m)
+Downloaded the full run log (11,435 lines) and mapped phase boundaries by first-occurrence timestamp:
+
+| Phase | Window (UTC) | Duration | % of job |
+|---|---|---|---|
+| Core ingest (GRIB decode → all marine/wind/pressure grids + EURO estimates) | 18:03:12 → 18:49:40 | **~46 min** | 31% |
+| **Spot-ratings precompute (1000 spots × 3 models GFS/EURO/ICON × hour[0])** | 18:49:40 → 20:30:04 | **~100 min** | **68%** |
+| Buoy calibration (0 buoys) + report calibration (1000 predictions) | 20:30:04 → 20:30:36 | ~1 min | <1% |
+
+The **core cycle is healthy (~46 min, matches design).** The entire balloon is the **spot-ratings
+precompute tail** — 68% of the job. Total ~148 min lands just under the 165-min `timeout-minutes`;
+any run that resolves a few more masked points / hits CMEMS throttle crosses 165 → GitHub marks the
+timed-out job **`cancelled`** (same reporting as the pilots-split timeouts, §pilots-workflow header).
+The `gh run list` "duration" (2.5-3h+) also includes **shared-concurrency-group queue wait** (~30 min
+behind the `:45` pilots run) on top of the job.
+
+### 11b. ROOT — a missing env var made the CMEMS pre-warm silently evict its own entries
+Inside the 100-min tail (all 953 CMEMS subprocess downloads fall AFTER the 18:49 core boundary — 0 before):
+- **107 batch cluster downloads** (`timeout=180s`) — `prewarm_euro_marine_point_cache` fired and **succeeded**:
+  `pre-warm complete: {points: 977, boxes: 107, failed: 0, cached_points: 977, elapsed_s: 887.9}` @ 19:04:29.
+- **846 per-point downloads** (`timeout=25s`) — individual `copernicus_fetcher.py` subprocess spawns, **~6-8s each, serial ≈ the whole 100 min.**
+- **`BATCHED hit` count = 0.** ← the tell. The pre-warm cached 977 points and the EURO pass consumed them **41 s later** (fresh, TTL fine) yet **hit the batch zero times** → every point re-fetched.
+
+**Mechanism (the actual, decisive root — my first pass here guessed "masked points aren't cacheable"; that
+was WRONG, masked points DO cache, `_fetch_sync` returns them with `hourly.time` populated + None values):**
+`_point_cache_cap()` reads **`POINT_CACHE_MAX` (default 100)**. The pre-warm's per-box eviction loop
+(`copernicus_point_batching.py:112-115`) trims `_point_cache` back to that cap **after every box** — so
+storing 977 points under a cap of 100 **evicts ~877 of its own entries before the consume pass reads them**.
+`fetch_euro_marine`'s batched lookup misses → the ladder spawns a per-point subprocess → re-confirms masked
+→ GFS fallback (failing) → open-meteo. `precompute.yml` sets **`POINT_CACHE_MAX: '6000'`** (its docstring:
+"batch lanes… set POINT_CACHE_MAX high (e.g. 6000); default keeps the serve box's old bound") — which is why
+the *same* pre-warm code ran in **18.8 min** there. **`forecast-ingest.yml` was missing the var** (config
+drift when spot-ratings+batching were bolted on here) → cap 100 → the 100-min tail. Once the cap holds the
+batch, even masked coastal spots serve from the cached stub (sub-second fallback, **no subprocess**), so the
+whole tail collapses to precompute's ~18 min. **Tests missed it because the fixtures use 3 points** (cap
+never bites); the bug only appears at ~1000. Secondary (separate small bug): GFS marine point fallback
+throws an empty-message error (14×), so masked points can't use GFS grid data — they all cascade to open-meteo.
+
+**PROVEN by executing the shipped code** (repro: real `prewarm_euro_marine_point_cache` + `fetch_euro_marine`
+batched lookup, `_fetch_sync` stubbed as a spawn-counter, 1000 pts / 100 boxes):
+
+| cap | prewarm cached | survive eviction | batched HITS | subprocess SPAWNS |
+|---|---|---|---|---|
+| **100 (pre-fix)** | 1000 | **100** | **0/1000** | **1000/1000** |
+| **6000 (fix)** | 1000 | 1100 | 1000/1000 | **0/1000** |
+
+The `100`-cap row reproduces the production log to the letter (977 cached → 0 `BATCHED hit` → all spawn);
+`6000` (or the self-correcting guard, which auto-raised 100→1500 in the same repro) → zero spawns.
+
+### 11c. FIX — SHIPPED (this session, 07-08). Two parts, both low-risk, no churn-hotspot edit.
+1. **`forecast-ingest.yml`: add `POINT_CACHE_MAX: '6000'`** (parity with the proven `precompute.yml`). This
+   is the root fix — the existing, already-deployed batching now WORKS in this lane: 977 batched hits, ~0
+   per-point subprocess spawns, CMEMS hit only ~107× (the boxes). Expected: ratings tail ~100 min → ~18 min,
+   total job ~65 min, comfortably under the 165-min timeout → no more `cancelled`, queue drains, and we stop
+   hammering the external CMEMS dependency with ~850 pointless subprocess subsets/cycle.
+2. **`copernicus_point_batching.py`: self-correcting cap floor + loud warning** (before the box loop). If the
+   configured cap can't hold the batch, the pre-warm raises `POINT_CACHE_MAX` for the run and logs a warning,
+   so **no future batch lane can silently self-defeat** if someone forgets the env var again. Guarded (only
+   runs in `POINT_BATCH_NATIVE_COPERNICUS=1` lanes, ephemeral runners — safe to raise there). New regression
+   test `test_prewarm_does_not_evict_its_own_entries_when_cap_is_low` (150 pts > the 100 cap; the tiny-fixture
+   blind spot). Suite green (9/9). Batched hits return before adding exact-key entries, so the cache never
+   grows past the batch during consume → the floor need only cover the pre-warmed set.
+
+**Deferred / not needed:** the workflow-split idea (own concurrency group for ratings) is now unnecessary —
+with the tail at ~18 min, core+ratings ≈ 65 min fits the 3h cadence fine; don't add a 3rd workflow for a
+problem the env var already fixes. **File separately:** the GFS marine point-fallback empty-error (14×).
+**Takes effect on the next `forecast-ingest` cron** (checks out dev); confirm via the recipe below —
+`BATCHED hit` count should jump from 0 to ~977 and `timeout=25` spawns fall to ~0.
+
+**Forensic recipe (reuse):** `gh run list --workflow=forecast-ingest.yml` (durations tell the story);
+`gh run view <id> --json jobs` (step 5 = the whole cost); `gh run view <id> -R <repo> --log` → grep
+first-occurrence of `Starting decoupled`, `Duplicate-valid_time sweep`, `Spot-ratings precompute complete`
+for phase boundaries; count `Downloading subset via` / `timeout=180` vs `timeout=25` and **`BATCHED hit`**
+(0 = the pre-warm is being evicted) / `pre-warm complete` (`cached_points` vs the cap). A `cancelled` run's
+log TAIL shows the hang point (mid per-point CMEMS loop).

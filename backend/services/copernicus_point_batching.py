@@ -84,6 +84,28 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
         "cached_points": 0,
         "elapsed_s": 0.0,
     }
+
+    # SELF-CORRECTING CAP (2026-07-08, runbook §11 — forecast-ingest cron-hang root). The per-box
+    # eviction below trims _point_cache to _point_cache_cap() (POINT_CACHE_MAX, default 100). If a
+    # lane enables batching but forgets to raise the cap, the pre-warm silently EVICTS its own
+    # ~1000 entries before the consume pass reads them → 0 batched hits → every point re-spawns a
+    # CMEMS subprocess (forecast-ingest ran its ~1000-spot EURO ratings pass this way for days: the
+    # ~100-min tail that pushed runs past the 165-min timeout). Guarantee the cap holds this whole
+    # pre-warmed batch (batched hits return before adding exact-key entries, so the cache never
+    # grows past this during consume) so the pre-warm can NEVER defeat itself; warn so drift is
+    # visible. Only ever runs in gated batch lanes (ephemeral runners) — safe to raise there.
+    # (_point_cache + _point_cache_cap already imported from copernicus_marine_service above.)
+    required = len(_point_cache) + stats["points"]          # must hold existing entries + this batch
+    if _point_cache_cap() < required:
+        target = required + max(stats["points"] // 2, 64)    # headroom for exact-key entries during consume
+        logger.warning(
+            "[Copernicus Batching] POINT_CACHE_MAX=%s is too small for %d pre-warmed points - "
+            "raising to %d for this run so the pre-warm doesn't evict its own entries (0 batched "
+            "hits = every point re-spawns a subprocess). Set POINT_CACHE_MAX>=%d in the lane env "
+            "to silence this.", os.environ.get("POINT_CACHE_MAX", "100 (default)"),
+            stats["points"], target, target)
+        os.environ["POINT_CACHE_MAX"] = str(target)
+
     t0 = time.time()
     for box in boxes:
         lats = [p[0] for p in box]
