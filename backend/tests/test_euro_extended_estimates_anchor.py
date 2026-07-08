@@ -8,9 +8,12 @@ no 241-336h estimated products → EURO 404'd past ~240h ("lost its last 4 days"
 >168h blend died with it. The pool must anchor on NATIVE products for every region.
 """
 from types import SimpleNamespace
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 
-from services.weather_pipeline.scheduler_helpers import euro_estimate_anchor_pool
+from services.weather_pipeline.scheduler_helpers import (
+    euro_estimate_anchor_pool,
+    euro_estimate_within_ceiling,
+)
 
 
 def _p(region_id, layer="waves", est=False, auth=True, model="EURO", domain="marine", vt=None):
@@ -61,6 +64,45 @@ def test_global_mid_anchors_on_native_products():
     products = [_p("global_mid", est=False, auth=True)]
     pool = euro_estimate_anchor_pool(products, "global_mid", "waves", is_test_or_local=False)
     assert len(pool) == 1
+
+
+def test_ceiling_measured_from_run_not_short_native_anchor():
+    """The 2026-07-07 tail-loss: CMEMS native ended ~219h (anchor 21h short of 240h). Estimates must
+    still fill to run+336h — the anchor-relative reading (native_limit + (target-anchor)) would have
+    cut the tail ~a day early."""
+    run = datetime(2026, 7, 7, 21, 0, tzinfo=timezone.utc)
+    anchor = run + timedelta(hours=219)          # native fell short of the nominal 240h
+    native_limit = 240
+    # A target at +330h is INSIDE the published 336h horizon and must be kept...
+    t330 = run + timedelta(hours=330)
+    assert euro_estimate_within_ceiling(t330, run, anchor, native_limit) is True
+    # ...even though the OLD anchor-relative reading over-counted it as 240 + (330-219) = 351h > 336.
+    assert native_limit + (t330 - anchor).total_seconds() / 3600.0 > 336.0
+    # A target beyond run+336h is correctly rejected.
+    t340 = run + timedelta(hours=340)
+    assert euro_estimate_within_ceiling(t340, run, anchor, native_limit) is False
+
+
+def test_ceiling_full_native_unchanged():
+    run = datetime(2026, 7, 7, 21, 0, tzinfo=timezone.utc)
+    anchor = run + timedelta(hours=240)          # native reached its full nominal horizon
+    assert euro_estimate_within_ceiling(run + timedelta(hours=336), run, anchor, 240) is True
+    assert euro_estimate_within_ceiling(run + timedelta(hours=339), run, anchor, 240) is False
+
+
+def test_ceiling_run_time_iso_string_and_naive_coerced():
+    # run_time can arrive as an ISO string (with Z) or a naive datetime depending on the store path.
+    anchor = datetime(2026, 7, 17, 0, 0, tzinfo=timezone.utc)
+    t = datetime(2026, 7, 21, 0, 0, tzinfo=timezone.utc)      # run+ ~315h from a 07-07T21 run
+    assert euro_estimate_within_ceiling(t, "2026-07-07T21:00:00Z", anchor, 240) is True
+    assert euro_estimate_within_ceiling(t, datetime(2026, 7, 7, 21, 0), anchor, 240) is True
+
+
+def test_ceiling_falls_back_to_anchor_relative_without_run_time():
+    # No run_time → legacy anchor-relative contract (native_limit + (target-anchor) <= 336).
+    anchor = datetime(2026, 7, 17, 21, 0, tzinfo=timezone.utc)
+    assert euro_estimate_within_ceiling(anchor + timedelta(hours=96), None, anchor, 240) is True
+    assert euro_estimate_within_ceiling(anchor + timedelta(hours=97), None, anchor, 240) is False
 
 
 def test_pool_filters_model_layer_region():

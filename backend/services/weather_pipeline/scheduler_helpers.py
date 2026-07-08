@@ -503,6 +503,42 @@ def euro_estimate_anchor_pool(products, region_id: str, layer: str, is_test_or_l
     ]
 
 
+def _coerce_utc(dt):
+    """Normalize a datetime-or-ISO-string to a tz-aware UTC datetime (None-safe). A product's
+    run_time can arrive as a datetime or an ISO string depending on the store path, and mixing
+    naive/aware datetimes raises on subtraction."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        try:
+            dt = datetime.fromisoformat(dt.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    if getattr(dt, "tzinfo", None) is None:
+        return dt.replace(tzinfo=timezone.utc)
+    return dt.astimezone(timezone.utc)
+
+
+def euro_estimate_within_ceiling(target_time, run_time, anchor_time, native_limit, ceiling_hours=336.0):
+    """True if an estimate valid at ``target_time`` is within the published EURO horizon (run + ceiling).
+
+    THE TAIL-LOSS BUG (2026-07-07): the estimate loop clamped on ``native_limit + (target - anchor)``,
+    i.e. it ASSUMES the native anchor sits at exactly ``native_limit`` (240h). But CMEMS native
+    horizon varies run-to-run by data availability — on the 2026-07-07 run the native ended ~219h,
+    so the anchor was ~21h short of 240h. The anchor-relative reading then OVER-counted every target
+    by that shortfall and the 336h clamp fired ~a day early → the last ~day of the advertised 14-day
+    EURO slider went BLANK (live: EURO waves cleared past ~315h). Measuring the ceiling from the RUN
+    fills estimates to the true run+336h horizon regardless of native length. Falls back to the
+    anchor-relative reading only when run_time is unknown (keeps the legacy contract exactly)."""
+    run = _coerce_utc(run_time)
+    tt = _coerce_utc(target_time)
+    if run is not None and tt is not None:
+        return (tt - run).total_seconds() / 3600.0 <= ceiling_hours
+    at = _coerce_utc(anchor_time)
+    hours_diff = (tt - at).total_seconds() / 3600.0 if (tt is not None and at is not None) else 0.0
+    return native_limit + hours_diff <= ceiling_hours
+
+
 async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
     """Implementation of ingest_euro_marine_extended_estimates delegated from scheduler.
 
@@ -609,15 +645,18 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
             # Sort targets chronologically
             gfs_targets.sort(key=lambda p: p.valid_time_start)
             
+            # Ceiling measured from the RUN (run + 336h), robust to a short CMEMS native anchor —
+            # a native ending shy of its nominal 240h used to truncate the estimate tail ~a day early
+            # (see euro_estimate_within_ceiling). run_time lives on the loaded anchor product.
+            euro_run_time = getattr(euro_anchor_product, "run_time", None)
             for gfs_target_item in gfs_targets:
                 target_time = gfs_target_item.valid_time_start
                 hours_diff = (target_time - anchor_time).total_seconds() / 3600.0
-                target_hour = native_limit + hours_diff
+                target_hour = native_limit + hours_diff  # anchor-relative — keep for the blend decay
 
-                # Clamp estimates to the published EURO marine ceiling (240 native + 96 estimated
-                # = 336h max). gfs_targets is sorted chronologically, so every later target is
-                # also beyond the ceiling — stop here rather than generating unbounded estimates.
-                if target_hour > 336.0:
+                # gfs_targets is sorted chronologically, so the first target past the run+336h ceiling
+                # ends the run rather than generating unbounded estimates.
+                if not euro_estimate_within_ceiling(target_time, euro_run_time, anchor_time, native_limit):
                     break
 
                 # Load GFS target product
