@@ -148,3 +148,75 @@ Start with **#5 (cheap radar live-checks)** to rule out a discrete discontinuity
 (scrub perf, context-split first)** or **#2 (advection)** as the session's focus — both are high-value but each
 is a full focused session. Build the harness before touching MapWebGL. Run the orphan sweep (#4) whenever
 convenient — it's safe and reclaims 1.2 GB.
+
+---
+
+## 6. SESSION CLOSE (07-08, Opus 4.8) — L2 orphan sweep moved to the cloud AND RAN clean (backlog #4 → DONE)
+
+**Finish-the-runbook close. dev HEAD `35ab3b18`, dev == origin/dev (PUSHED). Tree CLEAN.** After the
+§0–§5 forensics doc (`89ee5455`) shipped, two commits landed and the one user-gated action in the whole
+backlog got executed — safely, in the cloud, verified. This section supersedes backlog item #4 and OPEN ①.
+
+### 6a. What shipped after the forensics doc
+| Commit | What |
+|---|---|
+| `65ff1140` | **Cloud L2 orphan-sweep workflow** (`.github/workflows/l2-orphan-sweep.yml`, `workflow_dispatch`) + **hardened the script for ephemeral runners.** Runs on `ubuntu-latest` so it completes with the user's computer OFF (the local delete of ~21k objects is a ~1h serial job). DEFAULTS TO DRY-RUN; delete requires checking the `delete` input → `--delete --yes`. `older_than_hours` input (default 24). |
+| `35ab3b18` | **Own concurrency group** (`group: l2-orphan-sweep`, `cancel-in-progress: false`) — the first two dispatch attempts were **CANCELLED** (33s / 2m32s) because they shared a group with the ingest crons and got evicted. The sweep only touches >24h orphans NOT in the manifest, so it's safe to run alongside a live ingest and must not be evicted by it. |
+
+**The ephemeral-runner landmine `65ff1140` closed (the reason the script needed hardening):** on a fresh
+runner the local store is EMPTY, so `get_manifest()` would return zero live products → **every object reads
+as an orphan → the sweep would delete the entire LIVE bucket.** Fix = `restore_from_supabase()` FIRST so
+`manifest_names` is the true live set, plus two abort guards: (1) refuse if manifest < `SWEEP_MIN_MANIFEST`
+(500) products; (2) refuse if > 95% of objects flag as orphan (manifest almost certainly failed to load).
+Both are the "empty-manifest deletes everything" failure mode caught by construction.
+
+### 6b. The RUN — actual outcome (run `28918394895`, DELETE mode, 1h4m, SUCCESS)
+Live-pulled from the run log (this is ground truth, not the pre-run estimate):
+- **Manifest referenced 6,400 live products** → guard 1 passed with wide margin (≥ 500).
+- **Bucket had 27,569 objects; 21,133 were orphans (~908 MB)** older than 24h and not in the manifest —
+  a **76.7% orphan ratio**, under the 95% abort → guard 2 passed.
+- **Deleted 21,133 / 21,133** → bucket down to **~6,436 objects** (≈ the 6,400 live + reserved/recent).
+  ~908 MB reclaimed (the earlier dry-run estimate "~22,674 / ~1.2 GB" was in the right ballpark; the delta
+  is the live manifest having grown to 6,400 and the 24h window advancing between estimate and run).
+- **Benign warnings:** a handful of `L2 delete failed … HTTP 400 … Object not found (404)` on future-dated
+  `euro_marine_swell_2_global_coarse_*_estimated.json` — objects listed but already gone (list/delete race
+  or a prior supersede). The store logs these internally and does NOT raise, so the counter still reached
+  21,133/21,133. Not a failure; do not chase.
+
+### 6c. Verification (post-sweep, live) — live data survived the delete
+The **Data Health Monitor** (`ca7f69ff`, `data-health-monitor.yml`, polls `/api/health/data` every 30m)
+ran on schedule at **06:43 / 09:19 / 11:20Z — all AFTER the sweep (04:51–05:56Z) — all green.** That is
+the live proof the delete removed only orphans: `/api/health/data` = ok immediately after, and stayed ok.
+The sweep's own guards (manifest ≥ 500, ≤ 95% orphan, reserved-key + <24h spare) held as designed.
+
+### 6d. For the occasional future run
+Accumulation is already stopped at the source (`10a5a4a4` cron-hang fix — CANCELLED runs were the orphan
+factory). If the bucket drifts up again, re-run the cloud workflow instead of the local script:
+`gh workflow run l2-orphan-sweep.yml -f delete=true` (omit `-f delete=true`, or leave it unchecked in the
+UI, for a safe dry-run count first). Never lower `older_than_hours` below the ingest cadence — a live
+ingest's not-yet-manifested uploads must stay outside the window.
+
+### 6e. Ranked backlog — carry-forward (item #4 struck; the rest unchanged, all high-coupling)
+1. **Scrub/toggle re-render fix** (§2b) — HIGH value / HIGH coupling (MapWebGL §5c). Context-split first
+   (low-risk), imperative end-state; build the scrub-FPS harness + A/B before touching MapWebGL.
+2. **Radar advection nowcast** (§1b) — HIGH value / MEDIUM coupling (radar-only). Big lift (optical flow);
+   near-term ≤60 min only; kill switch `__RAW_RADAR_ADVECTION_DISABLED__`; live-storm verify.
+3. **z9 clamping §10c** (prev runbook `12c6a2f2`) — HIGH value / HIGH coupling (marine commit §5c). Ready
+   spec exists (commit-during-gesture, full-coverage gate, harness A/B).
+4. ~~Run L2 orphan sweep~~ **DONE this session** (§6b) — 21,133 orphans / ~908 MB reclaimed.
+5. Radar live-checks (§1c) — MED / LOW. Cheap: HRRR-discovery-null / boundary-gap / recolor fail-open.
+6. Sheltered-water / intracoastal exposure model — HIGH accuracy / MED design-heavy (folds in 07-06-eve
+   §8c residual ② tidal-creek/marshy-cay class, partial fix `a4795435`).
+7. External uptime probe on `/api/health/data` — MED / ~0. UptimeRobot/cron-job.org, survives a GitHub
+   outage the internal monitor can't (the monitor IS a GitHub Action).
+8. Eyeballs owed — LOW / 0. colormap v5 light/beach, Baja; DWD/EU radar palette LIVE-verify from an EU viewport.
+9. Reseed blink (swap-time land cull) — LOW / MED. Residual transient.
+   Plus 07-06-eve §8b residual ① (zoom-out sub-second transient — overlay-built-during-zoom, coverage-gated,
+   verify VISUALLY not by flood %).
+
+**Deferred-with-reason (unchanged):** #1/#2/#3 are all high-coupling → NONE rushed async; each needs a
+focused session with its harness + A/B against the §5a graveyard. Do them one at a time on clean/warm builds.
+
+**Session status: CLOSED at `35ab3b18`.** Tree clean, dev == origin/dev (pushed), health monitor green
+post-sweep, storage backlog reclaimed. The foundation (cron-hang, health check + monitor, orphan sweep) is
+now healthy end-to-end; next session is free to take on one of the high-coupling UX items (#1 or #2).
