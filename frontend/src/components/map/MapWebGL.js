@@ -656,6 +656,119 @@ const MapWebGL = ({
     }
   });
 
+  // ─── SCRUB RECONCILE-COST FIX (backlog #1, 2026-07-08) ────────────────────────────────────────
+  // Forensic root (harness §7b + the NO-LAYER control drag ≈ 66 ms): the felt scrub jank is NOT the
+  // marine GPU/data — it is react-map-gl RE-RECONCILING the map's static child <Source>/<Layer> tree
+  // every scrub tick. MapWebGL re-renders on the `timeOffsetHours` prop each step and RECREATES the
+  // inline (non-memoized) children — the esri raster, the ~12 always-mounted Open-Meteo raster slots,
+  // and the spot-geofences source — so maplibre diffs ~14 layers per step even though NONE of them
+  // depend on the hour. (The heavy children — OceanMask/WebGLMarineLayer/WebGLWindLayer/MapMarkerLayers
+  // — are already React.memo'd and bail on stable props; only these inline groups churn.)
+  // Fix: hold each inline group's ELEMENT reference stable across scrub steps via useMemo keyed on its
+  // REAL deps (the hour is deliberately absent). React then skips re-rendering those subtrees and
+  // react-map-gl skips the reconcile → the ~62 ms/step reconcile evaporates on every step where the
+  // atmospheric tiles / geofences / satellite state is unchanged (i.e. the whole of a time scrub).
+  // The marine heatmap (<WebGLMarineLayer>, raw timeOffsetHours) is untouched — its imperative upload
+  // path is already optimized (safeUploadWaveData). LOW coupling: no marine-engine/§5b-guard surface.
+  // Kill switch / A/B lever: window.__RAW_SCRUB_MEMO_DISABLED__ = true re-admits `timeOffsetHours` into
+  // each dep array → the groups recreate every step exactly as before (restores the pre-fix baseline).
+  const scrubMemoOff = typeof window !== 'undefined' && window.__RAW_SCRUB_MEMO_DISABLED__ === true;
+  const scrubMemoBust = scrubMemoOff ? timeOffsetHours : 0;
+
+  const esriSatelliteLayers = useMemo(() => (
+    <Source
+      id="esri-satellite-source"
+      type="raster"
+      tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
+      tileSize={256}
+      maxzoom={19}
+    >
+      <Layer
+        id="esri-satellite-layer"
+        type="raster"
+        layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
+        paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
+        beforeId={marineBeforeId || undefined}
+      />
+    </Source>
+  ), [activeLayers, marineBeforeId, scrubMemoBust]);
+
+  const openMeteoRasterSlots = useMemo(() => (
+    protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
+      LAYER_REGISTRY[k].omVariable && (
+        LAYER_REGISTRY[k].type === 'raster' ||
+        (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
+      )
+    ).map(layerKey => {
+      return [0, 1, 2].map(slotIdx => {
+        const slotKey = `${layerKey}-slot-${slotIdx}`;
+        const url = omTileUrls[slotKey];
+        if (!url) return null;
+        const isActive = activeSlots[layerKey] !== undefined
+          ? activeSlots[layerKey] === slotIdx
+          : (closestTimeIdx % 3) === slotIdx;
+
+        // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
+        const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
+        const isVisualRaster = activeLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
+
+        return (
+          <Source
+            key={`${slotKey}-source`}
+            id={`${slotKey}-source`}
+            type="raster"
+            url={url}
+            tileSize={512}
+            maxzoom={10}
+          >
+            <Layer
+              id={`${slotKey}-layer`}
+              type="raster"
+              layout={{
+                visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+              }}
+              paint={{
+                'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
+                    'interpolate', ['linear'], ['zoom'],
+                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
+                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
+                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
+                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
+                  ] : 0.0,
+                'raster-resampling': 'linear',
+                'raster-fade-duration': 0
+              }}
+            />
+          </Source>
+        );
+      });
+    })
+  ), [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust]);
+
+  const spotGeofenceLayers = useMemo(() => (
+    <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
+      <Layer
+        id="spot-geofences-layer"
+        type="circle"
+        paint={{
+          'circle-radius': [
+            'interpolate',
+            ['exponential', 2],
+            ['zoom'],
+            10, 5,
+            14, 25,
+            18, 150
+          ],
+          'circle-color': '#06b6d4',
+          'circle-opacity': 0.1,
+          'circle-stroke-width': 1,
+          'circle-stroke-color': '#06b6d4',
+          'circle-pitch-alignment': 'map'
+        }}
+      />
+    </Source>
+  ), [spotGeoJSON, scrubMemoBust]);
+
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>
       <TruthOverlay
@@ -710,73 +823,11 @@ const MapWebGL = ({
         {/* Lightning (nowCOAST NLDN): point-flash layers only — added imperatively by the
             strike-flash effect; no raster underlay (v3b). */}
 
-        {/* ESRI True Satellite Imagery */}
-        <Source
-          id="esri-satellite-source"
-          type="raster"
-          tiles={['https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}']}
-          tileSize={256}
-          maxzoom={19}
-        >
-          <Layer
-            id="esri-satellite-layer"
-            type="raster"
-            layout={{ visibility: activeLayers.includes('satellite') ? 'visible' : 'none' }}
-            paint={{ 'raster-opacity': 1.0, 'raster-fade-duration': 0 }}
-            beforeId={marineBeforeId || undefined}
-          />
-        </Source>
+        {/* ESRI True Satellite Imagery — memoized (see SCRUB RECONCILE-COST FIX above) */}
+        {esriSatelliteLayers}
 
-        {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC SLOTS */}
-        {protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
-          LAYER_REGISTRY[k].omVariable && (
-            LAYER_REGISTRY[k].type === 'raster' ||
-            (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
-          )
-        ).map(layerKey => {
-          return [0, 1, 2].map(slotIdx => {
-            const slotKey = `${layerKey}-slot-${slotIdx}`;
-            const url = omTileUrls[slotKey];
-            if (!url) return null;
-            const isActive = activeSlots[layerKey] !== undefined
-              ? activeSlots[layerKey] === slotIdx
-              : (closestTimeIdx % 3) === slotIdx;
-
-            // Strict visual isolation: Hide wind and marine layers from MapLibre's built-in raster renderer, unless failed
-            const isExcludedMarine = ['waves', 'swell_1', 'swell_2', 'wind_waves'].includes(layerKey) && !webglMarineFailed;
-            const isVisualRaster = activeLayers.includes(layerKey) && !isExcludedMarine && !['wind'].includes(layerKey);
-
-            return (
-              <Source
-                key={`${slotKey}-source`}
-                id={`${slotKey}-source`}
-                type="raster"
-                url={url}
-                tileSize={512}
-                maxzoom={10}
-              >
-                <Layer
-                  id={`${slotKey}-layer`}
-                  type="raster"
-                  layout={{
-                    visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
-                  }}
-                  paint={{
-                    'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
-                        'interpolate', ['linear'], ['zoom'],
-                        2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
-                        5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
-                        8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
-                        12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
-                      ] : 0.0,
-                    'raster-resampling': 'linear',
-                    'raster-fade-duration': 0
-                  }}
-                />
-              </Source>
-            );
-          });
-        })}
+        {/* Open-Meteo Raster Tile Layers — ATMOSPHERIC SLOTS — memoized (scrub reconcile-cost fix) */}
+        {openMeteoRasterSlots}
         {/* Keep the WebGL marine engine RESIDENT (gated by the `active` prop) instead of
             unmounting it whenever no marine layer is selected. Unmounting disposed the
             87,616-particle GPU engine and remounting rebuilt it — the dominant churn when
@@ -804,27 +855,8 @@ const MapWebGL = ({
             revision={marineData?.__commitRevision || marineData?.grid?.__activeLayerNonzeroCount || 0}
           />
         )}
-        <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>
-          <Layer 
-            id="spot-geofences-layer"
-            type="circle"
-            paint={{
-              'circle-radius': [
-                'interpolate',
-                ['exponential', 2],
-                ['zoom'],
-                10, 5,
-                14, 25,
-                18, 150
-              ],
-              'circle-color': '#06b6d4',
-              'circle-opacity': 0.1,
-              'circle-stroke-width': 1,
-              'circle-stroke-color': '#06b6d4',
-              'circle-pitch-alignment': 'map'
-            }}
-          />
-        </Source>
+        {/* Spot geofences — memoized (scrub reconcile-cost fix) */}
+        {spotGeofenceLayers}
 
         {/* Marker Rendering Layer */}
         <MapMarkerLayers
