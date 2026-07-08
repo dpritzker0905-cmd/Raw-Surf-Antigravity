@@ -20,8 +20,8 @@ permissions:
   contents: read
 
 concurrency:
-  group: forecast-ingest   # SHARE the ingest group so a sweep never races a live ingest's uploads/prunes
-  cancel-in-progress: false
+  group: l2-orphan-sweep   # OWN group: the sweep only touches >older_than_hours orphans NOT in the manifest,
+  cancel-in-progress: false  # so it's safe alongside a live ingest — and won't get evicted by ingest crons overnight.
 
 jobs:
   sweep:
