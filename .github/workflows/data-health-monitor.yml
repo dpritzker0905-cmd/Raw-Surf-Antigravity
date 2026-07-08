@@ -1,0 +1,54 @@
+# Proactive data-freshness monitor (2026-07-08). Polls the serve box's /api/health/data (computed ON READ
+# from the served manifest — data_health.compute_data_health) and FAILS (red X) when the pipeline is
+# CRITICAL: the forecast-ingest cron is down / a lane is missing / everything is stale. A `warn` (a lane
+# lagging or a short horizon) is surfaced as a GitHub warning annotation but does NOT fail the run.
+#
+# WHY: every past staleness incident (OOM, cron-403, the timeout hang, manifest CDN staleness, EURO
+# tail-loss) was found REACTIVELY. This is the standing alert — a failed run here is the signal that data
+# went stale, BEFORE users see it. This is the internal (GitHub-Actions) monitor; for paging, ALSO point an
+# external uptime probe (UptimeRobot / cron-job.org) at the same URL — it catches even a total GitHub outage.
+name: Data Health Monitor
+
+on:
+  schedule:
+    - cron: '*/30 * * * *'   # every 30 min (cron refreshes every 3h; this detects a stall within ~2 cycles)
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: data-health-monitor
+  cancel-in-progress: true
+
+jobs:
+  check:
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Poll /api/health/data
+        env:
+          HEALTH_URL: ${{ vars.HEALTH_URL || 'https://raw-surf-antigravity.onrender.com/api/health/data' }}
+        run: |
+          set -o pipefail
+          code=$(curl -sS -o /tmp/health.json -w '%{http_code}' --max-time 60 "$HEALTH_URL" || echo "000")
+          echo "GET $HEALTH_URL -> HTTP $code"
+          python3 - <<'PY' || echo "(unparseable/empty body)"
+          import json
+          d = json.load(open('/tmp/health.json'))
+          print('status:', d.get('status'))
+          print('freshest_run_age_h:', d.get('freshest_run_age_h'))
+          for name, info in (d.get('lanes') or {}).items():
+              print(f"  {name}: {info.get('verdict')} (age {info.get('age_h')}h, horizon {info.get('horizon_h')}h)")
+          for a in (d.get('alerts') or []):
+              print('  ALERT:', a)
+          PY
+          status=$(python3 -c "import json;print(json.load(open('/tmp/health.json')).get('status','critical'))" 2>/dev/null || echo critical)
+          if [ "$code" = "503" ] || [ "$status" = "critical" ]; then
+            echo "::error::Data pipeline CRITICAL (HTTP $code, status=$status) — forecast-ingest cron may be down, a lane is missing, or all data is stale. Check the forecast-ingest workflow + Render logs."
+            exit 1
+          fi
+          if [ "$status" = "warn" ]; then
+            echo "::warning::Data pipeline DEGRADED (warn) — a lane is lagging or a horizon is short. See alerts above."
+          fi
+          echo "Data pipeline healthy (status=$status)."
