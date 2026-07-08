@@ -89,16 +89,6 @@ const MapWebGL = ({
     if (!forceMarine) setWebglMarineFailed(false);
   }, [activeModel, activeLayers]);
 
-  // Scrub-perf harness (backlog #1): count each render of this component and attribute it to the prop
-  // that changed, so scrubPerfProbe.bench() can quantify the per-tick MapWebGL churn the context-split
-  // decoupling targets. No dep array = runs on every commit; guarded so it's near-zero cost when the
-  // probe is disarmed (window.__SCRUB_PROBE_ON__ falsy).
-  useEffect(() => {
-    if (typeof window !== 'undefined' && window.__SCRUB_PROBE_ON__ && window.__SCRUB_PROBE__) {
-      window.__SCRUB_PROBE__.onRender({ radarFrameIndex, timeOffsetHours, activeModel, activeLayers });
-    }
-  });
-
   const handleMapClick = (e) => {
     setActiveSystemPopup(null);
     if (onMapClick) onMapClick(e);
@@ -646,6 +636,25 @@ const MapWebGL = ({
     };
     return () => { delete window.__WEBGL_GUARDRAIL_FALLBACK__; };
   }, [webglWindFailed, webglMarineFailed]);
+
+  // Scrub-perf harness (backlog #1): count each render of this component and attribute it to whichever
+  // input changed vs the previous render — props AND the derived hook outputs — so scrubPerfProbe.bench()
+  // shows not just HOW MANY MapWebGL renders per scrub step but WHICH hook's commit drove each one (the
+  // ~1.5 "extra" renders/step beyond the timeOffsetHours prop change). No dep array = runs every commit;
+  // guarded so it's near-zero cost when disarmed (window.__SCRUB_PROBE_ON__ falsy). Placed after all
+  // derived values so it can reference them.
+  useEffect(() => {
+    if (typeof window !== 'undefined' && window.__SCRUB_PROBE_ON__ && window.__SCRUB_PROBE__) {
+      window.__SCRUB_PROBE__.onRender({
+        // props
+        radarFrameIndex, timeOffsetHours, activeModel, activeLayers,
+        // derived hook outputs (identity change = that hook committed new state this render)
+        marineData, marineWindData, simulationField, windData, renderPlan, simFrameIndex,
+        omTileUrls, activeSlots, isTransitioning, closestTimeIdx, debouncedTimeOffsetHours,
+        spotRatings, clusterRatings, marineBeforeId, viewState,
+      });
+    }
+  });
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

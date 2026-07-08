@@ -14,6 +14,12 @@ import { scoreToLevel, RATING_COLOR, RATING_LABEL } from './surfRating';
 import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
+// Stable shared empty: computeSpotRatings' gate + the endpoint idle branch both need to return the SAME
+// reference when the rating overlay is off, so a per-step marineData commit / timeline step doesn't mint a
+// fresh {} that churns gridRatings -> merged -> clusterRatings -> MapMarkerLayers on every scrub step
+// (scrubPerfProbe 2026-07-08: spotRatings drove 47/95 renders over a 49-step heatmap drag with surfMode=false).
+const EMPTY_RATINGS = Object.freeze({});
+
 /**
  * PURE: summarize a spotId -> rating map for diagnostics. Returns { count, sampleIds, levels } where `levels`
  * tallies how many glyphs fall in each rating level (so a live capture instantly shows "15 spots, all very_poor"
@@ -92,8 +98,8 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
  * ratingMode is false the spots fall back to plain pins (matching the shader showing the honest swell field).
  */
 export function computeSpotRatings(spotClusters, grid, surfMode) {
+  if (!surfMode || !grid || !grid.ratingMode || !spotClusters) return EMPTY_RATINGS;
   const out = {};
-  if (!surfMode || !grid || !grid.ratingMode || !spotClusters) return out;
   for (const c of spotClusters) {
     if (!c || c.isCluster) continue;
     const score = sampleRatingScoreFromGrid(grid, c.latitude, c.longitude);
@@ -195,7 +201,11 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
   // Fetch accurate per-spot ratings for the viewport, debounced + deduped + abortable.
   useEffect(() => {
     if (!surfMode || !mapInstance) {
-      setEndpointRatings({}); lastKeyRef.current = null; baseKeyRef.current = null;
+      // This effect re-runs on every timeline step (timeOffsetHours is a dep), so a fresh {} here fired a
+      // needless state update + MapWebGL render PER SCRUB STEP while the rating overlay is OFF. Return the
+      // SAME ref when already empty → React bails the update (no render when nothing is shown).
+      setEndpointRatings(prev => (prev && Object.keys(prev).length === 0 ? prev : {}));
+      lastKeyRef.current = null; baseKeyRef.current = null;
       writeSpotRatingsDiag({ status: 'idle', surfMode: !!surfMode });
       return;
     }
