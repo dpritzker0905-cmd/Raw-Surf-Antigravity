@@ -4,6 +4,7 @@ import {
   CheckCircle2, AlertTriangle, Layers, Clock, Database, HelpCircle
 } from 'lucide-react';
 import { WeatherTelemetry } from '../../components/map/WeatherTelemetry';
+import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 
 export const WeatherDiagnostics: React.FC = () => {
@@ -14,6 +15,24 @@ export const WeatherDiagnostics: React.FC = () => {
     'Diagnostics interface active.',
     'Telemetry hooks verified across Open-Meteo decoders.'
   ]);
+  // Backend data-pipeline freshness (the decoupled cron's per-lane health, from /api/health/data).
+  const [pipelineHealth, setPipelineHealth] = useState<any>(null);
+  const [healthLoading, setHealthLoading] = useState(false);
+
+  const fetchPipelineHealth = React.useCallback(async () => {
+    setHealthLoading(true);
+    try {
+      const res = await apiClient.get('/health/data');
+      setPipelineHealth(res.data);
+    } catch (err: any) {
+      // /health/data returns 503 when status=critical — axios throws, but the body IS the report.
+      setPipelineHealth(err?.response?.data && err.response.data.status
+        ? err.response.data
+        : { status: 'critical', freshest_run_age_h: null, lanes: {}, alerts: ['health endpoint unreachable'] });
+    } finally {
+      setHealthLoading(false);
+    }
+  }, []);
 
   useEffect(() => {
     // Poll telemetry state at 1-second intervals
@@ -41,9 +60,17 @@ export const WeatherDiagnostics: React.FC = () => {
     };
   }, []);
 
+  // Poll backend pipeline health on mount + every 60s (the cron refreshes every 3h; 60s keeps the badge live).
+  useEffect(() => {
+    fetchPipelineHealth();
+    const t = setInterval(fetchPipelineHealth, 60000);
+    return () => clearInterval(t);
+  }, [fetchPipelineHealth]);
+
   const triggerManualRefresh = () => {
     setIsRefreshing(true);
     setReport(WeatherTelemetry.getDiagnosticReport());
+    fetchPipelineHealth();
     setSimulationLogs(prev => [...prev, `[TELEMETRY] Manual purge and query: ${Date.now()}`]);
     setTimeout(() => {
       setIsRefreshing(false);
@@ -173,8 +200,59 @@ export const WeatherDiagnostics: React.FC = () => {
 
       </div>
 
+      {/* Data Pipeline Health — the decoupled cron's per-lane freshness (GET /api/health/data). */}
+      <div className="bg-slate-950/40 border border-slate-850 rounded-xl p-5 shadow-xl">
+        <div className="flex items-center justify-between border-b border-slate-900 pb-3 mb-4">
+          <span className="text-[10px] font-bold text-slate-400 uppercase tracking-widest flex items-center gap-1.5">
+            <Layers className="w-3.5 h-3.5 text-cyan-400" />
+            Data Pipeline Health — cron freshness per model×domain
+          </span>
+          {pipelineHealth && (
+            <span className={`text-[10px] px-2.5 py-1 rounded-lg uppercase font-bold tracking-wider border ${
+              pipelineHealth.status === 'ok' ? 'bg-emerald-500/10 border-emerald-500/20 text-emerald-400'
+                : pipelineHealth.status === 'warn' ? 'bg-amber-500/10 border-amber-500/20 text-amber-400'
+                : 'bg-red-500/10 border-red-500/20 text-red-400'}`}>
+              {pipelineHealth.status}{pipelineHealth.freshest_run_age_h != null ? ` · freshest ${pipelineHealth.freshest_run_age_h}h` : ''}
+            </span>
+          )}
+        </div>
+        {!pipelineHealth ? (
+          <div className="text-slate-600 italic text-[11px]">{healthLoading ? 'Loading pipeline health…' : 'No health data.'}</div>
+        ) : (
+          <>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
+              {Object.entries(pipelineHealth.lanes || {}).map(([lane, info]: [string, any]) => {
+                const v = info.verdict;
+                const border = v === 'ok' ? 'border-emerald-500/20' : v === 'warn' ? 'border-amber-500/20' : 'border-red-500/20';
+                const text = v === 'ok' ? 'text-emerald-400' : v === 'warn' ? 'text-amber-400' : 'text-red-400';
+                return (
+                  <div key={lane} className={`bg-slate-950/60 border rounded-lg px-3 py-2 ${border}`}>
+                    <div className="flex items-center justify-between">
+                      <span className="text-[11px] font-bold text-slate-200 font-mono">{lane}</span>
+                      <span className={`text-[9px] uppercase font-bold ${text}`}>{v}</span>
+                    </div>
+                    <div className="text-[9px] text-slate-500 font-mono mt-0.5">
+                      {info.reason === 'missing' ? 'MISSING' : `age ${info.age_h}h${info.horizon_h != null ? ` · +${Math.round(info.horizon_h)}h` : ''}`}
+                    </div>
+                  </div>
+                );
+              })}
+            </div>
+            {pipelineHealth.alerts && pipelineHealth.alerts.length > 0 && (
+              <div className="mt-3 space-y-1">
+                {pipelineHealth.alerts.map((a: string, i: number) => (
+                  <div key={i} className="text-[10px] text-amber-400/90 font-mono flex items-start gap-1.5">
+                    <AlertTriangle className="w-3 h-3 mt-0.5 flex-shrink-0" />{a}
+                  </div>
+                ))}
+              </div>
+            )}
+          </>
+        )}
+      </div>
+
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        
+
         {/* Column 1 & 2: Active Telemetry Logs and Failure Archiving */}
         <div className="lg:col-span-2 space-y-6">
           
