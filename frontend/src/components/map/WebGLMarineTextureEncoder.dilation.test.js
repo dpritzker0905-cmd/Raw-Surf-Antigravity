@@ -156,8 +156,11 @@ describe('encodeMarineTexture wiring', () => {
     const src = encodeMarineTexture.toString();
     expect(src).toContain('__RAW_DISABLE_DIR_DILATION__');
     expect(src).toContain('__MARINE_DIR_DILATION__');
-    const extrapolateIdx = src.indexOf('extrapolateOceanData(');
-    const dilateIdx = src.indexOf('dilateDirectionField(');
+    // These are imported from WebGLMarineFieldMath (extracted for LOC compliance), so the Babel CJS
+    // transform emits `_WebGLMarineFieldMath.extrapolateOceanData(...)` — match the name without the
+    // trailing paren so the presence+order check survives the import indirection.
+    const extrapolateIdx = src.indexOf('extrapolateOceanData');
+    const dilateIdx = src.indexOf('dilateDirectionField');
     expect(extrapolateIdx).toBeGreaterThan(-1);
     expect(extrapolateIdx).toBeGreaterThan(-1);
     expect(dilateIdx).toBeGreaterThan(extrapolateIdx);
