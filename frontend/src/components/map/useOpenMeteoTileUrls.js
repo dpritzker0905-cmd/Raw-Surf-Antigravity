@@ -6,6 +6,7 @@ import {
   registerOpenMeteoProtocol,
   applyThemePressureScale,
   applyThemeWaveScale,
+  applyPrecipColorScale,
   trace
 } from './mapUtils';
 import {
@@ -313,6 +314,7 @@ export function useOpenMeteoTileUrls({
   useEffect(() => {
     applyThemePressureScale(theme);
     applyThemeWaveScale(theme);
+    applyPrecipColorScale();
   }, [theme]);
 
   const fetchMetadata = useCallback(async (modelToCheck, signal) => {

@@ -301,18 +301,37 @@ const MapWebGL = ({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
+  // ZOOM-GATED radar tile resolution (2026-07-08, "radar loads slowly"): 512px tiles on tileSize 256 =
+  // 2x supersample = 4x the bytes per tile. Zoomed OUT (continental view) that crispness is invisible but
+  // the byte cost is paid across many tiles → slow first paint. So serve 512 only when zoomed IN (z>=5.5,
+  // where detail reads) and drop to native 256 when zoomed OUT (z<4.5) — a pure byte reduction, FPS-safe
+  // (the b62a50ef killer was the opacity EXPRESSION + main-thread advection, not tile size; 512-alone was
+  // FPS-clean per c7381934). Hysteresis deadband (4.5/5.5) stops boundary flapping; the bucket flips only
+  // on zoomend, so no per-frame churn. Kills: __RAW_RADAR_256_TILES__ (always 256) /
+  // __RAW_RADAR_ZOOMGATE_DISABLED__ (always 512 = the c7381934 look).
+  const [radarHiRes, setRadarHiRes] = useState(true);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const HI = 5.5, LO = 4.5;
+    const evalBucket = () => {
+      let z;
+      try { z = mapInstance.getZoom(); } catch (e) { return; }
+      setRadarHiRes(prev => (prev && z < LO) ? false : (!prev && z >= HI) ? true : prev);
+    };
+    evalBucket(); // seed from the current zoom on mount so first radar load matches the view
+    mapInstance.on('zoomend', evalBucket);
+    return () => { try { mapInstance.off('zoomend', evalBucket); } catch (e) {} };
+  }, [mapInstance]);
+
   // Per-frame tile URL (past = RainViewer path; future = model-aware forecast WMS —
   // radarForecastSources.js; RainViewer's nowcast was discontinued Jan 2026).
   const radarFrameUrl = (frame) => {
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
-    // 512px RainViewer tiles on tileSize 256 = 2x supersample (the same crispness trick the HRRR
-    // future frames use) — the z7-native radar was rendered from 256px tiles and read BLOCKY at
-    // close zoom. RainViewer serves 512 natively (verified). ISOLATED change (2026-07-08 re-do —
-    // the earlier b62a50ef bundled this with an FPS-killing opacity expr + main-thread advection,
-    // reverted; 512-ALONE is FPS-verified). Kill: __RAW_RADAR_256_TILES__=true → the old 256 path.
-    const px = (typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true) ? '256' : '512';
+    const force256 = typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true;
+    const gateOff = typeof window !== 'undefined' && window.__RAW_RADAR_ZOOMGATE_DISABLED__ === true;
+    const px = force256 ? '256' : ((gateOff || radarHiRes) ? '512' : '256');
     return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
@@ -390,7 +409,7 @@ const MapWebGL = ({
       }
     } catch (e) { /* style transition — next index change retries */ }
     return undefined;
-  }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);
+  }, [mapInstance, radarFrames, radarFrameIndex, activeLayers, radarHiRes]);
 
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
@@ -706,8 +725,14 @@ const MapWebGL = ({
     </Source>
   ), [activeLayers, marineBeforeId, scrubMemoBust]);
 
-  const openMeteoRasterSlots = useMemo(() => (
-    protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
+  const openMeteoRasterSlots = useMemo(() => {
+    // Precip-bold pass (2026-07-08): the rain raster-opacity multiplies the palette alpha, so the
+    // "Precip renders faint" complaint is BOTH the (now bold) colorScales ramp AND these stops being
+    // low (0.35->0.52). Boosted so a global uniform precip layer reads like Windy's Rain. Kill switch
+    // window.__RAW_PRECIP_BOLD_DISABLED__ restores the legacy stops (pairs with the legacy palette).
+    const precipBoldDisabled = typeof window !== 'undefined' && window.__RAW_PRECIP_BOLD_DISABLED__ === true;
+    const rainOp = precipBoldDisabled ? [0.35, 0.42, 0.48, 0.52] : [0.60, 0.68, 0.74, 0.78];
+    return protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
       LAYER_REGISTRY[k].omVariable && (
         LAYER_REGISTRY[k].type === 'raster' ||
         (LAYER_REGISTRY[k].type === 'marine' && webglMarineFailed)
@@ -743,10 +768,10 @@ const MapWebGL = ({
               paint={{
                 'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
                     'interpolate', ['linear'], ['zoom'],
-                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? 0.35 : 0.22,
-                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? 0.42 : 0.28,
-                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? 0.48 : 0.35,
-                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? 0.52 : 0.40,
+                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : 0.22,
+                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : 0.28,
+                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? rainOp[2] : 0.35,
+                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : 0.40,
                   ] : 0.0,
                 'raster-resampling': 'linear',
                 'raster-fade-duration': 0
@@ -755,8 +780,8 @@ const MapWebGL = ({
           </Source>
         );
       });
-    })
-  ), [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust]);
+    });
+  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust]);
 
   const spotGeofenceLayers = useMemo(() => (
     <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>

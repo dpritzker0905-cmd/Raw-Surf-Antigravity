@@ -113,16 +113,24 @@ export var BASE_CUSTOM_COLOR_SCALES = {
     ]
   },
   precipitation: {
+    // BOLD / UNIFORM / GLOBAL precip ramp (2026-07-08) — the "make Precip read like Windy's Rain" pass.
+    // Hue-progressive light-blue -> blue -> teal -> lime -> yellow -> orange -> red so intensity reads by
+    // COLOR (not just alpha), and light drizzle (0.1 mm) is VISIBLE on the dark basemap — the old ramp
+    // painted it a faint 0.35a all-blue that vanished (the same low-contrast trap as the radar light-precip
+    // residual). The rain raster-opacity (MapWebGL.js) multiplies these alphas, so both levers move together.
+    // Kill switch: window.__RAW_PRECIP_BOLD_DISABLED__ = true -> LEGACY_PRECIP_COLOR_SCALE via applyPrecipColorScale().
     type: 'breakpoint',
     unit: 'mm',
-    breakpoints: [0, 0.1, 0.5, 2.0, 10.0, 50.0],
+    breakpoints: [0, 0.1, 0.5, 2.0, 6.0, 15.0, 30.0, 60.0],
     colors: [
-      [224, 242, 254, 0.0],
-      [56, 189, 248, 0.35],
-      [14, 165, 233, 0.55],
-      [37, 99, 235, 0.70],
-      [124, 58, 237, 0.85],
-      [219, 39, 119, 0.95]
+      [150, 225, 255, 0.00],
+      [105, 195, 255, 0.42],
+      [48, 140, 245, 0.60],
+      [40, 200, 150, 0.72],
+      [140, 215, 60, 0.82],
+      [250, 205, 45, 0.90],
+      [245, 130, 35, 0.94],
+      [225, 45, 95, 0.97]
     ]
   },
   pressure_msl: {
@@ -157,6 +165,35 @@ export var CUSTOM_COLOR_SCALES = {};
 Object.keys(BASE_CUSTOM_COLOR_SCALES).forEach(function(key) {
   CUSTOM_COLOR_SCALES[key] = smoothColorScale(BASE_CUSTOM_COLOR_SCALES[key], 80);
 });
+
+// Legacy (pre-2026-07-08) precipitation ramp — retained so the bold pass has a runtime kill switch.
+// Set window.__RAW_PRECIP_BOLD_DISABLED__ = true, then re-toggle the Precip layer (or change theme) to
+// force applyPrecipColorScale() to restore this fainter blue->violet ramp on the live om:// protocol.
+export var LEGACY_PRECIP_COLOR_SCALE = {
+  type: 'breakpoint',
+  unit: 'mm',
+  breakpoints: [0, 0.1, 0.5, 2.0, 10.0, 50.0],
+  colors: [
+    [224, 242, 254, 0.0],
+    [56, 189, 248, 0.35],
+    [14, 165, 233, 0.55],
+    [37, 99, 235, 0.70],
+    [124, 58, 237, 0.85],
+    [219, 39, 119, 0.95]
+  ]
+};
+
+// Select the bold (default) or legacy precip ramp per the kill switch, re-smooth, and push it to the
+// live om:// protocol so a runtime flip takes effect on the next tile decode (cache-bust / layer re-toggle).
+// Mirrors applyThemePressureScale / applyThemeWaveScale; precip is not theme-varied (yet), so no theme arg.
+export function applyPrecipColorScale() {
+  var disabled = typeof window !== 'undefined' && window.__RAW_PRECIP_BOLD_DISABLED__ === true;
+  var base = disabled ? LEGACY_PRECIP_COLOR_SCALE : BASE_CUSTOM_COLOR_SCALES.precipitation;
+  CUSTOM_COLOR_SCALES.precipitation = smoothColorScale(base, 80);
+  if (typeof window !== 'undefined' && window.__OM_PROTOCOL_SETTINGS__ && window.__OM_PROTOCOL_SETTINGS__.colorScales) {
+    window.__OM_PROTOCOL_SETTINGS__.colorScales.precipitation = CUSTOM_COLOR_SCALES.precipitation;
+  }
+}
 
 export function applyThemePressureScale(theme) {
   var colors;
