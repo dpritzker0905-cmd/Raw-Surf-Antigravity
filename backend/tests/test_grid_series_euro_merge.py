@@ -54,6 +54,9 @@ class _FakeVP:
 
 
 def test_euro_series_merges_native_fast_path_with_estimated_per_hour(monkeypatch):
+    # The live-Copernicus fast path is now behind EURO_SERIES_LIVE_COPERNICUS (default OFF); this
+    # test exercises that (revert) path's native+estimated merge, so opt into it explicitly.
+    monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1")
     monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fake_fast_path)
     out = asyncio.run(build_grid_series(
         _fake_resolve_grid, _FakeVP(), "EURO", "marine", "waves",
@@ -70,6 +73,7 @@ def test_euro_series_merges_native_fast_path_with_estimated_per_hour(monkeypatch
 
 
 def test_euro_series_all_native_returns_fast_path_directly(monkeypatch):
+    monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1")
     monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fake_fast_path)
     out = asyncio.run(build_grid_series(
         _fake_resolve_grid, _FakeVP(), "EURO", "marine", "waves",
@@ -78,6 +82,33 @@ def test_euro_series_all_native_returns_fast_path_directly(monkeypatch):
     # All <=240h -> fast path returns directly, every frame native.
     assert out["frame_count"] == 4
     assert all(f["is_estimated"] is False for f in out["frames"])
+
+
+def test_euro_series_uses_generic_loop_by_default(monkeypatch):
+    """ROOT-CAUSE FIX (2026-07-09): with EURO_SERIES_LIVE_COPERNICUS unset (default), EURO marine
+    series must NOT call the 40s live-Copernicus fast path — every hour (native AND estimated) resolves
+    through the generic per-hour loop (resolve_grid = the fast L2-backed path /grid uses)."""
+    monkeypatch.delenv("EURO_SERIES_LIVE_COPERNICUS", raising=False)
+
+    fast_path_called = []
+    async def _boom_fast_path(viewport_service, layer, bbox, hour_list, base):
+        fast_path_called.append(True)  # must NOT be reached by default
+        return _fake_fast_path(viewport_service, layer, bbox, hour_list, base)
+    monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _boom_fast_path)
+
+    resolved = []
+    async def _recording_resolve(*, model, domain, layer, valid_time, bbox,
+                                 surf=False, background_tasks=None, request=None):
+        resolved.append(valid_time)
+        return _euro_product(is_estimated=False)
+
+    out = asyncio.run(build_grid_series(
+        _recording_resolve, _FakeVP(), "EURO", "marine", "waves",
+        "-82,26,-78,30", "0,3,6,141",
+    ))
+    assert fast_path_called == []             # 40s live-Copernicus path skipped by default
+    assert len(resolved) == 4                 # all four native hours went through the generic loop
+    assert out["frame_count"] == 4
 
 
 def _gfs_product():

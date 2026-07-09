@@ -287,7 +287,18 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     # — fast, no Copernicus), so they don't hang like a native per-hour EURO fetch would.
     loop_hours = hour_list
     prebuilt_frames = []  # native EURO frames carried over from the Copernicus fast path
-    if viewport_service is not None and model.upper() == "EURO" and domain.lower() == "marine" and not surf and not await _client_gone():
+    # EURO grid_series ROOT-CAUSE FIX (2026-07-09, live-measured): the live-Copernicus fast path
+    # (_build_euro_marine_series) hangs to EURO_SERIES_TIMEOUT (40s) then returns EMPTY — the measured
+    # EURO scrub-lag root (GFS series ~2s, EURO single-hour /grid ~0.8s, but EURO series 40s→empty). Its
+    # premise ("each EURO hour is a slow ±3h serialized CMEMS download") is STALE since the EURO-marine
+    # L2 pre-ingest: resolve_grid now serves the stored EURO product in ~0.5-1s/hour at EVERY hour
+    # 0..336h (verified live). So by DEFAULT skip the fast path and route EURO through the SAME generic
+    # per-hour loop GFS/ICON use — it resolves in ~2-5s, degrades gracefully (per-hour timeout +
+    # OVERALL_DEADLINE bound any slow hour instead of sinking the whole series to empty), AND makes the
+    # scrub series consistent with the /grid heatmap (both read L2). Kill: EURO_SERIES_LIVE_COPERNICUS=1.
+    _euro_live_cop = os.environ.get("EURO_SERIES_LIVE_COPERNICUS") == "1"
+    if (_euro_live_cop and viewport_service is not None and model.upper() == "EURO"
+            and domain.lower() == "marine" and not surf and not await _client_gone()):
         native_hours = [h for h in hour_list if h <= EURO_NATIVE_HOURS]
         estimated_hours = [h for h in hour_list if h > EURO_NATIVE_HOURS]
         if native_hours:
