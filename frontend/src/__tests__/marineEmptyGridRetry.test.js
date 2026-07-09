@@ -11,7 +11,10 @@
  * to OBTAIN the right data; it never displays the wrong model/layer/hour.
  */
 import { renderHook } from '@testing-library/react';
-import { _cacheMarineResult, getPerModelHourCache } from '../components/map/marineControllerCache';
+import {
+  _cacheMarineResult, getPerModelHourCache,
+  recordTerminalNoCoverage, isTerminalNoCoverage, _resetTerminalNoCoverageForTest,
+} from '../components/map/marineControllerCache';
 import { useMarineRevalidation } from '../hooks/useMarineRevalidation';
 
 const makeGrid = ({ vectors = [], renderable = vectors.length > 0, stale = false, status = 'ok', unsupported = false } = {}) => ({
@@ -143,5 +146,47 @@ describe('scheduleSWRRevalidation — retries a transient empty grid', () => {
     result.current.scheduleSWRRevalidation(makeGrid({ vectors: [{ lat: 28, lng: -80, speed: 1 }] }), updateFn);
     jest.advanceTimersByTime(5000);
     expect(updateFn).not.toHaveBeenCalled();
+  });
+});
+
+describe('terminal no-coverage tracker (§7.6 far-horizon scrub churn)', () => {
+  // The far-horizon case the __failureReason bypass CANNOT catch: past a model's horizon the fetcher
+  // holds a STALE renderable grid (no __failureReason), so the scrub-settle backstop re-drives the doomed
+  // 404 forever = the "10-day slowdown". The fetcher records the terminal (model,layer,hour); the settle
+  // reads it and stops re-driving while the held frame keeps displaying.
+  beforeEach(() => { _resetTerminalNoCoverageForTest(); delete window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__; });
+  afterEach(() => { _resetTerminalNoCoverageForTest(); delete window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__; });
+
+  it('records + reports a terminal (model,layer,hour)', () => {
+    expect(isTerminalNoCoverage('EURO', 'waves', 327)).toBe(false);
+    recordTerminalNoCoverage('EURO', 'waves', 327);
+    expect(isTerminalNoCoverage('EURO', 'waves', 327)).toBe(true);
+  });
+
+  it('is keyed per model/layer/hour — no false positives on neighbours', () => {
+    recordTerminalNoCoverage('EURO', 'waves', 327);
+    expect(isTerminalNoCoverage('EURO', 'waves', 300)).toBe(false);   // different hour (still in coverage)
+    expect(isTerminalNoCoverage('GFS', 'waves', 327)).toBe(false);    // GFS is native to 336h
+    expect(isTerminalNoCoverage('EURO', 'swell_1', 327)).toBe(false); // different layer
+  });
+
+  it('expires after the TTL so a later run that ingests the estimates re-tries', () => {
+    const realNow = Date.now;
+    let t = 1_000_000;
+    Date.now = () => t;
+    try {
+      recordTerminalNoCoverage('EURO', 'waves', 327);
+      expect(isTerminalNoCoverage('EURO', 'waves', 327)).toBe(true);
+      t += 15 * 60 * 1000 + 1;
+      expect(isTerminalNoCoverage('EURO', 'waves', 327)).toBe(false);
+    } finally {
+      Date.now = realNow;
+    }
+  });
+
+  it('the kill switch forces it off (instant revert)', () => {
+    recordTerminalNoCoverage('EURO', 'waves', 327);
+    window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__ = true;
+    expect(isTerminalNoCoverage('EURO', 'waves', 327)).toBe(false);
   });
 });

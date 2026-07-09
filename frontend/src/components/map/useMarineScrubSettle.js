@@ -1,6 +1,7 @@
 import { useRef, useCallback, useEffect } from 'react';
 import { getMarineSeriesFrame, ensureMarineSeries } from './marineGridSeries';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
+import { isTerminalNoCoverage } from './marineControllerCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
 
 // True if the grid bounds fully cover the viewport bounds (small epsilon for float jitter).
@@ -386,6 +387,16 @@ export function runScrubSettleCheck(ctx) {
     // Terminal no-coverage/unsupported responses won't resolve by refetching — bypass the net.
     const fr = marineData?.grid?.__failureReason || marineData?.__failureReason;
     if (fr && (fr.includes('coverage') || fr.includes('unsupported'))) {
+      return;
+    }
+    // §7.6 far-horizon churn: the held frame is a STALE grid (no __failureReason) but the REQUESTED hour
+    // is terminally uncovered for this run (EURO waves >240h / ICON extended range not yet ingested) — the
+    // fetcher recorded it. Bypass so the backstop stops re-driving the doomed 404 (the "10-day slowdown"),
+    // while the held frame keeps displaying (no clearing). Kill: window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__.
+    if (isTerminalNoCoverage(activeModelRef?.current, activeMarineLayerRef?.current, currentHour)) {
+      if (typeof window !== 'undefined') {
+        window.__MARINE_TERMINAL_NOCOV_BYPASS_COUNT__ = (window.__MARINE_TERMINAL_NOCOV_BYPASS_COUNT__ || 0) + 1;
+      }
       return;
     }
 

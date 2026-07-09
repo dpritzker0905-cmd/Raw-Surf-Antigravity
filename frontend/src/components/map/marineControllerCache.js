@@ -297,6 +297,42 @@ export function createFallbackSafeZeroGrid(model, failureReason) {
     __gridProvider: 'none', __renderable: false, __failureReason: failureReason };
 }
 
+// TERMINAL NO-COVERAGE TRACKER (2026-07-09, §7.6 far-horizon churn fix). When a marine fetch fails with a
+// GENUINELY-TERMINAL reason — a model horizon boundary the current run can't serve (EURO waves >240h /
+// ICON extended estimated range not yet ingested) — the client HOLDS the last-good stale grid (no
+// clearing, which the user wants), but that stale grid carries no __failureReason, so the scrub-settle
+// backstop keeps re-driving the doomed 404 = the felt "10-day slowdown". Record the terminal (model,
+// layer,hour) here so the settle stops re-driving THAT hour while the held frame keeps displaying. TTL'd
+// (15 min, shorter than a model cycle) so a later run that DOES ingest the estimates re-tries cleanly.
+// Only genuine coverage/unsupported/anchor reasons are recorded (caller-gated) — never transient
+// (timeout/abort/fetch_failed). Kill switch: window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__.
+const _terminalNoCoverage = new Map();       // `${model}_${layer}_${hour}` -> timestamp
+const TERMINAL_NOCOV_TTL_MS = 15 * 60 * 1000;
+
+export function recordTerminalNoCoverage(model, layer, hourOffset) {
+  const key = `${model || 'GFS'}_${layer || 'waves'}_${hourOffset}`;
+  _terminalNoCoverage.set(key, Date.now());
+  if (typeof window !== 'undefined') {
+    window.__MARINE_TERMINAL_NOCOV_RECORDED__ = (window.__MARINE_TERMINAL_NOCOV_RECORDED__ || 0) + 1;
+  }
+  // Bound (far-horizon hours are ~32 max, but guard anyway): drop the oldest entry.
+  if (_terminalNoCoverage.size > 200) {
+    _terminalNoCoverage.delete(_terminalNoCoverage.keys().next().value);
+  }
+}
+
+export function isTerminalNoCoverage(model, layer, hourOffset) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__ === true) return false;
+  const key = `${model || 'GFS'}_${layer || 'waves'}_${hourOffset}`;
+  const ts = _terminalNoCoverage.get(key);
+  if (!ts) return false;
+  if (Date.now() - ts > TERMINAL_NOCOV_TTL_MS) { _terminalNoCoverage.delete(key); return false; }
+  return true;
+}
+
+// Test-only reset so terminal state doesn't leak across cases.
+export function _resetTerminalNoCoverageForTest() { _terminalNoCoverage.clear(); }
+
 export function hasTimeCoverage(cache, hourOffset) {
   const timeArray = cache?.results?.[0]?.hourly?.time;
   if (!timeArray || timeArray.length === 0) return false;

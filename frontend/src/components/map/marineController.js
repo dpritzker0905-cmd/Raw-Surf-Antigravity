@@ -34,6 +34,7 @@ import {
   _cacheMarineResult,
   _updateDiagnosticsOnCacheHit,
   createFallbackSafeZeroGrid,
+  recordTerminalNoCoverage,
   hasTimeCoverage,
   isContainedInMarineCache
 } from './marineControllerCache';
@@ -686,5 +687,13 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   }
 
   console.warn(`[Fallback] Backend redirects failed for model=${model || 'GFS'}, layer=${activeLayer || 'waves'}, hour=${hourOffset}. Returning conformed safe zero grid.`);
+  // §7.6 far-horizon churn: a GENUINELY-TERMINAL coverage failure (EURO waves >240h = no_copernicus_coverage;
+  // ICON extended range not yet ingested = "...anchor and target GFS are both unavailable") won't resolve by
+  // refetching. Record it so the scrub-settle backstop stops re-driving the doomed 404 (the "10-day slowdown")
+  // while the held stale grid keeps displaying. NEVER record transient reasons (timeout/abort/fetch_failed).
+  const _fr = lastRedirectFailureReason || '';
+  if (_fr.includes('coverage') || _fr.includes('unsupported') || _fr.includes('anchor')) {
+    recordTerminalNoCoverage(model, activeLayer, hourOffset);
+  }
   return getModelSafeMarine(model, hourOffset, activeLayer, bounds) || createFallbackSafeZeroGrid(model, lastRedirectFailureReason || 'backend_fetch_failed');
 }
