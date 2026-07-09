@@ -52,12 +52,16 @@ weigh it honestly before spending a session on it:
 - **Reward is MARGINAL.** The user described it as "a little faster." Scrub is **already responsive when warm** —
   the felt sluggishness in the 07-09 session was mostly **cold cache after 5 model-switches** (see 7.5), not the
   per-tick React cost.
-- **Risk is MAXIMAL.** It's a monolithic refactor of the **371-commit MapWebGL hotspot** + MapPage + the whole
-  `useWeatherState` atom, with **NO runtime kill switch** (Rules of Hooks) → git-revert is the only rollback.
+- **Risk is MEDIUM** (revised down from "maximal" by the 3rd-pass best-practice finding — see 7.4): with the
+  `useSyncExternalStore` pattern it is NOT a whole-`useWeatherState` restructure, just a surgical external store +
+  a marine-subtree extraction on the **371-commit MapWebGL hotspot** — still **NO runtime kill switch** (git-revert
+  only) and still hotspot surgery needing live verification, but materially safer than the original context-split.
 - **Verifiability is PARTIAL.** Correctness across 5 entangled data pipelines can't be fully confirmed by tests +
   "feels fine" — it needs a live React DevTools Profiler + you exercising forecast/playback/switch/marine.
-- ∴ **Jacobian = marginal value ÷ maximal coupling = LOW.** Only execute §7c if timeline-scrub slowness becomes a
-  real, repeated user-blocking complaint AND you can commit a dedicated, watched, full-budget session.
+- ∴ **Jacobian = marginal value ÷ MEDIUM coupling (revised) = still-low-priority.** The `useSyncExternalStore`
+  rewrite lowers the risk, but the reward is still marginal (7.5 cache-retention likely beats it for the FELT
+  problem). Execute §7c only if timeline-scrub slowness becomes a real, repeated complaint AND you have a watched
+  full-budget session — and if so, use the store pattern (7.4), not the context-split.
 - **Consider 7.5 (cache-retention) FIRST** — plausibly higher value (the model-comparison workflow) at lower risk.
 
 ### 7.1 Confirmed root (measured across prior sessions — do NOT re-derive)
@@ -90,25 +94,28 @@ MapPage consumers of the raw hour (all must be rewired to context): `useOpenMete
 MUST re-run on scrub), the `__MARINE_BOOT_DIAG__` effect (241), the MapWebGL prop (416), both `MapWeatherControls`
 (548–575), `MapForecastOverlay` (583–600).
 
-### 7.4 Target architecture + increment order (for the future session)
-Goal: MapWebGL's body re-renders only on the DEBOUNCED cadence; only a small marine subtree re-renders per tick.
-1. **Lift `useWeatherState` into a `<WeatherProvider>` above MapPage.** Split into TWO contexts to dodge the
-   context-value-identity pitfall: **`RawScrubTimeContext`** (`timeOffsetHours`, changes per tick) and
-   **`WeatherStateContext`** (`activeModel`/`activeLayers`/radar/`maxHoursForUser`/`isLockedForecast`/setters,
-   changes rarely). The provider ALSO owns the playback intervals + clamp and computes+provides
-   **`debouncedTimeOffsetHours`** (relocate the debounce OUT of `useOpenMeteoTileUrls`). `MapPage` becomes a thin
-   wrapper rendering `<WeatherProvider><MapPageInner/></WeatherProvider>`; `MapPageInner` reads `WeatherStateContext`
-   only → inert on a scrub tick. **Behavior-identical; verify FIRST** (forecast, playback, model/layer switch,
-   premium lock, radar, marine all unchanged) before step 2.
-2. **Extract `<MarineHeatmapSubtree>`** inside MapWebGL: it consumes `RawScrubTimeContext` →
-   `useMarineOrchestrator` → `useMarineWindData` → `<WebGLMarineLayer>`; publishes `marineData` UP **debounced**
-   for MapWebGL's settle-tolerant consumers. MapWebGL's body switches to `debouncedTimeOffsetHours` (from context)
-   + debounced `marineData` for `useTemporalPreloader`/`useOpenMeteoTileUrls`/`useSpotRatings`/`useSimulationField`/
-   `useMapDebugTools`/`onMarineDataChange`/`TruthOverlay` → MapWebGL body no longer consumes the raw hour → stops
-   re-rendering per tick.
-3. **A/B with `__SCRUB_PROBE__`**: renders/step → ~0 on unchanged-data steps; median well under 16 ms; `clears`/
-   `reinits` = 0; `__MASK_PROBE__` no re-flood; infobox/forecast still track (they read debounced now — verify no
-   stale-hour mislabel). Rollback = git-revert (no runtime switch).
+### 7.4 Target architecture — ⭐ REVISED to industry best practice (3rd pass, 07-09)
+**Use `useSyncExternalStore`, NOT a context-split.** Web research (React docs + practitioners — see Sources at
+close) is unambiguous: for HIGH-FREQUENCY state a large tree consumes but shouldn't re-render on — a **timeline
+scrubber is the textbook example** — Context, *even split into multiple providers*, is a "propagation penalty" you
+cannot memoize away; the standard pattern is an **external store subscribed via `useSyncExternalStore` with
+selectors**, so ONLY components reading the changed slice re-render. This is LOWER-risk than the context-lift (no
+`WeatherProvider`/MapPage restructure, no context-value-identity pitfall) → drops §7c coupling MAXIMAL→MEDIUM.
+Goal unchanged: MapWebGL's body re-renders only on the DEBOUNCED cadence; only a small marine subtree per tick.
+1. **`scrubTimeStore`** (module-level, NO provider): `{ getRaw(), getDebounced(), setHour(h), subscribe(cb),
+   subscribeDebounced(cb) }` — the debounce lives IN the store (relocated from `useOpenMeteoTileUrls`). The scrubber
+   (`MapWeatherControls`) + `useWeatherState`'s playback interval WRITE via `setHour` (functional → no read → no
+   re-render). Expose `useScrubHour()` / `useDebouncedScrubHour()` wrapping `useSyncExternalStore`.
+2. **MapPage stops owning + prop-passing `timeOffsetHours`** (the store owns it) → MapPage no longer re-renders per
+   tick. `useOpenMeteoForecast` (infobox) + `MapForecastOverlay` + both `MapWeatherControls` read `useScrubHour()`;
+   the clamp / `isLockedForecast` derive from a `useDebouncedScrubHour()` selector or move store-side. **Verify
+   behavior-identical FIRST** (forecast, playback, model/layer switch, premium lock, radar, marine unchanged).
+3. **MapWebGL body subscribes to `useDebouncedScrubHour()` ONLY** (→ re-renders on settle, not per tick); the RAW
+   hour is consumed ONLY inside an extracted **`<MarineHeatmapSubtree>`** (`useMarineOrchestrator`+`useMarineWindData`
+   +`<WebGLMarineLayer>`, `useScrubHour()`) that publishes `marineData` up debounced for the settle-tolerant
+   consumers (preloader/omTiles/ratings/FCE/`useMapDebugTools`/`onMarineDataChange`/`TruthOverlay`).
+4. **A/B with `__SCRUB_PROBE__`**: renders/step → ~0 on unchanged-data steps; median < 16 ms; `clears`/`reinits`=0;
+   `__MASK_PROBE__` no re-flood; infobox/forecast still track (verify no stale-hour mislabel). Rollback = git-revert.
 
 ### 7.4a Guardrails the refactor MUST preserve (3-mo archaeology)
 engine residency `9c89701e`/`15302d35`; synchronous scrub upload `6f173bc0`/`a9c30178`; the **vector mirror**
@@ -157,6 +164,16 @@ confirm which, then make the backstop respect a terminal-no-coverage signal (kil
 - Headless preview can't judge animation/FPS/edge-functions; the user's real browser is the verifier.
 - prod = Netlify `main` (~600 behind dev); dev pushes restart Render + add runner load → BATCH.
 
-**Session status: CLOSED at `9c21de24`.** Strong stable checkpoint. Radar closed; marine scrub-clears + pipeline
-cadence shipped; §7c fully mapped and DELIBERATELY deferred (marginal reward / maximal risk — see §7.0). Next
-session: evaluate 7.5 (cache retention) for responsiveness, or pick a §8 higher-value item — NOT a default §7c.
+## Sources (3rd-pass best-practice research — the §7.4 revision)
+React's standard for high-frequency state (a scrubber is the textbook case) is an external store via
+`useSyncExternalStore` + selectors, NOT context-splitting (which is "propagation-penalty" tech-debt at high state
+velocity):
+- [useSyncExternalStore — React docs](https://react.dev/reference/react/useSyncExternalStore)
+- [Bypassing React Context re-renders via useSyncExternalStore (azguards)](https://azguards.com/performance-optimization/the-propagation-penalty-bypassing-react-context-re-renders-via-usesyncexternalstore/)
+- [Isolating React component updates with useSyncExternalStore (Phil Parsons)](https://philparsons.co.uk/blog/isolating-react-component-updates-with-usesyncexternalstore/)
+- [useSyncExternalStore demystified — Epic React / Kent C. Dodds](https://www.epicreact.dev/use-sync-external-store-demystified-for-practical-react-development-w5ac0)
+
+**Session status: CLOSED (see `git log` for dev HEAD).** Strong stable checkpoint. Radar closed; marine
+scrub-clears + pipeline cadence shipped; §7c fully mapped, best-practice-corrected (7.4 = `useSyncExternalStore`,
+risk MAXIMAL→MEDIUM), and DELIBERATELY deferred (marginal reward — see §7.0). Next session: evaluate 7.5 (cache
+retention) for responsiveness FIRST, or pick a §8 higher-value item — NOT a default §7c.
