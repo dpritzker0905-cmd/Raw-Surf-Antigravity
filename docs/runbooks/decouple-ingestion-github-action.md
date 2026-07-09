@@ -46,7 +46,7 @@ So prove the round-trip before flipping anything:
    stay lazy via `load_product`'s on-demand L2 download). After the Action run, confirm fresh products
    appear: `curl <render>/api/weather/products` shows the `run_time`s the Action wrote.
 4. **Cut over** once 2+3 are solid:
-   - Uncomment the `schedule:` cron in the workflow (every 3h at :15).
+   - Uncomment the `schedule:` cron in the workflow (every 4h at :15).
    - Set `DISABLE_FORECAST_SCHEDULER=1` on the Render web box → it stops in-process ingestion (serve-only)
      AND auto-enables the periodic L2 restore (below), so the box keeps seeing the Action's fresh runs.
    - Kept reversible: unset the env var to instantly fall back to in-process ingestion; comment the cron.

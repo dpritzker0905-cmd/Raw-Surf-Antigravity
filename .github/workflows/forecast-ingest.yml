@@ -11,7 +11,7 @@ name: Forecast Ingestion (decoupled)
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '15 */3 * * *'   # every 3h at :15 UTC (matches the in-process IntervalTrigger(hours=3))
+    - cron: '15 */4 * * *'   # every 4h at :15 UTC — 00/04/08/12/16/20 (6 runs/day; matches the in-process IntervalTrigger(hours=4))
 
 concurrency:
   group: forecast-ingest
@@ -24,7 +24,7 @@ jobs:
                           # (runs LAST) actually COMPLETES instead of being starved — that starvation is why
                           # only flagship FL/SoCal had regional marine tiles and the rest of the world fell
                           # back to the 37×17 global-coarse (the worldwide clamp / "no heatmap" bug). Still
-                          # < the 180-min cron interval (concurrency group prevents overlap).
+                          # < the 240-min (4h) cron interval (concurrency group prevents overlap).
     steps:
       - uses: actions/checkout@v4
 

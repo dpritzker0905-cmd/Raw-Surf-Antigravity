@@ -11,7 +11,7 @@ name: Data Health Monitor
 
 on:
   schedule:
-    - cron: '*/30 * * * *'   # every 30 min (cron refreshes every 3h; this detects a stall within ~2 cycles)
+    - cron: '*/30 * * * *'   # every 30 min (ingest cron refreshes every 4h; this detects a stall well within a cycle)
   workflow_dispatch: {}
 
 permissions:
