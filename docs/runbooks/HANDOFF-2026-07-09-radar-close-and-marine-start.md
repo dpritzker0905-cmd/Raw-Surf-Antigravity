@@ -24,7 +24,7 @@ working state. **The next focus is MARINE (§3).**
 | `d6d98402` | **NEIGHBOR-AWARE advection warp** — the advect handler now fills each tile's upwind incoming edge from the real echo of the upwind neighbor observed tile(s) (`advectTileWithNeighbors` + `neighborTileUrl` in `radarAdvection.js`/`radarTileRecolor.js`). Fixes the "last-hour of the forecast shows blank VERTICAL RECTANGLES" that the per-tile isolated warp left (see §2a). +decode-once observed-tile cache. FE 728 green (+7). User: "radar is better." | `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__` (→ old isolated per-tile warp) | ✅ user confirmed better |
 | `160ffcbe` | **OBSERVED tiles → durable proxy too** — `radarFrameUrl` (MapWebGL) now builds past-frame URLs via `rainviewerTileTemplate` (the `/rv/*` proxy) instead of hard-coded direct RainViewer. Fixes "scrubbing NOW→past CLEARS the radar": a fast scrub bursts the ~13 past frames' tiles direct → 429 → CORS-block → blank. The proxy's durable shared cache absorbs the burst (and a proxy-side 429 still carries ACAO, so it can't CORS-block the layer). FE 732 green (+4). | `__RAW_RADAR_PROXY_DISABLED__` (→ direct, shared with advect) | ⚠️ user verifies live |
 | `74ef3897` | **CATALOG → proxy (the LAST direct-to-RainViewer hole)** — `rvproxy.js` now also proxies `public/weather-maps.json` (60 s shared edge cache); `useWeatherState` fetches it via `rainviewerCatalogUrl` (`/rv/...`). Fixes "radar barely visible, just slight": RainViewer 429'd the catalog on the user's IP → no-ACAO → CORS-blocked → `radarPastFrames=[]` → dense observed frames gone, only sparse HRRR forecast left. FORENSICS: tile proxy verified 200 live, `BUILD_VERSION==160ffcbe`, catalog serves ACAO+13 frames from a clean IP but 429s the user's IP. FE 733 green (+1). User: "working much better." | `__RAW_RADAR_PROXY_DISABLED__` (→ direct catalog + tiles) | ✅ user confirmed |
-| *(pending)* | **SMOOTHNESS PASS** — residual "very slight clearing/glitch that self-corrects" (clean log, no errors = a render transient, not a failure). Two knobs in the MapWebGL frame manager: (1) preload window ±1→±2 (`__RAW_RADAR_PRELOAD__`, default 2) so a frame's tiles are loaded before playback/scrub reaches it (kills the frame-transition gap); (2) `raster-fade-duration` 300→180 ms (`__RAW_RADAR_FADE_MS__`) so pan/zoom tile-fill snaps in ~40% sooner (shorter visible clear). FE 733 green + prod build OK. | `__RAW_RADAR_PRELOAD__=1` / `__RAW_RADAR_FADE_MS__=300` (each reverts its knob) | ⚠️ user A/Bs live |
+| `133ca705` | **SMOOTHNESS PASS** — residual "very slight clearing/glitch that self-corrects" (clean log, no errors = a render transient, not a failure). Two knobs in the MapWebGL frame manager: (1) preload window ±1→±2 (`__RAW_RADAR_PRELOAD__`, default 2) so a frame's tiles are loaded before playback/scrub reaches it (kills the frame-transition gap); (2) `raster-fade-duration` 300→180 ms (`__RAW_RADAR_FADE_MS__`) so pan/zoom tile-fill snaps in ~40% sooner (shorter visible clear). FE 733 green + prod build OK. | `__RAW_RADAR_PRELOAD__=1` / `__RAW_RADAR_FADE_MS__=300` (each reverts its knob) | ⚠️ user A/Bs live |
 
 ---
 
@@ -105,6 +105,14 @@ This is the SAME subsystem as the "timeline scrub slow" jank.
   child tree → the felt ~62 ms/step. Proven **React-bound, NOT GPU/paint** (paint ~1 ms via `map._render(0)`;
   the no-layer control drag held ~66 ms). The marine upload path already tracks the scrubber (synchronous
   content-diffed `safeUploadWaveData`); the vector conform is already memoized; the atmospheric tiles debounce.
+- **⭐ CLEARS vs PERF are TWO mechanisms — don't conflate.** (i) "Heatmap CLEARS on scrub" + E-Atlantic
+  rectangle = the coarse↔regional grid FLIP mid-scrub (some hours only have the coarse-global frame warmed).
+  **SHIPPED `b1f19453` (07-09):** hold the resident regional frame instead of uploading an incoming COARSER grid
+  during scrub — pure helper `marineScrubHold.js` (`shouldHoldScrubDowngrade`) wired into `safeUploadWaveData`;
+  NARROW (coarse-over-regional, same model+layer, resident covers viewport), same/finer still upload (tracks
+  scrubber), self-selects off at zoomed-out. Kill `__RAW_MARINE_SCRUB_HOLD_DISABLED__`, telemetry
+  `__MARINE_SCRUB_HOLD_COUNT__`. FE 741 green. **User verifies the clearing stops live.** (ii) "Scrub feels slow"
+  (~62 ms/step) = the React re-render, below (§7c).
 - **Shipped cheap wins (do NOT redo):** ratings-churn fix `63765848`; static-`<Map>`-children memo `32e7035e`
   (kill `__RAW_SCRUB_MEMO_DISABLED__`); memo slices `b720752c`/`2cb4e709`/`19b2ec79`. Harness:
   `window.__SCRUB_PROBE__` (`scrubPerfProbe.js`) — renders/step + per-hook attribution + `clears`/`reinits` 0-tripwire.
@@ -135,6 +143,21 @@ the infobox** instead of a separate slow point fetch (touches the guarded v5.7�
 ### 3d. Other marine backlog (lower priority)
 Sheltered-water / intracoastal exposure model (rating truth for protected spots — design-heavy, multi-session);
 reseed blink (swap-time land cull); colormap v5 light/beach + Baja eyeballs.
+
+### 3e. GH ACTIONS "runs getting cancelled" — DIAGNOSED (07-09), not a code bug
+User flagged cancellation notifications. Forensics (`gh run list`): the cancelled runs are the **scheduled
+ingest crons** (forecast-ingest / -pilots / precompute), NOT the radar `push`-CI. Two causes, both now handled:
+(a) **165-min TIMEOUTS** — GitHub reports a timeout as "cancelled"; the pre-`10a5a4a4` cron-hang pushed runs to
+2-3h → timeout. Fixed → runs now ~1.5h. (b) **Pending-queue evictions** — forecast-ingest (:15) + -pilots (:45)
+SHARE a serial concurrency group (`cancel-in-progress: false`), doing ~3.5h of work per 3h window → a 3rd queued
+run evicts the middle *pending* one (harmless to data — an evicted-pending run never wrote, so NO orphans; only a
+skipped cycle). **Zero cancellations in the last 100 runs** (since 07-08 11:16); `/api/health/data` = **ok**, all
+9 lanes green. **FIX SHIPPED `70ac67ce`:** ingest cadence **3h → 4h** (`15 */4` core, `45 1-21/4` pilots — 6
+runs/day, offset preserved, serialization intact) → core+pilots fit a 4h window contiguously with a ~0.5h gap →
+≤1 pending → no eviction. Also `IntervalTrigger(hours=4)` in `backend/scheduler/__init__.py` (in-process path is
+DISABLED on Render via `DISABLE_FORECAST_SCHEDULER=1` — prod ingests via the Action, so prod cadence = the cron).
+⚠️ **My rapid dev pushes add hosted-runner load** (each push = CI+Lighthouse) → the 07-09 "job not acquired by
+Runner" CI failures were runner contention with a 2h pilots run, NOT code — BATCH dev pushes.
 
 ---
 
@@ -174,5 +197,5 @@ after confirming the fresh BUILD_VERSION.** One isolated, kill-switched change �
 (fixes last-hour "vertical rectangle" seams — §2a(ii); user confirmed "radar is better"); OBSERVED-tiles-→-proxy
 PUSHED `160ffcbe` (fixes "scrub NOW→past clears the radar" — §2a(i) burst); CATALOG-→-proxy PUSHED `74ef3897`
 (fixes "radar barely visible" = catalog 429 → `radarPastFrames=[]` — §2b; user "working much better"). Radar
-SMOOTHNESS PASS staged (preload ±2 `__RAW_RADAR_PRELOAD__` + tile-fade 180ms `__RAW_RADAR_FADE_MS__`; FE 733 green
-+ build OK), pending commit + live A/B. Precip + infobox shipped. Next: verify smoothness, then marine (§3).**
+SMOOTHNESS PASS PUSHED `133ca705` (preload ±2 `__RAW_RADAR_PRELOAD__` + tile-fade 180ms `__RAW_RADAR_FADE_MS__`;
+FE 733 green + build OK), pending live A/B. Precip + infobox shipped. Next: verify smoothness, then marine (§3).**
