@@ -9,6 +9,7 @@ import WebGLMarineEngine from './WebGLMarineEngine';
 import { registerMarineEngine, unregisterMarineEngine, updateMarineTruthTrace } from '../../engine/RenderPlanDispatcher';
 import { isInCooldown, findClosestHourIndex } from './marineControllerUtils';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
@@ -242,6 +243,43 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       runDiagnosticsUpdate(diffResult.skipReason);
       return;
     }
+
+    // SCRUB NO-DOWNGRADE HOLD (2026-07-09): the "heatmap CLEARS when I scrub" + the E-Atlantic grey
+    // rectangle is the coarse↔regional grid FLIP during an active scrub — some hours only have the
+    // coarse-GLOBAL frame warmed, so dragging across them uploads a coarse grid that renders blocky /
+    // as a coverage rectangle at a regional viewport, then the settle net sharpens it back. Hold the
+    // resident REGIONAL frame instead (visual continuity; the settle net commits the right frame for
+    // the SETTLED hour on release). NARROW + self-selecting: only a coarse-over-regional downgrade, on
+    // the same model+layer, where the resident actually covers the viewport — same/finer grids still
+    // upload synchronously (the heatmap keeps tracking the scrubber, preserving 6f173bc0/a9c30178), and
+    // at a zoomed-OUT viewport the resident is global so it never fires. Kill: __RAW_MARINE_SCRUB_HOLD_DISABLED__.
+    try {
+      const scrubbingNow = typeof window !== 'undefined' &&
+        (window.isScrubbingTimeline || (window.lastScrubTime && Date.now() - window.lastScrubTime < 1500));
+      if (scrubbingNow && engine._waveData?.waveGrid) {
+        let viewportBounds = null;
+        try {
+          const vb = mapInstance && mapInstance.getBounds ? mapInstance.getBounds() : null;
+          if (vb) viewportBounds = { west: vb.getWest(), south: vb.getSouth(), east: vb.getEast(), north: vb.getNorth() };
+        } catch (e) { /* map mid-style-load — leave null → helper won't hold */ }
+        const held = shouldHoldScrubDowngrade({
+          scrubbing: true,
+          disabled: window.__RAW_MARINE_SCRUB_HOLD_DISABLED__ === true,
+          sameTarget: lastUploadedGridRef.current.activeModel === gridModel &&
+            lastUploadedGridRef.current.activeMarineLayer === activeMarineLayer,
+          incomingBounds: actualBounds,
+          incomingScope: grid.grid?.coverage_scope || grid.coverage_scope,
+          residentBounds: engine._waveData.waveGrid.bounds,
+          viewportBounds,
+        });
+        if (held) {
+          window.__MARINE_SCRUB_HOLD_COUNT__ = (window.__MARINE_SCRUB_HOLD_COUNT__ || 0) + 1;
+          window.__WEBGL_MARINE_UPLOAD_REASON__ = 'scrub_no_downgrade_hold';
+          runDiagnosticsUpdate('scrub_no_downgrade_hold');
+          return;
+        }
+      }
+    } catch (e) { /* never let the guard break a normal upload — fall through */ }
 
     window.__WEBGL_MARINE_UPLOAD_REASON__ = reason;
 
