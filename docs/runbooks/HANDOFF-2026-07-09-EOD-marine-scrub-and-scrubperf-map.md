@@ -36,6 +36,11 @@ of work per 3h window. **Harmless to data** (an evicted *pending* run never wrot
 cycle). Zero cancellations in the last 100 runs; `/api/health/data` = ok, all 9 lanes green. The 4h cadence
 (`70ac67ce`) gives the group margin. "Job not acquired by Runner" CI failures = GitHub runner contention with a
 long ingest, NOT code. **Batch dev pushes** (each = CI+Lighthouse runner load + a Render restart).
+Cron detail (`70ac67ce`): `15 */4` core + `45 1-21/4` pilots (SAME shared serial group — must never overlap;
+serialization is intentional, protects manifest writes) + backend `IntervalTrigger(hours=4)` — but the in-process
+path is DISABLED on Render (`DISABLE_FORECAST_SCHEDULER=1`, serve-only), so PROD ingests via the Action = the cron
+IS the prod cadence. If cancellations relapse, the durable fix is merge core+pilots into ONE sequential workflow
+(removes pending-eviction between them) — do NOT split the shared concurrency group.
 
 ---
 
@@ -108,8 +113,10 @@ Goal: MapWebGL's body re-renders only on the DEBOUNCED cadence; only a small mar
 ### 7.4a Guardrails the refactor MUST preserve (3-mo archaeology)
 engine residency `9c89701e`/`15302d35`; synchronous scrub upload `6f173bc0`/`a9c30178`; the **vector mirror**
 (`useMarineWindData` conform — the LAST place field lists eat `is_valid`/`dirConfidence`); FCE-decoupled-in-normal-
-mode `40d28b9d`; the `task_c5366c79` memo slices `b720752c`/`2cb4e709`/`19b2ec79`; the marine scrub-hold
-`b1f19453`. Verify `__WEBGL_MARINE_CLEAR_COUNT__` / particle-reinits = 0 throughout.
+mode `40d28b9d`; the `task_c5366c79` memo slices `b720752c`/`2cb4e709`/`19b2ec79`; the **TWO complementary
+marine scrub-holds** — commit-layer `useMarineDataFetcherHelpers.js:472` (holds stale/degenerate `timeline_scrub`
+commits) + upload-layer `b1f19453` (holds coarse-over-regional at the GPU); they catch DIFFERENT cases, don't
+remove either as "redundant". Verify `__WEBGL_MARINE_CLEAR_COUNT__` / particle-reinits = 0 throughout.
 
 ### 7.5 ⭐ CONSIDER FIRST — cache-retention on model-switch (plausibly better value/risk than §7c)
 The 07-09 log showed `[MODEL] Model changed … wiping block cache` on **every** switch → scrubbing after a
@@ -124,8 +131,11 @@ subsystem). This is the recommended responsiveness investigation BEFORE committi
 ### 7.6 EURO far-horizon churn (low priority, edge case)
 Scrubbing EURO to hour ~336 (beyond Copernicus coverage) → `no_copernicus_coverage` 404 → safe-zero grid, and the
 scrub-settle **backstop** re-drives the doomed fetch ~6× before the 3-retry cap. It's data truth + bounded churn.
-Root: the terminal `__failureReason` (set by `createFallbackSafeZeroGrid`) doesn't reach the backstop's re-drive
-gate. Fix = make the backstop respect a terminal-no-coverage signal (kill-switched), + extend
+Root (TRACED, not fully confirmed): `createFallbackSafeZeroGrid` DOES tag `__failureReason` at both grid + top
+level, and `runScrubSettleCheck` HAS a coverage-terminal bypass — yet the log shows it re-driving, so either the
+"conformed safe zero grid" step strips the tag before it reaches `marineData`, OR the blank-heatmap **backstop**
+(a separate path that re-drives on `engine-empty` without checking `__failureReason`) is the churn source. Fix =
+confirm which, then make the backstop respect a terminal-no-coverage signal (kill-switched), + extend
 `marineEmptyGridRetry.test.js`. LOW value (rare) / rising complexity on a guarded subsystem — don't rush it.
 
 ---
