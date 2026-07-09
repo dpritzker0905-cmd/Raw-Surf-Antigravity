@@ -22,7 +22,8 @@ working state. **The next focus is MARINE (§3).**
 | `5ec7f7e9` | Radar observed tiles → **native 256px** (512 supersample `c7381934` was 4× bytes → ERR_CONNECTION_RESET on slow networks). | `__RAW_RADAR_512_TILES__` (opt back to 512) | ✅ |
 | `928c5546`→`84bb1351` | **RainViewer tile PROXY** (Netlify edge fn `frontend/netlify/edge-functions/rvproxy.js`, `/rv/*`, durable CDN cache) + **advection default-ON**. The advect tiles route through the cached proxy (`rainviewerTileTemplate`); observed stays direct. | `__RAW_RADAR_PROXY_DISABLED__` (advect→direct) / `__RAW_RADAR_ADVECTION_DISABLED__` | ⚠️ **UNVERIFIED — user must confirm live** |
 | `d6d98402` | **NEIGHBOR-AWARE advection warp** — the advect handler now fills each tile's upwind incoming edge from the real echo of the upwind neighbor observed tile(s) (`advectTileWithNeighbors` + `neighborTileUrl` in `radarAdvection.js`/`radarTileRecolor.js`). Fixes the "last-hour of the forecast shows blank VERTICAL RECTANGLES" that the per-tile isolated warp left (see §2a). +decode-once observed-tile cache. FE 728 green (+7). User: "radar is better." | `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__` (→ old isolated per-tile warp) | ✅ user confirmed better |
-| *(pending)* | **OBSERVED tiles → durable proxy too** — `radarFrameUrl` (MapWebGL) now builds past-frame URLs via `rainviewerTileTemplate` (the `/rv/*` proxy) instead of hard-coded direct RainViewer. Fixes "scrubbing NOW→past CLEARS the radar": a fast scrub bursts the ~13 past frames' tiles direct → 429 → CORS-block → blank. The proxy's durable shared cache absorbs the burst (and a proxy-side 429 still carries ACAO, so it can't CORS-block the layer). FE 732 green (+4). | `__RAW_RADAR_PROXY_DISABLED__` (→ direct, shared with advect) | ⚠️ user verifies live |
+| `160ffcbe` | **OBSERVED tiles → durable proxy too** — `radarFrameUrl` (MapWebGL) now builds past-frame URLs via `rainviewerTileTemplate` (the `/rv/*` proxy) instead of hard-coded direct RainViewer. Fixes "scrubbing NOW→past CLEARS the radar": a fast scrub bursts the ~13 past frames' tiles direct → 429 → CORS-block → blank. The proxy's durable shared cache absorbs the burst (and a proxy-side 429 still carries ACAO, so it can't CORS-block the layer). FE 732 green (+4). | `__RAW_RADAR_PROXY_DISABLED__` (→ direct, shared with advect) | ⚠️ user verifies live |
+| *(pending)* | **CATALOG → proxy (the LAST direct-to-RainViewer hole)** — `rvproxy.js` now also proxies `public/weather-maps.json` (60 s shared edge cache); `useWeatherState` fetches it via `rainviewerCatalogUrl` (`/rv/...`). Fixes "radar barely visible, just slight": RainViewer 429'd the catalog on the user's IP → no-ACAO → CORS-blocked → `radarPastFrames=[]` → dense observed frames gone, only sparse HRRR forecast left. FORENSICS: tile proxy verified 200 live, `BUILD_VERSION==160ffcbe`, catalog serves ACAO+13 frames from a clean IP but 429s the user's IP. FE 733 green (+1). | `__RAW_RADAR_PROXY_DISABLED__` (→ direct catalog + tiles) | ⚠️ user verifies live |
 
 ---
 
@@ -53,6 +54,17 @@ There are **two** distinct failure modes that both read as blank vertical-column
   observed, all durably proxied). Missing neighbor (grid edge) → that band stays transparent (as before, no crash).
   Kill: `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__`. Pure geometry + URL-step are unit-tested; the "does the
   rectangle disappear on a live storm" judgment is the user's real browser.
+
+### 2b. The CATALOG is a RainViewer request too — proxy it, don't leave it direct
+"Radar barely visible / just slight" with a console `Access to fetch at 'api.rainviewer.com/public/weather-maps.json'
+… blocked by CORS policy: No 'Access-Control-Allow-Origin'` = the **frame-index catalog** got 429'd on the user's
+IP (a 429 drops ACAO → the browser calls it CORS). `radarPastFrames=[]` ⇒ the dense OBSERVED frames vanish and
+only the sparse HRRR *forecast* frames render → "slight." This is NOT a tile/render bug — verify by curling the
+catalog from a clean IP (returns `ACAO:*` + 13 frames) and the deployed BUILD_VERSION. Fix = the catalog now
+rides the `/rv/*` proxy too (`rainviewerCatalogUrl` → `rvproxy.js` `public/weather-maps.json` branch, 60 s edge
+cache): Netlify's IP fetches it (never the user's), shared across users. ⚠️ The catch handler KEEPS the last good
+`radarPastFrames` (only sets on `past.length>0`), so a *mid-session* hiccup doesn't wipe the radar — only a
+FIRST-load failure leaves it empty, which the proxy now prevents. Kill: `__RAW_RADAR_PROXY_DISABLED__`.
 
 - **RADAR IS RATE-LIMIT-FRAGILE on the free RainViewer CDN.** Anything that multiplies tile requests →
   HTTP **429** → a 429 carries **no `access-control-allow-origin`** → the browser reports it as a **CORS
@@ -159,5 +171,6 @@ after confirming the fresh BUILD_VERSION.** One isolated, kill-switched change �
 
 **Session status: radar CLOSED at `84bb1351`. Follow-ups: neighbor-aware advection warp PUSHED `d6d98402`
 (fixes last-hour "vertical rectangle" seams — §2a(ii); user confirmed "radar is better"); OBSERVED-tiles-→-proxy
-staged (fixes "scrub NOW→past clears the radar" — §2a(i) burst; FE 732 green, kill `__RAW_RADAR_PROXY_DISABLED__`),
-pending commit + live verify. Precip + infobox shipped. Next: verify scrub live, then marine (§3).**
+PUSHED `160ffcbe` (fixes "scrub NOW→past clears the radar" — §2a(i) burst); CATALOG-→-proxy staged (fixes "radar
+barely visible" = catalog 429 → `radarPastFrames=[]` — §2b; FE 733 green, kill `__RAW_RADAR_PROXY_DISABLED__`),
+pending commit + live verify. Precip + infobox shipped. Next: verify radar live, then marine (§3).**

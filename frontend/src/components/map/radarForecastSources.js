@@ -39,6 +39,19 @@ export function rainviewerTileTemplate(path, px, win) {
   return `${base}/${px}/{z}/{x}/{y}/7/1_0.png`;
 }
 
+// RainViewer CATALOG url (the frame index). Same proxy gating as the tiles (2026-07-09): off localhost
+// it routes through the /rv/* Netlify edge proxy so the catalog is fetched from Netlify's IP (never the
+// user's) and shared across users via a short edge cache — RainViewer can't rate-limit the user's IP and
+// CORS-block it (the "radar barely visible" = catalog 429 → radarPastFrames=[]). Direct on localhost / when
+// killed via __RAW_RADAR_PROXY_DISABLED__.
+export function rainviewerCatalogUrl(win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  const host = (w.location && w.location.hostname) || '';
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const proxied = w.__RAW_RADAR_PROXY_DISABLED__ !== true && !isLocal;
+  return proxied ? '/rv/public/weather-maps.json' : 'https://api.rainviewer.com/public/weather-maps.json';
+}
+
 // HRRR RUN DISCOVERY (2026-07-06 v3 — "forecast doesn't tie to the nowcast"): IEM's static
 // refp_{NNNN} layers are leads FROM THE LATEST COMPLETED RUN, not from now. With run 20z at
 // 21:42Z, refp_0060 is valid 21:00Z — BEFORE the last RainViewer observed frame — so the

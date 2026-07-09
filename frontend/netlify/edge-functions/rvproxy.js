@@ -16,10 +16,36 @@
 // 429/5xx) are passed through but NEVER cached, so a fresh frame self-heals on the next catalog refresh.
 
 const RV_HOST = 'https://tilecache.rainviewer.com';
+const RV_API_HOST = 'https://api.rainviewer.com';
 
 export default async (request) => {
   const { pathname } = new URL(request.url);
   const path = pathname.replace(/^\/rv\//, '');
+
+  // CATALOG (2026-07-09): the frame index `public/weather-maps.json`. It was the ONE RainViewer
+  // request still going DIRECT from the browser, so when RainViewer rate-limited the user's IP the
+  // 429 (no ACAO) CORS-blocked it → radarPastFrames=[] → the whole radar went faint ("barely visible").
+  // Proxying it means Netlify's IP fetches upstream (never the user's) and the result is shared across
+  // ALL users via a SHORT edge cache — the catalog rotates ~every 10 min, so 60 s keeps it fresh while
+  // RainViewer sees ~1 request/min total. Same-origin → CORS can never block it.
+  if (path === 'public/weather-maps.json') {
+    let up;
+    try {
+      up = await fetch(`${RV_API_HOST}/public/weather-maps.json`);
+    } catch (e) {
+      return new Response('upstream error', { status: 502, headers: { 'access-control-allow-origin': '*' } });
+    }
+    const ch = new Headers();
+    ch.set('access-control-allow-origin', '*');
+    ch.set('content-type', up.headers.get('content-type') || 'application/json');
+    if (up.ok) {
+      ch.set('cache-control', 'public, max-age=60');
+      ch.set('netlify-cdn-cache-control', 'public, max-age=60, durable');
+      return new Response(up.body, { status: 200, headers: ch });
+    }
+    ch.set('cache-control', 'no-store');   // never cache a 429/5xx — let the next poll self-heal
+    return new Response(null, { status: up.status, headers: ch });
+  }
 
   // Only proxy RainViewer radar tiles: v2/radar/<hex-frame>/<size>/<z>/<x>/<y>/<color>/<opts>.png
   if (!/^v2\/radar\/[a-z0-9]+\/\d+\/\d+\/\d+\/\d+\/\d+\/\d+_\d+\.png$/.test(path)) {

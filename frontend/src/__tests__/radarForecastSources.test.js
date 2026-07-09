@@ -7,6 +7,7 @@ import {
   hrrrRunParams,
   radarLightningTileUrl,
   rainviewerTileTemplate,
+  rainviewerCatalogUrl,
 } from '../components/map/radarForecastSources';
 
 // 2026-07-06: RainViewer's nowcast is discontinued — the radar timeline extends into the future
@@ -38,6 +39,16 @@ describe('rainviewerTileTemplate — observed/advect tiles share the durable pro
   it('honors the requested tile size (512 supersample opt-in)', () => {
     expect(rainviewerTileTemplate('/v2/radar/1720000000', '512', netlify))
       .toBe('/rv/v2/radar/1720000000/512/{z}/{x}/{y}/7/1_0.png');
+  });
+
+  // The CATALOG (frame index) was the last direct-to-RainViewer request; a 429 on the user's IP
+  // CORS-blocked it → radarPastFrames=[] → faint radar. It now shares the /rv/* proxy.
+  it('routes the catalog through /rv/* off localhost, direct on localhost / when killed', () => {
+    expect(rainviewerCatalogUrl(netlify)).toBe('/rv/public/weather-maps.json');
+    expect(rainviewerCatalogUrl({ location: { hostname: 'localhost' } }))
+      .toBe('https://api.rainviewer.com/public/weather-maps.json');
+    expect(rainviewerCatalogUrl({ location: { hostname: 'dev--rawsurf.netlify.app' }, __RAW_RADAR_PROXY_DISABLED__: true }))
+      .toBe('https://api.rainviewer.com/public/weather-maps.json');
   });
 });
 

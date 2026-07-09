@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { resolveForecastWindow, getUserTier, getAllowedModels } from '../components/map/LayerAccessResolver';
-import { radarFutureFramesForModel, radarRegionForCenter, discoverHrrrRun, HRRR_RUN_TTL_MS } from '../components/map/radarForecastSources';
+import { radarFutureFramesForModel, radarRegionForCenter, discoverHrrrRun, HRRR_RUN_TTL_MS, rainviewerCatalogUrl } from '../components/map/radarForecastSources';
 import { registerRadarRecolorProtocol } from '../components/map/radarTileRecolor';
 import logger from '../utils/logger';
 
@@ -62,7 +62,10 @@ export function useWeatherState({ user }) {
     let disposed = false;
     let first = true;
     const loadCatalog = () => {
-      fetch('https://api.rainviewer.com/public/weather-maps.json')
+      // Through the /rv/* edge proxy off localhost (2026-07-09): the direct api.rainviewer.com fetch
+      // got the user's IP rate-limited → 429 (no ACAO) → CORS-blocked → radarPastFrames=[] → radar
+      // went faint. Proxied = Netlify's IP fetches it, shared short edge cache. Kill: __RAW_RADAR_PROXY_DISABLED__.
+      fetch(rainviewerCatalogUrl())
         .then(r => r.json())
         .then(data => {
  // Nowcast discontinued Jan 2026 only past frames available
