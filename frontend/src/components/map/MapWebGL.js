@@ -362,7 +362,14 @@ const MapWebGL = ({
       // broke the crossfade). Tune/kill: window.__RAW_RADAR_OPACITY__ (number, e.g. 0.65 for the old look).
       const curOp = (typeof window !== 'undefined' && typeof window.__RAW_RADAR_OPACITY__ === 'number')
         ? window.__RAW_RADAR_OPACITY__ : 0.8;
-      for (const off of [-1, 0, 1]) {
+      // PRELOAD WINDOW (2026-07-09 smoothness pass): mount the current frame ± N neighbors at opacity 0 so
+      // their tiles are ALREADY loaded before playback/scrub reaches them → no "clear then fill" gap when a
+      // frame becomes current (the felt "slight clearing that corrects itself"). ±2 (was ±1) covers a brisk
+      // scrub/playback; the neighbors are proxy-cached so the extra tiles are cheap. Tune: __RAW_RADAR_PRELOAD__
+      // (1 = old ±1 behavior, up to 4).
+      const preload = (typeof window !== 'undefined' && typeof window.__RAW_RADAR_PRELOAD__ === 'number')
+        ? Math.max(1, Math.min(4, window.__RAW_RADAR_PRELOAD__ | 0)) : 2;
+      for (let off = -preload; off <= preload; off++) {
         const i = radarFrameIndex + off;
         if (i < 0 || i >= radarFrames.length) continue;
         const url = radarFrameUrl(radarFrames[i]);
@@ -387,6 +394,12 @@ const MapWebGL = ({
           try { mapInstance.removeSource(s); } catch (e) {}
         }
       }
+      // TILE FADE (2026-07-09 smoothness pass): how fast a freshly-loaded tile fades in — the "clearing
+      // then filling" as you pan/zoom into new area. MapLibre's default is 300ms; 180ms fills the new area
+      // ~40% sooner (shorter visible clear) while staying smooth. Tune: __RAW_RADAR_FADE_MS__ (300 = MapLibre
+      // default, 0 = instant snap).
+      const fadeMs = (typeof window !== 'undefined' && typeof window.__RAW_RADAR_FADE_MS__ === 'number')
+        ? Math.max(0, Math.min(1000, window.__RAW_RADAR_FADE_MS__)) : 180;
       for (const [id, { url, opacity }] of want) {
         if (!mapInstance.getSource(id)) {
           mapInstance.addSource(id, { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 7 });
@@ -394,7 +407,7 @@ const MapWebGL = ({
         if (!mapInstance.getLayer(id)) {
           mapInstance.addLayer({
             id, type: 'raster', source: id,
-            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 } },
+            paint: { 'raster-opacity': 0, 'raster-opacity-transition': { duration: 250 }, 'raster-fade-duration': fadeMs },
           }, mapInstance.getLayer('lightning-glow') ? 'lightning-glow' : undefined);
         }
         mapInstance.setPaintProperty(id, 'raster-opacity', opacity);
