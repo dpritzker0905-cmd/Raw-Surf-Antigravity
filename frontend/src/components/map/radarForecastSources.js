@@ -128,15 +128,6 @@ const SOURCE_STEP_MIN = { iem_hrrr: 30, dwd_wn: 30, dwd_rv: 30 };
 const ADVECT_CAP_MIN_DEFAULT = 60;  // Ventusky's stated nowcast sweet spot = the first 30–60 min
 const ADVECT_STEP_MIN_DEFAULT = 15;
 
-// STAGE 2 FAR-TERM (2026-07-09): beyond the advection near-term, HRRR simulated reflectivity is sparse
-// (~3.3%) and reads as "dissipating + low-res". The industry far-term (Windy/Ventusky) is the smooth
-// NWP model PRECIP field — complete coverage, evolves continuously. Reuse the om precip data (same as
-// the Precip layer) for the radar forecast's far leads so the whole timeline carries a real rain field
-// instead of patchy reflectivity. Mirror of LayerRegistry PRECIP_MODEL_MAP. Kill:
-// __RAW_RADAR_MODEL_FAR_DISABLED__ (→ the legacy HRRR far-term). Tunable: __RAW_RADAR_MODEL_FAR_CAP_MIN__.
-const RADAR_PRECIP_MODEL = { GFS: 'ncep_gfs013', ICON: 'dwd_icon', EURO: 'ecmwf_ifs025' };
-const RADAR_MODEL_FAR_CAP_MIN = 240; // hours of smooth model forecast past the near-term (matches HRRR's 4h)
-
 export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS', hrrrRunMs = null, pastFrames = []) {
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RADAR_FUTURE_DISABLED__ === true) return [];
@@ -177,35 +168,15 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
         }
       }
     }
-    // --- FAR-TERM: smooth MODEL precip field (Stage 2, Windy/Ventusky far-term) ---
-    // Past the advection near-term, emit om MODEL-precip frames (complete + smooth) instead of HRRR's
-    // sparse reflectivity, so the forecast keeps a continuous rain field. Uses the active model's precip
-    // (RADAR_PRECIP_MODEL) at its native valid-time grid, read from the prewarmed metadata cache. Emitted
-    // as om:// SOURCE-url frames (the radar frame-manager mounts these via the `url:` raster form). If the
-    // metadata isn't warmed yet, fall through to HRRR (self-heals on the next compose). Kill:
-    // __RAW_RADAR_MODEL_FAR_DISABLED__.
-    if (w.__RAW_RADAR_MODEL_FAR_DISABLED__ !== true) {
-      const precipModel = RADAR_PRECIP_MODEL[(model || 'GFS').toUpperCase()] || 'ncep_gfs013';
-      const meta = w.__MODEL_METADATA_CACHE__ && w.__MODEL_METADATA_CACHE__[precipModel];
-      const validTimes = meta && Array.isArray(meta.validTimes) ? meta.validTimes : null;
-      if (validTimes && validTimes.length) {
-        const farCapMin = typeof w.__RAW_RADAR_MODEL_FAR_CAP_MIN__ === 'number' ? w.__RAW_RADAR_MODEL_FAR_CAP_MIN__ : RADAR_MODEL_FAR_CAP_MIN;
-        const startMs = nowMs + Math.max(advectCapMin, ADVECT_STEP_MIN_DEFAULT) * 60000; // begin after the advect near-term
-        const endMs = nowMs + farCapMin * 60000;
-        for (let i = 0; i < validTimes.length; i++) {
-          const vtMs = new Date(validTimes[i]).getTime();
-          if (!isFinite(vtMs) || vtMs <= startMs || vtMs > endMs) continue;
-          frames.push({
-            future: true,
-            source: 'ommodel',
-            minutes: Math.round((vtMs - nowMs) / 60000),
-            time: Math.floor(vtMs / 1000),
-            omUrl: `om://https://map-tiles.open-meteo.com/data_spatial/${precipModel}/latest.json?time_step=valid_times_${i}&variable=precipitation&dark=true&contours=true`,
-          });
-        }
-        return frames; // advect (crisp near-term) + smooth model far-term — HRRR skipped
-      }
-      // metadata not warmed yet → fall through to HRRR below (graceful; next compose picks up the model)
+    // RADAR = OBSERVED + NOWCAST, THEN STOP (2026-07-09, forensic correction — Windy/Ventusky).
+    // Both keep the RADAR layer to observed + a short (~1h) advection nowcast and put the LONGER
+    // forecast on a SEPARATE model layer (this app's "Precip" layer). Neither seams coarse model
+    // precip into the crisp radar animation — that resolution seam looks bad (the reverted Stage-2
+    // om-model far-term `6200c496`, and the reverted IMERG underlay `a3558d1a`). So once advection is
+    // producing the nowcast, STOP: no dissipating/lower-res HRRR far-term. HRRR remains the FALLBACK
+    // when advection can't run (below), and opt-in via __RAW_RADAR_HRRR_FAR__=true.
+    if (advectCapMin > 0 && w.__RAW_RADAR_HRRR_FAR__ !== true) {
+      return frames; // observed past + advection nowcast — the long forecast is the separate Precip layer
     }
 
     // --- HRRR forecast frames (run-pinned v3): leads live on the RUN's 15-min grid, so valid times
@@ -271,12 +242,6 @@ export function radarLightningTileUrl(frame, win) {
 export function radarForecastTileUrl(frame, win) {
   if (!frame || !frame.future) return null;
   const w = win || (typeof window !== 'undefined' ? window : {});
-  if (frame.source === 'ommodel') {
-    // FAR-TERM smooth model precip (Stage 2): the om:// SOURCE-url is prebuilt at emission (it carries
-    // the resolved valid-time index). The radar frame-manager detects the om:// scheme and mounts it via
-    // the `url:` raster form (the om protocol serves + colors the tiles), unlike the {z}/{x}/{y} tile URLs.
-    return frame.omUrl || null;
-  }
   if (frame.source === 'advect') {
     // ADVECTED near-term nowcast (backlog #2): warp the last OBSERVED RainViewer tile forward.
     // Both observed tiles are ALREADY scheme-7 → NO recolor. The advect-rv:// protocol
