@@ -344,6 +344,13 @@ const MapWebGL = ({
     if (!radarActive || killed || !radarFrames?.length || radarFrameIndex == null) { removeAll(); return; }
     try {
       const want = new globalThis.Map();   // sourceId → { url, opacity }
+      // Current-frame opacity 0.65→0.80 (2026-07-08): RainViewer scheme-7 paints LIGHT precip a dark
+      // blue that's low-contrast on the dark basemap, so covered regions with light rain (e.g. the
+      // Australian coast) read as "no radar" (deep-pass finding — coverage IS faithful, it was just
+      // faint). A flat SCALAR bump (transitionable — unlike the reverted b62a50ef zoom EXPRESSION that
+      // broke the crossfade). Tune/kill: window.__RAW_RADAR_OPACITY__ (number, e.g. 0.65 for the old look).
+      const curOp = (typeof window !== 'undefined' && typeof window.__RAW_RADAR_OPACITY__ === 'number')
+        ? window.__RAW_RADAR_OPACITY__ : 0.8;
       for (const off of [-1, 0, 1]) {
         const i = radarFrameIndex + off;
         if (i < 0 || i >= radarFrames.length) continue;
@@ -351,7 +358,7 @@ const MapWebGL = ({
         if (!url) continue;
         const id = sid(url);
         // Current frame wins if a neighbor shares the URL (dedup by source id).
-        if (!want.has(id) || off === 0) want.set(id, { url, opacity: off === 0 ? 0.65 : 0 });
+        if (!want.has(id) || off === 0) want.set(id, { url, opacity: off === 0 ? curOp : 0 });
       }
       const st = mapInstance.getStyle();
       // Prune frame layers that are no longer wanted AND not still crossfading out (opacity>0

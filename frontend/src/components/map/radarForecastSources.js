@@ -207,8 +207,10 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
 // timeline. PAST frames only — it is an OBSERVATION product, so future frames truthfully carry
 // no lightning rather than inventing it. The layer is TIME-enabled with nearestValue=1
 // (GetCapabilities-proven), so each frame's timestamp snaps server-side to the nearest available
-// observation; CORS is open (ACAO: *). Coverage is CONUS (Vaisala NLDN) — outside, tiles render
-// transparent, the same regional-truth model as the HRRR forecast feed.
+// observation; CORS is open (ACAO: *). Coverage is NEAR-GLOBAL — the nowCOAST layer's
+// EX_GeographicBoundingBox is lon -180→180, lat -25→80 (Vaisala GLD360 GLOBAL lightning, not just
+// US NLDN — GetCapabilities-verified 2026-07-08). This is WHY lightning shows worldwide (e.g. Sahel
+// storms) even where RainViewer radar has no coverage — a FEATURE (global storm detection), not a bug.
 // Kill: __RAW_RADAR_LIGHTNING_DISABLED__.
 export function radarLightningTileUrl(frame, win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
