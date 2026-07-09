@@ -19,37 +19,33 @@ const PAST = [
 ];
 
 describe('radar advection — frame emission', () => {
-  it('OFF by default: no advect frames, HRRR near-term frames present (unchanged behavior)', () => {
+  it('ON by default: advect frames at 15/30/45/60 (cap 60) with correct leadFactor + observed paths', () => {
     const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST);
-    expect(frames.length).toBeGreaterThan(0);
-    expect(frames.some(f => f.source === 'advect')).toBe(false);
-    // near-term HRRR frames (<=30 min) are NOT skipped when advection is off
-    expect(frames.some(f => (f.time - NOW_S) <= 30 * 60)).toBe(true);
-  });
-
-  it('ON (opt-in): advect frames at 15/30 with correct leadFactor + observed paths', () => {
-    const win = { __RAW_RADAR_ADVECTION__: true };
-    const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, PAST);
     const advect = frames.filter(f => f.source === 'advect');
-    expect(advect.map(f => f.minutes)).toEqual([15, 30]);
+    expect(advect.map(f => f.minutes)).toEqual([15, 30, 45, 60]);
     expect(advect[0].leadFactor).toBeCloseTo((15 * 60) / 600); // 1.5 observed-intervals
-    expect(advect[1].leadFactor).toBeCloseTo((30 * 60) / 600); // 3.0
+    expect(advect[3].leadFactor).toBeCloseTo((60 * 60) / 600); // 6.0
     expect(advect[0].prevPath).toBe('/v2/radar/PREV');
     expect(advect[0].currPath).toBe('/v2/radar/CURR');
     expect(advect[0].future).toBe(true);
   });
 
+  it('explicit __RAW_RADAR_ADVECTION__=false opts out (HRRR owns the near term again)', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_ADVECTION__: false }, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'advect')).toBe(false);
+    expect(frames.some(f => (f.time - NOW_S) <= 30 * 60)).toBe(true);
+  });
+
   it('ON: HRRR yields the near term (all HRRR frames beyond the advect cap) and the list is time-ordered', () => {
-    const win = { __RAW_RADAR_ADVECTION__: true };
-    const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, PAST);
+    const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST);
     const hrrr = frames.filter(f => f.source === 'iem_hrrr');
     expect(hrrr.length).toBeGreaterThan(0);
-    expect(hrrr.every(f => (f.time - NOW_S) > 30 * 60)).toBe(true);
+    expect(hrrr.every(f => (f.time - NOW_S) > 60 * 60)).toBe(true);
     const times = frames.map(f => f.time);
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
-  it('kill switch __RAW_RADAR_ADVECTION_DISABLED__ overrides the opt-in', () => {
+  it('kill switch __RAW_RADAR_ADVECTION_DISABLED__ overrides the default', () => {
     const win = { __RAW_RADAR_ADVECTION__: true, __RAW_RADAR_ADVECTION_DISABLED__: true };
     const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, PAST);
     expect(frames.some(f => f.source === 'advect')).toBe(false);
@@ -63,9 +59,8 @@ describe('radar advection — frame emission', () => {
   });
 
   it('advect works standalone when no HRRR run is discovered (advect-only frames)', () => {
-    const win = { __RAW_RADAR_ADVECTION__: true };
-    const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', null, PAST);
-    expect(frames.length).toBe(2);
+    const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', null, PAST);
+    expect(frames.length).toBe(4); // 15/30/45/60 (cap 60)
     expect(frames.every(f => f.source === 'advect')).toBe(true);
   });
 

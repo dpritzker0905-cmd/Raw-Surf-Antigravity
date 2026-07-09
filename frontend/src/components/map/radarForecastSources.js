@@ -119,11 +119,13 @@ const SOURCE_STEP_MIN = { iem_hrrr: 30, dwd_wn: 30, dwd_rv: 30 };
 
 // ADVECTION NOWCAST near-term cap/step, minutes (backlog #2, runbook §8c). Advected RainViewer
 // frames bridge the ~9.71%→3.27% observed↔HRRR coverage cliff by extrapolating the last observed
-// echo forward along its motion for the near term; HRRR takes over beyond the cap. OFF by default
-// (unverified without a live storm) — opt in with __RAW_RADAR_ADVECTION__=true; the documented kill
-// switch __RAW_RADAR_ADVECTION_DISABLED__ hard-disables it (wins once we flip the default post-verify).
+// echo forward along its motion for the near term; HRRR takes over beyond the cap. This is the
+// INDUSTRY fix (Ventusky/Windy: Lagrangian extrapolation — estimate the echo motion field between
+// the last two radar images, advect the latest observation forward; skillful the first 30–60 min).
+// DEFAULT-ON (2026-07-08) so the forecast carries the crisp observed echo instead of cliffing to
+// HRRR's sparse QPF at "now". Kill: __RAW_RADAR_ADVECTION_DISABLED__ (or __RAW_RADAR_ADVECTION__=false).
 // Tunable: __RAW_RADAR_ADVECT_CAP_MIN__, __RAW_RADAR_ADVECT_STEP_MIN__.
-const ADVECT_CAP_MIN_DEFAULT = 30;
+const ADVECT_CAP_MIN_DEFAULT = 60;  // Ventusky's stated nowcast sweet spot = the first 30–60 min
 const ADVECT_STEP_MIN_DEFAULT = 15;
 
 export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS', hrrrRunMs = null, pastFrames = []) {
@@ -139,10 +141,9 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
     // Warp the last OBSERVED frame forward along its motion so the near term carries the observed
     // echo (advected) instead of cliffing to HRRR's sparser QPF at "now". Emitted FIRST (earliest
     // valid times) so the composed [past…future] list stays time-ordered; HRRR then covers the
-    // leads beyond the advect cap. Gated OFF by default → existing HRRR behavior is byte-identical
-    // unless a caller opts in.
+    // leads beyond the advect cap. DEFAULT-ON — turns off only on an explicit false / the kill switch.
     let advectCapMin = 0;
-    const advectOn = w.__RAW_RADAR_ADVECTION__ === true && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
+    const advectOn = w.__RAW_RADAR_ADVECTION__ !== false && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
       && Array.isArray(pastFrames) && pastFrames.length >= 2;
     if (advectOn) {
       const prevF = pastFrames[pastFrames.length - 2];
