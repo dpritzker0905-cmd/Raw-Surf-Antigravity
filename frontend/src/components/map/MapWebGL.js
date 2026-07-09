@@ -301,37 +301,18 @@ const MapWebGL = ({
     mapInstance, activeLayers, activeRenderType, windData, marineData
   });
 
-  // ZOOM-GATED radar tile resolution (2026-07-08, "radar loads slowly"): 512px tiles on tileSize 256 =
-  // 2x supersample = 4x the bytes per tile. Zoomed OUT (continental view) that crispness is invisible but
-  // the byte cost is paid across many tiles → slow first paint. So serve 512 only when zoomed IN (z>=5.5,
-  // where detail reads) and drop to native 256 when zoomed OUT (z<4.5) — a pure byte reduction, FPS-safe
-  // (the b62a50ef killer was the opacity EXPRESSION + main-thread advection, not tile size; 512-alone was
-  // FPS-clean per c7381934). Hysteresis deadband (4.5/5.5) stops boundary flapping; the bucket flips only
-  // on zoomend, so no per-frame churn. Kills: __RAW_RADAR_256_TILES__ (always 256) /
-  // __RAW_RADAR_ZOOMGATE_DISABLED__ (always 512 = the c7381934 look).
-  const [radarHiRes, setRadarHiRes] = useState(true);
-  useEffect(() => {
-    if (!mapInstance) return;
-    const HI = 5.5, LO = 4.5;
-    const evalBucket = () => {
-      let z;
-      try { z = mapInstance.getZoom(); } catch (e) { return; }
-      setRadarHiRes(prev => (prev && z < LO) ? false : (!prev && z >= HI) ? true : prev);
-    };
-    evalBucket(); // seed from the current zoom on mount so first radar load matches the view
-    mapInstance.on('zoomend', evalBucket);
-    return () => { try { mapInstance.off('zoomend', evalBucket); } catch (e) {} };
-  }, [mapInstance]);
-
   // Per-frame tile URL (past = RainViewer path; future = model-aware forecast WMS —
   // radarForecastSources.js; RainViewer's nowcast was discontinued Jan 2026).
+  // NOTE (2026-07-08): a zoom-gated 512<->256 experiment was REVERTED — putting the tile size on a
+  // zoom-driven state re-mounted every frame's source on each zoom bucket flip, which re-fetched all
+  // RainViewer tiles through MapLibre's CORS/fetch path and rate-limited the CDN (CORS ERR_FAILED flood,
+  // radar tiles stopped loading). The URL MUST stay stable per frame. 512 is the shipped default
+  // (c7381934, crisp); kill to 256 with __RAW_RADAR_256_TILES__ if the CDN throttles the larger tiles.
   const radarFrameUrl = (frame) => {
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
-    const force256 = typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true;
-    const gateOff = typeof window !== 'undefined' && window.__RAW_RADAR_ZOOMGATE_DISABLED__ === true;
-    const px = force256 ? '256' : ((gateOff || radarHiRes) ? '512' : '256');
+    const px = (typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true) ? '256' : '512';
     return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
@@ -409,7 +390,7 @@ const MapWebGL = ({
       }
     } catch (e) { /* style transition — next index change retries */ }
     return undefined;
-  }, [mapInstance, radarFrames, radarFrameIndex, activeLayers, radarHiRes]);
+  }, [mapInstance, radarFrames, radarFrameIndex, activeLayers]);
 
   // Lightning strike density companion (2026-07-06): observed NLDN via nowCOAST, same frame
   // index as radar — PAST frames only (observation truth; future frames carry none). The
