@@ -140,12 +140,21 @@ export const MapForecastOverlay = ({
   // v7.0: Also fall back to grid immediately during scrubbing or when point has null height to prevent flickering.
   // v8.0: Also fall back during exact_loading WITHOUT grid parity to prevent "odd data" flash
   //       from stale forecast data being shown before the exact point API response arrives.
-  const useExactPoint = isExactPointValid ? effectiveExactPoint : null;
   // Grid parity = the heatmap hour parity flag AND the heatmap frame on screen actually
   // matches the requested {model, layer, hour}. Without BOTH, a grid/forecast sample would
   // be relabeled as the newly-selected target — the v8 regression this gate prevents.
   const hasGridParity = typeof window !== 'undefined' && window.__MARINE_RENDER_HOUR_PARITY__?.parity === true;
   const gridParityOk = hasGridParity && displayMatchesRequested({ model: activeModel, layer: activeLayer, hour: timeOffsetHours });
+
+  // FLASH FIX (2026-07-08): an exact_stale_available hit is 3-12h OFF the requested hour. When the
+  // on-screen heatmap IS at the requested hour (grid parity), that parity-grid sample is MORE
+  // time-accurate than the stale point, so prefer it — nulling the stale point here lets the value
+  // chain fall through to the grid (via useGridFallback below). Without parity the stale point is the
+  // best available and is kept (shown with the "(latest)" marker). Kill: __RAW_INFOBOX_STALE_TIGHTEN_DISABLED__.
+  const isExactPointStale = effectiveExactPointStatus === 'exact_stale_available';
+  const staleTightenOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_STALE_TIGHTEN_DISABLED__ === true;
+  const preferGridOverStale = isExactPointStale && gridParityOk && !staleTightenOff;
+  const useExactPoint = (isExactPointValid && !preferGridOverStale) ? effectiveExactPoint : null;
 
   const allExactValuesNull = !!useExactPoint &&
     useExactPoint.wave_height === null && useExactPoint.swell_wave_height === null &&

@@ -70,6 +70,13 @@ export function compileForecastCards({
 }) {
   const cards = [];
 
+  // GRACEFUL TIMEOUT (2026-07-08): a bare "Timeout" reads as a hard error, but the exact-point budget
+  // just elapsed against a (usually cold) backend and self-heals when it warms / on the next fetch — and
+  // whenever any grid or forecast value exists the Source card already reads "(Grid Fallback)". Soften the
+  // no-data terminal wording to "Updating…" so it reads as recoverable. Kill: __RAW_INFOBOX_TIMEOUT_SOFT_DISABLED__.
+  const timeoutSoftOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_TIMEOUT_SOFT_DISABLED__ === true;
+  const TIMEOUT_LABEL = timeoutSoftOff ? 'Timeout' : 'Updating…';
+
   if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
     const hasSnow = snowfall != null && snowfall > 0;
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
@@ -286,9 +293,9 @@ export function compileForecastCards({
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
       } else if (isExactPointAuthority && isExactPointTimeout && swell1Height == null) {
-        displayHeight = 'Timeout';
-        displayPeriod = 'Timeout';
-        displayDir = 'Timeout';
+        displayHeight = TIMEOUT_LABEL;
+        displayPeriod = TIMEOUT_LABEL;
+        displayDir = TIMEOUT_LABEL;
       } else if (isExactPointAuthority && isExactPointError && swell1Height == null) {
         displayHeight = exactPointStatus === 'rate_limited'
           ? 'Rate limited'
@@ -380,9 +387,9 @@ export function compileForecastCards({
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
       } else if (isExactPointAuthority && isExactPointTimeout && swell2Height == null) {
-        displayHeight = 'Timeout';
-        displayPeriod = 'Timeout';
-        displayDir = 'Timeout';
+        displayHeight = TIMEOUT_LABEL;
+        displayPeriod = TIMEOUT_LABEL;
+        displayDir = TIMEOUT_LABEL;
       } else if (isExactPointAuthority && isExactPointError && swell2Height == null) {
         displayHeight = exactPointStatus === 'rate_limited'
           ? 'Rate limited'
@@ -464,9 +471,9 @@ export function compileForecastCards({
         displayPeriod = 'Loading...';
         displayDir = 'Loading...';
       } else if (isExactPointAuthority && isExactPointTimeout && windWaveHeight == null) {
-        displayHeight = 'Timeout';
-        displayPeriod = 'Timeout';
-        displayDir = 'Timeout';
+        displayHeight = TIMEOUT_LABEL;
+        displayPeriod = TIMEOUT_LABEL;
+        displayDir = TIMEOUT_LABEL;
       } else if (isExactPointAuthority && isExactPointError && windWaveHeight == null) {
         displayHeight = exactPointStatus === 'rate_limited'
           ? 'Rate limited'
