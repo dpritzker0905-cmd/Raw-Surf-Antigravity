@@ -122,3 +122,50 @@ subjective visual/perf CANNOT.
 
 **Session status: radar in a clean, honest, faithful state at `6f179d0c` (pushed). Next context: §2 Precip
 bold/uniform/global, then the ranked backlog (§3).**
+
+---
+
+## 6. SESSION CLOSE (07-08 latest+2, Opus 4.8) — Precip §2 SHIPPED + radar-latency + infobox flash/timeout
+
+**dev HEAD `017929db`, dev == origin/dev (PUSHED). Tree clean. FE 87 suites / 720 tests GREEN** (baseline
+held — 0 regressions). Two commits, each change independently kill-switched. **⚠️ Verify the deployed SW
+`BUILD_VERSION` == `017929db` on `dev--rawsurf.netlify.app` before judging any of this (stale-bundle trap).**
+All three shipped items are **subjective visual/perf → user verifies on the real browser** (headless can't judge).
+
+### 6a. What shipped
+| Commit | What | Kill switch |
+|---|---|---|
+| `6b6e5d64` | **Precip bold/uniform/global (§2 DONE).** New hue-progressive precip palette (light-blue→blue→teal→lime→yellow→orange→red; `colorScales.js` `precipitation`, `applyPrecipColorScale()` pushes to the live `om://` protocol) so intensity reads by COLOR + light drizzle is visible on dark; rain raster-opacity 0.35→0.52 bumped to 0.60→0.78 (`MapWebGL.js` `openMeteoRasterSlots`, it multiplies the palette alpha). Global+uniform already (`PRECIP_MODEL_MAP` GFS/ICON/ECMWF). Radar untouched, **no seams**. | `__RAW_PRECIP_BOLD_DISABLED__` → legacy faint ramp |
+| `6b6e5d64` | **Radar 512-tile load latency.** Zoom-gated tile resolution w/ hysteresis: 256px z<4.5 (supersample invisible zoomed-out, 4× fewer bytes = faster paint) / 512px z≥5.5. Bucket flips only on `zoomend` → no per-frame churn. Pure byte reduction, FPS-safe (b62a50ef killer was the opacity expr, not tile size). `MapWebGL.js:306` `radarFrameUrl` + a `radarHiRes` state/effect; added to the frame-manager deps. | `__RAW_RADAR_ZOOMGATE_DISABLED__` (always 512) / `__RAW_RADAR_256_TILES__` (always 256) |
+| `017929db` | **Infobox flash fix.** `exact_stale_available` (3–12h OFF the requested hour) was treated authoritative; now when grid parity holds (heatmap IS at the requested hour) the parity-grid is preferred over the stale point (null it, chain falls to grid). Without parity the stale point is kept ("(latest)"). `MapForecastOverlay.js`. | `__RAW_INFOBOX_STALE_TIGHTEN_DISABLED__` |
+| `017929db` | **Infobox timeout softening.** Bare alarming "Timeout" (only shows when the exact-point budget elapses AND there's no grid/forecast fallback) → "Updating…" (reads as recoverable; with a value the Source card already says "(Grid Fallback)"). `forecastCardCompiler.js` `TIMEOUT_LABEL`. | `__RAW_INFOBOX_TIMEOUT_SOFT_DISABLED__` |
+
+### 6b. Infobox — FULL diagnosis (for the fix that was NOT taken: the coarse→precise "flash")
+The dominant "flashes wrong then corrects" is **intended optimistic rendering**: the overlay shows the coarse
+heatmap-grid value immediately, then swaps to the precise exact-point API value (250ms debounce + network).
+Near coasts the coarse open-water vs. precise nearshore-breaking values differ a lot → reads as "wrong". The
+user chose NOT to change that tradeoff (the "spinner-first for fast models" option was declined); we tightened
+the two genuine defects instead (stale-hour authority + timeout wording). If the coarse→precise jump is still
+objectionable, the remaining lever is spinner-first for GFS/ICON (fast, <3s) — a deliberate UX-tradeoff flip on
+the v5.7→v8.0 guarded cascade, do it kill-switched + user-verified.
+
+### 6c. Radar light-precip contrast — ASSESSED, deferred (not blind-edited)
+RainViewer past tiles are pre-colored scheme-7 PNGs. A light-precip contrast change = a different RainViewer
+scheme (breaks continuity with the `hrrr-rv://`/`dwd-rv://` recolored FUTURE frames) or a client-side recolor —
+both need a **live-tile-sampled A/B** (`5f3d12c9`: never derive palette from docs) from the right viewport. The
+**bold Precip layer now covers the global "looks like no coverage" feel**; `__RAW_RADAR_OPACITY__` (0.8) is the
+safe tuning lever. Recommend a dedicated live eyeball pass, not a blind edit.
+
+### 6d. Backlog carry-forward (unchanged, all deferred = real-browser / dedicated sessions)
+1. **Scrub/toggle perf §7c/§10 subtree** — MAXIMAL coupling, NO clean kill switch, real-browser React-Profiler
+   session only (attribution proved it's React-bound, not paint). The last safe headless lever is exhausted.
+2. **Radar advection** (`5578e21b`→`9170dd2f`, OPT-IN CONUS) — LIVE-STORM motion-plausibility + ~240ms/tile perf
+   + global (needs the non-blocking estimate first).
+3. **z9 clamping §10c** — marine-commit A/B against the §5a graveyard.
+4. Sheltered-water/intracoastal exposure (design-heavy) · external uptime probe on `/api/health/data` · reseed
+   blink · eyeballs (radar palette live A/B, colormap v5, Baja).
+
+**Session status: CLOSED at `017929db` (pushed).** Precip §2 done; radar-latency + infobox flash/timeout shipped,
+each kill-switched, FE 720 green. The high-coupling UX items (scrub subtree, advection, z9, sheltered-water)
+remain correctly deferred to focused real-browser sessions. Next: user verifies the three shipped items live,
+then pick ONE deferred item as a dedicated session.**
