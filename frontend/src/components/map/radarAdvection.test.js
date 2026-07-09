@@ -3,7 +3,7 @@
  * Synthetic shifted frames → the estimator must recover the shift; the warp must advect it.
  * Headless, deterministic — no DOM/canvas (the core operates on plain RGBA arrays).
  */
-import { echoField, echoFraction, estimateMotion, advectTile, advectForecast } from './radarAdvection';
+import { echoField, echoFraction, estimateMotion, advectTile, advectTileWithNeighbors, advectForecast } from './radarAdvection';
 
 const W = 256, H = 256;
 
@@ -113,6 +113,46 @@ describe('radarAdvection — advectTile', () => {
     const t = makeBlob(128, 128, 20);
     const out = advectTile(t, W, H, 400, 0);
     expect(centroid(out).mass).toBe(0);
+  });
+});
+
+describe('radarAdvection — advectTileWithNeighbors fills the upwind edge (no "rectangle" blank)', () => {
+  // Solid opaque tiles of distinct colors so we can read which source filled each output band.
+  const solid = (r, g, b) => {
+    const d = new Uint8ClampedArray(W * H * 4);
+    for (let i = 0; i < d.length; i += 4) { d[i] = r; d[i + 1] = g; d[i + 2] = b; d[i + 3] = 255; }
+    return d;
+  };
+  const px = (d, x, y) => { const i = (y * W + x) * 4; return [d[i], d[i + 1], d[i + 2], d[i + 3]]; };
+
+  it('eastward motion pulls the WEST neighbor into the incoming left band (not transparent)', () => {
+    const center = solid(255, 0, 0);   // red
+    const west = solid(0, 255, 0);     // green (the upwind neighbor for dx>0)
+    const out = advectTileWithNeighbors({ '0,0': center, '-1,0': west }, W, H, 80, 0);
+    // Left band (x < 80) sampled from x-80 < 0 → the west neighbor: green + opaque, NOT blank.
+    expect(px(out, 5, 128)).toEqual([0, 255, 0, 255]);
+    expect(px(out, 40, 128)).toEqual([0, 255, 0, 255]);
+    // Interior (x well past the seam) is still the center echo.
+    expect(px(out, 200, 128)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('without the neighbor, the same warp leaves a transparent band (the bug it fixes)', () => {
+    const out = advectTile(solid(255, 0, 0), W, H, 80, 0);
+    expect(px(out, 5, 128)[3]).toBe(0);   // isolated per-tile warp → blank incoming band
+    expect(px(out, 40, 128)[3]).toBe(0);
+    expect(px(out, 200, 128)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('a MISSING upwind neighbor degrades to transparent for that band (grid-edge safety)', () => {
+    const out = advectTileWithNeighbors({ '0,0': solid(255, 0, 0) }, W, H, 80, 0);
+    expect(px(out, 5, 128)[3]).toBe(0);   // no neighbor supplied → same as isolated warp, no crash
+    expect(px(out, 200, 128)).toEqual([255, 0, 0, 255]);
+  });
+
+  it('(0,0) motion is identity on the center tile', () => {
+    const center = solid(10, 20, 30);
+    const out = advectTileWithNeighbors({ '0,0': center, '-1,0': solid(0, 0, 0) }, W, H, 0, 0);
+    expect(Array.from(out)).toEqual(Array.from(center));
   });
 });
 

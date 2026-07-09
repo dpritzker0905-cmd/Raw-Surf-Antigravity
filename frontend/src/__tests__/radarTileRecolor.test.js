@@ -1,4 +1,4 @@
-import { recolorRadarImageData, recolorDwdImageData, whitenLightningImageData, extractLightningStrikes } from '../components/map/radarTileRecolor';
+import { recolorRadarImageData, recolorDwdImageData, whitenLightningImageData, extractLightningStrikes, neighborTileUrl } from '../components/map/radarTileRecolor';
 import { radarForecastTileUrl, radarLightningTileUrl } from '../components/map/radarForecastSources';
 
 // HRRR forecast tiles are painted with pyiem's precip-type ramps (green rain); the past frames
@@ -134,6 +134,34 @@ describe('extractLightningStrikes — density cores become geo-points for the fl
     for (let y = 4; y <= 6; y++) for (let x = 4; x <= 6; x++) { const i = (y * W + x) * 4; d[i] = 255; d[i+3] = 255; }
     expect(extractLightningStrikes(d, W, H, bbox).length).toBe(1);
     expect(extractLightningStrikes(new Uint8ClampedArray(W * H * 4), W, H, bbox)).toEqual([]);
+  });
+});
+
+// Neighbor-aware advection fill (2026-07-09): the advect handler steps the observed tile URL to its
+// upwind neighbor to fill the incoming edge. x wraps mod 2^z (longitude); y out of range → null.
+describe('neighborTileUrl — steps x/y in the observed RainViewer tile path', () => {
+  const direct = 'https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/9/12/7/1_0.png';
+  const proxied = '/rv/v2/radar/1720000000/256/5/9/12/7/1_0.png';
+
+  it('steps x/y for direct and proxied URLs alike', () => {
+    expect(neighborTileUrl(direct, -1, 0)).toBe('https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/8/12/7/1_0.png');
+    expect(neighborTileUrl(direct, 0, -1)).toBe('https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/9/11/7/1_0.png');
+    expect(neighborTileUrl(proxied, 1, 1)).toBe('/rv/v2/radar/1720000000/256/5/10/13/7/1_0.png');
+  });
+
+  it('(0,0) returns the same URL; a non-matching URL returns null', () => {
+    expect(neighborTileUrl(direct, 0, 0)).toBe(direct);
+    expect(neighborTileUrl('https://example.com/not/a/tile.png', 1, 0)).toBeNull();
+  });
+
+  it('wraps longitude (x) modulo 2^z but never wraps latitude (y)', () => {
+    const x0 = 'https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/0/12/7/1_0.png';
+    // z=5 → 32 tiles; x=0 west neighbor wraps to 31.
+    expect(neighborTileUrl(x0, -1, 0)).toBe('https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/31/12/7/1_0.png');
+    const yTop = 'https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/9/0/7/1_0.png';
+    expect(neighborTileUrl(yTop, 0, -1)).toBeNull();   // y=-1 off the grid → no tile (band stays clear)
+    const yBot = 'https://tilecache.rainviewer.com/v2/radar/1720000000/256/5/9/31/7/1_0.png';
+    expect(neighborTileUrl(yBot, 0, 1)).toBeNull();    // y=32 off the grid
   });
 });
 

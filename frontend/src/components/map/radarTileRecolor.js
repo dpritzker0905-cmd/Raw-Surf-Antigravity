@@ -21,7 +21,7 @@
  * protocol is bypassed entirely.
  */
 import maplibregl from 'maplibre-gl';
-import { estimateMotion, advectTile } from './radarAdvection';
+import { estimateMotion, advectTile, advectTileWithNeighbors } from './radarAdvection';
 
 export const RADAR_RECOLOR_PROTOCOL = 'hrrr-rv';
 
@@ -402,10 +402,28 @@ export const RADAR_ADVECT_PROTOCOL = 'advect-rv';
 // graveyard). Dormant unless radarForecastSources emits advect frames (__RAW_RADAR_ADVECTION__=true).
 const _advectMotion = new Map();   // 'prevUrl|currUrl' → { dx, dy, confidence, ts }
 const _advectOut = new Map();      // full advect-rv:// url → { buf, ts }
+const _advectDecoded = new Map();  // observed https tile url → { data, w, h, ts } (shared across leads + neighbors)
 const _advectInflight = new Map();
 const ADVECT_TTL_MS = 10 * 60 * 1000;
 const ADVECT_CACHE_MAX = 256;
 let _blankTileBuf = null;
+
+// Step an observed RainViewer tile URL to its (gx,gy) neighbor by editing the x/y in the
+// .../<size>/<z>/<x>/<y>/7/1_0.png path (2026-07-09, neighbor-aware advection fill). Longitude (x)
+// wraps modulo 2^z; latitude (y) out of [0,2^z) → null (grid edge: that band stays transparent).
+// Works for both proxied (/rv/...) and direct RainViewer URLs — the path tail is identical. Exported
+// for tests.
+const RV_TILE_RE = /\/(256|512)\/(\d+)\/(\d+)\/(\d+)\/7\/1_0\.png(\?|$)/;
+export function neighborTileUrl(url, gx, gy) {
+  if (!gx && !gy) return url;
+  const m = RV_TILE_RE.exec(url);
+  if (!m) return null;
+  const z = +m[2], x = +m[3], y = +m[4], n = 1 << z;
+  let nx = (x + gx) % n; if (nx < 0) nx += n;
+  const ny = y + gy;
+  if (ny < 0 || ny >= n) return null;
+  return url.replace(RV_TILE_RE, (_full, size, zz, _x, _y, tail) => `/${size}/${zz}/${nx}/${ny}/7/1_0.png${tail}`);
+}
 
 function advCanvas(w, h) {
   return typeof OffscreenCanvas !== 'undefined'
@@ -426,6 +444,20 @@ async function advDecodeTile(url) {
   const ctx = canvas.getContext('2d', { willReadFrequently: true });
   ctx.drawImage(bitmap, 0, 0);
   return { data: ctx.getImageData(0, 0, bitmap.width, bitmap.height).data, w: bitmap.width, h: bitmap.height };
+}
+// Decode-once cache for observed tiles: the 4 lead frames + the neighbor fills of adjacent advect
+// tiles all reference the same handful of observed RainViewer tiles, so decoding each ONCE (keyed by
+// url) avoids re-fetch/re-decode churn. Fetch bytes are already proxy/HTTP-cached; this caches the
+// decoded RGBA. TTL matches the observed-catalog cadence.
+async function advGetTile(url) {
+  const now = Date.now();
+  const hit = _advectDecoded.get(url);
+  if (hit && now - hit.ts < ADVECT_TTL_MS) return hit;
+  const t = await advDecodeTile(url);
+  const rec = { data: t.data, w: t.w, h: t.h, ts: now };
+  _advectDecoded.set(url, rec);
+  advPrune(_advectDecoded);
+  return rec;
 }
 async function advBlankTile(w = 256, h = 256) {
   if (_blankTileBuf) return _blankTileBuf.slice(0);
@@ -452,17 +484,42 @@ function makeAdvectHandler() {
         const leadFactor = parseFloat(rest.slice(0, bar));
         const [prevUrl, currUrl] = rest.slice(bar + 1).split('|');
         if (!prevUrl || !currUrl || !isFinite(leadFactor)) return { data: await advBlankTile() };
-        const curr = await advDecodeTile(currUrl);
+        const curr = await advGetTile(currUrl);
         // Motion is lead-INDEPENDENT — estimate once per (prev,curr) tile pair, reuse across leads.
         const mkey = prevUrl + '|' + currUrl;
         let motion = _advectMotion.get(mkey);
         if (!motion || now - motion.ts > ADVECT_TTL_MS) {
-          const prev = await advDecodeTile(prevUrl);
+          const prev = await advGetTile(prevUrl);
           motion = { ...estimateMotion(prev.data, curr.data, curr.w, curr.h), ts: now };
           _advectMotion.set(mkey, motion);
           advPrune(_advectMotion);
         }
-        const warped = advectTile(curr.data, curr.w, curr.h, motion.dx * leadFactor, motion.dy * leadFactor);
+        // Warp curr forward by motion×lead. NEIGHBOR-AWARE by default (2026-07-09): fill the upwind
+        // incoming edge from the real echo of the upwind neighbor tile(s) so the warp does NOT leave
+        // the grid of blank "vertical rectangle" bands that grow toward the horizon (leadFactor≈6 at
+        // 60 min → up to a ~240px transparent band per 256px tile). |motion| stays < one tile, so at
+        // most the 3 upwind neighbors are needed; each is a proxy/decoded-cached observed tile shared
+        // across leads and adjacent advect tiles. Kill: __RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ (→ the
+        // old isolated per-tile warp).
+        const wx = motion.dx * leadFactor, wy = motion.dy * leadFactor;
+        const win = typeof window !== 'undefined' ? window : {};
+        let warped;
+        if (win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true && (Math.abs(wx) >= 1 || Math.abs(wy) >= 1)) {
+          const tiles = { '0,0': curr.data };
+          const gxs = wx > 0 ? [-1, 0] : wx < 0 ? [0, 1] : [0];
+          const gys = wy > 0 ? [-1, 0] : wy < 0 ? [0, 1] : [0];
+          const jobs = [];
+          for (const gy of gys) for (const gx of gxs) {
+            if (gx === 0 && gy === 0) continue;
+            const nurl = neighborTileUrl(currUrl, gx, gy);
+            if (!nurl) continue;
+            jobs.push(advGetTile(nurl).then((t) => { tiles[`${gx},${gy}`] = t.data; }).catch(() => {}));
+          }
+          if (jobs.length) await Promise.all(jobs);
+          warped = advectTileWithNeighbors(tiles, curr.w, curr.h, wx, wy);
+        } else {
+          warped = advectTile(curr.data, curr.w, curr.h, wx, wy);
+        }
         const canvas = advCanvas(curr.w, curr.h);
         canvas.getContext('2d').putImageData(new ImageData(warped, curr.w, curr.h), 0, 0);
         const out = await advCanvasToBuf(canvas);

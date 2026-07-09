@@ -21,10 +21,32 @@ working state. **The next focus is MARINE (§3).**
 | `6200c496`→`3c59f8e3` | Radar Stage-2 model-precip far-term — **REVERTED** (seaming crisp radar + coarse model looks awful = the IMERG mistake on the time axis). Radar = observed + advection nowcast, then STOP; the long forecast is the SEPARATE **Precip** layer (Windy/Ventusky keep them separate — forensically confirmed). HRRR = fallback/opt-in `__RAW_RADAR_HRRR_FAR__`. | — | ✅ correct architecture |
 | `5ec7f7e9` | Radar observed tiles → **native 256px** (512 supersample `c7381934` was 4× bytes → ERR_CONNECTION_RESET on slow networks). | `__RAW_RADAR_512_TILES__` (opt back to 512) | ✅ |
 | `928c5546`→`84bb1351` | **RainViewer tile PROXY** (Netlify edge fn `frontend/netlify/edge-functions/rvproxy.js`, `/rv/*`, durable CDN cache) + **advection default-ON**. The advect tiles route through the cached proxy (`rainviewerTileTemplate`); observed stays direct. | `__RAW_RADAR_PROXY_DISABLED__` (advect→direct) / `__RAW_RADAR_ADVECTION_DISABLED__` | ⚠️ **UNVERIFIED — user must confirm live** |
+| *(pending)* | **NEIGHBOR-AWARE advection warp** — the advect handler now fills each tile's upwind incoming edge from the real echo of the upwind neighbor observed tile(s) (`advectTileWithNeighbors` + `neighborTileUrl` in `radarAdvection.js`/`radarTileRecolor.js`). Fixes the "last-hour of the forecast shows blank VERTICAL RECTANGLES" that the per-tile isolated warp left (see §2a). +decode-once observed-tile cache. FE 728 green (+7). | `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__` (→ old isolated per-tile warp) | ⚠️ user verifies live |
 
 ---
 
 ## 2. RADAR CLOSE — the hard-won truths (do NOT re-learn these)
+
+### 2a. TWO different causes of "blank vertical rectangles" — do NOT conflate them
+There are **two** distinct failure modes that both read as blank vertical-column gaps. When the user reports
+"rectangles," diagnose WHICH:
+- **(i) Rate-limit / CORS (whole tiles missing, worst zoomed out, uniform across ALL frames incl. observed):**
+  RainViewer 429 → no ACAO → browser CORS block → whole tiles blank. Fixed by the tile PROXY (`84bb1351`) +
+  `__RAW_RADAR_ADVECTION_DISABLED__`. This one takes the OBSERVED radar down too.
+- **(ii) Per-tile warp seam (grid of blank bands that GROW toward the forecast horizon, advected frames only):**
+  `advectTile` warped each tile in ISOLATION — `dst(x,y)=src(x−dx,y−dy)` — so content that should flow in from
+  the upwind neighbor tile was unavailable and the upwind edge went transparent. Every tile shifts by the SAME
+  motion vector, so the per-tile blank edges line up into a regular grid, and they widen with lead: at the 60-min
+  frame `leadFactor≈6` (60 min ÷ ~10-min observed interval), a clamped 40 px/interval echo shift → up to a
+  **~240 px blank band on a 256 px tile** ⇒ the *last hour* is nearly blank. **The tell that it's (ii) not (i):
+  the gaps get worse the further into the FORECAST you scrub, and the observed/past frames are clean.**
+  **FIX (this session, neighbor-aware warp):** advect the MOSAIC, not the tile — composite the (≤3) upwind
+  neighbor observed tiles around the center and sample the warp from that 3×3 buffer, so the incoming edge is
+  filled with the neighbor's real echo. `|motion| < one tile`, so only immediate neighbors are ever needed; each
+  is a proxy/decode-cached observed tile shared across the 4 leads and adjacent advect tiles (marginal fetch ≈2×
+  observed, all durably proxied). Missing neighbor (grid edge) → that band stays transparent (as before, no crash).
+  Kill: `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__`. Pure geometry + URL-step are unit-tested; the "does the
+  rectangle disappear on a live storm" judgment is the user's real browser.
 
 - **RADAR IS RATE-LIMIT-FRAGILE on the free RainViewer CDN.** Anything that multiplies tile requests →
   HTTP **429** → a 429 carries **no `access-control-allow-origin`** → the browser reports it as a **CORS
@@ -129,5 +151,6 @@ after confirming the fresh BUILD_VERSION.** One isolated, kill-switched change �
    (biggest daily-UX win; build/verify with `__SCRUB_PROBE__` + `clears`/`reinits`=0; preserve every §3a guard).
    OR §3b z9 §10c A/B if you'd rather a smaller marine-commit change first. Do ONE at a time on a CLEAN/WARM build.
 
-**Session status: radar CLOSED at `84bb1351` (pushed, proxy pending live verify). Precip + infobox shipped.
-Next context: verify the proxy, then marine (§3).**
+**Session status: radar CLOSED at `84bb1351` (pushed). Follow-up neighbor-aware advection warp staged locally
+(fixes the last-hour "vertical rectangle" seams — §2a(ii); FE 728 green, kill `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__`),
+pending commit + live verify with the proxy. Precip + infobox shipped. Next: verify radar live, then marine (§3).**

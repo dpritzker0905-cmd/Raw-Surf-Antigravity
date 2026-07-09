@@ -160,6 +160,62 @@ export function advectTile(rgba, width, height, dx, dy) {
 }
 
 /**
+ * NEIGHBOR-AWARE advection warp (2026-07-09) — the fix for the "last-hour vertical rectangle" blanks.
+ *
+ * `advectTile` warps a tile in ISOLATION: content that should flow in from an adjacent tile is
+ * unavailable, so the tile's upwind edge samples out of bounds and goes transparent. Because the whole
+ * tiled radar layer advects by the SAME motion vector, those per-tile transparent edges line up into a
+ * regular grid of blank bands ("rectangles"), and they GROW with lead — at the 60-min frame leadFactor≈6,
+ * so a 40px/interval echo shift becomes a ~240px blank band, nearly a whole 256px tile. Real nowcasters
+ * advect the MOSAIC, not the tile. Here we composite the (up to 3) UPWIND neighbor tiles around the
+ * center into one 3×3 buffer and sample the warp from THAT, so the incoming edge is filled with the
+ * neighbor's real echo instead of transparency. |motion| is clamped below one tile
+ * (ADVECTION_DEFAULTS.maxMotionCells × the max leadFactor stays < width), so only IMMEDIATE neighbors
+ * are ever sampled; a missing neighbor (grid edge) just leaves that one band transparent, as before.
+ *
+ * @param {object|Map} tiles keyed 'gx,gy' with gx,gy ∈ {-1,0,1} ('0,0' = center) → RGBA
+ *   Uint8ClampedArray (width*height*4) or null/absent. Only the center + upwind cells need be present.
+ * @returns {Uint8ClampedArray} the warped center tile (RGBA).
+ */
+export function advectTileWithNeighbors(tiles, width, height, dx, dy) {
+  const get = (k) => (tiles instanceof Map ? tiles.get(k) : tiles && tiles[k]) || null;
+  const center = get('0,0');
+  const out = new Uint8ClampedArray(width * height * 4); // zero-filled = transparent
+  if (!center) return out;
+  if (dx === 0 && dy === 0) { out.set(center); return out; }
+  // Composite the 3×3 neighborhood into one padded buffer; the center tile lives at offset (width,height).
+  const W = width * 3, H = height * 3;
+  const mos = new Uint8ClampedArray(W * H * 4);
+  for (let gy = -1; gy <= 1; gy++) {
+    for (let gx = -1; gx <= 1; gx++) {
+      const t = get(`${gx},${gy}`);
+      if (!t) continue;
+      const ox = (gx + 1) * width, oy = (gy + 1) * height;
+      for (let y = 0; y < height; y++) {
+        const s = y * width * 4;
+        mos.set(t.subarray(s, s + width * 4), ((oy + y) * W + ox) * 4);
+      }
+    }
+  }
+  // dst(x,y) = mosaic(x + width - dx, y + height - dy) — the center-tile origin sits at (width,height).
+  for (let y = 0; y < height; y++) {
+    for (let x = 0; x < width; x++) {
+      const srcX = x + width - dx, srcY = y + height - dy;
+      const x0 = Math.floor(srcX), y0 = Math.floor(srcY);
+      if (x0 < 0 || y0 < 0 || x0 >= W - 1 || y0 >= H - 1) continue; // out → transparent
+      const fx = srcX - x0, fy = srcY - y0;
+      const w00 = (1 - fx) * (1 - fy), w10 = fx * (1 - fy), w01 = (1 - fx) * fy, w11 = fx * fy;
+      const i00 = (y0 * W + x0) * 4, i10 = i00 + 4, i01 = i00 + W * 4, i11 = i01 + 4;
+      const o = (y * width + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        out[o + c] = mos[i00 + c] * w00 + mos[i10 + c] * w10 + mos[i01 + c] * w01 + mos[i11 + c] * w11;
+      }
+    }
+  }
+  return out;
+}
+
+/**
  * Predict a future tile at `leadFactor` (= leadMinutes / observedIntervalMinutes) from the two
  * latest observed tiles: estimate prev→curr motion, then warp `curr` forward by motion × leadFactor.
  * @returns {{ data: Uint8ClampedArray, dx: number, dy: number, confidence: number }}
