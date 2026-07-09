@@ -303,16 +303,20 @@ const MapWebGL = ({
 
   // Per-frame tile URL (past = RainViewer path; future = model-aware forecast WMS —
   // radarForecastSources.js; RainViewer's nowcast was discontinued Jan 2026).
-  // NOTE (2026-07-08): a zoom-gated 512<->256 experiment was REVERTED — putting the tile size on a
-  // zoom-driven state re-mounted every frame's source on each zoom bucket flip, which re-fetched all
-  // RainViewer tiles through MapLibre's CORS/fetch path and rate-limited the CDN (CORS ERR_FAILED flood,
-  // radar tiles stopped loading). The URL MUST stay stable per frame. 512 is the shipped default
-  // (c7381934, crisp); kill to 256 with __RAW_RADAR_256_TILES__ if the CDN throttles the larger tiles.
+  // TILE SIZE (2026-07-09): default to RainViewer's NATIVE 256px. 512 (the c7381934 2x supersample)
+  // is 4x the bytes/tile — on a slow/flaky connection those reset/time out (ERR_CONNECTION_RESET /
+  // ERR_HTTP2_PING_FAILED), WORST zoomed out where the viewport needs many tiles (user live 07-09,
+  // "no radar heatmaps, especially zoomed out" = slow-load, not a code break). 256 is already
+  // server-smoothed (the `/1_0` option) so it reads fine, and loads reliably. The URL stays STABLE per
+  // frame (NOT zoom-driven — that re-mount caused the reverted CORS flood). Opt into the 512 supersample
+  // on a fast connection with __RAW_RADAR_512_TILES__=true; __RAW_RADAR_256_TILES__ still forces 256.
   const radarFrameUrl = (frame) => {
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
-    const px = (typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true) ? '256' : '512';
+    const want512 = typeof window !== 'undefined' && window.__RAW_RADAR_512_TILES__ === true
+      && window.__RAW_RADAR_256_TILES__ !== true;
+    const px = want512 ? '512' : '256';
     return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
