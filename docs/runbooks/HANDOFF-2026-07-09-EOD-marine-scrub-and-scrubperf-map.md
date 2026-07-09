@@ -13,6 +13,38 @@ risk. **Do not default into §7c.** Read §7.0 before anything.
 
 ---
 
+## 0. UPDATE (07-09, later session) — SCRUB-PERF RESOLVED BY MEASUREMENT; §7c RETIRED
+
+A follow-up session drove the `window.__SCRUB_PROBE__.bench('forecast',{durationMs:6000})` harness live on
+`dev--rawsurf.netlify.app` (EURO waves, premium) at BOTH close and global zoom. **The measurement retires the
+whole §7c question — do NOT execute the `useSyncExternalStore` refactor.**
+
+| Metric | CLOSE (warm) | GLOBAL | Reading |
+|---|---|---|---|
+| `mapWebGLRenders` / 6s | 7 | 7 | **React barely re-renders under playback (~1/s)** → react-map-gl reconcile is NOT the bottleneck |
+| `frameMsMedian` | 33.3 | 33.3 | **flat 30 FPS at every zoom** (≈ the fixed-timestep loop cap, not a GPU limit) |
+| `frameMsP95 / Max` | 35.2 / 73.9 | 36.1 / 77.2 | zoom-INDEPENDENT → particle fill-rate is NOT the differentiator |
+| `newMarineClears / newParticleReinits` | 0 / 0 | 0 / 0 | scrub-hold guards intact; engine stable |
+
+**Verdict:**
+- **§7c (`useSyncExternalStore`) — RETIRED.** Only 5–7 MapWebGL renders in 6 s ⇒ the reconcile it targets is not
+  the cost. Removing it from consideration retires the single riskiest board item (no kill switch, 371-hotspot).
+- **No particle-cull needed** — global == close. The engine (87616 marine + 147456 wind particles) is fine.
+- **The felt "zoom-out crawl" is transient transition churn, not a steady-state bottleneck.** Each grid
+  bounds/dims change fires a 32 MB `4096x2048` land-mask rebuild (the 300–450 ms load-time RAF stalls). Those
+  are LEGITIMATE coarse→regional progressive-sharpen commits (finer each step), recurring per new viewport / cold
+  hour. The settle backstop already guards the pathological no-progress case (`useMarineScrubSettle.js:694-721`).
+- **OFF-LIMITS (documented-regression minefields):** mask resolution tier (`WebGLMarineMaskRenderer.js:716` —
+  4096 for <10° span fixes inlet land-bleed, 4096 for world fixes coastline-over-heatmap); the mask-retain block;
+  the particle engine; the prewarm subsystem (503 history).
+- **Caveat:** the bench measures PLAYBACK cadence (4 s), not manual DRAG. A residual manual-drag cost can't be
+  fully excluded without a manual-drag frame-time trace — but every steady-state signal says the app is stable.
+
+**∴ Jacobian: further scrub-perf = minefield surgery for a marginal gain on a stable 30-FPS app → do NOT grind
+it.** Bank the wins (encoder LOC split shipped `42ae206f`; §7c retired). Prefer §8 higher-value / lower-risk work.
+
+---
+
 ## 1. WHAT SHIPPED THIS SESSION (all on dev, pushed)
 
 | Commit | What | Kill switch | Verified |
