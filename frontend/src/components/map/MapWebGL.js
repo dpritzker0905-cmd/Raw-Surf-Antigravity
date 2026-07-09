@@ -316,6 +316,49 @@ const MapWebGL = ({
     return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
+  // GLOBAL PRECIP BASE — NASA GPM IMERG via GIBS (2026-07-08, "radar only over the USA / strange over
+  // Africa"): weather radar is national — RainViewer aggregates the world's PUBLIC radars but coverage
+  // is sparse outside US/EU/Japan (Brazil/Africa/oceans read blank or artifacty; that's RainViewer's
+  // DATA, not our render). GPM IMERG is a TRULY GLOBAL satellite precip product (incl. oceans), free +
+  // XYZ-tileable (verified), ~10 km / half-hourly. We underlay it BENEATH the RainViewer radar frames:
+  // dense regions keep their crisp radar on top, sparse regions show coarse global precip instead of
+  // nothing. Plain raster — no pixel readback (no CORS need), no animation, no main-thread work (unlike
+  // the reverted b62a50ef). `time=default` serves the latest available. Static context base for v1
+  // (not stepped with the timeline — a follow-up). Kill: window.__RAW_RADAR_GLOBAL_BASE__ = false.
+  useEffect(() => {
+    if (!mapInstance) return undefined;
+    const ID = 'radar-global-base';
+    const on = activeLayers.includes('radar')
+      && (typeof window === 'undefined' || window.__RAW_RADAR_GLOBAL_BASE__ !== false);
+    const remove = () => {
+      try { if (mapInstance.getLayer(ID)) mapInstance.removeLayer(ID); } catch (e) { /* style mid-load */ }
+      try { if (mapInstance.getSource(ID)) mapInstance.removeSource(ID); } catch (e) { /* style mid-load */ }
+    };
+    if (!on) { remove(); return remove; }
+    try {
+      if (!mapInstance.getSource(ID)) {
+        mapInstance.addSource(ID, {
+          type: 'raster',
+          tiles: ['https://gibs.earthdata.nasa.gov/wmts/epsg3857/best/IMERG_Precipitation_Rate_30min/default/default/GoogleMapsCompatible_Level6/{z}/{y}/{x}.png'],
+          tileSize: 256,
+          maxzoom: 6,   // GIBS IMERG tops out at GoogleMapsCompatible_Level6 → overzoom coarsely past z6
+          attribution: 'NASA GPM IMERG / GIBS',
+        });
+      }
+      if (!mapInstance.getLayer(ID)) {
+        // Insert BELOW the radar frames so crisp radar wins where it exists. Frames mount at/above
+        // 'lightning-glow' (or top) AFTER this effect, so pass the first existing frame as beforeId
+        // when present; otherwise top (frames added later stack above it).
+        const firstFrame = mapInstance.getStyle().layers.find(l => l.id.startsWith('radar-frame-'));
+        mapInstance.addLayer({
+          id: ID, type: 'raster', source: ID,
+          paint: { 'raster-opacity': 0.5, 'raster-resampling': 'linear' },
+        }, firstFrame ? firstFrame.id : undefined);
+      }
+    } catch (e) { /* style transition — the next activeLayers change retries */ }
+    return remove;
+  }, [mapInstance, activeLayers]);
+
   // RADAR FRAME-LAYER MANAGER (2026-07-07, "animations don't visually match the nowcast"):
   // RainViewer's own documented pattern (rainviewer-api-example) keeps ONE tile layer PER FRAME
   // alive and animates by switching layer OPACITY — the maplibre paint transition then
