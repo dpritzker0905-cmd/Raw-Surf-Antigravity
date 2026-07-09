@@ -378,7 +378,14 @@ const MapWebGL = ({
       }
       for (const [id, { url, opacity }] of want) {
         if (!mapInstance.getSource(id)) {
-          mapInstance.addSource(id, { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 7 });
+          // Stage-2 far-term model frames arrive as an om:// SOURCE-url (the om protocol serves + colors
+          // the tiles + owns the grid), so they mount via the `url:` raster form (tileSize 512 / maxzoom 10,
+          // matching the Precip raster slots). RainViewer/HRRR/DWD frames stay {z}/{x}/{y} tile templates.
+          if (typeof url === 'string' && url.startsWith('om://')) {
+            mapInstance.addSource(id, { type: 'raster', url, tileSize: 512, maxzoom: 10 });
+          } else {
+            mapInstance.addSource(id, { type: 'raster', tiles: [url], tileSize: 256, maxzoom: 7 });
+          }
         }
         if (!mapInstance.getLayer(id)) {
           mapInstance.addLayer({

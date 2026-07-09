@@ -77,6 +77,53 @@ describe('radar advection — frame emission', () => {
   });
 });
 
+describe('radar advection — Stage 2 far-term (smooth model precip field)', () => {
+  const VT = (m) => new Date(NOW + m * 60000).toISOString();
+  // hourly precip valid-times around now (indices 0..6 = -60..+300 min)
+  const META = { __MODEL_METADATA_CACHE__: { ncep_gfs013: { validTimes: [VT(-60), VT(0), VT(60), VT(120), VT(180), VT(240), VT(300)] } } };
+
+  it('warm metadata: near-term advected, far-term = om MODEL precip frames (HRRR replaced)', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { ...META }, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'advect')).toBe(true);
+    const model = frames.filter(f => f.source === 'ommodel');
+    expect(model.map(f => f.minutes)).toEqual([120, 180, 240]); // past the 60-min advect cap, within the 240 cap
+    expect(frames.some(f => f.source === 'iem_hrrr')).toBe(false);
+    const times = frames.map(f => f.time);
+    expect(times).toEqual([...times].sort((a, b) => a - b)); // time-ordered across advect→model
+  });
+
+  it('the om:// source-url carries the resolved valid-time index + precipitation variable', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { ...META }, 'CONUS', RUN, PAST);
+    const first = frames.find(f => f.source === 'ommodel');
+    const url = radarForecastTileUrl(first, { ...META });
+    expect(url).toContain('om://https://map-tiles.open-meteo.com/data_spatial/ncep_gfs013/latest.json');
+    expect(url).toContain('variable=precipitation');
+    expect(url).toMatch(/time_step=valid_times_3\b/); // +120 min = index 3 in the mock grid
+  });
+
+  it('per-model precip source: ICON→dwd_icon, EURO→ecmwf_ifs025', () => {
+    const iconMeta = { __MODEL_METADATA_CACHE__: { dwd_icon: { validTimes: [VT(120), VT(180)] } } };
+    const iconUrl = radarForecastTileUrl(
+      radarFutureFramesForModel('ICON', NOW, iconMeta, 'CONUS', RUN, PAST).find(f => f.source === 'ommodel'),
+      iconMeta
+    );
+    expect(iconUrl).toContain('/data_spatial/dwd_icon/');
+  });
+
+  it('kill switch __RAW_RADAR_MODEL_FAR_DISABLED__ → legacy HRRR far-term', () => {
+    const win = { ...META, __RAW_RADAR_MODEL_FAR_DISABLED__: true };
+    const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'ommodel')).toBe(false);
+    expect(frames.some(f => f.source === 'iem_hrrr')).toBe(true);
+  });
+
+  it('cold metadata (cache not warmed) falls back to HRRR gracefully', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'ommodel')).toBe(false);
+    expect(frames.some(f => f.source === 'iem_hrrr')).toBe(true);
+  });
+});
+
 describe('radar advection — advect-rv:// URL', () => {
   it('builds <leadFactor>|<prevTileUrl>|<currTileUrl> with a shared {z}/{x}/{y}', () => {
     const win = { __RAW_RADAR_ADVECTION__: true };
