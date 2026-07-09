@@ -138,12 +138,16 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
   const frames = [];
   if (source === 'iem_hrrr') {
     // --- ADVECTION near-term nowcast frames (RainViewer-based, run-INDEPENDENT) ---
-    // Warp the last OBSERVED frame forward along its motion so the near term carries the observed
-    // echo (advected) instead of cliffing to HRRR's sparser QPF at "now". Emitted FIRST (earliest
-    // valid times) so the composed [past…future] list stays time-ordered; HRRR then covers the
-    // leads beyond the advect cap. DEFAULT-ON — turns off only on an explicit false / the kill switch.
+    // Warp the last OBSERVED frame forward along its motion so the near term carries the observed echo.
+    // ⚠️ OPT-IN (2026-07-09, reverted from default-on): the advect-rv:// protocol fetch()es RainViewer
+    // tiles (prev+curr per advect frame, per tile) ON TOP of the observed frames — ~3x the request
+    // volume. On the free RainViewer CDN that bursts past the rate limit zoomed out → HTTP 429 → the
+    // 429 has no ACAO so the browser reports CORS → blank tiles in vertical-column gaps ("rectangle
+    // clearing"), taking the OBSERVED radar down with it (user live 07-09, stack trace = advDecodeTile).
+    // Default-on is only viable behind a same-origin TILE PROXY that caches RainViewer + absorbs the
+    // rate limit. Until then: opt in with __RAW_RADAR_ADVECTION__=true. Kill: __RAW_RADAR_ADVECTION_DISABLED__.
     let advectCapMin = 0;
-    const advectOn = w.__RAW_RADAR_ADVECTION__ !== false && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
+    const advectOn = w.__RAW_RADAR_ADVECTION__ === true && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
       && Array.isArray(pastFrames) && pastFrames.length >= 2;
     if (advectOn) {
       const prevF = pastFrames[pastFrames.length - 2];

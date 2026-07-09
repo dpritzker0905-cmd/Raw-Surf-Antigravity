@@ -19,8 +19,16 @@ const PAST = [
 ];
 
 describe('radar advection — frame emission', () => {
-  it('ON by default: advect frames at 15/30/45/60 (cap 60) with correct leadFactor + observed paths', () => {
+  it('OFF by default (opt-in): no advect frames, HRRR owns the forecast', () => {
     const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'advect')).toBe(false);
+    // advection off (the RainViewer-429 flood risk) → HRRR emits, incl the near term (<=30 min)
+    expect(frames.some(f => f.source === 'iem_hrrr')).toBe(true);
+    expect(frames.some(f => (f.time - NOW_S) <= 30 * 60)).toBe(true);
+  });
+
+  it('opt-in ON: advect frames at 15/30/45/60 (cap 60) with correct leadFactor + observed paths', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_ADVECTION__: true }, 'CONUS', RUN, PAST);
     const advect = frames.filter(f => f.source === 'advect');
     expect(advect.map(f => f.minutes)).toEqual([15, 30, 45, 60]);
     expect(advect[0].leadFactor).toBeCloseTo((15 * 60) / 600); // 1.5 observed-intervals
@@ -30,14 +38,8 @@ describe('radar advection — frame emission', () => {
     expect(advect[0].future).toBe(true);
   });
 
-  it('explicit __RAW_RADAR_ADVECTION__=false opts out (HRRR owns the near term again)', () => {
-    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_ADVECTION__: false }, 'CONUS', RUN, PAST);
-    expect(frames.some(f => f.source === 'advect')).toBe(false);
-    expect(frames.some(f => (f.time - NOW_S) <= 30 * 60)).toBe(true);
-  });
-
-  it('ON by default: radar = observed + advection nowcast only, NO HRRR far-term (Windy/Ventusky model)', () => {
-    const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST);
+  it('opt-in ON: radar = observed + advection nowcast only, NO HRRR far-term (Windy/Ventusky model)', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_ADVECTION__: true }, 'CONUS', RUN, PAST);
     expect(frames.some(f => f.source === 'advect')).toBe(true);
     // the long forecast belongs to the SEPARATE Precip layer — no coarse far-term seamed into radar
     expect(frames.some(f => f.source === 'iem_hrrr')).toBe(false);
@@ -45,8 +47,10 @@ describe('radar advection — frame emission', () => {
     expect(times).toEqual([...times].sort((a, b) => a - b));
   });
 
-  it('__RAW_RADAR_HRRR_FAR__=true restores the HRRR far-term past the advect cap (opt-in)', () => {
-    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_HRRR_FAR__: true }, 'CONUS', RUN, PAST);
+  it('opt-in ON + __RAW_RADAR_HRRR_FAR__ restores the HRRR far-term past the advect cap', () => {
+    const win = { __RAW_RADAR_ADVECTION__: true, __RAW_RADAR_HRRR_FAR__: true };
+    const frames = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, PAST);
+    expect(frames.some(f => f.source === 'advect')).toBe(true);
     const hrrr = frames.filter(f => f.source === 'iem_hrrr');
     expect(hrrr.length).toBeGreaterThan(0);
     expect(hrrr.every(f => (f.time - NOW_S) > 60 * 60)).toBe(true); // advect still owns <=60 min
@@ -65,8 +69,8 @@ describe('radar advection — frame emission', () => {
     expect(radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, farApart).some(f => f.source === 'advect')).toBe(false);
   });
 
-  it('advect works standalone when no HRRR run is discovered (advect-only frames)', () => {
-    const frames = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', null, PAST);
+  it('opt-in ON: advect works standalone when no HRRR run is discovered (advect-only frames)', () => {
+    const frames = radarFutureFramesForModel('GFS', NOW, { __RAW_RADAR_ADVECTION__: true }, 'CONUS', null, PAST);
     expect(frames.length).toBe(4); // 15/30/45/60 (cap 60)
     expect(frames.every(f => f.source === 'advect')).toBe(true);
   });
