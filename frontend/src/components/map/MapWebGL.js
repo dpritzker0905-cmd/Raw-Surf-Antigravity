@@ -17,7 +17,7 @@ import { useLayerTruthDiff } from './useLayerTruthDiff';
 import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
-import { radarForecastTileUrl } from './radarForecastSources';
+import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
 // Strike points come via window.__LTG_STRIKES__ / __LTG_REFRESH__ (published by radarTileRecolor
 // at protocol registration) — keeps this heavy chunk free of a direct maplibre-gl-importing edge.
 import { useMarineWindData } from './useMarineWindData';
@@ -310,6 +310,13 @@ const MapWebGL = ({
   // server-smoothed (the `/1_0` option) so it reads fine, and loads reliably. The URL stays STABLE per
   // frame (NOT zoom-driven — that re-mount caused the reverted CORS flood). Opt into the 512 supersample
   // on a fast connection with __RAW_RADAR_512_TILES__=true; __RAW_RADAR_256_TILES__ still forces 256.
+  // OBSERVED TILES → SAME DURABLE PROXY as the advect frames (2026-07-09, "scrubbing NOW→past clears
+  // the radar"): a fast scrub steps through the ~13 past frames, bursting hundreds of uncached tile
+  // requests DIRECT to RainViewer's free CDN → 429 → a 429 carries no ACAO → the browser CORS-blocks it
+  // → the observed radar goes blank ("clears"). Routing observed through `rainviewerTileTemplate` (the
+  // /rv/* Netlify edge proxy, durable shared cache) absorbs the burst: the edge serves cached tiles
+  // WITHOUT hitting RainViewer, and even a proxy-side error carries ACAO (rvproxy) so it can't CORS-block
+  // the layer. Direct on localhost / when killed. Kill: __RAW_RADAR_PROXY_DISABLED__ (→ direct RainViewer).
   const radarFrameUrl = (frame) => {
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
@@ -317,7 +324,7 @@ const MapWebGL = ({
     const want512 = typeof window !== 'undefined' && window.__RAW_RADAR_512_TILES__ === true
       && window.__RAW_RADAR_256_TILES__ !== true;
     const px = want512 ? '512' : '256';
-    return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
+    return rainviewerTileTemplate(frame.path, px, typeof window !== 'undefined' ? window : undefined);
   };
 
   // RADAR FRAME-LAYER MANAGER (2026-07-07, "animations don't visually match the nowcast"):

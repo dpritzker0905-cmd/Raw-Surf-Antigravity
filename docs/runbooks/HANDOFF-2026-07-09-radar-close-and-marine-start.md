@@ -21,7 +21,8 @@ working state. **The next focus is MARINE (§3).**
 | `6200c496`→`3c59f8e3` | Radar Stage-2 model-precip far-term — **REVERTED** (seaming crisp radar + coarse model looks awful = the IMERG mistake on the time axis). Radar = observed + advection nowcast, then STOP; the long forecast is the SEPARATE **Precip** layer (Windy/Ventusky keep them separate — forensically confirmed). HRRR = fallback/opt-in `__RAW_RADAR_HRRR_FAR__`. | — | ✅ correct architecture |
 | `5ec7f7e9` | Radar observed tiles → **native 256px** (512 supersample `c7381934` was 4× bytes → ERR_CONNECTION_RESET on slow networks). | `__RAW_RADAR_512_TILES__` (opt back to 512) | ✅ |
 | `928c5546`→`84bb1351` | **RainViewer tile PROXY** (Netlify edge fn `frontend/netlify/edge-functions/rvproxy.js`, `/rv/*`, durable CDN cache) + **advection default-ON**. The advect tiles route through the cached proxy (`rainviewerTileTemplate`); observed stays direct. | `__RAW_RADAR_PROXY_DISABLED__` (advect→direct) / `__RAW_RADAR_ADVECTION_DISABLED__` | ⚠️ **UNVERIFIED — user must confirm live** |
-| *(pending)* | **NEIGHBOR-AWARE advection warp** — the advect handler now fills each tile's upwind incoming edge from the real echo of the upwind neighbor observed tile(s) (`advectTileWithNeighbors` + `neighborTileUrl` in `radarAdvection.js`/`radarTileRecolor.js`). Fixes the "last-hour of the forecast shows blank VERTICAL RECTANGLES" that the per-tile isolated warp left (see §2a). +decode-once observed-tile cache. FE 728 green (+7). | `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__` (→ old isolated per-tile warp) | ⚠️ user verifies live |
+| `d6d98402` | **NEIGHBOR-AWARE advection warp** — the advect handler now fills each tile's upwind incoming edge from the real echo of the upwind neighbor observed tile(s) (`advectTileWithNeighbors` + `neighborTileUrl` in `radarAdvection.js`/`radarTileRecolor.js`). Fixes the "last-hour of the forecast shows blank VERTICAL RECTANGLES" that the per-tile isolated warp left (see §2a). +decode-once observed-tile cache. FE 728 green (+7). User: "radar is better." | `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__` (→ old isolated per-tile warp) | ✅ user confirmed better |
+| *(pending)* | **OBSERVED tiles → durable proxy too** — `radarFrameUrl` (MapWebGL) now builds past-frame URLs via `rainviewerTileTemplate` (the `/rv/*` proxy) instead of hard-coded direct RainViewer. Fixes "scrubbing NOW→past CLEARS the radar": a fast scrub bursts the ~13 past frames' tiles direct → 429 → CORS-block → blank. The proxy's durable shared cache absorbs the burst (and a proxy-side 429 still carries ACAO, so it can't CORS-block the layer). FE 732 green (+4). | `__RAW_RADAR_PROXY_DISABLED__` (→ direct, shared with advect) | ⚠️ user verifies live |
 
 ---
 
@@ -32,7 +33,12 @@ There are **two** distinct failure modes that both read as blank vertical-column
 "rectangles," diagnose WHICH:
 - **(i) Rate-limit / CORS (whole tiles missing, worst zoomed out, uniform across ALL frames incl. observed):**
   RainViewer 429 → no ACAO → browser CORS block → whole tiles blank. Fixed by the tile PROXY (`84bb1351`) +
-  `__RAW_RADAR_ADVECTION_DISABLED__`. This one takes the OBSERVED radar down too.
+  `__RAW_RADAR_ADVECTION_DISABLED__`. This one takes the OBSERVED radar down too. **A distinct trigger of the
+  SAME cause: a fast NOW→past SCRUB** bursts the ~13 past frames' tiles, and the OBSERVED tiles were going
+  DIRECT to RainViewer (not proxied) → 429 → CORS → "the radar clears on scrub." FIX: `radarFrameUrl` now routes
+  observed past frames through the same `/rv/*` durable proxy (`rainviewerTileTemplate`), so the burst hits the
+  edge cache, not RainViewer. (`__RAW_RADAR_PROXY_DISABLED__` reverts BOTH observed + advect to direct.) Note the
+  proxy makes observed depend on the edge fn — safe because the advect frames already prove it works live.
 - **(ii) Per-tile warp seam (grid of blank bands that GROW toward the forecast horizon, advected frames only):**
   `advectTile` warped each tile in ISOLATION — `dst(x,y)=src(x−dx,y−dy)` — so content that should flow in from
   the upwind neighbor tile was unavailable and the upwind edge went transparent. Every tile shifts by the SAME
@@ -151,6 +157,7 @@ after confirming the fresh BUILD_VERSION.** One isolated, kill-switched change �
    (biggest daily-UX win; build/verify with `__SCRUB_PROBE__` + `clears`/`reinits`=0; preserve every §3a guard).
    OR §3b z9 §10c A/B if you'd rather a smaller marine-commit change first. Do ONE at a time on a CLEAN/WARM build.
 
-**Session status: radar CLOSED at `84bb1351` (pushed). Follow-up neighbor-aware advection warp staged locally
-(fixes the last-hour "vertical rectangle" seams — §2a(ii); FE 728 green, kill `__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__`),
-pending commit + live verify with the proxy. Precip + infobox shipped. Next: verify radar live, then marine (§3).**
+**Session status: radar CLOSED at `84bb1351`. Follow-ups: neighbor-aware advection warp PUSHED `d6d98402`
+(fixes last-hour "vertical rectangle" seams — §2a(ii); user confirmed "radar is better"); OBSERVED-tiles-→-proxy
+staged (fixes "scrub NOW→past clears the radar" — §2a(i) burst; FE 732 green, kill `__RAW_RADAR_PROXY_DISABLED__`),
+pending commit + live verify. Precip + infobox shipped. Next: verify scrub live, then marine (§3).**

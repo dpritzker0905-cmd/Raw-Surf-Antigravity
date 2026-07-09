@@ -6,10 +6,40 @@ import {
   discoverHrrrRun,
   hrrrRunParams,
   radarLightningTileUrl,
+  rainviewerTileTemplate,
 } from '../components/map/radarForecastSources';
 
 // 2026-07-06: RainViewer's nowcast is discontinued — the radar timeline extends into the future
 // via model-aware forecast WMS feeds (EURO → DWD WN +2h; GFS/ICON → IEM HRRR +4h).
+
+// Observed AND advect tiles both route through the same durable /rv/* proxy off localhost (2026-07-09):
+// a fast NOW→past scrub bursts the ~13 past frames' tiles; direct RainViewer 429s → CORS-block → the
+// observed radar clears. The proxy's shared durable cache absorbs the burst. Direct on localhost / kill.
+describe('rainviewerTileTemplate — observed/advect tiles share the durable proxy', () => {
+  const netlify = { location: { hostname: 'dev--rawsurf.netlify.app' } };
+
+  it('proxies through /rv/* on a deployed host (same-origin, edge-cached)', () => {
+    expect(rainviewerTileTemplate('/v2/radar/1720000000', '256', netlify))
+      .toBe('/rv/v2/radar/1720000000/256/{z}/{x}/{y}/7/1_0.png');
+  });
+
+  it('goes DIRECT on localhost (no Netlify edge there)', () => {
+    const local = { location: { hostname: 'localhost' } };
+    expect(rainviewerTileTemplate('/v2/radar/1720000000', '256', local))
+      .toBe('https://tilecache.rainviewer.com/v2/radar/1720000000/256/{z}/{x}/{y}/7/1_0.png');
+  });
+
+  it('kill switch __RAW_RADAR_PROXY_DISABLED__ forces direct even on a deployed host', () => {
+    const killed = { location: { hostname: 'dev--rawsurf.netlify.app' }, __RAW_RADAR_PROXY_DISABLED__: true };
+    expect(rainviewerTileTemplate('/v2/radar/1720000000', '256', killed))
+      .toBe('https://tilecache.rainviewer.com/v2/radar/1720000000/256/{z}/{x}/{y}/7/1_0.png');
+  });
+
+  it('honors the requested tile size (512 supersample opt-in)', () => {
+    expect(rainviewerTileTemplate('/v2/radar/1720000000', '512', netlify))
+      .toBe('/rv/v2/radar/1720000000/512/{z}/{x}/{y}/7/1_0.png');
+  });
+});
 
 describe('radarFutureFramesForModel', () => {
   const now = Date.UTC(2026, 6, 6, 12, 0, 0);
