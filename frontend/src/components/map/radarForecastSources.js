@@ -25,6 +25,20 @@ export const RADAR_FORECAST_CAP_MIN = { EURO: 120, GFS: 240, ICON: 120 };
 // readable; IEM's refp WMS layers are hourly.
 export const RADAR_FORECAST_STEP_MIN = { EURO: 30, GFS: 60, ICON: 30 };
 
+// RainViewer tile URL TEMPLATE ({z}/{x}/{y} filled by maplibre). In production it routes through the
+// same-origin Netlify edge proxy (/rv/*, netlify/edge-functions/rvproxy.js) which caches tiles durably
+// so the free RainViewer CDN is never rate-limited (429) by the advection tile volume — the fix that
+// makes advection viable. Goes DIRECT on localhost (no Netlify edge there) or when the proxy is killed.
+// `path` = the RainViewer frame path ("/v2/radar/<id>"); px = '256' | '512'.
+export function rainviewerTileTemplate(path, px, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  const host = (w.location && w.location.hostname) || '';
+  const isLocal = host === 'localhost' || host === '127.0.0.1';
+  const proxied = w.__RAW_RADAR_PROXY_DISABLED__ !== true && !isLocal;
+  const base = proxied ? `/rv${path}` : `https://tilecache.rainviewer.com${path}`;
+  return `${base}/${px}/{z}/{x}/{y}/7/1_0.png`;
+}
+
 // HRRR RUN DISCOVERY (2026-07-06 v3 — "forecast doesn't tie to the nowcast"): IEM's static
 // refp_{NNNN} layers are leads FROM THE LATEST COMPLETED RUN, not from now. With run 20z at
 // 21:42Z, refp_0060 is valid 21:00Z — BEFORE the last RainViewer observed frame — so the
@@ -139,15 +153,13 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
   if (source === 'iem_hrrr') {
     // --- ADVECTION near-term nowcast frames (RainViewer-based, run-INDEPENDENT) ---
     // Warp the last OBSERVED frame forward along its motion so the near term carries the observed echo.
-    // ⚠️ OPT-IN (2026-07-09, reverted from default-on): the advect-rv:// protocol fetch()es RainViewer
-    // tiles (prev+curr per advect frame, per tile) ON TOP of the observed frames — ~3x the request
-    // volume. On the free RainViewer CDN that bursts past the rate limit zoomed out → HTTP 429 → the
-    // 429 has no ACAO so the browser reports CORS → blank tiles in vertical-column gaps ("rectangle
-    // clearing"), taking the OBSERVED radar down with it (user live 07-09, stack trace = advDecodeTile).
-    // Default-on is only viable behind a same-origin TILE PROXY that caches RainViewer + absorbs the
-    // rate limit. Until then: opt in with __RAW_RADAR_ADVECTION__=true. Kill: __RAW_RADAR_ADVECTION_DISABLED__.
+    // DEFAULT-ON again (2026-07-09): the advect protocol's prev/curr tiles now route through the cached
+    // same-origin proxy (rainviewerTileTemplate → /rv/*), so the ~3x tile volume hits Netlify's durable
+    // edge cache instead of flooding RainViewer's free CDN (the 429 → CORS → blank-tile "rectangle"
+    // failure that took the observed radar down). Kill switches if it regresses: __RAW_RADAR_PROXY_DISABLED__
+    // (advect tiles → direct RainViewer) and __RAW_RADAR_ADVECTION_DISABLED__ / __RAW_RADAR_ADVECTION__=false.
     let advectCapMin = 0;
-    const advectOn = w.__RAW_RADAR_ADVECTION__ === true && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
+    const advectOn = w.__RAW_RADAR_ADVECTION__ !== false && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
       && Array.isArray(pastFrames) && pastFrames.length >= 2;
     if (advectOn) {
       const prevF = pastFrames[pastFrames.length - 2];
@@ -253,7 +265,9 @@ export function radarForecastTileUrl(frame, win) {
     // curr by motion×leadFactor. Encoding: advect-rv://<leadFactor>|<prevTileUrl>|<currTileUrl>,
     // where each observed URL keeps its {z}/{x}/{y} (maplibre fills all with the SAME tile coords).
     if (typeof frame.leadFactor !== 'number' || !frame.prevPath || !frame.currPath) return null;
-    const tile = (p) => `https://tilecache.rainviewer.com${p}/256/{z}/{x}/{y}/7/1_0.png`;
+    // Through the cached same-origin proxy (rainviewerTileTemplate) — the advect protocol fetch()es these
+    // prev/curr tiles, so proxying them is what stops the 429 flood. 256px = RainViewer native.
+    const tile = (p) => rainviewerTileTemplate(p, '256', w);
     return `advect-rv://${frame.leadFactor}|${tile(frame.prevPath)}|${tile(frame.currPath)}`;
   }
   if (frame.source === 'dwd_wn' || frame.source === 'dwd_rv') {
