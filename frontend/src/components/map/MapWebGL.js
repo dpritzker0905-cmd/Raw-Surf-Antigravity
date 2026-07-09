@@ -307,7 +307,13 @@ const MapWebGL = ({
     if (!frame) return null;
     if (frame.future) return radarForecastTileUrl(frame);
     if (!frame.path) return null;
-    return `https://tilecache.rainviewer.com${frame.path}/256/{z}/{x}/{y}/7/1_0.png`;
+    // 512px RainViewer tiles on tileSize 256 = 2x supersample (the same crispness trick the HRRR
+    // future frames use) — the z7-native radar was rendered from 256px tiles and read BLOCKY at
+    // close zoom. RainViewer serves 512 natively (verified). ISOLATED change (2026-07-08 re-do —
+    // the earlier b62a50ef bundled this with an FPS-killing opacity expr + main-thread advection,
+    // reverted; 512-ALONE is FPS-verified). Kill: __RAW_RADAR_256_TILES__=true → the old 256 path.
+    const px = (typeof window !== 'undefined' && window.__RAW_RADAR_256_TILES__ === true) ? '256' : '512';
+    return `https://tilecache.rainviewer.com${frame.path}/${px}/{z}/{x}/{y}/7/1_0.png`;
   };
 
   // RADAR FRAME-LAYER MANAGER (2026-07-07, "animations don't visually match the nowcast"):
