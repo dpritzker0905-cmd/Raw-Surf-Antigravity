@@ -588,7 +588,15 @@ const MapWebGL = ({
 
     const tryInit = () => {
       const state = getInitState();
-      if (state === 'map-ready' || state === 'engine-ready' || state === 'layers-ready' || state === 'complete') {
+      if (state === 'engine-ready' || state === 'layers-ready' || state === 'complete') {
+        // Already booted. Effect re-runs (StrictMode/HMR/dep updates) land here — the sequencer's
+        // assertSafeToInitEngine only permits state === 'map-ready', so attempting init from these
+        // states ALWAYS threw (the "[InitSequencer] Engine init blocked. State=complete" error ×N,
+        // user log 07-10). Same net behavior (no re-init), without the error.
+        didInit = true;
+        return true;
+      }
+      if (state === 'map-ready') {
         try {
           console.log('[MapWebGL] Sequencer is map-ready! Bootstrapping Weather Engine...');
           initEngine({

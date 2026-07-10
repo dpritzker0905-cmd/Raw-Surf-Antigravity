@@ -100,8 +100,14 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       }
 
       // RULE 2: wind must have vectors OR be OFF
+      // Suppress WIND_DATA_EMPTY while a wind fetch is in flight (mirror of RULE 3's transition
+      // suppression): the window between layer activation and first commit is DESIGNED to be
+      // empty — flagging it fired on every activation/model switch (user log 07-10) and trains
+      // readers to ignore the detector. WIND_TOPOLOGY_INVALID stays unsuppressed (data present
+      // with wrong shape is always real).
+      const isWindFetchPending = typeof window !== 'undefined' && (window.__WIND_FETCH_PENDING__ || 0) > 0;
       if (s.activeLayersAll.includes("wind")) {
-        if (!s.wind?.vectors?.length) {
+        if (!s.wind?.vectors?.length && !isWindFetchPending) {
           violations.push({
             layerId: "wind",
             type: "WIND_DATA_EMPTY",

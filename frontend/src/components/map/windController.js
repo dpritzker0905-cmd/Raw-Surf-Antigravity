@@ -177,6 +177,23 @@ export function getModelSafeWind(model, hourOffset, bounds) {
 }
 
 export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null, isPrewarm = false) {
+  // In-flight marker for TruthDiff's WIND_DATA_EMPTY rule (#19 follow-up, user log 07-10:
+  // the rule fired during the DESIGNED empty window between wind activation and first commit).
+  // Counter (not boolean) — concurrent fetches must not clear each other's window. Prewarms
+  // excluded: they don't feed the active layer, so they must not mask a real empty render.
+  if (!isPrewarm && typeof window !== 'undefined') {
+    window.__WIND_FETCH_PENDING__ = (window.__WIND_FETCH_PENDING__ || 0) + 1;
+  }
+  try {
+    return await _fetchWindDataInner(bounds, signal, hourOffset, forceFetch, forecastDays, model, isPrewarm);
+  } finally {
+    if (!isPrewarm && typeof window !== 'undefined') {
+      window.__WIND_FETCH_PENDING__ = Math.max(0, (window.__WIND_FETCH_PENDING__ || 1) - 1);
+    }
+  }
+}
+
+async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = false, forecastDays = 3, model = null, isPrewarm = false) {
   if (!bounds) { console.log('[Wind] fetchWindData: no bounds'); return lastKnownGoodWind; }
 
   let west = bounds.west, east = bounds.east;
