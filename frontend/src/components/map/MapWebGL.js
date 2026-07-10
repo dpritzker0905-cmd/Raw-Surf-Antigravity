@@ -144,6 +144,28 @@ const MapWebGL = ({
     configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
   }, [mapInstance, activeMarineLayer, theme]);
 
+  // Audit #17 (2026-07-10): anchor the OM raster slots BELOW the wind particle layer. Z-order was
+  // time-of-add (wind/lightning/OM slots all appended unanchored — whoever mounted last won), so the
+  // fog/pressure/rain washes landed ABOVE wind and dimmed the particle field. Windy/Ventusky standard
+  // = particles above the washes. Tracked via styledata like marineBeforeId (the wind custom layer
+  // mounts imperatively at style load); set-only, matching that precedent. Kill switch:
+  // window.__RAW_OM_SLOTS_ANCHOR_DISABLED__ = true (restores append-at-top ordering).
+  const [omSlotsBeforeId, setOmSlotsBeforeId] = useState(null);
+  useEffect(() => {
+    if (!mapInstance) return;
+    const onStyleData = () => {
+      if (typeof window !== 'undefined' && window.__RAW_OM_SLOTS_ANCHOR_DISABLED__ === true) return;
+      try {
+        if (mapInstance.getLayer('webgl-wind-particles')) setOmSlotsBeforeId('webgl-wind-particles');
+      } catch (e) { /* style mid-load — retry on the next styledata */ }
+    };
+    mapInstance.on('styledata', onStyleData);
+    onStyleData();
+    return () => {
+      if (mapInstance) mapInstance.off('styledata', onStyleData);
+    };
+  }, [mapInstance]);
+
   // Rating mode (the Swell↔Rating toggle in MapWeatherControls). Tracked reactively here so the spot
   // glyphs + clustering can respond; the toggle persists the flag and fires 'rawsurf:surf-toggle'.
   const [surfMode, setSurfMode] = useState(() => { try { return getSurfModeFlag(); } catch (e) { return false; } });
@@ -767,6 +789,7 @@ const MapWebGL = ({
             <Layer
               id={`${slotKey}-layer`}
               type="raster"
+              beforeId={omSlotsBeforeId || undefined}
               layout={{
                 visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
@@ -786,7 +809,7 @@ const MapWebGL = ({
         );
       });
     });
-  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust]);
+  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust, omSlotsBeforeId]);
 
   const spotGeofenceLayers = useMemo(() => (
     <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>

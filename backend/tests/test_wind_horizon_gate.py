@@ -10,7 +10,10 @@ from datetime import datetime, timezone, timedelta
 import pytest
 from fastapi import HTTPException
 
-from services.weather_pipeline.viewport_service import wind_horizon_fail_fast
+from services.weather_pipeline.viewport_service import (
+    wind_horizon_fail_fast,
+    wind_global_parity_resolution,
+)
 
 
 def _hours_out(h):
@@ -46,3 +49,24 @@ def test_gfs_gated_only_past_its_native_384h(monkeypatch):
 def test_kill_switch_disables_the_gate(monkeypatch):
     monkeypatch.setenv("WIND_HORIZON_GATE", "0")
     wind_horizon_fail_fast("EURO", _hours_out(300), forecast_days=10)  # no raise
+
+
+# ── wind_global_parity_resolution (audit #10, 2026-07-10): dynamic GLOBAL wind builds match the
+# stored product's 10° (37x17=629) instead of the adaptive ladder's 15° tier (25x12=300). ──
+
+def test_global_wind_parity_clamps_15deg_to_10deg(monkeypatch):
+    monkeypatch.delenv("WIND_GLOBAL_PARITY_10DEG", raising=False)
+    assert wind_global_parity_resolution(15.0, True, "wind") == 10.0
+
+
+def test_parity_scope_is_global_wind_only(monkeypatch):
+    monkeypatch.delenv("WIND_GLOBAL_PARITY_10DEG", raising=False)
+    assert wind_global_parity_resolution(15.0, False, "wind") == 15.0   # regional viewport untouched
+    assert wind_global_parity_resolution(15.0, True, "marine") == 15.0  # marine untouched
+    assert wind_global_parity_resolution(10.0, True, "wind") == 10.0    # already at the tier
+    assert wind_global_parity_resolution(5.0, True, "wind") == 5.0      # finer stays finer
+
+
+def test_parity_kill_switch_restores_adaptive_tier(monkeypatch):
+    monkeypatch.setenv("WIND_GLOBAL_PARITY_10DEG", "0")
+    assert wind_global_parity_resolution(15.0, True, "wind") == 15.0

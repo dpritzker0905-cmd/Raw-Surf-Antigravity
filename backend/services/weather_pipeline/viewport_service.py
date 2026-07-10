@@ -22,6 +22,18 @@ from services.weather_pipeline.viewport_helper import _is_oversized_grid, extend
 logger = logging.getLogger(__name__)
 
 
+def wind_global_parity_resolution(resolution: float, is_global_view: bool, domain: str) -> float:
+    """Audit #10 (2026-07-10): 10° parity for dynamic GLOBAL wind builds. The stored global_coarse
+    wind product is 10° (37x17=629 vectors) but choose_adaptive_resolution(360,165,400) lands on the
+    15° tier (25x12=300), so far-horizon extension hours served a visibly coarser field than every
+    stored hour. Global wind only — regional tiers unchanged; ~2x upstream/CPU per dynamic global
+    build (user-approved 2026-07-10). Kill switch: WIND_GLOBAL_PARITY_10DEG=0."""
+    if (is_global_view and domain.lower() == "wind" and resolution > 10.0
+            and os.environ.get("WIND_GLOBAL_PARITY_10DEG", "1") != "0"):
+        return 10.0
+    return resolution
+
+
 def wind_horizon_fail_fast(model: str, target_dt: datetime, forecast_days: int) -> None:
     """WIND HORIZON FAIL-FAST (2026-07-10, live-measured): the upstream wind fetch covers exactly
     `forecast_days` — a target beyond it CANNOT be served by this build, and today it falls through to
@@ -162,6 +174,7 @@ class ViewportService:
 
         target_pts = 200.0 if domain.lower() == "marine" else 400.0
         resolution = choose_adaptive_resolution(span_lng, span_lat, target_pts)
+        resolution = wind_global_parity_resolution(resolution, is_global_view, domain)
 
         time_str = target_dt.strftime("%Y%m%dT%H%M%SZ")
         bbox_key_str = f"{west:.2f}_{south:.2f}_{east:.2f}_{north:.2f}"
