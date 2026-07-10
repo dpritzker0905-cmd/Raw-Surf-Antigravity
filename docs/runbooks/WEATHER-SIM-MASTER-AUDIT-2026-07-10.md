@@ -33,6 +33,7 @@ FCE (`useSimulationField`) feeds `useRenderPlanBridge`→renderPlan (NOT display
 | 6 | Far-horizon settle churn re-drove doomed 404s (stale grid carries no failureReason) | §7.6 trace | FIXED `d38a693b` (terminal tracker) |
 | 7 | Estimates ABSENT during each ~1–1.5h ingest window (every 4h) — old products gone before new land | ROOT PROVEN (run 29052535445 log): EURO native prune 22:41 deletes old est tail (68/layer ×4, silent — L2-lazy files skip the per-file log) → extend job 23:01 (2s compute) → L2 upload backlog drains 23:24 → serving 23:30. Gap ≈ 35-45min/cycle. In-job GFS-ext = 0 in production (see #15) | FIXED `cf0b4b23` + ✅ **VERIFIED run 29068687719** (05:24Z, fixed code): EURO per-layer prune **68 → 2** (old est tail preserved; the 2 = receding-edge old natives — also proves the 68 was ~all estimates); extend job 05:05 overwrote the est files IN PLACE (same valid-time-keyed names, anchor unmoved → sweep 0 = consistent); continuity by construction. Kill `INGEST_PRUNE_PRESERVE_ESTIMATES=0`. (Probe had a laptop-suspend hole 04:22-05:55 — re-run `ingest_probe.sh` on an awake cycle for belt-and-suspenders) |
 | 15 | In-job EURO GFS 10→14d ext saves 0 products every cycle (premise drift) | run log 22:40: gfs_ext fetch 429s — the "GFS job ran ~1 min earlier → _GRID_CACHE hit (TTL 300s)" premise died when the 21-min CMEMS fetch moved in between | OPEN (LOW with #7 fixed — extend job + preserved tail cover continuity). Fix option: fetch gfs_ext BEFORE the CMEMS fetch, while the cache is warm |
+| 17 | OM rasters render ABOVE wind particles (fog/pressure/rain wash dims the wind field) — unanchored appends make z-order time-of-add dependent | live `map.style._order` dump 07-10 (P10): wind=121, OM slots=122-133 | OPEN — user decision; one-line anchored insert if wanted (⚠️ layer-order changes regression-adjacent) |
 | 16 | Wind no-coverage blanked the layer + churned (safe-zero passed the settle's `vectors.length>0` guard and COMMITTED; doomed hours re-fetched per landed hour; 404 detail discarded by the client) | code-proven 07-10 (backendWindServiceClient:463 bare-404, windController safe-zero w/o failureReason, WeatherEngine settle guard); live-verified via fetch-interception on preview 3007 | FIXED `06fbeef2` — 3-part mirror of marine d38a693b (surface detail → record terminal (model,'wind',hour) → settle holds last frame + skips terminal hours). Kills `__RAW_WIND_HOLD_LAST_FRAME_DISABLED__` / `__RAW_DISABLE_TERMINAL_NOCOV_BYPASS__`; tel `__WIND_TERMINAL_NOCOV_SKIP_COUNT__` |
 | 8 | Wind series cold on MODEL-SWITCH & click-jumps (prewarm = drag-start only, per-model) | this round's log; code-proven 07-10 (scrub_start dispatch = drag only; F3 cleanup aborts the warm on rapid switches) | FIXED `9494d8c2` (model-switch/first-landing prewarm, mirror of marine's; kill `__RAW_WIND_MODEL_PREWARM_DISABLED__`; tel `__WIND_MODEL_PREWARM_COUNT__`; live-verified preview 3007: settle hit, no per-hour fetch) |
 | 9 | `capabilities` EURO-wind native:336 is FALSE (ECMWF open-data = 240h) — contract vs reality | curls + health | OPEN (contract fix, locked-doc territory) |
@@ -51,9 +52,47 @@ including ingest-window continuity `cf0b4b23`) · ✓ Wind client resilience (#8
 .om decode cost, slot thrash) · ⚠ Temperature (exists? un-audited) · ✓ OceanMask (heavily guarded;
 Phase 6 = document, don't touch).
 
+## PHASE 4/10 — PIPELINE TRACES + LIVE LAYER ORDER (DONE 2026-07-10, preview 3007)
+### Live z-order (via `map.style._order` — ⚠️ `getStyle().layers` OMITS custom layers; never audit order with it)
+Bottom→top: `land(0)` · `landcover(1)` · **`webgl-marine-particles`(3)** · `landuse(4)` · `waterway(6)` ·
+`water(7)` · `esri-satellite-layer(8)` · roads/labels(9-119, `country-label`=119) · `spot-geofences(120)` ·
+**`webgl-wind-particles`(121)** · `rain-slot-0..2(122-124)` · `satellite-slot-0..2(125-127)` ·
+`pressure-slot-0..2(128-130)` · `fog-slot-0..2(131-133)`.
+- Marine BELOW landuse/water = the DESIGNED coastline sandwich (insert before `ocean-mask-fill`||`landuse`,
+  WebGLMarineLayer.js:707; mask layers mount on activation + safeMoveLayer re-asserts). Marine also below
+  `esri-satellite-layer` — eyeball satellite-basemap mode (queued).
+- Radar frames anchor before `lightning-glow` (MapWebGL.js:408); lightning appends top at ITS mount time.
+- **UNANCHORED APPENDS = time-of-add ordering** (wind, lightning, OM slots) — whoever mounts last wins.
+- Custom layers persist mounted regardless of active state (render-skip via activeRef when off).
+### Finding #17 (NEW, ordering): OM rasters (122-133) render ABOVE `webgl-wind-particles` (121) — active
+fog/pressure/rain/vis-satellite washes dim/occlude the wind particle field. Time-of-add accident, not a
+decision. OPEN — user call whether wind should ride above the rasters (a one-line anchored insert, but
+layer-order changes are regression-adjacent: radar/lightning/mask ordering history).
+### Per-pipeline traces (P4)
+1. **MARINE**: `useWeatherState`(hour) → MapWebGL → `useMarineOrchestrator` (scrub-start prewarm :670;
+   model-switch prewarm :726) → `marineController` (enqueue/fetch; terminal record :696; LRU50 caches
+   `marineControllerCache`; series pages `marineGridSeries`) → `backendWeatherServiceClient.
+   fetchBackendMarineGrid` (surfaces reason :510) → `/api/weather/grid|grid_series` → `grid_resolver`
+   9-step ladder → L2 products / `viewport_service` dynamic build → `useMarineWindData` conform gate →
+   `WebGLMarineLayer` (custom `webgl-marine-particles`) → `WebGLMarineEngine` (encoder split → 4096² mask) ·
+   settle backstop `useMarineScrubSettle` (terminal bypass :396).
+2. **WIND**: `WeatherEngine.js` hook (primary 5-min loop w/ renderable-retain · during-drag cache-only ·
+   settle w/ series-first `21c1bf3a` + terminal-skip + hold-last-frame `06fbeef2` · moveend refetch ·
+   scrub-start + model-switch prewarms `9494d8c2`) → `windController.fetchWindData` (per-model WIND_CACHE;
+   safe-zero + terminal record) → `backendWindServiceClient` (404 detail surfaced) + `windGridSeries`
+   pages → same `/grid` backend (`wind_horizon_fail_fast` `b0655047`; ICON `extend_icon_wind_to_14d`;
+   EURO>240h resolver gfs_fallback) → `WebGLWindLayer` (custom `webgl-wind-particles`) → 147456-particle
+   engine + RK4 SimLoop.
+3. **OM RASTER** (pressure/fog/rain/vis-satellite): `openMeteoProtocol` worker decode (om://,
+   BroadcastChannel, model lock target) → `map-tiles.open-meteo.com` CDN per-timestep .om → per-layer
+   3-slot raster ring (`{layer}-slot-{0,1,2}-layer`, mounted at init, Raster Queue Transition) +
+   `useTemporalPreloader`.
+4. **RADAR**: RainViewer catalog+tiles via `/rv/*` edge proxy → per-frame raster layers (anchored before
+   `lightning-glow`) + `advect-rv://` advection; HRRR `refp-t` future frames opt-in (`__RAW_RADAR_HRRR_FAR__`).
+Shared spine: `useWeatherState` hour owner → `MapWeatherControls` scrubber (drag commits decimated ~11Hz
+`cb074b8b`, radar exempt) → 5 raw-hour hooks → engines; FCE `useSimulationField` → renderPlan bridge.
+
 ## REMAINING PHASES — QUEUE + RECIPES (next sessions; graph server ready: 34k nodes/73k edges)
-- **P4/P10 (pipeline traces + layer order):** `codebase-memory` `trace_path`/`query_graph` per layer;
-  MapLibre layer order via live `map.getStyle().layers` dump. Deliverable: per-layer diagrams.
 - **P5 (silent render-failure matrix):** enumerate via `WEATHER_TRUTH` stages (backendResponse→…→
   animationFrame) — the tracer already exists; audit each stage's failure detection.
 - **P6 (OceanMask lifecycle):** document from `mask-truth-guards` + `maskSmoothing.js` + encoder retain
