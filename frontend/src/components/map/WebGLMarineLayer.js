@@ -293,7 +293,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     }
     const maxS = grid.__maxHeight;
     const meanHeight = grid.__meanHeight;
-    console.log(`[WebGLMarine] setWaveData (${reason}): ${grid.vectors.length} vectors, max=${maxS.toFixed(2)}m (forecast-authoritative)`);
+    // Per-commit log (fires per scrub tick) — quiet by default under session-replay console capture;
+    // flip window.__MARINE_VERBOSE__=true to restore the full commit trace for forensics.
+    if (typeof window !== 'undefined' && window.__MARINE_VERBOSE__ === true) console.log(`[WebGLMarine] setWaveData (${reason}): ${grid.vectors.length} vectors, max=${maxS.toFixed(2)}m (forecast-authoritative)`);
 
     const uploadStart = Date.now();
     // ITEM ① RETAIN-PATCHED stamp (2026-07-05, live-confirmed glitch: {result:false,

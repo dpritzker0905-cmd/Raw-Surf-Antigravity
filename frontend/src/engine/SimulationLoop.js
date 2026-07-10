@@ -140,7 +140,8 @@ export function bindField(field) {
     setBaseFieldRef(field);
     resetEnergyBaseline();
 
-    console.log(`[SimLoop] New field bound: rev=${field.revision}, ${field.cols}×${field.rows}, sources=`, field.sources);
+    // Fires per marine commit (dozens/sec on a drag) — quiet by default; window.__MARINE_VERBOSE__=true restores.
+    if (typeof window !== 'undefined' && window.__MARINE_VERBOSE__ === true) console.log(`[SimLoop] New field bound: rev=${field.revision}, ${field.cols}×${field.rows}, sources=`, field.sources);
 
     // Bind wind field to RK4 particle system
     if (field.sources.wind) {

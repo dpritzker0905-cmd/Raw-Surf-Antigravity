@@ -310,9 +310,12 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     this._landGeoJSON = landGeoJSON;
   }
   const activeGeoJSON = landGeoJSON || this._landGeoJSON;
-  console.log(`[WebGLMarineEngine-Forensic] setWaveData: ${waveGrid.vectors.length} vectors, landGeoJSON present: ${!!activeGeoJSON}`);
+  // Per-commit logs fire dozens/sec during a drag and are serialized by session-replay console
+  // capture (a measured jank amplifier) — quiet by default; flip window.__MARINE_VERBOSE__=true.
+  const _verbose = typeof window !== 'undefined' && window.__MARINE_VERBOSE__ === true;
+  if (_verbose) console.log(`[WebGLMarineEngine-Forensic] setWaveData: ${waveGrid.vectors.length} vectors, landGeoJSON present: ${!!activeGeoJSON}`);
 
-  console.log('[WebGLMarineEngine] setWaveData input:', {vectors: waveGrid.vectors.length, cols: waveGrid.cols, rows: waveGrid.rows, hasBounds: !!waveGrid.bounds, hasGeoJSON: !!activeGeoJSON});
+  if (_verbose) console.log('[WebGLMarineEngine] setWaveData input:', {vectors: waveGrid.vectors.length, cols: waveGrid.cols, rows: waveGrid.rows, hasBounds: !!waveGrid.bounds, hasGeoJSON: !!activeGeoJSON});
   
   let newWaveData;
   try {
@@ -426,7 +429,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     console.warn('[WebGLMarineEngine] coarse-base capture skipped:', e && e.message);
   }
 
-  console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
+  if (_verbose) console.log('[WebGLMarineEngine] setWaveData result:', {hasData: !!this._waveData, hasWaveTexture: !!this._waveData?.u_waveTexture});
 
   const model = waveGrid.__sourceModel || 'GFS';
   const layer = waveGrid.__componentLayer || 'waves';

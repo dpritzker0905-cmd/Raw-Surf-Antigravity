@@ -182,7 +182,8 @@ function onPlanReceived(renderPlan, frameIndex) {
     _pendingRevision = field.revision;
     clearTimeout(_rebaselineTimer);
     _rebaselineTimer = setTimeout(() => {
-      console.log('[SimHealth] New field revision detected (' + _pendingRevision + '), re-baselining energy calculation');
+      // Fires per marine commit — quiet by default; window.__MARINE_VERBOSE__=true restores.
+      if (typeof window !== 'undefined' && window.__MARINE_VERBOSE__ === true) console.log('[SimHealth] New field revision detected (' + _pendingRevision + '), re-baselining energy calculation');
       _rebaselineTimer = null;
     }, 500);
   }

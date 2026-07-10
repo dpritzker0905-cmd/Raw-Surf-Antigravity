@@ -232,6 +232,27 @@ export var MapWeatherControls = ({
   const isDraggingRef = useRef(false);
   const requestRef = useRef(null);
   const latestValueRef = useRef(null);
+  // SCRUB COMMIT DECIMATION (2026-07-10, the manual-drag "all layers feel off" root): the rAF gate
+  // admits up to a distinct hour per FRAME (~40-60 commits/s on a fast drag), but each committed hour
+  // costs ~62ms of layer-INDEPENDENT main-thread React/reconcile work (§7.1 live measurement) —
+  // 60/s × 62ms ≈ 3.7s of work per 1s of drag = the universal drag jank on every backend-fed layer
+  // (radar exempt: its per-tick cost is a cheap CDN tile swap, so it keeps the rAF cadence below).
+  // Fix = the standard scrubber pattern: the visual thumb/label stay 60fps (local sliderVal state),
+  // but the COMMITTED hour — and all downstream React work — updates at ~11Hz during the drag
+  // (leading + trailing so the heatmap still tracks). Release still commits the EXACT final hour
+  // (handleDragEnd), and the scrub-settle net re-verifies it — intermediate hours are display-only.
+  // Kill/tune: window.__RAW_SCRUB_COMMIT_THROTTLE_MS__ (0 restores per-frame commits; default 90).
+  const lastCommitTimeRef = useRef(0);
+  const trailingTimeoutRef = useRef(null);
+  const scrubCommitThrottleMs = () =>
+    (typeof window !== 'undefined' && typeof window.__RAW_SCRUB_COMMIT_THROTTLE_MS__ === 'number')
+      ? window.__RAW_SCRUB_COMMIT_THROTTLE_MS__ : 90;
+  const clearTrailingCommit = () => {
+    if (trailingTimeoutRef.current !== null) {
+      clearTimeout(trailingTimeoutRef.current);
+      trailingTimeoutRef.current = null;
+    }
+  };
 
   // Synchronize local slider state with parent prop updates when not dragging (e.g. autoplay)
   useEffect(() => {
@@ -240,11 +261,14 @@ export var MapWeatherControls = ({
     }
   }, [isRadar, radarFrameIndex, currentTimeOffset]);
 
-  // Cleanup animation frame on unmount
+  // Cleanup animation frame + trailing commit timer on unmount
   useEffect(() => {
     return () => {
       if (requestRef.current) {
         cancelAnimationFrame(requestRef.current);
+      }
+      if (trailingTimeoutRef.current !== null) {
+        clearTimeout(trailingTimeoutRef.current);
       }
     };
   }, []);
@@ -278,9 +302,29 @@ export var MapWeatherControls = ({
           const targetVal = latestValueRef.current;
           requestRef.current = null;
           if (isRadar) {
+            // Radar per-tick cost is a cheap CDN tile swap — full frame-rate commits stay.
             onRadarFrameChange(targetVal);
-          } else {
+            return;
+          }
+          const throttleMs = scrubCommitThrottleMs();
+          if (throttleMs <= 0) {
+            onTimeChange(targetVal);   // kill switch: restore per-frame commits
+            return;
+          }
+          const now = Date.now();
+          const elapsed = now - lastCommitTimeRef.current;
+          if (elapsed >= throttleMs) {
+            lastCommitTimeRef.current = now;
             onTimeChange(targetVal);
+          } else if (trailingTimeoutRef.current === null) {
+            // Trailing commit so the heatmap still lands on the latest hour of a short pause mid-drag.
+            trailingTimeoutRef.current = setTimeout(() => {
+              trailingTimeoutRef.current = null;
+              if (isDraggingRef.current && latestValueRef.current !== null) {
+                lastCommitTimeRef.current = Date.now();
+                onTimeChange(latestValueRef.current);
+              }
+            }, throttleMs - elapsed);
           }
         });
       }
@@ -289,6 +333,7 @@ export var MapWeatherControls = ({
         cancelAnimationFrame(requestRef.current);
         requestRef.current = null;
       }
+      clearTrailingCommit();
       latestValueRef.current = null;
       if (isRadar) {
         onRadarFrameChange(val);
@@ -321,6 +366,7 @@ export var MapWeatherControls = ({
       cancelAnimationFrame(requestRef.current);
       requestRef.current = null;
     }
+    clearTrailingCommit();
     // Commit final location instantly on pointer release to guarantee alignment
     const finalVal = latestValueRef.current !== null ? latestValueRef.current : sliderVal;
     if (isRadar) {
