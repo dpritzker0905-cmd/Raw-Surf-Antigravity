@@ -130,17 +130,26 @@ export function useModelTransition({
     modelDebounceTimeoutRef.current = setTimeout(() => {
       if (!active) return;
       
-      console.log(`[MODEL] Model changed to ${activeModel}, transitioning and wiping block cache...`);
+      // Audit #11 (2026-07-10, "not snappy on model compare"): the full wipe + `_cb` nonce rotation
+      // predate the REAL cross-model-leakage fix (model-keyed decoded caches + model/run-pathed
+      // URLs, 9f231d40) — every switch changed EVERY om:// tile URL and cleared every cache, so a
+      // switch-BACK refetched + re-decoded all raster tiles. Retention is now the default: caches
+      // are model-keyed (collision-impossible) and LRU-bounded. Kill switch
+      // window.__RAW_OM_MODEL_WIPE_LEGACY__ = true restores the legacy wipe + nonce rotation exactly.
+      const legacyWipe = typeof window !== 'undefined' && window.__RAW_OM_MODEL_WIPE_LEGACY__ === true;
+      console.log(`[MODEL] Model changed to ${activeModel}, transitioning${legacyWipe ? ' and wiping block cache' : ' (caches retained, model-keyed)'}...`);
       setIsTransitioning(true);
-      cacheBustRef.current = Date.now();
+      if (legacyWipe) {
+        cacheBustRef.current = Date.now();
+      }
       setMapActiveModelLock(activeModel);
-      
+
       if (mapInstance && mapInstance.isStyleLoaded()) {
         safeSetPaintProperty(mapInstance, 'wind-particle-overlay', 'raster-opacity', 0);
         safeSetPaintProperty(mapInstance, 'marine-canvas-layer', 'raster-opacity', 0);
       }
 
-      clearOpenMeteoCache().then(() => {
+      (legacyWipe ? clearOpenMeteoCache() : Promise.resolve()).then(() => {
         if (!active) return;
 
         const finishTransition = () => {
