@@ -337,6 +337,32 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         cacheMiss = true;
       }
 
+      // SERIES-FIRST SETTLE (2026-07-10, the wind "Cache miss ... Fetching immediately" storm): the
+      // during-drag path serves warmed series frames (above), but this SETTLE path only consulted the
+      // per-hour caches — so every hour LANDED on after a drag/jump missed and fired a per-hour network
+      // fetch. Marine's settle has committed warmed series frames ("no fetch") since F3; mirror it for
+      // wind. Additive: getWindSeriesFrame returns null when the series is off (__WIND_SERIES__=false
+      // restores the old behavior exactly) or unloaded, falling through to the fetch unchanged.
+      if (cacheMiss) {
+        try {
+          const b = mapInstance.getBounds();
+          const bounds = {
+            west: b.getWest(),
+            south: Math.max(-85, b.getSouth()),
+            east: b.getEast(),
+            north: Math.min(85, b.getNorth())
+          };
+          const seriesFrame = getWindSeriesFrame(activeModel, bounds, timeOffsetHours);
+          if (seriesFrame && seriesFrame.vectors?.length > 0) {
+            targetData = seriesFrame;
+            cacheMiss = false;
+            if (typeof window !== 'undefined') {
+              window.__WIND_SERIES_SETTLE_HIT__ = (window.__WIND_SERIES_SETTLE_HIT__ || 0) + 1;
+            }
+          }
+        } catch (e) { /* fall through to the per-hour fetch */ }
+      }
+
       if (cacheMiss) {
         console.log(`[CACHE] [WeatherEngine] Cache miss for wind at hour +${timeOffsetHours}h. Fetching immediately...`);
         try {
