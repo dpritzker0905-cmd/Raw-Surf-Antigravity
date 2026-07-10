@@ -35,8 +35,12 @@ first, and NEVER judge feel during a Render deploy (every push restarts it) or t
    15° (25×12=300, complete grid) vs stored 10° product (37×17=629); serves whenever the stored hour is
    missing (far-horizon extension or ingest-window gap #3). GFS+28h occurrence = #3 wearing wind clothes.
    Optional 10° parity bump = user decision (costs ~2× per dynamic global build on the 1-CPU box).
-3. **Estimate ingest-window gap** (§D1b): estimates ABSENT ~1-1.5h per 4h cycle → far-horizon 404s users
-   can hit. Fix = atomic write-new-then-delete-old in ingest. ⚠️ Ingest minefield — read-only first.
+3. ~~**Estimate ingest-window gap** (§D1b)~~ **FIXED `cf0b4b23` (07-10)**: root proven in run
+   29052535445's log — native prune deletes the old est tail at T+55min, extend job regenerates
+   T+75min, L2 lands T+95min. Estimated products now superseded only by a newer ESTIMATED generation
+   (kill `INGEST_PRUNE_PRESERVE_ESTIMATES=0`). Verify over the next cycles: no far-horizon 404 window;
+   EURO prune counts drop. NEW audit finding #15: in-job GFS-ext saves 0 (429 — provider-cache premise
+   died when the 21-min CMEMS fetch moved in between); LOW priority now.
 4. **OM raster-tile pipeline audit** (pressure/fog/rain/satellite — pipeline 3): preloader window, .om
    decode cost, slot thrash. Un-audited; it's already CDN-architecture so likely tuning not surgery.
 5. **capabilities EURO-wind native:336 is FALSE** (ECMWF=240h) — contract doc fix + decide whether the
