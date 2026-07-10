@@ -262,6 +262,37 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     // model/layer/map only so the warm COMPLETES and getWindSeriesFrame hits during scrub.
   }, [mapInstance, activeModel, isWindActive]);
 
+  // On a MODEL switch (or the first wind landing) eagerly warm the NEW model's series pages —
+  // mirror useMarineOrchestrator's model-switch prewarm. The scrub-start prewarm above fires only
+  // on a DRAG and series pages are per-model, so a switched-to model's series stayed cold and every
+  // click-jump/landed hour fell to a per-hour fetch (the model-compare "Cache miss ... Fetching
+  // immediately" storm, 2026-07-10). Rapid re-switching aborts the previous model's still-queued
+  // warm via the cleanup controller (prewarmWindSeries is deduped + TTL'd + capped at 2 concurrent),
+  // so toggling can't pile onto the 1-CPU backend. Ref-guarded: fires on model change only — never
+  // on pans or hour ticks. Kill switch: window.__RAW_WIND_MODEL_PREWARM_DISABLED__ = true
+  // (scrub-start prewarm and the per-hour fallback are unchanged); __WIND_SERIES__ = false also
+  // no-ops it (master series flag).
+  const prevWindPrewarmModelRef = useRef(null);
+  useEffect(() => {
+    if (!mapInstance || !isWindActive) return;
+    if (typeof window !== 'undefined' && window.__RAW_WIND_MODEL_PREWARM_DISABLED__) return;
+    if (prevWindPrewarmModelRef.current === activeModel) return;
+    prevWindPrewarmModelRef.current = activeModel;
+    const controller = new AbortController();
+    try {
+      const b = mapInstance.getBounds();
+      prewarmWindSeries(
+        activeModel,
+        { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) },
+        controller.signal
+      );
+      if (typeof window !== 'undefined') {
+        window.__WIND_MODEL_PREWARM_COUNT__ = (window.__WIND_MODEL_PREWARM_COUNT__ || 0) + 1;
+      }
+    } catch (e) { /* map not ready — ignore */ }
+    return () => { try { controller.abort(); } catch (e) { /* ignore */ } };
+  }, [activeModel, mapInstance, isWindActive]);
+
   // ===== TIMELINE SCRUB (local cache re-index, with FETCH ON CACHE MISS) =====
   const prevOffsetRef = useRef(timeOffsetHours);
   useEffect(() => {
