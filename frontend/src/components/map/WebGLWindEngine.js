@@ -328,7 +328,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   if (this.frameCount === undefined) this.frameCount = 0;
   this.frameCount++;
   if (this.frameCount === 1) {
-    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = ${stableSpeedScale.toFixed(8)} | bounds: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | maxSpeed: ${this._maxWindSpeed} kn | ${this.particleRes * this.particleRes} particles`);
+    // NOTE uMin/uMax are the u/v WIND-COMPONENT encoding ranges, NOT geographic bounds — the old
+    // "bounds:" label sent two forensic passes hunting a phantom equatorial clamp (2026-07-10).
+    console.log(`[WIND-TELEMETRY] Frame 1 | advection step = ${stableSpeedScale.toFixed(8)} | u/v range: [${this._windData.uMin[0].toFixed(1)},${this._windData.uMin[1].toFixed(1)}] to [${this._windData.uMax[0].toFixed(1)},${this._windData.uMax[1].toFixed(1)}] | maxSpeed: ${this._maxWindSpeed} kn | ${this.particleRes * this.particleRes} particles`);
   }
 
   // Step 0: Draw live wind-speed heatmap from the same forecast grid used by particles.
