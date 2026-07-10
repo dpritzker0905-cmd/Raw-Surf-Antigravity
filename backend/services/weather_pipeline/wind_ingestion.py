@@ -341,7 +341,28 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
         estimated_after_index=0 if from_cache else None, estimate_basis=_cache_basis
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind global coarse grid files.")
-    if count > 0:
+
+    # Strategy slice 1 (2026-07-10 late): PRE-BAKE the EURO wind 240->336h tail as GFS-fallback
+    # clones (see euro_wind_extension.py — same labels the live dynamic fallback serves, computed
+    # on the runner instead of per-request on the 1-CPU box). Skipped for forecast_cache recycles
+    # (already 14d, estimated from hour 0). Kill switch: EURO_WIND_EXTEND=0.
+    ext_count = 0
+    if count > 0 and not from_cache and os.environ.get("EURO_WIND_EXTEND", "1") != "0":
+        try:
+            native_max = None
+            for item in results:
+                times = (item.get("hourly", {}) or {}).get("time", []) or []
+                if times:
+                    native_max = _parse_om_time(times[-1])
+                    break
+            from services.weather_pipeline.euro_wind_extension import extend_euro_wind_from_gfs
+            ext_count = await extend_euro_wind_from_gfs(scheduler, run_time, native_max)
+            if ext_count:
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} EURO wind extended-tail files (gfs_fallback clones, beyond {native_max}).")
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] EURO wind extended-tail save failed (natives unaffected): {_ee}")
+
+    if count + ext_count > 0:
         scheduler.store.prune_superseded_products("EURO", "wind", "wind", "global_coarse", run_time)
     await scheduler._cleanup_and_pause(results, 0)
     return count > 0
