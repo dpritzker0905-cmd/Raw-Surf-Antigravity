@@ -92,9 +92,45 @@ layer-order changes are regression-adjacent: radar/lightning/mask ordering histo
 Shared spine: `useWeatherState` hour owner → `MapWeatherControls` scrubber (drag commits decimated ~11Hz
 `cb074b8b`, radar exempt) → 5 raw-hour hooks → engines; FCE `useSimulationField` → renderPlan bridge.
 
+## PHASE 5 — SILENT RENDER-FAILURE MATRIX (DONE 2026-07-10, code-proven)
+Two client detectors exist; their combined coverage and the proven blind spots:
+### Detector A: `weatherTruthTracker.js` (stage-lineage tracer, 11 stages: backendResponse → mappedGrid →
+cacheWrite/cacheRead → orchestratorCommit → webglUpload → webglRender → animationFrame + point/infobox)
+DETECTS: within-product stage DIVERGENCE (traceId/productId/dataHash/boundsHash vs previous stage of the
+SAME product) → console.error + verdict BLOCKED (`window.__WEATHER_TRUTH_TRACE__`). Lineage=product by
+design (zoom coarse↔regional swaps are legit cross-product moves — 2026-07-04 note in code).
+BLIND SPOTS (all code-cited):
+- **A1 Stage ABSENCE is invisible** — no completeness watchdog; a chain that dies after any stage leaves
+  verdict=PASS. There is NO failure status (only OK/MISMATCH); a failed fetch records nothing.
+- **A2 Observed domain = GFS-waves@h0 + wind@h0 ONLY.** Every call site gates `hourOffset === 0`
+  (backendWeatherServiceClient:524, backendWindServiceClient:75/255/278/479, WeatherEngine commitWindData,
+  windController cacheRead/Write) and marine sites additionally `model==='GFS' && layer==='waves'`
+  (also mismatch scope, weatherTruthTracker.js:217/235). ⇒ ALL scrubbed hours + EURO/ICON marine + all
+  swell layers are unobserved — the exact domain of this week's real bugs (EURO series, wind 500s,
+  ingest gap, no-coverage blanks). Extending = per-commit hashing cost (629-vector FNV per stage) — a
+  DECISION (finding #18), not a bug.
+- **A3 Series-frame lineage orphaned**: series commits carry product `series_<model>_<layer>_h<N>` but
+  webglUpload records `Product: undefined` + a different traceId (live-observed 07-10 log) — the
+  same-product previousStages filter never matches ⇒ commit→upload divergence undetectable for series.
+- A4 truthTag-less data silently skips recording (debug-gated warn only). A5 sink = console + window only.
+### Detector B: `useLayerTruthDiff.js` (runtime invariants, 4 rules @4fps render/idle/moveend)
+DETECTS: RASTER_OVERLAP (multi-family visible) · WIND_DATA_EMPTY + WIND_TOPOLOGY_INVALID (cols×rows≠len)
+· MARINE_EMPTY_RENDER (transition-suppressed) · SOURCE_MISMATCH_FLASH (shared visible source).
+BLIND SPOTS: **B1 console report is `NODE_ENV==='development'`-gated** (prod = HUD state only); **B2 only
+`activeLayers[0]` is evaluated** for the empty-data rules (multi-layer states partially checked); B3 all
+checks bypassed during scrubbing (`isScrubbingTimeline`) and MARINE_EMPTY suppressed by the 3 transition
+flags (inherits stranded-flag risk — the 5f3d12c9 class); B4 radar frame layers excluded from the family
+rule (sources don't match the `-source` naming convention).
+### Complementary watchdogs (different failure classes, already shipped)
+SimHealth (engine frame health) · engine guards w/ counters (no-downgrade, terminal-nocov ×2, marker-wedge
+heal, debounce-strand heal) · backend `/api/health/data` (data-lane freshness/horizon) · TruthDiff HUD.
+### Findings
+| # | Finding | Status |
+|---|---|---|
+| 18 | Truth tracker observes only GFS-waves@h0 + wind@h0; stage absence + failed fetches invisible; series lineage orphaned (A1-A3) | OPEN — user decision on scope extension (per-commit hashing cost) vs targeted fixes (e.g. stamp truthTag through series frames = cheap; absence watchdog = medium) |
+| 19 | TruthDiff prod-silent + first-active-layer-only (B1-B2) | OPEN — low-cost fixes if wanted; note dev--rawsurf logs DID show TruthDiff lines (verify build's NODE_ENV before relying on it in prod) |
+
 ## REMAINING PHASES — QUEUE + RECIPES (next sessions; graph server ready: 34k nodes/73k edges)
-- **P5 (silent render-failure matrix):** enumerate via `WEATHER_TRUTH` stages (backendResponse→…→
-  animationFrame) — the tracer already exists; audit each stage's failure detection.
 - **P6 (OceanMask lifecycle):** document from `mask-truth-guards` + `maskSmoothing.js` + encoder retain
   branches. READ-ONLY (minefield).
 - **P7 (particles):** SpectorJS (`tools/spectorjs`) + `__WIND_TELEMETRY__`; triage #10 (300 vectors) first.
