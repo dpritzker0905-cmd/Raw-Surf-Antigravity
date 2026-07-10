@@ -3,7 +3,7 @@ import asyncio
 import logging
 import math
 import gc
-from datetime import datetime, timezone
+from datetime import datetime, timezone, timedelta
 from typing import Optional, Dict, Any, List
 
 from fastapi import HTTPException
@@ -20,6 +20,29 @@ from services.weather_pipeline.route_helpers import (
 from services.weather_pipeline.viewport_helper import _is_oversized_grid, extend_icon_wind_to_14d
 
 logger = logging.getLogger(__name__)
+
+
+def wind_horizon_fail_fast(model: str, target_dt: datetime, forecast_days: int) -> None:
+    """WIND HORIZON FAIL-FAST (2026-07-10, live-measured): the upstream wind fetch covers exactly
+    `forecast_days` — a target beyond it CANNOT be served by this build, and today it falls through to
+    an unhandled slice error (EURO wind >240h returned naked HTTP 500 on every scrub past day 10 = the
+    "wind clears at the 14-day mark" report) or a doomed upstream grind that poisons the rate-limit
+    negative cache. Raise a clean 404 no_wind_coverage instead (mirrors marine's no_copernicus_coverage;
+    the client's existing fallback handles it identically, just instantly). ICON is EXEMPT — its
+    extend_icon_wind_to_14d serves 120→336h from the 5-day base fetch (verified live: +200h/+330h = 200
+    in ~2.5s). Truth-consistent: uses the SAME horizon the fetch itself uses — no new horizon source.
+    Kill switch: WIND_HORIZON_GATE=0."""
+    if model.upper() == "ICON":
+        return
+    if os.environ.get("WIND_HORIZON_GATE") == "0":
+        return
+    if target_dt > datetime.now(timezone.utc) + timedelta(hours=forecast_days * 24):
+        raise HTTPException(
+            status_code=404,
+            detail=(f"no_wind_coverage: {model} wind data ends ~{forecast_days * 24}h out; "
+                    f"requested {target_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}."),
+        )
+
 
 class FetchContext:
     """
@@ -207,6 +230,8 @@ class ViewportService:
                 forecast_days = 10
             else:
                 forecast_days = 16
+            # Fail fast (clean 404) on targets beyond what the fetch below can cover — see helper.
+            wind_horizon_fail_fast(model, target_dt, forecast_days)
         else:
             if domain.lower() == "marine":
                 if model.upper() == "ICON":
