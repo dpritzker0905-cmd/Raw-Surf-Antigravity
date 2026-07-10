@@ -45,11 +45,18 @@ async def test_icon_wind_dwd_direct_ingestion(tmp_path, monkeypatch):
     prods = [p for p in temp_store.get_manifest().products
              if p.model == "ICON" and p.domain == "wind" and p.region_id == "global_coarse"]
     assert len(prods) > 0
-    for p in prods:
+    # Audit #22 (2026-07-10): the DWD path now ALSO pre-bakes the 14d loop-extrapolated tail, so the
+    # lane holds BOTH authoritative natives and an estimated tail (kill ICON_WIND_EXTEND=0).
+    natives = [p for p in prods if not p.is_estimated]
+    tail = [p for p in prods if p.is_estimated]
+    assert len(natives) > 0
+    for p in natives:
         assert p.provider == "open-meteo"
         assert p.source_dataset == "dwd_icon"
-        assert p.is_estimated is False  # DWD is real 3-hourly to ~180h -> authoritative, no estimation
-        assert p.is_forecast_authoritative is True
+        assert p.is_forecast_authoritative is True  # DWD is real data -> authoritative
+    for p in tail:
+        assert p.is_forecast_authoritative is False  # loop-extrapolation = estimated, never authoritative
+        assert p.valid_time_start > max(n.valid_time_start for n in natives)  # tail strictly beyond natives
 
 
 @pytest.mark.asyncio

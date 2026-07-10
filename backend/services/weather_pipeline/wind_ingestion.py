@@ -13,6 +13,37 @@ from services.weather_pipeline.scheduler_helpers import (
 
 logger = logging.getLogger(__name__)
 
+
+def _parse_om_time(s):
+    """Open-meteo hourly times are offset-naive ('...T00:00'); normalize to UTC-aware."""
+    if not s:
+        return None
+    try:
+        dt = datetime.fromisoformat(s.replace("Z", "+00:00"))
+        return dt.replace(tzinfo=timezone.utc) if dt.tzinfo is None else dt
+    except Exception:
+        return None
+
+
+def _slice_hours_after(results, after_dt):
+    """Trim open-meteo-shaped point results to hourly entries STRICTLY AFTER after_dt (the extended
+    tail slice — mirror of the EURO marine gfs_ext slice in scheduler.py). Returns None when empty."""
+    if not results or after_dt is None:
+        return None
+    sliced = []
+    for pt in results:
+        hourly = pt.get("hourly", {}) or {}
+        times = hourly.get("time", []) or []
+        keep = [i for i, t in enumerate(times) if (_parse_om_time(t) and _parse_om_time(t) > after_dt)]
+        if not keep:
+            continue
+        new_hourly = {k: ([arr[i] for i in keep] if (isinstance(arr, list) and len(arr) == len(times)) else arr)
+                      for k, arr in hourly.items()}
+        npt = dict(pt)
+        npt["hourly"] = new_hourly
+        sliced.append(npt)
+    return sliced or None
+
 # GFS/EURO wind GLOBAL ingestion fetched 14 days × the global coarse grid in batches of 500 points,
 # which reliably timed out open-meteo on the 1-CPU/512MB box (it processes 14 days × 500 pts per call
 # too slowly) → no product (manifest stuck: EURO wind 341h stale, GFS 166h). We KEEP the full 14-day
@@ -484,7 +515,48 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
         estimate_basis=est_basis
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} ICON Wind global coarse grid files (from_dwd={from_dwd}).")
-    if count > 0:
+
+    # Audit #22 (2026-07-10): PRE-BAKE the ICON wind extended tail. The 14d loop-extrapolation only
+    # ran on the open-meteo FALLBACK path — the production DWD-direct path saved natives (~180h) and
+    # stopped, so every far hour fell to the on-demand 629-pt dynamic build (measured >40s cold on
+    # Render, 504s + open-meteo 503s under load = the far-hour wind scrub grind). Bake the SAME
+    # extension here on the runner: natives stay authoritative step=1; the tail (> native max) saves
+    # 3-hourly as ESTIMATED (loop-extrapolation basis) — cf0b4b23's prune rule preserves the old tail
+    # until this new one lands (continuity), and the resolver serves stored products before any
+    # dynamic build. Kill switch: ICON_WIND_EXTEND=0.
+    ext_count = 0
+    if from_dwd and count > 0 and os.environ.get("ICON_WIND_EXTEND", "1") != "0":
+        try:
+            native_max = None
+            for item in results:
+                times = (item.get("hourly", {}) or {}).get("time", []) or []
+                if times:
+                    native_max = _parse_om_time(times[-1])
+                    break
+            from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
+            extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
+            ext_results = _slice_hours_after(results, native_max)
+            if ext_results:
+                native_h = None
+                try:
+                    native_h = int((native_max - run_time).total_seconds() // 3600)
+                except Exception:
+                    pass
+                ext_count = await normalize_and_save_loop(
+                    scheduler.normalizer, scheduler.store, ext_results,
+                    model="ICON", provider="open-meteo", domain="wind", layer="wind",
+                    bbox=global_region, resolution=resolution, run_time=run_time,
+                    region_id="global_coarse", coverage_mode="global_tile",
+                    is_test_env=env["is_test_env"], step=3,
+                    log_prefix="[Pipeline Scheduler] ICON wind (14d loop-ext tail) global_coarse",
+                    estimated_after_index=0,
+                    estimate_basis={**icon_estimate_basis, "native_horizon_hours": native_h or 180},
+                )
+                logger.info(f"[Pipeline Scheduler] Ingested {ext_count} ICON wind extended-tail files (beyond {native_max}).")
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] ICON wind extended-tail save failed (natives unaffected): {_ee}")
+
+    if count + ext_count > 0:
         scheduler.store.prune_superseded_products("ICON", "wind", "wind", "global_coarse", run_time)
     await scheduler._cleanup_and_pause(results, 0)
     return count > 0

@@ -395,9 +395,9 @@ class ViewportService:
             is_render_env = os.environ.get("RENDER") == "true"
             upstream_timeout = float(os.environ.get("VIEWPORT_UPSTREAM_TIMEOUT_SEC", "20.0" if is_render_env else "30.0"))
             if is_global_view and domain.lower() == "wind" and resolution <= 10.0:
-                # 10°-parity global wind (629 pts) measured >20s on Render — every retry hit the 20s cap,
-                # so parity never served. Fitted ceiling; cached after first success; EURO override still wins.
-                upstream_timeout = float(os.environ.get("WIND_GLOBAL_PARITY_TIMEOUT_SEC", "40.0"))
+                # 10°-parity global wind (629 pts) >20s on Render → fitted ceiling; cached after first
+                # success; EURO override below still wins; explicit VIEWPORT_UPSTREAM_TIMEOUT_SEC still bounds.
+                upstream_timeout = float(os.environ.get("WIND_GLOBAL_PARITY_TIMEOUT_SEC", os.environ.get("VIEWPORT_UPSTREAM_TIMEOUT_SEC", "40.0")))
             # EURO (ecmwf_ifs) wind upstream is reliably ~20s for a global viewport — too slow for the
             # marine→wind toggle. Use a SHORT timeout so it fails over FAST to the GFS-wind fallback
             # (grid_resolver) instead of blocking activation ~20s. Once the scheduled EURO wind
