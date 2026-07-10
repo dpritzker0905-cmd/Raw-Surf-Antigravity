@@ -515,10 +515,18 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
           try {
             const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
-            if (data && data.vectors?.length > 0) {
+            // Renderable guard (2026-07-10, the "ICON wind heatmap cleared" report): the 1-vector
+            // safe-zero fallback PASSED the old vectors.length>0 check and committed here ×5 on
+            // moveend refetches of a failed far hour — the layer's renderable===false branch then
+            // CLEARED the wind buffers (the same guard-class bug the settle path fixed in 06fbeef2).
+            // Hold the last-good frame instead; kill __RAW_WIND_HOLD_LAST_FRAME_DISABLED__ restores.
+            const _holdDisabled = typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true;
+            if (isRenderableWindData(data) || (_holdDisabled && data && data.vectors?.length > 0)) {
               console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors`);
               windRevision.current += 1;
               commitWindData(data);
+            } else if (data) {
+              console.log(`[WeatherEngine] Viewport refetch unrenderable (${data.__failureReason || 'empty'}) — holding last frame.`);
             }
           } catch (e) { /* ignore */ }
         }, delay);
