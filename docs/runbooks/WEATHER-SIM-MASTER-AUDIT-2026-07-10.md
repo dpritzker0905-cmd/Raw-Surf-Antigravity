@@ -32,7 +32,7 @@ FCE (`useSimulationField`) feeds `useRenderPlanBridge`→renderPlan (NOT display
 | 5 | EURO wind >240h = naked 500 (unhandled slice past forecast_days=10); masked a working GFS fallback | curls 500→ post-fix 200 `provider:gfs_fallback` | FIXED `b0655047` (fail-fast unblocked resolver ladder) |
 | 6 | Far-horizon settle churn re-drove doomed 404s (stale grid carries no failureReason) | §7.6 trace | FIXED `d38a693b` (terminal tracker) |
 | 7 | Estimates ABSENT during each ~1–1.5h ingest window (every 4h) — old products gone before new land | health horizon 216.8h during window vs 144 products after | OPEN — atomic write-new-then-delete-old (ingest minefield) |
-| 8 | Wind series cold on MODEL-SWITCH & click-jumps (prewarm = drag-start only, per-model) | this round's log | OPEN (top client candidate) |
+| 8 | Wind series cold on MODEL-SWITCH & click-jumps (prewarm = drag-start only, per-model) | this round's log; code-proven 07-10 (scrub_start dispatch = drag only; F3 cleanup aborts the warm on rapid switches) | FIXED `9494d8c2` (model-switch/first-landing prewarm, mirror of marine's; kill `__RAW_WIND_MODEL_PREWARM_DISABLED__`; tel `__WIND_MODEL_PREWARM_COUNT__`; live-verified preview 3007: settle hit, no per-hour fetch) |
 | 9 | `capabilities` EURO-wind native:336 is FALSE (ECMWF open-data = 240h) — contract vs reality | curls + health | OPEN (contract fix, locked-doc territory) |
 | 10 | ICON wind returned **300 vectors** once (vs 629 everywhere) — partial grid | this round's log | OPEN — NEW, un-triaged |
 | 11 | Model switch unconditionally wipes OM block cache + discards in-flight (fetch storms on compare) | `useModelTransition` (deliberate: cross-model pollution) + "Discarding stale" logs | OPEN (§7.5 retention idea; guarded) |
@@ -44,7 +44,7 @@ Disconfirmed (do not re-chase): LRU eviction as scrub root; particle fill-rate v
 ## PHASE 3 — FEATURE STATUS (as verified live 07-10)
 ✓ Marine waves/swells (EURO best-in-class; GFS/ICON good w/ fastpath) · ✓ Radar · ✓ Timeline+playback
 (decimated commits; settle nets) · ✓ 14-day contract marine (GFS native, ICON blend, EURO estimates —
-minus ingest-window gap #7) · ⚠ Wind (fixes landed but #8/#10 open; EURO>240h now = labeled GFS fallback)
+minus ingest-window gap #7) · ⚠ Wind (#8 FIXED `9494d8c2`; #10 open; EURO>240h now = labeled GFS fallback)
 · ⚠ Pressure/fog/rain/satellite (pipeline 3 — functional; scrub feel UN-AUDITED: preloader window,
 .om decode cost, slot thrash) · ⚠ Temperature (exists? un-audited) · ✓ OceanMask (heavily guarded;
 Phase 6 = document, don't touch).

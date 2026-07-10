@@ -26,9 +26,11 @@ first, and NEVER judge feel during a Render deploy (every push restarts it) or t
 - User verdict: "seems to be improving, keep testing." EURO marine = the reference feel.
 
 ## 3. OPEN QUEUE (ranked; audit doc has recipes)
-1. **Wind series cold on MODEL-SWITCH & click-jumps** (§H tail): prewarm fires only on drag-start and is
-   per-model → every switch/jump = per-hour fetch. Fix = warm wind series on model-switch/first-landing
-   (mirror marine's model-switch prewarm). Contained, high felt value for the model-compare workflow.
+1. ~~**Wind series cold on MODEL-SWITCH & click-jumps** (§H tail)~~ **FIXED `9494d8c2` (07-10 next
+   session)**: ref-guarded model-switch/first-landing prewarm in WeatherEngine.js (mirror of marine's
+   at useMarineOrchestrator.js:726); rapid re-switch aborts the previous warm. Kill
+   `__RAW_WIND_MODEL_PREWARM_DISABLED__`; tel `__WIND_MODEL_PREWARM_COUNT__`. Live-verified preview
+   3007: first-landing + switch warm fire, hour ticks don't, click-jump settle = series hit (no fetch).
 2. **300-vector wind grids** — now seen on ALL models (EURO+296h, ICON, GFS+28h; usually 629). Possibly a
    legit clamped viewport product; triage BEFORE assuming bug (`WIND-TELEMETRY` bounds + product ids).
 3. **Estimate ingest-window gap** (§D1b): estimates ABSENT ~1-1.5h per 4h cycle → far-horizon 404s users
