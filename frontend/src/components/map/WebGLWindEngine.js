@@ -645,7 +645,7 @@ WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
 
 /**
  * v3.15: setTheme — update color ramp texture when theme changes.
- * Called by WebGLSynchronizedOverlay on mount and theme switches.
+ * Public engine API; no live callers since the WebGLSynchronizedOverlay removal (2026-07-10).
  */
 WebGLWindEngine.prototype.setTheme = function(gl, theme) {
   if (!gl || !this._initialized) return;
@@ -660,7 +660,7 @@ WebGLWindEngine.prototype.setTheme = function(gl, theme) {
 };
 
 /**
- * v3.15: renderHeatmapAndParticles — alias for render().
- * WebGLSynchronizedOverlay calls this method name (matches WebGLMarineEngine API).
+ * v3.15: renderHeatmapAndParticles — alias for render() (matches WebGLMarineEngine API).
+ * Public engine API; no live callers since the WebGLSynchronizedOverlay removal (2026-07-10).
  */
 WebGLWindEngine.prototype.renderHeatmapAndParticles = WebGLWindEngine.prototype.render;
