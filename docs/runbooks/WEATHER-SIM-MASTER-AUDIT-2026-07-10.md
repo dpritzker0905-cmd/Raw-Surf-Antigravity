@@ -34,7 +34,7 @@ FCE (`useSimulationField`) feeds `useRenderPlanBridge`→renderPlan (NOT display
 | 7 | Estimates ABSENT during each ~1–1.5h ingest window (every 4h) — old products gone before new land | health horizon 216.8h during window vs 144 products after | OPEN — atomic write-new-then-delete-old (ingest minefield) |
 | 8 | Wind series cold on MODEL-SWITCH & click-jumps (prewarm = drag-start only, per-model) | this round's log; code-proven 07-10 (scrub_start dispatch = drag only; F3 cleanup aborts the warm on rapid switches) | FIXED `9494d8c2` (model-switch/first-landing prewarm, mirror of marine's; kill `__RAW_WIND_MODEL_PREWARM_DISABLED__`; tel `__WIND_MODEL_PREWARM_COUNT__`; live-verified preview 3007: settle hit, no per-hour fetch) |
 | 9 | `capabilities` EURO-wind native:336 is FALSE (ECMWF open-data = 240h) — contract vs reality | curls + health | OPEN (contract fix, locked-doc territory) |
-| 10 | ICON wind returned **300 vectors** once (vs 629 everywhere) — partial grid | this round's log | OPEN — NEW, un-triaged |
+| 10 | ICON wind returned **300 vectors** (vs 629) at far hours | live curls 07-10: far grid = COMPLETE 25×12 global, all nonzero, `is_estimated:true`, product `viewport_icon_wind_wind_*_-180.00_-80.00_180.00_85.00` | TRIAGED — NOT A BUG. Dynamic global wind build uses `target_pts=400` (viewport_service.py:163) → `choose_adaptive_resolution(360,165,400)`=√148.5=12.19 → 15° tier (route_helpers.py:137) → 25×12=300; stored ingest product is 10° → 37×17=629. Fires whenever the stored hour is missing (ICON wind >~113h ingested horizon, EURO >240h, or ingest-window gap = #7). User-felt = slightly coarser far-hour wind field. OPTIONAL parity fix (user decision — adds ~2× upstream/CPU per dynamic global build on the 1-CPU box): raise global-wind target_pts ≥594 so est_res ≤10° |
 | 11 | Model switch unconditionally wipes OM block cache + discards in-flight (fetch storms on compare) | `useModelTransition` (deliberate: cross-model pollution) + "Discarding stale" logs | OPEN (§7.5 retention idea; guarded) |
 | 12 | PostHog rrweb console+network capture serializes EVERYTHING (marine logged 4–6 lines/commit) | stack traces in every user log | MITIGATED (logs quieted `cb074b8b`); posthog config un-audited |
 | 13 | React reconcile NOT the steady-state bottleneck; engine stable 30 FPS all zooms; §7c retired | 3 live benches | CLOSED — do not reopen |
@@ -68,5 +68,11 @@ CDN (pipeline-3-ify them). Big project; the durable end-state. Interim: Render c
 
 ## TEST DISCIPLINE (learned this arc, binding)
 Judge NOTHING during: a Render deploy (push = restart), the ingest window, or on a stale SW (check
-`BUILD_VERSION`==HEAD). One variable per test. Live telemetry first: `__MARINE_VERBOSE__`,
+`BUILD_VERSION`==HEAD). One variable per test.
+⭐ **Browser "blocked by CORS policy: No ACAO header" on onrender.com during/near a deploy = Render-edge
+5xx (no app CORS headers on edge-generated errors), NOT a CORS config bug** — verified 07-10: all three
+"CORS-failed" global far-horizon /grid URLs re-curled 200+ACAO in 3-4s steady-state; the client's
+"Falling back cleanly to standard proxy pipeline" is the designed fallback (collateral: the ICON blend
+can transiently use a regional 13×13=169 anchor instead of global 629 — self-heals next fetch).
+Re-curl the exact URL with `-H "Origin: ..."` AFTER the deploy settles before diagnosing. Live telemetry first: `__MARINE_VERBOSE__`,
 `__MARINE_CACHE_DIAG__`, `__SCRUB_PROBE__`, `__WIND_SERIES_SETTLE_HIT__`, `__MARINE_TERMINAL_NOCOV_*`.

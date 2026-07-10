@@ -31,8 +31,10 @@ first, and NEVER judge feel during a Render deploy (every push restarts it) or t
    at useMarineOrchestrator.js:726); rapid re-switch aborts the previous warm. Kill
    `__RAW_WIND_MODEL_PREWARM_DISABLED__`; tel `__WIND_MODEL_PREWARM_COUNT__`. Live-verified preview
    3007: first-landing + switch warm fire, hour ticks don't, click-jump settle = series hit (no fetch).
-2. **300-vector wind grids** — now seen on ALL models (EURO+296h, ICON, GFS+28h; usually 629). Possibly a
-   legit clamped viewport product; triage BEFORE assuming bug (`WIND-TELEMETRY` bounds + product ids).
+2. ~~**300-vector wind grids**~~ **TRIAGED 07-10 — NOT A BUG** (audit #10): dynamic global wind build =
+   15° (25×12=300, complete grid) vs stored 10° product (37×17=629); serves whenever the stored hour is
+   missing (far-horizon extension or ingest-window gap #3). GFS+28h occurrence = #3 wearing wind clothes.
+   Optional 10° parity bump = user decision (costs ~2× per dynamic global build on the 1-CPU box).
 3. **Estimate ingest-window gap** (§D1b): estimates ABSENT ~1-1.5h per 4h cycle → far-horizon 404s users
    can hit. Fix = atomic write-new-then-delete-old in ingest. ⚠️ Ingest minefield — read-only first.
 4. **OM raster-tile pipeline audit** (pressure/fog/rain/satellite — pipeline 3): preloader window, .om
