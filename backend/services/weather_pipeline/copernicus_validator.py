@@ -372,8 +372,21 @@ def prune_superseded_products_helper(
     run_time alone — then deleted the healthy natives from the prior run AND the 241-336h
     estimated tail (the extended-estimates anchor pool went empty, killing the lane).
     AUTHORITATIVE products are now only superseded by a NEWER AUTHORITATIVE run in the same
-    lane; estimated products keep the plain newest-run rule. Lanes with no estimated products
-    (wind/pressure/GFS) behave exactly as before (latest authoritative == latest run).
+    lane. Lanes with no estimated products (wind/pressure/GFS) behave exactly as before
+    (latest authoritative == latest run).
+
+    INGEST-WINDOW CONTINUITY (2026-07-10, the far-horizon estimate gap — run 29052535445):
+    estimated products used to keep the plain newest-run rule, so the NATIVE save's prune
+    (~T+55min into the cycle) deleted last cycle's 241-336h estimated tail while its only
+    regenerator — the extended-estimates job — runs ~T+75min and its L2 manifest lands ~T+95min:
+    a ~35-45 min far-horizon outage EVERY 4h cycle (in-job GFS-ext saves 0 in production).
+    Estimated products are now only superseded by a NEWER ESTIMATED generation in the lane
+    (write-new-then-delete-old): the old tail keeps serving until the new one exists, then the
+    next prune / cycle-end duplicate sweep (provenance-aware) removes it. Edge accepted: a
+    fallback batch of NEW estimates that spans less than the old tail still supersedes it by
+    run-time class rule (same as before; the extend job re-covers within the cycle).
+    Kill switch INGEST_PRUNE_PRESERVE_ESTIMATES=0 restores the plain newest-run rule (operator
+    lever to purge a poisoned estimated generation with one healthy native run).
     """
     from services.weather_pipeline.store import _upload_executor, _manifest_executor
     manifest = store.get_manifest()
@@ -392,20 +405,28 @@ def prune_superseded_products_helper(
         )
 
     latest_auth_run_time = None
+    latest_est_run_time = None
     for p in manifest.products:
-        if _lane_match(p) and p.is_forecast_authoritative and p.run_time is not None:
-            if latest_auth_run_time is None or p.run_time > latest_auth_run_time:
-                latest_auth_run_time = p.run_time
+        if _lane_match(p) and p.run_time is not None:
+            if p.is_forecast_authoritative:
+                if latest_auth_run_time is None or p.run_time > latest_auth_run_time:
+                    latest_auth_run_time = p.run_time
+            elif latest_est_run_time is None or p.run_time > latest_est_run_time:
+                latest_est_run_time = p.run_time
+
+    preserve_estimates = os.environ.get("INGEST_PRUNE_PRESERVE_ESTIMATES", "1") != "0"
 
     remaining_products = []
     pruned_count = 0
     for p in manifest.products:
-        superseded = (
-            _lane_match(p)
-            and p.run_time < latest_run_time
-            and (not p.is_forecast_authoritative
-                 or (latest_auth_run_time is not None and p.run_time < latest_auth_run_time))
-        )
+        superseded = False
+        if _lane_match(p) and p.run_time is not None and p.run_time < latest_run_time:
+            if p.is_forecast_authoritative:
+                superseded = latest_auth_run_time is not None and p.run_time < latest_auth_run_time
+            elif preserve_estimates:
+                superseded = latest_est_run_time is not None and p.run_time < latest_est_run_time
+            else:
+                superseded = True
         if superseded:
             filepath = store.cache_dir / p.filename
             if filepath.exists():

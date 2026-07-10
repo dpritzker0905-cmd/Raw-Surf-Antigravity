@@ -137,7 +137,13 @@ def test_superseded_prune_estimated_batch_cannot_wipe_natives(tmp_path):
     assert "euro_waves_fallback_new.json" in remaining
 
 
-def test_superseded_prune_native_batch_still_prunes_everything_older(tmp_path):
+def test_superseded_prune_native_batch_preserves_estimated_tail(tmp_path):
+    """INGEST-WINDOW CONTINUITY (2026-07-10, run 29052535445): the native save's prune used to
+    delete last cycle's 241-336h estimated tail ~20-45 min BEFORE the extended-estimates job
+    regenerates it — a far-horizon outage every 4h cycle. A native batch now supersedes older
+    NATIVES only; the estimated tail keeps serving until a newer estimated generation exists
+    (write-new-then-delete-old). INGEST_PRUNE_PRESERVE_ESTIMATES=0 restores the old
+    heal-the-whole-lane behavior (operator lever for purging a poisoned estimated generation)."""
     store = ProductStore(cache_dir=tmp_path)
     t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
     old_native = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
@@ -145,7 +151,7 @@ def test_superseded_prune_native_batch_still_prunes_everything_older(tmp_path):
     new_native = datetime(2026, 7, 6, 14, 0, tzinfo=timezone.utc)
     products = [
         _prod("EURO", "waves", t0, old_native, "euro_waves_old_native.json", authoritative=True),
-        _prod("EURO", "waves", t0 + timedelta(hours=3), old_est, "euro_waves_old_est.json", authoritative=False),
+        _prod("EURO", "waves", t0 + timedelta(hours=288), old_est, "euro_waves_old_est.json", authoritative=False),
         _prod("EURO", "waves", t0, new_native, "euro_waves_new_native.json", authoritative=True),
     ]
     store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
@@ -154,4 +160,48 @@ def test_superseded_prune_native_batch_still_prunes_everything_older(tmp_path):
 
     store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", new_native)
     remaining = {p.filename for p in store.get_manifest().products}
-    assert remaining == {"euro_waves_new_native.json"}  # a real native run heals the whole lane
+    # old native superseded by the new native; the estimated tail SURVIVES the native prune
+    assert remaining == {"euro_waves_new_native.json", "euro_waves_old_est.json"}
+
+
+def test_superseded_prune_estimated_tail_goes_once_newer_estimates_exist(tmp_path):
+    """The second half of write-new-then-delete-old: after the extended-estimates job saves the
+    NEW tail, the next prune supersedes the old one (est-vs-est newest-run rule unchanged)."""
+    store = ProductStore(cache_dir=tmp_path)
+    t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
+    old_est = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)
+    new_native = datetime(2026, 7, 6, 14, 0, tzinfo=timezone.utc)
+    new_est = datetime(2026, 7, 6, 14, 25, tzinfo=timezone.utc)
+    products = [
+        _prod("EURO", "waves", t0 + timedelta(hours=288), old_est, "euro_waves_old_est.json", authoritative=False),
+        _prod("EURO", "waves", t0, new_native, "euro_waves_new_native.json", authoritative=True),
+        _prod("EURO", "waves", t0 + timedelta(hours=292), new_est, "euro_waves_new_est.json", authoritative=False),
+    ]
+    store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
+    for p in products:
+        (tmp_path / p.filename).write_text("{}")
+
+    store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", new_est)
+    remaining = {p.filename for p in store.get_manifest().products}
+    assert remaining == {"euro_waves_new_native.json", "euro_waves_new_est.json"}
+
+
+def test_superseded_prune_kill_switch_restores_plain_rule(tmp_path, monkeypatch):
+    monkeypatch.setenv("INGEST_PRUNE_PRESERVE_ESTIMATES", "0")
+    store = ProductStore(cache_dir=tmp_path)
+    t0 = datetime(2026, 7, 6, 0, 0, tzinfo=timezone.utc)
+    old_native = datetime(2026, 7, 6, 4, 20, tzinfo=timezone.utc)
+    old_est = datetime(2026, 7, 6, 11, 19, tzinfo=timezone.utc)
+    new_native = datetime(2026, 7, 6, 14, 0, tzinfo=timezone.utc)
+    products = [
+        _prod("EURO", "waves", t0, old_native, "euro_waves_old_native.json", authoritative=True),
+        _prod("EURO", "waves", t0 + timedelta(hours=288), old_est, "euro_waves_old_est.json", authoritative=False),
+        _prod("EURO", "waves", t0, new_native, "euro_waves_new_native.json", authoritative=True),
+    ]
+    store._save_manifest(PipelineManifest(products=products, last_manifest_update=datetime.now(timezone.utc)))
+    for p in products:
+        (tmp_path / p.filename).write_text("{}")
+
+    store.prune_superseded_products("EURO", "marine", "waves", "global_coarse", new_native)
+    remaining = {p.filename for p in store.get_manifest().products}
+    assert remaining == {"euro_waves_new_native.json"}  # old behavior: native run heals the whole lane
