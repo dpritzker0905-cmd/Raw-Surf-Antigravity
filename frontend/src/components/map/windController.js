@@ -7,7 +7,7 @@ import {
 } from './marineControllerUtils';
 import { getBackendWindFlag, clampViewportBbox, getSharedValidTime } from './backendWeatherServiceClient';
 import { fetchBackendWindGrid } from './backendWindServiceClient';
-import { createFallbackSafeZeroGrid } from './marineControllerCache';
+import { createFallbackSafeZeroGrid, recordTerminalNoCoverage } from './marineControllerCache';
 import { recordTruthStage } from './weatherTruthTracker';
 
 // --- CACHES ---
@@ -255,6 +255,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
   }
 
   const fetchPromise = (async () => {
+    let lastWindRedirectFailureReason = '';
     if (getBackendWindFlag() && (resolvedModel === 'GFS' || resolvedModel === 'ICON' || resolvedModel === 'EURO')) {
       try {
         console.log(`[Backend Weather Service] Redirecting ${resolvedModel} Wind grid fetch to backend Weather Data Service for hourOffset=+${hourOffset}h`);
@@ -291,6 +292,7 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
         return result;
       } catch (err) {
         console.warn(`[Backend Weather Service] Wind grid redirect failed: ${err.message}.`);
+        lastWindRedirectFailureReason = err.message || '';
         if (typeof window !== 'undefined' && window.__BACKEND_WIND_SERVICE_DIAG__) {
           window.__BACKEND_WIND_SERVICE_DIAG__.fallbackPath = 'none';
           window.__BACKEND_WIND_SERVICE_DIAG__.fallbackReason = err.message;
@@ -299,6 +301,13 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
     }
 
     console.warn(`[Fallback] Backend wind redirects failed for model=${resolvedModel}, hour=${hourOffset}. Returning conformed safe zero grid.`);
+    // Terminal no-coverage (wind analog of marineController's §7.6 recording): a coverage 404 from
+    // the wind horizon gate won't resolve by refetching this run — record (model,'wind',hour) so the
+    // scrub-settle stops re-driving the doomed fetch while the held frame keeps displaying. NEVER
+    // record transient reasons (timeout/abort/5xx) — those must keep retrying.
+    if (lastWindRedirectFailureReason.includes('coverage') || lastWindRedirectFailureReason.includes('unsupported')) {
+      recordTerminalNoCoverage(resolvedModel, 'wind', hourOffset);
+    }
     const targetBounds = viewportBounds || snappedBounds;
     if (isContainedInWindCache(targetBounds, resolvedModel)) {
       const cachedData = extractWindAtOffset(windHourlyCache, hourOffset);
@@ -316,7 +325,8 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
       source: resolvedModel,
       hourOffset,
       renderable: false,
-      nonzeroCount: 0
+      nonzeroCount: 0,
+      __failureReason: lastWindRedirectFailureReason || 'backend_fetch_failed'
     };
   })();
 

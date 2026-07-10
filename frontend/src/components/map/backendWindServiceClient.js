@@ -461,7 +461,19 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
     try {
       const res = await fetch(url, { signal });
       if (!res.ok) {
-        throw new Error(`Backend returned HTTP ${res.status}`);
+        // Surface the backend's failure reason (e.g. the wind horizon gate's 404 `no_wind_coverage`)
+        // so callers can tell a TERMINAL coverage miss from a transient 5xx — mirror of the marine
+        // grid client's error shape. Falls back to the bare status when the body isn't JSON.
+        let reason = `Backend returned HTTP ${res.status}`;
+        try {
+          const errorJson = await res.json();
+          if (errorJson && errorJson.reason) {
+            reason = errorJson.reason;
+          } else if (errorJson && errorJson.detail) {
+            reason = errorJson.detail;
+          }
+        } catch (e) { /* opaque error body — keep the bare status */ }
+        throw new Error(reason);
       }
       const json = await res.json();
       if (typeof window !== 'undefined' && hourOffset === 0) {

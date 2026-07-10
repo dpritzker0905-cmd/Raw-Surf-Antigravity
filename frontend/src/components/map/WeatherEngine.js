@@ -4,6 +4,7 @@ import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
 import { recordTruthStage } from './weatherTruthTracker';
 import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
+import { isTerminalNoCoverage } from './marineControllerCache';
 
 // Module-level scrub log throttle (max once per 2s)
 let _lastScrubLogTime = 0;
@@ -394,6 +395,18 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         } catch (e) { /* fall through to the per-hour fetch */ }
       }
 
+      // TERMINAL NO-COVERAGE skip (2026-07-10, audit queue #2 — wind analog of marine d38a693b):
+      // a genuinely-terminal coverage 404 recorded by windController won't resolve by refetching
+      // this run — skip the doomed per-hour fetch and keep the held frame displaying. TTL 15 min
+      // (marineControllerCache); kill __RAW_DISABLE_TERMINAL_NOCOV_BYPASS__ (shared with marine).
+      // Tel: __WIND_TERMINAL_NOCOV_SKIP_COUNT__.
+      if (cacheMiss && isTerminalNoCoverage(activeModel, 'wind', timeOffsetHours)) {
+        if (typeof window !== 'undefined') {
+          window.__WIND_TERMINAL_NOCOV_SKIP_COUNT__ = (window.__WIND_TERMINAL_NOCOV_SKIP_COUNT__ || 0) + 1;
+        }
+        return;
+      }
+
       if (cacheMiss) {
         console.log(`[CACHE] [WeatherEngine] Cache miss for wind at hour +${timeOffsetHours}h. Fetching immediately...`);
         try {
@@ -424,14 +437,23 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             console.log(`[SCRUB] [WeatherEngine] Discarding stale wind fetch (req +${timeOffsetHours}h/${activeModel}; now +${timeOffsetRef.current}h/${activeModelRef.current}).`);
             return;
           }
-          if (data && data.vectors?.length > 0) {
+          if (isRenderableWindData(data)) {
             console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
             windRevision.current += 1;
             commitWindData(data);
-          } else {
+          } else if (typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true) {
+            // Kill switch: restore the old clear-on-no-coverage behavior exactly.
             console.log(`[WeatherEngine] No wind forecast coverage at offset +${timeOffsetHours}h. Clearing visual.`);
             commitWindData(null);
             windRevision.current += 1;
+          } else {
+            // HOLD-LAST-FRAME (2026-07-10, audit queue #2 — wind analog of marine d38a693b): a
+            // no-coverage or safe-zero result must not blank the wind layer mid-scrub; keep the
+            // last-good frame displaying. The 1-vector safe-zero grid used to pass the old
+            // vectors.length>0 guard and commit (= the "wind clears at 14 days" blank); the
+            // renderable guard above now rejects it, and the terminal record in windController
+            // stops the settle re-driving this hour for 15 min.
+            console.log(`[WeatherEngine] No renderable wind at +${timeOffsetHours}h (${(data && data.__failureReason) || 'empty'}) — holding last frame.`);
           }
         } catch (err) {
           // F3: preserve the previous same-model frame on a fetch error — do NOT clear the visual
