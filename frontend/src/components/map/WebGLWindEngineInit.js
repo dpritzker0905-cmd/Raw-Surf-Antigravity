@@ -15,14 +15,25 @@ import {
   initParticleTexture
 } from './WebGLWindUtils';
 
-export function reinitParticles(engine, gl) {
+export function reinitParticles(engine, gl, opts) {
   if (!gl || !engine._initialized) return;
-  engine.clearBuffers(gl);
+  // keepTrails (2026-07-10, the pan/zoom wind blink): CAMERA-driven reseeds (tile drift recenter,
+  // zoom-tier crossing) used to hard-clear the trail FBOs too — the whole field blanked and took
+  // ~1s to redraw on every screen-sized pan ("not snappy" feel with all data paths warm). Trails
+  // are screen-space and the fade pass ages them out in <1s, so keeping them = a smooth crossfade
+  // (the same trade the instant-toggle path already ships for stale trails: re-advect, don't blank).
+  // DATA-driven reseeds (genuine grid-bounds change) keep the full clear.
+  // Kill switch: window.__RAW_WIND_TRAIL_CLEAR_LEGACY__ = true restores clearing everywhere.
+  const keepTrails = !!(opts && opts.keepTrails) &&
+    !(typeof window !== 'undefined' && window.__RAW_WIND_TRAIL_CLEAR_LEGACY__ === true);
+  if (!keepTrails) engine.clearBuffers(gl);
   if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
   engine.particleStateA = initParticleTexture(gl, engine.particleRes);
   engine.particleStateB = initParticleTexture(gl, engine.particleRes);
-  console.log('[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
+  console.log(keepTrails
+    ? '[WebGLWind] Particles re-seeded (trails kept — camera recenter)'
+    : '[WebGLWind] Particles re-initialized and FBOs cleared due to bounds change');
 }
 
 export function initEngine(engine, gl) {

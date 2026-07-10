@@ -303,7 +303,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     if (this._tileCenterX === undefined || this._tileCenterY === undefined) {
       this._tileCenterX = cx;
       this._tileCenterY = cy;
-      this.reinitParticles(gl);
+      this.reinitParticles(gl, { keepTrails: true });
     } else {
       var dx = cx - this._tileCenterX;
       var dy = cy - this._tileCenterY;
@@ -311,7 +311,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       if (Math.abs(dx) > tileWidth * 0.25 || Math.abs(dy) > tileWidth * 0.25) {
         this._tileCenterX = cx;
         this._tileCenterY = cy;
-        this.reinitParticles(gl);
+        this.reinitParticles(gl, { keepTrails: true });
       }
     }
     tileOriginX = this._tileCenterX - tileWidth * 0.5;
@@ -322,7 +322,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
 
   if (zoomStateChanged) {
-    this.reinitParticles(gl);
+    this.reinitParticles(gl, { keepTrails: true });
   }
 
   if (this.frameCount === undefined) this.frameCount = 0;
@@ -639,8 +639,8 @@ WebGLWindEngine.prototype.clearBuffers = function(gl) {
   }
 };
 
-WebGLWindEngine.prototype.reinitParticles = function(gl) {
-  reinitParticles(this, gl);
+WebGLWindEngine.prototype.reinitParticles = function(gl, opts) {
+  reinitParticles(this, gl, opts);
 };
 
 /**
