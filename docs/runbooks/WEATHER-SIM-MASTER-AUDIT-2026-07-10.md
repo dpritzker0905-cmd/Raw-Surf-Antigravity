@@ -31,7 +31,7 @@ FCE (`useSimulationField`) feeds `useRenderPlanBridge`→renderPlan (NOT display
 | 4 | Wind settle path ignored its own warmed series → per-hour fetch storm | log: "Cache miss… Fetching immediately" ×N | FIXED `21c1bf3a` |
 | 5 | EURO wind >240h = naked 500 (unhandled slice past forecast_days=10); masked a working GFS fallback | curls 500→ post-fix 200 `provider:gfs_fallback` | FIXED `b0655047` (fail-fast unblocked resolver ladder) |
 | 6 | Far-horizon settle churn re-drove doomed 404s (stale grid carries no failureReason) | §7.6 trace | FIXED `d38a693b` (terminal tracker) |
-| 7 | Estimates ABSENT during each ~1–1.5h ingest window (every 4h) — old products gone before new land | ROOT PROVEN (run 29052535445 log): EURO native prune 22:41 deletes old est tail (68/layer ×4, silent — L2-lazy files skip the per-file log) → extend job 23:01 (2s compute) → L2 upload backlog drains 23:24 → serving 23:30. Gap ≈ 35-45min/cycle. In-job GFS-ext = 0 in production (see #15) | FIXED `cf0b4b23` + ✅ **VERIFIED run 29068687719** (05:24Z, fixed code): EURO per-layer prune **68 → 2** (old est tail preserved; the 2 = receding-edge old natives — also proves the 68 was ~all estimates); extend job 05:05 overwrote the est files IN PLACE (same valid-time-keyed names, anchor unmoved → sweep 0 = consistent); continuity by construction. Kill `INGEST_PRUNE_PRESERVE_ESTIMATES=0`. (Probe had a laptop-suspend hole 04:22-05:55 — re-run `ingest_probe.sh` on an awake cycle for belt-and-suspenders) |
+| 7 | Estimates ABSENT during each ~1–1.5h ingest window (every 4h) — old products gone before new land | ROOT PROVEN (run 29052535445 log): EURO native prune 22:41 deletes old est tail (68/layer ×4, silent — L2-lazy files skip the per-file log) → extend job 23:01 (2s compute) → L2 upload backlog drains 23:24 → serving 23:30. Gap ≈ 35-45min/cycle. In-job GFS-ext = 0 in production (see #15) | FIXED `cf0b4b23` + ✅ **VERIFIED run 29068687719** (05:24Z, fixed code): EURO per-layer prune **68 → 2** (old est tail preserved; the 2 = receding-edge old natives — also proves the 68 was ~all estimates); extend job 05:05 overwrote the est files IN PLACE (same valid-time-keyed names, anchor unmoved → sweep 0 = consistent); continuity by construction. Kill `INGEST_PRUNE_PRESERVE_ESTIMATES=0`. ✅ **Awake-cycle probe BANKED (run 29124845622, 07-10 21:36→22:50Z):** EURO/marine horizon held 319-320h through the ENTIRE window (3-min polls, zero dips; log `scratchpad/ingest_window_probe.log`) + extend job saved 144 estimates at 22:24. Belt-and-suspenders complete |
 | 15 | In-job EURO GFS 10→14d ext saves 0 products every cycle (premise drift) | run log 22:40: gfs_ext fetch 429s — the "GFS job ran ~1 min earlier → _GRID_CACHE hit (TTL 300s)" premise died when the 21-min CMEMS fetch moved in between | OPEN (LOW with #7 fixed — extend job + preserved tail cover continuity). Fix option: fetch gfs_ext BEFORE the CMEMS fetch, while the cache is warm |
 | 17 | OM rasters render ABOVE wind particles (fog/pressure/rain wash dims the wind field) — unanchored appends make z-order time-of-add dependent | live `map.style._order` dump 07-10 (P10): wind=121, OM slots=122-133 | FIXED `bcbc25c6` (user-approved): slots anchor before `webgl-wind-particles` via styledata-tracked beforeId (marineBeforeId precedent). Live-verified post-restart: wind 121→132, above all 12 slots. Kill `__RAW_OM_SLOTS_ANCHOR_DISABLED__` |
 | 23 | **Wind field BLANKED on every screen-sized pan + z6 tier crossing** — camera-driven particle reseeds (tile drift recenter 25%, isHighZoom flip) hard-cleared the trail FBOs; ~1s rebuild per gesture = the dominant remaining "not snappy" feel once all data paths were warm (6 reinit pairs in the user's short 07-10 eve log) | code: WebGLWindEngine.js:306/314/325 → reinitParticles → clearBuffers; live repro + fix verified (tier crossings log "re-seeded (trails kept)" ×3, no blank; data commits still full-clear) | FIXED `68e80179`: camera reseeds keep the screen-space trail FBOs (fade pass ages them <1s = crossfade — the instant-toggle path's established trade); data-driven reseeds unchanged. Kill `__RAW_WIND_TRAIL_CLEAR_LEGACY__=1` |
@@ -42,8 +42,9 @@ FCE (`useSimulationField`) feeds `useRenderPlanBridge`→renderPlan (NOT display
 | 9 | `capabilities` EURO-wind native:336 is FALSE (ECMWF open-data = 240h) — contract vs reality | curls + health | OPEN (contract fix, locked-doc territory) |
 | 10 | ICON wind returned **300 vectors** (vs 629) at far hours | live curls 07-10: far grid = COMPLETE 25×12 global, all nonzero, `is_estimated:true`, product `viewport_icon_wind_wind_*_-180.00_-80.00_180.00_85.00` | TRIAGED — NOT A BUG. Dynamic global wind build uses `target_pts=400` (viewport_service.py:163) → `choose_adaptive_resolution(360,165,400)`=√148.5=12.19 → 15° tier (route_helpers.py:137) → 25×12=300; stored ingest product is 10° → 37×17=629. Fires whenever the stored hour is missing (ICON wind >~113h ingested horizon, EURO >240h, or ingest-window gap = #7). User-felt = slightly coarser far-hour wind field. PARITY FIXED `bcbc25c6` + fitted timeout `95b42121` (the 629-pt fetch measured >20s on Render — every retry hit the 20s cap, parity never served; `WIND_GLOBAL_PARITY_TIMEOUT_SEC` default 40s, global wind only, EURO short-timeout override still wins). Kills `WIND_GLOBAL_PARITY_10DEG=0` / the timeout env. Deploy also surfaced latent finding #20 |
 | 11 | Model switch unconditionally wipes OM block cache + discards in-flight (fetch storms on compare) | `useModelTransition` wipe + `_cb` nonce rotation BOTH predate the real leakage fix (model-keyed caches + model/run-pathed URLs `9f231d40`) — the wipe was vestigial; user log 07-10 eve: a dozen switches, each a full raster refetch ("not snappy") | FIXED `22eb81c8`: retention default (keys collision-impossible, LRU-bounded); kill `__RAW_OM_MODEL_WIPE_LEGACY__=1`. Live-verified: return-to-model leg = ZERO map-tiles requests (was a full latest.json+.om wave) |
-| 22 | Cold dynamic global ICON wind builds >40s (both 3h-aligned and unaligned hours 504 at the fitted ceiling; success depends on background completion + caching) — far-hour ICON wind cold-scrubs feel bad and grind the 1-CPU box | live curls 07-10 eve (+168/+170h: 504 @40s ×2; +204h band served only after a prior bg completion cached it) | FIXED `fc0ec396`: the DWD-direct ingest path now ALSO saves the 14d loop-extrapolated tail (3-hourly, estimated, `icon_loop_extrapolation` basis; natives stay authoritative; cf0b4b23 prune preserves the old tail = continuity). Kill `ICON_WIND_EXTEND=0`. ⚠️ VERIFY next ingest cycle (20:15Z cron): `/api/health/data` ICON/wind horizon ~113h → ~330h; far-hour ICON wind /grid instant from stored product; run log shows "ICON wind (14d loop-ext tail)" saves |
-| 12 | PostHog rrweb console+network capture serializes EVERYTHING (marine logged 4–6 lines/commit) | stack traces in every user log | MITIGATED (logs quieted `cb074b8b`); posthog config un-audited |
+| 22 | Cold dynamic global ICON wind builds >40s (both 3h-aligned and unaligned hours 504 at the fitted ceiling; success depends on background completion + caching) — far-hour ICON wind cold-scrubs feel bad and grind the 1-CPU box | live curls 07-10 eve (+168/+170h: 504 @40s ×2; +204h band served only after a prior bg completion cached it) | FIXED `fc0ec396`: the DWD-direct ingest path now ALSO saves the 14d loop-extrapolated tail (3-hourly, estimated, `icon_loop_extrapolation` basis; natives stay authoritative; cf0b4b23 prune preserves the old tail = continuity). Kill `ICON_WIND_EXTEND=0`. ✅ **VERIFIED run 29124845622** (21:29→22:48Z success, 07-10): log 21:40:25 "Ingested **52 ICON wind extended-tail files** (beyond 07-18)" on the DWD path (612 pts, 61 natives, from_dwd=True) + 21:36 startup hygiene purged 68 stale >120h AUTH products; health horizon **113.7→323.2h** (window probe caught the serve-box L2-restore flip at 21:52Z); far-hour +250h /grid = **200 in 0.62s** serving `icon_wind_wind_global_coarse_20260721T070000Z_estimated.json` (is_estimated:true, basis icon_loop_extrapolation, **629 vectors** = full 10° parity). NOTE: the summary log line is "extended-tail files", NOT the "14d loop-ext tail" prefix this row predicted — grep for "extended-tail" |
+| 24 | **NEW (07-10 P8 curls): `grid_series` GFS/ICON marine regional = flat ~30s stall then 200** — the `GFS_ICON_SERIES_FASTPATH=1` live open-meteo fetch (grid_series_helper.py:336-351) times out at `OPENMETEO_SERIES_TIMEOUT=30.0` on EVERY probe (4×, hours=0 alone identical), then the per-hour loop serves stored instantly. The flag's documented trade ("instant manifest-coarse render for a live regional fetch") flipped negative with open-meteo degraded (this week's 503s) — worst case: every regional series page pays 30s; may explain client series "loads:N, hits:0" stalls | curls 07-10 ~22:15Z (window) + ~23:00Z (settled) ×4 all 30.3-30.4s; /grid same bbox 0.34s | OPEN — USER DECISION: ① kill `GFS_ICON_SERIES_FASTPATH` (delete Render var — reverts to instant coarse, reintroduces the regional-masking issue it fixed, finding #3); ② SWR-ify the fastpath (serve stored NOW, upgrade when the live fetch lands — the established pattern); ③ env-tune the 30s ceiling down. Root-cause split (open-meteo degraded vs structural batch-delay >30s) needs Render logs: grep "[grid_series] GFS marine fast path failed" |
+| 12 | PostHog rrweb console+network capture serializes EVERYTHING (marine logged 4–6 lines/commit) | stack traces in every user log | MITIGATED (logs quieted `cb074b8b`; ungated [MapCore] observability block gated `3379b47b` 07-10 eve, opt-in `__RAW_MAP_OBSERVABILITY_LOG__`); posthog config un-audited |
 | 13 | React reconcile NOT the steady-state bottleneck; engine stable 30 FPS all zooms; §7c retired | 3 live benches | CLOSED — do not reopen |
 | 14 | Mask-res/retain, prewarm, engine internals = documented-regression minefields | 3-mo commit archaeology | OFF-LIMITS without dedicated session |
 Disconfirmed (do not re-chase): LRU eviction as scrub root; particle fill-rate vs zoom; mask rebuild as per-step cost; cache-retention as the felt EURO lag.
@@ -131,16 +132,86 @@ heal, debounce-strand heal) · backend `/api/health/data` (data-lane freshness/h
 ### Findings
 | # | Finding | Status |
 |---|---|---|
-| 18 | Truth tracker observes only GFS-waves@h0 + wind@h0; stage absence + failed fetches invisible; series lineage orphaned (A1-A3) | OPEN — user decision on scope extension (per-commit hashing cost) vs targeted fixes (e.g. stamp truthTag through series frames = cheap; absence watchdog = medium) |
-| 19 | TruthDiff prod-silent + first-active-layer-only (B1-B2) | OPEN — low-cost fixes if wanted; note dev--rawsurf logs DID show TruthDiff lines (verify build's NODE_ENV before relying on it in prod) |
+| 18 | Truth tracker observes only GFS-waves@h0 + wind@h0; stage absence + failed fetches invisible; series lineage orphaned (A1-A3) | **A3 FIXED `3c1b9aec`** (cheap slice, approved direction): series frames mint their truthTag ONCE (buildTruthTag extracted from the tracker's fallback, stamped on the GRID + wrapper) → commit/webglUpload share product_id+traceId; 2 pinning tests. A1 (absence watchdog = medium) + A2 (scope extension = per-commit hashing DECISION) still OPEN |
+| 19 | TruthDiff prod-silent + first-active-layer-only (B1-B2) | **FIXED `3c1b9aec`**: B1 report un-gated (violations-only, 250ms-batched console.debug); B2 rules 2/3 evaluate ALL active layers. B3 (scrub bypass + transition-flag suppression) / B4 (radar naming) unchanged |
+
+## PHASE 8 — API AUDIT (static sweep DONE 2026-07-10 eve; latency curls pending post-ingest)
+**Surface:** 11 serving routes in `routes/weather.py` (products, grid_series, grid, point, spot-ratings,
+buoy-/report-calibration, status, capabilities, client-diagnostics POST, diagnostics-log) + health.py +
+marine_tiles.py + 16 POST `/ingest_*` triggers (weather_ingest.py — ALL admin-gated ✓).
+| Item | Evidence | Verdict |
+|---|---|---|
+| #9 EURO wind contract | `capabilities.py:372-374` native:336/est:0, served live; ECMWF open-data=240h; >240h serves labeled `gfs_fallback` (b0655047); health native 218.7h | CONFIRMED wrong both fields; truthful = native:240 + fallback-labeled 240→336 (locked-doc; user decision) |
+| ICON wind contract | `capabilities.py:348-350` = 120/216/336 — already promises the loop-ext tail | #22 makes stored reality converge to it (no contract change needed) |
+| `/status` fabricates telemetry | weather.py:464-479: hardcoded provider_status "healthy" (still names open-meteo), stale_products_count:0, active_background_threads:1, last_errors:[] | Observability debt (#18/#19 class) — anything trusting /status is misled |
+| `/client-diagnostics` | unauthenticated POST → unbounded append to backend/diagnostics.log; no size cap / rate limit | disk-fill + log-injection vector on the serve box (read side admin-gated) |
+| `/products` | unauth full manifest + files_on_disk + absolute cache_dir path | info disclosure + unbounded payload |
+| `/tiles/{layer}` (marine_tiles.py) | mounted; ZERO frontend callers; stale 3h-cadence premise; serves uploads/forecast_cache/*_global.json | DEAD legacy surface — retire |
+| No Cache-Control on hot routes | /grid, /grid_series, /capabilities, /spot-ratings ship no caching headers | every request hits the 1-CPU origin; stored products are immutable per run → cheap slice of the North-star CDN lever |
+| Healthy | gzip ≥500B + CORS middleware (server.py:435-439); /grid catch-all → CORS-safe no-coverage 404; 422 validation shape clean 0.25s; all ingest triggers admin-gated | — |
+Also: GH concurrency note — a group holds ONE pending slot; a newer run (e.g. late cron) EVICTS a queued
+dispatch as "cancelled, jobs: []" (observed 21:29Z 07-10: cron 29124845622 evicted dispatch 29124260482).
+Same harmless class as runner contention, sharper mechanism.
+**Latency (post-ingest settled box, 07-10 ~23:00Z):** health 0.25s · capabilities 0.17s · 422 shape 0.25s
+· GFS marine regional /grid 0.34s · ICON wind global near 0.31s / **far +250h 0.62s (stored tail — was
+504@40s pre-#22)** · spot-ratings 0.77s · ⚠️ **grid_series GFS waves regional = flat ~30.3-30.4s ×4**
+(hours=0 alone identical → timeout-bound, NOT per-hour cost; == `OPENMETEO_SERIES_TIMEOUT=30.0`) → finding #24.
+
+## PHASE 6 — OCEANMASK LIFECYCLE (documented 2026-07-10 eve; READ-ONLY — finding #14 minefield, DO NOT TOUCH)
+**Truth composition rule (the "why" behind every guard):** the mask is composed from TWO sources —
+Natural Earth (macro coastline) + basemap water tiles (meter-accurate micro: bays/lagoons/piers/
+sheltered) — and every consumer must state which source it trusts for WHAT, within what distance
+(inland guard ≤10km) and timing window (async repaint). Lifecycle per commit:
+1. **NE rebuild** — every bounds-changing commit re-renders the mask NE-only via
+   `renderMaskToCanvas` (WebGLMarineMaskRenderer.js:744); the basemap patch is NOT part of the
+   rebuild (engine comment WebGLMarineEngine.js:274).
+2. **Patch carry-forward** (maskSmoothing.js) — the last painted truth box (`_lastPatchedMask`)
+   is transplanted SYNCHRONOUSLY into the fresh canvas (geo-exact drawImage; both canvases affine
+   in MercY/lng). Refuses: antimeridian boxes, sub-2px src / sub-8px dst, dst canvases ≥30°
+   (grey-rect hardening — world residency gets truth from overlay-REPLACE instead). Kill
+   `__RAW_DISABLE_MASK_PATCH_CARRY__`; tel `__RAW_MASK_PATCH_CARRY__`.
+3. **Async basemap-truth repaint** — `refreshMaskWithBasemapWater` (WebGLMarineEngine.js:1578):
+   700ms throttle + tile-readiness gate (`areTilesLoaded()`); truth box recorded with 50% pad for
+   the repaint hysteresis (~:1614-1720; `_lastMaskRepatchReason`, log lever
+   `__RAW_MASK_REPATCH_LOG__`). Degraded paints (partial tile coverage → parent-fallback source
+   query) NEVER hysteresis-lock and NEVER become carry sources — partial tiles bake FALSE LAND
+   rectangles otherwise (the El-Salvador grey-rect class, `d7e89335`).
+4. **Refinement passes (order matters)** — inlandWaterGuard.js runs BEFORE wetland/sheltered:
+   basemap water only whitens ≤10km (Chebyshev chamfer) of NE water — "the basemap refines the
+   coastline; it cannot invent new seas" (Salton-Sea class; kill
+   `__RAW_DISABLE_INLAND_WATER_GUARD__`, tune `__RAW_INLAND_WATER_KM__`) → wetland dilation
+   (`__RAW_DISABLE_WETLAND_DILATE__`, `a4795435`) → sheltered classifier (⚠️ lonSpan ≥10° skip;
+   the socal tile is EXACTLY 10.0°) → wrap cull (`__RAW_DISABLE_WRAP_CULL__`, `f8d4f3fa`).
+5. **Resolution tiering** — 50m↔10m GeoJSON swap gated by `desiredMaskRes` hysteresis (enter z≥8,
+   exit z<7.3, maskSmoothing.js:107) since a single threshold fired a full `land_mask_res_swap`
+   re-encode per straddling gesture; the ENCODER's last-mile hires substitution
+   (WebGLMarineTextureEncoder.js:422-427, `__LAND_GEOJSON_HIRES_CACHE__`, span<30°) pins regional
+   masks to 10m regardless, so most swaps change nothing visually.
+6. **Encoder retain branches** (WebGLMarineTextureEncoder.js) — mask carry-retain
+   (:489, tel `__RAW_MASK_RETAIN_COUNT__`) + mask-res no-downgrade retain (:502-512, kill
+   `__RAW_DISABLE_MASK_NO_DOWNGRADE__`, tel `__RAW_MASK_RES_RETAIN_COUNT__`).
+7. **Grid no-downgrade guard** (adjacent, same family) — `shouldRejectResolutionDowngrade`
+   (WebGLMarineEngine.js:94; viewport snapshot :581; stash self-heal re-eval :613; kill
+   `__RAW_DISABLE_NO_DOWNGRADE__`) + the useSimulationField ENGINE-PARITY twin (`d7e89335` —
+   field/engine divergence = 8 RK4 rebinds/gesture; tel `__MARINE_FIELD_NO_DOWNGRADE__`).
+**Matched pair (never revert one alone, `94072098`):** mask re-assert + overlay-REPLACE.
+**Landmines:** Mapbox Streets v8 `water` has NO class field — class-based filtering is a NO-OP;
+span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes = `__MASK_PROBE__`
+(maskFloodProbe, engine import :11) + `__RAW_GPU__.inlandWaterGuard/.shelteredWater/.basemapWaterMask`.
+**Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
+churn = documented accepted class — DO NOT grind.
 
 ## REMAINING PHASES — QUEUE + RECIPES (next sessions; graph server ready: 34k nodes/73k edges)
-- **P6 (OceanMask lifecycle):** document from `mask-truth-guards` + `maskSmoothing.js` + encoder retain
-  branches. READ-ONLY (minefield).
+- **P6 (OceanMask lifecycle):** DONE — section above (documentation only, code untouched).
 - **P7 (particles):** SpectorJS (`tools/spectorjs`) + `__WIND_TELEMETRY__`; triage #10 (300 vectors) first.
-- **P8 (API audit):** seed = `data-source-matrix-2026-07-08` memory + this arc's latency curls.
+- **P8 (API audit):** static sweep DONE (section above); remaining = latency curls on a quiet window.
 - **P9 (races):** proven classes so far: test-during-deploy window; ingest estimate window; scrub-start-
   only prewarm; model-switch stale-discard storm. Hunt more via `__MARINE_CACHE_DIAG__` reasons.
+  **Commit-site invariant audit (07-10 eve): 3/3 live wind commit sites renderable-guarded**
+  (WeatherEngine.js:173/440/524; layer setWindData calls are pass-throughs of gated state).
+  ⚠️ RenderPlanDispatcher.js:453 = 4th site, UNGUARDED but flag-gated OFF (`__ALLOW_FCE_WIND_UPLOAD__`);
+  enabling it bypasses isRenderableWindData. WebGLSynchronizedOverlay.js = DEAD (comment-only refs),
+  contains an unguarded engine commit — cleanup candidate.
 - **P12 (WebGL perf):** `window.__RAW_GPU__` (textureCount/gpuMemoryEstimate — telemetry exists),
   SpectorJS capture, `__SCRUB_PROBE__.bench`.
 - **P14 (prod readiness):** score after P4–P12.
