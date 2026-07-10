@@ -22,38 +22,10 @@ from services.weather_pipeline.viewport_helper import _is_oversized_grid, extend
 logger = logging.getLogger(__name__)
 
 
-def wind_global_parity_resolution(resolution: float, is_global_view: bool, domain: str) -> float:
-    """Audit #10 (2026-07-10): 10° parity for dynamic GLOBAL wind builds. The stored global_coarse
-    wind product is 10° (37x17=629 vectors) but choose_adaptive_resolution(360,165,400) lands on the
-    15° tier (25x12=300), so far-horizon extension hours served a visibly coarser field than every
-    stored hour. Global wind only — regional tiers unchanged; ~2x upstream/CPU per dynamic global
-    build (user-approved 2026-07-10). Kill switch: WIND_GLOBAL_PARITY_10DEG=0."""
-    if (is_global_view and domain.lower() == "wind" and resolution > 10.0
-            and os.environ.get("WIND_GLOBAL_PARITY_10DEG", "1") != "0"):
-        return 10.0
-    return resolution
-
-
-def wind_horizon_fail_fast(model: str, target_dt: datetime, forecast_days: int) -> None:
-    """WIND HORIZON FAIL-FAST (2026-07-10, live-measured): the upstream wind fetch covers exactly
-    `forecast_days` — a target beyond it CANNOT be served by this build, and today it falls through to
-    an unhandled slice error (EURO wind >240h returned naked HTTP 500 on every scrub past day 10 = the
-    "wind clears at the 14-day mark" report) or a doomed upstream grind that poisons the rate-limit
-    negative cache. Raise a clean 404 no_wind_coverage instead (mirrors marine's no_copernicus_coverage;
-    the client's existing fallback handles it identically, just instantly). ICON is EXEMPT — its
-    extend_icon_wind_to_14d serves 120→336h from the 5-day base fetch (verified live: +200h/+330h = 200
-    in ~2.5s). Truth-consistent: uses the SAME horizon the fetch itself uses — no new horizon source.
-    Kill switch: WIND_HORIZON_GATE=0."""
-    if model.upper() == "ICON":
-        return
-    if os.environ.get("WIND_HORIZON_GATE") == "0":
-        return
-    if target_dt > datetime.now(timezone.utc) + timedelta(hours=forecast_days * 24):
-        raise HTTPException(
-            status_code=404,
-            detail=(f"no_wind_coverage: {model} wind data ends ~{forecast_days * 24}h out; "
-                    f"requested {target_dt.strftime('%Y-%m-%dT%H:%M:%SZ')}."),
-        )
+# Wind gates split to wind_gates.py (2026-07-10, LOC gate); re-imported so import sites/tests are unchanged.
+from services.weather_pipeline.wind_gates import (  # noqa: F401
+    wind_global_parity_resolution, wind_horizon_fail_fast
+)
 
 
 class FetchContext:
@@ -81,6 +53,14 @@ class ViewportService:
     ACTIVE_REVALIDATIONS = set()
 
     NEGATIVE_CACHE: Dict[str, float] = {}
+
+    async def _reap_shared_context(self, request_dedup_key: str, context: "FetchContext") -> None:
+        """Drop a context whose shared future got CANCELLED (BaseException — the `except Exception`
+        ladders never catch it; poisoned every later request = the 2026-07-10 naked-500 storm)."""
+        async with self.IN_FLIGHT_LOCK:
+            if self.IN_FLIGHT_REQUESTS.get(request_dedup_key) is context:
+                self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+        logger.warning(f"[Dynamic Viewport] Reaped cancelled shared context for {request_dedup_key} (self-heal).")
 
     def __init__(
         self,
@@ -272,7 +252,8 @@ class ViewportService:
         if not is_fetcher:
             logger.info(f"[Dynamic Viewport] Sharing in-flight request for {request_dedup_key}")
             try:
-                await context.raw_fetch_future
+                # shield(): a cancelled WAITER must not cancel the SHARED future (see _reap_shared_context)
+                await asyncio.shield(context.raw_fetch_future)
 
                 my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                 my_viewport_filename = f"{my_cache_key}.json"
@@ -287,7 +268,7 @@ class ViewportService:
                             hour_fut = asyncio.Future()
                             context.hour_futures[target_dt] = hour_fut
 
-                    await hour_fut
+                    await asyncio.shield(hour_fut)
                     loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
 
                 if loaded_product and _is_oversized_grid(loaded_product):
@@ -310,6 +291,11 @@ class ViewportService:
                     return loaded_product
                 else:
                     logger.warning(f"[Dynamic Viewport] Waiter awoke but target product was not in cache: {my_viewport_filename}. Proceeding to self-heal and fetch.")
+            except asyncio.CancelledError:
+                task = asyncio.current_task()
+                if task is not None and task.cancelling() > 0:
+                    raise  # OUR request was cancelled (client gone) — propagate normally
+                await self._reap_shared_context(request_dedup_key, context)  # shared state dead → self-heal below
             except Exception as e:
                 logger.warning(f"[Dynamic Viewport] Shared in-flight fetch failed or raised exception: {e}. Proceeding to self-heal and fetch.")
 
@@ -325,7 +311,7 @@ class ViewportService:
             if not is_fetcher:
                 logger.info(f"[Dynamic Viewport] Waiter sharing newly spawned self-heal fetcher for {request_dedup_key}")
                 try:
-                    await context.raw_fetch_future
+                    await asyncio.shield(context.raw_fetch_future)
                     my_cache_key = build_dynamic_cache_key(model, domain, layer, target_dt, west, south, east, north)
                     my_viewport_filename = f"{my_cache_key}.json"
 
@@ -338,7 +324,7 @@ class ViewportService:
                             else:
                                 hour_fut = asyncio.Future()
                                 context.hour_futures[target_dt] = hour_fut
-                        await hour_fut
+                        await asyncio.shield(hour_fut)
                         loaded_product = await asyncio.to_thread(self.store.load_product, my_viewport_filename)
 
                     if loaded_product and _is_oversized_grid(loaded_product):
@@ -359,6 +345,11 @@ class ViewportService:
                         if loaded_product.grid and loaded_product.grid.bounds:
                             loaded_product.served_bbox = f"{loaded_product.grid.bounds.west:.4f},{loaded_product.grid.bounds.south:.4f},{loaded_product.grid.bounds.east:.4f},{loaded_product.grid.bounds.north:.4f}"
                         return loaded_product
+                except asyncio.CancelledError:
+                    task = asyncio.current_task()
+                    if task is not None and task.cancelling() > 0:
+                        raise
+                    await self._reap_shared_context(request_dedup_key, context)
                 except Exception as inner_e:
                     logger.error(f"[Dynamic Viewport] Waiter self-heal retry failed: {inner_e}")
 
@@ -642,24 +633,33 @@ class ViewportService:
                 cropped_product.served_bbox = f"{cropped_product.grid.bounds.west:.4f},{cropped_product.grid.bounds.south:.4f},{cropped_product.grid.bounds.east:.4f},{cropped_product.grid.bounds.north:.4f}"
             return cropped_product
 
-        except Exception as e:
+        except asyncio.CancelledError:
+            # FETCHER cancelled: CancelledError is a BaseException — the Exception cleanup below never
+            # ran, stranding the context (2026-07-10 500s). Resolve shared futures with a NORMAL
+            # exception (waiters self-heal), drop the context, propagate our cancellation.
             async with self.IN_FLIGHT_LOCK:
-                if request_dedup_key in self.IN_FLIGHT_REQUESTS:
-                    ctx = self.IN_FLIGHT_REQUESTS[request_dedup_key]
-                    if not ctx.raw_fetch_future.done():
-                        ctx.raw_fetch_future.set_exception(e)
+                ctx = self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+            if ctx is not None:
+                cancel_exc = HTTPException(status_code=504, detail="upstream_fetch_cancelled")
+                for fut in [ctx.raw_fetch_future, *ctx.hour_futures.values()]:
+                    if not fut.done():
+                        fut.set_exception(cancel_exc)
                         try:
-                            ctx.raw_fetch_future.exception()
+                            fut.exception()
                         except Exception:
                             pass
-                    for dt, fut in ctx.hour_futures.items():
-                        if not fut.done():
-                            fut.set_exception(e)
-                            try:
-                                fut.exception()
-                            except Exception:
-                                pass
-                    self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+            raise
+        except Exception as e:
+            async with self.IN_FLIGHT_LOCK:
+                ctx = self.IN_FLIGHT_REQUESTS.pop(request_dedup_key, None)
+            if ctx is not None:
+                for fut in [ctx.raw_fetch_future, *ctx.hour_futures.values()]:
+                    if not fut.done():
+                        fut.set_exception(e)
+                        try:
+                            fut.exception()
+                        except Exception:
+                            pass
 
             logger.warning(f"[Dynamic Viewport] Upstream fetch failed for {model} {layer}: {e}")
 
