@@ -32,6 +32,12 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
       }
       lastLoggedTimestampRef.current = now;
 
+      // #12 class: PostHog rrweb serializes every console line — 5-10 info logs per pan/zoom is
+      // pure capture cost. Info logs are opt-in (__RAW_MAP_OBSERVABILITY_LOG__ = true); the
+      // clipping WARN and the catch-all error below stay unconditional (real signals).
+      const _verbose = typeof window !== 'undefined' && window.__RAW_MAP_OBSERVABILITY_LOG__ === true;
+      const vlog = (...args) => { if (_verbose) console.log(...args); };
+
       try {
         const b = mapInstance.getBounds();
         const vBounds = {
@@ -45,33 +51,33 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
         const proj = mapInstance.getProjection()?.name || 'mercator';
 
         // 1. [MapCore] Viewport Bounds & Zoom
-        console.log(`[MapCore] Viewport Bounds: west=${vBounds.west.toFixed(4)}, south=${vBounds.south.toFixed(4)}, east=${vBounds.east.toFixed(4)}, north=${vBounds.north.toFixed(4)}, zoom=${zoom.toFixed(2)}`);
+        vlog(`[MapCore] Viewport Bounds: west=${vBounds.west.toFixed(4)}, south=${vBounds.south.toFixed(4)}, east=${vBounds.east.toFixed(4)}, north=${vBounds.north.toFixed(4)}, zoom=${zoom.toFixed(2)}`);
 
         // 2. [Projection] Active projection mode
-        console.log(`[Projection] Active projection mode: ${proj}`);
+        vlog(`[Projection] Active projection mode: ${proj}`);
 
         // 3. [Pressure] Dataset Bounds
         const pCache = getPressureHourlyCache();
         if (pCache && pCache.bounds) {
-          console.log(`[Pressure] Dataset bounds: west=${pCache.bounds.west}, south=${pCache.bounds.south}, east=${pCache.bounds.east}, north=${pCache.bounds.north}, points=${pCache.points?.length || 0}`);
+          vlog(`[Pressure] Dataset bounds: west=${pCache.bounds.west}, south=${pCache.bounds.south}, east=${pCache.bounds.east}, north=${pCache.bounds.north}, points=${pCache.points?.length || 0}`);
         } else {
-          console.log(`[Pressure] Dataset bounds: null`);
+          vlog(`[Pressure] Dataset bounds: null`);
         }
 
         // 4. [WindOverlay] Dataset Bounds
         const wCache = getWindHourlyCache();
         if (wCache && wCache.bounds) {
-          console.log(`[WindOverlay] Dataset bounds: west=${wCache.bounds.west}, south=${wCache.bounds.south}, east=${wCache.bounds.east}, north=${wCache.bounds.north}, points=${wCache.points?.length || 0}`);
+          vlog(`[WindOverlay] Dataset bounds: west=${wCache.bounds.west}, south=${wCache.bounds.south}, east=${wCache.bounds.east}, north=${wCache.bounds.north}, points=${wCache.points?.length || 0}`);
         } else {
-          console.log(`[WindOverlay] Dataset bounds: null`);
+          vlog(`[WindOverlay] Dataset bounds: null`);
         }
 
         // 5. [Marine] Dataset Bounds
         const mCache = getMarineHourlyCache();
         if (mCache && mCache.bounds) {
-          console.log(`[Marine] Dataset bounds: west=${mCache.bounds.west}, south=${mCache.bounds.south}, east=${mCache.bounds.east}, north=${mCache.bounds.north}, points=${mCache.points?.length || 0}`);
+          vlog(`[Marine] Dataset bounds: west=${mCache.bounds.west}, south=${mCache.bounds.south}, east=${mCache.bounds.east}, north=${mCache.bounds.north}, points=${mCache.points?.length || 0}`);
         } else {
-          console.log(`[Marine] Dataset bounds: null`);
+          vlog(`[Marine] Dataset bounds: null`);
         }
 
         // 6. [PopupSystem] Projection Anchors, Clipping, & Fallback Modes
@@ -79,24 +85,24 @@ export function useMapObservability({ mapInstance, activeLayers, lowSystems = []
 
         if (activeSystemPopup) {
           const pixel = mapInstance.project([activeSystemPopup.lng, activeSystemPopup.lat]);
-          console.log(`[PopupSystem] Active Popup Anchor: [${activeSystemPopup.lat.toFixed(4)}, ${activeSystemPopup.lng.toFixed(4)}] -> Screen Pixel: x=${pixel?.x?.toFixed(1)}, y=${pixel?.y?.toFixed(1)}`);
+          vlog(`[PopupSystem] Active Popup Anchor: [${activeSystemPopup.lat.toFixed(4)}, ${activeSystemPopup.lng.toFixed(4)}] -> Screen Pixel: x=${pixel?.x?.toFixed(1)}, y=${pixel?.y?.toFixed(1)}`);
           
           if (!b.contains([activeSystemPopup.lng, activeSystemPopup.lat])) {
-            console.log(`[PopupSystem] Clipping active system popup at [${activeSystemPopup.lat.toFixed(4)}, ${activeSystemPopup.lng.toFixed(4)}] (outside viewport)`);
+            vlog(`[PopupSystem] Clipping active system popup at [${activeSystemPopup.lat.toFixed(4)}, ${activeSystemPopup.lng.toFixed(4)}] (outside viewport)`);
           }
         }
 
         systems.forEach((sys, i) => {
           const pixel = mapInstance.project([sys.lng, sys.lat]);
-          console.log(`[PopupSystem] ${sys.type} Marker ${i} Anchor: [${sys.lat.toFixed(4)}, ${sys.lng.toFixed(4)}] -> Screen Pixel: x=${pixel?.x?.toFixed(1)}, y=${pixel?.y?.toFixed(1)}`);
+          vlog(`[PopupSystem] ${sys.type} Marker ${i} Anchor: [${sys.lat.toFixed(4)}, ${sys.lng.toFixed(4)}] -> Screen Pixel: x=${pixel?.x?.toFixed(1)}, y=${pixel?.y?.toFixed(1)}`);
           
           if (!b.contains([sys.lng, sys.lat])) {
-            console.log(`[PopupSystem] Clipping marker ${i} at [${sys.lat.toFixed(4)}, ${sys.lng.toFixed(4)}] (outside viewport)`);
+            vlog(`[PopupSystem] Clipping marker ${i} at [${sys.lat.toFixed(4)}, ${sys.lng.toFixed(4)}] (outside viewport)`);
           }
         });
 
         if (window.isScrubbingTimeline === true) {
-          console.log(`[PopupSystem] Fallback rendering mode: Timeline scrubbing cache-preservation active`);
+          vlog(`[PopupSystem] Fallback rendering mode: Timeline scrubbing cache-preservation active`);
         }
 
         // 7. [Failsafe Clipping Detection]
