@@ -17,6 +17,7 @@
 // cached wind grid, and anything missing falls back to the existing per-hour fetch.
 
 import { API_BASE } from '../../lib/apiClient';
+import { buildTruthTag } from './weatherTruthTracker';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -126,6 +127,20 @@ function frameToWindData(frame, model) {
     u: v.u || 0, v: v.v || 0,
   }));
   const nonzeroCount = mappedVectors.filter(v => v.speed > 0).length;
+  const renderable = mappedVectors.length > 0 && nonzeroCount > 0;
+  const product_id = `series_${model || 'GFS'}_wind_h${frame.hour_offset}`;
+  // #18/A3 wind mirror (marineGridSeries pattern): mint the lineage tag ONCE at frame
+  // construction — recordTruthStage PRESERVES an existing tag, so commit + webglUpload share
+  // product_id + traceId instead of reconstructing divergent tags ("Product: undefined" +
+  // different traceIds per stage — user log 07-10).
+  const truthTag = renderable ? buildTruthTag({
+    grid: { vectors: mappedVectors, cols: frame.cols, rows: frame.rows, bounds: frame.bounds },
+    model: model || 'GFS', domain: 'wind', layer: 'wind',
+    valid_time: frame.valid_time, run_time: frame.run_time,
+    product_id, provider: frame.provider || 'backend-weather-service',
+    is_dynamic_viewport_product: true,
+  }, 'seriesFrameMint') : null;
+  if (truthTag && Number.isFinite(frame.hour_offset)) truthTag.timeOffsetHours = frame.hour_offset;
   return {
     vectors: mappedVectors,
     bounds: frame.bounds,
@@ -136,8 +151,9 @@ function frameToWindData(frame, model) {
     hourOffset: frame.hour_offset,
     provider: frame.provider || 'backend-weather-service',
     nonzeroCount,
-    renderable: mappedVectors.length > 0 && nonzeroCount > 0,
+    renderable,
     is_estimated: !!frame.is_estimated,
+    ...(truthTag ? { truthTag, product_id, productId: product_id } : {}),
     __fromSeries: true,
   };
 }

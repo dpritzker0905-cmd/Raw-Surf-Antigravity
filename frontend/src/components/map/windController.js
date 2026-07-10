@@ -80,7 +80,16 @@ export function extractWindAtOffset(cache, hourOffset) {
         rows: rows || gridSize,
         stale: false,
         source: cache.model || 'GFS',
-        hourOffset
+        hourOffset,
+        // #18/A3 wind mirror: carry the cached grid's lineage identity through extraction —
+        // valid only in this branch (timeArray[0] === targetValidTime guarantees the cached
+        // product IS the requested hour), so the tag stays truthful.
+        truthTag: cache.truthTag || null,
+        product_id: cache.product_id || null,
+        productId: cache.product_id || null,
+        valid_time: cache.valid_time || null,
+        run_time: cache.run_time || null,
+        provider: cache.provider || undefined
       };
     }
     return null; // Cache miss for the requested hour
@@ -284,7 +293,15 @@ export async function fetchWindData(bounds, signal, hourOffset = 0, forceFetch =
               timestamp: Date.now(),
               model: resolvedModel,
               isGlobal: Math.abs(result.bounds.east - result.bounds.west) > 180,
-              vectors: result.vectors
+              vectors: result.vectors,
+              // #18/A3 wind mirror: keep the lineage identity so extractWindAtOffset can carry it —
+              // the extraction used to rebuild a bare object and the tracker logged
+              // "Product: undefined" + divergent traceIds for every timeline commit (user log 07-10).
+              truthTag: result.truthTag || null,
+              product_id: result.product_id || null,
+              valid_time: result.valid_time || null,
+              run_time: result.run_time || null,
+              provider: result.provider || null
             };
             lastKnownGoodWind = result;
           }
