@@ -22,6 +22,7 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
+import { buildTruthTag } from './weatherTruthTracker';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new Map();
@@ -221,6 +222,24 @@ function frameToMarineData(frame, model, layer) {
     // commit series frames; without this the rating band never rendered even with surf=1). See _frame_rating_mode.
     ratingMode: !!frame.rating_mode,
   };
+  const product_id = `series_${model}_${layer}_h${frame.hour_offset}`;
+  // Audit #18/A3: mint the lineage tag ONCE here — recordTruthStage PRESERVES an existing tag, so
+  // commit and webglUpload share product_id + traceId. Without this the engine reconstructs a tag
+  // from the bare waveGrid (no product_id there) → "Product: undefined" + a divergent traceId, and
+  // the same-product previousStages filter never matches series frames. Stamped on the GRID because
+  // that's the object the engine sees (waveGrid.truthTag), and mirrored on the wrapper for the
+  // orchestratorCommit's marineData.truthTag read.
+  const truthTag = renderable ? buildTruthTag({
+    grid, model, domain: 'marine', layer,
+    valid_time: frame.valid_time, run_time: frame.run_time,
+    product_id, provider,
+    is_dynamic_viewport_product: true,
+    coverage_scope: frame.coverage_scope,
+  }, 'seriesFrameMint') : null;
+  if (truthTag) {
+    if (Number.isFinite(frame.hour_offset)) truthTag.timeOffsetHours = frame.hour_offset;
+    grid.truthTag = truthTag;
+  }
   return {
     type: 'FeatureCollection',
     features: [],
@@ -230,7 +249,8 @@ function frameToMarineData(frame, model, layer) {
     __renderable: renderable,
     __fromSeries: true,
     hourOffset: frame.hour_offset,
-    product_id: `series_${model}_${layer}_h${frame.hour_offset}`,
+    ...(truthTag ? { truthTag } : {}),
+    product_id,
     region_id: 'series',
     is_dynamic_viewport_product: true,
   };

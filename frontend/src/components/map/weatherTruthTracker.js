@@ -92,16 +92,15 @@ export function resetTruthTracker(reason) {
   }
 }
 
-export function recordTruthStage(stageName, data, file, functionName) {
-  initializeTruthTracker();
-  
-  const trace = window.__WEATHER_TRUTH_TRACE__;
+// Build a truthTag from a grid-commit-shaped payload. Exported so series-frame MINT sites can
+// stamp lineage ONCE (audit #18/A3): recordTruthStage PRESERVES an existing data.truthTag, so a
+// tag minted at frame construction keeps product_id + traceId identical across commit → webglUpload
+// (the per-stage reconstruction below cannot — the engine's waveGrid carries no product_id, so
+// series frames recorded `Product: undefined` + a divergent traceId, orphaning their lineage).
+export function buildTruthTag(data, stageName) {
+  if (!(data && data.grid && data.grid.vectors && data.model && data.domain && data.layer)) return null;
   const timestamp = new Date().toISOString();
-  
-  let truthTag = data ? data.truthTag : null;
-  
-  // If truthTag is missing (e.g. at mappedGrid, cacheRead, etc.), let's construct/preserve it
-  if (!truthTag && data && data.grid && data.model && data.domain && data.layer) {
+  {
     const model = data.model;
     const domain = data.domain;
     const layer = data.layer;
@@ -121,7 +120,7 @@ export function recordTruthStage(stageName, data, file, functionName) {
       }
     } catch (e) {}
     
-    truthTag = {
+    return {
       traceId,
       model,
       domain,
@@ -194,6 +193,20 @@ export function recordTruthStage(stageName, data, file, functionName) {
       createdAt: timestamp,
       sourceStage: stageName
     };
+  }
+}
+
+export function recordTruthStage(stageName, data, file, functionName) {
+  initializeTruthTracker();
+
+  const trace = window.__WEATHER_TRUTH_TRACE__;
+  const timestamp = new Date().toISOString();
+
+  let truthTag = data ? data.truthTag : null;
+
+  // If truthTag is missing (e.g. at mappedGrid, cacheRead, etc.), construct it (see buildTruthTag)
+  if (!truthTag) {
+    truthTag = buildTruthTag(data, stageName);
   }
 
   // Preserve truthTag if present on data

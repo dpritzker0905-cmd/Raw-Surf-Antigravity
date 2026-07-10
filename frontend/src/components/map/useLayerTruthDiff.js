@@ -41,6 +41,9 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
 
         // declared app state
         activeLayer: activeLayers[0],
+        // B2 (audit #19): rules must see EVERY active layer, not just the first —
+        // multi-layer states were only partially checked.
+        activeLayersAll: Array.isArray(activeLayers) ? [...activeLayers] : [],
         activeRenderType,
 
         // map reality
@@ -97,7 +100,7 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
       }
 
       // RULE 2: wind must have vectors OR be OFF
-      if (s.activeLayer === "wind") {
+      if (s.activeLayersAll.includes("wind")) {
         if (!s.wind?.vectors?.length) {
           violations.push({
             layerId: "wind",
@@ -131,10 +134,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         !!window.__MARINE_FETCH_PENDING__ ||
         !!window.__MARINE_FETCH_DEBOUNCING__
       );
-      if (["waves","swell_1","swell_2","wind_waves"].includes(s.activeLayer)) {
+      const activeMarineLayers = ["waves","swell_1","swell_2","wind_waves"].filter(l => s.activeLayersAll.includes(l));
+      if (activeMarineLayers.length) {
         if (!s.marine?.grid?.vectors?.length && !isTransitioning) {
           violations.push({
-            layerId: s.activeLayer,
+            layerId: activeMarineLayers[0],
             type: "MARINE_EMPTY_RENDER",
             hint: "Marine layer active but no vector data present"
           });
@@ -170,11 +174,11 @@ export function useLayerTruthDiff({ mapInstance, activeLayers, activeRenderType,
         if (violationBufferRef.current.length === violations.length) {
           setTimeout(() => {
             if (!violationBufferRef.current.length) return;
-            // Downgraded from emoji console.groupCollapsed to quiet debug log
-            if (process.env.NODE_ENV === 'development') {
-              console.debug(`[TruthDiff] ${violationBufferRef.current.length} violation(s):`,
-                violationBufferRef.current.map(v => `${v.type}:${v.layerId}`));
-            }
+            // Downgraded from emoji console.groupCollapsed to quiet debug log.
+            // B1 (audit #19): NOT dev-gated — prod builds were silent, so violations never appeared
+            // in shared live logs. Fires only when violations exist and stays 250ms-batched.
+            console.debug(`[TruthDiff] ${violationBufferRef.current.length} violation(s):`,
+              violationBufferRef.current.map(v => `${v.type}:${v.layerId}`));
             violationBufferRef.current = [];
           }, 250);
         }
