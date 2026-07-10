@@ -369,8 +369,8 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "upstream_provider": "open-meteo",
         "upstream_model": "ecmwf_ifs",
         "source_dataset": "ecmwf_ifs",
-        "native_horizon_hours": 336,
-        "estimated_horizon_hours": 0,
+        "native_horizon_hours": 240,
+        "estimated_horizon_hours": 96,
         "max_forecast_hours": 336,
         "cadence_hours": 1,
         "update_frequency": "12h",
@@ -381,7 +381,7 @@ WEATHER_CAPABILITIES: List[Dict[str, Any]] = [
         "backend_owned": True,
         "frontend_visual_tile_only": False,
         "unsupported_reason": None,
-        "source_docs_note": "ECMWF IFS global weather model. Serves wind speed, direction, and gusts.",
+        "source_docs_note": "ECMWF IFS global weather model (open-data = 240h native). Beyond 240h serves GFS-fallback estimates (pre-baked on ingest; labeled gfs_fallback/is_estimated). Audit #9: native was falsely 336 — ECMWF open-data has never exceeded 240h. (fallback_sources stays [] — the locked contract restricts that field to EURO marine.)",
         "fallback_sources": []
     },
     # GFS Weather (Pressure, Precipitation)
