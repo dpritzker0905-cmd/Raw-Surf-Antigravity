@@ -17,6 +17,7 @@ import {
 import { isLayerSupportedByModel, isGridLayerSupported, isInCooldown } from './marineControllerUtils';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { compileForecastCards, STATUS_RENDERS } from './forecastCardCompiler';
+import { sampleDecodedOmValue } from './decodedOmSampler';
 import { computeSurfRating } from './surfRating';
 import { computeHeatmapStatus } from './forecastDiagnostics';
 import { logPressureTelemetryDiagnostics, checkIsExactPointValid, logForensicAudit } from './MapForecastOverlayDiag';
@@ -411,6 +412,17 @@ export const MapForecastOverlay = ({
       )
     : null;
 
+  // Temp-pair infobox v2: Water Temp samples the client-decoded grid the raster renders from
+  // (display-consistent — the active slot URL names model+timeIndex; SST is on no point lane).
+  const sampledWaterTempC = activeLayer === 'water_temp'
+    ? sampleDecodedOmValue({ variable: 'surface_temperature', layerKey: 'water_temp', lat: pointLat, lng: pointLng })
+    : null;
+  // Air Temp fallback from the same decoded grid the raster renders (wx.temperature_2m can be
+  // absent — e.g. a cold/failed point fetch); primary stays the point forecast when present.
+  const sampledAirTempC = activeLayer === 'temperature'
+    ? sampleDecodedOmValue({ variable: 'temperature_2m', layerKey: 'temperature', lat: pointLat, lng: pointLng })
+    : null;
+
   const cards = compileForecastCards({
     activeLayer,
     activeModel,
@@ -456,6 +468,8 @@ export const MapForecastOverlay = ({
     sampledPressure,
     sampledCloudCover,
     sampledVisibility,
+    sampledWaterTempC,
+    sampledAirTempC,
     mToFt,
     degToCompass,
     getClampedValue,

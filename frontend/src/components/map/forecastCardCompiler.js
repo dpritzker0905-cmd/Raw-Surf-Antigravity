@@ -62,6 +62,8 @@ export function compileForecastCards({
   sampledPressure,
   sampledCloudCover,
   sampledVisibility,
+  sampledWaterTempC,
+  sampledAirTempC,
   mToFt,
   degToCompass,
   getClampedValue,
@@ -128,6 +130,21 @@ export function compileForecastCards({
 
   if (activeLayer === 'pressure' || activeLayer === 'pressure_msl' || activeLayer === 'msl_pressure') {
     cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa` : '--', color: 'text-rose-400' });
+  }
+
+  // Temp-pair infobox v2 (2026-07-11, the "no data" v1 gap): Air Temp rides the point-forecast
+  // temperature_2m that already flows here (°C); Water Temp samples the CLIENT-DECODED grid the
+  // raster is rendering (decodedOmSampler — SST is on neither backend point lane). °F per the
+  // legend convention. Water Temp null over the landmask's NaN interior reads "Land".
+  if (activeLayer === 'temperature') {
+    const c = temp != null ? temp : sampledAirTempC; // point forecast first; decoded-grid fallback
+    const f = c != null ? Math.round(c * 9 / 5 + 32) : null;
+    cards.push({ icon: Thermometer, label: 'Air Temp', value: f != null ? `${f}°F` : (isLoading ? 'Loading' : '--'), color: 'text-orange-400' });
+  }
+
+  if (activeLayer === 'water_temp') {
+    const f = sampledWaterTempC != null ? Math.round(sampledWaterTempC * 9 / 5 + 32) : null;
+    cards.push({ icon: Thermometer, label: 'Water Temp', value: f != null ? `${f}°F` : (isLoading ? 'Loading' : 'Land / no data'), color: 'text-sky-400' });
   }
 
   if (activeLayer === 'satellite' || activeLayer === 'cloud_cover') {
