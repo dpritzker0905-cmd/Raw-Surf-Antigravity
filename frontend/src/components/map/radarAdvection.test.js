@@ -248,6 +248,23 @@ describe('radarAdvection — advectTileSmoothField (continuous motion, no gridli
     expect(differs).toBeGreaterThan(1000); // smooth field ≠ rigid warp when vectors vary
   });
 
+  it('conf-0 zero neighbors do NOT damp real motion (confidence weighting)', () => {
+    // The verbatim-zero version dragged the field toward 0 near edges wherever a neighbor had
+    // no measurable echo — "not actually moving forward much". With confidence weighting the
+    // conf-0 zeros contribute ~nothing: the blob must advect by ~the full center vector.
+    const tiles = { '0,0': makeBlob(128, 128, 40) };
+    const motions = { '0,0': { dx: 16, dy: 0, confidence: 0.5 } };
+    for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+      if (gx === 0 && gy === 0) continue;
+      tiles[`${gx},${gy}`] = emptyTile();
+      motions[`${gx},${gy}`] = { dx: 0, dy: 0, confidence: 0 }; // no-echo identity verdicts
+    }
+    const outSm = advectTileSmoothField(tiles, motions, W, H, 1);
+    const c = centroid(outSm);
+    expect(c.x).toBeGreaterThan(128 + 16 * 0.9); // ≥90% of the true displacement survives
+    expect(c.x).toBeLessThan(128 + 16 * 1.05);
+  });
+
   it('MISSING neighbor motions fall back to the center vector (uniform field)', () => {
     const tiles = { '0,0': makeBlob(128, 128, 40) };
     const motionsMissing = { '0,0': { dx: 10, dy: 0, confidence: 0.5 } }; // all neighbors absent

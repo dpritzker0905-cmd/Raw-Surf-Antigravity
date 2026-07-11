@@ -246,28 +246,33 @@ export const SMOOTH_MOTION_OPTS = { gridSize: 32, searchRadius: 8, maxMotionCell
  *
  * @param {object|Map} tiles   'gx,gy' (gx,gy ∈ {-1,0,1}) → RGBA Uint8ClampedArray or null/absent.
  * @param {object|Map} motions 'gx,gy' → { dx, dy, confidence } per-baseline FULL-RES pixels.
- *   Every PRESENT entry is used VERBATIM — including confidence-0 identity verdicts. Seam
- *   symmetry demands it: two adjacent neighborhoods interpolate the same physical pair of
- *   vectors at their shared edge only if both read the same values, and a per-side "fall back
- *   to my own center" rule re-creates the seam whenever one side is a conf-0 identity
- *   (real-tile proof: z7/100,101 residual seam 14.6 under the fallback rule). Only MISSING
- *   entries (neighbor fetch failed) fall back to the center vector.
+ *   Interpolation is CONFIDENCE-WEIGHTED (standard sparse-vector motion-field practice, e.g.
+ *   pySTEPS interpolation): each corner's bilinear weight is multiplied by (confidence + ε).
+ *   A conf-0 identity verdict (sparse/no-echo neighbor — very common) then contributes ~nothing
+ *   instead of dragging the local field toward zero — the first VERBATIM version damped real
+ *   motion by up to ~50% near tile edges wherever a neighbor had no measurable echo ("it's not
+ *   actually moving forward much"). A CONFIDENT zero (true static echo) still stills the field.
+ *   Seam symmetry is preserved: both sides of a shared edge weight the SAME (vector, confidence)
+ *   pairs identically. Missing entries (fetch failed) fall back to the center's vector+conf.
  * @returns {Uint8ClampedArray} the warped center tile (RGBA).
  */
+const CONF_WEIGHT_EPS = 0.02;
 export function advectTileSmoothField(tiles, motions, width, height, leadFactor) {
   const get = (m, k) => (m instanceof Map ? m.get(k) : m && m[k]) || null;
   const center = get(tiles, '0,0');
   const out = new Uint8ClampedArray(width * height * 4);
   if (!center) return out;
   const cm = get(motions, '0,0') || { dx: 0, dy: 0, confidence: 0 };
-  // 3×3 vector grid at tile centers; entries verbatim, missing → center vector.
+  // 3×3 vector grid at tile centers (+ per-cell confidence weight); missing → center vector.
   const vx = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   const vy = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const vw = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
   for (let gy = -1; gy <= 1; gy++) {
     for (let gx = -1; gx <= 1; gx++) {
-      const m = get(motions, `${gx},${gy}`);
-      vx[gy + 1][gx + 1] = m ? m.dx : cm.dx;
-      vy[gy + 1][gx + 1] = m ? m.dy : cm.dy;
+      const m = get(motions, `${gx},${gy}`) || cm;
+      vx[gy + 1][gx + 1] = m.dx;
+      vy[gy + 1][gx + 1] = m.dy;
+      vw[gy + 1][gx + 1] = (m.confidence || 0) + CONF_WEIGHT_EPS;
     }
   }
   if (leadFactor === 0) { out.set(center); return out; }
@@ -295,9 +300,15 @@ export function advectTileSmoothField(tiles, motions, width, height, leadFactor)
       const cx = (x + 0.5) / width - 0.5;
       const jx = cx < 0 ? 0 : 1;
       const tx = cx < 0 ? cx + 1 : cx;
-      const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
-      const dx = (vx[jy][jx] * w00 + vx[jy][jx + 1] * w10 + vx[jy + 1][jx] * w01 + vx[jy + 1][jx + 1] * w11) * leadFactor;
-      const dy = (vy[jy][jx] * w00 + vy[jy][jx + 1] * w10 + vy[jy + 1][jx] * w01 + vy[jy + 1][jx + 1] * w11) * leadFactor;
+      // confidence-weighted bilinear: geometric weight × (confidence + ε), renormalized
+      const w00 = (1 - tx) * (1 - ty) * vw[jy][jx];
+      const w10 = tx * (1 - ty) * vw[jy][jx + 1];
+      const w01 = (1 - tx) * ty * vw[jy + 1][jx];
+      const w11 = tx * ty * vw[jy + 1][jx + 1];
+      const wsum = w00 + w10 + w01 + w11;
+      const inv = wsum > 1e-12 ? leadFactor / wsum : 0;
+      const dx = (vx[jy][jx] * w00 + vx[jy][jx + 1] * w10 + vx[jy + 1][jx] * w01 + vx[jy + 1][jx + 1] * w11) * inv;
+      const dy = (vy[jy][jx] * w00 + vy[jy][jx + 1] * w10 + vy[jy + 1][jx] * w01 + vy[jy + 1][jx + 1] * w11) * inv;
       const srcX = x + width - dx, srcY = y + height - dy;
       const x0 = Math.floor(srcX), y0 = Math.floor(srcY);
       if (x0 < 0 || y0 < 0 || x0 >= W - 1 || y0 >= H - 1) continue; // out → transparent

@@ -32,6 +32,41 @@
    in the Supabase SQL editor (jnfbxcvcbtndtsvscppt) — now also in the migration file. Then the
    01:15Z ingest should publish generation ≥1.
 5. S1 (dev Supabase project) purpose explained to the user — see the session close message.
+   **S1 EXECUTED late-session**: DEV = `weewaulkwfwlbhqemxma` (ex-Emergent; REAL legacy data
+   inside — untouched); weather bootstrap applied (bucket+pointer+grant); prod service key
+   REMOVED from local backend/.env; DEV key installed via the authenticated CLI; DEV reads
+   verified HTTP 200. Left: dashboard rename only. S2 grant applied by user + verified (HTTP
+   200 on the runner path) — first pointer generation expected from the 01:15Z ingest.
+6. **Radar motion-magnitude fix (post-user-retest "flows but barely moves")**: the verbatim
+   conf-0 zeros dragged the interpolated field toward zero near edges wherever a neighbor had
+   no measurable echo (up to ~50% damping). Now CONFIDENCE-WEIGHTED interpolation (geometric
+   bilinear × (conf+0.02), renormalized — pySTEPS-style sparse-vector practice): ≥90% of true
+   displacement survives (unit-proven) AND real-tile seams improved further (21.29→1.75,
+   37.04→1.17, 52.53→0.44 — all ≤ the observed-frame baseline). Range lever if the user wants a
+   longer nowcast: `__RAW_RADAR_ADVECT_CAP_MIN__=120` (default 60; DWD RadVor ships 2h
+   extrapolation — defensible; skill decays past ~1h).
+
+## ⚡ NEXT-SESSION ARC (user console logs banked, 2026-07-12 ~00:30Z): RATING-MODE LANE PRIORITY
+User report: waves clamp at very close zoom when the Rating toggle activates; glyphs slow to
+color; no coastal rating band. The logs SELF-DIAGNOSE most of it:
+- `[rating-band] OFF … ratingMode=false … fromSeries=false, cols=37/17/9` for MINUTES: in
+  rating mode at z9-11 the engine's committed grids come from the DIRECT lane (37×17 global
+  previews + 9×9/17×13 snapped crops), never a series-conformed rating grid → band forced OFF
+  (flag true, grid not rating). THE question: why does the series (the rating carrier) never
+  commit for this viewport/hour band (user was scrubbed to h51-333)?
+- `No-downgrade: kept resident regional 9×9 … rejected coarser 37×17 at zoom 10.5` — the guard
+  correctly refuses the coarse previews, but the HELD tiny snapped crop renders as the CLAMPED
+  RECT until the new viewport's fine fetch lands. The clamp = held-crop phase of SWR, in rating
+  mode, at far hours, on a busy box.
+- ⚠️ CONTAMINATION: the log window overlapped the 23:40Z Render deploy — a CORS storm on ALL
+  routes (5xx without ACAO) + ServiceWorker offline fallback + one failed spot-ratings fetch
+  (later retried: `10/10 rated · src=live`). Glyph slowness is at least partly the deploy
+  window; RE-TEST on a quiet box before deep-diving latency. The 37×17-in-rating-mode pattern
+  spans the entire log = real, deploy-independent.
+- Recipe: reproduce in rating mode z10+ scrubbed to h100+; trace which lane commits
+  (`__RAW_GPU__.ratingBand` + `__MARINE_DISPLAY_SOURCE_DIAG__`); check whether the DIRECT lane
+  passes surf=1 and whether marineGridSeries pages cover far hours in rating mode; the fix is
+  lane-priority/propagation, NOT the no-downgrade guard (it behaved correctly).
 
 **dev = `6a5f6992` (2 code commits this session on top of `9e446f99`). FE 98 suites / 797 tests
 green; backend 622 green (609 baseline + 13 new). Session detail in memory
