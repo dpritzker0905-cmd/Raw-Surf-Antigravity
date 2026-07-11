@@ -192,6 +192,12 @@ in each):
    temperature branches in the point lane; the backlog's "Temperature infobox long-press" item).
    Design: sample `__DECODED_OM_TILES__` client-side (row-0-SOUTH!) at the clicked point, keyed
    by resolved model (incl. dwd_icon SST→gfs013 cross-fall) + timeIndex; NaN interior = "land".
+4. **Radar advection regression (user report): some frames not sliding +1h forward.** Own
+   session — radar arc rules apply (§2a-b THREE failure shapes, never conflate; advect-rv://
+   fetches prev+curr → SAD motion → warp; /rv/* proxy deploy-only). Triage: which frame CLASS
+   fails (observed vs advected vs model-WMS), catalog freshness (stale frame list = missing
+   advection targets — the catalog-429 family), advect fallback on failed prev/curr fetch
+   (static curr = "not sliding"). No radar files changed recently — suspect DATA-side first.
 
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
