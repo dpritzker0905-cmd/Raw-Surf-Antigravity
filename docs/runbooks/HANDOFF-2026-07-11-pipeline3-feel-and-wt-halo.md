@@ -171,6 +171,28 @@ target; re-judge FEEL only on the deployed build.
 **`__SPOT_RATINGS_DIAG__` decoder:** eligibleSpots = UNCLUSTERED spots in view; mergedCount 0
 with surfMode:false = correct gating, not failure.
 
+## 4d. LIVE-EYEBALL ROUND (user on deploy + localhost, post-`76a3d98b`) — NEW QUEUE
+User confirms the temp toggles work overall. Three precise items remain (full forensic context
+in each):
+1. **Waves rating-band refetch loop** (user logs, z7.76-7.84, BOTH environments): `__SURF_MODE__`
+   flag ON + the florida_east_coast regional was 15Z vs 18Z coarse (transient ingest-cadence
+   staleness) → the rating lane's want is unsatisfiable → 4+ WEATHER_TRUTH chains for the SAME
+   product, repeated Abort-Gate dup-skips, repeated particle-state resets → 13 FPS + the felt
+   "animation/heatmap clamping". The honest-waves gate itself (WebGLMarineEngine.js:1020) and the
+   2s-throttled rating-band log are CORRECT — the loop is the settle/backstop refetch family
+   (closed #29's shape). Fix: TTL/backoff terminal-gate on the rating-lane refetch when the
+   served regional lacks ratingMode; check the fromSeries=false vs series race (THREE-pipeline
+   landmine). Also: WEATHER_TRUTH "ABSENT after orchestratorCommit" = no-downgrade rejection
+   flagged as death — tracker noise worth a label.
+2. **Air temp clears at z3.46** (zoom-out, deployed build, despite fade-200+cancelZoomTiles):
+   the #25 residual at the tile-z2→z1 crossing. Recipe: __RASTER_SLOT_TELEMETRY__ + tile states
+   at the crossing; candidate fix: prime z0-z1 tiles at activation (1-4 tiles/level from the
+   already-decoded grid).
+3. **Temp-pair infobox "no data" = the KNOWN v1 gap, NOT a regression** (grep-verified: zero
+   temperature branches in the point lane; the backlog's "Temperature infobox long-press" item).
+   Design: sample `__DECODED_OM_TILES__` client-side (row-0-SOUTH!) at the clicked point, keyed
+   by resolved model (incl. dwd_icon SST→gfs013 cross-fall) + timeIndex; NaN interior = "land".
+
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
 anomaly (e.g., ICON 2m-air anomaly vs GFS, damped coastal) labeled `estimate` provenance like the
