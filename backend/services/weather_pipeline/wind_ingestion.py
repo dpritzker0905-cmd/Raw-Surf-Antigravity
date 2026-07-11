@@ -329,8 +329,21 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
     # hourly (step=3 -> 3-hourly products). Same product cadence either way.
     save_step = 1 if from_ecmwf else 3
     # Recycled-cache products are ESTIMATES (2026-07-04) — see the GFS block above.
+    # Audit #26 (2026-07-11, live-caught): the open-meteo fallback fetches _WIND_GLOBAL_FORECAST_DAYS
+    # (14d) and used to save ALL of it as native — but ECMWF IFS open-data is 240h; hours 240-336 are
+    # open-meteo's extension, and a fallback cycle labeled them is_estimated:False (the provenance
+    # class 7b89eadf banned; also the origin of the false capabilities native:336, audit #9).
+    # Hours >240 on the open-meteo path now save as ESTIMATED with an honest basis.
     _cache_basis = {"type": "stale_cache_recycled", "method": "time_shifted_forecast_cache",
                     "source_model": "gfs_seamless"} if from_cache else None
+    _om_ext_basis = {"type": "openmeteo_ifs_extended", "method": "openmeteo_beyond_ecmwf_native",
+                     "source_model": "ecmwf_ifs", "native_horizon_hours": 240}
+    if from_ecmwf:
+        _est_after, _est_basis = None, None
+    elif from_cache:
+        _est_after, _est_basis = 0, _cache_basis
+    else:
+        _est_after, _est_basis = 240, _om_ext_basis  # hourly results -> index 240 == +240h
     count = await normalize_and_save_loop(
         scheduler.normalizer, scheduler.store, results,
         model="EURO", provider="open-meteo", domain="wind", layer="wind",
@@ -338,7 +351,7 @@ async def ingest_euro_wind_global_impl(scheduler) -> bool:
         region_id="global_coarse", coverage_mode="global_tile",
         is_test_env=env["is_test_env"], step=save_step,
         log_prefix="[Pipeline Scheduler] EURO wind global_coarse",
-        estimated_after_index=0 if from_cache else None, estimate_basis=_cache_basis
+        estimated_after_index=_est_after, estimate_basis=_est_basis
     )
     logger.info(f"[Pipeline Scheduler] Ingested {count} EURO Wind global coarse grid files.")
 
