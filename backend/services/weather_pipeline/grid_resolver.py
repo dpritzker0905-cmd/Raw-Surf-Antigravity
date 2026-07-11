@@ -9,7 +9,7 @@ identical to the former inline route body — this is a pure extraction.
 import asyncio
 import os
 import logging
-from datetime import datetime, timezone, timedelta
+from datetime import datetime, timezone
 from typing import Optional
 
 from fastapi import HTTPException
@@ -17,22 +17,22 @@ from fastapi.responses import JSONResponse
 
 from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.route_helpers import (
-    parse_valid_time, parse_bbox, is_bbox_covered_by, filter_grid_to_bbox,
+    parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
     compute_truth_tag, get_snapped_bbox
 )
 from services.weather_pipeline.product_selection import select_best_candidate
 from services.weather_pipeline.viewport_helper import _is_oversized_grid
+# 2026-07-11 split (786/800 LOC): candidate search + coverage policy + surf regional-prefer live in
+# grid_resolver_selection; the surf/rating overlay tail + wind sampler live in grid_resolver_surf.
+# Pure extractions — calculate_bbox_intersection_area is re-exported here for compatibility.
+from services.weather_pipeline.grid_resolver_selection import (
+    calculate_bbox_intersection_area, find_candidates, decide_manifest_product,
+    apply_surf_regional_prefer, apply_marine_intersect_prefer,
+)
+from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
 
 logger = logging.getLogger(__name__)
-
-
-def calculate_bbox_intersection_area(w1: float, s1: float, e1: float, n1: float, w2: float, s2: float, e2: float, n2: float) -> float:
-    """Calculates the intersection area of two bounding boxes."""
-    from services.weather_pipeline.product_selection import bbox_intersection_area
-    from collections import namedtuple
-    SimpleCov = namedtuple("SimpleCov", ["west", "south", "east", "north"])
-    return bbox_intersection_area(w1, s1, e1, n1, SimpleCov(w2, s2, e2, n2))
 
 
 async def resolve_grid(
@@ -74,20 +74,9 @@ async def resolve_grid(
 
     # 1. Search the manifest for candidate products covering the target time
     manifest = await asyncio.to_thread(store.get_manifest)
-    authoritative_candidates = []
-    estimated_candidates = []
-    for p in manifest.products:
-        if (
-            p.model.upper() == model.upper()
-            and p.domain.lower() == domain.lower()
-            and p.layer.lower() == layer.lower()
-        ):
-            diff = abs(p.valid_time_start.timestamp() - target_dt.timestamp())
-            if diff <= 3 * 3600:
-                if getattr(p, "is_estimated", False):
-                    estimated_candidates.append((p, diff))
-                else:
-                    authoritative_candidates.append((p, diff))
+    authoritative_candidates, estimated_candidates = find_candidates(
+        manifest, model, domain, layer, target_dt
+    )
 
     # MID-RES split (Step 3.6 tier, mid_res_tier.py): global_mid items must never compete in the
     # generic selection — select_best_candidate ties globals on intersection+coverage area and falls
@@ -104,119 +93,45 @@ async def resolve_grid(
         authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
     )
 
-    manifest_preview_item = None
-    use_manifest_product = False
-    regional_span_lng = 0.0
-    if matching_manifest_item:
-        cov = matching_manifest_item.coverage
-        if cov.west <= cov.east:
-            regional_span_lng = cov.east - cov.west
-        else:
-            regional_span_lng = (180.0 - cov.west) + (cov.east + 180.0)
-        regional_span_lat = abs(cov.north - cov.south)
-
-        is_regional = regional_span_lng < 350.0
-
-        if is_regional:
-            if req_w is not None:
-                # Check requested bbox span
-                if req_w <= req_e:
-                    req_span_lng = req_e - req_w
-                else:
-                    req_span_lng = (180.0 - req_w) + (req_e + 180.0)
-                req_span_lat = abs(req_n - req_s)
-
-                # If requested viewport is wider than the regional tile, dynamic viewport must win.
-                is_wider_lng = req_span_lng > (regional_span_lng + 0.05)
-                is_wider_lat = req_span_lat > (regional_span_lat + 0.05)
-                is_wider = is_wider_lng or is_wider_lat
-                is_covered = is_bbox_covered_by(req_w, req_s, req_e, req_n, cov, margin=0.05)
-
-                if is_covered and not is_wider:
-                    use_manifest_product = True
-                elif domain.lower() == "marine" and os.environ.get("MARINE_REGIONAL_OVERLAP_REUSE", "1") != "0":
-                    # Reuse a regional marine tile when the viewport OVERLAPS it and isn't wider — even if not
-                    # FULLY covered. Without this, a zoomed-in viewport that spills slightly past the tile edge
-                    # (e.g. a z9 Florida view ~0.4° wider than the 2° FL pilot tile) fell back to the global-
-                    # COARSE grid (live: "no covering regional frame for coarse_global") — which is blocky AND
-                    # skips the rating band (the surf transform is skipped on coarse/global extent). Extended
-                    # from EURO-only to ALL marine models (GFS/ICON pilots too) so close-up coasts get FINE data
-                    # plus the rating band. Kill switch: MARINE_REGIONAL_OVERLAP_REUSE=0.
-                    overlap_area = calculate_bbox_intersection_area(
-                        req_w, req_s, req_e, req_n,
-                        cov.west, cov.south, cov.east, cov.north
-                    )
-                    if overlap_area > 0.0001 and not is_wider:
-                        use_manifest_product = True
-            else:
-                # If no bbox coordinates provided, serve manifest product by default
-                use_manifest_product = True
-        else:
-            # It's a global conformed manifest product (regional_span_lng >= 350.0).
-            # If the user is requesting a global view (large span), directly serve this global manifest product.
-            if req_w is not None:
-                if req_w <= req_e:
-                    req_span_lng = req_e - req_w
-                else:
-                    req_span_lng = (180.0 - req_w) + (req_e + 180.0)
-                req_span_lat = abs(req_n - req_s)
-                if req_span_lng > 15.0 or req_span_lat > 15.0:
-                    use_manifest_product = True
-                elif model.upper() == "ICON" and domain.lower() == "wind":
-                    # Compute dynamic boundary for the maximum 5-day calendar forecast range of ICON
-                    today_utc = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
-                    max_icon_wind_dynamic_dt = today_utc + timedelta(days=5)
-                    if target_dt >= max_icon_wind_dynamic_dt:
-                        use_manifest_product = True
-                else:
-                    # Zooms closer in: do NOT use the coarse global manifest product.
-                    use_manifest_product = False
-            else:
-                use_manifest_product = True
-
-        if matching_manifest_item and getattr(matching_manifest_item, "is_estimated", False):
-            use_manifest_product = True
-
-        if not use_manifest_product:
-            # Do NOT serve a regional preview or global coarse preview for a zoomed-in viewport query (use_manifest_product is False),
-            # as it causes jarring visual expand/shrink transitions and clamping jitters due to grid dimension/resolution mismatch.
-            manifest_preview_item = None
-            matching_manifest_item = None
-
-    # ── SURF RATING regional preference (kill switch SURF_REGIONAL_PREFER=0) ──
-    # The rating band is a COASTAL feature. When the (frontend-padded) viewport pokes just past a regional
-    # tile's offshore edge, select_best_candidate above picks the GLOBAL coarse product on raw intersection
-    # area, use_manifest_product ends up False (or the global is_wider/coverage check fails), the resolver
-    # serves the coarse global extent, and the surf transform is skipped (coarse_extent) → the band vanishes.
-    # Live root cause: the FL tile's offshore edge -79° is ~1° off the -80° surf coast and the series client
-    # pads +0.5°. For surf requests over a NON-wide viewport, re-select the regional tile that overlaps the
-    # viewport (Step 3 clips it to the snapped bbox; the offshore remainder is masked open-ocean) so the band
-    # paints on its coastal cells. Fixes every narrow coast worldwide without touching tile ingest extents.
-    if (
-        surf
-        and not use_manifest_product
-        and domain.lower() == "marine"
-        and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-        and req_w is not None
-        and os.environ.get("SURF_REGIONAL_PREFER", "1") != "0"
-    ):
-        from services.weather_pipeline.product_selection import pick_surf_regional_override
-        surf_regional_item = pick_surf_regional_override(
-            authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
+    # Coverage policy (extracted: grid_resolver_selection.decide_manifest_product) — should the
+    # selected manifest item be served for this viewport?
+    matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng = (
+        decide_manifest_product(
+            matching_manifest_item, req_w, req_s, req_e, req_n, domain, model, target_dt
         )
-        if surf_regional_item is not None:
-            matching_manifest_item = surf_regional_item
-            manifest_preview_item = None
-            use_manifest_product = True
-            _cov = surf_regional_item.coverage
-            if _cov.west <= _cov.east:
-                regional_span_lng = _cov.east - _cov.west
-            else:
-                regional_span_lng = (180.0 - _cov.west) + (_cov.east + 180.0)
-            logger.info(
-                f"[Grid Route] Surf regional-prefer: serving regional tile "
-                f"'{getattr(surf_regional_item, 'filename', '?')}' over global so the rating band paints."
-            )
+    )
+
+    # SURF RATING regional preference (extracted; kill switch SURF_REGIONAL_PREFER=0): for surf
+    # requests over a non-wide viewport, re-select the overlapping regional tile so the coastal
+    # rating band paints even when the padded viewport pokes past the tile's offshore edge.
+    matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng = (
+        apply_surf_regional_prefer(
+            surf=surf, use_manifest_product=use_manifest_product, domain=domain, layer=layer,
+            req_w=req_w, req_s=req_s, req_e=req_e, req_n=req_n,
+            authoritative_candidates=authoritative_candidates,
+            estimated_candidates=estimated_candidates,
+            matching_manifest_item=matching_manifest_item,
+            manifest_preview_item=manifest_preview_item,
+            regional_span_lng=regional_span_lng,
+        )
+    )
+
+    # BLEND-BOTH intersect preference (task #17; kill MARINE_INTERSECT_PREFER=0, floor
+    # MARINE_INTERSECT_MIN_FRAC=0.6): a straddling non-wide marine viewport gets the INTERSECTING
+    # fine tile (clipped by Step 3) instead of falling to the coarse lanes — the cold-arrival half
+    # of the z7.8 "clamping" arc (the retention band 4f60c196 was the resident half).
+    # intersect_serve → Step 3 stamps the honest regional_partial/partial_coverage labels.
+    matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng, _intersect_serve = (
+        apply_marine_intersect_prefer(
+            use_manifest_product=use_manifest_product, domain=domain, layer=layer,
+            req_w=req_w, req_s=req_s, req_e=req_e, req_n=req_n,
+            authoritative_candidates=authoritative_candidates,
+            estimated_candidates=estimated_candidates,
+            matching_manifest_item=matching_manifest_item,
+            manifest_preview_item=manifest_preview_item,
+            regional_span_lng=regional_span_lng,
+        )
+    )
 
     # Step-wise product resolution
     product = None
@@ -237,6 +152,12 @@ async def resolve_grid(
                     product.product_id = matching_manifest_item.filename
                     product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
                     product.partial_coverage = False
+                    if _intersect_serve:
+                        # Blend-both intersect-prefer serves a tile that does NOT fully cover the
+                        # viewport — label it honestly (the same labels the Step 6 fallback used
+                        # for these products; the frontend blend wash fills the uncovered ring).
+                        product.coverage_scope = "regional_partial"
+                        product.partial_coverage = True
                     product.requested_bbox_original = bbox
                     product.query_bbox = bbox
                     product.requested_bbox = bbox
@@ -658,129 +579,12 @@ async def resolve_grid(
         )
         return make_no_coverage_grid_response(model, layer, valid_time)
 
-    # ── Option-2 Swell<->Surf toggle: when surf mode is requested, render a COASTAL SURF BAND. Each coastal
-    # cell's offshore wave HEIGHT is replaced with its bathymetry breaker estimate (per-cell shelf depth +
-    # Komar shoaling / friction / depth-limited breaking; can be bigger at steep reefs, smaller on shallow
-    # shelves), u/v scaled to keep direction; every OPEN-OCEAN cell is transparency-masked (is_valid=False)
-    # because surf is a coastline property, not an open-ocean field. Additive + gated; serve-only safe
-    # (bundled bathymetry + cheap cached math). Marine height-layers only. Kill switch SURF_TRANSFORM=0.
-    if (
-        surf
-        and domain.lower() == "marine"
-        and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-        and isinstance(product, NormalizedProduct)
-        and product.grid and product.grid.vectors
-        and os.environ.get("SURF_TRANSFORM", "1") != "0"
-    ):
-        # CACHE SAFETY (critical): the surf/rating transform mutates grid vectors IN PLACE (speed→score/10,
-        # u/v→0) and stamps diagnostics. `product` here is the SHARED CACHED dynamic product, so mutating it
-        # corrupts the cache for the OTHER surf state — a surf=1 request would rewrite the cached grid to ratings,
-        # then a surf=0 (Swell) request gets that rating grid (and vice-versa). Live-proven: fresh bbox surf=0 →
-        # wave_height, but after a surf=1 hit the same bbox surf=0 returned surf_rating. Deep-copy first so the
-        # cached base grid stays pristine and surf=0/surf=1 never cross-contaminate. (Only on surf requests.)
-        import copy as _copy
-        product = _copy.deepcopy(product)
-        try:
-            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
-            # Keep the AMBIENT field honest at global/coarse zoom (rating plan §1): a ~10° coarse frame can't
-            # resolve a trustworthy shore-normal / exposure, surf is a coastline property, and a blocky
-            # world-zoom rating band isn't the experience — the per-spot rating GLYPHS (P1) are the accuracy
-            # path. So on a global-extent grid we DON'T transform; the frontend Option-A gate then shows the
-            # honest swell field. (This was happening accidentally via an OverflowError on a coastal-classified
-            # deep cell; now it's intentional + the math is also hardened in shoaling_coefficient.)
-            _b = product.grid.bounds
-            _span = ((_b.east - _b.west) if (_b and _b.east >= _b.west) else ((_b.east + 360.0 - _b.west) if _b else 0.0))
-            # The mid-res tier (Step 3.6) is served clipped so span<350, but its ~2° cells are still too
-            # coarse for a trustworthy shore-normal — skip the rating band on it exactly as on the global
-            # coarse (the z6-7 surf-mode behavior was 'honest swell' before this tier existed; keep it).
-            _is_mid_res = bool(product.grid.diagnostics and product.grid.diagnostics.get("mid_res_tier"))
-            if (_b is not None and _span >= 350.0) or _is_mid_res:
-                if product.grid.diagnostics is None:
-                    product.grid.diagnostics = {}
-                product.grid.diagnostics["surf_transform"] = {"skipped": "mid_res_tier" if _is_mid_res else "coarse_extent"}
-                logger.info(f"[Grid Route] Surf rating skipped on {'mid-res' if _is_mid_res else 'global/coarse'} extent ({_span:.0f}°) — honest swell served for {model} {layer}.")
-            else:
-                # The "surf" toggle renders a SURF-QUALITY RATING overlay: per coastal cell compute the 0-100
-                # rating (size + period + wind offshore/onshore via shore_normal) and store score/10 in the
-                # height channel (the shader colours it via getRatingColor); open-ocean cells are masked. Wind
-                # is co-sampled from the model's own wind product. Kill switch SURF_RATING=0 falls back to the
-                # surf-HEIGHT band (the prior surf_transform_grid behaviour) for rollback.
-                if os.environ.get("SURF_RATING", "1") != "0":
-                    from services.weather_pipeline.surf_rating import rating_transform_grid
-                    wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
-                    n_t, n_masked = rating_transform_grid(
-                        product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at)
-                    tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn)}
-                    label = "RATING overlay"
-                else:
-                    from services.weather_pipeline.surf_transform import surf_transform_grid
-                    n_t, n_masked = surf_transform_grid(product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km)
-                    tag = {"transformed": n_t, "masked": n_masked}
-                    label = "height band"
-                product.is_estimated = True
-                if product.grid.diagnostics is None:
-                    product.grid.diagnostics = {}
-                product.grid.diagnostics["surf_transform"] = tag
-                logger.info(f"[Grid Route] Surf {label}: {n_t} coastal cells, {n_masked} open-ocean masked, for {model} {layer}.")
-        except Exception as _se:
-            logger.warning(f"[Grid Route] Surf overlay skipped: {_se}")
-            # Forensic instrumentation (rating plan §8 #3): the global-coarse frame returns surf_transform:None
-            # and the Render exception isn't capturable locally. Stash the exception type+message into the
-            # response diagnostics so the NEXT live `/grid?surf=true` on the global frame reveals WHY the
-            # transform was skipped (a throw vs a no-op) — forensics over guessing. Purely additive; the
-            # frontend Option-A gate already renders the honest swell field when no rating grid exists.
-            try:
-                if product is not None and getattr(product, "grid", None) is not None:
-                    if product.grid.diagnostics is None:
-                        product.grid.diagnostics = {}
-                    product.grid.diagnostics["surf_skip_reason"] = f"{type(_se).__name__}: {_se}"
-            except Exception:
-                pass
+    # Option-2 Swell<->Surf toggle (extracted: grid_resolver_surf.apply_surf_overlay; kill
+    # switches SURF_TRANSFORM=0 / SURF_RATING=0). Deep-copies the shared cached product before
+    # the in-place rating/height transform so surf=0/surf=1 never cross-contaminate the cache.
+    product = await apply_surf_overlay(
+        product, store=store, manifest=manifest, model=model, domain=domain, layer=layer,
+        surf=surf, target_dt=target_dt,
+    )
 
     return product
-
-
-async def _build_wind_sampler(store, manifest, model, target_dt):
-    """Return a ``(lat, lng) -> (speed_ms, from_deg) | None`` sampler over the model's wind product nearest
-    ``target_dt`` (within 3h), for the surf-rating's offshore/onshore wind factor. The wind product stores
-    speed in KNOTS (value_unit=kn) -> converted to m/s; ``direction`` is the meteorological FROM bearing.
-    Nearest-cell by lat/lng (robust to grid ordering; the wind grid is small/coarse). None if no product."""
-    try:
-        cands = [
-            p for p in manifest.products
-            if p.model.upper() == model.upper() and p.domain.lower() == "wind" and p.layer.lower() == "wind"
-            and abs((p.valid_time_start - target_dt).total_seconds()) <= 3 * 3600
-        ]
-        if not cands:
-            return None
-        best = min(cands, key=lambda p: abs((p.valid_time_start - target_dt).total_seconds()))
-        wp = await asyncio.to_thread(store.load_product, best.filename)
-        if not wp or not wp.grid or not wp.grid.vectors:
-            return None
-        vex = [v for v in wp.grid.vectors
-               if getattr(v, "lat", None) is not None and getattr(v, "lng", None) is not None
-               and getattr(v, "speed", None) is not None]
-        if not vex:
-            return None
-        KT_TO_MS = 0.514444
-
-        def sampler(lat, lng):
-            if lat is None or lng is None:
-                return None
-            best_v = None
-            best_d = None
-            for v in vex:
-                dlng = abs(v.lng - lng)
-                if dlng > 180:
-                    dlng = 360 - dlng
-                d = (v.lat - lat) ** 2 + dlng ** 2
-                if best_d is None or d < best_d:
-                    best_d = d
-                    best_v = v
-            if best_v is None:
-                return None
-            return (best_v.speed * KT_TO_MS, getattr(best_v, "direction", None))
-
-        return sampler
-    except Exception:
-        return None

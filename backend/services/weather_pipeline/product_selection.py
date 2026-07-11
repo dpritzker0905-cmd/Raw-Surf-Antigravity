@@ -186,6 +186,7 @@ def pick_surf_regional_override(
     req_e: Optional[float] = None,
     req_n: Optional[float] = None,
     max_span_deg: float = 15.0,
+    min_viewport_frac: float = 0.0,
 ) -> Optional[Any]:
     """Pick the REGIONAL tile with the largest overlap with the viewport, for surf=1 marine requests.
 
@@ -199,7 +200,13 @@ def pick_surf_regional_override(
     the offshore remainder is masked open-ocean anyway. Returns the best overlapping regional manifest item
     (coverage longitude span < 350°), or None when the request is wide (a continental view should keep the
     honest global field, not a tiny floating band) or no regional tile overlaps. Pure selection-only —
-    resolve_grid applies the choice. Kill switch lives at the call site (SURF_REGIONAL_PREFER=0)."""
+    resolve_grid applies the choice. Kill switch lives at the call site (SURF_REGIONAL_PREFER=0).
+
+    ``min_viewport_frac`` (task #17, 2026-07-11): when > 0, the winning tile must additionally cover at
+    least that FRACTION of the viewport area. The blend-both intersect-prefer lane uses 0.6 — the same
+    floor as the engine's no-downgrade retention (__RAW_DOWNGRADE_COVER_FRAC__ default) so a tile the
+    resolver serves is a tile the engine would also retain (no arrival/retention flapping). The surf
+    lane keeps 0.0 (any overlap — the rating band paints whatever coastal cells the tile has)."""
     if req_w is None or req_s is None or req_e is None or req_n is None:
         return None
 
@@ -228,6 +235,10 @@ def pick_surf_regional_override(
             best_overlap = overlap
             best_item = p
 
-    if best_item is not None and best_overlap > 0.0001:
-        return best_item
-    return None
+    if best_item is None or best_overlap <= 0.0001:
+        return None
+    if min_viewport_frac > 0.0:
+        vp_area = get_bbox_area(req_w, req_s, req_e, req_n)
+        if vp_area <= 0.0 or (best_overlap / vp_area) < min_viewport_frac:
+            return None
+    return best_item
