@@ -218,6 +218,20 @@ serves INTERSECTING fine tiles + engine keys retention on blend-base presence; g
 at 786/800 must be SPLIT FIRST). Sequence for that session: split resolver → resolver
 intersect-serve → engine blend-aware retention → verify Sebastian z7.76 cold-load.
 
+## 4f. QUEUE BURN-DOWN (late session, all pushed)
+- **Air Temp transparency** `b60602ff`: t2m ramp 0.38/0.44/0.49/0.53 (user: terrain must read
+  through); water_temp keeps the bolder ramp (land mask-covered).
+- **z3.46 air-temp clear: UNREPRODUCIBLE** on this build in any shape (settled steps, hard
+  jumps, cold activation — pixel-sampled); cold activation = ~1s covered by the pulse. Recipe
+  banked if it recurs on deploy with SW==HEAD.
+- **Temp-pair infobox `949a4ad3`**: decodedOmSampler reads the client-decoded grids via the
+  ACTIVE slot URL's model+timeIndex (display-consistent by construction; row-0-SOUTH; NaN →
+  "Land / no data"); Air Temp = point-forecast first + decoded fallback. Live: 87°F Gulf
+  Stream / Land inland / 97°F Orlando.
+REMAINING QUEUE: #16 radar advection triage (own session, catalog already ruled out) · #17
+blend-both cold-arrival retention (split grid_resolver FIRST) · S1 cred sep (one user
+decision) · P8 CDN flip (after healthy S2 pointer generations).
+
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
 anomaly (e.g., ICON 2m-air anomaly vs GFS, damped coastal) labeled `estimate` provenance like the
