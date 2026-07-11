@@ -129,7 +129,9 @@ export var MapWeatherControls = ({
     { id: 'swell_2', label: 'Swell 2', icon: Waves, color: 'text-purple-400' },
     { id: 'wind_waves', label: 'Wind Waves', icon: Wind, color: 'text-emerald-400' },
     { id: 'fog', label: 'Fog', icon: Cloud, color: 'text-gray-400' },
-    { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' }
+    { id: 'pressure', label: 'Pressure', icon: Thermometer, color: 'text-rose-400' },
+    { id: 'temperature', label: 'Air Temp', icon: Thermometer, color: 'text-orange-400' },
+    { id: 'water_temp', label: 'Water Temp', icon: Thermometer, color: 'text-sky-500' }
   ];
 
   const handleModelClick = (model) => {
@@ -160,6 +162,8 @@ export var MapWeatherControls = ({
     fog: 'Visibility / Fog',
     wind: 'Wind Speed (kts)',
     pressure: 'Pressure (hPa)',
+    temperature: 'Air Temp (°F)',
+    water_temp: 'Water Temp (°F)',
   };
 
   // Build legend config dynamically from actual color scale data
@@ -207,6 +211,18 @@ export var MapWeatherControls = ({
       label: LEGEND_LABELS.radar,
       gradientCSS: 'linear-gradient(to right, rgba(200,200,200,0.3), rgba(96,165,250,0.6), rgba(99,102,241,0.7), rgba(147,51,234,0.85), rgba(219,39,119,0.95))',
       stops: ['0', '.1', '.3', '.5', '2+'],
+    };
+    // Temperature pair: tiles are colored by the OM library's registered 'temperature' scale
+    // (not BASE_CUSTOM), so the legend is a static approximation of that ramp in °F.
+    config.temperature = {
+      label: LEGEND_LABELS.temperature,
+      gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9), rgba(200,40,40,0.9))',
+      stops: ['0°', '20°', '40°', '60°', '80°', '100°+'],
+    };
+    config.water_temp = {
+      label: LEGEND_LABELS.water_temp,
+      gradientCSS: 'linear-gradient(to right, rgba(145,80,220,0.9), rgba(64,110,235,0.9), rgba(70,190,225,0.9), rgba(90,200,110,0.9), rgba(235,205,70,0.9), rgba(235,120,50,0.9))',
+      stops: ['35°', '45°', '55°', '65°', '75°', '85°+'],
     };
 
     return config;

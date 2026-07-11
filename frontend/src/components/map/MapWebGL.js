@@ -292,7 +292,13 @@ const MapWebGL = ({
     const hasMarineRaster = (activeLayers || []).some(l =>
       ['waves', 'swell', 'wind_waves', 'secondary_swell'].includes(l)
     );
-    return hasMarine || hasMarineRaster;
+    // water_temp renders surface_temperature (model skin temp) whose land values must be covered
+    // by the land fill — its slots anchor BELOW ocean-mask-fill (see openMeteoRasterSlots), so the
+    // mask must be active with it. Kill __RAW_WATER_TEMP_MASK_DISABLED__ (layer then shows land
+    // skin temps — debugging only, not an honest "Water Temp" presentation).
+    const hasWaterTemp = (activeLayers || []).includes('water_temp') &&
+      !(typeof window !== 'undefined' && window.__RAW_WATER_TEMP_MASK_DISABLED__ === true);
+    return hasMarine || hasMarineRaster || hasWaterTemp;
   }, [activeMarineLayer, activeLayers]);
 
   const activeRenderType = useMemo(() => {
@@ -760,6 +766,9 @@ const MapWebGL = ({
     </Source>
   ), [activeLayers, marineBeforeId, scrubMemoBust]);
 
+  // Temperature pair readability: heat fields need pressure-class opacity, not the 0.22 default.
+  const isTempPair = (k) => k === 'temperature' || k === 'water_temp';
+
   const openMeteoRasterSlots = useMemo(() => {
     // Precip-bold pass (2026-07-08): the rain raster-opacity multiplies the palette alpha, so the
     // "Precip renders faint" complaint is BOTH the (now bold) colorScales ramp AND these stops being
@@ -797,17 +806,23 @@ const MapWebGL = ({
             <Layer
               id={`${slotKey}-layer`}
               type="raster"
-              beforeId={omSlotsBeforeId || undefined}
+              // water_temp = surface_temperature (skin temp): anchor its slots BELOW the OceanMask
+              // land fill via the marine anchor (the esri-satellite-layer's proven pattern) so land
+              // skin temps are covered and only water shows. All other slots keep the bcbc25c6
+              // below-wind anchor. Kill __RAW_WATER_TEMP_MASK_DISABLED__ pairs with oceanMaskActive.
+              beforeId={(layerKey === 'water_temp'
+                ? (marineBeforeId || omSlotsBeforeId)
+                : omSlotsBeforeId) || undefined}
               layout={{
                 visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
               paint={{
                 'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
                     'interpolate', ['linear'], ['zoom'],
-                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : 0.22,
-                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : 0.28,
-                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? rainOp[2] : 0.35,
-                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : 0.40,
+                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : isTempPair(layerKey) ? 0.45 : 0.22,
+                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : isTempPair(layerKey) ? 0.52 : 0.28,
+                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? rainOp[2] : isTempPair(layerKey) ? 0.58 : 0.35,
+                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : isTempPair(layerKey) ? 0.62 : 0.40,
                   ] : 0.0,
                 'raster-resampling': 'linear',
                 'raster-fade-duration': 0
@@ -817,7 +832,7 @@ const MapWebGL = ({
         );
       });
     });
-  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust, omSlotsBeforeId]);
+  }, [protocolReady, omTileUrls, activeSlots, closestTimeIdx, activeLayers, webglMarineFailed, isTransitioning, scrubMemoBust, omSlotsBeforeId, marineBeforeId]);
 
   const spotGeofenceLayers = useMemo(() => (
     <Source id="spot-geofences" type="geojson" data={spotGeoJSON}>

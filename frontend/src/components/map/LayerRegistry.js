@@ -83,6 +83,35 @@ export var LAYER_REGISTRY = {
     renderMode: "maplibre",
     updateFrequency: 3,
   },
+  // TEMPERATURE PAIR (2026-07-11, pipeline-3 riders — CDN availability probed live before wiring):
+  // temperature_2m is served on ALL THREE model routes (ncep_gfs013 / dwd_icon / ecmwf_ifs025) and
+  // the tile library ships a registered 'temperature' color scale. Routed via the atmospheric
+  // PRECIP_MODEL_MAP branch in useOpenMeteoTileUrls (same >168h/>228h GFS cutovers as rain).
+  temperature: {
+    id: "temperature",
+    type: "raster",
+    source: "OM_TEMPERATURE",
+    omVariable: "temperature_2m",
+    category: "model",
+    renderMode: "maplibre",
+    updateFrequency: 3,
+  },
+  // water_temp: sea_surface_temperature is NOT hosted on the tile CDN (probed 07-11: zero domains
+  // carry it — the library only ships a color-scale ALIAS for it). surface_temperature = the model
+  // SKIN temperature, which over ocean IS the model's SST analysis field — served on ncep_gfs013 +
+  // ecmwf_ifs025; dwd_icon LACKS it (the metadata gate serves transparent tiles for ICON — the
+  // established ecmwf_wam025-lacks-swell pattern, no cross-model lying). Land skin temperature is
+  // hidden by rendering this layer's slots BELOW the OceanMask land fill (MapWebGL: water_temp slot
+  // anchor = marineBeforeId + oceanMaskActive includes water_temp; kill __RAW_WATER_TEMP_MASK_DISABLED__).
+  water_temp: {
+    id: "water_temp",
+    type: "raster",
+    source: "OM_WATER_TEMP",
+    omVariable: "surface_temperature",
+    category: "model",
+    renderMode: "maplibre",
+    updateFrequency: 3,
+  },
   fog: {
     id: "fog",
     type: "raster",

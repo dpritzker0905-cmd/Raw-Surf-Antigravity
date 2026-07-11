@@ -457,8 +457,19 @@ export function useOpenMeteoTileUrls({
             }
             return baseModel;
           }
-          if (variable === 'precipitation' || variable === 'cloud_cover') {
+          // temperature_2m + surface_temperature ride the same atmospheric routing as precip
+          // (probed 07-11: t2m on all three routes; surface_temperature on gfs013+ifs025 only —
+          // dwd_icon lacks it and the metadata gate below serves transparent tiles for ICON).
+          if (variable === 'precipitation' || variable === 'cloud_cover'
+              || variable === 'temperature_2m' || variable === 'surface_temperature') {
             const baseModel = PRECIP_MODEL_MAP[activeModel] || 'dwd_icon';
+            // dwd_icon does not serve surface_temperature AT ALL (probed 07-11) — explicit GFS
+            // cross-fall at every hour (the same silent atmospheric-raster convention as the
+            // >168h cutover below), instead of the stale-URL-retention limbo the metadata gate
+            // would otherwise leave the slots in.
+            if (baseModel === 'dwd_icon' && variable === 'surface_temperature') {
+              return 'ncep_gfs013';
+            }
             if (baseModel === 'dwd_icon' && debouncedTimeOffsetHours > 168) {
               return 'ncep_gfs013';
             }
