@@ -145,7 +145,15 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     const ix = Math.max(0, Math.min(rb.east, ve) - Math.max(rb.west, vw));
     const iy = Math.max(0, Math.min(rb.north, vn) - Math.max(rb.south, vs));
     const frac = (ix * iy) / vpArea;
-    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+    // 0.8 → 0.6 (2026-07-11, the z7.76 Sebastian "clamping" report, counter-instrumented live):
+    // the viewport pokes ~1° past the florida_east_coast tile's east edge, the fine 61×41 covers
+    // ~67%, this predicate released it, and EVERY lane then correctly serves covering-but-coarse
+    // ~0.24° viewport grids — a whole-screen blocky field while the fine tile (with the entire
+    // coastline on it) sat rejected. Per this guard's own 2026-07-04 rationale the uncovered ring
+    // shows the coarse blend wash either way — only the CENTER truth is at stake — so keep the
+    // fine tile down to 60% coverage. Below that the tile genuinely is a minority of the screen.
+    // Live lever unchanged: __RAW_DOWNGRADE_COVER_FRAC__.
+    const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
     covers = frac >= minFrac;
   }
   // COVERAGE, not zoom, is the real predicate (2026-07-04, "waves flip direction + height color

@@ -143,3 +143,30 @@ describe('shouldRejectResolutionDowngrade — cell-size branch (mid over fine)',
     expect(shouldRejectResolutionDowngrade(fineSocal(), midClip(), 7.54, socalVp, true)).toBe(false);
   });
 });
+
+describe('shouldRejectResolutionDowngrade — coverage threshold 0.6 (2026-07-11 Sebastian band)', () => {
+  // z~7.8 off the FL east coast: the viewport pokes past the florida_east_coast tile edge, the
+  // fine 61x41 covers ~67%, and the old 0.8 threshold released it — every lane then served
+  // covering-but-coarse ~0.24deg viewport grids (the whole-screen blocky "clamping" report).
+  // The uncovered ring shows the coarse blend wash either way; keep the fine tile down to 60%.
+  const flTile = () => ({
+    bounds: { west: -82.5844, east: -79.8435, south: 27.1255, north: 31.1267 },
+    cols: 61, rows: 41, __componentLayer: 'waves', hourOffset: 0,
+    vectors: new Array(2501), __renderable: true, coverage_scope: 'regional',
+  });
+  const coarse = () => ({
+    bounds: { west: -180, east: 180, south: -80, north: 85 },
+    cols: 37, rows: 17, __componentLayer: 'waves', hourOffset: 0,
+    vectors: new Array(629), __renderable: true, coverage_scope: 'global_coarse',
+  });
+
+  it('KEEPS the fine tile at ~67% coverage (was released at the 0.8 threshold)', () => {
+    const vp67 = [-81.88, 27.0, -79.0, 29.15]; // intersection 2.04x2.02 over 2.88x2.15 = 0.666
+    expect(shouldRejectResolutionDowngrade(flTile(), coarse(), 7.9, vp67, false)).toBe(true);
+  });
+
+  it('still RELEASES at ~52% coverage (the exact z7.76 live view — blend-both-aware retention is the banked follow-up)', () => {
+    const vp52 = [-81.88, 26.54, -78.82, 29.15]; // live-captured viewport, frac ~= 0.516
+    expect(shouldRejectResolutionDowngrade(flTile(), coarse(), 7.76, vp52, false)).toBe(false);
+  });
+});
