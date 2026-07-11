@@ -140,9 +140,14 @@ const MapWebGL = ({
       }
     };
   }, [mapInstance]);
+  // water_temp renders BELOW the basemap `water` fill (slots anchor under ocean-mask-fill, and
+  // `water` sits above that in this style) — live-proven 07-11: with only water_temp active the
+  // opaque water fill covered the whole field. Same solution the marine heatmap has always used:
+  // drop water to 0.25 while any consumer underneath it is active.
+  const waterTempActiveForWater = (activeLayers || []).includes('water_temp');
   useEffect(() => {
-    configureWaterTransparency(mapInstance, !!activeMarineLayer, theme);
-  }, [mapInstance, activeMarineLayer, theme]);
+    configureWaterTransparency(mapInstance, !!activeMarineLayer || waterTempActiveForWater, theme);
+  }, [mapInstance, activeMarineLayer, waterTempActiveForWater, theme]);
 
   // Audit #17 (2026-07-10): anchor the OM raster slots BELOW the wind particle layer. Z-order was
   // time-of-add (wind/lightning/OM slots all appended unanchored — whoever mounted last won), so the
