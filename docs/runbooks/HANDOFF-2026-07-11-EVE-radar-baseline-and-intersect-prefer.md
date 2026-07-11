@@ -1,5 +1,38 @@
 # HANDOFF — 2026-07-11 EVE-2 · #16 CLOSED + #17 backend half (supersedes the EOD bootstrap's queue)
 
+## ⚡ LATE-SESSION UPDATE (user live-reports, same evening — READ FIRST, supersedes §1's #17 row)
+1. **`6a5f6992`'s intersect-prefer serve is REVERTED (`184a5d99`)** — live probes falsified its
+   premise: the FL manifest pilots are **13×9 = 0.25° at every hour** (probed 3 hours), and
+   `choose_adaptive_resolution` floors the dynamic lane at 0.25° too. The pass served a
+   coarser-or-equal PARTIAL rect clipped at the tile edge with NO revalidation (sticky) —
+   matching the user's clamped-rectangle report minutes after deploy. The split + the dormant
+   `min_viewport_frac` picker floor stay. **The redesigned #17 requires a resolution-provenance
+   map first: which lane (if any) produces the historical "fine 61×41" grids — nothing probed
+   tonight serves finer than 0.25° for marine viewports.**
+2. **Marine default-load activation clamp (user: intermittent, fixes on zoom-out): probe-grounded
+   partial picture** — at a ~1.1° padded z12-style bbox the series fastpath returns **5×5
+   (0.25° floor, `_build_openmeteo_marine_series` line ~186: the resolution ladder only steps
+   COARSER)** and /grid serves the 13×9 pilot. Whether the visible artifact is the 0.25° floor,
+   a lane race, or something FE-side is NOT yet pinned — next session needs the user's exact
+   default-load geometry (GPS viewport + a screenshot) and should weigh the z9 verdict (GFS wave
+   0.25° NATIVE — "finer" would be interpolation, not truth; the fix may be FE smoothing/serving
+   presentation, not upstream density).
+3. **Radar "very gridlike" movement FIXED (`3c116b28`)** — smooth motion FIELD: per-pixel
+   bilinear vectors from uniform half-res 3×3 neighborhood estimates (same vector per physical
+   tile from every neighborhood → seam-free by construction; PRESENT conf-0 identities used
+   VERBATIM for seam symmetry — a per-side fallback re-created the seam on real tiles). Real-tile
+   seam proof: 21.29→2.35 / 37.04→4.09 / 6.98→0.78 / 52.53→0.93 (at/below the observed-frame
+   baseline). Kill `__RAW_RADAR_ADVECT_SMOOTH_DISABLED__`. FE 98/801. **User eyeball on deployed:
+   forecast motion should now read as one continuous flow, not sliding tile blocks.**
+4. **S2 pointer root FOUND: 42501 permission denied** — the pointer table was created WITHOUT
+   API-role grants (RLS bypass ≠ GRANT); every read/CAS in run 29168283567 got HTTP 403 while
+   the run-keyed `manifests/manifest-g000000000001.json` uploaded fine all run. **USER ACTION
+   (permission classifier blocked the agent applying it):** run
+   `grant select, insert, update on table public.weather_manifest_pointer to service_role;`
+   in the Supabase SQL editor (jnfbxcvcbtndtsvscppt) — now also in the migration file. Then the
+   01:15Z ingest should publish generation ≥1.
+5. S1 (dev Supabase project) purpose explained to the user — see the session close message.
+
 **dev = `6a5f6992` (2 code commits this session on top of `9e446f99`). FE 98 suites / 797 tests
 green; backend 622 green (609 baseline + 13 new). Session detail in memory
 [[session-2026-07-12-radar-baseline-intersect-prefer]].**
