@@ -609,6 +609,23 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         const marineLayers = ['waves','swell_1','swell_2','wind_waves'].flatMap(k => [0,1,2].map(s => `${k}-slot-${s}-layer`));
         safeMoveLayersBatch(mapInstance, marineLayers, MASK_BUFFER);
 
+        // 8. INLAND-WATER vs water_temp (2026-07-11, live-hit): mapbox-streets v8 water has NO
+        // `class` property AT ANY ZOOM, so this layer's NOT-ocean filter unavoidably repaints ALL
+        // water — ocean included — at opacity 1. Marine renders ABOVE it (GPU in-shader land mask)
+        // so its only real job was repainting lakes the ne_50m land fill covers; water_temp renders
+        // BELOW it, so the ocean repaint COVERED the whole field ("covered up as I zoom out",
+        // proven live at z2.2: queryRenderedFeatures painted the mid-Atlantic). Lakes repaint only
+        // while a MARINE layer is active; a water_temp-only session hides it (lakes read as land —
+        // cosmetic, accepted v1; marine+water_temp combos keep lakes and the field stays covered
+        // only where actual lakes are). Force-on: __RAW_WATER_TEMP_LAKES_REPAINT__ = true.
+        const lakesOn = !!stateRef.current.activeMarineLayer ||
+          (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_LAKES_REPAINT__ === true);
+        for (const lid of [MASK_INLAND_WATER, MASK_INLAND_WATERWAY]) {
+          if (mapInstance.getLayer(lid)) {
+            try { mapInstance.setLayoutProperty(lid, 'visibility', lakesOn ? 'visible' : 'none'); } catch (e) {}
+          }
+        }
+
       } else {
         // Active is false: remove all layers immediately and synchronously
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
