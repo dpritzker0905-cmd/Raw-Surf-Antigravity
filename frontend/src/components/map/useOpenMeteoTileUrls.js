@@ -238,6 +238,16 @@ export function useOpenMeteoTileUrls({
         transitionQueueRef.current.forEach(t => {
           if (nextActive[t.layerKey] !== t.targetSlot) {
             console.log(`[TRANSITION] [Raster Queue Transition] Processing layer '${t.layerKey}' from slot ${t.activeSlot} to ${t.targetSlot}.`);
+            // Audit #25 telemetry: slot transitions are the cheapest observable proxy for pipeline-3
+            // scrub cost (each one re-points a raster slot → tile refetch/decode). Per-layer counts +
+            // timestamps make the user's next toggling session MEASURABLE (window.__RASTER_SLOT_TELEMETRY__).
+            if (typeof window !== 'undefined') {
+              const tel = (window.__RASTER_SLOT_TELEMETRY__ = window.__RASTER_SLOT_TELEMETRY__ || { total: 0, perLayer: {}, recent: [] });
+              tel.total += 1;
+              tel.perLayer[t.layerKey] = (tel.perLayer[t.layerKey] || 0) + 1;
+              tel.recent.push({ layer: t.layerKey, from: t.activeSlot, to: t.targetSlot, at: Date.now() });
+              if (tel.recent.length > 50) tel.recent.shift();
+            }
             nextActive[t.layerKey] = t.targetSlot;
             applied = true;
           }
