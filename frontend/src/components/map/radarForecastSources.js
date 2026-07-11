@@ -154,6 +154,17 @@ const SOURCE_STEP_MIN = { iem_hrrr: 30, dwd_wn: 30, dwd_rv: 30 };
 // Tunable: __RAW_RADAR_ADVECT_CAP_MIN__, __RAW_RADAR_ADVECT_STEP_MIN__.
 const ADVECT_CAP_MIN_DEFAULT = 60;  // Ventusky's stated nowcast sweet spot = the first 30–60 min
 const ADVECT_STEP_MIN_DEFAULT = 15;
+// MOTION-ESTIMATE BASELINE (2026-07-11, #16 "frames don't slide"): pair the latest observed frame
+// with one ~30 min back, NOT the adjacent 10-min frame. Probe-proven on live tiles: typical echo
+// displacement over 10 min is < 1 SAD grid cell (4 px) at z≤6, so the integer block-match's optimum
+// sits at (0,0) and estimateMotion returns IDENTITY for almost every tile → the advected frames
+// freeze. Over 30 min the displacement triples (recovered vectors scale linearly with the baseline
+// = real velocity), and leadFactor = lead/baseline SHRINKS (60-min lead: ×6 → ×2), tightening the
+// neighbor-mosaic warp excursion. 40 min showed convective decorrelation onset — 30 is the sweet
+// spot. Lever: __RAW_RADAR_ADVECT_BASELINE_MIN__ (minutes, sane range 10–50; ≤10 restores the
+// legacy adjacent pair). leadFactor already divides by the ACTUAL pair interval, so the protocol
+// handler and warp need no change.
+const ADVECT_BASELINE_MIN_DEFAULT = 30;
 
 export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region = 'CONUS', hrrrRunMs = null, pastFrames = []) {
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -175,11 +186,30 @@ export function radarFutureFramesForModel(model, nowMs = Date.now(), win, region
     const advectOn = w.__RAW_RADAR_ADVECTION__ !== false && w.__RAW_RADAR_ADVECTION_DISABLED__ !== true
       && Array.isArray(pastFrames) && pastFrames.length >= 2;
     if (advectOn) {
-      const prevF = pastFrames[pastFrames.length - 2];
       const currF = pastFrames[pastFrames.length - 1];
+      // Pick prev ~ADVECT_BASELINE_MIN back (closest frame to the target time; see the constant's
+      // comment for the probe evidence). Fewer/older frames than the target → widest available;
+      // 2-frame catalogs degrade to the legacy adjacent pair.
+      const baselineMin = typeof w.__RAW_RADAR_ADVECT_BASELINE_MIN__ === 'number'
+        ? w.__RAW_RADAR_ADVECT_BASELINE_MIN__ : ADVECT_BASELINE_MIN_DEFAULT;
+      let prevF = pastFrames[pastFrames.length - 2];
+      if (baselineMin > 10 && currF && typeof currF.time === 'number') {
+        const target = currF.time - baselineMin * 60;
+        let bestD = Infinity;
+        let found = null;
+        for (let i = pastFrames.length - 2; i >= 0; i--) {
+          const f = pastFrames[i];
+          if (!f || typeof f.time !== 'number' || !f.path) continue; // skip malformed entries
+          const d = Math.abs(f.time - target);
+          if (d < bestD) { bestD = d; found = f; }
+          if (f.time < target) break; // frames only get older/farther past the target
+        }
+        if (found) prevF = found;
+      }
       const obsSec = (prevF && currF && typeof prevF.time === 'number' && typeof currF.time === 'number')
         ? (currF.time - prevF.time) : 0;
-      // Sane observed interval (RainViewer past frames are ~10 min apart) + both tiles present.
+      // Sane pair interval (10-min catalog cadence × the ~30-min baseline; <1h keeps any lever
+      // input plausible) + both tiles present.
       if (prevF && currF && prevF.path && currF.path && obsSec > 60 && obsSec < 3600) {
         advectCapMin = typeof w.__RAW_RADAR_ADVECT_CAP_MIN__ === 'number' ? w.__RAW_RADAR_ADVECT_CAP_MIN__ : ADVECT_CAP_MIN_DEFAULT;
         const advStep = typeof w.__RAW_RADAR_ADVECT_STEP_MIN__ === 'number' ? w.__RAW_RADAR_ADVECT_STEP_MIN__ : ADVECT_STEP_MIN_DEFAULT;

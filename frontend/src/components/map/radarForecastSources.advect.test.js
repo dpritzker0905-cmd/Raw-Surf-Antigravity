@@ -81,6 +81,70 @@ describe('radar advection — frame emission', () => {
   });
 });
 
+describe('radar advection — ~30-min motion baseline (#16 "frames don\'t slide")', () => {
+  // Full 13-frame catalog at the real 10-min cadence, newest last.
+  const FULL = Array.from({ length: 13 }, (_, i) => ({
+    time: NOW_S - 600 - (12 - i) * 600,
+    path: `/v2/radar/F${12 - i}0`, // F00 = newest (10 min ago), F120 = oldest (130 min ago)
+  }));
+
+  it('pairs curr with the frame ~30 min earlier (not the adjacent one); leadFactor uses the real interval', () => {
+    const advect = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, FULL).filter(f => f.source === 'advect');
+    expect(advect[0].currPath).toBe('/v2/radar/F00');
+    expect(advect[0].prevPath).toBe('/v2/radar/F30'); // 30 min before curr
+    expect(advect[0].leadFactor).toBeCloseTo((15 * 60) / 1800); // 0.5 baselines ahead
+    expect(advect[3].leadFactor).toBeCloseTo((60 * 60) / 1800); // 2.0 — was 6.0 on the 10-min pair
+  });
+
+  it('lever __RAW_RADAR_ADVECT_BASELINE_MIN__ ≤10 restores the legacy adjacent pair', () => {
+    const win = { __RAW_RADAR_ADVECT_BASELINE_MIN__: 10 };
+    const advect = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, FULL).filter(f => f.source === 'advect');
+    expect(advect[0].prevPath).toBe('/v2/radar/F10');
+    expect(advect[0].leadFactor).toBeCloseTo((15 * 60) / 600);
+  });
+
+  it('lever picks other baselines (20 min)', () => {
+    const win = { __RAW_RADAR_ADVECT_BASELINE_MIN__: 20 };
+    const advect = radarFutureFramesForModel('GFS', NOW, win, 'CONUS', RUN, FULL).filter(f => f.source === 'advect');
+    expect(advect[0].prevPath).toBe('/v2/radar/F20');
+  });
+
+  it('short catalog degrades to the widest available pair', () => {
+    const short = FULL.slice(-3); // 10/20/30 min ago → widest pair = 20-min interval
+    const advect = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, short).filter(f => f.source === 'advect');
+    expect(advect[0].prevPath).toBe('/v2/radar/F20');
+    expect(advect[0].leadFactor).toBeCloseTo((15 * 60) / 1200);
+  });
+
+  it('2-frame catalog = the legacy adjacent pair (all older tests unchanged)', () => {
+    const advect = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, PAST).filter(f => f.source === 'advect');
+    expect(advect[0].prevPath).toBe('/v2/radar/PREV');
+    expect(advect[0].leadFactor).toBeCloseTo(1.5);
+  });
+
+  it('irregular cadence: picks the frame CLOSEST to the target baseline', () => {
+    const irregular = [
+      { time: NOW_S - 600 - 2700, path: '/v2/radar/OLD45' }, // 45 min before curr
+      { time: NOW_S - 600 - 1500, path: '/v2/radar/OLD25' }, // 25 min before curr — closest to 30
+      { time: NOW_S - 600, path: '/v2/radar/CURRX' },
+    ];
+    const advect = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, irregular).filter(f => f.source === 'advect');
+    expect(advect[0].prevPath).toBe('/v2/radar/OLD25');
+  });
+
+  it('malformed frames (no path/time) are skipped by the walk-back', () => {
+    const holey = [
+      { time: NOW_S - 600 - 1800, path: '/v2/radar/GOOD30' },
+      { time: NOW_S - 600 - 1200 }, // no path
+      { path: '/v2/radar/NOTIME' }, // no time
+      { time: NOW_S - 600, path: '/v2/radar/CURRX' },
+    ];
+    const advect = radarFutureFramesForModel('GFS', NOW, {}, 'CONUS', RUN, holey).filter(f => f.source === 'advect');
+    expect(advect.length).toBe(4); // still emits — the walk-back found a valid pair
+    expect(advect[0].prevPath).toBe('/v2/radar/GOOD30');
+  });
+});
+
 describe('radar advection — advect-rv:// URL', () => {
   it('builds <leadFactor>|<prevTileUrl>|<currTileUrl> through the same-origin /rv/ proxy (default)', () => {
     const win = {}; // no location → not localhost → proxied (production behavior)
