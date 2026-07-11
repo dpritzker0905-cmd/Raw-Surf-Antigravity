@@ -202,6 +202,28 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
+## FINDING #27 — MARINE TOGGLE-CLEAR (user-felt 07-11; ROOT-CAUSED read-only; fix = DEDICATED SESSION, #14 minefield rules)
+User: toggling/scrubbing between marine and wind still shows heatmap CLEARING; "wind seemed a little
+better than marine" — exactly the asymmetry the code predicts. Session log: `[WebGLMarineEngine-Clear]`
+×8 + `High-resolution land mask texture created (4096x2048)` ×6 + repeated particle resets.
+**Mechanism (all read-only verified):** `shouldHoldClearOnDeactivate` (marineTransitionCoordinator.js:46,
+the 2026-07-06 transition-hold) holds resident GPU state ONLY while `__MARINE_TRANSITIONING__`/
+`__MARINE_FETCH_PENDING__`/`__MARINE_FETCH_DEBOUNCING__` — i.e. IN-FAMILY model/layer switches. A
+marine→wind (cross-family) toggle sets none → "real toggle-off" → BOTH clear sites fire
+(WebGLMarineLayer.js:754 !active branch + WebGLMarineCustomLayer.js:113 per-frame edge) →
+`clearBuffers` frees residents → the return leg pays full re-encode + mask rebuild + TWO particle
+resets (clear → reactivate_refeed via the self-heal effect WebGLMarineLayer.js:981 → data_commit).
+Wind's counterpart RETAINS (hold-last-frame 06fbeef2 + trail-keep 68e80179) — hence "wind better".
+**Fix design (do NOT implement outside a dedicated session):** extend the hold to cross-family
+toggles behind a kill switch (residents kept for a TTL after deactivation), with ① VRAM accounting
+(mask 4096×2048 + wave/bathy/chl + coarse-base FBO), ② the "radar render-mode SUSPENDS marine
+engine" landmine (radar activation may REQUIRE the clear), ③ mobile-tier gating, ④ user live A/B.
+**Second question for that session:** why `_cachedMaskTex` retention didn't prevent the ×6 mask
+rebuilds (clearBuffers guards it, yet creation fired per return-leg).
+**Same-session notes:** two grid_series fetches FAILED network-level (EURO marine swell_1 h144-285;
+GFS wind h288-384, both on a 204°-wide bbox — abort-vs-server split unresolved) · one `[SWELL2_DROP]`
+(unexpanded) · `[Release]`/cache-MISS churn on rapid same-layer re-toggles worth an eye.
+
 ## FINDING #25 — PIPELINE-3 SCRUB FEEL (user-reported 07-11; NEXT AUDIT LANE)
 User (07-11, build 4afc7c6b): fog + pressure intermittently slow to load; scrubbing wind/precip/fog/
 satellite/marine "still slower than I'd like — need snappy". Log evidence: raster slot ring
