@@ -27,6 +27,22 @@ Mapbox-streets **v8 `water` has NO `class` property at any zoom** — no filter 
 lakes/ocean; lakes-as-land in water_temp-only sessions is the accepted v1 trade (durable fix =
 dedicated NE lakes source). Picker is SINGLE-SELECT (`toggleLayer` replaces).
 
+## 1b. TEMPERATURE-PAIR ARCHITECTURE (deep-dive verdict, 07-11 late — all CDN-probed)
+**Delivery:** ONE shared pipeline (pipeline 3, OM tile CDN → om:// → worker decode → slot ring) —
+zero backend/L2/ingest contact. **Data per model:** Air Temp = genuinely TRI-MODEL
+(GFS→ncep_gfs013, ICON→dwd_icon, EURO→ecmwf_ifs025, all native; >168h/>228h silent GFS cutovers =
+the rain convention). Water Temp = BI-MODEL: GFS+EURO native `surface_temperature`; **ICON serves
+GFS silently at EVERY hour** (dwd_icon publishes no surface_temperature — probed). NOT like Radar
+(radar has NO model dimension at all). NOTE: fog was ALREADY single-pipeline (pinned ncep_gfs025
+visibility for all three buttons) — precedent exists.
+**⚠️ USER DECISION (small, one-line either way):** Water Temp on ICON = silent GFS violates the
+marine-side provenance philosophy (v5.9.2: transparent + N/A, the banned "GFS as native CMEMS"
+shape) but matches the atmospheric-raster convention (rain >168h). Options: keep / transparent-for-
+ICON / legend-marked "via GFS".
+**Systemic lesson for #31:** all four water_temp roots were amendments to marine-only activation
+lists. The #31 fix must be FAMILY-WIDE (fix the `!isTransitioning` blank-out for all six raster
+layers at once), not another per-layer special case.
+
 ## 2. NEW #31 — DOUBLE-FLASH on model switch with raster layers (user-repro'd; queue TOP)
 Repro: any raster toggles active (Precip/Satellite/Fog/Pressure/Air Temp/Water Temp) → switch
 GFS↔EURO↔ICON → screen flashes twice. **Mechanism candidates, all evidence-backed from the user's
