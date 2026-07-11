@@ -877,12 +877,15 @@ const MapWebGL = ({
                 visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
               paint={{
+                // Air Temp runs ~15% more transparent than Water Temp (user 2026-07-11: "hard to
+                // see the landmass below it") — t2m covers LAND, so terrain must read through;
+                // water_temp's land is mask-covered so it keeps the bolder ramp.
                 'raster-opacity': (!hideForTransition && isVisualRaster && isActive) ? [
                     'interpolate', ['linear'], ['zoom'],
-                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : isTempPair(layerKey) ? 0.45 : 0.22,
-                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : isTempPair(layerKey) ? 0.52 : 0.28,
-                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? rainOp[2] : isTempPair(layerKey) ? 0.58 : 0.35,
-                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : isTempPair(layerKey) ? 0.62 : 0.40,
+                    2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : layerKey === 'temperature' ? 0.38 : layerKey === 'water_temp' ? 0.45 : 0.22,
+                    5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : layerKey === 'temperature' ? 0.44 : layerKey === 'water_temp' ? 0.52 : 0.28,
+                    8, layerKey === 'satellite' ? 0.65 : layerKey === 'pressure' ? 0.48 : layerKey === 'fog' ? 0.60 : layerKey === 'rain' ? rainOp[2] : layerKey === 'temperature' ? 0.49 : layerKey === 'water_temp' ? 0.58 : 0.35,
+                    12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : layerKey === 'temperature' ? 0.53 : layerKey === 'water_temp' ? 0.62 : 0.40,
                     // water_temp street-zoom fade (2026-07-11, "covering land near Rum Runner
                     // point"): past z12.5 one 0.13-0.25° SST cell spans the whole viewport — the
                     // field carries no information there while the NE-10m mask's 100-300m
