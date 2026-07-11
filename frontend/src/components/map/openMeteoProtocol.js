@@ -167,11 +167,13 @@ const MARINE_VARIABLES = new Set([
 // the live decoded grid (row 0 = SOUTH, GFS ascending-lat): Catalina's cell reads 20.05°C vs
 // 17.75°C open water 60km out (+2.3°C, worse by day; mainland LA cell 27.45°C) — the steep temp
 // palette renders that ring as a vivid halo, and contours=true traces the fake island gradients.
-// No mask POLYGON can fix data-level contamination, so land cells are NaN'd at decode time: the
-// renderer draws NaN as transparent → coast/island cells become honest no-data instead of fake
-// warm water. Dilated by ~1 cell (canvas stroke) to catch straddling cells. Built lazily per grid
-// dimension from the same NE 50m polygons OceanMask uses; the first decode before the mask is
-// ready renders unmasked and the next timestep decode picks it up (graceful).
+// No mask POLYGON can fix data-level contamination, so land cells are OCEAN-FILLED at decode
+// time (see oceanFillLandCells): coastal land-contaminated cells take their clean water
+// neighbors' mean → the field stays continuous to the true coastline with water-derived values;
+// unfillable deep-interior land is NaN'd (transparent, and visually under the opaque ocean-mask
+// land fill regardless). Masks build per grid dimension from the same NE 50m polygons OceanMask
+// uses, pre-built at protocol registration; a decode that races a still-building mask is healed
+// via the rawsurf:wt-landmask-ready → &wtlm=1 URL-rotation path.
 // Kill switch: globalThis.__RAW_WT_LANDMASK_DISABLED__ = true (decode runs on the main thread in
 // practice — verified via window.__DECODED_OM_TILES__ being populated from the page realm).
 const LAND_CELL_MASKS = {}; // `${nx}x${ny}` -> { mask, hadUnmaskedDecode } (mask null while building/failed)
@@ -244,6 +246,48 @@ function ensureLandCellMask(nx, ny, bounds) {
     }
   })();
   return null;
+}
+
+// Ocean-fill: replace land-contaminated cells with the mean of their clean WATER neighbors
+// (breadth-first, 3 dilation passes), then NaN whatever land remains unfilled (deep interior —
+// visually covered by the opaque ocean-mask land fill anyway). Straight NaN-ing every
+// land-touching cell was scientifically honest but product-fatal on coarse grids: at ifs025
+// (0.25°≈28km/cell) the whole SoCal bight rendered as an empty moat around land — worse than the
+// halo it replaced. Fill keeps the field continuous to the true (vector-mask) coastline with
+// plausible nearshore values; the palette shows water-derived temps only.
+function oceanFillLandCells(values, landMask, nx, ny) {
+  const state = Uint8Array.from(landMask); // 1 = land, not yet filled; 0 = water / filled source
+  const PASSES = 3;
+  for (let p = 0; p < PASSES; p++) {
+    const filled = [];
+    for (let y = 0; y < ny; y++) {
+      const row = y * nx;
+      for (let x = 0; x < nx; x++) {
+        const i = row + x;
+        if (state[i] !== 1) continue;
+        let sum = 0, cnt = 0;
+        for (let dy = -1; dy <= 1; dy++) {
+          const yy = y + dy;
+          if (yy < 0 || yy >= ny) continue;
+          const rr = yy * nx;
+          for (let dx = -1; dx <= 1; dx++) {
+            if (dx === 0 && dy === 0) continue;
+            const xx = x + dx;
+            if (xx < 0 || xx >= nx) continue;
+            const j = rr + xx;
+            if (state[j] === 0) {
+              const vv = values[j];
+              if (vv !== null && !Number.isNaN(vv)) { sum += vv; cnt++; }
+            }
+          }
+        }
+        if (cnt > 0) { values[i] = sum / cnt; filled.push(i); }
+      }
+    }
+    if (!filled.length) break;
+    for (let k = 0; k < filled.length; k++) state[filled[k]] = 0;
+  }
+  for (let i = 0; i < state.length; i++) { if (state[i] === 1) values[i] = NaN; }
 }
 
 // Eager pre-build for the two known water-temp grids (probed dims/bounds 2026-07-11: gfs013
@@ -461,8 +505,7 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 && data.values && data.values.length === resolvedGrid.nx * resolvedGrid.ny) {
               const mask = ensureLandCellMask(resolvedGrid.nx, resolvedGrid.ny, bounds);
               if (mask) {
-                const v = data.values;
-                for (let i = 0; i < v.length; i++) { if (mask[i]) v[i] = NaN; }
+                oceanFillLandCells(data.values, mask, resolvedGrid.nx, resolvedGrid.ny);
               } else {
                 const entry = LAND_CELL_MASKS[`${resolvedGrid.nx}x${resolvedGrid.ny}`];
                 if (entry) entry.hadUnmaskedDecode = true; // heal via wt-landmask-ready once built
