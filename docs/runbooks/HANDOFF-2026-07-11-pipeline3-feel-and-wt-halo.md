@@ -205,6 +205,19 @@ in each):
    advection targets — the catalog-429 family), advect fallback on failed prev/curr fetch
    (static curr = "not sliding"). No radar files changed recently — suspect DATA-side first.
 
+## 4e. WAVES "CLAMPING" CLOSED (`4f60c196`) — final root + the banked remainder
+Live-instrumented at the user's z7.76 view: the no-progress cap was WORKING (giveup=1, clears=0);
+the blocky field = the no-downgrade guard's 0.8 coverage predicate releasing the resident fine
+61×41 at ~67% coverage (viewport pokes past the florida tile's east edge) → every lane then
+correctly served ~0.24° viewport crops (direct /grid requests ~20×20 by design —
+computeGridPoints GRID=20; grid_series crops too) → detectClamp flagged forever (capped). FIX:
+retention band 0.8→0.6 (the guard's own blend-wash rationale; 35/35 guard tests; lever
+`__RAW_DOWNGRADE_COVER_FRAC__`). REMAINDER (new task): COLD arrivals at 52-67% coverage never
+receive fine data at all — needs the blend-both-aware "hold a covering base" arc (resolver
+serves INTERSECTING fine tiles + engine keys retention on blend-base presence; grid_resolver.py
+at 786/800 must be SPLIT FIRST). Sequence for that session: split resolver → resolver
+intersect-serve → engine blend-aware retention → verify Sebastian z7.76 cold-load.
+
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
 anomaly (e.g., ICON 2m-air anomaly vs GFS, damped coastal) labeled `estimate` provenance like the
