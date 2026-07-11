@@ -333,6 +333,14 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
     # 0.25° grid for all hours instead of the global-coarse frame (which masks enclosed seas → the Gulf-of-Mexico
     # no-data square during scrub). Additive + fall-through: on any failure the generic per-hour loop below runs
     # unchanged. Default off because it trades the instant manifest-coarse render for a live regional fetch.
+    #
+    # SWR budget (audit #24, 2026-07-11): Render logs showed the await hitting the 30s ceiling on 62% of
+    # attempts (+21% upstream 400s, 17% empty) — every one a 30s-held request on the 1-CPU box before the
+    # instant stored fallback. The inner fetch is SHIELDED, so on timeout it keeps running and warms the
+    # provider's 5-min cache; the client's coarse-reval machinery already re-fetches spaced retries. So the
+    # long await bought nothing: await only a short first-paint budget (warm-cache scrubs still return
+    # regional frames instantly), fall back fast otherwise, and let the reval pick up the warmed cache.
+    # Revert lever: GFS_ICON_SERIES_FASTPATH_WAIT_SEC=30.
     if (os.environ.get("GFS_ICON_SERIES_FASTPATH") == "1"
             and viewport_service is not None
             and model.upper() in ("GFS", "ICON")
@@ -340,9 +348,10 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
             and not surf
             and not await _client_gone()):
         try:
+            fastpath_wait = float(os.environ.get("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "2.5"))
             fp = await asyncio.wait_for(
                 _build_openmeteo_marine_series(viewport_service, model, layer, bbox, hour_list, base),
-                timeout=OPENMETEO_SERIES_TIMEOUT,
+                timeout=min(fastpath_wait, OPENMETEO_SERIES_TIMEOUT),
             )
             if fp and fp.get("frame_count", 0) > 0:
                 return fp

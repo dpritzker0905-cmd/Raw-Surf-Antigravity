@@ -187,3 +187,32 @@ def test_gfs_fast_path_skipped_when_flag_off(monkeypatch):
 
     out = asyncio.run(build_grid_series(resolve, _FakeVP(), "GFS", "marine", "waves", "-90,24,-84,29", "0,3,6"))
     assert out["frame_count"] == 3 and len(used_generic) == 3     # generic loop ran (flag off)
+
+
+def test_fast_path_hang_falls_back_within_swr_budget(monkeypatch):
+    """Audit #24: Render logs showed the fastpath await hitting its 30s ceiling on 62% of attempts
+    (+21% upstream 400s) — a 30s-held request per series page before the instant stored fallback.
+    The inner fetch is shielded (keeps warming the provider cache in background) and the client's
+    coarse-reval re-fetches, so the request path now awaits only a short first-paint budget
+    (GFS_ICON_SERIES_FASTPATH_WAIT_SEC, default 2.5s) and falls back fast."""
+    import time
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH", "1")
+    monkeypatch.setenv("GFS_ICON_SERIES_FASTPATH_WAIT_SEC", "0.2")
+
+    async def hanging_fp(viewport_service, model, layer, bbox, hour_list, base):
+        await asyncio.sleep(10)  # simulates the timeout/degraded-upstream class
+
+    monkeypatch.setattr(grid_series_helper, "_build_openmeteo_marine_series", hanging_fp)
+
+    used_generic = []
+    async def resolve(*, model, domain, layer, valid_time, bbox, surf=False, background_tasks=None, request=None):
+        used_generic.append(valid_time)
+        return _gfs_product()
+
+    t0 = time.monotonic()
+    out = asyncio.run(build_grid_series(resolve, _FakeVP(), "GFS", "marine", "waves", "-90,24,-84,29", "0,3"))
+    elapsed = time.monotonic() - t0
+
+    assert out["frame_count"] == 2          # served by the per-hour loop (stored fallback)
+    assert len(used_generic) == 2           # generic loop actually ran
+    assert elapsed < 3.0, f"fallback took {elapsed:.1f}s — the SWR budget did not bind"
