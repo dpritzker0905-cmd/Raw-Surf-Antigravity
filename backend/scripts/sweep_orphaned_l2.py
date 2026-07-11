@@ -26,6 +26,10 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+# Deliberate L2 maintenance tool — designated writer (audit #28 gate in store.py); deletes are
+# otherwise blocked for boxes without L2_WRITER=1.
+os.environ.setdefault("L2_WRITER", "1")
+
 # Keys the serve box needs that are NOT model products — never orphans. Match the bare folder entry
 # ("calibration") AND anything under it ("calibration/..."), since list() returns both.
 RESERVED_BASES = ("manifest.json", "health.json", "spot_ratings", "calibration", "reports")

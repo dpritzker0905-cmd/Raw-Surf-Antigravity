@@ -38,6 +38,40 @@ _bucket_lock = threading.Lock()
 _upload_executor = ThreadPoolExecutor(max_workers=4, thread_name_prefix="supabase_upload")
 _manifest_executor = ThreadPoolExecutor(max_workers=1, thread_name_prefix="supabase_manifest_upload")
 
+# DESIGNATED-WRITER gate (2026-07-11, audit #28 LIVE INCIDENT): manifest.json and the product files
+# are a single shared mutable dataset with NO concurrency control — any box holding the Supabase key
+# that runs ingestion/prunes uploads its own full in-memory snapshot, last-writer-wins. Live-caught:
+# a LOCAL dev backend (server.py up 14h, in-process 4h ingestion) re-uploaded a manifest built from
+# its boot-time baseline every cycle, silently reverting the GH runner's registrations (fresh ICON
+# marine 12Z entries lost; 47 dangling entries resurrected whose L2 objects the runner had deleted;
+# EURO marine estimated tail window regressed ~6h -> user-felt far-hour 404s + health false-critical).
+# Only the DESIGNATED writer may mutate pipeline artifacts in L2: the decoupled GH ingest runner
+# (scripts/ingest_forecast_ci.py and the L2 maintenance scripts set L2_WRITER=1). Serve-only Render
+# and local dev stay read-only. If in-process Render ingestion is ever re-enabled
+# (DISABLE_FORECAST_SCHEDULER unset on Render), set L2_WRITER=1 in the Render env.
+# Scope: top-level keys only (manifest.json + immutable product files). Namespaced state blobs
+# ("calibration/...", "spot_ratings/...") are serve-box-writable and stay ungated.
+# Kill: L2_WRITER_GATE=0 restores the old any-box-writes behavior.
+_l2_write_skips = 0
+
+
+def _l2_pipeline_writes_allowed() -> bool:
+    if os.environ.get("L2_WRITER_GATE", "1") == "0":
+        return True
+    return os.environ.get("L2_WRITER", "") == "1"
+
+
+def _note_l2_write_skipped(action: str, filename: str):
+    global _l2_write_skips
+    _l2_write_skips += 1
+    msg = (f"[Product Store] L2 pipeline {action} SKIPPED (this box is not the designated writer): "
+           f"{filename} (total skipped: {_l2_write_skips}). Designated writers set L2_WRITER=1; "
+           f"kill switch: L2_WRITER_GATE=0.")
+    if _l2_write_skips <= 3 or _l2_write_skips % 500 == 0:
+        logger.warning(msg)
+    else:
+        logger.debug(msg)
+
 def _get_supabase_storage():
     global _supabase_client, _bucket_created_checked
     if _supabase_client is not None:
@@ -136,6 +170,12 @@ class ProductStore:
         The REST POST is self-contained, surfaces real HTTP errors, and avoids upgrading the whole
         supabase stack (no auth/DB regression). x-upsert overwrites by key, matching the prior intent.
         """
+        # Designated-writer gate (audit #28): top-level pipeline artifacts (manifest.json + product
+        # files) may only be written by the ingest runner. Namespaced keys ("calibration/...",
+        # "spot_ratings/...") are per-feature state blobs and pass through.
+        if "/" not in filename and not _l2_pipeline_writes_allowed():
+            _note_l2_write_skipped("upload", filename)
+            return
         sb = _get_supabase_storage()  # gates on config + ensures the bucket exists (one-time create)
         if sb is None:
             return
@@ -179,6 +219,11 @@ class ProductStore:
         — an un-pruned product just lingers until the next REST-based prune — but routing the DELETE through
         REST stops the noise and actually prunes. Failures are swallowed/logged to preserve that semantics.
         """
+        # Designated-writer gate (audit #28): deletes are only ever pipeline prunes/sweeps — a
+        # non-designated box pruning prod L2 is how the dangling-manifest-entry 404s were minted.
+        if not _l2_pipeline_writes_allowed():
+            _note_l2_write_skipped("delete", filename)
+            return
         sb = _get_supabase_storage()  # gates on config + ensures the bucket exists
         if sb is None:
             return

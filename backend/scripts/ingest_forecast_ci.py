@@ -29,6 +29,11 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+# This script IS the designated L2 pipeline writer (audit #28 designated-writer gate in store.py):
+# only boxes with L2_WRITER=1 may upload/delete manifest.json + product files. Serve-only Render and
+# local dev backends stay read-only so they can never clobber the runner's manifest again.
+os.environ.setdefault("L2_WRITER", "1")
+
 logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",

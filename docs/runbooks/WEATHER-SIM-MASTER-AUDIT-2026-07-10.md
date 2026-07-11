@@ -202,7 +202,39 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
-## FINDING #28 — MANIFEST LOST-UPDATE CLOBBER (ICON marine victim; live-caught 07-11 03:2xZ; fix = DEDICATED INGEST SESSION)
+## FINDING #28 — ROOT REVISED (07-11 04:0xZ, second live pass): THE WRITER IS A ROGUE LOCAL DEV BACKEND — designated-writer gate SHIPPED
+**Forensic chain:** L2 `storage.objects` showed manifest.json last written 02:55:10Z size 6,609,397 —
+a THIRD state matching NO upload in the GH run log → only ONE Render service exists, no workflow ran
+at 02:55 → a LOCAL `server.py` (PID 65872, up 14h since 13:24Z 07-10, prod Supabase creds from
+backend/.env, DISABLE_FORECAST_SCHEDULER unset → in-process 4h ingestion at 13:26/17:26/21:26/01:26Z)
+was probed at :8000 — **its in-memory manifest stamp = `2026-07-11T02:55:05.750845` EXACTLY matching
+the L2 manifest field**. Its manifest baseline = its 13:24Z boot restore (newest ICON marine
+global_mid 13:07:28Z = exactly what health shows) + its own ingests, re-uploaded at each cycle end →
+every GH-runner registration since is silently reverted, AND its prunes DELETE prod L2 objects the
+prod manifest references (the dangling-entry minter — the runner's 02:15:19 delete-404s). The
+within-run 02:19:50 size growth is likely legitimate concurrent batch-adds, NOT the clobber.
+**USER-FELT blast radius (07-11 04:00Z live report):** EURO marine far-range 404s
+(`no_copernicus_coverage` at h335/336 — the fresher estimate-tail registrations reverted) + ALL
+marine layers churning: each EURO safe-zero clears the engine even with ICON/GFS active.
+**FIXED (code):** designated-writer gate in store.py — top-level pipeline writes (manifest.json +
+product files) and ALL deletes require `L2_WRITER=1` (set by scripts/ingest_forecast_ci.py — both
+GH workflows — + sweep/purge tools); namespaced state blobs (`calibration/`, `spot_ratings/`)
+ungated; kill `L2_WRITER_GATE=0`. If in-process Render ingestion is ever re-enabled, set L2_WRITER=1
+on Render. 7 mechanism tests.
+**REMEDIATION:** ① rogue local backend MUST be killed (session couldn't: permission denial) BEFORE
+its ~05:26Z cycle → ~06:55Z manifest write; ② repair = the in-flight 03:44Z ingest run (29138494882)
+re-registers everything.
+**REMAINING (separate findings):** ⑴ far-edge contract gap — stored/estimated coverage ends ~now+330h
+but capabilities/scrubber offer +336h → the last ~6h of the slider is structurally uncovered, worst
+just before new model runs land (L2 census: estimate tail 07-24T22:00 vs request 07-25T04:00);
+durable fix = resolver serves the last covered estimated frame relabeled, never a 404 blank.
+⑵ NEW #29 (client): cross-model dead-target churn — with ICON/GFS active, EURO h336 refetches kept
+firing (settle post-verify + backstop + model-switch manual fetch), safe-zero commits cleared the
+engine cross-model, terminal-nocov suppression never engaged for this `no_copernicus_coverage` shape
+(log evidence banked 07-11; interacts with the #27 hold — the clear sites fire while ACTIVE here,
+so the deactivation hold does not cover this path).
+
+## FINDING #28 (ORIGINAL WRITE-UP) — MANIFEST LOST-UPDATE CLOBBER (ICON marine victim; live-caught 07-11 03:2xZ; fix = DEDICATED INGEST SESSION)
 **Symptom:** `/api/health/data` ICON/marine critical "stale 13.8→14.3h", horizon stuck 141h, while
 every other lane fresh from the same 00:50Z cycle — and yet a global-bbox `/grid` probe serves the
 FRESH 12Z GWAM product (run_time `2026-07-11T02:05:55.899798Z`, microsecond-matched to the run log's
