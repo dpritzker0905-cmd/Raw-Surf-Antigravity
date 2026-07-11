@@ -174,16 +174,22 @@ with surfMode:false = correct gating, not failure.
 ## 4d. LIVE-EYEBALL ROUND (user on deploy + localhost, post-`76a3d98b`) — NEW QUEUE
 User confirms the temp toggles work overall. Three precise items remain (full forensic context
 in each):
-1. **Waves rating-band refetch loop** (user logs, z7.76-7.84, BOTH environments): `__SURF_MODE__`
-   flag ON + the florida_east_coast regional was 15Z vs 18Z coarse (transient ingest-cadence
-   staleness) → the rating lane's want is unsatisfiable → 4+ WEATHER_TRUTH chains for the SAME
-   product, repeated Abort-Gate dup-skips, repeated particle-state resets → 13 FPS + the felt
-   "animation/heatmap clamping". The honest-waves gate itself (WebGLMarineEngine.js:1020) and the
-   2s-throttled rating-band log are CORRECT — the loop is the settle/backstop refetch family
-   (closed #29's shape). Fix: TTL/backoff terminal-gate on the rating-lane refetch when the
-   served regional lacks ratingMode; check the fromSeries=false vs series race (THREE-pipeline
-   landmine). Also: WEATHER_TRUTH "ABSENT after orchestratorCommit" = no-downgrade rejection
-   flagged as death — tracker noise worth a label.
+1. **Waves settle-probe churn at the regional edge** (user logs, z7.76-7.84, BOTH environments;
+   REFINED on a 2nd forensic pass): NOT the rating lane (the `__SURF_MODE__` flag only made it
+   visible via the 2s-throttled rating-band log) and NOT an uncapped loop — the no-progress cap
+   (useMarineScrubSettle.js:681-719, 2026-06-30 arc) engages after 3 re-drives. The residual:
+   ⑴ the viewport at z7.76 Sebastian pokes EAST past the florida_east_coast tile edge (-79.84)
+   → `detectClamp regional_too_small` is PERMANENTLY true there → every CLAMP_CAP_REARM_MS slow
+   probe refetches the same unsatisfiable regional (15Z vs 18Z coarse = transient ingest
+   staleness on top); corrects at z5.23 because the coarse band covers. ⑵ coarse↔regional size
+   ping-pong (37×17↔61×41) in the boot/settle window fires a particle-state reset per flip —
+   the felt pulses + 13 FPS. Fix (additive, engine-adjacent = load-bearing-guard territory, own
+   instrumented session): same-product-signature commit skip on probe arrivals + hold the
+   no-downgrade guard through capped-clamp windows regardless of zoom band. Verify live counters
+   FIRST: __MARINE_CLAMP_GIVEUP_COUNT__ / __MARINE_BLANK_BACKSTOP_COUNT__ /
+   __WEBGL_MARINE_DUP_UPLOAD_SKIP__ (why didn't dup-skip cover the re-commits?). Also:
+   WEATHER_TRUTH "ABSENT after orchestratorCommit" = no-downgrade rejection flagged as death —
+   tracker noise worth a label.
 2. **Air temp clears at z3.46** (zoom-out, deployed build, despite fade-200+cancelZoomTiles):
    the #25 residual at the tile-z2→z1 crossing. Recipe: __RASTER_SLOT_TELEMETRY__ + tile states
    at the crossing; candidate fix: prime z0-z1 tiles at activation (1-4 tiles/level from the
