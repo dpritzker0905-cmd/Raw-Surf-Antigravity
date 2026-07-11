@@ -92,3 +92,31 @@ def test_empty_manifest_is_critical_not_a_crash():
     rep = compute_data_health(_Store([]), now=NOW)
     assert rep["status"] == "critical"
     assert rep["lanes"] == {}
+
+
+def test_written_by_absent_is_surfaced_not_alerted():
+    # Transition-safe: pre-gate manifests (and hermetic test manifests) carry no stamp — the report
+    # exposes it for the monitor to annotate, but health itself stays quiet (audit #28).
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    assert rep["manifest_written_by"] is None
+    assert rep["status"] == "ok"
+
+
+def test_written_by_non_designated_writer_is_warn():
+    # A non-designated writer on the SERVED manifest = the designated-writer gate was bypassed or
+    # killed (the rogue-local-backend class, audit #28) — warn loudly with the identity.
+    store = _Store(_all_healthy())
+    store._m.written_by = "non-writer:some-dev-laptop"
+    rep = compute_data_health(store, now=NOW)
+    assert rep["status"] == "warn"
+    assert rep["manifest_written_by"] == "non-writer:some-dev-laptop"
+    assert any("NON-DESIGNATED" in a and "some-dev-laptop" in a for a in rep["alerts"])
+
+
+def test_written_by_designated_writer_is_clean():
+    store = _Store(_all_healthy())
+    store._m.written_by = "designated:gh-run-29138494882"
+    rep = compute_data_health(store, now=NOW)
+    assert rep["status"] == "ok"
+    assert rep["manifest_written_by"] == "designated:gh-run-29138494882"
+    assert not rep["alerts"]

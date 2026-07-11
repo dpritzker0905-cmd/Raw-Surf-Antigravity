@@ -269,7 +269,7 @@ def quarantine_invalid_copernicus_products_helper(store):
 
 def prune_old_products_helper(store, before_time: datetime):
     """Cleans up old JSON product files that fall before the cutoff date."""
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
@@ -290,7 +290,7 @@ def prune_old_products_helper(store, before_time: datetime):
     manifest.products = remaining_products
     store._save_manifest(manifest)
     try:
-        manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+        manifest_json = dump_manifest_for_l2(manifest)
         _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
     except Exception as e:
         logger.warning(f"[Product Store] Manifest L2 upload submit after prune failed: {e}")
@@ -308,7 +308,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
     dedup is SAFE where a blanket run_time prune is not: hours only an OLDER run covers (a newer
     cancelled run stopped early) keep their only product — no coverage loss, only true duplicates go.
     """
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
     manifest = store.get_manifest()
 
     # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
@@ -352,7 +352,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
         manifest.last_manifest_update = datetime.now(timezone.utc)
         store._save_manifest(manifest)
         try:
-            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit after duplicate sweep failed: {e}")
@@ -388,7 +388,7 @@ def prune_superseded_products_helper(
     Kill switch INGEST_PRUNE_PRESERVE_ESTIMATES=0 restores the plain newest-run rule (operator
     lever to purge a poisoned estimated generation with one healthy native run).
     """
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
@@ -444,7 +444,7 @@ def prune_superseded_products_helper(
         manifest.products = remaining_products
         store._save_manifest(manifest)
         try:
-            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
             logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")
         except Exception as e:

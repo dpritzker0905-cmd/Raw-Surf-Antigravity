@@ -180,6 +180,15 @@ def start_scheduler():
         )
         logger.info(f"[Scheduler] Serve-only: periodic L2 restore every {_restore_min} min enabled.")
     else:
+        # DESIGNATED-WRITER visibility (audit #28): in-process ingestion on a box without L2_WRITER=1
+        # persists LOCALLY ONLY — the store gate silently skips every manifest/product upload+delete.
+        # That is the correct behavior for local dev (a 14h rogue local backend clobbered prod L2 on
+        # pre-gate code), but say it LOUDLY so nobody debugs "ingestion ran, prod didn't update".
+        if os.environ.get("L2_WRITER", "") != "1":
+            logger.warning("[Scheduler] In-process forecast ingestion is scheduled but this box is NOT "
+                           "the designated L2 writer (L2_WRITER!=1) — ingested products/manifest will "
+                           "persist to the LOCAL store only. Set L2_WRITER=1 only if this box is "
+                           "intentionally the production ingester (audit #28 gate).")
         _forecast_kwargs = {}
         _startup_delay = int(os.environ.get("FORECAST_STARTUP_DELAY_SEC", "120"))
         if _startup_delay > 0:

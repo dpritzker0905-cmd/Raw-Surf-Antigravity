@@ -16,7 +16,7 @@ sys.path.append(str(backend_dir))
 # Deliberate L2 maintenance tool — designated writer (audit #28 gate in store.py).
 os.environ.setdefault("L2_WRITER", "1")
 
-from services.weather_pipeline.store import ProductStore, _manifest_executor
+from services.weather_pipeline.store import ProductStore, _manifest_executor, dump_manifest_for_l2
 
 async def main():
     store = ProductStore()
@@ -78,7 +78,7 @@ async def main():
         logger.info("Saved updated manifest.json registry locally.")
         
         # Upload manifest to Supabase Storage L2
-        manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+        manifest_json = dump_manifest_for_l2(manifest)
         store._upload_to_supabase("manifest.json", manifest_json)
         logger.info("Uploaded purged manifest.json registry to Supabase Storage L2.")
         

@@ -92,7 +92,7 @@ def _build_manifest_item(product, filename: str, resolution: float, is_tf: bool)
 
 def save_product_helper(store, product: NormalizedProduct, resolution: float = 0.25) -> Optional[str]:
     """Helper implementing ProductStore.save_product: atomic L1 write + L2 upload + manifest register."""
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor, ProductStore
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor, ProductStore, dump_manifest_for_l2
 
     if not product or not product.grid:
         logger.warning("[Product Store] Attempted to save empty or ungrid product.")
@@ -149,7 +149,7 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
     # Upload updated manifest to Supabase (L2)
     if not is_tf:
         try:
-            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit failed: {e}")
@@ -162,7 +162,7 @@ def save_product_helper(store, product: NormalizedProduct, resolution: float = 0
 
 def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedProduct, float]]) -> int:
     """Helper implementing ProductStore.save_products_batch: bulk atomic write + L2 + single manifest update."""
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor, ProductStore
+    from services.weather_pipeline.store import _upload_executor, _manifest_executor, ProductStore, dump_manifest_for_l2
 
     if not products_to_save:
         return 0
@@ -233,7 +233,7 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
     # Upload updated manifest to Supabase (L2)
     if has_non_tf:
         try:
-            manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+            manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
         except Exception as e:
             logger.warning(f"[Product Store] Manifest L2 upload submit failed in batch: {e}")

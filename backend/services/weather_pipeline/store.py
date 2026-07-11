@@ -72,6 +72,26 @@ def _note_l2_write_skipped(action: str, filename: str):
     else:
         logger.debug(msg)
 
+
+def _l2_writer_identity() -> str:
+    """Writer attribution for the manifest stamp: the GH runner identifies by run id (clickable in
+    the Actions UI), anything else by hostname; the role prefix is what the health monitor keys on."""
+    import socket
+    run_id = os.environ.get("GITHUB_RUN_ID")
+    host = f"gh-run-{run_id}" if run_id else socket.gethostname()
+    role = "designated" if _l2_pipeline_writes_allowed() else "non-writer"
+    return f"{role}:{host}"
+
+
+def dump_manifest_for_l2(manifest) -> bytes:
+    """Single serialization choke-point for every manifest.json L2 upload (audit #28 attribution):
+    stamps written_by so the served manifest always names its last L2 writer — the exact evidence
+    the rogue-local-backend incident lacked (it took a live probe of :8000 to attribute the clobber).
+    Local-only saves (_save_manifest) deliberately do NOT stamp, so a restored L2 copy keeps its
+    upstream attribution on the serve box."""
+    manifest.written_by = _l2_writer_identity()
+    return manifest.model_dump_json(indent=2).encode("utf-8")
+
 def _get_supabase_storage():
     global _supabase_client, _bucket_created_checked
     if _supabase_client is not None:
@@ -369,7 +389,7 @@ class ProductStore:
                     logger.info(f"[Product Store] Cleaned manifest saved locally with {len(pruned_ids)} pruned entries: {pruned_ids}")
                     # Cleaned manifest L2 resave (do not delete product files from Supabase blindly)
                     try:
-                        manifest_json = manifest.model_dump_json(indent=2).encode("utf-8")
+                        manifest_json = dump_manifest_for_l2(manifest)
                         self._upload_to_supabase("manifest.json", manifest_json)
                         logger.info("[Product Store] Cleaned manifest uploaded to L2 (Supabase)")
                     except Exception as e:

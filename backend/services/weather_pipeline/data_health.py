@@ -98,6 +98,16 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
     lanes = {}
     status = "ok"
 
+    # WRITER ATTRIBUTION (audit #28): the served manifest carries the identity of its last L2 writer
+    # (store.dump_manifest_for_l2). A non-designated writer here means the designated-writer gate was
+    # bypassed or killed — the rogue-local-backend class. Absence is only surfaced (not alerted):
+    # legitimate for pre-gate copies and the in-memory manifests tests build.
+    written_by = getattr(manifest, "written_by", None)
+    if written_by is not None and not str(written_by).startswith("designated:"):
+        status = "warn"
+        alerts.append(f"manifest last L2-written by NON-DESIGNATED writer '{written_by}' — "
+                      f"designated-writer gate bypassed? (audit #28)")
+
     def _worse(a, b):
         order = {"ok": 0, "warn": 1, "critical": 2}
         return a if order[a] >= order[b] else b
@@ -135,4 +145,5 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         status = _worse(status, verdict)
 
     return {"status": status, "generated_at": now.isoformat(),
-            "freshest_run_age_h": freshest_age_h, "lanes": lanes, "alerts": alerts}
+            "freshest_run_age_h": freshest_age_h, "manifest_written_by": written_by,
+            "lanes": lanes, "alerts": alerts}

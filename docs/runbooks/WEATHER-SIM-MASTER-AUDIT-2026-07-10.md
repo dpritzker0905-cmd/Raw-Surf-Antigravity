@@ -221,9 +221,18 @@ product files) and ALL deletes require `L2_WRITER=1` (set by scripts/ingest_fore
 GH workflows — + sweep/purge tools); namespaced state blobs (`calibration/`, `spot_ratings/`)
 ungated; kill `L2_WRITER_GATE=0`. If in-process Render ingestion is ever re-enabled, set L2_WRITER=1
 on Render. 7 mechanism tests.
-**REMEDIATION:** ① rogue local backend MUST be killed (session couldn't: permission denial) BEFORE
-its ~05:26Z cycle → ~06:55Z manifest write; ② repair = the in-flight 03:44Z ingest run (29138494882)
-re-registers everything.
+**REMEDIATION — COMPLETE (07-11 13:1xZ):** ① rogue local backend KILLED by user; ② repair run
+29138494882 SUCCEEDED — live-verified: health all-green 0 alerts, manifest fresh (12:31Z cycle),
+**ICON marine 168 estimated products tail 07-25T00:00Z = Stage-6I.3 CYCLE-VERIFIED (queue item ②
+CLOSED)**, EURO estimated tail restored+advanced (128 products, 07-25T00:00Z).
+**S3 ATTRIBUTION SHIPPED (safeguards report follow-through):** every manifest L2 upload now stamps
+`written_by` ("designated:gh-run-<id>" / "non-writer:<host>") via the single serialization
+choke-point `store.dump_manifest_for_l2` (7 call sites converted); `/api/health/data` reports
+`manifest_written_by` and WARNS on a non-designated writer (the gate-bypass detector — absence is
+surfaced but not alerted, transition-safe); the Data Health Monitor workflow prints it and
+warn-annotates on missing/non-designated; in-process ingestion without L2_WRITER=1 now logs a loud
+"local-only persistence" warning at scheduler start. This is the alarm that would have named the
+rogue box at its FIRST clobber (~17:26Z 07-10), ten hours before it was user-felt.
 **REMAINING (separate findings):** ⑴ far-edge contract gap — stored/estimated coverage ends ~now+330h
 but capabilities/scrubber offer +336h → the last ~6h of the slider is structurally uncovered, worst
 just before new model runs land (L2 census: estimate tail 07-24T22:00 vs request 07-25T04:00);

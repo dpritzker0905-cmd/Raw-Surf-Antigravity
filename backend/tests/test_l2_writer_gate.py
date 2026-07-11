@@ -75,6 +75,21 @@ def test_designated_writer_reaches_storage(tmp_path, storage_probe, monkeypatch)
     assert len(storage_probe) == 2
 
 
+def test_manifest_l2_dump_stamps_writer_identity(monkeypatch):
+    # written_by is the attribution the #28 incident lacked: every L2 serialization names its writer,
+    # with the role prefix ("designated:"/"non-writer:") keyed to the same gate predicate.
+    from datetime import datetime, timezone
+    import json
+    from services.weather_pipeline.schemas import PipelineManifest
+    from services.weather_pipeline.store import dump_manifest_for_l2
+
+    m = PipelineManifest(last_manifest_update=datetime.now(timezone.utc), products=[])
+    assert json.loads(dump_manifest_for_l2(m))["written_by"].startswith("non-writer:")
+    monkeypatch.setenv("L2_WRITER", "1")
+    monkeypatch.setenv("GITHUB_RUN_ID", "12345")
+    assert json.loads(dump_manifest_for_l2(m))["written_by"] == "designated:gh-run-12345"
+
+
 def test_runner_entrypoint_declares_itself_writer():
     # The GH ingest workflows (core + pilots) both run scripts/ingest_forecast_ci.py — it must
     # self-declare as the designated writer or every cycle's uploads silently no-op.

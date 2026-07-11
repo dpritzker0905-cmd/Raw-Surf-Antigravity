@@ -190,6 +190,11 @@ class ManifestProduct(BaseModel):
 class PipelineManifest(BaseModel):
     last_manifest_update: datetime
     products: List[ManifestProduct] = Field(default_factory=list)
+    # L2 writer attribution (audit #28): stamped by store.dump_manifest_for_l2 on every L2 upload —
+    # "designated:gh-run-<id>" from the ingest runner. The health monitor warns when the served
+    # manifest's last L2 writer was anything else (gate bypassed) or when the field is absent
+    # (written by pre-gate code — the rogue-local-backend signature).
+    written_by: Optional[str] = None
 
 
 class ClientDiagnosticReport(BaseModel):

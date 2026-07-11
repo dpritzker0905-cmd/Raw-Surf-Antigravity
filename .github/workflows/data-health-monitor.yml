@@ -38,10 +38,21 @@ jobs:
           d = json.load(open('/tmp/health.json'))
           print('status:', d.get('status'))
           print('freshest_run_age_h:', d.get('freshest_run_age_h'))
+          print('manifest_written_by:', d.get('manifest_written_by'))
           for name, info in (d.get('lanes') or {}).items():
               print(f"  {name}: {info.get('verdict')} (age {info.get('age_h')}h, horizon {info.get('horizon_h')}h)")
           for a in (d.get('alerts') or []):
               print('  ALERT:', a)
+          # WRITER ATTRIBUTION (audit #28): the served manifest names its last L2 writer. Anything but
+          # a designated writer means the write gate was bypassed (the rogue-local-backend class);
+          # a missing stamp on a FRESH manifest means it was written by pre-gate code.
+          wb = d.get('manifest_written_by')
+          if wb is None:
+              print("::warning::Served manifest carries NO L2 writer identity — written by pre-gate code? "
+                    "Expected after the first post-deploy ingest cycle to stamp it; investigate if it persists.")
+          elif not str(wb).startswith('designated:'):
+              print(f"::warning::Served manifest last L2-written by NON-DESIGNATED writer '{wb}' — "
+                    f"designated-writer gate bypassed (audit #28). Find and stop that box.")
           PY
           status=$(python3 -c "import json;print(json.load(open('/tmp/health.json')).get('status','critical'))" 2>/dev/null || echo critical)
           if [ "$code" = "503" ] || [ "$status" = "critical" ]; then
