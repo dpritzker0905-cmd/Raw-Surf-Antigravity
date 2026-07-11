@@ -161,6 +161,104 @@ const MARINE_VARIABLES = new Set([
   'ocean_current_velocity', 'sea_surface_temperature'
 ]);
 
+// ─── Water Temp coastal-halo fix (2026-07-11, user report: "land band halo around coastal and
+// island areas") ─────────────────────────────────────────────────────────────────────────────
+// surface_temperature is SKIN temperature: grid cells containing land carry land heat. Probed on
+// the live decoded grid (row 0 = SOUTH, GFS ascending-lat): Catalina's cell reads 20.05°C vs
+// 17.75°C open water 60km out (+2.3°C, worse by day; mainland LA cell 27.45°C) — the steep temp
+// palette renders that ring as a vivid halo, and contours=true traces the fake island gradients.
+// No mask POLYGON can fix data-level contamination, so land cells are NaN'd at decode time: the
+// renderer draws NaN as transparent → coast/island cells become honest no-data instead of fake
+// warm water. Dilated by ~1 cell (canvas stroke) to catch straddling cells. Built lazily per grid
+// dimension from the same NE 50m polygons OceanMask uses; the first decode before the mask is
+// ready renders unmasked and the next timestep decode picks it up (graceful).
+// Kill switch: globalThis.__RAW_WT_LANDMASK_DISABLED__ = true (decode runs on the main thread in
+// practice — verified via window.__DECODED_OM_TILES__ being populated from the page realm).
+const LAND_CELL_MASKS = {}; // `${nx}x${ny}` -> { mask, hadUnmaskedDecode } (mask null while building/failed)
+let LAND_GEOJSON_PROMISE = null; // shared across per-grid builds (fetch once)
+
+function getLandGeoJSONOnce() {
+  if (!LAND_GEOJSON_PROMISE) {
+    LAND_GEOJSON_PROMISE = fetch('/ne_50m_land.json').then(res => {
+      if (!res.ok) throw new Error(`land geojson status ${res.status}`);
+      return res.json();
+    }).catch(err => { LAND_GEOJSON_PROMISE = null; throw err; });
+  }
+  return LAND_GEOJSON_PROMISE;
+}
+
+function ensureLandCellMask(nx, ny, bounds) {
+  const key = `${nx}x${ny}`;
+  const existing = LAND_CELL_MASKS[key];
+  if (existing) return existing.mask;
+  const entry = (LAND_CELL_MASKS[key] = { mask: null, hadUnmaskedDecode: false });
+  (async () => {
+    try {
+      if (typeof OffscreenCanvas === 'undefined') return;
+      const gj = await getLandGeoJSONOnce();
+      const [w, s, e, n] = bounds;
+      const canvas = new OffscreenCanvas(nx, ny);
+      const ctx = canvas.getContext('2d', { willReadFrequently: true });
+      // Grid row 0 = south (probed) → draw with y = (lat - s) so canvas rows match grid rows.
+      const px = (lng) => ((lng - w) / (e - w)) * nx;
+      const py = (lat) => ((lat - s) / (n - s)) * ny;
+      ctx.fillStyle = '#000';
+      ctx.strokeStyle = '#000';
+      // ±0.5 cell of dilation: the alpha>0 read below already counts ANY partial land coverage
+      // of a cell (canvas AA), so fill catches every land-touching cell; the 1px stroke only adds
+      // the straddler margin. lineWidth 2 over-masked on coarse grids — pixels are CELLS, so on
+      // ifs025 (0.25°≈28km) it merged the Channel-Islands moats and NaN'd water 60km offshore
+      // (probed live: socal60km MASKED on EURO while GFS was correct).
+      ctx.lineWidth = 1;
+      const drawRings = (rings) => {
+        ctx.beginPath();
+        for (const ring of rings) {
+          for (let i = 0; i < ring.length; i++) {
+            const [lng, lat] = ring[i];
+            if (i === 0) ctx.moveTo(px(lng), py(lat)); else ctx.lineTo(px(lng), py(lat));
+          }
+          ctx.closePath();
+        }
+        ctx.fill('evenodd');
+        ctx.stroke();
+      };
+      for (const f of gj.features || []) {
+        const g = f.geometry;
+        if (!g) continue;
+        if (g.type === 'Polygon') drawRings(g.coordinates);
+        else if (g.type === 'MultiPolygon') g.coordinates.forEach(drawRings);
+      }
+      const img = ctx.getImageData(0, 0, nx, ny).data;
+      const mask = new Uint8Array(nx * ny);
+      for (let i = 0; i < mask.length; i++) mask[i] = img[i * 4 + 3] > 0 ? 1 : 0;
+      entry.mask = mask;
+      // A decode raced past while this mask was building → the library cached an UNMASKED field
+      // for that timestep (probed live: the first ecmwf_ifs025 decode after a model switch kept
+      // Catalina at 20.2°C). Nudge the slot machinery to re-point wt URLs (&wtlm=1) → fresh
+      // decode through the now-ready mask. Main-thread decode path (verified); worker path skips.
+      if (entry.hadUnmaskedDecode && typeof window !== 'undefined') {
+        try { window.dispatchEvent(new CustomEvent('rawsurf:wt-landmask-ready')); } catch (e) { /* noop */ }
+      }
+    } catch (err) {
+      console.warn('[OM-Protocol] Water-temp land mask build failed (halo fix inactive):', err && err.message);
+    }
+  })();
+  return null;
+}
+
+// Eager pre-build for the two known water-temp grids (probed dims/bounds 2026-07-11: gfs013
+// 3072×1536 / ifs025 1440×721, both row-0-SOUTH — verified with Sahara/Antarctica probe pairs on
+// live decoded grids). Kicked at protocol registration so the mask wins the race against the
+// first surface_temperature decode; if OM ever changes dims, the lazy per-dims build still
+// covers it (with the wt-landmask-ready nudge healing the cached first frame).
+function prebuildWaterTempLandMasks() {
+  try {
+    if (typeof globalThis !== 'undefined' && globalThis.__RAW_WT_LANDMASK_DISABLED__ === true) return;
+    ensureLandCellMask(3072, 1536, [-180, -89.912126125, 180, 90.029275475]);
+    ensureLandCellMask(1440, 721, [-180, -90, 180, 90.25]);
+  } catch (e) { /* halo fix must never break protocol registration */ }
+}
+
 // NOTE: Marine ocean clipping polygon system (buildOceanPolygon, applyLandMask,
 // 110m/50m land mask loading) REMOVED in Phase 4A.
 // Marine rendering is now 100% GPU-driven via WebGLMarineEngine.
@@ -169,6 +267,10 @@ const MARINE_VARIABLES = new Set([
 // OceanMask.js loads its own land GeoJSON for visual basemap masking.
 
 export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE) {
+  // Water-temp halo fix: start the land-cell mask builds NOW so they win the race against the
+  // first surface_temperature decode (a lazy-only build let the first frame render unmasked and
+  // the library cached it — probed live on the first ecmwf decode after a model switch).
+  prebuildWaterTempLandMasks();
   // Initialize main-thread listener for BroadcastChannel cross-thread decoded tiles bridge
   if (typeof window !== 'undefined') {
     if (!window.__DECODED_OM_TILES__) {
@@ -351,6 +453,23 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
         }
         
         if (bounds && variable) {
+          // Water Temp coastal-halo fix: NaN land cells (see LAND_CELL_MASKS above). Runs before
+          // the side-channel store/broadcast so every consumer sees the masked field.
+          try {
+            const landmaskOff = typeof globalThis !== 'undefined' && globalThis.__RAW_WT_LANDMASK_DISABLED__ === true;
+            if (variable === 'surface_temperature' && !landmaskOff && resolvedGrid && resolvedGrid.nx && resolvedGrid.ny
+                && data.values && data.values.length === resolvedGrid.nx * resolvedGrid.ny) {
+              const mask = ensureLandCellMask(resolvedGrid.nx, resolvedGrid.ny, bounds);
+              if (mask) {
+                const v = data.values;
+                for (let i = 0; i < v.length; i++) { if (mask[i]) v[i] = NaN; }
+              } else {
+                const entry = LAND_CELL_MASKS[`${resolvedGrid.nx}x${resolvedGrid.ny}`];
+                if (entry) entry.hadUnmaskedDecode = true; // heal via wt-landmask-ready once built
+              }
+            }
+          } catch (e) { /* halo fix must never break tile decoding */ }
+
           let model = state.dataOptions?.domain?.value;
           if (!model && state.omFileUrl) {
             const urlParts = state.omFileUrl.split('/');
