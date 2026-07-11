@@ -52,22 +52,34 @@ var MapMarkerLayers = ({
           const cRating = surfMode && clusterRatings ? clusterRatings[cluster.id] : null;
           return (
             <Marker key={cluster.id} longitude={lng} latitude={lat} anchor="center">
-              <div
-                className="w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
-                style={cRating ? {
-                  backgroundColor: cRating.color,
-                  boxShadow: `0 0 10px 2px ${cRating.color}, 0 2px 6px rgba(0,0,0,0.45)`,
-                } : { backgroundColor: 'rgba(249,115,22,0.8)' }}
-                title={cRating ? `Best here: ${cRating.label}` : undefined}
-                onClick={(e) => {
-                  e.stopPropagation();
-                  mapRef.current.flyTo({
-                    center: [lng, lat],
-                    zoom: cluster.expansionZoom
-                  });
-                }}
-              >
-                {cluster.pointCount}
+              {/* Rating-mode activation parity (2026-07-11, user: clusters "aren't activating into a
+                  glow"): the tint+static shadow WAS applied (live-verified) but individual glyphs
+                  announce activation with an animated ping ring — without one the bubbles read as
+                  inert. Same GPU-composited ping, honours reduced-motion. */}
+              <div className="relative" style={{ width: 40, height: 40 }}>
+                {cRating && (
+                  <span
+                    className="absolute rounded-full animate-ping motion-reduce:animate-none"
+                    style={{ inset: 2, backgroundColor: cRating.color, opacity: 0.35 }}
+                  />
+                )}
+                <div
+                  className="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
+                  style={cRating ? {
+                    backgroundColor: cRating.color,
+                    boxShadow: `0 0 10px 2px ${cRating.color}, 0 2px 6px rgba(0,0,0,0.45)`,
+                  } : { backgroundColor: 'rgba(249,115,22,0.8)' }}
+                  title={cRating ? `Best here: ${cRating.label}` : undefined}
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    mapRef.current.flyTo({
+                      center: [lng, lat],
+                      zoom: cluster.expansionZoom
+                    });
+                  }}
+                >
+                  {cluster.pointCount}
+                </div>
               </div>
             </Marker>
           );
