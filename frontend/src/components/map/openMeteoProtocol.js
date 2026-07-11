@@ -206,12 +206,13 @@ function ensureLandCellMask(nx, ny, bounds) {
       const py = (lat) => ((lat - s) / (n - s)) * ny;
       ctx.fillStyle = '#000';
       ctx.strokeStyle = '#000';
-      // ±0.5 cell of dilation: the alpha>0 read below already counts ANY partial land coverage
-      // of a cell (canvas AA), so fill catches every land-touching cell; the 1px stroke only adds
-      // the straddler margin. lineWidth 2 over-masked on coarse grids — pixels are CELLS, so on
-      // ifs025 (0.25°≈28km) it merged the Channel-Islands moats and NaN'd water 60km offshore
-      // (probed live: socal60km MASKED on EURO while GFS was correct).
-      ctx.lineWidth = 1;
+      // ±1 cell of dilation (lineWidth is in CELLS, not km). Under the NaN regime lineWidth 2
+      // over-masked coarse grids (ifs025 moats swallowed water 60km offshore), but under
+      // OCEAN-FILL a dilated cell just takes its water-neighbors' mean — no holes — and the
+      // margin matters: GFS's OWN landmask is more generous than NE 50m around islands/cays
+      // (probed live: Great Abaco shore cells held 47.3/38.5/34.1°C midday land-skin values in
+      // cells NE-50m called water — the user's "deep hot red spot" off Marsh Harbour).
+      ctx.lineWidth = 2;
       const drawRings = (rings) => {
         ctx.beginPath();
         for (const ring of rings) {
@@ -288,6 +289,68 @@ function oceanFillLandCells(values, landMask, nx, ny) {
     for (let k = 0; k < filled.length; k++) state[filled[k]] = 0;
   }
   for (let i = 0; i < state.length; i++) { if (state[i] === 1) values[i] = NaN; }
+}
+
+// Coastal outlier QC (2026-07-11, "deep hot red spot off Marsh Harbour"): even the dilated NE
+// mask misses cells the MODEL's own landmask treats as land (thin cays/shores absent from NE
+// 50m) — those render raw land-skin temps (probed: 47.3°C in Bahamas water at midday). Standard
+// SST coastal QC: within 2 cells of the mask coastline, a cell deviating more than 3°C from the
+// local water median (9×9 window sampled at stride 2 ≈ ±4 cells of context; median is robust to
+// the contaminated minority) is reclassified as land-contaminated and ocean-filled. Symmetric
+// threshold: daytime land runs hot, nighttime land runs cold. Real fronts survive: per-cell
+// deviation from a ±50km median stays under ~2-3°C even at the Gulf Stream wall, and Bahamas
+// banks warmth (~+1.5-2°C) is below threshold. Kill: globalThis.__RAW_WT_COASTAL_QC_DISABLED__.
+function coastalOutlierQC(values, landMask, nx, ny) {
+  const augmented = Uint8Array.from(landMask);
+  // ring = non-land cells within Chebyshev distance 2 of land (stamped from land cells)
+  const ring = new Uint8Array(nx * ny);
+  for (let y = 0; y < ny; y++) {
+    const row = y * nx;
+    for (let x = 0; x < nx; x++) {
+      if (landMask[row + x] !== 1) continue;
+      for (let dy = -2; dy <= 2; dy++) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= ny) continue;
+        const rr = yy * nx;
+        for (let dx = -2; dx <= 2; dx++) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= nx) continue;
+          const j = rr + xx;
+          if (landMask[j] === 0) ring[j] = 1;
+        }
+      }
+    }
+  }
+  const windowVals = [];
+  for (let y = 0; y < ny; y++) {
+    const row = y * nx;
+    for (let x = 0; x < nx; x++) {
+      const i = row + x;
+      if (ring[i] !== 1) continue;
+      const v = values[i];
+      if (v === null || Number.isNaN(v)) continue;
+      windowVals.length = 0;
+      for (let dy = -4; dy <= 4; dy += 2) {
+        const yy = y + dy;
+        if (yy < 0 || yy >= ny) continue;
+        const rr = yy * nx;
+        for (let dx = -4; dx <= 4; dx += 2) {
+          const xx = x + dx;
+          if (xx < 0 || xx >= nx) continue;
+          const j = rr + xx;
+          if (landMask[j] === 0) {
+            const wv = values[j];
+            if (wv !== null && !Number.isNaN(wv)) windowVals.push(wv);
+          }
+        }
+      }
+      if (windowVals.length < 5) continue; // not enough clean context — leave the cell alone
+      windowVals.sort((a, b) => a - b);
+      const median = windowVals[windowVals.length >> 1];
+      if (Math.abs(v - median) > 3.0) augmented[i] = 1;
+    }
+  }
+  return augmented;
 }
 
 // Eager pre-build for the two known water-temp grids (probed dims/bounds 2026-07-11: gfs013
@@ -505,7 +568,9 @@ export function registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_ME
                 && data.values && data.values.length === resolvedGrid.nx * resolvedGrid.ny) {
               const mask = ensureLandCellMask(resolvedGrid.nx, resolvedGrid.ny, bounds);
               if (mask) {
-                oceanFillLandCells(data.values, mask, resolvedGrid.nx, resolvedGrid.ny);
+                const qcOff = typeof globalThis !== 'undefined' && globalThis.__RAW_WT_COASTAL_QC_DISABLED__ === true;
+                const workMask = qcOff ? mask : coastalOutlierQC(data.values, mask, resolvedGrid.nx, resolvedGrid.ny);
+                oceanFillLandCells(data.values, workMask, resolvedGrid.nx, resolvedGrid.ny);
               } else {
                 const entry = LAND_CELL_MASKS[`${resolvedGrid.nx}x${resolvedGrid.ny}`];
                 if (entry) entry.hadUnmaskedDecode = true; // heal via wt-landmask-ready once built

@@ -232,6 +232,7 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
   const lastSyncCoreRef = useRef(null); // signature WITHOUT activeMarineLayer — enables a recolor fast path
   const styleVersionRef = useRef(0);
   const syncRafIdRef = useRef(null);
+  const hiddenLanduseIdsRef = useRef(new Set()); // #10: green fills hidden for water_temp-only sessions
 
   const active = propActive !== undefined ? propActive : !!activeMarineLayer;
 
@@ -626,6 +627,44 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           }
         }
 
+        // 9. COAST BUFFER vs water_temp (2026-07-11, user: "halo band from land coastal areas and
+        // islands bleeding through the heatmap"): MASK_BUFFER is a 16-60px ocean-COLORED blurred
+        // line offset into the ocean, built to blend the MARINE heatmap's coastline (its color
+        // matches the wave palette's zero). water_temp slots render ABOVE it at 0.45-0.62 opacity,
+        // so under a temperature palette the band ghosts through as a dark coastal halo. Same
+        // session-type gate as the lakes repaint (#8): buffer only while a marine layer is active.
+        // Force-on: __RAW_WATER_TEMP_COAST_BUFFER__ = true.
+        const bufferOn = !!stateRef.current.activeMarineLayer ||
+          (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_COAST_BUFFER__ === true);
+        if (mapInstance.getLayer(MASK_BUFFER)) {
+          try { mapInstance.setLayoutProperty(MASK_BUFFER, 'visibility', bufferOn ? 'visible' : 'none'); } catch (e) {}
+        }
+
+        // 10. GREEN LANDUSE vs water_temp (2026-07-11, user: "the green parks land mask is
+        // bleeding through the water temp heatmask"): repositionLanduse (#6) raises parks/
+        // forests/landuse fills so they stay visible above the slate land fill — correct for
+        // marine sessions (the wave heatmap is a custom layer rendered ABOVE everything), but
+        // water_temp renders BELOW the mask family, so raised green fills paint over the field.
+        // Worst case: MARINE protected areas (landuse_overlay national-park polygons over open
+        // ocean — e.g. the Silver Bank sanctuary NE of the Dominican Republic) tint the field as
+        // giant olive shapes. Same session-type gate as #8/#9: green fills only while a marine
+        // layer is active; restored on deactivate/marine. Force-on:
+        // __RAW_WATER_TEMP_GREEN_LANDUSE__ = true.
+        const greenOn = !!stateRef.current.activeMarineLayer ||
+          (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_GREEN_LANDUSE__ === true);
+        try {
+          const styleLayers = mapInstance.getStyle()?.layers || [];
+          for (const layer of styleLayers) {
+            if (layer.type !== 'fill' || layer.id === 'water') continue;
+            const lid = layer.id.toLowerCase();
+            if (!landuseKeywords.some(kw => lid.includes(kw))) continue;
+            const want = greenOn ? 'visible' : 'none';
+            if (greenOn) hiddenLanduseIdsRef.current.delete(layer.id);
+            else hiddenLanduseIdsRef.current.add(layer.id);
+            try { mapInstance.setLayoutProperty(layer.id, 'visibility', want); } catch (e) {}
+          }
+        } catch (e) { /* style mid-load — next sync retries */ }
+
       } else {
         // Active is false: remove all layers immediately and synchronously
         const historicalLayers = [...ALL_LAYERS, 'ocean-mask-fill', 'ocean-mask-inland-water', 'ocean-mask-inland-waterway'];
@@ -637,6 +676,14 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
         if (mapInstance.getSource(MASK_SOURCE)) {
           try { mapInstance.removeSource(MASK_SOURCE); } catch (e) {}
         }
+        // #10 restore: green landuse fills hidden for a water_temp-only session are BASEMAP
+        // layers — they must come back when the mask family leaves.
+        for (const lid of hiddenLanduseIdsRef.current) {
+          if (mapInstance.getLayer(lid)) {
+            try { mapInstance.setLayoutProperty(lid, 'visibility', 'visible'); } catch (e) {}
+          }
+        }
+        hiddenLanduseIdsRef.current.clear();
       }
     } catch (err) {
       console.error('[OceanMask] Error in syncLayers:', err);
