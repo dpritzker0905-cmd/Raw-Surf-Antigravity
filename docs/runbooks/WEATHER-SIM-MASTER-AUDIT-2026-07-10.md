@@ -202,6 +202,21 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
+## FINDING #30 — SATELLITE TILE DECODE-ERROR BURST (user log 07-11 ~15:1xZ; pipeline-3 / #25-adjacent; NEEDS ITS OWN FORENSIC SESSION)
+User session (build `7b6a312d`→`f88594da` SW swap visible): ~15+ consecutive MapLibre
+`InvalidStateError: The source image could not be decoded` from `tile_manager._loadTile →
+raster_tile_source → image_request`, bursting immediately after satellite slot ping-pong
+("Processing layer 'satellite' slot 0→1→1→2→2→0") + an EURO→GFS model flip. Session otherwise the
+CLEANEST of the arc (marine committing, series cache warm, full truth-chain OKs). Evidence hook:
+the SUCCESSFUL `server.arcgisonline.com/World_Imagery` fetches route through
+**`openMeteoProtocol.js:272`** — the OM protocol's fetch wrapper intercepts the esri source's tile
+requests, so the interception layer is a candidate amplifier (truncated/empty body from a
+cancelled/aborted request handed to decode). Hypotheses to discriminate (recipe exists:
+`__FETCH_OM_TILE__` black-patch triage + the #25 `__RASTER_SLOT_TELEMETRY__`): ① aborted preloads'
+empty bodies fed to createImageBitmap ② ESRI rate-limit/error body with 200 ③ interception wrapper
+mangling responses under slot churn. Ranked MED (self-healing black patches, no crash), same
+session as #25.
+
 ## FINDING #28 — ROOT REVISED (07-11 04:0xZ, second live pass): THE WRITER IS A ROGUE LOCAL DEV BACKEND — designated-writer gate SHIPPED
 **Forensic chain:** L2 `storage.objects` showed manifest.json last written 02:55:10Z size 6,609,397 —
 a THIRD state matching NO upload in the GH run log → only ONE Render service exists, no workflow ran
@@ -233,10 +248,13 @@ surfaced but not alerted, transition-safe); the Data Health Monitor workflow pri
 warn-annotates on missing/non-designated; in-process ingestion without L2_WRITER=1 now logs a loud
 "local-only persistence" warning at scheduler start. This is the alarm that would have named the
 rogue box at its FIRST clobber (~17:26Z 07-10), ten hours before it was user-felt.
-**REMAINING (separate findings):** ⑴ far-edge contract gap — stored/estimated coverage ends ~now+330h
-but capabilities/scrubber offer +336h → the last ~6h of the slider is structurally uncovered, worst
-just before new model runs land (L2 census: estimate tail 07-24T22:00 vs request 07-25T04:00);
-durable fix = resolver serves the last covered estimated frame relabeled, never a 404 blank.
+**REMAINING (separate findings):** ⑴ far-edge contract gap — ✅ **FIXED (S4 shipped 07-11 ~15Z):**
+`far_edge_hold.py` + two resolver wiring points (the marine wide-req empty-fallback and the terminal
+no-coverage) serve the lane's LAST covered global frame relabeled (is_estimated,
+estimate_basis.type=far_edge_hold, warnings marker) when the target is past the tail — TAIL-ONLY
+(mid-range holes still fall through so ingest failures are never masked), overshoot bounded
+`FAR_EDGE_HOLD_MAX_H` (24h default), marine+global-tile only, kill `FAR_EDGE_HOLD=0`. 7 hermetic
+tests. Verify live: EURO marine h336 should now render the held tail frame instead of 404-blank.
 ⑵ NEW #29 (client): cross-model dead-target churn — with ICON/GFS active, EURO h336 refetches kept
 firing (settle post-verify + backstop + model-switch manual fetch), safe-zero commits cleared the
 engine cross-model, terminal-nocov suppression never engaged for this `no_copernicus_coverage` shape

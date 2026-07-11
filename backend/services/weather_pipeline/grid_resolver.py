@@ -544,6 +544,12 @@ async def resolve_grid(
                         if req_span_lng > 15.0 or req_span_lat > 15.0:
                             is_wide_req = True
 
+                    # FAR-EDGE HOLD (S4): past the lane's tail, serve the last covered frame
+                    # relabeled instead of a zero grid / 404 blank. Kill: FAR_EDGE_HOLD=0.
+                    if not product and domain.lower() == "marine":
+                        from services.weather_pipeline.far_edge_hold import try_far_edge_hold
+                        product = await try_far_edge_hold(store, model, domain, layer, target_dt)
+
                     if not product and is_wide_req and domain.lower() != "wind":
                         return JSONResponse(status_code=200, content={
                             "model": model,
@@ -594,8 +600,15 @@ async def resolve_grid(
                             raise dynamic_err
                         raise HTTPException(status_code=503, detail=f"Grid service temporarily unavailable: {dynamic_err}")
         else:
-            # Dynamic viewport not enabled for this layer/model, return honest no-coverage
-            return make_no_coverage_grid_response(model, layer, valid_time)
+            # FAR-EDGE HOLD (S4) before the terminal: the h336 no_copernicus_coverage class —
+            # dynamic viewport is disabled past the model's window, but the estimated tail's last
+            # frame is a few hours back and honest to hold. Kill: FAR_EDGE_HOLD=0.
+            if domain.lower() == "marine":
+                from services.weather_pipeline.far_edge_hold import try_far_edge_hold
+                product = await try_far_edge_hold(store, model, domain, layer, target_dt)
+            if not product:
+                # Dynamic viewport not enabled for this layer/model, return honest no-coverage
+                return make_no_coverage_grid_response(model, layer, valid_time)
 
     if product:
         product.valid_time = target_dt
