@@ -225,6 +225,17 @@ class ProductStore:
                 raise RuntimeError(f"HTTP {resp.status_code}: {resp.text[:300]}")
             ProductStore._last_upload_time = datetime.now(timezone.utc).isoformat()
             logger.info(f"[Product Store] L2 upload OK: {filename} ({len(data_bytes)} bytes)")
+            # S2 run-keyed manifest + pointer CAS: every successful legacy manifest.json upload
+            # also publishes an immutable run-keyed copy and CAS-advances the Postgres pointer.
+            # This site runs on the serial _manifest_executor and is behind the designated-writer
+            # gate above, so publishes are ordered and non-designated boxes never reach it.
+            # Never raises; any failure leaves the legacy lane exactly as it was.
+            if filename == "manifest.json":
+                try:
+                    from services.weather_pipeline.manifest_pointer import publish_run_keyed
+                    publish_run_keyed(self, data_bytes, self._upload_to_supabase, self._delete_from_supabase)
+                except Exception as ptr_err:
+                    logger.warning(f"[Product Store] run-keyed manifest publish failed (legacy lane OK): {ptr_err}")
         except Exception as e:
             err_msg = f"L2 upload failed for {filename}: {e}"
             logger.warning(f"[Product Store] {err_msg}")

@@ -283,24 +283,34 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
     manifest_data = None
     try:
         manifest_bytes = None
+        # S2 pointer-first read: resolve the Postgres pointer and GET the immutable run-keyed
+        # manifest (plain GET — correct on any CDN edge by construction). Falls through to the
+        # legacy cache-busted manifest.json on ANY failure, including pointer-table-not-yet-
+        # migrated. Kill: MANIFEST_POINTER=0.
         try:
-            import requests
-            from services.weather_pipeline.store import manifest_download_url
-            base = os.environ.get("SUPABASE_URL", "").rstrip("/")
-            key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
-            if base and key:
-                resp = requests.get(
-                    manifest_download_url(base, WEATHER_BUCKET),
-                    headers={"Authorization": f"Bearer {key}", "apikey": key,
-                             "Cache-Control": "no-cache", "Pragma": "no-cache"},
-                    timeout=30,
-                )
-                if resp.status_code == 200:
-                    manifest_bytes = resp.content
-                else:
-                    logger.warning(f"[Product Store] Cache-busted manifest GET -> HTTP {resp.status_code}; falling back to client download")
-        except Exception as cb_err:
-            logger.warning(f"[Product Store] Cache-busted manifest GET failed ({cb_err}); falling back to client download")
+            from services.weather_pipeline.manifest_pointer import fetch_pointed_manifest
+            manifest_bytes = fetch_pointed_manifest()
+        except Exception as ptr_err:
+            logger.warning(f"[Product Store] pointer-first manifest read failed ({ptr_err}); using legacy path")
+        if manifest_bytes is None:
+            try:
+                import requests
+                from services.weather_pipeline.store import manifest_download_url
+                base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+                key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+                if base and key:
+                    resp = requests.get(
+                        manifest_download_url(base, WEATHER_BUCKET),
+                        headers={"Authorization": f"Bearer {key}", "apikey": key,
+                                 "Cache-Control": "no-cache", "Pragma": "no-cache"},
+                        timeout=30,
+                    )
+                    if resp.status_code == 200:
+                        manifest_bytes = resp.content
+                    else:
+                        logger.warning(f"[Product Store] Cache-busted manifest GET -> HTTP {resp.status_code}; falling back to client download")
+            except Exception as cb_err:
+                logger.warning(f"[Product Store] Cache-busted manifest GET failed ({cb_err}); falling back to client download")
         if manifest_bytes is None:
             manifest_bytes = sb.storage.from_(WEATHER_BUCKET).download("manifest.json")
         if manifest_bytes:

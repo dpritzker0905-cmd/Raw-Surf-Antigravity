@@ -128,6 +128,34 @@ NaN-moat bundle (every viewport cell in the moat) — ocean-fill resolves it.**
 5. Air Temp vs Water Temp zoom-crossing A/B (fade 200 vs 0) — pick the winner, then set it
    family-wide via `__RAW_RASTER_FADE_MS__` verdict.
 
+## 4b. LATER SAME SESSION — activation affordance + S2 SHIPPED
+**Air-Temp-on-ICON "doesn't load" (user report):** cold-CDN-edge .om fetch latency on the less-
+trafficked models (GFS = default = always edge-warm; warm-edge activation measured 916ms
+toggle→decode). Shipped `3886f00c`: the layer picker pulses the active layer's icon while the
+first tiles fetch+decode — poll the TARGET slot (tracer-proven: the ring advances on activation
+so the real URL loads in the target slot while the ACTIVE slot still holds the transparent tile),
+settle-race guard for model switches (early ticks see the OLD model's loaded URL), 30s cap,
+settles permanently per (layer, model). Live-verified under an injected 3s/range-read throttle:
+pulse ON t+448ms, OFF at cap; fast loads never pulse.
+**Radar "faint over Sebastian" (user report): NOT a regression** — scheme-7 (`/7/1_0.png`) is
+pale-by-design at low dBZ and the whole radar family is scheme-7-keyed (recolor tables). A/B
+lever: `__RAW_RADAR_OPACITY__`. Palette change = the backlogged DWD/EU palette arc.
+**S2 run-keyed manifest + Postgres pointer CAS: SHIPPED + MIGRATED.**
+`services/weather_pipeline/manifest_pointer.py`: every successful legacy manifest.json upload
+(the serial, writer-gated choke point in `_upload_to_supabase`) also publishes immutable
+`manifests/manifest-g<generation>.json` then CAS-advances the single-row
+`public.weather_manifest_pointer` (PostgREST PATCH, `generation=eq.<expected>` precondition —
+Supabase Storage has no If-Match). Readers (restore helper) resolve the pointer and GET the
+immutable object with a PLAIN request (CDN-correct by construction), falling back to the legacy
+cache-busted manifest.json on ANY failure. Ring retention KEEP_RUN_KEYED=5 (publisher prunes
+g-5; sweep_orphaned_l2 reserves the `manifests/` prefix). Lane self-disables per process until
+the migration exists; kill `MANIFEST_POINTER=0`. Migration applied to prod
+(jnfbxcvcbtndtsvscppt, user-approved; versioned at
+`backend/migrations/2026-07-11_weather_manifest_pointer.sql`); pointer row initializes on the
+next ingest cycle. **P8 follow-up (separate session): once `manifest_written_by`/pointer
+generation shows healthy cycles, flip hot serve routes to Cache-Control using pointer-resolved
+run-keyed URLs.**
+
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
 anomaly (e.g., ICON 2m-air anomaly vs GFS, damped coastal) labeled `estimate` provenance like the

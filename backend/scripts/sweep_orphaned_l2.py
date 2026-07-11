@@ -32,7 +32,9 @@ os.environ.setdefault("L2_WRITER", "1")
 
 # Keys the serve box needs that are NOT model products — never orphans. Match the bare folder entry
 # ("calibration") AND anything under it ("calibration/..."), since list() returns both.
-RESERVED_BASES = ("manifest.json", "health.json", "spot_ratings", "calibration", "reports")
+# "manifests" = the S2 run-keyed manifest ring (manifest_pointer.py) — self-pruned by the
+# publisher's KEEP_RUN_KEYED retention, never referenced by the manifest's product list.
+RESERVED_BASES = ("manifest.json", "health.json", "spot_ratings", "calibration", "reports", "manifests")
 
 
 def is_orphan(name: str, manifest_names: set, created_at, now, margin_h: float) -> bool:
