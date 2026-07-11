@@ -181,3 +181,102 @@ describe('radarAdvection — advectForecast extrapolates along the motion', () =
     expect(centroid(f.data).mass).toBe(0);
   });
 });
+
+describe('radarAdvection — advectTileSmoothField (continuous motion, no gridlike seams)', () => {
+  const { advectTileSmoothField } = require('./radarAdvection');
+
+  // A horizontal linear alpha gradient — any sampling discontinuity shows as a value jump.
+  function makeGradient(offsetX, width = W, height = H) {
+    const data = new Uint8ClampedArray(width * height * 4);
+    for (let y = 0; y < height; y++) {
+      for (let x = 0; x < width; x++) {
+        const i = (y * width + x) * 4;
+        const a = ((x + offsetX) % 1024) / 1024 * 255;
+        data[i] = 100; data[i + 1] = 180; data[i + 2] = 255; data[i + 3] = a;
+      }
+    }
+    return data;
+  }
+
+  it('uniform vectors reproduce the rigid neighbor warp', () => {
+    const tiles = {};
+    for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+      tiles[`${gx},${gy}`] = makeBlob(128, 128, 40);
+    }
+    const motions = {};
+    for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+      motions[`${gx},${gy}`] = { dx: 12, dy: -8, confidence: 0.5 };
+    }
+    const smooth = advectTileSmoothField(tiles, motions, W, H, 2);
+    const rigid = advectTileWithNeighbors(tiles, W, H, 24, -16);
+    // identical vectors everywhere → identical sampling
+    let maxDiff = 0;
+    for (let i = 3; i < smooth.length; i += 4) maxDiff = Math.max(maxDiff, Math.abs(smooth[i] - rigid[i]));
+    expect(maxDiff).toBeLessThanOrEqual(1); // rounding only
+  });
+
+  it('differing neighbor vectors stay CONTINUOUS across the shared tile edge', () => {
+    // Two adjacent center tiles A (at grid 0) and B (at grid +1) over a seamless global gradient.
+    // A's neighborhood and B's neighborhood share the physical tiles/vectors along their boundary,
+    // so the warped outputs must meet continuously at the seam (the "gridlike" bug was a jump here).
+    const tileAt = (g) => makeGradient(g * W); // physical tile at global column g
+    const motionAt = (g) => ({ dx: g % 2 === 0 ? 16 : -16, dy: 0, confidence: 0.5 }); // alternating motion!
+    const nb = (cg) => { // neighborhood (tiles+motions) for the center at global column cg
+      const tiles = {}, motions = {};
+      for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+        tiles[`${gx},${gy}`] = tileAt(cg + gx);
+        motions[`${gx},${gy}`] = motionAt(cg + gx);
+      }
+      return { tiles, motions };
+    };
+    const a = nb(0), b = nb(1);
+    const outA = advectTileSmoothField(a.tiles, a.motions, W, H, 2);
+    const outB = advectTileSmoothField(b.tiles, b.motions, W, H, 2);
+    // Compare the seam: A's last column vs B's first column, mid rows (away from top/bottom edges).
+    let maxJump = 0;
+    for (let y = 32; y < H - 32; y++) {
+      const aA = outA[(y * W + (W - 1)) * 4 + 3];
+      const aB = outB[(y * W + 0) * 4 + 3];
+      // adjacent PIXELS of a 1024-period gradient differ by ~0.25 alpha; allow a few counts
+      maxJump = Math.max(maxJump, Math.abs(aA - aB));
+    }
+    expect(maxJump).toBeLessThanOrEqual(3);
+    // Sanity: the field actually moved (not a no-op) — alternating ±16 vectors × lead 2
+    const rigidA = advectTileWithNeighbors(a.tiles, W, H, 32, 0);
+    let differs = 0;
+    for (let i = 3; i < outA.length; i += 4) if (Math.abs(outA[i] - rigidA[i]) > 2) differs++;
+    expect(differs).toBeGreaterThan(1000); // smooth field ≠ rigid warp when vectors vary
+  });
+
+  it('MISSING neighbor motions fall back to the center vector (uniform field)', () => {
+    const tiles = { '0,0': makeBlob(128, 128, 40) };
+    const motionsMissing = { '0,0': { dx: 10, dy: 0, confidence: 0.5 } }; // all neighbors absent
+    const a = advectTileSmoothField(tiles, motionsMissing, W, H, 1);
+    const c = centroid(a);
+    expect(c.x).toBeCloseTo(138, -0.9); // blob at 128 + 10px — uniform center-vector field
+  });
+
+  it('PRESENT zero-motion entries are used VERBATIM (seam symmetry), any confidence', () => {
+    // Two adjacent neighborhoods where tile B's verdict is a conf-0 identity: both sides must
+    // interpolate the SAME (A, B=0) vector pair at the seam — the old per-side center-fallback
+    // rule re-created the seam here (real-tile proof: z7/100,101 residual 14.6 → symmetric now).
+    const tileAt = (g) => makeGradient(g * W);
+    const motionAt = (g) => (g === 1 ? { dx: 0, dy: 0, confidence: 0 } : { dx: 16, dy: 0, confidence: 0.5 });
+    const nb = (cg) => {
+      const tiles = {}, motions = {};
+      for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+        tiles[`${gx},${gy}`] = tileAt(cg + gx);
+        motions[`${gx},${gy}`] = motionAt(cg + gx);
+      }
+      return { tiles, motions };
+    };
+    const a = nb(0), b = nb(1);
+    const outA = advectTileSmoothField(a.tiles, a.motions, W, H, 2);
+    const outB = advectTileSmoothField(b.tiles, b.motions, W, H, 2);
+    let maxJump = 0;
+    for (let y = 32; y < H - 32; y++) {
+      maxJump = Math.max(maxJump, Math.abs(outA[(y * W + (W - 1)) * 4 + 3] - outB[(y * W) * 4 + 3]));
+    }
+    expect(maxJump).toBeLessThanOrEqual(3);
+  });
+});

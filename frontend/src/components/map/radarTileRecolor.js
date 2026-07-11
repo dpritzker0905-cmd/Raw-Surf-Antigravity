@@ -21,7 +21,7 @@
  * protocol is bypassed entirely.
  */
 import maplibregl from 'maplibre-gl';
-import { estimateMotion, advectTile, advectTileWithNeighbors } from './radarAdvection';
+import { estimateMotion, advectTile, advectTileWithNeighbors, advectTileSmoothField, SMOOTH_MOTION_OPTS } from './radarAdvection';
 
 export const RADAR_RECOLOR_PROTOCOL = 'hrrr-rv';
 
@@ -503,8 +503,47 @@ function makeAdvectHandler() {
         // old isolated per-tile warp).
         const wx = motion.dx * leadFactor, wy = motion.dy * leadFactor;
         const win = typeof window !== 'undefined' ? window : {};
-        let warped;
-        if (win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true && (Math.abs(wx) >= 1 || Math.abs(wy) >= 1)) {
+        let warped = null;
+        // SMOOTH MOTION FIELD (2026-07-11, default ON; kill __RAW_RADAR_ADVECT_SMOOTH_DISABLED__):
+        // the rigid per-tile warp made adjacent tiles slide as disagreeing blocks ("movement is
+        // very gridlike"). Estimate a HALF-RES vector for each 3×3 neighborhood tile (uniform
+        // SMOOTH_MOTION_OPTS so a physical tile yields the same vector from every neighborhood →
+        // shared edges interpolate identical vectors → field continuous across tile boundaries),
+        // then warp each pixel along its own bilinearly-interpolated vector. Neighbor estimates
+        // are cached ('sm|' keys) and shared — each observed tile is estimated once per catalog
+        // rotation for the whole layer.
+        if (win.__RAW_RADAR_ADVECT_SMOOTH_DISABLED__ !== true
+            && win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true) {
+          try {
+            const tiles = { '0,0': curr.data };
+            const motions = {};
+            const jobs = [];
+            for (let gy = -1; gy <= 1; gy++) for (let gx = -1; gx <= 1; gx++) {
+              const nCurrUrl = neighborTileUrl(currUrl, gx, gy);
+              const nPrevUrl = neighborTileUrl(prevUrl, gx, gy);
+              if (!nCurrUrl || !nPrevUrl) continue;
+              const k = `${gx},${gy}`;
+              jobs.push((async () => {
+                const nCurr = (gx === 0 && gy === 0) ? curr : await advGetTile(nCurrUrl);
+                if (!(gx === 0 && gy === 0)) tiles[k] = nCurr.data;
+                const smKey = 'sm|' + nPrevUrl + '|' + nCurrUrl;
+                let sm = _advectMotion.get(smKey);
+                if (!sm || now - sm.ts > ADVECT_TTL_MS) {
+                  const nPrev = await advGetTile(nPrevUrl);
+                  sm = { ...estimateMotion(nPrev.data, nCurr.data, nCurr.w, nCurr.h, SMOOTH_MOTION_OPTS), ts: now };
+                  _advectMotion.set(smKey, sm);
+                  advPrune(_advectMotion);
+                }
+                motions[k] = sm;
+              })().catch(() => {})); // missing/expired neighbor → smooth field falls back per-cell
+            }
+            await Promise.all(jobs);
+            warped = advectTileSmoothField(tiles, motions, curr.w, curr.h, leadFactor);
+          } catch (e) {
+            warped = null; // any smooth-path failure → rigid fallback below
+          }
+        }
+        if (!warped && win.__RAW_RADAR_ADVECT_NEIGHBOR_DISABLED__ !== true && (Math.abs(wx) >= 1 || Math.abs(wy) >= 1)) {
           const tiles = { '0,0': curr.data };
           const gxs = wx > 0 ? [-1, 0] : wx < 0 ? [0, 1] : [0];
           const gys = wy > 0 ? [-1, 0] : wy < 0 ? [0, 1] : [0];
@@ -517,7 +556,7 @@ function makeAdvectHandler() {
           }
           if (jobs.length) await Promise.all(jobs);
           warped = advectTileWithNeighbors(tiles, curr.w, curr.h, wx, wy);
-        } else {
+        } else if (!warped) {
           warped = advectTile(curr.data, curr.w, curr.h, wx, wy);
         }
         const canvas = advCanvas(curr.w, curr.h);

@@ -25,3 +25,9 @@ create table if not exists public.weather_manifest_pointer (
 -- Service-role-only: RLS on with no policies — anon/authenticated get nothing;
 -- the ingest runner and serve box use the service key, which bypasses RLS.
 alter table public.weather_manifest_pointer enable row level security;
+
+-- ⚠️ REQUIRED (found live 2026-07-11, run 29168283567): RLS bypass is NOT a GRANT — the table
+-- was created without API-role privileges, so the service key got 42501 "permission denied" on
+-- every pointer read/CAS while the run-keyed manifest objects uploaded fine. Grant the service
+-- role its table privileges (still no anon/authenticated access):
+grant select, insert, update on table public.weather_manifest_pointer to service_role;

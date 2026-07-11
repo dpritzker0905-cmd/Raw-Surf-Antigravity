@@ -225,3 +225,90 @@ export function advectForecast(prevRgba, currRgba, width, height, leadFactor, op
   const wx = dx * leadFactor, wy = dy * leadFactor;
   return { data: advectTile(currRgba, width, height, wx, wy), dx, dy, confidence };
 }
+
+// Half-resolution estimateMotion options for the SMOOTH-FIELD vectors (2026-07-11, the "movement
+// is very gridlike" report): every 3×3-neighborhood vector — INCLUDING the center's — is estimated
+// with the SAME options so a physical tile always yields the SAME vector regardless of which
+// neighborhood samples it; shared tile edges then interpolate identical vector pairs and the field
+// is continuous across tile boundaries BY CONSTRUCTION. Half resolution (S=32, cell=8px on a 256
+// tile) cuts the O(S²·R²) SAD cost ~16× so the 8 extra neighbor estimates don't jank the main
+// thread; sub-cell refinement keeps the precision adequate for a display motion field.
+export const SMOOTH_MOTION_OPTS = { gridSize: 32, searchRadius: 8, maxMotionCells: 6 };
+
+/**
+ * SMOOTH-FIELD advection warp (2026-07-11) — the fix for "gridlike" motion. The rigid warp gives
+ * every pixel of a tile the SAME vector, so adjacent tiles slide as disagreeing blocks and the
+ * animation reads as a grid of independently-moving squares. Real nowcasts advect along a smooth
+ * motion FIELD. Here each output pixel's vector is bilinearly interpolated from the 3×3
+ * neighborhood's per-tile vectors (positioned at tile centers, spacing = one tile), then the pixel
+ * samples the 3×3 observed mosaic at its own upstream position. At a shared edge the interpolation
+ * weights the same two physical tiles' vectors identically from both sides → no seam.
+ *
+ * @param {object|Map} tiles   'gx,gy' (gx,gy ∈ {-1,0,1}) → RGBA Uint8ClampedArray or null/absent.
+ * @param {object|Map} motions 'gx,gy' → { dx, dy, confidence } per-baseline FULL-RES pixels.
+ *   Every PRESENT entry is used VERBATIM — including confidence-0 identity verdicts. Seam
+ *   symmetry demands it: two adjacent neighborhoods interpolate the same physical pair of
+ *   vectors at their shared edge only if both read the same values, and a per-side "fall back
+ *   to my own center" rule re-creates the seam whenever one side is a conf-0 identity
+ *   (real-tile proof: z7/100,101 residual seam 14.6 under the fallback rule). Only MISSING
+ *   entries (neighbor fetch failed) fall back to the center vector.
+ * @returns {Uint8ClampedArray} the warped center tile (RGBA).
+ */
+export function advectTileSmoothField(tiles, motions, width, height, leadFactor) {
+  const get = (m, k) => (m instanceof Map ? m.get(k) : m && m[k]) || null;
+  const center = get(tiles, '0,0');
+  const out = new Uint8ClampedArray(width * height * 4);
+  if (!center) return out;
+  const cm = get(motions, '0,0') || { dx: 0, dy: 0, confidence: 0 };
+  // 3×3 vector grid at tile centers; entries verbatim, missing → center vector.
+  const vx = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  const vy = [[0, 0, 0], [0, 0, 0], [0, 0, 0]];
+  for (let gy = -1; gy <= 1; gy++) {
+    for (let gx = -1; gx <= 1; gx++) {
+      const m = get(motions, `${gx},${gy}`);
+      vx[gy + 1][gx + 1] = m ? m.dx : cm.dx;
+      vy[gy + 1][gx + 1] = m ? m.dy : cm.dy;
+    }
+  }
+  if (leadFactor === 0) { out.set(center); return out; }
+  // Composite every provided tile into the 3×3 mosaic (vectors vary per pixel, so inflow can come
+  // from any side — unlike the rigid warp's upwind-only need).
+  const W = width * 3, H = height * 3;
+  const mos = new Uint8ClampedArray(W * H * 4);
+  for (let gy = -1; gy <= 1; gy++) {
+    for (let gx = -1; gx <= 1; gx++) {
+      const t = get(tiles, `${gx},${gy}`);
+      if (!t) continue;
+      const ox = (gx + 1) * width, oy = (gy + 1) * height;
+      for (let y = 0; y < height; y++) {
+        const s = y * width * 4;
+        mos.set(t.subarray(s, s + width * 4), ((oy + y) * W + ox) * 4);
+      }
+    }
+  }
+  for (let y = 0; y < height; y++) {
+    // vertical interpolation setup: tile-center coordinate cy ∈ (-0.5, 0.5)
+    const cy = (y + 0.5) / height - 0.5;
+    const jy = cy < 0 ? 0 : 1;            // rows [jy, jy+1] of the 3×3 vector grid
+    const ty = cy < 0 ? cy + 1 : cy;      // weight toward the lower row
+    for (let x = 0; x < width; x++) {
+      const cx = (x + 0.5) / width - 0.5;
+      const jx = cx < 0 ? 0 : 1;
+      const tx = cx < 0 ? cx + 1 : cx;
+      const w00 = (1 - tx) * (1 - ty), w10 = tx * (1 - ty), w01 = (1 - tx) * ty, w11 = tx * ty;
+      const dx = (vx[jy][jx] * w00 + vx[jy][jx + 1] * w10 + vx[jy + 1][jx] * w01 + vx[jy + 1][jx + 1] * w11) * leadFactor;
+      const dy = (vy[jy][jx] * w00 + vy[jy][jx + 1] * w10 + vy[jy + 1][jx] * w01 + vy[jy + 1][jx + 1] * w11) * leadFactor;
+      const srcX = x + width - dx, srcY = y + height - dy;
+      const x0 = Math.floor(srcX), y0 = Math.floor(srcY);
+      if (x0 < 0 || y0 < 0 || x0 >= W - 1 || y0 >= H - 1) continue; // out → transparent
+      const fx = srcX - x0, fy = srcY - y0;
+      const s00 = (1 - fx) * (1 - fy), s10 = fx * (1 - fy), s01 = (1 - fx) * fy, s11 = fx * fy;
+      const i00 = (y0 * W + x0) * 4, i10 = i00 + 4, i01 = i00 + W * 4, i11 = i01 + 4;
+      const o = (y * width + x) * 4;
+      for (let c = 0; c < 4; c++) {
+        out[o + c] = mos[i00 + c] * s00 + mos[i10 + c] * s10 + mos[i01 + c] * s01 + mos[i11 + c] * s11;
+      }
+    }
+  }
+  return out;
+}
