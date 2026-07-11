@@ -173,59 +173,10 @@ def apply_surf_regional_prefer(
     return matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng
 
 
-def apply_marine_intersect_prefer(
-    *, use_manifest_product, domain, layer, req_w, req_s, req_e, req_n,
-    authoritative_candidates, estimated_candidates,
-    matching_manifest_item, manifest_preview_item, regional_span_lng,
-):
-    """── BLEND-BOTH intersect preference (task #17, 2026-07-11; kill switch MARINE_INTERSECT_PREFER=0) ──
-    The z7.8 cold-arrival remainder: when a marine viewport pokes past a fine tile's edge,
-    select_best_candidate's should_force_global filter drops every regional candidate the moment the
-    best one no longer fully COVERS the bbox — so a straddling viewport can never receive the fine
-    tile, and all lanes serve covering-but-coarse ~0.24° crops until the user pans back inside the
-    tile (the retention-band fix `4f60c196` only helps when the fine field is ALREADY resident).
-    For a NON-wide marine viewport with no product decision yet, re-select the INTERSECTING regional
-    tile when it covers ≥ MARINE_INTERSECT_MIN_FRAC (default 0.6 — the same floor as the engine's
-    no-downgrade retention, so arrival and retention agree and the lanes can't flap). Step 3 clips
-    the tile to the snapped bbox; the frontend's blend-both coarse wash fills the uncovered ring —
-    exactly the state the engine's own 2026-07-04 rationale calls display-acceptable ("only the
-    CENTER truth is at stake"). Mirrors the proven surf regional-prefer pattern one block above.
-
-    Returns a 5-tuple: (..., intersect_serve). intersect_serve=True tells resolve_grid's Step 3 to
-    stamp the served product HONESTLY as coverage_scope="regional_partial"/partial_coverage=True —
-    by construction this pass only fires for tiles that do NOT fully cover the viewport (a fully
-    covering tile is already served by decide_manifest_product), and these labels match what the
-    old Step 6 fallback produced for the same products (the frontend already renders them)."""
-    intersect_serve = False
-    if (
-        not use_manifest_product
-        and domain.lower() == "marine"
-        and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-        and req_w is not None
-        and os.environ.get("MARINE_INTERSECT_PREFER", "1") != "0"
-    ):
-        try:
-            min_frac = float(os.environ.get("MARINE_INTERSECT_MIN_FRAC", "0.6"))
-        except ValueError:
-            min_frac = 0.6
-        from services.weather_pipeline.product_selection import pick_surf_regional_override
-        intersect_item = pick_surf_regional_override(
-            authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n,
-            min_viewport_frac=min_frac,
-        )
-        if intersect_item is not None:
-            matching_manifest_item = intersect_item
-            manifest_preview_item = None
-            use_manifest_product = True
-            intersect_serve = True
-            _cov = intersect_item.coverage
-            if _cov.west <= _cov.east:
-                regional_span_lng = _cov.east - _cov.west
-            else:
-                regional_span_lng = (180.0 - _cov.west) + (_cov.east + 180.0)
-            logger.info(
-                f"[Grid Route] Blend-both intersect-prefer: serving intersecting fine tile "
-                f"'{getattr(intersect_item, 'filename', '?')}' (≥{min_frac:.0%} viewport coverage) "
-                f"over the coarse lanes for the straddling viewport."
-            )
-    return matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng, intersect_serve
+# ⛔ apply_marine_intersect_prefer REMOVED same-day (2026-07-11 eve, shipped 6a5f6992 → reverted):
+# its premise — "manifest regional tiles are FINE" — was falsified by live probes (FL pilots are
+# 13×9 = 0.25° at every hour; choose_adaptive_resolution floors the dynamic lane at 0.25° too), so
+# the pass served a coarser-or-equal PARTIAL rect clipped at the tile edge with no revalidation
+# (sticky) — a clamped-rectangle regression at straddling viewports, user-reported minutes after
+# deploy. pick_surf_regional_override keeps the min_viewport_frac param (tested, dormant) for the
+# redesigned #17 once the fine-grid resolution provenance is mapped.

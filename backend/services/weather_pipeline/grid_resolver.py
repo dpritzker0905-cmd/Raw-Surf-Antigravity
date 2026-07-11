@@ -28,7 +28,7 @@ from services.weather_pipeline.viewport_helper import _is_oversized_grid
 # Pure extractions — calculate_bbox_intersection_area is re-exported here for compatibility.
 from services.weather_pipeline.grid_resolver_selection import (
     calculate_bbox_intersection_area, find_candidates, decide_manifest_product,
-    apply_surf_regional_prefer, apply_marine_intersect_prefer,
+    apply_surf_regional_prefer,
 )
 from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
 
@@ -116,22 +116,14 @@ async def resolve_grid(
         )
     )
 
-    # BLEND-BOTH intersect preference (task #17; kill MARINE_INTERSECT_PREFER=0, floor
-    # MARINE_INTERSECT_MIN_FRAC=0.6): a straddling non-wide marine viewport gets the INTERSECTING
-    # fine tile (clipped by Step 3) instead of falling to the coarse lanes — the cold-arrival half
-    # of the z7.8 "clamping" arc (the retention band 4f60c196 was the resident half).
-    # intersect_serve → Step 3 stamps the honest regional_partial/partial_coverage labels.
-    matching_manifest_item, manifest_preview_item, use_manifest_product, regional_span_lng, _intersect_serve = (
-        apply_marine_intersect_prefer(
-            use_manifest_product=use_manifest_product, domain=domain, layer=layer,
-            req_w=req_w, req_s=req_s, req_e=req_e, req_n=req_n,
-            authoritative_candidates=authoritative_candidates,
-            estimated_candidates=estimated_candidates,
-            matching_manifest_item=matching_manifest_item,
-            manifest_preview_item=manifest_preview_item,
-            regional_span_lng=regional_span_lng,
-        )
-    )
+    # ⛔ REVERTED same-day (2026-07-11 eve): apply_marine_intersect_prefer ("serve the intersecting
+    # fine tile for straddling viewports") was built on a FALSIFIED premise — live probes showed the
+    # marine manifest pilots are 13×9 (0.25°, every hour), i.e. NEVER finer than the dynamic lane
+    # (choose_adaptive_resolution also floors at 0.25°). The pass served a coarser-or-equal PARTIAL
+    # rect clipped at the tile edge with NO revalidation scheduled (sticky), which reads as a clamped
+    # rectangle at straddling viewports — the exact user report minutes after deploy. The real #17
+    # cold-arrival fix needs a resolution-provenance map first (what lane, if any, produces the
+    # historical fine 61×41 grids). See HANDOFF-2026-07-11-EVE §revert.
 
     # Step-wise product resolution
     product = None
@@ -152,12 +144,6 @@ async def resolve_grid(
                     product.product_id = matching_manifest_item.filename
                     product.coverage_scope = "global" if regional_span_lng >= 350.0 else "regional"
                     product.partial_coverage = False
-                    if _intersect_serve:
-                        # Blend-both intersect-prefer serves a tile that does NOT fully cover the
-                        # viewport — label it honestly (the same labels the Step 6 fallback used
-                        # for these products; the frontend blend wash fills the uncovered ring).
-                        product.coverage_scope = "regional_partial"
-                        product.partial_coverage = True
                     product.requested_bbox_original = bbox
                     product.query_bbox = bbox
                     product.requested_bbox = bbox
