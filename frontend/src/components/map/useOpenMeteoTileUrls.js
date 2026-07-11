@@ -687,6 +687,63 @@ export function useOpenMeteoTileUrls({
     }
   }, [mapInstance, activeLayers, omTileUrls]);
 
+  // Activation-latency affordance (2026-07-11, "Air temps on ICON activation doesn't load
+  // without zooming"): the field WAS coming — a cold-CDN-edge .om fetch + decode for the less-
+  // trafficked models (dwd_icon; GFS is the default so its edge stays warm) takes seconds on
+  // first activation, and silence reads as broken. Poll the active raster's active slot until
+  // its source first reports loaded (or 30s), emitting 'rawsurf:raster-loading' transitions the
+  // layer picker turns into a pulsing icon. Settles permanently per (layer, model) activation —
+  // ordinary pans/scrubs never re-trigger it.
+  useEffect(() => {
+    if (typeof window === 'undefined' || !mapInstance) return;
+    const layerKey = activeLayers.find(k => LAYER_REGISTRY[k]?.omVariable && LAYER_REGISTRY[k]?.type === 'raster');
+    if (!layerKey) return;
+    let lastLoading = false;
+    let settled = false;
+    const startedAt = Date.now();
+    // Settle-race guard: on a MODEL switch the first ticks still see the OLD model's loaded
+    // slot URL (the new URL lands only when the transition's resolve finishes ~2s in) — settling
+    // on that stale loaded state would mute the real loading window. Only settle on a URL that
+    // differs from the effect-start URL, or after 4s unchanged-loaded (same-URL no-op switches).
+    // Poll the TARGET slot, not the active one: during activation/model-switch the ring advances
+    // (inactive layers keep slot-0 residency), so the real URL loads in the target slot while the
+    // active slot still holds the old/transparent tile (tracer-proven: 7 ticks all saw
+    // 'om://transparent-tile' on the active slot while the target fetched).
+    const slotOf = () => targetSlotsRef.current[layerKey] ?? activeSlotsRef.current[layerKey] ?? 0;
+    const startUrl = (() => {
+      try { return omTileUrlsRef.current[`${layerKey}-slot-${slotOf()}`] || null; } catch (e) { return null; }
+    })();
+    const emit = (loading) => {
+      if (loading === lastLoading) return;
+      lastLoading = loading;
+      try { window.dispatchEvent(new CustomEvent('rawsurf:raster-loading', { detail: { layer: layerKey, loading } })); } catch (e) { /* noop */ }
+    };
+    const iv = setInterval(() => {
+      if (settled) return;
+      let loaded = false;
+      let hasRealUrl = false;
+      let url = null;
+      try {
+        const slot = slotOf();
+        url = omTileUrlsRef.current[`${layerKey}-slot-${slot}`];
+        hasRealUrl = !!url && url !== 'om://transparent-tile';
+        loaded = hasRealUrl && mapInstance.getSource(`${layerKey}-slot-${slot}-source`) && mapInstance.isSourceLoaded(`${layerKey}-slot-${slot}-source`) === true;
+      } catch (e) { /* style mid-load — keep polling */ }
+      const urlSettleOk = url !== startUrl || Date.now() - startedAt > 4000;
+      if ((loaded && urlSettleOk) || Date.now() - startedAt > 30000) {
+        settled = true;
+        emit(false);
+        clearInterval(iv);
+      } else {
+        emit(hasRealUrl && !loaded);
+      }
+    }, 400);
+    return () => {
+      clearInterval(iv);
+      emit(false);
+    };
+  }, [mapInstance, activeLayers, activeModel]);
+
   return {
     protocolReady,
     omTileUrls,
@@ -697,3 +754,4 @@ export function useOpenMeteoTileUrls({
   };
 
 }
+

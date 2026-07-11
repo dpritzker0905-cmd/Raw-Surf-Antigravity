@@ -113,6 +113,21 @@ export var MapWeatherControls = ({
 
   const allowedModels = getAllowedModels(userTier);
 
+  // Activation-latency affordance: useOpenMeteoTileUrls emits 'rawsurf:raster-loading' while
+  // an activated raster's first tiles fetch+decode (cold CDN edge on the less-trafficked
+  // models takes seconds — "ICON air temp doesn't load" was silence, not breakage). The active
+  // layer's icon pulses until the field first paints.
+  const [loadingLayers, setLoadingLayers] = useState({});
+  useEffect(() => {
+    const onLoading = (e) => {
+      const { layer, loading } = (e && e.detail) || {};
+      if (!layer) return;
+      setLoadingLayers(prev => (!!prev[layer] === !!loading ? prev : { ...prev, [layer]: !!loading }));
+    };
+    window.addEventListener('rawsurf:raster-loading', onLoading);
+    return () => window.removeEventListener('rawsurf:raster-loading', onLoading);
+  }, []);
+
   const models = [
     { id: 'GFS', label: 'GFS', locked: !allowedModels.includes('GFS') },
     { id: 'EURO', label: 'EURO', locked: !allowedModels.includes('EURO') },
@@ -609,7 +624,7 @@ export var MapWeatherControls = ({
                 onClick={() => onLayerToggle(layer.id)}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? layer.color : textMuted}`} />
+                <Icon className={`w-3.5 h-3.5 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />
                 <span className={isActive ? textClass : textMuted}>{layer.label}</span>
               </button>
             );
@@ -745,7 +760,7 @@ export var MapWeatherControls = ({
                   onClick={() => onLayerToggle(layer.id)}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all shrink-0 ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted}`} />
+                  <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />
                   <span className={isActive ? textClass : textMuted}>{layer.label}</span>
                 </button>
               );
@@ -776,3 +791,4 @@ export var MapWeatherControls = ({
 };
 
 export default MapWeatherControls;
+
