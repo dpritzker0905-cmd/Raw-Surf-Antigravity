@@ -166,6 +166,39 @@ const MapWebGL = ({
     };
   }, [mapInstance]);
 
+  // WATER-TEMP ANCHOR RE-ASSERT (2026-07-11, live regression "intermittently displaying over land"):
+  // the slot <Layer beforeId> only anchors at MOUNT time. Toggling water_temp on mounts its slots
+  // while ocean-mask-fill doesn't exist yet (mask activation runs in parallel, marineBeforeId falls
+  // back), and the fill then mounts BELOW the already-mounted slots (#17 time-of-add class) — land
+  // skin temps stay visible until a lucky re-mount. Deterministic order = re-assert on styledata:
+  // any water_temp slot ABOVE the fill is moved back below it. Loop-safe by construction: only
+  // strictly-above slots move (one corrective pass, then every styledata tick no-ops), and order is
+  // read from map.style._order (getStyle().layers omits custom layers — documented landmine).
+  // Kill: __RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__.
+  useEffect(() => {
+    if (!mapInstance) return;
+    const reassert = () => {
+      if (typeof window !== 'undefined' && window.__RAW_WATER_TEMP_ANCHOR_REASSERT_DISABLED__ === true) return;
+      try {
+        const order = mapInstance.style && mapInstance.style._order;
+        if (!Array.isArray(order)) return;
+        const fillIdx = order.indexOf('ocean-mask-fill');
+        if (fillIdx === -1) return;
+        for (let s = 0; s < 3; s++) {
+          const lid = `water_temp-slot-${s}-layer`;
+          const idx = order.indexOf(lid);
+          if (idx > fillIdx) {
+            mapInstance.moveLayer(lid, 'ocean-mask-fill');
+            console.log(`[WaterTemp] Re-asserted ${lid} below ocean-mask-fill (was above, idx ${idx} > ${fillIdx})`);
+          }
+        }
+      } catch (e) { /* style mid-load — the next styledata retries */ }
+    };
+    mapInstance.on('styledata', reassert);
+    reassert();
+    return () => { if (mapInstance) mapInstance.off('styledata', reassert); };
+  }, [mapInstance]);
+
   // Rating mode (the Swell↔Rating toggle in MapWeatherControls). Tracked reactively here so the spot
   // glyphs + clustering can respond; the toggle persists the flag and fires 'rawsurf:surf-toggle'.
   const [surfMode, setSurfMode] = useState(() => { try { return getSurfModeFlag(); } catch (e) { return false; } });

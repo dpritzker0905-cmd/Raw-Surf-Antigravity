@@ -9,6 +9,7 @@ import { useMarineDataFetcher } from './useMarineDataFetcher';
 import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
 import { ensureMarineSeries, getMarineSeriesFrame, prewarmMarineSeries } from './marineGridSeries';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
+import { isTerminalNoCoverage } from './marineControllerCache';
 
 import { useMarineOrchestratorScrubCache } from './useMarineOrchestratorScrubCache';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
@@ -221,7 +222,24 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   useEffect(() => {
     if (!mapInstance) return;
 
-    manualMarineTriggerRef.current = () => enqueueMarineUpdate('manual');
+    // AUDIT #29 (2026-07-11 live log): the activation lanes (layer-activated / model-switch /
+    // style-ready manual fetches) re-fired a DOOMED fetch on every model flip while the timeline
+    // sat at a no-coverage hour — each 404 → safe-zero → engine churn across ALL models. The
+    // terminal tracker already records these hours at the safe-zero site (§7.6) and already gates
+    // the scrub-settle + wind lanes; this closes the last ungated lane at its single choke-point.
+    // Per-(model,layer,hour) keyed + 15min TTL, so switching to a DIFFERENT model still fetches
+    // once, and a new ingest cycle retries cleanly. The held stale frame keeps displaying.
+    // Kill: __RAW_DISABLE_TERMINAL_NOCOV_BYPASS__ (shared). Tel: recordChurn('manual_terminal_nocov_skip').
+    manualMarineTriggerRef.current = () => {
+      const _layer = activeMarineLayerRef.current || 'waves';
+      if (isTerminalNoCoverage(activeModelRef.current, _layer, timeOffsetRef.current)) {
+        recordChurn('manual_terminal_nocov_skip', {
+          model: activeModelRef.current, layer: _layer, hour: timeOffsetRef.current
+        });
+        return;
+      }
+      enqueueMarineUpdate('manual');
+    };
 
     const onMoveEnd = () => {
       if (window.isScrubbingTimeline) return;

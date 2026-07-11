@@ -628,27 +628,30 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
 
   const triggerSync = useCallback((delay = 0) => {
     if (timeoutRef.current) clearTimeout(timeoutRef.current);
+    // RAPID-RETOGGLE WEDGE FIX (2026-07-11, live-tapped with water_temp): a reactivation whose sync
+    // lands inside another sync's 300ms syncingRef window was DROPPED silently. Nothing heals it on
+    // an idle map — source setData fires 'sourcedata' (NOT 'styledata'), so the styledata resync
+    // handler never runs and the mask stays hidden indefinitely (land visible under water_temp /
+    // marine). Instead of dropping, RETRY once the window has passed. Self-limiting: the retry
+    // re-enters through the same collision check, and a successful sync clears the need.
+    // Kill: __RAW_MASK_SYNC_RETRY_DISABLED__ (restores the silent drop).
+    const runOrRetry = () => {
+      syncRafIdRef.current = null;
+      if (!syncingRef.current) {
+        syncingRef.current = true;
+        syncLayers();
+        setTimeout(() => { syncingRef.current = false; }, 300);
+      } else if (!(typeof window !== 'undefined' && window.__RAW_MASK_SYNC_RETRY_DISABLED__ === true)) {
+        timeoutRef.current = setTimeout(() => triggerSync(0), 350);
+      }
+    };
     if (delay === 0) {
       if (syncRafIdRef.current) cancelAnimationFrame(syncRafIdRef.current);
-      syncRafIdRef.current = requestAnimationFrame(() => {
-        syncRafIdRef.current = null;
-        if (!syncingRef.current) {
-          syncingRef.current = true;
-          syncLayers();
-          setTimeout(() => { syncingRef.current = false; }, 300);
-        }
-      });
+      syncRafIdRef.current = requestAnimationFrame(runOrRetry);
     } else {
       timeoutRef.current = setTimeout(() => {
         if (syncRafIdRef.current) cancelAnimationFrame(syncRafIdRef.current);
-        syncRafIdRef.current = requestAnimationFrame(() => {
-          syncRafIdRef.current = null;
-          if (!syncingRef.current) {
-            syncingRef.current = true;
-            syncLayers();
-            setTimeout(() => { syncingRef.current = false; }, 300);
-          }
-        });
+        syncRafIdRef.current = requestAnimationFrame(runOrRetry);
       }, delay);
     }
   }, [syncLayers]);
