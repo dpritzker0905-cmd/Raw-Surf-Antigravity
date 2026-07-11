@@ -13,7 +13,7 @@ import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
-import { recordClear, shouldHoldClearOnDeactivate } from './marineTransitionCoordinator';
+import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
@@ -749,8 +749,11 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // TRANSITION HOLD (2026-07-06): a model/layer switch blinks `active` false during the
       // style transition — keep the resident textures AND the upload signature through it so
       // the reactivation refeed dup-skips instead of paying a full re-encode + particle reset
-      // (see shouldHoldClearOnDeactivate). A real toggle-off still clears here.
+      // (see shouldHoldClearOnDeactivate). Since 2026-07-11 (audit #27) the hold also covers
+      // cross-family toggles for a TTL; a deactivation that outlives it still clears here or
+      // at the per-frame site.
       if (engine._waveData && !shouldHoldClearOnDeactivate()) {
+        recordClear('deactivate_toggle_off');
         engine.clearBuffers(gl);
         lastUploadedSignatureRef.current = '';
         lastUploadedGridRef.current = {
@@ -762,6 +765,8 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       }
       return;
     }
+
+    noteMarineActive();
 
     const currentData = dataRef.current;
     const isRenderable = currentData && currentData.vectors?.length > 0 && currentData.__renderable !== false;

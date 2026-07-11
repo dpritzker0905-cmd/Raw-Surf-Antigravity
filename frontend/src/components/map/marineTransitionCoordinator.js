@@ -25,12 +25,51 @@
 // diagnostics keep working. `__MARINE_FETCH_PENDING__` and `__MARINE_FETCH_DEBOUNCING__`
 // remain owned by useMarineDataFetcher (separate concerns) and are NOT touched here.
 
+import { isHandheldDevice } from './deviceTier';
+
 let _gen = 0;          // monotonic transitionId
 let _target = null;    // { gen, beginKey, model, layer, hour, viewportKey, status }
 let _displayed = null; // { model, layer, hour, viewportKey } — last frame actually shown
 const _subs = new Set();
 
 const transitionKey = (model, layer) => `${model ?? ''}|${layer ?? ''}`;
+
+// CROSS-FAMILY TOGGLE HOLD (2026-07-11, audit #27 "marine clears when toggling to wind; wind
+// seemed better than marine"): the 07-06 transition-hold below only covers IN-FAMILY switches
+// (model/layer flips set __MARINE_TRANSITIONING__/__MARINE_FETCH_*), so a marine→wind/radar/raster
+// toggle set none of the flags, both clear sites fired, and the return leg paid a full re-encode
+// + mask rebuild + TWO particle resets — while wind RETAINS across the same gesture
+// (hold-last-frame 06fbeef2 + trail-keep 68e80179), hence the felt asymmetry. Residents now stay
+// held for a TTL after ANY deactivation; within it the reactivation dup-skips (the residency-aware
+// diff in computeVectorDiffAndLog re-uploads whenever the engine is actually empty, so a held-then-
+// expired engine can never dup-skip into a blank heatmap). Marginal VRAM is small: clearBuffers
+// never freed the big residents (_residentWaveTex/_cachedMaskTex/bath/chl survive it) — the hold
+// only keeps the coarse-base FBO + the _waveData binding alive. Handhelds hold for a shorter TTL.
+// Expiry executes at the per-frame clear site on the next rendered frame past the TTL (same
+// deferred-clear reliance as the in-family hold); truth stays safe because the held frame's
+// displayed identity is unchanged (infobox parity gate compares identity, not recency).
+// Kill: __RAW_MARINE_XFAM_HOLD_DISABLED__=true (cross-family only) or __RAW_DISABLE_CLEAR_HOLD__
+// (all holds). Tune: __RAW_MARINE_XFAM_HOLD_TTL_MS__. Telemetry: __MARINE_XFAM_HOLD_COUNT__ +
+// recordChurn('xfam_hold_expired').
+const XFAM_HOLD_TTL_MS_DEFAULT = 120000;
+const XFAM_HOLD_TTL_MS_HANDHELD = 30000;
+let _xfamDeactivatedAt = null; // first deactivated-with-residents call starts the clock
+let _xfamExpiredLogged = false;
+
+function xfamHoldTtlMs() {
+  if (typeof window !== 'undefined' && typeof window.__RAW_MARINE_XFAM_HOLD_TTL_MS__ === 'number') {
+    return Math.max(0, window.__RAW_MARINE_XFAM_HOLD_TTL_MS__);
+  }
+  return isHandheldDevice() ? XFAM_HOLD_TTL_MS_HANDHELD : XFAM_HOLD_TTL_MS_DEFAULT;
+}
+
+/** Reset the cross-family deactivation clock. Called from the marine layer's active paths
+ *  (React effect on the active flip + per-frame render, both idempotent-cheap). */
+export function noteMarineActive() {
+  if (_xfamDeactivatedAt === null && !_xfamExpiredLogged) return;
+  _xfamDeactivatedAt = null;
+  _xfamExpiredLogged = false;
+}
 
 // TRANSITION-HOLD predicate (2026-07-06, "models not switching fast between GFS/EURO/ICON"):
 // a model/layer switch blinks the marine layer INACTIVE during the style transition, and both
@@ -51,8 +90,21 @@ export function shouldHoldClearOnDeactivate() {
     !!window.__MARINE_FETCH_DEBOUNCING__;
   if (hold) {
     window.__MARINE_CLEAR_HELD__ = (window.__MARINE_CLEAR_HELD__ || 0) + 1;
+    return true;
   }
-  return hold;
+  // CROSS-FAMILY TOGGLE HOLD (audit #27) — see the block comment above noteMarineActive().
+  if (window.__RAW_MARINE_XFAM_HOLD_DISABLED__ === true) return false;
+  const now = Date.now();
+  if (_xfamDeactivatedAt === null) _xfamDeactivatedAt = now;
+  if (now - _xfamDeactivatedAt < xfamHoldTtlMs()) {
+    window.__MARINE_XFAM_HOLD_COUNT__ = (window.__MARINE_XFAM_HOLD_COUNT__ || 0) + 1;
+    return true;
+  }
+  if (!_xfamExpiredLogged) {
+    _xfamExpiredLogged = true;
+    recordChurn('xfam_hold_expired', { heldMs: now - _xfamDeactivatedAt });
+  }
+  return false;
 }
 
 function emit() {
@@ -205,6 +257,8 @@ export function __resetForTests() {
   _gen = 0;
   _target = null;
   _displayed = null;
+  _xfamDeactivatedAt = null;
+  _xfamExpiredLogged = false;
   _subs.clear();
   if (typeof window !== 'undefined') {
     window.__MARINE_TRANSITIONING__ = false;

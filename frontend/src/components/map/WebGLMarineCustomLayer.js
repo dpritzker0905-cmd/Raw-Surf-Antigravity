@@ -1,6 +1,6 @@
 import { registerMarineEngine } from '../../engine/RenderPlanDispatcher';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
-import { shouldHoldClearOnDeactivate } from './marineTransitionCoordinator';
+import { shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
 
 export const LAYER_ID = 'webgl-marine-particles';
 
@@ -118,6 +118,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       }
 
       this._wasActive = true;
+      noteMarineActive(); // reset the #27 cross-family deactivation clock (no-op when not ticking)
       // COARSE-BASE BRIDGE flag — reset every frame; set true only in the regional-rejected-zoomed-out
       // branch below when a retained coarse base exists (bridges the z<7 zoom-out clear).
       if (engine) engine.__coarseBridgeActive = false;
