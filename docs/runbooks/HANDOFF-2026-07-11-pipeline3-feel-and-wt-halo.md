@@ -70,10 +70,15 @@ timestep; mainland LA cell 27.45°C — daytime halos are far worse), and the st
 **Grid orientation landmine: row 0 = SOUTH (GFS ascending-lat). A row-north read mirrors you into
 the opposite hemisphere and produces plausible-flat garbage — validate with a Sahara/Antarctica
 probe pair before trusting any sample.**
-**Fix (openMeteoProtocol.js):** decode-level land mask — `postReadCallback` NaNs land cells for
-`surface_temperature` only (NE 50m polygons rasterized to the grid via OffscreenCanvas,
-row-south aligned). NaN renders transparent → coast/island cells = honest no-data instead of
-fake warm water; contours stop at the coast. Kill: `globalThis.__RAW_WT_LANDMASK_DISABLED__`.
+**Fix (openMeteoProtocol.js, final form `981c4cfd`):** decode-level OCEAN-FILL for
+`surface_temperature` only — land cells take the mean of clean water neighbors (3 breadth-first
+dilation passes; NE 50m polygons rasterized to the grid via OffscreenCanvas, row-south aligned),
+deep interior NaN'd (under the opaque mask anyway). Field runs continuous to the coastline with
+water-derived values (LA-coast cell 20.4°C filled vs 27.5°C raw land heat). The intermediate
+NaN-only version left a no-data MOAT that read as a worse band on ifs025 (whole SoCal bight
+empty) — user-reported, corrected same session. Kill: `globalThis.__RAW_WT_LANDMASK_DISABLED__`.
+Residual soft coastal gradient = real nearshore warmth + model-internal land influence
+(not removable client-side, physically plausible).
 **Hardening round (after the user re-reported persistence — which was pre-deploy, but the
 probes exposed two REAL gaps):**
 1. **Lazy-build race:** the first decode per grid-dims rendered unmasked and the library CACHED
