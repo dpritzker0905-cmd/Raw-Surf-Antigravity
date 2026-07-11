@@ -218,8 +218,20 @@ Wind's counterpart RETAINS (hold-last-frame 06fbeef2 + trail-keep 68e80179) — 
 toggles behind a kill switch (residents kept for a TTL after deactivation), with ① VRAM accounting
 (mask 4096×2048 + wave/bathy/chl + coarse-base FBO), ② the "radar render-mode SUSPENDS marine
 engine" landmine (radar activation may REQUIRE the clear), ③ mobile-tier gating, ④ user live A/B.
-**Second question for that session:** why `_cachedMaskTex` retention didn't prevent the ×6 mask
-rebuilds (clearBuffers guards it, yet creation fired per return-leg).
+**Second question — PARTIALLY RESOLVED (07-11 second pass):** the mask retain machinery is INTACT
+(4 guarded branches in WebGLMarineTextureEncoder.js:455-608, each with a documented same-day-regression
+scar — this is P6/#14 minefield, do NOT touch casually); the ×6 rebuilds may be partially LEGITIMATE
+(user panned/scrubbed between toggles → bounds changed → rebuild by design). Discriminate in the
+dedicated session with EXISTING telemetry: after each toggle read `__MARINE_ENGINE__._lastMaskEncodeMode`
+(reuse/retain_*/rebuild/rebuild_upgrade_over_retain) + `__RAW_MASK_RETAIN_COUNT__`/`__RAW_MASK_RES_RETAIN_COUNT__`
+deltas — rebuilds at UNCHANGED bounds = the real defect; rebuilds after camera moves = design.
+**⚠️ MEASUREMENT CONFOUND (user chime-in 07-11): React Scan is ACTIVE in the user's dev--rawsurf
+sessions** — index.html gates it to localhost OR `?reactscan=1`, and the session logs show it
+initializing on deploy-hash builds → the user's URL carries the opt-in. A live render-profiler
+instruments EVERY component render: the felt "not snappy" + the 77-104ms rAF violations include its
+overhead. Clean-feel baseline = re-test WITHOUT `?reactscan=1`; deliberate use = the render-churn
+measurement tool for the #27 dedicated session. (Hygiene follow-up: the loader pulls floating
+unpkg `latest` — pin the version.)
 **Same-session notes:** two grid_series fetches FAILED network-level (EURO marine swell_1 h144-285;
 GFS wind h288-384, both on a 204°-wide bbox — abort-vs-server split unresolved) · one `[SWELL2_DROP]`
 (unexpanded) · `[Release]`/cache-MISS churn on rapid same-layer re-toggles worth an eye.

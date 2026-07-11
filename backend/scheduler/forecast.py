@@ -109,6 +109,11 @@ def ingest_marine_forecast_task():
                 # AFTER the marine globals (its GFS/EURO/ICON anchors) but BEFORE the slow regional pilots so
                 # a CI timeout can't skip the fix. Compute-only (no GRIB fetch). Kill switch EURO_MARINE_EXTEND=0.
                 ("EURO Marine Extended Estimates", weather_scheduler.ingest_euro_marine_extended_estimates),
+                # ICON marine 168->336h estimates (persistence + GFS trend — the client's far-hour
+                # blend baked server-side, strategy slice 1 second half). Compute-only, store-fed;
+                # placed right after the EURO extension for the same timeout-safety reason.
+                # Kill switch ICON_MARINE_EXTEND=0.
+                ("ICON Marine Extended Estimates", weather_scheduler.ingest_icon_marine_extended_estimates),
             ]
 
             pilot_jobs = [

@@ -730,3 +730,11 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.scheduler_helpers import ingest_euro_marine_extended_estimates_impl
         return await ingest_euro_marine_extended_estimates_impl(self)
 
+    async def ingest_icon_marine_extended_estimates(self) -> bool:
+        """
+        Stage 6I.3: Precomputes ICON marine 168->336h estimates (persistence + GFS trend) so the
+        client's 3-fetch-per-far-hour blend demotes to fallback. See icon_marine_extension.py.
+        """
+        from services.weather_pipeline.icon_marine_extension import ingest_icon_marine_extended_estimates_impl
+        return await ingest_icon_marine_extended_estimates_impl(self)
+
