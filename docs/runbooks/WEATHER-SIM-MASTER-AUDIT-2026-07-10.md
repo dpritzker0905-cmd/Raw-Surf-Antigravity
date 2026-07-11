@@ -201,6 +201,24 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
+## SLICE ① SECOND HALF — ICON MARINE >168h SERVER-SIDE PRE-BAKE (DESIGN banked 07-11; implement AFTER the EURO-tail cycle verifies)
+**Today (client-side, 3 /grid requests per far hour per viewport):** `fetchBackendMarineGridIconExtended`
+(backendWeatherServiceClientHelpers.js:447) — 168<h≤240: persistence(ICON anchor@168, per-viewport cached)
++ GFS trend (anchor@168 vs target@h), weight ramp IDENTICAL to the backend `get_estimate_weights`
+no-ICON path (0.70−0.30·d → ramp → GFS-1.0); h>240: `icon_gfs_euro_blend` branch; swell_2: inline
+60/40 GFS+EURO blend (backendWeatherServiceClient.js:280+, ICON/GWAM has no native swell_2).
+**Migration = parameterize the EXISTING rail, not new math:**
+1. Anchor pool: last native ICON marine product per region/layer (mirror `euro_estimate_anchor_pool`).
+2. Targets: GFS marine 3-hourly stored products 168→336h (already ingested to 14d).
+3. Blend: `estimate_euro_grid` machinery with the ICON anchor in the persistence role, no third model
+   (the weights path already exists as is_icon_valid=False); basis `icon_persistence_gfs_blend`.
+4. ⚠️ GATE: `copernicus_validator.py:78` WHITELISTS basis types — add the new basis or products are rejected.
+5. Save via Stage-6I.2 scaffold (new scheduler stage, kill `ICON_MARINE_EXTEND=0`); prune preserved by cf0b4b23.
+6. Client: `fetchBackendMarineGridIconExtended` becomes the FALLBACK (resolver serves stored first —
+   the fc0ec396/e1adb799 pattern); swell_2 blend stays client-side initially (own follow-up).
+Effect: ICON/marine stored horizon 158→~330h; kills 3-fetch-per-hour far scrubs. Prereq: one clean
+production cycle of the EURO-wind clone pattern (same rail, evidence first).
+
 ## REMAINING PHASES — QUEUE + RECIPES (next sessions; graph server ready: 34k nodes/73k edges)
 - **P6 (OceanMask lifecycle):** DONE — section above (documentation only, code untouched).
 - **P7 (particles):** SpectorJS (`tools/spectorjs`) + `__WIND_TELEMETRY__`; triage #10 (300 vectors) first.
