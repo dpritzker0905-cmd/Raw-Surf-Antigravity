@@ -156,6 +156,21 @@ next ingest cycle. **P8 follow-up (separate session): once `manifest_written_by`
 generation shows healthy cycles, flip hot serve routes to Cache-Control using pointer-resolved
 run-keyed URLs.**
 
+## 4c. SESSION CLOSE — cluster ping + waves-clamping verdict (`0a67cbaf`)
+**Cluster rating "not activating" = design gap, not bug** (probe-captured render props:
+clusterRatings 10/10 populated, tint+glow applied) → rated cluster bubbles now carry the same
+animated ping ring as spot glyphs. Probe recipe: `__SCRUB_PROBE_ON__ = true` + wrap
+`__SCRUB_PROBE__.onRender` to capture the last render's props. ⚠️ The Swell/Rating pill shares
+its visible label with the Swell LAYER button — select it by `title` ("Toggle Swell").
+**Waves "clamping at z7.84" (user hypothesis: rating-mode-caused): A/B DISPROVEN** — Rating
+on/off screenshots at the identical z7.84 view show an indistinguishable field. The "grid" look
+is the regional band's particle streak structure (both modes), stepping to the coarse wash at
+z5.23 — designed tiering; the z9 native-resolution verdict stands (density ladder
+marineControllerUtils.js:298-303 = documented minefield). FPS 31 in dev preview ≈ the stable 30
+target; re-judge FEEL only on the deployed build.
+**`__SPOT_RATINGS_DIAG__` decoder:** eligibleSpots = UNCLUSTERED spots in view; mergedCount 0
+with surfMode:false = correct gating, not failure.
+
 ## 5. OPTIONAL FUTURE (not started, by design)
 ICON water temp "estimate science" differentiation: serve GFS SST nudged by an ICON-derived
 anomaly (e.g., ICON 2m-air anomaly vs GFS, damped coastal) labeled `estimate` provenance like the
