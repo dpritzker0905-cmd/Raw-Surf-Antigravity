@@ -164,7 +164,17 @@ export function useOpenMeteoTileUrls({
       } catch (e) {
         // Safe fallback
       }
-      const isTimeout = elapsed > 2000;
+      // Audit #31 flash #2 (2026-07-11): a 2s force-flip lands on a slot whose cold .om decode
+      // is still running → the active raster goes transparent until decode (the second flash on
+      // model switch; the slot-advance ping-pong in the user's satellite log was these forced
+      // flips interleaving with per-metadata URL re-resolution). With content on screen, hold the
+      // current slot up to 10s — bounded because the om protocol resolves every tile terminally
+      // (data, 404-blacklist transparent, or error-fallback transparent), so isLoaded always
+      // arrives. Cold start keeps 2s (nothing on screen to hold). Kill switch
+      // window.__RAW_SLOT_FLIP_TIMEOUT_LEGACY__ = true restores the flat 2s.
+      const timeoutLegacy = typeof window !== 'undefined' && window.__RAW_SLOT_FLIP_TIMEOUT_LEGACY__ === true;
+      const flipTimeoutMs = (activeSlot === undefined || timeoutLegacy) ? 2000 : 10000;
+      const isTimeout = elapsed > flipTimeoutMs;
 
       // If a layer has no active slot (cold start)
       if (activeSlot === undefined) {
@@ -314,6 +324,22 @@ export function useOpenMeteoTileUrls({
     registerOpenMeteoProtocol(maplibregl, setProtocolReady, MODEL_METADATA_CACHE);
   }, []);
 
+  // Water-temp halo heal (2026-07-11): if a surface_temperature decode raced past the land-mask
+  // build, the library cached an UNMASKED field for that timestep. When the protocol signals the
+  // mask is ready, rotate the wt URLs once (&wtlm=1 via getUrlForIndex) → slots re-point → fresh
+  // masked decode. One-shot per session; every other layer's URLs are untouched.
+  const wtLandmaskNudgeRef = useRef(false);
+  useEffect(() => {
+    if (typeof window === 'undefined') return;
+    const onMaskReady = () => {
+      if (wtLandmaskNudgeRef.current) return;
+      wtLandmaskNudgeRef.current = true;
+      setMetadataRevision(prev => prev + 1);
+    };
+    window.addEventListener('rawsurf:wt-landmask-ready', onMaskReady);
+    return () => window.removeEventListener('rawsurf:wt-landmask-ready', onMaskReady);
+  }, []);
+
   // Sync state changes with the diagnostics telemetry engine
   useEffect(() => {
     WeatherTelemetry.updateState(activeModel, activeLayers, debouncedTimeOffsetHours);
@@ -409,7 +435,9 @@ export function useOpenMeteoTileUrls({
       const clampedIdx = len > 0 ? Math.max(0, Math.min(len - 1, Number(idx) || 0)) : 0;
       const darkParam = (theme === 'dark' || theme === 'beach') ? '&dark=true' : '';
       const cacheBuster = cacheBustRef.current ? `&_cb=${cacheBustRef.current}` : '';
-      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}`;
+      // wt-landmask heal: one-time URL rotation so cached pre-mask decodes get re-decoded masked.
+      const wtHeal = (variable === 'surface_temperature' && wtLandmaskNudgeRef.current) ? '&wtlm=1' : '';
+      return `om://https://map-tiles.open-meteo.com/data_spatial/${model}/latest.json?time_step=valid_times_${clampedIdx}&variable=${variable}${darkParam}&contours=true${cacheBuster}${wtHeal}`;
     };
 
     const resolveAllUrls = async () => {

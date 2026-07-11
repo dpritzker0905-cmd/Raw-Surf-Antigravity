@@ -814,6 +814,28 @@ const MapWebGL = ({
     // window.__RAW_PRECIP_BOLD_DISABLED__ restores the legacy stops (pairs with the legacy palette).
     const precipBoldDisabled = typeof window !== 'undefined' && window.__RAW_PRECIP_BOLD_DISABLED__ === true;
     const rainOp = precipBoldDisabled ? [0.35, 0.42, 0.48, 0.52] : [0.60, 0.68, 0.74, 0.78];
+    // Audit #31 (2026-07-11, double-flash on model switch): the isTransitioning blank-out below
+    // predates cache retention (9f231d40) — post-retention the old model's tiles stay valid while
+    // the new model's URLs resolve, so hiding every raster slot during the switch only produces a
+    // basemap flash (measured 2.1s in the isStyleLoaded()-false path) before restoring THE SAME
+    // tiles. Hold the last frame instead (the marine #27 retain philosophy); the loaded-gated slot
+    // flip delivers the new model when it's actually renderable. Kill switch
+    // window.__RAW_MODEL_SWITCH_BLANK_LEGACY__ = true restores the blank-out exactly (it also
+    // re-enables the paired imperative restore in useModelTransition.finishTransition).
+    const blankLegacy = typeof window !== 'undefined' && window.__RAW_MODEL_SWITCH_BLANK_LEGACY__ === true;
+    const hideForTransition = blankLegacy && isTransitioning;
+    // Audit #25 A/B (2026-07-11, cold-tile clears at pyramid crossings): maplibre 5.x retains
+    // loaded parent/child substitutes regardless of fade, but fade>0 ADDs the 2-generation
+    // descendant search (tile_manager.ts updateFadingTiles) and soft pop-in for cold .om decodes.
+    // Radar already ships fade 180ms for the same "clear then fill" symptom. A/B: the temp PAIR
+    // (Air Temp + Water Temp — the user-reported zoom-clearing layers) gets 200ms; rain/fog/
+    // pressure/satellite keep the deliberate 0 as the control arm (slot-crossfade precedent).
+    // Tune all layers: window.__RAW_RASTER_FADE_MS__ = <ms>; force legacy 0 everywhere:
+    // window.__RAW_RASTER_FADE_DISABLED__ = true.
+    const fadeOverride = typeof window !== 'undefined' && typeof window.__RAW_RASTER_FADE_MS__ === 'number'
+      ? Math.max(0, Math.min(1000, window.__RAW_RASTER_FADE_MS__)) : null;
+    const fadeDisabled = typeof window !== 'undefined' && window.__RAW_RASTER_FADE_DISABLED__ === true;
+    const fadeFor = (k) => fadeDisabled ? 0 : (fadeOverride !== null ? fadeOverride : (isTempPair(k) ? 200 : 0));
     return protocolReady && Object.keys(LAYER_REGISTRY).filter(k =>
       LAYER_REGISTRY[k].omVariable && (
         LAYER_REGISTRY[k].type === 'raster' ||
@@ -852,10 +874,10 @@ const MapWebGL = ({
                 ? (marineBeforeId || omSlotsBeforeId)
                 : omSlotsBeforeId) || undefined}
               layout={{
-                visibility: (!isTransitioning && activeLayers.includes(layerKey)) ? 'visible' : 'none'
+                visibility: (!hideForTransition && activeLayers.includes(layerKey)) ? 'visible' : 'none'
               }}
               paint={{
-                'raster-opacity': (!isTransitioning && isVisualRaster && isActive) ? [
+                'raster-opacity': (!hideForTransition && isVisualRaster && isActive) ? [
                     'interpolate', ['linear'], ['zoom'],
                     2, layerKey === 'satellite' ? 0.55 : layerKey === 'pressure' ? 0.35 : layerKey === 'fog' ? 0.40 : layerKey === 'rain' ? rainOp[0] : isTempPair(layerKey) ? 0.45 : 0.22,
                     5, layerKey === 'satellite' ? 0.60 : layerKey === 'pressure' ? 0.42 : layerKey === 'fog' ? 0.52 : layerKey === 'rain' ? rainOp[1] : isTempPair(layerKey) ? 0.52 : 0.28,
@@ -863,7 +885,7 @@ const MapWebGL = ({
                     12, layerKey === 'satellite' ? 0.70 : layerKey === 'pressure' ? 0.55 : layerKey === 'fog' ? 0.65 : layerKey === 'rain' ? rainOp[3] : isTempPair(layerKey) ? 0.62 : 0.40,
                   ] : 0.0,
                 'raster-resampling': 'linear',
-                'raster-fade-duration': 0
+                'raster-fade-duration': fadeFor(layerKey)
               }}
             />
           </Source>
@@ -930,6 +952,13 @@ const MapWebGL = ({
         attributionControl={false}
         minZoom={2.0}
         renderWorldCopies={true}
+        // Audit #25/#30 (2026-07-11): maplibre default (true) CANCELS pending tile requests during
+        // zoom gestures. om:// tiles are expensive (fetch + worker decode), so a pyramid crossing
+        // mid-gesture threw away in-flight ideal tiles and re-queued them after settle — extending
+        // the transparent window (#25) and minting aborted-buffer decode errors (#30). Basemap/esri
+        // tiles are cheap enough that keeping requests alive is a non-cost. Init-time option:
+        // set window.__RAW_CANCEL_ZOOM_TILES_LEGACY__ = true BEFORE map mount to restore default.
+        cancelPendingTileRequestsWhileZooming={typeof window !== 'undefined' && window.__RAW_CANCEL_ZOOM_TILES_LEGACY__ === true}
       >
         {/* Ocean Mask — Static land/ocean layers */}
         {/* activeLayers prop dropped (2026-07-07, chip task_c5366c79 slice 1): OceanMask never

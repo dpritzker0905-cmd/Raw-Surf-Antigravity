@@ -117,7 +117,10 @@ export function useModelTransition({
     
     lastProcessedModelRef.current = activeModel;
     lastProcessedMapRef.current = mapInstance;
-    
+
+    // Audit #31: disarms the finish pair (load listener + fallback timer) on effect teardown.
+    let disarmFinish = null;
+
     // Synced immediately to prevent the 50ms race condition
     setMapActiveModelLock(activeModel);
     
@@ -152,7 +155,17 @@ export function useModelTransition({
       (legacyWipe ? clearOpenMeteoCache() : Promise.resolve()).then(() => {
         if (!active) return;
 
+        // Audit #31 (2026-07-11): the two finish arms (once('load') + 2s fallback) never cancelled
+        // each other and finishTransition had no run-once guard — in the boot window BOTH fired
+        // ("Transition finished" ×2 in the user's logs) and the un-fired arm leaked per switch.
+        let transitionFinished = false;
+        let fallbackTimer = null;
+
         const finishTransition = () => {
+          if (transitionFinished) return;
+          transitionFinished = true;
+          if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+          try { mapInstance.off('load', finishTransition); } catch (e) { /* map disposed */ }
           setTimeout(() => {
             requestAnimationFrame(() => {
               if (!active) return;
@@ -163,8 +176,15 @@ export function useModelTransition({
                   const currentActiveLayers = activeLayersRef.current || [];
                   const currentActiveSlots = activeSlotsRef.current || {};
                   const currentClosestTimeIdx = closestTimeIdxRef.current || 0;
-                  
-                  currentActiveLayers.forEach(layerKey => {
+
+                  // Audit #31: the imperative slot restore pairs with the legacy blank-out ONLY.
+                  // Default flow no longer blanks the slots (MapWebGL holds the last frame), and
+                  // this loop's opacity table is the pre-bold/pre-temp-pair one — re-applying it
+                  // over the declarative paint would stick wrong values (the dual-control race
+                  // the useOpenMeteoTileUrls NOTE warns about) now that react-map-gl sees no
+                  // isTransitioning diff to overwrite it with.
+                  const blankLegacy = typeof window !== 'undefined' && window.__RAW_MODEL_SWITCH_BLANK_LEGACY__ === true;
+                  blankLegacy && currentActiveLayers.forEach(layerKey => {
                     const isMarine = LAYER_REGISTRY[layerKey]?.type === 'marine';
                     const opacityExpression = getOpacityExpression(layerKey, isMarine);
                     
@@ -211,11 +231,15 @@ export function useModelTransition({
         };
 
         if (mapInstance) {
+          disarmFinish = () => {
+            if (fallbackTimer) { clearTimeout(fallbackTimer); fallbackTimer = null; }
+            try { mapInstance.off('load', finishTransition); } catch (e) { /* map disposed */ }
+          };
           if (mapInstance.isStyleLoaded()) {
             finishTransition();
           } else {
             mapInstance.once('load', finishTransition);
-            setTimeout(() => {
+            fallbackTimer = setTimeout(() => {
               if (active) {
                 const now = Date.now();
                 let allowed = false;
@@ -268,6 +292,7 @@ export function useModelTransition({
       if (modelDebounceTimeoutRef.current) {
         clearTimeout(modelDebounceTimeoutRef.current);
       }
+      if (disarmFinish) disarmFinish();
     };
   }, [activeModel, mapInstance, userTier]);
 }
