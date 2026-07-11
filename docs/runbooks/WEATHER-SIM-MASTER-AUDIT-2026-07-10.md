@@ -201,6 +201,22 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
+## FINDING #25 — PIPELINE-3 SCRUB FEEL (user-reported 07-11; NEXT AUDIT LANE)
+User (07-11, build 4afc7c6b): fog + pressure intermittently slow to load; scrubbing wind/precip/fog/
+satellite/marine "still slower than I'd like — need snappy". Log evidence: raster slot ring
+PING-PONG under toggling (fog 0→1 then 1→0, pressure 0→1→0, satellite 0→1→2→0 — each transition
+re-decodes .om) + one "Fetch failed loading: HEAD …2026-07-14T0900.om". ⚠️ DISPROVEN: that timestep
+EXISTS (HEAD 200 re-probed) — the client failure was a CANCELLED PRELOAD (PostHog fetch-wrapper stack
+→ fetchRetry → preloader), i.e. scrub moved on: do NOT chase the 404-blacklist theory for this URL.
+Recipe (own session, live instrumentation — preview measurements unreliable for perf): ① count slot
+transitions + .om decodes per scrub step (worker-side timing via BroadcastChannel telemetry);
+② preloader window size vs scrub speed (useTemporalPreloader); ③ HEAD-abort rate under scrub;
+④ decode-cache hit rate across repeated hours. Pipeline 3 is already CDN-pre-baked — slowness is
+CLIENT-side (decode cost / slot thrash / preload window), a different class than pipelines 1-2.
+ALSO (radar-adjacent observation, do NOT conflate with the three CLOSED radar failure shapes):
+scrubbing radar into the past briefly clears then self-heals — likely first-past-frame tile load
+inside the preload window (133ca705 territory); brief + self-healing = LOW, note-only.
+
 ## SLICE ① SECOND HALF — ICON MARINE >168h SERVER-SIDE PRE-BAKE (DESIGN banked 07-11; implement AFTER the EURO-tail cycle verifies)
 **Today (client-side, 3 /grid requests per far hour per viewport):** `fetchBackendMarineGridIconExtended`
 (backendWeatherServiceClientHelpers.js:447) — 168<h≤240: persistence(ICON anchor@168, per-viewport cached)
