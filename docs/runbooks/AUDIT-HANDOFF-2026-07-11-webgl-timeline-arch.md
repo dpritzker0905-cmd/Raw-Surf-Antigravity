@@ -166,9 +166,16 @@ wipes, client-only ICON far blend (now also server-baked).
 | GPU Particles | ✓ | Wind 147k + marine crests + CPU RK4; init-once shaders/FBOs verified |
 
 ## NEXT SESSION QUEUE (post-audit, Jacobian order)
-1. **#27 dedicated session** (design + discriminator + React-Scan-deliberate ready).
-2. Verify the 04:15Z+ cycle: ICON/marine 153→~330h + `icon_marine_*_estimated.json` + EURO clone path
-   (needs ECMWF-direct success).
+1. ~~**#27 dedicated session**~~ ✅ FIXED `cee97385` (07-11): cross-family TTL hold, live-verified
+   round trip (0 clears, dup-skip return, 0 texture churn). Remaining: user live A/B on dev--rawsurf.
+2. **⚠️ FIRST: finding #28 (manifest lost-update clobber — master audit doc, full evidence chain).**
+   The 00:50Z cycle ingested GWAM 12Z fine and uploaded to L2, but the scheduler's post-pruning
+   manifest write (02:19:50) clobbered the validator's pruned manifest (02:19:47) with a stale
+   snapshot — ICON marine 12Z entries LOST from the manifest, 47 dangling 00Z entries resurrected.
+   Health ICON/marine "critical stale" is this, NOT an ingest failure. The 04:15Z+ extension verify
+   (ICON/marine 153→~330h + `icon_marine_*_estimated.json`) must check the manifest via
+   /api/weather/products, not just /api/health/data — the extension can succeed and still lose its
+   products to the clobber.
 3. #25 with the user's CLEAN session (`?reactscan=1` OFF) reading `__RASTER_SLOT_TELEMETRY__`.
 4. P7 SpectorJS on the user's machine; then P14 readiness score.
 5. Cheap hardenings surfaced here: beforeId runtime assert; pin react-scan version; negative-cache

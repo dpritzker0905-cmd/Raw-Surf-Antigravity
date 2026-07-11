@@ -202,7 +202,45 @@ span guards must be checked against EXACT tile spans (≥10 vs ==10.0); probes =
 **Perf verdict banked (P12):** fixed-viewport scrub = mode 'reuse', 0 rebuilds; zoom-out transition
 churn = documented accepted class — DO NOT grind.
 
-## FINDING #27 — MARINE TOGGLE-CLEAR (user-felt 07-11; ROOT-CAUSED read-only; fix = DEDICATED SESSION, #14 minefield rules)
+## FINDING #28 — MANIFEST LOST-UPDATE CLOBBER (ICON marine victim; live-caught 07-11 03:2xZ; fix = DEDICATED INGEST SESSION)
+**Symptom:** `/api/health/data` ICON/marine critical "stale 13.8→14.3h", horizon stuck 141h, while
+every other lane fresh from the same 00:50Z cycle — and yet a global-bbox `/grid` probe serves the
+FRESH 12Z GWAM product (run_time `2026-07-11T02:05:55.899798Z`, microsecond-matched to the run log's
+"Starting scheduled job: ICON Marine Global"). Data safe; manifest wrong.
+**Evidence chain (run 29133472321, all timestamps from its log):** ① ICON marine 12Z saves 02:15:09
++ "L2 upload OK" per file ② validator submit 02:15:50 "pruning 6" → manifest 6,562,099 ③ final prune
+pass 02:19:47 "pruning 47 superseded" → manifest SHRINKS 6,553,392→6,508,272 (correct post-ICON
+state) ④ **02:19:50 "[Scheduler] Manifest pruning complete." → re-uploads 6,818,758/6,814,960 bytes
+— BIGGER and STALE, 3s after the pruned write** ⑤ serve box refreshes 02:55:05 → its manifest's
+newest ICON marine = global_mid 13:07:28Z 07-10 + global_coarse 11:58:32Z (both 00Z-run relics);
+the 12Z coarse entries ABSENT ⑥ the resurrected 47 old entries are DANGLING — their L2 objects were
+already deleted (the 02:15:19 "L2 delete failed … 404" lines; the PRIOR 21:29Z run's same clobber
+deleted them). **Mechanism:** two manifest writers at run end — the validator submit path vs the
+scheduler's post-pruning write — last-writer-wins with a stale in-memory snapshot (f8c0c6b2's
+oscillation FAMILY, different writer pair; the GH serial group serializes WORKFLOWS, not within-run
+writers). Order-dependent: bites when ICON marine lands just before the final prune (00:50Z + 21:29Z
+cycles; the 11:20Z cycle's registration SURVIVED). ⚠️ Affects the Stage 6I.3 verification: the 04:15Z+
+cycle may run the ICON extension correctly and STILL lose the products to this clobber — check the
+manifest (products endpoint), not just health, before judging the extension.
+**Fix direction (dedicated session, manifest-write minefield):** single serialized manifest writer /
+re-read-before-write (compare-and-swap on a manifest revision), and the final scheduler write must
+rebuild from the store's CURRENT state, never a stage-start snapshot. Health hardening: flag
+dangling manifest entries (file-missing) instead of counting them as live products.
+
+## FINDING #27 — MARINE TOGGLE-CLEAR — ✅ FIXED `cee97385` (07-11 dedicated session; pending user live A/B)
+**Fix shipped:** `shouldHoldClearOnDeactivate` extended — deactivation holds residents for a TTL
+(120s desktop / 30s handheld) with no in-family flags set; `noteMarineActive()` resets the clock on
+reactivation; expiry clears at the per-frame site. Live-verified in a preview drive: full
+marine→wind→marine round trip = residents HELD (xfamHoldCount 2), return leg DUP-SKIPPED, GPU
+textureCount delta 0 (no mask rebuild), 0 engine clears total; kill A/B restores the old clear with
+`deactivate_toggle_off` attribution. VRAM finding: clearBuffers never freed the big residents anyway
+— the hold only keeps the coarse-base FBO + `_waveData`, so the marginal VRAM is small. Radar
+landmine DISCONFIRMED at code level (no radar code reads marine engine state). Kill:
+`__RAW_MARINE_XFAM_HOLD_DISABLED__` / `__RAW_DISABLE_CLEAR_HOLD__`; tune
+`__RAW_MARINE_XFAM_HOLD_TTL_MS__`; telemetry `__MARINE_XFAM_HOLD_COUNT__` + churn
+`xfam_hold_expired`. USER A/B: compare-toggle marine↔wind on dev--rawsurf (reactscan OFF), expect
+no heatmap blank + instant return; lever = the kill switch.
+### Original finding (07-11, for the record)
 User: toggling/scrubbing between marine and wind still shows heatmap CLEARING; "wind seemed a little
 better than marine" — exactly the asymmetry the code predicts. Session log: `[WebGLMarineEngine-Clear]`
 ×8 + `High-resolution land mask texture created (4096x2048)` ×6 + repeated particle resets.
