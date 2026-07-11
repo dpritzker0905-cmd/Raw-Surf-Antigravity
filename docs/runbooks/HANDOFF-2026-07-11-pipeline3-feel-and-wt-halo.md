@@ -99,6 +99,23 @@ masked, zero halo rings, no console errors. **ECMWF grid also row-0-SOUTH (Sahar
 Antarctica -41°C probe).** Air Temp (`temperature_2m`) deliberately untouched — it SHOULD render
 over land.
 
+## 3b. BLEED-THROUGH ROUND (`92b0c754`, same day — three more water_temp roots, live-verified)
+A translucent raster (0.45-0.62) exposes every style layer beneath it — the opaque above-all
+marine engine never showed any of this. ① ocean-mask-buffer (marine coastline blend band) under
+the field = the "halo band bleeding through" → gated to marine-active (OceanMask #9,
+`__RAW_WATER_TEMP_COAST_BUFFER__` force-on). ② repositionLanduse-raised green fills — including
+MARINE parks over open ocean (Silver Bank sanctuary = the giant olive "shapes under water") →
+gated to marine-active + restore-on-deactivate (OceanMask #10, `__RAW_WATER_TEMP_GREEN_LANDUSE__`).
+③ "deep hot red spot off Marsh Harbour" = 47.3°C (cluster 38.5/34.1/33) midday land-skin in
+cells GFS's own landmask calls land but NE-50m misses (Abaco cays) → mask dilation restored to
+lineWidth 2 (safe under ocean-fill: fills, not holes) + coastalOutlierQC (2-cell coastal ring,
+symmetric >3°C deviation vs 9×9-stride-2 local water median; kill
+`__RAW_WT_COASTAL_QC_DISABLED__`) — Abaco window now 29.3-30.9°C across all 81 cells. Plus
+street-zoom fade: wt opacity 0.62 → 0.12 across z12.5-15 (one SST cell spans the viewport;
+NE-10m coast error dominates; kill `__RAW_WT_HIGHZOOM_FADE_DISABLED__`); full field at the z12
+GPS default. **Also explained: "not showing at default load zoom" = z12 GPS coastal view on the
+NaN-moat bundle (every viewport cell in the moat) — ocean-fill resolves it.**
+
 ## 4. USER EYEBALL PASS (the close-out; dev--rawsurf AFTER push+deploy, SW BUILD_VERSION==HEAD)
 1. Model flips GFS↔EURO↔ICON with each raster — expect NO flash (field holds, one clean swap).
 2. Water Temp mid-zoom clearing (the user's report): zoom coast z2→z9→z2. NOT reproducible in
