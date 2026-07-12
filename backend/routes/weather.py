@@ -1,6 +1,6 @@
 from fastapi import APIRouter, HTTPException, Query, BackgroundTasks, Depends, Request
 from fastapi.responses import JSONResponse
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from deps.admin_auth import get_current_admin
 from typing import Optional
 import logging
@@ -315,6 +315,10 @@ class SpotRatingItem(BaseModel):
     period_s: Optional[float] = None
     tide: Optional[dict] = None          # {height_m, norm 0..1, trend} when RATING_TIDE is on (else None)
     why: Optional[str] = None            # short human explanation
+    # Observation gate (RATING_OBS_GATE): good/epic verdicts require confirmation — >=2-model agreement
+    # or a fresh user report (Surfline hybrid; the backend plays the forecaster). None fields when off.
+    confirmed: Optional[str] = None      # None | 'good' | 'epic' — what unlocked this score's ceiling
+    raw_score: Optional[float] = None    # the ungated model score (audit; score may be capped/nudged)
 
 
 class SpotRatingsResponse(BaseModel):
@@ -415,6 +419,35 @@ async def get_spot_ratings(
         return SpotRatingItem(**d)
 
     items = list(await asyncio.gather(*[_rate(sp) for sp in rows])) if rows else []
+    # OBSERVATION GATE on the live fallback (parity with the precompute path — one truth whichever lane
+    # serves): report-confirmation + light nudge from this viewport's fresh reports (one DB query), then
+    # cap. No cross-model corroboration here (live rates ONE model; a single-model spike staying capped
+    # is exactly the gate's job). Kill: RATING_OBS_GATE=0 (default OFF).
+    if os.environ.get("RATING_OBS_GATE", "0") == "1" and items:
+        try:
+            from services.weather_pipeline.rating_confirmation import (
+                observation_gate, report_confirmation, report_nudge, REPORT_FRESH_H)
+            from services.weather_pipeline.surf_rating import score_to_level
+            from models import SurfReport
+            _cut = datetime.now(timezone.utc) - timedelta(hours=REPORT_FRESH_H)
+            _rres = await db.execute(
+                select(SurfReport.spot_id, SurfReport.rating, SurfReport.created_at)
+                .where(SurfReport.spot_id.in_([it.spot_id for it in items]),
+                       SurfReport.created_at >= _cut, SurfReport.rating.isnot(None)))
+            _by_spot = {}
+            for _sid, _r, _c in _rres.all():
+                _by_spot.setdefault(str(_sid), []).append({"rating": _r, "created_at": _c})
+            for it in items:
+                if it.score is None:
+                    continue
+                _reps = _by_spot.get(it.spot_id)
+                _conf = report_confirmation(_reps)
+                it.raw_score = it.score
+                it.confirmed = _conf
+                it.score = observation_gate(it.score + report_nudge(it.score, _reps), _conf)
+                it.level = score_to_level(it.score)
+        except Exception as _ge:
+            logger.debug(f"[spot-ratings] live observation gate skipped: {_ge}")
     count = sum(1 for it in items if it.score is not None)
     resp = SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="live", spots=items)
     if count > 0:                                    # cache only a real result (not an empty cold-start)

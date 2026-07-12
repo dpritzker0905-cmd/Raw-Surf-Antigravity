@@ -347,7 +347,7 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
 
 
 def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, wind_fn=None, shore_normal_fn=None,
-                          reference_fn=None):
+                          reference_fn=None, gate_fn=None):
     """In-place RATING-BAND transform of a marine grid for the surf-quality MAP overlay (the on-map
     differentiator). Per COASTAL cell: derive the breaking height (surf_transform.estimate_surf) then the
     0-100 surf-quality SCORE (compute_surf_rating, with wind + shore-normal co-sampled via the injected fns),
@@ -358,7 +358,9 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
     Injected fns keep it pure/unit-testable (no I/O): depth_fn(lat,lng)->m|None, coastal_fn(lat,lng)->bool,
     width_fn(lat,lng)->km, wind_fn(lat,lng)->(speed_ms, from_deg)|None, shore_normal_fn(lat,lng)->bearing|None,
     reference_fn(lat,lng)->m|None (the LOCAL good-day size reference — P-local band half; None per cell or
-    fn absent keeps the global 1.2 m size-gate default, byte-identical to before).
+    fn absent keeps the global 1.2 m size-gate default, byte-identical to before),
+    gate_fn(lat,lng,score)->score (the OBSERVATION GATE — caps good/epic unless a nearby confirmation
+    unlocks them; absent = ungated, byte-identical to before; a gate error keeps the raw score).
     Returns (n_rated, n_masked). Mutates each vector: ``speed`` becomes the score, ``u``/``v`` are zeroed
     (rating is scalar — no direction arrows), and ``rating_level`` is set when the attribute exists. Truly
     flat cells (size gate 0 -> score 0) are left untouched/non-rendered (no wave to rate)."""
@@ -421,6 +423,14 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
                                            reference_size_m=reference)
         if score is None or score <= 0:
             continue                                   # no rideable wave -> nothing to rate
+        if gate_fn is not None:
+            try:
+                gated = gate_fn(lat, lng, score)
+                if gated is not None and gated > 0:
+                    score = gated
+                    level = score_to_level(score)
+            except Exception:
+                pass                                   # a gate error must never kill the band
         # Encode score/10 into the height channel: the marine texture packs height as clamp(h/10,0,1), and the
         # shader recovers the score as waveHeight*10 -> getRatingColor(score). Keeps the existing encode/decode
         # untouched (the rating overlay is just a different colormap on the same 0-10 channel).

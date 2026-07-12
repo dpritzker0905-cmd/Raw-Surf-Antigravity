@@ -1,0 +1,209 @@
+"""
+rating_confirmation.py — the Good/Epic OBSERVATION GATE + light user-report weigh-in (rating plan Step 4).
+
+Industry grounding (Surfline, researched 2026-07-12): their MODEL tops out at fair-to-good — Good and
+Epic are only awarded when a human forecaster verifies conditions, and ratings are relative to each
+spot's potential. We hybridize that (user decision 2026-07-12): the BACKEND plays the forecaster —
+scores above the good threshold are CAPPED unless a confirmation exists — and confirmations come from
+two sources:
+
+  1. INTERNAL corroboration (the "virtual forecaster"): independent model agreement. The precompute
+     rates every spot with GFS + EURO + ICON; when >= 2 models INDEPENDENTLY score a spot good/epic at
+     the same hour, that hour's rating may say so. One model's spike stays capped (single-model
+     over-excitement is exactly what the cap is for).
+  2. USER CONDITION REPORTS (the app's surf_reports: 1-5 stars, per spot): a FRESH report (<= 12 h)
+     with >= 4 stars confirms good; 5 stars confirms epic. Reports are the human observation Surfline
+     gates on — photographers/surfers on the beach.
+
+Reports ALSO nudge the score — LIGHTLY (user: "science heavy, reports light"): 30% of the gap between
+the fresh-report consensus and the model score, clamped to +-8 points (about half a level), decaying
+with report age. The model remains the baseline; a report can shade a rating, never rewrite it.
+
+Pure helpers (no I/O, unit-tested; JS mirror carries observation_gate for the frontend infobox path)
++ a thin REST fetch for the runner. Everything is inert until RATING_OBS_GATE=1 at the wiring sites.
+"""
+import logging
+import os
+from datetime import datetime, timezone
+from typing import Optional
+
+logger = logging.getLogger(__name__)
+
+# Score thresholds mirror surf_rating._BUCKETS: good begins at 70, epic at 84.
+GOOD_T = 70.0
+EPIC_T = 84.0
+CAP_UNCONFIRMED = GOOD_T - 0.1     # 69.9 -> tops out displaying fair_good (Surfline's model ceiling)
+CAP_GOOD = EPIC_T - 0.1            # 83.9 -> may display good, not epic
+AGREE_MODELS = 2                   # internal confirmation: >= 2 of the 3 models agree
+REPORT_FRESH_H = 12.0              # a beach observation speaks for about half a day
+REPORT_CONFIRM_GOOD_STARS = 4
+REPORT_CONFIRM_EPIC_STARS = 5
+REPORT_NUDGE_K = 0.30              # light weight: 30% of the report-vs-model gap...
+REPORT_NUDGE_MAX = 8.0             # ...never more than ~half a level either way
+# Star -> score anchor (level-bucket midpoints): what a 1..5-star report "says" on the 0-100 scale.
+STAR_SCORE = {1: 20.0, 2: 35.0, 3: 49.0, 4: 70.0, 5: 90.0}
+
+_CONFIRM_RANK = {None: 0, "good": 1, "epic": 2}
+
+
+def observation_gate(score, confirm=None):
+    """Cap a 0-100 score by confirmation level: None -> 69.9 (fair_good ceiling), 'good' -> 83.9,
+    'epic' -> uncapped. None scores pass through. The cap changes the DISPLAYED verdict, not the
+    underlying physics — raw scores stay auditable upstream."""
+    if score is None:
+        return None
+    if confirm == "epic":
+        return score
+    cap = CAP_GOOD if confirm == "good" else CAP_UNCONFIRMED
+    return round(min(float(score), cap), 1)
+
+
+def combine_confirmations(a, b):
+    """The stronger of two confirmation levels (None < 'good' < 'epic')."""
+    return a if _CONFIRM_RANK.get(a, 0) >= _CONFIRM_RANK.get(b, 0) else b
+
+
+def internal_confirmation(scores_by_model):
+    """The virtual forecaster: UNGATED scores for one spot+hour keyed by model. >= AGREE_MODELS models
+    at/above the epic threshold -> 'epic'; at/above good -> 'good'; else None. Ignores None scores."""
+    vals = [float(s) for s in (scores_by_model or {}).values() if s is not None]
+    if sum(1 for v in vals if v >= EPIC_T) >= AGREE_MODELS:
+        return "epic"
+    if sum(1 for v in vals if v >= GOOD_T) >= AGREE_MODELS:
+        return "good"
+    return None
+
+
+def _report_age_h(rep, now):
+    created = rep.get("created_at")
+    if isinstance(created, str):
+        try:
+            created = datetime.fromisoformat(created.replace("Z", "+00:00"))
+        except Exception:
+            return None
+    if not isinstance(created, datetime):
+        return None
+    if created.tzinfo is None:
+        created = created.replace(tzinfo=timezone.utc)
+    return (now - created).total_seconds() / 3600.0
+
+
+def fresh_reports(reports, now=None, fresh_h: float = REPORT_FRESH_H):
+    """The subset of report dicts ({rating, created_at}) younger than ``fresh_h``, each annotated with
+    ``_age_h``. Malformed entries are dropped."""
+    now = now or datetime.now(timezone.utc)
+    out = []
+    for rep in reports or []:
+        if not isinstance(rep, dict):
+            continue
+        age = _report_age_h(rep, now)
+        if age is None or age < 0 or age > fresh_h:
+            continue
+        r = rep.get("rating")
+        if r is None:
+            continue
+        try:
+            r = int(r)
+        except (TypeError, ValueError):
+            continue
+        if not (1 <= r <= 5):
+            continue
+        out.append({**rep, "rating": r, "_age_h": age})
+    return out
+
+
+def report_confirmation(reports, now=None):
+    """Human observation: any fresh report at 5 stars -> 'epic'; >= 4 stars -> 'good'; else None."""
+    best = None
+    for rep in fresh_reports(reports, now):
+        if rep["rating"] >= REPORT_CONFIRM_EPIC_STARS:
+            return "epic"
+        if rep["rating"] >= REPORT_CONFIRM_GOOD_STARS:
+            best = "good"
+    return best
+
+
+def report_nudge(score, reports, now=None):
+    """The LIGHT weigh-in: freshness-weighted mean of the fresh reports' star anchors vs the model
+    score -> clamp(K * gap, +-MAX). 0.0 when the score is None or no fresh reports exist."""
+    if score is None:
+        return 0.0
+    fresh = fresh_reports(reports, now)
+    if not fresh:
+        return 0.0
+    wsum = vsum = 0.0
+    for rep in fresh:
+        w = 1.0 - (rep["_age_h"] / REPORT_FRESH_H)      # linear decay to 0 at the freshness horizon
+        w = max(w, 0.05)
+        vsum += w * STAR_SCORE.get(rep["rating"], 49.0)
+        wsum += w
+    consensus = vsum / wsum
+    nudge = REPORT_NUDGE_K * (consensus - float(score))
+    return round(max(-REPORT_NUDGE_MAX, min(REPORT_NUDGE_MAX, nudge)), 2)
+
+
+# ── runner-side REST fetch (mirrors fetch_active_spots_via_rest — Storage key authorizes PostgREST) ──
+def fetch_recent_reports_via_rest(fresh_h: float = REPORT_FRESH_H, limit: int = 2000) -> dict:
+    """{spot_id: [{rating, created_at}, ...]} for reports younger than ``fresh_h``. Empty dict on any
+    failure — the gate then simply has no report signal (internal corroboration still applies)."""
+    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+    if not base or not key:
+        return {}
+    try:
+        import requests
+        from datetime import timedelta
+        cutoff = (datetime.now(timezone.utc) - timedelta(hours=fresh_h)).isoformat()
+        url = (f"{base}/rest/v1/surf_reports?select=spot_id,rating,created_at"
+               f"&created_at=gte.{cutoff}&rating=not.is.null&limit={limit}")
+        resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=20)
+        resp.raise_for_status()
+        by_spot = {}
+        for row in resp.json():
+            sid = row.get("spot_id")
+            if sid is None:
+                continue
+            by_spot.setdefault(str(sid), []).append({"rating": row.get("rating"),
+                                                     "created_at": row.get("created_at")})
+        return by_spot
+    except Exception as e:
+        logger.warning(f"[rating-confirmation] recent-reports fetch failed (gate runs report-less): {e}")
+        return {}
+
+
+def apply_gate_to_frames(frames, reports_by_spot, now=None) -> int:
+    """Mutate precomputed frames ([{model, valid_time, spots:[...]}]) with the observation gate +
+    light report weigh-in. Per (spot, valid_time): internal confirmation from the CROSS-MODEL ungated
+    scores in these same frames, combined with the spot's fresh-report confirmation; then
+    score -> gate(score + nudge). Adds per-spot ``raw_score`` (audit), ``confirmed`` (level|None) and
+    updates ``score``/``level``. Returns the number of spot entries whose displayed level was capped."""
+    from services.weather_pipeline.surf_rating import score_to_level
+
+    # Cross-model index of UNGATED scores: (spot_id, valid_time) -> {model: score}
+    xmodel = {}
+    for fr in frames or []:
+        for s in fr.get("spots") or []:
+            if s.get("score") is None:
+                continue
+            xmodel.setdefault((s.get("spot_id"), fr.get("valid_time")), {})[fr.get("model")] = s["score"]
+
+    n_capped = 0
+    for fr in frames or []:
+        for s in fr.get("spots") or []:
+            raw = s.get("score")
+            if raw is None:
+                continue
+            reports = (reports_by_spot or {}).get(str(s.get("spot_id")))
+            confirm = combine_confirmations(
+                internal_confirmation(xmodel.get((s.get("spot_id"), fr.get("valid_time")))),
+                report_confirmation(reports, now),
+            )
+            nudged = float(raw) + report_nudge(raw, reports, now)
+            gated = observation_gate(nudged, confirm)
+            s["raw_score"] = raw
+            s["confirmed"] = confirm
+            s["score"] = gated
+            s["level"] = score_to_level(gated)
+            if gated is not None and nudged > gated:
+                n_capped += 1
+    return n_capped

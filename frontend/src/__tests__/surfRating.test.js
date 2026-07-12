@@ -3,6 +3,7 @@ import {
   swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
   parseBestTide, tideFit, breakerTypeQuality,
   dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
+  observationGate, OBS_CAP_UNCONFIRMED, OBS_CAP_GOOD,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -180,6 +181,16 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(plunging).toBeCloseTo(base, 5);
     expect(spilling).toBeLessThan(base);
     expect(spilling).toBeGreaterThan(0);
+  });
+
+  test('observationGate parity with rating_confirmation.py (Surfline hybrid)', () => {
+    expect(observationGate(95.0)).toBe(OBS_CAP_UNCONFIRMED);   // model alone tops out at fair_good
+    expect(observationGate(95.0, 'good')).toBe(OBS_CAP_GOOD);
+    expect(observationGate(95.0, 'epic')).toBe(95.0);
+    expect(observationGate(50.0)).toBe(50.0);                  // below the cap untouched
+    expect(observationGate(null)).toBeNull();
+    expect(scoreToLevel(OBS_CAP_UNCONFIRMED)).toBe('fair_good');
+    expect(scoreToLevel(OBS_CAP_GOOD)).toBe('good');
   });
 
   test('wind direction penalty ramps with speed (parity with py forensic fix)', () => {

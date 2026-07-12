@@ -198,6 +198,20 @@ export function scoreToLevel(score) {
   return 'epic';
 }
 
+// ── OBSERVATION GATE (mirror of rating_confirmation.py; Surfline hybrid) ──
+// Good/Epic verdicts require confirmation: >=2-model backend agreement or a fresh user report. The
+// backend stamps `confirmed` per spot (spot-ratings payload); this mirror lets the infobox apply the
+// SAME ceiling when the feature ships there. Unconfirmed caps at the fair_good ceiling (69.9 — the
+// documented Surfline model top), 'good' confirmation caps at 83.9, 'epic' uncaps.
+export const OBS_CAP_UNCONFIRMED = 69.9;
+export const OBS_CAP_GOOD = 83.9;
+export function observationGate(score, confirm = null) {
+  if (score == null) return null;
+  if (confirm === 'epic') return score;
+  const cap = confirm === 'good' ? OBS_CAP_GOOD : OBS_CAP_UNCONFIRMED;
+  return Math.round(Math.min(score, cap) * 10) / 10;
+}
+
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
 export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };

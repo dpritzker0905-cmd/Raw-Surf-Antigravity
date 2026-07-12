@@ -343,6 +343,19 @@ def run_spot_ratings_precompute() -> tuple:
     resolver = _make_point_resolver()
     obj = asyncio.run(precompute_spot_ratings(resolver, spots, models, hours))
     n_frames = len(obj.get("frames", []))
+    # OBSERVATION GATE + light report weigh-in (rating plan Step 4; Surfline hybrid — the backend plays
+    # the forecaster): scores above 'good' are capped unless >=2 models agree (internal corroboration
+    # across the frames just computed) or a fresh user report confirms; fresh reports also nudge the
+    # score LIGHTLY (bounded, expiring). Applied to the object BEFORE upload so every consumer (glyphs,
+    # live endpoint fallback, band unlock map) sees one truth. Kill: RATING_OBS_GATE=0 (default OFF).
+    if os.environ.get("RATING_OBS_GATE", "0") == "1":
+        try:
+            from services.weather_pipeline.rating_confirmation import (
+                apply_gate_to_frames, fetch_recent_reports_via_rest)
+            n_capped = apply_gate_to_frames(obj.get("frames", []), fetch_recent_reports_via_rest())
+            logger.info("[spot-ratings] observation gate applied: %d spot-frames capped.", n_capped)
+        except Exception as _oe:
+            logger.warning("[spot-ratings] observation gate skipped (raw scores served): %s", _oe)
     # Coverage guard: NEVER stomp the served object with an all-null precompute (e.g. grids weren't warmed, so
     # every resolve_point returned None). A null object would replace the working live-compute fallback with
     # "unknown" glyphs — strictly worse. Require a minimum fraction of spots to have a real score before upload.

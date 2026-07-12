@@ -86,11 +86,22 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
                             reference_fn = lambda _la, _ln: reference_for(_clim, _la, _ln)
                     except Exception as _rle:
                         logger.warning(f"[Grid Route] local size reference unavailable (global default): {_rle}")
+                # OBSERVATION GATE for the band (RATING_OBS_GATE, Surfline hybrid): cells cap at the
+                # fair_good ceiling unless a CONFIRMED spot (>=2-model agreement or a fresh user report,
+                # both stamped into the spot-ratings L2 blob by the precompute) sits within ~35 km —
+                # good/epic ribbons paint only around confirmed breaks, exactly like Surfline's
+                # forecaster-verified purple. Never fatal; no blob = everything capped (honest default).
+                gate_fn = None
+                if os.environ.get("RATING_OBS_GATE", "0") == "1":
+                    try:
+                        gate_fn = _build_observation_gate(target_dt)
+                    except Exception as _oge:
+                        logger.warning(f"[Grid Route] observation gate unavailable (capped default): {_oge}")
                 n_t, n_masked = rating_transform_grid(
                     product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at,
-                    reference_fn=reference_fn)
+                    reference_fn=reference_fn, gate_fn=gate_fn)
                 tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
-                       "local_size": bool(reference_fn)}
+                       "local_size": bool(reference_fn), "obs_gate": bool(gate_fn)}
                 label = "RATING overlay"
             else:
                 from services.weather_pipeline.surf_transform import surf_transform_grid
@@ -118,6 +129,48 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
             pass
 
     return product
+
+
+def _build_observation_gate(target_dt):
+    """Build the band's ``gate_fn(lat, lng, score) -> gated_score`` from the spot-ratings L2 blob: the
+    precompute stamps per-spot ``confirmed`` levels ('good'/'epic' via >=2-model agreement or a fresh
+    user report); cells within ~0.35 deg (~35 km) of a confirmed spot inherit its unlock, everything
+    else caps at the fair_good ceiling (observation_gate(None)). The confirmed set is tiny (only
+    confirmed spots), so the per-cell nearest scan is cheap. Returns a callable, or a cap-everything
+    callable when no blob/frames exist (honest default — good/epic need evidence)."""
+    from services.weather_pipeline.rating_confirmation import observation_gate
+    from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached, _parse_dt
+
+    RADIUS_DEG = 0.35
+    confirmed = []                                     # (lat, lng, level)
+    try:
+        blob = load_spot_ratings_l2_cached()
+        for fr in (blob or {}).get("frames", []):
+            fr_dt = _parse_dt(fr.get("valid_time"))
+            if target_dt is not None and fr_dt is not None:
+                if abs((fr_dt - target_dt).total_seconds()) > 3 * 3600:
+                    continue                           # confirmations speak for their own hours
+            for sp in fr.get("spots") or []:
+                lvl = sp.get("confirmed")
+                la, ln = sp.get("latitude"), sp.get("longitude")
+                if lvl in ("good", "epic") and la is not None and ln is not None:
+                    confirmed.append((la, ln, lvl))
+    except Exception:
+        confirmed = []
+
+    def gate_fn(lat, lng, score):
+        best = None
+        for la, ln, lvl in confirmed:
+            dlng = abs(ln - lng)
+            if dlng > 180.0:
+                dlng = 360.0 - dlng
+            if abs(la - lat) <= RADIUS_DEG and dlng <= RADIUS_DEG:
+                if lvl == "epic":
+                    return observation_gate(score, "epic")
+                best = "good"
+        return observation_gate(score, best)
+
+    return gate_fn
 
 
 async def _build_wind_sampler(store, manifest, model, target_dt):
