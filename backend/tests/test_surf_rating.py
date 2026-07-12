@@ -183,7 +183,9 @@ def test_rating_transform_grid_writes_score_masks_open_ocean_zeros_vectors():
     )
     assert n_rated == 1 and n_masked == 1
     assert 0 < coastal.speed <= 10                   # speed holds score/10 (fits the 0-10 texture channel)
-    assert coastal.u == 0.0 and coastal.v == 0.0     # rating is scalar -> no direction arrows
+    # u/v KEPT since 2026-07-12 (was zeroed): the frontend animates crests/particles from the
+    # motion vector — zeroing froze every animation over the rating band.
+    assert coastal.u == 1.0 and coastal.v == 1.0
     assert coastal.rating_level in (
         "very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic")
     assert open_ocean.is_valid is False              # open ocean transparency-masked

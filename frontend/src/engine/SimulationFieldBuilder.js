@@ -224,7 +224,10 @@ export function injectMarineData(field, marineData) {
 
       // RATING: store the 0-10 surf-quality score (from vec.waves.speed) directly; else the swell magnitude.
       field.grid.waveHeight[dstIdx] = isRating ? interpVal(v => v?.waves?.speed) : waveSpeed;
-      field.grid.waveDir[dstIdx] = (!isRating && waveSpeed > 0)
+      // Direction is kept in rating mode too (2026-07-12): the backend now preserves u/v on rated
+      // cells (real swell motion) so crests/particles animate UNDER the rating colors instead of
+      // freezing wherever the band owns cells ("the band clamps the wave animations").
+      field.grid.waveDir[dstIdx] = (waveSpeed > 0)
         ? (Math.atan2(-waveU, -waveV) * (180 / Math.PI) + 360) % 360
         : 0;
       field.grid.wavePeriod[dstIdx] = wavePeriod;

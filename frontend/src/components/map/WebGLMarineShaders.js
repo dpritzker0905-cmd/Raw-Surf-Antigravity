@@ -320,7 +320,7 @@ void main() {
   // transform, and the bathymetry blend below. The normal marine/swell path (u_surfMode <= 0.5) is untouched.
   if (u_surfMode > 0.5) {
     float ratingScore = waveHeight * 10.0;
-    if (ratingScore <= 0.5) discard;   // no rideable wave -> no band here
+    if (ratingScore <= 0.05) discard;  // truly nothing here (bilinear tail) -> let the wash show
 
     // Smooth gradient through the 7-level industry palette — no hard-step plateaus, so no blocky bands.
     vec3 ratingColor = getRatingColorSmooth(ratingScore);
@@ -332,10 +332,18 @@ void main() {
                   + 0.03 * sin(v_mercator_xy.y * 900.0 + u_time * 0.9);
     ratingColor *= (1.0 + shimmer);
 
-    // Soft alpha: fade in faint (near-flat) cells, dissolve the seaward edge instead of a hard cut, and apply
-    // the ocean-mask fade + optional regional edge feather. Premultiplied (matches the ONE/1-SRC_ALPHA blend
-    // and the normal path below) — the old branch emitted non-premultiplied color, which over-saturated.
-    float bandAlpha = u_opacity * smoothstep(0.5, 4.0, ratingScore) * smoothstep(0.3, 0.8, oceanAlpha);
+    // Band alpha re-shape (2026-07-12, "pocket not coloring at z7.55" + "glow off coastlines"):
+    // the old smoothstep(0.5,4.0,score) CRUSHED very-poor scores (Canaveral corridor probes: 2-5
+    // /100 → near-invisible) and the 0.5 discard let bilinear-to-zero edges cut the band short.
+    //  * presence: a LONG outer taper (0.05→1.2) so the color glows outward and dissolves
+    //    gradually into the wash instead of a one-third-cell cliff;
+    //  * vividness: floor 0.55 for any rated water — rating colors are CATEGORICAL, level-1
+    //    "very poor" must read as a color, not as transparency;
+    //  * coast gate softened (0.3,0.8 → 0.05,0.45): the band LIVES against the coastline where
+    //    oceanAlpha is lowest — the old gate crushed exactly the cells the band is for.
+    float presence = smoothstep(0.05, 1.2, ratingScore);
+    float vividness = 0.55 + 0.45 * smoothstep(1.0, 5.0, ratingScore);
+    float bandAlpha = u_opacity * presence * vividness * smoothstep(0.05, 0.45, oceanAlpha);
     if (u_edgeFeatherEnabled > 0.5) {
       float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);
       float edgeDistY = min(grid_uv.y, 1.0 - grid_uv.y);

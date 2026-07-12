@@ -339,9 +339,13 @@ function fieldToWindGrid(field) {
 function fieldToMarineGrid(field, activeMarineLayer) {
   if (!field || !field.sources.marine) return null;
 
-  // RATING band: waveHeight carries the 0-10 score (scalar, no direction). Keep u/v zeroed so the engine
-  // renders a static band (no advection) and re-stamp ratingMode so the Option-A gate paints it.
+  // RATING band: waveHeight carries the 0-10 score. Direction is REAL again (2026-07-12 — the
+  // backend keeps u/v on rated cells and the builder keeps waveDir), so crests/particles animate
+  // with the actual swell motion UNDER the rating colors instead of freezing ("the band clamps
+  // the wave animations"). ratingMode is re-stamped so the Option-A gate paints the band.
+  // Kill: __RAW_RATING_STATIC_BAND__ = true restores the frozen scalar band.
   const isRating = !!field.ratingMode;
+  const ratingStatic = isRating && typeof window !== 'undefined' && window.__RAW_RATING_STATIC_BAND__ === true;
   const { waveHeight, waveDir, swellHeight, swellDir, swell2Height, swell2Dir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, swell2Period, windWavePeriod } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;
@@ -382,11 +386,11 @@ function fieldToMarineGrid(field, activeMarineLayer) {
     // Convert wave height + direction to u/v for advection visualization (meteorological velocity vector)
     // isOcean flag is REQUIRED by WebGLMarineEngine's shader (alpha channel = land mask)
     vectors[i] = {
-      u: isRating ? 0 : -h * Math.sin(dir),
-      v: isRating ? 0 : -h * Math.cos(dir),
+      u: ratingStatic ? 0 : -h * Math.sin(dir),
+      v: ratingStatic ? 0 : -h * Math.cos(dir),
       speed: h,
       height: h,
-      direction: isRating ? 0 : (dirSrc ? dirSrc[i] : waveDir[i]),
+      direction: ratingStatic ? 0 : (dirSrc ? dirSrc[i] : waveDir[i]),
       period: period,
       swellHeight: swellHeight ? swellHeight[i] : 0,
       swellDir: swellDir ? swellDir[i] : 0,

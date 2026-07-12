@@ -281,9 +281,9 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
         vec.speed = round(float(score) / 10.0, 4)
         if hasattr(vec, "rating_level"):
             vec.rating_level = level
-        if getattr(vec, "u", None) is not None:
-            vec.u = 0.0
-        if getattr(vec, "v", None) is not None:
-            vec.v = 0.0
+        # u/v are KEPT (2026-07-12; previously zeroed as "rating is scalar"): the frontend
+        # animates wave crests/particles from the u/v motion vector, so zeroing froze every
+        # animation over the rating band ("the band clamps the wave animations"). The color
+        # channel is `speed` (the score); u/v carry the real swell motion under the colors.
         n_rated += 1
     return n_rated, n_masked
