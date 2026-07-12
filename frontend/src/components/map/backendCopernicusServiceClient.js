@@ -14,7 +14,8 @@ import {
   latestTimeDiag,
   PILOT_COVERAGE,
   updateProjectionDiag,
-  fetchProductsManifest
+  fetchProductsManifest,
+  getSurfModeFlag
 } from './backendWeatherServiceClient';
 import { BoundedPointCache } from './BoundedPointCache';
 import { arrayMax } from './marineControllerUtils';
@@ -346,7 +347,10 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
 
   const { clampedBbox } = clampResult;
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
-  const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}`;
+  // surf=1 (2026-07-12): the EURO grid lane never requested the rating transform at all — the
+  // GFS/ICON lane (fetchBackendMarineGrid) and the series lane both append it; EURO rating mode
+  // silently served raw swell. Same flag + same mapper gate (ratingMode) as the other lanes.
+  const url = `${GRID_URL}?model=EURO&domain=marine&layer=${layer}&valid_time=${validTimeStr}&bbox=${bboxParam}${getSurfModeFlag() ? '&surf=1' : ''}`;
 
   try {
     const res = await fetch(url, { signal });

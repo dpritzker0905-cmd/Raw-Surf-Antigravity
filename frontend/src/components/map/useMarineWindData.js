@@ -145,6 +145,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       productId: marineData.grid.productId || marineData.productId || null,
       is_dynamic_viewport_product: marineData.grid.is_dynamic_viewport_product || false,
       coverage_scope: marineData.grid.coverage_scope || null,
+      // Rating-mode flag (2026-07-12): this conform is an EXPLICIT field list — the known
+      // "mirror drops is_valid/dirConfidence" landmine — and it was EATING the mapper's
+      // ratingMode stamp, so the engine rendered surf=1 rating grids (score-as-height, ocean
+      // masked) on the WAVES palette with the band gate off: the "clamped coastal strip when
+      // the Rating toggle is on" report. Live-proven: flag true + surf=1 on every request +
+      // backend transform present in the response + engine waveGrid.ratingMode false.
+      ratingMode: !!marineData.grid.ratingMode,
       activeMarineLayer,
       activeModel,
       valid_time: marineData.valid_time || marineData.grid.valid_time,

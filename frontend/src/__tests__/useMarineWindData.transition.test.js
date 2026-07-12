@@ -203,3 +203,34 @@ test('a model mismatch outside a transition returns null', () => {
 
   expect(result.current).toBeNull();
 });
+// 2026-07-12 regression: the conform is an EXPLICIT field list (the "mirror drops
+// is_valid/dirConfidence" landmine) and it was EATING the mapper's ratingMode stamp — the
+// engine rendered surf=1 rating grids on the waves palette with the band gate off (the
+// "clamped coastal strip when the Rating toggle is on" report). The flag must survive.
+test('conform preserves grid.ratingMode (rating band gate depends on it)', () => {
+  const ratingFrame = marineFrame({ model: 'GFS', layer: 'waves', hour: 0 });
+  ratingFrame.grid.ratingMode = true;
+  const { result, rerender } = renderHook((props) => useMarineWindData(props), {
+    initialProps: {
+      marineData: ratingFrame,
+      activeMarineLayer: 'waves',
+      activeModel: 'GFS',
+      timeOffsetHours: 0,
+      mapInstance,
+      viewState: { zoom: 7 },
+    },
+  });
+  expect(result.current).not.toBeNull();
+  expect(result.current.ratingMode).toBe(true);
+
+  const swellFrame = marineFrame({ model: 'GFS', layer: 'waves', hour: 0 });
+  rerender({
+    marineData: swellFrame,
+    activeMarineLayer: 'waves',
+    activeModel: 'GFS',
+    timeOffsetHours: 0,
+    mapInstance,
+    viewState: { zoom: 7 },
+  });
+  expect(result.current.ratingMode).toBe(false);
+});
