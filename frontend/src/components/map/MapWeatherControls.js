@@ -5,12 +5,10 @@ import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
+import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
-
-// Convert meters to feet
-const M_TO_FT = 3.28084;
 
 /**
  * Build a CSS linear-gradient string from RGBA color array + breakpoints.
@@ -31,14 +29,20 @@ function buildGradientCSS(scale) {
   return `linear-gradient(to right, ${stops.join(', ')})`;
 }
 
+// Marine height variables whose breakpoints are stored in METERS (display converts per the
+// user's ft/m preference — heightUnits.js is the single source of that preference).
+const HEIGHT_VARIABLES = ['wave_height', 'wave', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'];
+
 /**
- * Build legend stops (labels) from breakpoints. Converts meters to feet for wave variables.
+ * Build legend stops (labels) from breakpoints. Wave variables convert meters → the user's
+ * display unit ('ft' default — the pre-toggle live behavior; 'm' keeps meters).
  */
-function buildStops(scale, layerId) {
+function buildStops(scale, layerId, heightUnit) {
   if (!scale?.breakpoints?.length) return [];
-  const isFeet = scale.unit === 'm' && ['wave_height', 'wave', 'swell_wave_height', 'secondary_swell_wave_height', 'wind_wave_height'].includes(layerId);
+  const isHeight = scale.unit === 'm' && HEIGHT_VARIABLES.includes(layerId);
+  const toFeet = isHeight && heightUnit !== 'm';
   return scale.breakpoints.map((bp, i) => {
-    const val = isFeet ? bp * M_TO_FT : bp;
+    const val = toFeet ? bp * M_TO_FT : bp;
     const isLast = i === scale.breakpoints.length - 1;
     // Round nicely
     const display = val < 1 ? val.toFixed(1) : Math.round(val);
@@ -88,6 +92,10 @@ export var MapWeatherControls = ({
     setSurfModeFlag(next);
     if (typeof window !== 'undefined') window.dispatchEvent(new CustomEvent('rawsurf:surf-toggle'));
   };
+
+  // Wave-height display unit (ft | m) — display-only preference, data stays metric (heightUnits.js).
+  const [heightUnit, setHeightUnitState] = useState(() => getHeightUnit());
+  const toggleHeightUnit = () => setHeightUnitState(setHeightUnit(heightUnit === 'ft' ? 'm' : 'ft'));
 
   useEffect(() => {
     setIsCollapsed(isImmersiveMode);
@@ -165,12 +173,13 @@ export var MapWeatherControls = ({
     pressure: 'pressure_msl',
   };
 
-  // Legend labels and units per layer
+  // Legend labels and units per layer (marine heights follow the user's ft/m preference)
+  const _hu = heightUnit === 'm' ? 'm' : 'ft';
   const LEGEND_LABELS = {
-    waves: 'Combined Waves (ft)',
-    swell_1: 'Primary Swell (ft)',
-    swell_2: 'Secondary Swell (ft)',
-    wind_waves: 'Wind Waves (ft)',
+    waves: `Combined Waves (${_hu})`,
+    swell_1: `Primary Swell (${_hu})`,
+    swell_2: `Secondary Swell (${_hu})`,
+    wind_waves: `Wind Waves (${_hu})`,
     rain: 'Rain / Snow (in/h)',
     radar: 'Live Radar (dBZ)',
     satellite: 'Cloud Cover (%)',
@@ -196,7 +205,7 @@ export var MapWeatherControls = ({
         config[layerId] = {
           label: LEGEND_LABELS[layerId] || layerId,
           gradientCSS: buildGradientCSS(scale),
-          stops: buildStops(scale, variable),
+          stops: buildStops(scale, variable, heightUnit),
         };
       }
     });
@@ -241,7 +250,8 @@ export var MapWeatherControls = ({
     };
 
     return config;
-  }, [theme]);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [theme, heightUnit]);
 
   // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
   // shader getRatingColor palette. Fixed colors (not theme-dependent); coarse tick labels under the bar.
@@ -602,7 +612,7 @@ export var MapWeatherControls = ({
           </button>
         </div>
 
-        <div className="flex gap-1 mb-3">
+        <div className="flex gap-1 mb-2">
           {models.map(m => (
             <button
               key={m.id}
@@ -612,6 +622,28 @@ export var MapWeatherControls = ({
               {m.label}{m.locked && <Lock className="w-2.5 h-2.5 ml-0.5 inline opacity-70" />}
             </button>
           ))}
+        </div>
+
+        {/* ALWAYS-VISIBLE preference row (2026-07-12 user): the Rating toggle governs the per-spot
+            GLYPHS even when no marine heatmap layer is active, so it can never hide behind one;
+            the ft/m pill is the wave-height display unit (display-only, data stays metric). */}
+        <div className="flex items-center justify-between mb-3 px-0.5">
+          <button
+            type="button"
+            onClick={toggleSurfMode}
+            title="Surf Rating overlay: colors spots + the coastal band by surf QUALITY (size + period + wind) instead of raw swell height. Governs spot glyphs even with no heatmap layer active."
+            className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
+          >
+            {surfMode ? 'Surf Rating: ON' : 'Surf Rating: OFF'}
+          </button>
+          <button
+            type="button"
+            onClick={toggleHeightUnit}
+            title="Wave-height display unit (feet or meters)"
+            className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${textMuted} border-current opacity-70 hover:opacity-100`}
+          >
+            {heightUnit === 'm' ? 'm' : 'ft'} ⇄
+          </button>
         </div>
 
         <div className="grid grid-cols-2 gap-1.5 mb-3">
@@ -633,33 +665,29 @@ export var MapWeatherControls = ({
 
         {activeLayer && legendConfig[activeLayer] && (
           <div className="mt-1">
-            <div className="flex items-center justify-between mb-0.5">
-              <div className={`text-[9px] ${textMuted}`}>
-                {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)
-                  ? 'Surf Rating'
-                  : legendConfig[activeLayer].label}
-              </div>
-              {SURF_TOGGLE_LAYERS.includes(activeLayer) && (
-                <button
-                  type="button"
-                  onClick={toggleSurfMode}
-                  title="Toggle Swell (offshore wave height) vs Rating (surf-quality estimate: size + period + wind)"
-                  className={`text-[8px] leading-none px-1.5 py-0.5 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
-                >
-                  {surfMode ? 'Rating' : 'Swell'}
-                </button>
-              )}
-            </div>
-            <div className="h-1.5 w-full rounded-full" style={{ background: (surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)) ? surfLegend.gradientCSS : legendConfig[activeLayer].gradientCSS }} />
-            <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
-              {((surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer)) ? surfLegend.stops : legendConfig[activeLayer].stops).map((s, i) => <span key={i}>{s}</span>)}
-            </div>
+            {/* STACKED KEYS (2026-07-12 user: "the surf rating color key shouldn't cover up the
+                normal heatmap color key"): with the coastal ribbon + honest wash BOTH visible on
+                the map, both keys are true simultaneously — the rating key stacks ABOVE the
+                layer's own key instead of replacing it. Theme-aware via the shared textMuted/
+                bgClass variables (light / dark / beach). */}
             {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
-              <div className={`flex items-center gap-1 text-[8px] ${textMuted} mt-1 px-0.5`}>
-                <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#2fd07a', boxShadow: '0 0 4px 1px #2fd07a' }} />
-                <span>Quality shown at each surf spot — zoom in to see</span>
+              <div className="mb-1.5">
+                <div className={`text-[9px] ${textMuted} mb-0.5`}>Surf Rating (coastal band)</div>
+                <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
+                <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
+                  {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
+                </div>
+                <div className={`flex items-center gap-1 text-[8px] ${textMuted} mt-0.5 px-0.5`}>
+                  <span className="inline-block w-2 h-2 rounded-full" style={{ backgroundColor: '#2fd07a', boxShadow: '0 0 4px 1px #2fd07a' }} />
+                  <span>Quality shown at each surf spot — zoom in to see</span>
+                </div>
               </div>
             )}
+            <div className={`text-[9px] ${textMuted} mb-0.5`}>{legendConfig[activeLayer].label}</div>
+            <div className="h-1.5 w-full rounded-full" style={{ background: legendConfig[activeLayer].gradientCSS }} />
+            <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5 px-0.5`}>
+              {legendConfig[activeLayer].stops.map((s, i) => <span key={i}>{s}</span>)}
+            </div>
           </div>
         )}
 
@@ -702,6 +730,16 @@ export var MapWeatherControls = ({
           <div className={`overflow-hidden transition-all duration-300 ${collapsedState ? 'max-h-0 opacity-0' : 'max-h-[200px] opacity-100'}`}>
             {legendConfig[activeLayer] && (
               <div className="mb-2">
+                {/* Stacked keys (rating never covers the layer key) — mirrors the desktop panel. */}
+                {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+                  <div className="mb-1.5">
+                    <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
+                    <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
+                    <div className={`flex justify-between text-[9px] ${textMuted} mt-1`}>
+                      {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
+                    </div>
+                  </div>
+                )}
                 <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1 flex justify-between`}>
                   <span>{legendConfig[activeLayer].label}</span>
                 </div>
@@ -737,7 +775,7 @@ export var MapWeatherControls = ({
 
         <div className="px-5 py-4">
           <div className={`text-[10px] font-bold uppercase tracking-wider ${textMuted} mb-2`}>Forecasting Model</div>
-          <div className="flex gap-2 mb-6">
+          <div className="flex gap-2 mb-4">
             {models.map(m => (
               <button
                 key={m.id}
@@ -747,6 +785,27 @@ export var MapWeatherControls = ({
                 {m.label}{m.locked && <Lock className="w-3.5 h-3.5 ml-1.5 inline opacity-70" />}
               </button>
             ))}
+          </div>
+
+          {/* Always-visible preference row (mirrors the desktop panel — Rating governs glyphs
+              even with no heatmap layer; ft/m is the display unit). Theme-aware classes. */}
+          <div className="flex items-center justify-between mb-5 px-0.5">
+            <button
+              type="button"
+              onClick={toggleSurfMode}
+              title="Surf Rating overlay: colors spots + the coastal band by surf QUALITY instead of raw swell height"
+              className={`text-[11px] leading-none px-3 py-2 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70`}`}
+            >
+              {surfMode ? 'Surf Rating: ON' : 'Surf Rating: OFF'}
+            </button>
+            <button
+              type="button"
+              onClick={toggleHeightUnit}
+              title="Wave-height display unit (feet or meters)"
+              className={`text-[11px] leading-none px-3 py-2 rounded-full border transition-colors ${textMuted} border-current opacity-70`}
+            >
+              {heightUnit === 'm' ? 'm' : 'ft'} ⇄
+            </button>
           </div>
 
           <div className={`text-[10px] font-bold uppercase tracking-wider ${textMuted} mb-2`}>Weather Overlays</div>
@@ -772,6 +831,16 @@ export var MapWeatherControls = ({
             <div className={`mt-3 pt-3 border-t ${isLight ? 'border-gray-200' : 'border-zinc-800'}`}>
               {legendConfig[activeLayer] && (
                 <div className="mb-2">
+                  {/* Stacked keys (rating never covers the layer key) — mirrors the desktop panel. */}
+                  {surfMode && SURF_TOGGLE_LAYERS.includes(activeLayer) && (
+                    <div className="mb-1.5">
+                      <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>Surf Rating (coastal band)</div>
+                      <div className="h-1.5 w-full rounded-full" style={{ background: surfLegend.gradientCSS }} />
+                      <div className={`flex justify-between text-[8px] ${textMuted} mt-0.5`}>
+                        {surfLegend.stops.map((s, i) => <span key={i}>{s}</span>)}
+                      </div>
+                    </div>
+                  )}
                   <div className={`text-[9px] font-bold uppercase tracking-wider ${textMuted} mb-1`}>
                     {legendConfig[activeLayer].label}
                   </div>

@@ -262,18 +262,36 @@ float oceanAtGeo(float slng, float slat) {
   return texture2D(u_oceanMaskTexture, vec2(su, sv)).r;
 }
 
-float landInRing(float lng, float lat, float rDeg) {
-  float rx = rDeg / max(cos(radians(lat)), 0.2);   // lng offset shrinks with latitude
-  float dg = 0.70710678;                           // 45° diagonal component
-  float land = 1.0 - oceanAtGeo(lng + rx, lat);
-  land = max(land, 1.0 - oceanAtGeo(lng - rx, lat));
-  land = max(land, 1.0 - oceanAtGeo(lng, lat + rDeg));
-  land = max(land, 1.0 - oceanAtGeo(lng, lat - rDeg));
-  land = max(land, 1.0 - oceanAtGeo(lng + rx * dg, lat + rDeg * dg));
-  land = max(land, 1.0 - oceanAtGeo(lng + rx * dg, lat - rDeg * dg));
-  land = max(land, 1.0 - oceanAtGeo(lng - rx * dg, lat + rDeg * dg));
-  land = max(land, 1.0 - oceanAtGeo(lng - rx * dg, lat - rDeg * dg));
-  return clamp(land, 0.0, 1.0);
+// BLURRED LAND FRACTION over a sampling disc (v2, 2026-07-12 round-6: the v1 two-ring MAX was a
+// literal 2-step staircase — "looks like two bands stacked" — because ring-max can only answer
+// "is land within r?" per ring). This estimator is CONTINUOUS BY CONSTRUCTION: 17 disc samples
+// (center + 6 @ half-radius + 10 @ full radius) average the mask's landness, and for a fragment
+// at distance d from a coast the disc's land fraction falls smoothly from ~0.5 (on the beach) to
+// 0 (a full disc-radius offshore) — no steps exist to see, every sample slides bilinearly.
+// Concave bays read slightly wider (higher land fraction) — a natural, desirable look.
+float coastLandFrac(float lng, float lat, float dDeg) {
+  float rx = dDeg / max(cos(radians(lat)), 0.2);   // lng offset shrinks with latitude
+  float f = 1.0 - oceanAtGeo(lng, lat);
+  // inner ring — 6 samples at half radius (60° spacing)
+  float hr = 0.5 * dDeg; float hx = 0.5 * rx;
+  f += 1.0 - oceanAtGeo(lng + hx, lat);
+  f += 1.0 - oceanAtGeo(lng - hx, lat);
+  f += 1.0 - oceanAtGeo(lng + hx * 0.5, lat + hr * 0.866);
+  f += 1.0 - oceanAtGeo(lng - hx * 0.5, lat + hr * 0.866);
+  f += 1.0 - oceanAtGeo(lng + hx * 0.5, lat - hr * 0.866);
+  f += 1.0 - oceanAtGeo(lng - hx * 0.5, lat - hr * 0.866);
+  // outer ring — 10 samples at full radius (36° spacing)
+  f += 1.0 - oceanAtGeo(lng + rx, lat);
+  f += 1.0 - oceanAtGeo(lng - rx, lat);
+  f += 1.0 - oceanAtGeo(lng + rx * 0.809, lat + dDeg * 0.588);
+  f += 1.0 - oceanAtGeo(lng - rx * 0.809, lat + dDeg * 0.588);
+  f += 1.0 - oceanAtGeo(lng + rx * 0.809, lat - dDeg * 0.588);
+  f += 1.0 - oceanAtGeo(lng - rx * 0.809, lat - dDeg * 0.588);
+  f += 1.0 - oceanAtGeo(lng + rx * 0.309, lat + dDeg * 0.951);
+  f += 1.0 - oceanAtGeo(lng - rx * 0.309, lat + dDeg * 0.951);
+  f += 1.0 - oceanAtGeo(lng + rx * 0.309, lat - dDeg * 0.951);
+  f += 1.0 - oceanAtGeo(lng - rx * 0.309, lat - dDeg * 0.951);
+  return clamp(f / 17.0, 0.0, 1.0);
 }
 
 void main() {
@@ -382,14 +400,16 @@ void main() {
     float presence = smoothstep(0.05, 1.2, ratingScore);
     float vividness = 0.55 + 0.45 * smoothstep(1.0, 5.0, ratingScore);
     float bandAlpha = u_opacity * presence * vividness * smoothstep(0.05, 0.45, oceanAlpha);
-    // COASTAL RIBBON (user spec, ~10 mi tunable): full band while land is within the inner ring,
-    // half through the outer (1.6×) ring, then u_ribbonFloor (0 when the honest wash shows
-    // underneath — the band literally trades places with the heatmap offshore; a dim 0.3 ghost
-    // when no wash is engaged, the blank-map floor lesson). u_ribbonRadiusDeg=0 disables (kill
-    // switch / non-ribbon builds) with zero extra samples paid on the honest path either way.
+    // COASTAL RIBBON v2 (user spec ~10 mi tunable, SMOOTH taper — round-6 "staircase" fix): the
+    // blurred land fraction over a 2.2×radius disc falls continuously with distance from shore
+    // (~0.5 on the beach → ~0.22 at the nominal radius → 0 by ~2× radius), so
+    // smoothstep(0.03, 0.30, frac) gives full band near the coast dissolving smoothly into the
+    // honest wash — no steps by construction. Beyond: u_ribbonFloor (0 when the wash shows
+    // underneath; 0.3 ghost when it doesn't — blank-map floor lesson). u_ribbonRadiusDeg=0
+    // disables (kill switch) with zero extra samples paid on the honest path either way.
     if (u_ribbonRadiusDeg > 0.0) {
-      float ribbon = max(landInRing(lng, lat, u_ribbonRadiusDeg),
-                         0.5 * landInRing(lng, lat, u_ribbonRadiusDeg * 1.6));
+      float landFrac = coastLandFrac(lng, lat, u_ribbonRadiusDeg * 2.2);
+      float ribbon = smoothstep(0.03, 0.30, landFrac);
       bandAlpha *= max(ribbon, u_ribbonFloor);
     }
     if (u_edgeFeatherEnabled > 0.5) {

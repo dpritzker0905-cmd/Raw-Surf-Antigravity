@@ -1,3 +1,14 @@
+## Project Rules (binding)
+
+- **THREE THEMES, ALL DEVICES (user mandate 2026-07-12):** every UI surface — map controls,
+  legends, scrubber, admin panels, overlays, anything rendered — must work in **light mode, dark
+  mode, AND beach mode**, on **desktop AND mobile** (and other devices). Use `useTheme()` from
+  `contexts/ThemeContext` and theme-aware class patterns (see MapWeatherControls'
+  `isLight`/`isBeach` + `textMuted`/`chipBg`/`bgClass` variables, or the shared `ui/*` primitives
+  in admin). Never hardcode single-theme colors. Components with separate desktop/mobile layouts
+  (MapWeatherControls has three: desktop panel, mobile collapsed float, mobile expanded sheet)
+  need changes mirrored across ALL layouts.
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools

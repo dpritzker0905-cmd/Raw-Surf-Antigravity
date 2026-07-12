@@ -27,6 +27,10 @@ FALSE — check it before acting on any "obvious" assumption.**
    (`marineControllerUtils.js:298-303`), `useMarineScrubSettle`, radar recolor core tables.
    These carry documented live regressions.
 6. **dev branch only.** Never push main. Batch pushes (each one restarts Render).
+7. **THREE THEMES + ALL DEVICES (user mandate 2026-07-12):** every UI change must work in light,
+   dark, AND beach mode, on desktop AND mobile. Theme via `useTheme()` + theme-aware class
+   variables; multi-layout components (MapWeatherControls has 3 layouts) need the change mirrored
+   in every layout. Also recorded in CLAUDE.md Project Rules.
 
 ## 2. VERIFIED CURRENT STATE (evidence in parentheses; re-verify anything older than a day)
 - dev == origin == `892d45d2`; working tree has ONLY pre-existing `.agents/skills/*` mods (present
