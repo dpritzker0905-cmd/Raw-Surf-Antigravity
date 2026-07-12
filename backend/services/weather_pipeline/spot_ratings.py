@@ -55,10 +55,12 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     return ", ".join(parts)
 
 
-async def rate_one_spot(resolver, spot, model, valid_time) -> dict:
+async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None) -> dict:
     """Resolve a single spot's marine + wind point and compute its rating. `spot` is a dict with
     id/name/latitude/longitude/accuracy_flag/is_verified_peak (from the DB or Supabase REST). `resolver`
     exposes `async resolve_point(model, domain, layer, lat, lng, valid_time_str)` (the live point sampler).
+    `reference_size_m` is the spot's LOCAL good-day breaking height (from spot_size_climatology) — None keeps
+    the global 1.2 m default, so the rating is unchanged until a spot has enough climatology.
     Returns the rating dict — the SAME shape the endpoint serves and the precompute persists."""
     lat, lng = spot["latitude"], spot["longitude"]
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
@@ -104,7 +106,7 @@ async def rate_one_spot(resolver, spot, model, valid_time) -> dict:
         except Exception as e:
             logger.debug(f"[spot-ratings] breaker-type resolve failed for {spot.get('id')}: {e}")
     score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from,
-                                       tide_norm, best_tide, breaker_xi)
+                                       tide_norm, best_tide, breaker_xi, reference_size_m)
     why = rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
@@ -280,6 +282,21 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     base = base_dt or _top_of_hour_utc()
     sem = asyncio.Semaphore(max(1, concurrency))
 
+    # LOCAL SIZE CALIBRATION (P-local): each spot's size gate saturates at its OWN good-day breaking height
+    # (p80 climatology from spot_size_climatology), not a global 1.2 m — so a clean 2-3 ft day is fair-good at
+    # a small-wave spot but poor at a big-wave spot (Surfline's "relative to the spot's potential"). Gate
+    # RATING_LOCAL_SIZE; an empty map (feature off, or a spot without enough climatology yet) → reference None →
+    # the global 1.2 m default → unchanged. Auto-scales to any spot added (its reference builds from the model).
+    ref_map = {}
+    if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+        try:
+            from services.weather_pipeline.spot_size_climatology import (
+                load_size_climatology_l2_cached, reference_map as _size_reference_map)
+            ref_map = _size_reference_map(load_size_climatology_l2_cached())
+            logger.info("[spot-ratings] local size calibration ON: %d spots have a size reference.", len(ref_map))
+        except Exception as _re:
+            logger.warning("[spot-ratings] size-reference load failed (global default): %s", _re)
+
     # SPATIAL-BATCHING pre-warm (2026-07-06, chip task_2d50cd81): the EURO pass below fires a
     # native CMEMS point per spot — one subset subprocess each, and CMEMS throttles under the
     # serial volume. Pre-warm ONE subset per ~5° spot cluster instead; the ladder's per-point
@@ -301,7 +318,7 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
 
     async def _one(resolver, sp, model, vt):
         async with sem:
-            return await rate_one_spot(resolver, sp, model, vt)
+            return await rate_one_spot(resolver, sp, model, vt, reference_size_m=ref_map.get(str(sp.get("id"))))
 
     frames = []
     for model in models:
@@ -339,6 +356,19 @@ def run_spot_ratings_precompute() -> tuple:
                      coverage * 100, rated, total, min_cov * 100)
         return len(spots), 0  # n_frames=0 signals "computed but withheld"
     upload_spot_ratings_l2(ProductStore(), obj)
+    # Fold this run's breaking heights into the per-spot size CLIMATOLOGY (the local-calibration reference
+    # source). Single-writer (this cron) → no CAS. NEVER fatal — a climatology hiccup must not fail the
+    # ratings precompute or stomp the served ratings. Gate RATING_SIZE_CLIMATOLOGY (default on; it only
+    # WRITES a separate blob, it doesn't change served ratings until RATING_LOCAL_SIZE reads it back).
+    if os.environ.get("RATING_SIZE_CLIMATOLOGY", "1") == "1":
+        try:
+            from services.weather_pipeline.spot_size_climatology import (
+                load_size_climatology_l2, merge_frames_into_climatology, upload_size_climatology_l2)
+            clim = merge_frames_into_climatology(load_size_climatology_l2(), obj.get("frames", []))
+            upload_size_climatology_l2(ProductStore(), clim)
+            logger.info("[spot-ratings] size climatology updated: %d spots tracked.", len(clim.get("spots", {})))
+        except Exception as _ce:
+            logger.warning("[spot-ratings] size climatology accumulation skipped: %s", _ce)
     logger.info("[spot-ratings] precompute uploaded L2: %d spots × %d frames (%s × hours %s), coverage %.0f%%.",
                 len(spots), n_frames, models, hours, coverage * 100)
     return len(spots), n_frames

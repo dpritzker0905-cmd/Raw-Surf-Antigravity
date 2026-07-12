@@ -134,7 +134,7 @@ def test_precompute_round_trips_through_select(monkeypatch):
         {"id": "b", "name": "B", "latitude": 40.0, "longitude": -80.0, "accuracy_flag": None, "is_verified_peak": False},  # outside the FL bbox
     ]
 
-    async def fake_rate(resolver, spot, model, valid_time):
+    async def fake_rate(resolver, spot, model, valid_time, reference_size_m=None):
         return {
             "spot_id": str(spot["id"]), "name": spot["name"],
             "latitude": spot["latitude"], "longitude": spot["longitude"],
