@@ -15,7 +15,7 @@ import {
   Shield, Zap, Users, DollarSign, Ban, 
   Loader2, ChevronLeft, ChevronRight, UserCheck, Trophy, Radio, MapPin, X, ArrowLeft, Activity,
   Megaphone, History, RefreshCw, Wallet, AlertCircle, Edit, BarChart2,
-  Headphones, Server, Flag, Mail, Layout, Lock, Scale
+  Headphones, Server, Flag, Mail, Layout, Lock, Scale, Waves
 } from 'lucide-react';
 
 import { Button } from './ui/button';
@@ -52,6 +52,7 @@ import { AdminP1Dashboard } from './admin/AdminP1Dashboard';
 import { AdminSupportDashboard } from './admin/AdminSupportDashboard';
 
 import { AdminSystemDashboard } from './admin/AdminSystemDashboard';
+import { AdminSurfForecastPanel } from './admin/AdminSurfForecastPanel';
 
 import { AdminFinanceDashboard } from './admin/AdminFinanceDashboard';
 
@@ -300,6 +301,7 @@ const UnifiedAdminConsole = () => {
     { id: 'support', label: 'Support', icon: Headphones },
     { id: 'communications', label: 'Comms', icon: Mail },
     { id: 'system', label: 'System', icon: Server },
+    { id: 'surf-forecast', label: 'Surf Forecast', icon: Waves },
     { id: 'finance', label: 'Finance', icon: Wallet },
     { id: 'content-mgmt', label: 'Content', icon: Layout },
     { id: 'persona', label: 'Persona', icon: Zap },
@@ -504,6 +506,11 @@ const UnifiedAdminConsole = () => {
         {/* System Tab - Health Monitoring */}
         {activeTab === 'system' && (
           <AdminSystemDashboard />
+        )}
+
+        {/* Surf Forecast Tab - rating system flags, precomputed-data freshness, report moderation */}
+        {activeTab === 'surf-forecast' && (
+          <AdminSurfForecastPanel />
         )}
 
         {/* Finance Tab - Refunds, Payouts, Failed Payments */}

@@ -18,6 +18,7 @@ from .p2 import router as admin_p2_router
 from .p2_campaigns import router as admin_p2_campaigns_router
 from .support import router as admin_support_router
 from .system import router as admin_system_router
+from .surf_forecast import router as admin_surf_forecast_router
 from .ab_analytics import router as admin_ab_analytics_router
 from .admin_test_accounts import router as admin_test_accounts_router
 from .admin_user_journey import router as admin_user_journey_router
