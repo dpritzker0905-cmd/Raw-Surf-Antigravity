@@ -6,6 +6,7 @@ import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale 
 import { getSurfModeFlag, setSurfModeFlag } from './backendWeatherServiceClient';
 import { RATING_LEVELS, RATING_COLOR } from './surfRating';
 import { getHeightUnit, setHeightUnit, M_TO_FT } from './heightUnits';
+import ForecastWheel, { shouldUseClassicScrubber } from './ForecastWheel';
 
 // Option-2 Swell<->Surf toggle: marine height-layers that support the bathymetry surf transform.
 const SURF_TOGGLE_LAYERS = ['waves', 'swell_1', 'swell_2', 'wind_waves'];
@@ -443,6 +444,25 @@ export var MapWeatherControls = ({
     };
   }, []);
 
+  // FORECAST WHEEL scrub signals (2026-07-12, user-approved detented drum): the wheel manages its
+  // own gesture/inertia state — these mirror ONLY the global scrub signals the series-prewarm and
+  // settle machinery listen for (timeline_scrub_start/end + window.isScrubbingTimeline), exactly
+  // what the classic slider's handleDragStart/End emit.
+  const wheelScrubStart = () => {
+    if (typeof window !== 'undefined') {
+      window.isScrubbingTimeline = true;
+      window.dispatchEvent(new CustomEvent('timeline_scrub_start'));
+    }
+  };
+  const wheelScrubEnd = () => {
+    if (typeof window !== 'undefined') {
+      window.isScrubbingTimeline = false;
+      window.lastScrubTime = Date.now();
+      window.dispatchEvent(new CustomEvent('timeline_scrub_end'));
+    }
+  };
+  const useWheel = !shouldUseClassicScrubber(typeof window !== 'undefined' ? window : undefined);
+
   // Integrated Timeline UI block
   const renderTimeline = (isMobile = false) => {
     if (!activeLayer) return null;
@@ -469,25 +489,43 @@ export var MapWeatherControls = ({
             </button>
           )}
 
-          {/* Scrubber */}
+          {/* Scrubber: the detented FORECAST WHEEL (user-approved prototype d50c0923) — jog for
+              hour precision, flick to shuttle (speed-capped), commits gate on detent settle.
+              Kill switch __RAW_CLASSIC_SCRUBBER__=true restores the classic range slider. */}
           <div className="flex-1 px-1 flex flex-col justify-center">
-            <input
-              type="range"
-              min={0}
-              max={isRadar ? Math.max(radarFrames.length - 1, 0) : maxForecastHours}
-              step={1}
-              value={sliderVal}
-              onChange={handleSliderChange}
-              onMouseDown={handleDragStart}
-              onTouchStart={handleDragStart}
-              onMouseUp={handleDragEnd}
-              onTouchEnd={handleDragEnd}
-              className="w-full h-2 rounded-full appearance-none cursor-pointer"
-              style={{
-                background: `linear-gradient(to right, #06b6d4 ${progress}%, ${trackBg} ${progress}%)`
-              }}
-              aria-label="Timeline scrubber"
-            />
+            {useWheel ? (
+              <ForecastWheel
+                isRadar={isRadar}
+                max={isRadar ? Math.max(radarFrames.length - 1, 0) : maxForecastHours}
+                value={sliderVal}
+                theme={theme}
+                onPreview={(v) => setSliderVal(v)}
+                onCommit={(v) => {
+                  setSliderVal(v);
+                  if (isRadar) onRadarFrameChange(v); else onTimeChange(v);
+                }}
+                onScrubStart={wheelScrubStart}
+                onScrubEnd={wheelScrubEnd}
+              />
+            ) : (
+              <input
+                type="range"
+                min={0}
+                max={isRadar ? Math.max(radarFrames.length - 1, 0) : maxForecastHours}
+                step={1}
+                value={sliderVal}
+                onChange={handleSliderChange}
+                onMouseDown={handleDragStart}
+                onTouchStart={handleDragStart}
+                onMouseUp={handleDragEnd}
+                onTouchEnd={handleDragEnd}
+                className="w-full h-2 rounded-full appearance-none cursor-pointer"
+                style={{
+                  background: `linear-gradient(to right, #06b6d4 ${progress}%, ${trackBg} ${progress}%)`
+                }}
+                aria-label="Timeline scrubber"
+              />
+            )}
           </div>
 
           {/* Step Forward (Radar only) */}
@@ -507,8 +545,9 @@ export var MapWeatherControls = ({
           </div>
         </div>
 
-        {/* v3.8: Day tick labels beneath scrubber */}
-        {!isRadar && maxForecastHours > 24 && (
+        {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
+            carries its own day ticks + labels). */}
+        {!useWheel && !isRadar && maxForecastHours > 24 && (
           <div className="relative h-6 mt-2 mx-8" style={{ position: 'relative', height: 24, marginTop: 8 }}>
             {/* Now indicator */}
             <div style={{

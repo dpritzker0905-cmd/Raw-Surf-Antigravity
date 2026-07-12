@@ -177,6 +177,17 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   const _rm = resident.__sourceModel || 'GFS';
   const _im = incoming.__sourceModel || 'GFS';
   if (_rm !== _im) return false;
+  // RATED-RESIDENT RELEASE (2026-07-12 round-8, live-proven: "clamping when I deactivate the
+  // ratings" — FORENSIC-SNAP showed {rating:true, band:false} held 75+ s at z5.9 while the guard
+  // rejected the honest 37×17): a resident RATING grid's height channel holds SCORES; with the
+  // Surf flag OFF the honest colormap renders scores-as-heights (garbage). Once the flag is off,
+  // ANY honest incoming — even the coarse global — is a TRUTH UPGRADE over a rated resident:
+  // never hold it. (Exact mirror of ratingDowngrade below, which protects rated residents while
+  // the flag is ON.) Kill shared: __RAW_DISABLE_NO_DOWNGRADE__ disables the whole guard.
+  const _surfFlagOn = (typeof window !== 'undefined') && (window.__SURF_MODE__ === true
+    || (window.__SURF_MODE__ === undefined && typeof window.localStorage !== 'undefined'
+        && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+  if (resident.ratingMode && !incoming.ratingMode && !_surfFlagOn) return false;
   const _rc = gridCellDeg(resident);
   const _ic = gridCellDeg(incoming);
   const cellDowngrade = _rc !== null && _ic !== null && _ic >= _rc * 2.0;
@@ -1174,6 +1185,16 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // colours. The per-spot glyphs gate on the same signal (useSpotRatings) so both layers stay consistent.
     if (surfModeVal > 0.0 && !(waveGrid && waveGrid.ratingMode)) {
       surfModeVal = 0.0;
+    }
+    // REVERSE gate (2026-07-12 round-8, the toggle-OFF twin of Option-A): flag OFF but the
+    // rendered grid is still a RATING grid (the toggle-off → honest-refetch gap). Its height
+    // channel holds SCORES — the honest ramp over scores is the "clamped garbage heatmap when I
+    // deactivate ratings" report. Keep painting it as the band (+wash) until the honest grid
+    // commits; the guard's rated-resident release above makes that exactly one commit away.
+    // Kill: __RAW_RATING_HOLD_DISABLED__.
+    else if (surfModeVal === 0.0 && waveGrid && waveGrid.ratingMode
+             && (typeof window === 'undefined' || window.__RAW_RATING_HOLD_DISABLED__ !== true)) {
+      surfModeVal = 1.0;
     }
     // Telemetry to localize a "no rating band" report in ONE console read (window.__RAW_GPU__.ratingBand): the
     // backend serves rating_mode=true on regional tiles (verified), the series conformer stamps grid.ratingMode,

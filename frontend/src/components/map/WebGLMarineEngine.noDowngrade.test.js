@@ -78,6 +78,41 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(regional({ __componentLayer: 'swell_1' }), coarseGlobal(), 9, coveredVp, false)).toBe(false);
   });
 
+  // RATED-RESIDENT RELEASE (2026-07-12 round-8, live-proven: toggling ratings OFF left a rated
+  // 9×9 resident held against the honest global for 75+ s — its score channel rendered through
+  // the honest colormap as the "clamped garbage heatmap"). Once the Surf flag is OFF, an honest
+  // incoming is a TRUTH UPGRADE over a rated resident — never held. Flag ON keeps cdd90c7e's
+  // protection (unrated cold-cycle replacements still rejected).
+  describe('rated-resident release on surf-flag OFF', () => {
+    afterEach(() => { delete window.__SURF_MODE__; window.localStorage.removeItem('__SURF_MODE__'); });
+
+    it('RELEASES a rated resident to ANY honest incoming when the flag is OFF (even the coarse global)', () => {
+      window.__SURF_MODE__ = false;
+      expect(shouldRejectResolutionDowngrade(
+        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 9, coveredVp, false
+      )).toBe(false);
+    });
+
+    it('flag OFF via localStorage-undefined path also releases', () => {
+      // __SURF_MODE__ undefined + localStorage unset = flag off.
+      expect(shouldRejectResolutionDowngrade(
+        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 9, coveredVp, false
+      )).toBe(false);
+    });
+
+    it('flag ON keeps protecting the rated resident (cdd90c7e unchanged)', () => {
+      window.__SURF_MODE__ = true;
+      expect(shouldRejectResolutionDowngrade(
+        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 9, coveredVp, false
+      )).toBe(true);
+    });
+
+    it('honest resident vs honest incoming is untouched by the release path (coarse still blocked)', () => {
+      window.__SURF_MODE__ = false;
+      expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, coveredVp, false)).toBe(true);
+    });
+  });
+
   it('does nothing to a non-renderable resident (a blank regional must not pin out the coarse)', () => {
     expect(shouldRejectResolutionDowngrade(regional({ __renderable: false }), coarseGlobal(), 9, coveredVp, false)).toBe(false);
     expect(shouldRejectResolutionDowngrade(regional({ vectors: [] }), coarseGlobal(), 9, coveredVp, false)).toBe(false);

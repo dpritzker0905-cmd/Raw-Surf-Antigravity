@@ -194,6 +194,26 @@ settle-gated fetches; design mock for USER approval BEFORE build.
    - Verify: user A/B the flag live; watch for crest color-collision over the wash and any
      particle behavior change on non-rating layers (must be byte-identical — uniform 0).
 
+## ROUND-8 (clean build 4b7af171): toggle-OFF clamp ROOT + fixes + Forecast Wheel SHIPPED
+1. **"Clamping when I deactivate the ratings" — ROOT (user's own FORENSIC-SNAP proved it):**
+   `{rating:true, band:false}` held 75+ s at z5.9 — the resident RATING grid (scores in the height
+   channel) rendered through the honest colormap after the flag flipped OFF, and the no-downgrade
+   guard kept REJECTING the honest 37×17 replacement (it has no flag-OFF concept). TWO fixes:
+   (a) guard RATED-RESIDENT RELEASE — flag OFF ⇒ any honest incoming is a truth upgrade over a
+   rated resident, never held (mirror of cdd90c7e; 4 new guard tests, suite 43);
+   (b) REVERSE Option-A gate — flag OFF + rendered grid still rated ⇒ keep painting the BAND
+   (+wash) for the one-commit gap so scores NEVER render as heights (kill:
+   `__RAW_RATING_HOLD_DISABLED__`).
+2. **Forecast Wheel SHIPPED (user approved mock d50c0923)**: `ForecastWheel.js` — canvas drum,
+   1:1 jog, capped shuttle (6 h/s, lever `__RAW_WHEEL_MAX_HPS__`), detent-settle-gated commits +
+   leading commit, radar mode keeps full-rate ticks (cb074b8b contract), ARIA slider + keyboard,
+   reduced-motion = no inertia, THREE themes, serves all 3 layouts via renderTimeline. Classic
+   slider retained behind `__RAW_CLASSIC_SCRUBBER__=true`. Scrub prewarm/settle signals preserved
+   (timeline_scrub_start/end + isScrubbingTimeline).
+3. Round-8 log also showed: grid_series page-3 fetches (h144-285) failing outright during the
+   session (server-side, watch post-CORS-fix); backstop `series={loads:undefined...}` diag gap
+   (cosmetic); triple-encode at boot still present (perf arc).
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).
