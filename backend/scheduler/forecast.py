@@ -125,15 +125,18 @@ def ingest_marine_forecast_task():
                 # 165-min budget (~67 min used). Dependency-safe: the resolver reads global_mid from
                 # the L2-restored manifest, and the EURO extended-estimates job (core) picks up mid
                 # targets on the NEXT core cycle — the same one-cycle lag every pilot product has.
-                # GFS mid runs FIRST (its 14d fetch warms nothing downstream here, but EURO mid —
-                # default OFF, a 2nd ~15-30min CMEMS fetch — must run AFTER it if enabled).
-                # Kills: {GFS,ICON}_MARINE_MID_RES_INGEST=0; enable EURO_MARINE_MID_RES_INGEST=1.
+                # GFS mid runs FIRST (its 14d fetch warms nothing downstream here). EURO mid default
+                # ON since 2026-07-12: it now sources the free ECMWF Open Data wave stream (~3-6 min
+                # byte-range GRIB, waves layer only) instead of the 2nd ~15-30 min CMEMS fetch whose
+                # budget caution kept it OFF — which left EURO with ZERO global_mid products = no
+                # EURO rating band ("band only on GFS"). CMEMS stays as its fallback path
+                # (EURO_MARINE_MID_ECMWF=0 forces it). Kills: {GFS,ICON,EURO}_MARINE_MID_RES_INGEST=0.
                 *([("GFS Marine Global Mid", weather_scheduler.ingest_gfs_marine_global_mid)]
                   if os.environ.get("GFS_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("ICON Marine Global Mid", weather_scheduler.ingest_icon_marine_global_mid)]
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
-                  if os.environ.get("EURO_MARINE_MID_RES_INGEST", "0") != "0" else []),
+                  if os.environ.get("EURO_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 # Regional GFS marine pilot (FL+SoCal 0.25°): slow NOAA-direct GRIB fetches (~5-15 min
                 # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
                 # EURO Marine Global job reuses), so isolating it is dependency-safe.

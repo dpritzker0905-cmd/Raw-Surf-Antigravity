@@ -7,9 +7,14 @@ icosahedral work, this is a REGULAR lat/lon grid, so we reuse `_fetch_common.bui
 
 We use the official `ecmwf-opendata` client (lazy import): it resolves the latest available cycle and
 byte-range-downloads only the requested params via each file's `.index`, then pygrib decodes them. One
-fetcher serves both layers via the payload `layer` key:
+fetcher serves the layers via the payload `layer` key:
   - layer="wind"     -> param 10u/10v  -> wind_speed_10m [m/s] + wind_direction_10m [° meteorological "from"]
   - layer="pressure" -> param msl      -> pressure_msl [hPa]  (msl is Pa -> ÷100)
+  - layer="waves"    -> stream="wave" param swh/mwp/pp1d/mwd -> wave_height [m] + wave_period [s] +
+                        wave_direction [°]. Period = pp1d (PEAK, the surf-correct choice, matches
+                        GFS-Wave PERPW semantics) with mwp (mean) as the per-value fallback. The free
+                        wave stream has NO swell-partition params (shww/shts) — total sea only, so
+                        swell_1/swell_2/wind_waves stay on their existing sources.
 
 Steps: 3-hourly to 144h, then 6-hourly to min(forecast_days*24, 240h). 00/12 runs reach 240h (10d);
 06/18 runs only reach 144h — so we try the full step list and fall back to ≤144h on failure (a partial
@@ -33,15 +38,19 @@ from pathlib import Path
 try:
     from _fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
-        sanitize_direction_deg, meteo_wind_dir, make_point_dict,
+        sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
+        meteo_wind_dir, make_point_dict,
     )
 except ImportError:  # pragma: no cover - package-context fallback
     from services._fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
-        sanitize_direction_deg, meteo_wind_dir, make_point_dict,
+        sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
+        meteo_wind_dir, make_point_dict,
     )
 
-LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"]}
+LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
+# Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
+LAYER_STREAM = {"wind": "oper", "pressure": "oper", "waves": "wave"}
 
 
 def _step_list(max_hours):
@@ -76,7 +85,7 @@ def fetch_global_coarse(payload):
 
     def _retrieve(steps):
         # date/time omitted -> client resolves the latest available cycle automatically.
-        return client.retrieve(type="fc", stream="oper", levtype="sfc",
+        return client.retrieve(type="fc", stream=LAYER_STREAM[layer], levtype="sfc",
                                param=params, step=steps, target=str(target))
 
     steps_full = _step_list(max_hours)
@@ -101,7 +110,10 @@ def fetch_global_coarse(payload):
     # ~n_pts NN points immediately and DISCARD each full field, so peak RAM is ~one field (~8MB). The
     # sampled per-message lists are in idx_map order = the points order, so index by point (pi).
     want_u = ("10u", "u10"); want_v = ("10v", "v10"); want_p = ("msl", "prmsl", "mslp")
+    want_h = ("swh",); want_pk = ("pp1d",); want_mp = ("mwp",); want_d = ("mwd",)
+    want_wave = want_h + want_pk + want_mp + want_d
     u_by, v_by, p_by = {}, {}, {}
+    h_by, pk_by, mp_by, d_by = {}, {}, {}, {}
     idx_map = None
     try:
         grbs = pygrib.open(str(target))
@@ -110,6 +122,8 @@ def fetch_global_coarse(payload):
             if layer == "wind" and sn not in (want_u + want_v):
                 continue
             if layer == "pressure" and sn not in want_p:
+                continue
+            if layer == "waves" and sn not in want_wave:
                 continue
             if idx_map is None:
                 glats, glons = m.latlons()
@@ -126,6 +140,14 @@ def fetch_global_coarse(payload):
                 v_by[vt] = vals
             elif sn in want_p:
                 p_by[vt] = vals
+            elif sn in want_h:
+                h_by[vt] = vals
+            elif sn in want_pk:
+                pk_by[vt] = vals
+            elif sn in want_mp:
+                mp_by[vt] = vals
+            elif sn in want_d:
+                d_by[vt] = vals
         grbs.close()
     finally:
         try:
@@ -134,7 +156,13 @@ def fetch_global_coarse(payload):
         except Exception:
             pass
 
-    times_dt = sorted(set(u_by) & set(v_by)) if layer == "wind" else sorted(p_by)
+    if layer == "wind":
+        times_dt = sorted(set(u_by) & set(v_by))
+    elif layer == "waves":
+        # height + direction are required; period falls back per-value (pp1d peak -> mwp mean -> None).
+        times_dt = sorted(set(h_by) & set(d_by))
+    else:
+        times_dt = sorted(p_by)
     if not times_dt or idx_map is None:
         sys.stderr.write(f"[ecmwf_opendata_fetcher] no usable {layer} messages decoded\n")
         return [], 0, 0, None
@@ -161,6 +189,31 @@ def fetch_global_coarse(payload):
                     la, lo, "ecmwf",
                     {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"},
                     {"time": times, "wind_speed_10m": spd[pi], "wind_direction_10m": drc[pi]},
+                ))
+                pi += 1
+    elif layer == "waves":
+        hgt = [[] for _ in range(n_pts)]
+        per = [[] for _ in range(n_pts)]
+        drc = [[] for _ in range(n_pts)]
+        for vt in times_dt:
+            h_vals = h_by[vt]; d_vals = d_by[vt]
+            pk_vals = pk_by.get(vt); mp_vals = mp_by.get(vt)
+            for pi in range(n_pts):
+                hgt[pi].append(sanitize_height_m(h_vals[pi]))   # NaN (land mask) -> None inside
+                drc[pi].append(sanitize_direction_deg(d_vals[pi]))
+                pv = pk_vals[pi] if pk_vals is not None else float("nan")
+                if pv != pv and mp_vals is not None:  # peak missing -> mean
+                    pv = mp_vals[pi]
+                per[pi].append(sanitize_period_s(pv))
+        points = []
+        pi = 0
+        for la in lats:
+            for lo in lons:
+                points.append(make_point_dict(
+                    la, lo, "ecmwf",
+                    {"time": "iso8601", "wave_height": "m", "wave_period": "s", "wave_direction": "°"},
+                    {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
+                     "wave_direction": drc[pi]},
                 ))
                 pi += 1
     else:
@@ -204,7 +257,7 @@ def main():
             json.dump(points, f)
 
     layer = payload.get("layer", "wind")
-    key = "wind_speed_10m" if layer == "wind" else "pressure_msl"
+    key = {"wind": "wind_speed_10m", "pressure": "pressure_msl", "waves": "wave_height"}.get(layer, "wind_speed_10m")
     vals = [v for p in points for v in p["hourly"].get(key, []) if v is not None]
     print(f"SUMMARY: layer={layer} points={len(points)} steps_ok={ok} steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "

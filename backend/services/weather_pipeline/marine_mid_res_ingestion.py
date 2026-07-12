@@ -143,13 +143,22 @@ async def ingest_icon_marine_global_mid_impl(scheduler) -> bool:
 
 
 async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
-    """MID-RES global EURO/Copernicus waves — CMEMS native at EURO_MID_RES (default 2°), PRIMARY horizon.
-    The 240→336h ESTIMATED extension (the coarse sibling's blend mirror) is NOT built here: the
-    region-parameterized ingest_euro_marine_extended_estimates job now includes region 'global_mid', so
-    once these native anchors exist it generates the mid-res persistence+GFS/ICON-blend tail with honest
-    estimate provenance — exactly the machinery the coarse products use. ⚠️ COST: a SECOND Copernicus
-    fetch (~15-30 min) per cycle → default-OFF at the registration site (EURO_MARINE_MID_RES_INGEST);
-    enable once the cron budget is confirmed."""
+    """MID-RES global EURO waves at EURO_MID_RES (default 2°), PRIMARY horizon.
+
+    PRIMARY = ECMWF Open Data wave stream (2026-07-12): free CC-BY 0.25° GRIB (swh/mwp/pp1d/mwd,
+    byte-range, no auth) via ecmwf_wave_service — the same infra EURO wind/pressure already use. This
+    replaces the SECOND ~15-30 min CMEMS fetch that kept the job default-OFF (the "band only on GFS"
+    root: EURO global_mid count was 0, so EURO waves fell to the 10° coarse -> coarse_extent skip -> no
+    rating band). ECMWF covers the TOTAL `waves` layer only (no swell-partition params in the free
+    feed) — exactly what the mid tier's rating band needs; mid swell partitions stay absent for EURO.
+    provider stays 'open-meteo' -> normalizer stamps source_dataset='ecmwf_wam025' (native, honest).
+
+    The 240→336h ESTIMATED extension is NOT built here: the region-parameterized
+    ingest_euro_marine_extended_estimates job includes region 'global_mid' and anchors on any native
+    EURO product (no provider filter), so it grows the honest estimate tail from these anchors.
+
+    FALLBACK / kill: EURO_MARINE_MID_ECMWF=0 forces the legacy CMEMS 4-layer path (also taken when the
+    ECMWF fetch fails); EURO_MARINE_MID_RES_INGEST=0 at the registration site kills the whole job."""
     logger.info("[Pipeline Scheduler] Starting EURO Marine Global MID-RES Ingestion job...")
     env = get_env_flags()
     run_time = datetime.now(timezone.utc)
@@ -158,6 +167,31 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
     cop_days = int(os.environ.get("EURO_MID_RES_DAYS", "2" if env["is_test_env"] else "10"))
     _cop_basis = {"type": "copernicus_native_global_coarse", "method": "cmems_thin_band_subset",
                   "source_model": "ecmwf_wam_cmems_glo_0083"}
+
+    ecmwf_direct = os.environ.get("EURO_MARINE_MID_ECMWF", "1") != "0"
+    if ecmwf_direct:
+        ecmwf_results = None
+        try:
+            from services.ecmwf_wave_service import fetch_euro_marine_waves_global
+            ecmwf_results = await fetch_euro_marine_waves_global(_GLOBAL_REGION, resolution, cop_days)
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] EURO marine mid ECMWF-direct fetch errored: {_ee}")
+        if ecmwf_results:
+            logger.info(f"[Pipeline Scheduler] EURO marine mid ECMWF-direct OK: {len(ecmwf_results)} points.")
+            c = await normalize_and_save_loop(
+                scheduler.normalizer, scheduler.store, ecmwf_results,
+                model="EURO", provider="open-meteo", domain="marine", layer="waves",
+                bbox=_GLOBAL_REGION, resolution=resolution, run_time=run_time,
+                region_id="global_mid", coverage_mode="global_tile",
+                is_test_env=env["is_test_env"], step=1,
+                log_prefix="[Pipeline Scheduler] EURO waves (ecmwf wave stream) global_mid"
+            )
+            logger.info(f"[Pipeline Scheduler] Ingested {c} EURO waves global mid-res grid files (ECMWF).")
+            if c > 0:
+                scheduler.store.prune_superseded_products("EURO", "marine", "waves", "global_mid", run_time)
+                await scheduler._cleanup_and_pause(ecmwf_results, 0)
+                return True
+        logger.warning("[Pipeline Scheduler] EURO marine mid ECMWF-direct unavailable; falling back to CMEMS.")
 
     cop_results = None
     try:
