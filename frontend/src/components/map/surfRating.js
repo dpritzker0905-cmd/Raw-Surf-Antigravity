@@ -13,11 +13,17 @@ const MS_TO_KT = 1.943844;
 const W_WIND = 0.60;
 const W_PERIOD = 0.40;
 const _clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
+const HMIN_RIDEABLE_M = 0.2;     // absolute unsurfable floor (mirror surf_rating._HMIN_RIDEABLE_M)
+const DEFAULT_REF_SIZE_M = 1.2;  // global chest-high default when no local reference (mirror _DEFAULT_REF_SIZE_M)
 
-export function sizeScore(h) {
-  if (h == null || h <= 0.2) return 0.0;
-  if (h >= 1.2) return 1.0;
-  return _clamp((h - 0.2) / 1.0, 0.0, 1.0);
+/** Size gate [0,1] calibrated to the spot's LOCAL good-day size. `referenceSizeM` is the breaking height
+ *  where the spot saturates to 1.0; null -> global 1.2 m default (identical everywhere). Below the absolute
+ *  ~0.2 m floor = 0 (unsurfable anywhere). Makes 2-3 ft rate high at a small-wave spot, low at a big-wave one. */
+export function sizeScore(h, referenceSizeM = null) {
+  if (h == null || h <= HMIN_RIDEABLE_M) return 0.0;
+  const ref = (referenceSizeM != null && referenceSizeM > HMIN_RIDEABLE_M) ? referenceSizeM : DEFAULT_REF_SIZE_M;
+  if (h >= ref) return 1.0;
+  return _clamp((h - HMIN_RIDEABLE_M) / (ref - HMIN_RIDEABLE_M), 0.0, 1.0);
 }
 
 export function periodQuality(tp) {
@@ -93,8 +99,8 @@ export function breakerTypeQuality(xi) {
   return _clamp(1.0 - 0.06 * (xi - 3.3), 0.82, 1.0);
 }
 
-export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null) {
-  const sg = sizeScore(h);
+export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null) {
+  const sg = sizeScore(h, referenceSizeM);
   if (sg <= 0.0) return 0.0;
   const ex = swellExposure(swellFromDeg, shoreNormalDeg);
   if (ex <= 0.0) return 0.0;
@@ -113,9 +119,9 @@ export function scoreToLevel(score) {
 }
 
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null) {
+export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi);
+  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM);
   return { score, level: scoreToLevel(score) };
 }
 

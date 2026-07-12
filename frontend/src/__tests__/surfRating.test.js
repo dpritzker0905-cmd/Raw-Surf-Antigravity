@@ -67,6 +67,25 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(sizeScore(5.0)).toBe(1);
   });
 
+  test('size reference: null is backward-compatible; local ref is relative to spot', () => {
+    // No reference (and explicit 1.2 m default) reproduce the legacy global curve exactly.
+    [0.05, 0.2, 0.3, 0.6, 0.9, 1.2, 1.5, 5.0].forEach((h) => {
+      const legacy = h <= 0.2 ? 0.0 : (h >= 1.2 ? 1.0 : (h - 0.2) / 1.0);
+      expect(sizeScore(h)).toBeCloseTo(legacy, 6);
+      expect(sizeScore(h, 1.2)).toBeCloseTo(legacy, 6);
+    });
+    // Local calibration: 2 ft is fully working at a small-wave spot, small at a big-wave spot.
+    expect(sizeScore(0.6, 0.6)).toBe(1.0);
+    expect(sizeScore(0.6, 2.5)).toBeLessThan(0.25);
+    expect(sizeScore(0.15, 0.6)).toBe(0.0);        // absolute unrideable floor still applies
+    expect(sizeScore(3.0, 0.6)).toBe(1.0);         // bigger than local ref still saturates
+    // THE Florida case: local ref lifts a clean small-wave day above the global-default score.
+    const args = [0.8, 11.0, 2.0, 90.0, 270.0, 90.0];
+    const globalScore = computeSurfRating(...args).score;
+    const flScore = computeSurfRating(...args, null, null, null, 0.7).score;  // tide/bestTide/xi null, ref 0.7
+    expect(flScore).toBeGreaterThan(globalScore);
+  });
+
   test('period quality monotonic short->long', () => {
     expect(periodQuality(5)).toBe(0.4);
     expect(periodQuality(16)).toBe(1.0);

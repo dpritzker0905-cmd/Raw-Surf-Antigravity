@@ -140,6 +140,32 @@ def test_size_score_gates_then_saturates():
     assert size_score(5.0) == 1.0   # big is not penalized (graded by wind/period)
 
 
+def test_size_score_reference_none_is_backward_compatible():
+    # No reference (and the explicit global default 1.2 m) must reproduce the pre-calibration curve EXACTLY.
+    for h in (0.05, 0.2, 0.3, 0.6, 0.9, 1.2, 1.5, 5.0):
+        legacy = 0.0 if h <= 0.2 else (1.0 if h >= 1.2 else (h - 0.2) / 1.0)
+        assert size_score(h) == pytest.approx(legacy)
+        assert size_score(h, 1.2) == pytest.approx(legacy)
+
+
+def test_size_score_local_reference_is_relative_to_spot():
+    # A small-wave spot (ref 0.6 m ≈ 2 ft) saturates at 2 ft; a big-wave spot (ref 2.5 m) barely registers it.
+    assert size_score(0.6, reference_size_m=0.6) == 1.0          # 2 ft = fully working in FL
+    assert size_score(0.6, reference_size_m=2.5) < 0.25          # same 2 ft is small at Pipeline
+    assert size_score(0.6, reference_size_m=0.6) > size_score(0.6, reference_size_m=2.5)
+    assert size_score(0.15, reference_size_m=0.6) == 0.0         # absolute unrideable floor still applies
+    assert size_score(3.0, reference_size_m=0.6) == 1.0          # bigger than local ref still saturates (not penalized)
+
+
+def test_local_reference_lifts_small_clean_surf_rating():
+    # THE Florida case: clean 2-3 ft, light offshore, decent period. Local ref lifts it out of 'very_poor'.
+    args = (0.8, 11.0, 2.0, 90.0, 270.0, 90.0)  # 0.8 m surf, 11 s, 2 m/s offshore-ish
+    global_score, global_level = compute_surf_rating(*args)                       # ref None -> 1.2 m default
+    fl_score, fl_level = compute_surf_rating(*args, reference_size_m=0.7)         # small-wave spot
+    assert fl_score > global_score
+    assert LEVELS.index(fl_level) >= LEVELS.index(global_level)
+
+
 def test_speed_only_path_when_no_shore_normal():
     # Without a shore normal, grade on speed alone (conservative): light good, strong bad.
     light = compute_surf_rating(1.5, 12.0, 4 / 1.943844)[0]   # ~4 kt

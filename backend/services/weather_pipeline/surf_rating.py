@@ -41,14 +41,33 @@ def _clamp(x, lo, hi):
     return lo if x < lo else hi if x > hi else x
 
 
-def size_score(surf_h_m):
-    """Rideability gate [0,1] from breaking height. 0 when flat (< ~0.7 ft); rises across the
-    knee->chest range; 1.0 chest-high+ (bigger is graded by wind/period, never penalized here)."""
-    if surf_h_m is None or surf_h_m <= 0.2:
+# Rideability floor: below this breaking height there is no surfable wave ANYWHERE (ankle-high can't be
+# ridden regardless of the spot) — kept ABSOLUTE. The saturation height is LOCAL (see reference_size_m).
+_HMIN_RIDEABLE_M = 0.2
+# Global default "fully-working" height (chest-high) used when a spot has no local size reference yet —
+# makes size_score identical everywhere until per-spot climatology is supplied (backward compatible).
+_DEFAULT_REF_SIZE_M = 1.2
+
+
+def size_score(surf_h_m, reference_size_m=None):
+    """Rideability gate [0,1] from breaking height, calibrated to the spot's LOCAL size expectation.
+
+    ``reference_size_m`` is the breaking height at which THIS spot is "fully working" (size factor
+    saturates to 1.0) — the spot's own good-day size. Below the absolute ~0.2 m rideability floor the
+    score is 0 (unsurfable anywhere); it rises linearly to 1.0 at the reference. Bigger than the
+    reference is NOT penalized here (wind/period grade it). When ``reference_size_m`` is None the global
+    default 1.2 m (chest-high) is used → the gate is IDENTICAL everywhere, so behavior is unchanged until
+    a per-spot reference is wired.
+
+    This is what makes surf quality RELATIVE to a spot's potential (Surfline's principle): a clean 2-3 ft
+    day saturates the size gate at a small-wave spot (e.g. Florida, ref ~0.6 m) but scores low at a
+    big-wave spot (e.g. Pipeline, ref ~2.5 m) — the same swell, different local rating."""
+    if surf_h_m is None or surf_h_m <= _HMIN_RIDEABLE_M:
         return 0.0
-    if surf_h_m >= 1.2:
+    ref = reference_size_m if (reference_size_m is not None and reference_size_m > _HMIN_RIDEABLE_M) else _DEFAULT_REF_SIZE_M
+    if surf_h_m >= ref:
         return 1.0
-    return _clamp((surf_h_m - 0.2) / 1.0, 0.0, 1.0)
+    return _clamp((surf_h_m - _HMIN_RIDEABLE_M) / (ref - _HMIN_RIDEABLE_M), 0.0, 1.0)
 
 
 def period_quality(tp_s):
@@ -163,13 +182,14 @@ def breaker_type_quality(xi):
 
 
 def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                 tide_norm=None, best_tide=None, breaker_xi=None):
+                 tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None):
     """Composite 0..100 surf-quality score:
     size_gate * swell_exposure * tide_fit * breaker_type_quality * (0.60*wind + 0.40*period).
     0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
     its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide / no Iribarren
-    -> neutral)."""
-    sg = size_score(surf_h_m)
+    -> neutral). ``reference_size_m`` calibrates the size gate to the spot's LOCAL good-day size (None ->
+    global 1.2 m default, no change)."""
+    sg = size_score(surf_h_m, reference_size_m)
     if sg <= 0.0:
         return 0.0
     ex = swell_exposure(swell_from_deg, shore_normal_deg)
@@ -193,7 +213,7 @@ def score_to_level(score):
 
 
 def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                        tide_norm=None, best_tide=None, breaker_xi=None):
+                        tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
@@ -202,11 +222,12 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
     bearing (optional; with shore_normal gates whether the swell angle can reach the coast). tide_norm:
     normalized tide level 0..1 (optional; with best_tide applies the tide_fit factor). best_tide: the spot's
     free-text tide preference prior (optional). breaker_xi: Iribarren number (optional; applies the breaker-type
-    quality factor — neutral when None)."""
+    quality factor — neutral when None). reference_size_m: the spot's local "fully-working" breaking height
+    (optional; calibrates the size gate to local expectation — None keeps the global 1.2 m default)."""
     if surf_h_m is None:
         return None, "unknown"
     score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
-                         tide_norm, best_tide, breaker_xi)
+                         tide_norm, best_tide, breaker_xi, reference_size_m)
     return score, score_to_level(score)
 
 
