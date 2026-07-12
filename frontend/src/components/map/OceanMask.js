@@ -730,6 +730,17 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
       if (syncRafIdRef.current) { cancelAnimationFrame(syncRafIdRef.current); syncRafIdRef.current = null; }
       if (!mapInstance) return;
       if (deactivateTimerRef.current) clearTimeout(deactivateTimerRef.current);
+      // DEACTIVATION DEBOUNCE 350 -> 1200 ms (2026-07-12 mask arc, user-verified signature): a marine
+      // MODEL/LAYER switch nulls activeMarineLayer for LONGER than 350 ms (style-wait + fetch churn),
+      // so the land cover hid MID-SWITCH — heatmap bleed + engine-mask halos showed until the resync
+      // re-covered them (the user's "bleeding into land, covered up, halos, covered again" cycle; the
+      // engine's own land mask is world-tier ~10 km/px while a coarse grid is resident, so this fill
+      // IS the crisp cover). 1200 ms absorbs the switch-window flicker; a REAL deactivation
+      // (marine -> wind) hides ~0.85 s later than before — visually a no-op (hidden-layer cost ~0 and
+      // the wind layer draws above the fill meanwhile). Tune/restore live:
+      // window.__RAW_MASK_DEACTIVATE_DEBOUNCE_MS__ (350 = legacy behavior).
+      const _debounceMs = (typeof window !== 'undefined' && Number(window.__RAW_MASK_DEACTIVATE_DEBOUNCE_MS__) > 0)
+        ? Number(window.__RAW_MASK_DEACTIVATE_DEBOUNCE_MS__) : 1200;
       deactivateTimerRef.current = setTimeout(() => {
         deactivateTimerRef.current = null;
         console.log('[OceanMask] Deactivating: hiding layers');
@@ -750,11 +761,18 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
           }
         }
         setTimeout(() => { syncingRef.current = false; }, 300);
-      }, 350);
+      }, _debounceMs);
     } else {
       // Reactivated — cancel any pending deactivation (mask layers are likely still present)
-      // and just resync, avoiding a remove+re-add cycle.
-      if (deactivateTimerRef.current) { clearTimeout(deactivateTimerRef.current); deactivateTimerRef.current = null; }
+      // and just resync, avoiding a remove+re-add cycle. Count absorbed flickers for live
+      // forensics (the mask-arc switch-window signature): __RAW_MASK_DEACTIVATE_ABSORBED__.
+      if (deactivateTimerRef.current) {
+        clearTimeout(deactivateTimerRef.current);
+        deactivateTimerRef.current = null;
+        if (typeof window !== 'undefined') {
+          window.__RAW_MASK_DEACTIVATE_ABSORBED__ = (window.__RAW_MASK_DEACTIVATE_ABSORBED__ || 0) + 1;
+        }
+      }
       triggerSync(0);
     }
     return () => {
