@@ -339,13 +339,14 @@ function fieldToWindGrid(field) {
 function fieldToMarineGrid(field, activeMarineLayer) {
   if (!field || !field.sources.marine) return null;
 
-  // RATING band: waveHeight carries the 0-10 score. Direction is REAL again (2026-07-12 — the
-  // backend keeps u/v on rated cells and the builder keeps waveDir), so crests/particles animate
-  // with the actual swell motion UNDER the rating colors instead of freezing ("the band clamps
-  // the wave animations"). ratingMode is re-stamped so the Option-A gate paints the band.
-  // Kill: __RAW_RATING_STATIC_BAND__ = true restores the frozen scalar band.
+  // RATING band: waveHeight carries the 0-10 score. STATIC by default (2026-07-12 second pass —
+  // user verdict "the animations look horrible"): deriving u/v as -h*sin(dir) with h = SCORE
+  // gives rating-scaled particle speeds (score 9 races, score 1 crawls) — wrong physics. The
+  // real fix needs a separate real-height animation channel in the field schema (banked design);
+  // until then the band is static and the surrounding wash carries the motion feel.
+  // Opt-in to the score-scaled motion for tuning: __RAW_RATING_LIVING_BAND__ = true.
   const isRating = !!field.ratingMode;
-  const ratingStatic = isRating && typeof window !== 'undefined' && window.__RAW_RATING_STATIC_BAND__ === true;
+  const ratingStatic = isRating && !(typeof window !== 'undefined' && window.__RAW_RATING_LIVING_BAND__ === true);
   const { waveHeight, waveDir, swellHeight, swellDir, swell2Height, swell2Dir, windWaveHeight, windWaveDir, landMask, wavePeriod, swellPeriod, swell2Period, windWavePeriod } = field.grid;
   const { cols, rows, bounds } = field;
   const size = cols * rows;

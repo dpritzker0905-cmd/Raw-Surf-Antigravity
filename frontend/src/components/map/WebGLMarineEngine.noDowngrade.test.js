@@ -170,3 +170,36 @@ describe('shouldRejectResolutionDowngrade — coverage threshold 0.6 (2026-07-11
     expect(shouldRejectResolutionDowngrade(flTile(), coarse(), 7.76, vp52, false)).toBe(false);
   });
 });
+
+describe('shouldRejectResolutionDowngrade — RATING downgrade hold (2026-07-12 EURO/ICON band flicker)', () => {
+  beforeEach(() => { window.__SURF_MODE__ = true; });
+  afterEach(() => { delete window.__SURF_MODE__; });
+
+  it('BLOCKS an UNRATED same-resolution grid replacing a RATED resident (cold-SWR coarse cycle)', () => {
+    // EURO/ICON have no warm pilot tiles: every cold cycle served the unrated coarse preview,
+    // displacing the rated dynamic grid — "the band activated, then cleared".
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), regional({ ratingMode: false }), 9, coveredVp, false
+    )).toBe(true);
+  });
+
+  it('ALLOWS a RATED replacement (never blocks rated→rated)', () => {
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), regional({ ratingMode: true, cols: 9, rows: 9 }), 9, coveredVp, false
+    )).toBe(false);
+  });
+
+  it('RELEASES the rated resident when it no longer covers (no stranded rated rect)', () => {
+    const wideVp = [-84, 25, -76, 32];
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false
+    )).toBe(false);
+  });
+
+  it('inactive surf mode: unrated replacements flow normally', () => {
+    window.__SURF_MODE__ = false;
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), regional({ ratingMode: false }), 9, coveredVp, false
+    )).toBe(false);
+  });
+});
