@@ -231,7 +231,8 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
     return score, score_to_level(score)
 
 
-def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, wind_fn=None, shore_normal_fn=None):
+def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, wind_fn=None, shore_normal_fn=None,
+                          reference_fn=None):
     """In-place RATING-BAND transform of a marine grid for the surf-quality MAP overlay (the on-map
     differentiator). Per COASTAL cell: derive the breaking height (surf_transform.estimate_surf) then the
     0-100 surf-quality SCORE (compute_surf_rating, with wind + shore-normal co-sampled via the injected fns),
@@ -240,7 +241,9 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
     a coastal RATING BAND, exactly like surf_transform_grid.
 
     Injected fns keep it pure/unit-testable (no I/O): depth_fn(lat,lng)->m|None, coastal_fn(lat,lng)->bool,
-    width_fn(lat,lng)->km, wind_fn(lat,lng)->(speed_ms, from_deg)|None, shore_normal_fn(lat,lng)->bearing|None.
+    width_fn(lat,lng)->km, wind_fn(lat,lng)->(speed_ms, from_deg)|None, shore_normal_fn(lat,lng)->bearing|None,
+    reference_fn(lat,lng)->m|None (the LOCAL good-day size reference — P-local band half; None per cell or
+    fn absent keeps the global 1.2 m size-gate default, byte-identical to before).
     Returns (n_rated, n_masked). Mutates each vector: ``speed`` becomes the score, ``u``/``v`` are zeroed
     (rating is scalar — no direction arrows), and ``rating_level`` is set when the attribute exists. Truly
     flat cells (size gate 0 -> score 0) are left untouched/non-rendered (no wave to rate)."""
@@ -293,7 +296,14 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
                 shore_normal = None
         # The cell's wave/swell FROM bearing → swell-angle exposure gate (paired with shore_normal).
         swell_from = getattr(vec, "direction", None)
-        score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal, swell_from)
+        reference = None
+        if reference_fn is not None:
+            try:
+                reference = reference_fn(lat, lng)
+            except Exception:
+                reference = None
+        score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal, swell_from,
+                                           reference_size_m=reference)
         if score is None or score <= 0:
             continue                                   # no rideable wave -> nothing to rate
         # Encode score/10 into the height channel: the marine texture packs height as clamp(h/10,0,1), and the

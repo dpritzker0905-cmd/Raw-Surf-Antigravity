@@ -71,9 +71,26 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
             if os.environ.get("SURF_RATING", "1") != "0":
                 from services.weather_pipeline.surf_rating import rating_transform_grid
                 wind_fn = await _build_wind_sampler(store, manifest, model, target_dt)
+                # LOCAL SIZE CALIBRATION (P-local, band half): the size gate saturates at THIS coast's own
+                # good-day breaking height (gridded p80 climatology) instead of the global 1.2 m — the SAME
+                # RATING_LOCAL_SIZE flag as the glyph path (spot_ratings), so band and glyphs flip TOGETHER
+                # (enabling one without the other is the documented divergence trap). Never fatal; a missing
+                # blob/cell simply keeps the global default per cell.
+                reference_fn = None
+                if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+                    try:
+                        from services.weather_pipeline.grid_size_climatology import (
+                            load_grid_size_climatology_l2_cached, reference_for)
+                        _clim = load_grid_size_climatology_l2_cached()
+                        if _clim:
+                            reference_fn = lambda _la, _ln: reference_for(_clim, _la, _ln)
+                    except Exception as _rle:
+                        logger.warning(f"[Grid Route] local size reference unavailable (global default): {_rle}")
                 n_t, n_masked = rating_transform_grid(
-                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at)
-                tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn)}
+                    product.grid.vectors, shelf_depth_at, is_coastal, shelf_width_km, wind_fn, shore_normal_at,
+                    reference_fn=reference_fn)
+                tag = {"rated": n_t, "masked": n_masked, "value_kind": "surf_rating", "wind": bool(wind_fn),
+                       "local_size": bool(reference_fn)}
                 label = "RATING overlay"
             else:
                 from services.weather_pipeline.surf_transform import surf_transform_grid

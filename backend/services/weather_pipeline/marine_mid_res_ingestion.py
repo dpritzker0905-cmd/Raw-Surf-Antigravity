@@ -85,6 +85,28 @@ async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
         if count > 0:
             scheduler.store.prune_superseded_products("GFS", "marine", layer, "global_mid", run_time)
 
+    # Fold hour-0 BREAKING heights into the per-cell GRID size climatology (the rating band's local-
+    # calibration reference field — the band half of what spot_size_climatology is for glyphs; the
+    # points are already in hand at 2°, so this is pure math + one small blob). Single-writer (this
+    # job, pilots lane). NEVER fatal — a climatology hiccup must not fail the mid ingest. Gate
+    # RATING_GRID_SIZE_CLIMATOLOGY (default ON in prod, OFF under tests; it only WRITES a separate
+    # blob — nothing reads it until RATING_LOCAL_SIZE turns local-reference serving on).
+    _grid_clim_default = "0" if env["is_test_env"] else "1"
+    if total_saved > 0 and os.environ.get("RATING_GRID_SIZE_CLIMATOLOGY", _grid_clim_default) == "1":
+        try:
+            from services.weather_pipeline.grid_size_climatology import (
+                accumulate_points_into_grid_climatology, load_grid_size_climatology_l2,
+                upload_grid_size_climatology_l2)
+            from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km
+            clim = accumulate_points_into_grid_climatology(
+                load_grid_size_climatology_l2(), results,
+                depth_fn=shelf_depth_at, coastal_fn=is_coastal, width_fn=shelf_width_km)
+            upload_grid_size_climatology_l2(scheduler.store, clim)
+            logger.info("[Pipeline Scheduler] grid size climatology updated: %d coastal cells tracked.",
+                        len(clim.get("cells", {})))
+        except Exception as _gce:
+            logger.warning(f"[Pipeline Scheduler] grid size climatology accumulation skipped: {_gce}")
+
     await scheduler._cleanup_and_pause(results, 0)
     return total_saved > 0
 
