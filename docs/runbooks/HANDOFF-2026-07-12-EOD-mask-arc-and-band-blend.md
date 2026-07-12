@@ -28,19 +28,27 @@ release, retention 0.6 4f60c196 — `git log --oneline --since="2026-04-12" -- f
   where the committed grid is unrated.
 
 ## THE ARC — NEXT INCREMENTS (jacobian order)
-1. **Band continuity at tier handoffs (the user's #2+#3):** candidates, in rising risk:
-   a. Serve the coarse-global frame RATED too when surf=1 (backend rating_transform_grid currently
-      skips span≥350 as `coarse_extent` — rating plan §1 chose honesty at world zoom; the USER now
-      wants the ribbon to fade, not vanish. A backend change rating the coarse frame's coastal cells
-      (they exist — 37×17 has coast) would make EVERY tier rated → no OFF state at any zoom; the
-      shader's coast-gate + alpha taper then does the "couple miles" visual narrowing naturally.
-      CHECK FIRST: why span≥350 was skipped (blocky world band concern e0e4e40e-era) — mitigate with
-      the existing vividness floor + the ribbon being 1-2 cells wide at 10°.)
-   b. FE: when rating mode is ON and the committed grid is unrated, render the honest swell field
-      (already Option-A behavior) — verify no EMPTY intermediate state (the "cleared" frames may be
-      the no-downgrade-held small rect; consider releasing the hold when viewport >> grid bounds —
-      ⚠️ that's the no-downgrade guard = 39-test minefield, DO NOT weaken without the full suite +
-      cdd90c7e context).
+1. **Band continuity at tier handoffs (the user's #2+#3):** ✅ SHIPPED 2026-07-12 as the SPAN-KEYED
+   CROSS-FADE (`resolveRatingBandFade` in WebGLMarineEngine.js, pure + unit-tested). Candidate (a)
+   was probed and FALSIFIED — do not revisit without new evidence:
+   a. ❌ Rating the coarse-global frame: probed on the LIVE 37×17 lattice (curl global bbox surf=1 +
+      local rating_transform_grid run over the real vectors): only 70/524 water cells rate; 429
+      open-ocean cells get MASKED (is_valid=false). The FE blend wash NEVER engages when the ACTIVE
+      grid is global (`isRegionalBounds` gate in blendEngaged), so world zoom would render a mostly
+      BLANK ocean with ~70 scattered 10° rating blocks — and the rated global would also be captured
+      as the coarse-base wash texture (`isCoarseGlobalGrid` capture in setWaveData), poisoning every
+      regional band's under-wash with score-valued colors. Also contradicts the spec endpoint
+      ("zoomed way out the normal heatmap DOMINATES"). The original ecd258f8 skip reasoning stands.
+   b. ✅ The shipped fix: the tier boundary is SPAN-keyed (mid tier serves rated grids only while the
+      padded request span ≤ MARINE_MID_RES_MAX_SPAN=15°), so the band cross-fades on VIEWPORT LON
+      SPAN (not zoom — span↔zoom shifts with map pixel width): band heatmap alpha ramps 1→0 across
+      spans 6°→9.5° while the under-band honest wash lifts 0.72→1.0 in step; by the handoff the
+      screen already shows the honest field at ≈committed strength and the unrated-global swap is
+      invisible. Floors at 0.3 band alpha when NO wash is engaged (blank-map lesson). The
+      no-downgrade/ratingDowngrade guards are UNTOUCHED. Levers: `__RAW_RATING_SPAN_FADE_LO__`(6) /
+      `__RAW_RATING_SPAN_FADE_HI__`(9.5); kill `__RAW_RATING_ZOOM_FADE_DISABLED__`. Telemetry:
+      `__RAW_GPU__.ratingBandFade` {span, washEngaged, fade, bandMult, washStrength}. Suites: FE
+      99/827 (baseline+new suite), BE 662/2928 exact. AWAITS USER JUDGMENT on the deployed build.
 2. **Land halos/lines at close zoom (user's #1):** remaining contributors after the debounce:
    engine mask across `WebGLMarineEngine-Clear` (clear wipes mask → first commit repaints; if that
    commit is coarse-bounds, world-tier 11px/° mask shows), and the ratio of 2048-tier rebuilds.

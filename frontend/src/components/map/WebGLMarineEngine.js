@@ -48,6 +48,45 @@ function heatmapZoomOpacity(z) {
   return 0.85;
 }
 
+// === RATING-BAND ZOOM-OUT CROSS-FADE (pure; exported for tests) ===
+// USER SPEC (2026-07-12 zoom-out half of the coastal-ribbon spec): the rating ribbon hugs the shore
+// at close zoom; at mid zoom the NORMAL heatmap blends in beyond it; zoomed way out the normal
+// heatmap DOMINATES — "not a hard on/off". Mechanically the band's last rated tier is the clipped
+// global_mid, which the resolver stops serving once the padded request span exceeds
+// MARINE_MID_RES_MAX_SPAN (15°); the next commit is the unrated 10° global (surf transform skipped:
+// coarse_extent) and ratingMode drops. Before this fade that tier handoff was a hard swap: the band
+// painted at full strength right up to the boundary, then the whole field flipped (the "rating
+// heatmap CLEARS on zoom-out" report, 2026-07-12 round 3). NOTE the backend alternative — rating the
+// global frame too — was probed and falsified: on the real 37×17 lattice only 70/524 water cells
+// rate while 429 open-ocean cells get MASKED, and the blend wash never engages when the ACTIVE grid
+// is global (isRegionalBounds gate), so world zoom would read as a blank ocean with scattered 10°
+// rating blocks; it would also poison the coarse-base wash capture with score-valued textures.
+// The fade trades places smoothly instead, across a VIEWPORT-SPAN window (span, not zoom — the
+// span↔zoom mapping shifts with map pixel width, while the tier boundary is span-keyed): the band's
+// heatmap alpha ramps to 0 while the under-band honest wash (blend-both) lifts from its dimmed
+// default to full strength — by the time the unrated global replaces the held rated resident, the
+// screen is already showing the honest field at ≈committed strength and the swap is invisible.
+// bandMult floors at 0.3 when NO wash is engaged under the band (a fully-faded band over a washless
+// viewport reads as the blank-map bug — same lesson as the coarse-fade 0.7 / no-truth 0.3 floors).
+// Levers: __RAW_RATING_SPAN_FADE_LO__ (default 6°, fade starts) / __RAW_RATING_SPAN_FADE_HI__
+// (default 9.5° ≈ the 15° request-span boundary before the frontend fetch pad). Kill:
+// __RAW_RATING_ZOOM_FADE_DISABLED__ (restores the hard on/off). Telemetry: __RAW_GPU__.ratingBandFade.
+export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEngaged, win) {
+  const ident = { bandMult: 1.0, washStrength: null, fade: 1.0 };
+  if (!isRatingPainting) return ident;
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_RATING_ZOOM_FADE_DISABLED__ === true) return ident;
+  if (typeof viewportLonSpan !== 'number' || !(viewportLonSpan > 0)) return ident;
+  const lo = (typeof w.__RAW_RATING_SPAN_FADE_LO__ === 'number') ? w.__RAW_RATING_SPAN_FADE_LO__ : 6.0;
+  const hi = (typeof w.__RAW_RATING_SPAN_FADE_HI__ === 'number') ? w.__RAW_RATING_SPAN_FADE_HI__ : 9.5;
+  const t = Math.max(0.0, Math.min(1.0, (viewportLonSpan - lo) / Math.max(1e-6, hi - lo)));
+  const fade = 1.0 - t * t * (3.0 - 2.0 * t);      // smoothstep: 1 at lo (band full) → 0 at hi (band gone)
+  const bandMult = washEngaged ? fade : Math.max(0.3, fade);
+  const base = (typeof w.__RAW_BLEND_BASE_WASH__ === 'number') ? w.__RAW_BLEND_BASE_WASH__ : 0.72;
+  const washStrength = base + (1.0 - base) * (1.0 - fade);   // dimmed under a full band → full when the band is gone
+  return { bandMult, washStrength, fade };
+}
+
 // Longitude span of a grid's bounds in degrees (antimeridian-safe).
 function boundsLonSpan(b) {
   if (!b || typeof b.west !== 'number' || typeof b.east !== 'number') return 0;
@@ -757,6 +796,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // exemption). Kill switch: window.__RAW_DISABLE_BLEND_BOTH__ = true.
     const _gridForBlend = this._waveData && this._waveData.waveGrid;
     let blendEngaged = false;
+    // RATING-BAND ZOOM-OUT CROSS-FADE result (see resolveRatingBandFade): bandMult multiplies the
+    // main pass opacity below (only while it paints rating colors); washStrength replaces the
+    // dimmed blend-base factor so the honest wash rises as the band fades.
+    let _ratingBandFade = { bandMult: 1.0, washStrength: null, fade: 1.0 };
     {
       const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
       const cg = this._coarseBaseData;
@@ -787,6 +830,31 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           curModel, curLayer,
           curRegional: isRegionalBounds(this._waveData.bounds),
           isRating
+        };
+      }
+      // The fade only engages while the band is actually painting: rating grid AND the surf flag on
+      // (the same inline flag read as the Option-A gate below — kept inline to avoid an import cycle).
+      let _surfFlagOn = false;
+      try {
+        _surfFlagOn = (typeof window !== 'undefined') && ((window.__SURF_MODE__ !== undefined)
+          ? !!window.__SURF_MODE__
+          : !!(window.localStorage && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+      } catch (e) { _surfFlagOn = false; }
+      // FAIL OPEN on an unknown viewport (same lesson as the guard's unknown-zoom rule): vb defaults
+      // to WORLD bounds when viewportBounds is missing, which would read as span 360 → band killed.
+      const _vpSpanForFade = viewportBounds
+        ? ((viewportBounds[2] < viewportBounds[0])
+            ? (viewportBounds[2] + 360 - viewportBounds[0])
+            : (viewportBounds[2] - viewportBounds[0]))
+        : null;
+      _ratingBandFade = resolveRatingBandFade(
+        _vpSpanForFade, isRating && _surfFlagOn, blendEngaged,
+        (typeof window !== 'undefined') ? window : undefined);
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.ratingBandFade = {
+          span: _vpSpanForFade, washEngaged: blendEngaged,
+          fade: _ratingBandFade.fade, bandMult: _ratingBandFade.bandMult,
+          washStrength: _ratingBandFade.washStrength,
         };
       }
     }
@@ -839,7 +907,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         _baseCoverGated = ((_ix * _iy) / _vpArea) >= _minFrac;
       }
     }
-    let baseWashOpacity = _baseCoverGated ? 0.0 : heatmapZoomOpacity(z) * _baseMult * _blendBaseWash * _washZoomDamp;
+    // In rating mode the cross-fade LIFTS the wash toward full strength as the band fades
+    // (washStrength ⊇ the __RAW_BLEND_BASE_WASH__ lever); null = non-rating frame, keep the default.
+    const _blendBaseWashEff = (_ratingBandFade.washStrength !== null) ? _ratingBandFade.washStrength : _blendBaseWash;
+    let baseWashOpacity = _baseCoverGated ? 0.0 : heatmapZoomOpacity(z) * _baseMult * _blendBaseWashEff * _washZoomDamp;
     // HALO DAMP (2026-07-07, "band halo glitching as it works to cover up the bands"): while the
     // RESIDENT mask is world-tier (<32 px/° — it cannot render a crisp coastline), the wash's
     // soft mask edge IS the visible halo band, and every heal step (retain → mid rebuild →
@@ -1135,6 +1206,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.coarseFade = coarseFade;
     }
     heatmapOpacity *= coarseFade;
+
+    // RATING-BAND ZOOM-OUT CROSS-FADE: the band trades places with the honest wash as the viewport
+    // widens toward the mid→global tier boundary (see resolveRatingBandFade above). surfModeVal>0.5
+    // ⇒ this pass is painting RATING colors — honest height frames are never faded here.
+    if (surfModeVal > 0.5) {
+      heatmapOpacity *= _ratingBandFade.bandMult;
+    }
 
     // NO-TRUTH WINDOW GUARD (2026-07-04): a wide grid at close zoom with NO overlay covering the
     // viewport has only the ~39 km world mask — the wash paints roads/cities (boot at close zoom,
