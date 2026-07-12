@@ -389,6 +389,18 @@ async def get_spot_ratings(
 
     sem = asyncio.Semaphore(max(1, _SPOT_RATINGS_CONCURRENCY))
 
+    # LOCAL SIZE CALIBRATION on the live fallback too (parity with the precompute path), so an enabled
+    # RATING_LOCAL_SIZE is consistent whether ratings are served precomputed or live. Empty map when the
+    # feature is off or a spot lacks climatology → reference None → global default. Kept OUT of the loop.
+    _ref_map = {}
+    if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+        try:
+            from services.weather_pipeline.spot_size_climatology import (
+                load_size_climatology_l2_cached, reference_map as _size_reference_map)
+            _ref_map = _size_reference_map(load_size_climatology_l2_cached())
+        except Exception as _re:
+            logger.debug(f"[spot-ratings] live size-reference load failed: {_re}")
+
     async def _rate(spot) -> SpotRatingItem:
         spot_dict = {
             "id": spot.id, "name": getattr(spot, "name", None),
@@ -398,7 +410,8 @@ async def get_spot_ratings(
             "best_tide": getattr(spot, "best_tide", None),
         }
         async with sem:
-            d = await rate_one_spot(point_resolution_service, spot_dict, model, valid_time)
+            d = await rate_one_spot(point_resolution_service, spot_dict, model, valid_time,
+                                    reference_size_m=_ref_map.get(str(spot.id)))
         return SpotRatingItem(**d)
 
     items = list(await asyncio.gather(*[_rate(sp) for sp in rows])) if rows else []
