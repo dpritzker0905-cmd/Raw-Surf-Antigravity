@@ -250,7 +250,9 @@ export var MapWeatherControls = ({
     };
 
     return config;
-    // eslint-disable-next-line react-hooks/exhaustive-deps
+    // NOTE: no eslint-disable here — this project's eslint config does NOT register the
+    // react-hooks plugin, and naming an unknown rule in a disable comment is itself a
+    // compile-failing error on the Netlify build (deploy 6a540b87, 2026-07-12).
   }, [theme, heightUnit]);
 
   // Surf-quality RATING legend: 7 discrete bands (very_poor -> epic) as a hard-stop gradient, mirroring the
