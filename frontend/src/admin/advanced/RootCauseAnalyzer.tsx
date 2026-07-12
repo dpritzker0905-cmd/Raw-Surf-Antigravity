@@ -1,8 +1,10 @@
 import React, { useState, useEffect } from 'react';
-import { 
+import {
   ShieldAlert, RefreshCw, Cpu, Activity, AlertTriangle, ShieldCheck, Zap, Info, Wrench
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 interface EventLog {
   event_id: string;
@@ -130,93 +132,108 @@ export const RootCauseAnalyzer: React.FC = () => {
     return type.includes('error') || type.includes('fail') || type.includes('reject');
   };
 
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const dim = t.isLight || t.isBeach;
+  const accent = dim ? 'text-cyan-600' : 'text-cyan-400';
+  const accentBg = dim ? 'bg-cyan-600/5' : 'bg-cyan-500/5';
+  const accentBorder = dim ? 'border-cyan-600/20' : 'border-cyan-500/20';
+  const dangerText = dim ? 'text-red-600' : 'text-red-400';
+  const successText = dim ? 'text-emerald-600' : 'text-emerald-400';
+  const warnBg = dim ? 'bg-amber-600/10 text-amber-600 border-amber-600/20' : 'bg-amber-500/10 text-amber-400 border-amber-500/20';
+
   return (
-    <div className="bg-[#0f172a]/80 backdrop-blur-md rounded-xl border border-slate-800 p-6 shadow-2xl space-y-6">
+    <div className={`${t.glassBg} backdrop-blur-md rounded-xl border p-6 shadow-2xl space-y-6`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <ShieldAlert className="w-5 h-5 text-cyan-400" />
-            AI Root Cause Analyzer (Observation Only)
+          <h2 className={`text-xl font-bold ${t.textPrimary} flex items-center gap-2`}>
+            <ShieldAlert className={`w-5 h-5 ${accent}`} />
+            Root Cause Analyzer (Observation Only)
+            <span className={`text-[9px] ${warnBg} px-2 py-0.5 rounded border font-bold uppercase tracking-wider`}>
+              Rule-based, not AI
+            </span>
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Analyze event spine anomalies and trace propagation pathways without modifying live data structures.
+          <p className={`text-xs ${t.textSecondary} mt-1`}>
+            Groups real event-spine data by correlation ID and applies fixed keyword rules (no ML/AI model) to
+            suggest a likely subsystem and next step. Treat "confidence" and "suggested remedy" as a heuristic
+            starting point, not a verified diagnosis.
           </p>
         </div>
 
         <button
           onClick={fetchEventsAndAnalyze}
-          className="flex items-center gap-1.5 bg-slate-900 hover:bg-slate-850 border border-slate-800 hover:border-slate-700 text-slate-300 text-xs font-semibold px-3 py-1.5 rounded-lg transition-all"
+          className={`flex items-center gap-1.5 ${t.cardBg} ${t.hoverBg} border ${t.border} ${t.textSecondary} text-xs font-semibold px-3 py-1.5 rounded-lg transition-all`}
         >
-          <RefreshCw className="w-3.5 h-3.5 text-cyan-400" />
+          <RefreshCw className={`w-3.5 h-3.5 ${accent}`} />
           Run Anomaly Scan
         </button>
       </div>
 
       {loading ? (
         <div className="py-24 flex flex-col items-center justify-center gap-2">
-          <RefreshCw className="w-8 h-8 animate-spin text-cyan-400" />
-          <span className="text-xs text-slate-500 font-mono">Running event causality diagnostic sweeps...</span>
+          <RefreshCw className={`w-8 h-8 animate-spin ${accent}`} />
+          <span className={`text-xs ${t.textMuted} font-mono`}>Running event causality diagnostic sweeps...</span>
         </div>
       ) : !activeReport ? (
-        <div className="text-center py-16 bg-slate-950/20 border border-slate-900 rounded-lg text-slate-500 text-xs flex flex-col items-center gap-2">
-          <ShieldCheck className="w-8 h-8 text-emerald-400" />
+        <div className={`text-center py-16 ${t.cellBgFaded} border ${t.borderLight} rounded-lg ${t.textMuted} text-xs flex flex-col items-center gap-2`}>
+          <ShieldCheck className={`w-8 h-8 ${successText}`} />
           All subsystems performing within healthy parameters. No event anomalies detected.
         </div>
       ) : (
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          
+
           {/* Diagnostic Telemetry Grid */}
           <div className="lg:col-span-2 space-y-6">
-            
+
             {/* Header telemetry blocks */}
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 space-y-1">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Primary Incident Anomaly</span>
-                <div className="text-xs font-mono font-bold text-red-400 truncate flex items-center gap-1.5">
-                  <AlertTriangle className="w-3.5 h-3.5 text-red-500" />
+              <div className={`${t.cardBgBorder} border rounded-xl p-4 space-y-1`}>
+                <span className={`text-[9px] font-bold ${t.textMuted} uppercase tracking-widest block`}>Primary Incident Anomaly</span>
+                <div className={`text-xs font-mono font-bold ${dangerText} truncate flex items-center gap-1.5`}>
+                  <AlertTriangle className={`w-3.5 h-3.5 ${dangerText}`} />
                   {activeReport.first_failure_event?.event_type.replace(/_/g, ' ').toUpperCase() || 'UNKNOWN ERROR'}
                 </div>
-                <span className="text-[8px] font-mono text-slate-600 block mt-1">
+                <span className={`text-[8px] font-mono ${t.textMuted} block mt-1`}>
                   Root source: {activeReport.first_failure_event?.source_mcp || 'System Core'}
                 </span>
               </div>
 
-              <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 space-y-1 flex items-center justify-between">
+              <div className={`${t.cardBgBorder} border rounded-xl p-4 space-y-1 flex items-center justify-between`}>
                 <div>
-                  <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">AI Confidence Metric</span>
-                  <div className="text-base font-bold text-cyan-400 font-mono mt-0.5">
-                    {activeReport.confidence_score}% Accuracy
+                  <span className={`text-[9px] font-bold ${t.textMuted} uppercase tracking-widest block`}>Heuristic Match Score</span>
+                  <div className={`text-base font-bold ${accent} font-mono mt-0.5`}>
+                    {activeReport.confidence_score}% (rule-based, not AI)
                   </div>
                 </div>
-                <div className="w-10 h-10 rounded-full border-2 border-cyan-500/20 flex items-center justify-center text-xs font-bold text-cyan-400 bg-cyan-500/5">
+                <div className={`w-10 h-10 rounded-full border-2 ${accentBorder} flex items-center justify-center text-xs font-bold ${accent} ${accentBg}`}>
                   ✓
                 </div>
               </div>
             </div>
 
             {/* Diagnostic analysis result */}
-            <div className="bg-slate-950 border border-slate-900 rounded-xl p-5 space-y-4">
-              <h3 className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center gap-1.5">
-                <Activity className="w-4 h-4 text-cyan-400" />
+            <div className={`${t.cardBgBorder} border rounded-xl p-5 space-y-4`}>
+              <h3 className={`text-xs font-bold ${t.textSecondary} uppercase tracking-wider flex items-center gap-1.5`}>
+                <Activity className={`w-4 h-4 ${accent}`} />
                 Causal Anomaly Reconstruction
               </h3>
 
-              <div className="relative pl-5 border-l border-slate-800 space-y-4">
+              <div className={`relative pl-5 border-l ${t.border} space-y-4`}>
                 {activeReport.causal_chain.map((evt, idx) => {
                   const anomaly = isAnomaly(evt.event_type);
                   return (
                     <div key={evt.event_id} className="relative group">
                       <div className={`absolute -left-[24px] top-1 w-2.5 h-2.5 rounded-full border ${
-                        anomaly ? 'bg-red-500 border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : 'bg-slate-800 border-slate-700'
+                        anomaly ? 'bg-red-500 border-red-400 shadow-[0_0_8px_rgba(239,68,68,0.5)]' : `${t.cardBg} ${t.border}`
                       }`} />
                       <div className="text-xs">
                         <div className="flex items-center gap-2">
-                          <span className={`font-mono font-bold uppercase text-[10px] ${anomaly ? 'text-red-400' : 'text-slate-300'}`}>
+                          <span className={`font-mono font-bold uppercase text-[10px] ${anomaly ? dangerText : t.textSecondary}`}>
                             {evt.event_type.replace(/_/g, ' ')}
                           </span>
-                          <span className="text-[8px] font-mono text-slate-600">ID: {evt.event_id.substring(0, 8)}...</span>
+                          <span className={`text-[8px] font-mono ${t.textMuted}`}>ID: {evt.event_id.substring(0, 8)}...</span>
                         </div>
-                        <p className="text-[9px] font-mono text-slate-500 mt-0.5">
+                        <p className={`text-[9px] font-mono ${t.textMuted} mt-0.5`}>
                           Detected in {evt.source_mcp} at {new Date(evt.timestamp).toLocaleTimeString()}
                         </p>
                       </div>
@@ -229,21 +246,21 @@ export const RootCauseAnalyzer: React.FC = () => {
 
           {/* Sidebar: Diagnostic Findings and Suggested Remedy */}
           <div className="space-y-4 lg:col-span-1">
-            <div className="bg-slate-950 border border-slate-900 rounded-xl p-4 space-y-4 min-h-[340px] flex flex-col justify-between">
-              
+            <div className={`${t.cardBgBorder} border rounded-xl p-4 space-y-4 min-h-[340px] flex flex-col justify-between`}>
+
               <div className="space-y-4">
-                <div className="flex items-center gap-1 text-slate-400 border-b border-slate-900 pb-2">
-                  <Info className="w-3.5 h-3.5 text-cyan-400" />
+                <div className={`flex items-center gap-1 ${t.textSecondary} border-b ${t.borderLight} pb-2`}>
+                  <Info className={`w-3.5 h-3.5 ${accent}`} />
                   <span className="text-[10px] font-bold uppercase tracking-wider font-mono">Telemetry Findings</span>
                 </div>
 
                 <div className="space-y-3">
                   {/* Affected Subsystems */}
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Affected Domains</span>
+                    <span className={`text-[9px] font-bold ${t.textMuted} uppercase tracking-widest block`}>Affected Domains</span>
                     <div className="flex flex-wrap gap-1">
                       {activeReport.affected_subsystems.map(sub => (
-                        <span key={sub} className="text-[9px] font-mono bg-slate-900 text-slate-300 px-2 py-0.5 rounded border border-slate-850">
+                        <span key={sub} className={`text-[9px] font-mono ${t.cardBg} ${t.textSecondary} px-2 py-0.5 rounded border ${t.borderLight}`}>
                           {sub}
                         </span>
                       ))}
@@ -252,25 +269,25 @@ export const RootCauseAnalyzer: React.FC = () => {
 
                   {/* Impact Analysis summary */}
                   <div className="space-y-1">
-                    <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest block">Propagation Depth</span>
-                    <p className="text-[10px] text-slate-400 leading-relaxed font-sans">
-                      Anomaly originated in <strong className="text-red-400 font-mono text-[9px]">{activeReport.first_failure_event?.source_mcp || 'unknown'}</strong> during a standard event spine transmission, subsequently impacting {activeReport.affected_subsystems.length} subsystems.
+                    <span className={`text-[9px] font-bold ${t.textMuted} uppercase tracking-widest block`}>Propagation Depth</span>
+                    <p className={`text-[10px] ${t.textSecondary} leading-relaxed font-sans`}>
+                      Anomaly originated in <strong className={`${dangerText} font-mono text-[9px]`}>{activeReport.first_failure_event?.source_mcp || 'unknown'}</strong> during a standard event spine transmission, subsequently impacting {activeReport.affected_subsystems.length} subsystems.
                     </p>
                   </div>
                 </div>
               </div>
 
               {/* suggested non-executable fix */}
-              <div className="bg-cyan-500/5 border border-cyan-500/20 rounded-lg p-3 space-y-2">
-                <div className="flex items-center gap-1.5 text-cyan-400">
-                  <Wrench className="w-4 h-4 text-cyan-400 animate-pulse" />
-                  <span className="text-[9px] font-bold uppercase tracking-wider font-mono">Suggested AI Remedy</span>
+              <div className={`${accentBg} border ${accentBorder} rounded-lg p-3 space-y-2`}>
+                <div className={`flex items-center gap-1.5 ${accent}`}>
+                  <Wrench className={`w-4 h-4 ${accent} animate-pulse`} />
+                  <span className="text-[9px] font-bold uppercase tracking-wider font-mono">Suggested Next Step (rule-based)</span>
                 </div>
-                <p className="text-[9px] font-mono text-slate-300 leading-normal">
+                <p className={`text-[9px] font-mono ${t.textSecondary} leading-normal`}>
                   {activeReport.suggested_fix}
                 </p>
-                <div className="text-[8px] text-slate-500 font-mono uppercase tracking-tight text-right italic pt-1 border-t border-slate-900/40">
-                  Observation proposal only
+                <div className={`text-[8px] ${t.textMuted} font-mono uppercase tracking-tight text-right italic pt-1 border-t ${t.borderLight}`}>
+                  Fixed keyword-match rule, not AI — observation proposal only
                 </div>
               </div>
 

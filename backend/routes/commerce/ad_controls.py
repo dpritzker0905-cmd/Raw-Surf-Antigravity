@@ -194,7 +194,7 @@ async def save_ad_config(config: dict, admin_id: str, db: AsyncSession) -> dict:
         # Create new config
         new_config = AdConfigModel(
             config_data=config,
-            updated_by=admin.id,
+            updated_by=admin_id,
             is_active=True,
             version=1
         )

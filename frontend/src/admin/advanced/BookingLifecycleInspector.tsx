@@ -1,8 +1,10 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
+import {
   GitCommit, Clock, CheckCircle, AlertTriangle, ShieldCheck, CreditCard, CloudSun, Image, Share2
 } from 'lucide-react';
 import apiClient from '../../lib/apiClient';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 
 interface TraceEvent {
   event_id: string;
@@ -63,13 +65,18 @@ export const BookingLifecycleInspector: React.FC<BookingLifecycleInspectorProps>
     fetchTrace(correlationId);
   };
 
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const dim = t.isLight || t.isBeach;
+  const accent = dim ? 'text-cyan-600' : 'text-cyan-400';
+
   const getEventIcon = (type: string) => {
-    if (type.includes('payment') || type.includes('checkout')) return <CreditCard className="w-4 h-4 text-emerald-400" />;
-    if (type.includes('weather') || type.includes('swell')) return <CloudSun className="w-4 h-4 text-amber-400" />;
-    if (type.includes('media') || type.includes('gallery')) return <Image className="w-4 h-4 text-purple-400" />;
-    if (type.includes('social') || type.includes('publish')) return <Share2 className="w-4 h-4 text-cyan-400" />;
-    if (type.includes('admin') || type.includes('approve') || type.includes('decision')) return <ShieldCheck className="w-4 h-4 text-red-400" />;
-    return <GitCommit className="w-4 h-4 text-slate-400" />;
+    if (type.includes('payment') || type.includes('checkout')) return <CreditCard className={`w-4 h-4 ${dim ? 'text-emerald-600' : 'text-emerald-400'}`} />;
+    if (type.includes('weather') || type.includes('swell')) return <CloudSun className={`w-4 h-4 ${dim ? 'text-amber-600' : 'text-amber-400'}`} />;
+    if (type.includes('media') || type.includes('gallery')) return <Image className={`w-4 h-4 ${dim ? 'text-purple-600' : 'text-purple-400'}`} />;
+    if (type.includes('social') || type.includes('publish')) return <Share2 className={`w-4 h-4 ${accent}`} />;
+    if (type.includes('admin') || type.includes('approve') || type.includes('decision')) return <ShieldCheck className={`w-4 h-4 ${dim ? 'text-red-600' : 'text-red-400'}`} />;
+    return <GitCommit className={`w-4 h-4 ${t.textSecondary}`} />;
   };
 
   const getEventColor = (type: string) => {
@@ -78,18 +85,18 @@ export const BookingLifecycleInspector: React.FC<BookingLifecycleInspectorProps>
     if (type.includes('media') || type.includes('gallery')) return 'border-purple-500/30 bg-purple-500/5';
     if (type.includes('social') || type.includes('publish')) return 'border-cyan-500/30 bg-cyan-500/5';
     if (type.includes('admin') || type.includes('approve') || type.includes('decision')) return 'border-red-500/30 bg-red-500/5';
-    return 'border-slate-800 bg-slate-900/40';
+    return `${t.border} ${t.rowBg}`;
   };
 
   return (
-    <div className="bg-[#0f172a]/80 backdrop-blur-md rounded-xl border border-slate-800 p-6 shadow-2xl space-y-6">
+    <div className={`${t.glassBg} backdrop-blur-md rounded-xl border p-6 shadow-2xl space-y-6`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Clock className="w-5 h-5 text-cyan-400" />
+          <h2 className={`text-xl font-bold ${t.textPrimary} flex items-center gap-2`}>
+            <Clock className={`w-5 h-5 ${accent}`} />
             Booking Lifecycle Inspector
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
+          <p className={`text-xs ${t.textSecondary} mt-1`}>
             Read-only chronological trace layer. Reconstructs booking timeline, payment paths, and weather contexts from event logs.
           </p>
         </div>
@@ -100,7 +107,7 @@ export const BookingLifecycleInspector: React.FC<BookingLifecycleInspectorProps>
             placeholder="Enter Correlation ID (e.g. corr_...)"
             value={correlationId}
             onChange={(e) => setCorrelationId(e.target.value)}
-            className="bg-slate-900 border border-slate-800 text-xs px-3 py-2 rounded-lg text-slate-200 focus:outline-none focus:border-cyan-500 min-w-[280px]"
+            className={`${t.inputBg} border text-xs px-3 py-2 rounded-lg ${t.textPrimary} focus:outline-none focus:border-cyan-500 min-w-[280px]`}
           />
           <button
             type="submit"
@@ -113,66 +120,66 @@ export const BookingLifecycleInspector: React.FC<BookingLifecycleInspectorProps>
 
       {loading ? (
         <div className="flex justify-center py-16">
-          <GitCommit className="w-6 h-6 animate-spin text-cyan-400" />
+          <GitCommit className={`w-6 h-6 animate-spin ${accent}`} />
         </div>
       ) : error ? (
-        <div className="text-center py-12 bg-slate-950/20 border border-slate-900 rounded-lg text-slate-500 text-xs flex flex-col items-center gap-2">
-          <AlertTriangle className="w-5 h-5 text-amber-500" />
+        <div className={`text-center py-12 ${t.cellBgFaded} border ${t.borderLight} rounded-lg ${t.textMuted} text-xs flex flex-col items-center gap-2`}>
+          <AlertTriangle className={`w-5 h-5 ${dim ? 'text-amber-600' : 'text-amber-500'}`} />
           {error}
-          <span className="text-[10px] text-slate-600">Simulate a session completion or pricing update to populate logs!</span>
+          <span className={`text-[10px] ${t.textMuted}`}>Simulate a session completion or pricing update to populate logs!</span>
         </div>
       ) : events.length === 0 ? (
-        <div className="text-center py-16 text-slate-500 text-xs">
+        <div className={`text-center py-16 ${t.textMuted} text-xs`}>
           No correlation trace loaded. Enter an active token above to inspect its lifecycle timeline.
         </div>
       ) : (
-        <div className="relative pl-6 border-l-2 border-slate-850 space-y-6 max-w-4xl mx-auto py-2">
+        <div className={`relative pl-6 border-l-2 ${t.borderLight} space-y-6 max-w-4xl mx-auto py-2`}>
           {events.map((evt, idx) => {
             let parsedPayload: any = {};
             try {
-              parsedPayload = JSON.parse(evt.payload);
+              parsedPayload = typeof evt.payload === 'string' ? JSON.parse(evt.payload) : (evt.payload || {});
             } catch (e) {}
 
             return (
               <div key={evt.event_id} className="relative group">
                 {/* Timeline node */}
-                <div className="absolute -left-[35px] top-1 bg-slate-950 border border-slate-800 p-1.5 rounded-full group-hover:border-cyan-500/50 transition-all z-10 shadow-lg">
+                <div className={`absolute -left-[35px] top-1 ${t.cardBgBorder} border p-1.5 rounded-full group-hover:border-cyan-500/50 transition-all z-10 shadow-lg`}>
                   {getEventIcon(evt.event_type)}
                 </div>
 
                 {/* Event Card */}
-                <div className={`border rounded-lg p-4 space-y-2 hover:border-slate-700 transition-all shadow-md ${getEventColor(evt.event_type)}`}>
+                <div className={`border rounded-lg p-4 space-y-2 hover:border-cyan-500/30 transition-all shadow-md ${getEventColor(evt.event_type)}`}>
                   <div className="flex justify-between items-start gap-4">
                     <div>
-                      <span className="text-[10px] font-mono text-cyan-400 uppercase tracking-wider block">
+                      <span className={`text-[10px] font-mono ${accent} uppercase tracking-wider block`}>
                         {evt.event_type.replace(/_/g, ' ')}
                       </span>
-                      <span className="text-[9px] font-mono text-slate-500">ID: {evt.event_id}</span>
+                      <span className={`text-[9px] font-mono ${t.textMuted}`}>ID: {evt.event_id}</span>
                     </div>
 
-                    <div className="text-right text-[10px] text-slate-500">
+                    <div className={`text-right text-[10px] ${t.textMuted}`}>
                       <div>{new Date(evt.timestamp).toLocaleDateString()}</div>
                       <div>{new Date(evt.timestamp).toLocaleTimeString()}</div>
                     </div>
                   </div>
 
                   {/* Render Payload Key-Values nicely */}
-                  <div className="bg-slate-950/80 rounded p-3 font-mono text-[10px] text-slate-300 border border-slate-900/60 overflow-x-auto max-h-[120px] scrollbar-thin">
-                    <div className="flex justify-between border-b border-slate-900 pb-1 mb-1 font-bold text-slate-400">
+                  <div className={`${t.cellBg} rounded p-3 font-mono text-[10px] ${t.textSecondary} border ${t.border} overflow-x-auto max-h-[120px] scrollbar-thin`}>
+                    <div className={`flex justify-between border-b ${t.borderLight} pb-1 mb-1 font-bold ${t.textMuted}`}>
                       <span>Property</span>
                       <span>Value</span>
                     </div>
                     {Object.entries(parsedPayload).map(([key, val]) => (
-                      <div key={key} className="flex justify-between py-0.5 border-b border-slate-950/50 hover:bg-slate-900/20">
-                        <span className="text-slate-500 mr-4">{key}</span>
-                        <span className="text-slate-300 truncate max-w-[280px]">
+                      <div key={key} className={`flex justify-between py-0.5 border-b ${t.borderLight} hover:${t.hoverBg}`}>
+                        <span className={`${t.textMuted} mr-4`}>{key}</span>
+                        <span className={`${t.textSecondary} truncate max-w-[280px]`}>
                           {typeof val === 'object' ? JSON.stringify(val) : String(val)}
                         </span>
                       </div>
                     ))}
                   </div>
 
-                  <div className="flex justify-between items-center text-[9px] text-slate-500 pt-1 border-t border-slate-900/40">
+                  <div className={`flex justify-between items-center text-[9px] ${t.textMuted} pt-1 border-t ${t.borderLight}`}>
                     <span>Source: {evt.source_mcp}</span>
                     {evt.user_id && <span>User: {evt.user_id}</span>}
                   </div>

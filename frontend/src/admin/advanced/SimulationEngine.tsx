@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
-import { 
+import {
   Zap, Slider, ToggleLeft, ShieldAlert, Play, CheckCircle2, TrendingUp, HelpCircle, Terminal, CloudSun, CreditCard, Users, Share2
 } from 'lucide-react';
+import { useTheme } from '../../contexts/ThemeContext';
+import { getThemeTokens } from '../../utils/themeTokens';
 import { toast } from 'sonner';
 
 interface SimulationScenario {
@@ -25,34 +27,39 @@ export const SimulationEngine: React.FC = () => {
   ]);
   const [isSimulating, setIsSimulating] = useState<boolean>(false);
 
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+  const dim = t.isLight || t.isBeach;
+  const accent = dim ? 'text-cyan-600' : 'text-cyan-400';
+
   const scenarios: SimulationScenario[] = [
     {
       id: 'booking',
       name: 'Booking Flow',
       description: 'Hypothetical check-ins under custom surfer capacities and spot limitations.',
       icon: Users,
-      color: 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5'
+      color: dim ? 'text-cyan-600 border-cyan-600/20 bg-cyan-600/5' : 'text-cyan-400 border-cyan-500/20 bg-cyan-500/5'
     },
     {
       id: 'payment',
       name: 'Payment Processor',
       description: 'Stripe webhook failures, decline rates, and multi-currency transactions.',
       icon: CreditCard,
-      color: 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5'
+      color: dim ? 'text-emerald-600 border-emerald-600/20 bg-emerald-600/5' : 'text-emerald-400 border-emerald-500/20 bg-emerald-500/5'
     },
     {
       id: 'weather',
       name: 'Weather Swell Spike',
       description: 'Swell spikes, wind directions, and real-time alert triggers.',
       icon: CloudSun,
-      color: 'text-amber-400 border-amber-500/20 bg-amber-500/5'
+      color: dim ? 'text-amber-600 border-amber-600/20 bg-amber-600/5' : 'text-amber-400 border-amber-500/20 bg-amber-500/5'
     },
     {
       id: 'social',
       name: 'Social Propagation',
       description: 'Social sharing engagement velocity and user reaction multipliers.',
       icon: Share2,
-      color: 'text-purple-400 border-purple-500/20 bg-purple-500/5'
+      color: dim ? 'text-purple-600 border-purple-600/20 bg-purple-600/5' : 'text-purple-400 border-purple-500/20 bg-purple-500/5'
     }
   ];
 
@@ -115,30 +122,31 @@ export const SimulationEngine: React.FC = () => {
   };
 
   return (
-    <div className="bg-[#0f172a]/80 backdrop-blur-md rounded-xl border border-slate-800 p-6 shadow-2xl space-y-6">
+    <div className={`${t.glassBg} backdrop-blur-md rounded-xl border p-6 shadow-2xl space-y-6`}>
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4">
         <div>
-          <h2 className="text-xl font-bold text-slate-100 flex items-center gap-2">
-            <Zap className="w-5 h-5 text-cyan-400" />
-            System Simulation Engine (Sandbox Sandbox Sandbox)
+          <h2 className={`text-xl font-bold ${t.textPrimary} flex items-center gap-2`}>
+            <Zap className={`w-5 h-5 ${accent}`} />
+            System Simulation Engine (Sandbox)
           </h2>
-          <p className="text-xs text-slate-400 mt-1">
-            Test hypothetical swell heights, transaction spikes, and capacity loads with zero database mutations.
+          <p className={`text-xs ${t.textSecondary} mt-1`}>
+            Static demo: every number below is computed locally in the browser from inline formulas.
+            No backend call, no real system data, no database read or write of any kind.
           </p>
         </div>
 
         {/* Warning label */}
-        <span className="text-[10px] bg-red-500/10 border border-red-500/20 text-red-400 px-3 py-1 rounded-lg uppercase font-bold tracking-wider flex items-center gap-1.5 self-start md:self-auto">
+        <span className={`text-[10px] ${dim ? 'bg-red-600/10 border-red-600/20 text-red-600' : 'bg-red-500/10 border-red-500/20 text-red-400'} border px-3 py-1 rounded-lg uppercase font-bold tracking-wider flex items-center gap-1.5 self-start md:self-auto`}>
           <ShieldAlert className="w-3.5 h-3.5" />
-          Production Safe Overlay
+          Local Demo — No Backend
         </span>
       </div>
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
         {/* Left sidebar: select scenario & configuration sliders */}
-        <div className="space-y-5 lg:col-span-1 border-r border-slate-850 pr-4">
+        <div className={`space-y-5 lg:col-span-1 border-r ${t.borderLight} pr-4`}>
           <div className="space-y-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            <label className={`text-[10px] font-bold ${t.textMuted} uppercase tracking-wider block`}>
               1. Choose Sandboxed Scenario
             </label>
             <div className="space-y-2">
@@ -154,16 +162,16 @@ export const SimulationEngine: React.FC = () => {
                     }}
                     className={`w-full text-left p-3.5 rounded-lg border transition-all flex items-start gap-3 ${
                       isActive
-                        ? 'bg-cyan-500/10 border-cyan-500/30'
-                        : 'bg-slate-950/40 border-slate-900 hover:border-slate-850'
+                        ? `${dim ? 'bg-cyan-600/10 border-cyan-600/30' : 'bg-cyan-500/10 border-cyan-500/30'}`
+                        : `${t.rowBg} ${t.borderLight} hover:${t.border}`
                     }`}
                   >
                     <div className={`p-1.5 rounded border ${sc.color}`}>
                       <Icon className="w-4 h-4" />
                     </div>
                     <div className="space-y-0.5">
-                      <h4 className={`text-xs font-bold ${isActive ? 'text-cyan-400' : 'text-slate-200'}`}>{sc.name}</h4>
-                      <p className="text-[10px] text-slate-500 leading-tight">{sc.description}</p>
+                      <h4 className={`text-xs font-bold ${isActive ? accent : t.textPrimary}`}>{sc.name}</h4>
+                      <p className={`text-[10px] ${t.textMuted} leading-tight`}>{sc.description}</p>
                     </div>
                   </button>
                 );
@@ -173,7 +181,7 @@ export const SimulationEngine: React.FC = () => {
 
           {/* Configuration controls */}
           <div className="space-y-4 pt-2">
-            <label className="text-[10px] font-bold text-slate-500 uppercase tracking-wider block">
+            <label className={`text-[10px] font-bold ${t.textMuted} uppercase tracking-wider block`}>
               2. Adjust Mock Parameters
             </label>
 
@@ -181,8 +189,8 @@ export const SimulationEngine: React.FC = () => {
             {activeScenario === 'booking' && (
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-mono">
-                  <span className="text-slate-400 font-bold">MOCK CAPACITY</span>
-                  <span className="text-cyan-400 font-extrabold">{capacitySlider} Surfers</span>
+                  <span className={`${t.textSecondary} font-bold`}>MOCK CAPACITY</span>
+                  <span className={`${accent} font-extrabold`}>{capacitySlider} Surfers</span>
                 </div>
                 <input
                   type="range"
@@ -190,7 +198,7 @@ export const SimulationEngine: React.FC = () => {
                   max="100"
                   value={capacitySlider}
                   onChange={(e) => setCapacitySlider(Number(e.target.value))}
-                  className="w-full h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-cyan-400"
+                  className={`w-full h-1 ${t.cardBg} rounded-lg appearance-none cursor-pointer accent-cyan-400`}
                 />
               </div>
             )}
@@ -199,8 +207,8 @@ export const SimulationEngine: React.FC = () => {
             {activeScenario === 'weather' && (
               <div className="space-y-1.5">
                 <div className="flex justify-between text-[10px] font-mono">
-                  <span className="text-slate-400 font-bold">SWELL AMPLITUDE</span>
-                  <span className="text-amber-400 font-extrabold">{swellHeight.toFixed(1)}m</span>
+                  <span className={`${t.textSecondary} font-bold`}>SWELL AMPLITUDE</span>
+                  <span className={`${dim ? 'text-amber-600' : 'text-amber-400'} font-extrabold`}>{swellHeight.toFixed(1)}m</span>
                 </div>
                 <input
                   type="range"
@@ -209,7 +217,7 @@ export const SimulationEngine: React.FC = () => {
                   step="0.5"
                   value={swellHeight}
                   onChange={(e) => setSwellHeight(Number(e.target.value))}
-                  className="w-full h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-amber-400"
+                  className={`w-full h-1 ${t.cardBg} rounded-lg appearance-none cursor-pointer accent-amber-400`}
                 />
               </div>
             )}
@@ -217,8 +225,8 @@ export const SimulationEngine: React.FC = () => {
             {/* Price Modifer (all except weather maybe) */}
             <div className="space-y-1.5">
               <div className="flex justify-between text-[10px] font-mono">
-                <span className="text-slate-400 font-bold">HYPOTHETICAL PRICING MULTIPLIER</span>
-                <span className="text-purple-400 font-extrabold">{priceModifier.toFixed(1)}x</span>
+                <span className={`${t.textSecondary} font-bold`}>HYPOTHETICAL PRICING MULTIPLIER</span>
+                <span className={`${dim ? 'text-purple-600' : 'text-purple-400'} font-extrabold`}>{priceModifier.toFixed(1)}x</span>
               </div>
               <input
                 type="range"
@@ -227,20 +235,20 @@ export const SimulationEngine: React.FC = () => {
                 step="0.1"
                 value={priceModifier}
                 onChange={(e) => setPriceModifier(Number(e.target.value))}
-                className="w-full h-1 bg-slate-900 rounded-lg appearance-none cursor-pointer accent-purple-400"
+                className={`w-full h-1 ${t.cardBg} rounded-lg appearance-none cursor-pointer accent-purple-400`}
               />
             </div>
 
             {/* Simulate Latency flag */}
-            <div className="flex items-center justify-between py-2 border-t border-slate-900">
-              <span className="text-[10px] font-bold text-slate-400 uppercase">Simulate Net Lag</span>
+            <div className={`flex items-center justify-between py-2 border-t ${t.borderLight}`}>
+              <span className={`text-[10px] font-bold ${t.textSecondary} uppercase`}>Simulate Net Lag</span>
               <button
                 onClick={() => setSimulateLatency(!simulateLatency)}
                 className={`w-9 h-5 rounded-full p-0.5 transition-all ${
-                  simulateLatency ? 'bg-cyan-500 flex justify-end' : 'bg-slate-900 border border-slate-850 flex justify-start'
+                  simulateLatency ? 'bg-cyan-500 flex justify-end' : `${t.cardBg} border ${t.border} flex justify-start`
                 }`}
               >
-                <div className={`w-3.5 h-3.5 rounded-full ${simulateLatency ? 'bg-slate-950' : 'bg-slate-500'}`} />
+                <div className={`w-3.5 h-3.5 rounded-full ${simulateLatency ? 'bg-slate-950' : t.avatarBg}`} />
               </button>
             </div>
           </div>
@@ -248,40 +256,40 @@ export const SimulationEngine: React.FC = () => {
 
         {/* Right main panel: sandboxed simulation output logs terminal */}
         <div className="lg:col-span-2 space-y-4">
-          <div className="bg-slate-950 border border-slate-900 rounded-xl p-5 flex flex-col justify-between min-h-[420px] shadow-2xl relative overflow-hidden font-mono text-xs">
-            
+          <div className={`${t.cardBgBorder} border rounded-xl p-5 flex flex-col justify-between min-h-[420px] shadow-2xl relative overflow-hidden font-mono text-xs`}>
+
             <div className="space-y-3 z-10 flex-1 flex flex-col justify-between">
-              <div className="flex justify-between items-center border-b border-slate-900 pb-2">
-                <span className="text-[9px] font-bold text-slate-500 uppercase tracking-widest flex items-center gap-1.5">
-                  <Terminal className="w-3.5 h-3.5 text-cyan-400" />
+              <div className={`flex justify-between items-center border-b ${t.borderLight} pb-2`}>
+                <span className={`text-[9px] font-bold ${t.textMuted} uppercase tracking-widest flex items-center gap-1.5`}>
+                  <Terminal className={`w-3.5 h-3.5 ${accent}`} />
                   Isolated Sandbox Terminal Log
                 </span>
                 <button
                   onClick={clearLogs}
-                  className="text-[9px] text-slate-500 hover:text-slate-300 font-extrabold uppercase transition-all"
+                  className={`text-[9px] ${t.textMuted} hover:${t.textSecondary} font-extrabold uppercase transition-all`}
                 >
                   Clear Console
                 </button>
               </div>
 
               {/* Log ledger */}
-              <div className="flex-1 my-4 space-y-1.5 overflow-y-auto max-h-[260px] scrollbar-thin pr-1 text-[11px] text-slate-400">
+              <div className={`flex-1 my-4 space-y-1.5 overflow-y-auto max-h-[260px] scrollbar-thin pr-1 text-[11px] ${t.textSecondary}`}>
                 {simLogs.map((log, idx) => {
-                  let color = 'text-slate-400';
-                  if (log.includes('[SIMULATE]')) color = 'text-cyan-400 font-bold';
-                  if (log.includes('[SANDBOX]')) color = 'text-emerald-400';
-                  if (log.includes('[SYSTEM]')) color = 'text-purple-400';
-                  
+                  let color = t.textSecondary;
+                  if (log.includes('[SIMULATE]')) color = `${accent} font-bold`;
+                  if (log.includes('[SANDBOX]')) color = dim ? 'text-emerald-600' : 'text-emerald-400';
+                  if (log.includes('[SYSTEM]')) color = dim ? 'text-purple-600' : 'text-purple-400';
+
                   return (
                     <div key={idx} className={`leading-relaxed ${color}`}>
-                      <span className="text-slate-600 mr-2 font-bold select-none">&gt;&gt;</span>
+                      <span className={`${t.textMuted} mr-2 font-bold select-none`}>&gt;&gt;</span>
                       {log}
                     </div>
                   );
                 })}
                 {isSimulating && (
-                  <div className="text-cyan-400 font-bold animate-pulse flex items-center gap-1.5">
-                    <span className="text-slate-600 mr-2 select-none">&gt;&gt;</span>
+                  <div className={`${accent} font-bold animate-pulse flex items-center gap-1.5`}>
+                    <span className={`${t.textMuted} mr-2 select-none`}>&gt;&gt;</span>
                     Computing multi-variable trajectories...
                   </div>
                 )}
@@ -289,7 +297,7 @@ export const SimulationEngine: React.FC = () => {
             </div>
 
             {/* Action buttons */}
-            <div className="border-t border-slate-900/60 pt-4 z-10 flex justify-end">
+            <div className={`border-t ${t.borderLight} pt-4 z-10 flex justify-end`}>
               <button
                 disabled={isSimulating}
                 onClick={handleSimulate}

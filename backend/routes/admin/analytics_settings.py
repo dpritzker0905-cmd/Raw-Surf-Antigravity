@@ -57,7 +57,7 @@ async def verify_access_code(data: VerifyAccessCode, db: AsyncSession = Depends(
 
 
 @router.get("/admin/platform-settings")
-async def get_platform_settings(db: AsyncSession = Depends(get_db)):
+async def get_platform_settings(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Get current platform settings and feature flags"""
     from models import PlatformSettings
     defaults = {

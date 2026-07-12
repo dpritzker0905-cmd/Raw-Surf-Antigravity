@@ -10,6 +10,7 @@ from datetime import datetime, timezone
 import logging
 
 from database import get_db
+from deps.admin_auth import get_current_admin
 from models import Profile, SurfSpot, RoleEnum, LiveSession
 from .schemas import SimulateLiveRequest, SimulateLiveResponse, ForceStartSessionRequest
 
@@ -18,7 +19,7 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/admin/simulate-live", response_model=SimulateLiveResponse)
-async def simulate_photographer_live(data: SimulateLiveRequest, db: AsyncSession = Depends(get_db)):
+async def simulate_photographer_live(data: SimulateLiveRequest, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Admin endpoint to simulate a photographer going live or stopping."""
     photographer_result = await db.execute(select(Profile).where(Profile.id == data.photographer_id))
     photographer = photographer_result.scalar_one_or_none()
@@ -57,7 +58,7 @@ async def simulate_photographer_live(data: SimulateLiveRequest, db: AsyncSession
 
 
 @router.get("/admin/photographers")
-async def get_all_photographers(db: AsyncSession = Depends(get_db)):
+async def get_all_photographers(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Get all photographers for admin panel"""
     photographer_roles = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     result = await db.execute(
@@ -76,7 +77,7 @@ async def get_all_photographers(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/admin/force-start-session")
-async def admin_force_start_session(data: ForceStartSessionRequest, db: AsyncSession = Depends(get_db)):
+async def admin_force_start_session(data: ForceStartSessionRequest, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Admin endpoint to force-start a live session for a photographer."""
     photographer_result = await db.execute(select(Profile).where(Profile.id == data.photographer_id))
     photographer = photographer_result.scalar_one_or_none()
@@ -120,7 +121,7 @@ async def admin_force_start_session(data: ForceStartSessionRequest, db: AsyncSes
 
 
 @router.post("/admin/force-end-session/{photographer_id}")
-async def admin_force_end_session(photographer_id: str, db: AsyncSession = Depends(get_db)):
+async def admin_force_end_session(photographer_id: str, admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Admin endpoint to force-end a live session for a photographer."""
     photographer_result = await db.execute(select(Profile).where(Profile.id == photographer_id))
     photographer = photographer_result.scalar_one_or_none()
@@ -155,7 +156,7 @@ async def admin_force_end_session(photographer_id: str, db: AsyncSession = Depen
 
 
 @router.get("/admin/active-sessions")
-async def get_admin_active_sessions(db: AsyncSession = Depends(get_db)):
+async def get_admin_active_sessions(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Get all active live sessions for admin panel"""
     shooting_result = await db.execute(
         select(Profile).where(Profile.is_shooting.is_(True))
@@ -185,7 +186,7 @@ async def get_admin_active_sessions(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/admin/cleanup-stale-sessions")
-async def cleanup_stale_sessions(db: AsyncSession = Depends(get_db)):
+async def cleanup_stale_sessions(admin: Profile = Depends(get_current_admin), db: AsyncSession = Depends(get_db)):
     """Admin endpoint to cleanup stale LiveSession records."""
     result = await db.execute(
         select(LiveSession).where(LiveSession.status == 'active')

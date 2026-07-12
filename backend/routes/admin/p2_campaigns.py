@@ -15,6 +15,7 @@ from models import (
     Profile, NotificationCampaign, PaymentTransaction, Booking, RoleEnum
 )
 from .moderation import log_audit
+from utils.campaign_delivery import resolve_campaign_recipients, send_campaign
 
 router = APIRouter()
 
@@ -119,17 +120,35 @@ async def send_notification_campaign(
         raise HTTPException(status_code=404, detail="Campaign not found")
     if campaign.status == 'sent':
         raise HTTPException(status_code=400, detail="Campaign already sent")
+
+    recipients = await resolve_campaign_recipients(
+        db, target_roles=campaign.target_roles, target_all_users=campaign.target_all_users
+    )
+    delivery = await send_campaign(
+        db, recipients=recipients, title=campaign.title, body=campaign.body,
+        channels=["push", "in_app"], action_url=campaign.action_url
+    )
+    push = delivery["push"]
+
     campaign.status = 'sent'
     campaign.sent_at = datetime.now(timezone.utc)
-    campaign.total_sent = campaign.total_targeted
-    campaign.total_delivered = int(campaign.total_targeted * 0.95)
+    campaign.total_sent = push["sent"] + push["failed"]
+    campaign.total_delivered = push["sent"]
+
+    audit_note = f"Sent notification campaign: {campaign.name} — {push['sent']} delivered via push"
+    if not push["configured"]:
+        audit_note += f" (OneSignal not configured — {push['failed']} could not be sent)"
     await log_audit(
-        db, admin.id, "admin", "notification_campaign_sent",
-        f"Sent notification campaign: {campaign.name} to {campaign.total_targeted} users",
+        db, admin.id, "admin", "notification_campaign_sent", audit_note,
         "notification_campaign", campaign.id, None
     )
     await db.commit()
-    return {"status": "sent", "total_sent": campaign.total_sent, "total_delivered": campaign.total_delivered}
+    return {
+        "status": "sent",
+        "total_sent": campaign.total_sent,
+        "total_delivered": campaign.total_delivered,
+        "push_configured": push["configured"]
+    }
 
 
 @router.put("/admin/notification-campaigns/{campaign_id}/cancel")

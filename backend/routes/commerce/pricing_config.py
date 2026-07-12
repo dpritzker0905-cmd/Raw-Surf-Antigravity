@@ -289,6 +289,12 @@ DEFAULT_PRICING_DATA = {
 }
 
 
+# Default rate maps - fallback when no admin override exists in the DB yet.
+# Keyed by subscription tier: free (incl. hobbyist), tier_2 (Basic), tier_3 (Premium).
+DEFAULT_COMMISSION_RATES = {"free": 25, "tier_2": 20, "tier_3": 15}
+DEFAULT_SURFER_DISCOUNT_RATES = {"free": 0, "tier_2": 10, "tier_3": 20}
+
+
 class PricingTierUpdate(BaseModel):
     name: Optional[str] = None
     price: Optional[int] = None  # WHOLE DOLLARS ONLY
@@ -315,6 +321,8 @@ class PricingConfigUpdate(BaseModel):
     resort: Optional[PricingRoleUpdate] = None
     wave_pool: Optional[PricingRoleUpdate] = None
     destination: Optional[PricingRoleUpdate] = None
+    commission_rates: Optional[Dict[str, int]] = None
+    surfer_discount_rates: Optional[Dict[str, int]] = None
 
 
 async def get_active_pricing_config(db: AsyncSession) -> Dict[str, Any]:
@@ -370,15 +378,19 @@ async def admin_get_pricing_config(
             "version": config.version,
             "updated_at": config.updated_at.isoformat() if config.updated_at else None,
             "updated_by": config.updated_by,
-            "is_from_db": True
+            "is_from_db": True,
+            "commission_rates": config.commission_rates or DEFAULT_COMMISSION_RATES,
+            "surfer_discount_rates": config.surfer_discount_rates or DEFAULT_SURFER_DISCOUNT_RATES
         }
-    
+
     return {
         "pricing": DEFAULT_PRICING_DATA,
         "version": 0,
         "updated_at": None,
         "updated_by": None,
-        "is_from_db": False
+        "is_from_db": False,
+        "commission_rates": DEFAULT_COMMISSION_RATES,
+        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES
     }
 
 
@@ -392,28 +404,40 @@ async def admin_update_pricing_config(
     Admin endpoint to update pricing configuration
     Creates a new versioned config entry
     """
-    # Get current config
-    current_pricing = await get_active_pricing_config(db)
-    
+    # Get current config (row, not just pricing_data, so we can carry forward rate maps too)
+    active_result = await db.execute(
+        select(GlobalPricingConfig)
+        .where(GlobalPricingConfig.is_active == True)
+        .order_by(GlobalPricingConfig.version.desc())
+        .limit(1)
+    )
+    active_config = active_result.scalar_one_or_none()
+    current_pricing = active_config.pricing_data if active_config else DEFAULT_PRICING_DATA
+    current_commission_rates = (active_config.commission_rates if active_config else None) or DEFAULT_COMMISSION_RATES
+    current_surfer_discount_rates = (active_config.surfer_discount_rates if active_config else None) or DEFAULT_SURFER_DISCOUNT_RATES
+
     # Deep merge updates
     updated_pricing = current_pricing.copy()
-    update_dict = data.dict(exclude_none=True)
-    
+    update_dict = data.dict(exclude_none=True, exclude={"commission_rates", "surfer_discount_rates"})
+
     for role_key, role_updates in update_dict.items():
         if role_key not in updated_pricing:
             continue
-        
+
         if isinstance(role_updates, dict):
             if 'role_label' in role_updates:
                 updated_pricing[role_key]['role_label'] = role_updates['role_label']
-            
+
             if 'tiers' in role_updates and role_updates['tiers']:
                 for tier_key, tier_updates in role_updates['tiers'].items():
                     if tier_key in updated_pricing[role_key]['tiers']:
                         for field, value in tier_updates.items():
                             if value is not None:
                                 updated_pricing[role_key]['tiers'][tier_key][field] = value
-    
+
+    updated_commission_rates = {**current_commission_rates, **(data.commission_rates or {})}
+    updated_surfer_discount_rates = {**current_surfer_discount_rates, **(data.surfer_discount_rates or {})}
+
     # Deactivate old configs
     old_configs = await db.execute(
         select(GlobalPricingConfig).where(GlobalPricingConfig.is_active == True)
@@ -434,18 +458,22 @@ async def admin_update_pricing_config(
         version=new_version,
         updated_by=admin.id,
         updated_at=datetime.now(timezone.utc),
-        is_active=True
+        is_active=True,
+        commission_rates=updated_commission_rates,
+        surfer_discount_rates=updated_surfer_discount_rates
     )
     db.add(new_config)
     await db.commit()
-    
+
     logger.info(f"Pricing config updated to v{new_version} by admin {admin.id}")
-    
+
     return {
         "success": True,
         "message": f"Pricing updated to version {new_version}",
         "version": new_version,
-        "pricing": updated_pricing
+        "pricing": updated_pricing,
+        "commission_rates": updated_commission_rates,
+        "surfer_discount_rates": updated_surfer_discount_rates
     }
 
 
@@ -475,18 +503,22 @@ async def admin_reset_pricing_config(
         version=new_version,
         updated_by=admin.id,
         updated_at=datetime.now(timezone.utc),
-        is_active=True
+        is_active=True,
+        commission_rates=DEFAULT_COMMISSION_RATES,
+        surfer_discount_rates=DEFAULT_SURFER_DISCOUNT_RATES
     )
     db.add(new_config)
     await db.commit()
-    
+
     logger.info(f"Pricing config reset to defaults (v{new_version}) by admin {admin.id}")
-    
+
     return {
         "success": True,
         "message": f"Pricing reset to defaults (version {new_version})",
         "version": new_version,
-        "pricing": DEFAULT_PRICING_DATA
+        "pricing": DEFAULT_PRICING_DATA,
+        "commission_rates": DEFAULT_COMMISSION_RATES,
+        "surfer_discount_rates": DEFAULT_SURFER_DISCOUNT_RATES
     }
 
 

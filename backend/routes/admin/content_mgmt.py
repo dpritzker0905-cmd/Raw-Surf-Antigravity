@@ -162,11 +162,14 @@ async def global_search(
 async def get_featured_content(
     admin: Profile = Depends(get_current_admin),
     placement: Optional[str] = None,
+    include_inactive: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """Get featured content"""
-    
-    query = select(FeaturedContent).where(FeaturedContent.is_active == True).order_by(FeaturedContent.position)
+
+    query = select(FeaturedContent).order_by(FeaturedContent.position)
+    if not include_inactive:
+        query = query.where(FeaturedContent.is_active == True)
     if placement:
         query = query.where(FeaturedContent.placement == placement)
     
@@ -238,6 +241,30 @@ async def create_featured_content(
     return {"success": True, "featured_id": featured.id}
 
 
+@router.put("/admin/content/featured/{featured_id}/toggle")
+async def toggle_featured_content(
+    featured_id: str,
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Toggle featured content active status"""
+
+    result = await db.execute(select(FeaturedContent).where(FeaturedContent.id == featured_id))
+    featured = result.scalar_one_or_none()
+
+    if not featured:
+        raise HTTPException(status_code=404, detail="Featured content not found")
+
+    await db.execute(
+        update(FeaturedContent)
+        .where(FeaturedContent.id == featured_id)
+        .values(is_active=not featured.is_active)
+    )
+    await db.commit()
+
+    return {"success": True, "is_active": not featured.is_active}
+
+
 @router.delete("/admin/content/featured/{featured_id}")
 async def remove_featured_content(
     featured_id: str,
@@ -245,7 +272,7 @@ async def remove_featured_content(
     db: AsyncSession = Depends(get_db)
 ):
     """Remove featured content"""
-    
+
     await db.execute(
         update(FeaturedContent)
         .where(FeaturedContent.id == featured_id)
@@ -458,11 +485,15 @@ async def update_spot_seo(
 @router.get("/admin/tools/api-keys")
 async def get_api_keys(
     admin: Profile = Depends(get_current_admin),
+    include_inactive: bool = False,
     db: AsyncSession = Depends(get_db)
 ):
     """Get all API keys"""
-    
-    result = await db.execute(select(APIKey).where(APIKey.is_active == True).order_by(desc(APIKey.created_at)))
+
+    query = select(APIKey).order_by(desc(APIKey.created_at))
+    if not include_inactive:
+        query = query.where(APIKey.is_active == True)
+    result = await db.execute(query)
     keys = result.scalars().all()
     
     return {
@@ -520,6 +551,30 @@ async def create_api_key(
         "key_prefix": key_prefix,
         "message": "Save this key now - it won't be shown again!"
     }
+
+
+@router.put("/admin/tools/api-keys/{key_id}/toggle")
+async def toggle_api_key(
+    key_id: str,
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Toggle API key active status (disable/re-enable without revoking)"""
+
+    result = await db.execute(select(APIKey).where(APIKey.id == key_id))
+    api_key = result.scalar_one_or_none()
+
+    if not api_key:
+        raise HTTPException(status_code=404, detail="API key not found")
+
+    await db.execute(
+        update(APIKey)
+        .where(APIKey.id == key_id)
+        .values(is_active=not api_key.is_active)
+    )
+    await db.commit()
+
+    return {"success": True, "is_active": not api_key.is_active}
 
 
 @router.delete("/admin/tools/api-keys/{key_id}")

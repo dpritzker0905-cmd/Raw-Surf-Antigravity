@@ -1,9 +1,12 @@
 """
 Base scheduler module — shared scheduler instance and push notification helper.
 """
+import asyncio
 import logging
 import json
 import os
+import time as _time
+from datetime import datetime, timezone
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 
 logger = logging.getLogger(__name__)
@@ -15,6 +18,81 @@ VAPID_CLAIMS = {"sub": "mailto:alerts@rawsurfos.com"}
 
 # Initialize scheduler — singleton used by all task modules
 scheduler = AsyncIOScheduler()
+
+
+async def _run_tracked_job(job_id: str, description: str, schedule_label: str, coro_func):
+    """
+    Runs a scheduled job with REAL execution tracking against ScheduledJobStatus (admin
+    Jobs tab) instead of leaving it permanently blank, and REAL respect for the admin's
+    enable/disable toggle (previously persisted to the DB but never checked by anything).
+    """
+    from database import async_session_maker
+    from sqlalchemy import select
+    from models import ScheduledJobStatus
+
+    async with async_session_maker() as db:
+        result = await db.execute(select(ScheduledJobStatus).where(ScheduledJobStatus.job_name == job_id))
+        job_status = result.scalar_one_or_none()
+        if not job_status:
+            job_status = ScheduledJobStatus(
+                job_name=job_id, job_description=description, schedule=schedule_label,
+                last_run_status="unknown"
+            )
+            db.add(job_status)
+            await db.commit()
+            await db.refresh(job_status)
+        is_enabled = job_status.is_enabled
+
+    if not is_enabled:
+        logger.info(f"[Scheduler] Job '{job_id}' is disabled via the admin Jobs tab — skipping this run.")
+        return
+
+    start = _time.monotonic()
+    status = "success"
+    error_message = None
+    try:
+        if asyncio.iscoroutinefunction(coro_func):
+            await coro_func()
+        else:
+            coro_func()
+    except Exception as e:
+        status = "failed"
+        error_message = str(e)
+        logger.error(f"[Scheduler] Job '{job_id}' failed: {e}", exc_info=True)
+    duration_ms = int((_time.monotonic() - start) * 1000)
+
+    async with async_session_maker() as db:
+        result = await db.execute(select(ScheduledJobStatus).where(ScheduledJobStatus.job_name == job_id))
+        job_status = result.scalar_one_or_none()
+        if job_status:
+            job_status.last_run_at = datetime.now(timezone.utc)
+            job_status.last_run_duration_ms = duration_ms
+            job_status.last_run_status = status
+            job_status.last_run_error = error_message
+            job_status.total_runs = (job_status.total_runs or 0) + 1
+            if status == "success":
+                job_status.success_count = (job_status.success_count or 0) + 1
+            else:
+                job_status.failure_count = (job_status.failure_count or 0) + 1
+            job_status.updated_at = datetime.now(timezone.utc)
+            try:
+                scheduled_job = scheduler.get_job(job_id)
+                if scheduled_job and scheduled_job.next_run_time:
+                    job_status.next_run_at = scheduled_job.next_run_time
+            except Exception:
+                pass
+            await db.commit()
+
+
+def tracked(job_id: str, description: str, schedule_label: str, coro_func):
+    """
+    Wrap a scheduler task coroutine function for real execution tracking + the enable/
+    disable gate. Use as the callable passed to scheduler.add_job(...).
+    """
+    async def _wrapped():
+        await _run_tracked_job(job_id, description, schedule_label, coro_func)
+    _wrapped.__name__ = f"tracked_{job_id}"
+    return _wrapped
 
 
 async def send_push_notification(db, user_id: str, title: str, body: str, data: dict = None):

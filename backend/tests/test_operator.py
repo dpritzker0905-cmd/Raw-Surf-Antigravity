@@ -82,9 +82,13 @@ def test_execute_decision_admin_success():
     assert len(history) == 1
     assert history[0]["status"] == "executed"
     assert history[0]["caller_role"] == "admin"
-    assert history[0]["execution_result"]["stripe_sync"]["status"] == "synchronized"
-    
-    print("✓ Admin approval gate success and system sync completed")
+    # No real Stripe/Calendar side effect applies to a pricing_adjustment decision executed
+    # outside the HTTP route (no real_integration_results supplied) - the honest default
+    # should be reported, not a fabricated external-system confirmation.
+    assert history[0]["execution_result"]["internal_record"]["status"] == "recorded"
+    assert history[0]["execution_result"]["calendar_sync"]["status"] == "not_integrated"
+
+    print("✓ Admin approval gate success and decision honestly recorded (no fabricated sync claims)")
 
 def test_execute_decision_unauthorized():
     seed_test_db()
@@ -124,9 +128,13 @@ def test_propose_cancellation_safety_check():
     exec_res = operator_mcp_server.execute_decision(decision_id, "admin")
     assert exec_res["success"] is True
     assert exec_res["status"] == "executed"
-    assert "canceled" in exec_res["execution_result"]["calendar_sync"]["message"]
-    
-    print("✓ Swell height safety threshold cancellation checks verified")
+    # Calendar integration doesn't exist yet in this app - executing without a real_integration_results
+    # override (as happens when called outside the HTTP route) must honestly say so, not claim a
+    # calendar event was canceled.
+    assert exec_res["execution_result"]["calendar_sync"]["status"] == "not_integrated"
+    assert "not yet built" in exec_res["execution_result"]["calendar_sync"]["message"]
+
+    print("✓ Swell height safety threshold cancellation checks verified (honest calendar status)")
 
 def test_json_rpc_initialize():
     # Simulate a JSON-RPC stdio initialization call

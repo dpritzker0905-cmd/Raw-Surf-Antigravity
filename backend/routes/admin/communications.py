@@ -7,7 +7,7 @@ Admin Communication Center
 """
 from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.ext.asyncio import AsyncSession
-from sqlalchemy import select, func, and_, update, desc
+from sqlalchemy import select, func, and_, or_, update, desc
 from pydantic import BaseModel
 from typing import Optional, List
 from datetime import datetime, timezone, timedelta
@@ -15,10 +15,11 @@ from datetime import datetime, timezone, timedelta
 from database import get_db
 from deps.admin_auth import get_current_admin
 from models import (
-    Profile, Announcement, AnnouncementTypeEnum, MessageTemplate, 
+    Profile, Announcement, AnnouncementTypeEnum, MessageTemplate,
     BulkMessageCampaign, RoleEnum
 )
 from .moderation import log_audit
+from utils.campaign_delivery import resolve_campaign_recipients, send_campaign
 
 router = APIRouter()
 
@@ -353,24 +354,41 @@ async def send_bulk_campaign(
     
     if campaign.status not in ["draft", "scheduled"]:
         raise HTTPException(status_code=400, detail="Campaign cannot be sent")
-    
-    # In production, this would queue the actual sending
-    # For now, we simulate the send
+
+    recipients = await resolve_campaign_recipients(
+        db, target_segment=campaign.target_segment, target_roles=campaign.target_roles
+    )
+    delivery = await send_campaign(
+        db, recipients=recipients, title=campaign.subject or campaign.name, body=campaign.body,
+        channels=[campaign.message_type], subject=campaign.subject
+    )
+    channel_result = delivery.get(campaign.message_type, {})
+
     await db.execute(
         update(BulkMessageCampaign)
         .where(BulkMessageCampaign.id == campaign_id)
         .values(
             status="sent",
             sent_at=datetime.now(timezone.utc),
-            sent_count=campaign.total_recipients,
-            delivered_count=int(campaign.total_recipients * 0.95)  # Simulated 95% delivery
+            sent_count=channel_result.get("sent", 0) + channel_result.get("failed", 0),
+            delivered_count=channel_result.get("sent", 0)
         )
     )
-    
-    await log_audit(db, admin.id, "communication", f"Sent bulk campaign: {campaign.name}")
+
+    audit_note = (
+        f"Sent bulk campaign: {campaign.name} — {channel_result.get('sent', 0)} delivered via "
+        f"{campaign.message_type}"
+        + ("" if channel_result.get("configured") else f" (channel not configured — {channel_result.get('failed', 0)} could not be sent)")
+    )
+    await log_audit(db, admin.id, "communication", audit_note)
     await db.commit()
-    
-    return {"success": True, "sent_count": campaign.total_recipients}
+
+    return {
+        "success": True,
+        "sent_count": channel_result.get("sent", 0),
+        "failed_count": channel_result.get("failed", 0),
+        "channel_configured": channel_result.get("configured", False)
+    }
 
 
 @router.get("/admin/communication/stats")

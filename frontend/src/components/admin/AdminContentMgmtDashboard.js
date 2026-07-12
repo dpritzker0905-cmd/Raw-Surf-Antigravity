@@ -86,7 +86,7 @@ export const AdminContentMgmtDashboard = () => {
     try {
       if (activeTab === 'featured') {
         const response = await apiClient.get(`/admin/content/featured`);
-        setFeaturedContent(response.data.items || []);
+        setFeaturedContent(response.data.featured || []);
       } else if (activeTab === 'banners') {
         const response = await apiClient.get(`/admin/content/banners`);
         setBanners(response.data.banners || []);
@@ -99,7 +99,7 @@ export const AdminContentMgmtDashboard = () => {
         setApiKeys(response.data.api_keys || []);
       } else if (activeTab === 'changelog') {
         const response = await apiClient.get(`/admin/tools/changelog`);
-        setChangelog(response.data.entries || []);
+        setChangelog(response.data.changelog || []);
       }
     } catch (error) {
       logger.error('Failed to load data:', error);
@@ -125,6 +125,15 @@ export const AdminContentMgmtDashboard = () => {
       toast.error(error.response?.data?.detail || 'Failed to add featured content');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleToggleFeatured = async (featuredId) => {
+    try {
+      await apiClient.put(`/admin/content/featured/${featuredId}/toggle`);
+      fetchDataForTab();
+    } catch (error) {
+      toast.error('Failed to toggle featured content');
     }
   };
 
@@ -193,6 +202,15 @@ export const AdminContentMgmtDashboard = () => {
       toast.error('Failed to create API key');
     } finally {
       setActionLoading(false);
+    }
+  };
+
+  const handleToggleApiKey = async (keyId) => {
+    try {
+      await apiClient.put(`/admin/tools/api-keys/${keyId}/toggle`);
+      fetchDataForTab();
+    } catch (error) {
+      toast.error('Failed to toggle API key');
     }
   };
 
@@ -299,7 +317,7 @@ export const AdminContentMgmtDashboard = () => {
                           <p className={`text-sm ${textClass}`}>ID: {item.content_id}</p>
                           <p className="text-xs text-gray-500">Priority: {item.priority}</p>
                         </div>
-                        <Switch checked={item.is_active} />
+                        <Switch checked={item.is_active} onCheckedChange={() => handleToggleFeatured(item.id)} />
                       </div>
                     ))}
                   </div>
@@ -463,7 +481,7 @@ export const AdminContentMgmtDashboard = () => {
                             Calls: {key.total_calls} - Limit: {key.rate_limit}/day
                           </p>
                         </div>
-                        <Switch checked={key.is_active} />
+                        <Switch checked={key.is_active} onCheckedChange={() => handleToggleApiKey(key.id)} />
                       </div>
                     ))}
                   </div>

@@ -70,7 +70,7 @@ export const AdminPricingEditor = () => {
     tier_2: 20,    // Basic - 20%
     tier_3: 15,    // Premium - 15%
   });
-  const [_originalCommissionRates, setOriginalCommissionRates] = useState(null);
+  const [originalCommissionRates, setOriginalCommissionRates] = useState(null);
   const [commissionHasChanges, setCommissionHasChanges] = useState(false);
 
   // Surfer subscription discount rates state
@@ -79,7 +79,7 @@ export const AdminPricingEditor = () => {
     tier_2: 10,    // Basic subscribers - 10% off media purchases
     tier_3: 20,    // Premium subscribers - 20% off media purchases
   });
-  const [_originalSurferDiscountRates, setOriginalSurferDiscountRates] = useState(null);
+  const [originalSurferDiscountRates, setOriginalSurferDiscountRates] = useState(null);
   const [surferDiscountHasChanges, setSurferDiscountHasChanges] = useState(false);
 
   const fetchPricing = useCallback(async () => {
@@ -91,12 +91,25 @@ export const AdminPricingEditor = () => {
       setUpdatedAt(response.data.updated_at);
       setIsFromDb(response.data.is_from_db);
       setHasChanges(false);
+
+      const fetchedCommissionRates = response.data.commission_rates || commissionRates;
+      setCommissionRates(fetchedCommissionRates);
+      setOriginalCommissionRates(fetchedCommissionRates);
+      setCommissionHasChanges(false);
+
+      const fetchedSurferDiscountRates = response.data.surfer_discount_rates || surferDiscountRates;
+      setSurferDiscountRates(fetchedSurferDiscountRates);
+      setOriginalSurferDiscountRates(fetchedSurferDiscountRates);
+      setSurferDiscountHasChanges(false);
     } catch (error) {
       logger.error('Failed to fetch pricing:', error);
       toast.error('Failed to load pricing configuration');
     } finally {
       setLoading(false);
     }
+    // NOTE: no eslint-disable here — this project's eslint config does NOT register the
+    // react-hooks plugin, and naming an unknown rule in a disable comment is itself a
+    // compile-failing error on the Netlify build (deploy 6a540b87, 2026-07-12).
   }, [user?.id]);
 
   const fetchHistory = async () => {
@@ -201,63 +214,33 @@ export const AdminPricingEditor = () => {
     setHasChanges(true);
   };
   
-  // Save commission rates to localStorage (for now - can be migrated to DB later)
-  const saveCommissionRates = () => {
-    localStorage.setItem('admin_commission_rates', JSON.stringify(commissionRates));
-    setOriginalCommissionRates({ ...commissionRates });
-    setCommissionHasChanges(false);
-  };
-
-  // Save surfer discount rates to localStorage
-  const saveSurferDiscountRates = () => {
-    localStorage.setItem('admin_surfer_discount_rates', JSON.stringify(surferDiscountRates));
-    setOriginalSurferDiscountRates({ ...surferDiscountRates });
-    setSurferDiscountHasChanges(false);
-  };
-  
-  // Load commission + surfer discount rates from localStorage
-  useEffect(() => {
-    const savedRates = localStorage.getItem('admin_commission_rates');
-    if (savedRates) {
-      const parsed = JSON.parse(savedRates);
-      setCommissionRates(parsed);
-      setOriginalCommissionRates(parsed);
-    } else {
-      setOriginalCommissionRates({ ...commissionRates });
-    }
-    const savedDiscounts = localStorage.getItem('admin_surfer_discount_rates');
-    if (savedDiscounts) {
-      const parsed = JSON.parse(savedDiscounts);
-      setSurferDiscountRates(parsed);
-      setOriginalSurferDiscountRates(parsed);
-    } else {
-      setOriginalSurferDiscountRates({ ...surferDiscountRates });
-    }
-  }, []);
-
   const handleSave = async () => {
     setSaving(true);
     try {
       const response = await apiClient.post(
         `/admin/pricing/update`,
-        pricing
+        {
+          ...pricing,
+          commission_rates: commissionRates,
+          surfer_discount_rates: surferDiscountRates
+        }
       );
-      
+
       setPricing(response.data.pricing);
       setOriginalPricing(JSON.parse(JSON.stringify(response.data.pricing)));
       setVersion(response.data.version);
       setUpdatedAt(new Date().toISOString());
       setIsFromDb(true);
       setHasChanges(false);
-      
-      // Also save commission + surfer discount rates
-      if (commissionHasChanges) {
-        saveCommissionRates();
-      }
-      if (surferDiscountHasChanges) {
-        saveSurferDiscountRates();
-      }
-      
+
+      setCommissionRates(response.data.commission_rates);
+      setOriginalCommissionRates(response.data.commission_rates);
+      setCommissionHasChanges(false);
+
+      setSurferDiscountRates(response.data.surfer_discount_rates);
+      setOriginalSurferDiscountRates(response.data.surfer_discount_rates);
+      setSurferDiscountHasChanges(false);
+
       toast.success(`Pricing saved (v${response.data.version})`);
     } catch (error) {
       logger.error('Failed to save pricing:', error);
@@ -296,6 +279,14 @@ export const AdminPricingEditor = () => {
     setPricing(JSON.parse(JSON.stringify(originalPricing)));
     setHasChanges(false);
     setEditingCell(null);
+    if (originalCommissionRates) {
+      setCommissionRates({ ...originalCommissionRates });
+      setCommissionHasChanges(false);
+    }
+    if (originalSurferDiscountRates) {
+      setSurferDiscountRates({ ...originalSurferDiscountRates });
+      setSurferDiscountHasChanges(false);
+    }
     toast.info('Changes discarded');
   };
 

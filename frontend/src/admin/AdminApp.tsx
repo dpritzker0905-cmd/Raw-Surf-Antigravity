@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
 import { useAuth } from '../contexts/AuthContext';
+import { useTheme } from '../contexts/ThemeContext';
+import { getThemeTokens } from '../utils/themeTokens';
 import { useNavigate } from 'react-router-dom';
 import useEvents from './hooks/useEvents';
 import useAdminActions, { AdminAction } from './hooks/useAdminActions';
@@ -31,27 +33,29 @@ import { Button } from '../components/ui/button';
 export const AdminApp: React.FC = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+  const { theme } = useTheme();
+  const t = getThemeTokens(theme);
+
   const [activeTab, setActiveTab] = useState<string>('events');
   const [traceCorrelationId, setTraceCorrelationId] = useState<string>('');
   const [viewLegacyConsole, setViewLegacyConsole] = useState<boolean>(false);
 
   const { events, loading: eventsLoading } = useEvents();
-  const { 
-    actions, 
-    loading: actionsLoading, 
-    approveAction, 
-    rejectAction, 
+  const {
+    actions,
+    loading: actionsLoading,
+    approveAction,
+    rejectAction,
     proposeOverride
   } = useAdminActions();
 
   // Redirect if unauthorized
   if (user && !user.is_admin) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-screen bg-[#020617] text-center p-4">
+      <div className={`flex flex-col items-center justify-center min-h-screen ${t.pageBg} text-center p-4`}>
         <Shield className="w-16 h-16 text-red-500 mb-4 animate-bounce" />
-        <h2 className="text-2xl font-bold text-slate-100 mb-2">Unauthorized Access</h2>
-        <p className="text-slate-400 max-w-sm">This dashboard is locked behind high-level cryptographic administrator gates.</p>
+        <h2 className={`text-2xl font-bold ${t.textPrimary} mb-2`}>Unauthorized Access</h2>
+        <p className={`${t.textSecondary} max-w-sm`}>This dashboard is locked behind high-level cryptographic administrator gates.</p>
         <Button onClick={() => navigate('/feed')} className="mt-6 bg-cyan-500 hover:bg-cyan-400 text-slate-950 font-bold">
           Return to Surfer Feed
         </Button>
@@ -97,15 +101,17 @@ export const AdminApp: React.FC = () => {
   ];
 
   if (viewLegacyConsole) {
+    const dim = t.isLight || t.isBeach;
+    const accent = dim ? 'text-cyan-600' : 'text-cyan-400';
     return (
-      <div className="bg-[#020617] min-h-screen text-slate-100">
-        <div className="bg-slate-955/80 border-b border-slate-800 p-4 sticky top-0 z-[2000] backdrop-blur-md">
+      <div className={`${t.pageBg} min-h-screen ${t.textPrimary}`}>
+        <div className={`${t.glassBg} border-b p-4 sticky top-0 z-[2000] backdrop-blur-md`}>
           <div className="max-w-6xl mx-auto flex justify-between items-center">
             <div className="flex items-center gap-2">
-              <Shield className="w-5 h-5 text-cyan-400 animate-pulse" />
-              <span className="font-bold text-sm text-cyan-400">Production Alignment Mode (Console Tools Active)</span>
+              <Shield className={`w-5 h-5 ${accent} animate-pulse`} />
+              <span className={`font-bold text-sm ${accent}`}>Production Alignment Mode (Console Tools Active)</span>
             </div>
-            <button 
+            <button
               onClick={() => setViewLegacyConsole(false)}
               className="bg-cyan-500 hover:bg-cyan-400 text-slate-950 text-xs font-extrabold px-4 py-2 rounded-lg flex items-center gap-1 transition-all"
             >

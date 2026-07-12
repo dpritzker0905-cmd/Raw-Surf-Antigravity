@@ -305,17 +305,30 @@ async def get_job_statuses(
     result = await db.execute(select(ScheduledJobStatus).order_by(ScheduledJobStatus.job_name))
     jobs = result.scalars().all()
     
-    # If no jobs in DB, create defaults from known scheduler jobs
+    # If no jobs in DB, create defaults matching the REAL job ids registered in
+    # scheduler/__init__.py (previously this list used different, made-up ids that
+    # didn't match any real scheduler job, so toggling/tracking here never affected
+    # anything real). Excludes 'periodic_l2_restore'/'ingest_marine_forecast', which
+    # are environment-dependent (only one runs, gated by DISABLE_FORECAST_SCHEDULER) -
+    # those rows are created automatically on first real run instead.
     if not jobs:
         default_jobs = [
-            ("surf_alerts", "Check surf alerts", "Every 15 minutes"),
-            ("story_cleanup", "Cleanup expired stories", "Every 1 hour"),
-            ("leaderboard_reset", "Reset monthly leaderboards", "Monthly"),
-            ("grom_report", "Send grom parent reports", "Weekly"),
-            ("payment_expiry", "Handle expired payments", "Every 5 minutes"),
-            ("platform_metrics", "Calculate platform metrics", "Every 6 hours"),
-            ("session_reminders", "Send session reminders", "Every 5 minutes"),
-            ("auto_escrow_release", "Auto release escrow", "Daily 3am")
+            ("check_surf_alerts", "Check surf alerts against conditions", "Every 15 minutes"),
+            ("cleanup_stories", "Clean up expired stories", "Every 1 hour"),
+            ("monthly_leaderboard_reset", "Monthly leaderboard reset and archive", "Monthly (1st, 00:05 UTC)"),
+            ("weekly_grom_report", "Weekly Grom activity report to parents", "Weekly (Sun 14:00 UTC)"),
+            ("check_payment_expiry", "Check crew payment window expiry", "Every 5 minutes"),
+            ("payment_expiry_reminders", "Send payment expiry reminders", "Every 5 minutes"),
+            ("platform_metrics_aggregation", "Aggregate platform metrics for admin dashboard", "Every 6 hours"),
+            ("session_reminders", "Send session reminder notifications", "Every 5 minutes"),
+            ("auto_escrow_release", "Auto-release escrow 7 days after session", "Daily 3am UTC"),
+            ("selection_deadline_expiry", "Process expired surfer selection deadlines", "Daily 4am UTC"),
+            ("weekly_sales_reports", "Send weekly sales reports to photographers", "Weekly (Mon 9am UTC)"),
+            ("expire_booking_invites", "Expire pending booking invites after 24 hours", "Every 5 minutes"),
+            ("cleanup_stripe_sessions", "Cleanup abandoned Stripe checkout sessions older than 30 min", "Every 30 minutes"),
+            ("cleanup_expired_booking_payments", "Decline bookings with expired payment session and refund credits", "Every 10 minutes"),
+            ("credit_integrity_check", "Check credit transactions for orphaned references", "Daily 5am UTC"),
+            ("rate_limiter_cleanup", "Cleanup stale rate limiter entries", "Every 1 hour"),
         ]
         
         for job_name, desc, schedule in default_jobs:

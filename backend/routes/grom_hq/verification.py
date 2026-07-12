@@ -187,8 +187,13 @@ async def demo_verify_age(
 ):
     """
     Demo/test endpoint to bypass Stripe Identity for age verification.
-    In production, this should be disabled or require admin access.
+    SECURITY: Only enabled when ALLOW_GROM_DEMO_VERIFY=true env var is set.
+    Never set this in production — this endpoint is intentionally disabled by default.
     """
+    import os
+    if os.getenv("ALLOW_GROM_DEMO_VERIFY", "false").lower() != "true":
+        raise HTTPException(status_code=404, detail="Not found")
+
     if user_id != parent_id:
         raise HTTPException(status_code=403, detail="Not authorized to demo verify age")
 

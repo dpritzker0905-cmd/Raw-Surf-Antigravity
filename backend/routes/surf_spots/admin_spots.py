@@ -6,7 +6,6 @@ Dedup/merge endpoints extracted to spot_dedup.py (v99 audit).
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, text as sa_text
-from pydantic import BaseModel
 from typing import Optional
 from datetime import datetime, timezone
 import logging
@@ -272,48 +271,6 @@ async def trigger_spot_import(
     }
 
 
-class CreateSpotRequest(BaseModel):
-    name: str
-    country: Optional[str] = None
-    state_province: Optional[str] = None
-    region: Optional[str] = None
-    wave_type: Optional[str] = None
-    latitude: float
-    longitude: float
-    difficulty: Optional[str] = None
-    override_land_warning: Optional[bool] = False
-
-@router.post("/admin/spots/create")
-async def create_spot(
-    data: CreateSpotRequest,
-    admin: Profile = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    """Create a new surf spot (admin only)."""
-    # Create spot
-    spot = SurfSpot(
-        name=data.name,
-        country=data.country,
-        state_province=data.state_province,
-        region=data.region,
-        wave_type=data.wave_type,
-        latitude=data.latitude,
-        longitude=data.longitude,
-        difficulty=data.difficulty,
-        is_active=True,
-        is_verified_peak=True,
-        accuracy_flag='verified',
-        verified_by=admin.id,
-        verified_at=datetime.now(timezone.utc)
-    )
-    
-    db.add(spot)
-    await db.commit()
-    await db.refresh(spot)
-    
-    return {"success": True, "message": f"Created spot: {spot.name}", "spot_id": spot.id}
-
-
 @router.put("/admin/spots/{spot_id}")
 async def update_spot(
     spot_id: str,
@@ -367,24 +324,6 @@ async def update_spot(
     await db.commit()
     
     return {"success": True, "message": f"Updated spot: {spot.name}"}
-
-
-@router.delete("/admin/spots/{spot_id}")
-async def delete_spot(
-    spot_id: str,
-    admin: Profile = Depends(get_current_admin),
-    db: AsyncSession = Depends(get_db)
-):
-    """Delete a surf spot (admin only)."""
-    result = await db.execute(select(SurfSpot).where(SurfSpot.id == spot_id))
-    spot = result.scalar_one_or_none()
-    if not spot:
-        raise HTTPException(status_code=404, detail="Spot not found")
-    
-    await db.delete(spot)
-    await db.commit()
-    
-    return {"success": True, "message": f"Deleted spot: {spot.name}"}
 
 
 

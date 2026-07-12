@@ -325,7 +325,7 @@ def propose_cancellation(event_id, explanation, swell_height_ft=None, correlatio
     }
 
 # 4. Execute approved decision with strict human-in-the-loop Gate
-def execute_decision(decision_id, caller_role, correlation_id=None):
+def execute_decision(decision_id, caller_role, correlation_id=None, real_integration_results=None):
     init_db()
     
     conn = get_sqlite_connection(DB_PATH)
@@ -366,6 +366,7 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
         "timestamp": exec_ts
     }
     
+    event_publish_succeeded = False
     try:
         import event_bus_mcp_server
         event_bus_mcp_server.publish_event(
@@ -382,23 +383,36 @@ def execute_decision(decision_id, caller_role, correlation_id=None):
             source_mcp="operator_mcp",
             source_service="operator_mcp"
         )
+        event_publish_succeeded = True
     except Exception as e:
         sys.stderr.write(f"Warning: Failed publishing admin approved events: {str(e)}\n")
         sys.stderr.flush()
-        
-    integration_results = {
-        "stripe_sync": {
-            "status": "synchronized",
-            "message": "Stripe checkout pricing multipliers applied." if dec_type == "pricing_adjustment" else "Stripe customer booking fee refunded."
-        },
-        "calendar_sync": {
-            "status": "synchronized",
-            "message": "Google Calendar slot reservation updated." if dec_type == "pricing_adjustment" else "Google Calendar photographer booking slot canceled."
-        },
-        "supabase_sync": {
-            "status": "synchronized",
-            "message": f"Supabase event spine synchronizer triggered. Emitted admin_approved_action: {dec_type}"
+
+    if real_integration_results is not None:
+        # Caller (the HTTP route, which has DB access) already performed the real
+        # side effect (e.g. an actual booking refund) and is reporting the true outcome.
+        integration_results = real_integration_results
+    else:
+        # No real side effect was performed by the caller for this decision type.
+        # Report that truthfully instead of claiming external systems were synced.
+        integration_results = {
+            "internal_record": {
+                "status": "recorded",
+                "message": f"Recorded as an internal operator decision (type={dec_type}). No external payment system was called for this decision type."
+            },
+            "calendar_sync": {
+                "status": "not_integrated",
+                "message": "Google Calendar integration is not yet built for this app."
+            }
         }
+
+    integration_results["event_spine_sync"] = {
+        "status": "synchronized" if event_publish_succeeded else "failed",
+        "message": (
+            f"Event spine notified (admin_approved_action, type={dec_type})."
+            if event_publish_succeeded else
+            "Failed to publish to the event spine — event bus was unreachable. Decision was still recorded."
+        )
     }
     
     cursor.execute("""
@@ -439,8 +453,11 @@ def get_operator_decision_history():
         if r[9]:
             try:
                 exec_res = json.loads(r[9])
-            except:
-                pass
+            except (json.JSONDecodeError, TypeError):
+                # execution_result was stored as a plain string (e.g. by
+                # propose_booking_override), not JSON - surface it as-is
+                # rather than silently discarding it.
+                exec_res = r[9]
         history.append({
             "decision_id": r[0],
             "type": r[1],
@@ -536,7 +553,7 @@ def reject_decision(decision_id, caller_role, explanation, correlation_id=None):
     }
 
 # 7. Propose Booking Override
-def propose_booking_override(booking_id, new_capacity, caller_role, explanation, correlation_id=None):
+def propose_booking_override(booking_id, new_capacity, caller_role, explanation, correlation_id=None, real_update_result=None):
     init_db()
     
     decision_id = f"dec_override_{uuid.uuid4().hex[:8]}"
@@ -610,11 +627,14 @@ def propose_booking_override(booking_id, new_capacity, caller_role, explanation,
             sys.stderr.write(f"Warning: Failed publishing admin_override_executed: {str(e)}\n")
             sys.stderr.flush()
             
+        result_message = real_update_result or (
+            "No booking record was updated — the caller did not report performing a real database update."
+        )
         cursor.execute("""
-        UPDATE operator_decisions 
+        UPDATE operator_decisions
         SET status = 'executed', caller_role = ?, execution_timestamp = ?, execution_result = ?
         WHERE decision_id = ?
-        """, (caller_role, exec_ts, "Booking availability overridden successfully.", decision_id))
+        """, (caller_role, exec_ts, result_message, decision_id))
         
         conn.commit()
         conn.close()

@@ -371,10 +371,10 @@ async def get_ad_approval_queue(
     """
     
     # For now, use the ad_config system - in production this would be a separate table
-    from routes.ad_controls import get_ad_config
-    
+    from routes.commerce.ad_controls import get_ad_config
+
     config = await get_ad_config(db)
-    
+
     # Filter variants by approval status
     all_variants = config.get("variants", [])
     
@@ -408,7 +408,7 @@ async def process_ad_approval(
     Approve, Reject, or Edit a user-submitted ad creative (JWT verified)
     """
     
-    from routes.ad_controls import get_ad_config, save_ad_config
+    from routes.commerce.ad_controls import get_ad_config, save_ad_config
     
     config = await get_ad_config(db)
     variants = config.get("variants", [])

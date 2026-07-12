@@ -8,7 +8,7 @@ from datetime import datetime, timezone, timedelta
 from apscheduler.triggers.interval import IntervalTrigger
 from apscheduler.triggers.cron import CronTrigger
 
-from .base import scheduler, send_push_notification  # noqa: F401
+from .base import scheduler, send_push_notification, tracked  # noqa: F401
 
 # Import all task functions from domain modules
 from .surf_alerts import check_surf_alerts_task
@@ -40,105 +40,120 @@ def start_scheduler():
 
     # Surf alerts — every 15 minutes
     scheduler.add_job(
-        check_surf_alerts_task, IntervalTrigger(minutes=15),
+        tracked('check_surf_alerts', 'Check surf alerts against conditions', 'Every 15 minutes', check_surf_alerts_task),
+        IntervalTrigger(minutes=15),
         id='check_surf_alerts', name='Check surf alerts against conditions',
         replace_existing=True
     )
 
     # Story cleanup — every hour
     scheduler.add_job(
-        cleanup_expired_stories_task, IntervalTrigger(hours=1),
+        tracked('cleanup_stories', 'Clean up expired stories', 'Every 1 hour', cleanup_expired_stories_task),
+        IntervalTrigger(hours=1),
         id='cleanup_stories', name='Clean up expired stories',
         replace_existing=True
     )
 
     # Monthly leaderboard reset — 1st of each month at 00:05 UTC
     scheduler.add_job(
-        monthly_leaderboard_reset_task, CronTrigger(day=1, hour=0, minute=5),
+        tracked('monthly_leaderboard_reset', 'Monthly leaderboard reset and archive', 'Monthly (1st, 00:05 UTC)', monthly_leaderboard_reset_task),
+        CronTrigger(day=1, hour=0, minute=5),
         id='monthly_leaderboard_reset', name='Monthly leaderboard reset and archive',
         replace_existing=True
     )
 
     # Weekly Grom report — Sunday 9am EST (14:00 UTC)
     scheduler.add_job(
-        weekly_grom_report_task, CronTrigger(day_of_week='sun', hour=14, minute=0),
+        tracked('weekly_grom_report', 'Weekly Grom activity report to parents', 'Weekly (Sun 14:00 UTC)', weekly_grom_report_task),
+        CronTrigger(day_of_week='sun', hour=14, minute=0),
         id='weekly_grom_report', name='Weekly Grom activity report to parents',
         replace_existing=True
     )
 
     # Payment window expiry — every 5 minutes
     scheduler.add_job(
-        check_payment_window_expiry_task, IntervalTrigger(minutes=5),
+        tracked('check_payment_expiry', 'Check crew payment window expiry', 'Every 5 minutes', check_payment_window_expiry_task),
+        IntervalTrigger(minutes=5),
         id='check_payment_expiry', name='Check crew payment window expiry',
         replace_existing=True
     )
 
     # Payment expiry reminders — every 5 minutes
     scheduler.add_job(
-        send_payment_expiry_reminders_task, IntervalTrigger(minutes=5),
+        tracked('payment_expiry_reminders', 'Send payment expiry reminders', 'Every 5 minutes', send_payment_expiry_reminders_task),
+        IntervalTrigger(minutes=5),
         id='payment_expiry_reminders', name='Send payment expiry reminders',
         replace_existing=True
     )
 
     # Platform metrics — every 6 hours
     scheduler.add_job(
-        aggregate_platform_metrics_task, IntervalTrigger(hours=6),
+        tracked('platform_metrics_aggregation', 'Aggregate platform metrics for admin dashboard', 'Every 6 hours', aggregate_platform_metrics_task),
+        IntervalTrigger(hours=6),
         id='platform_metrics_aggregation', name='Aggregate platform metrics for admin dashboard',
         replace_existing=True
     )
 
     # Session reminders — every 5 minutes
     scheduler.add_job(
-        send_session_reminders_task, IntervalTrigger(minutes=5),
+        tracked('session_reminders', 'Send session reminder notifications', 'Every 5 minutes', send_session_reminders_task),
+        IntervalTrigger(minutes=5),
         id='session_reminders', name='Send session reminder notifications',
         replace_existing=True
     )
 
     # Auto-release escrow — daily 3am UTC
     scheduler.add_job(
-        auto_release_escrow_task, CronTrigger(hour=3, minute=0),
+        tracked('auto_escrow_release', 'Auto-release escrow 7 days after session', 'Daily 3am UTC', auto_release_escrow_task),
+        CronTrigger(hour=3, minute=0),
         id='auto_escrow_release', name='Auto-release escrow 7 days after session',
         replace_existing=True
     )
 
     # Selection deadline expiry — daily 4am UTC
     scheduler.add_job(
-        process_selection_deadline_expiry_task, CronTrigger(hour=4, minute=0),
+        tracked('selection_deadline_expiry', 'Process expired surfer selection deadlines', 'Daily 4am UTC', process_selection_deadline_expiry_task),
+        CronTrigger(hour=4, minute=0),
         id='selection_deadline_expiry', name='Process expired surfer selection deadlines',
         replace_existing=True
     )
 
     # Weekly sales reports — Monday 9am UTC
     scheduler.add_job(
-        send_weekly_sales_reports_task, CronTrigger(day_of_week='mon', hour=9, minute=0),
+        tracked('weekly_sales_reports', 'Send weekly sales reports to photographers', 'Weekly (Mon 9am UTC)', send_weekly_sales_reports_task),
+        CronTrigger(day_of_week='mon', hour=9, minute=0),
         id='weekly_sales_reports', name='Send weekly sales reports to photographers',
         replace_existing=True
     )
 
     # Expire booking invites — every 5 minutes
     scheduler.add_job(
-        expire_booking_invites_task, IntervalTrigger(minutes=5),
+        tracked('expire_booking_invites', 'Expire pending booking invites after 24 hours', 'Every 5 minutes', expire_booking_invites_task),
+        IntervalTrigger(minutes=5),
         id='expire_booking_invites', name='Expire pending booking invites after 24 hours',
         replace_existing=True
     )
 
     # Cleanup abandoned Stripe sessions — every 30 minutes
     scheduler.add_job(
-        cleanup_abandoned_stripe_sessions_task, IntervalTrigger(minutes=30),
+        tracked('cleanup_stripe_sessions', 'Cleanup abandoned Stripe checkout sessions older than 30 min', 'Every 30 minutes', cleanup_abandoned_stripe_sessions_task),
+        IntervalTrigger(minutes=30),
         id='cleanup_stripe_sessions', name='Cleanup abandoned Stripe checkout sessions older than 30 min',
         replace_existing=True
     )
 
     # Cleanup expired booking payments — every 10 minutes
     scheduler.add_job(
-        cleanup_expired_booking_payments_task, IntervalTrigger(minutes=10),
+        tracked('cleanup_expired_booking_payments', 'Decline bookings with expired payment session and refund credits', 'Every 10 minutes', cleanup_expired_booking_payments_task),
+        IntervalTrigger(minutes=10),
         id='cleanup_expired_booking_payments', name='Decline bookings with expired payment session and refund credits',
         replace_existing=True
     )
 
     # Credit transaction integrity — daily 5am UTC
     scheduler.add_job(
-        check_credit_transaction_integrity_task, CronTrigger(hour=5, minute=0),
+        tracked('credit_integrity_check', 'Check credit transactions for orphaned references', 'Daily 5am UTC', check_credit_transaction_integrity_task),
+        CronTrigger(hour=5, minute=0),
         id='credit_integrity_check', name='Check credit transactions for orphaned references',
         replace_existing=True
     )
@@ -173,7 +188,8 @@ def start_scheduler():
                 logger.error(f"[Scheduler] Periodic L2 restore failed: {e}", exc_info=True)
         _restore_min = max(5, int(os.environ.get("L2_RESTORE_INTERVAL_MIN", "30")))
         scheduler.add_job(
-            _periodic_l2_restore, IntervalTrigger(minutes=_restore_min),
+            tracked('periodic_l2_restore', 'Periodic L2 manifest restore (serve-only)', f'Every {_restore_min} minutes', _periodic_l2_restore),
+            IntervalTrigger(minutes=_restore_min),
             id='periodic_l2_restore', name='Periodic L2 manifest restore (serve-only)',
             replace_existing=True,
             next_run_time=datetime.now(timezone.utc) + timedelta(seconds=90),
@@ -194,7 +210,8 @@ def start_scheduler():
         if _startup_delay > 0:
             _forecast_kwargs["next_run_time"] = datetime.now(timezone.utc) + timedelta(seconds=_startup_delay)
         scheduler.add_job(
-            ingest_marine_forecast_task, IntervalTrigger(hours=4),
+            tracked('ingest_marine_forecast', 'Ingest global marine and wind forecast data', 'Every 4 hours', ingest_marine_forecast_task),
+            IntervalTrigger(hours=4),
             id='ingest_marine_forecast', name='Ingest global marine and wind forecast data',
             replace_existing=True, **_forecast_kwargs
         )
@@ -210,7 +227,8 @@ def start_scheduler():
             logger.warning(f"[Scheduler] Rate limiter cleanup failed: {e}")
 
     scheduler.add_job(
-        _cleanup_rate_limiter, IntervalTrigger(hours=1),
+        tracked('rate_limiter_cleanup', 'Cleanup stale rate limiter entries', 'Every 1 hour', _cleanup_rate_limiter),
+        IntervalTrigger(hours=1),
         id='rate_limiter_cleanup', name='Cleanup stale rate limiter entries',
         replace_existing=True
     )

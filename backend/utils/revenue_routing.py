@@ -19,7 +19,8 @@ Fee Structure:
 
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
-from models import Profile, RoleEnum, SponsorshipTransaction, SponsorshipType, Notification, CreditTransaction
+from models import Profile, RoleEnum, SponsorshipTransaction, SponsorshipType, Notification, CreditTransaction, GlobalPricingConfig
+from typing import Optional
 import json
 from datetime import datetime, timezone
 import logging
@@ -31,6 +32,40 @@ PRO_ROLES = [RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
 HOBBYIST_ROLES = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST]
 GROM_ROLES = [RoleEnum.GROM]
 SURFER_ROLES = [RoleEnum.SURFER, RoleEnum.COMP_SURFER, RoleEnum.PRO]
+
+# Fallback commission rates if no admin-configured GlobalPricingConfig exists yet.
+# Kept in sync with routes/commerce/pricing_config.py's DEFAULT_COMMISSION_RATES.
+DEFAULT_COMMISSION_RATES = {"free": 25, "tier_2": 20, "tier_3": 15}
+
+
+async def get_commission_rate_for_tier(subscription_tier: Optional[str], db: AsyncSession) -> float:
+    """
+    Look up the admin-configured platform commission rate for a Pro creator's
+    subscription tier (set via Admin > Pricing > Platform Commission Rates).
+    Falls back to DEFAULT_COMMISSION_RATES if no config row exists yet.
+
+    Returns:
+        float: Fee rate as a decimal (0.20 = 20%)
+    """
+    # Profile.subscription_tier holds the real stored value ("basic"/"premium", set at
+    # Stripe-checkout completion — see subscriptions.py's tier_name derivation), never the
+    # literal "tier_2"/"tier_3" tokens. Those tokens are transient surfer-side credit-upgrade
+    # selector IDs that get translated to "basic"/"premium" before storage elsewhere
+    # (subscriptions_credits.py's tier_to_subscription) — translate the same way here so the
+    # admin-configured commission_rates dict (keyed "free"/"tier_2"/"tier_3") actually applies.
+    tier_key = {"basic": "tier_2", "premium": "tier_3"}.get(subscription_tier, "free")
+
+    result = await db.execute(
+        select(GlobalPricingConfig)
+        .where(GlobalPricingConfig.is_active == True)
+        .order_by(GlobalPricingConfig.version.desc())
+        .limit(1)
+    )
+    config = result.scalar_one_or_none()
+    rates = (config.commission_rates if config else None) or DEFAULT_COMMISSION_RATES
+
+    rate_pct = rates.get(tier_key, DEFAULT_COMMISSION_RATES[tier_key])
+    return rate_pct / 100.0
 
 
 def is_pro_creator(role: RoleEnum) -> bool:
@@ -119,8 +154,11 @@ async def process_creator_earnings(
     else:
         balance_before = creator.credit_balance or 0
     
-    # Default fee rate
-    fee_rate = 0.20 if is_pro else 0.10
+    # Default fee rate — Pros use the admin-configured commission rate for their subscription tier
+    if is_pro:
+        fee_rate = await get_commission_rate_for_tier(creator.subscription_tier, db)
+    else:
+        fee_rate = 0.10
     
     # Calculate amounts
     platform_fee = gross_amount * fee_rate

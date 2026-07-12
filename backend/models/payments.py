@@ -97,7 +97,15 @@ class GlobalPricingConfig(Base):
     
     # Only one active config at a time
     is_active = Column(Boolean, default=True)
-    
+
+    # Platform commission % charged to photographers, keyed by subscription tier
+    # e.g. {"free": 25, "tier_2": 20, "tier_3": 15}
+    commission_rates = Column(JSON, nullable=True)
+
+    # Surfer media-purchase discount %, keyed by subscription tier
+    # e.g. {"free": 0, "tier_2": 10, "tier_3": 20}
+    surfer_discount_rates = Column(JSON, nullable=True)
+
     updater = relationship('Profile', backref='pricing_updates')
 
 
