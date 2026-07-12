@@ -300,6 +300,26 @@ def test_partition_aware_composite_parity_values():
     assert messy < base < clean
 
 
+def test_wind_direction_penalty_ramps_with_speed():
+    """Forensic fix (2026-07-12): light onshore is textured, NOT blown out — guidance puts the wind-
+    matters threshold near 6-7 kt. The direction penalty phases in 3->12 kt; offshore is unchanged."""
+    KT = 1.943844
+    # 6 kt dead-onshore (wind FROM the sea = FROM the seaward normal): surfable, not blown out.
+    on6 = wind_quality(6.0 / KT, wind_from_deg=270.0, shore_normal_deg=270.0)
+    assert on6 == pytest.approx(0.6417, abs=0.001)            # was 0.175 (blown-out class)
+    assert on6 > 0.5
+    # 12 kt onshore: full penalty — blown out as before.
+    on12 = wind_quality(12.0 / KT, wind_from_deg=270.0, shore_normal_deg=270.0)
+    assert on12 == pytest.approx(0.10, abs=0.001)
+    # Offshore byte-identical at every speed (committed goldens depend on it).
+    off6 = wind_quality(6.0 / KT, wind_from_deg=90.0, shore_normal_deg=270.0)
+    assert off6 == pytest.approx(1.0 - (6.0 - 4.0) / 44.0, abs=1e-9)
+    # Monotonic: more onshore wind is never better.
+    speeds = [4.0, 6.0, 8.0, 10.0, 12.0, 16.0]
+    vals = [wind_quality(k / KT, 270.0, 270.0) for k in speeds]
+    assert all(a >= b for a, b in zip(vals, vals[1:]))
+
+
 def test_partition_secondary_swell_recovered_when_dominant_shadowed():
     """A total-field direction of the SHADOWED dominant swell under-rates; per-partition exposure credits
     the well-angled secondary train."""

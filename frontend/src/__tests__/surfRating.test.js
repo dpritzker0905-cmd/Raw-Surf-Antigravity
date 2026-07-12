@@ -182,6 +182,17 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(spilling).toBeGreaterThan(0);
   });
 
+  test('wind direction penalty ramps with speed (parity with py forensic fix)', () => {
+    const KT = 1.943844;
+    const on6 = windQuality(6.0 / KT, 270.0, 270.0);          // 6 kt dead-onshore
+    expect(on6).toBeCloseTo(0.6417, 3);                       // was 0.175 (blown-out class)
+    expect(on6).toBeGreaterThan(0.5);
+    expect(windQuality(12.0 / KT, 270.0, 270.0)).toBeCloseTo(0.10, 3);  // full penalty at 12 kt
+    expect(windQuality(6.0 / KT, 90.0, 270.0)).toBeCloseTo(1.0 - 2.0 / 44.0, 9); // offshore unchanged
+    const speeds = [4.0, 6.0, 8.0, 10.0, 12.0, 16.0].map((k) => windQuality(k / KT, 270.0, 270.0));
+    speeds.slice(1).forEach((v, i) => expect(speeds[i]).toBeGreaterThanOrEqual(v));
+  });
+
   // ── partition-aware factors (rating plan Step 3 seam; mirror of py tests) ──
   test('dominantSwellPeriod recovers groundswell under windsea', () => {
     const parts = [{ h: 1.2, tp: 16.0, dir: 270.0, kind: 'swell' },

@@ -55,6 +55,9 @@ export function offshoreness(windFromDeg, shoreNormalDeg) {
 }
 
 export function windQuality(speedMs, windFromDeg = null, shoreNormalDeg = null) {
+  // Direction's effect RAMPS IN with speed (mirror of py, forensic fix 2026-07-12): a 5-6 kt breeze
+  // barely textures the face whichever way it blows; the onshore/cross penalty phases in 3 -> 12 kt.
+  // OFFSHORE and speed-only grading are byte-identical to before.
   if (speedMs == null || speedMs < 0) return 0.6;
   const kt = speedMs * MS_TO_KT;
   if (kt < 3.0) return 1.0;
@@ -67,9 +70,11 @@ export function windQuality(speedMs, windFromDeg = null, shoreNormalDeg = null) 
     return 0.15;
   }
   const base = 0.60 + 0.40 * off;
+  const dirW = _clamp((kt - 3.0) / 9.0, 0.0, 1.0);
+  const effBase = 1.0 - dirW * (1.0 - base);
   const tol = 8.0 + 14.0 * Math.max(0.0, off);
   const sf = _clamp(1.0 - Math.max(0.0, kt - 4.0) / (tol * 2.0), 0.10, 1.0);
-  return _clamp(base * sf, 0.05, 1.0);
+  return _clamp(effBase * sf, 0.05, 1.0);
 }
 
 /** Swell-ANGLE exposure [0..1]: can the swell reach this coast head-on (1) / grazing / blocked (->0.1)?

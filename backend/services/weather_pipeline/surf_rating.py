@@ -114,7 +114,14 @@ def offshoreness(wind_from_deg, shore_normal_deg):
 
 def wind_quality(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
     """Cleanliness [0,1]. Glassy/light = clean (high); strong onshore = blown out (low). Uses the
-    offshore/onshore component when a shore-normal is supplied (the dominant factor), else speed-only."""
+    offshore/onshore component when a shore-normal is supplied (the dominant factor), else speed-only.
+
+    Direction's effect RAMPS IN with speed (forensic fix 2026-07-12): a 5-6 kt breeze barely textures
+    the face whichever way it blows — forecasting guidance puts the it-matters threshold near 6-7 kt
+    ("below that it shouldn't present much of an obstacle"; Scarfe et al. review: the perfect wind is
+    LIGHT offshore). Previously a 6 kt dead-onshore scored 0.175 (blown-out class) — over-penalized.
+    Now the onshore/cross penalty phases in between 3 kt (glassy edge) and 12 kt (full effect);
+    OFFSHORE and speed-only grading are byte-identical to before."""
     if wind_speed_ms is None or wind_speed_ms < 0:
         return 0.6  # unknown wind -> neutral
     spd_kt = wind_speed_ms * MS_TO_KT
@@ -133,9 +140,11 @@ def wind_quality(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
             return 0.28
         return 0.15
     base = 0.60 + 0.40 * off  # onshore -> 0.20, cross -> 0.60, offshore -> 1.00
+    dir_w = _clamp((spd_kt - 3.0) / 9.0, 0.0, 1.0)  # direction penalty phases in 3 -> 12 kt
+    eff_base = 1.0 - dir_w * (1.0 - base)           # offshore (base 1.0) unchanged at every speed
     tol_kt = 8.0 + 14.0 * max(0.0, off)  # offshore tolerates more speed (~22 kt) than onshore (~8 kt)
     sf = _clamp(1.0 - max(0.0, spd_kt - 4.0) / (tol_kt * 2.0), 0.10, 1.0)
-    return _clamp(base * sf, 0.05, 1.0)
+    return _clamp(eff_base * sf, 0.05, 1.0)
 
 
 def swell_exposure(swell_from_deg, shore_normal_deg):
