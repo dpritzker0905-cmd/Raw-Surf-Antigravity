@@ -1,4 +1,5 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
+import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
 import {
   getEncoderScratchBuffers,
@@ -581,6 +582,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           gl.pixelStorei(gl.UNPACK_FLIP_Y_WEBGL, prevFlipY);
           gl.bindTexture(gl.TEXTURE_2D, prevTex);
           console.log(`[WebGLMarineEngine-Forensic] High-resolution land mask texture created (${maskCanvas.width}x${maskCanvas.height})`);
+          // Mask-arc diagnostic: the 4096↔2048 rebuild alternation is a named suspect in the
+          // land-halo report — the ring turns it into a timestamped sequence beside the commits.
+          recordMarineEvent('mask_rebuild', { dims: `${maskCanvas.width}x${maskCanvas.height}` });
 
           if (engine) {
             engine._cachedMaskTex = maskTex;

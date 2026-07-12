@@ -5,6 +5,7 @@ import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag,
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
+import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import {
   DISPLAY_EURO_WAVES_MAX_HOURS,
   DISPLAY_EURO_COMPONENT_MAX_HOURS,
@@ -270,6 +271,13 @@ export function useMarineDataFetcherCore({
         const isAborted = abortControllerRef.current?.signal?.aborted;
         if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
           console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+          // Forensic: the AGE of the in-flight fetch is the wedge diagnostic — a healthy dedup
+          // skip is seconds old; the 07-12 deploy-window wedge held one fetch alive for MINUTES
+          // (server holding the connection), starving every pan of new data.
+          recordMarineEvent('inflight_skip', {
+            target: `${inflight.rawModel}/${inflight.layer}/h${inflight.hour}`,
+            ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+          });
           return;
         }
         const activeSource = locks.activeSource || 'unknown';
@@ -675,6 +683,10 @@ export function useMarineDataFetcherCore({
           inflight.layer === (activeMarineLayerRef.current || 'waves') &&
           inflight.hour === timeOffsetRef.current) {
         console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+        recordMarineEvent('inflight_skip', {
+          target: `${inflight.rawModel}/${inflight.layer}/h${inflight.hour}`,
+          ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+        });
         return;
       }
       pendingMarineIntentRef.current = { source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, timestamp: Date.now() };

@@ -21,3 +21,16 @@ if (fs.existsSync(swPath)) {
 } else {
   console.error(`Error: Service worker file not found at: ${swPath}`);
 }
+
+// Stamp the SAME version into the app bundle (src/buildVersion.js) so the running page can
+// self-identify its build in console logs and forensic dumps — a session on a stale service-worker
+// cache is then provable from one log line instead of a re-diagnosis (verify-bundle-hash-first).
+const bvPath = path.join(__dirname, 'src', 'buildVersion.js');
+if (fs.existsSync(bvPath)) {
+  let bv = fs.readFileSync(bvPath, 'utf8');
+  bv = bv.replace(/export const BUILD_VERSION = .*/, `export const BUILD_VERSION = '${version}';`);
+  fs.writeFileSync(bvPath, bv, 'utf8');
+  console.log(`Successfully updated BUILD_VERSION in src/buildVersion.js to: ${version}`);
+} else {
+  console.error(`Error: buildVersion module not found at: ${bvPath}`);
+}

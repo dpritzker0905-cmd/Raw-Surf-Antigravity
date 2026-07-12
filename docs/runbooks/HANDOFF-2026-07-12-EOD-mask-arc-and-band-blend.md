@@ -61,6 +61,42 @@ release, retention 0.6 4f60c196 — `git log --oneline --since="2026-04-12" -- f
    absorbed-counter shows it working (and remaining halos are contributors #2) or the switch gap
    exceeds 1200ms — READ THE COUNTER FIRST.
 
+## ROUND-4 SESSION DECODE (2026-07-12 ~19:05Z, user judged "same issues persisting")
+**The session was TRIPLE-CONFOUNDED — do not treat its visuals as a verdict on `8b788302`:**
+1. **STALE BUNDLE (proven by the user's own log):** `[ServiceWorker] Removing old cache:
+   rawsurf-v3-caeb440c` appears near the END of the paste — the entire session before that line ran
+   the OLD build. The cross-fade code was not on screen for most of what was judged.
+2. **Render deploy window (the `8b788302` push):** app-API CORS storm (`spot-ratings`/`notifications`/
+   `friends`/`dispatch` all ERR_FAILED) = 500s-without-CORS-headers signature (backlog ⑦).
+3. **In-flight fetch WEDGE:** minutes of `[Abort-Gate] Same-target fetch already in-flight
+   (ICON/waves/h0)` — the dedup gate correctly never strands a LIVE fetch, but a deploy-window server
+   holds the connection open indefinitely → no new data on pan ("panning doesn't stay active").
+   FINDING: the marine grid fetch has no network-level timeout backstop. Own arc — the lock/watchdog
+   layer (useMarineScrubSettle) is a designated minefield; the fix belongs at the fetch call, not the locks.
+REAL bugs also visible regardless of confounds: `Clamp backstop: regional_too_coarse no progress after
+3 re-drives — engineBounds=[W-88 E-74] vs viewport 0.35°` with series misses climbing 24→64, and
+`florida_east_coast_20260712T150000Z` (15Z) committing while the hour was 18Z. Decode those on a CLEAN
+session with the forensic dump below.
+
+## FORENSIC TEST WORKFLOW (shipped with this increment — use this on every future live test)
+1. Open the map; console shows `[BUILD] bundle=<hash>` on the first marine event. If it warns
+   `⚠️ STALE BUNDLE`, hard-refresh BEFORE judging anything — the warning is the old confound #1
+   auto-detected (bundle hash vs SW caches cross-check).
+2. Reproduce the issue. Every load-bearing marine event lands in a 500-entry ring:
+   commits (dims/span/rating/product), no-downgrade rejects + self-heals, engine clears, mask
+   rebuilds (4096↔2048 — mask-arc suspect), band state + fade transitions, in-flight skips WITH AGE.
+   `[FORENSIC-SNAP] {...}` also prints one compact state line every 15 s.
+3. Paste ONE blob instead of the whole console: `__RAW_FORENSIC__.summary()` for a quick read, or
+   `await __RAW_FORENSIC__.copy()` (clipboard) / `__RAW_FORENSIC__.dump()` for the full capture.
+   `__RAW_FORENSIC__.reset()` first for a clean pre-repro capture.
+
+## RIBBON WIDTH — USER RE-CONFIRMED (round 4): "only a couple miles out into the water"
+The band currently paints EVERY cell within `is_coastal`'s ±0.75° (~50 mi) window — an order of
+magnitude wider than the spec. A couple miles is SUB-CELL at every tier (0.25° cell ≈ 17 mi), so the
+narrowing must be per-pixel in the SHADER using the crisp mask's distance-to-coast (the coastal glow
+taper f85f7f69 is the starting point). NEXT feature arc after the confound-free re-judgment; shader =
+minefield, needs its own verification cycle.
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).

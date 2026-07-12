@@ -7,6 +7,7 @@
  */
 
 import { recordTruthStage } from './weatherTruthTracker';
+import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 
@@ -353,6 +354,12 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
         layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now() };
     }
     console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected coarser ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
+    recordMarineEvent('reject_downgrade', {
+      resident: `${_res.cols}x${_res.rows}`, incoming: `${waveGrid.cols}x${waveGrid.rows}`,
+      layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset,
+      zoom: (typeof this._lastZoom === 'number') ? +this._lastZoom.toFixed(2) : null,
+      incomingRating: !!waveGrid.ratingMode, residentRating: !!_res.ratingMode,
+    });
     // SELF-HEAL STASH (2026-07-03): a rejected grid must never be lost — the commit path records its
     // signature, so it will NEVER be re-committed (dup-skip) and a wrong rejection (stale _lastZoom)
     // would strand the display permanently. Stash it; the render loop re-evaluates the guard with the
@@ -491,6 +498,19 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   const model = waveGrid.__sourceModel || 'GFS';
   const layer = waveGrid.__componentLayer || 'waves';
   const hourOffset = waveGrid.hourOffset || 0;
+
+  // Forensic ledger: every ACCEPTED commit with its identity — the ring's spine. Rejects,
+  // clears and fade transitions are recorded at their own sites; together one dump() reads
+  // as the full lifecycle without console archaeology.
+  recordMarineEvent('commit', {
+    model, layer, hour: hourOffset,
+    dims: `${waveGrid.cols}x${waveGrid.rows}`,
+    spanLng: waveGrid.bounds ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
+    rating: !!waveGrid.ratingMode,
+    fromSeries: !!waveGrid.__fromSeries,
+    product: waveGrid.productId || waveGrid.product_id || null,
+    scope: waveGrid.coverage_scope || null,
+  });
 
   if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {
     recordTruthStage('webglUpload', {
@@ -681,6 +701,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           nd.selfHealed = (nd.selfHealed || 0) + 1;
         }
         console.log(`[WebGLMarineEngine] No-downgrade self-heal: stashed ${_pd.cols}×${_pd.rows} grid accepted at zoom ${z.toFixed(1)}.`);
+        recordMarineEvent('selfheal_accept', { dims: `${_pd.cols}x${_pd.rows}`, zoom: +z.toFixed(2), rating: !!_pd.ratingMode });
         this.setWaveData(gl, _pd, null);
       }
     }
@@ -856,6 +877,16 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           fade: _ratingBandFade.fade, bandMult: _ratingBandFade.bandMult,
           washStrength: _ratingBandFade.washStrength,
         };
+      }
+      // Forensic: record fade TRANSITIONS only (decile buckets), never per-frame — the ring must
+      // hold minutes of session, not milliseconds of one gesture.
+      const _fadeBucket = Math.round(_ratingBandFade.fade * 10);
+      if (this._lastFadeBucket !== _fadeBucket) {
+        this._lastFadeBucket = _fadeBucket;
+        recordMarineEvent('band_fade', {
+          span: (typeof _vpSpanForFade === 'number') ? +_vpSpanForFade.toFixed(2) : null,
+          fade: +_ratingBandFade.fade.toFixed(2), washEngaged: blendEngaged,
+        });
       }
     }
     const _blendBaseWash = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_BASE_WASH__ === 'number')
@@ -1148,6 +1179,36 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
                 : 'OFF — surf flag not set'),
             'cols=' + _rb.gridCols, 'fromSeries=' + _rb.fromSeries, _rb);
         }
+        // Forensic: band-STATE transitions (painting↔forcedOff↔off) land in the ring the moment
+        // they happen — the "activates then CLEARS" report becomes a timestamped sequence.
+        var _bandStateNow = (surfModeVal > 0.5) ? 'painting' : (_rawFlag ? 'forcedOff' : 'off');
+        if (this._lastBandState !== _bandStateNow) {
+          recordMarineEvent('band_state', {
+            from: this._lastBandState || null, to: _bandStateNow,
+            cols: (waveGrid && waveGrid.cols) || 0, rating: !!(waveGrid && waveGrid.ratingMode),
+          });
+          this._lastBandState = _bandStateNow;
+        }
+      }
+      // Forensic snapshot: ONE compact greppable line + ring entry every ~15 s while marine is
+      // active — a pasted log then self-describes build/zoom/resident/band state at a glance
+      // ([FORENSIC-SNAP]). Cheap: runs inside the existing telemetry branch.
+      var _fsNow = (typeof performance !== 'undefined' ? performance.now() : Date.now());
+      if (!this._forensicSnapT || (_fsNow - this._forensicSnapT) > 15000) {
+        this._forensicSnapT = _fsNow;
+        var _snap = {
+          zoom: (typeof z === 'number') ? +z.toFixed(2) : null,
+          dims: waveGrid ? `${waveGrid.cols}x${waveGrid.rows}` : null,
+          spanLng: (waveGrid && waveGrid.bounds) ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
+          rating: !!(waveGrid && waveGrid.ratingMode),
+          band: (surfModeVal > 0.5),
+          fade: +_ratingBandFade.fade.toFixed(2),
+          washEngaged: !!(window.__RAW_GPU__.blendBoth && window.__RAW_GPU__.blendBoth.engaged),
+          hour: waveGrid ? waveGrid.hourOffset : null,
+          model: (waveGrid && waveGrid.__sourceModel) || null,
+        };
+        recordMarineEvent('snap', _snap);
+        console.log('[FORENSIC-SNAP]', JSON.stringify(_snap));
       }
     }
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
@@ -2082,6 +2143,11 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 WebGLMarineEngine.prototype.clearBuffers = function(gl) {
   if (!gl) return;
   console.log('[WebGLMarineEngine-Clear] Clearing resident wave textures and waveData');
+  recordMarineEvent('engine_clear', {
+    hadResident: !!(this._waveData && this._waveData.waveGrid),
+    residentDims: this._waveData && this._waveData.waveGrid
+      ? `${this._waveData.waveGrid.cols}x${this._waveData.waveGrid.rows}` : null,
+  });
   this._freeCoarseBase(gl);
   if (this._waveData) {
     if (this._waveData.u_waveTexture && this._waveData.u_waveTexture !== this._residentWaveTex) {
