@@ -159,6 +159,41 @@ research done (jog/shuttle two-mode, Digital Crown detents, input-knob/React-Kno
 slider pattern, WCAG 2.5.7 drag alternatives): recommend detented WHEEL with velocity cap +
 settle-gated fetches; design mock for USER approval BEFORE build.
 
+## ROUND-7 CLOSE: two verdicts + the fully-derived MOTION-UNLOCK arc (next session's lead)
+1. **"Dynamic-lane fetch timeout" — FALSIFIED, DO NOT BUILD.** useMarineDataFetcherCore.js:61-120
+   documents the 2026-07-06 abort murder-loop: a 25s heal aborted live 40s cold-backend fetches in
+   an endless loop and was reverted; the current design already bounds a genuine hang at
+   MARINE_FETCH_LIVE_CEILING_MS (120s) with abort+heal+refetch. The round-4 "minutes of skips" =
+   2-3 legitimate 120s cycles during a deploy. Any new timeout layer re-ships the murder loop.
+2. **CORS-on-error handler SHIPPED (backlog ⑦)**: server.py exception handler stamps the allowed
+   origin on unhandled-exception 500s — deploy-window consoles now show real 500s instead of a
+   fake CORS storm. Residual: Render-proxy 502s while the app is fully down (un-stampable).
+3. **ANIMATIONS-DECOUPLE ("band clamps the animations") — ROOT PROVEN + DESIGN COMPLETE, build as
+   its own arc with user A/B:**
+   - ROOT: WebGLMarineTextureEncoder.js:126-130 maps `is_valid===false` (the band's masked
+     open-ocean) to `isOcean=0` → dataMask r=g=b=a=0 (WebGLMarineGeoData.js:178-182) → the
+     advect + draw passes' land checks kill every particle over masked ocean. The u/v MOTION data
+     is present (encoder :113-114 reads it regardless); the HEIGHT is present too (:116 falls back
+     to speed). Only the ocean flag murders the animations.
+   - WHY NOT "ride the coarse base texture": at z8+ the base is the 10° world grid — crests on it
+     are DELIBERATELY suppressed past z8 (d6861232) and the bilinear vortex lives there (10°
+     cells). Rebinding particles to the base re-opens both. FALSIFIED.
+   - WHY NOT "mark masked cells ocean": the wave texture's B channel is height AND the band's
+     score (RGBA = u, v, height/10, period/20 — encoder :248-251); masked cells carry REAL heights
+     which the band branch would decode as scores → garbage colors. The color/motion conflict is
+     per-texel, needs a flag channel.
+   - THE DESIGN (5 surfaces, kill-switch `__RAW_RATING_MOTION_UNLOCK__`, ship OFF → user A/B):
+     dataMask's G channel is FREE (all 4 channels currently duplicate the same flag; every
+     consumer samples .r). (a) encoder: in ratingMode pass a parallel motion-ocean array
+     (geographic water incl. masked cells) into getMarineGeoData → dataMask.g = motion-water,
+     dataMask.r stays color-water (cache key must gain the rating flag); (b) advect FS + draw FS
+     land checks become `max(mask.r, mask.g * u_motionUnlock)` computed BEFORE the overlay
+     combine (overlay semantics preserved — overlay carries geography truth which EQUALS motion
+     semantics); (c) engine sets u_motionUnlock=(isRating && flag) in both passes. Result: band
+     colors unchanged, crests/particles ride the REAL swell over the whole ocean in rating mode.
+   - Verify: user A/B the flag live; watch for crest color-collision over the wash and any
+     particle behavior change on non-rating layers (must be byte-identical — uniform 0).
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).

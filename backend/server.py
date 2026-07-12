@@ -443,6 +443,32 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+# CORS ON ERROR RESPONSES (backlog ⑦, shipped 2026-07-12): unhandled exceptions bypass
+# CORSMiddleware (Starlette's ServerErrorMiddleware wraps OUTSIDE user middleware), so during
+# deploy-window / overload stress the browser reports "No 'Access-Control-Allow-Origin' header"
+# instead of the real 500 — every such window has masqueraded as a "CORS storm" and repeatedly
+# confounded live judgment sessions (probe-proven 2026-07-12). Stamp the allowed origin on the
+# error response itself so consoles show the truth. Render-proxy 502/503s (app fully down) can
+# never carry app headers — that residual class is expected in the first seconds of a restart.
+import re as _re
+
+_CORS_ERR_ORIGIN_RE = _re.compile(
+    r"https://.*\.netlify\.app|https://.*\.render\.com|http://localhost:.*|http://127\.0\.0\.1:.*"
+)
+
+
+@app.exception_handler(Exception)
+async def _cors_stamped_500(request: Request, exc: Exception):
+    from fastapi.responses import JSONResponse
+    logger.exception(f"Unhandled exception on {request.url.path}: {exc}")
+    headers = {}
+    origin = request.headers.get("origin", "")
+    if origin and _CORS_ERR_ORIGIN_RE.fullmatch(origin):
+        headers["Access-Control-Allow-Origin"] = origin
+        headers["Access-Control-Allow-Credentials"] = "true"
+        headers["Vary"] = "Origin"
+    return JSONResponse(status_code=500, content={"detail": "Internal server error"}, headers=headers)
+
 # Include the main API router with all sub-routers
 app.include_router(api_router)
 
