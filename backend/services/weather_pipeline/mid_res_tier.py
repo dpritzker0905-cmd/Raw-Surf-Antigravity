@@ -6,8 +6,10 @@ the 800-LOC ceiling, and upgraded to MIRROR the extended-estimate blend structur
 products).
 
 The tier serves the pre-computed `global_mid` (~2°) product CLIPPED to the viewport for marine
-requests whose span sits between the regional tiles (≤2°) and the wide/global view (>15°). Two rules
-keep the FORECAST TIMELINE consistent with the coarse siblings (the "mirror"):
+requests up to the wide/global view (span ≤15°). The ≤2° tight-zoom floor was dropped 2026-07-12 so
+cold / freshly-panned surf zooms still get an instant coastal rating band instead of the band-less
+global-coarse preview (see try_serve_mid_res_tier). Two rules keep the FORECAST TIMELINE consistent
+with the coarse siblings (the "mirror"):
 
   • AUTHORITATIVE-FIRST, THEN ESTIMATED: native mid hours serve the authoritative global_mid; hours
     past a model's native horizon (EURO 240→336h extended estimates, tails) serve the ESTIMATED
@@ -108,7 +110,17 @@ async def try_serve_mid_res_tier(
         return None
 
     span = _request_span(req_w, req_s, req_e, req_n)
-    lo = float(os.environ.get("MARINE_MID_RES_MIN_SPAN", "2.0"))
+    # MIN_SPAN 2.0 → 0.0 (2026-07-12): tight surf zooms (≤2°) previously fell BELOW this floor to
+    # Step 3.7's band-less global-coarse preview, so a cold / freshly-panned viewport showed NO rating
+    # band for ~10-90s until the dynamic lane warmed (probed worldwide: FL pilot rated, but Taghazout /
+    # Chicama / Namibia / Fiji all cold-served the 360° coarse → coarse_extent skip). The mid tier is
+    # INSTANT (resident global_mid, no upstream fetch), always COVERS the viewport (padded clip → no
+    # floating rectangle) and rates the coastal cells while masking/washing offshore — exactly the
+    # coastal ribbon the band is — then the SWR reval below sharpens 2°→0.25° on dwell. The replace-
+    # guard (below) still keeps a WARM fine viewport untouched, so this only fills a COLD hole; serving
+    # mid at every zoomed span also keeps the band CONTINUOUS while panning (each new snapped viewport
+    # clips instantly). Restore the old resolution cliff with MARINE_MID_RES_MIN_SPAN=2.0.
+    lo = float(os.environ.get("MARINE_MID_RES_MIN_SPAN", "0.0"))
     hi = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "15.0"))
     if not (lo < span <= hi):
         return None

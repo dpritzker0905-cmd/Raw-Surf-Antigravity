@@ -156,6 +156,35 @@ def test_mid_res_tier_serves_global_mid_clipped_at_zoom_out(monkeypatch):
     assert vp.preview_called is False                             # took precedence over the coarse preview
 
 
+def test_mid_res_tier_serves_tight_surf_zoom(monkeypatch):
+    """TIGHT-ZOOM COLD BAND (2026-07-12): a ≤2° surf-zoom viewport must ALSO get the instant mid
+    coastal band (MIN_SPAN floor dropped 2.0 → 0.0). Before, spans ≤2° fell below the floor to the
+    band-less global-coarse preview → a cold / freshly-panned viewport showed NO rating band until the
+    dynamic lane warmed. This guards the floor from silently creeping back up and re-opening that gap."""
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-125,33,-123.5,34.5")  # 1.5° span — the old dead-zone
+
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True, "tight surf zoom must serve the mid band"
+    assert out.cache_hit == "mid_res_preview"                     # instant + stale, sharpens on dwell
+    assert len(vp.ACTIVE_REVALIDATIONS) == 1, "fine-viewport revalidation must be scheduled"
+    assert vp.upstream_called is False                            # did NOT block on upstream
+    assert vp.preview_called is False                             # took precedence over the coarse preview
+
+
+def test_mid_res_tier_min_span_floor_restorable(monkeypatch):
+    """The old resolution cliff stays available as a kill switch: MARINE_MID_RES_MIN_SPAN=2.0 restores
+    the pre-2026-07-12 behavior where a 1.5° span skips the mid tier (falls to the coarse preview)."""
+    monkeypatch.setenv("MARINE_MID_RES_MIN_SPAN", "2.0")
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-125,33,-123.5,34.5")  # 1.5° span < 2.0 floor
+    assert not (out is not None and out.grid and out.grid.diagnostics
+                and out.grid.diagnostics.get("mid_res_tier")), "1.5° must skip mid when floor=2.0"
+    assert vp.preview_called is True
+
+
 def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
     """A wide (>15°) view is a genuine global zoom-out — keep the coarse path, not the mid tier."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
