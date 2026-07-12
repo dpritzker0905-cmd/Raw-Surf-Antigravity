@@ -47,27 +47,45 @@ _HMIN_RIDEABLE_M = 0.2
 # Global default "fully-working" height (chest-high) used when a spot has no local size reference yet —
 # makes size_score identical everywhere until per-spot climatology is supplied (backward compatible).
 _DEFAULT_REF_SIZE_M = 1.2
+# LOCAL-reference curve shape (USER calibration anchors, 2026-07-12: "FL 2-3 ft clean = fair; 3-4 ft+
+# = fair or fair-good; Indo 2-3 ft = poor"). The local reference (the spot's p80 good-day height)
+# anchors the curve MIDDLE, not its saturation: sg = _REF_ANCHOR_SCORE at h = ref, reaching 1.0 only at
+# _REF_SAT_MULT × ref. Saturating AT the reference (the original design) overshot — a clean 2-3 ft FL
+# day scored ~89 'good', two notches above the user's 'fair'; anchoring at 0.6 lands it ~55 'fair' on a
+# perfect day, and drops big-wave spots' small days exactly as intended.
+_REF_ANCHOR_SCORE = 0.6
+_REF_SAT_MULT = 2.5
 
 
 def size_score(surf_h_m, reference_size_m=None):
     """Rideability gate [0,1] from breaking height, calibrated to the spot's LOCAL size expectation.
 
-    ``reference_size_m`` is the breaking height at which THIS spot is "fully working" (size factor
-    saturates to 1.0) — the spot's own good-day size. Below the absolute ~0.2 m rideability floor the
-    score is 0 (unsurfable anywhere); it rises linearly to 1.0 at the reference. Bigger than the
-    reference is NOT penalized here (wind/period grade it). When ``reference_size_m`` is None the global
-    default 1.2 m (chest-high) is used → the gate is IDENTICAL everywhere, so behavior is unchanged until
-    a per-spot reference is wired.
+    ``reference_size_m`` is the spot's own good-day breaking height (p80 climatology). The curve is
+    anchored, not saturated, at the reference: below the absolute ~0.2 m rideability floor the score is
+    0 (unsurfable anywhere); it rises to _REF_ANCHOR_SCORE (0.6) at the reference and reaches 1.0 at
+    _REF_SAT_MULT (2.5×) the reference — a spot's ordinary good day rates mid-scale (fair-ish once wind/
+    period multiply in), and only a well-overhead-for-THIS-spot day maxes the size factor. When
+    ``reference_size_m`` is None the LEGACY global absolute curve is used unchanged (linear to 1.0 at
+    1.2 m) — the live default until RATING_LOCAL_SIZE ships. Note the two branches are intentionally
+    different shapes: None = absolute/legacy, supplied = local-relative (user anchors 2026-07-12).
 
-    This is what makes surf quality RELATIVE to a spot's potential (Surfline's principle): a clean 2-3 ft
-    day saturates the size gate at a small-wave spot (e.g. Florida, ref ~0.6 m) but scores low at a
-    big-wave spot (e.g. Pipeline, ref ~2.5 m) — the same swell, different local rating."""
+    This is what makes surf quality RELATIVE to a spot's potential (Surfline's principle): the same
+    clean 2-3 ft day reads fair in Florida (ref ~0.7 m) and poor at Pipeline (ref ~2.5 m)."""
     if surf_h_m is None or surf_h_m <= _HMIN_RIDEABLE_M:
         return 0.0
-    ref = reference_size_m if (reference_size_m is not None and reference_size_m > _HMIN_RIDEABLE_M) else _DEFAULT_REF_SIZE_M
-    if surf_h_m >= ref:
+    if reference_size_m is None or reference_size_m <= _HMIN_RIDEABLE_M:
+        # LEGACY absolute curve (live behavior — byte-identical).
+        if surf_h_m >= _DEFAULT_REF_SIZE_M:
+            return 1.0
+        return _clamp((surf_h_m - _HMIN_RIDEABLE_M) / (_DEFAULT_REF_SIZE_M - _HMIN_RIDEABLE_M), 0.0, 1.0)
+    ref = reference_size_m
+    if surf_h_m >= ref * _REF_SAT_MULT:
         return 1.0
-    return _clamp((surf_h_m - _HMIN_RIDEABLE_M) / (ref - _HMIN_RIDEABLE_M), 0.0, 1.0)
+    if surf_h_m >= ref:
+        return _clamp(_REF_ANCHOR_SCORE + (1.0 - _REF_ANCHOR_SCORE) * (surf_h_m / ref - 1.0) / (_REF_SAT_MULT - 1.0),
+                      _REF_ANCHOR_SCORE, 1.0)
+    return _clamp(_REF_ANCHOR_SCORE * (surf_h_m - _HMIN_RIDEABLE_M) / (ref - _HMIN_RIDEABLE_M),
+                  0.0, _REF_ANCHOR_SCORE)
 
 
 def period_quality(tp_s):

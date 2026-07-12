@@ -68,23 +68,41 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(sizeScore(5.0)).toBe(1);
   });
 
-  test('size reference: null is backward-compatible; local ref is relative to spot', () => {
-    // No reference (and explicit 1.2 m default) reproduce the legacy global curve exactly.
+  test('size reference: null is backward-compatible; local ref ANCHORS (not saturates) the curve', () => {
+    // No reference reproduces the legacy global curve exactly (the LIVE default path). NOTE: an
+    // EXPLICIT reference now selects the local-relative curve — only null is legacy (user anchors 07-12).
     [0.05, 0.2, 0.3, 0.6, 0.9, 1.2, 1.5, 5.0].forEach((h) => {
       const legacy = h <= 0.2 ? 0.0 : (h >= 1.2 ? 1.0 : (h - 0.2) / 1.0);
       expect(sizeScore(h)).toBeCloseTo(legacy, 6);
-      expect(sizeScore(h, 1.2)).toBeCloseTo(legacy, 6);
+      expect(sizeScore(h, null)).toBeCloseTo(legacy, 6);
     });
-    // Local calibration: 2 ft is fully working at a small-wave spot, small at a big-wave spot.
-    expect(sizeScore(0.6, 0.6)).toBe(1.0);
+    // Local calibration: the reference is the spot's ORDINARY good day -> anchor 0.6, saturate 2.5x.
+    expect(sizeScore(0.6, 0.6)).toBeCloseTo(0.6, 9);
     expect(sizeScore(0.6, 2.5)).toBeLessThan(0.25);
     expect(sizeScore(0.15, 0.6)).toBe(0.0);        // absolute unrideable floor still applies
-    expect(sizeScore(3.0, 0.6)).toBe(1.0);         // bigger than local ref still saturates
-    // THE Florida case: local ref lifts a clean small-wave day above the global-default score.
+    expect(sizeScore(1.5, 0.6)).toBe(1.0);         // 2.5x ref saturates
+    expect(sizeScore(3.0, 0.6)).toBe(1.0);         // beyond never penalized here
+    // Locally-working still edges above globally-mediocre (0.638 vs 0.6 size factor).
     const args = [0.8, 11.0, 2.0, 90.0, 270.0, 90.0];
     const globalScore = computeSurfRating(...args).score;
     const flScore = computeSurfRating(...args, null, null, null, 0.7).score;  // tide/bestTide/xi null, ref 0.7
     expect(flScore).toBeGreaterThan(globalScore);
+  });
+
+  test('USER calibration anchors: FL fair at 2-3ft, fair-good at 3-4ft, Indo poor (parity with py)', () => {
+    // SAME golden values as test_surf_rating.py::test_user_calibration_anchors_florida_and_indo.
+    const clean = [11.0, 2.0, 90.0, 270.0, 270.0];             // tp, light dead-offshore, head-on swell
+    const at25 = computeSurfRating(0.75, ...clean, null, null, null, 0.7);   // ~2.5 ft, FL ref 0.7
+    expect(at25.score).toBeCloseTo(55.3, 1);
+    expect(at25.level).toBe('fair');
+    const at35 = computeSurfRating(1.05, ...clean, null, null, null, 0.7);   // ~3.5 ft
+    expect(at35.score).toBeCloseTo(65.5, 1);
+    expect(at35.level).toBe('fair_good');
+    const typ = computeSurfRating(0.75, 9.0, 4.0, 90.0, 270.0, 270.0, null, null, null, 0.7);
+    expect(typ.level).toBe('fair');                            // typical-clean 2-3 ft stays FAIR
+    const indo = computeSurfRating(0.75, ...clean, null, null, null, 2.5);
+    expect(indo.score).toBeLessThan(20.0);
+    expect(['very_poor', 'poor']).toContain(indo.level);
   });
 
   test('period quality monotonic short->long', () => {

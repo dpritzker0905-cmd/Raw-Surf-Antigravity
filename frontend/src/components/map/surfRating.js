@@ -15,15 +15,30 @@ const W_PERIOD = 0.40;
 const _clamp = (x, lo, hi) => (x < lo ? lo : x > hi ? hi : x);
 const HMIN_RIDEABLE_M = 0.2;     // absolute unsurfable floor (mirror surf_rating._HMIN_RIDEABLE_M)
 const DEFAULT_REF_SIZE_M = 1.2;  // global chest-high default when no local reference (mirror _DEFAULT_REF_SIZE_M)
+// LOCAL-reference curve shape (USER anchors 2026-07-12: FL 2-3ft clean = fair; 3-4ft+ = fair/fair-good;
+// Indo 2-3ft = poor). The reference anchors the curve MIDDLE, not saturation (mirror of py constants).
+const REF_ANCHOR_SCORE = 0.6;
+const REF_SAT_MULT = 2.5;
 
-/** Size gate [0,1] calibrated to the spot's LOCAL good-day size. `referenceSizeM` is the breaking height
- *  where the spot saturates to 1.0; null -> global 1.2 m default (identical everywhere). Below the absolute
- *  ~0.2 m floor = 0 (unsurfable anywhere). Makes 2-3 ft rate high at a small-wave spot, low at a big-wave one. */
+/** Size gate [0,1] calibrated to the spot's LOCAL good-day size. The curve is ANCHORED (0.6), not
+ *  saturated, at `referenceSizeM` (the spot's p80 good day), reaching 1.0 at 2.5× the reference — an
+ *  ordinary good day rates mid-scale; only well-overhead-for-THIS-spot maxes the factor. null -> LEGACY
+ *  global absolute curve unchanged (linear to 1.0 at 1.2 m — the live default). Below the absolute
+ *  ~0.2 m floor = 0 (unsurfable anywhere). The two branches are intentionally different shapes. */
 export function sizeScore(h, referenceSizeM = null) {
   if (h == null || h <= HMIN_RIDEABLE_M) return 0.0;
-  const ref = (referenceSizeM != null && referenceSizeM > HMIN_RIDEABLE_M) ? referenceSizeM : DEFAULT_REF_SIZE_M;
-  if (h >= ref) return 1.0;
-  return _clamp((h - HMIN_RIDEABLE_M) / (ref - HMIN_RIDEABLE_M), 0.0, 1.0);
+  if (referenceSizeM == null || referenceSizeM <= HMIN_RIDEABLE_M) {
+    // LEGACY absolute curve (live behavior — byte-identical).
+    if (h >= DEFAULT_REF_SIZE_M) return 1.0;
+    return _clamp((h - HMIN_RIDEABLE_M) / (DEFAULT_REF_SIZE_M - HMIN_RIDEABLE_M), 0.0, 1.0);
+  }
+  const ref = referenceSizeM;
+  if (h >= ref * REF_SAT_MULT) return 1.0;
+  if (h >= ref) {
+    return _clamp(REF_ANCHOR_SCORE + (1.0 - REF_ANCHOR_SCORE) * (h / ref - 1.0) / (REF_SAT_MULT - 1.0),
+      REF_ANCHOR_SCORE, 1.0);
+  }
+  return _clamp(REF_ANCHOR_SCORE * (h - HMIN_RIDEABLE_M) / (ref - HMIN_RIDEABLE_M), 0.0, REF_ANCHOR_SCORE);
 }
 
 export function periodQuality(tp) {

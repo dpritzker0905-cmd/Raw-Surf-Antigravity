@@ -141,29 +141,54 @@ def test_size_score_gates_then_saturates():
 
 
 def test_size_score_reference_none_is_backward_compatible():
-    # No reference (and the explicit global default 1.2 m) must reproduce the pre-calibration curve EXACTLY.
+    # No reference must reproduce the pre-calibration curve EXACTLY (this is the LIVE default path).
+    # NOTE: an EXPLICIT reference now selects the local-relative curve (anchored 0.6 at ref) — only
+    # None is the legacy absolute curve (user anchor recalibration 2026-07-12).
     for h in (0.05, 0.2, 0.3, 0.6, 0.9, 1.2, 1.5, 5.0):
         legacy = 0.0 if h <= 0.2 else (1.0 if h >= 1.2 else (h - 0.2) / 1.0)
         assert size_score(h) == pytest.approx(legacy)
-        assert size_score(h, 1.2) == pytest.approx(legacy)
+        assert size_score(h, None) == pytest.approx(legacy)
 
 
-def test_size_score_local_reference_is_relative_to_spot():
-    # A small-wave spot (ref 0.6 m ≈ 2 ft) saturates at 2 ft; a big-wave spot (ref 2.5 m) barely registers it.
-    assert size_score(0.6, reference_size_m=0.6) == 1.0          # 2 ft = fully working in FL
-    assert size_score(0.6, reference_size_m=2.5) < 0.25          # same 2 ft is small at Pipeline
+def test_size_score_local_reference_anchors_not_saturates():
+    # USER anchors (2026-07-12): the local reference is the spot's ORDINARY good day — it anchors the
+    # curve middle (0.6), not saturation. Only well-overhead-for-this-spot (2.5x ref) maxes the factor.
+    assert size_score(0.6, reference_size_m=0.6) == pytest.approx(0.6)   # at ref = the anchor, not 1.0
+    assert size_score(0.6, reference_size_m=2.5) < 0.25                  # same 2 ft is tiny at Pipeline
     assert size_score(0.6, reference_size_m=0.6) > size_score(0.6, reference_size_m=2.5)
-    assert size_score(0.15, reference_size_m=0.6) == 0.0         # absolute unrideable floor still applies
-    assert size_score(3.0, reference_size_m=0.6) == 1.0          # bigger than local ref still saturates (not penalized)
+    assert size_score(0.15, reference_size_m=0.6) == 0.0                 # absolute unrideable floor
+    assert size_score(1.5, reference_size_m=0.6) == 1.0                  # 2.5x ref saturates
+    assert size_score(3.0, reference_size_m=0.6) == 1.0                  # beyond never penalized here
+    # Monotonic, continuous at the anchor: just-below vs just-above the reference.
+    assert size_score(0.699, reference_size_m=0.7) < size_score(0.701, reference_size_m=0.7)
 
 
 def test_local_reference_lifts_small_clean_surf_rating():
-    # THE Florida case: clean 2-3 ft, light offshore, decent period. Local ref lifts it out of 'very_poor'.
+    # Clean 2-3 ft with a small-wave local ref still edges ABOVE the global default (0.638 vs 0.6 size
+    # factor at 0.8 m / ref 0.7) — locally-working beats globally-mediocre, just no longer by 2 levels.
     args = (0.8, 11.0, 2.0, 90.0, 270.0, 90.0)  # 0.8 m surf, 11 s, 2 m/s offshore-ish
     global_score, global_level = compute_surf_rating(*args)                       # ref None -> 1.2 m default
     fl_score, fl_level = compute_surf_rating(*args, reference_size_m=0.7)         # small-wave spot
     assert fl_score > global_score
     assert LEVELS.index(fl_level) >= LEVELS.index(global_level)
+
+
+def test_user_calibration_anchors_florida_and_indo():
+    """THE user acceptance spec (2026-07-12): FL 2-3 ft clean = FAIR; FL 3-4 ft+ = fair or fair-good;
+    the same small day at a big-wave coast = poor-class. Perfect-clean composite (11 s, light dead-
+    offshore, head-on swell) is the CEILING case — typical days land lower in the same bucket."""
+    clean = (11.0, 2.0, 90.0, 270.0, 270.0)                    # tp, wind 2 m/s FROM land, head-on swell
+    fl_ref = 0.7                                               # FL p80 good-day breaking height
+    s25, l25 = compute_surf_rating(0.75, *clean, reference_size_m=fl_ref)   # ~2.5 ft
+    assert s25 == pytest.approx(55.3, abs=0.05) and l25 == "fair"
+    s35, l35 = compute_surf_rating(1.05, *clean, reference_size_m=fl_ref)   # ~3.5 ft
+    assert s35 == pytest.approx(65.5, abs=0.05) and l35 == "fair_good"
+    # Typical-clean (9 s, 4 m/s offshore) 2-3 ft stays FAIR, not fair_good.
+    s_typ, l_typ = compute_surf_rating(0.75, 9.0, 4.0, 90.0, 270.0, 270.0, reference_size_m=fl_ref)
+    assert l_typ == "fair"
+    # Indo/Hawaii-class coast (ref 2.5): the same 2.5 ft perfect-clean day is poor-class.
+    s_indo, l_indo = compute_surf_rating(0.75, *clean, reference_size_m=2.5)
+    assert s_indo < 20.0 and l_indo in ("very_poor", "poor")
 
 
 def test_speed_only_path_when_no_shore_normal():
