@@ -215,3 +215,70 @@ def test_rating_transform_grid_writes_score_masks_open_ocean_zeros_vectors():
     assert coastal.rating_level in (
         "very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic")
     assert open_ocean.is_valid is False              # open ocean transparency-masked
+
+
+# ───────────────────── partition-aware factors (rating plan Step 3, seam) ─────────────────────
+def test_dominant_swell_period_recovers_groundswell_under_windsea():
+    from services.weather_pipeline.surf_rating import dominant_swell_period
+    parts = [{"h": 1.2, "tp": 16.0, "dir": 270.0, "kind": "swell"},
+             {"h": 0.8, "tp": 8.0, "dir": 250.0, "kind": "windsea"}]
+    assert dominant_swell_period(parts) == 16.0              # windsea excluded; energy picks the train
+    assert dominant_swell_period([]) is None
+    assert dominant_swell_period(None) is None
+    assert dominant_swell_period([{"h": None, "tp": 12.0, "kind": "swell"}]) is None
+
+
+def test_effective_swell_exposure_energy_weighted():
+    from services.weather_pipeline.surf_rating import effective_swell_exposure
+    # Dominant swell FROM 90 arrives from BEHIND a west-facing coast (shore-normal 270) -> 0.1 floor;
+    # a smaller secondary FROM 270 is head-on -> 1.0. Energy weights: 4:1.
+    parts = [{"h": 2.0, "tp": 14.0, "dir": 90.0, "kind": "swell"},
+             {"h": 1.0, "tp": 10.0, "dir": 270.0, "kind": "swell"},
+             {"h": 3.0, "tp": 5.0, "dir": 200.0, "kind": "windsea"}]   # windsea excluded from exposure
+    ex = effective_swell_exposure(parts, 270.0)
+    assert abs(ex - (4 * 0.1 + 1 * 1.0) / 5.0) < 1e-9        # 0.28
+    assert effective_swell_exposure(parts, None) is None      # geometry unknown -> caller neutral
+    assert effective_swell_exposure([{"h": 1.0, "tp": 9.0, "kind": "swell"}], 270.0) is None  # no dir
+
+
+def test_sea_cleanliness_fraction_and_floor():
+    from services.weather_pipeline.surf_rating import sea_cleanliness
+    assert sea_cleanliness(None) == 1.0
+    assert sea_cleanliness([{"h": 1.0, "kind": "swell"}]) == 1.0            # clean groundswell
+    half = sea_cleanliness([{"h": 1.0, "kind": "swell"}, {"h": 1.0, "kind": "windsea"}])
+    assert abs(half - 0.75) < 1e-9                                          # 50% energy windsea
+    pure = sea_cleanliness([{"h": 1.0, "kind": "windsea"}])
+    assert pure == 0.6                                                      # floored, never zeroes
+
+
+def test_partitions_none_is_byte_identical():
+    args = (1.5, 11.0, 2.0, 90.0, 270.0, 270.0)
+    base = rating_score(*args)
+    assert rating_score(*args, partitions=None) == base
+    assert rating_score(*args, partitions=[]) == base
+    # A degenerate partition list (nothing usable) must fall back to total-field behavior too.
+    assert rating_score(*args, partitions=[{"h": None, "tp": None, "dir": None, "kind": "swell"}]) == base
+
+
+def test_partition_aware_composite_parity_values():
+    """Golden values shared with the JS mirror test — clean groundswell lifts (period), windsea mess drops
+    (cleanliness + honest period), both through the full composite."""
+    args = (1.5, 11.0, 2.0, 90.0, 270.0, 270.0)              # offshore light wind, head-on total swell
+    base = rating_score(*args)
+    assert base == 89.3
+    clean = rating_score(*args, partitions=[{"h": 1.2, "tp": 16.0, "dir": 270.0, "kind": "swell"}])
+    assert clean == 100.0                                     # 16 s groundswell recovered -> pq 1.0
+    messy = rating_score(*args, partitions=[
+        {"h": 0.4, "tp": 14.0, "dir": 270.0, "kind": "swell"},
+        {"h": 1.2, "tp": 5.0, "dir": 250.0, "kind": "windsea"}])
+    assert messy == 58.4                                      # windsea-dominated: sea_clean floors at 0.6
+    assert messy < base < clean
+
+
+def test_partition_secondary_swell_recovered_when_dominant_shadowed():
+    """A total-field direction of the SHADOWED dominant swell under-rates; per-partition exposure credits
+    the well-angled secondary train."""
+    args = (1.5, 11.0, 2.0, 90.0, 270.0, 90.0)               # total dir = the blocked train
+    parts = [{"h": 2.0, "tp": 14.0, "dir": 90.0, "kind": "swell"},
+             {"h": 1.0, "tp": 10.0, "dir": 270.0, "kind": "swell"}]
+    assert rating_score(*args, partitions=parts) > rating_score(*args)

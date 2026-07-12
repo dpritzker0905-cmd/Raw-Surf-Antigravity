@@ -65,6 +65,63 @@ export function swellExposure(swellFromDeg, shoreNormalDeg) {
   return _clamp(0.10 + 0.90 * Math.max(0.0, align), 0.0, 1.0);
 }
 
+// ── PARTITION-AWARE factors (rating plan Step 3; mirror of surf_rating.py) ──────────────────────────
+// `partitions` = list of {h, tp, dir, kind} trains (kind 'swell' for SW1/SW2, 'windsea' for WW).
+// Backward-compatible: absent/degenerate -> null/neutral and the caller keeps total-field behavior.
+const SEA_CLEAN_K = 0.5;      // windsea-fraction penalty slope (fraction 0.8+ reaches the floor)
+const SEA_CLEAN_FLOOR = 0.6;  // sea state REFINES the rating; even a fully windsea sea never zeroes it
+
+/** Period of the most ENERGETIC swell train (h² weighting; wind waves excluded) — the surf-relevant
+ *  period (recovers a 16 s groundswell hiding under an 8 s windsea). null -> caller uses the total period. */
+export function dominantSwellPeriod(partitions) {
+  let bestE = 0.0;
+  let bestTp = null;
+  for (const p of partitions || []) {
+    if (!p || typeof p !== 'object' || p.kind === 'windsea') continue;
+    const { h, tp } = p;
+    if (h == null || tp == null || h <= 0 || tp <= 0) continue;
+    const e = h * h;
+    if (e > bestE) { bestE = e; bestTp = tp; }
+  }
+  return bestTp;
+}
+
+/** Energy-weighted swell exposure over the SWELL partitions: Σ(h²·exposure(dir)) / Σ(h²). A well-angled
+ *  secondary swell lifts exposure; a shadowed dominant swell is penalized by its energy share. null when
+ *  geometry/partitions unusable (caller falls back to the total-field exposure). */
+export function effectiveSwellExposure(partitions, shoreNormalDeg) {
+  if (shoreNormalDeg == null) return null;   // geometry unknown -> total-field path is already neutral
+  let num = 0.0;
+  let den = 0.0;
+  for (const p of partitions || []) {
+    if (!p || typeof p !== 'object' || p.kind === 'windsea') continue;
+    const { h, dir } = p;
+    if (h == null || dir == null || h <= 0) continue;
+    const e = h * h;
+    num += e * swellExposure(dir, shoreNormalDeg);
+    den += e;
+  }
+  if (den <= 0.0) return null;
+  return _clamp(num / den, 0.0, 1.0);
+}
+
+/** Sea-state cleanliness [SEA_CLEAN_FLOOR..1]: penalizes a windsea-DOMINATED sea even when the local wind
+ *  reads light/offshore. windsea_fraction = h_WW² / Σh² over ALL partitions. Neutral 1.0 when absent. */
+export function seaCleanliness(partitions) {
+  let wwE = 0.0;
+  let totE = 0.0;
+  for (const p of partitions || []) {
+    if (!p || typeof p !== 'object') continue;
+    const h = p.h;
+    if (h == null || h <= 0) continue;
+    const e = h * h;
+    totE += e;
+    if (p.kind === 'windsea') wwE += e;
+  }
+  if (totE <= 0.0 || wwE <= 0.0) return 1.0;
+  return _clamp(1.0 - SEA_CLEAN_K * (wwE / totE), SEA_CLEAN_FLOOR, 1.0);
+}
+
 // Preferred tide bands (0 = low water, 1 = high water) from a spot's free-text best_tide prior. Compound first.
 const _TIDE_BANDS = [
   ['low to mid', [0.0, 0.60]], ['low-mid', [0.0, 0.60]], ['mid to low', [0.0, 0.60]],
@@ -99,16 +156,19 @@ export function breakerTypeQuality(xi) {
   return _clamp(1.0 - 0.06 * (xi - 3.3), 0.82, 1.0);
 }
 
-export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null) {
+export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
   const sg = sizeScore(h, referenceSizeM);
   if (sg <= 0.0) return 0.0;
-  const ex = swellExposure(swellFromDeg, shoreNormalDeg);
+  let ex = (partitions && partitions.length) ? effectiveSwellExposure(partitions, shoreNormalDeg) : null;
+  if (ex == null) ex = swellExposure(swellFromDeg, shoreNormalDeg);
   if (ex <= 0.0) return 0.0;
+  const sc = (partitions && partitions.length) ? seaCleanliness(partitions) : 1.0;
   const tf = tideFit(tideNorm, parseBestTide(bestTide));
   const bt = breakerTypeQuality(breakerXi);
   const wq = windQuality(speedMs, windFromDeg, shoreNormalDeg);
-  const pq = periodQuality(tp);
-  return Math.round(100.0 * sg * ex * tf * bt * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  const ptp = (partitions && partitions.length) ? dominantSwellPeriod(partitions) : null;
+  const pq = periodQuality(ptp != null ? ptp : tp);
+  return Math.round(100.0 * sg * ex * sc * tf * bt * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
@@ -119,9 +179,9 @@ export function scoreToLevel(score) {
 }
 
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null) {
+export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM);
+  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM, partitions);
   return { score, level: scoreToLevel(score) };
 }
 

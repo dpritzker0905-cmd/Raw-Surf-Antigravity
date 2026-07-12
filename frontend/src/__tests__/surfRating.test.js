@@ -2,6 +2,7 @@ import {
   computeSurfRating, ratingScore, sizeScore, periodQuality, windQuality, offshoreness,
   swellExposure, scoreToLevel, RATING_LEVELS, RATING_LABEL, RATING_COLOR,
   parseBestTide, tideFit, breakerTypeQuality,
+  dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -161,5 +162,63 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     expect(plunging).toBeCloseTo(base, 5);
     expect(spilling).toBeLessThan(base);
     expect(spilling).toBeGreaterThan(0);
+  });
+
+  // ── partition-aware factors (rating plan Step 3 seam; mirror of py tests) ──
+  test('dominantSwellPeriod recovers groundswell under windsea', () => {
+    const parts = [{ h: 1.2, tp: 16.0, dir: 270.0, kind: 'swell' },
+                   { h: 0.8, tp: 8.0, dir: 250.0, kind: 'windsea' }];
+    expect(dominantSwellPeriod(parts)).toBe(16.0);
+    expect(dominantSwellPeriod([])).toBeNull();
+    expect(dominantSwellPeriod(null)).toBeNull();
+    expect(dominantSwellPeriod([{ h: null, tp: 12.0, kind: 'swell' }])).toBeNull();
+  });
+
+  test('effectiveSwellExposure is energy-weighted over swell trains only', () => {
+    const parts = [{ h: 2.0, tp: 14.0, dir: 90.0, kind: 'swell' },
+                   { h: 1.0, tp: 10.0, dir: 270.0, kind: 'swell' },
+                   { h: 3.0, tp: 5.0, dir: 200.0, kind: 'windsea' }];
+    expect(effectiveSwellExposure(parts, 270.0)).toBeCloseTo((4 * 0.1 + 1 * 1.0) / 5.0, 9); // 0.28
+    expect(effectiveSwellExposure(parts, null)).toBeNull();
+    expect(effectiveSwellExposure([{ h: 1.0, tp: 9.0, kind: 'swell' }], 270.0)).toBeNull(); // no dir
+  });
+
+  test('seaCleanliness fraction + floor', () => {
+    expect(seaCleanliness(null)).toBe(1.0);
+    expect(seaCleanliness([{ h: 1.0, kind: 'swell' }])).toBe(1.0);
+    expect(seaCleanliness([{ h: 1.0, kind: 'swell' }, { h: 1.0, kind: 'windsea' }])).toBeCloseTo(0.75, 9);
+    expect(seaCleanliness([{ h: 1.0, kind: 'windsea' }])).toBe(0.6);       // floored, never zeroes
+  });
+
+  test('partitions null/empty/degenerate are byte-identical to total-field', () => {
+    const args = [1.5, 11.0, 2.0, 90.0, 270.0, 270.0];
+    const base = ratingScore(...args);
+    expect(ratingScore(...args, null, null, null, null, null)).toBe(base);
+    expect(ratingScore(...args, null, null, null, null, [])).toBe(base);
+    expect(ratingScore(...args, null, null, null, null,
+      [{ h: null, tp: null, dir: null, kind: 'swell' }])).toBe(base);
+  });
+
+  test('partition-aware composite golden parity with backend', () => {
+    // SAME golden values as tests/test_surf_rating.py::test_partition_aware_composite_parity_values.
+    const args = [1.5, 11.0, 2.0, 90.0, 270.0, 270.0];
+    const base = ratingScore(...args);
+    expect(base).toBeCloseTo(89.3, 5);
+    const clean = ratingScore(...args, null, null, null, null,
+      [{ h: 1.2, tp: 16.0, dir: 270.0, kind: 'swell' }]);
+    expect(clean).toBeCloseTo(100.0, 5);                     // 16 s groundswell recovered
+    const messy = ratingScore(...args, null, null, null, null, [
+      { h: 0.4, tp: 14.0, dir: 270.0, kind: 'swell' },
+      { h: 1.2, tp: 5.0, dir: 250.0, kind: 'windsea' }]);
+    expect(messy).toBeCloseTo(58.4, 5);                      // windsea-dominated: floor 0.6
+    expect(messy).toBeLessThan(base);
+    expect(clean).toBeGreaterThan(base);
+  });
+
+  test('secondary swell recovered when the dominant train is shadowed', () => {
+    const args = [1.5, 11.0, 2.0, 90.0, 270.0, 90.0];        // total dir = the blocked train
+    const parts = [{ h: 2.0, tp: 14.0, dir: 90.0, kind: 'swell' },
+                   { h: 1.0, tp: 10.0, dir: 270.0, kind: 'swell' }];
+    expect(ratingScore(...args, null, null, null, null, parts)).toBeGreaterThan(ratingScore(...args));
   });
 });

@@ -12,7 +12,7 @@ I/O, no numpy — so it runs in-process on the serve-only box (cheap, per-cell +
 unit-testable.
 
 Model:
-    rating = size_gate(surf_height) * swell_exposure(angle) * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
+    rating = size_gate(surf_height) * swell_exposure(angle) * sea_clean * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
   - size_gate: there must be a rideable wave (0 when flat; saturates chest-high+). Bigger is NOT penalized
     here — a big CLEAN long-period wave is exactly what 'epic' means; wind + period grade it.
   - swell_exposure: the swell ANGLE must be able to reach this coast. Head-on (swell FROM the seaward
@@ -132,6 +132,84 @@ def swell_exposure(swell_from_deg, shore_normal_deg):
     return _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
 
 
+# ── PARTITION-AWARE factors (rating plan Step 3) ────────────────────────────────────────────────────
+# Every model already ingests the full swell partitions (swell_1/swell_2/wind_waves, each with height +
+# direction + period) but the composite historically saw only the TOTAL field — one blended mean period
+# + one mean direction. These helpers consume a ``partitions`` list of {h, tp, dir, kind} dicts (kind:
+# 'swell' for SW1/SW2, 'windsea' for WW; every key None-safe) and are BACKWARD-COMPATIBLE: with
+# partitions absent/degenerate each returns None/neutral and the caller keeps the total-field behavior.
+
+SEA_CLEAN_K = 0.5          # windsea-fraction penalty slope (fraction 0.8+ reaches the floor)
+SEA_CLEAN_FLOOR = 0.6      # sea state REFINES the rating; even a fully windsea sea never zeroes it
+
+
+def dominant_swell_period(partitions):
+    """The period of the most ENERGETIC swell train (h² weighting; wind waves excluded) — the
+    surf-relevant period. A 16 s groundswell hiding under an 8 s windsea currently reads ~11 s blended;
+    this recovers the 16 s. None when no swell partition carries height+period (caller falls back to
+    the total field's period)."""
+    best_e = 0.0
+    best_tp = None
+    for p in partitions or []:
+        if not isinstance(p, dict) or p.get("kind") == "windsea":
+            continue
+        h = p.get("h")
+        tp = p.get("tp")
+        if h is None or tp is None or h <= 0 or tp <= 0:
+            continue
+        e = h * h
+        if e > best_e:
+            best_e = e
+            best_tp = float(tp)
+    return best_tp
+
+
+def effective_swell_exposure(partitions, shore_normal_deg):
+    """Energy-weighted swell exposure over the SWELL partitions (wind waves excluded):
+    Σ(h_p² · swell_exposure(dir_p)) / Σ(h_p²). A well-angled secondary swell lifts exposure; a shadowed
+    dominant swell is penalized by exactly its energy share. None when the geometry or every partition is
+    unusable (caller falls back to the total-field exposure)."""
+    if shore_normal_deg is None:
+        return None                      # geometry unknown -> total-field path is already neutral 1.0
+    num = 0.0
+    den = 0.0
+    for p in partitions or []:
+        if not isinstance(p, dict) or p.get("kind") == "windsea":
+            continue
+        h = p.get("h")
+        d = p.get("dir")
+        if h is None or d is None or h <= 0:
+            continue
+        e = h * h
+        num += e * swell_exposure(d, shore_normal_deg)
+        den += e
+    if den <= 0.0:
+        return None
+    return _clamp(num / den, 0.0, 1.0)
+
+
+def sea_cleanliness(partitions):
+    """Sea-state cleanliness [SEA_CLEAN_FLOOR..1]: penalizes a windsea-DOMINATED sea even when the local
+    wind reads light/offshore — chop generated elsewhere that the wind factor can't see.
+    windsea_fraction = h_WW² / Σh² over ALL partitions. Neutral 1.0 when partitions are absent or carry
+    no windsea (clean groundswell)."""
+    ww_e = 0.0
+    tot_e = 0.0
+    for p in partitions or []:
+        if not isinstance(p, dict):
+            continue
+        h = p.get("h")
+        if h is None or h <= 0:
+            continue
+        e = h * h
+        tot_e += e
+        if p.get("kind") == "windsea":
+            ww_e += e
+    if tot_e <= 0.0 or ww_e <= 0.0:
+        return 1.0
+    return _clamp(1.0 - SEA_CLEAN_K * (ww_e / tot_e), SEA_CLEAN_FLOOR, 1.0)
+
+
 # Preferred tide bands (normalized tide level: 0 = low water, 1 = high water) parsed from a spot's free-text
 # ``best_tide`` prior. Compound phrases first so "low to mid" wins over "low".
 _TIDE_BANDS = [
@@ -182,24 +260,31 @@ def breaker_type_quality(xi):
 
 
 def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                 tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None):
+                 tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None):
     """Composite 0..100 surf-quality score:
-    size_gate * swell_exposure * tide_fit * breaker_type_quality * (0.60*wind + 0.40*period).
+    size_gate * swell_exposure * sea_clean * tide_fit * breaker_type_quality * (0.60*wind + 0.40*period).
     0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
     its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide / no Iribarren
     -> neutral). ``reference_size_m`` calibrates the size gate to the spot's LOCAL good-day size (None ->
-    global 1.2 m default, no change)."""
+    global 1.2 m default, no change). ``partitions`` (list of {h, tp, dir, kind}) makes the composite
+    PARTITION-AWARE: period_quality grades the dominant swell train (not the blended mean), exposure is
+    energy-weighted per swell train, and a windsea-dominated sea is penalized (sea_cleanliness). None/
+    degenerate -> total-field behavior, byte-identical to before."""
     sg = size_score(surf_h_m, reference_size_m)
     if sg <= 0.0:
         return 0.0
-    ex = swell_exposure(swell_from_deg, shore_normal_deg)
+    ex = effective_swell_exposure(partitions, shore_normal_deg) if partitions else None
+    if ex is None:
+        ex = swell_exposure(swell_from_deg, shore_normal_deg)
     if ex <= 0.0:
         return 0.0
+    sc = sea_cleanliness(partitions) if partitions else 1.0
     tf = tide_fit(tide_norm, parse_best_tide(best_tide))
     bt = breaker_type_quality(breaker_xi)
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
-    pq = period_quality(tp_s)
-    return round(100.0 * sg * ex * tf * bt * (W_WIND * wq + W_PERIOD * pq), 1)
+    ptp = dominant_swell_period(partitions) if partitions else None
+    pq = period_quality(ptp if ptp is not None else tp_s)
+    return round(100.0 * sg * ex * sc * tf * bt * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):
@@ -213,7 +298,7 @@ def score_to_level(score):
 
 
 def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                        tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None):
+                        tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
@@ -223,11 +308,14 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
     normalized tide level 0..1 (optional; with best_tide applies the tide_fit factor). best_tide: the spot's
     free-text tide preference prior (optional). breaker_xi: Iribarren number (optional; applies the breaker-type
     quality factor — neutral when None). reference_size_m: the spot's local "fully-working" breaking height
-    (optional; calibrates the size gate to local expectation — None keeps the global 1.2 m default)."""
+    (optional; calibrates the size gate to local expectation — None keeps the global 1.2 m default).
+    partitions: optional list of {h, tp, dir, kind} swell/windsea trains (kind 'swell'|'windsea') — enables
+    the partition-aware factors (dominant-swell period, energy-weighted exposure, sea cleanliness); None
+    keeps total-field behavior."""
     if surf_h_m is None:
         return None, "unknown"
     score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
-                         tide_norm, best_tide, breaker_xi, reference_size_m)
+                         tide_norm, best_tide, breaker_xi, reference_size_m, partitions)
     return score, score_to_level(score)
 
 
