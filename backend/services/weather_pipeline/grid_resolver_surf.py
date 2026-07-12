@@ -49,11 +49,15 @@ async def apply_surf_overlay(product, *, store, manifest, model, domain, layer, 
         # deep cell; now it's intentional + the math is also hardened in shoaling_coefficient.)
         _b = product.grid.bounds
         _span = ((_b.east - _b.west) if (_b and _b.east >= _b.west) else ((_b.east + 360.0 - _b.west) if _b else 0.0))
-        # The mid-res tier (Step 3.6) is served clipped so span<350, but its ~2° cells are still too
-        # coarse for a trustworthy shore-normal — skip the rating band on it exactly as on the global
-        # coarse (the z6-7 surf-mode behavior was 'honest swell' before this tier existed; keep it).
+        # The mid-res tier (Step 3.6) is served clipped so span<350; its ~2° cells give a COARSE
+        # shore-normal. Originally skipped ("honest swell"), but 2026-07-12 the product decision
+        # flipped: the band should show SOME rating (very poor on trace swell) at overview zooms
+        # rather than vanish — the per-spot glyphs carry the precise numbers on top, and the
+        # dynamic lane already rates comparable resolutions at these spans (consistency across
+        # lanes). Kill: MARINE_MID_RES_RATING=0 restores the mid-res skip.
         _is_mid_res = bool(product.grid.diagnostics and product.grid.diagnostics.get("mid_res_tier"))
-        if (_b is not None and _span >= 350.0) or _is_mid_res:
+        _mid_skip = _is_mid_res and os.environ.get("MARINE_MID_RES_RATING", "1") == "0"
+        if (_b is not None and _span >= 350.0) or _mid_skip:
             if product.grid.diagnostics is None:
                 product.grid.diagnostics = {}
             product.grid.diagnostics["surf_transform"] = {"skipped": "mid_res_tier" if _is_mid_res else "coarse_extent"}

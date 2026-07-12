@@ -751,9 +751,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
       const cg = this._coarseBaseData;
       const isRating = !!(_gridForBlend && _gridForBlend.ratingMode);
+      // RATING-MODE WASH (2026-07-12, user: pan in rating mode shows a CLEARED heatmap; open
+      // ocean should fade to the regular heatmap): the original composite scoped itself
+      // non-rating-only (db363a14 design choice, no regression history). In rating mode the
+      // band's open-ocean cells are MASKED transparent, so without the wash every pan/zoom
+      // reveal reads as blank. Let the coarse waves wash draw under the band: coastal cells
+      // show rating colors, masked ocean shows the familiar height wash through the holes —
+      // the requested coast-band + open-ocean-heatmap hybrid, with the existing zoom damps.
+      // Kill: __RAW_RATING_BLEND_WASH_DISABLED__ (restores the non-rating-only composite).
+      const ratingWashOk = (typeof window === 'undefined') || window.__RAW_RATING_BLEND_WASH_DISABLED__ !== true;
       const curModel = (_gridForBlend && _gridForBlend.__sourceModel) || 'GFS';
       const curLayer = (_gridForBlend && _gridForBlend.__componentLayer) || 'waves';
-      if (blendEnabled && !isRating && cg && cg.u_waveTexture &&
+      if (blendEnabled && (!isRating || ratingWashOk) && cg && cg.u_waveTexture &&
           isRegionalBounds(this._waveData.bounds) &&
           cg.__sourceModel === curModel && cg.__componentLayer === curLayer &&
           window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ !== true) {

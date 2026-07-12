@@ -154,8 +154,21 @@ def apply_surf_regional_prefer(
         and os.environ.get("SURF_REGIONAL_PREFER", "1") != "0"
     ):
         from services.weather_pipeline.product_selection import pick_surf_regional_override
+        # COVERAGE FLOOR (2026-07-12, the "no band off Tampa" + "band clears zooming 5.46→5.30"
+        # reports): any-overlap acceptance served the florida_east_coast SLIVER to Tampa-centered
+        # and wide viewports, preempting the DYNAMIC lane — which rates the WHOLE viewport (the
+        # transform runs on any sub-350° extent; probe-proven on ICON/GFS dynamic products). The
+        # engine then held/rejected the sliver → band gaps and the zoom-out clear. Require the
+        # tile to cover ≥ SURF_REGIONAL_PREFER_MIN_FRAC (default 0.45) of the viewport — the
+        # offshore-poke case this override exists for sits at ~0.7-0.95; the Tampa sliver at
+        # ~0.05-0.2 now falls through to the dynamic lane and gets a full-viewport rating grid.
+        try:
+            _surf_min_frac = float(os.environ.get("SURF_REGIONAL_PREFER_MIN_FRAC", "0.45"))
+        except ValueError:
+            _surf_min_frac = 0.45
         surf_regional_item = pick_surf_regional_override(
-            authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n
+            authoritative_candidates, estimated_candidates, req_w, req_s, req_e, req_n,
+            min_viewport_frac=_surf_min_frac,
         )
         if surf_regional_item is not None:
             matching_manifest_item = surf_regional_item
