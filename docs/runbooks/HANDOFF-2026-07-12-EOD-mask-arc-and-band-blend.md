@@ -126,6 +126,39 @@ verification cycle.
    (deploy-window exception path stamps `surf_skip_reason` in diagnostics). The forensic ring now
    records every commit's rating flag — the next clean-session dump resolves this class.
 
+## ROUND-6 DECODE (first CLEAN-BUILD judgment — `[BUILD] bundle=4467fcd9` in the user's log) + UI SLATE
+Verified findings from the user's round-6 session (forensic stamps working as designed):
+1. **Ribbon staircase CONFIRMED BY CONSTRUCTION**: the shipped taper is max(inner, 0.5·outer) =
+   a literal 2-step staircase (1.0 → 0.5 → floor). USER: "needs a smooth taper, not a hard one."
+   Fix: multi-ring graded falloff (4 radii × smoothstep weights) in landInRing composition —
+   small shader increment, same kill switch.
+2. **"Band clamps the animations" DECODED**: in rating mode particles ride the ACTIVE (rating)
+   grid's texture; masked open-ocean cells carry no motion in the encode → crests exist only over
+   the band area. Server-side the masked vectors STILL hold honest u/v (rating_transform_grid only
+   rewrites RATED cells' speed) — fix = encoder/SimField keep u/v for is_valid=false cells (color
+   transparent, motion flowing). Check [[rating-band-frontend-simfield-2026-06-30]] first.
+3. **"Struggling through zooms" = commit-storm churn**: FPS 4-10 during tier transitions; every
+   commit does mask rebuild (4096×2048 canvas) + particle reseed + encode; boot ran THREE identical
+   encodes of the same coarse product. Perf arc: encode dedup by product+revision, mask-rebuild
+   dedup (⚠️ mask = minefield), particle carry arc (round-5 §2).
+4. **Toggle latency**: activation needs a backend round-trip before any rated grid exists (first
+   commit = unrated global, band off; rated tile seconds later). Candidates: prefetch rated h0 for
+   the viewport when the picker opens; keep honest field fully visible during the wait (Option-A
+   already does — latency is fetch-bound, CORS-window-bound).
+5. Clamp backstop STILL firing on clean build (14-16° pilot tile resident, willSharpen=false,
+   series misses climbing) — REAL BUG, needs a `__RAW_FORENSIC__` dump session to decode the series
+   miss root. Also WEATHER_TRUTH traceId MISMATCH on series re-commit (lineage quirk, cosmetic).
+6. CORS storm on app endpoints AGAIN during the deploy window — backlog ⑦ (CORS headers on error
+   responses) is now cheap insurance vs recurring confounds; recommend shipping with the dynamic-
+   lane fetch timeout as a backend hardening pair.
+USER UI SLATE (all in MapWeatherControls.js): ① Rating toggle visible REGARDLESS of marine layer
+(it governs glyphs too) — move to a top-level picker row; ② m/ft unit toggle (localStorage pref,
+applied to legend/infobox/tuner labels; backend stays metric); ③ rating color key must not cover
+the heatmap color key (mutually-exclusive or stacked layout); ④ TIMELINE SCRUBBER redesign —
+research done (jog/shuttle two-mode, Digital Crown detents, input-knob/React-Knob-Headless ARIA
+slider pattern, WCAG 2.5.7 drag alternatives): recommend detented WHEEL with velocity cap +
+settle-gated fetches; design mock for USER approval BEFORE build.
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).
