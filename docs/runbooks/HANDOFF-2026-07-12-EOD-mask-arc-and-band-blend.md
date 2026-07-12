@@ -90,12 +90,41 @@ session with the forensic dump below.
    `await __RAW_FORENSIC__.copy()` (clipboard) / `__RAW_FORENSIC__.dump()` for the full capture.
    `__RAW_FORENSIC__.reset()` first for a clean pre-repro capture.
 
-## RIBBON WIDTH — USER RE-CONFIRMED (round 4): "only a couple miles out into the water"
-The band currently paints EVERY cell within `is_coastal`'s ±0.75° (~50 mi) window — an order of
-magnitude wider than the spec. A couple miles is SUB-CELL at every tier (0.25° cell ≈ 17 mi), so the
-narrowing must be per-pixel in the SHADER using the crisp mask's distance-to-coast (the coastal glow
-taper f85f7f69 is the starting point). NEXT feature arc after the confound-free re-judgment; shader =
-minefield, needs its own verification cycle.
+## RIBBON WIDTH — USER SPEC REVISED (round 4 + same-day follow-up): **~10 miles out into the water**
+(User first said "a couple miles", then corrected: "if 2 miles... isn't enough visual coverage,
+perhaps 10 miles out is enough".) The band currently paints EVERY cell within `is_coastal`'s ±0.75°
+(~50 mi) window — still ~5× wider than the revised spec. 10 mi (~16 km) is SUB-CELL at every tier
+(0.25° cell ≈ 17 mi across; mid tier 2° ≈ 138 mi), so the narrowing must be per-pixel in the SHADER
+using the crisp mask's distance-to-coast (the coastal glow taper f85f7f69 is the starting point).
+Make the radius a TUNABLE lever defaulting ~10 mi so width stays a product knob, not a constant.
+NEXT feature arc after the confound-free re-judgment; shader = minefield, needs its own
+verification cycle.
+
+## ROUND-5 INCREMENT (2026-07-12 late): 10-MILE RIBBON SHIPPED + two arc decisions
+1. **Coastal ribbon taper SHIPPED**: shader `landInRing`/`oceanAtGeo` ring-sampling (16 samples,
+   band branch ONLY — honest path pays zero) narrows the band per-pixel to ~10 mi of coast,
+   half-alpha through 1.6×, then transparent where the wash shows / 0.3 ghost where it doesn't.
+   Resolver `resolveRibbonTaper` (pure, tested): `__RAW_RATING_RIBBON_MI__` (default 10, product
+   knob — 17/6/anything), kill `__RAW_RATING_RIBBON_DISABLED__`, MASK-RESOLUTION FLOOR (≥1.6 mask
+   texels — world-mask moments show a ~39 mi coarse-but-present ribbon that tightens when the
+   crisp mask lands). Telemetry `__RAW_GPU__.ratingRibbon`.
+2. **Particle-carry (the "animations clearing" root) — DELIBERATELY NOT blind-shipped**: every
+   dims/bounds change reseeds all 87k particles (log: constant "Resetting particle state
+   textures"). The existing carry (`__RAW_ENABLE_PARTICLE_CARRY__`, 2aef0abf) is default-OFF due
+   to a DOCUMENTED live regression (2026-07-06: carried particles sat on fine-mask land — needs a
+   swap-time land cull in the advect path first). That is advect-shader minefield work that can
+   only be judged by the user's eyes per iteration → run it as its OWN arc: (a) scope carry to
+   same-model/same-layer swaps whose MASK TIER didn't change (the regression was a mask-era
+   mismatch), (b) add the shader-side land sweep for N frames post-swap, (c) user A/Bs
+   `__RAW_ENABLE_PARTICLE_CARRY__` live BEFORE any default flip.
+3. **Dynamic-lane fetch timeout — CONFIRMED GAP**: marineGridSeries has a 45 s local abort;
+   the dynamic/single-grid lane (backendWeatherServiceClient) has NONE — that's the deploy-window
+   wedge class (in-flight dedup skips for minutes). Fix at the FETCH CALL (mirror the series
+   pattern), NEVER at the lock/watchdog layer (useMarineScrubSettle = designated minefield).
+4. Round-4 unrated-frame flashes: backend `_frame_rating_mode` is honest per-frame; a regional
+   frame arriving unrated in rating mode means the SERVER skipped the transform for that frame
+   (deploy-window exception path stamps `surf_skip_reason` in diagnostics). The forensic ring now
+   records every commit's rating flag — the next clean-session dump resolves this class.
 
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).

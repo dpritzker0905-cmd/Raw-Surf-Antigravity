@@ -88,6 +88,32 @@ export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEng
   return { bandMult, washStrength, fade };
 }
 
+// === COASTAL-RIBBON taper resolution (pure; exported for tests) ===
+// USER SPEC (2026-07-12, revised same day from "a couple miles"): the rating band extends
+// ~10 MILES out into the water and tapers into the honest heatmap. is_coastal classifies whole
+// CELLS within ±0.75° (~50 mi), so the narrowing is per-pixel in the fragment shader
+// (landInRing ring-samples of the ocean mask); this resolver just supplies the radius + floor.
+//  * radius: __RAW_RATING_RIBBON_MI__ (default 10) converted at ~69 statute miles per ° latitude.
+//  * MASK-RESOLUTION FLOOR: on the coarse world mask (texel ≈ 24 mi) a 10-mi ribbon is
+//    sub-texel and would erase the band before a crisp mask lands — widen to ~1.6 texels and
+//    let it tighten the moment a denser mask commits (coarse-but-present beats missing, the
+//    standing ribbon-spec rule).
+//  * floor: beyond the ribbon the band goes fully transparent when the honest wash draws
+//    underneath (the trade-places spec); a dim 0.3 ghost when no wash is engaged (blank-map
+//    floor lesson, same family as the zoom cross-fade and coarse-fade floors).
+// Kill: __RAW_RATING_RIBBON_DISABLED__ (radiusDeg 0 → the shader skips all ribbon sampling).
+export function resolveRibbonTaper(win, maskTexelDeg, washUnder) {
+  const w = win || {};
+  if (w.__RAW_RATING_RIBBON_DISABLED__ === true) return { radiusDeg: 0.0, floor: 1.0 };
+  const mi = (typeof w.__RAW_RATING_RIBBON_MI__ === 'number') ? w.__RAW_RATING_RIBBON_MI__ : 10.0;
+  if (!(mi > 0)) return { radiusDeg: 0.0, floor: 1.0 };
+  let radiusDeg = mi / 69.0;
+  if (typeof maskTexelDeg === 'number' && maskTexelDeg > 0) {
+    radiusDeg = Math.max(radiusDeg, 1.6 * maskTexelDeg);
+  }
+  return { radiusDeg, floor: washUnder ? 0.0 : 0.3 };
+}
+
 // Longitude span of a grid's bounds in degrees (antimeridian-safe).
 function boundsLonSpan(b) {
   if (!b || typeof b.west !== 'number' || typeof b.east !== 'number') return 0;
@@ -1214,6 +1240,25 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), surfModeVal);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
 
+    // COASTAL RIBBON (user spec ~10 mi, see resolveRibbonTaper): only the band pays — radius is
+    // forced 0 on honest frames so the shader never ring-samples outside rating mode.
+    const _ribbon = resolveRibbonTaper(
+      (typeof window !== 'undefined') ? window : null,
+      (this._cachedMaskTexDims && this._cachedMaskBounds)
+        ? 1.0 / Math.max(1e-6, maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds))
+        : null,
+      blendEngaged);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'),
+      (surfModeVal > 0.5) ? _ribbon.radiusDeg : 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonFloor'), _ribbon.floor);
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.ratingRibbon = {
+        active: surfModeVal > 0.5 && _ribbon.radiusDeg > 0,
+        radiusDeg: _ribbon.radiusDeg, radiusMi: +(_ribbon.radiusDeg * 69).toFixed(1),
+        floor: _ribbon.floor,
+      };
+    }
+
     // BLEND BOTH: on the regional overlay pass, fade near-flat cells so the coarse base wash shows through.
     // Off (0) on every non-blend frame → the shader factor is forced to 1 → no behavior change. lo/hi tunable live.
     const _haLo = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_HEIGHT_LO__ === 'number') ? window.__RAW_BLEND_HEIGHT_LO__ : 0.05;
@@ -2100,6 +2145,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), 0.0);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'), 0.0); // honest wash: never ring-sample
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), 0.0);

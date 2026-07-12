@@ -67,6 +67,8 @@ uniform highp vec2 u_dataBounds_min;   // [west, south]
 uniform highp vec2 u_dataBounds_max;   // [east, north]
 uniform highp vec2 u_maskBounds_min;   // [west, south] of the OCEAN-MASK texture (== the data grid; kept separate for auditability)
 uniform highp vec2 u_maskBounds_max;   // [east, north]
+uniform highp float u_ribbonRadiusDeg; // surf-band coastal-RIBBON radius in ° latitude (0 = ribbon narrowing off)
+uniform highp float u_ribbonFloor;     // band alpha floor beyond the ribbon (0 when the honest wash shows underneath)
 uniform sampler2D u_overlayMaskTexture; // VIEWPORT-truth land mask (basemap water polygons) — valid only inside u_overlayBounds
 uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixels OUTSIDE fall back to u_oceanMaskTexture (stale-safe by construction)
 uniform highp vec2 u_overlayBounds_max; // [east, north]
@@ -238,6 +240,42 @@ vec3 getRatingColorSmooth(float s) {
   return c6;
 }
 
+// ── COASTAL RIBBON helpers (2026-07-12 USER SPEC: the rating band extends ~10 miles out and
+// tapers into the honest heatmap — is_coastal CELLS reach ~50 mi, so the narrowing must be
+// per-pixel). Distance-to-coast proxy: sample the BASE ocean mask (u_oceanMaskTexture) on rings
+// around the fragment — land inside the inner ring = full band; land only inside the outer
+// (1.6×) ring = half band; none = u_ribbonFloor. Base mask only: the viewport overlay adds
+// harbor-scale detail a 10-mi ribbon doesn't need, and doubling 16 samples with overlay
+// branches isn't worth it. The band branch is the ONLY caller (u_surfMode > 0.5) — the honest
+// swell path never pays for these samples.
+float oceanAtGeo(float slng, float slat) {
+  float mMinY = latToMercatorY(u_maskBounds_max.y);
+  float mMaxY = latToMercatorY(u_maskBounds_min.y);
+  float su;
+  if (u_maskBounds_min.x > u_maskBounds_max.x) {
+    float mspan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+    su = mod(slng - u_maskBounds_min.x, 360.0) / max(mspan, 0.0001);
+  } else {
+    su = (slng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+  }
+  float sv = (mMaxY - latToMercatorY(slat)) / max(mMaxY - mMinY, 0.0001);
+  return texture2D(u_oceanMaskTexture, vec2(su, sv)).r;
+}
+
+float landInRing(float lng, float lat, float rDeg) {
+  float rx = rDeg / max(cos(radians(lat)), 0.2);   // lng offset shrinks with latitude
+  float dg = 0.70710678;                           // 45° diagonal component
+  float land = 1.0 - oceanAtGeo(lng + rx, lat);
+  land = max(land, 1.0 - oceanAtGeo(lng - rx, lat));
+  land = max(land, 1.0 - oceanAtGeo(lng, lat + rDeg));
+  land = max(land, 1.0 - oceanAtGeo(lng, lat - rDeg));
+  land = max(land, 1.0 - oceanAtGeo(lng + rx * dg, lat + rDeg * dg));
+  land = max(land, 1.0 - oceanAtGeo(lng + rx * dg, lat - rDeg * dg));
+  land = max(land, 1.0 - oceanAtGeo(lng - rx * dg, lat + rDeg * dg));
+  land = max(land, 1.0 - oceanAtGeo(lng - rx * dg, lat - rDeg * dg));
+  return clamp(land, 0.0, 1.0);
+}
+
 void main() {
   float lng = v_mercator_xy.x * 360.0 - 180.0 - u_lng_offset;
   float lat = mercatorYToLat(v_mercator_xy.y);
@@ -344,6 +382,16 @@ void main() {
     float presence = smoothstep(0.05, 1.2, ratingScore);
     float vividness = 0.55 + 0.45 * smoothstep(1.0, 5.0, ratingScore);
     float bandAlpha = u_opacity * presence * vividness * smoothstep(0.05, 0.45, oceanAlpha);
+    // COASTAL RIBBON (user spec, ~10 mi tunable): full band while land is within the inner ring,
+    // half through the outer (1.6×) ring, then u_ribbonFloor (0 when the honest wash shows
+    // underneath — the band literally trades places with the heatmap offshore; a dim 0.3 ghost
+    // when no wash is engaged, the blank-map floor lesson). u_ribbonRadiusDeg=0 disables (kill
+    // switch / non-ribbon builds) with zero extra samples paid on the honest path either way.
+    if (u_ribbonRadiusDeg > 0.0) {
+      float ribbon = max(landInRing(lng, lat, u_ribbonRadiusDeg),
+                         0.5 * landInRing(lng, lat, u_ribbonRadiusDeg * 1.6));
+      bandAlpha *= max(ribbon, u_ribbonFloor);
+    }
     if (u_edgeFeatherEnabled > 0.5) {
       float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);
       float edgeDistY = min(grid_uv.y, 1.0 - grid_uv.y);
