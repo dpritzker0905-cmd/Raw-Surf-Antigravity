@@ -238,6 +238,27 @@ settle-gated fetches; design mock for USER approval BEFORE build.
    (c) coverage-release hysteresis (release at <0.5 but re-accept fine at >0.6 — flap damping).
    ⚠️ (a)/(c) touch the settle/orchestrator minefield — own arc, forensic ring before/after.
 
+## ROUND-10 DATA-TRUTH PROBE (2026-07-13 ~23Z, Canaveral, all 3 models × 3 tiers × 2 NDBC buoys)
+Probe script: scratchpad `data_truth_probe.py` (rerunnable). VERDICTS:
+1. **HEIGHTS CORRECT EVERYWHERE**: GFS fine 0.5-1.0 m / mid+coarse 0.7 m; EURO 0.6-0.7 m; ICON
+   0.7-0.9 m; NDBC 41009 = 0.7 m. Three models × three tiers × real buoy all agree — the heatmap
+   COLOR field is truthful. Mid ingestion reuses the SAME fetchers as coarse → inherits the 07-02
+   energy-mean direction fix (27b946e5/b6db704b). No pipeline defect found.
+2. **THE RADIAL "LOW-PRESSURE" PATTERN IS IN THE *REAL* SEA STATE, not a defect**: tonight's sea
+   off Canaveral is WEAK + MIXED with genuinely OPPOSING trains — buoy 41009 (offshore): 0.7 m
+   4-s windsea FROM 268° (west); buoy 41113 (nearshore): 0.3 m 11-s swell FROM 106° (ESE). In the
+   GFS 0.25° grid each cell's TOTAL mean direction flips to whichever train barely wins → adjacent
+   cells point W-ish vs E-ish (probe: dirs 94/336/108/349/257 within 1.5°; measured radial-source
+   score **+0.49 over 132 cells IN THE SERVED DATA**). The renderer faithfully animates that.
+   EURO/ICON (2° ceiling) show a single uniform direction here — pattern is GFS-fine-specific.
+3. IMPLICATION: total-energy-mean direction is a POOR animation driver in weak mixed seas (the
+   confused-sea damping 9836f75f dims but does not re-aim). PRODUCT DECISION NEEDED (do not build
+   without user sign-off — changes what the animation MEANS): drive crest/particle u/v from the
+   DOMINANT SWELL train (partitions already ingested per model) while height stays TOTAL — the
+   surfer-relevant motion, immune to windsea flip-flop. Alternative: strengthen confused-sea
+   damping when opposing-train energy ratio is near 1. The magnification vortex gate (round-9)
+   remains correct for the separate coarse-cell magnification artifact.
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).
