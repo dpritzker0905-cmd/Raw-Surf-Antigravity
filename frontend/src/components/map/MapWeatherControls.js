@@ -545,6 +545,34 @@ export var MapWeatherControls = ({
           </div>
         </div>
 
+        {/* Wheel step row (2026-07-13, user: "you're missing the bottom buttons" — the approved
+            mock's −1d/−1h/Now/+1h/+1d controls, restored for pointer/touch users; keyboard
+            equivalents live on the wheel itself). Forecast mode only — radar keeps its dedicated
+            frame-step buttons above. Theme-aware via chipBg/btnHover/textMuted. */}
+        {useWheel && !isRadar && (
+          <div className="flex items-center justify-center gap-1.5 mt-1.5">
+            {[
+              { label: '−1d', delta: -24 }, { label: '−1h', delta: -1 },
+              { label: 'Now', delta: null },
+              { label: '+1h', delta: 1 }, { label: '+1d', delta: 24 },
+            ].map(({ label, delta }) => (
+              <button
+                key={label}
+                type="button"
+                onClick={() => {
+                  const v = delta === null ? 0 : Math.max(0, Math.min(maxForecastHours, sliderVal + delta));
+                  setSliderVal(v);
+                  onTimeChange(v);
+                }}
+                className={`text-[9px] leading-none font-bold px-2 py-1 rounded-full border ${chipBg} ${btnHover} ${textMuted} transition-colors`}
+                aria-label={delta === null ? 'Jump to now' : `Step ${label.replace('−', 'minus ')}`}
+              >
+                {label}
+              </button>
+            ))}
+          </div>
+        )}
+
         {/* v3.8: Day tick labels beneath scrubber — classic slider only (the wheel's drum
             carries its own day ticks + labels). */}
         {!useWheel && !isRadar && maxForecastHours > 24 && (

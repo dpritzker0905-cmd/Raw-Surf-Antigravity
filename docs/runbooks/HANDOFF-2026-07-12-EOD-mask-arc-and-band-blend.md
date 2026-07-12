@@ -214,6 +214,30 @@ settle-gated fetches; design mock for USER approval BEFORE build.
    session (server-side, watch post-CORS-fix); backstop `series={loads:undefined...}` diag gap
    (cosmetic); triple-encode at boot still present (perf arc).
 
+## ROUND-9: vortex magnification gate + wheel step row + THE SERIES-THRASH DECODE
+1. **"Low-pressure center" at z8 — FIXED (magnification gate):** the radial wave pattern is the
+   documented bilinear-vortex synthesized between divergent cell headings; the legacy gate
+   (`isCoarseGlobalGrid && z3.5–7`) could never catch MID grids. `isMagnifiedCoarseField(cellDeg,
+   zoom)` re-keys on px-per-cell (≥80 px, cellDeg ≥1° only — fine grids never gate; 10°@z3.5 ≈
+   80 px preserves the legacy onset BY CONSTRUCTION). Kill `__RAW_VORTEX_MAG_GATE_DISABLED__`
+   (legacy verbatim), lever `__RAW_VORTEX_MIN_CELL_PX__`, telemetry `__RAW_GPU__.vortexGate`.
+2. **Wheel step row restored** (user caught the omission): −1d/−1h/Now/+1h/+1d under the wheel,
+   forecast mode only (radar keeps frame steppers), theme-aware, all layouts via renderTimeline.
+3. **SERIES/TIER-THRASH DECODE (the standing clamp bug, now fully characterized from 3 rounds of
+   logs — next real fix arc):** the repeating shape is a LOOP: (i) pan → fine tile coverage <0.6 →
+   guard releases; (ii) SWR/mid lane commits a 2°/cell clip (5×4/7×7/9×9 accepted at z7–9.3);
+   (iii) regional_too_coarse fires → SCRUB-SETTLE commits a covering fine series frame;
+   (iv) ANOTHER mid revalidation lands (round-9 log: FIVE separate global_mid backendResponses in
+   ~1 min) and on the next coverage dip the mid re-takes residency → goto (iii). Aggravators:
+   series page misses (grid_series page-3 fetch failures h144-285, misses 13-14 while backstop
+   loops) and the SWR mid-reval storm (why 5×? dedupe/backoff candidates: key mid revals by
+   snapped viewport + hour, drop while a fine resident covers). Fix candidates in rising risk:
+   (a) suppress mid-tier SWR revalidations while a covering FINE resident exists (server serves
+   mid only as hole-filler — the client re-requesting it while fine is resident is pure churn);
+   (b) series page fetch resilience (retry/backoff on failed pages, currently silent misses);
+   (c) coverage-release hysteresis (release at <0.5 but re-accept fine at >0.6 — flap damping).
+   ⚠️ (a)/(c) touch the settle/orchestrator minefield — own arc, forensic ring before/after.
+
 ## STANDING CONTEXT
 - EURO band verified end-to-end incl. estimated far-hour tail (user-confirmed + logs).
 - ICON far-hour gap: icon_marine_extension lacks global_mid (fix spec in memory).

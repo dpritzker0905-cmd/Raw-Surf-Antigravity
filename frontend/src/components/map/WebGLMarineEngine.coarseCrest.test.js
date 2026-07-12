@@ -95,3 +95,48 @@ describe('nearest-direction shader plumbing', () => {
     expect(DRAW_VS).toContain('(1.0 - u_farzoomSizeFloor) + u_farzoomSizeFloor');
   });
 });
+
+// === isMagnifiedCoarseField (2026-07-13, the Canaveral "low-pressure center" fix) ===
+// The vortex gate re-keyed on CELL MAGNIFICATION: the legacy coarse-global-only z3.5–7 band
+// missed 2°/cell MID grids magnified at z7–9.3 (live log: 5×4/7×7/9×9 mid residents at those
+// zooms bilinear-swirling into radial "sources"). 80 px/cell preserves the legacy onset by
+// construction: a 10° cell at z3.5 is ~80 screen px.
+// eslint-disable-next-line import/first
+import { isMagnifiedCoarseField } from './WebGLMarineEngine';
+
+describe('isMagnifiedCoarseField — vortex gate by cell magnification', () => {
+  it('matches the legacy onset by construction: 10deg cells engage at ~z3.5, not below', () => {
+    expect(isMagnifiedCoarseField(10, 3.5, {})).toBe(true);    // ~80.4 px/cell
+    expect(isMagnifiedCoarseField(10, 3.0, {})).toBe(false);   // ~56.9 px/cell
+  });
+
+  it("catches the user's live case: a 2deg mid cell at z8.6 (~550+ px) ENGAGES", () => {
+    expect(isMagnifiedCoarseField(2, 8.63, {})).toBe(true);
+    expect(isMagnifiedCoarseField(1.8, 9.3, {})).toBe(true);   // the accepted 5x4 mid clip
+  });
+
+  it('mid cells zoomed OUT stay ungated (many cells on screen, no swirl)', () => {
+    expect(isMagnifiedCoarseField(2, 5.0, {})).toBe(false);    // ~45 px/cell
+  });
+
+  it('FINE grids never gate regardless of zoom (coherent neighbors; per-cell motion would regress)', () => {
+    expect(isMagnifiedCoarseField(0.25, 10, {})).toBe(false);
+    expect(isMagnifiedCoarseField(0.31, 12, {})).toBe(false);
+    expect(isMagnifiedCoarseField(0.99, 14, {})).toBe(false);
+  });
+
+  it('kill switch returns null (caller falls back to the legacy band predicate verbatim)', () => {
+    expect(isMagnifiedCoarseField(2, 8.6, { __RAW_VORTEX_MAG_GATE_DISABLED__: true })).toBe(null);
+  });
+
+  it('threshold is a live lever (__RAW_VORTEX_MIN_CELL_PX__)', () => {
+    expect(isMagnifiedCoarseField(2, 5.0, { __RAW_VORTEX_MIN_CELL_PX__: 40 })).toBe(true);
+    expect(isMagnifiedCoarseField(10, 3.5, { __RAW_VORTEX_MIN_CELL_PX__: 200 })).toBe(false);
+  });
+
+  it('unknown inputs fail SAFE (no gate)', () => {
+    expect(isMagnifiedCoarseField(null, 8, {})).toBe(false);
+    expect(isMagnifiedCoarseField(undefined, 8, {})).toBe(false);
+    expect(isMagnifiedCoarseField(2, undefined, {})).toBe(false);
+  });
+});

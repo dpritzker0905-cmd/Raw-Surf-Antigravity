@@ -265,6 +265,27 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
 // Modes via window.__RAW_COARSE_CREST_MODE__: 'nearest' (default) | 'suppress' (the 2026-07-01 behavior;
 // __RAW_DIR_COHERENCE_MIN__ 0..1 = partial cull) | 'off'. Kill switch (legacy bilinear crests — vortex risk,
 // forensics only): window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ = true.
+// === VORTEX GATE BY CELL MAGNIFICATION (pure; exported for tests) ===
+// 2026-07-13 (user, live at z~8.6 off Canaveral: "waves leaving a center point... like a low
+// pressure center" — that pattern is SYNTHESIZED by bilinear blending between a handful of
+// divergent cell-center headings, the documented vortex root). The legacy gate below keyed on
+// isCoarseGlobalGrid + the empirical z3.5–7 band, so MID-tier grids (2°/cell, regional bounds)
+// magnified at z7–9.3 were never gated — the user's log proved 5×4/7×7/9×9 mid grids resident at
+// those zooms. Re-key on what actually causes the artifact: CELL MAGNIFICATION. The legacy onset
+// is preserved by construction — a 10° cell at z3.5 is ~80 screen px, exactly this threshold.
+// cellDeg < 1.0 never gates (fine/regional neighbors are coherent; per-cell uniform motion there
+// would be a blocky-motion regression). Returns null when the legacy predicate should be used
+// (kill switch __RAW_VORTEX_MAG_GATE_DISABLED__). Tune: __RAW_VORTEX_MIN_CELL_PX__ (default 80).
+export function isMagnifiedCoarseField(cellDeg, zoom, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_VORTEX_MAG_GATE_DISABLED__ === true) return null;
+  if (cellDeg === null || cellDeg === undefined || typeof zoom !== 'number') return false;
+  if (cellDeg < 1.0) return false;
+  const pxPerCell = cellDeg * (256 * Math.pow(2, zoom)) / 360;
+  const minPx = (typeof w.__RAW_VORTEX_MIN_CELL_PX__ === 'number') ? w.__RAW_VORTEX_MIN_CELL_PX__ : 80;
+  return pxPerCell >= minPx;
+}
+
 export function resolveCoarseCrestControls(inVortexBand, win) {
   if (!inVortexBand) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -761,8 +782,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // cell (near-uniform direction, no vortex) and BELOW ~z3.5 you see many cells (a global field, no
     // per-cell swirl). In the band, resolveCoarseCrestControls picks the crest strategy — default 'nearest'
     // (cell-center direction sampling: crests animate, no swirl); 'suppress' = the 2026-07-01 full discard.
-    const _inVortexBand = _residentCoarseGlobal && z > COARSE_CREST_BAND_MIN_ZOOM && z <= MARINE_ZOOMED_OUT_MAX_ZOOM;
+    // MAGNIFICATION-KEYED GATE (2026-07-13, the Canaveral "low-pressure center" report): the
+    // legacy predicate (coarse-GLOBAL only + empirical z3.5–7 band) missed MID-tier 2°/cell
+    // grids magnified at z7–9.3, which bilinear-swirl exactly like the world grid did. Key on
+    // px-per-cell instead (see isMagnifiedCoarseField — 80 px preserves the legacy onset by
+    // construction). Kill __RAW_VORTEX_MAG_GATE_DISABLED__ restores the legacy band verbatim.
+    const _wgCellDeg = gridCellDeg(this._waveData && this._waveData.waveGrid);
+    const _magGate = isMagnifiedCoarseField(_wgCellDeg, z, typeof window !== 'undefined' ? window : null);
+    const _inVortexBand = (_magGate === null)
+      ? (_residentCoarseGlobal && z > COARSE_CREST_BAND_MIN_ZOOM && z <= MARINE_ZOOMED_OUT_MAX_ZOOM)
+      : _magGate;
     const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null);
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.vortexGate = {
+        cellDeg: _wgCellDeg, zoom: +z.toFixed(2), engaged: _inVortexBand, mode: _ccc.mode,
+        legacy: _magGate === null,
+      };
+    }
     let dirCoherenceMin = _ccc.dirCoherenceMin;
     // COARSE-GLOBAL CLOSE-ZOOM crest suppression (2026-07-04, "waves over Venice z7.67-22, fixes
     // itself on zoom-out"): above the vortex band the old logic re-ENABLED crests on a coarse
