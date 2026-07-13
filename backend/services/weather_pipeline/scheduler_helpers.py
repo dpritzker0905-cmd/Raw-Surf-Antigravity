@@ -448,6 +448,18 @@ def get_pilot_regions() -> dict:
     return _select_rotating_regions(REGIONAL_CONFIGS, list(WORLDWIDE_COASTAL_REGIONS.items()), per_cycle, cycle_index)
 
 
+def get_all_pilot_regions() -> dict:
+    """Flagship + ALL worldwide coastal regions — NO rotation (2026-07-13, multi-bbox arc): for the
+    single-download-pass fetchers (GWAM/ECMWF wave stream), extra regions cost only in-memory
+    sampling + product saves, not downloads, so EVERY region refreshes EVERY cycle instead of every
+    ~4 cycles. The rotation (get_pilot_regions) remains for per-region-download lanes (GFS/NOAA
+    byte-range, wind pilots). Same gates: WORLDWIDE_COASTAL=0 / test env -> flagship-only."""
+    from services.weather_pipeline.copernicus_validator import is_test_environment
+    if os.environ.get("WORLDWIDE_COASTAL", "1") == "0" or is_test_environment():
+        return dict(REGIONAL_CONFIGS)
+    return {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
+
+
 def find_nearest_manifest_product(
     manifest, model: str, domain: str, layer: str, region_id: str,
     target_time: datetime, max_delta_hours: float = 3.0

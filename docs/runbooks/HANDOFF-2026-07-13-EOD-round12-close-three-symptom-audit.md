@@ -203,12 +203,26 @@ lane (~174-180/200 total). Kills: `EURO_MARINE_PILOT_INGEST=0` (repo Actions var
 VERIFY after next pilots run (17:45Z+ slot): EURO rating band at FL/SoCal z8-9 should commit
 `euro_marine_waves_florida_east_coast`/`..._us_west_coast_socal` (~17-25 cols at spanLng 4-6)
 instead of the 7×6 mid clip.
-**QUEUED (worldwide fine tiles for ICON+EURO): multi-bbox single-download-pass fetcher** — the
-GWAM/ECMWF fetchers download whole-globe per-(var,hour) files, so per-region passes re-download
-identical bytes; a `bboxes:{region_id:bbox}` payload sampling N regions per decoded file gives
-worldwide fine tiles for ~one region's cost. Touches `_fetch_common.run_fetcher_subprocess`'s
-output contract (list → keyed dict) = shared plumbing across ALL fetchers → own careful arc.
-Also queued: GFS marine pilot 51-min budget audit (§4b), §7g-β, §1c residual.
+**§4d MULTI-BBOX SINGLE-DOWNLOAD-PASS — SHIPPED (same day, ~17-18Z):** worldwide fine tiles for
+ICON+EURO at ~one region's download cost. Design verified first: `run_fetcher_subprocess` does
+NO output validation (just json.load → return) so a keyed dict flows through with ZERO shared-
+plumbing changes — the envelope is `{"__multi_region__": true, "regions": {rid: [points]}}`,
+produced only when the payload carries `bboxes: {region_id: bbox}`; the single-bbox path is
+byte-identical. Both fetchers (dwd_gwam_fetcher, ecmwf_opendata_fetcher — ALL layers) build
+per-region idx_maps on the first decoded message and sample every region per field; the ECMWF
+stream-and-discard RAM discipline is preserved (peak = one field + tiny sampled lists).
+Services: `fetch_icon_marine_regions` / `fetch_euro_marine_waves_regions` (900s caps).
+`get_all_pilot_regions()` = flagship + ALL 8 worldwide, NO rotation (every region fresh every
+cycle; WORLDWIDE_COASTAL=0 / test env → flagship-only). Both pilot impls now live in
+marine_mid_res_ingestion.py (scheduler.py 776→701 LOC) and are MULTI-FIRST with the proven
+per-region flagship path as automatic fallback (multi fails → today's live-verified behavior).
+Est. lane cost: ICON ~6-9 min + EURO ~3-6 min for ALL 10 regions (was ~7 min per region·model).
+Tests: multi single-pass (call count == 1 + per-region products) ×2 models, fallback-path
+regression (existing tests re-scoped), `get_all_pilot_regions` gates. BE 679/2928.
+VERIFY after next pilots run: ICON/EURO rating band at Hawaii/Iberia/etc (NON-flagship) should
+commit `icon_marine_waves_hawaii` / `euro_marine_waves_hawaii`-style 0.25° regional products;
+run log shows "multi-region OK: 10 regions in one pass".
+Still queued: GFS marine pilot 51-min budget audit (§4b), §7g-β, §1c residual.
 
 ## §5 VERIFICATION RECIPES
 - Melt check: `GET /api/weather/spot-ratings?...` → `source` field. precomputed ≈1–2 s good.

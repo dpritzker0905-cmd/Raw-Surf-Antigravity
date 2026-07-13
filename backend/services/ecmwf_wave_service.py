@@ -31,3 +31,27 @@ async def fetch_euro_marine_waves_global(
         log_tag="ECMWF EURO-Waves", out_prefix="ecmwfwave_global",
         extra_payload={"layer": "waves"}, timeout=timeout_s,
     )
+
+
+async def fetch_euro_marine_waves_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 2,
+    timeout_s: int = 900,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass (2026-07-13): ONE ECMWF wave-stream retrieve samples EVERY
+    region in `bboxes` ({region_id: bbox}) — N regions for one region's download cost (ECMWF ships
+    a single whole-globe multi-step file). Returns {region_id: [points]} or None (caller falls back
+    to the per-region flagship path). None in test env."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await run_fetcher_subprocess(
+        "ecmwf_opendata_fetcher.py", first, resolution, forecast_days,
+        log_tag="ECMWF EURO-Waves multi", out_prefix="ecmwfwave_regions", timeout=timeout_s,
+        extra_payload={"layer": "waves", "bboxes": bboxes},
+    )
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None

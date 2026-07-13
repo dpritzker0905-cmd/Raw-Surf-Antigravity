@@ -27,3 +27,29 @@ async def fetch_icon_marine_global_coarse(
         "dwd_gwam_fetcher.py", bbox, resolution, forecast_days,
         log_tag="DWD GWAM", out_prefix="gwam_global", timeout=timeout_s,
     )
+
+
+async def fetch_icon_marine_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 2,
+    timeout_s: int = 900,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass (2026-07-13): ONE GWAM download pass samples EVERY region in
+    `bboxes` ({region_id: bbox}) — N regions for one region's download cost (DWD has no spatial
+    byte-range; per-region passes re-download identical whole-globe files, the pilots-lane budget
+    lesson from run 29249603524). Returns {region_id: [Open-Meteo-shaped points]} or None (caller
+    falls back to the per-region flagship path). None in test env (run_fetcher_subprocess
+    short-circuit, same as every fetcher)."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await run_fetcher_subprocess(
+        "dwd_gwam_fetcher.py", first, resolution, forecast_days,
+        log_tag="DWD GWAM multi", out_prefix="gwam_regions", timeout=timeout_s,
+        extra_payload={"bboxes": bboxes},
+    )
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None

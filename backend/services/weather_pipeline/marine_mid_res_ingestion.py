@@ -14,6 +14,12 @@ the 800-LOC ceiling — same pattern as pressure_ingestion / wind_ingestion. Pro
 siblings exactly (native GFS ncep_gfswave025 / native ICON dwd_gwam / native CMEMS for EURO's primary
 horizon) so the normalizer derives is_estimated/source_dataset unchanged — real-vs-estimated truth is
 preserved, nothing relabeled.
+
+Since 2026-07-13 this module ALSO hosts the ICON/EURO regional 0.25° PILOT impls (`ingest_icon_
+marine_pilot_impl` / `ingest_euro_marine_pilot_impl`) — the close-zoom / rating-band fine tiles.
+Both are MULTI-BBOX-FIRST: one whole-globe download pass samples flagship + ALL worldwide regions
+(get_all_pilot_regions — no rotation staleness), falling back to the bounded per-region flagship
+path when the multi fetch fails.
 """
 import os
 import logging
@@ -244,6 +250,115 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
     return total_saved > 0
 
 
+def _icon_pilot_layers():
+    return ["waves", "swell_1", "wind_waves"]   # gwam has no secondary swell (matches ICON global)
+
+
+async def _save_marine_regional(scheduler, env, run_time, model, layers, region_id, region,
+                                results, save_step, log_tag) -> int:
+    """Save `results` as regional_tile products for each layer + prune superseded. Shared by the
+    multi-bbox and per-region pilot paths (identical manifest shape either way)."""
+    saved = 0
+    resolution = float(region.get("resolution", 0.25))
+    for layer in layers:
+        count = await normalize_and_save_loop(
+            scheduler.normalizer, scheduler.store, results,
+            model=model, provider="open-meteo", domain="marine", layer=layer,
+            bbox=region, resolution=resolution, run_time=run_time,
+            region_id=region_id, coverage_mode="regional_tile",
+            is_test_env=env["is_test_env"], step=save_step,
+            log_prefix=f"[Pipeline Scheduler] {log_tag} {layer} {region_id}"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} {model} {layer} products for region {region_id}.")
+        saved += count
+        if count > 0:
+            scheduler.store.prune_superseded_products(model, "marine", layer, region_id, run_time)
+    return saved
+
+
+async def ingest_icon_marine_pilot_impl(scheduler) -> bool:
+    """ICON marine 0.25° REGIONAL pilot (round-12 §2a-i, the ICON close-zoom / rating-band fix).
+    GWAM is natively 0.25° (probe-verified). MULTI-BBOX FIRST (2026-07-13): ONE GWAM download pass
+    samples flagship + ALL worldwide regions (get_all_pilot_regions — every region refreshes every
+    cycle; DWD has no spatial byte-range, so per-region passes re-download identical whole-globe
+    files — the run 29249603524 budget post-mortem). Falls back to the bounded per-region flagship
+    path (DWD-direct 600 s cap → open-meteo) when the multi fetch fails. Horizon
+    ICON_MARINE_PILOT_FORECAST_DAYS default 2 (far hours fall through to mid/global via the
+    ladder). Kills: ICON_MARINE_PILOT_INGEST=0 (registration site) / ICON_MARINE_DWD_DIRECT=0
+    (skips DWD entirely → per-region open-meteo fallback path)."""
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS, get_all_pilot_regions
+    logger.info("[Pipeline Scheduler] Starting ICON Marine Pilot (regional 0.25°) job...")
+    env = get_env_flags()
+    run_time = datetime.now(timezone.utc)
+    total_saved = 0
+    dwd_direct = os.environ.get("ICON_MARINE_DWD_DIRECT", "1") != "0"
+    forecast_days = int(os.environ.get("ICON_MARINE_PILOT_FORECAST_DAYS", "2"))
+    layers = _icon_pilot_layers()
+
+    # ══ MULTI-BBOX single-download-pass: all regions for one region's download cost ══
+    if dwd_direct:
+        regions_all = get_all_pilot_regions()
+        multi = None
+        try:
+            from services.dwd_marine_service import fetch_icon_marine_regions
+            multi = await fetch_icon_marine_regions(regions_all, 0.25, forecast_days, timeout_s=900)
+        except Exception as _me:
+            logger.error(f"[Pipeline Scheduler] ICON marine multi-region fetch errored: {_me}")
+        if multi:
+            logger.info(f"[Pipeline Scheduler] ICON marine multi-region OK: {len(multi)} regions in one pass.")
+            for region_id, results in multi.items():
+                region = regions_all.get(region_id)
+                if not region or not results:
+                    continue
+                # DWD GWAM is natively 3-hourly -> step=1 keeps every step.
+                total_saved += await _save_marine_regional(
+                    scheduler, env, run_time, "ICON", layers, region_id, region, results, 1, "ICON")
+                await scheduler._cleanup_and_pause(results, 0)
+            if total_saved > 0:
+                logger.info(f"[Pipeline Scheduler] ICON Marine Pilot (multi) done! Saved {total_saved} products.")
+                return True
+        logger.warning("[Pipeline Scheduler] ICON marine multi-region unavailable; "
+                       "falling back to per-region flagship.")
+
+    # ══ FALLBACK: bounded per-region flagship (DWD-direct 600 s cap → open-meteo) ══
+    for region_id, region in dict(REGIONAL_CONFIGS).items():
+        resolution = float(region.get("resolution", 0.25))
+        logger.info(f"[Pipeline Scheduler] Ingesting ICON Marine for region: {region_id}")
+        results = None
+        from_dwd = False
+        if dwd_direct:
+            try:
+                from services.dwd_marine_service import fetch_icon_marine_global_coarse
+                results = await fetch_icon_marine_global_coarse(region, resolution, forecast_days,
+                                                                timeout_s=600)
+                if results:
+                    from_dwd = True
+                    logger.info(f"[Pipeline Scheduler] ICON marine DWD-direct OK for {region_id}: "
+                                f"{len(results)} points (off open-meteo).")
+            except Exception as _de:
+                logger.error(f"[Pipeline Scheduler] ICON marine DWD-direct fetch errored for {region_id}: {_de}")
+        if not results:
+            if dwd_direct:
+                logger.warning(f"[Pipeline Scheduler] ICON marine DWD-direct unavailable for {region_id}; "
+                               "falling back to open-meteo.")
+            results = await scheduler._fetch_or_mock(
+                "ICON", "marine", "all_marine", region, resolution, forecast_days,
+                env["is_test_env"],
+                lambda r=region, res=resolution: generate_mock_icon_marine_results(scheduler.om_provider, r, res),
+                region_id
+            )
+        if not results:
+            continue
+        # DWD GWAM is natively 3-hourly (step=1); open-meteo all_marine is hourly (step=3 -> 3-hourly).
+        total_saved += await _save_marine_regional(
+            scheduler, env, run_time, "ICON", layers, region_id, region, results,
+            1 if from_dwd else 3, "ICON")
+        await scheduler._cleanup_and_pause(results)
+
+    logger.info(f"[Pipeline Scheduler] ICON Marine Pilot done! Saved {total_saved} total conformed product files.")
+    return total_saved > 0
+
+
 async def ingest_euro_marine_pilot_impl(scheduler) -> bool:
     """EURO marine 0.25° REGIONAL pilot (2026-07-13, round-12 §2a follow-up — the EURO rating-band
     resolution fix): the EURO band was the last one stuck on the ~2° global_mid clip at close zoom
@@ -262,12 +377,35 @@ async def ingest_euro_marine_pilot_impl(scheduler) -> bool:
     provider='open-meteo' -> normalizer stamps source_dataset='ecmwf_wam025' (native, honest —
     mirrors the mid lane). Kill: EURO_MARINE_PILOT_INGEST=0 at the registration site (repo Actions
     variable, no commit needed)."""
-    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS, get_all_pilot_regions
     logger.info("[Pipeline Scheduler] Starting EURO Marine Pilot (regional 0.25°, ECMWF wave stream) job...")
     env = get_env_flags()
     run_time = datetime.now(timezone.utc)
     total_saved = 0
     forecast_days = int(os.environ.get("EURO_MARINE_PILOT_FORECAST_DAYS", "2"))
+
+    # ══ MULTI-BBOX single-download-pass: all regions for one region's download cost (2026-07-13) ══
+    regions_all = get_all_pilot_regions()
+    multi = None
+    try:
+        from services.ecmwf_wave_service import fetch_euro_marine_waves_regions
+        multi = await fetch_euro_marine_waves_regions(regions_all, 0.25, forecast_days, timeout_s=900)
+    except Exception as _me:
+        logger.error(f"[Pipeline Scheduler] EURO marine multi-region fetch errored: {_me}")
+    if multi:
+        logger.info(f"[Pipeline Scheduler] EURO marine multi-region OK: {len(multi)} regions in one pass.")
+        for region_id, results in multi.items():
+            region = regions_all.get(region_id)
+            if not region or not results:
+                continue
+            total_saved += await _save_marine_regional(
+                scheduler, env, run_time, "EURO", ["waves"], region_id, region, results, 1, "EURO waves (ecmwf)")
+            await scheduler._cleanup_and_pause(results, 0)
+        if total_saved > 0:
+            logger.info(f"[Pipeline Scheduler] EURO Marine Pilot (multi) done! Saved {total_saved} products.")
+            return True
+    logger.warning("[Pipeline Scheduler] EURO marine multi-region unavailable; "
+                   "falling back to per-region flagship.")
 
     for region_id, region in REGIONAL_CONFIGS.items():
         resolution = float(region.get("resolution", 0.25))

@@ -132,30 +132,40 @@ def _download_grib(requests, url, tmp):
 
 
 def fetch_global_coarse(payload):
-    """Return (points, steps_ok, steps_failed, times) for the coarse global grid via DWD GWAM."""
+    """Return (points_or_regions, steps_ok, steps_failed, times) for the global grid via DWD GWAM.
+
+    MULTI-BBOX (2026-07-13, single-download-pass): DWD publishes whole-globe files per (var, hour)
+    with no spatial byte-range, so per-region fetch passes re-download identical bytes — the pilots
+    lane blew its budget the first time the ICON pilot ran 4 regions (run 29249603524 post-mortem).
+    A payload `bboxes: {region_id: bbox}` samples EVERY region from each decoded field in ONE pass:
+    N regions for one region's download cost. Returns ({region_id: [points]}, ...) in multi mode;
+    the legacy single-`bbox` path is unchanged (list of points)."""
     import numpy as np
     import requests
     import pygrib
     import gc
 
-    bbox = payload["bbox"]
+    multi = payload.get("bboxes") or None            # {region_id: bbox} -> multi-region mode
+    regions = dict(multi) if multi else {"__single__": payload["bbox"]}
     resolution = float(payload.get("resolution", 10.0))
     forecast_days = int(payload.get("forecast_days", 7))
     max_f = min(int(forecast_days) * 24, 174)
 
-    lons = _coarse_axis(float(bbox["west"]), float(bbox["east"]), resolution)
-    lats = _coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
+    axes = {}    # rid -> (lats, lons)
+    for rid, bb in regions.items():
+        axes[rid] = (_coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
+                     _coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
     f_hours = list(range(0, max_f + 1, 3))
 
     cycle_dt, date, run = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
     if not date:
         sys.stderr.write("[dwd_gwam_fetcher] no complete GWAM run found on DWD opendata\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
-    n_pts = len(lats) * len(lons)
-    series = [{om: [] for om in OM_ORDER} for _ in range(n_pts)]
-    idx_map = None
+    series_by = {rid: [{om: [] for om in OM_ORDER} for _ in range(len(la) * len(lo))]
+                 for rid, (la, lo) in axes.items()}
+    idx_by = None    # rid -> [(r, c), ...] built together on the first decoded message
     times = []
     steps_ok = 0
     steps_failed = 0
@@ -170,7 +180,7 @@ def fetch_global_coarse(payload):
         # mean (VAR_MAP orders every height immediately before its direction). Reset per hour.
         height_arrs = {}
         try:
-            # Decode each variable's single-message file for this forecast hour.
+            # Decode each variable's single-message file for this forecast hour ONCE; sample all regions.
             for var, om, _u in VAR_MAP:
                 url = f"{BASE}/{run}/{var}/GWAM_{var.upper()}_{date}{run}_{f:03d}.grib2.bz2"
                 out = None
@@ -178,34 +188,40 @@ def fetch_global_coarse(payload):
                     out = _download_grib(requests, url, tmp)
                     grbs = pygrib.open(str(out))
                     msg = grbs.read()[0]
-                    if idx_map is None:
+                    if idx_by is None:
                         glats, glons = msg.latlons()
                         lat1d = np.asarray(glats[:, 0], dtype=float)
                         lon1d = np.asarray(glons[0, :], dtype=float)
                         is_360 = bool(lon1d.max() > 180.0)
-                        idx_map = []
-                        for la in lats:
-                            r = int(np.abs(lat1d - la).argmin())
-                            for lo in lons:
-                                tlon = (lo % 360.0) if is_360 else lo
-                                c = int(np.abs(lon1d - tlon).argmin())
-                                idx_map.append((r, c))
+                        idx_by = {}
+                        for rid, (lats, lons) in axes.items():
+                            im = []
+                            for la in lats:
+                                r = int(np.abs(lat1d - la).argmin())
+                                for lo in lons:
+                                    tlon = (lo % 360.0) if is_360 else lo
+                                    c = int(np.abs(lon1d - tlon).argmin())
+                                    im.append((r, c))
+                            idx_by[rid] = im
                     arr = np.ma.filled(np.ma.asarray(msg.values).astype(float), np.nan)
                     grbs.close()
                     if om in DIR_TO_HEIGHT.values():
                         height_arrs[om] = arr
                     h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
-                    for pi, (r, c) in enumerate(idx_map):
-                        if h_arr is not None:
-                            x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
-                        else:
-                            x = arr[r, c]
-                        series[pi][om].append(_sanitize_om(om, x))
+                    for rid, im in idx_by.items():
+                        series = series_by[rid]
+                        for pi, (r, c) in enumerate(im):
+                            if h_arr is not None:
+                                x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                            else:
+                                x = arr[r, c]
+                            series[pi][om].append(_sanitize_om(om, x))
                 except Exception as ve:
                     # one variable failed this hour -> None for it; keep series lengths aligned
-                    for pi in range(n_pts):
-                        if len(series[pi][om]) < target_len:
-                            series[pi][om].append(None)
+                    for series in series_by.values():
+                        for pt in series:
+                            if len(pt[om]) < target_len:
+                                pt[om].append(None)
                     sys.stderr.write(f"[dwd_gwam_fetcher] {var} f{f:03d} failed: {type(ve).__name__}: {ve}\n")
                 finally:
                     try:
@@ -216,36 +232,44 @@ def fetch_global_coarse(payload):
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_ok += 1
         except Exception as e:
-            for pi in range(n_pts):
-                for om in OM_ORDER:
-                    if len(series[pi][om]) < target_len:
-                        series[pi][om].append(None)
+            for series in series_by.values():
+                for pt in series:
+                    for om in OM_ORDER:
+                        if len(pt[om]) < target_len:
+                            pt[om].append(None)
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_failed += 1
             sys.stderr.write(f"[dwd_gwam_fetcher] f{f:03d} failed: {type(e).__name__}: {e}\n")
         finally:
             gc.collect()
 
-    if idx_map is None:
-        return [], 0, steps_failed, None
+    if idx_by is None:
+        return ({} if multi else []), 0, steps_failed, None
 
-    points = []
-    pi = 0
-    for la in lats:
-        for lo in lons:
-            hourly = {"time": times}
-            for om in OM_ORDER:
-                hourly[om] = series[pi][om]
-            points.append({
-                "latitude": float(la), "longitude": float(lo),
-                "generationtime_ms": 0, "utc_offset_seconds": 0,
-                "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                "__provider": "dwd",
-                "hourly_units": {"time": "iso8601", **OM_UNITS},
-                "hourly": hourly,
-            })
-            pi += 1
-    return points, steps_ok, steps_failed, times
+    def _assemble(rid):
+        lats, lons = axes[rid]
+        series = series_by[rid]
+        points = []
+        pi = 0
+        for la in lats:
+            for lo in lons:
+                hourly = {"time": times}
+                for om in OM_ORDER:
+                    hourly[om] = series[pi][om]
+                points.append({
+                    "latitude": float(la), "longitude": float(lo),
+                    "generationtime_ms": 0, "utc_offset_seconds": 0,
+                    "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
+                    "__provider": "dwd",
+                    "hourly_units": {"time": "iso8601", **OM_UNITS},
+                    "hourly": hourly,
+                })
+                pi += 1
+        return points
+
+    if multi:
+        return {rid: _assemble(rid) for rid in regions}, steps_ok, steps_failed, times
+    return _assemble("__single__"), steps_ok, steps_failed, times
 
 
 def main():
@@ -263,20 +287,27 @@ def main():
     elapsed = time.time() - t0
 
     out_path = payload.get("output_path", "")
-    if out_path and points:
+    # Multi-region mode: `points` is {region_id: [points]} -> wrap in the keyed envelope the
+    # multi service fns unwrap; flatten for the summary stats. Single mode unchanged (plain list).
+    is_multi = isinstance(points, dict)
+    out_obj = {"__multi_region__": True, "regions": points} if is_multi else points
+    flat = [p for pts in points.values() for p in pts] if is_multi else points
+
+    if out_path and flat:
         with open(out_path, "w") as f:
-            json.dump(points, f)
+            json.dump(out_obj, f)
 
     nz = 0
     sample_max = None
-    if points:
-        wh = [v for p in points for v in p["hourly"].get("wave_height", []) if v is not None]
+    if flat:
+        wh = [v for p in flat for v in p["hourly"].get("wave_height", []) if v is not None]
         nz = sum(1 for v in wh if v and v > 0)
         sample_max = max(wh) if wh else None
-    print(f"SUMMARY: points={len(points)} steps_ok={ok} steps_failed={failed} "
+    print(f"SUMMARY: regions={len(points) if is_multi else 1} points={len(flat)} steps_ok={ok} "
+          f"steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
           f"wave_height_nonzero={nz} wave_height_max={sample_max} elapsed={elapsed:.1f}s "
-          f"wrote={'yes:'+out_path if (out_path and points) else 'no(standalone)'}")
+          f"wrote={'yes:'+out_path if (out_path and flat) else 'no(standalone)'}")
 
 
 if __name__ == "__main__":

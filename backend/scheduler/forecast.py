@@ -141,17 +141,18 @@ def ingest_marine_forecast_task():
                 # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
                 # EURO Marine Global job reuses), so isolating it is dependency-safe.
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
-                # Regional ICON marine pilot (2026-07-13, round-12 §2a-i — the ICON close-zoom
-                # fidelity fix): GWAM is natively 0.25° but ICON marine only ever shipped the 10°
-                # global + 2° mid tiers on the decoupled lane (the pre-decoupling in-process pilot
-                # was never carried into CI). DWD-direct GWAM per pilot region, bounded horizon
-                # (default 3d — no byte-range subsetting at DWD, each region re-downloads global
-                # files; far hours fall through to mid/global). Kill: ICON_MARINE_PILOT_INGEST=0.
+                # Regional ICON marine pilot (2026-07-13, round-12 §2a-i — the ICON close-zoom /
+                # rating-band fidelity fix): GWAM is natively 0.25° but the decoupled lane only
+                # shipped the 10° global + 2° mid tiers. MULTI-BBOX single-download-pass: ONE GWAM
+                # pass samples flagship + ALL worldwide regions (every region fresh every cycle,
+                # ~6-9 min; per-region flagship fallback if the multi fetch fails). Far hours fall
+                # through to mid/global (2d horizon). Kill: ICON_MARINE_PILOT_INGEST=0.
                 *([("ICON Marine Pilot", weather_scheduler.ingest_icon_marine_pilot)]
                   if os.environ.get("ICON_MARINE_PILOT_INGEST", "1") != "0" else []),
                 # Regional EURO marine pilot (2026-07-13 — the EURO rating-band resolution fix):
-                # 0.25° flagship tiles from the FREE ECMWF wave stream (natively 0.25°, byte-range,
-                # no CMEMS/throttle risk), waves layer only. ~5-10 min. Kill: EURO_MARINE_PILOT_INGEST=0.
+                # 0.25° tiles from the FREE ECMWF wave stream (natively 0.25°, no CMEMS/throttle
+                # risk), waves layer only. MULTI-BBOX: one retrieve samples flagship + ALL
+                # worldwide regions (~3-6 min). Kill: EURO_MARINE_PILOT_INGEST=0.
                 *([("EURO Marine Pilot", weather_scheduler.ingest_euro_marine_pilot)]
                   if os.environ.get("EURO_MARINE_PILOT_INGEST", "1") != "0" else []),
             ]

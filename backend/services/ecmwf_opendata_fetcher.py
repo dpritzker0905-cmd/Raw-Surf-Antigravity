@@ -65,19 +65,25 @@ def fetch_global_coarse(payload):
     import pygrib
     from ecmwf.opendata import Client
 
-    bbox = payload["bbox"]
+    # MULTI-BBOX (2026-07-13, single-download-pass): ECMWF ships ONE whole-globe multi-step file —
+    # a payload `bboxes: {region_id: bbox}` samples EVERY region from each streamed message, so N
+    # regions cost one region's download. Returns ({region_id: [points]}, ...) in multi mode; the
+    # legacy single-`bbox` path is unchanged (list of points).
+    multi = payload.get("bboxes") or None
+    regions = dict(multi) if multi else {"__single__": payload["bbox"]}
     resolution = float(payload.get("resolution", 10.0))
     forecast_days = int(payload.get("forecast_days", 10))
     layer = payload.get("layer", "wind")
     if layer not in LAYER_PARAMS:
         sys.stderr.write(f"[ecmwf_opendata_fetcher] unknown layer '{layer}'\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
     params = LAYER_PARAMS[layer]
     max_hours = min(forecast_days * 24, 240)
 
-    lons = coarse_axis(float(bbox["west"]), float(bbox["east"]), resolution)
-    lats = coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
-    n_pts = len(lats) * len(lons)
+    axes = {}    # rid -> (lats, lons)
+    for rid, bb in regions.items():
+        axes[rid] = (coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
+                     coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
 
     tmp = Path(tempfile.gettempdir())
     target = tmp / f"ecmwf_{layer}_{uuid.uuid4().hex}.grib2"
@@ -103,18 +109,18 @@ def fetch_global_coarse(payload):
 
     if not target.exists():
         sys.stderr.write("[ecmwf_opendata_fetcher] retrieve produced no file\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
 
     # MEMORY: ECMWF returns ONE multi-step file (~130 full global 0.25° fields for 10d wind). Holding
     # them all decoded at once is ~1GB -> OOM on the 2GB box. Stream message-by-message: sample the
-    # ~n_pts NN points immediately and DISCARD each full field, so peak RAM is ~one field (~8MB). The
-    # sampled per-message lists are in idx_map order = the points order, so index by point (pi).
+    # ~n_pts NN points PER REGION immediately and DISCARD each full field, so peak RAM stays ~one
+    # field (~8MB) + the tiny sampled lists. Sampled lists are in idx-map order = points order (pi).
     want_u = ("10u", "u10"); want_v = ("10v", "v10"); want_p = ("msl", "prmsl", "mslp")
     want_h = ("swh",); want_pk = ("pp1d",); want_mp = ("mwp",); want_d = ("mwd",)
     want_wave = want_h + want_pk + want_mp + want_d
-    u_by, v_by, p_by = {}, {}, {}
-    h_by, pk_by, mp_by, d_by = {}, {}, {}, {}
-    idx_map = None
+    # per-region, per-kind {vt: vals}
+    by = {rid: {"u": {}, "v": {}, "p": {}, "h": {}, "pk": {}, "mp": {}, "d": {}} for rid in regions}
+    idx_by = None    # rid -> [(r, c), ...]
     try:
         grbs = pygrib.open(str(target))
         for m in grbs:
@@ -125,29 +131,19 @@ def fetch_global_coarse(payload):
                 continue
             if layer == "waves" and sn not in want_wave:
                 continue
-            if idx_map is None:
+            if idx_by is None:
                 glats, glons = m.latlons()
                 lat1d = np.asarray(glats[:, 0], dtype=float)
                 lon1d = np.asarray(glons[0, :], dtype=float)
-                idx_map = build_regular_nn(lats, lons, lat1d, lon1d)  # auto 0-360 detect
+                idx_by = {rid: build_regular_nn(lats, lons, lat1d, lon1d)  # auto 0-360 detect
+                          for rid, (lats, lons) in axes.items()}
             arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
-            vals = [arr[r, c] for (r, c) in idx_map]  # ~n_pts sampled values (tiny)
-            del arr
             vt = m.validDate
-            if sn in want_u:
-                u_by[vt] = vals
-            elif sn in want_v:
-                v_by[vt] = vals
-            elif sn in want_p:
-                p_by[vt] = vals
-            elif sn in want_h:
-                h_by[vt] = vals
-            elif sn in want_pk:
-                pk_by[vt] = vals
-            elif sn in want_mp:
-                mp_by[vt] = vals
-            elif sn in want_d:
-                d_by[vt] = vals
+            kind = ("u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
+                    "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
+            for rid, im in idx_by.items():
+                by[rid][kind][vt] = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
+            del arr
         grbs.close()
     finally:
         try:
@@ -156,84 +152,74 @@ def fetch_global_coarse(payload):
         except Exception:
             pass
 
+    rid0 = next(iter(regions))
     if layer == "wind":
-        times_dt = sorted(set(u_by) & set(v_by))
+        times_dt = sorted(set(by[rid0]["u"]) & set(by[rid0]["v"]))
     elif layer == "waves":
         # height + direction are required; period falls back per-value (pp1d peak -> mwp mean -> None).
-        times_dt = sorted(set(h_by) & set(d_by))
+        times_dt = sorted(set(by[rid0]["h"]) & set(by[rid0]["d"]))
     else:
-        times_dt = sorted(p_by)
-    if not times_dt or idx_map is None:
+        times_dt = sorted(by[rid0]["p"])
+    if not times_dt or idx_by is None:
         sys.stderr.write(f"[ecmwf_opendata_fetcher] no usable {layer} messages decoded\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
 
     times = [vt.strftime("%Y-%m-%dT%H:%M:%SZ") for vt in times_dt]
 
-    if layer == "wind":
-        spd = [[] for _ in range(n_pts)]
-        drc = [[] for _ in range(n_pts)]
-        for vt in times_dt:
-            u_vals = u_by[vt]; v_vals = v_by[vt]
-            for pi in range(n_pts):
-                uu = u_vals[pi]; vv = v_vals[pi]
-                if uu == uu and vv == vv:  # not NaN
-                    spd[pi].append(sanitize_speed_ms(math.sqrt(uu * uu + vv * vv)))
-                    drc[pi].append(sanitize_direction_deg(meteo_wind_dir(uu, vv)))
-                else:
-                    spd[pi].append(None); drc[pi].append(None)
+    def _assemble(rid):
+        lats, lons = axes[rid]
+        n_pts = len(lats) * len(lons)
+        b = by[rid]
+        if layer == "wind":
+            spd = [[] for _ in range(n_pts)]
+            drc = [[] for _ in range(n_pts)]
+            for vt in times_dt:
+                u_vals = b["u"][vt]; v_vals = b["v"][vt]
+                for pi in range(n_pts):
+                    uu = u_vals[pi]; vv = v_vals[pi]
+                    if uu == uu and vv == vv:  # not NaN
+                        spd[pi].append(sanitize_speed_ms(math.sqrt(uu * uu + vv * vv)))
+                        drc[pi].append(sanitize_direction_deg(meteo_wind_dir(uu, vv)))
+                    else:
+                        spd[pi].append(None); drc[pi].append(None)
+            units = {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"}
+            hourly_of = lambda pi: {"time": times, "wind_speed_10m": spd[pi], "wind_direction_10m": drc[pi]}
+        elif layer == "waves":
+            hgt = [[] for _ in range(n_pts)]
+            per = [[] for _ in range(n_pts)]
+            drc = [[] for _ in range(n_pts)]
+            for vt in times_dt:
+                h_vals = b["h"][vt]; d_vals = b["d"][vt]
+                pk_vals = b["pk"].get(vt); mp_vals = b["mp"].get(vt)
+                for pi in range(n_pts):
+                    hgt[pi].append(sanitize_height_m(h_vals[pi]))   # NaN (land mask) -> None inside
+                    drc[pi].append(sanitize_direction_deg(d_vals[pi]))
+                    pv = pk_vals[pi] if pk_vals is not None else float("nan")
+                    if pv != pv and mp_vals is not None:  # peak missing -> mean
+                        pv = mp_vals[pi]
+                    per[pi].append(sanitize_period_s(pv))
+            units = {"time": "iso8601", "wave_height": "m", "wave_period": "s", "wave_direction": "°"}
+            hourly_of = lambda pi: {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
+                                    "wave_direction": drc[pi]}
+        else:
+            ser = [[] for _ in range(n_pts)]
+            for vt in times_dt:
+                p_vals = b["p"][vt]
+                for pi in range(n_pts):
+                    ser[pi].append(sanitize_pressure_hpa(p_vals[pi]))
+            units = {"time": "iso8601", "pressure_msl": "hPa"}
+            hourly_of = lambda pi: {"time": times, "pressure_msl": ser[pi]}
         points = []
         pi = 0
         for la in lats:
             for lo in lons:
-                points.append(make_point_dict(
-                    la, lo, "ecmwf",
-                    {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"},
-                    {"time": times, "wind_speed_10m": spd[pi], "wind_direction_10m": drc[pi]},
-                ))
+                points.append(make_point_dict(la, lo, "ecmwf", units, hourly_of(pi)))
                 pi += 1
-    elif layer == "waves":
-        hgt = [[] for _ in range(n_pts)]
-        per = [[] for _ in range(n_pts)]
-        drc = [[] for _ in range(n_pts)]
-        for vt in times_dt:
-            h_vals = h_by[vt]; d_vals = d_by[vt]
-            pk_vals = pk_by.get(vt); mp_vals = mp_by.get(vt)
-            for pi in range(n_pts):
-                hgt[pi].append(sanitize_height_m(h_vals[pi]))   # NaN (land mask) -> None inside
-                drc[pi].append(sanitize_direction_deg(d_vals[pi]))
-                pv = pk_vals[pi] if pk_vals is not None else float("nan")
-                if pv != pv and mp_vals is not None:  # peak missing -> mean
-                    pv = mp_vals[pi]
-                per[pi].append(sanitize_period_s(pv))
-        points = []
-        pi = 0
-        for la in lats:
-            for lo in lons:
-                points.append(make_point_dict(
-                    la, lo, "ecmwf",
-                    {"time": "iso8601", "wave_height": "m", "wave_period": "s", "wave_direction": "°"},
-                    {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
-                     "wave_direction": drc[pi]},
-                ))
-                pi += 1
-    else:
-        ser = [[] for _ in range(n_pts)]
-        for vt in times_dt:
-            p_vals = p_by[vt]
-            for pi in range(n_pts):
-                ser[pi].append(sanitize_pressure_hpa(p_vals[pi]))
-        points = []
-        pi = 0
-        for la in lats:
-            for lo in lons:
-                points.append(make_point_dict(
-                    la, lo, "ecmwf",
-                    {"time": "iso8601", "pressure_msl": "hPa"},
-                    {"time": times, "pressure_msl": ser[pi]},
-                ))
-                pi += 1
+        return points
 
-    return points, len(times_dt), 0, times
+    if multi:
+        return {rid: _assemble(rid) for rid in regions}, len(times_dt), 0, times
+    return _assemble("__single__"), len(times_dt), 0, times
 
 
 def main():
@@ -251,19 +237,25 @@ def main():
     points, ok, failed, times = fetch_global_coarse(payload)
     elapsed = time.time() - t0
 
+    # Multi-region mode: `points` is {region_id: [points]} -> keyed envelope; flatten for stats.
+    is_multi = isinstance(points, dict)
+    out_obj = {"__multi_region__": True, "regions": points} if is_multi else points
+    flat = [p for pts in points.values() for p in pts] if is_multi else points
+
     out_path = payload.get("output_path", "")
-    if out_path and points:
+    if out_path and flat:
         with open(out_path, "w") as f:
-            json.dump(points, f)
+            json.dump(out_obj, f)
 
     layer = payload.get("layer", "wind")
     key = {"wind": "wind_speed_10m", "pressure": "pressure_msl", "waves": "wave_height"}.get(layer, "wind_speed_10m")
-    vals = [v for p in points for v in p["hourly"].get(key, []) if v is not None]
-    print(f"SUMMARY: layer={layer} points={len(points)} steps_ok={ok} steps_failed={failed} "
+    vals = [v for p in flat for v in p["hourly"].get(key, []) if v is not None]
+    print(f"SUMMARY: layer={layer} regions={len(points) if is_multi else 1} points={len(flat)} "
+          f"steps_ok={ok} steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
           f"{key}_nonnull={len(vals)} {key}_min={min(vals) if vals else None} "
           f"{key}_max={max(vals) if vals else None} elapsed={elapsed:.1f}s "
-          f"wrote={'yes:'+out_path if (out_path and points) else 'no(standalone)'}")
+          f"wrote={'yes:'+out_path if (out_path and flat) else 'no(standalone)'}")
 
 
 if __name__ == "__main__":

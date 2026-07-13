@@ -70,14 +70,56 @@ async def test_icon_marine_dwd_direct_ingestion(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_icon_marine_pilot_multi_bbox_single_pass(tmp_path, monkeypatch):
+    """
+    MULTI-BBOX single-download-pass (2026-07-13): ONE fetch_icon_marine_regions call must cover
+    every pilot region (no per-region download passes — the run 29249603524 budget lesson), and
+    each region's points save as regional_tile products manifest-identical to the per-region path.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    import services.dwd_marine_service as dwd_svc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("ICON_MARINE_PILOT_FORECAST_DAYS", "1")
+
+    calls = []
+
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=2, timeout_s=900):
+        calls.append(dict(bboxes))
+        return {rid: _gwam_like_points(scheduler.om_provider, bb, resolution)
+                for rid, bb in bboxes.items()}
+
+    monkeypatch.setattr(dwd_svc, "fetch_icon_marine_regions", fake_multi)
+
+    success = await scheduler.ingest_icon_marine_pilot()
+    assert success is True
+    assert len(calls) == 1                                   # ONE pass, not per-region
+    assert set(calls[0]) == set(REGIONAL_CONFIGS)            # test env = flagship set
+
+    products = temp_store.get_manifest().products
+    for region_id in REGIONAL_CONFIGS:
+        regionals = [p for p in products
+                     if p.model == "ICON" and p.domain == "marine" and p.region_id == region_id]
+        assert len(regionals) > 0, f"no ICON regional products saved for {region_id} (multi path)"
+        for p in regionals:
+            assert p.provider == "open-meteo"
+            assert p.source_dataset == "dwd_gwam"
+            assert p.coverage_mode == "regional_tile"
+        assert {"waves", "swell_1", "wind_waves"}.issubset({p.layer for p in regionals})
+
+
+@pytest.mark.asyncio
 async def test_icon_marine_pilot_dwd_direct_regional(tmp_path, monkeypatch):
     """
-    Regression guard for the ICON close-zoom resolution ceiling (2026-07-13, round-12 §2a-i):
-    ingest_icon_marine_pilot must take the DWD-direct PRIMARY for every pilot region at 0.25°
-    so the manifest carries ICON regional fine tiles (the decoupling carried only the GFS marine
-    pilot into CI — ICON topped out at the 2° mid tier). Products stay manifest-identical to the
-    global lane: provider='open-meteo', source_dataset='dwd_gwam', coverage_mode='regional_tile',
-    3 layers (gwam has no swell_2), superseded runs pruned.
+    Regression guard for the ICON close-zoom resolution ceiling (2026-07-13, round-12 §2a-i) —
+    now exercises the per-region FALLBACK path (the multi-bbox fetch short-circuits to None in
+    test env, so the pilot falls through to per-region DWD-direct): every flagship region at
+    0.25°, manifest-identical to the global lane: provider='open-meteo',
+    source_dataset='dwd_gwam', coverage_mode='regional_tile', 3 layers (gwam has no swell_2).
     """
     from services.weather_pipeline.scheduler import WeatherPipelineScheduler
     from services.weather_pipeline.store import ProductStore

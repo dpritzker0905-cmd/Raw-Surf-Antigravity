@@ -74,6 +74,66 @@ async def test_euro_marine_pilot_ecmwf_direct_regional(tmp_path, monkeypatch):
 
 
 @pytest.mark.asyncio
+async def test_euro_marine_pilot_multi_bbox_single_pass(tmp_path, monkeypatch):
+    """MULTI-BBOX (2026-07-13): ONE fetch_euro_marine_waves_regions call covers every pilot
+    region; waves-layer regional tiles save per region (source_dataset='ecmwf_wam025')."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    import services.ecmwf_wave_service as ecmwf_svc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_PILOT_FORECAST_DAYS", "1")
+
+    calls = []
+
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=2, timeout_s=900):
+        calls.append(dict(bboxes))
+        return {rid: _ecmwf_wave_points(scheduler.om_provider, bb, resolution)
+                for rid, bb in bboxes.items()}
+
+    monkeypatch.setattr(ecmwf_svc, "fetch_euro_marine_waves_regions", fake_multi)
+
+    success = await scheduler.ingest_euro_marine_pilot()
+    assert success is True
+    assert len(calls) == 1                                   # ONE pass, not per-region
+    assert set(calls[0]) == set(REGIONAL_CONFIGS)            # test env = flagship set
+
+    products = temp_store.get_manifest().products
+    for region_id in REGIONAL_CONFIGS:
+        regionals = [p for p in products
+                     if p.model == "EURO" and p.domain == "marine" and p.region_id == region_id]
+        assert len(regionals) > 0, f"no EURO regional products saved for {region_id} (multi path)"
+        for p in regionals:
+            assert p.layer == "waves"
+            assert p.provider == "open-meteo"
+            assert p.source_dataset == "ecmwf_wam025"
+            assert p.coverage_mode == "regional_tile"
+
+
+def test_get_all_pilot_regions_full_set(monkeypatch):
+    """get_all_pilot_regions returns flagship + ALL worldwide (no rotation) outside test env,
+    flagship-only under the WORLDWIDE_COASTAL=0 kill or in test env."""
+    from services.weather_pipeline import scheduler_helpers as sh
+    import services.weather_pipeline.copernicus_validator as cv
+
+    # test env (pytest) -> flagship-only
+    assert set(sh.get_all_pilot_regions()) == set(sh.REGIONAL_CONFIGS)
+
+    # production-like: full set, every worldwide region present every cycle
+    monkeypatch.setattr(cv, "is_test_environment", lambda: False)
+    monkeypatch.delenv("WORLDWIDE_COASTAL", raising=False)
+    full = sh.get_all_pilot_regions()
+    assert set(full) == set(sh.REGIONAL_CONFIGS) | set(sh.WORLDWIDE_COASTAL_REGIONS)
+
+    # kill switch -> flagship-only
+    monkeypatch.setenv("WORLDWIDE_COASTAL", "0")
+    assert set(sh.get_all_pilot_regions()) == set(sh.REGIONAL_CONFIGS)
+
+
+@pytest.mark.asyncio
 async def test_euro_marine_pilot_no_cmems_fallback(tmp_path, monkeypatch):
     """A failed ECMWF fetch must SKIP the region (mid tier covers) — never touch CMEMS from the
     pilot (the throttle landmine that kept EURO mid OFF for weeks). In test env the mock path
