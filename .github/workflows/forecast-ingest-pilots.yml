@@ -17,7 +17,13 @@ name: Forecast Ingestion Pilots (regional tiles)
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '45 1-21/4 * * *'   # 01:45, 05:45, 09:45, 13:45, 17:45, 21:45 — 1.5h after each :15 core cycle's normal finish
+    # 6x/day → 3x/day (2026-07-13 lane-collision audit): the shared serial group's worst case
+    # (pilots ≤200 min + core ≤165 min = 365 min) exceeded the 240-min core period, so under GH
+    # cron drift the runs stacked and PENDING core runs were repeatedly EVICTED (three cancelled
+    # core cycles on 07-13; two never started — startedAt null). 3x/day pilots loses almost no
+    # freshness: GWAM (ICON waves) publishes 2 runs/day, GFS-Wave 4/day — 6x/day was re-ingesting
+    # the SAME model runs. Worst-case group load now ~(200+165)×3 within 1440 min with wide gaps.
+    - cron: '45 3,11,19 * * *'
 
 concurrency:
   group: forecast-ingest        # SHARED with forecast-ingest.yml — serializes manifest access
@@ -52,6 +58,13 @@ jobs:
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # worldwide coastal marine rotation lives in the marine pilot
+          # GFS marine pilot horizon 8d → 3d (2026-07-13 audit of run 29265599972: the pilot took
+          # 48.5 min = 4 regions × ~11.5 min, cost ∝ forecast-hours (65 byte-range steps at 8d),
+          # NOT points — 672-pt FL and 5760-pt Brazil took the same time). 3d ≈ 25 steps ≈ ~5 min/
+          # region ≈ ~20 min total. Close-zoom fine tiles are a near-term need; far hours fall
+          # through to the mid/global tiers via the resolver ladder (same contract as the ICON/EURO
+          # pilots' 2d horizon). Pilot-lane-only: this env is set per-workflow.
+          GFS_MARINE_FORECAST_DAYS: '3'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}

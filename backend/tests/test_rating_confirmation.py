@@ -118,6 +118,22 @@ def test_apply_gate_none_scores_pass_through():
     assert frames[0]["spots"][0]["score"] is None and frames[0]["spots"][0]["level"] == "unknown"
 
 
+def test_apply_gate_is_idempotent_across_checkpoint_reapplication():
+    """The checkpoint merge-upload (2026-07-13) re-applies the gate at every per-model checkpoint,
+    so already-gated frames pass through again (up to once per model). Gating must be stable:
+    apply×2 == apply×1 — no nudge compounding, raw_score preserved as the ORIGINAL raw."""
+    import copy
+    frames_once = _frames(92.0, 40.0, 35.0)
+    apply_gate_to_frames(frames_once, {"s1": [_rep(5, 1.0)]}, now=_NOW)
+    frames_twice = copy.deepcopy(frames_once)
+    apply_gate_to_frames(frames_twice, {"s1": [_rep(5, 1.0)]}, now=_NOW)
+    for once, twice in zip(frames_once, frames_twice):
+        s1, s2 = once["spots"][0], twice["spots"][0]
+        assert s2["score"] == pytest.approx(s1["score"], abs=1e-9)
+        assert s2["raw_score"] == s1["raw_score"]      # original raw survives re-application
+        assert s2["level"] == s1["level"]
+
+
 # ─────────────────────────── band gate + wiring guards ───────────────────────────
 def test_build_observation_gate_nearest_confirmed_spot(monkeypatch):
     from services.weather_pipeline import spot_ratings as sr

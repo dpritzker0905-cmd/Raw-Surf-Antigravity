@@ -179,18 +179,26 @@ def apply_gate_to_frames(frames, reports_by_spot, now=None) -> int:
     updates ``score``/``level``. Returns the number of spot entries whose displayed level was capped."""
     from services.weather_pipeline.surf_rating import score_to_level
 
-    # Cross-model index of UNGATED scores: (spot_id, valid_time) -> {model: score}
+    # IDEMPOTENT base (2026-07-13, checkpoint merge-uploads): the precompute now re-applies this
+    # gate at EVERY per-model checkpoint, so already-gated frames (raw_score stamped) come through
+    # again. Always gate from the ORIGINAL raw — reading `score` on a second pass would re-add the
+    # nudge on top of the gated value (compounding) and overwrite raw_score with a gated score
+    # (corrupting the audit trail). gate(raw) is stable across any number of applications.
+    def _raw_of(s):
+        return s.get("raw_score") if s.get("raw_score") is not None else s.get("score")
+
+    # Cross-model index of UNGATED scores: (spot_id, valid_time) -> {model: raw score}
     xmodel = {}
     for fr in frames or []:
         for s in fr.get("spots") or []:
-            if s.get("score") is None:
+            if _raw_of(s) is None:
                 continue
-            xmodel.setdefault((s.get("spot_id"), fr.get("valid_time")), {})[fr.get("model")] = s["score"]
+            xmodel.setdefault((s.get("spot_id"), fr.get("valid_time")), {})[fr.get("model")] = _raw_of(s)
 
     n_capped = 0
     for fr in frames or []:
         for s in fr.get("spots") or []:
-            raw = s.get("score")
+            raw = _raw_of(s)
             if raw is None:
                 continue
             reports = (reports_by_spot or {}).get(str(s.get("spot_id")))
