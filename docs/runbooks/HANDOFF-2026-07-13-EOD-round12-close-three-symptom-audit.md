@@ -224,6 +224,33 @@ commit `icon_marine_waves_hawaii` / `euro_marine_waves_hawaii`-style 0.25° regi
 run log shows "multi-region OK: 10 regions in one pass".
 Still queued: GFS marine pilot 51-min budget audit (§4b), §7g-β, §1c residual.
 
+## §4e MELT ROUND 4 (2026-07-13 ~21Z, user logs on `b02c8ceb`) — root-caused + STRUCTURALLY CLOSED
+User's 21:00Z session: first spot-ratings `src=live`, then ratings + every DB lane 500-storm,
+EURO waves fetch starved 48s+. EVIDENCE CHAIN: THREE consecutive cancelled precompute-carrying
+runs (15:12 dispatch @ old 35-min cap; 17:34 slot @ exactly 55m14s — the '0,3' doubled tail
+exceeds 55; core 18:10) × the ALL-OR-NOTHING upload-at-end = lane frozen at frame 12:00Z for
+9h → beyond the 6h stale bound at ~18Z → live cliff → melt (probed live: 500s at 20s even for
+limit=1). TWO DESIGN FLAWS FIXED in `f31f82a6`:
+1. **CHECKPOINT MERGE-UPLOAD** — `run_spot_ratings_precompute` uploads after EVERY model,
+   merged with the previous object (`merge_model_frames`: recomputed models fresh, others keep
+   prior frames); per-model coverage guard. A timeout now costs tail models one cycle, never
+   the lane. Precompute timeout 55→75 (measured insufficient).
+2. **LIVE-PATH LOAD SHED** — `SPOT_RATINGS_LIVE_MAX_CONCURRENT` (default 2) caps concurrent
+   live computes; beyond it = fast 503 (frontend keeps last glyphs + instant grid fallback +
+   bounded retry). **The 1-CPU box is now unmeltable by ratings regardless of lane state.**
+   Live compute extracted to `_compute_live_ratings` (obs-gate wiring guard re-pointed).
+Healing: dispatch 29284913807 queued on the new code. BE 681/2928.
+
+## §4f DEFERRED (user call: fix after the queue) — "clamping + clearing between zooms with
+rating band ON" — DECODE ALREADY DONE from their logs: with rating ON, zoom-out swaps the
+clip-tier RATING grid (e.g. 17×17 spanLng 4, band PAINTING, washEngaged) for the GLOBAL coarse
+commit (37×17) which is NOT a rating grid → `[rating-band] OFF … forcedOff:true` + wash
+disengages → band + rating heatmap vanish until zoom-in refetches the clip (band returns).
+The tier ladder has no rating-mode coarse fallback — candidate fixes: rating wash on the
+global tier, retain the band layer through the global interlude, or a rating-mode no-downgrade
+hold. Also in those logs: EURO clip at 17×17 spanLng 4 (~0.24°!) = the DYNAMIC lane serving
+EURO fine — the pilot tiles will make this stable. START HERE next session for the visual arc.
+
 ## §5 VERIFICATION RECIPES
 - Melt check: `GET /api/weather/spot-ratings?...` → `source` field. precomputed ≈1–2 s good.
 - Option A check: grid diagnostics `animChannel=dominant_swell` + `swellStampedCount>0`.
