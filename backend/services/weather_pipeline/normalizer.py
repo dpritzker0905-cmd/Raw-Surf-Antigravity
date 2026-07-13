@@ -161,6 +161,26 @@ class WeatherNormalizer:
         direction_key = layer_def["direction"]
         period_key = layer_def["period"]
 
+        # §3 Option A (2026-07-13): dominant-swell animation channel for the TOTAL waves layer.
+        # When the dominant swell partition carries >= WAVES_ANIM_SWELL_MIN_FRAC of total wave
+        # energy (height² ratio), stamp direction/u/v from that partition so animated crests track
+        # the surfer-relevant swell instead of flip-flopping across weak windsea/swell crossovers
+        # (round-10 verdict: the radial pattern in bimodal seas is GFS-Wave's own total direction).
+        # Height stays TOTAL. Only engages when the raw payload carries native swell partitions
+        # (GFS/ICON all_marine + NOAA direct); EURO WAM serves totals only, so it never fires there.
+        # COUPLING: point resolution samples these same grids, so spot-rating swell_from becomes
+        # true swell direction when ON (today it receives total direction). Default OFF pending
+        # user A/B — flip WAVES_ANIM_DOMINANT_SWELL=1 (ingest-time; products stamp on next cycle).
+        dominant_swell_anim = (
+            os.environ.get("WAVES_ANIM_DOMINANT_SWELL", "0") == "1"
+            and domain.lower() == "marine" and layer.lower() == "waves"
+        )
+        try:
+            swell_min_frac = float(os.environ.get("WAVES_ANIM_SWELL_MIN_FRAC", "0.35"))
+        except ValueError:
+            swell_min_frac = 0.35
+        swell_stamped_count = 0
+
         # Reconstruct clean coordinates by rounding to the nearest resolution step relative to bbox origins
         west = bbox["west"]
         east = bbox["east"]
@@ -294,6 +314,27 @@ class WeatherNormalizer:
             gust = gust_list[time_idx] if (gust_key and time_idx < len(gust_list)) else None
             dir_confidence = conf_list[time_idx] if time_idx < len(conf_list) else None
 
+            # Dominant-swell animation channel: replace the TOTAL direction with the dominant
+            # swell partition's direction when that partition is energy-dominant. speed (height)
+            # is untouched, so u/v magnitude still encodes total height.
+            if dominant_swell_anim and speed is not None and direction is not None and speed > 0:
+                s1_h_list = pt_hourly.get("swell_wave_height", [])
+                s1_d_list = pt_hourly.get("swell_wave_direction", [])
+                s2_h_list = pt_hourly.get("secondary_swell_wave_height", [])
+                s2_d_list = pt_hourly.get("secondary_swell_wave_direction", [])
+                sw_h = s1_h_list[time_idx] if time_idx < len(s1_h_list) else None
+                sw_d = s1_d_list[time_idx] if time_idx < len(s1_d_list) else None
+                s2_h = s2_h_list[time_idx] if time_idx < len(s2_h_list) else None
+                s2_d = s2_d_list[time_idx] if time_idx < len(s2_d_list) else None
+                if s2_h is not None and s2_d is not None and (sw_h is None or s2_h > sw_h):
+                    sw_h, sw_d = s2_h, s2_d
+                if (
+                    sw_h is not None and sw_d is not None
+                    and (sw_h * sw_h) >= swell_min_frac * (speed * speed)
+                ):
+                    direction = sw_d
+                    swell_stamped_count += 1
+
             # Guard against invalid or land null coordinates
             is_scalar = (direction_key is None)
             if speed is None or (not is_scalar and direction is None):
@@ -390,7 +431,12 @@ class WeatherNormalizer:
                 "expectedCellCount": expected_cell_count,
                 "missingCellCount": missing_cell_count,
                 "nonzeroCount": nonzero_count,
-                "gridMode": "rectangular"
+                "gridMode": "rectangular",
+                **({
+                    "animChannel": "dominant_swell",
+                    "swellStampedCount": swell_stamped_count,
+                    "swellMinFrac": swell_min_frac
+                } if dominant_swell_anim else {})
             }
         )
 

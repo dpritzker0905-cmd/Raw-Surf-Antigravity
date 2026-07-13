@@ -1,5 +1,5 @@
-# Weather serverless functions (must come before catch-all)
-/api/weather/*      /.netlify/functions/weather/:splat   200
+# NOTE (2026-07-13): /api/weather/* deliberately falls through to the /api/* catch-all
+# (CDN proxy to Render). The old weather-function hop had a ~10s sync limit — do not re-add.
 
 # All other API calls proxy to Render backend
 /api/*  https://raw-surf-antigravity.onrender.com/api/:splat  200

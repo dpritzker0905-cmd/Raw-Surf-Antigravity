@@ -113,3 +113,51 @@ rerun the §1b recipe with layer=wind_waves + gfswave025 wind_wave_* fields if d
 ## §6 LIVE TEST WORKFLOW (unchanged, binding)
 `[BUILD] bundle=<hash>` must match dev HEAD (⚠️STALE warning auto-fires) → reproduce →
 `await __RAW_FORENSIC__.copy()` → paste. Never judge during a Render deploy window.
+
+## §7 ROUND-12 (2026-07-13, this session) — §5b RE-VERDICT + §3 OPTION A BUILT (OFF)
+
+### 7a. §5b forensic RE-VERDICT (two round-11 claims corrected at source + live deploy)
+1. **"SW masks weather failures" = FALSE at HEAD.** `service-worker.js:92-104` explicitly
+   excludes `/weather` + `/marine` pathnames from ALL SW interception (predates round-11), and
+   the DEPLOYED dev SW (fetched live, `BUILD_VERSION b3660359` == HEAD) has the exclusion.
+   Fix candidate (b) was already shipped — no-op.
+2. **The default deployed bundle NEVER uses the Netlify weather function.** Pulled deployed
+   `main.77292393.js`: `BACKEND_URL` compiled to `(window.__BACKEND_URL__||localStorage)
+   || "https://raw-surf-antigravity.onrender.com"` (env inlined + constant-folded). Every real
+   weather client (backendWeatherServiceClient, marine/windGridSeries via API_BASE,
+   spotRatingsClient, useOpenMeteoForecast, LayerAccessResolver) is absolute-Render. The only
+   same-origin `/api/weather` fetch is the DISABLED legacy stub. So the function hop only ever
+   served: manual probes, or a browser carrying a `__BACKEND_URL__` localStorage override
+   pointing at the netlify origin (plausible leftover from the 6ebaea6f "functions on dev"
+   era). **USER ACTION: run `localStorage.getItem('__BACKEND_URL__')` in the dev-online tab —
+   if non-null, `localStorage.removeItem('__BACKEND_URL__')` and the localhost/dev asymmetry
+   should vanish.** If null, the dev failures were the §4.3 tier-thrash class, not routing.
+3. **Fix (a) SHIPPED anyway** (defense-in-depth): removed `/api/weather/* →
+   /.netlify/functions/weather/:splat` from BOTH `netlify.toml` and `frontend/public/_redirects`
+   (the `_redirects` copy is order-first and was the live one). Same-origin weather now falls
+   through to the `/api/*` catch-all (CDN proxy → Render, ~26 s window, no 10 s fn ceiling).
+   `weather.js` fn left in place (unreachable via /api; rollback = restore one redirect line).
+   `/api/weather-proxy` + `/rv/*` lanes untouched. Do-not-re-add comments planted in both files.
+
+### 7b. §3 OPTION A BUILT — dominant-swell animation channel, DEFAULT OFF (awaiting A/B)
+- `normalizer.py`: for `marine/waves` only, when `WAVES_ANIM_DOMINANT_SWELL=1`, stamp
+  direction/u/v from the DOMINANT swell partition (max of swell_1/swell_2 at the hour) when its
+  energy fraction (height²/total²) ≥ `WAVES_ANIM_SWELL_MIN_FRAC` (default 0.35). Height/speed
+  stays TOTAL. Engages only when the raw payload has native partitions (GFS all_marine + NOAA
+  direct + ICON gwam set); EURO WAM = totals-only → never fires (its synthetic swell shares
+  total direction anyway). Grid diagnostics gain `animChannel/swellStampedCount/swellMinFrac`.
+- Goldens: `backend/tests/test_dominant_swell_anim.py` (7 tests: off-noop, stamp+u/v, below-
+  threshold keep, secondary-dominant, partition-less noop, component-layer isolation, env
+  threshold override).
+- LIVE PROBE PASS (scratchpad `dominant_swell_live_probe.py`, real gfswave025 @ §1b points,
+  2026-07-13T03Z): 3/5 stamped to the E-ESE swell family (100°/94°/118° ≈ the expected ~99°);
+  2 honest keeps (windsea-dominant frac 0.12; near-tie frac 0.34 just under threshold — if the
+  A/B wants that band, lower `WAVES_ANIM_SWELL_MIN_FRAC` to ~0.30).
+- KNOWN COUPLING (intentional): point resolution samples the same grids → spot-rating
+  `swell_from` becomes true swell direction when ON (it receives total direction when OFF —
+  arguably wrong today). Buoy calibration reads Hs/Tp only — unaffected.
+- **A/B RECIPE**: set GitHub repo Actions VARIABLE `WAVES_ANIM_DOMINANT_SWELL=1` (workflows
+  read `vars.*` with '0' fallback — no commit needed) AND Render env `WAVES_ANIM_DOMINANT_SWELL=1`
+  (covers on-demand direct lanes). Takes effect per product on its next ingest cycle (~4 h full
+  refresh); mixed old/new products in between. Verify: grid diagnostics `swellStampedCount>0`
+  on a fine tile + Canaveral crests should march coherently ~E-ESE instead of radiating.

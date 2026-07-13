@@ -25,10 +25,10 @@
   [context.branch-deploy.environment]
     REACT_APP_BACKEND_URL = "https://raw-surf-antigravity.onrender.com"
 
-[[redirects]]
-  from = "/api/weather/*"
-  to = "/.netlify/functions/weather/:splat"
-  status = 200
+# NOTE (2026-07-13, round-11 §5b): /api/weather/* intentionally has NO function redirect.
+# It falls through to the /api/* catch-all below (Netlify CDN proxy -> Render, ~26s window).
+# The old /.netlify/functions/weather hop had a ~10s sync limit that dropped heavy
+# grid_series requests. Do not re-add it.
 
 [[redirects]]
   from = "/api/weather-proxy"

@@ -51,4 +51,8 @@ jobs:
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
           COPERNICUSMARINE_SERVICE_PASSWORD: ${{ secrets.COPERNICUSMARINE_SERVICE_PASSWORD }}
           WEATHER_PROXY_URL: ${{ secrets.WEATHER_PROXY_URL }}
+          # §3 Option A dominant-swell animation channel (2026-07-13). A/B via repo Actions
+          # VARIABLES (Settings → Secrets and variables → Actions → Variables) — no commit needed.
+          WAVES_ANIM_DOMINANT_SWELL: ${{ vars.WAVES_ANIM_DOMINANT_SWELL || '0' }}
+          WAVES_ANIM_SWELL_MIN_FRAC: ${{ vars.WAVES_ANIM_SWELL_MIN_FRAC || '0.35' }}
         run: python scripts/ingest_forecast_ci.py
