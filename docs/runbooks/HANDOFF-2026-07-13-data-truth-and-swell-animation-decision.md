@@ -261,3 +261,30 @@ User session (rating ON, GFS waves, close-zoom pans up the FL coast then zoom-ou
    the animation clear (backlog ④ reseed blink; particle-carry is the falsified-unless-gated
    path, see round-5). (iii) FPS 6–16 during the commit storms (perf arc §4.5). (iv) band
    `fade:0/0.1` snapshots at z6.1–6.6 are the DESIGNED wide-zoom band cross-fade, not a bug.
+
+## §7g ROUND-12 pt5 — CHURN MECHANISM DECODED (round-9's "why 5×?" ANSWERED) + §4.5 STEP 1
+1. **The mid-reval "storm" is NOT the SWR scheduler.** `useMarineRevalidation.js` is bounded
+   (3 retries, 1.5–2.5 s, reset-on-success) — exonerated by source read. The FIVE `global_mid`
+   trace chains in the user's round-12 log are **per-gesture CLIP refetches**: every pan/zoom
+   at mid-tier zooms sends a new padded bbox, the resolver clips the SAME global_mid product
+   to it (4×3 / 8×6 / 10×7 shapes in the log = different viewports), and each landed clip is
+   a fresh commit → mask rebuild + full particle reseed. The client cache can't help because
+   it stores served CLIPS (new viewport ∉ old clip bounds → network). Fix directions for the
+   own-arc, in rising risk: (α) client-side mid-product assembly — cache the mid clips into a
+   growing canvas/grid so gesture-adjacent clips serve locally (new lane, no minefield code);
+   (β) commit-time short-circuit — if the incoming clip is the SAME product_id+hour as the
+   resident and the resident ALREADY COVERS the viewport, skip the texture re-upload/reseed
+   (orchestrator minefield — forensic ring before/after); (γ) reseed blink itself: particle
+   RE-SEED only where the texture CHANGED (particle-carry = the falsified-unless-gated arc).
+2. **Stash-TTL FALSIFIED as a fix** for the 4×3@z7.8 event: rejection(z8.7)→acceptance(z7.8)
+   was seconds apart; a TTL would not have engaged. The acceptance itself was CORRECT (fine
+   tile lost ≥60% coverage on the zoom-out; mid is the right tier there; any accepted commit
+   nulls the stash, so surviving stashes are the only-available-replacement case). Do NOT
+   build a stash-TTL; the pain is the reseed on commit (→ γ above).
+3. **§4.5 step 1 SHIPPED (instrument-first)**: encoder counts consecutive same-identity
+   encodes (product:hour:layer:dims:model:rating) — `__RAW_GPU__.encodeDupCount` + forensic
+   ring `encode_dup` (first 3 of a run only; standalone/coarse-base excluded). Zero behavior
+   change. The user's log shows the boot triple-encode verbatim (3× identical 629-vector
+   coarse encodes) — the dedup arc now has its live baseline. Next step per discipline:
+   observe counts in a real session, THEN dedup by identity (⚠️ stale-texture risk — the
+   signature must gain a data-revision component before any skip is legal).

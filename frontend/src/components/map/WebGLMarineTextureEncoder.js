@@ -84,6 +84,31 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   const { vectors, cols, rows, bounds } = waveGrid;
   if (!vectors?.length || !cols || !rows || cols < 2 || rows < 2) return null;
 
+  // §4.5 ENCODE-DUP TELEMETRY (2026-07-13, instrument-first per the perf-arc discipline —
+  // NO behavior change): the boot path encodes the SAME product multiple times (user log
+  // round-12: three identical 629-vector coarse encodes back-to-back) and commit storms
+  // re-encode identical grids. Count consecutive same-identity encodes so the dedup arc has
+  // a live baseline + the forensic ring names the duplicates. Standalone (coarse-base
+  // capture) encodes are a different purpose — excluded.
+  if (!standalone) {
+    const _sig = `${waveGrid.productId || waveGrid.product_id || ''}:${waveGrid.hourOffset || 0}:` +
+      `${waveGrid.__componentLayer || 'waves'}:${cols}x${rows}:${waveGrid.__sourceModel || ''}:${!!waveGrid.ratingMode}`;
+    if (encodeMarineTexture._lastSig === _sig) {
+      encodeMarineTexture._dupRun = (encodeMarineTexture._dupRun || 0) + 1;
+      if (typeof window !== 'undefined') {
+        const g = window.__RAW_GPU__ || (window.__RAW_GPU__ = {});
+        g.encodeDupCount = (g.encodeDupCount || 0) + 1;
+      }
+      // Ring only on the first few of a run (a commit storm must not flood the ring).
+      if (encodeMarineTexture._dupRun <= 3) {
+        recordMarineEvent('encode_dup', { sig: _sig, run: encodeMarineTexture._dupRun });
+      }
+    } else {
+      encodeMarineTexture._lastSig = _sig;
+      encodeMarineTexture._dupRun = 0;
+    }
+  }
+
   const activeLayer = waveGrid.__componentLayer || 'waves';
   const N = cols * rows;
 
