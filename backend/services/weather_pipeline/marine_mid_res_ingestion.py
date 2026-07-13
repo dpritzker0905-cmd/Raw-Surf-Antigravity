@@ -242,3 +242,65 @@ async def ingest_euro_marine_global_mid_impl(scheduler) -> bool:
 
     await scheduler._cleanup_and_pause(cop_results, 0)
     return total_saved > 0
+
+
+async def ingest_euro_marine_pilot_impl(scheduler) -> bool:
+    """EURO marine 0.25° REGIONAL pilot (2026-07-13, round-12 §2a follow-up — the EURO rating-band
+    resolution fix): the EURO band was the last one stuck on the ~2° global_mid clip at close zoom
+    (GFS + ICON bands both serve 0.25° regional tiles since the ICON pilot landed). EURO's legacy
+    regional method (ingest_copernicus_regional) was never carried into the decoupled CI lane and is
+    CMEMS-based — the throttle landmine that kept EURO mid OFF for weeks. This pilot AVOIDS CMEMS
+    entirely: the free ECMWF Open Data wave stream is natively 0.25° (probe-verified: open-meteo
+    ecmwf_wam025 snaps 0.05°-spaced points to 0.25° both axes) and already lights the EURO mid tier,
+    so the fine tiles reuse fetch_euro_marine_waves_global with a regional bbox — same shape as the
+    GFS/ICON pilots. BOUNDED like the ICON pilot (pilots-lane budget, run 29249603524 post-mortem):
+    FLAGSHIP regions only, short horizon (EURO_MARINE_PILOT_FORECAST_DAYS default 2 — far hours fall
+    through to mid/global via the resolver ladder), 600 s per-region fetch cap, waves layer ONLY (the
+    free feed has no swell partitions — the rating band samples `waves`, exactly what this fixes;
+    swell partitions keep their CMEMS mid/coarse lanes). No CMEMS fallback: a failed fetch skips the
+    region (mid still covers) rather than re-opening the throttle landmine.
+    provider='open-meteo' -> normalizer stamps source_dataset='ecmwf_wam025' (native, honest —
+    mirrors the mid lane). Kill: EURO_MARINE_PILOT_INGEST=0 at the registration site (repo Actions
+    variable, no commit needed)."""
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    logger.info("[Pipeline Scheduler] Starting EURO Marine Pilot (regional 0.25°, ECMWF wave stream) job...")
+    env = get_env_flags()
+    run_time = datetime.now(timezone.utc)
+    total_saved = 0
+    forecast_days = int(os.environ.get("EURO_MARINE_PILOT_FORECAST_DAYS", "2"))
+
+    for region_id, region in REGIONAL_CONFIGS.items():
+        resolution = float(region.get("resolution", 0.25))
+        logger.info(f"[Pipeline Scheduler] Ingesting EURO Marine (ECMWF) for region: {region_id}")
+        results = None
+        try:
+            from services.ecmwf_wave_service import fetch_euro_marine_waves_global
+            results = await fetch_euro_marine_waves_global(region, resolution, forecast_days, timeout_s=600)
+        except Exception as _ee:
+            logger.error(f"[Pipeline Scheduler] EURO marine pilot ECMWF fetch errored for {region_id}: {_ee}")
+        if not results:
+            if env["is_test_env"]:
+                logger.warning(f"[Pipeline Scheduler] EURO marine pilot fetch empty for {region_id} (test env) "
+                               "— injecting mock data...")
+                results = generate_mock_marine_results(scheduler.om_provider, region, resolution)
+            else:
+                logger.warning(f"[Pipeline Scheduler] EURO marine pilot ECMWF unavailable for {region_id}; "
+                               "skipping (mid tier still covers).")
+                continue
+
+        count = await normalize_and_save_loop(
+            scheduler.normalizer, scheduler.store, results,
+            model="EURO", provider="open-meteo", domain="marine", layer="waves",
+            bbox=region, resolution=resolution, run_time=run_time,
+            region_id=region_id, coverage_mode="regional_tile",
+            is_test_env=env["is_test_env"], step=1,
+            log_prefix=f"[Pipeline Scheduler] EURO waves (ecmwf wave stream) {region_id}"
+        )
+        logger.info(f"[Pipeline Scheduler] Ingested {count} EURO waves products for region {region_id}.")
+        total_saved += count
+        if count > 0:
+            scheduler.store.prune_superseded_products("EURO", "marine", "waves", region_id, run_time)
+        await scheduler._cleanup_and_pause(results)
+
+    logger.info(f"[Pipeline Scheduler] EURO Marine Pilot done! Saved {total_saved} total conformed product files.")
+    return total_saved > 0

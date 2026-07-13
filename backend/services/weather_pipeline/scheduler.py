@@ -580,6 +580,13 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.marine_mid_res_ingestion import ingest_euro_marine_global_mid_impl
         return await ingest_euro_marine_global_mid_impl(self)
 
+    async def ingest_euro_marine_pilot(self) -> bool:
+        """EURO 0.25° regional pilot via the free ECMWF wave stream (NO CMEMS) — the EURO rating-band
+        resolution fix (2026-07-13). Delegates to marine_mid_res_ingestion (800-LOC ceiling).
+        Kill: EURO_MARINE_PILOT_INGEST=0 at the registration site."""
+        from services.weather_pipeline.marine_mid_res_ingestion import ingest_euro_marine_pilot_impl
+        return await ingest_euro_marine_pilot_impl(self)
+
     async def ingest_gfs_pressure_global(self) -> bool:
         """Ingests GFS pressure grid forecast globally at a coarse resolution."""
         from services.weather_pipeline.pressure_ingestion import ingest_gfs_pressure_global_impl

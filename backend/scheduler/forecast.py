@@ -149,6 +149,11 @@ def ingest_marine_forecast_task():
                 # files; far hours fall through to mid/global). Kill: ICON_MARINE_PILOT_INGEST=0.
                 *([("ICON Marine Pilot", weather_scheduler.ingest_icon_marine_pilot)]
                   if os.environ.get("ICON_MARINE_PILOT_INGEST", "1") != "0" else []),
+                # Regional EURO marine pilot (2026-07-13 — the EURO rating-band resolution fix):
+                # 0.25° flagship tiles from the FREE ECMWF wave stream (natively 0.25°, byte-range,
+                # no CMEMS/throttle risk), waves layer only. ~5-10 min. Kill: EURO_MARINE_PILOT_INGEST=0.
+                *([("EURO Marine Pilot", weather_scheduler.ingest_euro_marine_pilot)]
+                  if os.environ.get("EURO_MARINE_PILOT_INGEST", "1") != "0" else []),
             ]
             # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
             # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per

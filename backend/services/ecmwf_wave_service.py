@@ -19,13 +19,15 @@ async def fetch_euro_marine_waves_global(
     bbox: dict,
     resolution: float = 2.0,
     forecast_days: int = 10,
+    timeout_s: int = 1800,
 ) -> Optional[List[dict]]:
     """BACKGROUND-ONLY: global EURO total-sea waves direct from ECMWF Open Data (IFS 0.25° wave-stream
     GRIB, sampled at ``resolution``°). Slow (~3-6 min, low CPU/mem) — scheduler ingestion ONLY. Native
     horizon 10d (240h) on 00/12 cycles; 06/18 cycles fall back to ≤144h inside the fetcher. None in
-    test env."""
+    test env. `timeout_s`: the regional PILOT passes a tight 600 s (fail fast, mid tier still covers)
+    while the global mid keeps the 30-min default."""
     return await run_fetcher_subprocess(
         "ecmwf_opendata_fetcher.py", bbox, resolution, forecast_days,
         log_tag="ECMWF EURO-Waves", out_prefix="ecmwfwave_global",
-        extra_payload={"layer": "waves"},
+        extra_payload={"layer": "waves"}, timeout=timeout_s,
     )

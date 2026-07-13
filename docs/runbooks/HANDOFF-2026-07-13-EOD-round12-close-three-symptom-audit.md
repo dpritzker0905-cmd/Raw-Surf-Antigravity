@@ -183,6 +183,33 @@ things, two now fixed, one landed-but-cancelled-run:
    spot-ratings 500 at the Guatemala bbox = live path dying under the melt; the user-endpoint
    500-storm = DB pool starvation from live ratings (§1 signature).
 
+## §4c FOLLOW-UP ROUND 3 (2026-07-13 ~16-17Z — the EURO/ICON rating-band resolution ask)
+User logs on `046ba1d3` CONFIRMED the prior ships working: `src=precomputed_stale` serving
+instantly (stale ladder LIVE, zero 500-storm), probe terminal landing cleanly ("probe budget
+spent (4) — accepting resident as best-available"), and — the key forensic gift — **the ICON
+rating band ALREADY hit 0.25° at SoCal** (`dims:33x25 spanLng:8 rating:true` = the ICON pilot
+tile serving the band; GFS same at 25×21). **EURO band was the last one stuck** (7×6 @ ~1.7°,
+probes exhausted) because EURO has ZERO regional tiles (its legacy regional method = CMEMS =
+throttle landmine, never carried to CI).
+**SHIPPED: EURO marine 0.25° regional pilot — NO CMEMS.** The free ECMWF Open Data wave stream
+is natively 0.25° (probe: ecmwf_wam025 snaps 0.25° both axes) and already lights the EURO mid
+tier; the pilot reuses `fetch_euro_marine_waves_global` with flagship bboxes (waves layer only —
+the free feed has no swell partitions, and waves-only PROVABLY serves the band: the EURO mid
+lane is waves-only and paints it today). Impl `ingest_euro_marine_pilot_impl` in
+marine_mid_res_ingestion.py (LOC ceiling), delegate on scheduler, registered in pilot_jobs.
+Bounds: flagship-only, `EURO_MARINE_PILOT_FORECAST_DAYS=2`, 600s fetch cap, ~5-10 min in the
+lane (~174-180/200 total). Kills: `EURO_MARINE_PILOT_INGEST=0` (repo Actions var). Tests:
+`test_euro_marine_pilot.py` (ECMWF-direct regional + CMEMS-never-touched guard).
+VERIFY after next pilots run (17:45Z+ slot): EURO rating band at FL/SoCal z8-9 should commit
+`euro_marine_waves_florida_east_coast`/`..._us_west_coast_socal` (~17-25 cols at spanLng 4-6)
+instead of the 7×6 mid clip.
+**QUEUED (worldwide fine tiles for ICON+EURO): multi-bbox single-download-pass fetcher** — the
+GWAM/ECMWF fetchers download whole-globe per-(var,hour) files, so per-region passes re-download
+identical bytes; a `bboxes:{region_id:bbox}` payload sampling N regions per decoded file gives
+worldwide fine tiles for ~one region's cost. Touches `_fetch_common.run_fetcher_subprocess`'s
+output contract (list → keyed dict) = shared plumbing across ALL fetchers → own careful arc.
+Also queued: GFS marine pilot 51-min budget audit (§4b), §7g-β, §1c residual.
+
 ## §5 VERIFICATION RECIPES
 - Melt check: `GET /api/weather/spot-ratings?...` → `source` field. precomputed ≈1–2 s good.
 - Option A check: grid diagnostics `animChannel=dominant_swell` + `swellStampedCount>0`.
