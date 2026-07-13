@@ -40,6 +40,7 @@ uniform float u_coarseNearestDir;  // >0.5: advect along the NEAREST coarse cell
 uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — cell-center snapping for the nearest-direction sample
 uniform float u_particles_res;     // particle state texture resolution — stratum width for stratified reseeding
 uniform float u_stratifiedReseed;  // >0.5: respawn each particle inside ITS OWN stratum (its state-texel footprint) instead of uniform-random — Jobard–Lefer-style even coverage, kills reseed clumps at low density (U2, 2026-07-02)
+uniform float u_motionUnlock;      // §4.2 motion-unlock: 1 = rating mode with __RAW_RATING_MOTION_UNLOCK__ — land checks lift to max(mask.r, mask.g), where g = MOTION-water (geographic water incl. band-masked cells). 0 = legacy (mask.r only); on geography masks r==g so this is inert either way.
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -128,7 +129,10 @@ void main() {
   // WNW instead of WSW off Florida).
   waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
-  float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // §4.2 motion-unlock: base land check lifts masked-ocean (g=motion-water) BEFORE the overlay
+  // combine; the overlay carries geography truth, which EQUALS motion semantics, so it stays as-is.
+  vec4 baseMaskSample = texture2D(u_oceanMaskTexture, mask_uv);
+  float oceanFlag = max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
   // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
   // back to the base mask (stale-safe — see HEATMAP_FS note).
   float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
@@ -194,7 +198,8 @@ void main() {
   float next_mask_v = (mercMaxY - next_global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 next_mask_uv = vec2(next_mask_u, next_mask_v);
   
-  float nextOceanFlag = texture2D(u_oceanMaskTexture, next_mask_uv).r;
+  vec4 nextMaskSample = texture2D(u_oceanMaskTexture, next_mask_uv);
+  float nextOceanFlag = max(nextMaskSample.r, nextMaskSample.g * u_motionUnlock);
   if (u_overlayMaskEnabled > 0.5) {
     float no_u = (next_lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float no_v = (oMercMaxY - next_global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
@@ -291,6 +296,7 @@ uniform float u_debug_mode;        // debug mode selector
 uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
 uniform float u_edgeFeatherEnabled;
+uniform float u_motionUnlock;      // §4.2 motion-unlock — see ADVECT_FS; 0 = legacy .r-only land checks
 uniform float u_edgeFeatherWidth;   // CLAMP SOFTENER (matches heatmap): widen the crest edge dissolve for sub-viewport tiles. Default 0.18.
 uniform float u_crestDirJitter;     // radians: per-crest random heading spread (directional spectrum) to break the parallel-crest LATTICE over uniform/coarse fields. 0 = off.
 uniform float u_orbitalPitch;       // CSS px: phase-synced forward/back sway along waveDir so crests PITCH with the wave orbit, not just translate. 0 = off.
@@ -403,7 +409,9 @@ void main() {
   waveVec.y = -waveVec.y;
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
-  float oceanFlag = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // §4.2 motion-unlock: matches ADVECT_FS — base check lifts to motion-water BEFORE overlay combine.
+  vec4 baseMaskSample = texture2D(u_oceanMaskTexture, mask_uv);
+  float oceanFlag = max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
   // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
   // back to the base mask (stale-safe — see HEATMAP_FS note). Matches ADVECT_FS exactly.
   float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
@@ -635,7 +643,8 @@ void main() {
         end_u = (endLng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
       }
       float end_v = (mercMaxY - endMerc.y) / max(mercMaxY - mercMinY, 0.0001);
-      float endFlag = texture2D(u_oceanMaskTexture, vec2(end_u, end_v)).r;
+      vec4 endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));
+      float endFlag = max(endMaskSample.r, endMaskSample.g * u_motionUnlock);
       if (u_overlayMaskEnabled > 0.5) {
         float eo_u = (endLng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
         float eo_v = (oMercMaxY - endMerc.y) / max(oMercMaxY - oMercMinY, 0.0001);

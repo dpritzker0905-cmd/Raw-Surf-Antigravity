@@ -145,7 +145,10 @@ describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/
     expect(DRAW_VS).toContain('uniform float u_endpointLandFade;');
     expect(DRAW_VS).toContain('if (u_endpointLandFade > 0.5)');
     // Samples the SAME mask sampler the center cull uses, at the corner endpoint uv.
-    expect(DRAW_VS).toContain('float endFlag = texture2D(u_oceanMaskTexture, vec2(end_u, end_v)).r;');
+    // (§4.2 motion-unlock, 2026-07-13: the sample is now vec4 and the flag lifts to
+    // max(r, g*u_motionUnlock) — identical to .r when the uniform is 0 / on geography masks.)
+    expect(DRAW_VS).toContain('vec4 endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));');
+    expect(DRAW_VS).toContain('float endFlag = max(endMaskSample.r, endMaskSample.g * u_motionUnlock);');
     // Fades alpha (dissolve toward land) instead of hard-discarding the whole ribbon.
     expect(DRAW_VS).toContain('v_alpha *= smoothstep(0.20, 0.45, endFlag);');
     // Endpoint is derived from the along-crest pixel offset inverted back to mercator.

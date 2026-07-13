@@ -557,6 +557,12 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   const layer = waveGrid.__componentLayer || 'waves';
   const hourOffset = waveGrid.hourOffset || 0;
 
+  // §4.2 MOTION-UNLOCK resident stamp: the render passes read this (with the
+  // __RAW_RATING_MOTION_UNLOCK__ opt-in) to lift particle land checks to the dataMask.g
+  // motion-water channel the encoder writes for rating grids. Non-rating commits stamp false
+  // → u_motionUnlock stays 0 → byte-identical legacy behavior.
+  this._residentRatingMode = !!waveGrid.ratingMode;
+
   // Forensic ledger: every ACCEPTED commit with its identity — the ring's spine. Rejects,
   // clears and fade transitions are recorded at their own sites; together one dump() reads
   // as the full lifecycle without console archaeology.
@@ -1546,6 +1552,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // coastal edges) the wash already rejects. Tune live: __RAW_CREST_LAND_THRESH__ (0.3 = legacy).
       const _crestLandThresh = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_CREST_LAND_THRESH__)) ? +window.__RAW_CREST_LAND_THRESH__ : 0.5;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestLandThreshold'), _crestLandThresh);
+      // §4.2 MOTION-UNLOCK (ship OFF, user A/B via window.__RAW_RATING_MOTION_UNLOCK__ = true):
+      // in rating mode lift crest land checks to max(mask.r, mask.g) — g is the encoder's
+      // motion-water channel — so crests ride the real swell over band-masked open ocean while
+      // the band COLORS stay untouched. 0 on non-rating commits/geography masks = byte-identical.
+      const _motionUnlock = (this._residentRatingMode === true && typeof window !== 'undefined' &&
+        window.__RAW_RATING_MOTION_UNLOCK__ === true) ? 1.0 : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motionUnlock'), _motionUnlock);
       // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
@@ -1580,6 +1593,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           stratifiedReseed: (typeof window.__RAW_STRATIFIED_RESEED__ === 'number' ? window.__RAW_STRATIFIED_RESEED__ !== 0 : true),
           farzoomSizeFloor: _g('__RAW_FARZOOM_SIZE_FLOOR__', 0.55),
           endpointLandFade: _endpointLandFade === 1.0,  // crest ribbons dissolve toward land ends (kill: __RAW_DISABLE_ENDPOINT_LAND_FADE__)
+          motionUnlock: _motionUnlock === 1.0,          // §4.2: rating-mode crests riding motion-water (opt-in __RAW_RATING_MOTION_UNLOCK__)
           blendWash: _blendBaseWash,
           legacyAnim: window.__RAW_ANIM_LEGACY__ === true   // true → Natural defaults killed (flat pre-2026-07 look)
         };
@@ -1717,6 +1731,11 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       const _stratified = (typeof window !== 'undefined' && window.__RAW_STRATIFIED_RESEED__ === 0) ? 0.0 : 1.0;
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_stratifiedReseed'), _stratified);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_particles_res'), this.particleRes);
+      // §4.2 MOTION-UNLOCK — must match the DRAW pass exactly (advected positions and drawn
+      // crests share land semantics, or particles die where crests would render and vice versa).
+      const _advMotionUnlock = (this._residentRatingMode === true && typeof window !== 'undefined' &&
+        window.__RAW_RATING_MOTION_UNLOCK__ === true) ? 1.0 : 0.0;
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_motionUnlock'), _advMotionUnlock);
 
       bindTexture(gl, null, 0);
       bindTexture(gl, null, 1);

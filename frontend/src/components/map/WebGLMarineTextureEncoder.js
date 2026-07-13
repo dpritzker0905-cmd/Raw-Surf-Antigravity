@@ -87,6 +87,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   const activeLayer = waveGrid.__componentLayer || 'waves';
   const N = cols * rows;
 
+  // MOTION-UNLOCK (§4.2, 2026-07-13): rating grids mask open-ocean cells (is_valid=false) so the
+  // band colors stay a coastal ribbon — but those cells still carry the backend's honest u/v/height
+  // (rating_transform_grid only rewrites RATED cells). Build a parallel MOTION-water array (geographic
+  // water = color-water OR masked-with-data) so dataMask.g can carry it; the particle shaders lift
+  // their land checks to max(mask.r, mask.g * u_motionUnlock) — crests ride the real swell over the
+  // whole ocean in rating mode while band COLORS stay untouched. Non-rating grids pass null → the
+  // geo derivation and its cache behave byte-identically. Kill/enable: __RAW_RATING_MOTION_UNLOCK__.
+  const ratingMotion = !!waveGrid.ratingMode;
+
   // Reusable scratch buffers to avoid TypedArray allocation in hot path
   const scratch = getEncoderScratchBuffers(N);
   const uArr = scratch.uArr.subarray(0, N);
@@ -96,6 +105,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   const oceanArr = scratch.oceanArr.subarray(0, N);
   const confArr = scratch.confArr.subarray(0, N);
   const dataWave = scratch.dataWave.subarray(0, N * 4);
+  const motionArr = ratingMotion ? scratch.motionArr.subarray(0, N) : null;
   confArr.fill(1.0);   // default: fully confident (products without dir_confidence are unchanged)
 
   const numGridToProcess = Math.min(vectors.length, N);
@@ -105,6 +115,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     const v = vectors[i];
     if (!v) {
       oceanArr[i] = 0;
+      if (motionArr) motionArr[i] = 0;
       continue;
     }
     const hasSub = activeLayer !== 'waves' && v[activeLayer];
@@ -145,6 +156,11 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     hArr[i] = height;
     pArr[i] = period;
     oceanArr[i] = isOcean ? 1 : 0;
+    // Motion-water: color-water OR a masked cell that still carries real field data. True LAND
+    // arrives as is_valid=false with all-zero u/v/height/period, so it stays 0 on both channels.
+    if (motionArr) {
+      motionArr[i] = (isOcean || uVal !== 0 || vVal !== 0 || height > 0 || period > 0) ? 1 : 0;
+    }
 
     // §0B-a: per-cell direction confidence (coarse NOAA products only; null/absent = 1.0). Ocean
     // cells only — land/invalid texels keep 1.0 so dilated/extrapolated directions stay full-strength
@@ -174,6 +190,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     hArr.fill(0, numGridToProcess, N);
     pArr.fill(0, numGridToProcess, N);
     oceanArr.fill(0, numGridToProcess, N);
+    if (motionArr) motionArr.fill(0, numGridToProcess, N);
   }
 
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
@@ -209,7 +226,26 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
   // Shelf-distance / bathymetry / chlorophyll / ocean-mask channels (viewport-cached in
   // WebGLMarineGeoData). Extracted for LOC compliance — pure geo derivation, no engine/mask coupling.
-  const { dataBath, dataChl, dataMask } = getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal);
+  // motionArr (rating grids only) rides into dataMask.g; null leaves the derivation byte-identical.
+  const { dataBath, dataChl, dataMask } = getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionArr);
+
+  // §4.2 A/B DISCRIMINATOR: if the unlock A/B still shows locked animations, this tells the next
+  // probe WHICH root is live — unlockable = masked-ocean cells the g-channel frees; withMotion =
+  // how many of those actually carry nonzero u/v after extrapolation/dilation. withMotion≈0 means
+  // the mapper/conform strips u/v from is_valid=false cells BEFORE the encode (fix there, not here).
+  if (motionArr && typeof window !== 'undefined') {
+    let _unlockable = 0, _withMotion = 0;
+    for (let i = 0; i < N; i++) {
+      if (motionArr[i] === 1 && oceanArr[i] === 0) {
+        _unlockable++;
+        if (uArr[i] !== 0 || vArr[i] !== 0) _withMotion++;
+      }
+    }
+    window.__RAW_MOTION_UNLOCK_ENCODE__ = {
+      unlockable: _unlockable, withMotion: _withMotion,
+      cols, rows, at: Date.now()
+    };
+  }
 
   // §0B-a: confidence consumption gate + telemetry. Kill switch __RAW_DISABLE_DIR_CONFIDENCE__=true
   // restores full-strength unit directions everywhere (forensic A/B).

@@ -161,3 +161,32 @@ rerun the §1b recipe with layer=wind_waves + gfswave025 wind_wave_* fields if d
   (covers on-demand direct lanes). Takes effect per product on its next ingest cycle (~4 h full
   refresh); mixed old/new products in between. Verify: grid diagnostics `swellStampedCount>0`
   on a fine tile + Canaveral crests should march coherently ~E-ESE instead of radiating.
+
+### 7c. §4.2 MOTION-UNLOCK BUILT — dataMask.g channel, SHIP OFF (awaiting A/B)
+Implemented exactly per the round-7 §3 design (07-12 EOD handoff), 5 surfaces:
+- `WebGLMarineFieldMath.js`: scratch gains `motionArr`.
+- `WebGLMarineTextureEncoder.js`: rating grids (`waveGrid.ratingMode`) build a MOTION-water
+  array — color-water OR masked-with-data (true land = all-zero on both) — passed into
+  `getMarineGeoData`. Non-rating passes null (byte-identical).
+- `WebGLMarineGeoData.js`: `dataMask.g` = motion-water (else duplicates .r exactly as before);
+  cache key gains `_m<count>` so rating/plain shapes never share an entry; antimeridian wrap
+  averages G separately.
+- `WebGLMarineParticleShaders.js`: ADVECT_FS (current+next checks) + DRAW_VS (center cull +
+  endpoint fade) lift to `max(mask.r, mask.g * u_motionUnlock)` BEFORE the overlay combine;
+  overlay still consumes geography `.r` (geography == motion semantics).
+- `WebGLMarineEngine.js`: `_residentRatingMode` stamped per commit; `u_motionUnlock =
+  (_residentRatingMode && window.__RAW_RATING_MOTION_UNLOCK__ === true)` in BOTH passes
+  (must match or advect/draw land semantics diverge); echoed in `__RAW_GPU__.anim.motionUnlock`.
+- OFF-state safety: uniform 0 ⇒ `max(r, g·0) = r`; geography canvas masks have r==g ⇒ inert
+  even when ON. Goldens `WebGLMarineGeoData.motionUnlock.test.js` (9); one legacy shader golden
+  updated to the lifted endpoint-fade form. FE suite 104/870 green.
+- **A/B RECIPE**: rating mode ON → console `window.__RAW_RATING_MOTION_UNLOCK__ = true` → crests
+  should ride the real swell over the whole ocean while band colors stay unchanged; toggle back
+  false → byte-identical legacy. Non-rating layers must show zero change under either state.
+- ⚠️ RESIDUAL-ROOT DISCRIMINATOR (static re-derivation left one ambiguity: both GPU masks
+  bound to the particle passes are geography-truth in the code I could read, so if the round-7
+  live proof's kill actually rode the wave-texture DATA, unlocking the mask won't free motion):
+  the encoder now publishes `window.__RAW_MOTION_UNLOCK_ENCODE__ = {unlockable, withMotion}` on
+  every rating encode. If the A/B still shows locked animations AND `withMotion≈0`, the mapper/
+  conform strips u/v from `is_valid=false` cells before the encode — fix THERE next, not in the
+  mask (check `mapNormalizedGridToWebGL` + the useMarineWindData conform mirror first).

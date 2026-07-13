@@ -22,6 +22,7 @@ let pArrScratch = null;
 let oceanArrScratch = null;
 let confArrScratch = null;
 let dataWaveScratch = null;
+let motionArrScratch = null;
 
 export function getEncoderScratchBuffers(N) {
   if (!uArrScratch || uArrScratch.length < N) {
@@ -32,6 +33,7 @@ export function getEncoderScratchBuffers(N) {
     oceanArrScratch = new Uint8Array(N);
     confArrScratch = new FloatArrayConstructor(N);
     dataWaveScratch = new Uint8Array(N * 4);
+    motionArrScratch = new Uint8Array(N);
   }
   return {
     uArr: uArrScratch,
@@ -40,7 +42,8 @@ export function getEncoderScratchBuffers(N) {
     pArr: pArrScratch,
     oceanArr: oceanArrScratch,
     confArr: confArrScratch,
-    dataWave: dataWaveScratch
+    dataWave: dataWaveScratch,
+    motionArr: motionArrScratch
   };
 }
 

@@ -9,7 +9,7 @@ import { FloatArrayConstructor } from './WebGLMarineFieldMath';
 
 const _geoCache = new Map();
 
-export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal) {
+export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess, isGlobal, motionOceanArr) {
   const N = cols * rows;
 
   // Cache key includes the OCEAN-CELL COUNT (2026-07-03): products of identical shape+bounds can
@@ -17,9 +17,17 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
   // ocean) and the plain grid (~60% ocean) share cols/rows/bounds, so whichever encoded FIRST used
   // to win the cached mask/bathymetry/chlorophyll for every later product of that shape (audit
   // finding, 2026-07-03). The ocean count discriminates the validity profile at zero hash cost.
+  // MOTION-UNLOCK (§4.2): rating grids pass motionOceanArr (geographic water incl. masked cells)
+  // → dataMask.g carries it. The key gains the motion count so a rating grid can never win the
+  // cached mask for its plain sibling (or vice versa); absent (null) keys stay identical to before.
   let _oceanCount = 0;
   for (let i = 0; i < N; i++) _oceanCount += oceanArr[i];
-  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}_o${_oceanCount}`;
+  let _motionCount = -1;
+  if (motionOceanArr) {
+    _motionCount = 0;
+    for (let i = 0; i < N; i++) _motionCount += motionOceanArr[i];
+  }
+  const cacheKey = `${cols}_${rows}_${bounds ? `${bounds.west.toFixed(3)}_${bounds.south.toFixed(3)}_${bounds.east.toFixed(3)}_${bounds.north.toFixed(3)}` : 'global'}_o${_oceanCount}${motionOceanArr ? `_m${_motionCount}` : ''}`;
   let geoData = _geoCache.get(cacheKey);
 
   if (!geoData) {
@@ -177,7 +185,9 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
 
       const oceanFlag = grid[i] === 1 ? 255 : 0;
       dataMask[i * 4 + 0] = oceanFlag;
-      dataMask[i * 4 + 1] = oceanFlag;
+      // G = MOTION-water when provided (rating grids); otherwise duplicates the color flag
+      // exactly as before. Land is 0 on both channels, so max(r, g*unlock) can never leak land.
+      dataMask[i * 4 + 1] = motionOceanArr ? (motionOceanArr[i] === 1 ? 255 : 0) : oceanFlag;
       dataMask[i * 4 + 2] = oceanFlag;
       dataMask[i * 4 + 3] = oceanFlag;
     }
@@ -196,8 +206,11 @@ export function getMarineGeoData(cols, rows, bounds, oceanArr, numGridToProcess,
         dataChl[idx0 + 2] = dataChl[idxN + 2] = avgB;
 
         const avgFlag = Math.floor((dataMask[idx0 + 0] + dataMask[idxN + 0]) * 0.5);
+        // G averaged separately: it may carry motion-water (rating grids), which must not be
+        // stomped by the color flag at the antimeridian wrap. Identical to avgFlag when g==r.
+        const avgMotionG = Math.floor((dataMask[idx0 + 1] + dataMask[idxN + 1]) * 0.5);
         dataMask[idx0 + 0] = dataMask[idxN + 0] = avgFlag;
-        dataMask[idx0 + 1] = dataMask[idxN + 1] = avgFlag;
+        dataMask[idx0 + 1] = dataMask[idxN + 1] = avgMotionG;
         dataMask[idx0 + 2] = dataMask[idxN + 2] = avgFlag;
         dataMask[idx0 + 3] = dataMask[idxN + 3] = avgFlag;
       }
