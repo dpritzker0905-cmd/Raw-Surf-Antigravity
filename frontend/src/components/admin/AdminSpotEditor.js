@@ -9,6 +9,7 @@ import { useAuth } from '../../contexts/AuthContext';
 import apiClient from '../../lib/apiClient';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 const NOAA_BUOYS = [
   // Florida

@@ -71,6 +71,46 @@ async def ensure_database_tables():
         # Check if database is SQLite to skip PG-specific migration steps
         if conn.dialect.name == "sqlite":
             await conn.run_sync(Base.metadata.create_all)
+
+            # create_all() only creates missing TABLES - it never alters an existing
+            # table to add a newly-defined column (this silently broke the pricing_config
+            # commission_rates/surfer_discount_rates columns: dev.db already had the
+            # global_pricing_config table from before those columns existed, so create_all()
+            # no-op'd for it and a real column-add ALTER TABLE was needed but never ran on
+            # this SQLite path - only the Postgres branch below has that logic). Mirror it
+            # here using SQLite's own introspection/ALTER TABLE syntax.
+            existing_tables = await conn.run_sync(lambda sync_conn: inspect(sync_conn).get_table_names())
+            columns_added = 0
+            for table_name, table in Base.metadata.tables.items():
+                if table_name not in existing_tables:
+                    continue  # brand-new table, create_all() just handled it
+
+                existing_cols = {
+                    c["name"] for c in await conn.run_sync(
+                        lambda sync_conn, t=table_name: inspect(sync_conn).get_columns(t)
+                    )
+                }
+                for col in table.columns:
+                    if col.name in existing_cols:
+                        continue
+                    try:
+                        col_type = col.type.compile(dialect=conn.dialect)
+                    except Exception:
+                        col_type = "TEXT"
+                    # SQLite ADD COLUMN can't declare NOT NULL without a DEFAULT; since
+                    # every model column added post-hoc here is expected to be nullable
+                    # (matches this codebase's convention for additive migrations), just
+                    # add it as nullable regardless of the model's declared nullability.
+                    alter_sql = f"ALTER TABLE {table_name} ADD COLUMN {col.name} {col_type}"
+                    try:
+                        await conn.execute(text(alter_sql))
+                        columns_added += 1
+                        logger.info(f"[DB Migration] ✓ Added column: {table_name}.{col.name} ({col_type})")
+                    except Exception as col_err:
+                        logger.warning(f"[DB Migration] ⚠ Could not add {table_name}.{col.name}: {col_err}")
+
+            if columns_added:
+                logger.info(f"[DB Migration] ✓ Added {columns_added} missing columns (SQLite)")
             logger.info("[DB Migration] SQLite database initialized successfully.")
             return
 

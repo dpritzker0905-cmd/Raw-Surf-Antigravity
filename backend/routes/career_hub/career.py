@@ -143,6 +143,7 @@ async def get_competition_results(
 
 @router.get("/admin/pending-verifications")
 async def get_pending_verifications(
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Get all pending competition result verifications for admin review"""

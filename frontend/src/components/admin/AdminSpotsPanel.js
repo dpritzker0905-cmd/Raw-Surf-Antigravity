@@ -11,6 +11,7 @@ import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 /**
  * AdminSpotsPanel - Extracted from UnifiedAdminConsole

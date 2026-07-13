@@ -13,6 +13,7 @@ import { Button } from './ui/button';
 import { Input } from './ui/input';
 import { toast } from 'sonner';
 import logger from '../utils/logger';
+import '../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 
 /**
