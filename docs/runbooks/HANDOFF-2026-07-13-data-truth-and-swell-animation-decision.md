@@ -83,6 +83,33 @@ gate + wheel step row · `96eed6b7` data-truth probe verdict. Admin session: `71
 FALSIFIED (never build): rate-the-globe; FE fetch timeout (murder-loop 07-06, 120 s ceiling
 exists); animations-on-coarse-base; blind particle-carry enable.
 
+## §5b ROUND-11: "LOCALHOST MORE ACCURATE THAN DEV" — PATH DIVERGENCE PROVEN CONDITIONAL
+User observation verified mechanically. The two builds run IDENTICAL code (`[BUILD] 96eed6b7`
+confirmed in their dev log) but DIFFERENT data paths:
+- **localhost:3009** → Render backend DIRECT (no ceiling; a 40 s cold fetch eventually lands).
+- **dev-online** → netlify.toml redirect `/api/weather/* → /.netlify/functions/weather/:splat` —
+  a pure pass-through proxy (`frontend/netlify/functions/weather.js:220-246`, NO caching, verified
+  by source read) but subject to **Netlify's ~10 s synchronous function limit**, PLUS the service
+  worker caches API GETs and serves them on network failure (masks failures as stale data).
+Timed side-by-side probe (23:48Z, warm backend): identical products both paths (waves fine 169
+cells same run_time; heavy 48-frame wind_waves series 200 OK both, 2.7 s vs 2.0 s). So: **no data
+divergence when healthy; dev-online LOSES exactly the >10 s requests localhost wins** — which is
+the user's observed asymmetry (their dev logs show grid_series page failures + series misses 27 +
+wind_waves lane stalled behind in-flight dedup; localhost sessions never show the failures).
+FIX CANDIDATES (rising effort): (a) point the deployed FE straight at Render for /api/weather/*
+(kill the function hop — CORS already allows netlify.app origins; the redirect predates the
+backend's own CORS support and appears vestigial); (b) exclude /api/weather from SW caching so
+failures surface as failures; (c) keep the proxy but stream/extend (Netlify background functions).
+(a)+(b) = small netlify.toml + service-worker.js edits, HIGH payoff, LOW risk — recommend first.
+⚠️ Verify nothing else depends on the function (grep for '/.netlify/functions/weather' consumers;
+the weather-proxy.js sibling + rvproxy edge fn are SEPARATE lanes — radar rule: RainViewer stays
+on /rv/*).
+
+## §5c wind_waves note (user report): both paths served the fine 169-cell wind_waves tile
+identically when probed; the in-session clamp was the same tier-thrash + lane-stall class (§4.3),
+amplified on dev by the >10 s losses above. wind_waves numbers vs provider: not yet point-diffed —
+rerun the §1b recipe with layer=wind_waves + gfswave025 wind_wave_* fields if doubted.
+
 ## §6 LIVE TEST WORKFLOW (unchanged, binding)
 `[BUILD] bundle=<hash>` must match dev HEAD (⚠️STALE warning auto-fires) → reproduce →
 `await __RAW_FORENSIC__.copy()` → paste. Never judge during a Render deploy window.
