@@ -19,7 +19,10 @@ logger = logging.getLogger(__name__)
 
 
 @router.post("/surf-spots/admin/normalize-hierarchy")
-async def normalize_surf_spot_hierarchy(db: AsyncSession = Depends(get_db)):
+async def normalize_surf_spot_hierarchy(
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     """
     One-time migration endpoint to normalize the surf spot hierarchy:
     1. Consolidates orphan countries (Canary Islands → Spain, Northern Ireland → UK, etc.)
@@ -128,7 +131,10 @@ async def normalize_surf_spot_hierarchy(db: AsyncSession = Depends(get_db)):
 
 
 @router.post("/surf-spots/admin/seed-florida-spots")
-async def seed_florida_spots(db: AsyncSession = Depends(get_db)):
+async def seed_florida_spots(
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
     """
     Seed missing Florida surf spots from comprehensive research.
     Sources: Surfline, Mondo Surf, Visit Space Coast, Visit Indian River County.
@@ -158,6 +164,7 @@ async def admin_update_spot(
     longitude: Optional[float] = Query(None),
     name: Optional[str] = Query(None),
     region: Optional[str] = Query(None),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """Admin endpoint to fix spot data (coordinates, name, region)."""

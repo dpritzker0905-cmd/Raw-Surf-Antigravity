@@ -128,6 +128,7 @@ async def _reparent_fk_refs(
 @router.post("/surf-spots/admin/dedup")
 async def dedup_surf_spots(
     execute: bool = Query(False, description="Set to true to actually merge. Default is dry-run."),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -242,6 +243,7 @@ NEAR_DUPE_PAIRS = [
 @router.post("/surf-spots/admin/merge-near-dupes")
 async def merge_near_duplicate_spots(
     execute: bool = Query(False, description="Set to true to actually merge. Default is dry-run."),
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """

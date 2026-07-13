@@ -637,3 +637,47 @@ Grepped for each fix from §17-19 directly against current source (not re-truste
 
 ### 20.7 Verdict
 The one remaining open item from the previous pass is now closed, root-caused via live instrumentation (not guesswork) rather than patched around. This pass also closed a real gap in the audit's own methodology — every prior "live test" only proved the read direction of the Jacobian (data flowing into admin views); this pass proved the write direction too (an admin action producing a verified, predictable database mutation), and confirmed the fix doesn't generalize-by-assumption to a superficially similar sibling component. Admin panel Jacobian audit arc: closed, no known open items.
+
+---
+
+## 21. Round 4 — exhaustive auth-gate sweep of the entire backend (2026-07-12, same session)
+
+**User directive:** "Do another deep forensic audit of the entire admin, look at the previous audits, the commits since we started building, at the code, find proof and truth... jacobian lens... continue to solidify the admin." Triggered in part by manually retesting "Snap Offshore" and getting "Failed to move spot" — root-caused live to the local test backend having been stopped mid-session (proof: `net::ERR_CONNECTION_REFUSED` on the exact same request that succeeded once the backend was restarted; not an application bug).
+
+### 21.1 Git archaeology
+`git log` filtered to every admin-related backend/frontend path confirms only 3 commits belong to this entire audit arc: `71009d03` (Phases 0-5 + tri-theme), `22c304d3` (Map Editor Leaflet fix + SQLite migration gap), and `969ac20e` (a concurrent session's commit that incidentally swept up round-3's marker-bug fix — verified via `git show` to contain the correct content, already pushed). No missed or reverted admin work found in history.
+
+### 21.2 Exhaustive auth-gate sweep — methodology correction included
+Previous passes checked individual files by hand. This pass wrote a script to check **every** `@router.*` decorated function across the entire `backend/routes/` tree (930 routes) for a `get_current_admin` dependency wherever the route path or containing file suggested admin-only intent.
+
+**First attempt (regex-based) produced false positives** — nested `Query(..., description="...")` parentheses broke the naive signature-capture regex, incorrectly flagging 3 functions (`admin_remove_condition_report`, `admin_cleanup_orphaned_condition_reports`, `heal_session_dates`) that actually do have `get_current_admin`. Caught by manually reading each flagged file before trusting the tool output — exactly the discipline this audit arc has tried to hold itself to. **Rewrote the scanner using Python's `ast` module** (proper parsing, not string matching) and re-ran it; this eliminated the false positives and is the version whose results are reported below.
+
+### 21.3 New finding: 6 genuinely unauthenticated bulk-mutation endpoints — FOUND, VERIFIED, FIXED
+Confirmed via direct source reading (not just the scanner) that these 6 functions had **zero** authentication dependency of any kind — not `get_current_admin`, not even `get_current_user`:
+
+| Endpoint | File | What it does unauthenticated |
+|---|---|---|
+| `POST /surf-spots/admin/normalize-hierarchy` | `admin_spots.py` | Bulk-rewrites country/state on many spots |
+| `POST /surf-spots/admin/seed-florida-spots` | `admin_spots.py` | Bulk-inserts spot records |
+| `PATCH /surf-spots/admin/update-spot` | `admin_spots.py` | Edits **any** spot's coordinates/name/region via bare query params — no body, no auth, just a URL |
+| `POST /surf-spots/admin/dedup` | `spot_dedup.py` | With `?execute=true`: **irreversibly merges/deletes** spots, re-parenting FKs across 20 tables |
+| `POST /surf-spots/admin/merge-near-dupes` | `spot_dedup.py` | Same irreversible merge behavior for near-duplicate names |
+| `DELETE /condition-reports/cleanup/orphaned` | `condition_reports/admin.py` | Bulk-deletes another user's (`photographer_id` param) condition reports |
+
+**Jacobian relevance check**: grepped the entire frontend for each route path — **zero UI callers for any of the 6**. These are dangling backend-only attack surface, not "admin panel features that are insecure" — no admin UI screen is affected by the fix, but they were live, reachable, unauthenticated HTTP endpoints on the real API surface capable of destructive, irreversible bulk writes.
+
+**Fixed**: added `admin: Profile = Depends(get_current_admin)` to all 6 (all 3 files already imported `get_current_admin` and used it correctly elsewhere — same "inconsistency within the same file" shape as every previous P0 in this audit arc).
+
+**Verified live** (backend restarted to load the fix):
+- All 6, called with zero auth header: `401 {"detail":"Authentication required..."}`.
+- `dedup`/`merge-near-dupes` re-called with `?execute=false` (dry-run) + admin token: `200`, real dry-run analysis (found 9 real duplicate spots across 7 groups, including the same "10th Street East Folly"/"10th Street Folly" pair visible earlier in this runbook's live spot-list testing — genuine data, not a stub).
+- `normalize-hierarchy` re-called with admin token: `200`, real result (`"consolidated":10,"populated":38,"skipped":248,"errors":0`).
+- Full backend suite re-run after the fix: 669 passed, 0 failed, 2928 skipped — unchanged from baseline.
+
+### 21.4 Major finding, explicitly NOT fixed in this pass: app-wide `user_id`-as-unvalidated-parameter pattern
+While building the auth-gate scanner, extended it to flag any route accepting a bare `user_id` parameter (query/path/body) with **no** auth dependency at all (`get_current_admin`, `get_current_user`, or `get_optional_user_id`) anywhere in its signature. Result: **309 of 930 routes** (33%) — spanning bookings, messaging, social, grom_hq parental controls, subscriptions/payments, uploads, career hub, and more. Confirmed there is **no global authentication middleware** (`server.py` only registers `GZipMiddleware` and `CORSMiddleware`) — so for these 309 routes, whatever `user_id` the caller supplies in the request is trusted as-is, with no cryptographic verification it matches an authenticated session.
+
+**This is explicitly out of scope for this pass and was not touched.** It is not an admin-panel issue — it's a foundational, app-wide identity-verification architecture question affecting roughly a third of the entire backend, including sensitive areas (parental controls in `grom_hq`, payment/subscription state, private messages). Blindly adding `Depends(get_current_user)` to 309 endpoints without understanding whether the frontend consistently sends a matching Bearer token for each one risks breaking real, working functionality across most of the app. Flagging prominently here as the most significant single finding across this entire audit arc, and recommending it become its own dedicated security review — not a bug-fix pass folded into admin work.
+
+### 21.5 Verdict
+The admin-panel-specific unauthenticated-endpoint pattern (found repeatedly across this whole audit arc — `admin_sessions.py`, `analytics_settings.py`, `career.py`, and now these 6) appears to be fully closed: every `/admin`-ish route in the backend now has `get_current_admin`, confirmed via an AST-based exhaustive scan of all 930 routes (not a sample). The scan also surfaced a much larger, separate, app-wide finding (§21.4) that is real, well-evidenced, and deliberately not acted on here because it is outside "the admin" and too consequential to rush.

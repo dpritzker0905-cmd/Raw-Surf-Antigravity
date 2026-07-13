@@ -16,6 +16,7 @@ cr_logger = logging.getLogger(__name__)
 @router.delete("/condition-reports/cleanup/orphaned")
 async def cleanup_orphaned_condition_reports(
     photographer_id: str,
+    admin: Profile = Depends(get_current_admin),
     db: AsyncSession = Depends(get_db)
 ):
     """
