@@ -251,6 +251,31 @@ global tier, retain the band layer through the global interlude, or a rating-mod
 hold. Also in those logs: EURO clip at 17×17 spanLng 4 (~0.24°!) = the DYNAMIC lane serving
 EURO fine — the pilot tiles will make this stable. START HERE next session for the visual arc.
 
+## §4g DEEP-AUDIT ROUND (2026-07-13 ~22-23Z, dev `ba894c3d`) — self-audit of the day's 8 ships
+**LIVE-VERIFIED WORKING:** stale ladder + checkpoint uploads (lane healed to `precomputed@0.2s`
+WHILE the healing run was still executing — the checkpoint design's first live win); **EURO +
+ICON regional tiles BOTH serving at FL** (`euro/icon_marine_waves_florida_east_coast`,
+scope=regional — the band-resolution fix is live on flagship); ICON pilot bounds (28.6→8.5 min
+in run 29265599972); EURO pilot 1.6 min; carry default-ON (no reseed regressions in user logs).
+**AUDIT FINDINGS FIXED (`ba894c3d`):**
+- **Lane collision (systemic):** pilots(≤200m)+core(≤165m) serial group = 365m worst case >
+  240m core period → pending-eviction killed 3 core cycles on 07-13 (18:10/21:13 never started,
+  startedAt null; 15:13 rode the full 165 during a CMEMS throttle storm). Pilots cron → 3×/day
+  `45 3,11,19` (GWAM publishes 2×/day — 6×/day re-ingested identical model runs).
+- **GFS marine pilot 48.5m audited (queue item CLOSED):** 4 regions × ~11.5m; cost ∝
+  forecast-hours not points (672-pt FL == 5760-pt Brazil at ~11.5m). `GFS_MARINE_FORECAST_DAYS
+  ='3'` pilots-lane-only → ~20m.
+- **Latent gate bug in MY checkpoint loop:** `apply_gate_to_frames` gated from `score` →
+  per-checkpoint re-application would compound nudges + corrupt `raw_score` once
+  RATING_OBS_GATE flips on. Now idempotent (gates from the original raw everywhere incl. the
+  cross-model index; golden: apply×2 == apply×1).
+**STILL PENDING LIVE VERIFICATION:** multi-bbox + refactored ecmwf fetcher single path — rides
+the in-progress 19:04 pilots run (job started 20:40, on `b02c8ceb`-era HEAD; look for
+"multi-region OK: N regions in one pass") and the next surviving core run (EURO wind/pressure
+globals). No core ingest has succeeded since 11:30Z — grid products ~10h stale; the collision
+cure + next slots should recover naturally, else dispatch forecast-ingest.yml manually.
+BE 682/2928 at close.
+
 ## §5 VERIFICATION RECIPES
 - Melt check: `GET /api/weather/spot-ratings?...` → `source` field. precomputed ≈1–2 s good.
 - Option A check: grid diagnostics `animChannel=dominant_swell` + `swellStampedCount>0`.
