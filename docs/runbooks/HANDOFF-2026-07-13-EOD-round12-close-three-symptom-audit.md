@@ -101,9 +101,23 @@ live on the dynamic lane, `animChannel=dominant_swell`; windsea-dominant cells h
 total). Motion-unlock OFF. All other kills at defaults.
 
 ## §4 NEXT-SESSION QUEUE (ranked)
-1. **Re-test the three symptoms on `84e1cbc0` POST-MELT on GFS** (the model with fine tiles) —
-   much of tonight's feel was melt + pre-pt8 build. Paste one FORENSIC-SNAP: it now carries
-   washBase/tileClamped/serTTLByp/probes and self-answers the standing questions.
+1. ~~**Re-test the three symptoms on `84e1cbc0` POST-MELT on GFS**~~ DONE 2026-07-13 ~12:1xZ
+   (follow-up session, driven live on dev--rawsurf via the browser pane, bundle==SW==`c1876ff5`):
+   - **Melt: RESOLVED-CONFIRMED** — spot-ratings `src=precomputed` 0.2–1.1 s all 3 models.
+   - **GFS ladder: PASSES** — Canaveral z9 walked global 37×17 → regional fine 13×13
+     (`gfs_marine_waves_florida_east_coast`, scope regional); SNAP carries
+     washBase:GFS/tileClamped:false/serTTLByp:0/probes:0.
+   - **Pan gaps: PASS post-fix** — 3 rapid pans → fresh 9×9 regional commits, gate renderable,
+     no gaps; series 18 loads/6 hits/1 miss, zero pageRetries.
+   - **Reseed blink (2b): REPRODUCED as diagnosed** — z9→6.1→5.2 fired multiple "Resetting
+     particle state textures due to grid shift/resize"; layer recovers renderable (629 vectors
+     at 37×17). The γ arc (item 4) remains THE open visual symptom.
+   - **ICON ceiling: CONFIRMED live** — z9 Canaveral commits `icon_marine_waves_global_mid`
+     5×5 @ spanLng 8 (~1.6°/cell); `probes:0` = §7h.3 terminal HOLDING (no churn-to-92).
+     Fix shipped this session (item 3 below) — re-run this exact check after the first pilots
+     run on `b4d4b15a`: expect `icon_marine_waves_florida_east_coast` 0.25° regional commits.
+   - §7i tileCover telemetry live (tile 0.5 world ≥ vp 0.2 → clamp correctly idle at 1280px);
+     §7j serTTLByp never fired in the walk (no false positives; goldens carry the logic).
 2. ~~**Precompute ownership hardening**~~ DONE 2026-07-13 (§1 — cron interleave shipped; also
    found+fixed §1b structural windows; §1c scrub live-vector documented, user call).
 3. ~~**ICON/EURO fine-pilot feasibility probe**~~ ICON HALF BUILT 2026-07-13 (§2a-i follow-up
