@@ -73,7 +73,15 @@ export const AdminSpotEditor = () => {
   const mapInstanceRef = useRef(null);
   const markersRef = useRef({});
   const [mapContainerReady, setMapContainerReady] = useState(false);
-  
+  // Tracks whether mapInstanceRef.current actually holds a live map. Refs don't trigger
+  // effect re-runs on their own, so the marker-render effect below needs this as an
+  // explicit dependency - without it, if the /admin/spots/list fetch resolves before the
+  // map finishes initializing (a real race, not hypothetical: reproduced on a fast local
+  // backend), the marker effect fires once with real spot data but no map yet, and then
+  // never fires again once the map becomes ready, since none of its other dependencies
+  // change afterward. Result: map renders, spots never get their pins.
+  const [mapReady, setMapReady] = useState(false);
+
   const setMapRef = useCallback((node) => {
     mapContainerRef.current = node;
     if (node) {
@@ -194,6 +202,7 @@ export const AdminSpotEditor = () => {
     }
 
     mapInstanceRef.current = map;
+    setMapReady(true);
 
     setTimeout(() => {
       if (map) {
@@ -225,6 +234,7 @@ export const AdminSpotEditor = () => {
         mapInstanceRef.current.remove();
         mapInstanceRef.current = null;
       }
+      setMapReady(false);
     };
   }, [leafletReady, mapContainerReady]);
 
@@ -337,7 +347,7 @@ export const AdminSpotEditor = () => {
 
       markersRef.current[spot.id] = marker;
     });
-  }, [spots, editMode, user?.id, fetchSpots]);
+  }, [spots, editMode, user?.id, fetchSpots, mapReady]);
 
   // Update marker draggable state when edit mode changes
   useEffect(() => {

@@ -17,7 +17,8 @@ import {
   getAbortRecoveryGrid,
   handleRegionalGridClearing,
   handleCooldownFallback,
-  commitMarineData
+  commitMarineData,
+  bufferPanMovedReplay
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 
@@ -270,13 +271,14 @@ export function useMarineDataFetcherCore({
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
         const isAborted = abortControllerRef.current?.signal?.aborted;
         if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
-          console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+          const panMoved = bufferPanMovedReplay({ inflight, currentViewportHash: viewportHash, source, model: activeModelRef.current, layer, hour: timeOffset, pendingMarineIntentRef, logPipelineEventHelper });
+          console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
           // Forensic: the AGE of the in-flight fetch is the wedge diagnostic — a healthy dedup
           // skip is seconds old; the 07-12 deploy-window wedge held one fetch alive for MINUTES
           // (server holding the connection), starving every pan of new data.
           recordMarineEvent('inflight_skip', {
             target: `${inflight.rawModel}/${inflight.layer}/h${inflight.hour}`,
-            ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+            ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null, panMoved,
           });
           return;
         }
@@ -682,10 +684,11 @@ export function useMarineDataFetcherCore({
       if (inflight && !isAborted && inflight.rawModel === activeModelRef.current &&
           inflight.layer === (activeMarineLayerRef.current || 'waves') &&
           inflight.hour === timeOffsetRef.current) {
-        console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); skipping duplicate (no abort).`);
+        const panMoved = bufferPanMovedReplay({ inflight, getViewportHash, source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, pendingMarineIntentRef, logPipelineEventHelper });
+        console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
         recordMarineEvent('inflight_skip', {
           target: `${inflight.rawModel}/${inflight.layer}/h${inflight.hour}`,
-          ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+          ageMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null, panMoved,
         });
         return;
       }

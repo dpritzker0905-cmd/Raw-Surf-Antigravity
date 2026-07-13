@@ -592,3 +592,48 @@ On the Map Editor tab, the map itself renders correctly (proving the reported bu
 
 ### 19.6 Verdict
 Every claim in this runbook (§0-18) that could be live-tested against a real backend now has been, tab by tab, with request/response/log proof rather than static code reading alone. One new environment-level bug was found live (the dual-`dev.db` + SQLite-migration gap) and fixed durably (not patched around); the previously-flagged auth gap was fixed and proven both via curl and through the actual admin UI. No other tab, of 22, showed any discrepancy between what the code claims and what actually happens when exercised.
+
+---
+
+## 20. §19.5 minor item root-caused and fixed: Map Editor spot markers (2026-07-12, same session)
+
+**User directive:** "Do another pass and audit your work and the admin, and the audit you did. Use forensics... Fix the minor open item. Use jacobian lens."
+
+### 20.1 Root-caused live, not guessed
+§19.5 left an open observation: real spot data loaded (`GET /admin/spots/list` → 1587 spots) but zero markers appeared on the map. Rather than reason about it statically, added temporary `logger.debug` instrumentation to the marker-render effect and captured the actual runtime sequence:
+
+```
+[AdminMap] Marker effect running. mapInstance: false spots.length: 0        ← initial render, correctly skips
+[AdminMap] Init effect running. mapContainerReady: false leafletReady: true mapInstance: false
+[AdminMap] Skipping init - conditions not met
+[AdminMap] Marker effect running. mapInstance: false spots.length: 1587     ← spots ARRIVED, map still doesn't exist
+[AdminMap] Init effect running. mapContainerReady: true leafletReady: true mapInstance: false
+[AdminMap] Creating Leaflet map...                                          ← map created AFTER the marker effect already ran and skipped
+```
+
+**Exact root cause**: `AdminSpotEditor.js` has two independent `useEffect`s — one creates the Leaflet map instance (stored in a `useRef`, which doesn't trigger re-renders), the other renders markers with dependency array `[spots, editMode, user?.id, fetchSpots]`. On a fast backend, `GET /admin/spots/list` can resolve *before* the map finishes its own multi-render-pass initialization. When that happens, the marker effect fires once with real `spots` data but `mapInstanceRef.current` is still `null`, so it exits via its guard clause. Once the map *does* become ready afterward, nothing re-triggers the marker effect — none of its listed dependencies changed again. Net effect: map renders, tiles load, but the 1587 real spots never get pins. This is a genuine race condition (not deterministic — depends on relative timing of a network fetch vs. several synchronous React render passes), which is exactly why it wasn't reliably caught by the (equally real) earlier check that only sampled the marker count once.
+
+### 20.2 Fix
+Added an explicit `mapReady` state, set `true` right after `mapInstanceRef.current = map` in the map-init effect (and reset `false` in its cleanup), then added `mapReady` to the marker-render effect's dependency array. This guarantees the marker effect gets a chance to run *after* the map genuinely exists, regardless of which async operation (spot fetch vs. map init) happens to finish first. 3-line functional change (`backend/frontend/src/components/admin/AdminSpotEditor.js`), fully commented with the race explanation.
+
+### 20.3 Verified live, repeatedly
+- Fresh page load, first visit to Map Editor: **1587/1587 markers rendered** (`.leaflet-marker-icon` count matched `.leaflet-marker-pane` children count matched the real spot total).
+- Navigated away (Spots tab) and back to Map Editor (full unmount/remount): **still 1587/1587 markers** — confirms the fix isn't itself timing-dependent.
+- Clicked a real marker: selection panel populated with the exact real spot's name/region/coordinates, proving the click→select→display data path (not just that markers exist visually).
+- Full production `craco build`: clean, no new errors/warnings.
+
+### 20.4 Closed the write-direction Jacobian loop (not just read-direction, which is all prior passes tested)
+Every previous live-test pass in this runbook checked "does real data flow into the admin view" (read direction). This pass also tested "does an admin action produce a real, verifiable effect" (write direction) using the Precision Queue's "Snap Offshore" button — un-blocked as a meaningful test now that markers render:
+- Before: `The Back Porch` (id `6d454b59-...`) at `(30.378, -86.478)`, `accuracy_flag: "unverified"`, present in the flagged queue.
+- Clicked "Snap Offshore" in the live browser.
+- Network trace: real `PUT /api/admin/spots/6d454b59-.../move` → `200 OK`.
+- After, verified via direct API call (not just trusting the UI): coordinates now `(30.377, -86.479)` — exactly matching the component's documented `-0.001/-0.001` offset formula — `accuracy_flag` now `"admin_verified"`, `flagged_for_review: false`, and the spot no longer appears in the flagged queue at all. A real button click produced a real, precisely-predictable database mutation.
+
+### 20.5 Checked the sibling component for the same bug class (Jacobian discipline: don't assume one fix generalizes)
+`AdminSpotsPanel.js`'s "Precision Pin" map looks structurally similar (also Leaflet, also a draggable marker) but was checked and confirmed **not** to share this race: it builds the map and its single marker together in one synchronous function (`initPrecisionMap`), gated on `pinMapSpot` — a single spot object that's already available synchronously when the modal opens (set directly from an already-loaded list item), not a separate async bulk-fetch racing against map creation. No fix needed there; confirmed structurally, not assumed.
+
+### 20.6 Full-session self-audit: all prior fixes re-confirmed intact
+Grepped for each fix from §17-19 directly against current source (not re-trusted from prior report prose): `leafletLoader.js` import present in all 4 consumer files; `career.py`'s `get_pending_verifications` still has `Depends(get_current_admin)`; `server.py`'s SQLite column-migration logic still present. Production frontend build clean.
+
+### 20.7 Verdict
+The one remaining open item from the previous pass is now closed, root-caused via live instrumentation (not guesswork) rather than patched around. This pass also closed a real gap in the audit's own methodology — every prior "live test" only proved the read direction of the Jacobian (data flowing into admin views); this pass proved the write direction too (an admin action producing a verified, predictable database mutation), and confirmed the fix doesn't generalize-by-assumption to a superficially similar sibling component. Admin panel Jacobian audit arc: closed, no known open items.

@@ -222,3 +222,42 @@ series failures are actually observed. Remaining queue after this: §4.3(a)/(c) 
 tripwire (armed, needs the user's next band-flash + `__RAW_FORENSIC__.copy()`), §4.5 perf arc
 (boot triple-encode dedup ⚠️ stale-texture risk — instrument first; mask-rebuild dedup =
 minefield), §4.6 wheel feel (user-driven).
+
+## §7f ROUND-12 pt4 — USER LIVE TEST DECODE (clean build 75028b11) + PAN-REPLAY FIX
+User session (rating ON, GFS waves, close-zoom pans up the FL coast then zoom-outs). Verdicts:
+1. **"Pan half a screen before the heatmap renders" — ROOT FOUND + FIXED (pan-replay).**
+   The log is saturated with `[Abort-Gate] Same-target fetch already in-flight (GFS/waves/h0);
+   skipping duplicate` — the dedup key is model/layer/hour with NO viewport, and a same-target
+   skip buffered NOTHING (the different-target path always buffered a pendingMarineIntent).
+   So every pan during an in-flight h0 fetch was dropped on the floor until the next gesture
+   or the 3 s backstop. FIX: `bufferPanMovedReplay` (useMarineDataFetcherHelpers.js) — at both
+   skip sites, when the CURRENT viewport hash ≠ the in-flight `__intent.boundsKey`, buffer the
+   intent for the existing completion replay (updateMarineGrid finally → enqueue 50 ms later).
+   Same-viewport duplicates still skip silently (boundsKey matches) → replay cannot self-feed;
+   rate limiter self-bypasses (moved viewport resets locks.lastTime=0 at core:247). NO aborts
+   anywhere (murder-loop rule intact). Kill: `__RAW_PAN_REPLAY_DISABLED__`. Telemetry:
+   `inflight_skip.panMoved` in the forensic ring + pipeline `intent_buffered_panmoved`.
+   Goldens `useMarineDataFetcherHelpers.panReplay.test.js` (6). ⚠️ core file now 798/800 LOC.
+2. **Gulf/SW-FL band "less visible" — HONEST DATA, not a defect (probed).** The
+   `florida_east_coast` pilot product serves BOTH coasts (Naples + Tampa boxes probed:
+   scope=regional, 62 rated cells). Gulf cell scores tonight: min 0.01 / p50 0.07–0.17 /
+   max 0.28–0.66 vs east coast p50 0.67 / max 2.57 — the band paints at the near-transparent
+   bottom of the score ramp because the Gulf is 0.5–1 ft slop (matches the user's own
+   calibration anchors). Also more masked cells there (29 vs 12 — sheltered-shelf masking).
+   OPTIONAL product tweak if flat coasts should stay visible: a colormap floor for rated>0
+   cells — user call, do not build unbidden.
+3. **DB-endpoint 500 storm in the user's log — TRANSIENT deploy-window.** The user tested
+   minutes after the 75028b11 push restarted Render; every DB lane (friends/messages/
+   notifications/surf-spots/dispatch) 500'd while every weather lane stayed OK (serve-only
+   restores first). Re-probed after: all 200. Watch item: the admin session's startup
+   column-migration (22c304d3) lengthens boot — if the storm recurs OUTSIDE deploy windows,
+   pull Render events first.
+4. **"Heatmap/animation clearing at certain zooms" — EVIDENCE LOGGED for the §4.3/§4.5 own
+   arc, not fixed here:** (i) `No-downgrade self-heal: stashed 4×3 grid accepted at zoom 7.8`
+   — a 12-cell global_mid clip painting a zoomed-in viewport = the washy/blank heatmap moment
+   (engine no-downgrade heal threshold too permissive on zoom-out→in transitions; engine =
+   minefield, needs its own arc with the noDowngrade goldens). (ii) 12+ `Resetting particle
+   state textures` events in one short session — every tier swap reseeds all particles =
+   the animation clear (backlog ④ reseed blink; particle-carry is the falsified-unless-gated
+   path, see round-5). (iii) FPS 6–16 during the commit storms (perf arc §4.5). (iv) band
+   `fade:0/0.1` snapshots at z6.1–6.6 are the DESIGNED wide-zoom band cross-fade, not a bug.

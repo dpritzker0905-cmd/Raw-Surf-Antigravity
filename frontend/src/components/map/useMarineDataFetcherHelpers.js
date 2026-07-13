@@ -527,3 +527,37 @@ export function commitMarineData({
   });
 }
 
+
+// §4.3 PAN-REPLAY (2026-07-13, round-12 pt4 — the "pan half a screen before the heatmap
+// renders" live report): the same-target dedup (never abort model/layer/hour duplicates —
+// the activation multi-trigger / abort-murder-loop rule) used to DROP a moved-viewport
+// request on the floor. The panned-over area then sat on the old tile until the next
+// gesture or the 3s render backstop. When the CURRENT viewport hash differs from the
+// in-flight request's boundsKey, buffer the intent instead: updateMarineGrid's completion
+// replay (its finally block) re-fires for the current viewport the moment the in-flight
+// fetch lands. Same-viewport duplicates still skip WITHOUT buffering (boundsKey matches),
+// so the replay can never self-feed; the rate limiter is bypassed naturally because a moved
+// viewport resets locks.lastTime. NO aborts on any path.
+// Kill: window.__RAW_PAN_REPLAY_DISABLED__ = true. Telemetry: inflight_skip.panMoved +
+// pipeline event 'intent_buffered_panmoved'.
+export function bufferPanMovedReplay({
+  inflight, currentViewportHash, getViewportHash, source, model, layer, hour,
+  pendingMarineIntentRef, logPipelineEventHelper, win,
+}) {
+  const w = win !== undefined ? win : (typeof window !== 'undefined' ? window : undefined);
+  if (w && w.__RAW_PAN_REPLAY_DISABLED__ === true) return false;
+  let cur = currentViewportHash;
+  if (cur === undefined && typeof getViewportHash === 'function') {
+    try { cur = getViewportHash(); } catch (e) { cur = null; } // map torn down mid-timer
+  }
+  if (!inflight || !inflight.boundsKey || !cur) return false;
+  if (inflight.boundsKey === cur) return false;
+  const src = String(source || 'unknown');
+  const intent = {
+    source: src.includes('_panmoved') ? src : `${src}_panmoved`,
+    model, layer, hour, timestamp: Date.now(),
+  };
+  pendingMarineIntentRef.current = intent;
+  if (typeof logPipelineEventHelper === 'function') logPipelineEventHelper('intent_buffered_panmoved', intent);
+  return true;
+}
