@@ -1324,6 +1324,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           band: (surfModeVal > 0.5),
           fade: +_ratingBandFade.fade.toFixed(2),
           washEngaged: !!(window.__RAW_GPU__.blendBoth && window.__RAW_GPU__.blendBoth.engaged),
+          // §7 round-12 pt8 — one-line answers for the standing questions: washBase names the
+          // coarse-base model (a mismatch vs `model` = the wash silently disengaged on a model
+          // switch, the empty-pan suspect); tileClamped = §7i viewport clamp active; serTTLByp =
+          // §7j coverage bypasses fired; probes = clamp slow-probes fired this session.
+          washBase: (window.__RAW_GPU__.blendBoth && window.__RAW_GPU__.blendBoth.baseModel) || null,
+          tileClamped: !!(window.__RAW_GPU__.tileCover && window.__RAW_GPU__.tileCover.clamped),
+          serTTLByp: (window.__MARINE_SERIES_DIAG__ && window.__MARINE_SERIES_DIAG__.ttlCoverageBypass) || 0,
+          probes: window.__MARINE_CLAMP_CAP_PROBE_COUNT__ || 0,
           hour: waveGrid ? waveGrid.hourOffset : null,
           model: (waveGrid && waveGrid.__sourceModel) || null,
         };

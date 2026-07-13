@@ -142,3 +142,73 @@ describe('marineGridSeries §4.3(b) page-failure retry', () => {
     expect(window.__MARINE_SERIES_DIAG__.pageRetries).toBe(1);
   });
 });
+
+/**
+ * §7j COVERAGE-AWARE TTL DEDUP goldens (2026-07-13): spans >15° share the 'global' viewportKey
+ * but store the SERVED mid-clip bounds — the TTL dedup then refused refetches for 5 minutes
+ * while pans left the clip (user live wedge: misses 36→52 under the clamp backstop).
+ */
+describe('marineGridSeries §7j coverage-aware TTL dedup', () => {
+  const W1 = { west: -100, south: 20, east: -80, north: 36 };   // span 20° → 'global' key
+  const W2 = { west: -60, south: 20, east: -40, north: 36 };    // span 20° → SAME 'global' key
+  const clipResponse = (b) => ({
+    ok: true,
+    status: 200,
+    json: async () => ({
+      frames: [{
+        hour_offset: 0,
+        vectors: [{ lat: b.south + 1, lng: b.west + 1, u: 0, v: -1, speed: 1.0, direction: 0, period: 8 }],
+        cols: 4, rows: 4,
+        bounds: b,
+      }],
+    }),
+  });
+
+  beforeEach(() => {
+    jest.useFakeTimers();
+    _resetMarineSeriesForTest();
+    window.__MARINE_SERIES__ = true;
+    window.__MARINE_SERIES_DIAG__ = { loads: 0, hits: 0, misses: 0 };
+  });
+  afterEach(() => { jest.useRealTimers(); });
+
+  it('a pan off the cached mid-clip bypasses the TTL and refetches (the 15–60° wedge)', async () => {
+    let calls = 0;
+    const served = [];
+    global.fetch = async () => {
+      calls++;
+      // serve a clip padded around whatever was last requested (mirror the resolver)
+      const b = calls === 1
+        ? { west: -102, south: 18, east: -78, north: 38 }   // covers W1, NOT W2
+        : { west: -62, south: 18, east: -38, north: 38 };   // covers W2
+      served.push(b);
+      return clipResponse(b);
+    };
+
+    await ensureMarineSeries('GFS', 'waves', W1, 0, undefined, true);
+    expect(calls).toBe(1);
+    // same key, still-covered viewport → TTL dedup holds
+    await ensureMarineSeries('GFS', 'waves', W1, 0, undefined, true);
+    expect(calls).toBe(1);
+    // pan to W2: same 'global' key, cached clip does NOT cover → bypass fires a refetch
+    await ensureMarineSeries('GFS', 'waves', W2, 0, undefined, true);
+    expect(calls).toBe(2);
+    expect(window.__MARINE_SERIES_DIAG__.ttlCoverageBypass).toBe(1);
+    // W2 again: entry now covers it → TTL dedup holds again (no thrash when stationary)
+    await ensureMarineSeries('GFS', 'waves', W2, 0, undefined, true);
+    expect(calls).toBe(2);
+  });
+
+  it('a truly WORLD-wide cached entry keeps the TTL skip for every pan (contains everything)', async () => {
+    let calls = 0;
+    global.fetch = async () => {
+      calls++;
+      return clipResponse({ west: -180, south: -85, east: 180, north: 85 });
+    };
+    await ensureMarineSeries('GFS', 'waves', W1, 0, undefined, true);
+    expect(calls).toBe(1);
+    await ensureMarineSeries('GFS', 'waves', W2, 0, undefined, true);
+    expect(calls).toBe(1);   // world entry → no bypass, no refetch
+    expect(window.__MARINE_SERIES_DIAG__.ttlCoverageBypass).toBeUndefined();
+  });
+});

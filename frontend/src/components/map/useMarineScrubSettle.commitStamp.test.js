@@ -212,16 +212,16 @@ describe('runScrubSettleCheck — engine-empty recovery (the §2b zoom-out clear
 describe('evaluateClampCapProbe (pure) — slow re-arm for the no-progress cap (sharpen re-drive root, 2026-07-04)', () => {
   it('below the threshold: not capped, no probe (normal re-drives continue)', () => {
     expect(evaluateClampCapProbe({ noProgress: 0, sinceLastProbeMs: 999999 }))
-      .toEqual({ capped: false, probe: false });
+      .toEqual({ capped: false, probe: false, terminal: false });
     expect(evaluateClampCapProbe({ noProgress: 2, sinceLastProbeMs: 999999 }))
-      .toEqual({ capped: false, probe: false });
+      .toEqual({ capped: false, probe: false, terminal: false });
   });
 
   it('capped but inside the rearm window: silent (no churn — the cap still breaks the ~6s re-commit loop)', () => {
     expect(evaluateClampCapProbe({ noProgress: 3, sinceLastProbeMs: 0 }))
-      .toEqual({ capped: true, probe: false });
+      .toEqual({ capped: true, probe: false, terminal: false });
     expect(evaluateClampCapProbe({ noProgress: 10, sinceLastProbeMs: CLAMP_CAP_REARM_MS - 1 }))
-      .toEqual({ capped: true, probe: false });
+      .toEqual({ capped: true, probe: false, terminal: false });
   });
 
   it('capped and past the rearm window: fires ONE probe (never permanent silence for a held coarse_global)', () => {
@@ -229,7 +229,18 @@ describe('evaluateClampCapProbe (pure) — slow re-arm for the no-progress cap (
     // reset never fires and an idle viewport stayed wedged until a moveend — even after the
     // backend regional build completed.
     expect(evaluateClampCapProbe({ noProgress: 5, sinceLastProbeMs: CLAMP_CAP_REARM_MS }))
-      .toEqual({ capped: true, probe: true });
+      .toEqual({ capped: true, probe: true, terminal: false });
+  });
+
+  it('§7h.3 TERMINAL: probe budget spent → probes stop for this signature (non-pilot forever-probe wedge)', () => {
+    expect(evaluateClampCapProbe({ noProgress: 5, sinceLastProbeMs: CLAMP_CAP_REARM_MS, probesFired: 4 }))
+      .toEqual({ capped: true, probe: false, terminal: true });
+    // budget not yet spent → probes keep firing on cadence
+    expect(evaluateClampCapProbe({ noProgress: 5, sinceLastProbeMs: CLAMP_CAP_REARM_MS, probesFired: 3 }))
+      .toEqual({ capped: true, probe: true, terminal: false });
+    // custom budget honored (live lever __RAW_CLAMP_PROBE_MAX__ feeds probeMax)
+    expect(evaluateClampCapProbe({ noProgress: 5, sinceLastProbeMs: CLAMP_CAP_REARM_MS, probesFired: 2, probeMax: 2 }))
+      .toEqual({ capped: true, probe: false, terminal: true });
   });
 
   it('rearm cadence is slow enough to never reintroduce the particle-reset churn (≥30s)', () => {

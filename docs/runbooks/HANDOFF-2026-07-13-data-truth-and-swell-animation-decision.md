@@ -286,6 +286,41 @@ User session (rating ON, GFS waves, close-zoom pans up the FL coast then zoom-ou
    washEngaged:true yet the panned-into region read empty — check `__RAW_GPU__.blendBoth`
    (coarse-base capture coverage) in the next live session before theorizing.
 
+## §7j ROUND-12 pt8 — THE MELT (user: "system overloaded? ring not progressing") + 3 FIXES
+1. **BACKEND MELT ROOT (probed, recurring beyond deploy windows):** `spot-ratings` served
+   `src=live` at **7.5–8.6 s per request** for every model/valid-time — the precompute lane was
+   EMPTY because the CORE ingest run (the only workflow carrying `SPOT_RATINGS_PRECOMPUTE`) was
+   the one evicted by the schedule; pilots doesn't precompute. Every rating-mode viewport then
+   burned ~8 s of the 1-CPU box on live ratings → weather lanes starved → intermittent 500s on
+   ALL DB endpoints + point `exact_timeout` + series misses 39→57 + ONE naked-CORS 500 (an error
+   that escaped the CORS-on-error handler = pre-middleware failure) → the resolution ladder had
+   nothing to climb. "Zoom fully out first then in" works because the world page is one cheap
+   cached fetch. MITIGATION: dispatched `precompute.yml` (run 29224010449 — own concurrency
+   group `precompute`, ~25 min) instead of waiting 1.5–3 h for the queued core run.
+   ⚠️ STANDING LESSON: whenever ratings feel slow / bands won't load, check `src=` in the
+   spot-ratings response FIRST; `src=live` at scale = the melt. The core run being evicted
+   orphans the precompute — consider moving SPOT_RATINGS_PRECOMPUTE into precompute.yml's
+   schedule as the primary owner (4×/day already).
+2. **§7j COVERAGE-AWARE TTL DEDUP shipped** (`marineGridSeries.js`): spans >15° share the
+   'global' viewportKey but store SERVED mid-clip bounds — the TTL dedup refused refetches for
+   5 min while pans left the clip (misses 36→52 wedge). An entry now earns the TTL skip only
+   while it still COVERS the padded request; truly world-wide entries (≥340°) keep the skip.
+   Telemetry `__MARINE_SERIES_DIAG__.ttlCoverageBypass`. Goldens ×2 in the retry suite.
+3. **§7h.3 PROBE TERMINAL-STATE shipped** (`useMarineScrubSettle.js`, minefield-pattern-
+   compliant): `evaluateClampCapProbe` gains probesFired/probeMax(4, lever
+   `__RAW_CLAMP_PROBE_MAX__`) → after ~3 min of fruitless 45 s probes the backstop accepts the
+   resident as best-available and goes silent; ANY grid change or `marine_series_revalidated`
+   re-arms instantly. Telemetry `__MARINE_CLAMP_TERMINAL_COUNT__`. Goldens updated + terminal
+   cases in commitStamp suite.
+4. **FORENSIC-SNAP enriched**: now carries `washBase` (base-model mismatch = the empty-pan
+   suspect answers itself in the next log), `tileClamped` (§7i active), `serTTLByp`, `probes`.
+5. **§4.5 step-2 encode dedup FALSIFIED** (forensic check before building): the duplicate
+   encodes are 629-vector micro-loops; the expensive dups (mask rebuilds) were legitimate
+   50m→10m upgrades with their own cache. Dedup = stale-texture risk for ~zero savings. The
+   telemetry stays as a tripwire for a future big-grid dup pattern. §7g-α (mid assembly) is
+   SUPERSEDED for the ≥15° band by the TTL fix above; below 15° the per-key series lane +
+   retries + pan-replay already assemble coverage.
+
 ## §7i ROUND-12 pt7 — PACIFIC HALF-COVERAGE TILE REGRESSION (user report, FIXED)
 User: at ~z3.1 (3 wheel turns in from z2) animations cover only HALF the Pacific with a hard
 VERTICAL division; pan left → West covered, pan right → East covered. ROOT (proven from the

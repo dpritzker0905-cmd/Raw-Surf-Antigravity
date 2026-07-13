@@ -291,6 +291,8 @@ function frameToMarineData(frame, model, layer) {
 async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
   if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
   const key = pageKey(model, layer, bounds, page);
+  // Padded request box (also used for the coverage-aware dedup below). Computed once here.
+  const reqBox = padRegionalBbox(bounds);
   const existing = _seriesCache.get(key);
   if (existing && !force) {
     // A coarse-preview entry is allowed to RE-FETCH (capped + spaced) so the SWR-revalidated regional
@@ -301,15 +303,36 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     const coarseRetryDue = existing.coarsePreview &&
       (existing.revalCount || 0) < COARSE_REVAL_MAX &&
       Date.now() - existing.ts >= coarseRevalDelayMs(existing.revalCount || 1);
-    if (!coarseRetryDue && Date.now() - existing.ts < SERIES_TTL_MS) return;
+    // §7j COVERAGE-AWARE TTL DEDUP (2026-07-13, the 15–60° pan wedge): spans >15° all share the
+    // 'global' viewportKey, but the SERVED entry stores a mid-CLIP (~1.5× the FIRST viewport),
+    // not the world — so a pan in that band hit this TTL return for 5 minutes while the cached
+    // clip no longer covered the screen (user live wedge: series misses climbing 36→52 while the
+    // clamp backstop slow-probed a fetch this dedup kept refusing). An entry only earns the TTL
+    // skip if it still COVERS the padded request; truly world-wide entries (≥340°) contain every
+    // viewport by construction and keep the skip. Same disease class as the SERIES_BBOX_PAD_DEG
+    // note above — this is the general fix at the dedup itself. Warming placeholders (bounds
+    // null) keep their own retry schedule.
+    const _ebW = existing.bounds
+      ? ((existing.bounds.east < existing.bounds.west)
+          ? (existing.bounds.east + 360) - existing.bounds.west
+          : existing.bounds.east - existing.bounds.west)
+      : 0;
+    // Compare against the RAW viewport (not the padded reqBox): servers legitimately clamp the
+    // served tile to product edges, so an entry can be smaller than the pad yet still cover the
+    // screen — only a viewport that actually LEFT the cached tile earns the refetch.
+    const coverageBroken = !!existing.bounds && _ebW < 340 && !bboxContains(existing.bounds, bounds);
+    if (coverageBroken && typeof window !== 'undefined') {
+      window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 };
+      window.__MARINE_SERIES_DIAG__.ttlCoverageBypass = (window.__MARINE_SERIES_DIAG__.ttlCoverageBypass || 0) + 1;
+    }
+    if (!coarseRetryDue && !coverageBroken && Date.now() - existing.ts < SERIES_TTL_MS) return;
   }
   if (_inFlight.has(key)) return;
 
   const hours = buildPageHours(page);
   if (hours.length === 0) return;
-  // Request a padded box so the served tile contains the viewport (+small pans) — fixes the degree-boundary
-  // clamp. Cache key + coarse-preview detection below still use the UNPADDED `bounds` (the user's viewport).
-  const reqBox = padRegionalBbox(bounds);
+  // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
+  // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`

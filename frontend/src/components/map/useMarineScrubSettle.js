@@ -183,11 +183,19 @@ export const CLAMP_CAP_REARM_MS = 45000;
 /**
  * Decide whether a no-progress-capped clamp should fire a slow probe re-drive. Pure + unit-testable.
  * `noProgress` = consecutive backstop passes with an unchanged engine-grid signature;
- * `sinceLastProbeMs` = elapsed since the cap engaged or the last probe fired.
+ * `sinceLastProbeMs` = elapsed since the cap engaged or the last probe fired;
+ * `probesFired` = slow probes already fired for THIS clamp signature.
+ * §7h.3 TERMINAL STATE (2026-07-13, the non-pilot forever-probe wedge): each probe forces one
+ * bounded series fetch — when the best-available tier genuinely IS the resident (non-pilot mid
+ * ceiling, or a dynamic tile the clamp classifier still dislikes), probes can never progress, so
+ * they stop after `probeMax` (~3 min at the 45 s cadence). Recovery stays intact WITHOUT probes:
+ * a landed regional frame fires `marine_series_revalidated` (event-driven sharpen), and any
+ * viewport/grid change resets the signature and re-arms everything.
  */
-export function evaluateClampCapProbe({ noProgress, sinceLastProbeMs, threshold = 3, rearmMs = CLAMP_CAP_REARM_MS }) {
-  if (noProgress < threshold) return { capped: false, probe: false };
-  return { capped: true, probe: sinceLastProbeMs >= rearmMs };
+export function evaluateClampCapProbe({ noProgress, sinceLastProbeMs, probesFired = 0, threshold = 3, rearmMs = CLAMP_CAP_REARM_MS, probeMax = 4 }) {
+  if (noProgress < threshold) return { capped: false, probe: false, terminal: false };
+  if (probesFired >= probeMax) return { capped: true, probe: false, terminal: true };
+  return { capped: true, probe: sinceLastProbeMs >= rearmMs, terminal: false };
 }
 
 // Fallback revision sequence for callers (tests/legacy) that don't wire the shared marineRevision ref.
@@ -551,6 +559,8 @@ export function useMarineScrubSettle({
     let clampSig = null;
     let clampNoProgress = 0;
     let lastCapProbe = 0;  // when the no-progress cap engaged / last slow probe fired
+    let clampProbesFired = 0;      // §7h.3: slow probes fired for THIS clamp signature
+    let clampTerminalWarned = false;
     const id = setInterval(() => {
       // Layer-active checked LIVE via the ref (synced in render) — not an effect dep — so the
       // interval is created once and never churns (preserving the blank streak across re-renders).
@@ -701,6 +711,8 @@ export function useMarineScrubSettle({
         } else {
           clampSig = sig;
           clampNoProgress = 0;
+          clampProbesFired = 0;          // §7h.3: any engine-grid change re-arms the probe budget
+          clampTerminalWarned = false;
         }
         if (clampNoProgress >= 3) {
           if (clampNoProgress === 3 && typeof window !== 'undefined') {
@@ -721,11 +733,23 @@ export function useMarineScrubSettle({
           // a moveend — even after the backend's regional build completed. One probe per rearm window:
           // sharpens instantly when a covering regional frame is now available, else fires one bounded
           // background series fetch (no commit → no churn).
-          const cp = evaluateClampCapProbe({ noProgress: clampNoProgress, sinceLastProbeMs: Date.now() - lastCapProbe });
+          const _probeMax = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_CLAMP_PROBE_MAX__)) ? +window.__RAW_CLAMP_PROBE_MAX__ : 4;
+          const cp = evaluateClampCapProbe({ noProgress: clampNoProgress, sinceLastProbeMs: Date.now() - lastCapProbe, probesFired: clampProbesFired, probeMax: _probeMax });
+          if (cp.terminal) {
+            // §7h.3: probe budget spent — the resident IS the best available tier here. Silent
+            // hold; marine_series_revalidated / moveend / any grid change re-arms recovery.
+            if (!clampTerminalWarned) {
+              clampTerminalWarned = true;
+              if (typeof window !== 'undefined') window.__MARINE_CLAMP_TERMINAL_COUNT__ = (window.__MARINE_CLAMP_TERMINAL_COUNT__ || 0) + 1;
+              console.warn(`[Marine] Clamp backstop: ${kind} probe budget spent (${_probeMax}) — accepting resident as best-available tier. Re-arms on view/grid change; series revalidation still sharpens instantly.`);
+            }
+            return;
+          }
           if (cp.probe) {
             lastCapProbe = Date.now();
+            clampProbesFired++;
             if (typeof window !== 'undefined') window.__MARINE_CLAMP_CAP_PROBE_COUNT__ = (window.__MARINE_CLAMP_CAP_PROBE_COUNT__ || 0) + 1;
-            console.warn(`[Marine] Clamp backstop: capped ${kind} slow probe — re-checking for a landed regional product.`);
+            console.warn(`[Marine] Clamp backstop: capped ${kind} slow probe ${clampProbesFired}/${_probeMax} — re-checking for a landed regional product.`);
             if (checkScrubSettleRef.current) checkScrubSettleRef.current();
           }
           return;  // suppress fast no-progress re-drives (breaks the infinite re-commit loop + particle-reset churn)
