@@ -36,7 +36,12 @@ jobs:
     # (the 138×25s pathology) before it wastes an hour, not to squeeze a healthy one.
     # 35 → 55 (2026-07-13): SPOT_RATINGS_PRECOMPUTE_HOURS '0,3' doubles the rating frames
     # (~+12-15 min) so a single missed/late run no longer opens a src=live melt window.
-    timeout-minutes: 55
+    # 55 → 75 (2026-07-13 melt round 4): run 29270987154 was CANCELLED at exactly 55m14s — the
+    # doubled tail exceeds 55 under CMEMS variance. 75 = measured-insufficient +20 headroom; the
+    # cap is also no longer catastrophic: the checkpoint merge-upload (run_spot_ratings_precompute)
+    # lands each model's frames as it completes, so a timeout costs the TAIL models one cycle, not
+    # the whole lane (the all-or-nothing loss that froze the lane at frame 12:00Z for 9h on 07-13).
+    timeout-minutes: 75
     steps:
       - uses: actions/checkout@v4
 

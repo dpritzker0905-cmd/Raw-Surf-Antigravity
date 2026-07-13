@@ -354,10 +354,31 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
     return build_l2_object(frames)
 
 
+def frames_coverage(frames) -> float:
+    """PURE: fraction of spot-frames carrying a real score (the coverage-guard metric)."""
+    rated = sum(1 for fr in frames for s in fr.get("spots", []) if s.get("score") is not None)
+    total = sum(len(fr.get("spots", [])) for fr in frames) or 1
+    return rated / total
+
+
+def merge_model_frames(prev_frames, fresh_frames, replaced_models) -> list:
+    """PURE: fresh frames for the models recomputed so far + the PREVIOUS object's frames for every
+    other model. The checkpoint-merge contract (2026-07-13 melt round 4): a run that times out after
+    model N still leaves models 1..N fresh AND models N+1.. on their previous (stale-servable) frames
+    — never the all-or-nothing loss that froze the lane at frame 12:00Z for 9h (three consecutive
+    cancelled runs × upload-at-end = the 21:00Z melt)."""
+    return list(fresh_frames) + [f for f in (prev_frames or []) if f.get("model") not in replaced_models]
+
+
 def run_spot_ratings_precompute() -> tuple:
-    """CI entry: read spots (Supabase REST), rate the configured frames, upload the L2 object. Returns
-    (n_spots, n_frames). Config via env: SPOT_RATINGS_PRECOMPUTE_MODELS (csv, default GFS),
-    SPOT_RATINGS_PRECOMPUTE_HOURS (csv offsets, default '0')."""
+    """CI entry: read spots (Supabase REST), rate the configured frames, upload the L2 object with a
+    CHECKPOINT MERGE-UPLOAD AFTER EVERY MODEL (2026-07-13): the 07-13 melt recurrence was three
+    consecutive cancelled runs (35/55-min timeouts) each losing ALL computed frames because the upload
+    only happened at the very end. Now each model's frames go live as soon as that model completes,
+    merged with the previous object so not-yet-recomputed models keep their prior coverage (the stale
+    ladder serves them). Returns (n_spots, n_frames_uploaded; 0 = every model withheld/failed).
+    Config via env: SPOT_RATINGS_PRECOMPUTE_MODELS (csv, default GFS), SPOT_RATINGS_PRECOMPUTE_HOURS
+    (csv offsets, default '0'), SPOT_RATINGS_MIN_COVERAGE (per-model guard, default 0.05)."""
     from services.weather_pipeline.store import ProductStore
     spots = fetch_active_spots_via_rest()
     if not spots:
@@ -366,34 +387,54 @@ def run_spot_ratings_precompute() -> tuple:
     models = [m.strip().upper() for m in os.environ.get("SPOT_RATINGS_PRECOMPUTE_MODELS", "GFS").split(",") if m.strip()]
     hours = [int(h) for h in os.environ.get("SPOT_RATINGS_PRECOMPUTE_HOURS", "0").split(",") if h.strip()]
     resolver = _make_point_resolver()
-    obj = asyncio.run(precompute_spot_ratings(resolver, spots, models, hours))
-    n_frames = len(obj.get("frames", []))
-    # OBSERVATION GATE + light report weigh-in (rating plan Step 4; Surfline hybrid — the backend plays
-    # the forecaster): scores above 'good' are capped unless >=2 models agree (internal corroboration
-    # across the frames just computed) or a fresh user report confirms; fresh reports also nudge the
-    # score LIGHTLY (bounded, expiring). Applied to the object BEFORE upload so every consumer (glyphs,
-    # live endpoint fallback, band unlock map) sees one truth. Kill: RATING_OBS_GATE=0 (default OFF).
-    if os.environ.get("RATING_OBS_GATE", "0") == "1":
-        try:
-            from services.weather_pipeline.rating_confirmation import (
-                apply_gate_to_frames, fetch_recent_reports_via_rest)
-            n_capped = apply_gate_to_frames(obj.get("frames", []), fetch_recent_reports_via_rest())
-            logger.info("[spot-ratings] observation gate applied: %d spot-frames capped.", n_capped)
-        except Exception as _oe:
-            logger.warning("[spot-ratings] observation gate skipped (raw scores served): %s", _oe)
-    # Coverage guard: NEVER stomp the served object with an all-null precompute (e.g. grids weren't warmed, so
-    # every resolve_point returned None). A null object would replace the working live-compute fallback with
-    # "unknown" glyphs — strictly worse. Require a minimum fraction of spots to have a real score before upload.
-    rated = sum(1 for fr in obj.get("frames", []) for s in fr.get("spots", []) if s.get("score") is not None)
-    total = sum(len(fr.get("spots", [])) for fr in obj.get("frames", [])) or 1
-    coverage = rated / total
+    store = ProductStore()
+    try:
+        prev_frames = (load_spot_ratings_l2() or {}).get("frames") or []
+    except Exception:
+        prev_frames = []
     min_cov = float(os.environ.get("SPOT_RATINGS_MIN_COVERAGE", "0.05"))
-    if coverage < min_cov:
-        logger.error("[spot-ratings] precompute coverage %.1f%% (%d/%d) below floor %.0f%% — NOT uploading "
-                     "(refusing to stomp the live fallback with nulls; are the grids warmed?).",
-                     coverage * 100, rated, total, min_cov * 100)
-        return len(spots), 0  # n_frames=0 signals "computed but withheld"
-    upload_spot_ratings_l2(ProductStore(), obj)
+    accepted_frames = []   # fresh frames that passed the per-model guard, across models so far
+    replaced = set()
+    n_frames_uploaded = 0
+
+    async def _run_all():
+        nonlocal n_frames_uploaded
+        for model in models:
+            obj_m = await precompute_spot_ratings(resolver, spots, [model], hours)
+            frames_m = obj_m.get("frames", [])
+            cov = frames_coverage(frames_m)
+            # PER-MODEL coverage guard: an all-null model keeps its PREVIOUS frames (never stomp a
+            # working model's coverage with nulls); other models proceed independently.
+            if cov < min_cov:
+                logger.error("[spot-ratings] precompute %s coverage %.1f%% below floor %.0f%% — keeping "
+                             "the previous %s frames (are the grids warmed?).",
+                             model, cov * 100, min_cov * 100, model)
+                continue
+            accepted_frames.extend(frames_m)
+            replaced.add(model)
+            merged = merge_model_frames(prev_frames, accepted_frames, replaced)
+            obj = build_l2_object(merged)
+            # OBSERVATION GATE + light report weigh-in (rating plan Step 4): scores above 'good' are
+            # capped unless >=2 models agree or a fresh user report confirms. Applied to the merged
+            # object BEFORE each checkpoint upload so every consumer sees one truth. Kill: RATING_OBS_GATE=0.
+            if os.environ.get("RATING_OBS_GATE", "0") == "1":
+                try:
+                    from services.weather_pipeline.rating_confirmation import (
+                        apply_gate_to_frames, fetch_recent_reports_via_rest)
+                    n_capped = apply_gate_to_frames(obj.get("frames", []), fetch_recent_reports_via_rest())
+                    logger.info("[spot-ratings] observation gate applied: %d spot-frames capped.", n_capped)
+                except Exception as _oe:
+                    logger.warning("[spot-ratings] observation gate skipped (raw scores served): %s", _oe)
+            upload_spot_ratings_l2(store, obj)
+            n_frames_uploaded = len(merged)
+            logger.info("[spot-ratings] CHECKPOINT upload after %s: %d frames live (%d fresh, cov %.0f%%).",
+                        model, len(merged), len(accepted_frames), cov * 100)
+
+    asyncio.run(_run_all())
+
+    if not replaced:
+        logger.error("[spot-ratings] precompute: every model withheld/failed — previous object left as-is.")
+        return len(spots), 0
     # Fold this run's breaking heights into the per-spot size CLIMATOLOGY (the local-calibration reference
     # source). Single-writer (this cron) → no CAS. NEVER fatal — a climatology hiccup must not fail the
     # ratings precompute or stomp the served ratings. Gate RATING_SIZE_CLIMATOLOGY (default on; it only
@@ -402,11 +443,11 @@ def run_spot_ratings_precompute() -> tuple:
         try:
             from services.weather_pipeline.spot_size_climatology import (
                 load_size_climatology_l2, merge_frames_into_climatology, upload_size_climatology_l2)
-            clim = merge_frames_into_climatology(load_size_climatology_l2(), obj.get("frames", []))
-            upload_size_climatology_l2(ProductStore(), clim)
+            clim = merge_frames_into_climatology(load_size_climatology_l2(), accepted_frames)
+            upload_size_climatology_l2(store, clim)
             logger.info("[spot-ratings] size climatology updated: %d spots tracked.", len(clim.get("spots", {})))
         except Exception as _ce:
             logger.warning("[spot-ratings] size climatology accumulation skipped: %s", _ce)
-    logger.info("[spot-ratings] precompute uploaded L2: %d spots × %d frames (%s × hours %s), coverage %.0f%%.",
-                len(spots), n_frames, models, hours, coverage * 100)
-    return len(spots), n_frames
+    logger.info("[spot-ratings] precompute complete: %d spots, %d frames live (%s × hours %s, %d models fresh).",
+                len(spots), n_frames_uploaded, models, hours, len(replaced))
+    return len(spots), n_frames_uploaded

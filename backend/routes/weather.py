@@ -336,6 +336,9 @@ class SpotRatingsResponse(BaseModel):
 _LIVE_RATINGS_CACHE: dict = {}
 _LIVE_RATINGS_TTL_S = 600.0
 _LIVE_RATINGS_CACHE_MAX = 400
+# Live computes currently in flight (single event loop → check-then-increment is race-safe). The
+# load-shed cap (SPOT_RATINGS_LIVE_MAX_CONCURRENT) 503s beyond it — see the live path below.
+_LIVE_RATINGS_INFLIGHT = 0
 
 
 @router.get("/spot-ratings", response_model=SpotRatingsResponse)
@@ -380,6 +383,25 @@ async def get_spot_ratings(
     if _hit is not None and (_time.time() - _hit[0]) < _LIVE_RATINGS_TTL_S:
         return _hit[1]
 
+    # LIVE-PATH LOAD SHED (2026-07-13, melt round 4 — the box must be UNMELTABLE by ratings): each
+    # live compute is 7.5-8.6 s on the 1-CPU box; concurrent pileups starve the DB pool and 500 every
+    # other lane (the recurring "melt"). Beyond the cap, fail FAST with 503 — the frontend keeps the
+    # last glyphs + the instant grid-sample fallback and retries on a bounded timer (useSpotRatings),
+    # which is strictly better than an 8-s pileup that takes the whole box down.
+    # Kill/tune: SPOT_RATINGS_LIVE_MAX_CONCURRENT (default 2; 0 disables the live path entirely).
+    global _LIVE_RATINGS_INFLIGHT
+    _live_cap = int(os.environ.get("SPOT_RATINGS_LIVE_MAX_CONCURRENT", "2"))
+    if _LIVE_RATINGS_INFLIGHT >= _live_cap:
+        raise HTTPException(status_code=503, detail="ratings live path at capacity; precomputed lane refreshing — retry shortly")
+    _LIVE_RATINGS_INFLIGHT += 1
+    try:
+        return await _compute_live_ratings(db, w, s, e, n, bbox, model, valid_time, limit, ckey, _time)
+    finally:
+        _LIVE_RATINGS_INFLIGHT -= 1
+
+
+async def _compute_live_ratings(db, w, s, e, n, bbox, model, valid_time, limit, ckey, _time):
+    """The 7-22 s live compute, extracted so the load-shed counter wraps it exactly (see caller)."""
     # LIVE fallback: query the spots in the bbox + rate each at its precise location (bounded concurrency).
     stmt = (
         select(SurfSpot)

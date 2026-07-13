@@ -139,6 +139,31 @@ def test_ladder_stale_kill_switch(monkeypatch):
     assert sel is None and src == "live"
 
 
+# ── checkpoint merge-upload (melt round 4, 2026-07-13) ──
+def test_merge_model_frames_replaces_only_recomputed_models():
+    from services.weather_pipeline.spot_ratings import merge_model_frames
+    prev = [{"model": "GFS", "valid_time": "t0", "spots": [{"score": 10}]},
+            {"model": "EURO", "valid_time": "t0", "spots": [{"score": 20}]},
+            {"model": "ICON", "valid_time": "t0", "spots": [{"score": 30}]}]
+    fresh = [{"model": "GFS", "valid_time": "t1", "spots": [{"score": 55}]}]
+    merged = merge_model_frames(prev, fresh, {"GFS"})
+    by_model = {}
+    for f in merged:
+        by_model.setdefault(f["model"], []).append(f)
+    assert by_model["GFS"] == fresh                      # recomputed model fully replaced
+    assert by_model["EURO"][0]["spots"][0]["score"] == 20  # untouched models keep prior frames
+    assert by_model["ICON"][0]["spots"][0]["score"] == 30
+
+
+def test_merge_model_frames_empty_prev_and_frames_coverage():
+    from services.weather_pipeline.spot_ratings import merge_model_frames, frames_coverage
+    fresh = [{"model": "GFS", "valid_time": "t1", "spots": [{"score": 55}, {"score": None}]}]
+    assert merge_model_frames(None, fresh, {"GFS"}) == fresh
+    assert merge_model_frames([], fresh, {"GFS"}) == fresh
+    assert frames_coverage(fresh) == 0.5                 # 1 of 2 spot-frames scored
+    assert frames_coverage([]) == 0.0                    # empty → 0, never a ZeroDivision
+
+
 # ── antimeridian-aware longitude test ──
 def test_lng_in_normal_and_wrapped():
     assert _lng_in(-80, -82, -79) is True
