@@ -190,3 +190,35 @@ Implemented exactly per the round-7 §3 design (07-12 EOD handoff), 5 surfaces:
   every rating encode. If the A/B still shows locked animations AND `withMotion≈0`, the mapper/
   conform strips u/v from `is_valid=false` cells before the encode — fix THERE next, not in the
   mask (check `mapNormalizedGridToWebGL` + the useMarineWindData conform mirror first).
+
+### 7d. ROUND-12 LIVE VERIFICATION (probe `round12_verify_probe.py`, 2026-07-13 02:09Z) — ALL PASS
+- **§5b routing**: netlify origin + Render direct serve the IDENTICAL product
+  (`gfs_marine_waves_florida_east_coast_20260713T030000Z`, same run_time 23:48Z, age 2.3 h),
+  CDN hop costs ~0.2 s; heavy 48-frame wind_waves series 200/48-frames via BOTH (2.51 s vs
+  0.55 s); cold non-pilot (Namibia) 48-frame series 200 in 2.13 s via netlify. Pass-through
+  proven by `X-Render-Origin-Server: uvicorn` on the netlify origin (the old fn rebuilt headers
+  and never carried it). The >10 s survival case wasn't naturally exercisable on a warm backend
+  — the verdict rests on routing truth + Netlify's documented ~26 s proxy window.
+- **§3 OFF live**: grid diagnostics carry NO animChannel/swellStamped; 4/5 §1b points within
+  0.5–5.0° of gfswave025 TOTAL direction; the 28.0,-80.0 outlier (Δ129°) re-probed at cell
+  center + 4 neighbors: the PROVIDER's own totals flip 96↔329° within ±0.25° there (weak bimodal
+  crossover, §1b footnote class) and ours (199.6°) matches the windsea family — NOT the swell
+  (327°), i.e. provably unstamped. Heights all within 0.09 m.
+- **§4.2 deployed**: map code lives in lazy chunk `6978.<hash>.chunk.js` (NOT main.js — greps of
+  main.js are blind to WebGL code, remember this). Deployed chunk `6978.9c32ef42` contains
+  `u_motionUnlock` ×8, the lifted-check expression ×2 (advect+draw), `__RAW_RATING_MOTION_UNLOCK__`
+  ×3, `__RAW_MOTION_UNLOCK_ENCODE__` ×1. SW BUILD_VERSION == origin/dev HEAD == `86a7f54c`.
+
+### 7e. §4.3(b) SERIES-PAGE FETCH RESILIENCE SHIPPED (tier-thrash fix candidate b)
+`marineGridSeries.js`: failed pages (non-ok HTTP, network errors, the 45 s local timeout) now
+retry on the existing exponential backoff (1.2/2.4/4.8/9.6 s), bounded at 4; caller-signal
+aborts (superseded viewport) and entries already holding frames never retry; success resets the
+budget. Kill: `__RAW_SERIES_RETRY_DISABLED__`. Telemetry: `__MARINE_SERIES_DIAG__.pageRetries /
+pageFailsExhausted / lastRetryReason`. Goldens `marineGridSeries.retry.test.js` (6).
+NOT touched (minefield, own arcs per round-9 §3): (a) mid-SWR-reval suppression while a fine
+resident covers, (c) coverage-release hysteresis — both live in settle/orchestrator territory.
+`windGridSeries.js` has the same silent-fail shape — candidate for a parity pass when wind
+series failures are actually observed. Remaining queue after this: §4.3(a)/(c) own arc, §4.4
+tripwire (armed, needs the user's next band-flash + `__RAW_FORENSIC__.copy()`), §4.5 perf arc
+(boot triple-encode dedup ⚠️ stale-texture risk — instrument first; mask-rebuild dedup =
+minefield), §4.6 wheel feel (user-driven).

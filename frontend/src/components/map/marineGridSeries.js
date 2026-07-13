@@ -51,6 +51,37 @@ export function coarseRevalDelayMs(revalCount) {
   return Math.min(COARSE_REVAL_BASE_MS * Math.pow(2, n - 1), COARSE_REVAL_MAX_INTERVAL_MS);
 }
 
+// §4.3(b) SERIES-PAGE FETCH RESILIENCE (2026-07-13, round-12; tier-thrash decode fix candidate b):
+// failed pages (deploy-window 500s, network blips, the 45s local timeout) were SILENT — the page
+// stayed absent until the next user gesture while the clamp backstop looped on misses (the
+// "series misses climbing" aggravator, user dev logs round-11). Bounded retry on the SAME
+// exponential backoff as coarse revalidation (1.2s/2.4s/4.8s/9.6s). Never retries: caller-signal
+// aborts (superseded viewport), or pages whose cache entry already HAS frames (stale frames still
+// serve; the TTL refresh will try again naturally). Kill: window.__RAW_SERIES_RETRY_DISABLED__.
+// Telemetry: __MARINE_SERIES_DIAG__.pageRetries / pageFailsExhausted / lastRetryReason.
+const SERIES_FAIL_RETRY_MAX = 4;
+const _failRetries = new Map(); // pageKey -> consecutive failed attempts
+
+function scheduleFailRetry(model, layer, bounds, page, signal, key, reason) {
+  if (typeof window !== 'undefined' && window.__RAW_SERIES_RETRY_DISABLED__ === true) return;
+  const n = (_failRetries.get(key) || 0) + 1;
+  _failRetries.set(key, n);
+  if (_failRetries.size > 64) _failRetries.delete(_failRetries.keys().next().value);
+  if (typeof window !== 'undefined') {
+    window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 };
+    const d = window.__MARINE_SERIES_DIAG__;
+    if (n > SERIES_FAIL_RETRY_MAX) {
+      d.pageFailsExhausted = (d.pageFailsExhausted || 0) + 1;
+    } else {
+      d.pageRetries = (d.pageRetries || 0) + 1;
+      d.lastRetryReason = reason;
+    }
+  }
+  if (n > SERIES_FAIL_RETRY_MAX) return;
+  const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n));
+  _idleTimers.add(t);
+}
+
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
 // once (rapid model/layer toggling warms GFS+ICON+EURO × every layer × 3 pages) slams the box
 // into 503s/timeouts so NOTHING completes — the "bottleneck after scrubbing." Cap concurrent
@@ -301,7 +332,14 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     }
     try {
       const res = await fetch(url, { signal: localController.signal });
-      if (!res.ok) return;
+      if (!res.ok) {
+        // §4.3(b): a failed page (deploy-window 500, cold-start 502) retries bounded instead of
+        // silently vanishing until the next gesture. Entries that already hold frames skip it.
+        if (!localController.signal.aborted && !(existing && existing.frames && existing.frames.size)) {
+          scheduleFailRetry(model, layer, bounds, page, signal, key, `http_${res.status}`);
+        }
+        return;
+      }
       const json = await res.json();
       if (!json || !Array.isArray(json.frames) || json.frames.length === 0) {
         // COLD-START retry (2026-07-06, chip task_e618f9ff): an empty series marked `warming`
@@ -348,6 +386,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       // grid is ±180, which contains every viewport — so global scrub HITS regardless of pan. Also
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
       _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, coarsePreview: isCoarsePreview, revalCount });
+      _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
       // Bound memory.
       if (_seriesCache.size > SERIES_MAX) {
         const oldest = _seriesCache.keys().next().value;
@@ -374,7 +413,14 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
         window.__MARINE_SERIES_DIAG__.lastFrames = hoursList.length;
       }
     } catch (e) {
-      // network/abort/timeout — silent, falls back to per-hour path
+      // §4.3(b): superseded-viewport aborts (caller signal) stay silent — retrying them is pure
+      // waste. Everything else (the 45s local timeout, network errors) retries bounded; before
+      // this the page silently vanished and the clamp backstop looped on misses.
+      const callerAborted = !!(signal && signal.aborted);
+      if (!callerAborted && !(existing && existing.frames && existing.frames.size)) {
+        const reason = (e && e.name === 'AbortError') ? 'timeout_45s' : `net_${(e && e.name) || 'error'}`;
+        scheduleFailRetry(model, layer, bounds, page, signal, key, reason);
+      }
     } finally {
       releaseSeriesSlot(); // hand the slot to the next queued load
       clearTimeout(timeoutId);
@@ -540,4 +586,5 @@ export function _resetMarineSeriesForTest() {
   _idleTimers.clear();
   _seriesActiveLoads = 0;
   _seriesWaiters.length = 0;
+  _failRetries.clear();
 }
