@@ -36,6 +36,8 @@ The first scan (done during the admin-audit round 4, before this dedicated dive)
 
 **Corrected count: 221 routes** (not 309) have a bare `user_id` parameter and none of the five markers. This is still large and still real — but reporting the wrong number in a security document is itself a failure mode worth naming, so it's recorded here rather than quietly swapped.
 
+**Final-pass due diligence on the scanner itself** (2026-07-12, closing verification): confirmed the 5-marker list is exhaustive by grepping `deps/` and `core/` for every function definition matching an auth-dependency naming shape (`get_current_*`, `get_optional_*`, `get_user_id_*`, `require_*`) — exactly 5 exist, matching the scanner's list precisely; no 6th pattern was missed. Also spot-checked two more flagged routes specifically for a *manual*, non-`Depends()`-based auth check inside the function body (a failure mode the AST scan structurally can't see) — `create_identity_verification_session` and `boost_dispatch_request` (§3.1) — confirmed neither has one. No further scanner corrections found; 221 stands.
+
 ### 2.2 The existing auth infrastructure (`backend/core/security.py`)
 
 ```python
@@ -111,7 +113,11 @@ Every entry below was confirmed by reading the actual function body, not inferre
 - `GET /credits/balance/{user_id}` — `get_user_balance()`, `subscriptions_billing/credits.py` — real credit balance, zero auth.
 - `GET /credits/history/{user_id}` — full credit transaction history.
 - `GET /payments/history/{user_id}` — `get_payment_history()`, `subscriptions_billing/payments.py` — full payment history.
+- `POST /payments/identity/create-session` — `create_identity_verification_session()`, same file — creates a real **Stripe Identity** verification session (used for Guardian/Pro badges) attributed to an arbitrary `user_id`, zero auth, confirmed no manual in-body check either.
+- `POST /request/{request_id}/boost` — `boost_dispatch_request()`, `dispatch/boost.py` — a genuine financial **write**, not just a read: spends 5/10/20 real credits (by duration) to elevate a dispatch request's priority, attributed to whatever `user_id` the caller supplies. An attacker could drain another user's credit balance through this path alone.
 - Plus subscription-tier mutation endpoints (`toggle-status`, `upgrade-tier`, `apply-pro`) — these are **write** paths: an attacker could change *another user's* subscription state.
+
+*(Added during the final-pass re-verification: spot-checked two more routes specifically for a manual in-body auth check that wouldn't show up in the AST scan — `create_identity_verification_session` and `boost_dispatch_request` — confirmed both have none; the scanner isn't missing a manual-check pattern.)*
 
 ### 3.2 Private communications
 - `GET /messages/conversations/{user_id}` — `get_conversations()`, `messages/conversations.py` — a user's full DM inbox list. (Confirmed this file *does* correctly gate the grom-safety-zone messaging permission check — the messaging-permission logic is sound; it's the caller-identity check that's missing.)
