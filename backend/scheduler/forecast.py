@@ -141,6 +141,14 @@ def ingest_marine_forecast_task():
                 # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
                 # EURO Marine Global job reuses), so isolating it is dependency-safe.
                 ("GFS Marine Pilot", weather_scheduler.ingest_gfs_marine_pilot),
+                # Regional ICON marine pilot (2026-07-13, round-12 §2a-i — the ICON close-zoom
+                # fidelity fix): GWAM is natively 0.25° but ICON marine only ever shipped the 10°
+                # global + 2° mid tiers on the decoupled lane (the pre-decoupling in-process pilot
+                # was never carried into CI). DWD-direct GWAM per pilot region, bounded horizon
+                # (default 3d — no byte-range subsetting at DWD, each region re-downloads global
+                # files; far hours fall through to mid/global). Kill: ICON_MARINE_PILOT_INGEST=0.
+                *([("ICON Marine Pilot", weather_scheduler.ingest_icon_marine_pilot)]
+                  if os.environ.get("ICON_MARINE_PILOT_INGEST", "1") != "0" else []),
             ]
             # Regional WIND pilots (0.25° coastal tiles, all 3 models) — the zoomed-in-wind fix. Wind ships
             # ONLY a 10° global product, so the serve box did a ~20s synchronous live viewport fetch per

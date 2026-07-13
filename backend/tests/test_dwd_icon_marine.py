@@ -10,9 +10,9 @@ import pytest
 from datetime import datetime, timezone, timedelta
 
 
-def _gwam_like_points(om_provider, region):
-    """Full coarse grid, GWAM-shaped (3 layers, no swell_2), 6 three-hourly steps, authoritative."""
-    lats, lons = om_provider.generate_grid_coords(region, 10.0)
+def _gwam_like_points(om_provider, region, resolution=10.0):
+    """Full grid at `resolution`, GWAM-shaped (3 layers, no swell_2), 6 three-hourly steps, authoritative."""
+    lats, lons = om_provider.generate_grid_coords(region, resolution)
     base = datetime.now(timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
     times = [(base + timedelta(hours=3 * h)).strftime("%Y-%m-%dT%H:%M:%SZ") for h in range(6)]
     vars9 = ["wave_height", "wave_direction", "wave_period",
@@ -67,6 +67,58 @@ async def test_icon_marine_dwd_direct_ingestion(tmp_path, monkeypatch):
     layers = {p.layer for p in icon}
     assert {"waves", "swell_1", "wind_waves"}.issubset(layers)
     assert "swell_2" not in layers  # gwam has no secondary swell
+
+
+@pytest.mark.asyncio
+async def test_icon_marine_pilot_dwd_direct_regional(tmp_path, monkeypatch):
+    """
+    Regression guard for the ICON close-zoom resolution ceiling (2026-07-13, round-12 §2a-i):
+    ingest_icon_marine_pilot must take the DWD-direct PRIMARY for every pilot region at 0.25°
+    so the manifest carries ICON regional fine tiles (the decoupling carried only the GFS marine
+    pilot into CI — ICON topped out at the 2° mid tier). Products stay manifest-identical to the
+    global lane: provider='open-meteo', source_dataset='dwd_gwam', coverage_mode='regional_tile',
+    3 layers (gwam has no swell_2), superseded runs pruned.
+    """
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    import services.dwd_marine_service as dwd_svc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("ICON_MARINE_DWD_DIRECT", "1")
+    monkeypatch.setenv("ICON_MARINE_PILOT_FORECAST_DAYS", "1")  # small/fast mock time-axis
+
+    called_regions = []
+
+    async def fake_dwd(bbox, resolution=10.0, forecast_days=7):
+        called_regions.append((round(bbox["west"], 2), round(bbox["east"], 2), resolution))
+        return _gwam_like_points(scheduler.om_provider, bbox, resolution)
+
+    monkeypatch.setattr(dwd_svc, "fetch_icon_marine_global_coarse", fake_dwd)
+
+    success = await scheduler.ingest_icon_marine_pilot()
+    assert success is True
+    # DWD primary taken for BOTH flagship pilot regions at their configured 0.25° (test env =
+    # flagship-only via get_pilot_regions; not the open-meteo fallback).
+    assert len(called_regions) == len(REGIONAL_CONFIGS)
+    for (_w, _e, res) in called_regions:
+        assert res == 0.25
+
+    products = temp_store.get_manifest().products
+    for region_id in REGIONAL_CONFIGS:
+        regionals = [p for p in products
+                     if p.model == "ICON" and p.domain == "marine" and p.region_id == region_id]
+        assert len(regionals) > 0, f"no ICON regional products saved for {region_id}"
+        for p in regionals:
+            assert p.provider == "open-meteo"
+            assert p.source_dataset == "dwd_gwam"
+            assert p.is_estimated is False
+            assert p.is_forecast_authoritative is True
+            assert p.coverage_mode == "regional_tile"
+            assert p.resolution == REGIONAL_CONFIGS[region_id]["resolution"]
+        assert "swell_2" not in {p.layer for p in regionals}  # gwam has no secondary swell
 
 
 @pytest.mark.asyncio

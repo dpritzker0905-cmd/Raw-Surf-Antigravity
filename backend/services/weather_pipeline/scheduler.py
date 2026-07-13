@@ -661,55 +661,77 @@ class WeatherPipelineScheduler:
 
     async def ingest_icon_marine_pilot(self) -> bool:
         """
-        Stage 4F.1 / 6H.2: Ingests ICON/gwam marine grid forecast for all configured regions.
-        Fetches 48 hours of forecasts in 3-hour increments for waves, swell_1, and wind_waves.
-        Swell 2 is unsupported and will not be ingested.
+        Stage 4F.1 / 6H.2: Ingests ICON/gwam marine grid forecast for the pilot regions at 0.25°.
+        The ICON close-zoom fidelity fix (2026-07-13, round-12 §2a-i): GWAM's GRIBs are natively
+        global 0.25° (probe-verified via open-meteo gwam point snapping), so the fine tiles are a
+        regional bbox away — mirror of ingest_gfs_marine_pilot with the DWD-direct fetcher as
+        PRIMARY (open-meteo fallback). Regions come from get_pilot_regions() (flagship + worldwide
+        rotation, same coverage story as GFS). ⚠️ DWD has no .idx byte-range subsetting — every
+        region re-downloads the whole-globe per-(var,hour) bz2 files — so the pilot horizon is
+        bounded (ICON_MARINE_PILOT_FORECAST_DAYS, default 3): close-zoom detail is a near-term
+        need and far hours fall through to the mid/global tiers via the resolver ladder anyway.
+        gwam has no secondary swell → waves/swell_1/wind_waves only (matches ICON global).
         """
-        logger.info("[Pipeline Scheduler] Starting ICON Marine Ingestion job for supported layers...")
+        logger.info("[Pipeline Scheduler] Starting ICON Marine Pilot (regional 0.25°) job...")
         env = get_env_flags()
         run_time = datetime.now(timezone.utc)
         total_saved = 0
 
-        for region_id, region in REGIONAL_CONFIGS.items():
+        dwd_direct = os.environ.get("ICON_MARINE_DWD_DIRECT", "1") != "0"
+        forecast_days = int(os.environ.get("ICON_MARINE_PILOT_FORECAST_DAYS", "3"))
+
+        for region_id, region in get_pilot_regions().items():
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting ICON Marine for region: {region_id}")
 
-            try:
-                raw_data = await self.om_provider.fetch_grid(
-                    model="ICON", domain="marine", layer="all_marine",
-                    bbox=region, resolution=resolution, forecast_days=7
-                )
-            except Exception as e:
-                logger.error(f"[Pipeline Scheduler] ICON Marine fetch exception: {e}")
-                raw_data = None
+            # ══ PRIMARY: native ICON/GWAM direct from DWD opendata (regional 0.25°, off open-meteo) ══
+            results = None
+            from_dwd = False
+            if dwd_direct:
+                try:
+                    from services.dwd_marine_service import fetch_icon_marine_global_coarse
+                    results = await fetch_icon_marine_global_coarse(region, resolution, forecast_days)
+                    if results:
+                        from_dwd = True
+                        logger.info(f"[Pipeline Scheduler] ICON marine DWD-direct OK for {region_id}: "
+                                    f"{len(results)} points (off open-meteo).")
+                except Exception as _de:
+                    logger.error(f"[Pipeline Scheduler] ICON marine DWD-direct fetch errored for {region_id}: {_de}")
 
-            if raw_data:
-                results = raw_data if isinstance(raw_data, list) else [raw_data]
-                provider = "open-meteo"
-            elif env["is_test_env"]:
-                logger.warning(f"[Pipeline Scheduler] ICON Marine fetch failed for {region_id}. Injecting mock data...")
-                results = generate_mock_icon_marine_results(self.om_provider, region, resolution)
-                provider = "test-fixture"
-            else:
-                logger.error(f"[Pipeline Scheduler] ICON Marine fetch failed for {region_id}. Skipping.")
+            if not results:
+                if dwd_direct:
+                    logger.warning(f"[Pipeline Scheduler] ICON marine DWD-direct unavailable for {region_id}; "
+                                   "falling back to open-meteo.")
+                results = await self._fetch_or_mock(
+                    "ICON", "marine", "all_marine", region, resolution, forecast_days,
+                    env["is_test_env"],
+                    lambda r=region, res=resolution: generate_mock_icon_marine_results(self.om_provider, r, res),
+                    region_id
+                )
+            if not results:
                 continue
+
+            # DWD GWAM is natively 3-hourly (step=1); open-meteo all_marine is hourly (step=3 -> 3-hourly).
+            save_step = 1 if from_dwd else 3
 
             layers = ["waves", "swell_1", "wind_waves"]
             for layer in layers:
                 count = await normalize_and_save_loop(
                     self.normalizer, self.store, results,
-                    model="ICON", provider=provider, domain="marine", layer=layer,
+                    model="ICON", provider="open-meteo", domain="marine", layer=layer,
                     bbox=region, resolution=resolution, run_time=run_time,
                     region_id=region_id, coverage_mode="regional_tile",
-                    is_test_env=env["is_test_env"],
+                    is_test_env=env["is_test_env"], step=save_step,
                     log_prefix=f"[Pipeline Scheduler] ICON {layer} {region_id}"
                 )
                 logger.info(f"[Pipeline Scheduler] Ingested {count} ICON {layer} products for region {region_id}.")
                 total_saved += count
+                if count > 0:
+                    self.store.prune_superseded_products("ICON", "marine", layer, region_id, run_time)
 
             await self._cleanup_and_pause(results)
 
-        logger.info(f"[Pipeline Scheduler] ICON Marine Ingestion Job done! Saved {total_saved} total conformed product files.")
+        logger.info(f"[Pipeline Scheduler] ICON Marine Pilot done! Saved {total_saved} total conformed product files.")
         return total_saved > 0
 
     async def ingest_icon_wind_pilot(self) -> bool:

@@ -106,7 +106,27 @@ total). Motion-unlock OFF. All other kills at defaults.
    washBase/tileClamped/serTTLByp/probes and self-answers the standing questions.
 2. ~~**Precompute ownership hardening**~~ DONE 2026-07-13 (§1 — cron interleave shipped; also
    found+fixed §1b structural windows; §1c scrub live-vector documented, user call).
-3. **ICON/EURO fine-pilot feasibility probe** (§2a-i — provider res check, then backend arc).
+3. ~~**ICON/EURO fine-pilot feasibility probe**~~ ICON HALF BUILT 2026-07-13 (§2a-i follow-up
+   session). PROBED: GWAM is natively 0.25° (open-meteo gwam point-snap probe: 0.05°-spaced
+   points snap to 0.25° lat AND lng; `dwd_gwam_fetcher.py` header confirms "global 0.25° regular
+   lat/lon"; live DWD file downloaded + bz2→GRIB magic verified). ROOT of the ceiling was a
+   REGRESSION SHAPE: `ingest_icon_marine_pilot` existed since the in-process-scheduler era but
+   was NEVER carried into the decoupled CI lane (only reachable from server.py lifespan +
+   manual routes) — the decoupling moved the GFS pilot to CI and silently dropped ICON regional.
+   SHIPPED: rewrote the method GFS-pilot-shaped (DWD-direct primary / open-meteo fallback /
+   `get_pilot_regions()` worldwide rotation / missing `prune_superseded_products` added /
+   `save_step` 1-vs-3) + registered in `pilot_jobs` + regression test
+   `test_icon_marine_pilot_dwd_direct_regional`. Horizon bounded `ICON_MARINE_PILOT_FORECAST_DAYS`
+   default 3d (DWD has NO byte-range subsetting — each region re-downloads whole-globe
+   per-(var,hour) bz2 files, ~225 files ≈ 2-4 min/region, 4 regions ≈ 8-16 min in the pilots
+   lane's 165-min budget; far hours fall through to mid/global via the ladder). Kills:
+   `ICON_MARINE_PILOT_INGEST=0` (repo Actions VARIABLE, no commit) or `ICON_MARINE_DWD_DIRECT=0`.
+   VERIFY after next pilots run: ICON close-zoom in FL/SoCal should walk to 0.25° regional tiles
+   (`coverage_scope` regional). **EURO REGIONAL STILL OPEN:** `ingest_copernicus_regional`
+   (0.5° CMEMS FL+SoCal) is ALSO unscheduled in CI — same regression shape — but scheduling it
+   adds a 2nd CMEMS fetch/cycle (the throttling landmine that kept EURO mid OFF for weeks);
+   needs its own budget probe before wiring. Multi-bbox single-download-pass fetcher
+   optimization = follow-up if DWD volume becomes a concern.
 4. **Reseed-blink arc** (§2b, γ slice with the ring; the falsified particle-carry regression
    shape must be re-derived first).
 5. Clamp-classifier model-ceiling awareness (§2a-ii).
