@@ -185,6 +185,31 @@ def select_precomputed(obj, bbox, model, valid_time, tolerance_s: float = SELECT
     return out
 
 
+def select_precomputed_laddered(obj, bbox, model, valid_time,
+                                fresh_tolerance_s: float = SELECT_TOLERANCE_S,
+                                stale_tolerance_s: Optional[float] = None) -> tuple:
+    """PURE: the serve ladder — fresh precomputed (±fresh_tolerance_s) → bounded-STALE precomputed
+    (±stale_tolerance_s, labeled) → (None, live). Melt hardening round 3 (2026-07-13): the 1-CPU box
+    cannot survive live-at-scale (7.5-8.6 s/req starves every DB lane), so when the lane is merely
+    STALE (missed/drifted cron) we serve the nearest frame within the stale bound as
+    'precomputed_stale' instead of falling off the live cliff. Beyond the bound live remains the
+    truth path. stale_tolerance_s defaults from SPOT_RATINGS_STALE_TOLERANCE_S (21600 s = 6h; 0 kills).
+    Returns (spots_list_or_None, source_label)."""
+    sel = select_precomputed(obj, bbox, model, valid_time, tolerance_s=fresh_tolerance_s)
+    if sel is not None:
+        return sel, "precomputed"
+    if stale_tolerance_s is None:
+        try:
+            stale_tolerance_s = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600"))
+        except (TypeError, ValueError):
+            stale_tolerance_s = 21600.0
+    if stale_tolerance_s > 0:
+        sel = select_precomputed(obj, bbox, model, valid_time, tolerance_s=stale_tolerance_s)
+        if sel is not None:
+            return sel, "precomputed_stale"
+    return None, "live"
+
+
 def build_l2_object(frames) -> dict:
     """Wrap precomputed frames (each {model, valid_time, spots:[...]}) in the versioned L2 object."""
     return {

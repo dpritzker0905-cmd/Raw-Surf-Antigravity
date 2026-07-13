@@ -356,15 +356,22 @@ async def get_spot_ratings(
 
     # PRECOMPUTED path (rating plan §4): if the cron wrote a frame covering this model+time, serve it straight
     # from L2 (zero serve-box compute). select_precomputed returns None when no matching frame exists → live.
+    # STALE LADDER (2026-07-13, melt hardening round 3): fresh (±2h) → stale (±SPOT_RATINGS_STALE_TOLERANCE_S,
+    # default 6h, labeled source="precomputed_stale") → live. The 1-CPU box CANNOT survive live-at-scale
+    # (7.5-8.6 s/req melts every DB lane — the 07-13 melt, three recurrences with three different triggers:
+    # evicted run / GH cron drift / coverage hole). Bounded-stale glyphs beat a melted box; beyond the stale
+    # bound live remains the truth path. Kill: SPOT_RATINGS_STALE_TOLERANCE_S=0.
+    pre, pre_source = None, "precomputed"
     try:
-        pre = select_precomputed(load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
+        from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+        pre, pre_source = select_precomputed_laddered(load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
     except Exception as _pe:
         logger.debug(f"[spot-ratings] precomputed read failed: {_pe}")
         pre = None
     if pre is not None:
         items = [SpotRatingItem(**sp) for sp in pre[:limit]]
         count = sum(1 for it in items if it.score is not None)
-        return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source="precomputed", spots=items)
+        return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source=pre_source, spots=items)
 
     # Live-path cache hit (a recent identical viewport already paid the 7-22s compute)?
     import time as _time

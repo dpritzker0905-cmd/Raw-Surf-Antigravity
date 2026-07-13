@@ -34,7 +34,9 @@ jobs:
     # replacing the ~300 serial per-point downloads that forced the 60-min cap on 07-05.
     # 35 = measured 25.4 min + CMEMS-variance headroom; the cap exists to kill a THROTTLED run
     # (the 138×25s pathology) before it wastes an hour, not to squeeze a healthy one.
-    timeout-minutes: 35
+    # 35 → 55 (2026-07-13): SPOT_RATINGS_PRECOMPUTE_HOURS '0,3' doubles the rating frames
+    # (~+12-15 min) so a single missed/late run no longer opens a src=live melt window.
+    timeout-minutes: 55
     steps:
       - uses: actions/checkout@v4
 
@@ -54,6 +56,7 @@ jobs:
           PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)
           SPOT_RATINGS_PRECOMPUTE: '1'
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for all 3 models (match forecast-ingest)
+          SPOT_RATINGS_PRECOMPUTE_HOURS: '0,3'  # TWO frames/model (2026-07-13): coverage to +5h59 per run → a missed/drifted run no longer opens a melt window; also covers near-term scrub (±2h tolerance around each frame)
           BUOY_CALIBRATION: '1'
           REPORT_CALIBRATION: '1'
           POINT_BATCH_NATIVE_COPERNICUS: '1'  # SPATIAL BATCHING (2026-07-06, replaces POINT_SKIP here): ONE CMEMS subset per ~5° spot cluster pre-warms per-point entries → native EURO authority restored WITHOUT the serial per-point volume that made CMEMS throttle (138×25s, run 28754458502). forecast-ingest keeps POINT_SKIP until this lane proves out.

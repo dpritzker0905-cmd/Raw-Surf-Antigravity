@@ -99,6 +99,46 @@ def test_select_precomputed_outside_tolerance_falls_back():
     assert select_precomputed(_obj([frame]), (-82, 24, -79, 28), "GFS", "2026-06-29T02:00:00Z") is None
 
 
+# ── stale-serve ladder (melt hardening round 3, 2026-07-13) ──
+def _ladder_frame():
+    return {"model": "GFS", "valid_time": "2026-06-28T21:00:00Z", "spots": [
+        {"spot_id": "in", "latitude": 26.0, "longitude": -80.0, "score": 50, "level": "fair"},
+    ]}
+
+
+def test_ladder_fresh_frame_serves_precomputed():
+    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+                                           "2026-06-28T21:40:00Z")
+    assert src == "precomputed" and [s["spot_id"] for s in sel] == ["in"]
+
+
+def test_ladder_stale_frame_serves_labeled_stale_not_live():
+    # 5h from the only frame: fresh (±2h) misses, stale bound (6h default) catches it — the box
+    # must NOT fall off the live cliff for a merely-stale lane (the 07-13 melt class).
+    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+                                           "2026-06-29T02:00:00Z")
+    assert src == "precomputed_stale" and [s["spot_id"] for s in sel] == ["in"]
+
+
+def test_ladder_beyond_stale_bound_falls_to_live():
+    # 8h out: beyond the 6h stale bound → (None, 'live') — live stays the truth path.
+    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+                                           "2026-06-29T05:00:00Z")
+    assert sel is None and src == "live"
+
+
+def test_ladder_stale_kill_switch(monkeypatch):
+    # SPOT_RATINGS_STALE_TOLERANCE_S=0 disables the stale rung entirely (pre-ladder behavior).
+    from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+    monkeypatch.setenv("SPOT_RATINGS_STALE_TOLERANCE_S", "0")
+    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+                                           "2026-06-29T02:00:00Z")
+    assert sel is None and src == "live"
+
+
 # ── antimeridian-aware longitude test ──
 def test_lng_in_normal_and_wrapped():
     assert _lng_in(-80, -82, -79) is True
