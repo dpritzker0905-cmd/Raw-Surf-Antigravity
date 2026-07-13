@@ -7,27 +7,28 @@ import { shouldCarryParticlesOnGridSwap } from '../components/map/WebGLMarineEng
 // new grid can't advect. Frame-semantics reinits (tile re-anchor, tileZoomMin crossing) are
 // unaffected — they reseed via reinitParticles, not this path.
 
-// DEFAULT OFF (2026-07-06 live regression: carried particles from a coarse-mask era sat on
-// fine-mask land — near-zero field velocity means the advect shader's next-position land check
-// never fires, and the old reseed was silently doubling as the land sweep). Opt-in via
-// __RAW_ENABLE_PARTICLE_CARRY__ until the carry gains a swap-time land cull.
-describe('shouldCarryParticlesOnGridSwap (grid-swap particle carry — opt-in)', () => {
-  it('does NOT carry by default (old reseed behavior; the reseed is also the land sweep)', () => {
-    expect(shouldCarryParticlesOnGridSwap({}, true, true)).toBe(false);
-    expect(shouldCarryParticlesOnGridSwap(null, true, true)).toBe(false);
+// DEFAULT ON (2026-07-13, round-12 §2b reseed-blink arc): the 2026-07-06 land-sitting
+// regression that kept this opt-in was RE-TESTED LIVE on the deployed engine across all three
+// swap classes (fine→coarse zoom-out, coarse→fine zoom-in, coastal pan re-anchors) with zero
+// land-sitting — ADVECT_FS drops a particle whose CURRENT position samples land, so carried
+// land-sitters cull within one advect frame. Kill switch: __RAW_DISABLE_PARTICLE_CARRY__ = true.
+describe('shouldCarryParticlesOnGridSwap (grid-swap particle carry — default ON)', () => {
+  it('carries by default (kills the reseed blink on every tier swap)', () => {
+    expect(shouldCarryParticlesOnGridSwap({}, true, true)).toBe(true);
+    expect(shouldCarryParticlesOnGridSwap(null, true, true)).toBe(true);
   });
 
   it('never carries when a state texture is missing (init path must still seed)', () => {
-    expect(shouldCarryParticlesOnGridSwap({ __RAW_ENABLE_PARTICLE_CARRY__: true }, false, true)).toBe(false);
-    expect(shouldCarryParticlesOnGridSwap({ __RAW_ENABLE_PARTICLE_CARRY__: true }, true, false)).toBe(false);
+    expect(shouldCarryParticlesOnGridSwap({}, false, true)).toBe(false);
+    expect(shouldCarryParticlesOnGridSwap({}, true, false)).toBe(false);
   });
 
-  it('opt-in lever __RAW_ENABLE_PARTICLE_CARRY__ enables the carry for tuning', () => {
-    expect(shouldCarryParticlesOnGridSwap({ __RAW_ENABLE_PARTICLE_CARRY__: true }, true, true)).toBe(true);
+  it('kill switch __RAW_DISABLE_PARTICLE_CARRY__ restores the legacy full reseed', () => {
+    expect(shouldCarryParticlesOnGridSwap({ __RAW_DISABLE_PARTICLE_CARRY__: true }, true, true)).toBe(false);
   });
 
-  it('non-true lever values stay on the reseed path', () => {
-    expect(shouldCarryParticlesOnGridSwap({ __RAW_ENABLE_PARTICLE_CARRY__: 1 }, true, true)).toBe(false);
-    expect(shouldCarryParticlesOnGridSwap({ __RAW_ENABLE_PARTICLE_CARRY__: undefined }, true, true)).toBe(false);
+  it('non-true kill values keep the carry on (strict === true, no accidental kills)', () => {
+    expect(shouldCarryParticlesOnGridSwap({ __RAW_DISABLE_PARTICLE_CARRY__: 1 }, true, true)).toBe(true);
+    expect(shouldCarryParticlesOnGridSwap({ __RAW_DISABLE_PARTICLE_CARRY__: undefined }, true, true)).toBe(true);
   });
 });

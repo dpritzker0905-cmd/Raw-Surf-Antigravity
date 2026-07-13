@@ -26,7 +26,13 @@ concurrency:
 jobs:
   ingest-pilots:
     runs-on: ubuntu-latest
-    timeout-minutes: 165
+    # 165 → 200 (2026-07-13): measured phase ledger from run 29249603524 (cancelled at the old
+    # wire): GFS mid 32m + ICON mid 17m + EURO mid 4m + GFS marine pilot 51m (was ~21m at the
+    # 07-04 baseline — worldwide 2/cycle + 0.25° 8-day NOAA fetches ballooned it, own audit item)
+    # + ICON marine pilot 29m (now bounded to ~10m: flagship-only + 2d) + wind pilots ~50m+
+    # ≈ 185m healthy total — the lane was ALREADY over 165 before the ICON pilot landed. 200
+    # keeps 40 min under the 240-min cron interval (shared-group serialization stays safe).
+    timeout-minutes: 200
     steps:
       - uses: actions/checkout@v4
 

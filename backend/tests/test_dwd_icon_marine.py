@@ -92,7 +92,7 @@ async def test_icon_marine_pilot_dwd_direct_regional(tmp_path, monkeypatch):
 
     called_regions = []
 
-    async def fake_dwd(bbox, resolution=10.0, forecast_days=7):
+    async def fake_dwd(bbox, resolution=10.0, forecast_days=7, timeout_s=1800):
         called_regions.append((round(bbox["west"], 2), round(bbox["east"], 2), resolution))
         return _gwam_like_points(scheduler.om_provider, bbox, resolution)
 

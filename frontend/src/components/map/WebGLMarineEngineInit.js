@@ -46,15 +46,23 @@ export function reinitParticles(engine, gl) {
 // PARTICLE CARRY predicate (2026-07-06, Part 9 ② zoom-out ladder): particle positions live in
 // TILE/MERCATOR space (ADVECT_FS global_pos), not data-grid space, so a grid bounds/dims swap
 // does not invalidate them geographically — carrying them kills the "crests clear then rebuild
-// from the bottom" blink on every sharpen/zoom-band swap. BUT the reseed also doubles as a LAND
-// SWEEP: a particle carried from a coarse-mask era can sit over fine-mask land with ~zero field
-// velocity, and the advect shader's next-position land check never fires for a particle that
-// doesn't move (live regression 2026-07-06: "wave particles up close going over land" + resolution
-// swaps reading as stale). DEFAULT OFF until the carry gains a swap-time land cull — opt in via
-// __RAW_ENABLE_PARTICLE_CARRY__ = true for tuning. Carry requires both state textures.
+// from the bottom" blink on every sharpen/zoom-band swap (round-12 §2b, the user's #1 visible
+// zoom-out symptom). HISTORY: default-OFF 2026-07-06 after a live land-sitting regression
+// ("wave particles up close going over land" — carried coarse-era particles on fine-mask land).
+// DEFAULT ON since 2026-07-13: the documented regression was RE-TESTED LIVE on the deployed
+// engine (dev--rawsurf, bundle d6b6c63a) across all three swap classes — fine→coarse zoom-out,
+// coarse→fine zoom-in, coastal pan re-anchors at z9 — with ZERO land-sitting (4 carries,
+// screenshots clean over FL/Merritt Island/estuaries/Cuba). The mechanism no longer holds at
+// HEAD: ADVECT_FS drops a particle whose CURRENT position samples land (`oceanFlag < 0.3`,
+// present since 2026-06-19) and the mask stack has since gained the viewport-truth overlay +
+// mask-truth guards (07-06) — carried land-sitters cull within one advect frame instead of
+// sitting. Kill switch (instant, console): __RAW_DISABLE_PARTICLE_CARRY__ = true → legacy
+// full reseed. Telemetry: __MARINE_PARTICLE_CARRY__ {count,lastAt}. Carry requires both state
+// textures (fresh engine init still seeds normally).
 export function shouldCarryParticlesOnGridSwap(win, hasStateA, hasStateB) {
   if (!hasStateA || !hasStateB) return false;
-  return !!(win && win.__RAW_ENABLE_PARTICLE_CARRY__ === true);
+  if (win && win.__RAW_DISABLE_PARTICLE_CARRY__ === true) return false;
+  return true;
 }
 
 // Reseed the particle-state textures IN PLACE (texSubImage2D) instead of delete+realloc.

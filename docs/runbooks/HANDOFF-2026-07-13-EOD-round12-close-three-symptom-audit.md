@@ -148,6 +148,41 @@ total). Motion-unlock OFF. All other kills at defaults.
 7. Standing: §4.4 tripwire (armed), wheel feel, Gulf colormap floor (user call), Render
    explicit-deploy decision (user call), BOLA phased plan (separate lane).
 
+## §4b FOLLOW-UP ROUND 2 (2026-07-13 ~15-16Z, user console logs on `d6b6c63a` decoded)
+The user's fresh session logs showed "issues persisting" — forensic decode found THREE distinct
+things, two now fixed, one landed-but-cancelled-run:
+1. **MELT ROUND 3 (the 500-storm + `src=live` everywhere in their log):** their session sat in
+   the LAST pre-interleave coverage hole (15:00–16:0xZ; newest frame was 12:00 from the manual
+   dispatch — probed: 13:00/14:00Z→precomputed@16s(!), 15:00Z→500, 16:00Z→live@37s = the box
+   melting in real time). SHIPPED `bb9176b3`: **stale-serve ladder** (fresh → `precomputed_stale`
+   ≤6h labeled → live; `select_precomputed_laddered` + 4 goldens; kill
+   `SPOT_RATINGS_STALE_TOLERANCE_S=0`) + **`SPOT_RATINGS_PRECOMPUTE_HOURS='0,3'`** both
+   workflows (two frames/model → +5h59/run; precompute timeout 35→55). The serve-side live
+   cliff is gone: a merely-stale lane can never melt the box again.
+2. **RESEED BLINK (queue item 4) — CARRY SHIPPED DEFAULT-ON:** re-derived the 07-06
+   falsification, then RE-TESTED IT LIVE on the deployed engine with
+   `__RAW_ENABLE_PARTICLE_CARRY__=true`: fine→coarse (z9→5.2), coarse→fine (z5.2→z9), and
+   rapid coastal pan re-anchors — 4 carries, ZERO land-sitting (screenshots clean over
+   FL/Merritt Island/estuaries/Cuba), crests CONTINUOUS through every swap. Mechanism: ADVECT_FS
+   drops any particle whose CURRENT position samples land (`oceanFlag < 0.3`, in the shader
+   since 06-19) + the 07-06-era mask stack has since gained viewport-truth overlay + mask-truth
+   guards → carried land-sitters cull within one advect frame. Default flipped in
+   `shouldCarryParticlesOnGridSwap`; kill (instant, console): `__RAW_DISABLE_PARTICLE_CARRY__
+   = true`; telemetry `__MARINE_PARTICLE_CARRY__`. FE 892/892.
+3. **PILOTS RUN 29249603524 CANCELLED AT THE 165-MIN WIRE — NOT the ICON pilot's fault:**
+   phase ledger from the logs: GFS mid 32m, ICON mid 17m, EURO mid 4m, **GFS marine pilot 51m
+   (was ~21m at the 07-04 baseline — own audit item)**, ICON marine pilot 29m (4 regions ×
+   ~6.5-8m, 300 products, ZERO failures — worked exactly as designed), wind pilots ~50m+ →
+   ~185m healthy total: the lane was over budget BEFORE the ICON pilot. FIXES: pilots timeout
+   165→200; ICON pilot bounded (flagship-only default `ICON_MARINE_PILOT_WORLDWIDE=0`, days
+   3→2, 600s per-region fetch cap) → ~10m. **ICON regional 0.25° IS SERVING** (probed:
+   `icon_marine_waves_florida_east_coast` at FL z9; also landed SoCal/Hawaii/Iberia before the
+   cancel). EURO wind pilot got skipped this cycle (ran last); next run completes it.
+   Also in their log, now-explained noise: `regional_too_coarse` misses climbing to 96+ was
+   MELT-AMPLIFIED (series fetches dying), pt8 terminal held (`probes:0`, 45s cadence lines);
+   spot-ratings 500 at the Guatemala bbox = live path dying under the melt; the user-endpoint
+   500-storm = DB pool starvation from live ratings (§1 signature).
+
 ## §5 VERIFICATION RECIPES
 - Melt check: `GET /api/weather/spot-ratings?...` → `source` field. precomputed ≈1–2 s good.
 - Option A check: grid diagnostics `animChannel=dominant_swell` + `swellStampedCount>0`.

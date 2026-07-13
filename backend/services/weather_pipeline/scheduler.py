@@ -665,11 +665,15 @@ class WeatherPipelineScheduler:
         The ICON close-zoom fidelity fix (2026-07-13, round-12 §2a-i): GWAM's GRIBs are natively
         global 0.25° (probe-verified via open-meteo gwam point snapping), so the fine tiles are a
         regional bbox away — mirror of ingest_gfs_marine_pilot with the DWD-direct fetcher as
-        PRIMARY (open-meteo fallback). Regions come from get_pilot_regions() (flagship + worldwide
-        rotation, same coverage story as GFS). ⚠️ DWD has no .idx byte-range subsetting — every
-        region re-downloads the whole-globe per-(var,hour) bz2 files — so the pilot horizon is
-        bounded (ICON_MARINE_PILOT_FORECAST_DAYS, default 3): close-zoom detail is a near-term
-        need and far hours fall through to the mid/global tiers via the resolver ladder anyway.
+        PRIMARY (open-meteo fallback). ⚠️ DWD has no .idx byte-range subsetting — every region
+        re-downloads the whole-globe per-(var,hour) bz2 files, and DWD throttles repeat bulk pulls
+        from one runner IP (first live pilots run 29249603524 hung ~2h+ past the ~110-min lane
+        baseline; FL landed + served, later passes crawled into the 30-min subprocess cap). So the
+        pilot is BOUNDED three ways: FLAGSHIP regions only by default (ICON_MARINE_PILOT_WORLDWIDE=1
+        opts into the get_pilot_regions() worldwide rotation — prefer landing the multi-bbox
+        single-download-pass fetcher first), a short horizon (ICON_MARINE_PILOT_FORECAST_DAYS,
+        default 2 — far hours fall through to mid/global via the resolver ladder), and a 600 s
+        per-region fetch cap (fail fast to open-meteo instead of riding the 30-min default).
         gwam has no secondary swell → waves/swell_1/wind_waves only (matches ICON global).
         """
         logger.info("[Pipeline Scheduler] Starting ICON Marine Pilot (regional 0.25°) job...")
@@ -678,9 +682,11 @@ class WeatherPipelineScheduler:
         total_saved = 0
 
         dwd_direct = os.environ.get("ICON_MARINE_DWD_DIRECT", "1") != "0"
-        forecast_days = int(os.environ.get("ICON_MARINE_PILOT_FORECAST_DAYS", "3"))
+        forecast_days = int(os.environ.get("ICON_MARINE_PILOT_FORECAST_DAYS", "2"))
+        regions = get_pilot_regions() if os.environ.get("ICON_MARINE_PILOT_WORLDWIDE", "0") == "1" \
+            else dict(REGIONAL_CONFIGS)
 
-        for region_id, region in get_pilot_regions().items():
+        for region_id, region in regions.items():
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting ICON Marine for region: {region_id}")
 
@@ -690,7 +696,8 @@ class WeatherPipelineScheduler:
             if dwd_direct:
                 try:
                     from services.dwd_marine_service import fetch_icon_marine_global_coarse
-                    results = await fetch_icon_marine_global_coarse(region, resolution, forecast_days)
+                    results = await fetch_icon_marine_global_coarse(region, resolution, forecast_days,
+                                                                    timeout_s=600)
                     if results:
                         from_dwd = True
                         logger.info(f"[Pipeline Scheduler] ICON marine DWD-direct OK for {region_id}: "

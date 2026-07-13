@@ -500,13 +500,12 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
       });
       if (rd.log.length > 40) rd.log.pop();
     }
-    // PARTICLE CARRY (2026-07-06, Part 9 ② of the zoom-out ladder — OPT-IN ONLY): carrying evolved
-    // positions through a grid swap kills the "crests clear then rebuild from the bottom" blink
-    // (positions are TILE/MERCATOR-space, geographically valid across the swap) — but the reseed
-    // silently doubles as the LAND SWEEP: carried particles from a coarse-mask era sat visibly on
-    // fine-mask land (~zero field velocity, so the advect shader's next-position land check never
-    // fires — live regression 2026-07-06). Default = reseed; opt in via __RAW_ENABLE_PARTICLE_CARRY__
-    // for tuning; a swap-time land cull is required before this can default on.
+    // PARTICLE CARRY (2026-07-06 Part 9 ②; DEFAULT ON since 2026-07-13, round-12 §2b): carrying
+    // evolved positions through a grid swap kills the "crests clear then rebuild from the bottom"
+    // blink (positions are TILE/MERCATOR-space, geographically valid across the swap). The 07-06
+    // land-sitting regression that kept this opt-in no longer reproduces at HEAD (live-retested on
+    // the deployed engine across zoom-out/zoom-in/pan swaps — see shouldCarryParticlesOnGridSwap).
+    // Kill switch: __RAW_DISABLE_PARTICLE_CARRY__ = true → this reseed branch.
     // Telemetry: __MARINE_PARTICLE_CARRY__ {count,lastAt}.
     const _carry = shouldCarryParticlesOnGridSwap(
       typeof window !== 'undefined' ? window : null, !!this.particleStateA, !!this.particleStateB);
