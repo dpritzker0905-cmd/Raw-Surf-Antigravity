@@ -18,10 +18,24 @@ climbing 39→92, resolution ladder unable to climb.
 - **VERIFIED RESOLVED 2026-07-13 ~05:5xZ: `src=precomputed` in 1.7 s** (was src=live 8 s).
 - **STANDING RULE: anything marine feels slow / band won't paint → check the spot-ratings
   response `source` field FIRST. `src=live` at scale = the melt.**
-- **HARDENING (recommended, not yet done): make precompute.yml the primary owner of
-  SPOT_RATINGS_PRECOMPUTE** (it already runs 4×/day on its own group) so an evicted core run
-  can never orphan the lane again. Optionally drop the duplicated env from forecast-ingest.yml
-  or keep as backup — either way the schedule-eviction hole is closed.
+- **HARDENING SHIPPED 2026-07-13 (follow-up session): precompute.yml is now the primary owner**
+  — cron moved `45 1,7,13,19` → `45 3-23/4` (6×/day, interleaved 2h off the core-ingest tails).
+  Two structural findings drove the exact design (both probed live on the deployed box):
+  - **§1b STRUCTURAL DAILY MELT WINDOWS (new, fixed by the cron):** each run writes ONE frame
+    per model (`SPOT_RATINGS_PRECOMPUTE_HOURS` default '0'), served ±2h. Core tails stamp
+    frames ~{02,06,10,14,18,22}Z → coverage dies at {05,09,13,17,21,01}Z; the old 4×/day slots
+    patched mid-hole ~45 min late and skipped 2 of 6 cycles → a ~60-min `src=live` window every
+    4h EVEN WITH ALL WORKFLOWS HEALTHY. Probed 2026-07-13 ~11:53Z: `vt=12:00Z → precomputed`,
+    `vt=13:00Z → live`. Interleaved frames {03,07,...} close every window (residual ~5-min gap
+    at each core-tail landing); an evicted core run now degrades ≤~110 min, self-healing.
+  - **§1c SCRUB LIVE-VECTOR (new, OPEN):** `useSpotRatings` passes `timeOffsetHours` into
+    `getSharedValidTime` → every rating-mode scrub step beyond ±2h of the single precomputed
+    frame is a `src=live` request (7.5–8.6 s each on the 1-CPU box). A wheel scrub across the
+    forecast = a self-inflicted mini-melt, independent of workflow health. Candidate fixes:
+    (a) `SPOT_RATINGS_PRECOMPUTE_HOURS='0,3'` (+~10-15 min/run — check the 35-min cap),
+    (b) frontend: skip the endpoint fetch when `|timeOffsetHours| > 2` and let the instant
+    grid-sample fallback (`computeSpotRatings`) carry scrubbed glyphs — accuracy tradeoff,
+    user call. Sized but NOT shipped.
 
 ## §2 THE THREE-SYMPTOM AUDIT (each mechanism proven from the user's own logs)
 
@@ -90,7 +104,8 @@ total). Motion-unlock OFF. All other kills at defaults.
 1. **Re-test the three symptoms on `84e1cbc0` POST-MELT on GFS** (the model with fine tiles) —
    much of tonight's feel was melt + pre-pt8 build. Paste one FORENSIC-SNAP: it now carries
    washBase/tileClamped/serTTLByp/probes and self-answers the standing questions.
-2. **Precompute ownership hardening** (§1 — config-only, eviction-proof the lane).
+2. ~~**Precompute ownership hardening**~~ DONE 2026-07-13 (§1 — cron interleave shipped; also
+   found+fixed §1b structural windows; §1c scrub live-vector documented, user call).
 3. **ICON/EURO fine-pilot feasibility probe** (§2a-i — provider res check, then backend arc).
 4. **Reseed-blink arc** (§2b, γ slice with the ring; the falsified particle-carry regression
    shape must be re-derived first).

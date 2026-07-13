@@ -7,7 +7,17 @@ name: Precompute Spot Ratings (decoupled)
 on:
   workflow_dispatch: {}
   schedule:
-    - cron: '45 1,7,13,19 * * *'   # 4x/day, offset from the :15 ingest so it reads a settled L2 manifest
+    # 6x/day INTERLEAVED with the core ingest (2026-07-13 melt hardening, round-12 §1). Each run writes ONE
+    # frame per model (SPOT_RATINGS_PRECOMPUTE_HOURS default '0') served with a ±2h tolerance, so coverage
+    # dies 3h after a frame's top-of-hour stamp. Core-ingest tails (00:15+~1h50 → frames ~02/06/10/14/18/22Z)
+    # cover to {04,08,12,16,20,00}:59; the old 4x/day slots (1:45/7:45/13:45/19:45) landed mid-hole ~45 min
+    # late and skipped 2 of 6 cycles → a PROBED ~60-min src=live window every 4h (e.g. 13:00Z probe = live
+    # while 12:00Z = precomputed, 2026-07-13). :45 past 3,7,11,... stamps frames {03,07,11,15,19,23}:00 →
+    # a frame every ~2h → continuous current-hour coverage, AND if a core run is evicted from the shared
+    # forecast-ingest pending slot (the 07-13 melt root) this lane still refreshes every 4h on its own group
+    # (worst-case ~110 min degraded, self-healing — no manual dispatch needed). 03:45 also clears the
+    # settled-manifest window: pilots (01:45 + ~67 min, queued behind core until ~02:05) finish ~03:12.
+    - cron: '45 3-23/4 * * *'
 
 permissions:
   contents: read
