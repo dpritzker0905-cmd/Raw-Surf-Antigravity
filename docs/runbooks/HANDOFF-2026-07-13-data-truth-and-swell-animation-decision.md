@@ -262,6 +262,47 @@ User session (rating ON, GFS waves, close-zoom pans up the FL coast then zoom-ou
    path, see round-5). (iii) FPS 6–16 during the commit storms (perf arc §4.5). (iv) band
    `fade:0/0.1` snapshots at z6.1–6.6 are the DESIGNED wide-zoom band cross-fade, not a bug.
 
+## §7h ROUND-12 pt6 — OPTION A FLIPPED ON (USER-APPROVED) + CAROLINAS PROBES
+1. **"Waves moving the wrong way" (user live report #3 on direction) — PROVEN same class:**
+   the user's viewport was the CAROLINAS (non-pilot; engineBounds W-84→E-68) on a 2° global_mid
+   clip. Probe: served TOTAL directions flip regime cell-to-cell (FROM 124°→249°→273° across
+   neighbors — half the crests march offshore/E); provider decomposition shows a windsea-
+   dominant frontal sea (windsea 2.1 m FROM 57–71° vs swell 0.3–0.5 m FROM 129–229°). Honest
+   total-mean data, visually wrong channel — the §3 class, third consecutive report.
+2. **OPTION A FLIPPED ON with explicit user sign-off (AskUserQuestion, 2026-07-13 ~03:30Z):**
+   repo Actions variable `WAVES_ANIM_DOMINANT_SWELL=1` (verified via `gh variable list`);
+   BOTH ingest workflows manually dispatched (runs 29221879744 pilots / 29221880558 core —
+   serial concurrency group, re-stamped tiles land region-by-region ~30–90 min); Render env
+   upserted (HTTP 200) + deploy triggered (201) so on-demand/dynamic-viewport grids stamp at
+   serve time. NOTE: in windsea-dominant seas (swell energy < 35% of total, e.g. tonight's
+   Carolinas offshore cells) the gate correctly KEEPS total direction — Option A fixes the
+   near-tie flip-flop, not genuine windsea motion. Revert: variable+env back to 0.
+3. **NEW WEDGE EVIDENCE (own-arc: resolver/backstop):** non-pilot viewport at z7 span ~7° —
+   only mid-tier exists, `regional_too_coarse` backstop re-drives 3×, series misses climb
+   (5→16), then falls to the 45 s slow probe FOREVER (sharpen found:false — no fine frame can
+   ever exist for a non-pilot 16° clip). The backstop needs a terminal "mid is the best
+   available tier here" state (e.g. after N probes with is_wide/mid-ceiling responses, accept
+   residency and stop). Also the user's "empty area on pan at mid zoom": snapshots show
+   washEngaged:true yet the panned-into region read empty — check `__RAW_GPU__.blendBoth`
+   (coarse-base capture coverage) in the next live session before theorizing.
+
+## §7i ROUND-12 pt7 — PACIFIC HALF-COVERAGE TILE REGRESSION (user report, FIXED)
+User: at ~z3.1 (3 wheel turns in from z2) animations cover only HALF the Pacific with a hard
+VERTICAL division; pan left → West covered, pan right → East covered. ROOT (proven from the
+tile math + snapshots at z3.13/3.44): particles exist ONLY inside the camera-centered advection
+tile (ADVECT_FS fract()-wraps positions); `db363a14` set TILE_BACKOFF default 2 for crest-
+density headroom (comment still says 3 = "default, max pan-stability"), sizing the tile at
+1/2^(floor(z)−2) of the world — at z3.x that's HALF the world (180°) while a wide monitor's
+viewport spans ~240°. Tile edge = the division; drift>25% re-anchors on pan = coverage follows
+the pan. Same undercut exists in the low fraction of EVERY integer zoom on wide screens
+(z4.0–4.5 at 0.25 world, etc.) — this is also a suspect for part of the earlier "animation
+clearing at certain zooms". FIX: `clampTileToViewport` (pure, exported, engine) widens the tile
+by POWER-OF-TWO steps until it covers max(vpMercW, vpMercH)×1.1 — discrete reinit contract
+preserved, constant-density solve reads the same tileWidth so crest count self-corrects.
+Telemetry `__RAW_GPU__.tileCover {tileWidth, vpW, vpH, clamped}`. Kill:
+`__RAW_DISABLE_TILE_VP_CLAMP__` (restores db363a14 sizing). Goldens
+`WebGLMarineEngine.tileClamp.test.js` (7, incl. the z3.13 regression case).
+
 ## §7g ROUND-12 pt5 — CHURN MECHANISM DECODED (round-9's "why 5×?" ANSWERED) + §4.5 STEP 1
 1. **The mid-reval "storm" is NOT the SWR scheduler.** `useMarineRevalidation.js` is bounded
    (3 retries, 1.5–2.5 s, reset-on-success) — exonerated by source read. The FIVE `global_mid`

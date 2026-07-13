@@ -137,6 +137,23 @@ function isCoarseGlobalGrid(waveGrid) {
   return (span / cols) > 1.0;
 }
 
+// === TILE≥VIEWPORT CLAMP (pure; exported for tests) ===
+// §7i (2026-07-13, user live report: "animations cover half the Pacific with a vertical division
+// at ~z3; coverage follows pans"): db363a14 set TILE_BACKOFF 2 for crest-density headroom, sizing
+// the particle tile 1/2^(floor(z)-2) of the world — in the LOW fraction of each integer zoom
+// (worst at z3.0–3.6, tile = half the world vs a wide monitor's ~240° viewport) the camera-
+// centered tile is NARROWER than the viewport. Particles only exist inside the tile (ADVECT_FS
+// fract()-wraps positions), so its edge is a hard crest cliff that re-anchors with every pan.
+// Widen by POWER-OF-TWO steps until the tile covers the viewport (both axes + margin): the
+// discrete reinit-on-change contract is preserved, and the constant-density solve reads the same
+// tileWidth so on-screen crest count self-corrects. Kill: __RAW_DISABLE_TILE_VP_CLAMP__.
+export function clampTileToViewport(tileZoom, tileWidth, vpMercW, vpMercH) {
+  const need = Math.min(1.0, Math.max(vpMercW || 0, vpMercH || 0) * 1.1);
+  let z = tileZoom, w = tileWidth, clamped = false;
+  while (w < need && z > 0) { z -= 1; w *= 2; clamped = true; }
+  return { tileZoom: z, tileWidth: w, clamped };
+}
+
 // Per-cell longitude size in degrees; null when unknowable. Feeds the CELL-SIZE branch of the
 // no-downgrade guard (a mid 2°/cell clip is "regional" by bounds but a hard resolution downgrade
 // over a resident 0.25° tile).
@@ -850,6 +867,20 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       var _tileBackoff = (typeof window !== 'undefined' && typeof window.__RAW_TILE_BACKOFF__ === 'number') ? window.__RAW_TILE_BACKOFF__ : 2;
       var tileZoom = Math.max(0, Math.floor(z) - _tileBackoff);
       tileWidth = 1.0 / Math.pow(2.0, tileZoom);
+
+      // §7i tile≥viewport clamp — see clampTileToViewport. Runs BEFORE the change detection so
+      // a clamp crossing reinitializes particles exactly like any other tile-width step.
+      if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_TILE_VP_CLAMP__ === true)) {
+        var _vpLonSpan = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
+        var _vpMercW = Math.min(1.0, Math.max(0, _vpLonSpan) / 360.0);
+        var _vpMercH = Math.abs(latToMercatorY(vb[3]) - latToMercatorY(vb[1]));
+        var _tc = clampTileToViewport(tileZoom, tileWidth, _vpMercW, _vpMercH);
+        tileZoom = _tc.tileZoom;
+        tileWidth = _tc.tileWidth;
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.tileCover = { tileWidth: +tileWidth.toFixed(4), vpW: +_vpMercW.toFixed(4), vpH: +_vpMercH.toFixed(4), clamped: _tc.clamped };
+        }
+      }
 
       var tileWidthChanged = (this._lastTileWidth !== undefined && tileWidth !== this._lastTileWidth);
       this._lastTileWidth = tileWidth;
