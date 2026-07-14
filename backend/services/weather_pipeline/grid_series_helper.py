@@ -152,6 +152,12 @@ async def _build_euro_marine_series(viewport_service, layer: str, bbox: str, hou
             "provider": getattr(normalized, "provider", "copernicus"),
             "is_estimated": getattr(normalized, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
+            # §0c: this fast path normalizes each hour directly from one fetch — the frame IS
+            # the exact ask, so honesty fields report identity (uniform schema with the
+            # resolve_grid-backed path below).
+            "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "frame_offset_hours": 0.0,
+            "frame_substituted": False,
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -238,6 +244,12 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
             "provider": getattr(normalized, "provider", "open-meteo"),
             "is_estimated": getattr(normalized, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
+            # §0c: find_closest_time_index can snap to a NEIGHBORING available time — this path
+            # can genuinely substitute, so compute the real offset (ask = base+h, served =
+            # t_actual) rather than reporting identity.
+            "served_valid_time": t_actual.strftime("%Y-%m-%dT%H:%M:%SZ"),
+            "frame_offset_hours": round((t_actual - target_dt).total_seconds() / 3600.0, 2),
+            "frame_substituted": abs((t_actual - target_dt).total_seconds()) > 1800,
         })
 
     frames.sort(key=lambda f: f["hour_offset"])
@@ -440,6 +452,12 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
             "provider": getattr(product, "provider", None),
             "is_estimated": getattr(product, "is_estimated", False),
             "rating_mode": _frame_rating_mode(g),
+            # §0c SERVING HONESTY: valid_time above echoes the per-hour ask (resolve_grid's
+            # contract); these carry the frame actually served — stamped by stamp_frame_honesty
+            # inside the resolve_grid call this frame came from.
+            "served_valid_time": getattr(product, "served_valid_time", None),
+            "frame_offset_hours": getattr(product, "frame_offset_hours", 0.0),
+            "frame_substituted": getattr(product, "frame_substituted", False),
         })
 
     # Merge the EURO native fast-path frames (<=240h) with the per-hour-built estimated frames

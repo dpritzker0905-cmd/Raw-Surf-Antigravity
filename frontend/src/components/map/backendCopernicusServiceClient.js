@@ -108,12 +108,18 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       validTime: json.valid_time || null,
       valid_time: json.valid_time || null,
       run_time: json.run_time || null,
+      // §0c SERVING HONESTY: the frame actually served (valid_time echoes the ask) — mirrors
+      // the GFS/ICON mapper; surfaced in FORENSIC-SNAP.
+      served_valid_time: json.served_valid_time || null,
+      frame_offset_hours: json.frame_offset_hours ?? 0,
+      frame_substituted: !!json.frame_substituted,
       stale: json.stale || false,
       staleReason: json.staleReason || null
     },
     validTime: json.valid_time || null,
     valid_time: json.valid_time || null,
-    run_time: json.run_time || null
+    run_time: json.run_time || null,
+    served_valid_time: json.served_valid_time || null
   };
 }
 

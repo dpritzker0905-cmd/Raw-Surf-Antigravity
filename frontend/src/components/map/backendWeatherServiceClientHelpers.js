@@ -305,6 +305,12 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       // the run) — the commit short-circuit refuses to skip without it. Must be carried
       // explicitly: this mapper rebuilds the result field-by-field, so unknown fields are dropped.
       run_time: json.run_time || null,
+      // §0c SERVING HONESTY: valid_time above ECHOES the ask; these carry the frame actually
+      // served (frame_substituted = a ±3h nearest-frame stand-in) — surfaced in FORENSIC-SNAP
+      // so a pasted log self-reports frame skew.
+      served_valid_time: json.served_valid_time || null,
+      frame_offset_hours: json.frame_offset_hours ?? 0,
+      frame_substituted: !!json.frame_substituted,
       truthTag: json.truthTag || null,
       stale: json.stale || false,
       staleReason: json.staleReason || null
@@ -312,6 +318,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
     validTime: json.valid_time || null,
     valid_time: json.valid_time || null,
     run_time: json.run_time || null,
+    served_valid_time: json.served_valid_time || null,
     truthTag: json.truthTag || null
   };
 

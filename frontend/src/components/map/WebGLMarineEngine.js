@@ -1375,6 +1375,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           probes: window.__MARINE_CLAMP_CAP_PROBE_COUNT__ || 0,
           hour: waveGrid ? waveGrid.hourOffset : null,
           model: (waveGrid && waveGrid.__sourceModel) || null,
+          // §0c serving honesty: nonzero = the resident grid is a nearest-frame stand-in, value
+          // = served − requested hours (a pasted log now self-reports frame skew at a glance).
+          frameOff: (waveGrid && waveGrid.frame_substituted) ? (waveGrid.frame_offset_hours || 0) : 0,
         };
         recordMarineEvent('snap', _snap);
         console.log('[FORENSIC-SNAP]', JSON.stringify(_snap));

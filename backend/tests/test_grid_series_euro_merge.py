@@ -72,6 +72,36 @@ def test_euro_series_merges_native_fast_path_with_estimated_per_hour(monkeypatch
     assert out["frame_count"] == 5
 
 
+def test_series_frames_carry_serving_honesty_fields(monkeypatch):
+    """§0c (2026-07-14): frames built via the per-hour resolve_grid loop must surface the
+    resolver's serving-honesty stamp (served_valid_time / frame_offset_hours /
+    frame_substituted) — the series lane is the dominant commit path at map idle, and without
+    these the FORENSIC-SNAP frameOff field can never report a skewed series frame."""
+    monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1")
+    monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fake_fast_path)
+
+    async def _resolve_with_substitution(*, model, domain, layer, valid_time, bbox,
+                                         surf=False, background_tasks=None, request=None):
+        p = _euro_product(is_estimated=True)
+        p.served_valid_time = "2026-06-21T09:00:00Z"
+        p.frame_offset_hours = -3.0
+        p.frame_substituted = True
+        return p
+
+    out = asyncio.run(build_grid_series(
+        _resolve_with_substitution, _FakeVP(), "EURO", "marine", "waves",
+        "-82,26,-78,30", "234,243",
+    ))
+    by_h = {f["hour_offset"]: f for f in out["frames"]}
+    est = by_h[243]  # per-hour (resolve_grid-backed) frame
+    assert est["served_valid_time"] == "2026-06-21T09:00:00Z"
+    assert est["frame_offset_hours"] == -3.0
+    assert est["frame_substituted"] is True
+    # Fast-path (native) frames predate the fields in this fixture — the builder must not crash
+    # on their absence; presence is only guaranteed on frames the builder itself constructs.
+    assert 234 in by_h
+
+
 def test_euro_series_all_native_returns_fast_path_directly(monkeypatch):
     monkeypatch.setenv("EURO_SERIES_LIVE_COPERNICUS", "1")
     monkeypatch.setattr(grid_series_helper, "_build_euro_marine_series", _fake_fast_path)

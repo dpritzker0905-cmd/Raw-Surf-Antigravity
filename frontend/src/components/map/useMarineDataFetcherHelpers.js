@@ -427,7 +427,8 @@ export function commitMarineData({
 
   consecutiveFailuresRef.current = 0; locks.lastHash = getViewportHash(); locks.lastTime = Date.now();
 
-  logPipelineEventHelper('data_committed', { model, layer, hour: timeOffset, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0 });
+  logPipelineEventHelper('data_committed', { model, layer, hour: timeOffset, provider: data?.grid?.__provider, vectorCount: data?.grid?.vectors?.length || 0,
+    ...(data?.grid?.frame_substituted ? { frameOff: data.grid.frame_offset_hours } : {}) });
   isCommittingDataRef.current = true; isInternalMapUpdateRef.current = true;
   if (source === 'timeline_scrub' && timeOffsetRef.current !== timeOffset) {
     locks.lastHash = null;

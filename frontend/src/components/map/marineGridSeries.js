@@ -252,6 +252,12 @@ function frameToMarineData(frame, model, layer) {
     // Carry the surf-RATING signal so the shader paints the rating band on series-committed frames (clamp/scrub
     // commit series frames; without this the rating band never rendered even with surf=1). See _frame_rating_mode.
     ratingMode: !!frame.rating_mode,
+    // §0c SERVING HONESTY: the frame actually served per the backend (valid_time echoes the
+    // ask). Surfaced in FORENSIC-SNAP as frameOff — a pasted log self-reports frame skew.
+    valid_time: frame.valid_time || null,
+    served_valid_time: frame.served_valid_time || null,
+    frame_offset_hours: frame.frame_offset_hours ?? 0,
+    frame_substituted: !!frame.frame_substituted,
   };
   const product_id = `series_${model}_${layer}_h${frame.hour_offset}`;
   // Audit #18/A3: mint the lineage tag ONCE here — recordTruthStage PRESERVES an existing tag, so

@@ -142,6 +142,43 @@ describe('backendWeatherServiceClient', () => {
       expect(result.grid.vectors[0].waves.speed).toBe(1.11);
       expect(result.grid.vectors[0].waves.period).toBe(8.0);
     });
+
+    it('carries the §0c serving-honesty fields (the mapper rebuilds field-by-field — drops are silent)', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [{ lat: 28.0, lng: -82.0, u: 1.0, v: 0.5, speed: 1.11, period: 8.0 }],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1, rows: 1
+        },
+        provider: 'backend-weather-service',
+        run_time: '2026-07-14T06:00:00Z',
+        valid_time: '2026-07-14T13:00:00Z',
+        served_valid_time: '2026-07-14T12:00:00Z',
+        frame_offset_hours: -1.0,
+        frame_substituted: true
+      };
+      const result = mapNormalizedGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 4);
+      expect(result.grid.served_valid_time).toBe('2026-07-14T12:00:00Z');
+      expect(result.grid.frame_offset_hours).toBe(-1.0);
+      expect(result.grid.frame_substituted).toBe(true);
+      expect(result.grid.valid_time).toBe('2026-07-14T13:00:00Z'); // the echo stays distinct
+      expect(result.served_valid_time).toBe('2026-07-14T12:00:00Z');
+    });
+
+    it('defaults honesty fields when the backend predates them (deploy-transition safety)', () => {
+      const sampleResponse = {
+        grid: {
+          vectors: [{ lat: 28.0, lng: -82.0, u: 1.0, v: 0.5, speed: 1.11, period: 8.0 }],
+          bounds: { west: -85.0, south: 24.0, east: -79.0, north: 31.0 },
+          cols: 1, rows: 1
+        },
+        provider: 'backend-weather-service'
+      };
+      const result = mapNormalizedGridToWebGL(sampleResponse, sampleResponse.grid.bounds, 4);
+      expect(result.grid.served_valid_time).toBeNull();
+      expect(result.grid.frame_offset_hours).toBe(0);
+      expect(result.grid.frame_substituted).toBe(false);
+    });
   });
 
   describe('fetchBackendExactPoint', () => {
