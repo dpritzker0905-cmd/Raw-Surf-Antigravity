@@ -220,7 +220,8 @@ def pick_surf_regional_override(
 
     best_item = None
     best_overlap = 0.0
-    for p, _diff in list(authoritative_candidates) + list(estimated_candidates):
+    best_diff = float("inf")
+    for p, diff in list(authoritative_candidates) + list(estimated_candidates):
         cov = getattr(p, "coverage", None)
         if cov is None:
             continue
@@ -231,8 +232,22 @@ def pick_surf_regional_override(
         if p_span >= 350.0:
             continue  # skip global products — we want the high-res coastal tile
         overlap = bbox_intersection_area(req_w, req_s, req_e, req_n, cov)
+        # FRAME-SKEW ROOT FIX (2026-07-14, live-probed on prod): the ±3h candidate window holds
+        # the SAME tile at up to three frames with IDENTICAL coverage → identical overlap. This
+        # loop used to discard the time diff and keep the FIRST candidate on ties, so manifest
+        # insertion order (chronological) served ask−3h SYSTEMATICALLY for every surf ask in this
+        # lane — labeled stale=False, then re-seeded into the 2° dynamic-page index (self-
+        # perpetuating). Live impact: rating-mode animations rode a field rotated up to 41° from
+        # the current frame, and dynamic pages east of the FL tile's -79 edge sat one frame
+        # behind the western pages (the hard seam at -80). Overlap stays the PRIMARY key; equal
+        # overlap now breaks on smallest |Δt| (auth-before-est preserved by iteration order on
+        # full ties).
         if overlap > best_overlap + 1e-9:
             best_overlap = overlap
+            best_diff = diff
+            best_item = p
+        elif best_item is not None and abs(overlap - best_overlap) <= 1e-9 and diff < best_diff:
+            best_diff = diff
             best_item = p
 
     if best_item is None or best_overlap <= 0.0001:

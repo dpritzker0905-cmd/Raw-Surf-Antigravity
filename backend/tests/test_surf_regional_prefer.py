@@ -78,6 +78,41 @@ def test_estimated_regional_used_when_only_estimate_overlaps():
     assert item is est
 
 
+def test_overlap_tie_prefers_smallest_time_diff():
+    """THE 2026-07-14 FRAME-SKEW ROOT (live-probed on prod): for a 12Z ask, find_candidates'
+    ±3h window holds the SAME regional tile at T09 (diff 10800s), T12 (diff 0) and T15 (diff
+    10800s) — identical coverage → identical viewport overlap. The override ranked by overlap
+    ONLY, discarded the time diff, and never updated on ties (strict >), so MANIFEST INSERTION
+    ORDER (chronological) picked the earliest frame: every surf ask that entered this lane was
+    served ask−3h, labeled stale=False. Live impact: viewports poking past the FL tile's -79
+    offshore edge animated a field rotated up to 41° from the current frame ("wave direction
+    off when the rating band is on") and the 2° dynamic pages east of -80 rode a different
+    frame than the west pages (the hard seam). The exact-time frame must win overlap ties."""
+    cov = Cov(-85.0, 24.0, -79.0, 31.0)
+    fl_t09 = Item("euro_marine_waves_florida_east_coast_20260714T090000Z.json", cov)
+    fl_t12 = Item("euro_marine_waves_florida_east_coast_20260714T120000Z.json", cov)
+    fl_t15 = Item("euro_marine_waves_florida_east_coast_20260714T150000Z.json", cov)
+    candidates = [(fl_t09, 10800.0), (fl_t12, 0.0), (fl_t15, 10800.0)]  # manifest order: oldest first
+    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -77.0, 30.0)
+    assert item is fl_t12, "overlap tie must break on smallest time diff, not manifest order"
+
+
+def test_overlap_tie_diff_break_does_not_resurrect_zero_overlap():
+    # The tie-break must never promote a candidate with NO overlap (best_overlap still 0).
+    socal = Item("gfs_marine_waves_us_west_coast_socal.json", Cov(-125.0, 30.0, -115.0, 38.0))
+    item = pick_surf_regional_override([(socal, 0.0)], [], -50.0, 20.0, -46.0, 24.0)
+    assert item is None
+
+
+def test_larger_overlap_still_beats_smaller_time_diff():
+    # Overlap remains the PRIMARY key: a wider-overlap tile at ±3h beats a sliver at exact time.
+    sliver = Item("sliver.json", Cov(-81.2, 26.0, -81.0, 30.0))
+    full = Item("full.json", Cov(-85.0, 24.0, -79.0, 31.0))
+    candidates = [(sliver, 0.0), (full, 10800.0)]
+    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -77.0, 30.0)
+    assert item is full
+
+
 # ── Globality regression guard: the SAME poke-past-offshore-edge failure on every coast ──
 def test_hawaii_poke_east_returns_regional():
     # Big Island east shore; viewport east (-153.3) pokes past the Hawaii tile's -154 offshore edge.
