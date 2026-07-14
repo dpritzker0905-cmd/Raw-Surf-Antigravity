@@ -180,6 +180,11 @@ EURO fast-path identity / open-meteo path computes the REAL offset from find_clo
 → FE mappers + frameToMarineData → engine grid → **FORENSIC-SNAP `frameOff`** (nonzero = the
 resident is a stand-in frame, value = served−requested hours) + `data_committed` event tag.
 A pasted console log now self-reports frame skew. BE 714/2928, FE 949/949.
+**E2E LIVE-VERIFIED (~17:45Z)**: first deployed probe caught a real substitution self-reporting
+(series hour-0 ask 17Z → served 18Z, off +1.0, sub:true). **READING frameOff**: ±1h = ROUTINE
+(hourly asks snap to the 3-hourly frame lattice — not a bug); the pathological class is |off|
+≥3h (a whole frame skipped — the 07-14 skew shape) or off values that DIFFER across viewport
+regions at the same hour (the half-tile signature). Don't false-alarm on ±1h.
 
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
