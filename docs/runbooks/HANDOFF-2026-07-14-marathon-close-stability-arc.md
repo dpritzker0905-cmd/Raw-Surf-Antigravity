@@ -276,6 +276,39 @@ PARTIAL page (client per-hour fallback covers the rest) instead of nothing.
 through the dev-site proxy + a deliberate 48-hour ask returning ≤~21s partial (deadline live).
 Tunables: `GRID_SERIES_DEADLINE_S`; FE spans are code constants (`HEAVY_PAGE_SPAN_HOURS`).
 
+## §0h USER EVE RE-TEST (b5dcdc25 online dev) — two roots FIXED `3c51f852`
+User: ICON "animations but NO colored heatmap below; zoom-out clears everything" · EURO wrong-way
+faint crests after zoom cycles · GFS improved. Console decoded both:
+**(1) WASH MODEL-SWITCH WEDGE** (snap: model ICON, washBase GFS, washEngaged false): blend-both
+needs a same-model coarse base; the bridge-seed stager refused to stage while ANY base existed →
+a stale other-model base blocked its own replacement until an organic world commit (user's far
+zoom-out). THREE compounding holes: stager gate (fixed: `_coarseBaseMatches` staleness-aware,
+stale base/pending = absent) · engine consume site required NO base (fixed: replaces stale,
+discards beaten seed — the old gate also left a beaten seed pending forever, blocking all future
+staging) · EURO redirect never called the global prewarm at all + prewarmGlobalMarineGrid had no
+EURO branch (the GFS-shaped default would CACHE-POISON EURO with a GFS grid — added Copernicus
+branch + wired) · cache-served switches (sibling-prewarmed) return before the redirect block →
+`_rewarmWashBaseIfStale` on both cache-hit returns (fires network ONLY when base truly stale).
+**LIVE-VERIFIED**: wedge reproduced on a cache-served layer switch (base waves, engaged false,
+seed frozen at 1) → post-fix same gesture re-warms in one pass (seed 1→2, baseLayer follows,
+engaged true). Model switches ride the identical gate (7 jest goldens
+`marineCoarseBridgeModelSwitch.test.js`). This also covers the "zoom-out clears" leg: the wash
+is exactly what bridges the no-downgrade hold window, and it was disengaged.
+**(2) EURO/ICON COARSE CREST DIRECTION CONFIDENCE MISSING**: FE fades crests below ~0.65
+`dir_confidence` but only when the field EXISTS — NOAA/GFS coarse exports it (07-03); Copernicus
++ DWD GWAM coarse never did → bimodal-water cells animated confidently WRONG (probe: EURO coarse
+289° vs EURO mid 93° vs GFS coarse 79° same FL cell; 11% of 629 shared basin cells >135° apart —
+NOT a convention flip, patchy mean-direction residuals). Both fetchers now export
+`wave_direction_confidence`: Copernicus via `energy_mean_direction_lonspan_conf` (resultant
+length R from the existing window pass; legacy wrapper direction byte-identical), GWAM via
+single-pair `energy_mean_direction_block_multi_conf` (parity golden). Normalizer pickup already
+generic. **Takes effect on the NEXT ingest cron** (fetchers run in GH Actions — verify a fresh
+`euro_marine_waves_global_coarse` product carries non-null dir_confidence, then user eyeball).
+Kills: `COPERNICUS_DIR_CONFIDENCE=0` / `DWD_GWAM_DIR_CONFIDENCE=0`. NOT touched (known classes):
+EURO cold-boot world-preview window at close zoom (SWR + sharpen, §0f suppression hides wrong
+crests ≥z7; wash now bridges it) · coarse-crest deliberate dimness. Baselines: **BE 728/2928,
+FE 963/963** (+§0g's: FE heavy-page goldens included).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
