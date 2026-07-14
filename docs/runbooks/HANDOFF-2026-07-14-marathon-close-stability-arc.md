@@ -83,6 +83,37 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
    lanes ALL fresh (~0.8h) — the `b02c8ceb` ECMWF wind refactor's first live run WORKED for
    wind (the highest-risk path). Weather lanes (9.7h) land later in the same run; confirm
    its final conclusion. Ratings lane read `age=0h ok` = the `42522d12` clamp verified live.
+10. **03:27Z SESSION CLOSE — §3.1 FULLY GREEN: ALL TEN LANES ok, overall status=ok**
+    (weather lanes 0.4h — the run's weather uploads landed; run `29296621701` itself still
+    in_progress on its extended-estimates tail, conclusion worth a morning glance but every
+    lane it existed to heal is healed; DHM paging condition CLEARED). Session ship ledger
+    (all pushed, dev HEAD `ce741b0e`+docs): `51cdb703` manifest merge-on-upload ·
+    `4ddc76c5` staleness fixes + CDN lane (dormant iteration) · `b06790a0` scoped-RLS CDN
+    lane LIVE + bucket security notation + precompute timeout 110 · `ce741b0e` prune
+    reconcile + CMEMS degradation bounds. Baselines: **BE 705/2928, FE 918/918.**
+
+## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
+**Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
+(map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
+in 9 files; keyboard handling in only 2 files (ForecastWheel, RequestProCrewPanel).**
+- ✅ GOOD (the house patterns): `ForecastWheel.js` — `role="slider"` + arrows/PgUp/PgDn/Home
+  + visible focus (its header documents the contract). `MapWeatherControls.js` transport —
+  Play/Pause, Step back/forward, "Timeline scrubber", expand/collapse/close all aria-labeled
+  (10 attrs, but 32 interactive elements in the file → partial). Real `<button>` elements are
+  the norm (keyboard-focusable by default) — the gap is labels/roles, not div-soup.
+- ❌ GAPS (weather-sim surfaces): `MapForecastOverlay.js` — 3 interactive elements, ZERO
+  aria/keyboard. `MapMarkerLayers.js` (rating glyphs — the core data display) — 2 aria/alt
+  hits total; **rating is conveyed by COLOR ONLY** (hover 'why' text is mouse-only) — fails
+  both screen-reader and color-independence requirements; the fix is an accessible text
+  equivalent (e.g. aria-label "Sebastian Inlet: fair, 3ft @ 12s" per glyph + keyboard focus).
+  11 of 20 interactive map files have zero aria. Legends/tuner/truth-overlay panels unlabeled.
+  The WebGL canvas itself is inherently visual — the accessible ALTERNATIVE is the spot
+  list/drawer + rating text, which must therefore be fully accessible.
+- NEXT STEPS (not started): (1) glyph text equivalents in MapMarkerLayers; (2) label the
+  MapForecastOverlay controls; (3) sweep icon-only buttons for aria-label; (4) keyboard for
+  the legends/panels; (5) eslint-plugin-jsx-a11y in CI to hold the line (the rule's
+  enforcement arm). Tri-theme mandate note: beach mode contrast has never been contrast-ratio
+  audited — fold WCAG AA contrast into the theme rule when doing (5).
 
 ## §1 WHAT SHIPPED (14 commits, each live-verified unless marked)
 

@@ -9,6 +9,17 @@
   (MapWeatherControls has three: desktop panel, mobile collapsed float, mobile expanded sheet)
   need changes mirrored across ALL layouts.
 
+- **ACCESSIBILITY (user mandate 2026-07-14):** every interactive UI element shipped or touched
+  must be ARIA-accessible: real `<button>`/`<input>` elements (never bare div-with-onClick),
+  `aria-label` on icon-only controls, `role` + full keyboard support on custom widgets
+  (`ForecastWheel.js` is the house pattern: `role="slider"`, arrows/PgUp/PgDn/Home, visible
+  focus), `aria-pressed`/`aria-expanded` on toggles, and information never conveyed by color
+  alone (rating glyphs need a text/label equivalent). Existing surfaces are NOT yet compliant
+  (2026-07-14 audit: ~41 aria attributes across 132+ interactive elements in the map components;
+  keyboard handling in only 2 of 20 interactive files) — see
+  `docs/runbooks/HANDOFF-2026-07-14-marathon-close-stability-arc.md` §0a for the debt inventory.
+  New/touched code must not add to that debt.
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools
