@@ -145,6 +145,9 @@ west pages (frames differ up to **41° in direction** = the perceived direction 
 seam). Surf transform itself PRESERVES direction exactly (0.00 deltas — falsified as suspect).
 Fix: overlap stays primary, equal overlap breaks on smallest |Δt| (3 goldens incl. failing-first
 repro). Poisoned dynamic entries self-heal ≤30 min post-deploy via SWR revalidation.
+**LIVE-VERIFIED post-deploy ~14:30Z: 12/12 probes clean ×2 passes** (user's wide viewport +
+east page + west page, asks 12Z and 15Z — every response serves the exactly-stamped frame,
+stable on re-probe; the ask−3h pattern is gone).
 ⚠️ OPEN (notated, separate arc): (1) SERVING HONESTY — /grid echoes the REQUESTED valid_time
 with stale=False even when a ±3h frame serves (this masked the skew for hours; frontend
 contracts depend on the echo — design before changing); (2) probes at lng ≈ -78.5 (inside the
