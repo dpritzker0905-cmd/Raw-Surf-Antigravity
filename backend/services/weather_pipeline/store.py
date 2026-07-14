@@ -144,7 +144,7 @@ def _fetch_remote_manifest_products() -> Optional[list]:
         return None
 
 
-def reconcile_manifest_products_for_upload(manifest) -> int:
+def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
     """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
     precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
     their OWN full in-memory snapshot — whichever lands last silently erases every registration
@@ -162,10 +162,17 @@ def reconcile_manifest_products_for_upload(manifest) -> int:
     NOTE this narrows the corruption window from "the other process's entire run duration" down
     to "the gap between this reconcile call and our upload landing" (one HTTP round trip on the
     process's serial _manifest_executor) — it is NOT full compare-and-swap, so a same-instant
-    double-write can still race. The three prune_*_helper call sites (true deletions, not pure
-    registration) are NOT wired to this helper yet: folding in a remote entry there could
-    resurrect something a concurrent writer's prune just removed. Left as a fast-follow — low
-    severity, self-heals next cycle via the existing startup-hygiene / orphan-sweep guards.
+    double-write can still race.
+
+    PRUNE CALL SITES (2026-07-14 fast-follow) pass `exclude_keys` = the product ids they just
+    deleted: those entries are still present in the fresh remote manifest (our prune hasn't
+    uploaded yet), and folding them back in would RESURRECT manifest entries whose L2 objects we
+    just destroyed — minting the dangling-entry 404 class (audit #28). With the exclusion, a
+    remote-only entry is unambiguously a concurrent writer's registration.
+    Residual accepted risks (documented, both self-healing within a cycle): (a) our fold-in of a
+    concurrent writer's registration can race THEIR prune of that same key → one dangling entry
+    until the next sweep; (b) for keys both sides hold, OUR copy wins even if theirs is newer →
+    their metadata update reverts until their next registration.
     Never raises: any failure leaves the local snapshot as the sole upload basis (pre-fix
     behavior). Kill switch: MANIFEST_MERGE_ON_UPLOAD=0.
     """
@@ -177,10 +184,11 @@ def reconcile_manifest_products_for_upload(manifest) -> int:
             return 0
         from services.weather_pipeline.schemas import ManifestProduct
         ours_keys = {(p.product_id or p.filename) for p in manifest.products if (p.product_id or p.filename)}
+        skip = ours_keys | set(exclude_keys or ())
         folded = []
         for raw in remote_products:
             pid = raw.get("product_id") or raw.get("filename")
-            if not pid or pid in ours_keys:
+            if not pid or pid in skip:
                 continue
             try:
                 folded.append(ManifestProduct.model_validate(raw))

@@ -57,6 +57,32 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
    documented escalation bound (past ~100 min the fix is per-FRAME checkpoints or dropping
    the '3' offset, not a bigger cap). Ratings lane stayed servable throughout = checkpoint
    architecture doing its job.
+7. **~03:00Z ROOT CAUSE of #6 FOUND IN THE LOGS + FIXED (degradation bounds):** the 72 min
+   was the EURO CMEMS point-cache PRE-WARM — box after box at 150–180s each (healthy
+   baseline 107 boxes/18.8 min ≈ 10s/box), many dying at exactly the 180s subprocess
+   timeout, with NO overall budget: extrapolated ~4.5h, EURO never rated one spot. Fix in
+   `prewarm_euro_marine_point_cache`: wall-clock budget `POINT_BATCH_PREWARM_BUDGET_S`
+   (default 1200s) + circuit breaker `POINT_BATCH_MAX_CONSEC_FAILURES` (default 3). Either
+   trip → stop pre-warming, set in-process `POINT_BATCH_DEGRADED=1` → point_resolution
+   routes COLD points to the provider fallback (sub-second proxy — the documented fallback
+   role) while WARMED points keep native authority via their batched cache entries. The
+   per-point CMEMS murder-loop (138×25s) can no longer be re-entered under degradation.
+   NOTATED, not done: each pre-warm box requests 10 DAYS of 3-hourly data
+   (`EURO_POINT_FORECAST_DAYS=10`, key-parity-locked to the ladder) while the precompute
+   renders 2 frames — a coordinated horizon cut is a possible 10× box-cost win but changes
+   calibration-tail data semantics; MEASURE FIRST.
+8. **~02:55Z prune-path reconcile SHIPPED (the queue-#1 fast-follow):** all three
+   `prune_*_helper` sweeps now call `reconcile_manifest_products_for_upload(manifest,
+   exclude_keys=pruned_keys)` before their manifest upload — the exclusion set prevents
+   folding back entries whose L2 objects the prune just destroyed (the resurrection/dangling
+   hazard that blocked wiring them blindly). With saves AND prunes reconciled, **splitting
+   the core/pilots shared concurrency group is now SAFE to attempt** (the eviction-class
+   kill). Do it as its own deploy-window change with a full-day watch; residual accepted
+   races documented in the reconcile docstring.
+9. **§3.1 SUBSTANTIALLY GREEN:** mid-run health probe ~02:45Z showed GFS/ICON/EURO wind
+   lanes ALL fresh (~0.8h) — the `b02c8ceb` ECMWF wind refactor's first live run WORKED for
+   wind (the highest-risk path). Weather lanes (9.7h) land later in the same run; confirm
+   its final conclusion. Ratings lane read `age=0h ok` = the `42522d12` clamp verified live.
 
 ## §1 WHAT SHIPPED (14 commits, each live-verified unless marked)
 

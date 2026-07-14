@@ -169,3 +169,89 @@ def test_prewarm_survives_a_failed_box_and_skips_error_stubs(monkeypatch):
     assert stats["failed"] == 1                  # the 2-point SoCal box raised
     assert stats["cached_points"] == 0           # the Hawaii stub was not cached
     assert not cms._point_cache
+
+
+# ── degradation bounds (2026-07-14, run 29297471819: pre-warm alone ate the 75-min cap) ─────
+@pytest.fixture
+def _degraded_env(monkeypatch):
+    monkeypatch.setenv("POINT_BATCH_NATIVE_COPERNICUS", "1")
+    monkeypatch.delenv("POINT_SKIP_NATIVE_COPERNICUS", raising=False)
+    # POINT_BATCH_DEGRADED is set by the CODE UNDER TEST via os.environ directly, so it must be
+    # cleaned with a direct pop — a monkeypatch.delenv AFTER yield records the test-set "1" as
+    # the original value and teardown RESTORES it, leaking degraded mode into every later EURO
+    # point test (live-caught: test_point_estimate_blend failed suite-order-dependently).
+    os.environ.pop("POINT_BATCH_DEGRADED", None)
+    yield monkeypatch
+    os.environ.pop("POINT_BATCH_DEGRADED", None)
+
+
+def _far_apart_points(n):
+    # one point per 5°-bucket → n boxes
+    return [(round(-60 + i * 6.0, 2), round(-170 + i * 6.0, 2)) for i in range(n)]
+
+
+def test_prewarm_circuit_breaker_stops_after_consecutive_failures(_degraded_env):
+    calls = []
+
+    async def dead_upstream(latitudes, longitudes, forecast_days, variables, valid_time):
+        calls.append(1)
+        raise TimeoutError("Fetcher subprocess timed out after 180.0 seconds")
+
+    _degraded_env.setattr(cms, "fetch_euro_marine", dead_upstream)
+    stats = asyncio.run(prewarm_euro_marine_point_cache(_far_apart_points(10)))
+
+    assert stats["aborted"] == "consecutive_failures"
+    assert len(calls) == 3                        # default breaker: stop paying after 3×180s
+    assert stats["boxes_remaining"] == 7
+    assert os.environ.get("POINT_BATCH_DEGRADED") == "1"   # rest of the run: fallback for cold points
+
+
+def test_prewarm_breaker_resets_on_success_and_completes_clean(_degraded_env):
+    seq = {"n": 0}
+
+    async def two_fail_then_ok(latitudes, longitudes, forecast_days, variables, valid_time):
+        seq["n"] += 1
+        if seq["n"] in (1, 2, 4, 5):              # never 3 in a row
+            raise TimeoutError("blip")
+        return [_fake_result(la, lo) for la, lo in zip(latitudes, longitudes)]
+
+    _degraded_env.setattr(cms, "fetch_euro_marine", two_fail_then_ok)
+    stats = asyncio.run(prewarm_euro_marine_point_cache(_far_apart_points(6)))
+
+    assert "aborted" not in stats                 # breaker never tripped
+    assert stats["fetched"] == 2 and stats["failed"] == 4
+    assert os.environ.get("POINT_BATCH_DEGRADED") is None  # clean completion sets nothing
+
+
+def test_prewarm_wall_clock_budget_stops_the_loop(_degraded_env):
+    _degraded_env.setenv("POINT_BATCH_PREWARM_BUDGET_S", "0.001")
+    calls = []
+
+    async def slow_ok(latitudes, longitudes, forecast_days, variables, valid_time):
+        calls.append(1)
+        time.sleep(0.01)                          # each box exceeds the whole budget
+        return [_fake_result(la, lo) for la, lo in zip(latitudes, longitudes)]
+
+    _degraded_env.setattr(cms, "fetch_euro_marine", slow_ok)
+    stats = asyncio.run(prewarm_euro_marine_point_cache(_far_apart_points(5)))
+
+    assert stats["aborted"] == "budget"
+    assert len(calls) == 1                        # budget checked before every box
+    assert stats["boxes_remaining"] == 4
+    assert os.environ.get("POINT_BATCH_DEGRADED") == "1"
+    # the box that DID land keeps native authority
+    assert stats["cached_points"] == 1
+
+
+def test_degraded_mode_routes_cold_points_to_fallback_but_keeps_warm_points_native():
+    """point_resolution's EURO branch: POINT_BATCH_DEGRADED=1 + no batched entry → raise into the
+    provider-fallback ladder; a warmed point must still reach fetch_euro_marine. Source-inspection
+    pin (the pattern of test_point_skip_native_copernicus.py) — the branch is deep in resolve_point."""
+    import inspect
+    from services.weather_pipeline import point_resolution as pr
+    src = inspect.getsource(pr)
+    gate = src.find("POINT_BATCH_DEGRADED")
+    assert gate != -1, "degraded-mode gate missing from point_resolution"
+    window = src[gate - 1500:gate + 1500]
+    assert "batched_point_cache_key(lat, lng, point_forecast_days) not in _point_cache" in window
+    assert "raise RuntimeError" in window

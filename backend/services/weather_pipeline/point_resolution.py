@@ -385,6 +385,20 @@ class PointResolutionService:
                         # spatial batching of the CMEMS fetches.
                         if os.environ.get("POINT_SKIP_NATIVE_COPERNICUS") == "1":
                             raise RuntimeError("native CMEMS point skipped (POINT_SKIP_NATIVE_COPERNICUS=1)")
+                        # DEGRADED MODE (2026-07-14): the batch pre-warm tripped its budget/breaker
+                        # (CMEMS slow/timing out — run 29297471819 burned 75 min inside the pre-warm
+                        # alone). Points it already warmed keep native authority (their batched cache
+                        # entry is consulted inside fetch_euro_marine); points WITHOUT an entry go
+                        # straight to the provider fallback rather than spawning a fresh per-point
+                        # CMEMS subprocess into a known-degraded upstream (the 138×25s murder-loop).
+                        if os.environ.get("POINT_BATCH_DEGRADED") == "1":
+                            try:
+                                from services.copernicus_point_batching import batched_point_cache_key
+                                from services.copernicus_marine_service import _point_cache
+                                if batched_point_cache_key(lat, lng, point_forecast_days) not in _point_cache:
+                                    raise RuntimeError("CMEMS degraded and point not pre-warmed (POINT_BATCH_DEGRADED=1)")
+                            except ImportError:
+                                pass  # never let the guard itself break native resolution
                         from services.copernicus_marine_service import fetch_euro_marine
                         if layer.lower() == "waves":
                             variables = ["wave_height", "wave_direction", "wave_period"]

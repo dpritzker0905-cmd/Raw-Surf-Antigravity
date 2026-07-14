@@ -269,11 +269,15 @@ def quarantine_invalid_copernicus_products_helper(store):
 
 def prune_old_products_helper(store, before_time: datetime):
     """Cleans up old JSON product files that fall before the cutoff date."""
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
+    from services.weather_pipeline.store import (
+        _upload_executor, _manifest_executor, dump_manifest_for_l2,
+        reconcile_manifest_products_for_upload,
+    )
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
     remaining_products = []
+    pruned_keys = set()
     for p in manifest.products:
         if p.valid_time_start < before_time:
             filepath = store.cache_dir / p.filename
@@ -284,12 +288,16 @@ def prune_old_products_helper(store, before_time: datetime):
                 except Exception as e:
                     logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
             _upload_executor.submit(store._delete_from_supabase, p.filename)
+            pruned_keys.add(p.product_id or p.filename)
         else:
             remaining_products.append(p)
 
     manifest.products = remaining_products
     store._save_manifest(manifest)
     try:
+        # exclude_keys: the entries just deleted are still in the remote manifest — folding them
+        # back would resurrect dangling references to L2 objects we just destroyed (audit #28).
+        reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
         manifest_json = dump_manifest_for_l2(manifest)
         _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
     except Exception as e:
@@ -308,7 +316,10 @@ def prune_duplicate_valid_times_helper(store) -> int:
     dedup is SAFE where a blanket run_time prune is not: hours only an OLDER run covers (a newer
     cancelled run stopped early) keep their only product — no coverage loss, only true duplicates go.
     """
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
+    from services.weather_pipeline.store import (
+        _upload_executor, _manifest_executor, dump_manifest_for_l2,
+        reconcile_manifest_products_for_upload,
+    )
     manifest = store.get_manifest()
 
     # PROVENANCE-AWARE ranking (2026-07-06, the EURO waves lane wipe — run 28786800982): a failed
@@ -334,6 +345,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
     keep = set(id(p) for p in best.values())
     remaining = []
     pruned = 0
+    pruned_keys = set()
     for p in manifest.products:
         if id(p) in keep:
             remaining.append(p)
@@ -345,6 +357,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
             except Exception as e:
                 logger.warning(f"[Product Store] Failed to delete duplicate-valid_time file {p.filename}: {e}")
         _upload_executor.submit(store._delete_from_supabase, p.filename)
+        pruned_keys.add(p.product_id or p.filename)
         pruned += 1
 
     if pruned > 0:
@@ -352,6 +365,7 @@ def prune_duplicate_valid_times_helper(store) -> int:
         manifest.last_manifest_update = datetime.now(timezone.utc)
         store._save_manifest(manifest)
         try:
+            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
             manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
         except Exception as e:
@@ -388,7 +402,10 @@ def prune_superseded_products_helper(
     Kill switch INGEST_PRUNE_PRESERVE_ESTIMATES=0 restores the plain newest-run rule (operator
     lever to purge a poisoned estimated generation with one healthy native run).
     """
-    from services.weather_pipeline.store import _upload_executor, _manifest_executor, dump_manifest_for_l2
+    from services.weather_pipeline.store import (
+        _upload_executor, _manifest_executor, dump_manifest_for_l2,
+        reconcile_manifest_products_for_upload,
+    )
     manifest = store.get_manifest()
     manifest.last_manifest_update = datetime.now(timezone.utc)
 
@@ -418,6 +435,7 @@ def prune_superseded_products_helper(
 
     remaining_products = []
     pruned_count = 0
+    pruned_keys = set()
     for p in manifest.products:
         superseded = False
         if _lane_match(p) and p.run_time is not None and p.run_time < latest_run_time:
@@ -436,6 +454,7 @@ def prune_superseded_products_helper(
                 except Exception as e:
                     logger.warning(f"[Product Store] Failed to delete pruned file {p.filename}: {e}")
             _upload_executor.submit(store._delete_from_supabase, p.filename)
+            pruned_keys.add(p.product_id or p.filename)
             pruned_count += 1
         else:
             remaining_products.append(p)
@@ -444,6 +463,7 @@ def prune_superseded_products_helper(
         manifest.products = remaining_products
         store._save_manifest(manifest)
         try:
+            reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)
             manifest_json = dump_manifest_for_l2(manifest)
             _manifest_executor.submit(store._upload_to_supabase, "manifest.json", manifest_json)
             logger.info(f"[Product Store] Manifest L2 uploaded submit after pruning {pruned_count} superseded products.")

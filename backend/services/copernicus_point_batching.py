@@ -106,8 +106,37 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
             stats["points"], target, target)
         os.environ["POINT_CACHE_MAX"] = str(target)
 
+    # DEGRADATION BOUNDS (2026-07-14, precompute run 29297471819 root cause): CMEMS was degraded —
+    # box fetches ran 150-180s each (healthy ~10s, 07-06 baseline: 107 boxes in 18.8 min) and this
+    # loop had NO overall budget, so the pre-warm alone consumed the run's entire 75-min cap and
+    # EURO never rated a single spot (second consecutive timeout-cancellation). Two bounds:
+    #   * wall-clock budget POINT_BATCH_PREWARM_BUDGET_S (default 1200s = healthy 18.8 min + slack)
+    #   * circuit breaker POINT_BATCH_MAX_CONSEC_FAILURES (default 3) — at 180s per timed-out box,
+    #     three consecutive failures is 9 minutes of proof the upstream is degraded; stop paying.
+    # Either trip → stop pre-warming and set POINT_BATCH_DEGRADED=1 for the REST OF THIS PROCESS:
+    # point_resolution then routes points WITHOUT a batched entry straight to the provider-fallback
+    # ladder (sub-second proxy) instead of spawning per-point CMEMS subprocesses (the 138×25s
+    # murder-loop this module was built to kill). Points already warmed keep native authority.
+    try:
+        budget_s = float(os.environ.get("POINT_BATCH_PREWARM_BUDGET_S", "1200") or 1200)
+    except ValueError:
+        budget_s = 1200.0
+    try:
+        max_consec = int(os.environ.get("POINT_BATCH_MAX_CONSEC_FAILURES", "3") or 3)
+    except ValueError:
+        max_consec = 3
+    consec_failures = 0
+
     t0 = time.time()
-    for box in boxes:
+    for i, box in enumerate(boxes):
+        if budget_s > 0 and (time.time() - t0) > budget_s:
+            stats["aborted"] = "budget"
+            stats["boxes_remaining"] = len(boxes) - i
+            break
+        if max_consec > 0 and consec_failures >= max_consec:
+            stats["aborted"] = "consecutive_failures"
+            stats["boxes_remaining"] = len(boxes) - i
+            break
         lats = [p[0] for p in box]
         lons = [p[1] for p in box]
         try:
@@ -117,12 +146,15 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
             )
         except Exception as e:
             stats["failed"] += 1
+            consec_failures += 1
             logger.warning(f"[Copernicus Batching] box fetch failed ({len(box)} pts): {e}")
             continue
         if not results:
             stats["failed"] += 1
+            consec_failures += 1
             continue
         stats["fetched"] += 1
+        consec_failures = 0
         now = time.time()
         # Results are INDEX-ALIGNED with the request (error stubs preserve ordering) — key by the
         # REQUESTED coords, never the grid-snapped result coords.
@@ -136,5 +168,14 @@ async def prewarm_euro_marine_point_cache(coords, forecast_days: int = EURO_POIN
             oldest = min(_point_cache.keys(), key=lambda k: _point_cache[k][1])
             _point_cache.pop(oldest, None)
     stats["elapsed_s"] = round(time.time() - t0, 1)
-    logger.info(f"[Copernicus Batching] pre-warm complete: {stats}")
+    if stats.get("aborted"):
+        os.environ["POINT_BATCH_DEGRADED"] = "1"
+        logger.error(
+            "[Copernicus Batching] pre-warm ABORTED (%s) after %.0fs — %d/%d boxes done, %d points "
+            "warm (native). POINT_BATCH_DEGRADED=1 set: remaining points go to the provider "
+            "fallback this run instead of per-point CMEMS subprocesses. %s",
+            stats["aborted"], stats["elapsed_s"], stats["fetched"] + stats["failed"], len(boxes),
+            stats["cached_points"], stats)
+    else:
+        logger.info(f"[Copernicus Batching] pre-warm complete: {stats}")
     return stats

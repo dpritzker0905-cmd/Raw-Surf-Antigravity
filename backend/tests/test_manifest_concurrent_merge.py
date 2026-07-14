@@ -122,6 +122,36 @@ def test_hot_save_paths_reconcile_before_every_upload():
         assert src.index("reconcile_manifest_products_for_upload(manifest)") < src.index("dump_manifest_for_l2(manifest)")
 
 
+def test_exclude_keys_prevents_resurrecting_pruned_entries(monkeypatch):
+    # THE PRUNE HAZARD (why prune paths weren't wired blindly): our just-pruned entries are still
+    # in the fresh remote manifest (our upload hasn't landed) — without the exclusion, reconcile
+    # would fold them straight back in, minting dangling references to L2 objects we destroyed.
+    manifest = _manifest("kept.json")   # post-prune snapshot: pruned.json already removed
+    monkeypatch.setattr(store_mod, "_fetch_remote_manifest_products",
+                         lambda: [_raw("kept.json"), _raw("pruned.json"), _raw("icon_hawaii.json")])
+
+    folded = reconcile_manifest_products_for_upload(manifest, exclude_keys={"pruned.json"})
+
+    filenames = {p.filename for p in manifest.products}
+    assert folded == 1
+    assert "pruned.json" not in filenames                 # deletion survives the reconcile
+    assert filenames == {"kept.json", "icon_hawaii.json"}  # concurrent registration still folds in
+
+
+def test_prune_paths_reconcile_with_exclusions_before_every_upload():
+    """All three deletion sweeps must reconcile WITH their pruned-key exclusions before
+    dump_manifest_for_l2 — a bare reconcile there would resurrect just-pruned entries."""
+    import inspect
+    from services.weather_pipeline import copernicus_validator as cv
+
+    for fn in (cv.prune_old_products_helper, cv.prune_duplicate_valid_times_helper,
+               cv.prune_superseded_products_helper):
+        src = inspect.getsource(fn)
+        call = "reconcile_manifest_products_for_upload(manifest, exclude_keys=pruned_keys)"
+        assert call in src, f"{fn.__name__} missing exclusion-aware reconcile"
+        assert src.index(call) < src.index("dump_manifest_for_l2(manifest)")
+
+
 def test_malformed_remote_entry_is_skipped_not_fatal(monkeypatch):
     manifest = _manifest("gfs_florida.json")
     monkeypatch.setattr(store_mod, "_fetch_remote_manifest_products",
