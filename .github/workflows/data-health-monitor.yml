@@ -1,7 +1,9 @@
 # Proactive data-freshness monitor (2026-07-08). Polls the serve box's /api/health/data (computed ON READ
 # from the served manifest — data_health.compute_data_health) and FAILS (red X) when the pipeline is
 # CRITICAL: the forecast-ingest cron is down / a lane is missing / everything is stale. A `warn` (a lane
-# lagging or a short horizon) is surfaced as a GitHub warning annotation but does NOT fail the run.
+# lagging or a short horizon) is surfaced as a GitHub warning annotation but does NOT fail the run —
+# EXCEPT (2026-07-13) any lane older than HEALTH_PAGE_HOURS (default 7h) fails the run even at warn:
+# the 07-13 core outage sat at 8-9h-old warn for 12h with green checks while users hit the melt.
 #
 # WHY: every past staleness incident (OOM, cron-403, the timeout hang, manifest CDN staleness, EURO
 # tail-loss) was found REACTIVELY. This is the standing alert — a failed run here is the signal that data
@@ -57,6 +59,26 @@ jobs:
           status=$(python3 -c "import json;print(json.load(open('/tmp/health.json')).get('status','critical'))" 2>/dev/null || echo critical)
           if [ "$code" = "503" ] || [ "$status" = "critical" ]; then
             echo "::error::Data pipeline CRITICAL (HTTP $code, status=$status) — forecast-ingest cron may be down, a lane is missing, or all data is stale. Check the forecast-ingest workflow + Render logs."
+            exit 1
+          fi
+          # PAGE THRESHOLD (2026-07-13 deaf-spot fix): on 07-13 the core cron was dead for 12h —
+          # lanes sat at warn (8-9h old, under the 12h critical bound) and this job kept passing,
+          # so a USER found the degradation before any monitor did. Warn stays non-paging (routine
+          # transients), but any lane older than HEALTH_PAGE_HOURS (~two missed core cycles) FAILS
+          # the run. Tune via repo Actions variable HEALTH_PAGE_HOURS; the ratings/precomputed
+          # lane (melt precursor) is included via its own age_h like every other lane.
+          page_hours="${{ vars.HEALTH_PAGE_HOURS || '7' }}"
+          stale_lanes=$(PAGE_HOURS="$page_hours" python3 - <<'PY' 2>/dev/null || echo ""
+          import json, os
+          d = json.load(open('/tmp/health.json'))
+          cap = float(os.environ.get('PAGE_HOURS', '7'))
+          bad = [f"{n} ({i.get('age_h')}h)" for n, i in (d.get('lanes') or {}).items()
+                 if isinstance(i.get('age_h'), (int, float)) and i['age_h'] > cap]
+          print(', '.join(bad))
+          PY
+          )
+          if [ -n "$stale_lanes" ]; then
+            echo "::error::Data pipeline PAGING: lane(s) older than ${page_hours}h — $stale_lanes. The ingest schedule is missing cycles (drift/eviction/timeouts); check forecast-ingest + precompute runs."
             exit 1
           fi
           if [ "$status" = "warn" ]; then

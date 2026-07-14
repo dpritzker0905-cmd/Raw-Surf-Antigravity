@@ -36,6 +36,10 @@ EXPECTED_LANES = [
 _HORIZON_DEFAULTS = {"GFS": 288.0, "EURO": 192.0, "ICON": 96.0}
 
 
+class _RatingsLaneUnconfigured(Exception):
+    """Sentinel: no Supabase env → the ratings lane is intentionally absent (tests/local), not critical."""
+
+
 def _f(env: str, default: float) -> float:
     try:
         return float(os.environ.get(env, default))
@@ -143,6 +147,48 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
         if reasons:
             alerts.append(f"{name}: " + ", ".join(reasons))
         status = _worse(status, verdict)
+
+    # RATINGS LANE (2026-07-13, melt round 4 post-mortem): the spot-ratings precompute lane was
+    # INVISIBLE to health — on 07-13 it froze for 9h (three cancelled runs) and the resulting
+    # src=live melt was found by a USER at 21:00Z instead of a monitor at 18:00Z. Verdict off the
+    # NEWEST frame's age in the served L2 object: warn past the expected refresh cadence, critical
+    # past the stale-serve bound (SPOT_RATINGS_STALE_TOLERANCE_S, default 6h) — beyond it every
+    # rating request falls onto the 7-22s live path, the melt precursor. Guarded: a read failure
+    # reports the lane as critical/unreadable but never breaks the report.
+    try:
+        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached, _parse_dt
+        from services.weather_pipeline.copernicus_validator import is_test_environment
+        if is_test_environment() or not os.environ.get("SUPABASE_URL"):
+            raise _RatingsLaneUnconfigured()   # hermetic tests / local without L2 → lane absent, not critical
+        ratings_warn_h = _f("RATINGS_HEALTH_WARN_H", 3.5)
+        ratings_crit_h = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600")) / 3600.0
+        obj = load_spot_ratings_l2_cached()
+        frame_times = [_parse_dt(f.get("valid_time")) for f in (obj or {}).get("frames") or []]
+        frame_times = [t for t in frame_times if t is not None]
+        if not frame_times:
+            lanes["ratings/precomputed"] = {"verdict": "critical", "reason": "no frames in L2 object"}
+            status = _worse(status, "critical")
+            alerts.append("ratings/precomputed: NO frames — every rating request is on the live path (melt risk)")
+        else:
+            newest_age_h = round((now - max(frame_times)).total_seconds() / 3600.0, 1)
+            verdict = "ok"
+            if newest_age_h > ratings_crit_h:
+                verdict = "critical"
+                alerts.append(f"ratings/precomputed: newest frame {newest_age_h}h old — past the "
+                              f"{ratings_crit_h:.0f}h stale-serve bound, live-path melt risk")
+            elif newest_age_h > ratings_warn_h:
+                verdict = "warn"
+                alerts.append(f"ratings/precomputed: newest frame {newest_age_h}h old (> {ratings_warn_h}h) — "
+                              "precompute runs are missing their cadence")
+            lanes["ratings/precomputed"] = {"verdict": verdict, "age_h": newest_age_h,
+                                            "frames": len(frame_times)}
+            status = _worse(status, verdict)
+    except _RatingsLaneUnconfigured:
+        pass   # no Supabase env (hermetic tests / local dev without L2) — lane intentionally absent
+    except Exception as _re:
+        lanes["ratings/precomputed"] = {"verdict": "critical", "reason": f"unreadable: {_re}"}
+        status = _worse(status, "critical")
+        alerts.append(f"ratings/precomputed: L2 object unreadable ({_re})")
 
     return {"status": status, "generated_at": now.isoformat(),
             "freshest_run_age_h": freshest_age_h, "manifest_written_by": written_by,

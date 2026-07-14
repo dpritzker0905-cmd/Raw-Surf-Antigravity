@@ -120,3 +120,56 @@ def test_written_by_designated_writer_is_clean():
     assert rep["status"] == "ok"
     assert rep["manifest_written_by"] == "designated:gh-run-29138494882"
     assert not rep["alerts"]
+
+
+# ── ratings/precomputed lane (2026-07-13, melt round 4: the lane that was invisible while it froze 9h) ──
+def _ratings_obj(frame_ages_h):
+    return {"frames": [{"model": "GFS", "valid_time": (NOW - timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z"),
+                        "spots": []} for h in frame_ages_h]}
+
+
+def _with_ratings(monkeypatch, obj):
+    from services.weather_pipeline import spot_ratings as sr
+    from services.weather_pipeline import copernicus_validator as cv
+    monkeypatch.setenv("SUPABASE_URL", "https://example.supabase.co")
+    monkeypatch.setattr(cv, "is_test_environment", lambda: False)   # simulate the real serve box
+    monkeypatch.setattr(sr, "load_spot_ratings_l2_cached", lambda: obj)
+
+
+def test_ratings_lane_absent_in_test_env_and_without_supabase():
+    # pytest = test environment → lane intentionally absent (also absent without SUPABASE_URL),
+    # so every hermetic manifest test above is untouched by the ratings lane.
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    assert "ratings/precomputed" not in rep["lanes"]
+    assert rep["status"] == "ok"
+
+
+def test_ratings_lane_fresh_is_ok(monkeypatch):
+    _with_ratings(monkeypatch, _ratings_obj([1.0, 4.0]))  # newest frame 1h old
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    lane = rep["lanes"]["ratings/precomputed"]
+    assert lane["verdict"] == "ok" and lane["age_h"] == 1.0 and lane["frames"] == 2
+    assert rep["status"] == "ok"
+
+
+def test_ratings_lane_missed_cadence_is_warn(monkeypatch):
+    _with_ratings(monkeypatch, _ratings_obj([5.0]))       # past the 3.5h cadence, inside the 6h stale bound
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    assert rep["lanes"]["ratings/precomputed"]["verdict"] == "warn"
+    assert rep["status"] == "warn"
+    assert any("missing their cadence" in a for a in rep["alerts"])
+
+
+def test_ratings_lane_past_stale_bound_is_critical_melt_risk(monkeypatch):
+    _with_ratings(monkeypatch, _ratings_obj([9.0]))       # the 07-13 shape: frozen past the 6h stale bound
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    assert rep["lanes"]["ratings/precomputed"]["verdict"] == "critical"
+    assert rep["status"] == "critical"                    # -> /health/data returns 503 -> external probe pages
+    assert any("melt risk" in a for a in rep["alerts"])
+
+
+def test_ratings_lane_empty_object_is_critical(monkeypatch):
+    _with_ratings(monkeypatch, {"frames": []})
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    assert rep["lanes"]["ratings/precomputed"]["verdict"] == "critical"
+    assert any("live path" in a for a in rep["alerts"])
