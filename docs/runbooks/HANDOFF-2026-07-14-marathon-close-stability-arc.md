@@ -152,13 +152,21 @@ repro). Poisoned dynamic entries self-heal ≤30 min post-deploy via SWR revalid
 **LIVE-VERIFIED post-deploy ~14:30Z: 12/12 probes clean ×2 passes** (user's wide viewport +
 east page + west page, asks 12Z and 15Z — every response serves the exactly-stamped frame,
 stable on re-probe; the ask−3h pattern is gone).
-⚠️ OPEN (notated, separate arc): (1) SERVING HONESTY — /grid echoes the REQUESTED valid_time
-with stale=False even when a ±3h frame serves (this masked the skew for hours; frontend
-contracts depend on the echo — design before changing); (2) probes at lng ≈ -78.5 (inside the
-east dynamic page, outside the regional tile) served global_mid instead of the finer page —
-minor tier choice, worth a look; (3) residual seam class: animations still end at the committed
-grid/page edge over the coarse wash — same-frame now, so far less visible, but the §2b-style
-edge treatment (feather/animate-over-wash) remains the polish item.
+§0c follow-up state (afternoon session):
+(1) SERVING HONESTY ✅ **SHIPPED `a2dc65a6`**: `stamp_frame_honesty` (grid_resolver.py) captures
+the served frame's true time BEFORE the target_dt overwrite → ADDITIVE response fields
+`served_valid_time` / `frame_offset_hours` (signed) / `frame_substituted` (|Δ|>30 min) +
+diagnostics + one INFO log line per substitution (the next skew self-diagnoses in run logs).
+`valid_time` still echoes the ask (load-bearing FE contract, zero behavior change). 5 goldens
+incl. the live skew shape; BE 713/2928. FE adoption (SNAP/truth-tracker surfacing of
+served_valid_time) = notated follow-up.
+(2) -78.5 tier choice ✅ CLOSED BENIGN: post-tie-fix re-probes show correct frames everywhere;
+east of the regional tile's -79 edge, global_mid at the exact frame is geometrically honest
+(no fine tile there — the earlier "east page" was the poisoned dynamic entry). A bounds-claim
+check (grid bounds vs actual cell lattice) came back exact (gap 0.0) — the suspected
+stretched-texture bug does not reproduce.
+(3) residual seam (animations end at the committed grid edge over the coarse wash) — same-frame
+now on both sides; the §2b-style feather/animate-over-wash polish remains OPEN (user-judged).
 
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
