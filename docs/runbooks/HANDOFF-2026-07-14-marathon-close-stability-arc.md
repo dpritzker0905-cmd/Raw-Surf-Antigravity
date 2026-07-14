@@ -186,6 +186,21 @@ A pasted console log now self-reports frame skew. BE 714/2928, FE 949/949.
 ≥3h (a whole frame skipped — the 07-14 skew shape) or off values that DIFFER across viewport
 regions at the same hour (the half-tile signature). Don't false-alarm on ±1h.
 
+## §0d DEAD-ZONE ANIMATION CLAMP (user live report ~18:30Z — FIXED `fe39ac25`)
+User (watching the pane): "animations stretching too big offshore, nearshore normal, clamping
+of the entire animations over FL." Forensics on the live engine grid: 37×33 florida product
+claiming bounds [-85,-76] with **every cell east of -79 dead** (ocean=0/withSpeed=0 across four
+lng bands) — the product's data region ends at -79. ROOT = `262d37bc` (June 15): the deliberate
+"pad filter_grid_to_bbox output to the full requested window with is_valid=False cells and claim
+the window as bounds/coverage" fix — a stopgap from BEFORE the blend-both wash (June 30)/stale
+ladder/grace era. By July it MASKED the fallback machinery: FE reads padded bounds as coverage →
+wash never paints the dead area → hard animation edge; no-downgrade keeps the padded fine grid
+over honest coarser incomings → STICKY. Fix: DATA-EXTENT CLAMP in filter_grid_to_bbox (interior
+rectangular fill preserved; exterior padding never minted; no-intersection → honest empty grid).
+Kill: `GRID_CLIP_TO_DATA_EXTENT=0`. 5 goldens; BE 719/2928. NOTE re "stretching": crest size ∝
+wave height by design (offshore 1–2.3 m vs nearshore 0.3 m) and the audit pane ran at 2 FPS —
+re-judge the stretch after this deploy on a healthy-FPS session before opening a shader arc.
+
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
 (map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
