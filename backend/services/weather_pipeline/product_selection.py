@@ -1,4 +1,5 @@
 import logging
+import os
 from typing import List, Tuple, Optional, Any
 
 logger = logging.getLogger(__name__)
@@ -255,5 +256,29 @@ def pick_surf_regional_override(
     if min_viewport_frac > 0.0:
         vp_area = get_bbox_area(req_w, req_s, req_e, req_n)
         if vp_area <= 0.0 or (best_overlap / vp_area) < min_viewport_frac:
+            return None
+    # COVERAGE REQUIREMENT (2026-07-14 §0e follow-up, user report "rating band clamps the
+    # animations into a grid" at z8.5–7.38): serving a regional tile SMALLER than the viewport
+    # puts the committed grid's data edges mid-screen — the crest field ends there (hard
+    # horizontal/vertical animation lines), while rating-OFF serves full-viewport dynamic
+    # products with no edges. The override's ORIGINAL purpose is the frontend-padded viewport
+    # poking JUST PAST the tile's offshore edge — so allow a bounded poke (the tile must cover
+    # the viewport shrunk by SURF_REGIONAL_PREFER_MAX_POKE_DEG per side, default 1.25° — sized
+    # to the documented legit pokes: tile offshore edge ~1° off the surf coast + 0.5° client
+    # pad ≈ 1° worst case at tight zooms; the clamp-class viewports poke 2°+ per side). Wider
+    # viewports fall through to the dynamic lane, which since §0e carries the surf transform,
+    # the band, AND honest phys_speed — identical coverage behavior to rating-off.
+    # Kill: SURF_REGIONAL_PREFER_MAX_POKE_DEG=999 restores any-overlap acceptance.
+    try:
+        poke = float(os.environ.get("SURF_REGIONAL_PREFER_MAX_POKE_DEG", "1.25"))
+    except ValueError:
+        poke = 1.25
+    cov = best_item.coverage
+    shrunk_w, shrunk_e = req_w + poke, req_e - poke
+    shrunk_s, shrunk_n = req_s + poke, req_n - poke
+    if shrunk_w < shrunk_e and shrunk_s < shrunk_n:
+        covers = (cov.west <= shrunk_w and cov.east >= shrunk_e
+                  and cov.south <= shrunk_s and cov.north >= shrunk_n)
+        if not covers:
             return None
     return best_item

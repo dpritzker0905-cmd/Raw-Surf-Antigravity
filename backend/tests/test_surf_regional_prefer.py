@@ -35,10 +35,20 @@ def test_contained_viewport_returns_regional():
 
 
 def test_poke_east_past_offshore_edge_still_returns_regional():
-    # The exact failure: a viewport whose east edge (-77) pokes past the FL tile's -79 offshore edge.
-    # select_best_candidate would pick GLOBAL here; the override must keep the overlapping FL tile.
-    item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -81.0, 26.0, -77.0, 30.0)
+    # The exact legit case: a viewport poking ~1° past the FL tile's -79 offshore edge (tile
+    # edge ~1° off the coast + 0.5° client pad). The override keeps the tile.
+    item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -81.0, 26.0, -78.0, 30.0)
     assert item is FL
+
+
+def test_wide_poke_falls_through_to_covering_lane():
+    """2026-07-14 §0e follow-up (user: "rating band clamps the animations into a grid",
+    z8.5–7.38): a viewport poking 2°+ past the tile used to get the PARTIAL tile — its data
+    edges landed mid-screen as hard animation lines, while rating-off served full-viewport
+    dynamic grids. Beyond the poke margin the override must fall through so the dynamic lane
+    (surf-transformed since §0e) serves a COVERING grid — identical behavior to rating-off."""
+    item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -81.0, 26.0, -77.0, 30.0)
+    assert item is None
 
 
 def test_wide_viewport_returns_none():
@@ -93,7 +103,7 @@ def test_overlap_tie_prefers_smallest_time_diff():
     fl_t12 = Item("euro_marine_waves_florida_east_coast_20260714T120000Z.json", cov)
     fl_t15 = Item("euro_marine_waves_florida_east_coast_20260714T150000Z.json", cov)
     candidates = [(fl_t09, 10800.0), (fl_t12, 0.0), (fl_t15, 10800.0)]  # manifest order: oldest first
-    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -77.0, 30.0)
+    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -78.0, 30.0)
     assert item is fl_t12, "overlap tie must break on smallest time diff, not manifest order"
 
 
@@ -109,7 +119,7 @@ def test_larger_overlap_still_beats_smaller_time_diff():
     sliver = Item("sliver.json", Cov(-81.2, 26.0, -81.0, 30.0))
     full = Item("full.json", Cov(-85.0, 24.0, -79.0, 31.0))
     candidates = [(sliver, 0.0), (full, 10800.0)]
-    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -77.0, 30.0)
+    item = pick_surf_regional_override(candidates, [], -81.0, 26.0, -78.0, 30.0)
     assert item is full
 
 
@@ -131,4 +141,4 @@ def test_picks_correct_coast_among_many_worldwide_tiles():
     pool = _auth(FL, HAWAII, EAST_AUS, GLOBAL)
     assert pick_surf_regional_override(pool, [], -156.0, 19.0, -153.3, 21.0) is HAWAII
     assert pick_surf_regional_override(pool, [], 152.0, -29.0, 157.2, -27.0) is EAST_AUS
-    assert pick_surf_regional_override(pool, [], -81.0, 26.0, -77.0, 30.0) is FL
+    assert pick_surf_regional_override(pool, [], -81.0, 26.0, -78.0, 30.0) is FL  # ≤1.25° poke keeps the tile

@@ -887,7 +887,19 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // (boot) or a teleport whose old overlay doesn't even touch the view.
     const _overlayIntersectsViewport = !!(this._overlayMaskTex && _ovb &&
       _ovb.west < vb[2] && _ovb.east > vb[0] && _ovb.south < vb[3] && _ovb.north > vb[1]);
-    if (_residentCoarseGlobal && z >= 8.0 && !_overlayIntersectsViewport &&
+    // DIRECTION-TRUTH TIGHTENING (2026-07-14, user: "faint waves run the WRONG WAY away from
+    // the FL coast for 3-4 s when EURO first activates, until the heatmap fixes itself"): the
+    // overlay relaxation above was for the 07-04 era's MINUTES-long cold sharpen windows where
+    // full suppression read as "broken animation". Today the sharpen lands in seconds
+    // (checkpointed lanes + series), and the relaxation's cost is CONFIDENTLY-WRONG crest
+    // directions — a coarse world cell's block-mean heading at close zoom. Honest suppression
+    // beats confident wrongness for a seconds-long window: suppress crests on a coarse-GLOBAL
+    // resident at z ≥ 7 regardless of overlay coverage (the heatmap still paints; crests appear
+    // with the honest regional commit). Tune: __RAW_COARSE_SUPPRESS_MIN_ZOOM__ (default 7.0).
+    // Kill: the existing __RAW_DISABLE_COARSE_CREST_SUPPRESS__.
+    const _coarseSuppressZ = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_COARSE_SUPPRESS_MIN_ZOOM__))
+      ? +window.__RAW_COARSE_SUPPRESS_MIN_ZOOM__ : 7.0;
+    if (_residentCoarseGlobal && z >= _coarseSuppressZ &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true)) {
       dirCoherenceMin = 2.0; // > max unit magnitude -> every crest discards (the proven suppress path)
     }
