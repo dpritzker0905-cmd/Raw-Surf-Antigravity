@@ -33,6 +33,17 @@ def test_per_hour_timeout_extends_during_restore():
     assert gsh.PER_HOUR_TIMEOUT_COLD < gsh.OVERALL_DEADLINE
 
 
+# ── proxy-window alignment (§0f(3), 2026-07-14) ─────────────────────────────────────────────
+def test_series_deadline_sits_under_the_netlify_proxy_window():
+    """Production serves /api/* through Netlify's CDN proxy (~26s cut). A deadline beyond it
+    guarantees a TOTAL loss on slow pages — the proxy kills the response and the client caches
+    zero frames — where a deadline under it degrades to a PARTIAL page (measured root of the
+    EURO far-tail 'Fetch failed' class). Headroom covers in-flight per-hour builds + transfer."""
+    assert gsh.OVERALL_DEADLINE < gsh.NETLIFY_PROXY_WINDOW_S - 4.0
+    # And the cold first-hour build (serial, gets its budget in full) must also fit under it.
+    assert gsh.PER_HOUR_TIMEOUT_COLD < gsh.OVERALL_DEADLINE
+
+
 # ── restore flag lifecycle ───────────────────────────────────────────────────────────────────
 def test_restore_helper_sets_and_always_clears_the_flag(monkeypatch):
     observed = {}

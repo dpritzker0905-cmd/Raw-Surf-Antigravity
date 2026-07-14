@@ -8,11 +8,12 @@
 // by Open-Meteo/Copernicus), the rest re-slice it.
 //
 // PAGING (audit Finding 2): the full 0..336h window is 113 3-hourly frames, but the
-// backend caps a series at 48 frames. So we split into 3-hourly PAGES of <=48 frames
-// (0..141, 144..285, 288..336) and load the page containing the CURRENT hour FIRST, then
-// adjacent pages during idle — instead of always starting at hour zero. Cache/in-flight
-// are keyed by model+layer+viewport+page so far-hour scrubbing is instant once its page
-// is loaded.
+// backend caps a series at 48 frames. So we split into 3-hourly PAGES and load the page
+// containing the CURRENT hour FIRST, then adjacent pages during idle — instead of always
+// starting at hour zero. Page SPAN is per cost class (§0f(3)): 48 frames for the cheap
+// GFS/ICON swell re-slice, 16 frames for EURO/surf so every request fits Netlify's ~26s
+// proxy window (see pageSpanHours). Cache/in-flight are keyed by
+// model+layer+flavor+viewport+page so far-hour scrubbing is instant once its page is loaded.
 //
 // SAFETY: this whole path is OFF unless window.__MARINE_SERIES__ === true. When off,
 // nothing here runs and the orchestrator behaves exactly as before. When on, a series
@@ -29,7 +30,8 @@ const _seriesCache = new Map();
 const _inFlight = new Map();
 const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared on reset)
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
-const SERIES_MAX = 32;              // bounded; ~10 distinct (model,layer,viewport) targets × pages
+const SERIES_MAX = 48;              // bounded; heavy-class targets hold up to 8 SMALL pages each
+                                    // (16 frames vs 48), so more entries ≈ same total memory
 // Coarse-preview revalidation: a COLD regional viewport gets an instant GLOBAL coarse_preview from the
 // backend (SWR — it builds the precise regional grid in the background). Re-fetch the page, spaced out,
 // until the backend returns the regional grid — else we'd cache the global frame and the heatmap renders
@@ -118,10 +120,29 @@ function releaseSeriesSlot() {
   }
 }
 
-// 3-hourly pages of at most 48 frames (the backend series cap). 48 frames × 3h = 144h span.
-const PAGE_SPAN_HOURS = 144;
+// 3-hourly pages of at most 48 frames (the backend series cap). The span is per COST CLASS,
+// sized so ONE page always fits Netlify's ~26s /api/* proxy window — a page that runs past it
+// is a TOTAL loss (the proxy cuts the response; the client logs "Fetch failed" and caches
+// nothing). Measured 2026-07-14 (§0f(3), direct-to-Render, FL regional viewport, cold):
+//   GFS/ICON swell 48-frame page = 1.8s (cheap re-slice of the cached coarse product);
+//   surf=1 adds ~0.26s/frame (per-frame rating transform) → GFS surf 48-frame = 14.4s;
+//   EURO adds ~0.2s/frame (per-hour L2 resolve)          → EURO surf 48-frame = 23.1s cold —
+//   inside the window only when the box is idle; any contention kills it (the user's failures).
+// HEAVY class (EURO any-flavor, or surf mode any-model) pages are 16 frames ≈ 8.5s worst-case
+// cold (~3× window headroom). The cheap swell class keeps 48-frame pages (3-request full warm).
+const PAGE_SPAN_HOURS = 144;        // 48 frames × 3h — GFS/ICON swell (cheap cached re-slice)
+const HEAVY_PAGE_SPAN_HOURS = 48;   // 16 frames × 3h — EURO or surf mode (per-frame server cost)
 const MARINE_SERIES_MAX_HOURS = 336; // EURO 14-day window ceiling (240 native + 96 estimated)
-const LAST_PAGE = Math.floor(MARINE_SERIES_MAX_HOURS / PAGE_SPAN_HOURS); // 2
+
+function pageSpanHours(model) {
+  if ((model || 'GFS').toUpperCase() === 'EURO') return HEAVY_PAGE_SPAN_HOURS;
+  return getSurfModeFlag() ? HEAVY_PAGE_SPAN_HOURS : PAGE_SPAN_HOURS;
+}
+// Heavy regime: floor(336/48) = 7 (page 7 = the single +336h frame — the wheel's max is a real
+// ask, so it gets its own tiny page rather than being silently unreachable). Cheap regime: 2.
+function lastPageFor(model) {
+  return Math.floor(MARINE_SERIES_MAX_HOURS / pageSpanHours(model));
+}
 
 export function isMarineSeriesEnabled() {
   if (typeof window === 'undefined') return false;
@@ -134,16 +155,18 @@ export function isMarineSeriesEnabled() {
   return true;
 }
 
-// The 3-hourly page that contains a given hour offset. Page 0: 0..141, 1: 144..285, 2: 288..336.
-export function marineSeriesPageForHour(hourOffset) {
+// The 3-hourly page that contains a given hour offset, in the model's span regime.
+// Cheap regime — page 0: 0..141, 1: 144..285, 2: 288..336. Heavy — 48h pages, 0..7.
+export function marineSeriesPageForHour(hourOffset, model) {
   const h = Math.max(0, Number(hourOffset) || 0);
-  return Math.min(LAST_PAGE, Math.floor(h / PAGE_SPAN_HOURS));
+  return Math.min(lastPageFor(model), Math.floor(h / pageSpanHours(model)));
 }
 
 // The hour offsets a page requests (<=48 frames, 3-hourly, clamped to the 336h ceiling).
-function buildPageHours(page) {
-  const start = page * PAGE_SPAN_HOURS;
-  const end = Math.min(start + PAGE_SPAN_HOURS - 3, MARINE_SERIES_MAX_HOURS);
+function buildPageHours(page, model) {
+  const span = pageSpanHours(model);
+  const start = page * span;
+  const end = Math.min(start + span - 3, MARINE_SERIES_MAX_HOURS);
   const hours = [];
   for (let h = start; h <= end; h += 3) hours.push(h);
   return hours;
@@ -295,7 +318,7 @@ function frameToMarineData(frame, model, layer) {
 
 // Load ONE page of the series. Idempotent + TTL'd + deduped (keyed by page). Never throws.
 async function loadSeriesPage(model, layer, bounds, page, signal, force = false) {
-  if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > LAST_PAGE) return;
+  if (!isMarineSeriesEnabled() || !bounds || page < 0 || page > lastPageFor(model)) return;
   const key = pageKey(model, layer, bounds, page);
   // Padded request box (also used for the coverage-aware dedup below). Computed once here.
   const reqBox = padRegionalBbox(bounds);
@@ -335,7 +358,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
   }
   if (_inFlight.has(key)) return;
 
-  const hours = buildPageHours(page);
+  const hours = buildPageHours(page, model);
   if (hours.length === 0) return;
   // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
   // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.
@@ -346,8 +369,13 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     + (getSurfModeFlag() ? '&surf=1' : '');
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
+  // Armed AFTER the concurrency slot is acquired (below): it bounds the FETCH, not the queue
+  // wait. With the smaller heavy-class pages there are up to 8 pages queuing behind 2 slots —
+  // arming here made tail-of-queue pages burn the budget while WAITING and retry as spurious
+  // `timeout_45s` (observed live 07-14, 13 retries in one warm). Queued pages still cancel
+  // instantly via the caller-signal listener when the viewport supersedes.
   const localController = new AbortController();
-  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
+  let timeoutId = null;
   if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
 
   const p = (async () => {
@@ -355,10 +383,10 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
     // we're queued, acquireSeriesSlot resolves false and we never fetch (superseded warm dropped).
     const gotSlot = await acquireSeriesSlot(localController.signal);
     if (!gotSlot || localController.signal.aborted) {
-      clearTimeout(timeoutId);
       _inFlight.delete(key);
       return;
     }
+    timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 45000);
     try {
       const res = await fetch(url, { signal: localController.signal });
       if (!res.ok) {
@@ -469,7 +497,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
  */
 export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false) {
   if (!isMarineSeriesEnabled() || !bounds) return;
-  const page = marineSeriesPageForHour(hourOffset);
+  const page = marineSeriesPageForHour(hourOffset, model);
   await loadSeriesPage(model, layer, bounds, page, signal, force);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent
@@ -477,7 +505,7 @@ export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, s
   if (currentPageOnly) return;
   // Prefetch neighbours during idle so scrubbing into an adjacent page is already warm.
   for (const adj of [page + 1, page - 1]) {
-    if (adj < 0 || adj > LAST_PAGE) continue;
+    if (adj < 0 || adj > lastPageFor(model)) continue;
     const k = pageKey(model, layer, bounds, adj);
     const cached = _seriesCache.get(k);
     if ((cached && Date.now() - cached.ts < SERIES_TTL_MS) || _inFlight.has(k)) continue;
@@ -498,7 +526,7 @@ export function prewarmMarineSeries(model, layer, bounds, signal) {
   // scrub+toggle. Skip the eager prewarm for EURO — its lazy current-page load handles it. GFS &
   // ICON just re-slice a cheap cached coarse product, so prewarming all pages is safe + fast.
   if ((model || 'GFS').toUpperCase() === 'EURO') return;
-  for (let page = 0; page <= LAST_PAGE; page++) {
+  for (let page = 0, last = lastPageFor(model); page <= last; page++) {
     loadSeriesPage(model, layer, bounds, page, signal);
   }
 }
@@ -529,7 +557,7 @@ function nearestFrameInEntry(entry, hourOffset) {
  */
 export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   if (!isMarineSeriesEnabled() || !bounds) return null;
-  const page = marineSeriesPageForHour(hourOffset);
+  const page = marineSeriesPageForHour(hourOffset, model);
   const now = Date.now();
   // Width of the requested viewport (deg, antimeridian-safe). A GLOBAL-width cached frame must NEVER be
   // served to a regional (zoomed-in) viewport — that IS the coarse-global clamp.
@@ -538,7 +566,7 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
   let best = null;
   let bestDiff = Infinity;
   for (const cand of [page, page + 1, page - 1]) {
-    if (cand < 0 || cand > LAST_PAGE) continue;
+    if (cand < 0 || cand > lastPageFor(model)) continue;
     const entry = _seriesCache.get(pageKey(model, layer, bounds, cand));
     if (!entry || now - entry.ts >= SERIES_TTL_MS) continue;
     // The 0.5° viewportKey snap can match an entry whose grid is slightly SMALLER than (or offset
@@ -572,7 +600,11 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     for (const entry of _seriesCache.values()) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
       if (entry.model !== model || entry.layer !== layer) continue;
-      if (entry.page != null && Math.abs(entry.page - page) > 1) continue;
+      // Hour-range proximity guard (was a page-index compare — meaningless across the per-cost-class
+      // span regimes, where the same hour maps to different page numbers). An entry whose HOURS list
+      // can't reach the ask within the 3h lattice can never pass the ±1.5h nearest gate below.
+      if (entry.hours && entry.hours.length &&
+          (hourOffset < entry.hours[0] - 3 || hourOffset > entry.hours[entry.hours.length - 1] + 3)) continue;
       if (!bboxContains(entry.bounds, bounds)) continue;
       const nf = nearestFrameInEntry(entry, hourOffset);
       if (!nf) continue;

@@ -41,13 +41,24 @@ def _frame_rating_mode(grid) -> bool:
 # whatever frames completed. The client uses the partial series and falls back to the
 # per-hour flow for missing hours.
 PER_HOUR_TIMEOUT = 10.0
-OVERALL_DEADLINE = 35.0
+# PROXY-WINDOW ALIGNMENT (§0f(3), 2026-07-14): production serves /api/* through Netlify's CDN
+# proxy, which cuts the response at ~26s (NETLIFY_PROXY_WINDOW_S below) — a build that runs past
+# it is a TOTAL loss (the client sees "Fetch failed" and caches zero frames) even though partial
+# frames were ready. The old 35s deadline sat BEYOND the window, guaranteeing that loss whenever
+# a heavy page (measured: EURO surf 48-frame = 23.1s cold) ran long. The deadline must sit UNDER
+# the window with headroom for in-flight per-hour builds (~1s each measured) + transfer, so the
+# worst case degrades to a PARTIAL page (client per-hour fallback covers the rest) instead of
+# nothing. The frontend's smaller heavy-class pages (16 frames) keep typical builds ~8s so this
+# deadline rarely binds — it is the backstop for contended/cold days.
+NETLIFY_PROXY_WINDOW_S = 26.0
+OVERALL_DEADLINE = float(os.environ.get("GRID_SERIES_DEADLINE_S", "20"))
 # COLD-START budget (2026-07-06, chip task_e618f9ff): during the post-deploy L2 restore, product
 # loads block on Supabase downloads and the 10s cap expired EVERY hour — the first mid-tier series
 # after a restart returned frame_count:0 and the client treated it as no-coverage until the next
-# gesture. While the restore is in flight each hour gets this budget instead (OVERALL_DEADLINE
-# still bounds the series well under the client's 45s fetch timeout).
-PER_HOUR_TIMEOUT_COLD = 25.0
+# gesture. While the restore is in flight each hour gets this budget instead. Must stay under
+# OVERALL_DEADLINE (proxy-window alignment above): the serial first-hour build gets this budget in
+# full, so a larger value would push the whole response past the proxy cut during every restore.
+PER_HOUR_TIMEOUT_COLD = 16.0
 
 
 def _restore_in_progress() -> bool:
