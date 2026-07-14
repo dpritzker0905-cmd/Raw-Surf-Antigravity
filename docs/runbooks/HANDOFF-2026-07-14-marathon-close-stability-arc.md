@@ -92,6 +92,37 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
     lane LIVE + bucket security notation + precompute timeout 110 · `ce741b0e` prune
     reconcile + CMEMS degradation bounds. Baselines: **BE 705/2928, FE 918/918.**
 
+## §0b UPDATE — morning session ~10:50Z+ 07-14 (§3 closed; group SPLIT shipped; §7g-β shipped)
+
+1. **§3 morning verifications ALL CLOSED (forensics, ~10:50–11:10Z):** ①heal run `29296621701`
+   ended CANCELLED at 04:37Z but that was its OWN `timeout-minutes: 165` (job executed exactly
+   165m15s — the "+15s past a round cap" signature), on the extended-estimates tail AFTER every
+   lane healed; NOT an eviction. Two subsequent scheduled core runs (03:37, 06:26) succeeded
+   end-to-end = the ECMWF wind/pressure refactor is live-proven. ②No new `startedAt: null`
+   evictions overnight. ③Precompute runs 05:55 + 09:28 = **29.9 / 23.1 min** under the 110 cap;
+   the 09:28 logs show pre-warm 107/107 boxes in ~18 min = CMEMS recovered, the `ce741b0e`
+   degradation bounds are in place but UNEXERCISED (armed, never tripped). DHM 10:42Z success.
+2. **`b856b393` CONCURRENCY GROUP SPLIT (the §0.8 fast-follow — eviction-class kill):**
+   forecast-ingest.yml → group `forecast-ingest-core`, forecast-ingest-pilots.yml →
+   `forecast-ingest-pilots`. Safe because merge-on-upload reconcile covers saves (`51cdb703`)
+   AND prunes (`ce741b0e`). Revert = both groups back to `forecast-ingest`; do NOT instead set
+   `MANIFEST_MERGE_ON_UPLOAD=0` while split (restores the clobber class). **WATCH ITEM: the
+   first live core/pilots overlap** — pilots cron 11:45Z fires while the 10:11Z core run
+   executes; verify pilots STARTS (no queue), both runs' logs show "Manifest reconciliation
+   folded in N" lines, all lanes ok after, tile probes still resolve.
+3. **`bea90d8f` §7g-β SAME-PRODUCT COMMIT SHORT-CIRCUIT shipped (queue #3):** new pure module
+   `marineCommitShortCircuit.js` + wire-in in `commitMarineData` — skips a commit ONLY when
+   provably redundant: same model/layer/hour/productId, same **run_time** (the data-revision
+   component whose absence falsified §4.5 dedup; now carried through BOTH grid mappers — GFS/
+   ICON `mapNormalizedGridToWebGL` + the EURO Copernicus mapper), same rating/stale flavor,
+   resident bounds CONTAIN the incoming clip, incoming not finer-sampled, commit ledger still
+   points at the resident (nulled ledger = recovery hatch = commit passes). Kill:
+   `__RAW_DISABLE_COMMIT_SHORT_CIRCUIT__=true`. Telemetry: counter `commitShortCircuit`,
+   `__MARINE_COMMIT_SHORT_CIRCUIT__`, ring `commit_short_circuit`. 14 goldens.
+   **LIVE-VERIFIED** (local vs prod, FL): mid-tier zoom/pan fired the skip on
+   `gfs_marine_waves_global_mid_…` with run_time threaded; zoom-out to z4.6 committed 37×17
+   global_coarse normally (skip idle across tier changes). Baselines now **FE 932/932**.
+
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
 (map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
