@@ -106,10 +106,14 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
    forecast-ingest.yml → group `forecast-ingest-core`, forecast-ingest-pilots.yml →
    `forecast-ingest-pilots`. Safe because merge-on-upload reconcile covers saves (`51cdb703`)
    AND prunes (`ce741b0e`). Revert = both groups back to `forecast-ingest`; do NOT instead set
-   `MANIFEST_MERGE_ON_UPLOAD=0` while split (restores the clobber class). **WATCH ITEM: the
-   first live core/pilots overlap** — pilots cron 11:45Z fires while the 10:11Z core run
-   executes; verify pilots STARTS (no queue), both runs' logs show "Manifest reconciliation
-   folded in N" lines, all lanes ok after, tile probes still resolve.
+   `MANIFEST_MERGE_ON_UPLOAD=0` while split (restores the clobber class). **FIRST LIVE OVERLAP
+   VERIFIED ✅ (14:15–15:5xZ):** pilots 29334202706 started at cron with ZERO queue
+   (created==started); core 29340035558 entered execution instantly WHILE pilots ran; both
+   completed SUCCESS. Fold-ins BOTH directions during the concurrent window (pilots log 14:28/
+   14:33/14:48 = 2–16 core entries; core log 14:22/14:29/14:47 = 64/22/24 pilots entries) —
+   plus steady 4-entry fold-ins all run long = the SERVE BOX's dynamic-page registrations
+   (THREE concurrent manifest writers, all reconciled). Post-overlap: health overall=ok, tiles
+   from all three lanes resolve at the current frame. **The eviction class is dead.**
 3. **`bea90d8f` §7g-β SAME-PRODUCT COMMIT SHORT-CIRCUIT shipped (queue #3):** new pure module
    `marineCommitShortCircuit.js` + wire-in in `commitMarineData` — skips a commit ONLY when
    provably redundant: same model/layer/hour/productId, same **run_time** (the data-revision
