@@ -1,10 +1,11 @@
 /**
  * spotRatingsCdn.test.js — the CDN lane's pure selectors must mirror the backend's
  * select_precomputed / select_precomputed_laddered exactly (parity rule: same frames, same
- * tolerance ladder, same bbox semantics), plus the cache-busted URL and the object cache.
+ * tolerance ladder, same bbox semantics), plus the scoped-RLS URL, the anon-key headers, and
+ * the object cache.
  */
 import {
-  publicRatingsUrl, parseValidTimeMs, selectPrecomputedFrame, selectPrecomputedLaddered,
+  scopedRatingsUrl, parseValidTimeMs, selectPrecomputedFrame, selectPrecomputedLaddered,
   fetchPublicRatingsObject, ratingsCdnEnabled, __resetRatingsCdnCacheForTests,
   CB_BUCKET_MS,
 } from './spotRatingsCdn';
@@ -22,21 +23,21 @@ function frame(model, validTime, spots) {
 const IN_SPOT = { spot_id: 'in', latitude: 26.0, longitude: -80.0, score: 50, level: 'fair' };
 const OUT_SPOT = { spot_id: 'out', latitude: 40.0, longitude: -80.0, score: 70, level: 'good' };
 
-describe('publicRatingsUrl', () => {
-  it('builds the public-object URL cache-busted on the coarse time bucket', () => {
-    const a = publicRatingsUrl('https://x.supabase.co/', 10 * CB_BUCKET_MS);
-    expect(a).toBe(`https://x.supabase.co/storage/v1/object/public/weather-public/spot_ratings/latest.json?cb=10`);
+describe('scopedRatingsUrl', () => {
+  it('builds the RLS-scoped authenticated-endpoint URL cache-busted on the coarse time bucket', () => {
+    const a = scopedRatingsUrl('https://x.supabase.co/', 10 * CB_BUCKET_MS);
+    expect(a).toBe('https://x.supabase.co/storage/v1/object/authenticated/weather-products/spot_ratings/latest.json?cb=10');
   });
 
   it('is STABLE within a bucket and advances across buckets (bounded edge staleness)', () => {
     const t0 = 42 * CB_BUCKET_MS;
-    expect(publicRatingsUrl('https://x.co', t0)).toBe(publicRatingsUrl('https://x.co', t0 + CB_BUCKET_MS - 1));
-    expect(publicRatingsUrl('https://x.co', t0)).not.toBe(publicRatingsUrl('https://x.co', t0 + CB_BUCKET_MS));
+    expect(scopedRatingsUrl('https://x.co', t0)).toBe(scopedRatingsUrl('https://x.co', t0 + CB_BUCKET_MS - 1));
+    expect(scopedRatingsUrl('https://x.co', t0)).not.toBe(scopedRatingsUrl('https://x.co', t0 + CB_BUCKET_MS));
   });
 
   it('returns null without a supabase base URL (→ endpoint fallback, not a crash)', () => {
-    expect(publicRatingsUrl('', Date.now())).toBeNull();
-    expect(publicRatingsUrl(null, Date.now())).toBeNull();
+    expect(scopedRatingsUrl('', Date.now())).toBeNull();
+    expect(scopedRatingsUrl(null, Date.now())).toBeNull();
   });
 });
 
@@ -110,59 +111,74 @@ describe('parseValidTimeMs', () => {
 
 describe('fetchPublicRatingsObject — cache + failure semantics', () => {
   const VALID = obj([frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT])]);
+  const CFG = { supabaseUrl: 'https://x.co', anonKey: 'anon-jwt' };
 
   beforeEach(() => {
     __resetRatingsCdnCacheForTests();
-    window.__RAW_ENABLE_RATINGS_CDN__ = true;   // the lane is OPT-IN (pending exposure decision)
+    delete window.__RAW_DISABLE_RATINGS_CDN__;
     global.fetch = jest.fn();
   });
 
-  afterEach(() => {
-    delete window.__RAW_ENABLE_RATINGS_CDN__;
+  it('is ENABLED by default (scoped-RLS design user-approved 2026-07-14)', () => {
+    expect(ratingsCdnEnabled()).toBe(true);
   });
 
-  it('fetches once per cache window and dedups concurrent callers', async () => {
+  it('fetches once per cache window with the anon key headers and dedups concurrent callers', async () => {
     global.fetch.mockResolvedValue({ ok: true, json: async () => VALID });
     const [a, b] = await Promise.all([
-      fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' }),
-      fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' }),
+      fetchPublicRatingsObject(CFG),
+      fetchPublicRatingsObject(CFG),
     ]);
-    const c = await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' });
+    const c = await fetchPublicRatingsObject(CFG);
     expect(a).toEqual(VALID);
     expect(b).toBe(a);
     expect(c).toBe(a);
     expect(global.fetch).toHaveBeenCalledTimes(1);
+    const [url, opts] = global.fetch.mock.calls[0];
+    expect(url).toContain('/storage/v1/object/authenticated/weather-products/spot_ratings/latest.json?cb=');
+    expect(opts.headers).toEqual({ apikey: 'anon-jwt', Authorization: 'Bearer anon-jwt' });
   });
 
   it('resolves null (never rejects) on HTTP failure and negative-caches briefly', async () => {
-    global.fetch.mockResolvedValue({ ok: false, status: 404 });
-    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
-    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    global.fetch.mockResolvedValue({ ok: false, status: 400 });
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
     expect(global.fetch).toHaveBeenCalledTimes(1);          // negative-cached, no hammering
   });
 
   it('resolves null on a malformed object (no frames array)', async () => {
     global.fetch.mockResolvedValue({ ok: true, json: async () => ({ hello: 'world' }) });
-    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
   });
 
   it('resolves null on network rejection', async () => {
     global.fetch.mockRejectedValue(new TypeError('Failed to fetch'));
-    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
   });
 
-  it('the lane is OFF BY DEFAULT — no opt-in flag, no request (pending exposure decision)', async () => {
-    delete window.__RAW_ENABLE_RATINGS_CDN__;
+  it('kill switch disables the lane entirely', async () => {
+    window.__RAW_DISABLE_RATINGS_CDN__ = true;
     expect(ratingsCdnEnabled()).toBe(false);
-    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(await fetchPublicRatingsObject(CFG)).toBeNull();
     expect(global.fetch).not.toHaveBeenCalled();
   });
 
-  it('no supabase URL configured → null without fetching (endpoint fallback carries)', async () => {
+  it('missing anon key → null without fetching (endpoint fallback carries)', async () => {
+    const saved = process.env.REACT_APP_SUPABASE_ANON_KEY;
+    delete process.env.REACT_APP_SUPABASE_ANON_KEY;
+    try {
+      expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      if (saved !== undefined) process.env.REACT_APP_SUPABASE_ANON_KEY = saved;
+    }
+  });
+
+  it('missing supabase URL → null without fetching (endpoint fallback carries)', async () => {
     const saved = process.env.REACT_APP_SUPABASE_URL;
     delete process.env.REACT_APP_SUPABASE_URL;
     try {
-      expect(await fetchPublicRatingsObject({ supabaseUrl: '' })).toBeNull();
+      expect(await fetchPublicRatingsObject({ anonKey: 'anon-jwt' })).toBeNull();
       expect(global.fetch).not.toHaveBeenCalled();
     } finally {
       if (saved !== undefined) process.env.REACT_APP_SUPABASE_URL = saved;

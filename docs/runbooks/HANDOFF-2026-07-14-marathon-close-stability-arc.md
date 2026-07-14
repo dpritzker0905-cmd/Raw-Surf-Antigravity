@@ -37,6 +37,26 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
 4. **Health snapshot 01:17Z:** DHM correctly PAGING on wind/weather lanes (8.3–9.9h, all six)
    — the deaf-spot fix working as designed; marine + ratings lanes ok. The `-2.7h` ratings age
    in that run predates the `42522d12` deploy by one minute (clamp not yet live) — not a bug.
+5. **~02:30Z USER APPROVED the CDN lane as SCOPED RLS (no public bucket)** — the exposure
+   question resolved in favor of the tighter design: storage policy
+   `anon read spot_ratings latest only` applied to prod+dev (in-repo record:
+   `supabase_scripts/storage_rls_spot_ratings_scoped_read.sql`), backend mirror machinery
+   REMOVED (the normal L2 upload is the CDN source now), frontend fetches
+   `/storage/v1/object/authenticated/weather-products/spot_ratings/latest.json` with the anon
+   key, lane **DEFAULT ON** (kill `__RAW_DISABLE_RATINGS_CDN__` window/localStorage or build
+   `REACT_APP_RATINGS_CDN=0`). **LIVE-VERIFIED end-to-end** (local frontend against prod):
+   FL 85/85 + SoCal 32 + Japan 10 spots rated `src=precomputed_cdn`, **1 storage fetch,
+   0 `/api/weather/spot-ratings` calls total**; anon denied on manifest.json/siblings/keyless.
+   The user also asked for the existing public buckets to be notated for securing →
+   `SECURITY-REVIEW-2026-07-14-public-storage-buckets.md` (P1 = chat_media/crew_chat private
+   content world-readable; step-1 quick win = stop `create_bucket(public: True)` defaults in
+   uploads/core.py + media_upload.py + bucket-allowlist health check; NOT executed — notation).
+6. **§3.3 ANSWERED: 75 min has NO headroom** — precompute run `29297471819` cancelled at
+   75m15s (second consecutive timeout at a second consecutive cap; first checkpoint 2m50s in,
+   then ~72 min inside one model — CMEMS-throttle shape). Timeout raised 75→110 with a
+   documented escalation bound (past ~100 min the fix is per-FRAME checkpoints or dropping
+   the '3' offset, not a bigger cap). Ratings lane stayed servable throughout = checkpoint
+   architecture doing its job.
 
 ## §1 WHAT SHIPPED (14 commits, each live-verified unless marked)
 

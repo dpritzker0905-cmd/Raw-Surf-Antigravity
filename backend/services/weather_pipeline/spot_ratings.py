@@ -22,13 +22,13 @@ from services.weather_pipeline.surf_rating import compute_surf_rating
 logger = logging.getLogger(__name__)
 
 KT_TO_MS = 0.514444
+# CDN lane (2026-07-14, queue #2, USER-APPROVED scoped-RLS design): this one object is anonymously
+# READABLE via a storage RLS policy pinned to exactly this key (migration
+# anon_read_spot_ratings_latest_only; bucket stays private, every sibling stays service-role-only).
+# The frontend fetches it straight off the Supabase CDN (spotRatingsCdn.js) — zero serve-box
+# involvement on the precomputed path. RENAMING THIS KEY silently breaks that policy + the frontend.
 SPOT_RATINGS_L2_KEY = "spot_ratings/latest.json"
 SPOT_RATINGS_SCHEMA_VERSION = 1
-# CDN lane (2026-07-14, next-phase queue #2): the ratings object is public-shaped JSON (no secrets,
-# no per-user data), mirrored to a PUBLIC bucket so the frontend fetches it straight off the Supabase
-# CDN — zero serve-box involvement for the precomputed path. The private weather-products copy stays
-# the serve-box read + live-fallback source, so the mirror is purely additive.
-SPOT_RATINGS_PUBLIC_BUCKET = "weather-public"
 
 
 def spot_confidence(accuracy_flag, is_verified_peak) -> str:
@@ -226,49 +226,11 @@ def build_l2_object(frames) -> dict:
 
 def upload_spot_ratings_l2(store, obj) -> None:
     """Write the precomputed object to Supabase Storage L2 (reuses the store's REST upload — same path/creds
-    as the grid products, so it works on the ingest runner with only the Storage service key), then mirror it
-    to the PUBLIC bucket for the frontend's CDN lane. The mirror is best-effort: any failure leaves the
-    private copy (the serve-box path) exactly as before.
-    DEFAULT OFF (2026-07-14): flipping SPOT_RATINGS_PUBLIC_MIRROR=1 creates a publicly-readable bucket —
-    a user-level exposure decision that was raised and left PENDING; do not default this on without it."""
+    as the grid products, so it works on the ingest runner with only the Storage service key). This single
+    upload IS the CDN lane's source too: the scoped RLS policy (see SPOT_RATINGS_L2_KEY) makes exactly this
+    object anonymously readable — no mirror, no second bucket."""
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
     store._upload_to_supabase(SPOT_RATINGS_L2_KEY, data)
-    if os.environ.get("SPOT_RATINGS_PUBLIC_MIRROR", "0") == "1":
-        _upload_public_mirror(SPOT_RATINGS_L2_KEY, data)
-
-
-def _upload_public_mirror(key: str, data: bytes) -> bool:
-    """Best-effort upsert of a public-shaped JSON blob into the public bucket (auto-creates the bucket on
-    first use). max-age 60: the object mutates in place, so edges must refresh within a minute — the
-    frontend additionally cache-busts on a coarse time bucket (spotRatingsCdn.js), which also defeats any
-    edge copy uploaded under an older policy. Never raises."""
-    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
-    api_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
-    if not base or not api_key:
-        return False
-    try:
-        import requests
-        headers = {"Authorization": f"Bearer {api_key}", "apikey": api_key,
-                   "Content-Type": "application/json", "x-upsert": "true", "cache-control": "60"}
-        url = f"{base}/storage/v1/object/{SPOT_RATINGS_PUBLIC_BUCKET}/{key}"
-        resp = requests.post(url, headers=headers, data=data, timeout=30)
-        if resp.status_code == 404 and "Bucket not found" in resp.text:
-            requests.post(f"{base}/storage/v1/bucket",
-                          headers={"Authorization": f"Bearer {api_key}", "apikey": api_key,
-                                   "Content-Type": "application/json"},
-                          data=json.dumps({"id": SPOT_RATINGS_PUBLIC_BUCKET,
-                                           "name": SPOT_RATINGS_PUBLIC_BUCKET, "public": True}),
-                          timeout=15)
-            resp = requests.post(url, headers=headers, data=data, timeout=30)
-        if resp.status_code in (200, 201):
-            logger.info(f"[spot-ratings] public CDN mirror OK: {key} ({len(data)} bytes)")
-            return True
-        logger.warning(f"[spot-ratings] public CDN mirror failed (private lane unaffected): "
-                       f"HTTP {resp.status_code}: {resp.text[:200]}")
-        return False
-    except Exception as e:
-        logger.warning(f"[spot-ratings] public CDN mirror failed (private lane unaffected): {e}")
-        return False
 
 
 _l2_cache = {"obj": None, "ts": 0.0}

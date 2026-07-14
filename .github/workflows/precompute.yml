@@ -41,7 +41,13 @@ jobs:
     # cap is also no longer catastrophic: the checkpoint merge-upload (run_spot_ratings_precompute)
     # lands each model's frames as it completes, so a timeout costs the TAIL models one cycle, not
     # the whole lane (the all-or-nothing loss that froze the lane at frame 12:00Z for 9h on 07-13).
-    timeout-minutes: 75
+    # 75 → 110 (2026-07-14, §3.3 headroom answer): run 29297471819 was CANCELLED at exactly 75m15s
+    # — second consecutive timeout at a second consecutive cap. Its trace: first checkpoint landed
+    # 2m50s in, then ~72 min inside the next model without completing (CMEMS-throttle shape). 110
+    # keeps 130 min clear of the 240-min cron spacing (own concurrency group, cancel-in-progress
+    # false → worst case one queued run, never a cascade). If a run exceeds ~100 min the fix is
+    # per-FRAME checkpoints or dropping the '3' offset — not a bigger cap.
+    timeout-minutes: 110
     steps:
       - uses: actions/checkout@v4
 
