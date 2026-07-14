@@ -251,6 +251,31 @@ window (per-hour resolve × 48 too slow; "Fetch failed" in user logs; direct-to-
 = 4.1 s OK). Pre-existing heaviness — fix candidates: smaller series pages for EURO far tail,
 or per-page hour cap. BE 722/2928, FE 949/949.
 
+## §0g EURO FAR-TAIL SERIES PAGING — the §0f(3) notation CLOSED (`0d2622f5`, late session 07-14)
+**ROOT MEASURED (direct-to-Render, FL regional viewport, 48-frame far-tail page, cold):** two
+STACKING per-frame costs — surf=1 adds ~0.26s/frame (rating transform, ALL models) and EURO adds
+~0.2s/frame (per-hour L2 resolve vs GFS's cached re-slice). Matrix: GFS swell **1.8s** / GFS surf
+**14.4s** / EURO swell **10.9s** / EURO surf **23.1s** (warm 10.3s). Netlify's /api/* proxy cuts
+at ~26s, so the stacked class survived only on an idle box — any contention = "Fetch failed" and
+the client caches ZERO frames. The backend's own deadline was 35s, BEYOND the window: a slow page
+was guaranteed a TOTAL loss (proxy kill) instead of a partial one. NOT EURO-far-tail-specific —
+that was just the worst cell of the matrix.
+**FIX (3 bounded changes):** ① FE per-cost-class page spans (marineGridSeries.js
+`pageSpanHours`): EURO-any-flavor or surf-any-model pages are 16 frames (48h span, ~8.5s worst
+cold ≈ 3× window headroom; 8 pages, +336h = its own tail page); GFS/ICON swell keeps 48-frame
+pages. Containment-fallback proximity guard now hour-range-based (page indexes are meaningless
+across span regimes); SERIES_MAX 32→48. ② FE 45s fetch timeout arms AFTER the concurrency slot —
+it was arming at call time, so tail-of-queue pages burned the budget WAITING and retried as
+spurious `timeout_45s` (observed live: 13 retries in one warm; zero post-fix). ③ BE
+`OVERALL_DEADLINE` 35→20s (env `GRID_SERIES_DEADLINE_S`) + `PER_HOUR_TIMEOUT_COLD` 25→16s, with
+`NETLIFY_PROXY_WINDOW_S=26` pinned by golden — the contended worst case now degrades to a
+PARTIAL page (client per-hour fallback covers the rest) instead of nothing.
+**VERIFIED:** FE 956/956 (7 new goldens `marineGridSeries.heavyPages.test.js`), BE 723/2928
+(+1 golden). Live (local FE → prod BE): GFS surf warm = 16-frame pages 8–10s each, ranges
+0..45/…/336 correct, misses 0, no retries. Post-deploy leg: EURO surf far-tail 16-frame page
+through the dev-site proxy + a deliberate 48-hour ask returning ≤~21s partial (deadline live).
+Tunables: `GRID_SERIES_DEADLINE_S`; FE spans are code constants (`HEAVY_PAGE_SPAN_HOURS`).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
