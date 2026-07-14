@@ -230,8 +230,12 @@ changes** · phys carried through both mappers + the useMarineWindData conform �
 DEFAULT-ON (kill `__RAW_RATING_MOTION_UNLOCK__=false`) · whole-feature kill
 `__RAW_DISABLE_ANIM_PHYS__=true` · pre-deploy fallback proven (no phys field → score fallback,
 visuals unchanged). BE 721/2928, FE 949/949. Telemetry: `__RAW_GPU__.anim.animPhys`.
-REMAINING: post-deploy visual A/B (rating on/off crest parity, z7–9, 3 models) — deploy timer
-armed at close.
+**A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
+score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
+animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
+(uniform fine crests over the whole ocean, band colored on top) — oversized/blocky crests,
+partial clearing, and the on/off identity gap all dead in one frame. EURO/ICON ride the same
+transform/encoder path (model-agnostic); user eyeball on those two = the remaining A/B leg.
 
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
