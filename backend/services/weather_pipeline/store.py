@@ -92,6 +92,98 @@ def dump_manifest_for_l2(manifest) -> bytes:
     manifest.written_by = _l2_writer_identity()
     return manifest.model_dump_json(indent=2).encode("utf-8")
 
+
+def _fetch_remote_manifest_products() -> Optional[list]:
+    """Fetch the CURRENT remote manifest.json's raw product list, bypassing any local process
+    cache — used by reconcile_manifest_products_for_upload to detect a concurrent writer's
+    registrations before we clobber them. None on any failure (caller treats that as 'no
+    concurrent writer visible, upload the local snapshot as-is' — the pre-fix behavior)."""
+    manifest_bytes = None
+    try:
+        from services.weather_pipeline.manifest_pointer import fetch_pointed_manifest
+        manifest_bytes = fetch_pointed_manifest()
+    except Exception:
+        manifest_bytes = None
+    if manifest_bytes is None:
+        sb = _get_supabase_storage()
+        if sb is None:
+            return None
+        base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+        key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+        if not base or not key:
+            return None
+        try:
+            import requests
+            resp = requests.get(
+                manifest_download_url(base, WEATHER_BUCKET),
+                headers={"Authorization": f"Bearer {key}", "apikey": key,
+                         "Cache-Control": "no-cache", "Pragma": "no-cache"},
+                timeout=15,
+            )
+            if resp.status_code != 200:
+                return None
+            manifest_bytes = resp.content
+        except Exception:
+            return None
+    try:
+        data = json.loads(manifest_bytes.decode("utf-8"))
+        return data.get("products") or []
+    except Exception:
+        return None
+
+
+def reconcile_manifest_products_for_upload(manifest) -> int:
+    """MANIFEST CONCURRENCY (2026-07-14, next-phase queue #1): manifest.json has no If-Match/CAS
+    precondition, so two ingest processes (core + pilots) racing the upload each re-serialize
+    their OWN full in-memory snapshot — whichever lands last silently erases every registration
+    the other made since its restore. That lost-update risk is the reason core+pilots have been
+    forced into one serial GH concurrency group (forecast-ingest-pilots.yml history) — congestion
+    in that shared group is the root of the pending-run eviction cascade.
+
+    Call immediately before every manifest.json upload: re-fetch the FRESH remote product list
+    and fold in any entry present there but absent from our own in-memory snapshot (i.e. a
+    concurrent writer's registration since our restore). Our own snapshot always wins on key
+    collisions (product_id) since it reflects the newest write for whatever slice we just
+    touched. Mutates manifest.products in place; returns the count folded in from the remote
+    side (0 = no concurrent writer detected, or reconciliation unavailable this call).
+
+    NOTE this narrows the corruption window from "the other process's entire run duration" down
+    to "the gap between this reconcile call and our upload landing" (one HTTP round trip on the
+    process's serial _manifest_executor) — it is NOT full compare-and-swap, so a same-instant
+    double-write can still race. The three prune_*_helper call sites (true deletions, not pure
+    registration) are NOT wired to this helper yet: folding in a remote entry there could
+    resurrect something a concurrent writer's prune just removed. Left as a fast-follow — low
+    severity, self-heals next cycle via the existing startup-hygiene / orphan-sweep guards.
+    Never raises: any failure leaves the local snapshot as the sole upload basis (pre-fix
+    behavior). Kill switch: MANIFEST_MERGE_ON_UPLOAD=0.
+    """
+    if os.environ.get("MANIFEST_MERGE_ON_UPLOAD", "1") == "0":
+        return 0
+    try:
+        remote_products = _fetch_remote_manifest_products()
+        if not remote_products:
+            return 0
+        from services.weather_pipeline.schemas import ManifestProduct
+        ours_keys = {(p.product_id or p.filename) for p in manifest.products if (p.product_id or p.filename)}
+        folded = []
+        for raw in remote_products:
+            pid = raw.get("product_id") or raw.get("filename")
+            if not pid or pid in ours_keys:
+                continue
+            try:
+                folded.append(ManifestProduct.model_validate(raw))
+            except Exception:
+                continue
+        if folded:
+            manifest.products = manifest.products + folded
+            logger.info(f"[Product Store] Manifest reconciliation folded in {len(folded)} "
+                        f"concurrent-writer entries before upload.")
+        return len(folded)
+    except Exception as e:
+        logger.warning(f"[Product Store] Manifest reconciliation skipped (upload proceeds with local snapshot): {e}")
+        return 0
+
+
 def _get_supabase_storage():
     global _supabase_client, _bucket_created_checked
     if _supabase_client is not None:
