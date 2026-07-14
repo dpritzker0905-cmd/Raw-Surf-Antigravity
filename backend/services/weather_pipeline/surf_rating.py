@@ -381,6 +381,11 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
             if not coastal:
                 if hasattr(vec, "is_valid"):
                     vec.is_valid = False
+                # §0e ANIM-PHYS: the masked cell keeps its honest speed, but carry it in
+                # phys_speed too so the frontend has ONE uniform honest-height field across
+                # every cell the transform touched (rated AND masked).
+                if hasattr(vec, "phys_speed"):
+                    vec.phys_speed = sp
                 n_masked += 1
                 continue
         try:
@@ -434,6 +439,11 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
         # Encode score/10 into the height channel: the marine texture packs height as clamp(h/10,0,1), and the
         # shader recovers the score as waveHeight*10 -> getRatingColor(score). Keeps the existing encode/decode
         # untouched (the rating overlay is just a different colormap on the same 0-10 channel).
+        # §0e ANIM-PHYS (2026-07-14): preserve the HONEST height BEFORE the score overwrite —
+        # the frontend animates crest size/drift from phys_speed so animations are identical
+        # rating-on/off (the score channel only ever colors the band).
+        if hasattr(vec, "phys_speed"):
+            vec.phys_speed = sp
         vec.speed = round(float(score) / 10.0, 4)
         if hasattr(vec, "rating_level"):
             vec.rating_level = level

@@ -114,6 +114,10 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         direction: layerData?.direction !== undefined ? layerData.direction : undefined,
         isOcean: v.isOcean,
         dirConfidence,
+        // §0e anim-phys: this conform is the LAST rebuild before the engine (explicit field
+        // list — the known flag-eating mirror), so the honest height must be carried here too.
+        phys_speed: typeof v.phys_speed === 'number' ? v.phys_speed
+          : (layerData && typeof layerData.phys_speed === 'number' ? layerData.phys_speed : undefined),
         [activeMarineLayer]: layerData
       };
     });

@@ -52,6 +52,8 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       height,
       direction,
       isOcean,
+      // §0e anim-phys: honest height on rating grids — mirrors the GFS/ICON mapper.
+      phys_speed: typeof v.phys_speed === 'number' ? v.phys_speed : undefined,
       waves: layer === 'waves' ? componentUV : zeroVec,
       swell_1: layer === 'swell_1' ? componentUV : zeroVec,
       swell_2: layer === 'swell_2' ? componentUV : zeroVec,

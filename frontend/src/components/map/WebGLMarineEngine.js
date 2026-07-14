@@ -1486,7 +1486,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     // Overlay on unit 4 (fallback-bind the base mask so the sampler is always complete).
     bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 4);
-    bindTexture(gl, this._waveData.u_waveTexture, 0);
+    // §0e (2026-07-14): the HEATMAP colors from the score variant on rating grids (band
+    // colormap unchanged) while draw/advect keep the honest main texture — animations are
+    // identical rating-on/off. Whenever the encoder packed a score texture the heatmap MUST
+    // use it (the main texture is honest heights then). The feature kill switch lives at the
+    // ENCODER (__RAW_DISABLE_ANIM_PHYS__ → no score texture, score back in the shared channel).
+    bindTexture(gl, this._waveData.u_waveScoreTexture || this._waveData.u_waveTexture, 0);
     bindTexture(gl, this._waveData.u_chlorophyllTexture, 1);
     bindTexture(gl, this._waveData.u_bathymetryTexture, 2);
     bindTexture(gl, this._waveData.u_oceanMaskTexture, 3);
@@ -1635,13 +1640,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // coastal edges) the wash already rejects. Tune live: __RAW_CREST_LAND_THRESH__ (0.3 = legacy).
       const _crestLandThresh = (typeof window !== 'undefined' && Number.isFinite(+window.__RAW_CREST_LAND_THRESH__)) ? +window.__RAW_CREST_LAND_THRESH__ : 0.5;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_crestLandThreshold'), _crestLandThresh);
-      // §4.2 MOTION-UNLOCK (ship OFF, user A/B via window.__RAW_RATING_MOTION_UNLOCK__ = true):
-      // in rating mode lift crest land checks to max(mask.r, mask.g) — g is the encoder's
-      // motion-water channel — so crests ride the real swell over band-masked open ocean while
-      // the band COLORS stay untouched. 0 on non-rating commits/geography masks = byte-identical.
-      const _motionUnlock = (this._residentRatingMode === true && typeof window !== 'undefined' &&
-        window.__RAW_RATING_MOTION_UNLOCK__ === true) ? 1.0 : 0.0;
+      // §4.2 MOTION-UNLOCK (DEFAULT ON since 2026-07-14 §0e — the user directive "animations
+      // identical rating-on/off" IS the A/B verdict): in rating mode lift crest land checks to
+      // max(mask.r, mask.g) — g is the encoder's motion-water channel — so crests ride the real
+      // swell over band-masked open ocean while the band COLORS stay untouched. Kill:
+      // window.__RAW_RATING_MOTION_UNLOCK__ = false. 0 on non-rating commits = byte-identical.
+      const _motionUnlock = (this._residentRatingMode === true && (typeof window === 'undefined' ||
+        window.__RAW_RATING_MOTION_UNLOCK__ !== false)) ? 1.0 : 0.0;
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_motionUnlock'), _motionUnlock);
+      // §0e ANIM-PHYS (2026-07-14): on rating grids the encoder keeps the MAIN wave texture
+      // honest (animation reads it untouched) and packs the score into a heatmap-only variant
+      // (u_waveScoreTexture, bound at the heatmap site). This flag is telemetry-only here.
+      const _animPhys = !!(this._waveData && this._waveData.u_waveScoreTexture);
       // Viewport-truth overlay mask (unit 4; fallback-bound below so the sampler is always complete).
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskTexture'), 4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayMaskEnabled'), overlayOn ? 1.0 : 0.0);
@@ -1676,7 +1686,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           stratifiedReseed: (typeof window.__RAW_STRATIFIED_RESEED__ === 'number' ? window.__RAW_STRATIFIED_RESEED__ !== 0 : true),
           farzoomSizeFloor: _g('__RAW_FARZOOM_SIZE_FLOOR__', 0.55),
           endpointLandFade: _endpointLandFade === 1.0,  // crest ribbons dissolve toward land ends (kill: __RAW_DISABLE_ENDPOINT_LAND_FADE__)
-          motionUnlock: _motionUnlock === 1.0,          // §4.2: rating-mode crests riding motion-water (opt-in __RAW_RATING_MOTION_UNLOCK__)
+          motionUnlock: _motionUnlock === 1.0,          // §4.2: rating-mode crests riding motion-water (DEFAULT ON; kill __RAW_RATING_MOTION_UNLOCK__=false)
+          animPhys: _animPhys,                          // §0e: rating grid committed with the honest-height main texture + score side-texture
           blendWash: _blendBaseWash,
           legacyAnim: window.__RAW_ANIM_LEGACY__ === true   // true → Natural defaults killed (flat pre-2026-07 look)
         };
@@ -1816,8 +1827,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_particles_res'), this.particleRes);
       // §4.2 MOTION-UNLOCK — must match the DRAW pass exactly (advected positions and drawn
       // crests share land semantics, or particles die where crests would render and vice versa).
-      const _advMotionUnlock = (this._residentRatingMode === true && typeof window !== 'undefined' &&
-        window.__RAW_RATING_MOTION_UNLOCK__ === true) ? 1.0 : 0.0;
+      // DEFAULT ON since 2026-07-14 §0e (kill __RAW_RATING_MOTION_UNLOCK__ = false).
+      const _advMotionUnlock = (this._residentRatingMode === true && (typeof window === 'undefined' ||
+        window.__RAW_RATING_MOTION_UNLOCK__ !== false)) ? 1.0 : 0.0;
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_motionUnlock'), _advMotionUnlock);
 
       bindTexture(gl, null, 0);
@@ -2366,6 +2378,10 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
     }
     if (this._waveData.u_oceanMaskTexture && this._waveData.u_oceanMaskTexture !== this._cachedMaskTex) {
       safeDeleteTexture(gl, this._waveData.u_oceanMaskTexture, this);
+    }
+    // §0e: the score variant follows the same resident-ownership contract as the wave texture.
+    if (this._waveData.u_waveScoreTexture && this._waveData.u_waveScoreTexture !== this._residentScoreTex) {
+      safeDeleteTexture(gl, this._waveData.u_waveScoreTexture, this);
     }
     this._waveData = null;
   }

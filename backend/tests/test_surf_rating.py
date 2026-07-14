@@ -242,6 +242,43 @@ def test_rating_transform_grid_writes_score_masks_open_ocean_zeros_vectors():
     assert open_ocean.is_valid is False              # open ocean transparency-masked
 
 
+def test_rating_transform_preserves_honest_height_in_phys_speed():
+    """§0e ANIM-PHYS (2026-07-14, user directive "animations identical rating-on/off"): the
+    transform overwrites `speed` with score/10 (rated) or masks is_valid (open ocean) — both
+    cells must carry the ORIGINAL honest height in phys_speed so the frontend animates crest
+    size/drift from physics while the band colors from the score."""
+    from types import SimpleNamespace
+    from services.weather_pipeline.surf_rating import rating_transform_grid
+
+    def vec(speed, lat, lng):
+        return SimpleNamespace(speed=speed, period=12.0, lat=lat, lng=lng, u=1.0, v=1.0,
+                               is_valid=True, rating_level=None, phys_speed=None)
+
+    coastal = vec(1.5, 34.0, -120.0)
+    open_ocean = vec(2.0, 0.0, -140.0)
+    rating_transform_grid(
+        [coastal, open_ocean],
+        depth_fn=lambda la, ln: 30.0,
+        coastal_fn=lambda la, ln: la == 34.0,
+        width_fn=lambda la, ln: 0.0,
+        wind_fn=lambda la, ln: (5.0, 90.0),
+        shore_normal_fn=lambda la, ln: 270.0,
+    )
+    assert coastal.phys_speed == 1.5                 # honest height preserved beside the score
+    assert coastal.speed != 1.5                      # speed now carries score/10
+    assert open_ocean.phys_speed == 2.0              # masked cell carries it too (uniform field)
+
+
+def test_grid_vector_serialization_omits_phys_speed_when_none():
+    """§0e bloat guard: phys_speed must NOT serialize as null on the millions of non-surf cells
+    (every /grid response + every L2 product would grow otherwise)."""
+    from services.weather_pipeline.schemas import GridVector
+    plain = GridVector(lat=1.0, lng=2.0, speed=0.5).model_dump()
+    assert "phys_speed" not in plain
+    surf = GridVector(lat=1.0, lng=2.0, speed=0.3, phys_speed=1.5).model_dump()
+    assert surf["phys_speed"] == 1.5
+
+
 # ───────────────────── partition-aware factors (rating plan Step 3, seam) ─────────────────────
 def test_dominant_swell_period_recovers_groundswell_under_windsea():
     from services.weather_pipeline.surf_rating import dominant_swell_period

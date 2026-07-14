@@ -128,6 +128,8 @@ void main() {
   // component of all wave advection is inverted (e.g. ENE swell travels
   // WNW instead of WSW off Florida).
   waveVec.y = -waveVec.y;
+  // §0e (2026-07-14): waveData.b is ALWAYS the honest height now — on rating grids the encoder
+  // packs the score into a SEPARATE heatmap-only texture, so drift needs no channel switch here.
   float waveHeight = waveData.b * 10.0;
   // §4.2 motion-unlock: base land check lifts masked-ocean (g=motion-water) BEFORE the overlay
   // combine; the overlay carries geography truth, which EQUALS motion semantics, so it stays as-is.
@@ -407,6 +409,8 @@ void main() {
   // v5.5: Negate y for Mercator convention (geographic +v=north, Mercator +y=south).
   // Without this, the N-S component of wave travel direction is inverted.
   waveVec.y = -waveVec.y;
+  // §0e (2026-07-14): waveData.b is ALWAYS the honest height — score lives in a heatmap-only
+  // texture on rating grids, so crest size/alpha/density need no channel switch (see ADVECT_FS).
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
   // §4.2 motion-unlock: matches ADVECT_FS — base check lifts to motion-water BEFORE overlay combine.

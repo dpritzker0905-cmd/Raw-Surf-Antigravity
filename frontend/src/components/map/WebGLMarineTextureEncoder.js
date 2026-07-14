@@ -6,6 +6,7 @@ import {
   scaleUnitDirByConfidence,
   extrapolateOceanData,
   dilateDirectionField,
+  FloatArrayConstructor,
 } from './WebGLMarineFieldMath';
 import { getMarineGeoData } from './WebGLMarineGeoData';
 import {
@@ -121,6 +122,16 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   // geo derivation and its cache behave byte-identically. Kill/enable: __RAW_RATING_MOTION_UNLOCK__.
   const ratingMotion = !!waveGrid.ratingMode;
 
+  // §0e ANIM-PHYS (2026-07-14, user directive "animations identical rating-on/off"): rating
+  // grids carry the surf SCORE in `speed` (the band's color channel) and the HONEST height in
+  // `phys_speed` (backend rating_transform_grid). Build the honest field alongside: the MAIN
+  // wave texture drives draw/advect with physics while a score-only variant feeds the heatmap
+  // (bound at the engine's heatmap site). Kill: __RAW_DISABLE_ANIM_PHYS__ = true → no phys
+  // field, score stays in the shared channel — pre-§0e behavior end to end.
+  const animPhysOn = ratingMotion && !standalone &&
+    (typeof window === 'undefined' || window.__RAW_DISABLE_ANIM_PHYS__ !== true);
+  const hPhys = animPhysOn ? new FloatArrayConstructor(N) : null;
+
   // Reusable scratch buffers to avoid TypedArray allocation in hot path
   const scratch = getEncoderScratchBuffers(N);
   const uArr = scratch.uArr.subarray(0, N);
@@ -141,6 +152,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     if (!v) {
       oceanArr[i] = 0;
       if (motionArr) motionArr[i] = 0;
+      if (hPhys) hPhys[i] = 0;
       continue;
     }
     const hasSub = activeLayer !== 'waves' && v[activeLayer];
@@ -180,6 +192,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     vArr[i] = vVal;
     hArr[i] = height;
     pArr[i] = period;
+    // §0e: the honest height — phys_speed when the backend carried it (rated/masked cells),
+    // else `height` (untouched cells' speed IS honest). waveSub covers the conjoined mirror;
+    // mappers/conform carry the top-level field.
+    if (hPhys) {
+      const _pv = typeof v.phys_speed === 'number' ? v.phys_speed
+        : (typeof v.physSpeed === 'number' ? v.physSpeed
+           : (waveSub && typeof waveSub.phys_speed === 'number' ? waveSub.phys_speed : null));
+      hPhys[i] = _pv !== null ? _pv : height;
+    }
     oceanArr[i] = isOcean ? 1 : 0;
     // Motion-water: color-water OR a masked cell that still carries real field data. True LAND
     // arrives as is_valid=false with all-zero u/v/height/period, so it stays 0 on both channels.
@@ -216,6 +237,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     pArr.fill(0, numGridToProcess, N);
     oceanArr.fill(0, numGridToProcess, N);
     if (motionArr) motionArr.fill(0, numGridToProcess, N);
+    if (hPhys) hPhys.fill(0, numGridToProcess, N);
   }
 
   if (!encodeMarineTexture._forensicCount) encodeMarineTexture._forensicCount = 0;
@@ -236,7 +258,24 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
   const isGlobal = bounds ? !(bounds.east - bounds.west < 359.0) : false;
 
+  // §0e: extrapolateOceanData MUTATES ocean/u/v alongside h — the legacy call below must keep
+  // its historical side-effects byte-identical for the band (hArr carries the score on rating
+  // grids), so the honest field extrapolates on PRE-CALL clones instead of sharing state.
+  let _physClones = null;
+  if (hPhys) {
+    _physClones = {
+      u: FloatArrayConstructor.from(uArr),
+      v: FloatArrayConstructor.from(vArr),
+      p: FloatArrayConstructor.from(pArr),
+      o: Uint8Array.from(oceanArr),
+    };
+  }
+
   extrapolateOceanData(uArr, vArr, hArr, pArr, oceanArr, cols, rows, isGlobal);
+  if (hPhys && _physClones) {
+    extrapolateOceanData(_physClones.u, _physClones.v, hPhys, _physClones.p, _physClones.o, cols, rows, isGlobal);
+    _physClones = null;
+  }
 
   // LAND-AWARE SEAM COHERENCE (2026-07-03): fill DIRECTION into the zero-vector texels the pass above
   // doesn't reach, so the shaders' bilinear-|waveVec| coherence measure stops collapsing beside every
@@ -283,7 +322,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
   for (let i = 0; i < N; i++) {
     const u = uArr[i];
     const v_y = vArr[i];
-    const height = hArr[i];
+    // §0e: the MAIN texture packs the HONEST height on rating grids (animation channel);
+    // the score variant for the heatmap is built after the seam block below.
+    const height = hPhys ? hPhys[i] : hArr[i];
     const periodVal = pArr[i];
 
     let nu, nv;
@@ -402,8 +443,20 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     }
   }
 
+  // §0e: score variant for the heatmap — identical u/v/period bytes (post-seam-average), b =
+  // the score field (legacy hArr, extrapolated by the legacy call). Rating grids are never
+  // global (the transform is skipped on global extent) so no extra seam handling is needed.
+  let dataWaveScore = null;
+  if (hPhys) {
+    dataWaveScore = new Uint8Array(dataWave);
+    for (let i = 0; i < N; i++) {
+      dataWaveScore[i * 4 + 2] = Math.floor(Math.max(0.0, Math.min(1.0, hArr[i] / 10.0)) * 255);
+    }
+  }
+
   const allocatedTextures = [];
   let waveTex, chlTex, bathTex, maskTex;
+  let scoreTex = null;
   try {
     if (!standalone && engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
       waveTex = engine._residentWaveTex;
@@ -412,6 +465,18 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       updateTexture(gl, waveTex, dataWave, cols, rows);
       updateTexture(gl, chlTex, dataChl, cols, rows);
       updateTexture(gl, bathTex, dataBath, cols, rows);
+      // §0e score texture rides the same resident realloc-in-place contract.
+      if (dataWaveScore) {
+        if (engine._residentScoreTex) {
+          updateTexture(gl, engine._residentScoreTex, dataWaveScore, cols, rows);
+        } else {
+          engine._residentScoreTex = createTexture(gl, gl.LINEAR, dataWaveScore, cols, rows);
+        }
+        scoreTex = engine._residentScoreTex;
+      } else if (engine._residentScoreTex) {
+        safeDeleteTexture(gl, engine._residentScoreTex, engine);
+        engine._residentScoreTex = null;
+      }
     } else {
       if (!standalone && engine) {
         if (engine._residentWaveTex) {
@@ -423,6 +488,10 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
             window.__RAW_GPU__.gpuMemoryEstimate -= engine._texWidth * engine._texHeight * 12;
           }
         }
+        if (engine._residentScoreTex) {
+          safeDeleteTexture(gl, engine._residentScoreTex, engine);
+          engine._residentScoreTex = null;
+        }
       }
       waveTex = createTexture(gl, gl.LINEAR, dataWave, cols, rows);
       if (waveTex) allocatedTextures.push(waveTex);
@@ -430,10 +499,15 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       if (chlTex) allocatedTextures.push(chlTex);
       bathTex = createTexture(gl, gl.LINEAR, dataBath, cols, rows);
       if (bathTex) allocatedTextures.push(bathTex);
+      if (dataWaveScore) {
+        scoreTex = createTexture(gl, gl.LINEAR, dataWaveScore, cols, rows);
+        if (scoreTex) allocatedTextures.push(scoreTex);
+      }
       if (!standalone && engine) {
         engine._residentWaveTex = waveTex;
         engine._residentChlTex = chlTex;
         engine._residentBathTex = bathTex;
+        engine._residentScoreTex = scoreTex;
         engine._texWidth = cols;
         engine._texHeight = rows;
       }
@@ -692,6 +766,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     u_chlorophyllTexture: chlTex,
     u_bathymetryTexture: bathTex,
     u_oceanMaskTexture: maskTex,
+    // §0e: present ONLY on rating grids (anim-phys on) — the heatmap binds this for band
+    // colors while u_waveTexture stays honest for draw/advect.
+    u_waveScoreTexture: scoreTex,
     bounds
   };
 }

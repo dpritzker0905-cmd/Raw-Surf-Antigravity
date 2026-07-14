@@ -241,6 +241,10 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       direction,
       isOcean,
       dirConfidence,
+      // §0e anim-phys: the HONEST height on rating grids (speed carries the SCORE there) —
+      // explicit carry, this mapper drops unknown fields.
+      phys_speed: typeof v.phys_speed === 'number' ? v.phys_speed
+        : (typeof activeSource.phys_speed === 'number' ? activeSource.phys_speed : undefined),
       waves: getConjoinedLayer('waves'),
       swell_1: getConjoinedLayer('swell_1'),
       swell_2: getConjoinedLayer('swell_2'),

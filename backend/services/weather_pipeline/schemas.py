@@ -1,4 +1,4 @@
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_serializer
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
@@ -24,6 +24,19 @@ class GridVector(BaseModel):
     # direction is a residual with no stable truth (the (20,-120) Baja class). None = not exported
     # (regional/legacy products, non-marine layers). Consumers fade crest rendering, never the heatmap.
     dir_confidence: Optional[float] = None
+    # §0e ANIM-PHYS (2026-07-14): the HONEST wave height on surf=1 grids, set by
+    # rating_transform_grid before it overwrites `speed` with score/10 (rated cells) or masks
+    # is_valid (open-ocean cells) — the frontend animates crests from this while the rating
+    # band colors from the score. OMITTED from serialization when None (see _omit_none_extras)
+    # so non-surf grids/products carry zero extra bytes.
+    phys_speed: Optional[float] = None
+
+    @model_serializer(mode="wrap")
+    def _omit_none_extras(self, handler):
+        d = handler(self)
+        if isinstance(d, dict) and d.get("phys_speed") is None:
+            d.pop("phys_speed", None)
+        return d
 
 class NormalizedGrid(BaseModel):
     bounds: CoverageBounds
