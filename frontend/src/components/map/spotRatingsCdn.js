@@ -106,6 +106,30 @@ export function selectPrecomputedLaddered(obj, bbox, model, validTime) {
   return null;
 }
 
+/**
+ * PURE §1c discriminator (2026-07-14): TRUE only when the object PROVABLY carries frames for
+ * this model and the requested validTime sits beyond STALE_TOLERANCE_S of EVERY one of them —
+ * i.e. a scrub far outside the precomputed window, where the endpoint fallback would land on
+ * the 1-CPU live path for every step (7–22 s compute or a load-shed 503). The ladder's null
+ * alone can't tell this apart from "model missing from the object" (precompute failed that
+ * cycle), and THAT case must keep falling through to the endpoint — the server ladder + live
+ * path own it. Any uncertainty (no object, model absent, unparseable times) → false.
+ */
+export function isBeyondPrecomputeBound(obj, model, validTime) {
+  if (!obj || !Array.isArray(obj.frames)) return false;
+  const req = parseValidTimeMs(validTime);
+  if (req == null) return false;
+  let sawFrame = false;
+  for (const f of obj.frames) {
+    if (!f || f.model !== model) continue;
+    const ft = parseValidTimeMs(f.valid_time);
+    if (ft == null) continue;
+    sawFrame = true;
+    if (Math.abs(ft - req) <= STALE_TOLERANCE_S * 1000) return false;
+  }
+  return sawFrame;
+}
+
 // Module-level object cache: one download serves every viewport/model/scrub within the CB bucket.
 // An in-flight promise dedups concurrent callers; failures cache null briefly so a dropped policy
 // doesn't refetch on every pan (NEG_TTL_MS), then the endpoint fallback carries the feature.

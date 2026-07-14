@@ -12,7 +12,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { scoreToLevel, RATING_COLOR, RATING_LABEL } from './surfRating';
 import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
-import { fetchPublicRatingsObject, selectPrecomputedLaddered } from './spotRatingsCdn';
+import { fetchPublicRatingsObject, selectPrecomputedLaddered, isBeyondPrecomputeBound } from './spotRatingsCdn';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
 // Stable shared empty: computeSpotRatings' gate + the endpoint idle branch both need to return the SAME
@@ -262,6 +262,22 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
           if (controller.signal.aborted) return;
           const hit = cdnObj && selectPrecomputedLaddered(cdnObj, [bw, bs, be, bn], model, validTime);
           if (hit) { commit(hit.spots, hit.source); return; }
+          // §1c SKIP-BEYOND-BOUND (2026-07-14): the requested hour is PROVABLY outside the
+          // precomputed window for this model (frames exist, all beyond the stale bound) — the
+          // endpoint would hit the 1-CPU live path on every scrub step for data that exists
+          // nowhere precomputed. Skip it AND clear the accumulated endpoint ratings: they belong
+          // to a distant frame and would SHADOW the hour-correct grid-sample fallback (merged
+          // spreads endpoint over grid). Glyphs degrade to the grid sample — hour-accurate,
+          // already loaded, zero fetches; scrubbing back within the bound resumes the normal
+          // lanes on the next key change. Kill: __RAW_DISABLE_RATINGS_SKIP_BEYOND_BOUND__=true.
+          const _skipOff = typeof window !== 'undefined' && window.__RAW_DISABLE_RATINGS_SKIP_BEYOND_BOUND__ === true;
+          if (!_skipOff && isBeyondPrecomputeBound(cdnObj, model, validTime)) {
+            baseKeyRef.current = null;
+            setEndpointRatings((prev) => (prev && Object.keys(prev).length === 0 ? prev : {}));
+            writeSpotRatingsDiag({ status: 'skipped_beyond_bound', source: 'grid_fallback', lastValidTime: validTime, lastModel: model });
+            try { console.debug(`[spot-ratings] beyond precompute bound — endpoint SKIPPED, grid fallback covers · ${bbox} @ ${validTime}`); } catch (e) { /* noop */ }
+            return;
+          }
           // limit=160 (backend cap 200): a regional viewport can hold >80 spots (dense coasts like SoCal); 80
           // truncated the rated set → only SOME spots glyphed ("some but not all" report). 160 covers typical
           // regional views; the deterministic verified-peak-first order means the best spots are always included.

@@ -7,7 +7,7 @@
 import {
   scopedRatingsUrl, parseValidTimeMs, selectPrecomputedFrame, selectPrecomputedLaddered,
   fetchPublicRatingsObject, ratingsCdnEnabled, __resetRatingsCdnCacheForTests,
-  CB_BUCKET_MS,
+  CB_BUCKET_MS, isBeyondPrecomputeBound,
 } from './spotRatingsCdn';
 
 const FL_BBOX = [-82, 24, -79, 28];
@@ -106,6 +106,39 @@ describe('parseValidTimeMs', () => {
     expect(parseValidTimeMs('2026-06-28T21:00:00Z')).toBe(Date.UTC(2026, 5, 28, 21));
     expect(parseValidTimeMs('nope')).toBeNull();
     expect(parseValidTimeMs(null)).toBeNull();
+  });
+});
+
+describe('isBeyondPrecomputeBound — §1c skip-beyond-bound discriminator', () => {
+  const o = obj([
+    frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT]),
+    frame('GFS', '2026-06-29T00:00:00Z', [IN_SPOT]),
+    frame('EURO', '2026-06-28T21:00:00Z', [IN_SPOT]),
+  ]);
+
+  it('TRUE when frames exist for the model and the ask is beyond the stale bound of ALL of them', () => {
+    // 2026-06-29T12:00 is 12h past the newest GFS frame (bound 6h).
+    expect(isBeyondPrecomputeBound(o, 'GFS', '2026-06-29T12:00:00Z')).toBe(true);
+  });
+
+  it('FALSE within the stale bound of any frame (the ladder serves it — never skip)', () => {
+    expect(isBeyondPrecomputeBound(o, 'GFS', '2026-06-29T05:00:00Z')).toBe(false); // 5h past newest
+    expect(isBeyondPrecomputeBound(o, 'GFS', '2026-06-28T21:30:00Z')).toBe(false); // near exact
+  });
+
+  it('FALSE when the model has NO frames (precompute failed that cycle → endpoint must own it)', () => {
+    expect(isBeyondPrecomputeBound(o, 'ICON', '2026-06-29T12:00:00Z')).toBe(false);
+  });
+
+  it('FALSE on any uncertainty — no object, malformed frames, unparseable times', () => {
+    expect(isBeyondPrecomputeBound(null, 'GFS', '2026-06-29T12:00:00Z')).toBe(false);
+    expect(isBeyondPrecomputeBound({}, 'GFS', '2026-06-29T12:00:00Z')).toBe(false);
+    expect(isBeyondPrecomputeBound(o, 'GFS', 'garbage-time')).toBe(false);
+    expect(isBeyondPrecomputeBound(obj([frame('GFS', 'garbage', [IN_SPOT])]), 'GFS', '2026-06-29T12:00:00Z')).toBe(false);
+  });
+
+  it('scrubbing BACKWARD far before the oldest frame also reads as beyond-bound', () => {
+    expect(isBeyondPrecomputeBound(o, 'GFS', '2026-06-28T00:00:00Z')).toBe(true); // 21h before oldest
   });
 });
 
