@@ -250,6 +250,21 @@ The tier ladder has no rating-mode coarse fallback — candidate fixes: rating w
 global tier, retain the band layer through the global interlude, or a rating-mode no-downgrade
 hold. Also in those logs: EURO clip at 17×17 spanLng 4 (~0.24°!) = the DYNAMIC lane serving
 EURO fine — the pilot tiles will make this stable. START HERE next session for the visual arc.
+**REFINED DECODE (2026-07-14 ~00:30Z, gate archaeology in WebGLMarineEngine.js ~195-260):**
+a `ratingDowngrade` no-downgrade predicate ALREADY protects a rated resident from unrated
+commits while the Surf flag is ON (2026-07-12 round: "band activated then CLEARED") — the
+remaining leak is the **fractional-coverage release**: on zoom-out the rated clip covers <60%
+of the viewport → the guard correctly releases it (stranded-rectangle class, 07-04) → the
+UNRATED global commits → band forcedOff until a WIDER rating clip lands (seconds). So the fix
+is NOT another hold (would re-open stranding). Ranked:
+  (e) SUPPLY-SIDE: in rating mode, prefetch/commit the wider-viewport RATING clip BEFORE the
+      coverage release (rated→rated swap, no unrated interlude) — orchestrator/fetch lane,
+      overlaps §7g-β; the strongest fix.
+  (b) BAND RETENTION: keep drawing the last band texture through an unrated interlude while
+      the flag is ON at band-eligible spans — engine texture-lifecycle work; visual-only.
+DO NOT: extend ratingDowngrade to non-covering residents (re-opens 07-04 stranded rectangles).
+⚠️ Both paths are designated minefields (orchestrator / engine) — full-context session, ring
+instrumentation first, kill switch mandatory.
 
 ## §4g DEEP-AUDIT ROUND (2026-07-13 ~22-23Z, dev `ba894c3d`) — self-audit of the day's 8 ships
 **LIVE-VERIFIED WORKING:** stale ladder + checkpoint uploads (lane healed to `precomputed@0.2s`
