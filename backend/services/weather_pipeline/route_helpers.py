@@ -1,5 +1,6 @@
 import math
 import logging
+import os
 from datetime import datetime, timezone
 from typing import Optional, List, Tuple
 from fastapi import HTTPException
@@ -299,6 +300,39 @@ def filter_grid_to_bbox(product: NormalizedProduct, bbox_str: str) -> Normalized
                 res = min(diffs_lon)
         if res <= 0.0:
             res = 0.5  # fallback default resolution
+
+    # DATA-EXTENT CLAMP (2026-07-14, the dead-zone root): 262d37bc (June 15) padded the output
+    # lattice to the FULL requested window, filling positions beyond the product's data with
+    # is_valid=False placeholders and stamping the WINDOW as bounds/coverage. That was a
+    # stopgap for the pre-wash era (no partial-coverage fallback existed then); by July it
+    # actively MASKED the modern machinery — the frontend read the padded bounds as full
+    # coverage, the blend-both coarse wash never painted the dead area, and the no-downgrade
+    # guard kept the padded fine grid resident over honest coarser incomings (live 2026-07-14:
+    # animations dead east of the florida tile's -79 data edge while the grid claimed coverage
+    # to -76 — the user's "clamped animations over FL"). Clamp the window to the product's real
+    # lattice extent: INTERIOR holes keep the rectangular is_valid=False fill (WebGL needs
+    # rectangles); EXTERIOR padding is minted no more, so partial coverage is visible truth.
+    # Skipped for antimeridian-wrapping windows and ~global products (conservative — their
+    # extent math differs and global tiles bypass clipping anyway).
+    # Kill switch: GRID_CLIP_TO_DATA_EXTENT=0 restores the June-15 padding behavior.
+    if (os.environ.get("GRID_CLIP_TO_DATA_EXTENT", "1") != "0"
+            and west <= east and (orig_lons[-1] - orig_lons[0]) < 350.0):
+        _dw, _de = orig_lons[0], orig_lons[-1]
+        _ds, _dn = orig_lats[0], orig_lats[-1]
+        _cw, _ce = max(west, _dw), min(east, _de)
+        _cs, _cn = max(south, _ds), min(north, _dn)
+        if _cw > _ce or _cs > _cn:
+            # Window has NO intersection with real data — return the honest empty grid so the
+            # resolver's no-coverage/fallback machinery sees the truth instead of a dead pad.
+            cloned_product.grid.bounds = CoverageBounds(west=west, south=south, east=east, north=north)
+            cloned_product.grid.cols = 0
+            cloned_product.grid.rows = 0
+            cloned_product.grid.vectors = []
+            cloned_product.requested_bbox = bbox_str
+            cloned_product.served_bbox = f"{west:.4f},{south:.4f},{east:.4f},{north:.4f}"
+            cloned_product.coverage = cloned_product.grid.bounds
+            return cloned_product
+        west, east, south, north = _cw, _ce, _cs, _cn
 
     ref_lat = orig_lats[0]
     ref_lng = orig_lons[0]
