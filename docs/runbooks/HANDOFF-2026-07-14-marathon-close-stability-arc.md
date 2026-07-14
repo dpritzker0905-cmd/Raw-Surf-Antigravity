@@ -135,6 +135,24 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
    overlap watch pending), #2 CDN DONE, #3 §7g-β DONE, #4 §1c DONE → next = #5 BOLA (separate
    lane, read the 07-12 review first) + §0a a11y next-steps.
 
+## §0c FRAME-SKEW ROOT (user report ~13Z 07-14: "direction off in rating mode" + seam at -80 — FIXED `ab395503`)
+User symptoms decoded by live prod probes (full chain in the commit message): the surf-override
+lane's overlap ranking DISCARDED the time diff and kept the first candidate on ties → manifest
+order served **ask−3h systematically** for any surf viewport poking past a regional tile's edge;
+the pick re-seeded the 2° dynamic-page index (`get_cached_dynamic_product_helper`) labeled
+stale=False → self-perpetuating; pages east of the FL tile's -79 edge rode one frame behind the
+west pages (frames differ up to **41° in direction** = the perceived direction error AND the -80
+seam). Surf transform itself PRESERVES direction exactly (0.00 deltas — falsified as suspect).
+Fix: overlap stays primary, equal overlap breaks on smallest |Δt| (3 goldens incl. failing-first
+repro). Poisoned dynamic entries self-heal ≤30 min post-deploy via SWR revalidation.
+⚠️ OPEN (notated, separate arc): (1) SERVING HONESTY — /grid echoes the REQUESTED valid_time
+with stale=False even when a ±3h frame serves (this masked the skew for hours; frontend
+contracts depend on the echo — design before changing); (2) probes at lng ≈ -78.5 (inside the
+east dynamic page, outside the regional tile) served global_mid instead of the finer page —
+minor tier choice, worth a look; (3) residual seam class: animations still end at the committed
+grid/page edge over the coarse wash — same-frame now, so far less visible, but the §2b-style
+edge treatment (feather/animate-over-wash) remains the polish item.
+
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
 (map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
