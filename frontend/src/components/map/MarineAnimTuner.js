@@ -147,7 +147,7 @@ export default function MarineAnimTuner() {
     <div style={panel}>
       <div style={header} onMouseDown={onHeaderMouseDown} title="Drag to move">
         <span style={{ fontWeight: 600 }}>🌊 Marine Anim Tuner</span>
-        <button style={chevron} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} title={open ? 'Collapse' : 'Expand'}>{open ? '▾' : '▸'}</button>
+        <button style={chevron} onMouseDown={(e) => e.stopPropagation()} onClick={(e) => { e.stopPropagation(); setOpen(o => !o); }} title={open ? 'Collapse' : 'Expand'} aria-label={open ? 'Collapse marine animation tuner' : 'Expand marine animation tuner'} aria-expanded={open}>{open ? '▾' : '▸'}</button>
       </div>
       {open && (
         <div style={{ padding: '8px 10px 10px', maxHeight: '74vh', overflowY: 'auto' }}>

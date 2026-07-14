@@ -686,6 +686,7 @@ export var MapWeatherControls = ({
             <button
               key={m.id}
               onClick={() => handleModelClick(m)}
+              aria-pressed={activeModel === m.id}
               className={`flex-1 py-1 text-[10px] font-bold rounded-md transition-all ${activeModel === m.id ? 'bg-cyan-500 text-black' : `${chipBg} ${textMuted} ${btnHover}`}`}
             >
               {m.label}{m.locked && <Lock className="w-2.5 h-2.5 ml-0.5 inline opacity-70" />}
@@ -700,6 +701,7 @@ export var MapWeatherControls = ({
           <button
             type="button"
             onClick={toggleSurfMode}
+            aria-pressed={surfMode}
             title="Surf Rating overlay: colors spots + the coastal band by surf QUALITY (size + period + wind) instead of raw swell height. Governs spot glyphs even with no heatmap layer active."
             className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70 hover:opacity-100`}`}
           >
@@ -709,6 +711,7 @@ export var MapWeatherControls = ({
             type="button"
             onClick={toggleHeightUnit}
             title="Wave-height display unit (feet or meters)"
+            aria-label={heightUnit === 'm' ? 'Wave height unit: meters — switch to feet' : 'Wave height unit: feet — switch to meters'}
             className={`text-[9px] leading-none px-2 py-1 rounded-full border transition-colors ${textMuted} border-current opacity-70 hover:opacity-100`}
           >
             {heightUnit === 'm' ? 'm' : 'ft'} ⇄
@@ -723,6 +726,7 @@ export var MapWeatherControls = ({
               <button
                 key={layer.id}
                 onClick={() => onLayerToggle(layer.id)}
+                aria-pressed={isActive}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
               >
                 <Icon className={`w-3.5 h-3.5 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />
@@ -849,6 +853,7 @@ export var MapWeatherControls = ({
               <button
                 key={m.id}
                 onClick={() => handleModelClick(m)}
+                aria-pressed={activeModel === m.id}
                 className={`flex-1 py-2 text-xs font-bold rounded-xl border transition-all ${activeModel === m.id ? 'bg-cyan-500 text-black border-cyan-500 shadow-lg shadow-cyan-500/20' : `${chipBg} ${textMuted} border-transparent`}`}
               >
                 {m.label}{m.locked && <Lock className="w-3.5 h-3.5 ml-1.5 inline opacity-70" />}
@@ -862,6 +867,7 @@ export var MapWeatherControls = ({
             <button
               type="button"
               onClick={toggleSurfMode}
+              aria-pressed={surfMode}
               title="Surf Rating overlay: colors spots + the coastal band by surf QUALITY instead of raw swell height"
               className={`text-[11px] leading-none px-3 py-2 rounded-full border transition-colors ${surfMode ? 'bg-emerald-500/80 text-white border-emerald-400' : `${textMuted} border-current opacity-70`}`}
             >
@@ -871,6 +877,7 @@ export var MapWeatherControls = ({
               type="button"
               onClick={toggleHeightUnit}
               title="Wave-height display unit (feet or meters)"
+              aria-label={heightUnit === 'm' ? 'Wave height unit: meters — switch to feet' : 'Wave height unit: feet — switch to meters'}
               className={`text-[11px] leading-none px-3 py-2 rounded-full border transition-colors ${textMuted} border-current opacity-70`}
             >
               {heightUnit === 'm' ? 'm' : 'ft'} ⇄
@@ -886,6 +893,7 @@ export var MapWeatherControls = ({
                 <button
                   key={layer.id}
                   onClick={() => onLayerToggle(layer.id)}
+                  aria-pressed={isActive}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all shrink-0 ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
                 >
                   <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />

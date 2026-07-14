@@ -66,6 +66,7 @@ export var MapRightControls = ({
             onClick={onShowGPSGuide}
             className="absolute -bottom-1 -right-1 w-5 h-5 bg-yellow-500 hover:bg-yellow-400 rounded-full flex items-center justify-center text-black text-xs font-bold shadow-lg"
             title="GPS Help"
+            aria-label="GPS help"
             data-testid="gps-help-btn"
           >
             ?

@@ -32,7 +32,7 @@ var FeaturedPhotographersPanel = ({
             <Camera className="w-4 h-4 text-yellow-400" />
             Featured Photographers
           </h3>
-          <button onClick={onClose} className={`${textMuted} hover:text-cyan-500`}>
+          <button onClick={onClose} className={`${textMuted} hover:text-cyan-500`} aria-label="Close featured photographers">
             <X className="w-4 h-4" />
           </button>
         </div>

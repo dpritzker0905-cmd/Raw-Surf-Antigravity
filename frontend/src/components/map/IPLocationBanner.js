@@ -47,6 +47,7 @@ export var IPLocationBanner = ({
           onClick={onDismiss}
           className="p-1 hover:bg-white/10 rounded text-gray-500 hover:text-gray-300"
           title="Dismiss"
+          aria-label="Dismiss location banner"
         >
           <X className="w-3 h-3" />
         </button>
