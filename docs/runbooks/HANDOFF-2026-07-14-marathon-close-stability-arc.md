@@ -152,11 +152,20 @@ in 9 files; keyboard handling in only 2 files (ForecastWheel, RequestProCrewPane
   11 of 20 interactive map files have zero aria. Legends/tuner/truth-overlay panels unlabeled.
   The WebGL canvas itself is inherently visual — the accessible ALTERNATIVE is the spot
   list/drawer + rating text, which must therefore be fully accessible.
-- NEXT STEPS (not started): (1) glyph text equivalents in MapMarkerLayers; (2) label the
-  MapForecastOverlay controls; (3) sweep icon-only buttons for aria-label; (4) keyboard for
-  the legends/panels; (5) eslint-plugin-jsx-a11y in CI to hold the line (the rule's
-  enforcement arm). Tri-theme mandate note: beach mode contrast has never been contrast-ratio
-  audited — fold WCAG AA contrast into the theme rule when doing (5).
+- NEXT STEPS: ~~(1) glyph text equivalents in MapMarkerLayers~~ ✅ + ~~(2) label the
+  MapForecastOverlay controls~~ ✅ **DONE `79987764` (2026-07-14 midday, LIVE-VERIFIED):**
+  spot glyphs / cluster bubbles / photographer markers = real `<button>`s with aria-labels
+  carrying the rating text equivalent ("Playalinda Beach: Poor"; height+period when present),
+  detail card opens on keyboard FOCUS, visible focus rings; overlay header = button with
+  aria-expanded. Pure label builders + 10 goldens (`MapMarkerLayers.a11y.test.js`). TEST-INFRA
+  UNLOCK: `react-map-gl/maplibre` now jest-resolvable via moduleNameMapper →
+  `src/testMocks/reactMapGlMaplibre.js` — map components are jsdom-testable for the first time.
+  ⚠️ Automation-pane gotcha: native focus events are DEFERRED while the pane document is
+  unfocused (document.hasFocus()=false) — drive focus contracts by dispatching
+  `focusin`/`focusout` directly. Still open: (3) sweep icon-only buttons for aria-label;
+  (4) keyboard for the legends/panels; (5) eslint-plugin-jsx-a11y in CI to hold the line (the
+  rule's enforcement arm). Tri-theme mandate note: beach mode contrast has never been
+  contrast-ratio audited — fold WCAG AA contrast into the theme rule when doing (5).
 
 ## §1 WHAT SHIPPED (14 commits, each live-verified unless marked)
 
