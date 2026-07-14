@@ -53,9 +53,17 @@ DIR_TO_HEIGHT = {
 }
 
 try:
-    from _fetch_common import energy_mean_direction_lonspan      # script-by-path
+    from _fetch_common import energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf      # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_lonspan  # package context
+    from services._fetch_common import energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf  # package context
+
+# §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
+# wired 2026-07-15): CMEMS VMDR is a MEAN direction, and in bimodal water a mean is a meaningless
+# residual — the FE fades crest rendering below ~0.65 confidence, but only when the field is
+# present (absent → full confidence → EURO coarse crests rendered confidently WRONG at z4-7, the
+# 07-14 "waves going the wrong direction" report; GFS looked right because NOAA exports this).
+# The normalizer picks up "{direction_key}_confidence" generically. Kill: COPERNICUS_DIR_CONFIDENCE=0.
+DIR_CONFIDENCE_OM = "wave_direction_confidence"
 
 
 def _coarse_axis(lo, hi, step):
@@ -151,6 +159,7 @@ def fetch_global_coarse(payload):
                             if cop in nc.variables else None)
             # Longitudinal energy-mean window for direction vars: ±half-block in native columns.
             blockmean = os.environ.get("COPERNICUS_DIR_BLOCKMEAN", "1") != "0"
+            export_confidence = blockmean and os.environ.get("COPERNICUS_DIR_CONFIDENCE", "1") != "0"
             dlon = float(abs(band_lons[1] - band_lons[0])) if len(band_lons) > 1 else 0.083
             half_cols = max(1, int(round((resolution / 2.0) / max(dlon, 1e-6))))
             for lon in lons:
@@ -161,18 +170,28 @@ def fetch_global_coarse(payload):
                     a = arrs[om]
                     if a is None:
                         hourly[om] = [None] * len(times)
+                        if export_confidence and om == "wave_direction":
+                            hourly[DIR_CONFIDENCE_OM] = [None] * len(times)
                     elif blockmean and om in DIR_TO_HEIGHT and arrs.get(DIR_TO_HEIGHT[om]) is not None:
-                        vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
+                        if export_confidence and om == "wave_direction":
+                            vals, confs = energy_mean_direction_lonspan_conf(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
+                            hourly[DIR_CONFIDENCE_OM] = [round(float(c), 4) if c == c else None for c in confs]
+                        else:
+                            vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
                     else:
                         series = a[:, row, col]
                         hourly[om] = [_sanitize_om(om, x) for x in series]
+                        # point-sample path (blockmean off / height var missing): no windowed evidence
+                        if export_confidence and om == "wave_direction":
+                            hourly[DIR_CONFIDENCE_OM] = [None] * len(times)
                 points.append({
                     "latitude": float(lat), "longitude": float(lon),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
                     "__provider": "copernicus",
-                    "hourly_units": {"time": "iso8601", **{om: u for _, om, u in VARIABLE_MAP}},
+                    "hourly_units": {"time": "iso8601", **{om: u for _, om, u in VARIABLE_MAP},
+                                     **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,
                 })
             nc.close()

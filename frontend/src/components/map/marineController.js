@@ -201,10 +201,23 @@ export function prewarmZoomOutMarineGrid(model, hourOffset, bounds, activeLayer)
 // (2026-07-06: the early-return used to skip seeding, leaving the bridge baseless after an engine
 // clear — the "rectangle before the heatmap expands" zoom-out transient). Best-effort, never throws.
 // Kill: __RAW_DISABLE_COARSE_BRIDGE__. Telemetry: __MARINE_BRIDGE_SEED__ {count,lastFrom,lastAt}.
-function _stageCoarseBridgeSeed(g, m, activeLayer, from) {
+//
+// MODEL-SWITCH STALENESS (2026-07-15, user's ICON "animations but no heatmap under them"): the old
+// gate refused to stage while ANY base existed — after a model switch the engine still held the
+// PREVIOUS model's base, blend-both's same-model check rightly disengaged the wash, and this gate
+// then blocked the replacement forever (the user had to zoom far out so a world-coarse commit for
+// the new model landed organically). A base or pending seed only blocks staging when it MATCHES the
+// active (model, layer); a stale-identity base is treated as absent so the switch re-warms the wash.
+export function _coarseBaseMatches(o, m, activeLayer) {
+  return !!o && (o.__sourceModel || 'GFS') === (m || 'GFS') &&
+         (o.__componentLayer || 'waves') === (activeLayer || 'waves');
+}
+export function _stageCoarseBridgeSeed(g, m, activeLayer, from) {
   try {
     const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
-    if (eng && g && !eng._coarseBaseData && !eng._pendingCoarseBaseGrid &&
+    if (eng && g &&
+        !_coarseBaseMatches(eng._coarseBaseData, m, activeLayer) &&
+        !_coarseBaseMatches(eng._pendingCoarseBaseGrid, m, activeLayer) &&
         (typeof window === 'undefined' || window.__RAW_DISABLE_COARSE_BRIDGE__ !== true)) {
       if (!g.__sourceModel) g.__sourceModel = m;
       if (!g.__componentLayer) g.__componentLayer = activeLayer;
@@ -215,6 +228,21 @@ function _stageCoarseBridgeSeed(g, m, activeLayer, from) {
       }
     }
   } catch (e) { /* seed is best-effort */ }
+}
+
+// Re-warm the wash base ONLY when it is stale for the active (model, layer) — the CACHE-HIT
+// complement of the redirect-path prewarm calls (2026-07-15): a model/layer switch served from the
+// sibling-prewarmed cache returns before the redirect block, so the stale-base wedge persisted on
+// exactly the switches that were fast. Network cost is zero unless the base truly mismatches
+// (prewarmGlobalMarineGrid additionally dedups in-flight and serves cache-warm globals seed-only).
+function _rewarmWashBaseIfStale(m, hourOffset, bounds, activeLayer) {
+  try {
+    const eng = (typeof window !== 'undefined') && window.__MARINE_ENGINE__;
+    if (!eng) return;
+    if (_coarseBaseMatches(eng._coarseBaseData, m, activeLayer)) return;
+    if (_coarseBaseMatches(eng._pendingCoarseBaseGrid, m, activeLayer)) return;
+    prewarmGlobalMarineGrid(m, hourOffset, bounds, activeLayer);
+  } catch (e) { /* best-effort */ }
 }
 
 export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) {
@@ -252,7 +280,12 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
     Promise.resolve()
       .then(() => (m === 'ICON')
         ? fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer, 'ICON')
-        : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer))
+        : (m === 'EURO')
+          // EURO world-coarse is a manifest product like the others (decoupled era) but routes
+          // through the Copernicus client — the GFS-shaped default would cache a GFS grid under
+          // the EURO key (model poison). Added 2026-07-15 with the model-switch wash re-warm.
+          ? fetchBackendCopernicusGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, 'controller-prewarm', activeLayer)
+          : fetchBackendMarineGrid(_GLOBAL_BOUNDS, hourOffset, undefined, _GLOBAL_BOUNDS, activeLayer))
       .then((result) => {
         const g = result && result.grid;
         if (g && Array.isArray(g.vectors) && g.vectors.length > 0) {
@@ -579,6 +612,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
               sig.rows === (g.rows || 0) &&
               sig.vectorsLength === (g.vectors?.length || 0)) {
             _updateDiagnosticsOnCacheHit(exact.data, model || 'GFS', hourOffset, activeLayer, bounds);
+            _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
             return exact.data;
           }
         }
@@ -624,6 +658,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
                   sig.rows === (g.rows || 0) &&
                   sig.vectorsLength === (g.vectors?.length || 0)) {
                 _updateDiagnosticsOnCacheHit(entry.data, model || 'GFS', hourOffset, activeLayer, bounds);
+                _rewarmWashBaseIfStale(model || 'GFS', hourOffset, bounds, activeLayer);
                 return entry.data;
               }
             }
@@ -661,6 +696,11 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
     try {
       const result = await fetchBackendCopernicusGrid(bounds, hourOffset, signal, snappedBounds, "controller", activeLayer);
       _cacheMarineResult('EURO', hourOffset, result, activeLayer);
+      // Wash-base warm (2026-07-15): EURO was the only redirect path with NO global prewarm, so a
+      // switch INTO EURO at a regional zoom left blend-both's base on the previous model (wash off —
+      // same disease as the ICON report). Sibling-series prewarm stays deliberately absent for EURO
+      // (per-hour cost class); the single world-coarse fetch here is cheap and cached.
+      prewarmGlobalMarineGrid('EURO', hourOffset, bounds, activeLayer);
       return result;
     } catch (err) {
       if (err.name === 'AbortError' || err.message?.includes('aborted') || err.message?.includes('abort')) {

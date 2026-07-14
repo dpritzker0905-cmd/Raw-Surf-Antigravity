@@ -256,13 +256,24 @@ def energy_mean_scalar_block(x_arr, h_arr, r: int, c: int, half: int, wrap_cols:
 
 
 def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):
+    """Direction-only wrapper — see energy_mean_direction_lonspan_conf for the full contract."""
+    return energy_mean_direction_lonspan_conf(dir_tyx, h_tyx, col, half_cols)[0]
+
+
+def energy_mean_direction_lonspan_conf(dir_tyx, h_tyx, col: int, half_cols: int):
     """Per-TIMESTEP energy-weighted circular-mean direction over a LONGITUDE window (all band rows).
     For the thin-latitude-band fetcher (Copernicus CMEMS): the full 10° 2-D block is never in memory
     (bands are ~0.2° tall by design), so smoothing is longitudinal-only — CMEMS VMDR is already a MEAN
     direction (far smoother than a peak/partition direction), so 1-D smoothing suffices to kill the
     spatial aliasing. Inputs shaped (T, Y, X); columns CLAMP at the band edge (band subsets are not
-    360°-continuous). Returns a (T,) float array of degrees, with the plain point sample (dir[:, row0,
-    col]) per timestep wherever the window has no energy, and NaN where nothing is valid."""
+    360°-continuous).
+
+    Returns (directions, confidence): (T,) float arrays. directions in degrees, with the plain point
+    sample (dir[:, 0, col]) per timestep wherever the window has no energy, and NaN where nothing is
+    valid. confidence is the circular resultant length R = |Σ E·unit(θ)| / Σ E of the window
+    (0..1 — the §0B-a render-confidence export the NOAA coarse fetcher already ships): R low = the
+    window's mean direction is a meaningless bimodal residual (crest consumers fade below ~0.65);
+    NaN wherever the direction fell back to the point sample (no windowed evidence either way)."""
     T, Y, X = dir_tyx.shape
     c0, c1 = max(0, col - half_cols), min(X, col + half_cols)
     d = dir_tyx[:, :, c0:c1]
@@ -273,13 +284,18 @@ def energy_mean_direction_lonspan(dir_tyx, h_tyx, col: int, half_cols: int):
     s = np.sum(e * np.sin(rad), axis=(1, 2))
     co = np.sum(e * np.cos(rad), axis=(1, 2))
     out = np.rad2deg(np.arctan2(s, co)) % 360.0
+    e_sum = np.sum(e, axis=(1, 2))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        conf = np.where(e_sum > 0.0, np.hypot(s, co) / np.where(e_sum > 0.0, e_sum, 1.0), np.nan)
+    conf = np.clip(conf, 0.0, 1.0)
     # timesteps with no energy in the window -> fall back to the point sample (row nearest the coarse lat is
     # the caller's `row`, but any band row is equivalent at 0.083°; use the window centre column, first row)
     empty = ~ok.any(axis=(1, 2))
     if empty.any():
         point = dir_tyx[:, 0, col]
         out = np.where(empty, point, out)
-    return out
+        conf = np.where(empty, np.nan, conf)
+    return out, conf
 
 
 # ─────────────────────────────── sanitizers ───────────────────────────────

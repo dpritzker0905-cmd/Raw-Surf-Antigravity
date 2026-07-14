@@ -685,12 +685,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // COARSE-BASE SEED consume (2026-07-04, Part 2 of the z7 zoom-out bridge): a cold coast never commits a
   // coarse grid, so prewarmGlobalMarineGrid stages the global here — snapshot it into the bridge base NOW,
   // inside the render callback where the GL context is valid (never from the prewarm's detached Promise).
-  if (this._pendingCoarseBaseGrid && !this._coarseBaseData) {
+  // MODEL-SWITCH STALENESS (2026-07-15, ICON "no heatmap under the crests"): a base for ANOTHER
+  // model/layer no longer blocks the consume — the stale base is REPLACED (_captureCoarseBase frees it
+  // first) so blend-both re-engages for the new model without waiting for an organic world commit.
+  // A base already matching the seed's identity means an organic commit beat the seed here — the seed
+  // is DISCARDED (the old gate left it pending forever, which then blocked every future staging).
+  if (this._pendingCoarseBaseGrid) {
     const _seed = this._pendingCoarseBaseGrid;
+    const _b = this._coarseBaseData;
+    const _stale = !_b ||
+      (_b.__sourceModel || 'GFS') !== (_seed.__sourceModel || 'GFS') ||
+      (_b.__componentLayer || 'waves') !== (_seed.__componentLayer || 'waves');
     this._pendingCoarseBaseGrid = null;
-    try {
-      if (isCoarseGlobalGrid(_seed)) this._captureCoarseBase(gl, _seed, coarseBaseKey(_seed));
-    } catch (e) { /* best-effort seed — the live zoom-out fetch still commits the global */ }
+    if (_stale) {
+      try {
+        if (isCoarseGlobalGrid(_seed)) this._captureCoarseBase(gl, _seed, coarseBaseKey(_seed));
+      } catch (e) { /* best-effort seed — the live zoom-out fetch still commits the global */ }
+    }
   }
 
   if (window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true) {

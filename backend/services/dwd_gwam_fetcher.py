@@ -66,9 +66,17 @@ DIR_TO_HEIGHT = {
 }
 
 try:
-    from _fetch_common import energy_mean_direction_block      # script-by-path
+    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf      # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_block  # package context
+    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # package context
+
+# §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
+# wired 2026-07-15): the FE fades crest rendering below ~0.65 confidence, but only when the field
+# is present (absent → full confidence → ICON coarse crests rendered confidently wrong in bimodal
+# water, same class as the EURO 07-14 wrong-direction report). Single-pair multi_conf yields the
+# IDENTICAL direction as energy_mean_direction_block plus the circular resultant length R.
+# The normalizer picks up "{direction_key}_confidence" generically. Kill: DWD_GWAM_DIR_CONFIDENCE=0.
+DIR_CONFIDENCE_OM = "wave_direction_confidence"
 
 
 def _coarse_axis(lo, hi, step):
@@ -163,16 +171,18 @@ def fetch_global_coarse(payload):
         return ({} if multi else []), 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
-    series_by = {rid: [{om: [] for om in OM_ORDER} for _ in range(len(la) * len(lo))]
+    # Native GWAM grid is global 0.25° -> half-block in native cells; longitude always wraps.
+    blockmean = os.environ.get("DWD_GWAM_DIR_BLOCKMEAN", "1") != "0"
+    export_confidence = blockmean and os.environ.get("DWD_GWAM_DIR_CONFIDENCE", "1") != "0"
+    half = max(1, int(round(resolution / 0.25 / 2.0)))
+    # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
+    series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
+    series_by = {rid: [{om: [] for om in series_keys} for _ in range(len(la) * len(lo))]
                  for rid, (la, lo) in axes.items()}
     idx_by = None    # rid -> [(r, c), ...] built together on the first decoded message
     times = []
     steps_ok = 0
     steps_failed = 0
-
-    # Native GWAM grid is global 0.25° -> half-block in native cells; longitude always wraps.
-    blockmean = os.environ.get("DWD_GWAM_DIR_BLOCKMEAN", "1") != "0"
-    half = max(1, int(round(resolution / 0.25 / 2.0)))
 
     for f in f_hours:
         target_len = steps_ok + steps_failed + 1
@@ -208,20 +218,29 @@ def fetch_global_coarse(payload):
                     if om in DIR_TO_HEIGHT.values():
                         height_arrs[om] = arr
                     h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
+                    _conf_here = export_confidence and om == "wave_direction"
                     for rid, im in idx_by.items():
                         series = series_by[rid]
                         for pi, (r, c) in enumerate(im):
-                            if h_arr is not None:
+                            if h_arr is not None and _conf_here:
+                                x, conf = energy_mean_direction_block_multi_conf([(arr, h_arr)], arr, r, c, half, True)
+                                series[pi][DIR_CONFIDENCE_OM].append(round(float(conf), 4) if conf is not None else None)
+                            elif h_arr is not None:
                                 x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
                             else:
                                 x = arr[r, c]
+                                if _conf_here:  # point sample: no blockwise evidence either way
+                                    series[pi][DIR_CONFIDENCE_OM].append(None)
                             series[pi][om].append(_sanitize_om(om, x))
                 except Exception as ve:
                     # one variable failed this hour -> None for it; keep series lengths aligned
+                    # (the confidence series rides wave_direction, so it aligns here too)
+                    _keys = [om] + ([DIR_CONFIDENCE_OM] if (export_confidence and om == "wave_direction") else [])
                     for series in series_by.values():
                         for pt in series:
-                            if len(pt[om]) < target_len:
-                                pt[om].append(None)
+                            for k in _keys:
+                                if len(pt[k]) < target_len:
+                                    pt[k].append(None)
                     sys.stderr.write(f"[dwd_gwam_fetcher] {var} f{f:03d} failed: {type(ve).__name__}: {ve}\n")
                 finally:
                     try:
@@ -234,7 +253,7 @@ def fetch_global_coarse(payload):
         except Exception as e:
             for series in series_by.values():
                 for pt in series:
-                    for om in OM_ORDER:
+                    for om in series_keys:
                         if len(pt[om]) < target_len:
                             pt[om].append(None)
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
@@ -254,14 +273,15 @@ def fetch_global_coarse(payload):
         for la in lats:
             for lo in lons:
                 hourly = {"time": times}
-                for om in OM_ORDER:
+                for om in series_keys:
                     hourly[om] = series[pi][om]
                 points.append({
                     "latitude": float(la), "longitude": float(lo),
                     "generationtime_ms": 0, "utc_offset_seconds": 0,
                     "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
                     "__provider": "dwd",
-                    "hourly_units": {"time": "iso8601", **OM_UNITS},
+                    "hourly_units": {"time": "iso8601", **OM_UNITS,
+                                     **({DIR_CONFIDENCE_OM: "fraction"} if export_confidence else {})},
                     "hourly": hourly,
                 })
                 pi += 1
