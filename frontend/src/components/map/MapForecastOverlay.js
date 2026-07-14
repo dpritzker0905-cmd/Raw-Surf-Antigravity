@@ -602,22 +602,26 @@ export const MapForecastOverlay = ({
       } md:bottom-20 left-4 z-[900] rounded-xl border backdrop-blur-xl shadow-2xl ${bgClass} max-w-[200px] transition-all duration-300`}
       data-testid="forecast-overlay"
     >
-      {/* Header */}
-      <div 
-        className={`px-3 pt-2 pb-1 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors ${isCollapsed ? 'pb-2 border-transparent' : ''}`}
+      {/* Header — a real <button> with aria-expanded (was a bare div-with-onClick: invisible to
+          screen readers and keyboard-unreachable; ACCESSIBILITY mandate 2026-07-14 §0a item 2).
+          The visible model/time text is the accessible name; Enter/Space toggle collapse. */}
+      <button
+        type="button"
+        aria-expanded={!isCollapsed}
+        className={`w-full text-left bg-transparent px-3 pt-2 pb-1 border-0 border-b border-zinc-800/30 flex justify-between items-center cursor-pointer select-none transition-colors rounded-t-xl focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 ${isCollapsed ? 'pb-2 border-transparent rounded-b-xl' : ''}`}
         onClick={() => setIsCollapsed(!isCollapsed)}
       >
         <div>
           <div className={`text-[9px] uppercase tracking-wider font-bold ${textMuted} flex items-center gap-1`}>
-            {showPinIcon && <MapPin className="w-2.5 h-2.5 text-cyan-400" />}
+            {showPinIcon && <MapPin className="w-2.5 h-2.5 text-cyan-400" aria-hidden="true" />}
             {modelLabel} {isLive && !selectedSpot && !longPressLocation ? 'Live' : 'Forecast'}
           </div>
           <div className={`text-[10px] font-semibold ${textClass} truncate max-w-[160px]`}>
             {forecastTimeLabel}
           </div>
         </div>
-        <ChevronDown className={`w-4 h-4 ml-3 ${textMuted} transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
-      </div>
+        <ChevronDown aria-hidden="true" className={`w-4 h-4 ml-3 ${textMuted} transition-transform duration-300 ${isCollapsed ? 'rotate-180' : ''}`} />
+      </button>
 
       {/* Data cards */}
       <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'}`}>

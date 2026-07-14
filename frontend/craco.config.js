@@ -82,6 +82,13 @@ module.exports = {
       // Switch to testRegex which handles both / and \ path separators.
       delete jestConfig.testMatch;
       jestConfig.testRegex = 'src[/\\\\].+\\.(spec|test)\\.[jt]sx?$';
+      // react-map-gl v8 ships `react-map-gl/maplibre` via package `exports`, which CRA's jest
+      // resolver predates — map components were untestable in jsdom (2026-07-14 a11y goldens).
+      // Route it to a minimal stub; no prior test imported the real module (it never resolved).
+      jestConfig.moduleNameMapper = {
+        ...jestConfig.moduleNameMapper,
+        '^react-map-gl/maplibre$': '<rootDir>/src/testMocks/reactMapGlMaplibre.js',
+      };
       return jestConfig;
     }
   }

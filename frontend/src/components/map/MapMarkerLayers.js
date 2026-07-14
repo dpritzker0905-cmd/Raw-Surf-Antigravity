@@ -12,6 +12,46 @@ import React, { useState } from 'react';
 import { Marker } from 'react-map-gl/maplibre';
 
 /**
+ * ACCESSIBILITY (user mandate 2026-07-14, §0a item 1): the rating glyph is the map's core data
+ * display and its rating was conveyed by COLOR ONLY (the hover 'why' card is mouse-only) — failing
+ * both the screen-reader and color-independence requirements. These PURE builders produce the
+ * text equivalent each marker button carries as its aria-label (e.g. "Sebastian Inlet: Fair,
+ * 3.3 ft at 12 seconds"), unit-testable headless. Focus/hover both open the detail card, so the
+ * text is keyboard-reachable too.
+ */
+export function spotGlyphAriaLabel(cluster, rating) {
+  const name = (cluster && cluster.name) || 'Surf spot';
+  if (!rating) return name;
+  let label = `${name}: ${rating.label || 'rated'}`;
+  if (rating.surfHeightM != null) {
+    label += `, ${(rating.surfHeightM * 3.28084).toFixed(1)} ft`;
+    if (rating.periodS != null) label += ` at ${Math.round(rating.periodS)} seconds`;
+  }
+  return label;
+}
+
+export function clusterBubbleAriaLabel(cluster, cRating) {
+  const count = (cluster && cluster.pointCount) || 0;
+  const base = `${count} surf spots — zoom in`;
+  return cRating ? `${base}; best rating here: ${cRating.label}` : base;
+}
+
+export function photographerAriaLabel(p) {
+  const name = (p && p.full_name) || 'Photographer';
+  const isLive = !!(p && (p.is_streaming || p.is_live));
+  const isOnDemand = !!(p && (p.on_demand_available || p.is_available_on_demand));
+  if (isLive && isOnDemand) return `${name} — shooting live and available on demand`;
+  if (isLive) return `${name} — shooting live`;
+  if (isOnDemand) return `${name} — available on demand`;
+  return `${name} — photographer`;
+}
+
+// Shared focus affordance (ForecastWheel house pattern: keyboard focus must be VISIBLE). Ring
+// reads against the map in all three themes; buttons keep their existing visual design.
+const FOCUS_RING = 'focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-cyan-400 focus-visible:ring-offset-1';
+const BUTTON_RESET = 'appearance-none bg-transparent border-0 p-0 m-0 block';
+
+/**
  * @param {{
  *   spotClusters: Array,
  *   livePhotographers: Array,
@@ -63,13 +103,15 @@ var MapMarkerLayers = ({
                     style={{ inset: 2, backgroundColor: cRating.color, opacity: 0.35 }}
                   />
                 )}
-                <div
-                  className="relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer"
+                <button
+                  type="button"
+                  className={`relative w-10 h-10 rounded-full flex items-center justify-center text-white font-bold border-2 border-white shadow-lg cursor-pointer ${FOCUS_RING}`}
                   style={cRating ? {
                     backgroundColor: cRating.color,
                     boxShadow: `0 0 10px 2px ${cRating.color}, 0 2px 6px rgba(0,0,0,0.45)`,
                   } : { backgroundColor: 'rgba(249,115,22,0.8)' }}
                   title={cRating ? `Best here: ${cRating.label}` : undefined}
+                  aria-label={clusterBubbleAriaLabel(cluster, cRating)}
                   onClick={(e) => {
                     e.stopPropagation();
                     mapRef.current.flyTo({
@@ -79,7 +121,7 @@ var MapMarkerLayers = ({
                   }}
                 >
                   {cluster.pointCount}
-                </div>
+                </button>
               </div>
             </Marker>
           );
@@ -96,23 +138,30 @@ var MapMarkerLayers = ({
             latitude={lat}
             anchor="bottom"
             style={{ zIndex: hoveredSpotId === cluster.id ? 99999 : 1 }}
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              e.originalEvent.preventDefault();
-              if (onSpotClick) onSpotClick(cluster.spot);
-              mapRef.current.flyTo({
-                center: [lng, lat],
-                zoom: 14,
-                pitch: 45,
-                duration: 1500
-              });
-            }}
           >
-            <div
-              className="relative cursor-pointer"
+            {/* Real <button> (was Marker onClick + bare div — keyboard-unreachable): Enter/Space
+                now activate the spot, aria-label carries the rating text equivalent, and FOCUS
+                opens the same detail card as hover (the 'why'/height text is no longer mouse-only). */}
+            <button
+              type="button"
+              className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
+              aria-label={spotGlyphAriaLabel(cluster, rating)}
               onMouseEnter={() => setHoveredSpotId(cluster.id)}
               onMouseLeave={() => setHoveredSpotId(null)}
+              onFocus={() => setHoveredSpotId(cluster.id)}
+              onBlur={() => setHoveredSpotId(null)}
+              onClick={(e) => {
+                e.stopPropagation();
+                e.preventDefault();
+                if (onSpotClick) onSpotClick(cluster.spot);
+                mapRef.current.flyTo({
+                  center: [lng, lat],
+                  zoom: 14,
+                  pitch: 45,
+                  duration: 1500
+                });
+              }}
             >
               {rating ? (
                 <div
@@ -199,7 +248,7 @@ var MapMarkerLayers = ({
                   <div className="absolute top-full left-1/2 -translate-x-1/2 border-4 border-transparent border-t-zinc-950/95"></div>
                 </div>
               )}
-            </div>
+            </button>
           </Marker>
         );
       })}
@@ -218,12 +267,16 @@ var MapMarkerLayers = ({
             longitude={p.longitude}
             latitude={p.latitude}
             anchor="bottom"
-            onClick={(e) => {
-              e.originalEvent.stopPropagation();
-              if (onPhotographerClick) onPhotographerClick(p);
-            }}
           >
-            <div className="relative w-12 h-12 cursor-pointer">
+            <button
+              type="button"
+              className={`relative w-12 h-12 cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
+              aria-label={photographerAriaLabel(p)}
+              onClick={(e) => {
+                e.stopPropagation();
+                if (onPhotographerClick) onPhotographerClick(p);
+              }}
+            >
               {isPulsing && (
                 <div className="absolute inset-0 w-16 h-16 -top-2 -left-2 rounded-full animate-ping motion-reduce:animate-none motion-reduce:hidden opacity-60 bg-cyan-400"></div>
               )}
@@ -232,12 +285,12 @@ var MapMarkerLayers = ({
               }`}>
                 <div className="w-full h-full rounded-full bg-black flex items-center justify-center overflow-hidden">
                   {p.avatar_url
-                    ? <img src={p.avatar_url} alt="avatar" className="w-full h-full object-cover" />
+                    ? <img src={p.avatar_url} alt="" className="w-full h-full object-cover" />
                     : <span className="text-lg text-white">{p.full_name?.charAt(0) || '?'}</span>
                   }
                 </div>
               </div>
-            </div>
+            </button>
           </Marker>
         );
       })}
@@ -245,7 +298,7 @@ var MapMarkerLayers = ({
       {/* User Location Marker */}
       {effectiveLocation && effectiveLocation.lat && effectiveLocation.lng && (
         <Marker longitude={effectiveLocation.lng} latitude={effectiveLocation.lat} anchor="center">
-          <div className="relative">
+          <div className="relative" role="img" aria-label="Your location">
             <div className="absolute inset-0 w-6 h-6 rounded-full bg-blue-500 animate-ping motion-reduce:animate-none motion-reduce:opacity-10 opacity-30"></div>
             <div className="w-6 h-6 rounded-full bg-blue-500 border-2 border-white flex items-center justify-center shadow-lg">
               <div className="w-2 h-2 bg-white rounded-full"></div>
@@ -292,7 +345,7 @@ var MapMarkerLayers = ({
             <div className="w-10 h-10 rounded-full p-[2px] bg-gradient-to-r from-pink-500 to-rose-400 shadow-lg">
               <div className="w-full h-full rounded-full bg-black overflow-hidden border border-zinc-800">
                 {friend.avatar_url ? (
-                  <img src={friend.avatar_url} alt="friend" className="w-full h-full object-cover" />
+                  <img src={friend.avatar_url} alt={friend.full_name || 'Friend'} className="w-full h-full object-cover" />
                 ) : (
                   <div className="w-full h-full flex items-center justify-center text-white bg-zinc-800">
                     {friend.full_name?.charAt(0) || '?'}
