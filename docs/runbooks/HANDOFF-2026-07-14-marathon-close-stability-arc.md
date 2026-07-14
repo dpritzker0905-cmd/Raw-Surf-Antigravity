@@ -5,6 +5,39 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
 `HANDOFF-2026-07-13-EOD-round12-close-three-symptom-audit.md` §4–§4g. Baselines at close:
 **BE 688 passed/2928 skipped, FE 896/896.** Shared-tree rule: commit with pathspec only.
 
+## §0 UPDATE — overnight session ~01:00–02:30Z 07-14 (queue #1 + #2 shipped; baselines now BE 703/2928, FE 916/916)
+
+1. **`51cdb703` queue #1 MANIFEST CONCURRENCY (merge-on-upload, not CAS):**
+   `reconcile_manifest_products_for_upload` (store.py) re-fetches the FRESH remote product list
+   immediately before every manifest.json upload and folds in concurrent-writer registrations
+   (local snapshot wins on product_id collisions). Wired into both hot registration paths
+   (save_product_helper + save_products_batch_helper; wiring pinned by test). Narrows the
+   clobber window from "the other run's whole duration" to one HTTP round trip. Kill:
+   `MANIFEST_MERGE_ON_UPLOAD=0`. ⚠️ The three `prune_*_helper` deletion paths are DELIBERATELY
+   not wired (folding remote entries into a deletion sweep could resurrect just-pruned
+   products) — do that fast-follow BEFORE any attempt to split the shared GH concurrency group.
+2. **`4ddc76c5` queue #2 CDN ratings — TWO LIVE STALENESS BUGS FIXED + lane shipped DORMANT:**
+   (a) mutating namespaced blobs (`spot_ratings/latest.json`, climatology, calibration) were
+   uploaded max-age **3600** — `manifest_cache_control` now classes them at 60s; (b) the serve
+   box's `load_spot_ratings_l2` read was un-busted → an edge could feed the stale ladder an
+   HOUR-old object, silently undoing checkpoint merge-uploads. Both fixed (live on deploy).
+   The CDN lane itself (public-bucket mirror + client-side frame ladder in `spotRatingsCdn.js`,
+   parity-tested) is complete but **BOTH SIDES DEFAULT OFF — the public-bucket exposure
+   question was raised to the user and DISMISSED (pending)**. Enable when decided:
+   `SPOT_RATINGS_PUBLIC_MIRROR=1` (runner env) + `REACT_APP_RATINGS_CDN=1` build-time or
+   `__RAW_ENABLE_RATINGS_CDN__` window/localStorage (live-test lever). The mirror auto-creates
+   the `weather-public` bucket on first upload; measured object ~1.03MB raw.
+3. **§3 verification progress (live-watched):** pilots cron run `29290539673` (22:38 slot,
+   drifted) ran 151.5 min → **success 01:52Z**; the pending core heal dispatch `29296621701`
+   took the slot immediately after — **no eviction**; it is the FIRST live run of the
+   `b02c8ceb` ECMWF wind/pressure refactor (in progress at handoff-update time — CHECK ITS
+   EURO wind/pressure job outcomes). Precompute run `29297471819` was still in progress at
+   65+ min of its 75-min budget — duration answer pending; its first checkpoint upload landed
+   at 01:03:43Z (3 min in), so even a timeout costs only tail models.
+4. **Health snapshot 01:17Z:** DHM correctly PAGING on wind/weather lanes (8.3–9.9h, all six)
+   — the deaf-spot fix working as designed; marine + ratings lanes ok. The `-2.7h` ratings age
+   in that run predates the `42522d12` deploy by one minute (clamp not yet live) — not a bug.
+
 ## §1 WHAT SHIPPED (14 commits, each live-verified unless marked)
 
 | Commit | What | Kill / lever | Verified |
