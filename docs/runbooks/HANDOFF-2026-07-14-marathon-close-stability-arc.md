@@ -222,9 +222,16 @@ phys_speed; `encodeMarineTexture` packs the ANIMATION channels (size/drift) from
 phys_speed-when-present (a dataMask channel or the texture layout's free slot), band/colormap
 keeps the score channel; kill `__RAW_DISABLE_ANIM_PHYS_CHANNEL__`. Phase 3 (optional cleanup)
 — flip the contract (speed=honest, `rating` field) once every consumer reads the new fields.
-⚠️ OWN ARC discipline: engine/shader minefield + needs visual A/B at z7–9 on all 3 models,
-rating on/off, healthy FPS. Verify with the §6 pane recipe + FORENSIC-SNAP. Estimated: one
-focused session.
+**IMPLEMENTED `a25c8f3d` (same session, ~20Z):** BE `phys_speed` on every transform-touched
+cell (omit-when-None serializer — zero bloat golden) · FE encoder packs the MAIN texture from
+the honest field (own extrapolation on pre-call clones = band fill topology byte-identical) +
+a score-only variant; heatmap binds the variant, draw/advect keep honest main — **zero shader
+changes** · phys carried through both mappers + the useMarineWindData conform · motion-unlock
+DEFAULT-ON (kill `__RAW_RATING_MOTION_UNLOCK__=false`) · whole-feature kill
+`__RAW_DISABLE_ANIM_PHYS__=true` · pre-deploy fallback proven (no phys field → score fallback,
+visuals unchanged). BE 721/2928, FE 949/949. Telemetry: `__RAW_GPU__.anim.animPhys`.
+REMAINING: post-deploy visual A/B (rating on/off crest parity, z7–9, 3 models) — deploy timer
+armed at close.
 
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
