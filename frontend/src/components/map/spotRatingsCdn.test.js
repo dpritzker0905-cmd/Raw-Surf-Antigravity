@@ -1,0 +1,171 @@
+/**
+ * spotRatingsCdn.test.js — the CDN lane's pure selectors must mirror the backend's
+ * select_precomputed / select_precomputed_laddered exactly (parity rule: same frames, same
+ * tolerance ladder, same bbox semantics), plus the cache-busted URL and the object cache.
+ */
+import {
+  publicRatingsUrl, parseValidTimeMs, selectPrecomputedFrame, selectPrecomputedLaddered,
+  fetchPublicRatingsObject, ratingsCdnEnabled, __resetRatingsCdnCacheForTests,
+  CB_BUCKET_MS,
+} from './spotRatingsCdn';
+
+const FL_BBOX = [-82, 24, -79, 28];
+
+function obj(frames) {
+  return { version: 1, generated_at: '2026-07-14T00:00:00Z', frames };
+}
+
+function frame(model, validTime, spots) {
+  return { model, valid_time: validTime, spots };
+}
+
+const IN_SPOT = { spot_id: 'in', latitude: 26.0, longitude: -80.0, score: 50, level: 'fair' };
+const OUT_SPOT = { spot_id: 'out', latitude: 40.0, longitude: -80.0, score: 70, level: 'good' };
+
+describe('publicRatingsUrl', () => {
+  it('builds the public-object URL cache-busted on the coarse time bucket', () => {
+    const a = publicRatingsUrl('https://x.supabase.co/', 10 * CB_BUCKET_MS);
+    expect(a).toBe(`https://x.supabase.co/storage/v1/object/public/weather-public/spot_ratings/latest.json?cb=10`);
+  });
+
+  it('is STABLE within a bucket and advances across buckets (bounded edge staleness)', () => {
+    const t0 = 42 * CB_BUCKET_MS;
+    expect(publicRatingsUrl('https://x.co', t0)).toBe(publicRatingsUrl('https://x.co', t0 + CB_BUCKET_MS - 1));
+    expect(publicRatingsUrl('https://x.co', t0)).not.toBe(publicRatingsUrl('https://x.co', t0 + CB_BUCKET_MS));
+  });
+
+  it('returns null without a supabase base URL (→ endpoint fallback, not a crash)', () => {
+    expect(publicRatingsUrl('', Date.now())).toBeNull();
+    expect(publicRatingsUrl(null, Date.now())).toBeNull();
+  });
+});
+
+describe('selectPrecomputedFrame — backend select_precomputed parity', () => {
+  const o = obj([frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT, OUT_SPOT])]);
+
+  it('exact valid_time match filters spots to the bbox', () => {
+    const sel = selectPrecomputedFrame(o, FL_BBOX, 'GFS', '2026-06-28T21:00:00Z');
+    expect(sel.map((s) => s.spot_id)).toEqual(['in']);
+  });
+
+  it('nearest same-model frame within tolerance matches (frontend needn\'t byte-match the key)', () => {
+    const sel = selectPrecomputedFrame(o, FL_BBOX, 'GFS', '2026-06-28T21:40:00Z');
+    expect(sel.map((s) => s.spot_id)).toEqual(['in']);
+  });
+
+  it('outside tolerance returns null (the live/endpoint signal)', () => {
+    expect(selectPrecomputedFrame(o, FL_BBOX, 'GFS', '2026-06-29T05:00:00Z')).toBeNull();
+  });
+
+  it('a matching frame with nothing in view returns [] — NOT null (don\'t fall back)', () => {
+    const sel = selectPrecomputedFrame(o, [10, 10, 12, 12], 'GFS', '2026-06-28T21:00:00Z');
+    expect(sel).toEqual([]);
+  });
+
+  it('wrong model returns null even at the exact time', () => {
+    expect(selectPrecomputedFrame(o, FL_BBOX, 'EURO', '2026-06-28T21:00:00Z')).toBeNull();
+  });
+
+  it('is antimeridian-aware (w > e wraps the dateline)', () => {
+    const fiji = { spot_id: 'fj', latitude: -17.0, longitude: 179.5, score: 90, level: 'epic' };
+    const o2 = obj([frame('GFS', '2026-06-28T21:00:00Z', [fiji, IN_SPOT])]);
+    const sel = selectPrecomputedFrame(o2, [170, -25, -170, -10], 'GFS', '2026-06-28T21:00:00Z');
+    expect(sel.map((s) => s.spot_id)).toEqual(['fj']);
+  });
+
+  it('tolerates malformed input', () => {
+    expect(selectPrecomputedFrame(null, FL_BBOX, 'GFS', 't')).toBeNull();
+    expect(selectPrecomputedFrame({}, FL_BBOX, 'GFS', 't')).toBeNull();
+    expect(selectPrecomputedFrame(o, 'not-a-bbox', 'GFS', 't')).toBeNull();
+    expect(selectPrecomputedFrame(obj([frame('GFS', 'garbage-time', [IN_SPOT])]), FL_BBOX, 'GFS', 'also-garbage')).toBeNull();
+  });
+});
+
+describe('selectPrecomputedLaddered — fresh → stale → null', () => {
+  const o = obj([frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT])]);
+
+  it('fresh hit is labeled precomputed_cdn', () => {
+    const hit = selectPrecomputedLaddered(o, FL_BBOX, 'GFS', '2026-06-28T21:40:00Z');
+    expect(hit.source).toBe('precomputed_cdn');
+    expect(hit.spots.map((s) => s.spot_id)).toEqual(['in']);
+  });
+
+  it('5h out: past fresh (2h), within stale (6h) → labeled stale, still served', () => {
+    const hit = selectPrecomputedLaddered(o, FL_BBOX, 'GFS', '2026-06-29T02:00:00Z');
+    expect(hit.source).toBe('precomputed_cdn_stale');
+  });
+
+  it('8h out: beyond the stale bound → null (the endpoint/live path owns it)', () => {
+    expect(selectPrecomputedLaddered(o, FL_BBOX, 'GFS', '2026-06-29T05:00:00Z')).toBeNull();
+  });
+});
+
+describe('parseValidTimeMs', () => {
+  it('parses ISO-8601 with Z and returns null on garbage', () => {
+    expect(parseValidTimeMs('2026-06-28T21:00:00Z')).toBe(Date.UTC(2026, 5, 28, 21));
+    expect(parseValidTimeMs('nope')).toBeNull();
+    expect(parseValidTimeMs(null)).toBeNull();
+  });
+});
+
+describe('fetchPublicRatingsObject — cache + failure semantics', () => {
+  const VALID = obj([frame('GFS', '2026-06-28T21:00:00Z', [IN_SPOT])]);
+
+  beforeEach(() => {
+    __resetRatingsCdnCacheForTests();
+    window.__RAW_ENABLE_RATINGS_CDN__ = true;   // the lane is OPT-IN (pending exposure decision)
+    global.fetch = jest.fn();
+  });
+
+  afterEach(() => {
+    delete window.__RAW_ENABLE_RATINGS_CDN__;
+  });
+
+  it('fetches once per cache window and dedups concurrent callers', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: async () => VALID });
+    const [a, b] = await Promise.all([
+      fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' }),
+      fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' }),
+    ]);
+    const c = await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' });
+    expect(a).toEqual(VALID);
+    expect(b).toBe(a);
+    expect(c).toBe(a);
+    expect(global.fetch).toHaveBeenCalledTimes(1);
+  });
+
+  it('resolves null (never rejects) on HTTP failure and negative-caches briefly', async () => {
+    global.fetch.mockResolvedValue({ ok: false, status: 404 });
+    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(global.fetch).toHaveBeenCalledTimes(1);          // negative-cached, no hammering
+  });
+
+  it('resolves null on a malformed object (no frames array)', async () => {
+    global.fetch.mockResolvedValue({ ok: true, json: async () => ({ hello: 'world' }) });
+    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+  });
+
+  it('resolves null on network rejection', async () => {
+    global.fetch.mockRejectedValue(new TypeError('Failed to fetch'));
+    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+  });
+
+  it('the lane is OFF BY DEFAULT — no opt-in flag, no request (pending exposure decision)', async () => {
+    delete window.__RAW_ENABLE_RATINGS_CDN__;
+    expect(ratingsCdnEnabled()).toBe(false);
+    expect(await fetchPublicRatingsObject({ supabaseUrl: 'https://x.co' })).toBeNull();
+    expect(global.fetch).not.toHaveBeenCalled();
+  });
+
+  it('no supabase URL configured → null without fetching (endpoint fallback carries)', async () => {
+    const saved = process.env.REACT_APP_SUPABASE_URL;
+    delete process.env.REACT_APP_SUPABASE_URL;
+    try {
+      expect(await fetchPublicRatingsObject({ supabaseUrl: '' })).toBeNull();
+      expect(global.fetch).not.toHaveBeenCalled();
+    } finally {
+      if (saved !== undefined) process.env.REACT_APP_SUPABASE_URL = saved;
+    }
+  });
+});

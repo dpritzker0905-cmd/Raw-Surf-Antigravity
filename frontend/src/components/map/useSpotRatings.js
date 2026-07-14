@@ -12,6 +12,7 @@
 import { useMemo, useState, useEffect, useRef } from 'react';
 import { scoreToLevel, RATING_COLOR, RATING_LABEL } from './surfRating';
 import { fetchSpotRatings, mapSpotRatingsResponse } from './spotRatingsClient';
+import { fetchPublicRatingsObject, selectPrecomputedLaddered } from './spotRatingsCdn';
 import { getSharedValidTime } from './backendWeatherServiceClient';
 
 // Stable shared empty: computeSpotRatings' gate + the endpoint idle branch both need to return the SAME
@@ -230,30 +231,42 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
       lastKeyRef.current = key;
       const model = activeModel || 'GFS';
       writeSpotRatingsDiag({ status: 'fetching', surfMode: true, lastBbox: bbox, lastValidTime: validTime, lastModel: model });
-      // limit=160 (backend cap 200): a regional viewport can hold >80 spots (dense coasts like SoCal); 80
-      // truncated the rated set → only SOME spots glyphed ("some but not all" report). 160 covers typical
-      // regional views; the deterministic verified-peak-first order means the best spots are always included.
-      fetchSpotRatings({ bbox, validTime, model, limit: 160, signal: controller.signal })
-        .then((resp) => {
-          retryRef.current = { key: null, n: 0 };          // recovered → clear the cold-start retry budget
-          const mapped = mapSpotRatingsResponse(resp && resp.spots);
-          // ACCUMULATE within the same forecast frame+model so spots you've already panned past STAY lit
-          // ("all spots in my viewport light up" as you explore the map); a new valid_time/model resets the set.
-          const baseKey = `${validTime}|${model}`;
-          if (baseKeyRef.current !== baseKey) {
-            baseKeyRef.current = baseKey;
-            setEndpointRatings(mapped);
-          } else {
-            setEndpointRatings((prev) => ({ ...prev, ...mapped }));
-          }
-          const sum = summarizeSpotRatings(mapped);
-          writeSpotRatingsDiag({
-            status: 'ok', source: (resp && resp.source) || 'live',
-            rawCount: (resp && Array.isArray(resp.spots)) ? resp.spots.length : 0,
-            fetched: sum.count, sampleIds: sum.sampleIds, levels: sum.levels, error: null,
-          });
-          // One concise line per fetch (fetches are debounced + deduped → not spammy).
-          try { console.debug(`[spot-ratings] ${sum.count}/${(resp && resp.spots || []).length} rated · src=${(resp && resp.source)} · ${bbox} @ ${validTime}`); } catch (e) { /* noop */ }
+      // Shared success path for both lanes: ACCUMULATE within the same forecast frame+model so spots
+      // you've already panned past STAY lit ("all spots in my viewport light up" as you explore the
+      // map); a new valid_time/model resets the set.
+      const commit = (spots, source) => {
+        retryRef.current = { key: null, n: 0 };          // recovered → clear the cold-start retry budget
+        const mapped = mapSpotRatingsResponse(spots);
+        const baseKey = `${validTime}|${model}`;
+        if (baseKeyRef.current !== baseKey) {
+          baseKeyRef.current = baseKey;
+          setEndpointRatings(mapped);
+        } else {
+          setEndpointRatings((prev) => ({ ...prev, ...mapped }));
+        }
+        const sum = summarizeSpotRatings(mapped);
+        writeSpotRatingsDiag({
+          status: 'ok', source: source || 'live',
+          rawCount: Array.isArray(spots) ? spots.length : 0,
+          fetched: sum.count, sampleIds: sum.sampleIds, levels: sum.levels, error: null,
+        });
+        // One concise line per fetch (fetches are debounced + deduped → not spammy).
+        try { console.debug(`[spot-ratings] ${sum.count}/${(spots || []).length} rated · src=${source} · ${bbox} @ ${validTime}`); } catch (e) { /* noop */ }
+      };
+      // CDN lane FIRST (queue #2, 2026-07-14): the precomputed object comes straight off the public
+      // Supabase CDN and the frame ladder runs client-side — the 1-CPU box never sees the request.
+      // Any miss (no frame within the stale bound / fetch failure / kill switch) → the endpoint,
+      // which runs the same ladder server-side and owns the live-fallback truth path.
+      fetchPublicRatingsObject()
+        .then((cdnObj) => {
+          if (controller.signal.aborted) return;
+          const hit = cdnObj && selectPrecomputedLaddered(cdnObj, [bw, bs, be, bn], model, validTime);
+          if (hit) { commit(hit.spots, hit.source); return; }
+          // limit=160 (backend cap 200): a regional viewport can hold >80 spots (dense coasts like SoCal); 80
+          // truncated the rated set → only SOME spots glyphed ("some but not all" report). 160 covers typical
+          // regional views; the deterministic verified-peak-first order means the best spots are always included.
+          return fetchSpotRatings({ bbox, validTime, model, limit: 160, signal: controller.signal })
+            .then((resp) => commit(resp && resp.spots, (resp && resp.source) || 'live'));
         })
         .catch((err) => {
           lastKeyRef.current = null; /* allow retry; keep last + grid fallback */

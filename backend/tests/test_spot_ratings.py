@@ -190,6 +190,69 @@ def test_l2_object_shape():
     assert SPOT_RATINGS_L2_KEY.endswith(".json")
 
 
+# ── public CDN mirror (queue #2, 2026-07-14) ──
+class _MirrorStore:
+    def __init__(self):
+        self.uploads = []
+
+    def _upload_to_supabase(self, filename, data):
+        self.uploads.append((filename, data))
+
+
+def test_upload_mirrors_to_public_bucket_when_opted_in(monkeypatch):
+    monkeypatch.setenv("SPOT_RATINGS_PUBLIC_MIRROR", "1")
+    calls = []
+    monkeypatch.setattr(sr, "_upload_public_mirror", lambda key, data: calls.append((key, data)) or True)
+    store = _MirrorStore()
+    sr.upload_spot_ratings_l2(store, {"version": 1, "frames": []})
+    assert [f for f, _ in store.uploads] == [SPOT_RATINGS_L2_KEY]   # private lane first, unchanged
+    assert len(calls) == 1 and calls[0][0] == SPOT_RATINGS_L2_KEY
+    assert calls[0][1] == store.uploads[0][1]                        # byte-identical mirror
+
+
+def test_upload_mirror_is_off_by_default(monkeypatch):
+    # PENDING USER DECISION (2026-07-14): the mirror creates a publicly-readable bucket — it must
+    # stay dormant until explicitly opted in. This test pins the default.
+    monkeypatch.delenv("SPOT_RATINGS_PUBLIC_MIRROR", raising=False)
+    calls = []
+    monkeypatch.setattr(sr, "_upload_public_mirror", lambda key, data: calls.append(1))
+    sr.upload_spot_ratings_l2(_MirrorStore(), {"version": 1, "frames": []})
+    assert calls == []
+
+
+def test_upload_mirror_failure_never_breaks_the_private_lane(monkeypatch):
+    monkeypatch.setenv("SPOT_RATINGS_PUBLIC_MIRROR", "1")
+    # _upload_public_mirror itself must swallow everything; simulate the un-swallowable anyway to
+    # pin that upload_spot_ratings_l2's private upload happened FIRST (ordering = the safety).
+    store = _MirrorStore()
+    def _boom(key, data):
+        raise RuntimeError("public bucket exploded")
+    monkeypatch.setattr(sr, "_upload_public_mirror", _boom)
+    try:
+        sr.upload_spot_ratings_l2(store, {"version": 1, "frames": []})
+    except RuntimeError:
+        pass
+    assert [f for f, _ in store.uploads] == [SPOT_RATINGS_L2_KEY]
+
+
+def test_public_mirror_helper_swallows_network_errors(monkeypatch):
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_KEY", "k")
+    import requests as _rq
+    def _explode(*a, **kw):
+        raise ConnectionError("edge down")
+    monkeypatch.setattr(_rq, "post", _explode)
+    assert sr._upload_public_mirror("spot_ratings/latest.json", b"{}") is False   # no raise
+
+
+def test_l2_read_is_cache_busted():
+    # 2026-07-14: the object uploads mutated in place under max-age 3600 — an un-busted read could
+    # serve an hour-stale edge copy, undoing checkpoint merge-uploads. Pin the busting param.
+    import inspect
+    src = inspect.getsource(sr.load_spot_ratings_l2)
+    assert "?cb=" in src and "no-cache" in src
+
+
 # ── precompute → L2 object → endpoint selector round-trip (increment 3) ──
 def test_precompute_round_trips_through_select(monkeypatch):
     """The CI precompute (precompute_spot_ratings) must build frames the live endpoint's selector reads back —

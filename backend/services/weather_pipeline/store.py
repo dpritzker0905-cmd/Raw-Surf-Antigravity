@@ -19,9 +19,21 @@ WEATHER_BUCKET = "weather-products"
 
 
 def manifest_cache_control(filename: str) -> str:
-    """Upload cache-control (seconds → CDN max-age): '0' for the hot-mutating manifest so every
-    edge revalidates; 3600 for immutable-per-filename products (valid_time in the name)."""
-    return "0" if filename == "manifest.json" else "3600"
+    """Upload cache-control (seconds → CDN max-age) by mutation class:
+    - manifest.json: '0' — the hot-mutating registry, every edge revalidates (2026-07-06 scar).
+    - 'manifests/...': '3600' — S2 run-keyed manifest copies are immutable-per-filename.
+    - other namespaced keys ('spot_ratings/...', 'calibration/...'): '60' — MUTATING state blobs
+      re-uploaded in place. These carried the product default 3600 until 2026-07-14, which meant
+      the serve box could read a ratings object up to an HOUR stale off a CDN edge — silently
+      undoing the checkpoint merge-uploads (a checkpoint lands, edges keep serving pre-checkpoint).
+    - everything else (top-level product files): '3600' — immutable (valid_time in the name)."""
+    if filename == "manifest.json":
+        return "0"
+    if filename.startswith("manifests/"):
+        return "3600"
+    if "/" in filename:
+        return "60"
+    return "3600"
 
 
 def manifest_download_url(base: str, bucket: str) -> str:

@@ -23,6 +23,19 @@ def test_immutable_products_keep_the_hour_cache():
     assert manifest_cache_control("euro_marine_waves_global_coarse_20260719T000000Z_estimated.json") == "3600"
 
 
+def test_run_keyed_manifests_are_immutable_and_keep_the_hour_cache():
+    # S2 run-keyed copies never mutate — hard edge caching is the whole point of the pointer lane.
+    assert manifest_cache_control("manifests/manifest-g000000000042.json") == "3600"
+
+
+def test_mutating_namespaced_state_blobs_get_the_short_cache():
+    # 2026-07-14: spot_ratings/latest.json carried the product default 3600 — the serve box could
+    # read an HOUR-stale ratings object off a CDN edge, silently undoing checkpoint merge-uploads.
+    assert manifest_cache_control("spot_ratings/latest.json") == "60"
+    assert manifest_cache_control("spot_ratings/size_climatology.json") == "60"
+    assert manifest_cache_control("calibration/buoy_latest.json") == "60"
+
+
 def test_manifest_download_url_is_cache_busted_and_unique():
     a = manifest_download_url("https://x.supabase.co", "weather-products")
     assert a.startswith("https://x.supabase.co/storage/v1/object/weather-products/manifest.json?cb=")
