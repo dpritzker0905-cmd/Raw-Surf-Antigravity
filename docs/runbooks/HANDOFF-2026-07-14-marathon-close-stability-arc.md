@@ -201,6 +201,31 @@ Kill: `GRID_CLIP_TO_DATA_EXTENT=0`. 5 goldens; BE 719/2928. NOTE re "stretching"
 wave height by design (offshore 1–2.3 m vs nearshore 0.3 m) and the audit pane ran at 2 FPS —
 re-judge the stretch after this deploy on a healthy-FPS session before opening a shader arc.
 
+## §0e NEXT DEDICATED ARC — DECOUPLE ANIMATIONS FROM THE RATING TRANSFORM (user directive ~19Z 07-14)
+**USER DIRECTIVE (verbatim intent): "The resolutions and animations need to be identical from
+ratings on to ratings off on all GFS, EURO, ICON… animations shouldn't be attached to the
+ratings band."** Repro: GFS waves, rating ON, z8.57→7.0 — crests oversized/blocky ("clamped
+into a grid"); rating OFF at the same zooms = correct. Clears on far zoom-out (coarse tiers
+skip the transform — honest by accident).
+**MECHANISM (fully probe-proven, do NOT re-derive):** the surf transform packs SCORE/10 into
+the SAME `speed` field the animation reads. Same product/frame surf-toggled: u/v identical,
+zero cells killed, but speed raw 0.45→surf 0.96 (score 9.6) — crest size ∝ speed renders a
+0.45 m wave as a 9.6 m monster, and adjacent score jumps (0.16 vs 0.96) read as blocky size
+steps. The engine texture has ONE speed channel serving BOTH the band colormap and the crest
+animation — that single-channel coupling IS the defect. NO free honest channel exists in the
+payload (regional-tile conjoined swell_1/wind_waves sub-fields are empty — probed). The
+motion-unlock arc (`86a7f54c`, dataMask.g, ship-OFF) is about LAND checks, not this.
+**DESIGN (phased, zero-breakage):** Phase 1 backend-additive — the surf transform keeps score
+in `speed` (compat: band shader, glyph sampler "speed packs score/10", gates all unchanged)
+and ADDS per-cell honest `phys_speed` (+u/v already honest). Phase 2 FE — mappers carry
+phys_speed; `encodeMarineTexture` packs the ANIMATION channels (size/drift) from
+phys_speed-when-present (a dataMask channel or the texture layout's free slot), band/colormap
+keeps the score channel; kill `__RAW_DISABLE_ANIM_PHYS_CHANNEL__`. Phase 3 (optional cleanup)
+— flip the contract (speed=honest, `rating` field) once every consumer reads the new fields.
+⚠️ OWN ARC discipline: engine/shader minefield + needs visual A/B at z7–9 on all 3 models,
+rating on/off, healthy FPS. Verify with the §6 pane recipe + FORENSIC-SNAP. Estimated: one
+focused session.
+
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
 (map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
