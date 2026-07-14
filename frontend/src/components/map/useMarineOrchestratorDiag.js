@@ -23,6 +23,7 @@ export function _logPipelineEvent(eventType, detail, pipelineEventsRef, pipeline
   if (eventType.startsWith('network_fetch')) c.networkFetches++;
   if (eventType.startsWith('local_cache_remap')) c.cacheRemaps++;
   if (eventType === 'duplicate_commit_skipped') c.duplicateCommitSkipped++;
+  if (eventType === 'commit_short_circuit') c.commitShortCircuit = (c.commitShortCircuit || 0) + 1;
   if (eventType === 'extended_estimate_fetch') c.extendedEstimateFetches++;
   if (eventType === 'extended_estimate_skipped') c.extendedEstimateSkipped++;
   if (eventType === 'rate_limit_429') c.rateLimits++;

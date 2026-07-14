@@ -5,6 +5,8 @@
 // estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
+import { recordMarineEvent } from './marineForensics';
 
 export const EURO_NATIVE_HOURS = 240;
 export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
@@ -471,6 +473,28 @@ export function commitMarineData({
     if (isScrubCommit && (isStaleCoarse || isDegenerate) && hasPrevValidData && !isZoomTooLow && isSameModelAndLayer) {
       console.log(`[Marine] Scrub: holding good frame, skipped ${isDegenerate ? 'degenerate' : 'stale/coarse'} commit (cols=${data?.grid?.cols}, rows=${data?.grid?.rows}).`);
       return prev;
+    }
+    // §7g-β COMMIT SHORT-CIRCUIT (2026-07-14): a re-clip of the SAME product+run_time whose
+    // bounds the resident already contains adds zero information — committing it would only buy
+    // a texture re-upload + mask rebuild + particle churn (the round-12 per-gesture mid-clip
+    // churn). Every provability check (incl. the run_time data-revision component that the
+    // falsified §4.5 dedup lacked, and the ledger-agreement escape hatch) lives in the pure
+    // helper. Kill: window.__RAW_DISABLE_COMMIT_SHORT_CIRCUIT__ = true.
+    if (hasNewValidData && hasPrevValidData && isSameModelAndLayer) {
+      const _sc = shouldShortCircuitSameProductCommit({
+        disabled: typeof window !== 'undefined' && window.__RAW_DISABLE_COMMIT_SHORT_CIRCUIT__ === true,
+        prev, incoming: data, lastCommittedSig: lastCommittedSigRef.current,
+      });
+      if (_sc) {
+        logPipelineEventHelper('commit_short_circuit', _sc);
+        recordMarineEvent('commit_short_circuit', _sc);
+        if (typeof window !== 'undefined') {
+          const sc = window.__MARINE_COMMIT_SHORT_CIRCUIT__ || (window.__MARINE_COMMIT_SHORT_CIRCUIT__ = { count: 0 });
+          sc.count++;
+          sc.last = { ..._sc, ts: Date.now() };
+        }
+        return prev;
+      }
     }
     const newSig = _marineDataSignature(data, layer);
     // Duplicate test needs BOTH authorities to agree (2026-07-03 audit):

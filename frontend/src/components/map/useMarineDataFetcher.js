@@ -79,7 +79,7 @@ export function useMarineDataFetcher({
   const pipelineCountersRef = useRef({
     networkFetches: 0, cacheRemaps: 0, duplicateCommitSkipped: 0, duplicateUploadSkipped: 0,
     staleRejections: 0, pendingIntents: 0, rateLimits: 0, extendedEstimateFetches: 0,
-    extendedEstimateSkipped: 0, webglUploads: 0, webglClears: 0
+    extendedEstimateSkipped: 0, webglUploads: 0, webglClears: 0, commitShortCircuit: 0
   });
 
   const lastCommittedSigRef = useRef(null);

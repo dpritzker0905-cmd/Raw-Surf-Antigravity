@@ -301,12 +301,17 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
       validTime: json.valid_time || null,
       valid_time: json.valid_time || null,
+      // §7g-β: run_time is the data-REVISION discriminator (product_id embeds valid_time but not
+      // the run) — the commit short-circuit refuses to skip without it. Must be carried
+      // explicitly: this mapper rebuilds the result field-by-field, so unknown fields are dropped.
+      run_time: json.run_time || null,
       truthTag: json.truthTag || null,
       stale: json.stale || false,
       staleReason: json.staleReason || null
     },
     validTime: json.valid_time || null,
     valid_time: json.valid_time || null,
+    run_time: json.run_time || null,
     truthTag: json.truthTag || null
   };
 

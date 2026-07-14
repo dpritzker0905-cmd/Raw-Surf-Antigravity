@@ -103,9 +103,17 @@ export function mapNormalizedCopernicusGridToWebGL(json, snappedBounds, hourOffs
       is_estimated: json.is_estimated !== undefined ? json.is_estimated : false,
       estimate_basis: json.estimate_basis || null,
       is_dynamic_viewport_product: json.is_dynamic_viewport_product || false,
+      // §7g-β: run_time/validTime carried for the commit short-circuit's revision check —
+      // mirrors the GFS/ICON mapper in backendWeatherServiceClientHelpers.js.
+      validTime: json.valid_time || null,
+      valid_time: json.valid_time || null,
+      run_time: json.run_time || null,
       stale: json.stale || false,
       staleReason: json.staleReason || null
-    }
+    },
+    validTime: json.valid_time || null,
+    valid_time: json.valid_time || null,
+    run_time: json.run_time || null
   };
 }
 
