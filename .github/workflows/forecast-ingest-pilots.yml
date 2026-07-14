@@ -7,11 +7,14 @@
 # product debt (the audited GFS ~763 products/layer). Splitting gives the CORE cycle (the global
 # layers every heatmap + /point depends on) a guaranteed finish, and the pilots their own budget.
 #
-# SERIALIZATION: SAME concurrency group as forecast-ingest.yml — the two workflows must never run
-# concurrently (each restores the manifest, ingests, and uploads manifest.json last-writer-wins;
-# concurrent runs would clobber each other's product registrations). With the shared group this
-# run simply QUEUES until the core cycle finishes. Cron offset :45 next-hour lands after the
-# core's ~60-75 min normal finish.
+# SERIALIZATION (history): until 2026-07-14 this workflow SHARED one concurrency group with
+# forecast-ingest.yml — manifest.json upload was last-writer-wins, so concurrent runs clobbered
+# each other's product registrations and the two lanes were forced serial. That shared group's
+# congestion is what caused the pending-slot eviction cascade (three dead core cycles, 07-13).
+# Since 2026-07-14 every manifest upload reconciles against the fresh remote product list
+# (reconcile_manifest_products_for_upload in store.py — saves AND prunes), so the lanes run in
+# SEPARATE groups and may overlap freely; each lane still serializes with itself. The :45 cron
+# offset is kept (staggering fetch load costs nothing).
 name: Forecast Ingestion Pilots (regional tiles)
 
 on:
@@ -26,7 +29,7 @@ on:
     - cron: '45 3,11,19 * * *'
 
 concurrency:
-  group: forecast-ingest        # SHARED with forecast-ingest.yml — serializes manifest access
+  group: forecast-ingest-pilots  # OWN lane since 2026-07-14 — manifest merge-on-upload made core overlap safe (see header)
   cancel-in-progress: false
 
 jobs:

@@ -14,7 +14,20 @@ on:
     - cron: '15 */4 * * *'   # every 4h at :15 UTC — 00/04/08/12/16/20 (6 runs/day; matches the in-process IntervalTrigger(hours=4))
 
 concurrency:
-  group: forecast-ingest
+  # SPLIT 2026-07-14 (the eviction-class kill): core + pilots shared one serial group
+  # ("forecast-ingest") because concurrent manifest.json uploads were last-writer-wins — the
+  # loser's product registrations were silently erased. That serialization pushed the group's
+  # worst case (165 + 200 min) past the 240-min core cron period, and GH keeps only ONE pending
+  # slot per group → pending core cycles were repeatedly EVICTED (three dead core cycles on
+  # 07-13, startedAt null). reconcile_manifest_products_for_upload (store.py) now reconciles
+  # EVERY manifest upload against the fresh remote list — saves AND prunes (with exclusion
+  # sets) — so concurrent writers fold each other's registrations in instead of clobbering.
+  # With that live, each lane serializes only with ITSELF. Residual accepted races are
+  # documented in the reconcile docstring (both self-healing within a cycle).
+  # Revert = set both groups back to "forecast-ingest"; MANIFEST_MERGE_ON_UPLOAD=0 kills the
+  # reconcile itself (do NOT combine the two — split groups without the reconcile restores the
+  # clobber class).
+  group: forecast-ingest-core
   cancel-in-progress: false   # never cancel a half-written ingestion cycle
 
 jobs:
@@ -45,8 +58,9 @@ jobs:
           MARINE_INGEST_ALL: '1'        # ephemeral runner: ingest BOTH EURO+ICON marine (no alternation) so the manifest is complete
           INGEST_PILOTS: 'skip'         # 2026-07-04 timeout fix: the regional pilots (~67 min measured) pushed full cycles into the
                                         # 165-min job timeout ("cancelled" runs). Core globals run here (~45-60 min, always finish);
-                                        # forecast-ingest-pilots.yml runs the pilots with INGEST_PILOTS=only in the SAME concurrency
-                                        # group (serialized - concurrent manifest uploads would clobber each other).
+                                        # forecast-ingest-pilots.yml runs the pilots with INGEST_PILOTS=only — in its OWN concurrency
+                                        # group since 2026-07-14 (manifest merge-on-upload reconciles concurrent writers; see the
+                                        # concurrency block above).
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # ingest 2 worldwide coastal regions/cycle (was default 1) → all 8 (Hawaii, Iberia, UK, E-Australia, Indonesia, Brazil, S-Africa, Mexico) refreshed every ~4 cycles / 12h, fixing worldwide regional marine coverage
           BUOY_CALIBRATION: '1'         # measure-first: compare the ingested model to NOAA NDBC buoys -> L2 report (guarded, never fails the cycle)
           REPORT_CALIBRATION: '1'       # forward RATING calibration: snapshot per-spot predictions -> rolling L2 archive + match surfer logs (guarded)
