@@ -35,6 +35,33 @@ from services.weather_pipeline.grid_resolver_surf import apply_surf_overlay
 logger = logging.getLogger(__name__)
 
 
+def stamp_frame_honesty(product, target_dt, ask_str: str) -> None:
+    """SERVING HONESTY (2026-07-14 §0c, frame-skew postmortem): resolve_grid overwrites
+    product.valid_time with the REQUESTED time just before responding — the response has always
+    echoed the ask, so a ±3h nearest-frame substitution served as if exact (stale=False) with
+    the product_id filename as the only truth. That mask hid the surf-override frame skew for
+    hours. The echo is a load-bearing frontend contract and stays; call this BEFORE the
+    overwrite to capture the served frame's true time into the ADDITIVE honesty fields
+    (served_valid_time / frame_offset_hours / frame_substituted at >30 min). Never raises —
+    a naive/aware datetime mismatch leaves the defaults (None/0.0/False) rather than failing
+    a serve."""
+    try:
+        true_frame_dt = product.valid_time
+        if true_frame_dt is None:
+            return
+        offset_h = (true_frame_dt - target_dt).total_seconds() / 3600.0
+        product.served_valid_time = true_frame_dt.strftime("%Y-%m-%dT%H:%M:%SZ")
+        product.frame_offset_hours = round(offset_h, 2)
+        product.frame_substituted = abs(offset_h) > 0.5
+        if product.frame_substituted:
+            logger.info(
+                f"[Grid Resolver] Frame substitution: serving {product.served_valid_time} "
+                f"for ask {ask_str} ({product.frame_offset_hours:+.1f}h) — {product.product_id}"
+            )
+    except Exception:
+        pass
+
+
 async def resolve_grid(
     store,
     viewport_service,
@@ -519,6 +546,7 @@ async def resolve_grid(
                 return make_no_coverage_grid_response(model, layer, valid_time)
 
     if product:
+        stamp_frame_honesty(product, target_dt, valid_time)
         product.valid_time = target_dt
 
     # 4. Set diagnostics renderable property explicitly
@@ -528,6 +556,8 @@ async def resolve_grid(
         product.grid.diagnostics["renderable"] = len(product.grid.vectors) > 0 and any(v.speed > 0 for v in product.grid.vectors)
         product.grid.diagnostics["partial_coverage"] = getattr(product, "partial_coverage", False)
         product.grid.diagnostics["valid_time"] = product.valid_time.strftime("%Y-%m-%dT%H:%M:%SZ")
+        product.grid.diagnostics["served_valid_time"] = product.served_valid_time
+        product.grid.diagnostics["frame_offset_hours"] = product.frame_offset_hours
 
     # Attach truthTag for GFS marine waves and all wind forecast models
     is_gfs_marine_waves = (model.upper() == "GFS" and domain.lower() == "marine" and layer.lower() == "waves")

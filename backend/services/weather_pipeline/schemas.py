@@ -82,6 +82,15 @@ class NormalizedProduct(BaseModel):
     stale: bool = False
     staleReason: Optional[str] = None
     fallbackReason: Optional[str] = None
+    # SERVING HONESTY (2026-07-14 §0c, frame-skew postmortem): `valid_time` on a /grid response
+    # has always ECHOED THE REQUEST — a ±3h nearest-frame substitution served as if exact, with
+    # the product_id filename as the only truth (that mask hid the surf-override frame skew for
+    # hours). The echo is a load-bearing frontend contract, so it stays; the truth rides in
+    # these ADDITIVE fields instead: the frame actually served, its signed offset from the ask,
+    # and a flag when the offset exceeds 30 min.
+    served_valid_time: Optional[str] = None
+    frame_offset_hours: float = 0.0
+    frame_substituted: bool = False
 
 
 class NormalizedPointDetail(BaseModel):
