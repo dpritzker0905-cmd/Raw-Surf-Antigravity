@@ -168,6 +168,19 @@ stretched-texture bug does not reproduce.
 (3) residual seam (animations end at the committed grid edge over the coarse wash) — same-frame
 now on both sides; the §2b-style feather/animate-over-wash polish remains OPEN (user-judged).
 
+**§0c FORENSIC AUDIT (~17Z) + HONESTY COMPLETION `76b0e84c`:** audit of the afternoon ships —
+CI green on every commit; honesty fields 6/6 truthful across ALL resolver paths (regional
+exact/between-frames/east-page/dynamic/global/GFS; pid-frame agreement everywhere); +400h 404 =
+the PRE-EXISTING no_copernicus_coverage terminal contract (not a regression); tie fix still
+holding; a11y labels in the deployed chunks + aria-pressed live-tracks state (true→false→true).
+AUDIT FINDING FIXED: the SERIES lane (the dominant idle commit path) never carried the honesty
+fields — its compact frame schema dropped them and frameToMarineData rebuilds field-by-field.
+Now flowing end-to-end: grid_series_helper (all 3 frame-build sites — resolver stamp copy /
+EURO fast-path identity / open-meteo path computes the REAL offset from find_closest_time_index)
+→ FE mappers + frameToMarineData → engine grid → **FORENSIC-SNAP `frameOff`** (nonzero = the
+resident is a stand-in frame, value = served−requested hours) + `data_committed` event tag.
+A pasted console log now self-reports frame skew. BE 714/2928, FE 949/949.
+
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
 (map components, non-test): **132 interactive elements across 20 files; 41 aria attributes
