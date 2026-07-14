@@ -122,6 +122,18 @@ all pushed. Predecessor doc (full blow-by-blow of every round this marathon):
    **LIVE-VERIFIED** (local vs prod, FL): mid-tier zoom/pan fired the skip on
    `gfs_marine_waves_global_mid_…` with run_time threaded; zoom-out to z4.6 committed 37×17
    global_coarse normally (skip idle across tier changes). Baselines now **FE 932/932**.
+4. **`fbba3547` §1c SKIP-BEYOND-BOUND shipped (queue #4 — the scrub residual CLOSED):** far-hour
+   rating scrubs fell through the CDN ladder to the endpoint = live path per step, AND the old
+   frame's accumulated endpoint ratings shadowed the hour-correct grid-sample fallback. New pure
+   `isBeyondPrecomputeBound` (spotRatingsCdn.js) — TRUE only when frames PROVABLY exist for the
+   model and the ask is beyond the stale bound of all of them (model-missing still falls to the
+   endpoint, which owns that case). On skip: endpoint map cleared → glyphs = hour-accurate grid
+   sample, zero fetches. Kill: `__RAW_DISABLE_RATINGS_SKIP_BEYOND_BOUND__=true`; diag status
+   `skipped_beyond_bound`. **LIVE-VERIFIED** round-trip (FL z8, wheel 0→+72h→0: precomputed_cdn
+   34 → skipped_beyond_bound/grid_fallback 3 → precomputed_cdn 30; ZERO box calls throughout).
+   Baselines now **FE 937/937**. §4 queue state: #1 manifest concurrency DONE (split live,
+   overlap watch pending), #2 CDN DONE, #3 §7g-β DONE, #4 §1c DONE → next = #5 BOLA (separate
+   lane, read the 07-12 review first) + §0a a11y next-steps.
 
 ## §0a ACCESSIBILITY AUDIT (user mandate 2026-07-14 — now a binding CLAUDE.md rule)
 **Verdict: NOT yet ARIA-accessible; coverage is partial and concentrated.** Forensics
