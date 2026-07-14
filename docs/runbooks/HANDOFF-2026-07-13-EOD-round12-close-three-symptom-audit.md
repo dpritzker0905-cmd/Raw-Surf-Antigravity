@@ -265,6 +265,17 @@ is NOT another hold (would re-open stranding). Ranked:
 DO NOT: extend ratingDowngrade to non-covering residents (re-opens 07-04 stranded rectangles).
 ⚠️ Both paths are designated minefields (orchestrator / engine) — full-context session, ring
 instrumentation first, kill switch mandatory.
+**SHIPPED `9294ad7c` (2026-07-14 ~01Z): the BOUNDED-GRACE variant of (e)** — when a rated
+resident loses coverage to an UNRATED incoming while the Surf flag is ON,
+`shouldRejectResolutionDowngrade` holds it up to `__RAW_RATING_GRACE_MS__` (default 4000 ms);
+the rejected unrated grid sits in the existing `_pendingDowngrade` stash (re-evaluated every
+frame), so a RATED incoming landing first swaps rated→rated with NO band blink, and expiry
+commits the unrated stash — stranding impossible BY THE BOUND. Rated incomings / scrubs /
+layer switches / cross-model untouched. Kill `__RAW_DISABLE_RATING_GRACE__=true`. Ring
+`rating_grace_hold`/`rating_grace_expired`. 5 goldens + the release golden re-scoped to the
+bounded contract. FE 896/896. VERIFY live (rating ON, zoom out from a rated clip): SNAP should
+keep `rating:true band:true` through the interlude (or ≤4 s to the honest coarse), ring shows
+grace events; forensics recipe unchanged.
 
 ## §4g DEEP-AUDIT ROUND (2026-07-13 ~22-23Z, dev `ba894c3d`) — self-audit of the day's 8 ships
 **LIVE-VERIFIED WORKING:** stale ladder + checkpoint uploads (lane healed to `precomputed@0.2s`
