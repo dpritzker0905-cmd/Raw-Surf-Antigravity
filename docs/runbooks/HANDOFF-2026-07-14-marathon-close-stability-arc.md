@@ -230,6 +230,27 @@ changes** · phys carried through both mappers + the useMarineWindData conform �
 DEFAULT-ON (kill `__RAW_RATING_MOTION_UNLOCK__=false`) · whole-feature kill
 `__RAW_DISABLE_ANIM_PHYS__=true` · pre-deploy fallback proven (no phys field → score fallback,
 visuals unchanged). BE 721/2928, FE 949/949. Telemetry: `__RAW_GPU__.anim.animPhys`.
+**§0f FOLLOW-UP FIXES `96fcef7b` (~22:30Z, user re-test found two residuals):**
+(1) **ANIMATION BOUNDARY LINES at rating-ON z8.5–7.38** (hard lines at lat ~26.2 / lng ~-78.7 =
+the clipped regional tile's data edges mid-viewport; "corrects after a while" = a wider grid
+eventually commits; returns on refresh): `pick_surf_regional_override` now requires the tile to
+COVER the viewport within `SURF_REGIONAL_PREFER_MAX_POKE_DEG` (default 1.25°/side — the
+documented legit poke is ~1°); wider viewports fall through to the DYNAMIC lane, which since
+§0e carries the transform + band + phys — identical coverage to rating-off.
+**LIVE-VERIFIED post-deploy at the user's exact z7.25 coordinates: resident =
+`viewport_gfs_marine_waves_…` [-82,-77]×[25,29] COVERING the viewport, rating:true,
+scoreTex aboard — no data edges in view.** Trade: band resolution at those zooms = the dynamic
+lane's (same as rating-off); native tiles still win ≤~z8.5 tight zooms.
+(2) **EURO first-paint WRONG-WAY faint crests (3–4 s)**: coarse-global crest suppression now
+applies at z≥7 regardless of overlay coverage (`__RAW_COARSE_SUPPRESS_MIN_ZOOM__` tune, same
+kill switch) — the 07-04 overlay relaxation served confidently-wrong block-mean directions for
+a window that now lasts seconds. Code+suite verified; boot transient not catchable locally
+(warm caches) — user's next real boot = natural confirm.
+(3) NOTATED: EURO 48-hour `grid_series?surf=1` pages die in Netlify's ~26 s `/api/*` proxy
+window (per-hour resolve × 48 too slow; "Fetch failed" in user logs; direct-to-Render 6h page
+= 4.1 s OK). Pre-existing heaviness — fix candidates: smaller series pages for EURO far tail,
+or per-page hour cap. BE 722/2928, FE 949/949.
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
