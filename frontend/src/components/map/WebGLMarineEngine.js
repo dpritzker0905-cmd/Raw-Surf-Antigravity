@@ -174,7 +174,7 @@ function gridCellDeg(waveGrid) {
 // coarse→regional (sharpen/UPGRADE), a scrub to a DIFFERENT hour, zoomed-out, no resident, or a resident regional
 // that no longer COVERS the viewport (stale after a pan) all return false — so the guard can never strand a
 // non-covering rectangle nor re-create the coarse-global CLAMP that 7f6c39be/54e289b5 fixed.
-export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled) {
+export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs) {
   if (disabled || !resident || !incoming) return false;
   // Two downgrade shapes are blocked (everything else falls through unguarded):
   //  (1) the coarse-GLOBAL fallback displacing a regional (the original 07-01 ping-pong), and
@@ -260,6 +260,42 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
     const minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
     covers = frac >= minFrac;
   }
+  // RATING-INTERLUDE GRACE (2026-07-14, round-12 §4f — "heatmap + animations clear between zooms
+  // with the rating band ON"): the coverage release below is CORRECT data-wise (the rated clip is
+  // a minority of the screen), but the incoming that wins the release is the UNRATED global —
+  // ratingMode drops, the band forces off, the wash disengages, and the whole rating layer blinks
+  // out for the seconds until the WIDER rating clip lands (user logs: rating:true 17×17 → the
+  // 37×17 global rating:false → rating clip again). Hold the rated resident through that
+  // interlude for a BOUNDED grace: the rejected unrated grid sits in the _pendingDowngrade stash
+  // (re-evaluated every frame), so when a RATED incoming lands first the swap is rated→rated (no
+  // blink), and when the grace expires the unrated stash commits (truth wins — the 07-04
+  // stranded-rectangle class stays impossible BY THE BOUND, never by coverage). A rated incoming
+  // is untouched by this branch (!incoming.ratingMode), as are scrubs/layer switches/cross-model
+  // (same predicates as the guard proper). Kill: __RAW_DISABLE_RATING_GRACE__ = true.
+  // Tune: __RAW_RATING_GRACE_MS__ (default 4000). Ring: rating_grace_hold / rating_grace_expired.
+  const graceEligible = _surfFlagOn && !!resident.ratingMode && !incoming.ratingMode
+    && sameLayer && sameHour && residentRenderable && coverageKnown && !covers;
+  if (graceEligible) {
+    const w = (typeof window !== 'undefined') ? window : {};
+    if (w.__RAW_DISABLE_RATING_GRACE__ !== true) {
+      const graceMs = (typeof w.__RAW_RATING_GRACE_MS__ === 'number') ? w.__RAW_RATING_GRACE_MS__ : 4000;
+      const t = (typeof nowMs === 'number') ? nowMs : Date.now();
+      const key = `${_rm}|${resident.__componentLayer || 'waves'}|${resident.hourOffset}|`
+        + `${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
+      if (_ratingGraceState.key !== key) {
+        _ratingGraceState.key = key;
+        _ratingGraceState.startedAt = t;
+        _ratingGraceState.expired = false;
+        try { recordMarineEvent('rating_grace_hold', { key, graceMs }); } catch (e) { /* ring never fatal */ }
+      }
+      if (t - _ratingGraceState.startedAt < graceMs) return true;   // hold — stash re-offers next frames
+      if (!_ratingGraceState.expired) {
+        _ratingGraceState.expired = true;
+        try { recordMarineEvent('rating_grace_expired', { key }); } catch (e) { /* ring never fatal */ }
+      }
+      // expired → fall through: covers=false releases the resident (bounded, self-healing).
+    }
+  }
   // COVERAGE, not zoom, is the real predicate (2026-07-04, "waves flip direction + height color
   // around z7.0-7.74, then correct"): dipping below the z7.0 threshold let the 37×17 world grid
   // displace a regional tile that still fully covered the viewport — its 10° cells carry leaked
@@ -270,6 +306,12 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // case (no zoom AND no viewport) still fails OPEN, and a wrong reject self-heals via the
   // _pendingDowngrade stash re-evaluated every frame with the current zoom/viewport.
   return !!(sameLayer && sameHour && residentRenderable && covers && (zoomedIn || coverageKnown));
+}
+
+// Rating-interlude grace state (module singleton — one engine per map). Exported reset for tests.
+const _ratingGraceState = { key: null, startedAt: 0, expired: false };
+export function __resetRatingGraceForTests() {
+  _ratingGraceState.key = null; _ratingGraceState.startedAt = 0; _ratingGraceState.expired = false;
 }
 
 // === COARSE-BAND CREST CONTROLS (pure; exported for tests) ===

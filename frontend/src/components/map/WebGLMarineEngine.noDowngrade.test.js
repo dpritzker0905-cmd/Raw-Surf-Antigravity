@@ -1,4 +1,4 @@
-import { shouldRejectResolutionDowngrade } from './WebGLMarineEngine';
+import { shouldRejectResolutionDowngrade, __resetRatingGraceForTests } from './WebGLMarineEngine';
 
 // Grid factories matching the live repro (2026-07-01, Cocoa z9): a resident 13×13 regional waves tile
 // (series_GFS_waves_h0) being overwritten by the 37×17 gfs_marine_waves_global_coarse fallback.
@@ -224,11 +224,75 @@ describe('shouldRejectResolutionDowngrade — RATING downgrade hold (2026-07-12 
     )).toBe(false);
   });
 
-  it('RELEASES the rated resident when it no longer covers (no stranded rated rect)', () => {
+  it('RELEASES the rated resident when it no longer covers — after the BOUNDED grace (2026-07-14 §4f)', () => {
+    // Pre-grace this released INSTANTLY, blinking the band off for the unrated interlude until
+    // the wider rating clip landed. Now: hold through the grace window (the rated refetch usually
+    // lands first → rated→rated swap), then release (truth wins — stranding stays impossible by
+    // the BOUND, not by coverage).
+    __resetRatingGraceForTests();
+    const wideVp = [-84, 25, -76, 32];
+    const t0 = 1_000_000;
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+    )).toBe(true);                                     // held at grace start
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 3999
+    )).toBe(true);                                     // still held just inside the window
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 4001
+    )).toBe(false);                                    // expired → unrated commits (bounded)
+  });
+
+  it('grace: a RATED wider incoming lands during the hold → rated→rated swap allowed immediately', () => {
+    __resetRatingGraceForTests();
+    const wideVp = [-84, 25, -76, 32];
+    const t0 = 2_000_000;
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+    )).toBe(true);                                     // unrated held...
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: true }), 5, wideVp, false, t0 + 500
+    )).toBe(false);                                    // ...but the RATED incoming passes at once
+  });
+
+  it('grace: kill switch __RAW_DISABLE_RATING_GRACE__ restores the instant release', () => {
+    __resetRatingGraceForTests();
+    window.__RAW_DISABLE_RATING_GRACE__ = true;
+    try {
+      const wideVp = [-84, 25, -76, 32];
+      expect(shouldRejectResolutionDowngrade(
+        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, 3_000_000
+      )).toBe(false);
+    } finally {
+      delete window.__RAW_DISABLE_RATING_GRACE__;
+    }
+  });
+
+  it('grace: an hour scrub is never held (sameHour predicate applies to the grace too)', () => {
+    __resetRatingGraceForTests();
     const wideVp = [-84, 25, -76, 32];
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false
+      regional({ ratingMode: true, hourOffset: 0 }), coarseGlobal({ ratingMode: false, hourOffset: 24 }),
+      5, wideVp, false, 4_000_000
     )).toBe(false);
+  });
+
+  it('grace: a NEW situation (different resident tile) restarts the window', () => {
+    __resetRatingGraceForTests();
+    const wideVp = [-84, 25, -76, 32];
+    const t0 = 5_000_000;
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+    )).toBe(true);
+    // grace expires for tile A...
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 5000
+    )).toBe(false);
+    // ...a different rated tile (new key) gets its own fresh window
+    const other = regional({ ratingMode: true, bounds: { west: -120, east: -117, south: 32, north: 35 } });
+    expect(shouldRejectResolutionDowngrade(
+      other, coarseGlobal({ ratingMode: false }), 5, [-124, 30, -114, 38], false, t0 + 5001
+    )).toBe(true);
   });
 
   it('inactive surf mode: unrated replacements flow normally', () => {
