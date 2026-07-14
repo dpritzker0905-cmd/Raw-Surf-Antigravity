@@ -170,7 +170,10 @@ def compute_data_health(store, now: Optional[datetime] = None) -> dict:
             status = _worse(status, "critical")
             alerts.append("ratings/precomputed: NO frames — every rating request is on the live path (melt risk)")
         else:
-            newest_age_h = round((now - max(frame_times)).total_seconds() / 3600.0, 1)
+            # Clamp at 0: with SPOT_RATINGS_PRECOMPUTE_HOURS='0,3' the newest frame is up to 3h in
+            # the FUTURE (live-observed age=-2.8h) — a future frame is maximal coverage, so 0 is the
+            # honest floor; the verdict math below is unchanged either way (negative < thresholds).
+            newest_age_h = round(max(0.0, (now - max(frame_times)).total_seconds() / 3600.0), 1)
             verdict = "ok"
             if newest_age_h > ratings_crit_h:
                 verdict = "critical"

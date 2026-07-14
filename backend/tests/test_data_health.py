@@ -173,3 +173,12 @@ def test_ratings_lane_empty_object_is_critical(monkeypatch):
     rep = compute_data_health(_Store(_all_healthy()), now=NOW)
     assert rep["lanes"]["ratings/precomputed"]["verdict"] == "critical"
     assert any("live path" in a for a in rep["alerts"])
+
+
+def test_ratings_lane_future_frames_clamp_to_zero_age(monkeypatch):
+    # hours '0,3' writes frames up to 3h in the FUTURE (live-observed age=-2.8h pre-clamp):
+    # maximal coverage must read as age 0, verdict ok.
+    _with_ratings(monkeypatch, _ratings_obj([-3.0, 0.0]))   # newest frame 3h in the future
+    rep = compute_data_health(_Store(_all_healthy()), now=NOW)
+    lane = rep["lanes"]["ratings/precomputed"]
+    assert lane["verdict"] == "ok" and lane["age_h"] == 0.0
