@@ -51,10 +51,16 @@ picker + provenance HUD the app already has, not "fixing" one model to another.
 **Clean, reproducible A/B (fresh navigation, controlled toggle), Cocoa, z6.45, 7.09° viewport, same
 model (GFS), same time:**
 
+> ⚠️ **CORRECTION (Step-1 forensics, §6 below):** this specific A/B was NOT clean — the rating-OFF
+> row was a **stuck coarse-global** resident left over from heavy prior zoom stress-testing, not the
+> normal rating-OFF behavior. On a **clean** state rating ON == OFF == `global_mid` dir 13° (§6). The
+> real bug is the *stickiness* (a flavor stuck on coarse-global), which is stress-induced, not the
+> rating toggle. The table is kept as the record of the stuck state's symptom.
+
 | Rating | Resident tile | Cell size | Nearest cell | Direction | dirConf |
 |---|---|---|---|---|---|
 | ON | `gfs_marine_waves_global_mid` | 1.78° | 0.65° (~72 km) offshore | **13°** | 0.99 |
-| OFF | `gfs_marine_waves_global_coarse` | **9.73°** | 1.74° (~193 km) offshore | **65°** | 0.66 |
+| OFF | `gfs_marine_waves_global_coarse` (STUCK) | **9.73°** | 1.74° (~193 km) offshore | **65°** | 0.66 |
 
 The 52° swing is **not** a rating bug — it is because the two flavors resolve to **different-resolution
 tiles**, and the wave-direction field has strong spatial structure (the GFS fine box spans **1°–359°**:
@@ -122,3 +128,58 @@ kill-switched, harness-A/B'd steps for the next focused pass (do NOT bundle):
 
 **Deferred (documented earlier this session):** the ~1.5 s base-mask zoom-out transient
 (`HANDOFF-2026-07-15-AUDIT-…` §0) — same zoom-out cluster.
+
+---
+
+## 6. STEP-1 FORENSICS (2026-07-15 cont.) — "why does the waves flavor stick on coarse-global?"
+
+Instrument-first pass on the stuck-coarse-global root, cross-checked against the backend tier ladder.
+**The headline: on CLEAN paths the FE recovers correctly and rating ON == OFF; the stuck state is
+stress-induced, not a normal-use or a rating bug.** No clean-path bug was found to fix — so nothing
+was shipped (shipping to the mask/bridge minefield without a reproducible defect = guessing).
+
+### 6a. Backend resolver tier ladder (curl, GFS/waves, centered FL, independent of the FE)
+| Viewport span | Serves | Cell |
+|---|---|---|
+| < ~2° (fits a regional tile bbox) | `florida_east_coast` regional | **0.231°** |
+| 3–14° | `global_mid` | 1.6–1.8° |
+| ≥ ~15–20° | `global_coarse` | 9.73° |
+So `global_coarse` at z4.6 (span > 20°) is **correct**; the backend serves `global_mid` for a 7° bbox.
+
+### 6b. Clean FE zoom paths RE-SHARPEN correctly (dev-map tile trace)
+- **Single zoom-out** z9→z6.45: `florida_east_coast` 0.23° → (transient `global_coarse` 9.73° at z6.8,
+  the §0o bridge) → settles `global_mid` 1.8°. ✅ matches the backend tier.
+- **Round-trip** z6.45→global(z3.4)→z6.45: out to `global_coarse`, back **re-sharpens to `global_mid`**. ✅
+- **Real wheel-scroll** zoom-out: transient `global_coarse`, recovers to fine on settle. ✅
+- The stuck `global_coarse`-at-a-coastal-zoom from the prior turn only occurred after ~5 repeated
+  global fly-tos (my crest stress-test) — NOT reproducible on any clean single gesture.
+
+### 6c. Rating ON == OFF on clean states (the "direction differs with rating" does NOT reproduce clean)
+- z6.45 clean: rating ON `global_mid` dir **13°** == rating OFF `global_mid` dir **13°**.
+- z8.15 (off-hour, valid_time 23:00): ON = dynamic 0.231° `is_estimated:true` dir **50.4°**; OFF =
+  dynamic 0.444° `is_estimated:false` dir **51.0°** — **directions agree (~1°)**. The HUD "ESTIMATED
+  FALLBACK" is the honesty system correctly labeling an off-hour **dynamic-viewport** product (both
+  flavors serve dynamic products off-cycle); it is honest behavior, not a data bug.
+
+### 6d. The one REAL, inherent limitation (not a bug — a design/data limit)
+At coastal-to-mid zoom (z5–7, span 3–14°) the best available tile is `global_mid` **1.8°/cell**, whose
+nearest cell to a coastal spot is ~72 km **offshore** → the shown coastal direction is the model's
+offshore heading there (e.g. 13° at z6.45 vs the true coastal ~50°). This is the tier-ladder
+resolution limit, identical for both flavors, honestly the coarser field — **not** a rating or
+convention bug. Fixing it = a **finer** tile at 3–14° span (finer `global_mid`, or larger fine
+regional tiles), which is the reverted "root B" territory — approach via a finer mid tile (NOT a wider
+span, which floated as the rectangle) and watch the ~158–165 min cron budget.
+
+### 6e. VERDICT + best path
+The direction **data is authoritative and faithfully rendered**, and the FE **recovers correctly on
+all clean zoom paths** with rating parity. The user-observed anomalies (2 s clear at z4.6; direction
+differing with rating) trace to **stress/transient states in the tier+bridge+dynamic-product
+machinery** that do not reproduce on clean single gestures — so they cannot be fixed by guessing.
+Highest-leverage next moves, in order:
+1. **Instrument-to-catch (lowest risk):** a persistent resident-vs-tier-ladder watchdog (ring buffer +
+   one-line warn) that fires when the resident cell is coarser than the backend would serve for the
+   current viewport, OR coarse-global at a coastal zoom — so the NEXT time the user hits the stuck
+   state, the exact trigger is captured with proof. Then fix the dedup/bridge with a reproduction.
+2. **Finer coastal-mid tile (§6d)** — real accuracy win at z5–7, backend precompute, cron-budgeted,
+   via a finer mid tile (not a wider span).
+3. Infobox fine point-query (§3).
