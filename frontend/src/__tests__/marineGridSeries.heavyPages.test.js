@@ -102,10 +102,26 @@ describe('marineGridSeries — per-cost-class page spans (proxy-window fit)', ()
     // Warm GFS swell page 1 (144..285, 48 frames), then flip surf ON: the exact-key lookup misses
     // (flavor + page regime both changed) but the hour-range containment fallback must still find
     // the covering swell frames — the guard is hour-based, not page-index-based, across regimes.
+    // (This is the ALLOWED flavor direction: an honest frame in rating mode renders honestly via
+    // the engine's Option-A gate until a rating grid lands.)
     await ensureMarineSeries('GFS', 'waves', bounds, 150);
     window.__SURF_MODE__ = true;
     const f = getMarineSeriesFrame('GFS', 'waves', { west: -81.0, south: 28.0, east: -80.0, north: 28.6 }, 150);
     expect(f).not.toBeNull();
     expect(f.grid.hourOffset).toBe(150);
+  });
+
+  it('NEVER serves a surf page in swell mode (the "band will not turn off" wedge)', async () => {
+    // Warm a SURF page, then toggle OFF: the containment fallback must refuse it — surf frames
+    // carry SCOREs (ratingMode:true), and the engine's reverse gate keeps painting the band until
+    // an HONEST commit lands; serving the cached surf frame preempted that commit forever
+    // (user report 2026-07-15: "the rating band isn't turning off when the toggle is off").
+    window.__SURF_MODE__ = true;
+    await ensureMarineSeries('GFS', 'waves', bounds, 0);
+    expect(getMarineSeriesFrame('GFS', 'waves', { west: -81.0, south: 28.0, east: -80.0, north: 28.6 }, 0)).not.toBeNull();
+    window.__SURF_MODE__ = false;
+    // Exact-key path: swell keys miss surf entries by construction; the containment fallback must
+    // now ALSO refuse the surf-stamped entry → a clean miss → the per-hour swell fetch takes over.
+    expect(getMarineSeriesFrame('GFS', 'waves', { west: -81.0, south: 28.0, east: -80.0, north: 28.6 }, 0)).toBeNull();
   });
 });

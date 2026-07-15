@@ -360,13 +360,19 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
 
   const hours = buildPageHours(page, model);
   if (hours.length === 0) return;
+  // FLAVOR SNAPSHOT (2026-07-15, "the rating band isn't turning off"): capture the surf flag ONCE
+  // at request time — it flavors the URL below AND stamps the cache entry so getMarineSeriesFrame's
+  // containment fallback can refuse to serve a SURF page in swell mode (the toggle-off wedge: surf
+  // frames carry SCOREs + ratingMode:true, and the engine's reverse gate then keeps painting the
+  // band while this serve preempts the honest commit that would release it).
+  const surfFlavor = getSurfModeFlag();
   // Request the padded box (computed above) so the served tile contains the viewport (+small pans) —
   // fixes the degree-boundary clamp. Cache key + coarse-preview detection still use the UNPADDED bounds.
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
     + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`
-    + (getSurfModeFlag() ? '&surf=1' : '');
+    + (surfFlavor ? '&surf=1' : '');
 
   // Local timeout so a slow model (EURO/Copernicus) can't leave the series fetch hanging.
   // Armed AFTER the concurrency slot is acquired (below): it bounds the FETCH, not the queue
@@ -442,7 +448,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       // key: the requested bbox is a wrapped wide viewport (e.g. west=-204) but the served global
       // grid is ±180, which contains every viewport — so global scrub HITS regardless of pan. Also
       // strictly improves regional hits (the served tile is ≥ the requested viewport).
-      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, coarsePreview: isCoarsePreview, revalCount });
+      _seriesCache.set(key, { ts: Date.now(), frames, hours: hoursList, bounds: sfb || bounds, model, layer, page, surf: surfFlavor, coarsePreview: isCoarsePreview, revalCount });
       _failRetries.delete(key); // §4.3(b): a successful page resets its failure budget
       // Bound memory.
       if (_seriesCache.size > SERIES_MAX) {
@@ -597,9 +603,16 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     let smallestArea = Infinity;
     let globalFallbackFrame = null;   // a GLOBAL-width frame — used ONLY if no regional frame contains the viewport
     let globalFallbackDiff = Infinity;
+    const _wantSurf = getSurfModeFlag();
     for (const entry of _seriesCache.values()) {
       if (now - entry.ts >= SERIES_TTL_MS) continue;
       if (entry.model !== model || entry.layer !== layer) continue;
+      // FLAVOR GUARD (2026-07-15, "the rating band isn't turning off"): NEVER serve a surf-flavored
+      // page in swell mode — its frames carry SCOREs (ratingMode:true) and the engine's reverse gate
+      // would keep painting the band while this serve preempts the honest commit that releases it.
+      // ONE-DIRECTIONAL by design: an honest page in surf mode stays servable (the documented bridge —
+      // the Option-A gate renders it honestly until a rating grid lands).
+      if (!_wantSurf && entry.surf === true) continue;
       // Hour-range proximity guard (was a page-index compare — meaningless across the per-cost-class
       // span regimes, where the same hour maps to different page numbers). An entry whose HOURS list
       // can't reach the ask within the 3h lattice can never pass the ±1.5h nearest gate below.
