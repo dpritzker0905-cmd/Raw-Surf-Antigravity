@@ -15,6 +15,7 @@ import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, 
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
 import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
+import { recordResolutionSample } from './marineResolutionWatch';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
 import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
@@ -397,6 +398,31 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       timestamp: new Date().toISOString()
     };
 
+    // MARINE RESOLUTION WATCHDOG (2026-07-15): silently record when the resident tile is coarser than
+    // the backend tier ladder serves for the current viewport — the stress-induced "stuck coarse-global"
+    // state behind the coarse/wrong coastal direction on zoom-out (see marineResolutionWatch.js +
+    // docs/runbooks/PROOF-2026-07-15-marine-direction-truth-and-resolution.md). Read-only, non-throwing;
+    // after seeing a coarse/wrong direction, run window.__RAW_RES_WATCH__.report() to capture the trigger.
+    try {
+      let _vpSpan = 0;
+      try { const _vb = mapInstance.getBounds(); _vpSpan = _vb.getEast() - _vb.getWest(); } catch (e) { /* viewport unavailable */ }
+      const _gspan = actualBounds
+        ? ((actualBounds.east < actualBounds.west ? actualBounds.east + 360 : actualBounds.east) - actualBounds.west)
+        : 0;
+      let _z = null; try { _z = +mapInstance.getZoom().toFixed(2); } catch (e) { /* zoom unavailable */ }
+      recordResolutionSample({
+        z: _z,
+        spanDeg: _vpSpan,
+        cellDeg: (_gspan > 0 && grid.cols) ? _gspan / grid.cols : 0,
+        cols: grid.cols,
+        scope: grid.coverage_scope,
+        model: gridModel,
+        layer: componentLayer,
+        productId: grid.productId || grid.__productId,
+        phase: 'commit',
+      });
+    } catch (e) { /* watchdog must never break the commit path */ }
+
     runDiagnosticsUpdate('upload_success');
 
     // BASEMAP-WATER TRUTH re-apply (2026-07-04, the Venice regression of the Gull-Park fix): a
@@ -595,6 +621,24 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       let z;
       try { z = mapInstance.getZoom(); } catch (e) { return; }
       const engine = engineRef.current;
+      // MARINE RESOLUTION WATCHDOG (settle-time leg, 2026-07-15): the commit-hook above only sees
+      // tiles as they COMMIT; the user-visible STUCK state is a coarse-global resident that never
+      // re-commits at a coastal zoom. idle/moveend/zoomend fire when the view settles, so evaluate
+      // the CURRENT resident vs the settled viewport here too. Read-only, non-throwing; before any
+      // mask-refresh gate so a stuck state is recorded even when the repaint is skipped.
+      try {
+        const _wg = engine && engine._waveData && engine._waveData.waveGrid;
+        if (_wg && _wg.bounds && _wg.cols) {
+          let _vpSpan = 0;
+          try { const _vb = mapInstance.getBounds(); _vpSpan = _vb.getEast() - _vb.getWest(); } catch (e) { /* viewport unavailable */ }
+          const _gspan = (_wg.bounds.east < _wg.bounds.west ? _wg.bounds.east + 360 : _wg.bounds.east) - _wg.bounds.west;
+          recordResolutionSample({
+            z: +z.toFixed(2), spanDeg: _vpSpan, cellDeg: _gspan / _wg.cols,
+            cols: _wg.cols, scope: _wg.coverage_scope, model: _wg.__sourceModel || _wg.model,
+            layer: _wg.__componentLayer, productId: _wg.productId, phase: 'settle',
+          });
+        }
+      } catch (e) { /* watchdog must never break the refresh */ }
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
       const _rmb = engine && engine._cachedMaskBounds;
       const _rms = _rmb ? ((_rmb.east < _rmb.west ? _rmb.east + 360 : _rmb.east) - _rmb.west) : 0;
