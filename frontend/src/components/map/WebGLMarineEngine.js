@@ -1184,12 +1184,37 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // can't cover AND a basin-scale viewport overlay exists (eager-built in refreshMaskWithBasemapWater),
     // REPLACE with it so islands stay masked through the transient.
     const _covReplaceOff = typeof window !== 'undefined' && window.__RAW_DISABLE_OVERLAY_COVERAGE_REPLACE__ === true;
-    const _overlayReplace = _gwSpan >= 340 || (!_covReplaceOff && !_mbCov);
+    // DENSE-GLOBAL-BASE → REFINE-NOT-REPLACE (2026-07-15, live-proven continent crest land-bleed on
+    // zoom-out): the `_gwSpan>=340` unconditional REPLACE dates to the 39 km 1024×512 world base
+    // ("too coarse to trust near coasts"). The base now rebuilds to a dense 4096×2048 global mask
+    // (~10 km/texel) that carves every continent correctly (live GPU-probe at z3: base=0 over Ohio/
+    // Kansas/Congo/Sahara). A wide-viewport overlay's 50%-PADDED RING is water-FLOODED past its
+    // truth box (live probe: overlay=255 over Ohio/Connecticut where base=0) — under REPLACE that
+    // flood overrides the correct base and crests bleed across every continent in the ring (the
+    // persistent settled-z3 symptom the user reports). When the resident base IS that dense global
+    // mask AND it covers the viewport, treat it as the authoritative view-scoped truth (the
+    // earth.nullschool "one mask, regenerated for the view" model): keep the overlay ACTIVE but as a
+    // min()-COMBINE refinement, not a REPLACE. min(base,overlay) preserves the overlay's crisp
+    // island/sheltered truth inside its truth box (live probe: Bahamas base=149 soft, overlay=0 →
+    // min=0 land) while the correct base wins in the flooded ring (Ohio min(0,255)=0 land). Verified
+    // correct at every probe point (C.Florida/Gulf/Bahamas/Ohio/Connecticut/Mexico/W-Atlantic).
+    // Scoped to the world-grid clause ONLY: the deep-zoom regional min-combine (z≥12) and the
+    // mid-grid uncovered REPLACE (!_mbCov — there the small base does NOT cover, so the overlay is
+    // the only viewport truth) are untouched. Kill: __RAW_DISABLE_DENSE_BASE_NO_REPLACE__.
+    const _cmb = this._cachedMaskBounds, _cmd = this._cachedMaskTexDims;
+    const _cmSpan = _cmb ? ((_cmb.east < _cmb.west) ? (_cmb.east + 360) - _cmb.west : _cmb.east - _cmb.west) : 0;
+    const { rawWideTrigger: _rawWideTrigger, replace: _overlayReplace, baseGlobalDense: _baseGlobalDense } =
+      computeWideOverlayMode({
+        gwSpan: _gwSpan, mbCov: _mbCov, covReplaceOff: _covReplaceOff,
+        baseTexIsCached: this._waveData.u_oceanMaskTexture === this._cachedMaskTex,
+        cachedSpan: _cmSpan, cachedTexWidth: _cmd ? _cmd.w : null,
+        killed: (typeof window !== 'undefined' && window.__RAW_DISABLE_DENSE_BASE_NO_REPLACE__ === true),
+      });
     const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds &&
-      (_overlayReplace || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5)));
+      (_rawWideTrigger || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5)));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? 'min_combine' : 'off'), baseCoversView: _mbCov, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off'), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
     }
     // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
     // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.
@@ -2335,6 +2360,29 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
     if (b.u_oceanMaskTexture) safeDeleteTexture(gl, b.u_oceanMaskTexture, this);
   } catch (e) {}
 };
+
+// WIDE-VIEW OVERLAY COMPOSITING MODE (2026-07-15, live-proven continent crest land-bleed on
+// zoom-out) — pure decision, exported + unit-tested, mirroring shouldBridgeToCoarseGlobal.
+// The wide-grid `_gwSpan>=340` unconditional REPLACE dates to the 39 km 1024×512 world base; the
+// base now rebuilds to a dense 4096×2048 global mask (~10 km/texel) that carves every continent.
+// A wide-viewport overlay's 50%-padded RING is water-flooded past its truth box (GPU-probe:
+// overlay=255 over Ohio where base=0) — under REPLACE that flood overrode the correct base and
+// crests bled across the continents. When the resident base IS that dense global mask AND covers
+// the viewport, treat it as the authoritative view-scoped truth (earth.nullschool "one mask")
+// and keep the overlay as a min()-COMBINE refinement instead of a REPLACE (min(base,overlay)
+// keeps the overlay's crisp island/sheltered truth inside its truth box while the correct base
+// wins in the flooded ring). Scoped to the world-grid clause; deep-zoom regional min-combine and
+// the mid-grid uncovered REPLACE (small base doesn't cover → overlay is the only viewport truth)
+// are untouched. `killed` = __RAW_DISABLE_DENSE_BASE_NO_REPLACE__ (restores the old REPLACE).
+export function computeWideOverlayMode(opts) {
+  const o = opts || {};
+  const rawWideTrigger = o.gwSpan >= 340 || (!o.covReplaceOff && !o.mbCov);
+  const baseGlobalDense = !o.killed && !!o.baseTexIsCached &&
+    typeof o.cachedSpan === 'number' && o.cachedSpan >= 340 &&
+    typeof o.cachedTexWidth === 'number' && o.cachedTexWidth >= 4096 && !!o.mbCov;
+  const replace = rawWideTrigger && !baseGlobalDense;
+  return { rawWideTrigger, replace, baseGlobalDense };
+}
 
 // ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" AND
 // "green grid around FL"): on a fast/settling zoom-out the regional resident either CLEARS to a
