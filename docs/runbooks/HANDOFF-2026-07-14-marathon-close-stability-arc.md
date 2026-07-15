@@ -420,6 +420,28 @@ died) · §0h wash engaged with matching base · §0i covering resident at z7.02
 §0k ribbon inlandGate=1 live · §0h-confidence: NOT yet in products (last ingest run pre-dates the
 export push; verify after the next cron: fresh euro coarse `dir_confidence` non-null).
 
+## §0m ISLAND HALO (user report 07-15: "halo around islands more than coastal land, both
+## flavors, intermittent covering") — FIXED (wash no-truth damp + crisp-mask density gate)
+User log (bundle 00ff2f29, Bahamas z10-13) named it: the WASH draws with its own ~39 km world
+mask — small islands aren't carved AT ALL (Pianosa class) and the soft edge rings every one,
+both flavors (the wash rides under both). "Intermittent covering" = the per-commit mask-rebuild
+churn (4096↔2048 alternation all through the log): each rebuild opens a window where the crisp
+overlay/cached mask doesn't cover → the wash edge flips soft↔crisp. TWO fixes in the wash-truth
+block (WebGLMarineEngine ~1200): ① `baseCrispMask` now requires ≥32 px/° DENSITY (a cached WORLD
+mask "covered" by bounds while carrying the same 39 km softness — a no-op crisp that also
+blocked damping); ② NO-TRUTH DAMP — when neither overlay nor dense covering mask rides the wash,
+quiet it to 35% (same recipe/zoom bound as the coarse-resident halo damp). Kill:
+`__RAW_DISABLE_ISLAND_HALO_DAMP__`; telemetry `__RAW_GPU__.washNoTruthDamp`. **LIVE-PROVEN**
+(Green Turtle Cay z10.3): steady state crisp+undamped ✓; forced no-truth window → damp TRUE;
+truth restored → damp FALSE. Marine suites 398/398. NOTE: the mask-rebuild CHURN itself (every
+commit rebuilds; FPS 7-17 in the user log) is §0j-arc material — the damp treats the symptom
+window; the churn is the disease.
+**ALSO SHIPPED: a11y item 5 (jsx-a11y lint arm, measured)** — `.eslintrc.json` registers
+eslint-plugin-jsx-a11y with 15 warn-level rules ONLY (no extends → nothing else changes; Netlify
+builds CI=false → warnings can never fail the deploy); **proven with a full local `craco build`
+(exit 0)** — the eslint deploy landmine test. Ratchet plan: inventory warnings → fix per the
+item-4 panels arc → promote rules to error per-directory.
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**

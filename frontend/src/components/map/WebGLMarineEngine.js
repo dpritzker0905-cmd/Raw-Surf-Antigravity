@@ -1214,12 +1214,37 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (!baseOverlay && this._cachedMaskTex && this._cachedMaskBounds &&
           !(typeof window !== 'undefined' && window.__RAW_DISABLE_BASE_CRISP_MASK__ === true)) {
         const _mb = this._cachedMaskBounds;
-        if (_mb.west <= vb[0] && _mb.east >= vb[2] && _mb.south <= vb[1] && _mb.north >= vb[3]) {
+        // DENSITY eligibility (2026-07-15, island-halo report): a cached WORLD mask (~2.8 px/°)
+        // "covers" every viewport by bounds but carries the SAME 39 km softness as the base's own
+        // mask — binding it as crisp truth is a no-op that also blocked the no-truth damp below.
+        // Crisp truth must actually be crisp: same 32 px/° floor as the retain/halo-damp guards.
+        const _dense = this._cachedMaskTexDims &&
+          maskDensityPxPerDeg(this._cachedMaskTexDims, _mb) >= 32;
+        if (_dense && _mb.west <= vb[0] && _mb.east >= vb[2] && _mb.south <= vb[1] && _mb.north >= vb[3]) {
           baseCrispMask = { tex: this._cachedMaskTex, bounds: _mb };
         }
       }
-      if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
-      this._drawCoarseBasePass(gl, mat4, themeVal, time, baseWashOpacity, baseOverlay || baseCrispMask);
+      // ISLAND-HALO NO-TRUTH DAMP (2026-07-15 user report: "halo around islands, more than
+      // coastal land, both flavors, intermittent covering"): when NEITHER a viewport-truth
+      // overlay NOR a dense covering resident mask rides the wash's overlay slot, the wash draws
+      // with only its ~39 km world mask — small islands aren't carved AT ALL and the soft edge
+      // rings every one. The "intermittent" face is this state FLAPPING across the per-commit
+      // mask-rebuild churn (the 4096↔2048 alternation in the user's log): each rebuild opens a
+      // window where the cached mask doesn't cover/isn't dense yet. Mirror the coarse-resident
+      // halo damp for exactly this window (same 0.35 quiet, same z≥4.4 texel-visibility bound);
+      // full wash returns the moment crisp truth covers. Kill: __RAW_DISABLE_ISLAND_HALO_DAMP__.
+      // Telemetry: __RAW_GPU__.washNoTruthDamp.
+      let _washOpacityEff = baseWashOpacity;
+      const _noTruthDamp = !baseOverlay && !baseCrispMask && z >= 4.4 &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_HALO_DAMP__ === true);
+      if (_noTruthDamp && _washOpacityEff > 0 && !_haloDamped) {
+        _washOpacityEff *= 0.35;
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
+        window.__RAW_GPU__.washNoTruthDamp = _noTruthDamp && baseWashOpacity > 0;
+      }
+      this._drawCoarseBasePass(gl, mat4, themeVal, time, _washOpacityEff, baseOverlay || baseCrispMask);
     }
 
     gl.useProgram(this.heatmapProgram);
