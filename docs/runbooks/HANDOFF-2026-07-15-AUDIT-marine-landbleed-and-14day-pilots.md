@@ -17,6 +17,29 @@ are corrected here. dev HEAD at write ≈ `b373672b`, all pushed, Netlify+Render
 | `7696f0dc` | **Band loads on toggle** — flavor-mismatch added to `bypassDedupe` (surf toggle fired 0 fetches before) | **live dev map**: band paints ~1.4s, 0 idle spin | ✅ sound |
 | `70d062a4` | **Revert Root B** — the 15→22° mid-ceiling; its own mid tile floated as the zoom-out RECTANGLE | **live dev map**: reproduced the rectangle with the flag, gone at default | ✅ sound (revert of my own regression) |
 | `b373672b` | **14-day fine pilots Phase 1** — GFS flagship coasts (FL/SoCal) 8d→14d, worldwide stays 8d | backend tests; horizons externally verified (below) | ✅ sound |
+| `b0bb9bd6` | **Crest land-bleed FIX (§4 item 1)** — dense global base must REFINE (min-combine) not REPLACE the overlay at world-grid zoom; `computeWideOverlayMode` pure+unit-tested (9 cases), kill `__RAW_DISABLE_DENSE_BASE_NO_REPLACE__` | **live GPU-probe on dev map**: settled global, 13 interior-land pts worldwide=0 bleed, 6 ocean basins intact; 168 marine tests green | ✅ **CORRECTS §2c below** |
+
+**⚠️ §2c HYPOTHESIS WAS PARTLY WRONG — corrected by live forensics (`b0bb9bd6`).** The audit
+guessed the base was RETAINED-regional (stale small box) + clamp-to-edge water. **Live GPU-probe
+(`engine.probeMaskGPU`) proved otherwise:** the intervening fixes already rebuild the base to a
+correct dense 4096×2048 GLOBAL mask (`base=0` over Ohio/Kansas/Congo/Sahara at z3 — no §2c-part-2
+needed). The REAL root: the wide-grid `_gwSpan>=340` **unconditional overlay REPLACE** lets the
+overlay's 50%-PADDED RING — water-flooded past its truth box (`overlay=255` over Ohio/Connecticut
+where `base=0`) — override the correct base → crests bleed across the continents in the ring. This
+is **intermittent** (only when a pinned overlay's flooded ring sits over visible land at settle),
+which is why it looked like a hard bug some sessions and clean others. **Fix = min()-COMBINE, not
+REPLACE, when the base is the dense global mask covering the view** (earth.nullschool "one
+authoritative mask"): `min(base,overlay)` keeps the base's correct land in the flooded ring AND the
+overlay's crisp island/sheltered truth inside its truth box (Bahamas `base=149` soft, `overlay=0`
+→ `min=0` land). §2c part-1 (drop overlay) was directionally right but blunter than needed —
+min-combine PRESERVES the overlay's island crispness that a hard drop would lose (Bahamas `base=149`
+→ reads as water if overlay is off).
+
+**STILL OPEN (separate, pre-existing, lower severity):** a ~1.5 s BASE transient during a FAST
+zoom-out where the base global mask itself reads water-over-land mid-rebuild (`src:base eff:255`
+z≈7→3) then self-heals at settle. Distinct from the overlay-replace bug (present in the pre-fix
+trace at z5.77 too). NOT fixed — touching the mask-REBUILD path is the encoder-graveyard minefield;
+defer to a dedicated instrumented pass. The persistent, user-visible, settled-state bleed is fixed.
 
 **REVERTED (my regression, do not resurrect):** lowering the coarse-crest suppression zoom-floor
 7.0→0.0 to kill the land-bleed. It suppressed ALL zoomed-out crests → killed the animated field the
@@ -134,9 +157,11 @@ real cron cycle's wall-time before widening worldwide.
 
 ## 4. OPEN BOARD (prioritized for long-term stability + success)
 
-1. **Crest land-bleed — the 2-part scoped mask fix (§2c).** Highest user-visible value; medium risk
-   (the retain minefield, but the global-span exception is disjoint from the known regressions).
-   Do it on the harness with the A/B checklist in §2d; kill-switched.
+1. ~~**Crest land-bleed — the 2-part scoped mask fix (§2c).**~~ **✅ SHIPPED `b0bb9bd6`** — but the
+   root was NOT §2c (see the correction in §0). Real root = overlay REPLACE overriding a correct
+   dense global base with a water-flooded ring; fix = min-combine when base is dense-global-covering.
+   Live GPU-probe verified. **Follow-up (new, lower sev):** the ~1.5 s base-mask zoom-out TRANSIENT
+   (§0) — needs an instrumented pass in the mask-rebuild path; do NOT bundle with other retain work.
 2. **14-day pilots Phase 2 = GFS-native-fine tail (§3b)**, NOT a fabricated estimate. Then ICON/EURO
    flagship via multi-bbox truncation (§3c).
 3. **Verify the GFS flagship→14d cron wall-time** on the next real cycle (`b373672b` is env-dialable
