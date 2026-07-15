@@ -26,7 +26,11 @@ class Item:
 FL_TILE = Item("gfs_marine_waves_florida_east_coast.json", Cov(-81.88, 27.13, -79.84, 29.15))
 GLOBAL = Item("gfs_marine_waves_global.json", Cov(-180.0, -85.0, 180.0, 85.0))
 VP_STRADDLE = (-81.88, 27.0, -79.0, 29.15)   # ~0.666 covered by FL_TILE
-VP_MINORITY = (-80.4, 27.0, -75.0, 29.15)    # FL tile covers only a small slice (<0.6)
+# FL tile covers only a small slice (<0.6). NARROW on the lng axis (≤ the §0i fullcover span):
+# the original 5.4°-wide shape now falls to the WIDE-REQUEST near-full-cover rule (2026-07-15,
+# the user's z7.02 dead-strip class) regardless of the frac floor — these tests exercise the
+# FRAC FLOOR mechanics, so the viewport must stay in the narrow class where the floor decides.
+VP_MINORITY = (-80.4, 27.0, -76.5, 29.15)
 
 
 def _cands(*items):

@@ -273,6 +273,26 @@ def pick_surf_regional_override(
         poke = float(os.environ.get("SURF_REGIONAL_PREFER_MAX_POKE_DEG", "1.25"))
     except ValueError:
         poke = 1.25
+    # WIDE-REQUEST TIGHTENING (2026-07-15, user z7.02 field report "animations clamp around the
+    # coasts but not into the ocean; rating-off fills the viewport"): 1.25°/side of tolerated poke
+    # is ~120 km of ocean with NO animation data once the request is WIDE — the tile's data edge
+    # sits mid-viewport as a dead strip. The legit-poke story (tile offshore edge ~1° off the
+    # coast + client pad) belongs to TIGHT-zoom requests, where the strip is off-screen or thin;
+    # wide requests have a better citizen — the dynamic lane serves a COVERING surf grid whose
+    # offshore cells are honest (verified live at the user's zoom: valid + phys_speed everywhere,
+    # animations identical to rating-off). Requests wider than
+    # SURF_REGIONAL_PREFER_FULLCOVER_SPAN_DEG on either axis must be covered within
+    # SURF_REGIONAL_PREFER_WIDE_POKE_DEG (≈ the 0.5° client pad + snap slack).
+    try:
+        fullcover_span = float(os.environ.get("SURF_REGIONAL_PREFER_FULLCOVER_SPAN_DEG", "4.75"))
+    except ValueError:
+        fullcover_span = 4.75
+    try:
+        wide_poke = float(os.environ.get("SURF_REGIONAL_PREFER_WIDE_POKE_DEG", "0.6"))
+    except ValueError:
+        wide_poke = 0.6
+    if max(req_e - req_w, req_n - req_s) > fullcover_span:
+        poke = min(poke, wide_poke)
     cov = best_item.coverage
     shrunk_w, shrunk_e = req_w + poke, req_e - poke
     shrunk_s, shrunk_n = req_s + poke, req_n - poke

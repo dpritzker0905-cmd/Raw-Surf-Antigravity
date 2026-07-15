@@ -57,6 +57,23 @@ def test_wide_viewport_returns_none():
     assert item is None
 
 
+def test_wide_request_requires_near_full_cover():
+    """2026-07-15 user z7.02 field report: an 8°×6° request got the FL tile under the legacy
+    1.25° poke — the tile's -85 west edge sat ~1° inside the viewport as a dead animation strip
+    ("clamps around the coasts but not into the ocean"; rating-off filled the viewport via the
+    covering dynamic lane). Requests wider than the fullcover span must be covered within the
+    wide-poke margin (~client pad), else fall through to the dynamic lane."""
+    item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -86.0, 24.0, -78.0, 30.0)
+    assert item is None
+
+
+def test_wide_request_still_served_when_tile_actually_covers():
+    # A 5°-wide request the tile covers within the wide-poke margin (0.6°/side) keeps the tile —
+    # the crisp 0.25° band survives everywhere the tile genuinely covers the screen.
+    item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -84.0, 25.0, -79.0, 30.0)
+    assert item is FL
+
+
 def test_no_regional_overlap_returns_none():
     # Viewport far from any regional tile (mid-Atlantic) → only global overlaps → None (fall through to global).
     item = pick_surf_regional_override(_auth(FL, GLOBAL), [], -50.0, 20.0, -46.0, 24.0)
@@ -131,14 +148,25 @@ def test_hawaii_poke_east_returns_regional():
 
 
 def test_east_australia_poke_east_returns_regional():
-    # Gold Coast; viewport east (157.2) pokes past the East-Australia tile's 156 offshore edge.
-    item = pick_surf_regional_override(_auth(EAST_AUS, GLOBAL), [], 152.0, -29.0, 157.2, -27.0)
+    # Gold Coast; a NARROW (≤fullcover-span) viewport poking ~1° past the East-Australia tile's
+    # 156 offshore edge keeps the tile — the tight-zoom legit-poke contract, region-agnostic.
+    item = pick_surf_regional_override(_auth(EAST_AUS, GLOBAL), [], 152.8, -29.0, 157.0, -27.0)
     assert item is EAST_AUS
+
+
+def test_east_australia_wide_request_falls_to_dynamic():
+    """CONTRACT CHANGE 2026-07-15 (user z7.02 field report): the old golden pinned the tile for a
+    5.2°-wide Gold Coast viewport poking 1.2° offshore — written pre-§0e, when falling through
+    meant NO band at all (global coarse skips the transform). Since §0e the fall-through target
+    is the DYNAMIC lane (band + honest offshore cells), so at wide requests a 1°+ dead stripe of
+    unanimated ocean is the worse trade. Wide + poke > wide-poke margin → None."""
+    item = pick_surf_regional_override(_auth(EAST_AUS, GLOBAL), [], 152.0, -29.0, 157.2, -27.0)
+    assert item is None
 
 
 def test_picks_correct_coast_among_many_worldwide_tiles():
     # With every flagship + worldwide tile in the manifest, a Hawaii viewport selects the Hawaii tile.
     pool = _auth(FL, HAWAII, EAST_AUS, GLOBAL)
     assert pick_surf_regional_override(pool, [], -156.0, 19.0, -153.3, 21.0) is HAWAII
-    assert pick_surf_regional_override(pool, [], 152.0, -29.0, 157.2, -27.0) is EAST_AUS
+    assert pick_surf_regional_override(pool, [], 152.8, -29.0, 157.0, -27.0) is EAST_AUS
     assert pick_surf_regional_override(pool, [], -81.0, 26.0, -78.0, 30.0) is FL  # ≤1.25° poke keeps the tile
