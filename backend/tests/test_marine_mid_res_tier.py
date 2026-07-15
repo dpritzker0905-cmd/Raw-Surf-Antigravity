@@ -195,6 +195,28 @@ def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
                 and out.grid.diagnostics.get("mid_res_tier"))
 
 
+def test_decide_manifest_marine_falls_through_coarse_in_15_22_band():
+    """Root B (2026-07-15): the coarse-vs-mid boundary in decide_manifest_product. A 15-22° MARINE
+    view must NOT serve the global_coarse (use_manifest_product=False → falls to the Step 3.6 mid
+    clip); WIND keeps the 15° line; a genuine wide (>22°) view still serves coarse. This is the gate
+    that made the mid-ceiling raise inert until aligned."""
+    from services.weather_pipeline.grid_resolver_selection import decide_manifest_product
+    coarse = types.SimpleNamespace(
+        coverage=CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0),
+        resolution=10.0, is_estimated=False,
+        filename="gfs_marine_waves_global_coarse_x.json", coverage_mode="global_tile",
+    )
+    # 18° marine view (span_lng=span_lat=18, ≤22) → do NOT serve coarse.
+    _, _, use_mp, _ = decide_manifest_product(coarse, -98.0, 15.0, -80.0, 33.0, "marine", "GFS", _VT_DT)
+    assert use_mp is False, "15-22° marine must fall through the coarse to the mid tier"
+    # wind keeps the 15° boundary → 18° serves the coarse global.
+    _, _, use_mp_wind, _ = decide_manifest_product(coarse, -98.0, 15.0, -80.0, 33.0, "wind", "GFS", _VT_DT)
+    assert use_mp_wind is True, "wind must keep the 15° coarse boundary (no mid tier for wind)"
+    # genuine wide (>22°) marine still serves coarse.
+    _, _, use_mp_wide, _ = decide_manifest_product(coarse, -110.0, 5.0, -80.0, 35.0, "marine", "GFS", _VT_DT)
+    assert use_mp_wide is True, ">22° is a genuine zoom-out → coarse global"
+
+
 def test_mid_res_tier_serves_at_18deg_after_ceiling_raise(monkeypatch):
     """Root B (2026-07-15): the ceiling rose 15° → 22° so the 15-22° band serves the ~2° mid tile
     instead of the 9.73° global_coarse (the 'horizontal lines through Yucatan/Cuba + EURO grid over
