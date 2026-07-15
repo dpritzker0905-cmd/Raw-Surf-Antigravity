@@ -382,6 +382,24 @@ NOTE: enclosed-water WIDTH matters — very wide bays (>~2× the small disc, e.g
 may still partially paint; the full answer stays the sheltered-water exposure model (backlog ②,
 same arc family as §0j).
 
+## §0l TOGGLE-OFF WEDGE (user report 07-15: "the rating band isn't turning off") — FIXED `f9c35e07`
+**REPRODUCED on the deployed site** (flag false + ratingMode:true resident painting). ROOT = the
+07-12 REVERSE GATE (deliberately paints the band after toggle-off "until the honest commit —
+exactly one commit away") meeting a FLAVOR-BLIND series containment fallback: with surf pages
+cached, every post-toggle re-drive served a cached SURF frame (score `speed`, ratingMode:true)
+into swell mode — the honest commit never landed, the hold never released. Also explains the
+"halos on all active marine layer types" sighting (every layer switch kept serving score frames,
+band inland-painting per layer; §0k's gate additionally requires the ≥153f130c bundle — hard
+refresh so the SW activates it). **FIX (one-directional by design):** pages flavor-stamped at
+request time; the containment fallback refuses surf entries in swell mode; honest-in-surf-mode
+stays servable (the documented Option-A bridge). Exact-key lookups were already flavor-keyed.
+Golden: "NEVER serves a surf page in swell mode" (heavyPages suite). FE 964/964.
+**DEPLOYED-SITE PROOF PASS (this session, bundle 153f130c):** §0g 16-frame surf pages (0..45 …
+144..189, all landed under a heavily-loaded box at 19–25 s — pre-fix 48-frame pages would have
+died) · §0h wash engaged with matching base · §0i covering resident at z7.02 (no data edges) ·
+§0k ribbon inlandGate=1 live · §0h-confidence: NOT yet in products (last ingest run pre-dates the
+export push; verify after the next cron: fresh euro coarse `dir_confidence` non-null).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
