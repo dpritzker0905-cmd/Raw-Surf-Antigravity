@@ -19,7 +19,7 @@ from services.weather_pipeline.schemas import NormalizedProduct
 from services.weather_pipeline.route_helpers import (
     parse_valid_time, parse_bbox, filter_grid_to_bbox,
     make_unsupported_icon_swell2_grid_response, make_no_coverage_grid_response,
-    compute_truth_tag, get_snapped_bbox
+    compute_truth_tag, get_snapped_bbox, is_bbox_covered_by
 )
 from services.weather_pipeline.product_selection import select_best_candidate
 from services.weather_pipeline.viewport_helper import _is_oversized_grid
@@ -60,6 +60,21 @@ def stamp_frame_honesty(product, target_dt, ask_str: str) -> None:
             )
     except Exception:
         pass
+
+
+def _grid_cell_deg(grid) -> Optional[float]:
+    """Approx longitudinal cell size (°) of a resolved grid = lon-span / cols (antimeridian-safe).
+    Returns None when bounds/cols are missing. Used by the Step-1&2 resolution-adequacy guard to
+    compare a cached dynamic-viewport product against a covering precomputed regional tile."""
+    try:
+        b = getattr(grid, "bounds", None)
+        cols = getattr(grid, "cols", None)
+        if not b or not cols:
+            return None
+        span = (b.east + 360.0 - b.west) if b.east < b.west else (b.east - b.west)
+        return (span / cols) if span > 0 else None
+    except Exception:
+        return None
 
 
 async def resolve_grid(
@@ -154,12 +169,43 @@ async def resolve_grid(
 
     # Step-wise product resolution
     product = None
+    _dropped_dyn_cache = None   # root-A guard: a coarse dynamic hit set aside for a finer regional
 
     # Step 1 & 2: Exact/fresh or stale dynamic cache hit for snapped viewport
     if bbox and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt):
         product = await viewport_service.get_cached_dynamic_product(
             model=model, domain=domain, layer=layer, target_dt=target_dt, bbox_str=bbox
         )
+
+        # RESOLUTION-ADEQUACY GUARD (2026-07-15, root A — the "ICON coarse / wave-direction wrong when
+        # the rating band is on" report): a STALE COARSE dynamic-viewport product (e.g. a 0.44°/cell
+        # ICON tile cached mid-pan) must NOT preempt a FINER precomputed regional tile that FULLY
+        # COVERS this viewport. Curl-proven 2026-07-15: fresh coastal serves are 0.235° for all models,
+        # yet an overlapping cached 0.44° dynamic tile was served OVER the available 0.25° regional
+        # (the dynamic-cache lane short-circuits Step 3 below). Unlike the reverted §0n cache gate
+        # (which rejected to global_mid — a WORSE fallthrough), we drop the dynamic hit ONLY when a
+        # covering, meaningfully-finer regional manifest item is CONFIRMED present, so Step 3 serves
+        # THAT fine regional (clipped) — the fallthrough is guaranteed finer, never coarser. The
+        # dropped product is restored if Step 3 unexpectedly yields nothing (never serve blank).
+        # Kill: MARINE_DYNCACHE_PREFER_FINE_REGIONAL=0.
+        if (product is not None and getattr(product, "grid", None) is not None
+                and domain.lower() == "marine" and req_w is not None
+                and use_manifest_product and matching_manifest_item is not None
+                and regional_span_lng < 350.0
+                and os.environ.get("MARINE_DYNCACHE_PREFER_FINE_REGIONAL", "1") != "0"):
+            _dyn_cell = _grid_cell_deg(product.grid)
+            _reg_res = getattr(matching_manifest_item, "resolution", None)
+            _reg_cov = getattr(matching_manifest_item, "coverage", None)
+            _covers = bool(_reg_cov is not None
+                           and is_bbox_covered_by(req_w, req_s, req_e, req_n, _reg_cov, margin=0.05))
+            if _dyn_cell is not None and _reg_res and _covers and _dyn_cell > _reg_res * 1.25:
+                logger.info(
+                    f"[Grid Resolver] Root-A: dynamic-cache {_dyn_cell:.3f}°/cell is coarser than the "
+                    f"covering regional '{getattr(matching_manifest_item, 'filename', '?')}' "
+                    f"({_reg_res:.3f}°) — preferring the fine regional tile."
+                )
+                _dropped_dyn_cache = product
+                product = None
 
     # Step 3: Durable manifest full coverage
     if not product:
@@ -186,6 +232,15 @@ async def resolve_grid(
                     f"[Grid Resolver] Skipping oversized stale manifest product {matching_manifest_item.filename} "
                     f"({len(candidate_product.grid.vectors)} vectors) in Step 3."
                 )
+
+    # Root-A restore: if the fine regional we deferred to could NOT be served (missing/oversized
+    # file), fall back to the dynamic-cache product we set aside rather than serving blank — the
+    # coarse-but-covering tile beats nothing. Normal path: Step 3 served the regional → product set →
+    # no restore.
+    if product is None and _dropped_dyn_cache is not None:
+        logger.info("[Grid Resolver] Root-A: fine regional unavailable in Step 3 — restoring the "
+                    "set-aside dynamic-cache product.")
+        product = _dropped_dyn_cache
 
     # Step 3.5: Fast manifest preview (SWR)
     from services.weather_pipeline.store import is_test_environment
