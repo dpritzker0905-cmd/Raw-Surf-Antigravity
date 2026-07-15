@@ -121,7 +121,17 @@ async def try_serve_mid_res_tier(
     # mid at every zoomed span also keeps the band CONTINUOUS while panning (each new snapped viewport
     # clips instantly). Restore the old resolution cliff with MARINE_MID_RES_MIN_SPAN=2.0.
     lo = float(os.environ.get("MARINE_MID_RES_MIN_SPAN", "0.0"))
-    hi = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "15.0"))
+    # MAX_SPAN 15.0 → 22.0 (2026-07-15, root B — the "horizontal lines through Yucatan/Cuba +
+    # EURO grid over the US at mid zoom"): curl-proven that spans >15° serve the 9.73°/cell
+    # global_coarse whose magnified cell structure reads as the grid/lines. All three models have
+    # global_mid (~2°/cell) at these spans, so clip that instead — 5× finer, still a cheap clip, and
+    # the fine SWR reval stays capped at MARINE_MID_REVAL_MAX_SPAN=8° so wide views don't spawn heavy
+    # fetches. COUPLED with the FRONTEND: the FE clamps to a WORLD request at span > __RAW_MARINE_
+    # GLOBAL_SPAN__ (default 15°, backendWeatherServiceClientCoverage.js), so until that FE threshold
+    # is raised to match, this backend ceiling is INERT for the app (the FE never sends a 15-22°
+    # viewport bbox) — it only takes effect for a direct 15-22° bbox request or once the FE flag is
+    # raised for the live A/B. Restore the old cliff with MARINE_MID_RES_MAX_SPAN=15.
+    hi = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "22.0"))
     if not (lo < span <= hi):
         return None
 

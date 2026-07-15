@@ -186,13 +186,35 @@ def test_mid_res_tier_min_span_floor_restorable(monkeypatch):
 
 
 def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
-    """A wide (>15°) view is a genuine global zoom-out — keep the coarse path, not the mid tier."""
+    """A wide (>22°) view is a genuine global zoom-out — keep the coarse path, not the mid tier."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
     vp = _FakeViewport()
     out = _resolve(store, vp, monkeypatch, bbox="-170,-10,-100,50")  # ~70°×60° continental
     # Mid tier must NOT fire → falls through to the coarse-preview path (which returns None here).
     assert not (out is not None and out.grid and out.grid.diagnostics
                 and out.grid.diagnostics.get("mid_res_tier"))
+
+
+def test_mid_res_tier_serves_at_18deg_after_ceiling_raise(monkeypatch):
+    """Root B (2026-07-15): the ceiling rose 15° → 22° so the 15-22° band serves the ~2° mid tile
+    instead of the 9.73° global_coarse (the 'horizontal lines through Yucatan/Cuba + EURO grid over
+    the US'). An 18° span must now fire the mid tier."""
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-130,28,-112,44")  # 18° lng span
+    assert out is not None and out.grid.diagnostics.get("mid_res_tier") is True, \
+        "18° span must serve the mid tier after the 22° ceiling raise"
+
+
+def test_mid_res_tier_ceiling_restorable_to_15(monkeypatch):
+    """The old 15° cliff stays available as a kill switch (MARINE_MID_RES_MAX_SPAN=15): an 18° span
+    then skips the mid tier again — guards the coupling with the FE __RAW_MARINE_GLOBAL_SPAN__."""
+    monkeypatch.setenv("MARINE_MID_RES_MAX_SPAN", "15")
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-130,28,-112,44")  # 18° > 15° restored ceiling
+    assert not (out is not None and out.grid and out.grid.diagnostics
+                and out.grid.diagnostics.get("mid_res_tier")), "18° must skip mid when ceiling=15"
 
 
 def _make_coarse_product(is_estimated=False):
