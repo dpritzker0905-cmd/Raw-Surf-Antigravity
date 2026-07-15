@@ -357,6 +357,14 @@ decide whether the marine field should render there at all; (3) judge blockiness
 `map.style._order` + queryRenderedFeatures per line/symbol layer (this section's numbers).
 Code home: `OceanMask.js` (layer ids at :24-:37 — "brought back on top of land fill" is the
 guard's documented intent; the z≥12 fade belongs in its paint definitions).
+**STRUCTURAL OPTION (07-15 update, the likely real §0j fix):** the marine custom layer sits at
+stack index 9 — BELOW `fill:water` (11) and all three guard layers (12-14). Conventional weather-
+overlay stacking anchors the data layer ABOVE every water fill and BELOW transportation/labels
+(beforeId ≈ `pitch-outline`/`waterway`). Re-anchoring `webgl-marine-particles` there obsoletes
+the guard-above-marine class wholesale (guards keep doing their land-fill job UNDER the field).
+⚠️ OceanMask.syncLayers actively manages order (water_temp re-asserts below ocean-mask-fill;
+`60f5dd8e` shows inland-water once repainted the WHOLE ocean — class-less v8 water source) —
+the re-anchor must be done WITH the syncLayers logic, own arc, full visual pass at the §0j sites.
 
 ## §0k RATING-ON "LAND MASK HALO" (user report 07-15) — FIXED (band inland-water gate)
 **FORENSICS (pane canvas-capture A/B, FL Melbourne/Palm Bay z8.6, same viewport both modes):**
@@ -394,6 +402,18 @@ refresh so the SW activates it). **FIX (one-directional by design):** pages flav
 request time; the containment fallback refuses surf entries in swell mode; honest-in-surf-mode
 stays servable (the documented Option-A bridge). Exact-key lookups were already flavor-keyed.
 Golden: "NEVER serves a surf page in swell mode" (heavyPages suite). FE 964/964.
+**§0l ADDENDUM — RAPID OFF→ON re-activation stick (found while proving the fix; PRE-EXISTING,
+NOT the flavor guard):** toggling back ON within ~a minute at the SAME viewport can leave the
+honest resident + band off despite completed surf fetches (backend verified serving the rating
+tile for the exact ask). Eliminated live: series lane OFF → still stuck; `__RAW_DISABLE_COMMIT_
+SHORT_CIRCUIT__` → still stuck; real pan (new cache key) → still stuck; **LAYER CYCLE → band
+restores instantly** (17×17 rating resident). The stuck lane = the ORCHESTRATOR's same-target
+machinery: the Abort-Gate target identity is FLAVOR-BLIND (`GFS/waves/h0`) so the ON-ask dedups
+against the OFF-leg's in-flight swell fetch and the commit ledger desyncs from the engine
+resident. FIX ARC (orchestrator minefield — own session): carry the surf flavor in the
+Abort-Gate target key + the commit-ledger signature; read
+[[marine-scrubsettle-safetynet-internals-2026-07-12]] first. User workaround meanwhile: switch
+layer (or model) once, or wait out the 5-min cache TTL.
 **DEPLOYED-SITE PROOF PASS (this session, bundle 153f130c):** §0g 16-frame surf pages (0..45 …
 144..189, all landed under a heavily-loaded box at 19–25 s — pre-fix 48-frame pages would have
 died) · §0h wash engaged with matching base · §0i covering resident at z7.02 (no data edges) ·
