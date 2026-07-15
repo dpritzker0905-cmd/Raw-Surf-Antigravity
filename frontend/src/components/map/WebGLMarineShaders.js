@@ -69,6 +69,7 @@ uniform highp vec2 u_maskBounds_min;   // [west, south] of the OCEAN-MASK textur
 uniform highp vec2 u_maskBounds_max;   // [east, north]
 uniform highp float u_ribbonRadiusDeg; // surf-band coastal-RIBBON radius in ° latitude (0 = ribbon narrowing off)
 uniform highp float u_ribbonFloor;     // band alpha floor beyond the ribbon (0 when the honest wash shows underneath)
+uniform highp float u_bandInlandGate;  // 0..1: fade the band on ENCLOSED water (lagoons/bays) — see the ribbon block
 uniform sampler2D u_overlayMaskTexture; // VIEWPORT-truth land mask (basemap water polygons) — valid only inside u_overlayBounds
 uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixels OUTSIDE fall back to u_oceanMaskTexture (stale-safe by construction)
 uniform highp vec2 u_overlayBounds_max; // [east, north]
@@ -411,6 +412,17 @@ void main() {
       float landFrac = coastLandFrac(lng, lat, u_ribbonRadiusDeg * 2.2);
       float ribbon = smoothstep(0.03, 0.30, landFrac);
       bandAlpha *= max(ribbon, u_ribbonFloor);
+      // INLAND-WATER GATE (2026-07-15, user "land mask halo when rating is activated"): the band's
+      // score is bilinear/extrapolation-smeared across barrier islands into lagoons/bays — water in
+      // the geographic mask, so the discard keeps it, and the ribbon (keyed on land PROXIMITY) is
+      // maximal exactly there → the band painted enclosed water the honest path leaves empty (its
+      // color follows real data). Classify enclosure with a SMALL disc: an open beach fragment is
+      // ~half land (frac≈0.5 → gate 0, full band — the "band LIVES against the coastline" rule and
+      // the z7.55 pocket fix both live below the ramp); enclosed water is mostly land on all sides
+      // (frac≥0.7 → fade toward the honest look). u_bandInlandGate=0 disables (kill switch
+      // __RAW_BAND_INLAND_GATE__=0); costs one extra 17-sample disc on band fragments only.
+      float encFrac = coastLandFrac(lng, lat, u_ribbonRadiusDeg * 0.35);
+      bandAlpha *= 1.0 - smoothstep(0.55, 0.80, encFrac) * u_bandInlandGate;
     }
     if (u_edgeFeatherEnabled > 0.5) {
       float edgeDistX = min(grid_uv.x, 1.0 - grid_uv.x);

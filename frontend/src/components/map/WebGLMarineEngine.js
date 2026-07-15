@@ -1420,11 +1420,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'),
       (surfModeVal > 0.5) ? _ribbon.radiusDeg : 0.0);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonFloor'), _ribbon.floor);
+    // INLAND-WATER GATE strength (2026-07-15, "land mask halo when rating is activated"): fades
+    // the band on ENCLOSED water (lagoons/bays behind barrier islands) so rating-on mirrors the
+    // honest path there (which colors by real data → empty). 1 = full gate; 0 = pre-gate behavior.
+    const _inlandGate = (typeof window !== 'undefined' && typeof window.__RAW_BAND_INLAND_GATE__ === 'number')
+      ? Math.max(0, Math.min(1, window.__RAW_BAND_INLAND_GATE__)) : 1.0;
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_bandInlandGate'), _inlandGate);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.ratingRibbon = {
         active: surfModeVal > 0.5 && _ribbon.radiusDeg > 0,
         radiusDeg: _ribbon.radiusDeg, radiusMi: +(_ribbon.radiusDeg * 69).toFixed(1),
-        floor: _ribbon.floor,
+        floor: _ribbon.floor, inlandGate: _inlandGate,
       };
     }
 
@@ -2340,6 +2346,7 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_is_estimated'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_surfMode'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_ribbonRadiusDeg'), 0.0); // honest wash: never ring-sample
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_bandInlandGate'), 0.0);  // (inert here — band branch never runs on the wash)
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_time'), time);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaEnabled'), 0.0);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_heightAlphaLo'), 0.0);
