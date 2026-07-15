@@ -413,7 +413,7 @@ against the OFF-leg's in-flight swell fetch and the commit ledger desyncs from t
 resident. FIX ARC (orchestrator minefield — own session): carry the surf flavor in the
 Abort-Gate target key + the commit-ledger signature; read
 [[marine-scrubsettle-safetynet-internals-2026-07-12]] first. User workaround meanwhile: switch
-layer (or model) once, or wait out the 5-min cache TTL.
+layer (or model) once, or wait out the 5-min cache TTL. CLOSED `d322078a` (07-15): surf flavor stamped into the fetch __intent + required at BOTH same-target dedup sites; opposite-flavor asks fall to the existing coalesce/abort machinery. LIVE-VERIFIED: the exact racy off->on-in-400ms cycle restores the band in ~10s; clean off still releases.
 **DEPLOYED-SITE PROOF PASS (this session, bundle 153f130c):** §0g 16-frame surf pages (0..45 …
 144..189, all landed under a heavily-loaded box at 19–25 s — pre-fix 48-frame pages would have
 died) · §0h wash engaged with matching base · §0i covering resident at z7.02 (no data edges) ·
