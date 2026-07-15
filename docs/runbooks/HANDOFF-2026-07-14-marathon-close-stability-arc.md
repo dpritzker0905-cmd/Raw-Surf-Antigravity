@@ -442,6 +442,25 @@ builds CI=false → warnings can never fail the deploy); **proven with a full lo
 (exit 0)** — the eslint deploy landmine test. Ratchet plan: inventory warnings → fix per the
 item-4 panels arc → promote rules to error per-directory.
 
+## §0n z7.82 "CLAMPING + LOW-PRESSURE SWIRL RETURNED, BOTH FLAVORS" (user 07-15) — ROOT + FIX
+**FORENSICS:** confidence export ELIMINATED (cron hadn't run — products pre-export; conf
+telemetry scaledCells=0 at repro). The z7.82 resident (both flavors) = `viewport_gfs_…` **11×9
+at 0.5°** for a 5°×4° ask whose `choose_adaptive_resolution` = **0.25°** (21×17) — server-side,
+stable across asks: the DYNAMIC INDEX held a coarser-era build for the key and served it forever.
+Giant 0.5° cells = the "clamping"; their sparse direction lattice animating trochoidal crests =
+the "low-pressure" swirl. The class is old (§0c re-seed) but §0g/§0i made 0.5° wide-page builds
+far more common → it "returned". **FIX: RESOLUTION-ADEQUACY GATE** in
+`get_cached_dynamic_product_helper` — a cached viewport-scope entry COARSER than the ask's own
+adaptive resolution is a MISS (fresh build at full res); equal-or-finer serves normally. Kill:
+`DYNAMIC_CACHE_RES_GATE=0`. Verify recipe: the §0n probe (`/grid` 5°×4° ask twice → 21×17).
+**ALSO IN THIS PUSH — §0j SLICE (mask sectioning at deep zoom):** high-zoom PAINT FADES on the
+three OceanMask guard layers (order-independent — forensics showed the guard-vs-marine z-order
+is MOUNT-TIMING dependent, explaining "intermittent"): `ocean-mask-inland-water` fill-opacity +
+`ocean-mask-inland-waterway` line-opacity ramp 1.0@z11.5→0@z12.5 (the flat patches + strokes at
+the user's z13.3 die; lakes keep the repaint at its service zooms; basemap water renders them
+past z12.5) · `ocean-mask-line` ramp now ends z12 (was z14 — ~0.11 still visible at z13.3).
+The full §0j re-anchor + rebuild-churn work remains its own arc (see §0j STRUCTURAL OPTION).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**

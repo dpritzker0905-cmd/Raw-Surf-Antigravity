@@ -532,7 +532,14 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
               filter: ['match', ['get', 'class'], ['ocean', 'sea'], false, true],
               paint: {
                 'fill-color': waterColor,
-                'fill-opacity': 1.0
+                // §0j HIGH-ZOOM FADE (2026-07-15, user z13.3 Bill Sadowski report): v8 water is
+                // class-less so this repaints ALL water, and the layer's position vs the marine
+                // engine is MOUNT-TIMING dependent — when it lands above, it paints flat opaque
+                // patches with hard seams over the animated field ("weird lines that section the
+                // map"). Its real job (lakes visible over the ne_50m land fill) matters at the
+                // zooms where that fill dominates; by z12.5 the basemap's own water layer renders
+                // lakes and this repaint only ever sections the marine field — fade it out.
+                'fill-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 1.0, 12.5, 0.0]
               }
             }, roadInsertBeforeId || undefined);
           } catch (e) {
@@ -561,7 +568,9 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
                   13, 1.5,
                   18, 6
                 ],
-                'line-opacity': 1.0
+                // §0j HIGH-ZOOM FADE — same rationale as MASK_INLAND_WATER: full-opacity waterway
+                // strokes over the marine field at deep zoom are the user's "sectioning lines".
+                'line-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 1.0, 12.5, 0.0]
               }
             }, roadInsertBeforeId || undefined);
           } catch (e) {
@@ -588,9 +597,11 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
                   6, tc.lw,
                   10, tc.lw * 1.5
                 ],
+                // §0j: ramp ends at z12 (was z14 — still ~0.11 visible at the user's z13.3, the
+                // faint dark coastline strokes in the Bill Sadowski report).
                 'line-opacity': ['interpolate', ['linear'], ['zoom'],
                   9, 0.8,
-                  14, 0.0
+                  12, 0.0
                 ],
                 'line-blur': 0.5,
               },
