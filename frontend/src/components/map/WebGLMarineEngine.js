@@ -839,6 +839,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     }
 
+    // ZOOM-OUT BRIDGE (see bridgeToCoarseGlobalIfHeld): when no pending downgrade exists but the
+    // regional resident has stopped covering a wide viewport (fast zoom-out with no fresh global
+    // commit yet), promote the retained coarse-global grid so it never floats as a blocky
+    // rectangle or clears to blank. No-op unless a coarse base is held and coverage actually
+    // dropped; runs once (resident becomes coarse-global).
+    if (this._coarseBaseData && this._coarseBaseData.waveGrid && !this._pendingDowngrade) {
+      this.bridgeToCoarseGlobalIfHeld(gl);
+    }
+
     // === COARSE-GLOBAL CREST SUPPRESSION — the real vortex fix (default ON) ===
     // The "clockwise spin" is NOT merely a bilinear-interpolation artifact: the coarse-GLOBAL 37×17 grid's direction
     // field is GENUINELY ROTATIONAL at regional magnification (measured curl 1.769 across ocean basins). A partial
@@ -2324,6 +2333,60 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
     if (b.u_bathymetryTexture) safeDeleteTexture(gl, b.u_bathymetryTexture, this);
     if (b.u_oceanMaskTexture) safeDeleteTexture(gl, b.u_oceanMaskTexture, this);
   } catch (e) {}
+};
+
+// ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" AND
+// "green grid around FL"): on a fast/settling zoom-out the regional resident either CLEARS to a
+// blank flash (WebGLMarineLayer's zoom-out clamp guard) or is HELD and renders as a tiny blocky
+// grid rectangle floating over its bounds. Both faces are the same root: the regional is never
+// replaced by the held global-coarse until a fresh global fetch commits. We already retain a
+// global-coarse grid for the wash (_coarseBaseData.waveGrid) — promote it to the MAIN resident
+// the moment the regional stops covering a wide viewport, so the honest global field bridges the
+// gap (no blank, no floating rectangle). Self-contained coverage check (same math + lever as the
+// no-downgrade guard) using the last render frame's zoom/viewport, so both the render loop and
+// the layer can call it safely. Runs ONCE — after promotion the resident is coarse-global and the
+// isRegionalBounds guard is false. Kill: __RAW_DISABLE_ZOOMOUT_BRIDGE__. Returns true if bridged.
+// Pure decision for the zoom-out bridge (exported + unit-tested, mirroring
+// shouldRejectResolutionDowngrade). TRUE ⇒ promote the held coarse-global `coarse` over the
+// regional `resident`. Fires ONLY when: a coarse-global grid is held, the resident is a regional
+// grid, the view is wide (zoomed out ≤ MARINE_ZOOMED_OUT_MAX_ZOOM or >15° either axis), and the
+// resident covers < __RAW_DOWNGRADE_COVER_FRAC__ (0.6) of the viewport — i.e. exactly the
+// coverage boundary where the no-downgrade guard also releases it, so the two never fight.
+export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win) {
+  const w = win || (typeof window !== 'undefined' ? window : undefined);
+  if (w && w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true) return false;
+  if (!coarse || !isCoarseGlobalGrid(coarse)) return false;
+  if (!resident || !resident.bounds || !isRegionalBounds(resident.bounds) || isCoarseGlobalGrid(resident)) return false;
+  const vb = viewportBounds;
+  if (!vb) return false;
+  const wideView = (typeof lastZoom === 'number' && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
+    || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
+  if (!wideView) return false;
+  const rb = resident.bounds;
+  const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
+  const ix = Math.max(0, Math.min(rb.east, vb[2]) - Math.max(rb.west, vb[0]));
+  const iy = Math.max(0, Math.min(rb.north, vb[3]) - Math.max(rb.south, vb[1]));
+  const frac = (ix * iy) / vpA;
+  const minFrac = (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
+  return frac < minFrac;   // regional no longer covers → bridge to the held global
+}
+
+WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
+  try {
+    if (!gl) return false;
+    if (this._pendingDowngrade) return false;   // the self-heal path already owns this case
+    const base = this._coarseBaseData;
+    const cbg = base && base.waveGrid;
+    const rwg = this._waveData && this._waveData.waveGrid;
+    if (!shouldBridgeToCoarseGlobal(rwg, cbg, this._lastZoom, this._lastViewportBounds,
+        typeof window !== 'undefined' ? window : undefined)) return false;
+    this.setWaveData(gl, cbg, this._waveData);
+    if (typeof window !== 'undefined') {
+      const b = window.__MARINE_ZOOMOUT_BRIDGE__ = window.__MARINE_ZOOMOUT_BRIDGE__ || { count: 0 };
+      b.count++; b.lastAt = Date.now();
+    }
+    return true;
+  } catch (e) { return false; }
 };
 
 // Draw the retained coarse-global grid as a faded background wash. Same heatmap program + premultiplied blend as

@@ -856,6 +856,19 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         return;
       }
 
+      // ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out"):
+      // instead of clearing the regional to BLANK at a global viewport (the flash), promote the
+      // retained global-coarse wash grid to the main resident so the honest global field bridges
+      // the ~1s until the real global commit. No blank, no floating clamped rectangle. Falls
+      // through to the clear when no coarse base is held. Kill: __RAW_DISABLE_ZOOMOUT_BRIDGE__.
+      if (isResidentRegionalAtGlobalViewport && engine._waveData
+          && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true)
+          && engine.bridgeToCoarseGlobalIfHeld(gl)) {
+        runDiagnosticsUpdate('zoomout_bridge');
+        if (mapInstance) mapInstance.triggerRepaint();
+        return;
+      }
+
       if (engine._waveData) {
         recordClear('non_renderable_terminal');
         engine.clearBuffers(gl);

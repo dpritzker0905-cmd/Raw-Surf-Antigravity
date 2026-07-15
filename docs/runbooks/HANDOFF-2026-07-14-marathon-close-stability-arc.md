@@ -442,7 +442,35 @@ builds CI=false → warnings can never fail the deploy); **proven with a full lo
 (exit 0)** — the eslint deploy landmine test. Ratchet plan: inventory warnings → fix per the
 item-4 panels arc → promote rules to error per-directory.
 
-## §0n z7.82 "CLAMPING + LOW-PRESSURE SWIRL RETURNED, BOTH FLAVORS" (user 07-15) — ROOT + FIX
+## §0n-REVERTED + §0o ZOOM-OUT BRIDGE (07-15, opus session)
+**§0n RESOLUTION-ADEQUACY GATE REVERTED (`f875e023`→reverted):** the gate's post-deploy probe
+FAILED honesty — a 5°×4° GFS ask served `global_mid` 5×5 on BOTH probes, NOT the intended 21×17.
+Root: rejecting the 0.5° dynamic cache falls through to Step 3.6 `try_serve_mid_res_tier`
+(global_mid 2°) whose SWR sharpen is span-capped at 5°, so a 5°-wide box NEVER rebuilds fine —
+the gate traded a 0.5° viewport grid for a coarser 2° with no rebuild path, and aggravated the
+zoom-out coarsening. Reverted in `viewport_helper.py`. The z7.82 swirl, if it recurs, belongs in
+the VORTEX MAGNIFICATION GATE (the purpose-built mechanism, WebGLMarineEngine `isMagnifiedCoarseField`),
+not the cache. The §0j OceanMask fades from that push are GOOD and stay.
+**§0o ZOOM-OUT BRIDGE (user "heatmap clears for a quick second midway zooming out" + "green grid
+around FL"):** REPRODUCED both faces live — the regional resident is never promptly replaced by
+the held global-coarse on zoom-out, so it either CLEARS to a blank flash (settle case: engine
+`empty:true` at ~z5, confirmed) or is HELD as a tiny blocky grid rectangle over its bounds (fast-
+flick case: 9×9 held to z2.2). FIX: `shouldBridgeToCoarseGlobal` (pure, exported, 7 goldens) +
+`bridgeToCoarseGlobalIfHeld` — promote the retained `_coarseBaseData.waveGrid` to the MAIN
+resident the instant the regional covers <60% of a wide viewport (the coverage COMPLEMENT of
+`shouldRejectResolutionDowngrade`, so they never fight). Driven from the render loop (after the
+self-heal) AND the layer clear-path. Kill: `__RAW_DISABLE_ZOOMOUT_BRIDGE__`; telemetry
+`__MARINE_ZOOMOUT_BRIDGE__`. **LIVE-VERIFIED**: fast zoom-out 0 empty frames (was empty at z5),
+bridge fired, final resident global 37×17 (no FL rectangle); settle zoom-out 0 empty across all
+rungs. **NOT FULLY SOLVED (honest — banked as the ZOOM-OUT EXPERIENCE ARC):** the user still
+reports residual "clamping + SLOW EXPANSION of animations + some quick clearing." Those are
+SEPARATE mechanisms — the coarse→fine SWR sharpen CADENCE ("slow expansion"), the no-downgrade
+coverage-boundary tuning, and sub-frame transition gaps — in the documented scrub/perf minefield
+([[marine-scrubsettle-safetynet-internals-2026-07-12]] / [[standing-context-guards-landmines]]).
+The bridge removes the blank-flash + persistent rectangle; the smooth-expansion polish is its own
+careful arc, NOT to be rushed in the minefield.
+
+## §0n z7.82 "CLAMPING + LOW-PRESSURE SWIRL RETURNED, BOTH FLAVORS" (user 07-15) — REVERTED, see §0n-REVERTED above
 **FORENSICS:** confidence export ELIMINATED (cron hadn't run — products pre-export; conf
 telemetry scaledCells=0 at repro). The z7.82 resident (both flavors) = `viewport_gfs_…` **11×9
 at 0.5°** for a 5°×4° ask whose `choose_adaptive_resolution` = **0.25°** (21×17) — server-side,

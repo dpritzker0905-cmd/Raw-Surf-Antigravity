@@ -246,25 +246,6 @@ async def get_cached_dynamic_product_helper(
         model=model, domain=domain, layer=layer, valid_time=target_dt, cache_key=cache_key
     )
 
-    # RESOLUTION-ADEQUACY GATE (2026-07-15, user z7.82 "clamping + swirly directions returned,
-    # both flavors"): the index can hold a COARSER build than this ask's own adaptive resolution
-    # (wide-page-era builds re-seeding the index — the §0c class; live probe: a 5°×4° ask whose
-    # adaptive resolution is 0.25° served a pinned 0.5° 11×9 page on BOTH asks). Serving it pins
-    # the viewport at giant cells whose sparse direction lattice animates as the vortex face. A
-    # coarser-than-adaptive entry is a MISS — the fresh build below rebuilds at the right
-    # resolution; equal-or-finer entries serve normally. Kill: DYNAMIC_CACHE_RES_GATE=0.
-    if cached_entry and coverage_scope == "viewport" and os.environ.get("DYNAMIC_CACHE_RES_GATE", "1") != "0":
-        try:
-            _cached_res = float(cached_entry.get("resolution") or 0.0)
-        except (TypeError, ValueError):
-            _cached_res = 0.0
-        if _cached_res > resolution * 1.01:
-            logger.info(
-                f"[Dynamic Viewport] Cached {cached_entry['product_id']} res {_cached_res} is coarser "
-                f"than adaptive {resolution} for this ask — treating as MISS (rebuild at full res)."
-            )
-            cached_entry = None
-
     if cached_entry:
         loaded_product = await asyncio.to_thread(service.store.load_product, cached_entry["product_id"])
         if loaded_product and _is_oversized_grid(loaded_product):

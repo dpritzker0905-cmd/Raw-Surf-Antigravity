@@ -1,4 +1,4 @@
-import { shouldRejectResolutionDowngrade, __resetRatingGraceForTests } from './WebGLMarineEngine';
+import { shouldRejectResolutionDowngrade, shouldBridgeToCoarseGlobal, __resetRatingGraceForTests } from './WebGLMarineEngine';
 
 // Grid factories matching the live repro (2026-07-01, Cocoa z9): a resident 13×13 regional waves tile
 // (series_GFS_waves_h0) being overwritten by the 37×17 gfs_marine_waves_global_coarse fallback.
@@ -130,6 +130,45 @@ describe('shouldRejectResolutionDowngrade — coarse⇄regional ping-pong guard'
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), undefined, undefined, false)).toBe(false);
     // A KNOWN zoomed-in zoom with an unknown viewport still blocks (coverage assumed true).
     expect(shouldRejectResolutionDowngrade(regional(), coarseGlobal(), 9, undefined, false)).toBe(true);
+  });
+});
+
+// ZOOM-OUT BRIDGE (2026-07-15, user "heatmap clears for a quick second midway zooming out" +
+// "green grid around FL"): promote a held coarse-global grid over a regional resident the moment
+// the regional stops covering a wide viewport — the coverage COMPLEMENT of the no-downgrade guard
+// (guard keeps the regional while it covers; bridge takes over the instant it doesn't), so the
+// two never fight and there is neither a blank flash nor a floating regional rectangle.
+describe('shouldBridgeToCoarseGlobal — zoom-out bridge (coverage complement of the guard)', () => {
+  const coveredVp = [-81.5, 27.5, -79.5, 28.5]; // regional (-82..-79 × 27..29) fully covers
+  it('does NOT bridge while the regional still covers the viewport (guard keeps it)', () => {
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
+  });
+  it('BRIDGES once the viewport outgrows the tile at a wide zoom (the fast-flick held rectangle + the settle blank)', () => {
+    const wideVp = [-100, 10, -60, 40]; // 40°×30° — the 3° tile covers ~0.7%
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, wideVp, {})).toBe(true);
+  });
+  it('BRIDGES on a wide-by-span viewport even at a mid zoom number (>15° axis)', () => {
+    const wideSpanVp = [-95, 22, -75, 34]; // 20°×12° — width >15° → wideView, tile covers ~4%
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, wideSpanVp, {})).toBe(true);
+  });
+  it('does NOT bridge at a tight zoom with a small viewport (never downgrades a covering zoomed-in view)', () => {
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
+  });
+  it('does NOT bridge without a held coarse-global grid, or when the resident is already global', () => {
+    const wideVp = [-100, 10, -60, 40];
+    expect(shouldBridgeToCoarseGlobal(regional(), null, 3, wideVp, {})).toBe(false);
+    expect(shouldBridgeToCoarseGlobal(regional(), regional(), 3, wideVp, {})).toBe(false); // incoming not coarse-global
+    expect(shouldBridgeToCoarseGlobal(coarseGlobal(), coarseGlobal(), 3, wideVp, {})).toBe(false); // resident already global
+  });
+  it('respects the kill switch', () => {
+    const wideVp = [-100, 10, -60, 40];
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, wideVp, { __RAW_DISABLE_ZOOMOUT_BRIDGE__: true })).toBe(false);
+  });
+  it('the cover-fraction lever tunes the threshold', () => {
+    // A viewport the tile covers ~50%: default (0.6) bridges; raising the floor below 0.5 keeps it.
+    const halfVp = [-80.5, 27.5, -77.5, 28.5]; // 1.5/3 = 0.5 covered, width 3° (not wide-by-span)
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, halfVp, {})).toBe(true);        // z6 ≤ zoomed-out max → wideView
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, halfVp, { __RAW_DOWNGRADE_COVER_FRAC__: 0.4 })).toBe(false);
   });
 });
 
