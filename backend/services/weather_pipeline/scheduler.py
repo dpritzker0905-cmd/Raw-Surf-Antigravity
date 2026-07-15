@@ -94,7 +94,17 @@ class WeatherPipelineScheduler:
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
-            env_forecast_days = int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8"))
+            # FLAGSHIP-FIRST HORIZON (2026-07-15, the 14-day state-of-the-art fine-pilot arc): the
+            # ever-present flagship coasts (FL/SoCal) carry the full native GFS-Wave horizon (14d;
+            # NOAA gfswave025 ceiling is 16d), while the rotating WORLDWIDE regions stay at the shorter
+            # budget horizon so the ~165-min CI stays green. Envs: GFS_MARINE_FLAGSHIP_FORECAST_DAYS
+            # (default 14) / GFS_MARINE_FORECAST_DAYS (default 8, the worldwide horizon).
+            from services.weather_pipeline.scheduler_helpers import flagship_pilot_days
+            env_forecast_days = flagship_pilot_days(
+                region_id,
+                int(os.environ.get("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")),
+                int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8")),
+            )
 
             # ══ PRIMARY: native GFS-Wave direct from NOAA (regional 0.25°, off open-meteo) ══
             results = None

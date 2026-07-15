@@ -448,6 +448,21 @@ def get_pilot_regions() -> dict:
     return _select_rotating_regions(REGIONAL_CONFIGS, list(WORLDWIDE_COASTAL_REGIONS.items()), per_cycle, cycle_index)
 
 
+def is_flagship_pilot_region(region_id: str) -> bool:
+    """A FLAGSHIP pilot region (REGIONAL_CONFIGS = FL / SoCal) ingests EVERY cron cycle, so it can
+    afford the full native forecast horizon; the rotating WORLDWIDE regions stay shorter to hold the
+    ~165-min CI budget. Used by the flagship-first horizon selection (2026-07-15)."""
+    return region_id in REGIONAL_CONFIGS
+
+
+def flagship_pilot_days(region_id: str, flagship_days: int, worldwide_days: int) -> int:
+    """Flagship-first forecast horizon (2026-07-15, the '14-day state-of-the-art fine pilots' arc):
+    the ever-present flagship coasts carry the long native horizon; the rotating worldwide regions
+    stay at the shorter budget horizon so the CI stays green. Pure — flagship_days if the region is a
+    flagship, else worldwide_days."""
+    return flagship_days if is_flagship_pilot_region(region_id) else worldwide_days
+
+
 def get_all_pilot_regions() -> dict:
     """Flagship + ALL worldwide coastal regions — NO rotation (2026-07-13, multi-bbox arc): for the
     single-download-pass fetchers (GWAM/ECMWF wave stream), extra regions cost only in-memory
