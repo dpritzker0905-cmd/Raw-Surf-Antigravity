@@ -47,8 +47,29 @@ export function useMarineRevalidation() {
       !isTerminalNoData;
 
     if (isStale || isEmptyTransient) {
-      if (swrRetryCountRef.current < 3) {
-        const delay = isEmptyTransient ? 2500 : 1500;
+      // SWR RE-DRIVE LADDER — the dominant term in zoom-out "slow expansion" (HANDOFF-2026-07-15 §1,
+      // mechanism traced 2026-07-15): the mid-res preview commits INSTANTLY, then this fixed-delay
+      // re-request is what actually pulls the sharpened fine grid once the backend's background
+      // _revalidate_fetch (serialized, MARINE_REVAL_CONCURRENCY=1) has warmed the dynamic cache. So the
+      // perceived sharpen latency ≈ delay × (retries until the reval lands), and the 3-retry cap is
+      // what leaves a slow reval STUCK at the mid tier (the residual "clamping"). The delay ladder and
+      // retry cap are LIVE-TUNABLE for A/B against __SHARPEN_TRACE__ — DEFAULTS ARE BYTE-IDENTICAL to
+      // the prior hardcoded 1500ms × 3. On the live site set e.g.
+      //   window.__RAW_MARINE_SWR_STALE_DELAYS__ = [700, 1200, 1800, 2500]
+      //   window.__RAW_MARINE_SWR_MAX_RETRIES__  = 4
+      // to trial a faster+deeper ladder at ZERO upstream cost (the re-request reads the now-warm cache,
+      // not upstream). Empty/cold-ingestion transients keep their own 2500ms cadence — a different
+      // phenomenon (a freshly-published run still ingesting), left untouched.
+      const _w = (typeof window !== 'undefined') ? window : undefined;
+      const _maxRetries = (_w && Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__) > 0)
+        ? Math.floor(Number(_w.__RAW_MARINE_SWR_MAX_RETRIES__)) : 3;
+      const _staleLadder = (_w && Array.isArray(_w.__RAW_MARINE_SWR_STALE_DELAYS__) && _w.__RAW_MARINE_SWR_STALE_DELAYS__.length)
+        ? _w.__RAW_MARINE_SWR_STALE_DELAYS__ : null;
+      if (swrRetryCountRef.current < _maxRetries) {
+        const _idx = swrRetryCountRef.current;
+        const delay = isEmptyTransient
+          ? 2500
+          : (_staleLadder ? (Number(_staleLadder[Math.min(_idx, _staleLadder.length - 1)]) || 1500) : 1500);
         console.log(`[SWR] ${isEmptyTransient ? 'Empty/non-renderable grid (likely cold ingestion of a fresh run)' : 'Committed stale/coarse grid'}. Scheduling SWR revalidation retry #${swrRetryCountRef.current + 1} in ${delay}ms`);
         if (swrTimerRef.current) {
           clearTimeout(swrTimerRef.current);
@@ -59,7 +80,7 @@ export function useMarineRevalidation() {
           updateFn('swr_revalidation');
         }, delay);
       } else {
-        console.warn('[SWR] Max revalidation retries reached (3), stopping polling.');
+        console.warn(`[SWR] Max revalidation retries reached (${_maxRetries}), stopping polling.`);
       }
     } else {
       swrRetryCountRef.current = 0;

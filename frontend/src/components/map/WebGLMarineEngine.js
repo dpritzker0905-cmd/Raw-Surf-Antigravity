@@ -10,6 +10,7 @@ import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
+import './marineSharpenTrace';   // installs window.__SHARPEN_TRACE__ (zoom-out sharpen-timeline instrument)
 
 import {
   createShader,
