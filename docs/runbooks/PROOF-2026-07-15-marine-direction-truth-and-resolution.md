@@ -183,3 +183,21 @@ Highest-leverage next moves, in order:
 2. **Finer coastal-mid tile (§6d)** — real accuracy win at z5–7, backend precompute, cron-budgeted,
    via a finer mid tile (not a wider span).
 3. Infobox fine point-query (§3).
+
+---
+
+## 7. SHIPPED: resolution watchdog (`b8555570`) — the instrument-to-catch (§6e step 1)
+`marineResolutionWatch.js` + hooks in `WebGLMarineLayer.js` (commit path + idle/moveend/zoomend
+settle leg). Read-only, non-throwing, silent, kill `__RAW_DISABLE_RES_WATCH__`. It records when the
+resident cell is coarser than the tier ladder for the current viewport — the unambiguous signal being
+**coarse-global (~9.73°) at a <15° viewport** (the stuck state behind the wrong coastal direction).
+`global_mid` at coastal zoom is deliberately NOT flagged (legitimate tier; a live z8 false positive
+drove that simplification). 16 unit tests; live-verified 0 false positives + both legs fire.
+
+**HOW TO USE (next time the direction looks coarse/wrong on the map):**
+1. `window.__RAW_RES_WATCH__.report()` → `{commits, anomalies, counts, recent:[…]}`. Each `recent`
+   entry has `reason:'coarse_global_at_coastal_zoom'`, `phase` (commit|settle), `z`, `spanDeg`,
+   `cellDeg`, `cols`, `model`, `productId`, `t`. That is the exact trigger — paste it back.
+2. Optional live warns: `window.__RAW_RES_WATCH_WARN__ = true` (throttled console.warn on anomaly).
+3. With a captured trigger, the fix (why the bridge/dedup left coarse-global resident at that
+   coastal viewport without re-fetching the mid/fine) becomes proof-backed, not a guess.
