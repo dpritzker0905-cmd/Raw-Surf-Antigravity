@@ -1,7 +1,7 @@
 import { useCallback } from 'react';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
-import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag } from './backendWeatherServiceClient';
+import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
 import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
@@ -270,7 +270,8 @@ export function useMarineDataFetcherCore({
         // otherwise abort-loop into the recovery-grid blank.
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
         const isAborted = abortControllerRef.current?.signal?.aborted;
-        if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset) {
+        if (inflight && !isAborted && inflight.rawModel === rawModel && inflight.layer === layer && inflight.hour === timeOffset
+            && inflight.surf === getSurfModeFlag()) { // §0l: opposite flavor = DIFFERENT target (toggle must not dedup)
           const panMoved = bufferPanMovedReplay({ inflight, currentViewportHash: viewportHash, source, model: activeModelRef.current, layer, hour: timeOffset, pendingMarineIntentRef, logPipelineEventHelper });
           console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
           // Forensic: the AGE of the in-flight fetch is the wedge diagnostic — a healthy dedup
@@ -354,7 +355,11 @@ export function useMarineDataFetcherCore({
       myController = abortControllerRef.current;
       // Tag with this fetch's target so a later switch can detach+self-cache it and the
       // registry can abort it for the concurrency cap / on unmount.
-      abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, bounds, zoom, boundsKey: viewportHash };
+      // §0l: `surf` joins the target identity — the Swell↔Surf flavors are DIFFERENT fields for
+      // the same model/layer/hour, so a toggle must never dedup against the opposite flavor's
+      // in-flight fetch (the rapid off→on re-activation stick: the ON-ask skipped as "same
+      // target", the OFF-leg's swell result then committed and the honest resident held).
+      abortControllerRef.current.__intent = { model, rawModel, layer, hour: timeOffset, surf: getSurfModeFlag(), bounds, zoom, boundsKey: viewportHash };
       inFlight.registerForeground(myController, abortControllerRef.current.__intent, requestId);
 
       locks.isFetching = true;
@@ -683,7 +688,8 @@ export function useMarineDataFetcherCore({
       const isAborted = abortControllerRef.current?.signal?.aborted;
       if (inflight && !isAborted && inflight.rawModel === activeModelRef.current &&
           inflight.layer === (activeMarineLayerRef.current || 'waves') &&
-          inflight.hour === timeOffsetRef.current) {
+          inflight.hour === timeOffsetRef.current &&
+          inflight.surf === getSurfModeFlag()) { // §0l: opposite flavor = DIFFERENT target
         const panMoved = bufferPanMovedReplay({ inflight, getViewportHash, source, model: activeModelRef.current, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, pendingMarineIntentRef, logPipelineEventHelper });
         console.log(`[Abort-Gate] Same-target fetch already in-flight (${inflight.rawModel}/${inflight.layer}/h${inflight.hour}); ${panMoved ? 'viewport moved — replay buffered for fetch completion' : 'skipping duplicate'} (no abort).`);
         recordMarineEvent('inflight_skip', {
