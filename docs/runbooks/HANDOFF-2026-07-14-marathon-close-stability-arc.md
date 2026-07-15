@@ -358,6 +358,30 @@ decide whether the marine field should render there at all; (3) judge blockiness
 Code home: `OceanMask.js` (layer ids at :24-:37 — "brought back on top of land fill" is the
 guard's documented intent; the z≥12 fade belongs in its paint definitions).
 
+## §0k RATING-ON "LAND MASK HALO" (user report 07-15) — FIXED (band inland-water gate)
+**FORENSICS (pane canvas-capture A/B, FL Melbourne/Palm Bay z8.6, same viewport both modes):**
+rating-OFF cuts crisply at the beach line (lagoon + mainland clean — honest colors follow real
+data, which is zero there); rating-ON painted a soft orange fringe ACROSS the Indian River
+lagoon and feathering onto the mainland strip = the reported halo. MECHANISM (shader truth, not
+mask divergence): the band's score is bilinear/extrapolation-smeared across the barrier island
+into the lagoon; the lagoon is legitimately WATER in the geographic mask (the oceanAlpha<0.5
+discard keeps it) and the COASTAL RIBBON is keyed on land PROXIMITY — maximal exactly in
+enclosed water — so the band painted lagoons/bays at full strength where the honest path shows
+nothing. All mask machinery checked healthy (baseCrispMask true, dense resident mask, halo-damp
+idle): this was a BAND-branch behavior, not a mask defect.
+**FIX (`WebGLMarineShaders.js` band branch + engine uniform): INLAND-WATER GATE** — one extra
+17-sample `coastLandFrac` disc at 0.35× ribbon radius classifies ENCLOSURE: open-beach fragments
+are ~half land (frac≈0.5 → below the 0.55 ramp → full band; the "band lives against the
+coastline" rule and the 07-12 z7.55 pocket fix both live below it); enclosed water is mostly
+land on all sides (frac≥0.7+) → band fades toward the honest look. Tunable/kill:
+`__RAW_BAND_INLAND_GATE__` (0..1, default 1; 0 = pre-gate). Telemetry:
+`__RAW_GPU__.ratingRibbon.inlandGate`. **VISUALLY VERIFIED** (canvas-capture, same viewport):
+post-fix rating-ON edge matches the rating-OFF reference — lagoon/mainland clean, coastal band
+intact Merritt Island→Palm Bay, seaward taper unchanged. Cost: band fragments only.
+NOTE: enclosed-water WIDTH matters — very wide bays (>~2× the small disc, e.g. mid-Biscayne)
+may still partially paint; the full answer stays the sheltered-water exposure model (backlog ②,
+same arc family as §0j).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
