@@ -309,6 +309,55 @@ EURO cold-boot world-preview window at close zoom (SWR + sharpen, §0f suppressi
 crests ≥z7; wash now bridges it) · coarse-crest deliberate dimness. Baselines: **BE 728/2928,
 FE 963/963** (+§0g's: FE heavy-page goldens included).
 
+## §0i z7 RATING-ON OCEAN CLAMP (user field report 07-15: "animations clamp around FL's coasts,
+## not into the ocean; rating-off fills the viewport") — FIXED (wide-request tile tightening)
+**FORENSICS (localhost pane, prod BE):** at z7.02 the surf lane splits by the SNAPPED REQUEST
+shape: an ~8°×6° request → DYNAMIC product (17×13, verified HONEST offshore: valid + phys_speed
+everywhere, maskedPhys=0 — animations identical to rating-off ✓); a 5–6° request → the FL TILE,
+whose data ends at its edges (probe: 313/525 cells invalid at a wide clip) while the §0f poke
+gate tolerated **1.25°/side** of viewport past the tile edge = up to ~120 km of mid-viewport
+ocean with ZERO animation data (the visible dead strips). Motion-unlock/encode telemetry all
+healthy (`__RAW_MOTION_UNLOCK_ENCODE__ withMotion==unlockable`) — the missing crests were where
+there was NO DATA AT ALL, not a shader gate.
+**FIX (product_selection.py):** requests wider than `SURF_REGIONAL_PREFER_FULLCOVER_SPAN_DEG`
+(default 4.75°, either axis) must be covered within `SURF_REGIONAL_PREFER_WIDE_POKE_DEG`
+(default 0.6° ≈ client pad + snap slack) — else fall through to the covering dynamic lane.
+Narrow requests keep the legacy 1.25° poke (the tile's tight-zoom home case, incl. the ~1°
+offshore-edge poke). **CONTRACT CHANGE golden:** the pre-§0e East-Australia wide-poke golden
+(tile at any cost — falling through then meant NO band) now asserts fall-through; since §0e the
+dynamic lane carries band + honest offshore, so a 1°+ dead stripe is the worse trade. Trade
+surface: 0.6–1.25°-poking wide viewports get the dynamic band (~0.5°) instead of the tile band
+(0.25°). Tests: `test_surf_regional_prefer.py` 18/18 (2 new + 1 reshaped narrow).
+**NOTE for the next eyeball:** "wave direction issues" rating-on at z7 = the dynamic product's
+direction vs global_mid's (different sources/res) + the §0h confidence export landing on the
+next cron — judge EURO/ICON coarse directions only after a fresh-cron product carries non-null
+dir_confidence.
+
+## §0j z13.3 "SECTIONING LINES + BLOCKY MASK" (user report 07-15, Bill Sadowski CWA) — FORENSICS
+## BANKED, NO CODE CHANGES (mask minefield; needs its own arc + user visual A/B)
+**Layer-stack truth at the exact viewport** (145 layers via `map.style._order`; marine engine at
+index 9): the "weird lines that label sections of the map" are OUR OWN mask-arc layers drawn
+ABOVE the marine engine — ① `ocean-mask-inland-water` (fill, idx 12) + `ocean-mask-inland-waterway`
+(line, idx 13, **opacity 1.0**, ~1.6 px at z13.3, water-color hsl(197,15%,43%)) = the 07-06
+INLAND-WATER GUARD repainting canal/inland-water features flat over the heatmap; in Biscayne Bay
+parts of the BAY classify as inland water → flat patches + opaque strokes with hard seams against
+the animated marine field. ② `ocean-mask-line` (idx 14, rgba(0,0,0,0.35), fade ramp 0.8@z9→0@z14
+= still ~0.11 visible at z13.3) = the faint dark coastline strokes. `ocean-mask-buffer` innocent
+(opacity 0 past z9.5). Basemap bridges/roads/land-structure legit above. **Blockiness** = 0.25°
+marine cells (~27 km) at z13.3 vs the 10 m mask polygons — the known sheltered-water/intracoastal
+class (backlog ②, "land-bleed >z12 needs visual verify" memory).
+**WHY NOT FIXED INLINE:** these layers ARE load-bearing guards ([[mask-truth-guards-2026-07-06]]
+inland-water guard); reordering/fading them re-risks the regressions they fixed (heatmap over
+canals/land). PLAN for the dedicated arc: (1) high-zoom fade for `ocean-mask-inland-water(way)`
+(z≥12 → let the basemap's own water render) + finish `ocean-mask-line`'s ramp earlier (~z12), A/B
+at the ORIGINAL guard repro sites (canals/lakes that motivated 07-06) before shipping; (2) the
+bay-classified-as-inland-water patchwork wants the sheltered-water exposure model (backlog ②) —
+decide whether the marine field should render there at all; (3) judge blockiness only after (1)
+(the strokes exaggerate the cell edges). Recipe to re-inspect: pane → z13.3 (-80.310, 25.617),
+`map.style._order` + queryRenderedFeatures per line/symbol layer (this section's numbers).
+Code home: `OceanMask.js` (layer ids at :24-:37 — "brought back on top of land fill" is the
+guard's documented intent; the z≥12 fade belongs in its paint definitions).
+
 **A/B PASSED (~20:30Z, GFS FL z8, deployed backend):** backend serves decoupled cells (sample:
 score 4.7 + phys 0.39–0.46 m); engine grid carried 65 phys cells, score texture resident,
 animPhys+motionUnlock true; **rating-ON crest field visually MIRRORS the rating-OFF reference**
