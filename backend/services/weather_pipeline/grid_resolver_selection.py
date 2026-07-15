@@ -103,20 +103,7 @@ def decide_manifest_product(matching_manifest_item, req_w, req_s, req_e, req_n, 
                 else:
                     req_span_lng = (180.0 - req_w) + (req_e + 180.0)
                 req_span_lat = abs(req_n - req_s)
-                # ROOT B (2026-07-15): this is the ACTUAL coarse-vs-mid boundary — serving the 10°
-                # global_coarse here at span >15° is what preempts Step 3.6's ~2° global_mid clip and
-                # renders the "horizontal lines through Yucatan/Cuba + EURO grid over the US at mid
-                # zoom". Verified live: the MARINE_MID_RES_MAX_SPAN raise alone was INERT because this
-                # gate fired first. For MARINE, align the ceiling with the mid tier (default 22°) so a
-                # 15-22° view falls through to the finer mid clip; WIND and other domains keep 15° (no
-                # mid tier exists for them — falling through would spawn a heavy dynamic fetch). Still
-                # INERT for the app: the FE clamps marine to a WORLD request at span >
-                # __RAW_MARINE_GLOBAL_SPAN__ (15°), so it sends span-360 (→ coarse) until that flag
-                # rises for the live A/B. Restore the old boundary: MARINE_MID_RES_MAX_SPAN=15.
-                _global_ceiling = 15.0
-                if domain.lower() == "marine":
-                    _global_ceiling = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "22.0"))
-                if req_span_lng > _global_ceiling or req_span_lat > _global_ceiling:
+                if req_span_lng > 15.0 or req_span_lat > 15.0:
                     use_manifest_product = True
                 elif model.upper() == "ICON" and domain.lower() == "wind":
                     # Compute dynamic boundary for the maximum 5-day calendar forecast range of ICON
