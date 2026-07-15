@@ -242,7 +242,20 @@ export function useMarineDataFetcherCore({
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
-      let bypassDedupe = !hasValidData || !isCorrectLayer || !!(marineData?.stale || marineData?.grid?.stale);
+      // FLAVOR-MISMATCH BYPASS (2026-07-15, visual-verified on the live map: the rating band NEVER
+      // loaded on toggle without a pan — surf ON fired 0 fetches for 8s). The surf/swell toggle's
+      // manual re-fetch was dedup-skipped: locks.lastHash can equal the current surf-hash while the
+      // RESIDENT grid is still the opposite flavor, so the hash dedup below wrongly skips the re-fetch.
+      // When the committed grid's flavor (ratingMode) doesn't match the desired surf mode, the resident
+      // data is simply the WRONG flavor and must be re-fetched regardless of viewport. Terminating:
+      // once the correct flavor commits, the mismatch clears. NOT scoped to 'manual': the surf
+      // toggle's own manual fetch can be blocked by other in-flight/lock guards, so the reliable
+      // re-drive is the periodic backstop/SWR — which must ALSO see the mismatch to re-fetch the
+      // right flavor. Bounded because it only fires while the resident flavor is wrong AND a re-drive
+      // is scheduled; at a genuinely zoomed-out coarse view the backstop is idle (coarse is adequate
+      // there), so this does not spin (measured: 0 idle fetches at z3.2 + surf-on).
+      const _flavorMismatch = !!(marineData?.grid?.ratingMode) !== getSurfModeFlag();
+      let bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineData?.stale || marineData?.grid?.stale);
 
       if (!isRetry && !isTimelineScrub && !bypassDedupe && locks.lastHash === viewportHash && (Date.now() - locks.lastTime < 5 * 60 * 1000)) return;
       if (locks.lastHash !== viewportHash) {
@@ -737,7 +750,10 @@ export function useMarineDataFetcherCore({
       const viewportHash = getViewportHash();
       const hasValidData = marineDataRef.current && marineDataRef.current.grid && marineDataRef.current.grid.vectors && marineDataRef.current.grid.vectors.length > 0;
       const isCorrectLayer = marineDataRef.current?.grid?.__componentLayer === (activeMarineLayerRef.current || 'waves');
-      const bypassDedupe = !hasValidData || !isCorrectLayer || !!(marineDataRef.current?.stale || marineDataRef.current?.grid?.stale);
+      // FLAVOR-MISMATCH BYPASS (2026-07-15) — the enqueue-side twin of the updateMarineGrid guard.
+      // See the updateMarineGrid comment for the full rationale (verified on the live map).
+      const _flavorMismatch = !!(marineDataRef.current?.grid?.ratingMode) !== getSurfModeFlag();
+      const bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineDataRef.current?.stale || marineDataRef.current?.grid?.stale);
       if (!bypassDedupe && locks.lastHash === viewportHash && (now - locks.lastTime < 5 * 60 * 1000)) return;
     } catch (e) {
       // ignore
