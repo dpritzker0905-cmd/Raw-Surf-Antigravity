@@ -17,6 +17,13 @@
 > serves `icon_marine_waves_global_mid_*_estimated.json` (8×7 clipped regional) at day 10-14.
 > Bridge-full-wash (§2 item 3) DEFERRED with evidence: the damped-wash window it would brighten no
 > longer occurs with the keystone + realign live.
+>
+> **ATTRIBUTION CORRECTION (post-ship truth-check):** §2's "promote ON MOTION" framing was partly
+> stale — the render loop ALREADY calls `bridgeToCoarseGlobalIfHeld` every frame (engine render
+> ~:848, shipped `e8f10955`). The promotion trigger was never missing; what it COMMITTED was broken
+> (the all-water-mask/geojson poisoning above) and could then strand (dup-skip). Those roots are the
+> real fix; the new throttled zoom/move handler is defense-in-depth for rAF-starved frames and hosts
+> the mid-gesture escaped-mask leg.
 
 **For a fresh context.** `origin/dev` HEAD = `b21cf29d`, in sync, CI+Lighthouse green, Render + Netlify
 both live on it. **Read `[[standing-work-rules-user-mandate]]` first.** This session recovered a stranded
