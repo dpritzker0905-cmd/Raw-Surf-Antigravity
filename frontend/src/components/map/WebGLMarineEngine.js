@@ -1090,6 +1090,28 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         });
       }
     }
+    // CREST RING-FILL (2026-07-16 queue #1): decide once per frame; the SAME flag feeds the draw
+    // AND advect passes below (advected positions and drawn crests must share field semantics
+    // beyond the resident grid edge, or crests die where particles advect and vice versa — the
+    // §4.2 motion-unlock parity lesson). Kill: __RAW_DISABLE_CREST_RINGFILL__.
+    // Telemetry: __RAW_GPU__.crestRingFill.
+    if (this._maxVertexTexUnits === undefined) {
+      try { this._maxVertexTexUnits = gl.getParameter(gl.MAX_VERTEX_TEXTURE_IMAGE_UNITS); }
+      catch (e) { this._maxVertexTexUnits = 0; }
+    }
+    const _ringFill = resolveCrestRingFill({
+      killed: (typeof window !== 'undefined' && window.__RAW_DISABLE_CREST_RINGFILL__ === true),
+      blendEngaged,
+      base: this._coarseBaseData,
+      maxVertexTextures: this._maxVertexTexUnits,
+    });
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.crestRingFill = _ringFill;
+    }
+    // Fallback-bind sources when ring-fill is off (samplers must always be complete; the shader
+    // never reads them at u_ringFillEnabled=0 — the u_shoalFoam/u_bathTexture pattern).
+    const _rfBase = _ringFill.enabled ? this._coarseBaseData : null;
+    const _rfB = (_rfBase && _rfBase.bounds) || { west: 0, south: 0, east: 0, north: 0 };
     const _blendBaseWash = (typeof window !== 'undefined' && typeof window.__RAW_BLEND_BASE_WASH__ === 'number')
       ? window.__RAW_BLEND_BASE_WASH__ : 0.72;
     // Close-zoom damp (2026-07-04, Long Beach land-bleed report): the coarse base is the WORLD grid
@@ -1797,6 +1819,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_min'), ob.west, ob.south);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+      // CREST RING-FILL (2026-07-16): coarse-base fallback pair on units 5/6 (fallback-bound below
+      // so the samplers are always complete; resolveCrestRingFill forces enabled=false when no
+      // complete base is held, so the fallback binds are never read).
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseWaveTexture'), 5);
+      gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_coarseMaskTexture'), 6);
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
+      gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
 
       // TRUTHFULNESS ECHO: publish the exact animation values the engine is applying THIS frame (+ live zoom)
       // so the tuner can prove the sliders reach the GPU and show what's active per zoom. Read every frame.
@@ -1870,6 +1900,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // u_shoalFoam>0, which the engine forces to 0 without a bath texture (so the fallback is never sampled).
       bindTexture(gl, (this._waveData.u_bathymetryTexture ? this._waveData.u_bathymetryTexture : this._waveData.u_waveTexture), 3);
       bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 4);
+      bindTexture(gl, _rfBase ? _rfBase.u_waveTexture : this._waveData.u_waveTexture, 5);
+      bindTexture(gl, _rfBase ? _rfBase.u_oceanMaskTexture : this._waveData.u_oceanMaskTexture, 6);
 
       var mercOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_merc_offset');
       if (this.drawVAO) {
@@ -1939,6 +1971,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_overlayReplace'), _overlayReplace ? 1.0 : 0.0);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_min'), ob.west, ob.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_overlayBounds_max'), ob.east, ob.north);
+      // CREST RING-FILL — must match the DRAW pass exactly (same _ringFill decision, same base
+      // set; advect units 4/5 since this pass only uses 0-3). Fallback-bound below.
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseWaveTexture'), 4);
+      gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_coarseMaskTexture'), 5);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_ringFillEnabled'), _ringFill.enabled ? 1.0 : 0.0);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_min'), _rfB.west, _rfB.south);
+      gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_coarseBounds_max'), _rfB.east, _rfB.north);
       gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_scale'), stableSpeedScale);
       // Cap the height term that drives drift speed (big swell otherwise drifts ~linearly with height → unnaturally
       // fast at mid-zoom over the coarse-global). Default 3.0 m; tunable live via window.__RAW_SPEED_HEIGHT_CAP__.
@@ -2010,6 +2049,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         bindTexture(gl, this._waveData.u_waveTexture, 1);
         bindTexture(gl, this._waveData.u_oceanMaskTexture, 2);
         bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 3);
+        bindTexture(gl, _rfBase ? _rfBase.u_waveTexture : this._waveData.u_waveTexture, 4);
+        bindTexture(gl, _rfBase ? _rfBase.u_oceanMaskTexture : this._waveData.u_oceanMaskTexture, 5);
 
         if (this.advectVAO) {
           gl.bindVertexArray(this.advectVAO);
@@ -2392,6 +2433,35 @@ export function resolveCoarseBaseSwap(prev, encoded, atomic) {
   if (!atomic) return { next: valid ? encoded : null, toFree: null };
   if (valid) return { next: encoded, toFree: (prev && prev !== encoded) ? prev : null };
   return { next: prev || null, toFree: null };
+}
+
+// CREST RING-FILL decision (2026-07-16 queue #1; pure + exported for tests, mirroring
+// shouldBridgeToCoarseGlobal). Live + 66-frame split-speckle proof: when the viewport extends past
+// the resident grid edge, the revealed ring shows the coarse wash but ZERO crest animations
+// (avgSpkE 0.0 beyond the fine tile's bound vs 1.3 inside) — particles COVER the ring (§7i tile
+// clamp) but both particle shaders cull outside u_dataBounds (deliberate: prevents the clamp-smear
+// rectangle). Fix = per-pixel fallback (webgl-wind / earth.nullschool practice): out-of-resident
+// particles sample the held coarse-global base + ITS world mask. Enable ONLY when:
+//   • not killed (__RAW_DISABLE_CREST_RINGFILL__), and
+//   • the blend wash is engaged (⊇ same-model/same-layer parity + regional resident + not
+//     overlay-isolated) — ring crests must animate the SAME field the wash paints under them,
+//     and a ring with no wash should stay crest-less (crests over bare basemap read as a glitch), and
+//   • the base set is complete (wave texture + its OWN mask + bounds), and
+//   • the GPU has ≥7 vertex texture units (DRAW_VS statically samples 7 with the fallback pair;
+//     unknown (non-number) fails OPEN — every WebGL-era GPU reports ≥16, the guard is for the
+//     exotic floor where the draw program would misbehave anyway).
+export function resolveCrestRingFill(opts) {
+  const o = opts || {};
+  if (o.killed) return { enabled: false, reason: 'killed' };
+  if (!o.blendEngaged) return { enabled: false, reason: 'wash_idle' };
+  const b = o.base;
+  if (!b || !b.u_waveTexture || !b.u_oceanMaskTexture || !b.bounds) {
+    return { enabled: false, reason: 'no_base' };
+  }
+  if (typeof o.maxVertexTextures === 'number' && o.maxVertexTextures < 7) {
+    return { enabled: false, reason: 'vertex_tex_units' };
+  }
+  return { enabled: true, reason: 'ok' };
 }
 
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {

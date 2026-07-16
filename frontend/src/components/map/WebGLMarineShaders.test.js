@@ -105,7 +105,9 @@ describe('WebGLMarineShaders', () => {
     it('DRAW_VS shoaling foam is gated and samples the bathymetry depthFactor only when enabled', () => {
       expect(DRAW_VS).toContain('uniform sampler2D u_bathTexture;');
       expect(DRAW_VS).toContain('uniform float u_shoalFoam;');
-      expect(DRAW_VS).toContain('if (u_shoalFoam > 0.0001)');
+      // RING-FILL (2026-07-16): coarse-fallback particles skip shoal foam — the bath texture is
+      // resident-bounds aligned and their tex_uv is OOB.
+      expect(DRAW_VS).toContain('if (u_shoalFoam > 0.0001 && !useCoarse)');
       // shelfProximity = 1 - depthFactor (0=deep → no boost, 1=shelf/reef → full boost); whitecap scaled up only.
       expect(DRAW_VS).toContain('float shelfProximity = clamp(1.0 - depthFactor, 0.0, 1.0);');
       expect(DRAW_VS).toContain('v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;');
@@ -147,7 +149,10 @@ describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/
     // Samples the SAME mask sampler the center cull uses, at the corner endpoint uv.
     // (§4.2 motion-unlock, 2026-07-13: the sample is now vec4 and the flag lifts to
     // max(r, g*u_motionUnlock) — identical to .r when the uniform is 0 / on geography masks.)
-    expect(DRAW_VS).toContain('vec4 endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));');
+    // (RING-FILL 2026-07-16: the resident-mask sample is now the else-branch; coarse-fallback
+    // crests check their ribbon END against the base's world mask instead.)
+    expect(DRAW_VS).toContain('endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));');
+    expect(DRAW_VS).toContain('endMaskSample = texture2D(u_coarseMaskTexture, vec2(cend_u, cend_v));');
     expect(DRAW_VS).toContain('float endFlag = max(endMaskSample.r, endMaskSample.g * u_motionUnlock);');
     // Fades alpha (dissolve toward land) instead of hard-discarding the whole ribbon.
     expect(DRAW_VS).toContain('v_alpha *= smoothstep(0.20, 0.45, endFlag);');

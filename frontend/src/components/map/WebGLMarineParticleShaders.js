@@ -41,6 +41,11 @@ uniform vec2 u_waveGridSize;       // wave texture texel dims (cols, rows) — c
 uniform float u_particles_res;     // particle state texture resolution — stratum width for stratified reseeding
 uniform float u_stratifiedReseed;  // >0.5: respawn each particle inside ITS OWN stratum (its state-texel footprint) instead of uniform-random — Jobard–Lefer-style even coverage, kills reseed clumps at low density (U2, 2026-07-02)
 uniform float u_motionUnlock;      // §4.2 motion-unlock: 1 = rating mode with __RAW_RATING_MOTION_UNLOCK__ — land checks lift to max(mask.r, mask.g), where g = MOTION-water (geographic water incl. band-masked cells). 0 = legacy (mask.r only); on geography masks r==g so this is inert either way.
+uniform float u_ringFillEnabled;   // CREST RING-FILL (2026-07-16): >0.5 = particles beyond the resident grid fall back to the held coarse-global base — the SAME field the phase-0 wash paints in the revealed ring — instead of dying at the isOob drop (66-frame split-speckle proof: wash but ZERO crests past the grid edge). The engine forces 0 unless the base set is bound (the samplers below are fallback-bound, never read unbound). Kill: __RAW_DISABLE_CREST_RINGFILL__.
+uniform sampler2D u_coarseWaveTexture; // held coarse-global base field (== the wash's texture)
+uniform sampler2D u_coarseMaskTexture; // the base's OWN world mask — the RESIDENT mask/wave pair must never be read beyond their bounds (CLAMP_TO_EDGE junk)
+uniform vec2 u_coarseBounds_min;   // base grid bounds; its mask was encoded with the base grid, so mask bounds == grid bounds (matches _drawCoarseBasePass)
+uniform vec2 u_coarseBounds_max;
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -108,7 +113,24 @@ void main() {
   float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(mask_u, mask_v);
 
-  vec4 waveData = texture2D(u_waveTexture, tex_uv);
+  // CREST RING-FILL (2026-07-16): coarse-base coords for this particle — wave rows are LAT-linear,
+  // the base's mask is MERCATOR (the same two conventions as the resident pair above).
+  float c_u;
+  if (u_coarseBounds_min.x > u_coarseBounds_max.x) {
+    float cspan = (u_coarseBounds_max.x + 360.0) - u_coarseBounds_min.x;
+    c_u = mod(lng - u_coarseBounds_min.x, 360.0) / max(cspan, 0.0001);
+  } else {
+    c_u = (lng - u_coarseBounds_min.x) / max(u_coarseBounds_max.x - u_coarseBounds_min.x, 0.0001);
+  }
+  float c_v = (lat - u_coarseBounds_min.y) / max(u_coarseBounds_max.y - u_coarseBounds_min.y, 0.0001);
+  float cMercMinY = latToMercatorY(u_coarseBounds_max.y);
+  float cMercMaxY = latToMercatorY(u_coarseBounds_min.y);
+  bool inResident = !(tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
+  bool useCoarse = (u_ringFillEnabled > 0.5) && !inResident
+    && c_u >= 0.0 && c_u <= 1.0 && c_v >= 0.0 && c_v <= 1.0;
+
+  vec4 waveData = useCoarse ? texture2D(u_coarseWaveTexture, vec2(c_u, c_v))
+                            : texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // SEAM COHERENCE (2026-07-02): the BILINEAR magnitude, captured BEFORE the nearest override. ~1 inside
   // cells and between AGREEING cells; drops toward 0 mid-seam between DIVERGENT cells — exactly the strips
@@ -118,7 +140,10 @@ void main() {
   // bilinear blend. LINEAR-sampling exactly at a texel center returns that texel unblended, so each ~10° cell
   // advects uniformly — the swirl (a synthesis of divergent neighbouring headings) cannot form. HEIGHT keeps
   // the smooth bilinear sample below (drift speed / sizes stay continuous across cells).
-  if (u_coarseNearestDir > 0.5) {
+  // RING-FILL particles skip the snap: u_waveGridSize is the RESIDENT grid's texel dims — snapping
+  // the coarse texture with them lands on wrong cell centers. The fallback stays bilinear (height
+  // already is), matching how the wash reads the same texture.
+  if (u_coarseNearestDir > 0.5 && !useCoarse) {
     vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
     vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
     waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
@@ -133,7 +158,11 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   // §4.2 motion-unlock: base land check lifts masked-ocean (g=motion-water) BEFORE the overlay
   // combine; the overlay carries geography truth, which EQUALS motion semantics, so it stays as-is.
-  vec4 baseMaskSample = texture2D(u_oceanMaskTexture, mask_uv);
+  // RING-FILL: out-of-resident particles read the base's OWN world mask (mercator, its bounds);
+  // the overlay combine below still refines it — the overlay is viewport-truth and bounds-agnostic.
+  vec4 baseMaskSample = useCoarse
+    ? texture2D(u_coarseMaskTexture, vec2(c_u, (cMercMaxY - global_pos.y) / max(cMercMaxY - cMercMinY, 0.0001)))
+    : texture2D(u_oceanMaskTexture, mask_uv);
   float oceanFlag = max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
   // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
   // back to the base mask (stale-safe — see HEATMAP_FS note).
@@ -199,8 +228,24 @@ void main() {
   }
   float next_mask_v = (mercMaxY - next_global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 next_mask_uv = vec2(next_mask_u, next_mask_v);
-  
-  vec4 nextMaskSample = texture2D(u_oceanMaskTexture, next_mask_uv);
+
+  // RING-FILL: the next position gets the same coarse fallback (a ring particle advecting on the
+  // coarse field must be land-checked against the SAME mask, or it dies at the resident edge).
+  float nc_u;
+  if (u_coarseBounds_min.x > u_coarseBounds_max.x) {
+    float ncspan = (u_coarseBounds_max.x + 360.0) - u_coarseBounds_min.x;
+    nc_u = mod(next_lng - u_coarseBounds_min.x, 360.0) / max(ncspan, 0.0001);
+  } else {
+    nc_u = (next_lng - u_coarseBounds_min.x) / max(u_coarseBounds_max.x - u_coarseBounds_min.x, 0.0001);
+  }
+  float nc_v = (next_lat - u_coarseBounds_min.y) / max(u_coarseBounds_max.y - u_coarseBounds_min.y, 0.0001);
+  bool nextInResident = !(next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  bool nextUseCoarse = (u_ringFillEnabled > 0.5) && !nextInResident
+    && nc_u >= 0.0 && nc_u <= 1.0 && nc_v >= 0.0 && nc_v <= 1.0;
+
+  vec4 nextMaskSample = nextUseCoarse
+    ? texture2D(u_coarseMaskTexture, vec2(nc_u, (cMercMaxY - next_global_pos.y) / max(cMercMaxY - cMercMinY, 0.0001)))
+    : texture2D(u_oceanMaskTexture, next_mask_uv);
   float nextOceanFlag = max(nextMaskSample.r, nextMaskSample.g * u_motionUnlock);
   if (u_overlayMaskEnabled > 0.5) {
     float no_u = (next_lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
@@ -221,8 +266,9 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0 ||
-                next_tex_u < 0.0 || next_tex_u > 1.0 || next_tex_v < 0.0 || next_tex_v > 1.0);
+  // RING-FILL: out-of-resident only counts as OOB when the coarse fallback can't take the particle
+  // (ring-fill off, or outside the coarse bounds too) — a covered ring particle lives and advects.
+  bool isOob = (!inResident && !useCoarse) || (!nextInResident && !nextUseCoarse);
 
   // Sanity floor on the ADVECTED vector stays at 0.005. NO coherence-based drop here (2026-07-03):
   // even the half-floor "seam core" cull produced a crest DEAD ZONE at divergence hotspots — at Baja
@@ -316,6 +362,11 @@ uniform float u_opacity;
 uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
+uniform float u_ringFillEnabled;    // CREST RING-FILL (2026-07-16) — must match ADVECT_FS exactly (advected positions and drawn crests share field semantics beyond the grid edge, or crests die where particles advect and vice versa).
+uniform sampler2D u_coarseWaveTexture; // held coarse-global base field (== the wash's texture)
+uniform sampler2D u_coarseMaskTexture; // the base's OWN world mask (bounds == u_coarseBounds)
+uniform vec2 u_coarseBounds_min;
+uniform vec2 u_coarseBounds_max;
 
 varying highp float v_alpha;
 varying highp float v_wave_height;
@@ -393,7 +444,24 @@ void main() {
   float mask_v = (mercMaxY - global_pos.y) / max(mercMaxY - mercMinY, 0.0001);
   vec2 mask_uv = vec2(mask_u, mask_v);
 
-  vec4 waveData = texture2D(u_waveTexture, tex_uv);
+  // CREST RING-FILL (2026-07-16): coarse-base coords — matches ADVECT_FS exactly (wave rows
+  // LAT-linear, base mask MERCATOR over the base's own bounds).
+  float c_u;
+  if (u_coarseBounds_min.x > u_coarseBounds_max.x) {
+    float cspan = (u_coarseBounds_max.x + 360.0) - u_coarseBounds_min.x;
+    c_u = mod(lng - u_coarseBounds_min.x, 360.0) / max(cspan, 0.0001);
+  } else {
+    c_u = (lng - u_coarseBounds_min.x) / max(u_coarseBounds_max.x - u_coarseBounds_min.x, 0.0001);
+  }
+  float c_v = (lat - u_coarseBounds_min.y) / max(u_coarseBounds_max.y - u_coarseBounds_min.y, 0.0001);
+  float cMercMinY = latToMercatorY(u_coarseBounds_max.y);
+  float cMercMaxY = latToMercatorY(u_coarseBounds_min.y);
+  bool inResident = !(tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
+  bool useCoarse = (u_ringFillEnabled > 0.5) && !inResident
+    && c_u >= 0.0 && c_u <= 1.0 && c_v >= 0.0 && c_v <= 1.0;
+
+  vec4 waveData = useCoarse ? texture2D(u_coarseWaveTexture, vec2(c_u, c_v))
+                            : texture2D(u_waveTexture, tex_uv);
   vec2 waveVec = waveData.rg * 2.0 - 1.0;
   // SEAM COHERENCE (2026-07-02): bilinear magnitude BEFORE the nearest override — matches ADVECT_FS, culls
   // the divergent-cell seam strips where nearest-snapped crests would move opposite ways side by side.
@@ -401,7 +469,9 @@ void main() {
   // COARSE-BAND NEAREST DIRECTION (2026-07-02): heading from the nearest CELL CENTER instead of the bilinear
   // blend — matches ADVECT_FS exactly, so crest orientation always agrees with crest motion. Height keeps the
   // smooth bilinear sample (sizes stay continuous across cells).
-  if (u_coarseNearestDir > 0.5) {
+  // RING-FILL particles skip the snap (u_waveGridSize = RESIDENT texel dims — wrong cell centers
+  // for the coarse texture); the fallback stays bilinear, matching ADVECT_FS.
+  if (u_coarseNearestDir > 0.5 && !useCoarse) {
     vec2 cell = min(floor(tex_uv * u_waveGridSize), u_waveGridSize - 1.0);
     vec2 cellUV = (cell + 0.5) / max(u_waveGridSize, vec2(1.0));
     waveVec = texture2D(u_waveTexture, cellUV).rg * 2.0 - 1.0;
@@ -414,7 +484,11 @@ void main() {
   float waveHeight = waveData.b * 10.0;
   v_wave_height = waveHeight;
   // §4.2 motion-unlock: matches ADVECT_FS — base check lifts to motion-water BEFORE overlay combine.
-  vec4 baseMaskSample = texture2D(u_oceanMaskTexture, mask_uv);
+  // RING-FILL: out-of-resident crests are land-checked against the base's OWN world mask; the
+  // viewport-truth overlay below still refines it (bounds-agnostic) — matches ADVECT_FS exactly.
+  vec4 baseMaskSample = useCoarse
+    ? texture2D(u_coarseMaskTexture, vec2(c_u, (cMercMaxY - global_pos.y) / max(cMercMaxY - cMercMinY, 0.0001)))
+    : texture2D(u_oceanMaskTexture, mask_uv);
   float oceanFlag = max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
   // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
   // back to the base mask (stale-safe — see HEATMAP_FS note). Matches ADVECT_FS exactly.
@@ -439,7 +513,8 @@ void main() {
                !(waveVec.x >= 0.0 || waveVec.x < 0.0) ||
                !(waveVec.y >= 0.0 || waveVec.y < 0.0);
 
-  bool isOob = (tex_u < 0.0 || tex_u > 1.0 || tex_v < 0.0 || tex_v > 1.0);
+  // RING-FILL: out-of-resident is only OOB when the coarse fallback can't take it (matches ADVECT_FS).
+  bool isOob = !inResident && !useCoarse;
 
   // v5.9: Raised discard threshold to 0.10m to match infobox low-energy suppression.
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
@@ -611,9 +686,12 @@ void main() {
     v_alpha *= mix(u_seamFadeFloor * coreT, 1.0, seamT);
   }
 
-  // Smoothstep boundary feathering so particles dissolve softly near grid edges
+  // Smoothstep boundary feathering so particles dissolve softly near grid edges.
+  // RING-FILL particles skip it: tex_u/v are OOB out there, so min(tex_u, 1-tex_u) goes negative
+  // and the feather would zero every ring crest — the exact deficit ring-fill exists to fix. The
+  // coarse base is world-spanning, so there is no data edge to soften in the ring.
   float edgeFade = 1.0;
-  if (u_edgeFeatherEnabled > 0.5) {
+  if (u_edgeFeatherEnabled > 0.5 && !useCoarse) {
     float distToEdgeX = min(tex_u, 1.0 - tex_u);
     float distToEdgeY = min(tex_v, 1.0 - tex_v);
     float minDistToEdge = min(distToEdgeX, distToEdgeY);
@@ -639,15 +717,31 @@ void main() {
       vec2 mercDelta = vec2(jy.y * pxDelta.x - jy.x * pxDelta.y, jx.x * pxDelta.y - jx.y * pxDelta.x) / jdet;
       vec2 endMerc = global_pos + mercDelta;
       float endLng = endMerc.x * 360.0 - 180.0;
-      float end_u;
-      if (u_maskBounds_min.x > u_maskBounds_max.x) {
-        float endSpan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
-        end_u = mod(endLng - u_maskBounds_min.x, 360.0) / max(endSpan, 0.0001);
+      // RING-FILL: a coarse-fallback crest's ribbon END is checked against the base's world mask
+      // (the resident mask is CLAMP_TO_EDGE junk out there); the overlay refinement below is
+      // bounds-agnostic and applies to both branches unchanged.
+      vec4 endMaskSample;
+      if (useCoarse) {
+        float cend_u;
+        if (u_coarseBounds_min.x > u_coarseBounds_max.x) {
+          float cendSpan = (u_coarseBounds_max.x + 360.0) - u_coarseBounds_min.x;
+          cend_u = mod(endLng - u_coarseBounds_min.x, 360.0) / max(cendSpan, 0.0001);
+        } else {
+          cend_u = (endLng - u_coarseBounds_min.x) / max(u_coarseBounds_max.x - u_coarseBounds_min.x, 0.0001);
+        }
+        float cend_v = (cMercMaxY - endMerc.y) / max(cMercMaxY - cMercMinY, 0.0001);
+        endMaskSample = texture2D(u_coarseMaskTexture, vec2(cend_u, cend_v));
       } else {
-        end_u = (endLng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+        float end_u;
+        if (u_maskBounds_min.x > u_maskBounds_max.x) {
+          float endSpan = (u_maskBounds_max.x + 360.0) - u_maskBounds_min.x;
+          end_u = mod(endLng - u_maskBounds_min.x, 360.0) / max(endSpan, 0.0001);
+        } else {
+          end_u = (endLng - u_maskBounds_min.x) / max(u_maskBounds_max.x - u_maskBounds_min.x, 0.0001);
+        }
+        float end_v = (mercMaxY - endMerc.y) / max(mercMaxY - mercMinY, 0.0001);
+        endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));
       }
-      float end_v = (mercMaxY - endMerc.y) / max(mercMaxY - mercMinY, 0.0001);
-      vec4 endMaskSample = texture2D(u_oceanMaskTexture, vec2(end_u, end_v));
       float endFlag = max(endMaskSample.r, endMaskSample.g * u_motionUnlock);
       if (u_overlayMaskEnabled > 0.5) {
         float eo_u = (endLng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
@@ -669,7 +763,8 @@ void main() {
   // intensify whitecap where the water is shallow. Samples the SAME bathymetry depthFactor the heatmap uses
   // (R: 0=shelf/reef shallow, 1=deep ocean) at the wave-grid coord. 0 = off (legacy). Live: window.__RAW_SHOAL_FOAM__.
   // The engine forces u_shoalFoam=0 unless a bathymetry texture is bound, so u_bathTexture is never read unbound.
-  if (u_shoalFoam > 0.0001) {
+  // RING-FILL particles skip it: the bath texture is resident-bounds aligned and tex_uv is OOB out there.
+  if (u_shoalFoam > 0.0001 && !useCoarse) {
     float depthFactor = texture2D(u_bathTexture, tex_uv).r;
     float shelfProximity = clamp(1.0 - depthFactor, 0.0, 1.0);
     v_whitecap *= 1.0 + shelfProximity * u_shoalFoam;
