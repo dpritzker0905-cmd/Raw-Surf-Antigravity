@@ -2327,9 +2327,29 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
 };
 
 // BLEND BOTH: snapshot a global-coarse grid into a standalone (non-resident) texture set we own + free.
+// ATOMIC-SWAP decision for the coarse base (2026-07-16, deep zoom/pan forensics; pure + exported for tests).
+// `prev` = the currently-held base, `encoded` = the freshly-encoded candidate (null if the encode threw or
+// produced no wave texture), `atomic` = fix ON. Returns { next: what _coarseBaseData becomes, toFree: the
+// superseded set to delete AFTER the swap (null = free nothing here) }.
+//   atomic + valid encode → adopt encoded, free the old (only after the pointer is swapped).
+//   atomic + FAILED encode → KEEP the last-good base (next=prev, free nothing) — this is the fix: the old
+//     order freed the base BEFORE encoding, so a failed re-encode left _coarseBaseData null, and BOTH zoom-out
+//     bridges (paint WebGLMarineCustomLayer.js:229 + data bridgeToCoarseGlobalIfHeld) need a held base → a null
+//     base fell through to the ~700ms "clear"/clearBuffers on the next zoom-out (deterministically reproduced).
+//   legacy (!atomic) → caller already freed prev before the encode, so just adopt encoded (or null).
+export function resolveCoarseBaseSwap(prev, encoded, atomic) {
+  const valid = !!(encoded && encoded.u_waveTexture);
+  if (!atomic) return { next: valid ? encoded : null, toFree: null };
+  if (valid) return { next: encoded, toFree: (prev && prev !== encoded) ? prev : null };
+  return { next: prev || null, toFree: null };
+}
+
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
   if (!gl) return;
-  this._freeCoarseBase(gl);
+  // Encode the NEW base BEFORE freeing the old (see resolveCoarseBaseSwap) so a failed re-encode never nulls
+  // the base — the two texture sets coexist for a few synchronous lines only. Kill: __RAW_DISABLE_ATOMIC_COARSE_BASE__.
+  const atomic = (typeof window === 'undefined') || window.__RAW_DISABLE_ATOMIC_COARSE_BASE__ !== true;
+  if (!atomic) this._freeCoarseBase(gl);
   let base = null;
   try {
     // Pass the land GeoJSON so the standalone encode renders a high-res MERCATOR ocean mask (the heatmap shader
@@ -2344,14 +2364,18 @@ WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
     base.__key = key || coarseBaseKey(waveGrid);
     base.__sourceModel = waveGrid.__sourceModel || 'GFS';
     base.__componentLayer = waveGrid.__componentLayer || 'waves';
-    this._coarseBaseData = base;
   }
+  const { next, toFree } = resolveCoarseBaseSwap(this._coarseBaseData, (base && base.u_waveTexture) ? base : null, atomic);
+  this._coarseBaseData = next;
+  if (toFree) this._freeCoarseBase(gl, toFree);   // free the superseded base only AFTER the pointer swap
 };
 
-WebGLMarineEngine.prototype._freeCoarseBase = function(gl) {
-  const b = this._coarseBaseData;
+// Free a coarse-base texture set. `obj` (optional) frees a SPECIFIC superseded base (the atomic-swap
+// path in _captureCoarseBase) WITHOUT touching this._coarseBaseData; omit it to free + null the resident.
+WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
+  const b = obj || this._coarseBaseData;
   if (!b) return;
-  this._coarseBaseData = null;
+  if (!obj) this._coarseBaseData = null;
   if (!gl) return;
   try {
     if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this);
