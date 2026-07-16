@@ -456,6 +456,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
   const allocatedTextures = [];
   let waveTex, chlTex, bathTex, maskTex;
+  let standaloneMaskDims = null;   // dims of the standalone (coarse-base) mercator mask, if built
   let scoreTex = null;
   try {
     if (!standalone && engine && engine._residentWaveTex && engine._texWidth === cols && engine._texHeight === rows) {
@@ -521,6 +522,10 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       if (landGeoJSON) {
         try {
           const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
+          // Recorded on the returned set (2026-07-16 staircase forensics): the damp sites need to
+          // know whether the base's OWN mask is the dense tier (island halos bounded) or the
+          // legacy 1024×512 (the damps' original rationale).
+          standaloneMaskDims = { w: maskCanvas.width, h: maskCanvas.height };
           const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
           const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
           maskTex = gl.createTexture();
@@ -766,6 +771,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     u_chlorophyllTexture: chlTex,
     u_bathymetryTexture: bathTex,
     u_oceanMaskTexture: maskTex,
+    __maskCanvasDims: standaloneMaskDims,
     // §0e: present ONLY on rating grids (anim-phys on) — the heatmap binds this for band
     // colors while u_waveTexture stays honest for draw/advect.
     u_waveScoreTexture: scoreTex,

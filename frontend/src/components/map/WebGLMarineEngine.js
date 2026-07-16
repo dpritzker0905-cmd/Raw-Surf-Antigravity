@@ -1278,7 +1278,21 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // damps exist to hide. Kill: __RAW_DISABLE_BRIDGE_WASH_UNDAMP__.
     const _bridgeWashSole = _bridgeActive &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_BRIDGE_WASH_UNDAMP__ === true);
-    const _washSole = _bandWashSole || _bridgeWashSole;
+    // DENSE-BASE WASH UN-DAMP (2026-07-16 staircase forensics, notch-by-notch settled-L profile):
+    // the noTruth/halo verdicts SAWTOOTH with the fetch cadence — each commit rebuilds a mask that
+    // covers the settle viewport (full wash), a few notches later the viewport outgrows it (×0.35
+    // damp = the "heatmap brighter/paler at z6.34 vs 6.03" steps: ±17-21 L), the next commit
+    // restores it. Both damps exist for the LEGACY 1024×512 world mask that couldn't carve islands
+    // — but the wash samples the BASE's OWN mask, and when that mask is the dense tier (≥4096 wide
+    // global), island halos are bounded at ~10 km soft edges. A ±35% settled-brightness sawtooth is
+    // strictly worse than those halos (the pt4 doctrine, generalized). The exemption also flattens
+    // the world-promotion step (the pale pre-state was the damp, not the data).
+    // Kill: __RAW_DISABLE_DENSEBASE_WASH_UNDAMP__.
+    const _cgBase = this._coarseBaseData;
+    const _baseMaskDense = !!(_cgBase && _cgBase.__maskCanvasDims && _cgBase.__maskCanvasDims.w >= 4096 &&
+      _cgBase.bounds && (boundsLonSpan(_cgBase.bounds) >= 340)) &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_DENSEBASE_WASH_UNDAMP__ === true);
+    const _washSole = _bandWashSole || _bridgeWashSole || _baseMaskDense;
     // DAMP VERDICT MOTION-HOLD (2026-07-16 shimmer forensics: the noTruth/halo verdicts FLAPPED
     // across mid-gesture commits — nt0↔nt1 = a ±35% wash-luminance shimmer, the "sometimes
     // varies"): the verdict inputs (cached-mask density/coverage, overlay presence) churn while the
@@ -1316,6 +1330,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       window.__RAW_GPU__.baseWashGated = _baseCoverGated;
       window.__RAW_GPU__.haloDamp = _haloDamped;
       window.__RAW_GPU__.bandWashUndamp = _bandWashSole && baseWashOpacity > 0;
+      window.__RAW_GPU__.baseMaskDense = _baseMaskDense;
       // Per-frame wash-opacity forensics (2026-07-16 zoom-clear trace): the pre-halo/noTruth value
       // here; the no-truth leg updates .washEff at its own site below. Telemetry only.
       window.__RAW_GPU__.washPreDamp = +baseWashOpacity.toFixed(3);
