@@ -263,34 +263,54 @@ describe('shouldRejectResolutionDowngrade — RATING downgrade hold (2026-07-12 
     )).toBe(false);
   });
 
-  it('RELEASES the rated resident when it no longer covers — after the BOUNDED grace (2026-07-14 §4f)', () => {
-    // Pre-grace this released INSTANTLY, blinking the band off for the unrated interlude until
-    // the wider rating clip landed. Now: hold through the grace window (the rated refetch usually
-    // lands first → rated→rated swap), then release (truth wins — stranding stays impossible by
-    // the BOUND, not by coverage).
+  // The grace's live shape changed 2026-07-16 pt3 (WIDE-VIEW EXEMPTION): at a zoomed-out viewport
+  // (lastZoom ≤ 7 or >15° span) the display gate has already hidden a non-covering rated resident,
+  // so holding it protected nothing and wedged the zoom-out bridge promotion for the full 4s window
+  // (the user's "heatmap clears + animations clamp briefly on zoom-out"; frame-trace proven). The
+  // grace now applies ONLY at zoomed-IN coverage drops (pans at band zooms), where the gate still
+  // displays the resident and the band would otherwise blink. `pannedVp` = the z7.5 pan-off-tile
+  // view: the 3° tile covers ~17% of a 3°-wide viewport — non-covering, NOT wide.
+  const pannedVp = [-79.5, 27.5, -76.5, 28.5];
+
+  it('WIDE-VIEW EXEMPTION: at a zoomed-out viewport the unrated coarse passes IMMEDIATELY (no grace hold — the 2026-07-16 pt3 zoom-out wedge fix)', () => {
     __resetRatingGraceForTests();
     const wideVp = [-84, 25, -76, 32];
+    // lastZoom 5 ≤ MARINE_ZOOMED_OUT_MAX_ZOOM → the gate has hidden the rated resident; holding
+    // it only pins the dimmed crest-less wash and wedges bridgeToCoarseGlobalIfHeld.
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, 1_000_000
+    )).toBe(false);
+    // span > 15° is wide even with an unknown zoom
+    expect(shouldRejectResolutionDowngrade(
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), undefined, [-100, 10, -60, 40], false, 1_000_100
+    )).toBe(false);
+  });
+
+  it('RELEASES the rated resident on a zoomed-IN pan — after the BOUNDED grace (2026-07-14 §4f, reshaped pt3)', () => {
+    // The gate still DISPLAYS a non-covering resident at zoomed-in zooms, so the grace holds the
+    // visible band through the unrated interlude (the rated refetch usually lands first →
+    // rated→rated swap), then releases (truth wins — stranding stays impossible by the BOUND).
+    __resetRatingGraceForTests();
     const t0 = 1_000_000;
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0
     )).toBe(true);                                     // held at grace start
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 3999
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0 + 3999
     )).toBe(true);                                     // still held just inside the window
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 4001
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0 + 4001
     )).toBe(false);                                    // expired → unrated commits (bounded)
   });
 
   it('grace: a RATED wider incoming lands during the hold → rated→rated swap allowed immediately', () => {
     __resetRatingGraceForTests();
-    const wideVp = [-84, 25, -76, 32];
     const t0 = 2_000_000;
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0
     )).toBe(true);                                     // unrated held...
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: true }), 5, wideVp, false, t0 + 500
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: true }), 7.5, pannedVp, false, t0 + 500
     )).toBe(false);                                    // ...but the RATED incoming passes at once
   });
 
@@ -298,9 +318,8 @@ describe('shouldRejectResolutionDowngrade — RATING downgrade hold (2026-07-12 
     __resetRatingGraceForTests();
     window.__RAW_DISABLE_RATING_GRACE__ = true;
     try {
-      const wideVp = [-84, 25, -76, 32];
       expect(shouldRejectResolutionDowngrade(
-        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, 3_000_000
+        regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, 3_000_000
       )).toBe(false);
     } finally {
       delete window.__RAW_DISABLE_RATING_GRACE__;
@@ -309,28 +328,26 @@ describe('shouldRejectResolutionDowngrade — RATING downgrade hold (2026-07-12 
 
   it('grace: an hour scrub is never held (sameHour predicate applies to the grace too)', () => {
     __resetRatingGraceForTests();
-    const wideVp = [-84, 25, -76, 32];
     expect(shouldRejectResolutionDowngrade(
       regional({ ratingMode: true, hourOffset: 0 }), coarseGlobal({ ratingMode: false, hourOffset: 24 }),
-      5, wideVp, false, 4_000_000
+      7.5, pannedVp, false, 4_000_000
     )).toBe(false);
   });
 
   it('grace: a NEW situation (different resident tile) restarts the window', () => {
     __resetRatingGraceForTests();
-    const wideVp = [-84, 25, -76, 32];
     const t0 = 5_000_000;
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0
     )).toBe(true);
     // grace expires for tile A...
     expect(shouldRejectResolutionDowngrade(
-      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 5, wideVp, false, t0 + 5000
+      regional({ ratingMode: true }), coarseGlobal({ ratingMode: false }), 7.5, pannedVp, false, t0 + 5000
     )).toBe(false);
-    // ...a different rated tile (new key) gets its own fresh window
+    // ...a different rated tile (new key) gets its own fresh window (panned off the CA tile)
     const other = regional({ ratingMode: true, bounds: { west: -120, east: -117, south: 32, north: 35 } });
     expect(shouldRejectResolutionDowngrade(
-      other, coarseGlobal({ ratingMode: false }), 5, [-124, 30, -114, 38], false, t0 + 5001
+      other, coarseGlobal({ ratingMode: false }), 7.5, [-117.5, 32.5, -114.5, 33.5], false, t0 + 5001
     )).toBe(true);
   });
 

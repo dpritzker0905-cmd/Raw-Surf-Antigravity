@@ -274,8 +274,25 @@ export function shouldRejectResolutionDowngrade(resident, incoming, lastZoom, vi
   // is untouched by this branch (!incoming.ratingMode), as are scrubs/layer switches/cross-model
   // (same predicates as the guard proper). Kill: __RAW_DISABLE_RATING_GRACE__ = true.
   // Tune: __RAW_RATING_GRACE_MS__ (default 4000). Ring: rating_grace_hold / rating_grace_expired.
+  // WIDE-VIEW EXEMPTION (2026-07-16 pt3, user "still glitchy — heatmap clears + animations clamp
+  // briefly on zoom-out", rating ON; frame-trace proof on the live harness): at a zoomed-out
+  // viewport (≤ MARINE_ZOOMED_OUT_MAX_ZOOM or >15° span — the display gate's own wide-view
+  // predicate) the gate has ALREADY hidden this non-covering rated resident (op=0, same
+  // __RAW_DOWNGRADE_COVER_FRAC__ boundary), so there is no visible band left for the grace to
+  // protect. Holding here pinned a gate-HIDDEN resident for the full grace window while the
+  // screen showed only the dimmed crest-less paint-bridge wash, and WEDGED the zoom-out bridge
+  // promotion (bridgeToCoarseGlobalIfHeld → setWaveData → this hold → _pendingDowngrade stash →
+  // the bridge's own stash early-return skipped every retry until grace expiry; live trace:
+  // 4.6s of hidden-wash ≈ the 4000ms grace + frame slop). On a wide viewport the honest coarse
+  // must land immediately (the zoom-out arc's "coarsening, never clearing"). The settled
+  // band-flicker protection (§4f's cold-SWR case) is unaffected: a COVERING rated resident is
+  // still held by the ratingDowngrade branch, and the grace remains for zoomed-IN coverage drops
+  // (pans at band zooms), where the gate still displays the resident and the band would blink.
+  const wideView = ((typeof lastZoom === 'number') && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
+    || (coverageKnown && ((viewportBounds[2] - viewportBounds[0]) > 15.0
+        || (viewportBounds[3] - viewportBounds[1]) > 15.0));
   const graceEligible = _surfFlagOn && !!resident.ratingMode && !incoming.ratingMode
-    && sameLayer && sameHour && residentRenderable && coverageKnown && !covers;
+    && sameLayer && sameHour && residentRenderable && coverageKnown && !covers && !wideView;
   if (graceEligible) {
     const w = (typeof window !== 'undefined') ? window : {};
     if (w.__RAW_DISABLE_RATING_GRACE__ !== true) {
