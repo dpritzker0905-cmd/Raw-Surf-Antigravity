@@ -407,14 +407,20 @@ export function resolveAnimValue(key) {
 }
 
 // Identity of a captured coarse base so we re-encode only when the underlying coarse grid actually changes.
-function coarseBaseKey(waveGrid) {
+// RATING FLAVOR IS PART OF THE IDENTITY (2026-07-16, zoom-out color-snap forensics): without it a
+// RATED coarse-global commit with the same dims/bounds/hour as the held UNRATED base was "same key"
+// → _captureCoarseBase never re-fired → the base stayed the WRONG flavor indefinitely after a
+// rating toggle, and every bridge promotion committed that stale flavor under the current view
+// (the vivid↔rating restyle pop when the true-flavor wide grid finally landed).
+export function coarseBaseKey(waveGrid) {
   const b = (waveGrid && waveGrid.bounds) || {};
   return [
     waveGrid && waveGrid.__sourceModel || 'GFS',
     waveGrid && waveGrid.__componentLayer || 'waves',
     waveGrid && waveGrid.cols, waveGrid && waveGrid.rows,
     b.west, b.south, b.east, b.north,
-    waveGrid && waveGrid.hourOffset || 0
+    waveGrid && waveGrid.hourOffset || 0,
+    (waveGrid && waveGrid.ratingMode) ? 'r1' : 'r0'
   ].join('|');
 }
 
@@ -478,18 +484,26 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   // particle FBO and re-orients the direction field (the spin). Hour/coverage-scoped + directional, so coarse→
   // regional sharpen, a scrub to a new hour, a pan off the tile, and zoom-out all pass through untouched. Kill:
   // window.__RAW_DISABLE_NO_DOWNGRADE__. Telemetry: window.__MARINE_NO_DOWNGRADE__.count.
-  if (this._waveData && this._waveData.waveGrid &&
-      shouldRejectResolutionDowngrade(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds,
-        typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__)) {
+  const _ndDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__;
+  const _rejDowngrade = !!(this._waveData && this._waveData.waveGrid &&
+      shouldRejectResolutionDowngrade(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds, _ndDisabled));
+  // SUB-COVERING REGIONAL over a covering coarse-global at wide view (see
+  // shouldRejectSubcoveringRegional): same choke point, same self-heal stash — the gate would hide
+  // it (mult 0) and the bridge would bounce the world grid back, so the commit is pure churn.
+  const _rejSubcover = !_rejDowngrade && !!(this._waveData && this._waveData.waveGrid &&
+      shouldRejectSubcoveringRegional(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds, _ndDisabled,
+        typeof window !== 'undefined' ? window : undefined));
+  if (_rejDowngrade || _rejSubcover) {
     const _res = this._waveData.waveGrid;
+    const _why = _rejDowngrade ? 'downgrade' : 'subcover';
     if (typeof window !== 'undefined') {
       const nd = window.__MARINE_NO_DOWNGRADE__ || (window.__MARINE_NO_DOWNGRADE__ = { count: 0 });
       nd.count++;
       nd.last = { residentDims: `${_res.cols}×${_res.rows}`, rejectedDims: `${waveGrid.cols}×${waveGrid.rows}`,
-        layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now() };
+        layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset, zoom: this._lastZoom, ts: Date.now(), why: _why };
     }
-    console.log(`[WebGLMarineEngine] No-downgrade: kept resident regional ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected coarser ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom} — skips particle reset + re-orient.`);
-    recordMarineEvent('reject_downgrade', {
+    console.log(`[WebGLMarineEngine] No-${_why}: kept resident ${_res.cols}×${_res.rows} (${waveGrid.__componentLayer || 'waves'} h${waveGrid.hourOffset}); rejected ${waveGrid.cols}×${waveGrid.rows} at zoom ${typeof this._lastZoom === 'number' ? this._lastZoom.toFixed(1) : this._lastZoom}.`);
+    recordMarineEvent(_rejDowngrade ? 'reject_downgrade' : 'reject_subcover', {
       resident: `${_res.cols}x${_res.rows}`, incoming: `${waveGrid.cols}x${waveGrid.rows}`,
       layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset,
       zoom: (typeof this._lastZoom === 'number') ? +this._lastZoom.toFixed(2) : null,
@@ -671,7 +685,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
 };
 
 WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, screenWidth, screenHeight, zoom, theme, viewportBounds, opacityMultiplier) {
-  const mult = typeof opacityMultiplier === 'number' ? opacityMultiplier : 1.0;
+  let mult = typeof opacityMultiplier === 'number' ? opacityMultiplier : 1.0;   // let: the bridge-promotion realign below may override the layer's stale gate value
   const renderStart = (typeof window !== 'undefined' && window.__RAW_GPU__) ? performance.now() : 0;
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
     window.__RAW_GPU__.drawCallsPerFrame = 0;
@@ -727,7 +741,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     gl.clear(gl.COLOR_BUFFER_BIT);
   }
 
-  const waveGrid = this._waveData?.waveGrid;
+  let waveGrid = this._waveData?.waveGrid;   // let: re-captured after the mid-frame swaps below
   if (waveGrid) {
     const model = waveGrid.__sourceModel || 'GFS';
     const layer = waveGrid.__componentLayer || 'waves';
@@ -801,7 +815,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     var mat4 = matrix instanceof Float32Array ? matrix : new Float32Array(matrix);
     var time = (Date.now() - this._startTime) / 1000.0;
-    const waveBounds = this._waveData.bounds;
+    let waveBounds = this._waveData.bounds;   // let: re-captured after the mid-frame swaps below
     const z = typeof zoom === 'number' ? zoom : 6;
 
     // v3.22: Compute camera center and tile origin for high-precision advection
@@ -842,10 +856,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // JUST recorded — the guard call inside setWaveData reads these same fields, so acceptance here is
     // authoritative. This releases the wedge where a coarse commit was rejected against a stale zoom
     // and the commit dedup then blocked every retry (stranded 3° regional at band zoom, live repro ×2).
+    // Captured BEFORE the two in-frame resident swaps below (self-heal accept + zoom-out bridge):
+    // the layer computed this frame's `mult` for THIS resident — if either swap replaces it, that
+    // gate verdict is stale for the painted frame (see MULT REALIGN below).
+    const _residentBeforeSwaps = this._waveData && this._waveData.waveGrid;
     if (this._pendingDowngrade) {
       const _pd = this._pendingDowngrade;
       const _pdDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__;
-      if (!shouldRejectResolutionDowngrade(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled)) {
+      // COMBINED predicate — must mirror the setWaveData choke point exactly, or a grid stashed by
+      // the subcover clause would insta-accept here and bounce anyway.
+      if (!shouldRejectResolutionDowngrade(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled) &&
+          !shouldRejectSubcoveringRegional(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled,
+            typeof window !== 'undefined' ? window : undefined)) {
         this._pendingDowngrade = null;
         if (typeof window !== 'undefined') {
           const nd = window.__MARINE_NO_DOWNGRADE__ || (window.__MARINE_NO_DOWNGRADE__ = { count: 0 });
@@ -853,6 +875,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         }
         console.log(`[WebGLMarineEngine] No-downgrade self-heal: stashed ${_pd.cols}×${_pd.rows} grid accepted at zoom ${z.toFixed(1)}.`);
         recordMarineEvent('selfheal_accept', { dims: `${_pd.cols}x${_pd.rows}`, zoom: +z.toFixed(2), rating: !!_pd.ratingMode });
+        // ESCAPED-MASK RECIPE ON THE SELF-HEAL DOOR TOO (2026-07-16 Playwright frame trace: the
+        // accept of a stashed WORLD grid painted ONE lavender land-flooded frame — the encoder's
+        // retain_res_no_downgrade kept the 170 px/° REGIONAL mask under the world grid, so
+        // everything outside its box CLAMP_TO_EDGE'd water over land until the next rebuild).
+        // The zoom-out bridge already disarms the retain guards for exactly this geometry
+        // (64bd1ff6); a stashed grid WIDER than the cached mask needs the same disarm. Same kill
+        // as the escape rebuild: __RAW_DISABLE_ESCAPED_MASK_REBUILD__.
+        if (isCoarseGlobalGrid(_pd) &&
+            !(typeof window !== 'undefined' && window.__RAW_DISABLE_ESCAPED_MASK_REBUILD__ === true)) {
+          this._maskSourceReady = true;
+          this._maskRetainPatchedOk = false;
+        }
         this.setWaveData(gl, _pd, null);
       }
     }
@@ -865,6 +899,49 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (this._coarseBaseData && this._coarseBaseData.waveGrid && !this._pendingDowngrade) {
       this.bridgeToCoarseGlobalIfHeld(gl);
     }
+
+    // MID-FRAME RESIDENT-SWAP MULT REALIGN (2026-07-16, Playwright real-wheel frame traces: every
+    // in-frame swap painted ONE near-bare-basemap frame — L201→220→169, hm=0/mult=0 on the flash):
+    // the layer computed this frame's opacity gate for the OLD sub-covering regional (reject path →
+    // mult 0 coarse-bridge hold) BEFORE the self-heal accept or the zoom-out bridge above swapped
+    // the resident — so the freshly-committed grid painted at the stale mult=0. Both swap doors hit
+    // it (run 1: the bridge; run 2: the self-heal accepting the stashed world grid). If the NEW
+    // resident covers the viewport (≥ the shared cover-frac — the gate's own next-frame verdict),
+    // paint it at full mult NOW and clear the layer's coarse-bridge hold (it described the old
+    // regional). Kill: __RAW_DISABLE_BRIDGE_MULT_REALIGN__. Telemetry: __RAW_GPU__.bridgeMultRealign.
+    {
+      const _nowResident = this._waveData && this._waveData.waveGrid;
+      const _realignOff = typeof window !== 'undefined' && window.__RAW_DISABLE_BRIDGE_MULT_REALIGN__ === true;
+      let _realigned = false;
+      if (!_realignOff && mult < 1.0 && _nowResident && _nowResident !== _residentBeforeSwaps) {
+        let _covers = isCoarseGlobalGrid(_nowResident);
+        if (!_covers && _nowResident.bounds && vb) {
+          const _nb = _nowResident.bounds;
+          const _vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
+          const _ix = Math.max(0, Math.min(_nb.east, vb[2]) - Math.max(_nb.west, vb[0]));
+          const _iy = Math.max(0, Math.min(_nb.north, vb[3]) - Math.max(_nb.south, vb[1]));
+          const _minFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
+          _covers = ((_ix * _iy) / _vpA) >= _minFrac;
+        }
+        if (_covers) {
+          mult = 1.0;
+          this.__coarseBridgeActive = false;
+          _realigned = true;
+        }
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.bridgeMultRealign = _realigned;
+      }
+    }
+
+    // MID-FRAME SWAP RE-CAPTURE (2026-07-16, the residual pale flash — Playwright frame trace,
+    // two byte-identical-state frames painting 50 L apart): waveGrid/waveBounds were captured at
+    // the top of this function, BEFORE the self-heal accept / zoom-out bridge above could replace
+    // the resident — so a swap frame painted the NEW world texture stretched over the OLD regional
+    // u_dataBounds (CLAMP_TO_EDGE smear over the rest of the viewport: the pale lavender frame).
+    // Re-derive both so this frame paints the resident with its own geometry.
+    waveGrid = this._waveData?.waveGrid;
+    waveBounds = this._waveData.bounds;
 
     // === COARSE-GLOBAL CREST SUPPRESSION — the real vortex fix (default ON) ===
     // The "clockwise spin" is NOT merely a bilinear-interpolation artifact: the coarse-GLOBAL 37×17 grid's direction
@@ -1193,13 +1270,44 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // Telemetry: __RAW_GPU__.bandWashUndamp.
     const _bandWashSole = _ratingBandFade.washStrength !== null && _ratingBandFade.washStrength >= 0.8 &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_BAND_WASH_UNDAMP__ === true);
+    // BRIDGE-SOLE WASH (2026-07-16 flash forensics, Playwright real-wheel trace): while the layer's
+    // gate holds the regional dark (__coarseBridgeActive) the wash is the ONLY field on screen —
+    // the ×0.35 damps below took it to ~0.17 effective and the "coarse bridge" painted nearly bare
+    // basemap (the L220 flash / "cleared for a moment"). Same sole-field rule as the rating band
+    // window above: damping the sole field reads as a cleared heatmap, worse than the soft halo the
+    // damps exist to hide. Kill: __RAW_DISABLE_BRIDGE_WASH_UNDAMP__.
+    const _bridgeWashSole = _bridgeActive &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_BRIDGE_WASH_UNDAMP__ === true);
+    const _washSole = _bandWashSole || _bridgeWashSole;
+    // DAMP VERDICT MOTION-HOLD (2026-07-16 shimmer forensics: the noTruth/halo verdicts FLAPPED
+    // across mid-gesture commits — nt0↔nt1 = a ±35% wash-luminance shimmer, the "sometimes
+    // varies"): the verdict inputs (cached-mask density/coverage, overlay presence) churn while the
+    // mask/overlay pipelines chase the camera. Hold the last verdict while the gesture is live
+    // (__MARINE_FETCH_DEBOUNCING__ — the pipeline's own motion signal, cleared at moveend);
+    // re-evaluate the moment it settles. A briefly-stale "truthful" verdict shows a soft halo for
+    // the gesture tail — the doctrine trade (halo < flap). Texture BINDING stays live truth; only
+    // the damp/edge verdicts hold. Kill: __RAW_DISABLE_DAMP_MOTION_HOLD__.
+    const _dampHoldOn = !(typeof window !== 'undefined' && window.__RAW_DISABLE_DAMP_MOTION_HOLD__ === true);
+    // The hold freezes verdicts against INPUT CHURN — but a GENUINE resident-mask replacement
+    // (promotion/self-heal rebuilt it this frame) must re-evaluate immediately: holding the old
+    // dense-regional verdict over the fresh 11 px/° world mask painted one soft-edged bright frame
+    // (the residual +35 L bump the trace caught after the first hold landed).
+    const _maskIdKey = (this._cachedMaskTexDims ? `${this._cachedMaskTexDims.w}x${this._cachedMaskTexDims.h}` : 'none')
+      + '|' + (this._cachedMaskBounds ? `${this._cachedMaskBounds.west},${this._cachedMaskBounds.east}` : 'none');
+    const _maskChanged = this._lastMaskIdKey !== undefined && this._lastMaskIdKey !== _maskIdKey;
+    this._lastMaskIdKey = _maskIdKey;
+    const _inMotion = typeof window !== 'undefined' && window.__MARINE_FETCH_DEBOUNCING__ === true
+      && !_maskChanged;
     // Shared coarse-mask verdict: drives BOTH the wash damp and the shader's crisp mask edge
     // (u_maskEdgeSharp — the heatmap pass's own soft edge was the halo the damp couldn't touch).
-    const _coarseMaskVisible = z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
+    const _coarseMaskVisibleRaw = z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
       maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32;
+    const _coarseMaskVisible = (_dampHoldOn && _inMotion && this._lastCoarseMaskVisible !== undefined)
+      ? this._lastCoarseMaskVisible : _coarseMaskVisibleRaw;
+    if (!_inMotion || this._lastCoarseMaskVisible === undefined) this._lastCoarseMaskVisible = _coarseMaskVisibleRaw;
     this._maskEdgeSharp = _coarseMaskVisible ? 1.0 : 0.0;
-    if (baseWashOpacity > 0 && _coarseMaskVisible && !_bandWashSole) {
+    if (baseWashOpacity > 0 && _coarseMaskVisible && !_washSole) {
       baseWashOpacity *= 0.35;
       _haloDamped = true;
     }
@@ -1208,6 +1316,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       window.__RAW_GPU__.baseWashGated = _baseCoverGated;
       window.__RAW_GPU__.haloDamp = _haloDamped;
       window.__RAW_GPU__.bandWashUndamp = _bandWashSole && baseWashOpacity > 0;
+      // Per-frame wash-opacity forensics (2026-07-16 zoom-clear trace): the pre-halo/noTruth value
+      // here; the no-truth leg updates .washEff at its own site below. Telemetry only.
+      window.__RAW_GPU__.washPreDamp = +baseWashOpacity.toFixed(3);
     }
 
     // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different
@@ -1339,10 +1450,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // full wash returns the moment crisp truth covers. Kill: __RAW_DISABLE_ISLAND_HALO_DAMP__.
       // Telemetry: __RAW_GPU__.washNoTruthDamp.
       let _washOpacityEff = baseWashOpacity;
-      // _bandWashSole exemption: same rationale as the halo damp above — when the rating
-      // cross-fade has handed the SOLE field to this wash, a 0.35 damp reads as a cleared
-      // heatmap under still-running crests (the z5.5 report).
-      const _noTruthDamp = !baseOverlay && !baseCrispMask && z >= 4.4 && !_bandWashSole &&
+      // _washSole exemption (band-sole ∪ bridge-sole): same rationale as the halo damp above —
+      // when this wash is the SOLE visible field, a 0.35 damp reads as a cleared heatmap.
+      // MOTION-HOLD on the truth verdict too (the nt0↔nt1 mid-gesture flap — see the halo site).
+      const _noTruthRaw = !baseOverlay && !baseCrispMask;
+      const _noTruthHeld = (_dampHoldOn && _inMotion && this._lastNoTruth !== undefined)
+        ? this._lastNoTruth : _noTruthRaw;
+      if (!_inMotion || this._lastNoTruth === undefined) this._lastNoTruth = _noTruthRaw;
+      const _noTruthDamp = _noTruthHeld && z >= 4.4 && !_washSole &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_HALO_DAMP__ === true);
       if (_noTruthDamp && _washOpacityEff > 0 && !_haloDamped) {
         _washOpacityEff *= 0.35;
@@ -1350,6 +1465,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.baseCrispMask = !!baseCrispMask;
         window.__RAW_GPU__.washNoTruthDamp = _noTruthDamp && baseWashOpacity > 0;
+        // The FINAL wash opacity handed to the base pass (2026-07-16 zoom-clear forensics).
+        window.__RAW_GPU__.washEff = +_washOpacityEff.toFixed(3);
       }
       this._drawCoarseBasePass(gl, mat4, themeVal, time, _washOpacityEff, baseOverlay || baseCrispMask);
     }
@@ -1644,6 +1761,18 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     heatmapOpacity *= mult;
 
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
+    // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.opacity = {
+        heatmap: +heatmapOpacity.toFixed(3), mult: +mult.toFixed(3), coarseFade: +coarseFade.toFixed(2),
+      };
+      window.__RAW_GPU__.maskId = {
+        cachedBound: this._waveData.u_oceanMaskTexture === this._cachedMaskTex,
+        dims: (() => { try { return JSON.stringify(this._cachedMaskTexDims); } catch (e) { return null; } })(),
+        mb: maskBounds ? [maskBounds.west, maskBounds.south, maskBounds.east, maskBounds.north]
+          .map((v) => +(+v).toFixed(1)).join(',') : null,
+      };
+    }
 
     // Overlay on unit 4 (fallback-bind the base mask so the sampler is always complete).
     bindTexture(gl, overlayOn ? this._overlayMaskTex : this._waveData.u_oceanMaskTexture, 4);
@@ -2562,6 +2691,44 @@ export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportB
   const frac = (ix * iy) / vpA;
   const minFrac = (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
   return frac < minFrac;   // regional no longer covers → bridge to the held global
+}
+
+// SUB-COVERING REGIONAL REJECT (2026-07-16, Playwright real-wheel frame trace of the z5.9→5.02
+// "cleared then came back" report; pure + exported for tests). Mid-gesture the pan-following
+// refetch committed a regional covering only ~60% of the wide viewport OVER the covering
+// coarse-global resident; the display gate hid it (mult 0) and the bridge bounced the world grid
+// right back two frames later — a pale interlude plus a promotion flash for zero net change.
+// Reject that commit at the same choke point the no-downgrade guard uses: at wide view a regional
+// that covers < __RAW_DOWNGRADE_COVER_FRAC__ (0.6 — the SAME lever and math as
+// shouldBridgeToCoarseGlobal, so commit/gate/bridge can never disagree) must not replace a
+// coarse-global resident. Deliberate switches are never held (model/layer/hour/rating flavor must
+// all match), and unknown zoom/viewport FAILS OPEN (the 07-03 lesson: a wrong accept self-heals,
+// a wrong reject strands). Rejected grids go to the SAME self-heal stash — zoom back in past the
+// coverage boundary and the stash commits. Kill: __RAW_DISABLE_SUBCOVER_REJECT__ (also off under
+// the shared __RAW_DISABLE_NO_DOWNGRADE__ via the call sites' `disabled` arg).
+export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, viewportBounds, disabled, win) {
+  if (disabled || !resident || !incoming) return false;
+  const w = win || (typeof window !== 'undefined' ? window : undefined);
+  if (w && w.__RAW_DISABLE_SUBCOVER_REJECT__ === true) return false;
+  if (!isCoarseGlobalGrid(resident)) return false;
+  if (!incoming.bounds || !isRegionalBounds(incoming.bounds) || isCoarseGlobalGrid(incoming)) return false;
+  if ((resident.__sourceModel || 'GFS') !== (incoming.__sourceModel || 'GFS')) return false;
+  if ((resident.__componentLayer || 'waves') !== (incoming.__componentLayer || 'waves')) return false;
+  if (incoming.hourOffset === undefined || resident.hourOffset === undefined
+      || incoming.hourOffset !== resident.hourOffset) return false;
+  if (!!resident.ratingMode !== !!incoming.ratingMode) return false;
+  const vb = viewportBounds;
+  if (typeof lastZoom !== 'number' || !vb) return false;   // unknown → fail open
+  const wideView = lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM
+    || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
+  if (!wideView) return false;
+  const ib = incoming.bounds;
+  const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
+  const ix = Math.max(0, Math.min(ib.east, vb[2]) - Math.max(ib.west, vb[0]));
+  const iy = Math.max(0, Math.min(ib.north, vb[3]) - Math.max(ib.south, vb[1]));
+  const frac = (ix * iy) / vpA;
+  const minFrac = (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
+  return frac < minFrac;
 }
 
 WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
