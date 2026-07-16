@@ -1227,11 +1227,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         cachedSpan: _cmSpan, cachedTexWidth: _cmd ? _cmd.w : null,
         killed: (typeof window !== 'undefined' && window.__RAW_DISABLE_DENSE_BASE_NO_REPLACE__ === true),
       });
-    const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds &&
+    // DEGRADED-OVERLAY DROP BELOW THE REPAINT GATE (2026-07-16, user live at z3.85: grey
+    // heatmap-hole STRIPS south of Louisiana + through the Yucatán/DR): a paint flagged degraded
+    // (missing-tile false-land — see overlayBasemapWaterOnMask's open-water plausibility verdict)
+    // self-heals via refresh above z4.4, but refreshViewportOverlayMask hard-gates `z < 4.4 →
+    // return false`, so BELOW the gate the bad overlay can never repaint yet stays bound — the
+    // shader min-combines its false-land strips into permanent heatmap holes. Below the gate the
+    // overlay isn't needed at all (the gate's own rationale: texels go sub-pixel and the dense
+    // base mask reads fine — live probe: base floodPct 0 at z3.5/z2.3), so a DEGRADED overlay is
+    // dropped there and the base renders alone. Non-degraded overlays keep the old behavior.
+    // Kill: __RAW_DISABLE_DEGRADED_OVERLAY_DROP__. Telemetry: overlayMask.reason='degraded_drop'.
+    const _degradedDrop = this._overlayPaintDegraded === true && z < 4.4 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_DEGRADED_OVERLAY_DROP__ === true);
+    const overlayOn = !!(this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop &&
       (_rawWideTrigger || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5)));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off'), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _degradedDrop ? 'degraded_drop' : (_overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off')), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
     }
     // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
     // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.
@@ -1249,7 +1261,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // REPLACES the base's 39 km mask inside its bounds — the floored wash is then land-clipped at
     // meter truth wherever truth has been painted.
     if (blendEngaged) {
-      const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds)
+      // Same degraded-drop as the main pass: a false-land overlay must not clip the wash either.
+      const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop)
         ? { tex: this._overlayMaskTex, bounds: this._overlayMaskBounds } : null;
       // CRISP-MASK OVERLAY (2026-07-06, "shadow underneath the coastal edge" — A/B-proven on the
       // FL panhandle; REWORKED same day after the "intermittent land halo band" regression): the

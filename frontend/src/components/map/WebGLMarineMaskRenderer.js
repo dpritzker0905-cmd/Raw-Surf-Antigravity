@@ -432,9 +432,57 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     }
   } catch (e) { /* classifier unavailable — open-water mask stands */ }
 
+  // 6. OPEN-WATER PLAUSIBILITY VERDICT (2026-07-16, user live at z3.85: grey heatmap-hole STRIPS
+  //    south of Louisiana + through the Yucatán/DR; GPU probe: overlay_min effective=0 over open
+  //    Gulf/Caribbean water, hysteresis-locked, degraded=false): step 1 land-blacks the strict
+  //    viewport and step 2 can only repaint water for tiles queryRenderedFeatures actually
+  //    returned — a tile missing from the render (mid-load during a fast zoom-out's pyramid
+  //    switch, cache eviction, a throttled pane) leaves a TILE-SHAPED FALSE-LAND STRIP over open
+  //    ocean. usedSourceFallback only catches the all-tiles-missing case; a PARTIAL render query
+  //    passed as first-class and the repaint hysteresis locked the strips in (the El Salvador
+  //    grey-rectangle class, still reachable). Verdict: sample the painted viewport rect against
+  //    the pristine NE truth — a pixel NE calls OPEN water (white here AND at a ring around it,
+  //    i.e. not an NE coastline the basemap may legitimately refine to land) that the finished
+  //    paint left hard-BLACK (<30 — sheltered suppression writes ~64 and stays exempt) is
+  //    missing-tile damage, not truth. Above a small fraction the paint reports DEGRADED, the
+  //    caller skips the hysteresis, and the next refresh repaints (self-heal once tiles render).
+  //    Read-only sampling; never blocks the paint. neFull is non-null exactly on the coarse/wide
+  //    paints where the strip class lives (density < 1200 px/°); crisp deep-zoom paints skip.
+  //    Kill: __RAW_DISABLE_OPENWATER_PLAUSIBILITY__; tune: __RAW_OPENWATER_FALSELAND_FRAC__ (0.02).
+  let openWaterDegraded = false;
+  try {
+    const _w2 = typeof window !== 'undefined' ? window : {};
+    if (painted > 0 && neFull && _w2.__RAW_DISABLE_OPENWATER_PLAUSIBILITY__ !== true && rw > 8 && rh > 8) {
+      const sx = Math.round(rx), sy = Math.round(ry), sw = Math.floor(rw), sh = Math.floor(rh);
+      const cur = ctx.getImageData(sx, sy, sw, sh).data;
+      const ne = neFull.getContext('2d', { willReadFrequently: true }).getImageData(sx, sy, sw, sh).data;
+      const step = Math.max(4, Math.floor(Math.min(sw, sh) / 64));
+      const ring = Math.max(4, step);                    // "open" = NE water with clear NE water around it
+      let neOpen = 0, falseLand = 0;
+      for (let y = ring; y < sh - ring; y += step) {
+        for (let x = ring; x < sw - ring; x += step) {
+          const i = (y * sw + x) * 4;
+          if (ne[i] < 200) continue;                     // NE land/coast at the sample
+          const iN = ((y - ring) * sw + x) * 4, iS = ((y + ring) * sw + x) * 4;
+          const iW = (y * sw + (x - ring)) * 4, iE = (y * sw + (x + ring)) * 4;
+          if (ne[iN] < 200 || ne[iS] < 200 || ne[iW] < 200 || ne[iE] < 200) continue; // near an NE coastline
+          neOpen++;
+          if (cur[i] < 30) falseLand++;                  // hard black over NE open water
+        }
+      }
+      const frac = neOpen > 50 ? falseLand / neOpen : 0;
+      const maxFrac = Number(_w2.__RAW_OPENWATER_FALSELAND_FRAC__) || 0.02;
+      openWaterDegraded = frac > maxFrac;
+      if (_w2.__RAW_GPU__) {
+        _w2.__RAW_GPU__.openWaterVerdict = { neOpen, falseLand, frac: +frac.toFixed(4), degraded: openWaterDegraded };
+      }
+    }
+  } catch (e) { /* verdict is best-effort — the paint stands, at worst hysteresis-locked as before */ }
+
   // Truthy result preserves every `if (!applied)` caller; `degraded` marks a parent-vulnerable
-  // paint that must NOT be hysteresis-locked or become a patch-carry source.
-  return painted > 0 ? { painted, degraded: usedSourceFallback } : false;
+  // OR implausible (open-water false-land) paint that must NOT be hysteresis-locked or become a
+  // patch-carry source.
+  return painted > 0 ? { painted, degraded: usedSourceFallback || openWaterDegraded } : false;
 }
 
 // ── SHELTERED-WATER CLASSIFIER ──────────────────────────────────────────────────────────────────
