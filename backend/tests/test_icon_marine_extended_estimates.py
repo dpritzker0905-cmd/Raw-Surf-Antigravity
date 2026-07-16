@@ -3,7 +3,10 @@ runner (persistence(ICON@168) + GFS trend — the client blend's exact math, whi
 is_icon_valid=False weight path) so far-hour ICON marine serves from stored products instead of the
 client's THREE /grid fetches per hour per viewport. estimator.py untouched — the wrapper relabels
 the returned product (model=ICON, basis icon_persistence_gfs_blend). copernicus_validator
-early-returns for non-EURO models (verified), so no whitelist change. Kill: ICON_MARINE_EXTEND=0."""
+early-returns for non-EURO models (verified), so no whitelist change. Kill: ICON_MARINE_EXTEND=0.
+
+Phase 2 (2026-07-15): the tail is baked for BOTH global_coarse (10°) and global_mid (~2°) so ICON's
+7->14d tail serves at ~1.75° instead of the 9.73° coarse lattice. Kill the mid tier: ICON_MARINE_EXTEND_MID=0."""
 from datetime import datetime, timedelta, timezone
 from types import SimpleNamespace
 from unittest.mock import MagicMock
@@ -22,7 +25,7 @@ ANCHOR_T = RUN + timedelta(hours=168)
 BOUNDS = CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0)
 
 
-def _product(model, layer, valid_time, speed=1.5):
+def _product(model, layer, valid_time, speed=1.5, region_id="global_coarse"):
     grid = NormalizedGrid(
         bounds=BOUNDS, cols=1, rows=1,
         vectors=[GridVector(lat=0.0, lng=0.0, speed=speed, direction=90.0,
@@ -33,33 +36,37 @@ def _product(model, layer, valid_time, speed=1.5):
         run_time=RUN, valid_time=valid_time, is_forecast_authoritative=True,
         is_estimated=False, coverage=BOUNDS, grid=grid, value_kind="wave_height",
         value_unit="m", display_unit_hint="ft", source_variables=[],
-        freshness_sec=1800, region_id="global_coarse", coverage_mode="global_tile",
+        freshness_sec=1800, region_id=region_id, coverage_mode="global_tile",
         # real loaded products always carry product_id (set at save) — the basis provenance
         # keys assert on it
-        product_id=f"{model.lower()}_marine_{layer}_global_coarse_{valid_time.strftime('%Y%m%dT%H%M%SZ')}.json",
+        product_id=f"{model.lower()}_marine_{layer}_{region_id}_{valid_time.strftime('%Y%m%dT%H%M%SZ')}.json",
     )
 
 
-def _item(model, layer, valid_time, filename, estimated=False):
+def _item(model, layer, valid_time, filename, estimated=False, region_id="global_coarse", resolution=10.0):
     return SimpleNamespace(
-        model=model, domain="marine", layer=layer, region_id="global_coarse",
+        model=model, domain="marine", layer=layer, region_id=region_id,
         is_estimated=estimated, valid_time_start=valid_time, filename=filename,
-        resolution=10.0,
+        resolution=resolution,
     )
 
 
-def _scheduler(layers=("waves",), target_hours=(171, 174, 177)):
+def _scheduler(layers=("waves",), target_hours=(171, 174, 177), tiers=(("global_coarse", 10.0),)):
     items, loaded = [], {}
-    for layer in layers:
-        a = _item("ICON", layer, ANCHOR_T, f"icon_{layer}_anchor.json")
-        ga = _item("GFS", layer, ANCHOR_T, f"gfs_{layer}_anchor.json")
-        items += [a, ga]
-        loaded[a.filename] = _product("ICON", layer, ANCHOR_T, speed=2.0)
-        loaded[ga.filename] = _product("GFS", layer, ANCHOR_T, speed=1.0)
-        for h in target_hours:
-            t = _item("GFS", layer, RUN + timedelta(hours=h), f"gfs_{layer}_t{h}.json")
-            items.append(t)
-            loaded[t.filename] = _product("GFS", layer, RUN + timedelta(hours=h), speed=1.2)
+    for region_id, resolution in tiers:
+        for layer in layers:
+            a = _item("ICON", layer, ANCHOR_T, f"icon_{layer}_{region_id}_anchor.json",
+                      region_id=region_id, resolution=resolution)
+            ga = _item("GFS", layer, ANCHOR_T, f"gfs_{layer}_{region_id}_anchor.json",
+                       region_id=region_id, resolution=resolution)
+            items += [a, ga]
+            loaded[a.filename] = _product("ICON", layer, ANCHOR_T, speed=2.0, region_id=region_id)
+            loaded[ga.filename] = _product("GFS", layer, ANCHOR_T, speed=1.0, region_id=region_id)
+            for h in target_hours:
+                t = _item("GFS", layer, RUN + timedelta(hours=h), f"gfs_{layer}_{region_id}_t{h}.json",
+                          region_id=region_id, resolution=resolution)
+                items.append(t)
+                loaded[t.filename] = _product("GFS", layer, RUN + timedelta(hours=h), speed=1.2, region_id=region_id)
     s = MagicMock()
     s.store.get_manifest = MagicMock(return_value=SimpleNamespace(products=items))
     s.store.load_product = MagicMock(side_effect=lambda fn: loaded.get(fn))
@@ -76,7 +83,7 @@ async def test_bakes_icon_estimates_with_honest_basis(monkeypatch):
 
     assert ok is True
     batch = sched.store.save_products_batch.call_args[0][0]
-    assert len(batch) == 6  # 3 targets x 2 layers
+    assert len(batch) == 6  # 3 targets x 2 layers (coarse only; no mid anchors present)
     for est, resolution in batch:
         assert est.model == "ICON"
         assert est.is_estimated is True
@@ -87,6 +94,44 @@ async def test_bakes_icon_estimates_with_honest_basis(monkeypatch):
         assert est.grid and len(est.grid.vectors) == 1
         assert est.grid.vectors[0].speed > 0  # blend produced a real value
         assert resolution == 10.0
+
+
+@pytest.mark.asyncio
+async def test_bakes_mid_tier_when_icon_mid_anchor_exists(monkeypatch):
+    """Phase 2: with ICON native global_mid anchors present, the tail is ALSO baked at ~2° (served at
+    the mid tier past 168h) alongside the 10° coarse tail — the 9.73°→1.75° fix."""
+    monkeypatch.delenv("ICON_MARINE_EXTEND", raising=False)
+    monkeypatch.delenv("ICON_MARINE_EXTEND_MID", raising=False)
+    sched = _scheduler(layers=("waves",), tiers=(("global_coarse", 10.0), ("global_mid", 2.0)))
+
+    ok = await ingest_icon_marine_extended_estimates_impl(sched)
+
+    assert ok is True
+    batch = sched.store.save_products_batch.call_args[0][0]
+    assert len(batch) == 6  # 3 targets x 1 layer x 2 tiers
+    assert sorted({res for _, res in batch}) == [2.0, 10.0]  # mid tail at ~2°, coarse at 10°
+    mid = [(est, res) for est, res in batch if res == 2.0]
+    assert len(mid) == 3
+    for est, _ in mid:
+        assert est.model == "ICON"
+        assert est.is_estimated is True
+        assert est.estimate_basis["type"] == "icon_persistence_gfs_blend"
+        assert est.region_id == "global_mid"  # resolver serves it at the mid tier, not the 10° coarse lattice
+
+
+@pytest.mark.asyncio
+async def test_mid_tier_killswitch_keeps_coarse(monkeypatch):
+    """ICON_MARINE_EXTEND_MID=0 disables the mid tail but the coarse tail still bakes (budget escape hatch)."""
+    monkeypatch.delenv("ICON_MARINE_EXTEND", raising=False)
+    monkeypatch.setenv("ICON_MARINE_EXTEND_MID", "0")
+    sched = _scheduler(layers=("waves",), tiers=(("global_coarse", 10.0), ("global_mid", 2.0)))
+
+    ok = await ingest_icon_marine_extended_estimates_impl(sched)
+
+    assert ok is True
+    batch = sched.store.save_products_batch.call_args[0][0]
+    assert len(batch) == 3  # coarse only
+    assert {res for _, res in batch} == {10.0}
 
 
 @pytest.mark.asyncio
