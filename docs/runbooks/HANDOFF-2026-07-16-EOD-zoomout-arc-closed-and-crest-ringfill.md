@@ -78,7 +78,25 @@ repeatedly — collaborative capture is the house method now.
   the z5.5 dim, check `__RAW_GPU__.bandWashUndamp` fires (true) in the window; the kill lever is the
   rollback.
 
-## 2. ⭐ QUEUE #1 — CREST RING-FILL (designed, NOT built; task #8 in the tracker)
+## 2. ⭐ QUEUE #1 — CREST RING-FILL — ✅ SHIPPED `e8febb82` (2026-07-16, follow-up session)
+**Built + live-A/B-verified exactly per the design below.** Both particle shaders take a per-pixel
+fallback: out-of-resident particles sample the held coarse-base texture + ITS world mask (units 5/6
+draw, 4/5 advect, fallback-bound). Pure gate `resolveCrestRingFill` (kill switch · `blendEngaged`
+same-model/layer parity — crests only where the wash paints · complete base set · ≥7 vertex texture
+units). Kill `__RAW_DISABLE_CREST_RINGFILL__`; telemetry `__RAW_GPU__.crestRingFill`. In-resident
+rendering is byte-identical (fallback predicate false there). PROOFS: 17 new unit tests
+(`WebGLMarineEngine.crestRingFill.test.js`, decision matrix + advect/draw parity), 119 suites/1045
+green; live same-camera A/B at resident edges -79 and -74 — rating OFF fix avgSpkE **21.5** vs kill
+**0.0** (70 ring frames each), rating ON fix **16.8** vs kill **0.0**; land-bleed ZERO (fix-vs-kill
+luminance delta over Abaco ring land 0.00 at every sampled point; ring water mean 4.0/max 51.5);
+pan-following recommit intact after the harness released. Harness notes (this session's pane had NO
+background rAF at all): `map._render(ts)` loops pump frames synchronously; camera is REACT-controlled
+(`transformCameraUpdate` → `transformToViewState`) so jumpTo applies only across tool calls;
+`window.isScrubbingTimeline = true` holds the ring open (blocks the moveend refetch lane) — release
+after. NOTE: full-miss geometry (coverage≈0, resident nowhere near the viewport) draws no crests in
+either state — a different guard owns that case; ring-fill is edge-ring scoped by design.
+
+### Original design (for reference)
 User live + 66-frame split-speckle trace: when the viewport extends past the resident grid edge
 (fine tile east bound -79.0, viewport to -78.36), the ring shows wash but ZERO crest animations
 (avgSpkE 0.0 beyond grid vs 1.3 inside); every pan east re-opens a crest-less ring until the next
