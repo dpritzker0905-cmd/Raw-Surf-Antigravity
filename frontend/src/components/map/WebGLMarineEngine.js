@@ -1155,13 +1155,29 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // Below it the softness is sub-pixel and the full wash is correct.
     // Kill: __RAW_DISABLE_HALO_DAMP__. Telemetry: __RAW_GPU__.haloDamp.
     let _haloDamped = false;
+    // BAND-WINDOW WASH UN-DAMP (2026-07-16 pt4, user: "strange clearing of just the heatmap and
+    // not the animations at ~z5.5, sometimes varies" — 3130-frame factor trace): in rating mode
+    // across the band→global span window (~span 9-17°) the cross-fade sets bandMult≈0, so the
+    // MAIN heatmap pass is invisible BY DESIGN and this wash is the ONLY ocean field — while the
+    // crests keep u_opacity=mult (the §0e anim decouple), so any wash damp reads as "the heatmap
+    // cleared but the animations kept going". The ×0.35 halo/no-truth damps took the sole field
+    // to ~0.23 effective opacity, flapping with overlay presence (the "sometimes varies": trace
+    // caught noTruth true at z5.5/span16.6 and false at z6.3/span9.5 in the same session). When
+    // the cross-fade says the wash IS the field (washStrength ≥ 0.8), exempt it from both damps:
+    // they exist to hide soft mask edges, but a dimmed SOLE field reads as a cleared heatmap —
+    // worse than a faint coastal halo (the house "dim reads as loading" floor lesson, flipped for
+    // the sole-content case). Safe now: the pt2/pt3 mask legs guarantee a real carved mask under
+    // the wash (live floodPct 0 at z3.5-5.5). Kill: __RAW_DISABLE_BAND_WASH_UNDAMP__.
+    // Telemetry: __RAW_GPU__.bandWashUndamp.
+    const _bandWashSole = _ratingBandFade.washStrength !== null && _ratingBandFade.washStrength >= 0.8 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_BAND_WASH_UNDAMP__ === true);
     // Shared coarse-mask verdict: drives BOTH the wash damp and the shader's crisp mask edge
     // (u_maskEdgeSharp — the heatmap pass's own soft edge was the halo the damp couldn't touch).
     const _coarseMaskVisible = z >= 4.4 && this._cachedMaskTexDims && this._cachedMaskBounds &&
       !(typeof window !== 'undefined' && window.__RAW_DISABLE_HALO_DAMP__ === true) &&
       maskDensityPxPerDeg(this._cachedMaskTexDims, this._cachedMaskBounds) < 32;
     this._maskEdgeSharp = _coarseMaskVisible ? 1.0 : 0.0;
-    if (baseWashOpacity > 0 && _coarseMaskVisible) {
+    if (baseWashOpacity > 0 && _coarseMaskVisible && !_bandWashSole) {
       baseWashOpacity *= 0.35;
       _haloDamped = true;
     }
@@ -1169,6 +1185,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       window.__RAW_GPU__.coarseBridgeActive = _bridgeActive;
       window.__RAW_GPU__.baseWashGated = _baseCoverGated;
       window.__RAW_GPU__.haloDamp = _haloDamped;
+      window.__RAW_GPU__.bandWashUndamp = _bandWashSole && baseWashOpacity > 0;
     }
 
     // DECOUPLED MASK BOUNDS (2026-07-04): the resident ocean-mask texture may cover different
@@ -1300,7 +1317,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // full wash returns the moment crisp truth covers. Kill: __RAW_DISABLE_ISLAND_HALO_DAMP__.
       // Telemetry: __RAW_GPU__.washNoTruthDamp.
       let _washOpacityEff = baseWashOpacity;
-      const _noTruthDamp = !baseOverlay && !baseCrispMask && z >= 4.4 &&
+      // _bandWashSole exemption: same rationale as the halo damp above — when the rating
+      // cross-fade has handed the SOLE field to this wash, a 0.35 damp reads as a cleared
+      // heatmap under still-running crests (the z5.5 report).
+      const _noTruthDamp = !baseOverlay && !baseCrispMask && z >= 4.4 && !_bandWashSole &&
         !(typeof window !== 'undefined' && window.__RAW_DISABLE_ISLAND_HALO_DAMP__ === true);
       if (_noTruthDamp && _washOpacityEff > 0 && !_haloDamped) {
         _washOpacityEff *= 0.35;
