@@ -58,6 +58,29 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   });
   const scrubUploadTimeoutRef = useRef(null);
 
+  // POST-BRIDGE RESIDENCY RE-STAMP (2026-07-16, the stuck-coarse-at-coastal-zoom leg the watchdog
+  // trapped): a zoom-out bridge promotion swaps the ENGINE resident to the coarse-global, but
+  // lastUploadedGridRef still describes the regional grid — when the user zooms back in and the
+  // orchestrator re-commits that SAME regional (same bounds/hash/hour), the dup-skip in
+  // computeVectorDiffAndLog matches it against the stale prev and SKIPS the upload, stranding the
+  // blocky coarse at coastal zoom until an unrelated commit differs. Re-stamp prev with the grid
+  // that is ACTUALLY resident now (the promoted coarse), so any regional re-commit differs on
+  // boundsStr/contentHash and uploads. Touches only residency-truth fields — model/layer/signature
+  // stay intact so the transition-hold path (which requires a non-empty signature and an unchanged
+  // model/layer) keeps working. Refs only — safe to call from any effect.
+  const stampResidentGridAfterBridge = () => {
+    try {
+      const bg = engineRef.current?._waveData?.waveGrid;
+      if (!bg || !bg.bounds) return;
+      const prev = lastUploadedGridRef.current;
+      prev.boundsStr = `${bg.bounds.west.toFixed(2)}:${bg.bounds.south.toFixed(2)}:${bg.bounds.east.toFixed(2)}:${bg.bounds.north.toFixed(2)}`;
+      prev.cols = bg.cols;
+      prev.rows = bg.rows;
+      prev.vectorsLength = bg.vectors ? bg.vectors.length : 0;
+      prev.contentHash = undefined; // never dup-match the superseded regional's hash
+    } catch (e) { /* residency stamp is best-effort */ }
+  };
+
   const [landGeoJSON, setLandGeoJSON] = useState(null);
   const landGeoJSONRef = useRef(null);
   const landGeoJSONFailedRef = useRef(false);
@@ -610,6 +633,41 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
   const basemapMaskThrottleRef = useRef(0);
   useEffect(() => {
     if (!mapInstance) return;
+    // ESCAPED-MASK REBUILD (2026-07-15, user live-confirmed: SC/NC/GA/Cuba covered by the marine
+    // heatmap+crests on zoom-out to z5). The base ocean mask is rebuilt only on a DATA COMMIT; a
+    // zoom-OUT moves the viewport OUTSIDE the resident REGIONAL mask box with NO commit, so the
+    // shader CLAMP_TO_EDGEs water over every land outside the box (the retained FL 8° mask sampled
+    // under a coarse-global grid). The commit-time geometry-safety flag (_maskRetainPatchedOk =
+    // viewport ⊂ mask bounds) was legitimately true when the grid committed at a small viewport,
+    // and only re-stamps on commit — so nothing rebuilds the mask as the viewport escapes it.
+    // Detect the escape on a viewport event and force ONE base-mask rebuild by re-committing the
+    // resident grid with retain disabled + the world coastline geojson (live-proven: rebuilds a
+    // GLOBAL 4096 mask, all continents/islands carved, 0 bleed). The rebuilt global mask then
+    // covers every viewport, so _inside stays true and this never re-fires. Deep-zoom decoupled
+    // (global grid + regional mask + TINY viewport) is unaffected: there the viewport is INSIDE the
+    // regional mask, so _inside is true. Called from BOTH the settle-time refresh (idle/zoomend/
+    // moveend) and the throttled mid-gesture onMotionBridge (2026-07-16: during a CONTINUOUS rapid
+    // zoom the settle events lag the escape by the whole gesture — the bleed/damped-wash window).
+    // Kill: __RAW_DISABLE_ESCAPED_MASK_REBUILD__.
+    const maybeRebuildEscapedMask = (engine, gl) => {
+      try {
+        const _wd = engine && engine._waveData; const _wg = _wd && _wd.waveGrid; const _cb = engine && engine._cachedMaskBounds;
+        if (_wg && _wg.bounds && _cb && gl &&
+            !(typeof window !== 'undefined' && window.__RAW_DISABLE_ESCAPED_MASK_REBUILD__ === true)) {
+          const _v = mapInstance.getBounds();
+          const _inside = _v.getWest() >= _cb.west - 0.05 && _v.getEast() <= _cb.east + 0.05 &&
+                          _v.getSouth() >= _cb.south - 0.05 && _v.getNorth() <= _cb.north + 0.05;
+          const _cbSpan = (_cb.east < _cb.west ? _cb.east + 360 : _cb.east) - _cb.west;
+          const _gridSpan = (_wg.bounds.east < _wg.bounds.west ? _wg.bounds.east + 360 : _wg.bounds.east) - _wg.bounds.west;
+          if (!_inside && _cbSpan < 340 && _gridSpan >= 340) {
+            engine._maskSourceReady = true;
+            engine._maskRetainPatchedOk = false;
+            engine.setWaveData(gl, _wg, getSharedLandGeoJSON());
+            mapInstance.triggerRepaint();
+          }
+        }
+      } catch (e) { /* escaped-mask rebuild is best-effort; never break the caller */ }
+    };
     // PATH-AWARE zoom gate (2026-07-07, the z5 "halo keeps trying to heal / only zooming back
     // in heals it" + "heatmap on islands"): the WIDE-mask path (span ≥30 → viewport overlay,
     // fixed screen-res paint) must refresh down to the texel-visibility floor z≥4.4 — the
@@ -640,36 +698,9 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         }
       } catch (e) { /* watchdog must never break the refresh */ }
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
-      // ESCAPED-MASK REBUILD (2026-07-15, user live-confirmed: SC/NC/GA/Cuba covered by the marine
-      // heatmap+crests on zoom-out to z5). The base ocean mask is rebuilt only on a DATA COMMIT; a
-      // zoom-OUT moves the viewport OUTSIDE the resident REGIONAL mask box with NO commit, so the
-      // shader CLAMP_TO_EDGEs water over every land outside the box (the retained FL 8° mask sampled
-      // under a coarse-global grid). The commit-time geometry-safety flag (_maskRetainPatchedOk =
-      // viewport ⊂ mask bounds) was legitimately true when the grid committed at a small viewport,
-      // and only re-stamps on commit — so nothing rebuilds the mask as the viewport escapes it.
-      // Detect the escape on THIS viewport event and force ONE base-mask rebuild by re-committing the
-      // resident grid with retain disabled + the world coastline geojson (live-proven: rebuilds a
-      // GLOBAL 4096 mask, all continents/islands carved, 0 bleed). The rebuilt global mask then
-      // covers every viewport, so _inside stays true and this never re-fires. Deep-zoom decoupled
-      // (global grid + regional mask + TINY viewport) is unaffected: there the viewport is INSIDE the
-      // regional mask, so _inside is true. Kill: __RAW_DISABLE_ESCAPED_MASK_REBUILD__.
-      try {
-        const _wd = engine && engine._waveData; const _wg = _wd && _wd.waveGrid; const _cb = engine && engine._cachedMaskBounds;
-        if (_wg && _wg.bounds && _cb && gl &&
-            !(typeof window !== 'undefined' && window.__RAW_DISABLE_ESCAPED_MASK_REBUILD__ === true)) {
-          const _v = mapInstance.getBounds();
-          const _inside = _v.getWest() >= _cb.west - 0.05 && _v.getEast() <= _cb.east + 0.05 &&
-                          _v.getSouth() >= _cb.south - 0.05 && _v.getNorth() <= _cb.north + 0.05;
-          const _cbSpan = (_cb.east < _cb.west ? _cb.east + 360 : _cb.east) - _cb.west;
-          const _gridSpan = (_wg.bounds.east < _wg.bounds.west ? _wg.bounds.east + 360 : _wg.bounds.east) - _wg.bounds.west;
-          if (!_inside && _cbSpan < 340 && _gridSpan >= 340) {
-            engine._maskSourceReady = true;
-            engine._maskRetainPatchedOk = false;
-            engine.setWaveData(gl, _wg, getSharedLandGeoJSON());
-            mapInstance.triggerRepaint();
-          }
-        }
-      } catch (e) { /* escaped-mask rebuild is best-effort; never break the refresh */ }
+      // Escaped-mask check (shared helper below): settle-time leg. The mid-gesture leg runs from
+      // onMotionBridge — zoomend/idle are too late during a continuous rapid zoom.
+      maybeRebuildEscapedMask(engine, gl);
       const _rmb = engine && engine._cachedMaskBounds;
       const _rms = _rmb ? ((_rmb.east < _rmb.west ? _rmb.east + 360 : _rmb.east) - _rmb.west) : 0;
       if (z < (_rms >= 30 ? 4.4 : 6)) return;
@@ -736,9 +767,50 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     };
     mapInstance.on('zoomstart', onZoomStart);
     mapInstance.on('zoom', onZoom);
+    // MOTION COARSE-PROMOTION (2026-07-16 — the zoom-out "clearing" keystone; deck.gl/MapLibre
+    // hold-previous-tiles practice: never show a partial/empty frame mid-gesture). The data-layer
+    // bridge (engine.bridgeToCoarseGlobalIfHeld) used to fire ONLY from the data-commit effect, so
+    // a FAST zoom-out with no commit in flight left the resident a tiny regional (coverage → ~0.01)
+    // that the display gate hides (op=0) — only the damped wash showed: the user's "heatmap clears /
+    // animations clamp into a grid". Re-evaluate the SAME promotion predicate on throttled zoom/move
+    // so the held coarse-global becomes resident the moment the regional stops covering — a
+    // full-coverage frame is always up (the view coarsens, it never clears). Cheap when it declines
+    // (bounds math); after one promotion the resident is global, so it self-disarms for the gesture.
+    // The mid-gesture escaped-mask check rides the same throttle for the same reason (settle events
+    // lag a continuous gesture by its whole duration — the land-bleed/damped-wash window).
+    // Kills: __RAW_DISABLE_MOTION_COARSE_PROMOTE__ (promotion trigger),
+    // __RAW_DISABLE_MIDGESTURE_MASK_REBUILD__ (mid-gesture mask leg; the rebuild itself also honors
+    // __RAW_DISABLE_ESCAPED_MASK_REBUILD__). Telemetry: __MARINE_MOTION_PROMOTE__ {count,lastAt}.
+    let _lastMotionBridgeAt = 0;
+    const onMotionBridge = () => {
+      if (!activeRef.current) return;
+      const now = Date.now();
+      if (now - _lastMotionBridgeAt < 250) return;
+      _lastMotionBridgeAt = now;
+      const engine = engineRef.current;
+      const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      if (!engine || !gl) return;
+      try {
+        if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MOTION_COARSE_PROMOTE__ === true) &&
+            typeof engine.bridgeToCoarseGlobalIfHeld === 'function' &&
+            engine.bridgeToCoarseGlobalIfHeld(gl)) {
+          stampResidentGridAfterBridge();
+          if (typeof window !== 'undefined') {
+            const t = window.__MARINE_MOTION_PROMOTE__ = window.__MARINE_MOTION_PROMOTE__ || { count: 0 };
+            t.count++; t.lastAt = now;
+          }
+          mapInstance.triggerRepaint();
+        }
+        if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MIDGESTURE_MASK_REBUILD__ === true)) {
+          maybeRebuildEscapedMask(engine, gl);
+        }
+      } catch (e) { /* motion promotion is best-effort; never break the gesture */ }
+    };
+    mapInstance.on('zoom', onMotionBridge);
+    mapInstance.on('move', onMotionBridge);
     refresh();
     return () => {
-      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); mapInstance.off('zoomstart', onZoomStart); mapInstance.off('zoom', onZoom); } catch (e) {}
+      try { mapInstance.off('idle', refresh); mapInstance.off('zoomend', refresh); mapInstance.off('moveend', refresh); mapInstance.off('sourcedata', onSourceData); mapInstance.off('zoomstart', onZoomStart); mapInstance.off('zoom', onZoom); mapInstance.off('zoom', onMotionBridge); mapInstance.off('move', onMotionBridge); } catch (e) {}
     };
   }, [mapInstance]);
 
@@ -938,6 +1010,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       if (isResidentRegionalAtGlobalViewport && engine._waveData
           && !(typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true)
           && engine.bridgeToCoarseGlobalIfHeld(gl)) {
+        stampResidentGridAfterBridge();
         runDiagnosticsUpdate('zoomout_bridge');
         if (mapInstance) mapInstance.triggerRepaint();
         return;

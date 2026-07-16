@@ -2453,7 +2453,19 @@ WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {
     const rwg = this._waveData && this._waveData.waveGrid;
     if (!shouldBridgeToCoarseGlobal(rwg, cbg, this._lastZoom, this._lastViewportBounds,
         typeof window !== 'undefined' ? window : undefined)) return false;
-    this.setWaveData(gl, cbg, this._waveData);
+    // Promotion commits a GLOBAL grid while the cached mask is still the regional's box — force the
+    // full mask rebuild (the escaped-mask recipe, 64bd1ff6): left alone, the encoder's retain guards
+    // (retain_patched / retain_res_no_downgrade) keep the crisp REGIONAL mask under the WORLD grid and
+    // everything outside its box CLAMP_TO_EDGEs water over land (the SC/Cuba bleed geometry).
+    this._maskSourceReady = true;
+    this._maskRetainPatchedOk = false;
+    // Third arg is setWaveData's landGeoJSON slot and MUST be null (2026-07-16 forensics): the old
+    // call passed this._waveData (an encoded-texture set, not a geojson) — setWaveData persisted it
+    // into _landGeoJSON, renderMaskToCanvas's identity check flushed the pristine-canvas LRU, and its
+    // featureless-input early-return produced an ALL-WATER world mask → every promotion rendered the
+    // heatmap/crests over every continent and poisoned later null-geojson commits + _captureCoarseBase
+    // until a layer commit repaired _landGeoJSON. null falls through to the real stored geojson.
+    this.setWaveData(gl, cbg, null);
     if (typeof window !== 'undefined') {
       const b = window.__MARINE_ZOOMOUT_BRIDGE__ = window.__MARINE_ZOOMOUT_BRIDGE__ || { count: 0 };
       b.count++; b.lastAt = Date.now();

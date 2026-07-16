@@ -186,7 +186,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             let shouldReject = false;
             if (isGridRegional) {
               // COVERAGE-ALIGNED GATE (2026-07-05, CA-coast z7.14↔6.99 report): a regional that COVERS the
-              // viewport (overlapRatio ≥ __RAW_DOWNGRADE_COVER_FRAC__, the SAME 0.8 the engine no-downgrade
+              // viewport (overlapRatio ≥ __RAW_DOWNGRADE_COVER_FRAC__, the SAME lever the engine no-downgrade
               // guard uses to KEEP it resident) must RENDER even below z7 — else the gate hides a 100%-
               // covering regional the guard deliberately kept, so crossing z7.0 flips the SAME fine grid from
               // shown (fine heatmap + crests) to a faded coarse wash with no crests (the two subsystems
@@ -194,7 +194,14 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
               // tile / genuine zoom-out) is rejected → the coarse bridge/global takes over. The uncovered ≤20%
               // ring shows the blend coarse wash either way. Kill (revert to the old zoom-based hide):
               // window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ = true.
-              const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+              // DEFAULT 0.6 = the engine guard's own value (2026-07-16 re-apply of fdc54a7f, this time
+              // BUNDLED with the data-bridge motion promotion): guard keeps ≥0.6, gate shows ≥0.6, bridge
+              // promotes <0.6 — no coverage band is resident-but-hidden (the settled mid-band dead-band).
+              // The 07-16 solo attempt was reverted (b21cf29d) because WITHOUT the promotion the 0.6-0.8
+              // band rendered a partial regional over a blank/damped background mid-gesture (the "motion
+              // rectangle"); with the coarse promoted under it the partial regional sits over a full
+              // coarse field (cross-fade, not a floating rectangle). Live-tune: __RAW_DOWNGRADE_COVER_FRAC__.
+              const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
               const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
               const _zoomedOutRegionalReject = _coverAlignOff
                 ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
