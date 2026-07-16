@@ -186,15 +186,23 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
             let shouldReject = false;
             if (isGridRegional) {
               // COVERAGE-ALIGNED GATE (2026-07-05, CA-coast z7.14↔6.99 report): a regional that COVERS the
-              // viewport (overlapRatio ≥ __RAW_DOWNGRADE_COVER_FRAC__, the SAME 0.8 the engine no-downgrade
-              // guard uses to KEEP it resident) must RENDER even below z7 — else the gate hides a 100%-
+              // viewport (overlapRatio ≥ __RAW_DOWNGRADE_COVER_FRAC__, the SAME frac the engine no-downgrade
+              // guard uses to KEEP it resident) must RENDER even below z7 — else the gate hides a
               // covering regional the guard deliberately kept, so crossing z7.0 flips the SAME fine grid from
               // shown (fine heatmap + crests) to a faded coarse wash with no crests (the two subsystems
               // disagreed: guard=coverage, gate=zoom). Only a NON-covering regional (a sub-viewport clamped
-              // tile / genuine zoom-out) is rejected → the coarse bridge/global takes over. The uncovered ≤20%
+              // tile / genuine zoom-out) is rejected → the coarse bridge/global takes over. The uncovered
               // ring shows the blend coarse wash either way. Kill (revert to the old zoom-based hide):
               // window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ = true.
-              const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.8;
+              // DEAD-BAND FIX (2026-07-16): the default MUST match the engine guard's default
+              // (shouldRejectResolutionDowngrade, WebGLMarineEngine.js:261), which was lowered 0.8→0.6 on
+              // 2026-07-11 (Sebastian z7.76) to KEEP the fine tile down to 60% coverage — but this gate's
+              // default was left at 0.8, so at 60–80% coverage the guard KEPT the regional resident while
+              // this gate HID it (op=0) → only the (washNoTruthDamp-dimmed) coarse wash remained → the
+              // zoom-out "clearing" at z~5 (rating + non-rating alike; A/B-proven live 2026-07-16: lever
+              // 0.6 flipped the render op 0→1 and the heatmap returned). Re-aligned to 0.6. Both read the
+              // shared __RAW_DOWNGRADE_COVER_FRAC__ lever; set it to 0.8 to restore the old (dead-band) gate.
+              const _coverFrac = (typeof window !== 'undefined' && Number(window.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
               const _coverAlignOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_REGIONAL_COVER__ === true);
               const _zoomedOutRegionalReject = _coverAlignOff
                 ? (!isContained || gridWidth < 340.0 || overlapRatio < 0.15)
