@@ -81,13 +81,17 @@ flavor-independent. The failure is entirely in the **resolution served at coasta
 ---
 
 ## 3. INFOBOX ACCURACY
-The wave infobox / heatmap sample the **resident grid** (grid-parity cell — see the 06-28 note). So the
-infobox is exactly as accurate as the resident tile: **faithful at the fine tile, and it inherits the
-coarse tile's offshore-cell direction when the resident is coarse** (same root as §2). There is no
-separate infobox point-query that could be independently wrong; fixing §2's resolution stability fixes
-the infobox too. (Follow-up: consider a dedicated fine point-query for the infobox so the readout is
-accurate even while the heatmap is still coarse — a low-risk UX win, separable from the tile-sharpen
-minefield.)
+> ⚠️ **CORRECTED by code forensics (2026-07-15 cont.):** the earlier claim that the infobox "samples
+> the resident grid" was WRONG. `MapForecastOverlay.js` sets `isExactPointRequired = isMarineLayer` and
+> uses `fetchExactMarinePoint` / `useExactPointFetch` — a dedicated **authoritative point query** that
+> returns `wave_direction` / `swell_wave_direction` / `wind_wave_direction` (+ height/period) per
+> `backendWeatherServiceClientPoint.js`. The resident grid is only a **fallback on point error/timeout/
+> loading** (`useGridFallback`). So the infobox READOUT is already authoritative-per-point regardless of
+> the heatmap tile's coarseness — the "fine point-query for the infobox" is NOT needed (it exists). The
+> coastal-mid coarseness (§2/§6) therefore affects only the **animated crest/heatmap field**, not the
+> exact numbers the user reads — which materially LOWERS its severity. Residual follow-up: a self-check
+> comparing the resident-grid direction at the clicked point vs the exact-point direction would
+> auto-catch a stale/coarse grid on every click (nearly free — the exact point is already fetched).
 
 ---
 
