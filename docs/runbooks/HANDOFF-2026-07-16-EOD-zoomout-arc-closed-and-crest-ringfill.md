@@ -130,6 +130,15 @@ pan drag scenario 85-97% animation cell coverage with rf active throughout. 120 
 commits (the key fix enables re-capture; supply depends on the resolver serving rated global tiers
 — investigate the rated wide-tier lane next).
 
+**pt3 `b25c4778` — settled-brightness STAIRCASE killed:** user report (brighter at z6.34 than 6.03,
+again at 5.28) = the noTruth/halo wash damps sawtoothing with the fetch cadence (±17-26 L settled
+steps, profiled with the new `staircase` zoomlab scenario). Fix = dense-base wash un-damp: when the
+base's own mask is the dense ≥4096 global (`__maskCanvasDims` now recorded by the encoder's
+standalone path), the wash damps are skipped (`_washSole` ∪ `baseMaskDense`); main-pass edge-sharp
+untouched. Kill `__RAW_DISABLE_DENSEBASE_WASH_UNDAMP__`. Post-fix settled ladder: max step −7.7
+(the genuine regional→world transition), all others ≤3.5. If island halos reappear on the wash at
+mid-zoom, that kill switch is the rollback lever.
+
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
   vivid→rating restyle when the rated wide clip lands. Candidate: rating-parity coarse-base capture.
