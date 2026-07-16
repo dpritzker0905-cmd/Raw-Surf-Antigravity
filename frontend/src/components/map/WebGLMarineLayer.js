@@ -640,6 +640,36 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         }
       } catch (e) { /* watchdog must never break the refresh */ }
       const gl = glRef.current || mapInstance?.painter?.context?.gl;
+      // ESCAPED-MASK REBUILD (2026-07-15, user live-confirmed: SC/NC/GA/Cuba covered by the marine
+      // heatmap+crests on zoom-out to z5). The base ocean mask is rebuilt only on a DATA COMMIT; a
+      // zoom-OUT moves the viewport OUTSIDE the resident REGIONAL mask box with NO commit, so the
+      // shader CLAMP_TO_EDGEs water over every land outside the box (the retained FL 8° mask sampled
+      // under a coarse-global grid). The commit-time geometry-safety flag (_maskRetainPatchedOk =
+      // viewport ⊂ mask bounds) was legitimately true when the grid committed at a small viewport,
+      // and only re-stamps on commit — so nothing rebuilds the mask as the viewport escapes it.
+      // Detect the escape on THIS viewport event and force ONE base-mask rebuild by re-committing the
+      // resident grid with retain disabled + the world coastline geojson (live-proven: rebuilds a
+      // GLOBAL 4096 mask, all continents/islands carved, 0 bleed). The rebuilt global mask then
+      // covers every viewport, so _inside stays true and this never re-fires. Deep-zoom decoupled
+      // (global grid + regional mask + TINY viewport) is unaffected: there the viewport is INSIDE the
+      // regional mask, so _inside is true. Kill: __RAW_DISABLE_ESCAPED_MASK_REBUILD__.
+      try {
+        const _wd = engine && engine._waveData; const _wg = _wd && _wd.waveGrid; const _cb = engine && engine._cachedMaskBounds;
+        if (_wg && _wg.bounds && _cb && gl &&
+            !(typeof window !== 'undefined' && window.__RAW_DISABLE_ESCAPED_MASK_REBUILD__ === true)) {
+          const _v = mapInstance.getBounds();
+          const _inside = _v.getWest() >= _cb.west - 0.05 && _v.getEast() <= _cb.east + 0.05 &&
+                          _v.getSouth() >= _cb.south - 0.05 && _v.getNorth() <= _cb.north + 0.05;
+          const _cbSpan = (_cb.east < _cb.west ? _cb.east + 360 : _cb.east) - _cb.west;
+          const _gridSpan = (_wg.bounds.east < _wg.bounds.west ? _wg.bounds.east + 360 : _wg.bounds.east) - _wg.bounds.west;
+          if (!_inside && _cbSpan < 340 && _gridSpan >= 340) {
+            engine._maskSourceReady = true;
+            engine._maskRetainPatchedOk = false;
+            engine.setWaveData(gl, _wg, getSharedLandGeoJSON());
+            mapInstance.triggerRepaint();
+          }
+        }
+      } catch (e) { /* escaped-mask rebuild is best-effort; never break the refresh */ }
       const _rmb = engine && engine._cachedMaskBounds;
       const _rms = _rmb ? ((_rmb.east < _rmb.west ? _rmb.east + 360 : _rmb.east) - _rmb.west) : 0;
       if (z < (_rms >= 30 ? 4.4 : 6)) return;
