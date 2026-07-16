@@ -139,6 +139,34 @@ untouched. Kill `__RAW_DISABLE_DENSEBASE_WASH_UNDAMP__`. Post-fix settled ladder
 (the genuine regional→world transition), all others ≤3.5. If island halos reappear on the wash at
 mid-zoom, that kill switch is the rollback lever.
 
+## 2c. NEXT RATING ARC — band flip vs cross-fade window MISALIGNED (forensic pin, zoomlab trace)
+Rating-ON zoom-out trace (`trace_zoomout_ratingon.json`, real wheel): the rated→unrated resident
+handoffs fire at **span 6.1-7.8°** — BELOW the span-keyed cross-fade window (~9-17°, designed for
+the MARINE_MID_RES_MAX_SPAN=15° tier boundary) — because mid-gesture the rated tile stops COVERING
+and the no-downgrade guard's coverage predicate releases it long before the tier boundary. Band at
+full strength (bandMult 1.00) when the unrated world commits = hard flip (+11/−22 L). Also one flip
+at span 23.7° with `bandMult 1.00, washStrength null` — resolveRatingBandFade FAILS OPEN when the
+wash composite is disengaged, so even inside/past the window the swap can be hard. Design options
+(pick with care; the "rate the global frame" alternative is FALSIFIED — see the fade's own header
+comment): (a) key the fade on RESIDENT COVERAGE as well as span (fade the band as the rated tile's
+coverage drops toward 0.6 — matches when the handoff actually happens); (b) extend the rated-grace
+to mid-gesture wide views with a fade instead of the a6871f0d exemption's hard release; (c) ensure
+the wash engages through the window (the fail-open leg). Evidence + traces in the zoomlab outdir.
+
+## 2d. FINAL-PASS BATTERY (post-`b25c4778`, all five zoomlab scenarios) + LAYER-INTERACTION PIN
+Verdicts at HEAD: **staircase** 1 settled step >8 L (−9.1 = the genuine regional→world handoff; was
+four steps ±16-26) · **zoomout rating OFF** max frame ΔL −8.3, zero mult-0 frames (was −51) ·
+**rating ON** −16.6 with the §2c span-6° flip as the remaining item · **pan** ring-fill active
+301/314 frames, min coverage 63% (land + calm water) · **layers** (NEW scenario: cycles
+waves→swell→swell 2→wind waves→wind overlay) zero animation collapses; transitions step ΔL
+7-14 L (mostly genuine field differences — swell ≠ total waves). ⚠️ INTERACTION PIN: every layer
+switch runs `blend0` until the NEW layer's coarse-global commits (the base is captured per-layer:
+same-layer parity) — in that window the wash AND crest ring-fill are disengaged, so a pan right
+after a layer switch re-opens a bare ring. Fix candidate for a future arc: small per-layer coarse-
+base LRU (2-3 entries) so switching back is instant; capture-on-switch otherwise. TOOLS NOTE:
+zoomlab now has `staircase` and `layers` scenarios; for intra-frame GL truth beyond draw-site
+telemetry, adopt Spector.js (npm `spectorjs`, embeddable standalone) as the escalation tier.
+
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
   vivid→rating restyle when the rated wide clip lands. Candidate: rating-parity coarse-base capture.

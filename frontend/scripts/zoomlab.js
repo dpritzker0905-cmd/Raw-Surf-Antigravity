@@ -145,6 +145,7 @@ async function main() {
           cells: cell.map((c) => (c > 2 ? 1 : 0)).join(''),
           resid: wd && wd.bounds ? `${wd.bounds.west},${wd.bounds.south},${wd.bounds.east},${wd.bounds.north}` : null,
           cols: wd && wd.waveGrid && wd.waveGrid.cols,
+          lay: wd && wd.waveGrid && (wd.waveGrid.__componentLayer || 'waves'),
           rating: !!(wd && wd.waveGrid && wd.waveGrid.ratingMode),
           pend: !!eng._pendingDowngrade,
           cf: g.coarseFade, band: rbf.bandMult, wash: rbf.washStrength, span: rbf.span,
@@ -186,6 +187,24 @@ async function main() {
       await page.waitForTimeout(2500);
     }
     await page.waitForTimeout(6000);
+  } else if (scenario === 'layers') {
+    // LAYER-INTERACTION forensics: cycle the marine component layers like a user exploring, then
+    // flip the wind overlay on/off — per-frame trace catches transition clears/steps/blank frames.
+    // Note the blend wash requires same-layer base parity, so each switch opens a window with no
+    // wash until the new layer's coarse-global commits — measure how it reads.
+    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
+    await page.waitForTimeout(6000);
+    const clickLayer = (name) => page.evaluate((n) => {
+      const b = Array.from(document.querySelectorAll('button')).find(
+        (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim()) === n);
+      if (b) { b.click(); return true; }
+      return false;
+    }, name);
+    for (const name of ['Swell', 'Swell 2', 'Wind Waves', 'Waves', 'Wind', 'Wind']) {
+      const ok = await clickLayer(name);
+      log(`toggle ${name}: ${ok}`);
+      await page.waitForTimeout(9000);
+    }
   } else if (scenario === 'pan_coverage') {
     // Zoom to mid-level, then drag-pan east repeatedly like a user exploring.
     await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
