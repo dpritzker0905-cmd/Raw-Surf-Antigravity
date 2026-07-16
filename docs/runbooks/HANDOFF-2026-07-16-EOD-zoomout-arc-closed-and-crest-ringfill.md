@@ -113,6 +113,14 @@ shader — instrument-first, kill-switch, A/B (standing rules).
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
   vivid→rating restyle when the rated wide clip lands. Candidate: rating-parity coarse-base capture.
+  **FORENSIC PIN (2026-07-16 follow-up session, read-only):** `coarseBaseKey`
+  (WebGLMarineEngine.js:410) omits `ratingMode` — a rated coarse-global commit with the same
+  dims/bounds/hour as the held unrated base is "same key" → `_captureCoarseBase` never re-fires →
+  the base stays the WRONG flavor indefinitely after a rating toggle, and the bridge promotes it.
+  Fix decision needed (don't rush it): (a) add flavor to the key — base then flips with the latest
+  coarse commit, so the OTHER flavor's bridge still pops; (b) hold TWO bases (one per flavor) —
+  GPU-memory cost of a second world texture set; (c) accept the pop, restyle-smooth it in the
+  heatmap pass. §0e keeps animations identical either way — only heatmap colors pop.
 - **Zoom-IN band-flood transient**: wide orange band while a rated coarse is resident at z9
   pre-sharpen (seen once, self-healed in seconds).
 - Deferred non-marine (unchanged): BOLA · public-bucket security (user wants to co-drive) · a11y
