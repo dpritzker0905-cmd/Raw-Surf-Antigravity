@@ -110,6 +110,26 @@ bound for the wash) with ITS bounds + ITS mask; kill `__RAW_DISABLE_CREST_RINGFI
 `__PAN_CAP__` split-speckle harness (recipe in the memory file). ⚠️ Minefield: particle FBO/update
 shader — instrument-first, kill-switch, A/B (standing rules).
 
+## 2b. ⭐ FOLLOW-UP SESSION pt2 — zoom-out clear/flash/color-snap CHAIN ✅ SHIPPED `56a6f2f4`
+User re-report (z5.9→5.02 cleared+recovered, color snap, pan coverage doubts) → built the
+**Playwright/CDP real-gesture harness** (`frontend/scripts/zoomlab.js` — trusted `page.mouse.wheel`
+streams, full-rate rAF in its own Chromium, per-frame pixel+`__RAW_GPU__` trace synchronized on
+`map.on('render')`, video proof; run `node frontend/scripts/zoomlab.js zoomout_ratingoff|zoomout_ratingon|pan_coverage <outdir>`
+against `frontend-verify` port 3009). Frame forensics pinned FIVE stacked roots (each kill-switched;
+see `56a6f2f4` commit message for details): (1) mid-frame swap MULT REALIGN — every self-heal/bridge
+promotion painted one mult=0 basemap frame; (2) mid-frame swap RE-CAPTURE — `waveGrid`/`waveBounds`
+captured pre-swap → the world texture painted over the OLD regional u_dataBounds for one pale
+lavender frame; (3) `shouldRejectSubcoveringRegional` — mid-gesture sub-covering regionals bounced
+against the covering world resident; (4) escaped-mask recipe on the SELF-HEAL door
+(retain_res_no_downgrade kept the regional mask under an accepted world grid); (5) bridge-sole wash
+un-damp + damp-verdict motion-hold (with mask-identity bypass). Plus `coarseBaseKey` gains rating
+flavor (stale-flavor base enabler of the restyle pop). PROOF: max frame ΔL in the z3.5-8 window
+−51 → **−17** (rating OFF) / −22 (rating ON, residual = genuine flavor swaps); mult=0 frames → 0;
+pan drag scenario 85-97% animation cell coverage with rf active throughout. 120 suites/1054 green.
+**REMAINING for the restyle item:** the held base is still UNRATED unless a rated coarse-global
+commits (the key fix enables re-capture; supply depends on the resolver serving rated global tiers
+— investigate the rated wide-tier lane next).
+
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
   vivid→rating restyle when the rated wide clip lands. Candidate: rating-parity coarse-base capture.
