@@ -861,6 +861,24 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       } else {
         safeMoveLayer(mapInstance, LAYER_ID, beforeIdRef.current);
       }
+      // ORDER PIN (2026-07-17, the z11.51 close-zoom curtain — see OceanMask's twin comment):
+      // the inland water/waterway repaints paint the OPEN OCEAN on class-less basemaps and were
+      // mount-timing-ordered vs this layer. This handler runs LAST on every styledata tick for
+      // this layer's moves, so the demote here is the authoritative end-of-tick invariant:
+      // anything of the inland pair found ABOVE the marine layer moves to directly below it.
+      // Loop-safe (only strictly-above layers move; then it no-ops). Their lagoons-over-land job
+      // is unaffected — they stay above the ne_50m land fill. Kill: __RAW_DISABLE_INLAND_ORDER_PIN__.
+      try {
+        if (typeof window === 'undefined' || window.__RAW_DISABLE_INLAND_ORDER_PIN__ !== true) {
+          const _ord = mapInstance.style && mapInstance.style._order;
+          const _mi = _ord ? _ord.indexOf(LAYER_ID) : -1;
+          if (_mi >= 0) {
+            for (const _iid of ['ocean-mask-inland-water', 'ocean-mask-inland-waterway']) {
+              if (_ord.indexOf(_iid) > _mi) mapInstance.moveLayer(_iid, LAYER_ID);
+            }
+          }
+        }
+      } catch (e) { /* order pin is best-effort — never break layer mount */ }
     };
 
     mapInstance.on('styledata', handleStyleData);

@@ -419,6 +419,22 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
 
         const insertBeforeId = beforeId || findInsertionPoint(mapInstance);
         const roadInsertBeforeId = beforeId || findRoadInsertionPoint(mapInstance) || insertBeforeId;
+        // ORDER PIN (2026-07-17, the z11.51 "heatmap + animations clear/dim" root): the inland
+        // repaint layers paint ALL water on class-less basemaps (their ['get','class'] filter
+        // FAILS OPEN — the §0j comment below admits it) at fill-opacity 1.0 below the z11.5 fade
+        // stop. Whether they landed above or below the marine custom layer was MOUNT-TIMING
+        // dependent — this very pass re-promoted them to the roads anchor on every styledata
+        // tick — so whole zoom bands of the marine field went behind an opaque ocean-colored
+        // curtain, and WHICH bands varied per session (live probes: dead ≥z11.51 in one session,
+        // dead at z11.38 in another; hide-testing ocean-mask-inland-water restored spk 0→22.5).
+        // Pin both repaints DIRECTLY BELOW the marine layer whenever it exists: still above the
+        // ne_50m land fill (the lagoons-over-land job is intact — the engine's own inland-water
+        // gate handles lagoon truth GPU-side) but never above the animated field. The marine
+        // layer asserts the same invariant from its side on mount (WebGLMarineLayer).
+        // Kill: __RAW_DISABLE_INLAND_ORDER_PIN__ (restores the roads anchor).
+        const MARINE_LAYER_ID = 'webgl-marine-particles';
+        const inlandBeforeId = ((typeof window === 'undefined' || window.__RAW_DISABLE_INLAND_ORDER_PIN__ !== true)
+          && mapInstance.getLayer(MARINE_LAYER_ID)) ? MARINE_LAYER_ID : roadInsertBeforeId;
         const tc = THEME_COLORS[theme] || THEME_COLORS.dark;
         const fillColor = tc.fill;
         
@@ -541,13 +557,13 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
                 // lakes and this repaint only ever sections the marine field — fade it out.
                 'fill-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 1.0, 12.5, 0.0]
               }
-            }, roadInsertBeforeId || undefined);
+            }, inlandBeforeId || undefined);
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATER:', e);
           }
         } else {
           try {
-            if (roadInsertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, roadInsertBeforeId);
+            if (inlandBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATER, inlandBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATER, 'fill-color', waterColor);
             mapInstance.setFilter(MASK_INLAND_WATER, ['match', ['get', 'class'], ['ocean', 'sea'], false, true]);
           } catch (e) {}
@@ -572,13 +588,13 @@ function OceanMaskInner({ mapInstance, active: propActive, activeMarineLayer, th
                 // strokes over the marine field at deep zoom are the user's "sectioning lines".
                 'line-opacity': ['interpolate', ['linear'], ['zoom'], 11.5, 1.0, 12.5, 0.0]
               }
-            }, roadInsertBeforeId || undefined);
+            }, inlandBeforeId || undefined);
           } catch (e) {
             console.warn('[OceanMask] Failed to add MASK_INLAND_WATERWAY:', e);
           }
         } else {
           try {
-            if (roadInsertBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, roadInsertBeforeId);
+            if (inlandBeforeId) safeMoveLayer(mapInstance, MASK_INLAND_WATERWAY, inlandBeforeId);
             mapInstance.setPaintProperty(MASK_INLAND_WATERWAY, 'line-color', waterwayColor);
           } catch (e) {}
         }

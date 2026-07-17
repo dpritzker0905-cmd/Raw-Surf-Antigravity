@@ -85,7 +85,7 @@ async function main() {
   }, null, { timeout: 90000 });
   log('waves resident committed');
 
-  if (scenario === 'zoomout_ratingon') {
+  if (scenario.endsWith('_ratingon')) {
     const rbState = await page.evaluate(() => {
       const rb = Array.from(document.querySelectorAll('button')).find((b) =>
         ((b.getAttribute('aria-label') || '') + (b.title || '')).includes('Surf Rating overlay'));
@@ -207,6 +207,22 @@ async function main() {
     for (let i = 0; i < 30; i++) {
       await page.mouse.wheel(0, 120);
       await page.waitForTimeout(2500);
+    }
+    await page.waitForTimeout(6000);
+  } else if (scenario.startsWith('staircase_full')) {
+    // FULL-SPAN settled ladder (2026-07-17, user: "heatmap + animations clear/dim at z11.51;
+    // the brightness test needs to span every zoom"): notch-by-notch IN z9→~z14 first (the
+    // close-zoom band the original staircase never touched, both gesture directions across it),
+    // then OUT ~z14→z2. Settled L + spk + full flag row per notch, same trace as staircase.
+    for (let i = 0; i < 28; i++) {           // IN: z9 → ~z14
+      await page.mouse.wheel(0, -120);
+      await page.waitForTimeout(2200);
+    }
+    await page.waitForTimeout(5000);
+    log('zoom-in leg done at z=' + (await page.evaluate(() => +window.map.getZoom().toFixed(2))));
+    for (let i = 0; i < 68; i++) {           // OUT: ~z14 → ~z2
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(2200);
     }
     await page.waitForTimeout(6000);
   } else if (scenario === 'layers') {
