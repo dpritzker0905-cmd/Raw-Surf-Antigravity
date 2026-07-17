@@ -186,10 +186,18 @@ on → the failure is PER-VARIABLE downstream. Prime suspect: the metadata GATE 
 temperature works anyway, so the gate is either overridden by a live metadata fetch on some paths
 or checked per-layer inconsistently. ⚠️ Second suspect: the tile library's registered COLOR SCALE
 per variable (the 07-11 water_temp note: the lib ships an alias scale — if no scale is registered
-under the REQUESTED variable name, it renders transparent silently). NEXT PROBE: find the gate +
-scale-resolution branch in `useOpenMeteoTileUrls.js` / the `@openmeteo/weather-map-layer` config,
-instrument which decision fires for water_temp/fog/pressure vs temperature, fix, re-run `alllayers`
-(acceptance: dL<−10 per layer over water; convective-region check for precip/radar).
+under the REQUESTED variable name, it renders transparent silently). NARROWED FURTHER: the metadata gate REFETCHES live metadata before URL generation
+(useOpenMeteoTileUrls.js:525 `fetchMetadata`) and the audit SAW tile fetches — so the gate passed
+and URLs generated. With fetch ✓ decode-path silent ✓ zero errors ✓ zero pixels ✗, the blocker is
+RENDER-side. **PRIME SUSPECT: MapLibre layer PAINT ORDER** — water_temp's slots deliberately anchor
+BELOW the OceanMask land fill (`marineBeforeId` anchor, see LayerRegistry water_temp comment);
+if the anchor/ordering regressed (or OceanMask/basemap covers ocean too), the raster paints UNDER
+an opaque layer = invisible with zero errors, per-layer (temperature anchors differently and
+works). NEXT PROBE (zoomlab or console): activate water_temp/fog/pressure, dump
+`map.getStyle().layers.map(l=>l.id)` order + each slot layer's paint opacity + verify the slot
+layers exist and sit ABOVE the basemap/below labels as intended; also check the tile library's
+registered color scale per variable name. Then fix, re-run `alllayers` (acceptance: dL<−10 per
+layer over water; convective-region check for precip/radar).
 
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
