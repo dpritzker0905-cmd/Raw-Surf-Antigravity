@@ -130,14 +130,40 @@ ENGAGED with `baseLayer=waves` (the cached base), ring-fill armed; 40 samples/4 
 frames, 0 ring-fill-off frames**. The blend0 switch-back window is confirmed gone outside
 SwiftShader. LRU held both keys through every `clearBuffers` switch.
 
-### 5d. QUEUE (renumbered)
-1. **Rating-restyle rated-wide-supply** (old #3; EOD §2b tail): held base stays unrated until a
-   rated coarse-global commits; resolver-side. NOTE the rated-mid re-entry interlude seen in the
-   §2c traces (world bridges in for ~1.5 s between two rated tiles) shrinks/disappears if the
-   rated mid tile lands before the release — same supply lane.
-2. **Inflight-dedup bbox identity + toggle flag-write ordering** (§5b OPEN tail — small, root-y).
+### 5d. QUEUE (renumbered; #1 and #2 CLOSED same session — see §5f)
+1. ~~Rating-restyle rated-wide-supply~~ **CLOSED BY-DESIGN (§5f-1).**
+2. ~~Inflight-dedup bbox identity + toggle flag-write ordering~~ **CLOSED (§5f-2: both theories
+   FALSIFIED; pinning instrument shipped instead).**
 3. Older: BOLA + public-bucket security (user co-drive) · a11y panels-keyboard · §0j mask churn ·
    sheltered-water model · zoom-IN band-flood transient.
+
+### 5f. SECOND PASS (same session, user: "test and prove it one more time, then move forward")
+**RE-PROOF (all fresh runs at the pushed HEAD):** rating-ON zoomout max frame |ΔL| **−9.3** (at
+rating-OFF levels now; pre-fix −16.6..−22), swap frame **+2.6** with band 0.00 and covF/covFd
+0.78/0.77 pre-swap · racy-toggle probe took the DIRECT path (regional surf=1 fired 28 ms
+post-toggle → PAINTING ✓ ~3 s, stable 49 s; earlier run had proven the backstop path 2.3 s — both
+arrival orders now proven) · rating-OFF −9.8/mult0 0 · suite 121/1072.
+
+**1) RATED-WIDE-SUPPLY — CLOSED BY-DESIGN (curl proofs):** surf=1 at 4° → `surf_rating` (69
+rated/74 masked) · 12° → `surf_rating` (21/31 — masked fraction already growing) · 20° and world
+→ `skipped: coarse_extent`. Supply ends at the 15° request-span cap exactly as the falsification
+predicted. The pieces are coherent: `pickCoarseBaseLruKey` already falls back r1→r0 so the band
+rides the HONEST wash (spec-correct), §2c fades every rated↔unrated handoff, and a rated
+coarse-global cannot exist. §2b's "held base stays unrated" = working-as-intended.
+
+**2) DEDUP-IDENTITY + FLAG-ORDERING — BOTH FALSIFIED:** the world-bbox fetch is
+`prewarmGlobalMarineGrid` (marineController.js) — its own promise chain, NEVER owns
+`abortControllerRef.__intent` → it cannot absorb regional asks via the same-target skip (the
+"world absorbs regional" reading came from a stale-HMR-bundle run). And `toggleSurfMode` writes
+the flag SYNCHRONOUSLY before dispatching `rawsurf:surf-toggle` (dispatchEvent runs listeners
+inline) → no ordering gap. What remains unpinned: in ONE ring-proven repro the toggle's enqueue
+produced no guard breadcrumb before the old-flavor commit (which was simply the pre-toggle
+fetch's own late result). Backstop heals it in ≤2.3 s; rarity ≈ 1-in-4 pre-backstop harness runs.
+SHIPPED the pinning instrument instead of a guess-patch: ring `surf_toggle` event at the listener
+records {flag, isFetching, inflightSurf, inflightAgeMs} at click time (live-verified) — the next
+occurrence in ANY session pins the swallowing branch from the ring alone. Watch for
+`surf_toggle` → no `flavor_backstop` + band stuck = the branch fired; `flavor_backstop` events
+in the wild also COUNT the race frequency.
 
 ### 5e. HARNESS NOTES (additions to §2)
 zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +

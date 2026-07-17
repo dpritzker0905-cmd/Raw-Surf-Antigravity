@@ -23,6 +23,7 @@ import {
 } from './useMarineDataFetcherHelpers';
 import { getTarget, endTransition, recordChurn } from './marineTransitionCoordinator';
 import { createMarineInFlightRegistry } from './marineInFlightRegistry';
+import { recordMarineEvent } from './marineForensics';   // surf_toggle breadcrumb (§5b pinning instrument)
 
 
 export function useMarineDataFetcher({
@@ -177,6 +178,18 @@ export function useMarineDataFetcher({
   // the flag, so a forced manual fetch pulls the surf (or swell) grid and commits it to the heatmap.
   useEffect(() => {
     const onSurfToggle = () => {
+      // PINNING INSTRUMENT (2026-07-17 §5b): in one live repro the toggle's re-fetch was swallowed
+      // before any network/guard breadcrumb and the band wedged until the flavor backstop broke it.
+      // Record the entry state so the NEXT occurrence pins the swallowing branch from the ring alone.
+      try {
+        const locks = marineFetchLocksRef.current || {};
+        const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
+        recordMarineEvent('surf_toggle', {
+          flag: getSurfModeFlag(), isFetching: !!locks.isFetching,
+          inflightSurf: inflight ? inflight.surf : null,
+          inflightAgeMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+        });
+      } catch (e) { /* breadcrumb never fatal */ }
       try { enqueueMarineUpdate('manual'); } catch (e) {}
     };
     window.addEventListener('rawsurf:surf-toggle', onSurfToggle);
