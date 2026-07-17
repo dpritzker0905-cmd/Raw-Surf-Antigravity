@@ -210,6 +210,23 @@ mult0 0; suite 1072. REMAINING (queued): backend cold-supply latency for fresh v
 dynamic build) · full §0e animation invariance = anim-source independence arc (ring-fill pattern
 generalized) · the expectedMaxCellDeg=2.5° res-watch bar is too lax at z8.6 (1 cell/screen passes).
 
+### 5i. OFFSHORE SEAM-LINE VERDICT (user: "line of less animations" N-S ~80-90 mi off Ft Pierce)
+Reproduced + photographed (session scratchpad `seam/seam_ftpierce_z8.png`): dense crests west of
+~-79.3, sparse east — the geography = the florida_east_coast tile's EAST EDGE (-79) quantized to
+the interim product's 0.45° cells (-79.27); the W-E leg = its south edge (27.0). The seam lived
+INSIDE a cold-window interim dynamic product (11×11, 0.45°/cell): its anim-channel data degraded
+east of the tile edge. One hour later the fine builds displaced it and the live map is SEAM-FREE
+(re-probe screenshot `seam2/`: crests continuous coast→-78+, no offshore cliffs; current 16×12
+resident sampled cell-by-cell: heights smooth 0.32→0.74, |uv|≡speed, no valid-data cliff, no
+dominant-swell stamp boundary). Same cold-supply family as §5h — the shipped series-upgrade lane
+now replaces such interims as soon as anything finer lands. FALSIFIED en route: particle-tile
+edge (5.6° tile, edges off-screen) · resident valid-edge (current grid seamless) · dominant-swell
+stamping (|uv|≡speed everywhere sampled). **QUEUED (backend arc): the dynamic viewport BUILD can
+serve a product with a hard internal data boundary at a regional-tile edge during cold windows —
+audit the build's gap-fill/stitching (viewport_service) so interims are seamless or withheld.**
+Probe kit: `probe_seamline.js` (frame-DIFF animation-density profiles + cliff detection +
+unproject→geography + screenshots/video) — the tool for any "line/seam in the animations" report.
+
 ### 5e. HARNESS NOTES (additions to §2)
 zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +
 console errors on rated-commit timeout (no more blind FATALs). The rated lane can be cold-slow
