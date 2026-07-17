@@ -70,11 +70,26 @@ function heatmapZoomOpacity(z) {
 // screen is already showing the honest field at ≈committed strength and the swap is invisible.
 // bandMult floors at 0.3 when NO wash is engaged under the band (a fully-faded band over a washless
 // viewport reads as the blank-map bug — same lesson as the coarse-fade 0.7 / no-truth 0.3 floors).
+// COVERAGE LEG (2026-07-16 §2c, zoomlab real-wheel traces): the span window alone cannot anticipate
+// the rated→unrated handoff, because the release is the CONJUNCTION `z ≤ MARINE_ZOOMED_OUT_MAX_ZOOM
+// && coverage < __RAW_DOWNGRADE_COVER_FRAC__` (display gate / zoom-out bridge / subcover reject all
+// share it) — on a zoom-out with a small rated tile it goes true around span ~5-6°, where the span
+// fade has barely started, so the world bridge swapped in under a FULL-strength band (+11-16 L hard
+// flip, trace frames 14-17). The coverage leg fades the band as the resident's viewport coverage
+// falls toward the SAME release lever, engaged only as z nears the SAME zoom boundary (smoothstep
+// over the __RAW_BAND_COVER_FADE_ZLEAD__ window above it, default 0.5) — derived from the release's
+// own constants so fade and release can never disagree. Close-zoom pans (z > boundary+lead) are
+// untouched: their coverage drops lead to rated→rated handoffs under the grace, where dimming would
+// re-open the §4f band-blink. Both legs combine via min() (the dacdabac combine idiom); the wash
+// lift keys on the COMBINED fade so the trade-places invariant holds whichever leg drives.
+// Unknown coverage/zoom FAILS OPEN (leg inert — the 07-03 unknown-input lesson).
 // Levers: __RAW_RATING_SPAN_FADE_LO__ (default 6°, fade starts) / __RAW_RATING_SPAN_FADE_HI__
-// (default 9.5° ≈ the 15° request-span boundary before the frontend fetch pad). Kill:
-// __RAW_RATING_ZOOM_FADE_DISABLED__ (restores the hard on/off). Telemetry: __RAW_GPU__.ratingBandFade.
-export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEngaged, win) {
-  const ident = { bandMult: 1.0, washStrength: null, fade: 1.0 };
+// (default 9.5° ≈ the 15° request-span boundary before the frontend fetch pad) /
+// __RAW_BAND_COVER_FADE_ZLEAD__ (zoom lead above the wide-view boundary). Kills:
+// __RAW_RATING_ZOOM_FADE_DISABLED__ (whole fade → hard on/off) / __RAW_DISABLE_BAND_COVER_FADE__
+// (coverage leg only). Telemetry: __RAW_GPU__.ratingBandFade.
+export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEngaged, win, cov) {
+  const ident = { bandMult: 1.0, washStrength: null, fade: 1.0, spanFade: 1.0, covFade: 1.0 };
   if (!isRatingPainting) return ident;
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_RATING_ZOOM_FADE_DISABLED__ === true) return ident;
@@ -82,11 +97,26 @@ export function resolveRatingBandFade(viewportLonSpan, isRatingPainting, washEng
   const lo = (typeof w.__RAW_RATING_SPAN_FADE_LO__ === 'number') ? w.__RAW_RATING_SPAN_FADE_LO__ : 6.0;
   const hi = (typeof w.__RAW_RATING_SPAN_FADE_HI__ === 'number') ? w.__RAW_RATING_SPAN_FADE_HI__ : 9.5;
   const t = Math.max(0.0, Math.min(1.0, (viewportLonSpan - lo) / Math.max(1e-6, hi - lo)));
-  const fade = 1.0 - t * t * (3.0 - 2.0 * t);      // smoothstep: 1 at lo (band full) → 0 at hi (band gone)
+  const spanFade = 1.0 - t * t * (3.0 - 2.0 * t);  // smoothstep: 1 at lo (band full) → 0 at hi (band gone)
+  let covFade = 1.0;
+  if (w.__RAW_DISABLE_BAND_COVER_FADE__ !== true
+      && cov && typeof cov.coverFrac === 'number' && typeof cov.zoom === 'number') {
+    const zLead = (typeof w.__RAW_BAND_COVER_FADE_ZLEAD__ === 'number') ? w.__RAW_BAND_COVER_FADE_ZLEAD__ : 0.5;
+    const zT = Math.max(0.0, Math.min(1.0,
+      ((MARINE_ZOOMED_OUT_MAX_ZOOM + zLead) - cov.zoom) / Math.max(1e-6, zLead)));
+    const zProx = zT * zT * (3.0 - 2.0 * zT);      // 0 above the lead window → 1 at the release boundary
+    const minFrac = Number(w.__RAW_DOWNGRADE_COVER_FRAC__) || 0.6;
+    const cLo = minFrac + 0.02;                    // just above the release: band gone before the swap
+    const cHi = Math.min(1.0, minFrac + 0.25);     // fade begins as coverage leaves "comfortably covering"
+    const cT = Math.max(0.0, Math.min(1.0, (cov.coverFrac - cLo) / Math.max(1e-6, cHi - cLo)));
+    const cRamp = cT * cT * (3.0 - 2.0 * cT);      // 1 while covering → 0 at the release lever
+    covFade = 1.0 - zProx * (1.0 - cRamp);
+  }
+  const fade = Math.min(spanFade, covFade);
   const bandMult = washEngaged ? fade : Math.max(0.3, fade);
   const base = (typeof w.__RAW_BLEND_BASE_WASH__ === 'number') ? w.__RAW_BLEND_BASE_WASH__ : 0.72;
   const washStrength = base + (1.0 - base) * (1.0 - fade);   // dimmed under a full band → full when the band is gone
-  return { bandMult, washStrength, fade };
+  return { bandMult, washStrength, fade, spanFade, covFade };
 }
 
 // === COASTAL-RIBBON taper resolution (pure; exported for tests) ===
@@ -1185,14 +1215,28 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
             ? (viewportBounds[2] + 360 - viewportBounds[0])
             : (viewportBounds[2] - viewportBounds[0]))
         : null;
+      // COVERAGE LEG input: the rated resident's viewport coverage, the SAME intersection math as
+      // the display gate / bridge / subcover predicates (they must agree — see resolveRatingBandFade).
+      // Non-regional resident (world) or unknown viewport → null → the leg fails open (inert).
+      let _residentCoverFrac = null;
+      if (viewportBounds && this._waveData && this._waveData.bounds && isRegionalBounds(this._waveData.bounds)) {
+        const _crb = this._waveData.bounds;
+        const _cvpA = Math.max(1e-9, (viewportBounds[2] - viewportBounds[0]) * (viewportBounds[3] - viewportBounds[1]));
+        const _cix = Math.max(0, Math.min(_crb.east, viewportBounds[2]) - Math.max(_crb.west, viewportBounds[0]));
+        const _ciy = Math.max(0, Math.min(_crb.north, viewportBounds[3]) - Math.max(_crb.south, viewportBounds[1]));
+        _residentCoverFrac = (_cix * _ciy) / _cvpA;
+      }
       _ratingBandFade = resolveRatingBandFade(
         _vpSpanForFade, isRating && _surfFlagOn, blendEngaged,
-        (typeof window !== 'undefined') ? window : undefined);
+        (typeof window !== 'undefined') ? window : undefined,
+        { coverFrac: (_residentCoverFrac === null) ? undefined : _residentCoverFrac, zoom: z });
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
         window.__RAW_GPU__.ratingBandFade = {
           span: _vpSpanForFade, washEngaged: blendEngaged,
           fade: _ratingBandFade.fade, bandMult: _ratingBandFade.bandMult,
           washStrength: _ratingBandFade.washStrength,
+          covFrac: _residentCoverFrac, covFade: _ratingBandFade.covFade,
+          spanFade: _ratingBandFade.spanFade,
         };
       }
       // Forensic: record fade TRANSITIONS only (decile buckets), never per-frame — the ring must

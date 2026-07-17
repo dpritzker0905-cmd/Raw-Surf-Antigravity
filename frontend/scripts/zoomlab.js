@@ -86,15 +86,36 @@ async function main() {
   log('waves resident committed');
 
   if (scenario === 'zoomout_ratingon') {
-    await page.evaluate(() => {
+    const rbState = await page.evaluate(() => {
       const rb = Array.from(document.querySelectorAll('button')).find((b) =>
         ((b.getAttribute('aria-label') || '') + (b.title || '')).includes('Surf Rating overlay'));
-      if (rb && rb.getAttribute('aria-pressed') !== 'true') rb.click();
+      if (!rb) return 'BUTTON NOT FOUND';
+      const pre = rb.getAttribute('aria-pressed');
+      if (pre !== 'true') rb.click();
+      return 'pre-click aria-pressed=' + pre;
     });
-    await page.waitForFunction(() => {
-      const e = window.__MARINE_ENGINE__;
-      return e && e._waveData && e._waveData.waveGrid && e._waveData.waveGrid.ratingMode === true;
-    }, null, { timeout: 90000 });
+    log('rating toggle: ' + rbState);
+    try {
+      await page.waitForFunction(() => {
+        const e = window.__MARINE_ENGINE__;
+        return e && e._waveData && e._waveData.waveGrid && e._waveData.waveGrid.ratingMode === true;
+      }, null, { timeout: 90000 });
+    } catch (err) {
+      // Diagnose instead of dying blind: engine + flag + fetch-lane state at timeout.
+      const diag = await page.evaluate(() => {
+        const e = window.__MARINE_ENGINE__, wd = e && e._waveData;
+        return JSON.stringify({
+          surfFlag: window.__SURF_MODE__,
+          rating: !!(wd && wd.waveGrid && wd.waveGrid.ratingMode),
+          cols: wd && wd.waveGrid && wd.waveGrid.cols,
+          debouncing: window.__MARINE_FETCH_DEBOUNCING__ === true,
+          ndLast: window.__MARINE_NO_DOWNGRADE__ && window.__MARINE_NO_DOWNGRADE__.last,
+        });
+      }).catch((e2) => 'diag failed: ' + e2);
+      log('RATING WAIT TIMEOUT — diag: ' + diag);
+      log('console errors: ' + JSON.stringify(consoleErrors.slice(0, 8)));
+      throw err;
+    }
     log('rated resident committed');
   }
 
@@ -149,6 +170,7 @@ async function main() {
           rating: !!(wd && wd.waveGrid && wd.waveGrid.ratingMode),
           pend: !!eng._pendingDowngrade,
           cf: g.coarseFade, band: rbf.bandMult, wash: rbf.washStrength, span: rbf.span,
+          covF: rbf.covFrac, covFd: rbf.covFade,
           noTruth: g.washNoTruthDamp, halo: g.haloDamp, undamp: g.bandWashUndamp,
           rf: g.crestRingFill && g.crestRingFill.enabled,
           blend: g.blendBoth && g.blendBoth.engaged,

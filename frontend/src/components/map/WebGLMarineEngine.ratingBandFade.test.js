@@ -6,7 +6,7 @@ import { resolveRatingBandFade } from './WebGLMarineEngine';
 // at the handoff. bandMult multiplies the main-pass opacity while it paints rating colors;
 // washStrength replaces the blend-base dim factor (0.72 default) so the honest wash rises in step.
 
-const IDENT = { bandMult: 1.0, washStrength: null, fade: 1.0 };
+const IDENT = { bandMult: 1.0, washStrength: null, fade: 1.0, spanFade: 1.0, covFade: 1.0 };
 
 describe('resolveRatingBandFade — band⇄heatmap trade at the tier boundary', () => {
   it('IDENTITY when the band is not painting (honest frames are never faded)', () => {
@@ -75,5 +75,97 @@ describe('resolveRatingBandFade — band⇄heatmap trade at the tier boundary', 
       expect(fade).toBeLessThanOrEqual(prev + 1e-12);
       prev = fade;
     }
+  });
+});
+
+// COVERAGE LEG (2026-07-16 §2c): the release is `z ≤ MARINE_ZOOMED_OUT_MAX_ZOOM (7.0) && coverage
+// < __RAW_DOWNGRADE_COVER_FRAC__ (0.6)` — on real zoom-outs it fires around span 5-6°, before the
+// span window has ramped, so the world bridge swapped in under a full-strength band (zoomlab
+// real-wheel trace, +11-16 L). The coverage leg fades the band toward 0 as coverage falls to the
+// release lever, engaged only as z nears the release's own zoom boundary.
+describe('resolveRatingBandFade — coverage leg (band gone BEFORE the wide-view release)', () => {
+  const at = (span, cov, extras) => resolveRatingBandFade(span, true, true, extras || {}, cov);
+
+  it('INERT without coverage input (backward compatible: all span-only behavior above unchanged)', () => {
+    expect(at(3.0, undefined).fade).toBe(1.0);
+    expect(at(3.0, {}).covFade).toBe(1.0);
+    expect(at(3.0, { coverFrac: null, zoom: null }).covFade).toBe(1.0);
+  });
+
+  it('INERT above the zoom lead window: a z10 coastal pan with low coverage never dims the band', () => {
+    const r = at(0.4, { coverFrac: 0.3, zoom: 10.0 });
+    expect(r.covFade).toBe(1.0);
+    expect(r.bandMult).toBe(1.0);   // grace territory — rated→rated handoffs, band must not breathe
+  });
+
+  it('FULL coverage keeps the band regardless of zoom (settled covering rated resident at z6.8)', () => {
+    const r = at(3.0, { coverFrac: 1.0, zoom: 6.8 });
+    expect(r.covFade).toBeCloseTo(1.0, 5);
+    expect(r.bandMult).toBeCloseTo(1.0, 5);
+  });
+
+  it('AT the release conjunction (z ≤ 7, coverage at the 0.6 lever): band fully faded, wash at full', () => {
+    const r = at(5.5, { coverFrac: 0.6, zoom: 6.95 });
+    expect(r.covFade).toBeCloseTo(0.0, 5);
+    expect(r.bandMult).toBeCloseTo(0.0, 5);      // the swap frame paints under an already-gone band
+    expect(r.washStrength).toBeCloseTo(1.0, 5);  // trade-places invariant holds on the coverage leg too
+  });
+
+  it('LEAD ramp: mid lead-window + mid coverage gives a partial fade (anticipation, not a snap)', () => {
+    const r = at(5.0, { coverFrac: 0.7, zoom: 7.25 });
+    expect(r.covFade).toBeGreaterThan(0.05);
+    expect(r.covFade).toBeLessThan(0.95);
+    expect(r.fade).toBe(r.covFade);              // span 5.0 is below the span window → coverage leg drives
+  });
+
+  it('monotonic: fade never INCREASES as coverage drops or as z descends toward the boundary', () => {
+    let prev = Infinity;
+    for (let c = 1.0; c >= 0.55; c -= 0.05) {
+      const { covFade } = at(5.0, { coverFrac: c, zoom: 7.1 });
+      expect(covFade).toBeLessThanOrEqual(prev + 1e-12);
+      prev = covFade;
+    }
+    prev = Infinity;
+    for (let zz = 8.0; zz >= 6.5; zz -= 0.1) {
+      const { covFade } = at(5.0, { coverFrac: 0.62, zoom: zz });
+      expect(covFade).toBeLessThanOrEqual(prev + 1e-12);
+      prev = covFade;
+    }
+  });
+
+  it('combines with the span leg via min(): whichever fade is lower wins, wash follows the combo', () => {
+    const spanDriven = at(9.0, { coverFrac: 1.0, zoom: 6.8 });     // span ~gone, coverage full
+    expect(spanDriven.fade).toBeCloseTo(spanDriven.spanFade, 5);
+    const covDriven = at(5.0, { coverFrac: 0.6, zoom: 6.8 });      // span full, coverage at release
+    expect(covDriven.fade).toBeCloseTo(0.0, 5);
+    expect(covDriven.washStrength).toBeCloseTo(1.0, 5);
+  });
+
+  it('COUPLES to the release lever: raising __RAW_DOWNGRADE_COVER_FRAC__ moves the coverage ramp', () => {
+    const win = { __RAW_DOWNGRADE_COVER_FRAC__: 0.8 };
+    const r = resolveRatingBandFade(5.0, true, true, win, { coverFrac: 0.8, zoom: 6.9 });
+    expect(r.covFade).toBeCloseTo(0.0, 5);       // at the (moved) release boundary → band gone
+    const still = resolveRatingBandFade(5.0, true, true, {}, { coverFrac: 0.8, zoom: 6.9 });
+    expect(still.covFade).toBeGreaterThan(0.5);  // default lever: 0.8 coverage is comfortably covering
+  });
+
+  it('kill switch __RAW_DISABLE_BAND_COVER_FADE__ disables ONLY the coverage leg (span leg stands)', () => {
+    const win = { __RAW_DISABLE_BAND_COVER_FADE__: true };
+    const r = resolveRatingBandFade(5.0, true, true, win, { coverFrac: 0.3, zoom: 6.8 });
+    expect(r.covFade).toBe(1.0);
+    expect(r.bandMult).toBe(1.0);
+    const spanStill = resolveRatingBandFade(9.5, true, true, win, { coverFrac: 0.3, zoom: 6.8 });
+    expect(spanStill.bandMult).toBe(0.0);
+  });
+
+  it('washless floor still applies on the coverage leg (blank-map lesson: never below 0.3 washless)', () => {
+    const r = resolveRatingBandFade(5.0, true, false, {}, { coverFrac: 0.6, zoom: 6.9 });
+    expect(r.bandMult).toBe(0.3);
+  });
+
+  it('zero zoom lead (__RAW_BAND_COVER_FADE_ZLEAD__: 0) hard-gates the leg at the release boundary', () => {
+    const win = { __RAW_BAND_COVER_FADE_ZLEAD__: 0 };
+    expect(resolveRatingBandFade(5.0, true, true, win, { coverFrac: 0.6, zoom: 7.05 }).covFade).toBe(1.0);
+    expect(resolveRatingBandFade(5.0, true, true, win, { coverFrac: 0.6, zoom: 6.99 }).covFade).toBeCloseTo(0.0, 5);
   });
 });
