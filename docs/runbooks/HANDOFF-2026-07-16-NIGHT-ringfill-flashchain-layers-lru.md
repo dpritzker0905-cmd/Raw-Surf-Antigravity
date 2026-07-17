@@ -165,6 +165,28 @@ occurrence in ANY session pins the swallowing branch from the ring alone. Watch 
 `surf_toggle` → no `flavor_backstop` + band stuck = the branch fired; `flavor_backstop` events
 in the wild also COUNT the race frequency.
 
+### 5g. `e4a6bdd0` CLOSE-ZOOM CURTAIN KILLED (user z11.51 "heatmap + animations clear/dim")
+Full-span ladder (NEW zoomlab `staircase_full`: z9→z14→z2 notch-by-notch — the old staircase
+never covered the close band) reproduced deterministically: L +31 pale + spk 41→**0** at exactly
+z11.514. Forensic chain: engine state byte-identical across the cliff → ALL 6 kill switches
+(incl. the LRU + ring-fill ships) changed nothing → shader debug modes invisible in the dead
+zone (fragments never reach screen) → visibility bisect: `ocean-mask-inland-water`. ROOT: the
+inland water/waterway repaints paint ALL water on class-less basemaps (filter FAILS OPEN, §0j's
+own admission) at opacity 1.0 below their z11.5 fade stop, and their order vs the marine layer
+was MOUNT-TIMING dependent (OceanMask re-promoted to the roads anchor every styledata tick;
+marine re-anchored below ocean-mask-fill) — which zoom bands died varied per session. FIX =
+deterministic order invariant on BOTH sides (OceanMask targets the repaints directly below the
+marine layer; WebGLMarineLayer demotes strays at the END of its styledata handler — the
+authoritative last move of the tick). Kill `__RAW_DISABLE_INLAND_ORDER_PIN__`. PROOF: ladder
+ZERO events across 96 settled notches; harmony battery all-green (OFF −4.7 best recorded · ON
+swaps preBand 0.41/0.00 · staircase −8.1 · pan 294/301 · layers 0 collapses); global-first
+Portugal/Baja/FL alive at z11.6 + Lake Michigan lake repaint intact. ⚠️ LESSONS: (1) when engine
+telemetry is byte-identical across a visual cliff, bisect the DOM/style layer stack — the
+curtain class lives OUTSIDE the engine; (2) `getStyle().layers` omits custom layers (use
+`map.style._order`); (3) canvas readbacks need `preserveDrawingBuffer:false`-safe sampling
+INSIDE `map.on('render')`; (4) shader debug modes (`__GPU_DEBUG__.mode='uv'|'mask'|'grid'`)
+instantly split "not drawn" from "drawn wrong".
+
 ### 5e. HARNESS NOTES (additions to §2)
 zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +
 console errors on rated-commit timeout (no more blind FATALs). The rated lane can be cold-slow
