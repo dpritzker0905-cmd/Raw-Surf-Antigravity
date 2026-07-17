@@ -20,6 +20,7 @@ Pure ``math`` only — no I/O, no network, no numpy dependency — so it runs in
 (cheap, per-point) and is fully unit-testable without the GRIB/data stack.
 """
 import math
+import os
 
 G = 9.81            # gravitational acceleration (m/s^2)
 GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / McCowan limit); used when the
@@ -224,10 +225,48 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
         return 1.0
     feel = 1.0 / math.sinh(kd)
     width_cells = width_km / _CELL_KM
-    return math.exp(-SHELF_FRICTION_CF * width_cells * feel)
+    return math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
 
 
-def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0):
+# ── SURF v3 (2026-07-17 nearshore-science audit vs same-day Surfline/forecaster ground truth) ──
+# The v2 chain read FL beaches ~2.5-3x LOW (Flagler Ave: offshore 1.2ft@7.4s → v2 surf 0.6ft vs
+# real-world knee ~1-1.5ft) and had no surf>offshore path (komar_breaker_height was DEAD CODE, so
+# steep-coast reef jacking never engaged). Each leg is independently env-kill-switched:
+#   SURF_V3_KOMAR=0        legacy Ks-shoaling instead of the Komar breaker estimate
+#   SURF_V3_SHELF_RECAL=0  legacy full-strength shelf friction (the 2.5-3x FL underread)
+#   SURF_V3_EXPOSURE=0     no swell-angle factor on the HEIGHT (rating keeps its own)
+#   SURF_V3_MAGNETS=0      ignore per-spot wave-magnet factors (see surf_magnets.py)
+# Levers: SURF_SHELF_CF_SCALE (default 0.25 — calibrated so FL-class Kf lands ~0.85 instead of
+# ~0.5) and SURF_V3_JACK_MAX (default 2.0 — bounds Komar amplification; literature shoaling
+# amplification rarely exceeds ~1.6-2x without focusing).
+def _v3(flag: str) -> bool:
+    return os.environ.get(flag, "1") != "0"
+
+
+def _shelf_cf_scale() -> float:
+    if not _v3("SURF_V3_SHELF_RECAL"):
+        return 1.0
+    try:
+        return float(os.environ.get("SURF_SHELF_CF_SCALE", "0.25"))
+    except (TypeError, ValueError):
+        return 0.25
+
+
+def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
+    """Swell-angle factor for the surf HEIGHT — a softened form of the rating model's
+    swell_exposure (energy), since height scales gentler than energy with incidence. Head-on 1.0;
+    the exposure floor (0.10) maps to 0.595. Unknown geometry FAILS OPEN to 1.0 (07-03 lesson)."""
+    if not _v3("SURF_V3_EXPOSURE"):
+        return 1.0
+    if swell_from_deg is None or shore_normal_deg is None:
+        return 1.0
+    align = math.cos(math.radians(swell_from_deg - shore_normal_deg))
+    exposure = _clamp(0.10 + 0.90 * max(0.0, align), 0.0, 1.0)
+    return 0.55 + 0.45 * exposure
+
+
+def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
+                  swell_from_deg=None, shore_normal_deg=None, magnet_factor: float = 1.0):
     """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative shelf depth,
     the shelf WIDTH, and whether the point is near a coast. Worldwide — every input comes from the global
     bathymetry, so the same physics applies on any coast.
@@ -256,10 +295,26 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
         return float(Hs_m), 'open_ocean'           # swell with no shore to break on -> not surf
     if depth_m is None or depth_m <= 0:
         return float(Hs_m), 'shelf'                # coastal but no usable depth -> pass through
-    Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)
-    Ks = shoaling_coefficient(Tp_s, depth_m)
-    H = Kf * Ks * Hs_m
+    Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)   # v3 recal scales CF inside (kill-switched)
+    Hs_surviving = Kf * Hs_m                       # the swell that makes it across the shelf
     cap = breaker_index(Tp_s) * depth_m            # period-dependent: long-period swell breaks taller
+    if _v3("SURF_V3_KOMAR"):
+        # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
+        # break — surf CAN exceed offshore Hs on steep coasts (the reef-jack v2 never modeled;
+        # komar_breaker_height sat unwired). Bounded by SURF_V3_JACK_MAX so short-period noise
+        # can't over-amplify; falls back to legacy Ks shoaling on non-physical Komar inputs.
+        try:
+            jack_max = float(os.environ.get("SURF_V3_JACK_MAX", "2.0"))
+        except (TypeError, ValueError):
+            jack_max = 2.0
+        Hb = komar_breaker_height(Hs_surviving, Tp_s)
+        H = min(Hb, jack_max * Hs_surviving) if (Hb is not None and Hb > 0) \
+            else shoaling_coefficient(Tp_s, depth_m) * Hs_surviving
+    else:
+        H = shoaling_coefficient(Tp_s, depth_m) * Hs_surviving   # legacy v2 chain
+    H *= _height_exposure_factor(swell_from_deg, shore_normal_deg)
+    if magnet_factor and magnet_factor != 1.0 and _v3("SURF_V3_MAGNETS"):
+        H *= float(magnet_factor)                  # per-spot wave-magnet focusing (surf_magnets.py)
     if H >= cap:
         return float(cap), 'breaking'              # depth-limited on a shallow shelf cell
     return (float(H), 'shelf') if H <= Hs_m else (float(H), 'shoaling')

@@ -151,12 +151,15 @@ def test_estimate_surf_regimes():
     # open ocean (not coastal) -> offshore swell passes through, regime open_ocean (callers hide it)
     s, r = st.estimate_surf(2.0, 10.0, 2000.0, coastal=False)
     assert r == 'open_ocean' and s == pytest.approx(2.0)
-    # WIDE SHALLOW shelf (Florida-class): cross-shelf friction shrinks surf well below the offshore swell
+    # WIDE SHALLOW shelf (Florida-class): friction still reduces relative to a steep coast, but the
+    # v3 Komar breaker lets the surviving swell shoal back up at the break (the v2 "< 0.8x offshore"
+    # pin was the same-day-forecaster-proven FL underread — see test_surf_v3.py FL knee anchor).
     s, r = st.estimate_surf(2.0, 10.0, 24.0, coastal=True, shelf_width_km=100.0)
-    assert r in ('shelf', 'breaking') and s < 2.0 * 0.8
-    # steep / deep coast (no shelf to cross) -> passes ~through, never amplified above offshore
+    assert r in ('shelf', 'breaking', 'shoaling') and s <= 2.0 * 2.0
+    # steep / deep coast, long-period: v3 JACKS above offshore (Komar reef shoaling — the exact
+    # capability v2 lacked; bounded by SURF_V3_JACK_MAX). The old "never amplified" pin was the bug.
     s, r = st.estimate_surf(2.0, 12.0, 2000.0, coastal=True, shelf_width_km=0.0)
-    assert s == pytest.approx(2.0, rel=0.1) and s <= 2.0 + 1e-9
+    assert 2.0 <= s <= 2.0 * 2.0 + 1e-9
     # very shallow + big swell -> depth-limited breaking cap binds (period-dependent breaker index)
     s, r = st.estimate_surf(5.0, 14.0, 1.0, coastal=True, shelf_width_km=5.0)
     assert r == 'breaking' and s == pytest.approx(st.breaker_index(14.0) * 1.0, rel=1e-6)
@@ -170,7 +173,9 @@ def test_estimate_surf_wider_shelf_reduces_more():
     # THE key physics fix: a wider shelf (more cross-shelf friction) gives smaller surf for the same swell.
     narrow, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=20.0)
     wide, _ = st.estimate_surf(2.0, 10.0, 25.0, coastal=True, shelf_width_km=120.0)
-    assert wide < narrow <= 2.0 + 1e-9
+    # monotonicity is the physics under test; the absolute value may exceed offshore under the v3
+    # Komar jack (bounded by SURF_V3_JACK_MAX = 2x)
+    assert wide < narrow <= 2.0 * 2.0 + 1e-9
 
 
 def test_estimate_surf_open_ocean_passthrough():
@@ -238,7 +243,8 @@ def test_surf_transform_grid_band_masks_open_ocean():
     n_transformed, n_masked = st.surf_transform_grid(vecs, depth_fn, coastal_fn, width_fn)
     assert n_transformed == 1 and n_masked == 1
     # coastal cell: surf set BELOW the offshore swell (wide shelf reduces), still valid, u/v scaled by ratio
-    assert 0 < vecs[0].speed < 2.0 and vecs[0].is_valid is True
+    # v3 Komar can lift the coastal cell above offshore (bounded 2x) — the masking is the physics here
+    assert 0 < vecs[0].speed < 4.0 and vecs[0].is_valid is True
     assert vecs[0].u == pytest.approx(-vecs[0].v, abs=1e-9)   # was (1.0, -1.0) -> stays equal-and-opposite
     # open-ocean cell: transparency-masked (rendered transparent), offshore value left as-is
     assert vecs[1].is_valid is False

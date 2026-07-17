@@ -104,7 +104,11 @@ class _Vec:
 
 def _transform(reference_fn):
     from services.weather_pipeline.surf_rating import rating_transform_grid
-    vecs = [_Vec(28.5, -80.5, 0.8)]                              # ~2.5 ft offshore swell
+    # 0.4 m ≈ a genuinely SMALL day post-SURF-v3: the v3 Komar/recal chain reads 0.8 m offshore as a
+    # solid ~1.2 m surf day (accurate — the v2 number was the underread), which defeated this test's
+    # small-day premise. The scenario intent (local reference LIFTS a small-wave coast) needs surf
+    # below the 0.6 m local reference's neighborhood, so feed a knee-high day.
+    vecs = [_Vec(28.5, -80.5, 0.4)]                              # ~1.3 ft offshore swell
     n, _ = rating_transform_grid(
         vecs, lambda la, ln: 6.0, coastal_fn=lambda la, ln: True, width_fn=lambda la, ln: 20.0,
         wind_fn=lambda la, ln: (2.0, 90.0), shore_normal_fn=lambda la, ln: 270.0,

@@ -120,18 +120,32 @@ class PointResolutionService:
                 # same coastal points for GFS/EURO/ICON; open-ocean points get regime 'open_ocean' (hidden).
                 # shelf_width drives cross-shelf bottom friction: a wide shallow shelf (Florida) yields surf
                 # MUCH smaller than the offshore swell; a steep/deep coast passes most of it through.
-                surf, regime = estimate_surf(response.point.speed, response.point.period, depth,
-                                             coastal=is_coastal(lat, lng), shelf_width_km=shelf_width_km(lat, lng))
-                response.surf_height_m = round(surf, 4) if surf is not None else None
-                response.surf_regime = regime
-                response.shelf_depth_m = round(depth, 1) if depth is not None else None
                 # Seaward bearing for the surf-quality rating's offshore/onshore wind factor. Pure bathymetry
                 # (lru-cached, no fetch) so it adds no latency to the marine point. The frontend pairs it with
                 # the already-fetched wind point + surf height/period to compute the rating badge ([[surf_rating]]).
+                # Computed BEFORE estimate_surf (v3): the surf HEIGHT now also uses it for swell-angle exposure.
                 try:
                     response.shore_normal_deg = shore_normal_at(lat, lng)
                 except Exception:
                     response.shore_normal_deg = None
+                # SURF v3 per-spot wave-magnet focusing (sub-grid inlet/jetty amplification — e.g. New
+                # Smyrna Inlet reads ~1.4x its neighboring beach). /point lane only; the grid band stays
+                # cell-honest. Factor is inert unless SURF_V3_MAGNETS is on inside estimate_surf.
+                try:
+                    from services.weather_pipeline.surf_magnets import magnet_factor_at
+                    _magnet, _magnet_name = magnet_factor_at(lat, lng)
+                except Exception:
+                    _magnet, _magnet_name = 1.0, None
+                surf, regime = estimate_surf(response.point.speed, response.point.period, depth,
+                                             coastal=is_coastal(lat, lng), shelf_width_km=shelf_width_km(lat, lng),
+                                             swell_from_deg=response.point.direction,
+                                             shore_normal_deg=response.shore_normal_deg,
+                                             magnet_factor=_magnet)
+                if _magnet_name and surf is not None:
+                    logger.debug(f"[Surf v3] magnet '{_magnet_name}' x{_magnet} at ({lat},{lng})")
+                response.surf_height_m = round(surf, 4) if surf is not None else None
+                response.surf_regime = regime
+                response.shelf_depth_m = round(depth, 1) if depth is not None else None
             except Exception as _se:
                 logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
 
