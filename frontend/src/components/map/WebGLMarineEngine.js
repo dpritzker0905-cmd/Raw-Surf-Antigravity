@@ -42,12 +42,31 @@ function latToMercatorY(lat) {
 }
 
 // Zoom-based base heatmap opacity ladder (shared by the main heatmap pass and the BLEND-BOTH coarse base wash).
-function heatmapZoomOpacity(z) {
-  if (z <= 2) return 0.55;
-  if (z <= 5) return 0.55 + (z - 2) / 3 * 0.10;
-  if (z <= 8) return 0.65 + (z - 5) / 3 * 0.10;
-  if (z <= 12) return 0.75 + (z - 8) / 4 * 0.05;
-  return 0.85;
+// HEATMAP BASE OPACITY vs ZOOM. Multiplied by coarseFade / no-truth / rating-band / mult downstream.
+// FLATTENED + C0-CONTINUOUS (2026-07-17, per-zoom color-consistency audit): sampling one fixed ocean
+// point at every zoom showed its on-screen luminance swing 155→198 (red channel 77→161) — driven
+// mostly by THIS ramp (old range 0.55→0.85) plus a hard 0.05 DISCONTINUITY at z12 (0.80→0.85, the
+// documented "z12.05 flutter"). The height→color hue is zoom-invariant, so that swing is pure
+// opacity presentation. Tighten the range to [0.65, 0.80] (swing 0.30→0.15) and remove the step, so
+// the same wave height reads as a far more consistent color across zoom. Raising the WIDE-zoom floor
+// (0.55→0.65) moves AWAY from the documented regression class (blank/disappearing heatmap = too-LOW
+// opacity), and the data-driven guards that dim low-confidence coarse/cold fields — coarseFade (0.7
+// floor) and the no-truth window (0.3 floor) — are untouched and still apply on top. `win` is
+// injectable for tests. Kill switch → legacy curve: __RAW_DISABLE_FLAT_HEATMAP_OPACITY__.
+export function heatmapZoomOpacity(z, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_FLAT_HEATMAP_OPACITY__ === true) {
+    // Legacy curve (pre-2026-07-17): range [0.55, 0.85] with the z12 hard step. Kept for A/B revert.
+    if (z <= 2) return 0.55;
+    if (z <= 5) return 0.55 + (z - 2) / 3 * 0.10;
+    if (z <= 8) return 0.65 + (z - 5) / 3 * 0.10;
+    if (z <= 12) return 0.75 + (z - 8) / 4 * 0.05;
+    return 0.85;
+  }
+  if (z <= 3) return 0.65;
+  if (z <= 8) return 0.65 + (z - 3) / 5 * 0.10;    // 0.65 → 0.75
+  if (z <= 13) return 0.75 + (z - 8) / 5 * 0.05;   // 0.75 → 0.80 (continuous at z13; no step)
+  return 0.80;
 }
 
 // === RATING-BAND ZOOM-OUT CROSS-FADE (pure; exported for tests) ===
