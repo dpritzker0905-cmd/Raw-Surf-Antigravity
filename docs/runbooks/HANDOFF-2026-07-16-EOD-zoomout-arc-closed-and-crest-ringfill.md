@@ -163,7 +163,19 @@ waves→swell→swell 2→wind waves→wind overlay) zero animation collapses; t
 switch runs `blend0` until the NEW layer's coarse-global commits (the base is captured per-layer:
 same-layer parity) — in that window the wash AND crest ring-fill are disengaged, so a pan right
 after a layer switch re-opens a bare ring. Fix candidate for a future arc: small per-layer coarse-
-base LRU (2-3 entries) so switching back is instant; capture-on-switch otherwise. TOOLS NOTE:
+base LRU (2-3 entries) so switching back is instant; capture-on-switch otherwise.
+**DESIGN (2026-07-16 follow-up, ready to execute):** ⚠️ memory math first — each base set carries
+its OWN 4096×2048 world mask ≈ 32 MB GPU; a naive LRU-3 adds ~64 MB. Options: (a) LRU keyed
+`model|layer|flavor`, size lever `__RAW_COARSE_BASE_LRU_SIZE__` default 2, retarget
+`this._coarseBaseData` per frame from the LRU to match the resident (pointer swap only — wash/
+bridge/ring-fill downstream just work), evict-free only on eviction and NEVER the displayed set;
+(b) SHARED world mask across sets (identical geography!) — needs ref-count discipline in
+`_freeCoarseBase` (the free paths delete per-set masks; sharing without refcounts = the classic
+double-free/use-after-free minefield) — bigger win, more care; (c) capture-on-switch prefetch (no
+extra GPU memory, ~1-2 s gap remains on warm CDN). RECOMMENDATION: (a) at size 2 first
+(instrument GPU estimate before/after), then (b) as a follow-up if mobile memory complains.
+⚠️ Truth rule: never bridge one layer's base under another layer's view — the parity check stays.
+Execute with full instrument-first discipline (texture lifecycle = regression graveyard). TOOLS NOTE:
 zoomlab now has `staircase` and `layers` scenarios; for intra-frame GL truth beyond draw-site
 telemetry, adopt Spector.js (npm `spectorjs`, embeddable standalone) as the escalation tier.
 
