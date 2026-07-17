@@ -164,6 +164,16 @@ switch runs `blend0` until the NEW layer's coarse-global commits (the base is ca
 same-layer parity) — in that window the wash AND crest ring-fill are disengaged, so a pan right
 after a layer switch re-opens a bare ring. Fix candidate for a future arc: small per-layer coarse-
 base LRU (2-3 entries) so switching back is instant; capture-on-switch otherwise.
+**✅ SHIPPED `01f13f30` (option a+b combined):** LRU cap 6 keyed model|layer|flavor with the SHARED
+world mask (encoder `reuseMaskTex` + `__rsRefs` refcount in `_freeCoarseBase` — one ~32 MB mask
+serves all sets, live-verified `sameMaskTex:true refs:2`); render-loop retarget follows the
+resident (live-verified across switches, same engine); `clearBuffers` RETAINS the LRU (it fires on
+every single-select layer switch — this was the hidden second root of switch-back blend0), true
+teardown frees in `dispose()`. Kill `__RAW_DISABLE_COARSE_BASE_LRU__`; telemetry
+`__RAW_GPU__.coarseBaseLru`. Honest note: the final blend-ON-with-cached-base frame wasn't
+reproducible in the SwiftShader harness (regional commits lagged past the window) — parity fields
+were all true with the cached base, so engagement is deterministic on regional commit; verify once
+on a real-browser session. Original design notes below.
 **DESIGN (2026-07-16 follow-up, ready to execute):** ⚠️ memory math first — each base set carries
 its OWN 4096×2048 world mask ≈ 32 MB GPU; a naive LRU-3 adds ~64 MB. Options: (a) LRU keyed
 `model|layer|flavor`, size lever `__RAW_COARSE_BASE_LRU_SIZE__` default 2, retarget
