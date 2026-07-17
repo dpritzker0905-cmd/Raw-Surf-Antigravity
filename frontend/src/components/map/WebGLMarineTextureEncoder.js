@@ -519,7 +519,14 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       // mask with a mercator-projected mask_v (built for renderMaskToCanvas output); the grid mask is linear in
       // latitude, so sampling it with mask_v reads the wrong row (e.g. lat 28° → ~lat 7°) and masks the wash out
       // entirely. Render a dedicated mercator mask for THIS grid's bounds, owned by the base (never engine-cached).
-      if (landGeoJSON) {
+      if (opts && opts.reuseMaskTex) {
+        // §2d SHARED WORLD MASK: every coarse-global base carves the SAME geography — reuse the
+        // caller-provided mask texture (ref-counted by the engine's _freeCoarseBase) instead of
+        // rasterizing + uploading another ~32 MB copy. NOT pushed to allocatedTextures: ownership
+        // stays with the refcount, and the error-cleanup path must not delete a shared texture.
+        maskTex = opts.reuseMaskTex;
+        standaloneMaskDims = opts.reuseMaskDims || null;
+      } else if (landGeoJSON) {
         try {
           const maskCanvas = renderMaskToCanvas(landGeoJSON, bounds);
           // Recorded on the returned set (2026-07-16 staircase forensics): the damp sites need to

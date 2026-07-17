@@ -633,7 +633,13 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     const blendEnabled = (typeof window === 'undefined') || window.__RAW_DISABLE_BLEND_BOTH__ !== true;
     if (blendEnabled && newWaveData && isCoarseGlobalGrid(waveGrid)) {
       const key = coarseBaseKey(waveGrid);
-      if (!this._coarseBaseData || this._coarseBaseData.__key !== key) {
+      // §2d: the dedupe consults the WHOLE LRU — an identical grid already cached under any slot
+      // just retargets the pointer (no re-encode). Kill-switch path keeps the single-slot check.
+      const _lruHit = this._coarseBaseLruEnabled() && this._coarseBaseLru
+        ? [...this._coarseBaseLru.values()].find((b) => b.__key === key) : null;
+      if (_lruHit) {
+        this._coarseBaseData = _lruHit;
+      } else if (!this._coarseBaseData || this._coarseBaseData.__key !== key) {
         this._captureCoarseBase(gl, waveGrid, key);
       }
     }
@@ -856,6 +862,39 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // JUST recorded — the guard call inside setWaveData reads these same fields, so acceptance here is
     // authoritative. This releases the wedge where a coarse commit was rejected against a stale zoom
     // and the commit dedup then blocked every retry (stranded 3° regional at band zoom, live repro ×2).
+    // §2d COARSE-BASE LRU RETARGET: point the displayed base slot at the LRU entry matching the
+    // RESIDENT's identity (pointer swap only — wash/bridge/ring-fill downstream read the slot).
+    // Runs before the swap blocks and the blend computation so every consumer this frame agrees.
+    if (this._coarseBaseLruEnabled() && this._coarseBaseLru && this._coarseBaseLru.size) {
+      const _wgNow = this._waveData && this._waveData.waveGrid;
+      let _surfNow = false;
+      try {
+        _surfNow = (typeof window !== 'undefined') && ((window.__SURF_MODE__ !== undefined)
+          ? !!window.__SURF_MODE__
+          : !!(window.localStorage && window.localStorage.getItem('__SURF_MODE__') === 'true'));
+      } catch (e) { _surfNow = false; }
+      const _pickKey = pickCoarseBaseLruKey(
+        [...this._coarseBaseLru.keys()],
+        (_wgNow && _wgNow.__sourceModel) || 'GFS',
+        (_wgNow && _wgNow.__componentLayer) || 'waves',
+        _surfNow);
+      if (_pickKey) {
+        const _picked = this._coarseBaseLru.get(_pickKey);
+        if (_picked && _picked !== this._coarseBaseData) {
+          this._coarseBaseData = _picked;
+          // LRU touch: mark most-recently-used so eviction prefers the layer NOT on screen.
+          this._coarseBaseLru.delete(_pickKey);
+          this._coarseBaseLru.set(_pickKey, _picked);
+        }
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.coarseBaseLru = {
+          keys: [...this._coarseBaseLru.keys()],
+          displayed: _pickKey || (this._coarseBaseData ? coarseBaseLruKey(this._coarseBaseData.waveGrid) : null),
+        };
+      }
+    }
+
     // Captured BEFORE the two in-frame resident swaps below (self-heal accept + zoom-out bridge):
     // the layer computed this frame's `mult` for THIS resident — if either swap replaces it, that
     // gate verdict is stale for the painted frame (see MULT REALIGN below).
@@ -2608,6 +2647,45 @@ export function resolveCrestRingFill(opts) {
   return { enabled: true, reason: 'ok' };
 }
 
+// === §2d PER-LAYER COARSE-BASE LRU (2026-07-16, layer-interaction pin: every layer switch ran
+// blend0 — no wash, no crest ring-fill — until the NEW layer's coarse-global commits, because the
+// single base slot only ever holds ONE layer's world field). Keep a tiny LRU of base sets keyed by
+// model|layer|flavor; the render loop RETARGETS this._coarseBaseData to the resident's identity
+// (pointer swap only), so switching back to a cached layer re-engages the wash/ring-fill instantly.
+// Memory-bounded: each set carries its own ~32 MB world mask, so cap defaults to 2
+// (__RAW_COARSE_BASE_LRU_SIZE__ lever); eviction frees oldest, NEVER the displayed set. Truth rule
+// intact: blendEngaged's model/layer parity still decides what draws — the LRU only widens what is
+// AVAILABLE. Kill: __RAW_DISABLE_COARSE_BASE_LRU__ (restores the single-slot behavior verbatim).
+export function coarseBaseLruKey(waveGrid) {
+  return [
+    (waveGrid && waveGrid.__sourceModel) || 'GFS',
+    (waveGrid && waveGrid.__componentLayer) || 'waves',
+    (waveGrid && waveGrid.ratingMode) ? 'r1' : 'r0',
+  ].join('|');
+}
+// Which LRU entry should display for the resident? Exact flavor first; the OTHER flavor of the
+// same model|layer is still truthful field data (§0e keeps the main texture honest on rating
+// grids), so it beats a blank ring. Cross-model/layer never matches (truth rule). Pure + tested.
+export function pickCoarseBaseLruKey(keys, model, layer, surfFlagOn) {
+  const want = `${model}|${layer}|${surfFlagOn ? 'r1' : 'r0'}`;
+  if (keys.includes(want)) return want;
+  const alt = `${model}|${layer}|${surfFlagOn ? 'r0' : 'r1'}`;
+  return keys.includes(alt) ? alt : null;
+}
+// Eviction decision (pure + tested): keys oldest→newest AFTER the new insert; returns the key to
+// evict, or null. Never evicts `displayedKey` or the newest entry.
+export function coarseBaseLruEvict(keys, cap, displayedKey) {
+  if (keys.length <= cap) return null;
+  for (const k of keys) {
+    if (k !== displayedKey && k !== keys[keys.length - 1]) return k;
+  }
+  return null;
+}
+
+WebGLMarineEngine.prototype._coarseBaseLruEnabled = function() {
+  return (typeof window === 'undefined') || window.__RAW_DISABLE_COARSE_BASE_LRU__ !== true;
+};
+
 WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
   if (!gl) return;
   // Encode the NEW base BEFORE freeing the old (see resolveCoarseBaseSwap) so a failed re-encode never nulls
@@ -2615,10 +2693,30 @@ WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
   const atomic = (typeof window === 'undefined') || window.__RAW_DISABLE_ATOMIC_COARSE_BASE__ !== true;
   if (!atomic) this._freeCoarseBase(gl);
   let base = null;
+  // §2d SHARED WORLD MASK: coarse-global bases carve identical geography — if any cached set has
+  // EXACTLY the same bounds, reuse its mask texture (ref-counted in _freeCoarseBase) instead of
+  // rasterizing + uploading another ~32 MB copy. This is what makes a cap of 6 affordable: the
+  // per-set cost drops to the tiny wave/chl/bath textures.
+  let _shareSrc = null;
+  if (this._coarseBaseLruEnabled() && this._coarseBaseLru && waveGrid && waveGrid.bounds) {
+    for (const b of this._coarseBaseLru.values()) {
+      const sb = b && b.waveGrid && b.waveGrid.bounds;
+      if (b && b.u_oceanMaskTexture && sb &&
+          sb.west === waveGrid.bounds.west && sb.east === waveGrid.bounds.east &&
+          sb.south === waveGrid.bounds.south && sb.north === waveGrid.bounds.north) {
+        _shareSrc = b; break;
+      }
+    }
+  }
   try {
     // Pass the land GeoJSON so the standalone encode renders a high-res MERCATOR ocean mask (the heatmap shader
     // samples mask_v in mercator; a grid mask would be read at the wrong latitude and hide the wash).
-    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, { standalone: true });
+    base = encodeMarineTexture(gl, waveGrid, this._landGeoJSON || null, this, _shareSrc
+      ? { standalone: true, reuseMaskTex: _shareSrc.u_oceanMaskTexture, reuseMaskDims: _shareSrc.__maskCanvasDims }
+      : { standalone: true });
+    if (base && base.u_waveTexture && _shareSrc && base.u_oceanMaskTexture === _shareSrc.u_oceanMaskTexture) {
+      base.u_oceanMaskTexture.__rsRefs = (base.u_oceanMaskTexture.__rsRefs || 1) + 1;
+    }
   } catch (e) {
     console.warn('[WebGLMarineEngine] coarse-base encode failed:', e && e.message);
     base = null;
@@ -2629,24 +2727,66 @@ WebGLMarineEngine.prototype._captureCoarseBase = function(gl, waveGrid, key) {
     base.__sourceModel = waveGrid.__sourceModel || 'GFS';
     base.__componentLayer = waveGrid.__componentLayer || 'waves';
   }
+  // §2d LRU path: insert the new set under its model|layer|flavor identity; supersede any same-
+  // identity entry (free AFTER the pointer swap, the atomic-swap lesson); evict past the cap.
+  if (this._coarseBaseLruEnabled()) {
+    if (!(base && base.u_waveTexture)) return;   // failed encode: keep everything as-is (atomic lesson)
+    const lru = this._coarseBaseLru || (this._coarseBaseLru = new Map());
+    const lruKey = coarseBaseLruKey(waveGrid);
+    const superseded = lru.get(lruKey) || null;
+    lru.delete(lruKey);            // re-insert as most-recent
+    lru.set(lruKey, base);
+    this._coarseBaseData = base;
+    if (superseded && superseded !== base) this._freeCoarseBase(gl, superseded);
+    // Cap 6 covers every marine layer + both flavors of the active one; affordable because the
+    // ~32 MB world mask is SHARED across sets (see the reuseMaskTex leg + freeOne refcount).
+    const cap = (typeof window !== 'undefined' && Number(window.__RAW_COARSE_BASE_LRU_SIZE__) > 0)
+      ? Number(window.__RAW_COARSE_BASE_LRU_SIZE__) : 6;
+    const evictKey = coarseBaseLruEvict([...lru.keys()], cap, lruKey);
+    if (evictKey) {
+      const evicted = lru.get(evictKey);
+      lru.delete(evictKey);
+      if (evicted && evicted !== this._coarseBaseData) this._freeCoarseBase(gl, evicted);
+    }
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.coarseBaseLru = { keys: [...lru.keys()], displayed: lruKey };
+    }
+    return;
+  }
   const { next, toFree } = resolveCoarseBaseSwap(this._coarseBaseData, (base && base.u_waveTexture) ? base : null, atomic);
   this._coarseBaseData = next;
   if (toFree) this._freeCoarseBase(gl, toFree);   // free the superseded base only AFTER the pointer swap
 };
 
-// Free a coarse-base texture set. `obj` (optional) frees a SPECIFIC superseded base (the atomic-swap
-// path in _captureCoarseBase) WITHOUT touching this._coarseBaseData; omit it to free + null the resident.
+// Free a coarse-base texture set. `obj` (optional) frees a SPECIFIC superseded/evicted set (the
+// caller must have already removed it from the LRU map) WITHOUT touching this._coarseBaseData.
+// No-arg = free EVERYTHING: the displayed set plus every §2d LRU entry, map cleared — a freed set
+// must never remain reachable from the map (use-after-free on the next retarget).
 WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
-  const b = obj || this._coarseBaseData;
-  if (!b) return;
-  if (!obj) this._coarseBaseData = null;
-  if (!gl) return;
-  try {
-    if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this);
-    if (b.u_chlorophyllTexture) safeDeleteTexture(gl, b.u_chlorophyllTexture, this);
-    if (b.u_bathymetryTexture) safeDeleteTexture(gl, b.u_bathymetryTexture, this);
-    if (b.u_oceanMaskTexture) safeDeleteTexture(gl, b.u_oceanMaskTexture, this);
-  } catch (e) {}
+  const freeOne = (b) => {
+    if (!b || !gl) return;
+    try {
+      if (b.u_waveTexture) safeDeleteTexture(gl, b.u_waveTexture, this);
+      if (b.u_chlorophyllTexture) safeDeleteTexture(gl, b.u_chlorophyllTexture, this);
+      if (b.u_bathymetryTexture) safeDeleteTexture(gl, b.u_bathymetryTexture, this);
+      if (b.u_oceanMaskTexture) {
+        // §2d shared world mask: ref-counted across LRU sets — delete only when the last
+        // referencing set is freed (double-free here = the classic minefield).
+        const m = b.u_oceanMaskTexture;
+        if ((m.__rsRefs || 1) > 1) { m.__rsRefs -= 1; }
+        else { safeDeleteTexture(gl, m, this); }
+      }
+    } catch (e) {}
+  };
+  if (obj) { freeOne(obj); return; }
+  const seen = new Set();
+  if (this._coarseBaseData) { seen.add(this._coarseBaseData); }
+  if (this._coarseBaseLru) {
+    for (const b of this._coarseBaseLru.values()) seen.add(b);
+    this._coarseBaseLru.clear();
+  }
+  this._coarseBaseData = null;
+  for (const b of seen) freeOne(b);
 };
 
 // WIDE-VIEW OVERLAY COMPOSITING MODE (2026-07-15, live-proven continent crest land-bleed on
@@ -2870,7 +3010,13 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
     residentDims: this._waveData && this._waveData.waveGrid
       ? `${this._waveData.waveGrid.cols}x${this._waveData.waveGrid.rows}` : null,
   });
-  this._freeCoarseBase(gl);
+  // §2d: the coarse-base LRU deliberately SURVIVES resident clears — clearBuffers fires on every
+  // layer deactivation (single-select switches!), and freeing the bases here was exactly why
+  // switch-back ran blend0/no-ring-fill until a fresh coarse-global commit (live layers-trace:
+  // "blend ON from NEVER" on the return block). blendEngaged's model/layer parity decides what
+  // PAINTS, so retained foreign-layer bases can never draw wrong data. True teardown frees the
+  // LRU in dispose(). Kill-switch (single-slot) path keeps the legacy free.
+  if (!this._coarseBaseLruEnabled()) this._freeCoarseBase(gl);
   if (this._waveData) {
     if (this._waveData.u_waveTexture && this._waveData.u_waveTexture !== this._residentWaveTex) {
       safeDeleteTexture(gl, this._waveData.u_waveTexture, this);
@@ -2892,6 +3038,9 @@ WebGLMarineEngine.prototype.clearBuffers = function(gl) {
   }
 };
 WebGLMarineEngine.prototype.dispose = function(gl) {
+  // §2d: clearBuffers (called inside disposeEngine) retains the coarse-base LRU across layer
+  // switches — TRUE teardown must free it here or the world-mask set leaks per map lifecycle.
+  this._freeCoarseBase(gl);
   disposeEngine(this, gl);
 };
 
