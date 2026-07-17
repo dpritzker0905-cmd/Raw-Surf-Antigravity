@@ -201,10 +201,14 @@ decodedOmSampler) or a dawn-fog region. (4) Precip/Radar weak deltas = likely ho
 same region-targeted check applies. ACTIONABLE QUEUE: ✅ OM-layer LOADING spinner SHIPPED `9d994ca5` (Loader2 + aria-busy + sr-only
 "(loading)", both button layouts; live-verified: event true→false ~6 s, spinner screenshot) ·
 ✅ pressure color-scale contrast SHIPPED `790c9f8a` (1009/1018 breakpoints, all three themes;
-same-camera FL A/B: untinted → amber ~1017 hPa cast) · STILL OPEN: fog decoded-value confirmation
-(dawn-fog region or `__FETCH_OM_TILE__` sample) · convective-region precip/radar truth check ·
-"Clouds" button not found (naming/gating) · user-side: hard-refresh (stale SW bundle) + layers are
-single-select.
+same-camera FL A/B: untinted → amber ~1017 hPa cast) · ✅ ARC CLOSED — truth-region checks (screenshots in scratchpad `truth_*.png`): **Fog PAINTS**
+(Bering Sea/Aleutians July sea-fog field, visible plume structure) · **Precip PAINTS** (green/
+yellow convective cells NW Shreveport + LA showers) · **Radar PAINTS** (textbook reflectivity line,
+red cores, east TX/AR) — the earlier FL "weak" deltas were honest sparse echoes. "Clouds" was never
+a layer (audit-list artifact; Satellite = cloud_cover). **FULL LAYER MATRIX VERIFIED WORKING:**
+marine ×4 · wind · satellite · air temp · water temp (spinner ships the decode wait) · pressure
+(contrast shipped) · fog · precip · radar. User-side notes stand: hard-refresh (stale SW bundle);
+layers are single-select.
 Historical narrowing chain (kept for the method): the metadata gate REFETCHES live metadata before URL generation
 (useOpenMeteoTileUrls.js:525 `fetchMetadata`) and the audit SAW tile fetches — so the gate passed
 and URLs generated. With fetch ✓ decode-path silent ✓ zero errors ✓ zero pixels ✗, the blocker is
