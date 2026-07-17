@@ -9,6 +9,7 @@ import json
 import logging
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import Profile, PaymentTransaction, CreditTransaction
 from utils.credits import get_balance, get_transaction_history, add_credits
 
@@ -24,7 +25,7 @@ class CreditPurchaseRequest(BaseModel):
     origin_url: str
 
 @router.post("/credits/purchase")
-async def purchase_credits(user_id: str, data: CreditPurchaseRequest, db: AsyncSession = Depends(get_db)):
+async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     profile = result.scalar_one_or_none()
     if not profile:

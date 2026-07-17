@@ -53,8 +53,8 @@ class UpdateSplitsRequest(BaseModel):
 
 @router.post("/bookings/create-with-stripe")
 async def create_booking_with_stripe(
-    user_id: str,
     data: CreateBookingWithStripeRequest,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""

@@ -260,8 +260,8 @@ class SendCrewRequestsPayload(BaseModel):
 @router.post("/bookings/{booking_id}/send-crew-requests")
 async def send_crew_payment_requests(
     booking_id: str,
-    user_id: str,
     data: SendCrewRequestsPayload,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

@@ -18,6 +18,7 @@ import stripe
 from utils.geo import haversine_distance
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import (
     Profile, DispatchRequest, DispatchRequestParticipant,
     DispatchNotification, DispatchRequestStatusEnum, SurfSpot,
@@ -514,7 +515,7 @@ async def get_dispatch_crew_status(
 @router.get("/{dispatch_id}/verify-payment")
 async def verify_dispatch_payment(
     dispatch_id: str,
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

@@ -15,6 +15,7 @@ from datetime import datetime, timezone
 import json
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from deps.admin_auth import get_current_admin
 from models import (
     Profile, GearCatalog, GearPurchase, GearCategory, 
@@ -198,7 +199,7 @@ async def get_gear_progress(
 @router.post("/gear-hub/{item_id}/purchase")
 async def purchase_gear_with_credits(
     item_id: str,
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     db: AsyncSession = Depends(get_db)
 ):
     """

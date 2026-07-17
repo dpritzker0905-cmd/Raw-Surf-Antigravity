@@ -12,6 +12,7 @@ import os
 import logging
 
 from database import get_db
+from core.security import get_user_id_from_jwt_or_query
 from models import Profile, PaymentTransaction
 
 router = APIRouter()
@@ -575,7 +576,7 @@ async def get_photographer_pricing(
 
 @router.post("/payments/identity/create-session")
 async def create_identity_verification_session(
-    user_id: str,
+    user_id: str = Depends(get_user_id_from_jwt_or_query),
     return_url: str = None,
     db: AsyncSession = Depends(get_db)
 ):

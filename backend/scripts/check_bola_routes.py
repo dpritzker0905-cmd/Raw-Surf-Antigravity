@@ -125,12 +125,12 @@ def main():
     fixed = sorted(baseline - current)
     print(f"BOLA route scan: {len(current)} bare-user_id route(s); baseline {len(baseline)}.")
     if fixed:
-        print(f"\n✅ {len(fixed)} baseline route(s) now clean — tighten the ratchet with "
+        print(f"\n[TIGHTEN] {len(fixed)} baseline route(s) now clean — tighten the ratchet with "
               f"`python scripts/check_bola_routes.py --write-baseline`:")
         for r in fixed[:20]:
             print(f"   - {r}")
     if new:
-        print(f"\n❌ {len(new)} NEW route(s) accept a bare `user_id` without an auth dependency "
+        print(f"\n[FAIL] {len(new)} NEW route(s) accept a bare `user_id` without an auth dependency "
               f"(OWASP API1 BOLA — see docs/runbooks/HANDOFF-2026-07-12-USERID-AUTH-ARCHITECTURE-BOLA-REVIEW.md):")
         for r in new:
             print(f"   - {r}")
