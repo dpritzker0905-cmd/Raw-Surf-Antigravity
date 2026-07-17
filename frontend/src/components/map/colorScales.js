@@ -136,13 +136,19 @@ export var BASE_CUSTOM_COLOR_SCALES = {
   pressure_msl: {
     type: 'breakpoint',
     unit: 'hPa',
-    breakpoints: [970, 990, 1005, 1013, 1025, 1045],
+    // 1009/1018 stops added 2026-07-16 (layer audit: the field was INVISIBLE at everyday values —
+    // the old 1005→1013→1025 ramp left ±12 hPa around neutral effectively transparent, and most of
+    // the planet most of the time sits inside that band; users read the layer as broken). Neutral
+    // 1013 stays transparent by design; the invisible band narrows to ~±2 hPa.
+    breakpoints: [970, 990, 1005, 1009, 1013, 1018, 1025, 1045],
     colors: [
       [147, 51, 234, 0.7],
       [59, 130, 246, 0.6],
-      [34, 211, 238, 0.4],
-      [16, 185, 129, 0.3],
-      [234, 179, 8, 0.5],
+      [34, 211, 238, 0.45],
+      [45, 212, 191, 0.4],
+      [16, 185, 129, 0.0],
+      [234, 179, 8, 0.4],
+      [234, 179, 8, 0.55],
       [239, 68, 68, 0.7]
     ]
   },
@@ -203,7 +209,9 @@ export function applyThemePressureScale(theme) {
       [79, 70, 229, 0.95],   // 970 hPa (deep ocean purple-indigo)
       [14, 116, 144, 0.85],  // 990 hPa (desaturated sea blue)
       [103, 232, 249, 0.70], // 1005 hPa (light sea-mist)
+      [45, 212, 191, 0.45],  // 1009 hPa (teal — everyday lows now read; 2026-07-16 audit)
       [253, 252, 248, 0.0],  // 1013 hPa (neutral transparent)
+      [245, 158, 11, 0.45],  // 1018 hPa (amber — everyday highs now read)
       [217, 119, 6, 0.75],   // 1025 hPa (desaturated terracotta)
       [180, 83, 9, 0.95]     // 1045 hPa (warm coastal bronze)
     ];
@@ -212,8 +220,10 @@ export function applyThemePressureScale(theme) {
     colors = [
       [99, 102, 241, 0.95],  // 970 hPa (clear indigo)
       [59, 130, 246, 0.85],  // 990 hPa (soft sky blue)
-      [191, 219, 254, 0.70], // 1005 hPa (light ice blue)
+      [147, 197, 253, 0.70], // 1005 hPa (readable sky blue — was near-white ice, invisible on the light basemap)
+      [96, 165, 250, 0.45],  // 1009 hPa (mid blue — everyday lows now read; 2026-07-16 audit)
       [255, 255, 255, 0.0],  // 1013 hPa (neutral transparent)
+      [252, 211, 77, 0.45],  // 1018 hPa (soft amber — everyday highs now read)
       [245, 158, 11, 0.75],  // 1025 hPa (solar amber-gold)
       [239, 68, 68, 0.95]    // 1045 hPa (desaturated coral red)
     ];
@@ -223,7 +233,9 @@ export function applyThemePressureScale(theme) {
       [147, 51, 234, 0.95],  // 970 hPa (electric violet)
       [37, 99, 235, 0.85],   // 990 hPa (neon blue)
       [6, 182, 212, 0.70],   // 1005 hPa (vibrant cyan-blue)
+      [34, 211, 238, 0.45],  // 1009 hPa (cyan — everyday lows now read; 2026-07-16 audit)
       [15, 23, 42, 0.0],     // 1013 hPa (neutral transparent)
+      [251, 191, 36, 0.45],  // 1018 hPa (amber — everyday highs now read)
       [245, 158, 11, 0.75],  // 1025 hPa (glowing amber-gold)
       [220, 38, 38, 0.95]    // 1045 hPa (neon crimson)
     ];
