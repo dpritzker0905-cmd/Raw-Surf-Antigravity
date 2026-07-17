@@ -167,6 +167,30 @@ base LRU (2-3 entries) so switching back is instant; capture-on-switch otherwise
 zoomlab now has `staircase` and `layers` scenarios; for intra-frame GL truth beyond draw-site
 telemetry, adopt Spector.js (npm `spectorjs`, embeddable standalone) as the escalation tier.
 
+## 2e. IN FLIGHT — non-marine layer audit (user: Precip/Satellite/Fog/Pressure/Temps "not loading")
+zoomlab `alllayers` scenario (toggles every layer; per-layer network + pixel-delta + console;
+results in the scratchpad `finalpass/alllayers_results.json`, z7 FL coast, 2026-07-16 ~23Z):
+**Satellite −57 L (WORKS)** · **Air Temp −24 L (WORKS)** · Radar −4.9 / Precip −2.9 (weak — may be
+legit sparse echoes; verify against a stormy region) · **Water Temp 0.0 L DEAD** (86 tile fetches,
+paints nothing; requests `ncep_gfs013` — an ATMOSPHERIC model for SST = wrong dataset, the OM-tile
+model-cutover landmine) · **Fog 0.0 L DEAD** (37 fetches `ncep_gfs025`, nothing) · **Pressure
++1.1 L DEAD-ish** (24 fetches, nothing visible) · **Clouds: BUTTON NOT FOUND** (name/gating).
+Zero console errors — the OM layer paints transparently when the requested VARIABLE doesn't exist
+in the tile. **NARROWED (same session):** the LayerRegistry mappings are CORRECT and the CDN hosts
+everything — live `latest.json` probes: `ncep_gfs013` HAS `surface_temperature` (water_temp's var)
++ `temperature_2m`; `ncep_gfs025` HAS `pressure_msl` + `visibility`; the exact `.om` files the dead
+layers fetched return 206 healthy. And Air Temp PAINTS from the SAME gfs013 file Water Temp fails
+on → the failure is PER-VARIABLE downstream. Prime suspect: the metadata GATE — the hardcoded
+`DEFAULT_ATMOSPHERIC_VARS` (LayerRegistry.js:320, backs MODEL_METADATA_CACHE for gfs013/gfs025)
+**omits `surface_temperature` AND `temperature_2m`** (contains visibility/pressure_msl/fog though);
+temperature works anyway, so the gate is either overridden by a live metadata fetch on some paths
+or checked per-layer inconsistently. ⚠️ Second suspect: the tile library's registered COLOR SCALE
+per variable (the 07-11 water_temp note: the lib ships an alias scale — if no scale is registered
+under the REQUESTED variable name, it renders transparent silently). NEXT PROBE: find the gate +
+scale-resolution branch in `useOpenMeteoTileUrls.js` / the `@openmeteo/weather-map-layer` config,
+instrument which decision fires for water_temp/fog/pressure vs temperature, fix, re-run `alllayers`
+(acceptance: dL<−10 per layer over water; convective-region check for precip/radar).
+
 ## 3. OTHER OPEN (smaller)
 - **Rating-presentation restyle**: promotion commits the UNRATED coarse under a rated view → one
   vivid→rating restyle when the rated wide clip lands. Candidate: rating-parity coarse-base capture.

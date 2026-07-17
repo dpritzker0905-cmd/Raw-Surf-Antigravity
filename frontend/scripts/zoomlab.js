@@ -205,6 +205,44 @@ async function main() {
       log(`toggle ${name}: ${ok}`);
       await page.waitForTimeout(9000);
     }
+  } else if (scenario === 'alllayers') {
+    // ALL-LAYERS AUDIT (2026-07-16 user: Precip/Satellite/Fog/Pressure/Air Temp/Water Temp not
+    // painting): toggle every weather layer; per layer record network activity, pixel change vs
+    // the pre-toggle frame, and console errors — classifies dead layers by failure mode.
+    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
+    await page.waitForTimeout(5000);
+    const reqLog = [];
+    page.on('request', (r) => { const u = r.url(); if (!/localhost:3009\/static|hot-update|ne_\d+m|fonts|basemaps|\.png$|openfreemap|sentry/i.test(u)) reqLog.push(u.slice(0, 140)); });
+    const snapshotL = () => page.evaluate(() => {
+      const src = window.map.getCanvas();
+      const cv = document.createElement('canvas'); cv.width = 160; cv.height = 100;
+      const ctx = cv.getContext('2d', { willReadFrequently: true });
+      return new Promise((res) => {
+        const fn = () => { window.map.off('render', fn); ctx.drawImage(src, 0, 0, 160, 100); const d = ctx.getImageData(0, 0, 160, 100).data; let s = 0; for (let i = 0; i < d.length; i += 16) s += 0.2126*d[i]+0.7152*d[i+1]+0.0722*d[i+2]; res(+(s / (d.length/16)).toFixed(1)); };
+        window.map.on('render', fn); window.map.triggerRepaint();
+      });
+    });
+    const results = {};
+    const clickBtn = (n) => page.evaluate((name) => {
+      const b = Array.from(document.querySelectorAll('button')).find(
+        (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim()) === name);
+      if (b) { b.click(); return true; } return false;
+    }, n);
+    await clickBtn('Waves'); // marine OFF so other layers read clean
+    await page.waitForTimeout(2000);
+    for (const name of ['Precip', 'Radar', 'Satellite', 'Fog', 'Pressure', 'Air Temp', 'Water Temp', 'Clouds', 'Wind']) {
+      const before = await snapshotL();
+      const req0 = reqLog.length;
+      const found = await clickBtn(name);
+      await page.waitForTimeout(11000);
+      const after = await snapshotL();
+      const reqs = reqLog.slice(req0);
+      results[name] = { found, dL: +(after - before).toFixed(1), nReq: reqs.length, reqSample: reqs.slice(0, 3) };
+      await clickBtn(name);   // toggle back off
+      await page.waitForTimeout(2500);
+    }
+    fs.writeFileSync(path.join(outdir, 'alllayers_results.json'), JSON.stringify({ results, consoleErrors: consoleErrors.slice(0, 25) }, null, 1));
+    log('alllayers results saved');
   } else if (scenario === 'pan_coverage') {
     // Zoom to mid-level, then drag-pan east repeatedly like a user exploring.
     await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
