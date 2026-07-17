@@ -187,6 +187,29 @@ curtain class lives OUTSIDE the engine; (2) `getStyle().layers` omits custom lay
 INSIDE `map.on('render')`; (4) shader debug modes (`__GPU_DEBUG__.mode='uv'|'mask'|'grid'`)
 instantly split "not drawn" from "drawn wrong".
 
+### 5h. `f74214fd` RATING-TOGGLE DIRECTION FLIP + FAINT PARTICLES (user z8.63) — interlude killed
+Pin: WARM caches → both flavors resolve the SAME dynamic product (directions identical; the 07-15
+"rating does not corrupt direction" re-confirmed — apply_surf_overlay preserves its input u/v).
+COLD → the flavors resolve DIFFERENT TIERS (unrated→global_mid 2° blockmean + low dir_confidence
+= the deliberate crest damp = the FAINT phase; surf→regional tile 0.25° via surf regional-prefer)
+— tier-vs-tier direction spread is real physics (ICON one-source small; EURO coarse=gfs_estimated
+vs ECMWF fine large; GFS blockmean large). THE WEDGE: the mid interim sat resident 15 s+ while the
+honest fine series page landed in the FE cache at +4.4 s and NOTHING committed it — the settle
+sharpener's clamp class keys on coarse-GLOBAL (span≥359°); the clipped mid passes as "regional"
+and escapes every upgrade path at a settled camera. ⚠️ FALSIFIED fix path: honest-lane
+regional-prefer = the reverted apply_marine_intersect_prefer class (sticky clipped rect) — do not
+revisit. FIX (fetcher lanes only, scrub-settle untouched): (1) flavor-cache fast path — toggle
+re-drives commit the flavor-matching series frame instantly, the late coarse network result then
+self-rejects via no-downgrade; (2) series-arrival upgrade lane — `marine_series_revalidated` →
+'series_upgrade' cache-only re-drive committing missing-flavor OR ≥1.25×-finer frames, never
+network, never releases in-flight fetches, loop-safe; (3) closure-staleness fix (updateMarineGrid
+must read marineDataRef.current — its useCallback marineData capture is mount-stale). Ring
+`flavor_cache_fastpath`/`flavor_fastpath_miss`; kill `__RAW_DISABLE_FLAVOR_CACHE_FASTPATH__`.
+PROOF: upgrade committed at t+4 s of a previously-15 s+ stuck window; rating-ON regression 10.3/
+mult0 0; suite 1072. REMAINING (queued): backend cold-supply latency for fresh viewports (1-CPU
+dynamic build) · full §0e animation invariance = anim-source independence arc (ring-fill pattern
+generalized) · the expectedMaxCellDeg=2.5° res-watch bar is too lax at z8.6 (1 cell/screen passes).
+
 ### 5e. HARNESS NOTES (additions to §2)
 zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +
 console errors on rated-commit timeout (no more blind FATALs). The rated lane can be cold-slow
