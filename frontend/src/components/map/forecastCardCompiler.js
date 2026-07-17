@@ -79,6 +79,18 @@ export function compileForecastCards({
   const timeoutSoftOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_TIMEOUT_SOFT_DISABLED__ === true;
   const TIMEOUT_LABEL = timeoutSoftOff ? 'Timeout' : 'Updating…';
 
+  // TWO-PHASE PROVISIONAL MARKER (2026-07-05 item ③, predicate FIXED 2026-07-17): while the
+  // authoritative exact-point fetch is in flight, checkIsExactPointValid() rejects the point on its
+  // status gate, so useExactPoint is null and every value painted comes from the grid/forecast
+  // fallbacks — the fast first set that later "changes to different data". isExactPointAuthority is
+  // a SELECTION-TYPE flag (true from the first render of a user-selected marine point), NOT a
+  // fetch-completion flip, so the original `!isExactPointAuthority && isExactPointLoading` was
+  // false for the entire provisional phase and the marker never rendered where it was built to.
+  // Kill: __RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__.
+  const provisionalMarkOff = typeof window !== 'undefined' && window.__RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__ === true;
+  const isProvisionalPaint = !provisionalMarkOff && isExactPointAuthority && isExactPointLoading;
+  const _prov = isProvisionalPaint ? '…' : '';
+
   if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
     const hasSnow = snowfall != null && snowfall > 0;
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
@@ -98,7 +110,7 @@ export function compileForecastCards({
       cards.push({ icon: CloudRain, label: 'Rain', value: `${rainAmount} mm/h`, color: 'text-blue-400' });
       cards.push({ icon: Snowflake, label: 'Snow', value: `${snowfall.toFixed(1)} cm/h`, color: 'text-sky-300' });
     } else {
-      cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h` : '--', color: 'text-blue-400' });
+      cards.push({ icon: CloudRain, label: 'Rain', value: precip != null ? `${precip.toFixed(1)} mm/h${_prov}` : '--', color: 'text-blue-400', provisional: isProvisionalPaint });
     }
     cards.push({
       icon: Droplets,
@@ -116,9 +128,9 @@ export function compileForecastCards({
   if (activeLayer === 'wind') {
     if (windSpeed != null) {
       const kts = Math.round(windSpeed);
-      cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: `${kts} kts`, color: 'text-teal-400' });
+      cards.push({ icon: Wind, label: isLive ? 'Live Wind' : 'Wind', value: `${kts} kts${_prov}`, color: 'text-teal-400', provisional: isProvisionalPaint });
       if (windDir != null) {
-        cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}`, color: 'text-teal-300', rotate: (windDir + 180) % 360 });
+        cards.push({ icon: ArrowUp, label: degToCompass(windDir), value: `${Math.round(windDir)}${_prov}`, color: 'text-teal-300', rotate: (windDir + 180) % 360, provisional: isProvisionalPaint });
       }
       if (windGusts != null) {
         cards.push({ icon: Wind, label: 'Gusts', value: `${Math.round(windGusts)} kts`, color: 'text-orange-400' });
@@ -129,7 +141,7 @@ export function compileForecastCards({
   }
 
   if (activeLayer === 'pressure' || activeLayer === 'pressure_msl' || activeLayer === 'msl_pressure') {
-    cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa` : '--', color: 'text-rose-400' });
+    cards.push({ icon: Gauge, label: 'Pressure', value: pressure != null ? `${Math.round(pressure)} hPa${_prov}` : '--', color: 'text-rose-400', provisional: isProvisionalPaint });
   }
 
   // Temp-pair infobox v2 (2026-07-11, the "no data" v1 gap): Air Temp rides the point-forecast
@@ -215,15 +227,8 @@ export function compileForecastCards({
       const isEst = false;
       const hFt = mToFt(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-      // TWO-PHASE PROVISIONAL MARKER (2026-07-05, item ③ "first set vs second set conflict"): the first
-      // paint shows GRID-SAMPLED values while the exact-point fetch is in flight; when it completes,
-      // isExactPointAuthority flips and the values silently change to the authoritative set. Mark the
-      // provisional set with a trailing ellipsis (reads "still refining") instead of suppressing it —
-      // instant feedback kept, the swap is expected, the marker disappears when authority lands. Only
-      // while the authoritative fetch is genuinely in flight: a grid-only view (no exact fetch running)
-      // has no second set coming and stays unmarked.
-      const isProvisional = !isExactPointAuthority && isExactPointLoading;
-      const _prov = isProvisional ? '…' : '';
+      // Provisional first paint: mark with the shared trailing ellipsis (reads "still refining")
+      // instead of suppressing the instant feedback; the marker disappears when authority lands.
       displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
       if (wavePeriod != null) displayPeriod = `${wavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
       if (useExactPoint?.wave_peak_period != null && useExactPoint.wave_peak_period > 0) {
@@ -235,7 +240,7 @@ export function compileForecastCards({
       }
     }
 
-    cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300' });
+    cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300', provisional: isProvisionalPaint });
     // Surf-quality RATING badge (very_poor..epic) — the headline "how good is it?": size + period + wind
     // (offshore/onshore via shore_normal). Same coastal-break geography gate as the Surf row; colored pill
     // by level (backend surf_rating.py is the source of truth, this shows the JS-mirror result).
@@ -269,7 +274,7 @@ export function compileForecastCards({
       }
     }
     if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
-      cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-blue-200' });
+      cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-blue-200', provisional: isProvisionalPaint });
     }
     if (displayPeak) {
       cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-blue-100' });
@@ -280,7 +285,8 @@ export function compileForecastCards({
         label: displayCompass || 'Dir',
         value: displayDir,
         color: 'text-blue-200',
-        rotate: waveDir != null ? (waveDir + 180) % 360 : undefined
+        rotate: waveDir != null ? (waveDir + 180) % 360 : undefined,
+        provisional: isProvisionalPaint
       });
     }
   }
@@ -332,14 +338,14 @@ export function compileForecastCards({
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hFt = mToFt(swell1Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!swell1LowEnergy) {
-          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
+          if (swell1Period != null && swell1Period > 0) displayPeriod = `${swell1Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (useExactPoint?.swell_wave_peak_period != null && useExactPoint.swell_wave_peak_period > 0) {
             displayPeak = `${useExactPoint.swell_wave_peak_period.toFixed(1)}s`;
           }
           if (swell1Dir != null) {
-            displayDir = `${Math.round(swell1Dir)}${isEst ? '° (est.)' : ''}`;
+            displayDir = `${Math.round(swell1Dir)}${isEst ? '° (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(swell1Dir);
           }
         } else {
@@ -353,12 +359,12 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-cyan-400' });
+      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-cyan-400', provisional: isProvisionalPaint });
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
-          cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-cyan-300' });
+          cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-cyan-300', provisional: isProvisionalPaint });
         }
         if (displayPeak) {
           cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-cyan-200' });
@@ -369,7 +375,8 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-cyan-200',
-            rotate: swell1Dir != null ? (swell1Dir + 180) % 360 : undefined
+            rotate: swell1Dir != null ? (swell1Dir + 180) % 360 : undefined,
+            provisional: isProvisionalPaint
           });
         }
       }
@@ -426,11 +433,11 @@ export function compileForecastCards({
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hFt = mToFt(swell2Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!swell2LowEnergy) {
-          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
+          if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (swell2Dir != null) {
-            displayDir = `${Math.round(swell2Dir)}${isEst ? '° (est.)' : ''}`;
+            displayDir = `${Math.round(swell2Dir)}${isEst ? '° (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(swell2Dir);
           }
         } else {
@@ -444,12 +451,12 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-purple-400' });
+      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-purple-400', provisional: isProvisionalPaint });
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
-          cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-purple-300' });
+          cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-purple-300', provisional: isProvisionalPaint });
         }
         if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
@@ -457,7 +464,8 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-purple-200',
-            rotate: swell2Dir != null ? (swell2Dir + 180) % 360 : undefined
+            rotate: swell2Dir != null ? (swell2Dir + 180) % 360 : undefined,
+            provisional: isProvisionalPaint
           });
         }
       }
@@ -510,11 +518,11 @@ export function compileForecastCards({
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hFt = mToFt(windWaveHeight);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
-        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}` : '--';
+        displayHeight = hFt != null ? `${hFt} ft${isStale ? ' (latest)' : (isEst ? ' (est.)' : '')}${_prov}` : '--';
         if (!windWaveLowEnergy) {
-          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}`;
+          if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (windWaveDir != null) {
-            displayDir = `${Math.round(windWaveDir)}${isEst ? '° (est.)' : ''}`;
+            displayDir = `${Math.round(windWaveDir)}${isEst ? '° (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(windWaveDir);
           }
         } else {
@@ -528,12 +536,12 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Wind, label: 'Height', value: displayHeight, color: 'text-emerald-400' });
+      cards.push({ icon: Wind, label: 'Height', value: displayHeight, color: 'text-emerald-400', provisional: isProvisionalPaint });
       if (showStatus) {
         cards.push({ icon: Wind, label: 'Status', value: showStatus, color: statusColor });
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
-          cards.push({ icon: Wind, label: 'Period', value: displayPeriod, color: 'text-emerald-300' });
+          cards.push({ icon: Wind, label: 'Period', value: displayPeriod, color: 'text-emerald-300', provisional: isProvisionalPaint });
         }
         if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
@@ -541,7 +549,8 @@ export function compileForecastCards({
             label: displayCompass || 'Dir',
             value: displayDir,
             color: 'text-emerald-200',
-            rotate: windWaveDir != null ? (windWaveDir + 180) % 360 : undefined
+            rotate: windWaveDir != null ? (windWaveDir + 180) % 360 : undefined,
+            provisional: isProvisionalPaint
           });
         }
       }
@@ -549,10 +558,12 @@ export function compileForecastCards({
   }
 
   if (isExactPointAuthority && isExactPointLoading && waveHeight != null) {
+    // Plain-language companion to the per-value '…' marker: tells the user the numbers on screen
+    // are the map's estimate and the precise point values are still on the way.
     cards.push({
       icon: Waves,
       label: 'Source',
-      value: 'Loading (Grid Fallback)',
+      value: 'Map estimate — refining…',
       color: 'text-cyan-400 animate-pulse'
     });
   } else if (isExactPointAuthority && isExactPointTimeout && waveHeight != null) {

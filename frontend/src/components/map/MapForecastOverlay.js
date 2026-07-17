@@ -650,7 +650,9 @@ export const MapForecastOverlay = ({
                     {card.badgeColor ? (
                       <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
                     ) : (
-                      <span className={`text-xs font-bold ${textClass}`}>{card.value}</span>
+                      // Provisional (grid-sampled) values render dimmed alongside their '…' text
+                      // marker until the exact-point authority lands; works in all three themes.
+                      <span className={`text-xs font-bold ${textClass} transition-opacity duration-300${card.provisional ? ' opacity-60' : ''}`}>{card.value}</span>
                     )}
                   </div>
                 );
