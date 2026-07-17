@@ -412,6 +412,36 @@ export function isMagnifiedCoarseField(cellDeg, zoom, win) {
   return pxPerCell >= minPx;
 }
 
+// === SHARPEN-COMMIT OPACITY EASE (pure; exported for tests) ===
+// FIRST-ACTIVATION SWAP (2026-07-17, user: "activate a marine layer after refresh — one heatmap,
+// then 1-2 s later a DIFFERENT heatmap + animations"): probe_first_activation.js pinned the ladder —
+// coarse-global first paint (37 cols, coarseFade 0.7, eff. opacity 0.53) then the fine viewport
+// commit ~2 s later (10 cols, coarseFade 1.0, blend+ringfill on, eff. opacity 0.76). The DATA hue
+// change is honest refinement, but the OPACITY stepped +43% in one frame — the visual "pop". This
+// eases the final computed heatmap opacity from the last-drawn value to the new target over
+// __RAW_SHARPEN_OPACITY_EASE_MS__ (default 600 ms) after a REAL resident swap (bounds/dims changed —
+// same-tier scrub frames have identical dims and stamp from≈target ⇒ no-op). Works both directions
+// (fine→coarse zoom-out dim too). SNAP-TO-HIDDEN GUARD: when the layer intends invisibility
+// (mult 0 — the stale gate / flash-chain doors — or target ≤0.01) the ease is DROPPED, never
+// ghost-painting a hidden layer (the 2026-07-16 flash-chain class stays fixed). Chaining: `from` is
+// the last DRAWN value, so a mid-ease re-commit continues smoothly from what's on screen.
+// Kill: __RAW_DISABLE_SHARPEN_OPACITY_EASE__. Telemetry: __RAW_GPU__.opacityEase while active.
+// Returns { value, ease } — the opacity to draw and the (possibly expired ⇒ null) ease state.
+export function applySharpenOpacityEase(ease, target, mult, nowMs, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_SHARPEN_OPACITY_EASE__ === true || !ease) return { value: target, ease: null };
+  if (mult === 0 || target <= 0.01 || typeof ease.from !== 'number') {
+    return { value: target, ease: null };   // hidden intent (or bad stamp) ⇒ snap, drop the ease
+  }
+  const ms = (typeof w.__RAW_SHARPEN_OPACITY_EASE_MS__ === 'number' && w.__RAW_SHARPEN_OPACITY_EASE_MS__ > 0)
+    ? w.__RAW_SHARPEN_OPACITY_EASE_MS__ : 600;
+  const dt = nowMs - ease.t0;
+  if (!(dt >= 0) || dt >= ms) return { value: target, ease: null };
+  const t = dt / ms;
+  const k = t * t * (3 - 2 * t);            // smoothstep
+  return { value: ease.from + (target - ease.from) * k, ease };
+}
+
 export function resolveCoarseCrestControls(inVortexBand, win) {
   if (!inVortexBand) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -608,6 +638,13 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     waveGrid.rows !== oldGrid.rows;
 
   if (boundsChanged || dimsChanged) {
+    // SHARPEN-COMMIT OPACITY EASE stamp (see applySharpenOpacityEase): a REAL resident swap —
+    // ease the drawn heatmap opacity from the last-drawn value to the new tier's target instead
+    // of stepping (the first-activation coarse→fine "pop"). First-ever commit has no last-drawn
+    // value ⇒ no stamp (the layer's activation mult ramp owns that fade-in).
+    if (oldGrid && typeof this._lastHeatmapOpacity === 'number') {
+      this._opacityEase = { from: this._lastHeatmapOpacity, t0: (typeof performance !== 'undefined' ? performance.now() : Date.now()) };
+    }
     // Phase 1.3: record reset reason + source product so real product changes can be
     // distinguished from redundant commits before optimizing. Diagnostics only.
     if (typeof window !== 'undefined') {
@@ -1876,6 +1913,23 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     }
 
     heatmapOpacity *= mult;
+
+    // SHARPEN-COMMIT OPACITY EASE apply (stamped in setWaveData on real resident swaps): glide the
+    // drawn opacity to the new tier's target instead of stepping. Snap-to-hidden guard inside.
+    {
+      const _easeNow = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+      const _eased = applySharpenOpacityEase(this._opacityEase, heatmapOpacity, mult, _easeNow,
+        typeof window !== 'undefined' ? window : undefined);
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.opacityEase = _eased.ease
+          ? { from: +_eased.ease.from.toFixed(3), target: +heatmapOpacity.toFixed(3), value: +_eased.value.toFixed(3) }
+          : null;
+      }
+      this._opacityEase = _eased.ease;
+      heatmapOpacity = _eased.value;
+    }
+    // Last DRAWN value — the ease stamp chains from this so mid-ease re-commits stay smooth.
+    this._lastHeatmapOpacity = heatmapOpacity;
 
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
