@@ -1,5 +1,6 @@
 import { useCallback } from 'react';
 import { fetchMarineData, getRemainingCooldown, getModelSafeMarine, isContainedInMarineCache } from './marineController';
+import { getMarineSeriesFrame } from './marineGridSeries';   // flavor-toggle instant cache commit
 import { fetchCopernicusComponentGrid, mergeComponentGrid, COMPONENT_LAYERS } from './copernicusGridFetcher';
 import { getBackendCopernicusFlag, getSharedValidTime, getBackendIconMarineFlag, getBackendWeatherFlag, getSurfModeFlag } from './backendWeatherServiceClient';
 import { updateDeprecationDiag } from './forecastSamplers';
@@ -357,6 +358,81 @@ export function useMarineDataFetcherCore({
         });
         return;
       }
+
+      // FLAVOR-TOGGLE INSTANT CACHE COMMIT (2026-07-17, user @z8.63: "particles become faint and
+      // change direction on rating toggle, then correct themselves"): the toggle re-drive hits the
+      // network, and on a COLD backend cache the resolver's instant honest answer is the 2°
+      // global_mid tier — coarse blockmean directions + low dir_confidence (the confidence damp =
+      // the faint phase) — until the fine dynamic product lands seconds later (the "come back to
+      // life"). The FINE frame for the target flavor usually already sits in the FE series cache
+      // (flavor-stamped, 2026-07-15). Commit it INSTANTLY so the animation never re-sources from
+      // the mid interim; the network fetch below proceeds unchanged for freshness, and its late
+      // mid-tier result is then a SAME-flavor resolution downgrade that the no-downgrade guard
+      // rejects on its own. Fail-open: any miss/mismatch just falls through to the normal path.
+      // Kill: __RAW_DISABLE_FLAVOR_CACHE_FASTPATH__. Ring: flavor_cache_fastpath.
+      try {
+        const _wantSurf = getSurfModeFlag();
+        // marineDataRef, not the closure's marineData: updateMarineGrid's useCallback deps don't
+        // include marineData, so the closure capture is mount-time-stale (typically null).
+        const _mdNow = marineDataRef.current;
+        const _residentFlavor = !!(_mdNow?.grid?.ratingMode);
+        // Resolution-upgrade leg (the series-arrival re-drive): same flavor but the resident is
+        // meaningfully coarser than what the series cache now holds (the stuck-mid interim).
+        // 1.25 mirrors the resolver's Root-A finer-regional threshold.
+        const _cellDegOf = (g) => {
+          const b = g && g.bounds;
+          if (!b || !g.cols || g.cols < 2) return null;
+          const w = (b.east < b.west) ? (b.east + 360) - b.west : b.east - b.west;
+          return w / g.cols;
+        };
+        if ((typeof window === 'undefined' || window.__RAW_DISABLE_FLAVOR_CACHE_FASTPATH__ !== true)
+            && !(typeof window !== 'undefined' && window.isScrubbingTimeline)
+            && _mdNow?.grid?.vectors?.length > 0
+            && bounds) {
+          const _frame = getMarineSeriesFrame(model, layer, bounds, timeOffset);
+          const _fg = _frame && _frame.grid;
+          const _fb = _fg && _fg.bounds;
+          const _fw = _fb ? ((_fb.east < _fb.west) ? (_fb.east + 360) - _fb.west : _fb.east - _fb.west) : 999;
+          const _resCell = _cellDegOf(_mdNow.grid);
+          const _frmCell = _cellDegOf(_fg);
+          const _flavorLeg = _residentFlavor !== _wantSurf;
+          const _upgradeLeg = !_flavorLeg && _resCell !== null && _frmCell !== null
+            && _resCell > _frmCell * 1.25;
+          if (_fg && Array.isArray(_fg.vectors) && _fg.vectors.length > 0
+              && _fg.__renderable !== false && _fw < 340
+              && !!_fg.ratingMode === _wantSurf
+              && (_flavorLeg || _upgradeLeg)) {
+            recordMarineEvent('flavor_cache_fastpath', {
+              dims: `${_fg.cols}x${_fg.rows}`, toSurf: _wantSurf, hour: timeOffset,
+            });
+            try {
+              commitMarineData({
+                data: _frame, bounds, model, layer, timeOffset, timeOffsetRef, setMarineData, lastCommittedSigRef,
+                marineRevision, getViewportHash, logPipelineEventHelper, consecutiveFailuresRef,
+                isCommittingDataRef, isInternalMapUpdateRef, internalUpdateTimerRef, locks,
+                source: 'flavor_cache_fastpath',
+                scheduleSWRRevalidation, updateMarineGrid, getBackendCopernicusFlag, getBackendIconMarineFlag,
+                getBackendWeatherFlag, _marineDataSignature, getSharedValidTime, updateDeprecationDiag,
+                setTimeoutFunc: setTimeout, clearTimeoutFunc: clearTimeout
+              });
+            } catch (ce) {
+              recordMarineEvent('flavor_fastpath_commit_err', { msg: String(ce && ce.message).slice(0, 80) });
+            }
+          } else if (_flavorLeg || source === 'series_upgrade') {
+            // Miss diagnostics (pinning instrument — fires only on toggle/upgrade re-drives).
+            recordMarineEvent('flavor_fastpath_miss', {
+              hasFrame: !!_fg, nVec: _fg && _fg.vectors ? _fg.vectors.length : 0,
+              fw: _fw === 999 ? null : +_fw.toFixed(1),
+              frameRated: _fg ? !!_fg.ratingMode : null, want: _wantSurf, src: source,
+            });
+          }
+        }
+      } catch (e) { /* fast path is best-effort — the normal fetch below is the truth path */ }
+
+      // 'series_upgrade' is a CACHE-ONLY lane (the series-arrival re-drive): whether the fast path
+      // committed or missed, never fall through to a network fetch for it — the series lane already
+      // owns freshness, and fetching here would re-serve the interim tier this lane exists to fix.
+      if (source === 'series_upgrade') return;
 
       requestId = ++marineRequestIdRef.current;
 
@@ -725,6 +801,9 @@ export function useMarineDataFetcherCore({
     // Heal a stranded lock before trusting it (same watchdog as updateMarineGrid).
     releaseStaleMarineLock(locks, abortControllerRef, inFlight);
     if (locks.isFetching) {
+      // The series-arrival cache lane is OPPORTUNISTIC: never buffer against, release, or abort a
+      // real fetch for it — the next landing page re-fires the event, so a skip costs nothing.
+      if (source === 'series_upgrade') return;
       const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
       const isAborted = abortControllerRef.current?.signal?.aborted;
       if (inflight && !isAborted && inflight.rawModel === activeModelRef.current &&

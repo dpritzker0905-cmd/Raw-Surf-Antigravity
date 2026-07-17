@@ -193,7 +193,28 @@ export function useMarineDataFetcher({
       try { enqueueMarineUpdate('manual'); } catch (e) {}
     };
     window.addEventListener('rawsurf:surf-toggle', onSurfToggle);
-    return () => window.removeEventListener('rawsurf:surf-toggle', onSurfToggle);
+    // SERIES-ARRIVAL UPGRADE (2026-07-17, user @z8.63: post-toggle the 2° global_mid interim sat
+    // resident 15 s+ with wrong coarse direction while the honest FINE series page landed in the
+    // cache 4.4 s in and nothing committed it — the settle sharpener's clamp class keys on
+    // coarse-GLOBAL residents (span ≥359°) and the clipped mid tier passes as "regional", so it
+    // escapes every upgrade path at a settled camera. When a regional series page lands, re-drive
+    // the CACHE lane ('series_upgrade' = commit-from-cache only, never network — see
+    // updateMarineGrid): the flavor fast path then commits the finer same-flavor frame and the
+    // no-downgrade guard's normal rules apply. Loop-safe: the commit stores nothing back into the
+    // series cache, a miss returns without fetching, and repeats dedup on the commit signature.
+    // Kill: __RAW_DISABLE_FLAVOR_CACHE_FASTPATH__ (shared with the commit half).
+    const onSeriesRevalidated = () => {
+      try {
+        if (typeof window !== 'undefined'
+            && (window.__RAW_DISABLE_FLAVOR_CACHE_FASTPATH__ === true || window.isScrubbingTimeline)) return;
+        enqueueMarineUpdate('series_upgrade');
+      } catch (e) { /* best-effort */ }
+    };
+    window.addEventListener('marine_series_revalidated', onSeriesRevalidated);
+    return () => {
+      window.removeEventListener('rawsurf:surf-toggle', onSurfToggle);
+      window.removeEventListener('marine_series_revalidated', onSeriesRevalidated);
+    };
   }, [enqueueMarineUpdate]);
 
   useEffect(() => {
