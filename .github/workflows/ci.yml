@@ -98,3 +98,23 @@ jobs:
       - name: "🔍 Check for circular imports"
         working-directory: backend
         run: python scripts/check_imports.py --path routes
+
+  # 2026-07-17 Security governance — BOLA/IDOR drift guard (Phase 0-B of the 07-12 user-ID auth
+  # review): fails the build when a NEW route accepts a bare `user_id` without one of the five
+  # real auth dependencies. The 226 existing offenders live in scripts/bola_baseline.json (the
+  # ratchet — shrink-only; regenerate with --write-baseline after triage work). This exact debt
+  # was "fixed and declared complete" twice (c1526cdc, 84236b0c) and drifted back 221→226 in five
+  # days — enforcement, not convention, is the control. AST-based (regex breaks on nested parens).
+  backend-bola-guard:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+
+      - name: "🔐 BOLA route guard (no new bare-user_id routes)"
+        working-directory: backend
+        run: python scripts/check_bola_routes.py
