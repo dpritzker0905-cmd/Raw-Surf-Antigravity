@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo } from 'react';
-import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun } from 'lucide-react';
+import { Wind, Waves, CloudRain, Snowflake, Thermometer, Lock, ChevronDown, ChevronUp, X, Cloud, Globe, Play, Pause, SkipBack, SkipForward, Sun, Loader2 } from 'lucide-react';
 import { useTheme } from '../../contexts/ThemeContext';
 import { getAllowedModels, resolveForecastWindow } from './LayerAccessResolver';
 import { BASE_CUSTOM_COLOR_SCALES, applyThemePressureScale, applyThemeWaveScale } from './mapUtils';
@@ -727,10 +727,20 @@ export var MapWeatherControls = ({
                 key={layer.id}
                 onClick={() => onLayerToggle(layer.id)}
                 aria-pressed={isActive}
+                aria-busy={isActive && !!loadingLayers[layer.id]}
                 className={`flex items-center gap-1.5 px-2 py-1.5 rounded-lg border text-[11px] font-medium transition-all ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
               >
-                <Icon className={`w-3.5 h-3.5 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />
-                <span className={isActive ? textClass : textMuted}>{layer.label}</span>
+                {/* Cold .om decode reads as a dead layer without an unmistakable signal (2026-07-16
+                    layer audit: the icon-pulse alone failed users) — swap in a real spinner while
+                    the field fetches+decodes. Same theme color classes; motion, not color, carries
+                    the meaning. */}
+                {isActive && loadingLayers[layer.id]
+                  ? <Loader2 className={`w-3.5 h-3.5 animate-spin ${layer.color}`} aria-hidden="true" />
+                  : <Icon className={`w-3.5 h-3.5 ${isActive ? layer.color : textMuted}`} aria-hidden="true" />}
+                <span className={isActive ? textClass : textMuted}>
+                  {layer.label}
+                  {isActive && loadingLayers[layer.id] && <span className="sr-only"> (loading)</span>}
+                </span>
               </button>
             );
           })}
@@ -894,10 +904,17 @@ export var MapWeatherControls = ({
                   key={layer.id}
                   onClick={() => onLayerToggle(layer.id)}
                   aria-pressed={isActive}
+                  aria-busy={isActive && !!loadingLayers[layer.id]}
                   className={`flex items-center gap-2 px-4 py-2.5 rounded-full border text-sm font-medium transition-all shrink-0 ${isActive ? chipActive : `${chipBg} ${btnHover}`}`}
                 >
-                  <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted} ${isActive && loadingLayers[layer.id] ? 'animate-pulse' : ''}`} />
-                  <span className={isActive ? textClass : textMuted}>{layer.label}</span>
+                  {/* Mirrors the desktop grid: real spinner while the field decodes (see above). */}
+                  {isActive && loadingLayers[layer.id]
+                    ? <Loader2 className={`w-4 h-4 animate-spin ${layer.color}`} aria-hidden="true" />
+                    : <Icon className={`w-4 h-4 ${isActive ? layer.color : textMuted}`} aria-hidden="true" />}
+                  <span className={isActive ? textClass : textMuted}>
+                    {layer.label}
+                    {isActive && loadingLayers[layer.id] && <span className="sr-only"> (loading)</span>}
+                  </span>
                 </button>
               );
             })}
