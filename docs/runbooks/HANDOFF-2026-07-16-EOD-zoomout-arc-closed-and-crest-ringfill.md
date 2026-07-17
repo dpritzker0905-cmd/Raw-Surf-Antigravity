@@ -186,7 +186,22 @@ on → the failure is PER-VARIABLE downstream. Prime suspect: the metadata GATE 
 temperature works anyway, so the gate is either overridden by a live metadata fetch on some paths
 or checked per-layer inconsistently. ⚠️ Second suspect: the tile library's registered COLOR SCALE
 per variable (the 07-11 water_temp note: the lib ships an alias scale — if no scale is registered
-under the REQUESTED variable name, it renders transparent silently). NARROWED FURTHER: the metadata gate REFETCHES live metadata before URL generation
+under the REQUESTED variable name, it renders transparent silently). **RESOLVED VERDICTS (same session, single-layer probes + region-targeted screenshots — see
+scratchpad shots):** the pipelines are NOT broken. ⚠️ METHODOLOGY: `toggleLayer` is SINGLE-SELECT
+(useWeatherState.js:216) — sequential clicks REPLACE the active layer; probes must activate one
+layer at a time. With correct activation all three "dead" layers wire fully (slots visible, real OM
+URLs). (1) **Water Temp WORKS** — tan/khaki SST field over ocean, land masked; decode needs ~15 s+
+(the 11 s audit wait was too short; users on slow machines may see "nothing loads", and the warm-
+water tan hue reads as no-data). (2) **Pressure WORKS but is nearly INVISIBLE** — Southern Ocean
+frame shows the real gradient; at typical mid-latitude values (~1017 hPa flat) the color scale is
+indistinguishable from the basemap ocean → UX/styling fix needed (contrast ramp or isobars), not a
+pipeline fix. (3) **Fog wires correctly** (real URLs, visible slots) but no fog existed in FL 23Z or
+SF 4 pm PDT to prove paint — close it with a decoded-value sample (`__FETCH_OM_TILE__`/
+decodedOmSampler) or a dawn-fog region. (4) Precip/Radar weak deltas = likely honest sparse echoes —
+same region-targeted check applies. ACTIONABLE QUEUE: pressure color-scale contrast · OM-layer
+LOADING indicator (decode latency reads as dead) · fog decoded-value confirmation · user-side:
+hard-refresh (stale SW bundle) + note layers are single-select.
+Historical narrowing chain (kept for the method): the metadata gate REFETCHES live metadata before URL generation
 (useOpenMeteoTileUrls.js:525 `fetchMetadata`) and the audit SAW tile fetches — so the gate passed
 and URLs generated. With fetch ✓ decode-path silent ✓ zero errors ✓ zero pixels ✗, the blocker is
 RENDER-side. **PRIME SUSPECT: MapLibre layer PAINT ORDER** — water_temp's slots deliberately anchor
