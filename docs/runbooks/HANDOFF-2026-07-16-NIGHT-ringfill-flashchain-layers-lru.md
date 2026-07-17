@@ -1,5 +1,9 @@
 # HANDOFF — 2026-07-16 NIGHT — ring-fill · flash-chain · staircase · layer audit · UX ships · coarse-base LRU
 
+> **UPDATE 2026-07-17 (follow-up session): queue #1 AND #2 CLOSED.** Two ships pushed
+> (`83def648` flavor backstop · `e34d6942` §2c coverage-keyed band fade) + the LRU real-browser
+> switch-back verify done. See §5 below for the session addendum; queue renumbered there.
+
 **For a fresh context.** Read `[[standing-work-rules-user-mandate]]` and memory
 `zoomout-flash-chain-and-zoomlab-harness-2026-07-16` + `crest-ringfill-shipped-2026-07-16` first.
 One marathon context: SEVEN shipped arcs, every one forensically diagnosed with the NEW zoomlab
@@ -79,3 +83,66 @@ Draw-truth telemetry added in-engine: `__RAW_GPU__.opacity/.washPreDamp/.washEff
 `__RAW_DISABLE_DAMP_MOTION_HOLD__` · `__RAW_DISABLE_DENSEBASE_WASH_UNDAMP__` ·
 `__RAW_DISABLE_COARSE_BASE_LRU__` (+ size lever `__RAW_COARSE_BASE_LRU_SIZE__`, default 6) ·
 UI ships have no kill (pure additive chrome; pressure scale reverts by breakpoint removal).
+**07-17 additions:** `__RAW_DISABLE_BAND_COVER_FADE__` (coverage leg only; whole fade =
+`__RAW_RATING_ZOOM_FADE_DISABLED__`; zoom-lead lever `__RAW_BAND_COVER_FADE_ZLEAD__` default 0.5)
+· `__RAW_DISABLE_FLAVOR_BACKSTOP__`.
+
+## 5. SESSION ADDENDUM 2026-07-17 — §2c closed + toggle-wedge root + LRU verified
+
+### 5a. `e34d6942` §2c COVERAGE-KEYED BAND FADE (queue #1 ✅ CLOSED)
+Re-pinned at HEAD with a fresh zoomlab rating-ON trace before touching code: the rated→unrated
+release is the CONJUNCTION `z ≤ MARINE_ZOOMED_OUT_MAX_ZOOM(7.0) && coverage < 0.6` — it fired at
+z≈7.0/span ~5-6° with the band at FULL strength (+11.5..+16 L flip; baseline frames 14-17). The
+span window (6→9.5°) cannot anticipate a release whose trigger is the ZOOM leg. ⚠️ PROSE
+CORRECTION: §2c's "fade FAILS OPEN when the wash is disengaged (bandMult 1.00, washStrength null
+at span 23.7)" was a telemetry MISREAD — those frames are `rating:false` (no band exists; the
+resolver ident is correct). No fail-open fix needed; the 0.3 washless floor stands.
+FIX = option (a): `resolveRatingBandFade` gains a coverage leg — band fades as resident coverage
+falls toward the SAME `__RAW_DOWNGRADE_COVER_FRAC__` lever, engaged only as z nears the SAME 7.0
+boundary (smoothstep lead window +0.5z); legs combine via min(); wash lift keys on the COMBINED
+fade. Close-zoom pans (z>7.5) untouched → no §4f band-blink regression. Call site feeds the
+gate's exact intersection math; telemetry `__RAW_GPU__.ratingBandFade.{covFrac,covFade,spanFade}`;
+zoomlab samples `covF/covFd`. PROOF: pre-release frame band=0.20 (was 1.00); world-bridge swap
+frame ΔL **+2.1** (was +11.5..+16); residual max −12.2 = fade ramps + genuine rated-mid re-entry.
+Regressions: rating OFF −9.1/mult0 0 · staircase worst −7.4, none >8 L · fade suite 21/21 (11 new)
+· FE 121 suites/1072.
+
+### 5b. `83def648` FLAVOR BACKSTOP — the Surf Rating toggle could silently NO-OP (found en route)
+The zoomlab rating-ON scenario wedged 3× at HEAD → forensic ring caught a REAL user bug: the
+toggle's manual re-fetch races a just-started same-viewport fetch; the §0l inflight dedup compares
+`intent.surf` to the flag BEFORE the toggle's write lands → same-target skip (`inflight_skip`
+ageMs≈130-157) → the pre-toggle fetch commits the OLD flavor → **nothing re-invokes the fetcher**
+(the flavor-mismatch dedup-bypass never gets a call to bypass) → `[rating-band] OFF` forever
+until a pan. Second interleaving: the world coarse-base lane's BBOXLESS intent absorbs the
+regional ask and its global surf=1 reply is unrated-by-design + no-downgrade-rejected.
+FIX: at fetch completion (the choke point every interleaving passes), resident flavor ≠ flag ⇒
+ONE re-drive per flag|viewport|layer|hour (key stamped pre-enqueue ⇒ can never loop;
+scrub-exempt). Ring `flavor_backstop`. PROOF: same racy toggle → forcedOff→painting in 2.3 s.
+OPEN (minor, next context): the inflight-dedup identity lacks bbox — a world-lane in-flight can
+still absorb one regional ask (the backstop now heals it, but the identity fix is the cleaner
+root); and the toggle handler writes the flag AFTER dispatching its manual fetch (ordering).
+
+### 5c. LRU REAL-BROWSER VERIFY (queue #2 ✅ CLOSED)
+Browser-pane session (real Chromium, port 3009), in-page 100 ms sampler pumping `map._render()`
+across a waves→swell_1→waves switch-back: first observable frame post-click (t=653 ms — far too
+soon for any fresh world fetch) already shows `coarseBaseLru.displayed=GFS|waves|r0`, blend
+ENGAGED with `baseLayer=waves` (the cached base), ring-fill armed; 40 samples/4 s: **0 baseless
+frames, 0 ring-fill-off frames**. The blend0 switch-back window is confirmed gone outside
+SwiftShader. LRU held both keys through every `clearBuffers` switch.
+
+### 5d. QUEUE (renumbered)
+1. **Rating-restyle rated-wide-supply** (old #3; EOD §2b tail): held base stays unrated until a
+   rated coarse-global commits; resolver-side. NOTE the rated-mid re-entry interlude seen in the
+   §2c traces (world bridges in for ~1.5 s between two rated tiles) shrinks/disappears if the
+   rated mid tile lands before the release — same supply lane.
+2. **Inflight-dedup bbox identity + toggle flag-write ordering** (§5b OPEN tail — small, root-y).
+3. Older: BOLA + public-bucket security (user co-drive) · a11y panels-keyboard · §0j mask churn ·
+   sheltered-water model · zoom-IN band-flood transient.
+
+### 5e. HARNESS NOTES (additions to §2)
+zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +
+console errors on rated-commit timeout (no more blind FATALs). The rated lane can be cold-slow
+(>90 s) on the first ask of a fresh 3-h valid_time window — warm it with one manual run before
+batteries. Probe pattern that cracked §5b: hook `window.fetch` in an initScript + `page.on
+('console')` breadcrumbs + `__RAW_FORENSIC__.dump()` ring tail in one pass (scripts in the 07-17
+session scratchpad: `probe_decisions.js`, `probe_fetchhook.js`, `probe_rating_net.js`).
