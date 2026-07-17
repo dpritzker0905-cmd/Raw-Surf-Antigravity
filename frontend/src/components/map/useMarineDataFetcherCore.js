@@ -660,6 +660,34 @@ export function useMarineDataFetcherCore({
             setTimeout(() => enqueueMarineUpdateRef.current?.(pendingSource), 50);
           } else { logPipelineEventHelper('pending_intent_expired', pending); }
         }
+        // FLAVOR BACKSTOP (2026-07-16, zoomlab forensic ring): the surf toggle's manual re-fetch
+        // can race a just-started same-viewport fetch — the §0l inflight dedup compares
+        // intent.surf to the flag BEFORE the toggle's write lands, so the toggle call is
+        // "same-target"-skipped, the pre-toggle fetch commits the OLD flavor, and with no later
+        // camera move NOTHING re-invokes the fetcher: the flavor-mismatch dedup-bypass above
+        // never gets a call to bypass (live ring: inflight_skip ageMs=129 → commit rating:false
+        // → 40 s of [rating-band] OFF until a pan). When the request that just finished leaves
+        // the resident flavor ≠ the current surf flag, re-drive ONCE per
+        // flag|viewport|layer|hour (key stamped before the enqueue, so a backend that cannot
+        // serve the flavor — e.g. the falsified global surf transform, coarse_extent skip —
+        // gets exactly one extra ask, never a loop). Kill: __RAW_DISABLE_FLAVOR_BACKSTOP__.
+        try {
+          if ((typeof window === 'undefined' || window.__RAW_DISABLE_FLAVOR_BACKSTOP__ !== true)
+              && !(typeof window !== 'undefined' && window.isScrubbingTimeline)) {
+            const _fbGrid = marineDataRef.current && marineDataRef.current.grid;
+            const _fbWantSurf = getSurfModeFlag();
+            if (_fbGrid && _fbGrid.vectors && _fbGrid.vectors.length > 0
+                && (!!_fbGrid.ratingMode) !== _fbWantSurf) {
+              const _fbKey = `${_fbWantSurf}|${getViewportHash()}|${activeMarineLayerRef.current || 'waves'}|${timeOffsetRef.current}`;
+              if (locks.lastFlavorRedriveKey !== _fbKey
+                  && activeMarineLayersRef.current && enqueueMarineUpdateRef.current) {
+                locks.lastFlavorRedriveKey = _fbKey;
+                recordMarineEvent('flavor_backstop', { key: _fbKey });
+                setTimeout(() => enqueueMarineUpdateRef.current?.('flavor_backstop'), 60);
+              }
+            }
+          }
+        } catch (e) { /* backstop never fatal */ }
       }
     }
   }, [
