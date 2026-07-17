@@ -227,6 +227,22 @@ audit the build's gap-fill/stitching (viewport_service) so interims are seamless
 Probe kit: `probe_seamline.js` (frame-DIFF animation-density profiles + cliff detection +
 unproject→geography + screenshots/video) — the tool for any "line/seam in the animations" report.
 
+### 5j. SECURITY ARC PHASE 0-B + PHASE 1 SLICE (`4d6ae5d1` + `1965fabd`)
+BOLA drift guard live in CI (`backend-bola-guard` job green): AST scanner + ratchet baseline —
+drift PROVEN (221 offenders 07-12 → 226 on 07-17 before the slice). Phase 1 mechanical slice:
+7 clear-self QUERY-param financial money-movers swapped to `Depends(get_user_id_from_jwt_or_query)`
+(behavior-preserving: JWT-first, legacy-param fallback), ratchet → 219. Windows note: run the
+scanner with `C:\Users\dprit\AppData\Local\Python\bin\python3.exe` (`Program Files\Python314` is
+broken — Lib/encodings missing); output is ASCII (cp1252 consoles crashed on emoji).
+**CO-DRIVE BUCKET (needs the user):** 15 PATH-param financial routes
+(`/credits/balance/{user_id}` class) need the ownership-check pattern (path id + authed id +
+403 on mismatch) and a tokenless-compat decision; then the remaining ~197 by domain (messages →
+location → identity-writes → rest), regression tests per the review §6 Phase 2.
+⚠️ OPS LESSON (2026-07-17 aft): a GitHub incident delayed Actions ~3 h AND swallowed the Render
+deploy webhook for `1965fabd` (deployed version stuck one commit behind while CI eventually ran)
+— dropped webhooks never retry; the fix is any new push. VERIFY `api/health` version matches the
+intended commit before claiming a backend change live (the stranded-push lesson, deploy edition).
+
 ### 5e. HARNESS NOTES (additions to §2)
 zoomlab's ratingon scenario now logs the rating-toggle state and dumps engine/flag/lane diag +
 console errors on rated-commit timeout (no more blind FATALs). The rated lane can be cold-slow
