@@ -198,9 +198,13 @@ indistinguishable from the basemap ocean → UX/styling fix needed (contrast ram
 pipeline fix. (3) **Fog wires correctly** (real URLs, visible slots) but no fog existed in FL 23Z or
 SF 4 pm PDT to prove paint — close it with a decoded-value sample (`__FETCH_OM_TILE__`/
 decodedOmSampler) or a dawn-fog region. (4) Precip/Radar weak deltas = likely honest sparse echoes —
-same region-targeted check applies. ACTIONABLE QUEUE: pressure color-scale contrast · OM-layer
-LOADING indicator (decode latency reads as dead) · fog decoded-value confirmation · user-side:
-hard-refresh (stale SW bundle) + note layers are single-select.
+same region-targeted check applies. ACTIONABLE QUEUE: ✅ OM-layer LOADING spinner SHIPPED `9d994ca5` (Loader2 + aria-busy + sr-only
+"(loading)", both button layouts; live-verified: event true→false ~6 s, spinner screenshot) ·
+✅ pressure color-scale contrast SHIPPED `790c9f8a` (1009/1018 breakpoints, all three themes;
+same-camera FL A/B: untinted → amber ~1017 hPa cast) · STILL OPEN: fog decoded-value confirmation
+(dawn-fog region or `__FETCH_OM_TILE__` sample) · convective-region precip/radar truth check ·
+"Clouds" button not found (naming/gating) · user-side: hard-refresh (stale SW bundle) + layers are
+single-select.
 Historical narrowing chain (kept for the method): the metadata gate REFETCHES live metadata before URL generation
 (useOpenMeteoTileUrls.js:525 `fetchMetadata`) and the audit SAW tile fetches — so the gate passed
 and URLs generated. With fetch ✓ decode-path silent ✓ zero errors ✓ zero pixels ✗, the blocker is
