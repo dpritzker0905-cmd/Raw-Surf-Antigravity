@@ -72,8 +72,13 @@ Three mutually confirming probes:
 - Back-compat: new verdict on the 07-18 postbake trace = identical 3 findings, "legacy mode" label.
 
 ## 4. QUEUE (post-EVE-2)
-1. **Commit ARBITER** (structural #1, own arc — the `hour=undefined` verification line still fires
-   from SERIES-lane commits; `53b1ec66` stamps the direct lane only).
+1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
+   (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
+   3-phase migration: logging shim → shadow mode → flip). CORRECTION while scoping it: the
+   boot-time "rendered hour=undefined" scrub-settle line is the **noData** branch working as
+   designed (state empty during activation, hourMismatch requires a DEFINED hour, Abort-Gate
+   dedups the overlap) — NOT an unstamped series commit; `53b1ec66` + `stampSeriesCommit` cover
+   every commit path. Do not re-chase.
 2. z8 halo (minefield notes in DEEP-AUDIT + memory). 3. Nearshore 1 km bathymetry + break_type
    (structural #6, unlocks Iribarren breaker_type). 4. Report-calibration loop (#7).
 5. USER CALLS: light-mode crest palette · v3 hot-bias trim (`SURF_V3_JACK_MAX`).
