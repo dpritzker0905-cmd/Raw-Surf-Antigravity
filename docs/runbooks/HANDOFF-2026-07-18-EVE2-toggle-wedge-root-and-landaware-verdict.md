@@ -100,6 +100,20 @@ lane:flavor_toggle tier:fine cellDeg:0.231 in the ring · staircase battery PASS
 (746 frames) · suite 1166/1166. NEXT ARC: Phase B shadow mode (arbiterDecide logs would-be
 decisions; diff vs actual across the battery + probes before any flip).
 
+## 3d. ⚡ EVE-2 ROUND 4 — ARBITER PHASE B: SHADOW LIVE, FIRST TUNE LANDED (`fba6b281`)
+`marineCommitArbiter.arbiterDecide` (the design's 9-rule priority list, pure + 20 fixture tests
+incl. 4 guard-agreement spot-checks) now SHADOWS the engine commit choke: decides nothing,
+tallies `__RAW_ARBITER_SHADOW__ {n,agree,disagree,byRule}`, ring-logs `arb_shadow_diverge`,
+zoomlab records `frames[].arb`. Kill `__RAW_DISABLE_ARBITER_SHADOW__`. THE PHASE B LOOP RAN
+END-TO-END: battery 1 = 14 decisions / 2 divergences — both ONE class (v1 rule 7 gated the
+tier-downgrade rejection on zoom>6.5; the shipped guard holds a finer COVERING mid into
+z5.5–6.1 and the trace shows it was right — coarsening-never-clearing) → rule 7 re-tuned
+coverage-driven (unknown viewport fails open) → battery 2 = 12 decisions / **0 divergences**,
+verdict PASS 0 findings (4th consecutive clean staircase). Suite 1186/1186. NEXT ARC: soak the
+shadow across scrub/rating/pan scenarios + more models; divergence-free soak across all
+batteries = the Phase C flip gate. HARNESS LESSON: a fresh dev server answering `/` is not
+warm — run one probe_boot.js pass before batteries (2 false zoomlab FATALs; boot is 6 s warm).
+
 ## 4. QUEUE (post-EVE-2)
 1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
    (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
@@ -123,4 +137,5 @@ decisions; diff vs actual across the battery + probes before any flip).
   server before debugging the probe.
 - PowerShell `Select-Object -First N` on a live pipeline still kills the upstream process — write
   to a file, then read (re-learned).
+
 
