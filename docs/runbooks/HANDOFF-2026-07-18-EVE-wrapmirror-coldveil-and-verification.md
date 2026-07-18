@@ -1,5 +1,43 @@
 # HANDOFF 2026-07-18 EVE — wrap mirror + cold veil, the trim-classifier cascade, and the verification sweep
 
+## ⚡ PART 2 ADDENDUM (same session, user round 2) — five more ships, HEAD `34993e0c`
+1. **`8adf332f` MANIFEST-TILE CLIP + TIGHT RE-DRIVE — the rating-toggle DIRECTION-SHIFT root.**
+   Live-pinned (probe_rating_direction, Jupiter z9.31): unrated lane rode a 5×4 `global_mid`
+   (2°/cell) while the rated lane got the 0.25° FL tile → 44-49° direction + 2-4× speed jumps on
+   toggle. Chain: legacy close-zoom bbox (gesture pad + 1° snap, modeling the 07-04 backend) turns
+   a 1.4° viewport near a tile edge into -82..-78 → crosses `florida_east_coast`'s -79 edge →
+   resolver demotes to mid; clamp re-drives inherited the same bbox ("no progress after 3
+   re-drives" = the user's console). Ladder probes: crossing 3° → mid; in-tile 1.4-2° → 0.25°.
+   FIX: at spans ≤2.5°, when a REGIONAL manifest tile fully contains the raw viewport, request the
+   padded bbox CLIPPED to that tile (0.25°-quantized). Kill `__RAW_DISABLE_MANIFEST_TILE_CLIP__` ·
+   re-drive kill `__RAW_DISABLE_TIGHT_RESHARPEN__`. VERIFIED: unrated resident = fine 13×9 from
+   the direct fetch; off→on deltas 0.0°. NOTE #17 intersect-prefer history: this is CLIENT-side
+   request shaping (server behavior untouched) — not the reverted server intersect-serve.
+2. **`28d0c8a1` CLOSE-ZOOM GESTURE PAD 0.3→0.75 — the band pan-ahead blank.** probe_band_pan
+   step-4 captured a TOTAL blank (pan crossed the resident north edge pre-refetch). ¾-viewport
+   headroom per side ≈ trivial payload at 0.25°; re-probed 6-step 2° coastal pan = no blank step.
+3. **`e65d87df` NEARSHORE GATE for Surf (est.)** — backend `surf_nearshore` = is_coastal(radius 1
+   ≈ ±0.25°) on every marine point; compiler strictly hides on false, fail-open on absent (deploy
+   skew). Anchors: Cocoa/Pipeline/New Smyrna true; 0.5° offshore false. Glyph popup already
+   carries per-spot surf height + period + tide (4dfce257) — the user's "glyph popup" half was
+   already live.
+4. **`34993e0c` SURF v3.2 SLOPE-AWARE BREAKER INDEX** — Weggel b(m) center with shelf-slope proxy
+   depth/width; flat shelves byte-identical (FL anchors untouched), steep shelves cap toward
+   plunging-reef γ (ceiling 1.25). Kill `SURF_V3_SLOPE_GAMMA=0`. Literature (Consensus search):
+   Harris 2018 (reef γ>0.85, no universal γ) · Lin 2017 · Chen 2022 · Zhang 2021 · Weggel 1972 ·
+   Kaminsky 1994. RESEARCH-BACKED QUEUE: tide-phase-modulated inlet magnets (ebb +≤20% at the
+   mouth — Dodet 2013; ebb-delta refraction focusing — Ridderinkhof 2016; already have tide state
+   in the ratings payload) · per-spot `break_type` data · report_calibration sweep vs anchors.
+5. **Dead-line + FL-edge verdicts**: pilots bake RESTORED live ~14:40Z — ALL FL lanes east col
+   -79 now 29/29 (was 0/29); full row/col scan of every FL product = ZERO dead lines. The user's
+   Jupiter–Stuart east-west dead-animation line = the pre-heal data class; a hard refresh clears
+   client caches. If a line recurs on FRESH data: suspect client-side stitch seams of dynamic
+   products (queued watch item).
+6. **§5b toggle wedge reproduced IN-HARNESS** (probe_rating_direction runs 4+5: rating click →
+   `ratingMode` never true for 60 s; run 2 activated fine) — the queue-#2 pinning instrument now
+   has a repro vehicle.
+Probes live in the session scratchpad; rebuildable from this doc + the EVE session memory.
+
 **START HERE for a fresh context.** Supersedes `HANDOFF-2026-07-18-DEEP-AUDIT-fencepost-head3-and-state-of-the-sim.md`
 (read that second — it carries the three-head fencepost story + audit table). HEAD `2c3d9dd7` on `dev`.
 Every claim below is probe-proven (probe scripts named inline; scratchpad probes are re-buildable from this doc).
