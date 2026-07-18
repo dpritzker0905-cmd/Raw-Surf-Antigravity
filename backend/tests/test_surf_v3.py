@@ -119,3 +119,28 @@ def test_nan_inputs_return_unknown_not_nan():
     (pre-existing v2 hole, found by the v3 forensic pass). Must return (None, 'unknown')."""
     assert estimate_surf(float('nan'), 10.0, 20.0) == (None, 'unknown')
     assert estimate_surf(1.0, float('nan'), 20.0) == (None, 'unknown')
+
+
+def test_shore_normal_override_pipeline_vs_waikiki():
+    """v3.1: ground-truth normals where the 0.25-deg bathymetry provably fails (Pipeline/Sunset
+    read due-north 0.0; real North Shore faces ~NW). Waikiki (bathymetry reads a sane 135) gets NO
+    override."""
+    from services.weather_pipeline.surf_magnets import shore_normal_override_at
+    n_pipe, name_pipe = shore_normal_override_at(21.6654, -158.0521)
+    n_sunset, _ = shore_normal_override_at(21.6780, -158.0410)
+    n_waikiki, name_waikiki = shore_normal_override_at(21.2760, -157.8260)
+    assert n_pipe == pytest.approx(325.0) and "Pipeline" in name_pipe
+    assert n_sunset == pytest.approx(335.0)
+    assert n_waikiki is None and name_waikiki is None
+
+
+def test_shore_normal_override_changes_the_estimate_the_right_way():
+    """Today's Surfline-anchored case: NNE 44-deg swell at Pipeline — corrected NW normal (325)
+    must read SMALLER than the bogus due-north normal (harder off-angle), landing in the 3-4 ft
+    class instead of 5+ ft."""
+    with_bogus, _ = estimate_surf(1.40, 7.5, 300.0, coastal=True, shelf_width_km=1.0,
+                                  swell_from_deg=44.0, shore_normal_deg=0.0)
+    with_true, _ = estimate_surf(1.40, 7.5, 300.0, coastal=True, shelf_width_km=1.0,
+                                 swell_from_deg=44.0, shore_normal_deg=325.0)
+    assert with_true < with_bogus
+    assert 0.9 <= with_true <= 1.35    # ~3-4.4 ft face class

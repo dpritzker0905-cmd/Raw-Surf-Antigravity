@@ -128,6 +128,18 @@ class PointResolutionService:
                     response.shore_normal_deg = shore_normal_at(lat, lng)
                 except Exception:
                     response.shore_normal_deg = None
+                # SURF v3.1 per-spot shore-normal override (ground truth beats the 0.25° bathymetry
+                # where it provably fails — Pipeline/Sunset read due-north 0.0 vs the real ~NW).
+                # Kill: SURF_V3_NORMAL_OVERRIDES=0.
+                if os.environ.get("SURF_V3_NORMAL_OVERRIDES", "1") != "0":
+                    try:
+                        from services.weather_pipeline.surf_magnets import shore_normal_override_at
+                        _ov_normal, _ov_name = shore_normal_override_at(lat, lng)
+                        if _ov_normal is not None:
+                            response.shore_normal_deg = _ov_normal
+                            logger.debug(f"[Surf v3.1] shore-normal override '{_ov_name}' {_ov_normal}° at ({lat},{lng})")
+                    except Exception:
+                        pass
                 # SURF v3 per-spot wave-magnet focusing (sub-grid inlet/jetty amplification — e.g. New
                 # Smyrna Inlet reads ~1.4x its neighboring beach). /point lane only; the grid band stays
                 # cell-honest. Factor is inert unless SURF_V3_MAGNETS is on inside estimate_surf.
