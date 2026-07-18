@@ -143,6 +143,11 @@ async function main() {
     const ctx = cv.getContext('2d', { willReadFrequently: true });
     const T = (window.__ZT__ = { frames: [], W, H, t0: performance.now() });
     const lum = (d, i) => 0.2126 * d[i] + 0.7152 * d[i + 1] + 0.0722 * d[i + 2];
+    // ANIM-DENSITY COLUMNS (2026-07-18 testing-system upgrade): per-frame 40-column profile of
+    // frame-to-frame pixel change — animation coverage as DATA. The verdict engine detects
+    // vertical dead bands (the fencepost stripe class) and TRANSIENT bands (the zoom-out flash)
+    // that single screenshots and whole-frame luminance both miss.
+    let prevD = null;
     m.on('render', () => {
       try {
         const t = performance.now() - T.t0;
@@ -164,10 +169,27 @@ async function main() {
             }
           }
         }
+        // 40-column animation profile: mean |Δ| vs the previous sampled frame, per column band.
+        const NCOL = 40;
+        const animCols = new Array(NCOL).fill(0);
+        if (prevD) {
+          const colN = new Array(NCOL).fill(0);
+          for (let y = 4; y < H - 4; y += 2) {
+            for (let x = 4; x < W - 4; x += 2) {
+              const i = (y * W + x) * 4;
+              const dd = Math.abs(d[i] - prevD[i]) + Math.abs(d[i + 1] - prevD[i + 1]) + Math.abs(d[i + 2] - prevD[i + 2]);
+              const cx = Math.min(NCOL - 1, Math.floor(x / W * NCOL));
+              animCols[cx] += dd; colN[cx]++;
+            }
+          }
+          for (let c = 0; c < NCOL; c++) animCols[c] = +(animCols[c] / Math.max(1, colN[c])).toFixed(1);
+        }
+        prevD = d.slice(0);
         const g = window.__RAW_GPU__ || {};
         const wd = eng._waveData;
         const rbf = g.ratingBandFade || {};
         T.frames.push({
+          anim: animCols,
           t: Math.round(t), z: +m.getZoom().toFixed(3),
           L: +(sumL / n).toFixed(1), R: +(sumR / n).toFixed(1), G: +(sumG / n).toFixed(1), B: +(sumB / n).toFixed(1),
           spk: +(spk / n * 100).toFixed(2),
