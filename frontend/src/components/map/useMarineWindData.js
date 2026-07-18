@@ -163,6 +163,11 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
       run_time: marineData.run_time || marineData.grid.run_time || marineData.runTime || marineData.grid.runTime || null,
       runTime: marineData.run_time || marineData.grid.run_time || marineData.runTime || marineData.grid.runTime || null,
       truthTag: marineData.truthTag || marineData.grid.truthTag || null,
+      // ARBITER PHASE A (2026-07-18 EVE-2): lane provenance for the engine's commit ledger. This
+      // conform is the EXPLICIT field list that has eaten is_valid, dirConfidence, and ratingMode
+      // before — every stamped flag must be carried here BY NAME or the engine never sees it.
+      __commitLane: marineData?.grid?.__commitLane || marineData?.__commitLane || null,
+      __fromSeries: !!(marineData?.grid?.__fromSeries || marineData?.__fromSeries),
       __nonzeroCount: nonzeroCount,
       __maxHeight: maxHeight,
       hasCopernicusGrid,

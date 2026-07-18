@@ -376,6 +376,11 @@ export function commitMarineData({
     if (data.grid && data.grid.hourOffset === undefined) data.grid.hourOffset = timeOffset;
     if (data.hourOffset === undefined) data.hourOffset = timeOffset;
     data.__commitLane = source || 'direct';
+    // ARBITER PHASE A (2026-07-18 EVE-2): the engine's commit ledger reads the GRID (it never
+    // sees this outer object), so the lane rides the grid too. Commit-time-scoped metadata on a
+    // possibly-shared cached grid — same semantics 53b1ec66 established for hourOffset; the only
+    // reader (engine setWaveData recorder) runs synchronously inside this commit.
+    if (data.grid) data.grid.__commitLane = source || 'direct';
   }
   if (data.grid) {
     if (data.grid.bounds && bounds) {

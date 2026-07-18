@@ -216,10 +216,16 @@ const _fallbackRevision = { current: 0 };
  * object identity defeats the setState bailout, the fresh __commitRevision fires the upload effect.
  * The grid stays shared by reference (cheap — no vector copy).
  */
-export function stampSeriesCommit(frame, marineRevision) {
+export function stampSeriesCommit(frame, marineRevision, lane) {
   const rev = marineRevision || _fallbackRevision;
   rev.current = (rev.current || 0) + 1;
-  return { ...frame, __commitRevision: rev.current };
+  // ARBITER PHASE A (2026-07-18 EVE-2): lane provenance for the engine's commit ledger. The grid
+  // is SHARED with the series cache by design (no vector copy) — the lane is commit-time-scoped
+  // metadata read synchronously by the engine during this commit (the 53b1ec66 hourOffset
+  // semantics); a later lane re-committing the same cached grid restamps it at ITS commit.
+  const _lane = lane || 'series';
+  if (frame && frame.grid) frame.grid.__commitLane = _lane;
+  return { ...frame, __commitRevision: rev.current, __commitLane: _lane };
 }
 
 /**
@@ -306,7 +312,7 @@ export function runScrubSettleCheck(ctx) {
         // Stamped CLONE, not the raw cached frame — see stampSeriesCommit. Without this the commit
         // never re-fired WebGLMarineLayer's revision-keyed upload effect (revision 0→0) and the
         // engine stayed on the stale non-covering grid — the regional_too_small clamp (2026-07-01).
-        setMarineData(stampSeriesCommit(frame, marineRevision));
+        setMarineData(stampSeriesCommit(frame, marineRevision, 'series_sharpen'));
         recordSettleCommitSig(lastCommittedSigRef, frame, layer);
       } else {
         // No covering frame warmed yet → load the series for the CURRENT viewport+hour so the next
@@ -382,7 +388,7 @@ export function runScrubSettleCheck(ctx) {
       if (frame && frame.grid && frame.grid.vectors && frame.grid.vectors.length > 0 && setMarineData) {
         if (typeof window !== 'undefined') window.__MARINE_ENGINE_EMPTY_RECOVER__ = (window.__MARINE_ENGINE_EMPTY_RECOVER__ || 0) + 1;
         console.log(`[SCRUB-SETTLE] Engine empty at settled viewport — committing ${zoomedOutGate ? 'GLOBAL-coarse' : 'covering regional'} series frame (recovery after zoom-out clear).`);
-        setMarineData(stampSeriesCommit(frame, marineRevision));
+        setMarineData(stampSeriesCommit(frame, marineRevision, 'recovery_2b'));
         recordSettleCommitSig(lastCommittedSigRef, frame, layer);
         return;
       }
@@ -445,7 +451,7 @@ export function runScrubSettleCheck(ctx) {
         console.log(`[SCRUB-SETTLE] Series hit for hour=${currentHour} — committing warmed frame (no fetch).`);
         // Stamped clone for the same reason as the clamp sharpen above: an unstamped series frame
         // only rendered by luck (when the hour prop happened to change too).
-        setMarineData(stampSeriesCommit(sf, marineRevision));
+        setMarineData(stampSeriesCommit(sf, marineRevision, 'series_settle'));
         recordSettleCommitSig(lastCommittedSigRef, sf, activeMarineLayerRef.current || 'waves');
         return;
       }

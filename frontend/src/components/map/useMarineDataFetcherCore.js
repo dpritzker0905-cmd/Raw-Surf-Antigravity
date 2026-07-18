@@ -678,6 +678,12 @@ export function useMarineDataFetcherCore({
           lastCommittedSigRef.current = null;
           marineRevision.current += 1;
           const recoveryGrid = getAbortRecoveryGrid(model, layer, phase, marineRevision.current);
+          // ARBITER PHASE A: the one commit path that bypasses commitMarineData/stampSeriesCommit
+          // — stamp its lane so the engine ledger has full provenance coverage.
+          try {
+            recoveryGrid.__commitLane = 'abort_recovery';
+            if (recoveryGrid.grid) recoveryGrid.grid.__commitLane = 'abort_recovery';
+          } catch (e) { /* stamp is metadata-only */ }
           setMarineData(recoveryGrid);
 
           if (abortRecoveryRetryCountRef.current < 3) {

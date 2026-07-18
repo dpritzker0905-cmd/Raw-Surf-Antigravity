@@ -896,14 +896,28 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   // Forensic ledger: every ACCEPTED commit with its identity — the ring's spine. Rejects,
   // clears and fade transitions are recorded at their own sites; together one dump() reads
   // as the full lifecycle without console archaeology.
+  // ARBITER PHASE A (2026-07-18 EVE-2, structural #1 shim): the ledger's spine now carries the
+  // full commit DESCRIPTOR — lane provenance (stamped by commitMarineData / stampSeriesCommit /
+  // the abort-recovery site), a data-driven tier class, and the flavor WANT at commit time.
+  // Logging only — no decision moves here until the arbiter's shadow phase (see
+  // DESIGN-2026-07-18-marine-commit-arbiter.md). One ring dump now answers "which lane committed
+  // what, and did it match what the UI wanted" without console archaeology.
+  const _spanLng = waveGrid.bounds ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null;
+  const _cellDeg = (_spanLng !== null && waveGrid.cols > 0) ? +(_spanLng / waveGrid.cols).toFixed(3) : null;
+  const _tier = _cellDeg === null ? null : (_cellDeg >= 5 ? 'coarse' : (_cellDeg >= 1 ? 'mid' : 'fine'));
+  const _flavorWant = typeof window !== 'undefined' ? !!window.__SURF_MODE__ : false;
   recordMarineEvent('commit', {
     model, layer, hour: hourOffset,
     dims: `${waveGrid.cols}x${waveGrid.rows}`,
-    spanLng: waveGrid.bounds ? +boundsLonSpan(waveGrid.bounds).toFixed(2) : null,
+    spanLng: _spanLng,
     rating: !!waveGrid.ratingMode,
     fromSeries: !!waveGrid.__fromSeries,
     product: waveGrid.productId || waveGrid.product_id || null,
     scope: waveGrid.coverage_scope || null,
+    lane: waveGrid.__commitLane || null,
+    tier: _tier, cellDeg: _cellDeg,
+    flavorWant: _flavorWant,
+    flavorMismatch: _flavorWant !== !!waveGrid.ratingMode,
   });
 
   if (model === 'GFS' && layer === 'waves' && hourOffset === 0) {

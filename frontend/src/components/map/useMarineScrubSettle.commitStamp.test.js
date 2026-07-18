@@ -92,6 +92,21 @@ describe('stampSeriesCommit (pure)', () => {
     expect(typeof a.__commitRevision).toBe('number');
     expect(b.__commitRevision).toBeGreaterThan(a.__commitRevision);
   });
+
+  // ARBITER PHASE A: lane provenance rides the clone AND the shared grid (commit-time-scoped —
+  // the engine ledger reads it synchronously during the commit; a later lane restamps it).
+  it('stamps the lane on the clone and the shared grid; defaults to "series"', () => {
+    const frame = mkFrame({ west: -83, south: 27, east: -79, north: 30.5 });
+    const rev = { current: 0 };
+    const a = stampSeriesCommit(frame, rev, 'series_sharpen');
+    expect(a.__commitLane).toBe('series_sharpen');
+    expect(a.grid.__commitLane).toBe('series_sharpen');
+    expect(frame.grid.__commitLane).toBe('series_sharpen'); // shared grid — by design
+    const b = stampSeriesCommit(frame, rev, 'recovery_2b');
+    expect(b.grid.__commitLane).toBe('recovery_2b');        // later lane restamps
+    const c = stampSeriesCommit(frame, rev);
+    expect(c.__commitLane).toBe('series');
+  });
 });
 
 describe('runScrubSettleCheck — clamp sharpen commits a stamped clone (the §2a fix)', () => {
