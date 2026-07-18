@@ -354,6 +354,16 @@ export function commitMarineData({
   setTimeoutFunc,
   clearTimeoutFunc
 }) {
+  // COMMIT-STAMP INVARIANT (2026-07-18, structural #3): every frame this choke commits carries
+  // its hour + lane provenance. A missing hourOffset reads as "rendered hour=undefined" in the
+  // scrub-settle verification, which then re-drives a fetch loop against whatever the cache
+  // serves — the z6.5 band-flap driver (probe_flavor_loss). Series commits are stamped by
+  // stampSeriesCommit; this covers the DIRECT lane (all return paths below).
+  if (data) {
+    if (data.grid && data.grid.hourOffset === undefined) data.grid.hourOffset = timeOffset;
+    if (data.hourOffset === undefined) data.hourOffset = timeOffset;
+    data.__commitLane = source || 'direct';
+  }
   if (data.grid) {
     if (data.grid.bounds && bounds) {
       const ew = bounds.west, ee = bounds.east;
