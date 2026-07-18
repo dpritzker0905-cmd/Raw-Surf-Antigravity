@@ -41,7 +41,15 @@ Two staircase_full batteries (light cold, dark) + one light **warm** re-run + ma
    `951bba42`+; spot-check east col/north row on one wind + one EURO product after.
 
 ## 4. OPEN (carried queue)
-- z8 overlay coverage-gap halo (untouched) · §5b toggle wedge (§5f-2 pinning instrument next) ·
+- **z8 halo — hypothesis SHARPENED (read-only forensics this session):** `coverage_gap` =
+  the MID-GRID UNCOVERED REPLACE branch (`WebGLMarineEngine.js` ~1554-1594): at z8.0 the CACHED
+  base mask (rebuilt viewport-scoped at deeper zoom) no longer covers the widened viewport →
+  `_mbCov=false` → overlay REPLACES, and the overlay's 50%-padded ring is water-flooded past its
+  truth box = the halo. At z8.5 the cached mask still covers (`cov:true`). The dig: why the
+  escaped-mask rebuild (`64bd1ff6`) doesn't re-scope the BASE mask on the z8.5→z8.0 escape —
+  check its z-gate / escape trigger. Live telemetry already sufficient: `__RAW_GPU__.overlayMask`
+  {reason, baseCoversView} while stepping z8.5→z8.0. Instrument-first; this file is the minefield.
+- §5b toggle wedge (§5f-2 pinning instrument next) ·
   zoom-out transient stripe real-GPU capture lane · mini-hoist to prewarm · v3 hot-bias trim
   (USER CALL) · Peniche offshore sampling · a11y debt · security co-drive (BOLA path-param +
   buckets).
