@@ -73,6 +73,22 @@ Three mutually confirming probes:
   budget 0-persistent/≤2-total).**
 - Back-compat: new verdict on the 07-18 postbake trace = identical 3 findings, "legacy mode" label.
 
+## 3b. ⚡ EVE-2 ROUND 2 — the transient rooted: crest feather DEAD RING (`45b1a715`)
+The recurring water-side transient (3 consecutive batteries) = the east-edge crest feather dead
+ring: a fixed-lng stripe of crest-dead WATER just inside the resident edge, between the live
+interior and live ring-fill crests. Proof ×3 traces: quiet cols shift screen-position across zoom
+steps exactly as fixed-lng geometry predicts (lng ≈ −79.3 vs the FL tile's −79 edge); water
+truth = 1; ring-fill alive outside. (This vindicates the mechanism half of the reverted Gulf-edge
+analysis — the earlier A/B camera had both edges off-screen; a SETTLED fetch serves a padded tile
+whose edge never shows, so the staircase is the only reproduction vehicle.) FIX: crest-pass
+feather width capped to 0.045 when ring-fill continues the field (heatmap untouched; kill
+`__RAW_DISABLE_CREST_FEATHER_CAP__`; telemetry `__RAW_GPU__.crestFeather`). A/B: cap-OFF = the
+finding in all 3 prior traces; cap-ON battery = **verdict PASS, 0 findings, 726 frames — the
+first fully clean staircase**. Suite 1165/1165. ALSO shipped: `probeMaskGPU` coarse-base world-
+mask fallback beyond resident bounds + zoomlab/verdict UNKNOWN(-1)-counts-as-water (the ground
+truth had an unknown-as-land blind spot in the ring-fill zone). CI-log clarity: the green
+nightly now ends "WITHIN BUDGET — PASS" (`1e8adf33`).
+
 ## 4. QUEUE (post-EVE-2)
 1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
    (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
