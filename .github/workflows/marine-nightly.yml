@@ -88,6 +88,9 @@ jobs:
           if [ "$SETTLED" -gt 0 ] || [ "$PERSIST" -gt 0 ] || [ "${FINDINGS:-0}" -gt 2 ]; then
             echo "OVER BUDGET — failing"; exit 1
           fi
+          # The verdict binary prints "[verdict] FAIL" for ANY finding; the budget is the CI
+          # authority. Close the log unambiguously so a green run never reads as an error.
+          echo "WITHIN BUDGET — PASS (transient findings ≤2, zero persistent, zero settled steps)"
           exit 0
       - name: Upload trace artifacts
         if: always()
