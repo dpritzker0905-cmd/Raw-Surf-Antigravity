@@ -41,6 +41,47 @@ export function useMapInitialization({ innerMapRef, mapInstanceRef }) {
       setMapInstance(map);
       window.map = map;
 
+      // DPR SYNC (2026-07-18, the "oversized/blurry wave animations" root): MapLibre samples
+      // devicePixelRatio ONCE at construction. When the window's DPR changes after mount (moved
+      // between monitors, browser/system zoom, the embedded preview pane), the canvas backing
+      // store stays at the OLD ratio — live-proven: dpr 2 with canvas 1177×910 == its CSS size
+      // (half-res, compositor-upscaled 2× ⇒ every crest drawn double-size and soft; ×2354 sharp
+      // after setPixelRatio+resize). Sync now (heals a stale-at-mount ratio) and re-sync on every
+      // DPR change via the standard matchMedia re-arm loop. Kill: __RAW_DISABLE_DPR_SYNC__.
+      if (typeof window !== 'undefined' && window.__RAW_DISABLE_DPR_SYNC__ !== true &&
+          typeof map.setPixelRatio === 'function') {
+        const syncDpr = () => {
+          try {
+            const want = window.devicePixelRatio || 1;
+            // Compare the CANVAS BACKING ratio, not map.getPixelRatio(): the getter reads
+            // devicePixelRatio LIVE (always "correct"), while the canvas keeps the ratio it was
+            // last SIZED at — live-proven: getPixelRatio 2, painter 1, canvas 1177==CSS at dpr 2.
+            const cv = map.getCanvas();
+            const have = cv && cv.clientWidth > 0 ? cv.width / cv.clientWidth : null;
+            if (have !== null && Math.abs(have - want) > 0.05) {
+              map.setPixelRatio(want);   // pins the override so _resizeCanvas uses it
+              map.resize();
+              if (window.__RAW_GPU__) window.__RAW_GPU__.dprSync = { at: Date.now(), from: +have.toFixed(2), to: want };
+            }
+          } catch (e) { /* best-effort — never break map init */ }
+        };
+        let dprMql = null;
+        const armDprWatch = () => {
+          try {
+            if (dprMql) dprMql.onchange = null;
+            dprMql = window.matchMedia(`(resolution: ${window.devicePixelRatio || 1}dppx)`);
+            dprMql.onchange = () => { syncDpr(); armDprWatch(); };
+          } catch (e) { /* matchMedia unavailable — the mount-time sync still ran */ }
+        };
+        syncDpr();
+        armDprWatch();
+        // The boot desync needed no DPR *change* (stale from the initial size pass) — re-verify
+        // the invariant after every maplibre resize too. Loop-safe: once the backing ratio
+        // matches, syncDpr no-ops.
+        try { map.on('resize', syncDpr); } catch (e) { /* ignore */ }
+        try { map.once('remove', () => { if (dprMql) dprMql.onchange = null; try { map.off('resize', syncDpr); } catch (e2) {} }); } catch (e) { /* ignore */ }
+      }
+
       // Suppress async AbortErrors
       map.on('error', (e) => {
         if (e?.error?.name === 'AbortError' || e?.error?.message?.includes('aborted')) {

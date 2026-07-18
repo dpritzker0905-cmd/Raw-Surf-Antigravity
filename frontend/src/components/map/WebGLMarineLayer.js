@@ -865,15 +865,22 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       // the inland water/waterway repaints paint the OPEN OCEAN on class-less basemaps and were
       // mount-timing-ordered vs this layer. This handler runs LAST on every styledata tick for
       // this layer's moves, so the demote here is the authoritative end-of-tick invariant:
-      // anything of the inland pair found ABOVE the marine layer moves to directly below it.
-      // Loop-safe (only strictly-above layers move; then it no-ops). Their lagoons-over-land job
-      // is unaffected — they stay above the ne_50m land fill. Kill: __RAW_DISABLE_INLAND_ORDER_PIN__.
+      // anything in the demote list found ABOVE the marine layer moves to directly below it.
+      // Loop-safe (only strictly-above layers move; then it no-ops). Their over-land jobs are
+      // unaffected — they stay above the ne_50m land fill. Kill: __RAW_DISABLE_INLAND_ORDER_PIN__.
+      // 2026-07-18 (user, rating band active): `national-park` sat above the marine layer and
+      // marine sanctuaries/sea parks are WATER polygons (Everglades, Cay Sal Land and Sea Park
+      // photographed painting OVER the heatmap + coastal rating band) — same curtain class, so it
+      // joins the demote list. ONLY national-park: landcover/landuse are deliberately RAISED by
+      // OceanMask's repositionLanduse (#6, the green-parks-over-slate job) — demoting them here
+      // made the two mechanisms fight every styledata tick and uncovered the coastal mask halo
+      // (which forensics then pinned to the overlay-mask coverage_gap at z<8.5, a separate class).
       try {
         if (typeof window === 'undefined' || window.__RAW_DISABLE_INLAND_ORDER_PIN__ !== true) {
           const _ord = mapInstance.style && mapInstance.style._order;
           const _mi = _ord ? _ord.indexOf(LAYER_ID) : -1;
           if (_mi >= 0) {
-            for (const _iid of ['ocean-mask-inland-water', 'ocean-mask-inland-waterway']) {
+            for (const _iid of ['ocean-mask-inland-water', 'ocean-mask-inland-waterway', 'national-park']) {
               if (_ord.indexOf(_iid) > _mi) mapInstance.moveLayer(_iid, LAYER_ID);
             }
           }
