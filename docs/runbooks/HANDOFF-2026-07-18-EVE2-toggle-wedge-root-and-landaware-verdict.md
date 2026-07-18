@@ -114,6 +114,16 @@ shadow across scrub/rating/pan scenarios + more models; divergence-free soak acr
 batteries = the Phase C flip gate. HARNESS LESSON: a fresh dev server answering `/` is not
 warm — run one probe_boot.js pass before batteries (2 false zoomlab FATALs; boot is 6 s warm).
 
+## 3e. ⚡ EVE-2 ROUND 5 — PHASE B SOAK: 45/45, ZERO DIVERGENCES (`79017e9d`)
+Four scenario classes on the warm harness, all agreement, all verdicts PASS 0 findings:
+staircase 12/12 · pan_coverage 13/13 (3 agreed tier-downgrade rejections MID-PAN + a post-pan
+coverage release) · layers 9/9 (4 agreed layer_switch commits) · **RATED staircase 11/11** —
+the guard`s most nuanced territory: 2 agreed flavor_downgrade holds (the rating-grace class) +
+1 rated_uncovering_release, AND the first fully clean rated-staircase verdict ever. Harness:
+ZL_SURF=1 boots the rating flag; traces persist arbShadow tallies + diverge events. PHASE C
+GATE REMAINING: EURO/ICON model legs (add a ZL_MODEL hook) + a scrub-heavy scenario, then the
+kill-switched flip with the guard chain retained one release (design §5).
+
 ## 4. QUEUE (post-EVE-2)
 1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
    (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
@@ -137,5 +147,6 @@ warm — run one probe_boot.js pass before batteries (2 false zoomlab FATALs; bo
   server before debugging the probe.
 - PowerShell `Select-Object -First N` on a live pipeline still kills the upstream process — write
   to a file, then read (re-learned).
+
 
 
