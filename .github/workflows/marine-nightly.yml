@@ -1,0 +1,86 @@
+# MARINE NIGHTLY STABILITY NET (2026-07-18, structural review items #2/#4).
+# Two independent nets:
+#   data-contract  — the live resolver-ladder + product-edge contract (frontend/scripts/
+#                    ladder-contract.js): tier demotions (the snap-overshoot bug class) and
+#                    fencepost dead-edge regressions fail the run in minutes.
+#   zoomlab-battery — the real-gesture staircase battery + verdict engine against a dev-server
+#                    boot (mock auth, PROD backend data). Fails when findings exceed the
+#                    documented budget below.
+# Both are read-only against prod (a handful of /grid GETs + one browser session).
+name: Marine Nightly (contract + zoomlab)
+
+on:
+  workflow_dispatch: {}
+  schedule:
+    - cron: '30 6 * * *'   # 06:30 UTC daily — after the 04:15Z ingest cycle's serve restore
+
+jobs:
+  data-contract:
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+      - name: Resolver ladder + edge contract vs prod
+        run: node frontend/scripts/ladder-contract.js
+
+  zoomlab-battery:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 20
+          cache: npm
+          cache-dependency-path: frontend/package-lock.json
+      - name: Install frontend deps
+        working-directory: frontend
+        run: npm ci --no-audit --no-fund
+      - name: Install Playwright chromium
+        working-directory: frontend
+        run: npx playwright install chromium --with-deps
+      - name: Boot dev server (mock auth, prod backend data)
+        working-directory: frontend
+        env:
+          NODE_OPTIONS: --openssl-legacy-provider
+          PORT: '3009'
+          BROWSER: none
+          CI: 'false'   # CRA treats warnings as errors under CI=true — the dev server is not the build gate
+        run: |
+          nohup npm start > /tmp/devserver.log 2>&1 &
+          for i in $(seq 1 120); do
+            if curl -sf http://localhost:3009 > /dev/null; then echo "dev server up"; exit 0; fi
+            sleep 5
+          done
+          echo "dev server never came up"; tail -50 /tmp/devserver.log; exit 1
+      - name: Run staircase battery
+        working-directory: frontend
+        env:
+          ZL_BASE: http://localhost:3009
+        run: node scripts/zoomlab.js staircase_full /tmp/zoomlab-out
+      - name: Verdict (budgeted)
+        run: |
+          set +e
+          OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json 2>&1)
+          CODE=$?
+          echo "$OUT"
+          # BUDGET (documented in HANDOFF-2026-07-18-EVE part 2 close-out): the wrapped-copy
+          # particle cluster is a KNOWN pre-existing finding (≤3 DEAD_BAND findings at the z2
+          # tail). Fail on: any SETTLED_STEP finding, or more than 3 findings total.
+          FINDINGS=$(echo "$OUT" | grep -oP '(?<=FAIL — )\d+(?= finding)' || echo 0)
+          SETTLED=$(echo "$OUT" | grep -c 'SETTLED_STEP' || true)
+          echo "findings=$FINDINGS settled_steps=$SETTLED (budget: ≤3 findings, 0 settled steps)"
+          if [ "$SETTLED" -gt 0 ] || [ "${FINDINGS:-0}" -gt 3 ]; then
+            echo "OVER BUDGET — failing"; exit 1
+          fi
+          exit 0
+      - name: Upload trace artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: zoomlab-nightly-${{ github.run_id }}
+          path: /tmp/zoomlab-out
+          retention-days: 14

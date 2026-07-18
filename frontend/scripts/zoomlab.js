@@ -7,7 +7,14 @@
  */
 const path = require('path');
 const fs = require('fs');
-const { chromium } = require(path.join('C:', 'Users', 'dprit', 'Raw-Surf', 'frontend', 'node_modules', '@playwright', 'test'));
+// Portable resolve (2026-07-18, CI): plain require works when run from frontend/ (or with
+// NODE_PATH set); the explicit node_modules fallback covers running from the repo root locally.
+let chromium;
+try {
+  ({ chromium } = require('@playwright/test'));
+} catch (e) {
+  ({ chromium } = require(path.join(__dirname, '..', 'node_modules', '@playwright', 'test')));
+}
 
 const BASE = process.env.ZL_BASE || 'http://localhost:3009';
 const scenario = process.argv[2] || 'zoomout_ratingoff';
