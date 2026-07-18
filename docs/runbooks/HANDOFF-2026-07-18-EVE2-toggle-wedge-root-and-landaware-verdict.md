@@ -21,10 +21,12 @@
    `453b37c6`: zoomlab records engine-mask water ground truth per column (`probeMaskGPU`, 5 rows ×
    40 cols / 2 s → `trace.water`); the verdict excludes mostly-land bands; nightly budget tightened
    (0 persistent / 0 settled-step / ≤2 total). Old traces: byte-identical legacy mode.
-3. **Nightly net: data-contract PASSES vs prod; zoomlab job still blocked on a USER ACTION** —
-   `gh secret set MAPBOX_PUBLIC_TOKEN --repo dpritzker0905-cmd/Raw-Surf-Antigravity` (the pk. token
-   from `frontend/.env.local`). The 16:45Z failure predates the `fa46502f` preflight; at HEAD it
-   fails fast with that instruction.
+3. **Nightly net: FULLY ARMED AND GREEN.** The user set `MAPBOX_PUBLIC_TOKEN` (~18:26Z); dispatch
+   run `29655920874` passed BOTH jobs — data-contract 26 s ✓, zoomlab-battery 8m47s ✓ with the
+   land-aware verdict live in CI (1 finding · 462 anim frames · 168 water samples · 25 land
+   band-frames excluded · 0 persistent · 0 settled-step → under budget). The 06:30 UTC cron now
+   guards every night (expect ~3 h GH cron drift). NOTE: the 16:45Z failed run predates the
+   preflight + secret — its 20 "findings" are map-never-loaded noise; don't re-read it as signal.
 
 ## 1. §5b WEDGE — evidence chain
 - probe_wedge run 1 (HEAD `228751f4`, Jupiter z9.31, settled): toggle → forensic ring
