@@ -287,6 +287,8 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     shoaling (locally raised) | breaking (depth-capped). ESTIMATE from bulk params — callers MUST tag is_estimated."""
     if Hs_m is None or Tp_s is None:
         return None, 'unknown'
+    if Hs_m != Hs_m or Tp_s != Tp_s:
+        return None, 'unknown'   # NaN passes every <=/>= guard and would propagate to the display
     if Hs_m <= 0:
         return 0.0, 'calm'
     if Tp_s <= 0:

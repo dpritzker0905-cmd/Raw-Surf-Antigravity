@@ -112,3 +112,10 @@ def test_non_coastal_and_calm_regimes_unchanged():
     assert estimate_surf(1.5, 9.0, 20.0, coastal=False) == (1.5, "open_ocean")
     assert estimate_surf(0.0, 9.0, 20.0) == (0.0, "calm")
     assert estimate_surf(None, 9.0, 20.0) == (None, "unknown")
+
+
+def test_nan_inputs_return_unknown_not_nan():
+    """Adversarial audit 2026-07-17: NaN passes <=0 guards and propagated to the display chain
+    (pre-existing v2 hole, found by the v3 forensic pass). Must return (None, 'unknown')."""
+    assert estimate_surf(float('nan'), 10.0, 20.0) == (None, 'unknown')
+    assert estimate_surf(1.0, float('nan'), 20.0) == (None, 'unknown')
