@@ -38,6 +38,7 @@ function responseForUrl(url) {
 
 describe('marineGridSeries — per-cost-class page spans (proxy-window fit)', () => {
   beforeEach(() => {
+    window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     window.__MARINE_SERIES__ = true;
     window.__SURF_MODE__ = false;

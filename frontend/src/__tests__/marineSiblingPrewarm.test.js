@@ -84,12 +84,17 @@ describe('prewarmSiblingMarineSeries — default-on series-based sibling prewarm
     expect(sw1.grid.__fromSeries).toBe(true);
     expect(sw1.grid.bounds.east - sw1.grid.bounds.west).toBeLessThan(340);
 
-    // exactly 3 grid_series fetches, one page each (currentPageOnly — no adjacent-page fan-out,
-    // no active-layer refetch). This is the entire extra 1-CPU backend load the prewarm adds.
+    // Per sibling: one PAGE fetch (currentPageOnly — no adjacent-page fan-out, no active-layer
+    // refetch: the original 1-CPU contract) plus one 1-hour HOUR-0 mini (2026-07-18 lane: 36 KB,
+    // storm-immune, gives sibling toggles an instant first frame). The guarded class is the
+    // 48-frame page fan-out — minis are not that class.
     const seriesCalls = global.fetch.mock.calls.filter((c) => String(c[0]).includes('/grid_series'));
-    expect(seriesCalls).toHaveLength(3);
+    const pageCalls = seriesCalls.filter((c) => /hours=\d+,/.test(String(c[0])));
+    const miniCalls = seriesCalls.filter((c) => /hours=\d+(&|$)/.test(String(c[0])));
+    expect(pageCalls).toHaveLength(3);
+    expect(miniCalls).toHaveLength(3);
     const layersFetched = new Set(
-      seriesCalls.map((c) => (String(c[0]).match(/[?&]layer=([^&]+)/) || [])[1])
+      pageCalls.map((c) => (String(c[0]).match(/[?&]layer=([^&]+)/) || [])[1])
     );
     expect(layersFetched).toEqual(new Set(['swell_1', 'swell_2', 'wind_waves']));
   });

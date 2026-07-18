@@ -36,6 +36,7 @@ const goodResponse = () => ({
 
 describe('marineGridSeries — cold-start warming retry', () => {
   beforeEach(() => {
+    window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     jest.useFakeTimers();
     _resetMarineSeriesForTest();
     window.__MARINE_SERIES__ = true;

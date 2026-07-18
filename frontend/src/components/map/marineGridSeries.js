@@ -496,6 +496,71 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
   await p;
 }
 
+// === HOUR-0-FIRST PAINT LANE (2026-07-18, the time-to-fine arc's measured fix) ===
+// PROOF CHAIN (HANDOFF-2026-07-18-hour0-first-paint-lane-design.md): at activation the 48-hour
+// series page takes 2.5-3.3 s first-byte in the request storm while a 1-hour request answers in
+// 0.26-0.30 s CONCURRENTLY (storm-immune, curl-proven) — yet the first fine paint waited on the
+// full page (fine commit ~4.2 s; the coarse world paint at ~2 s = the "two heatmaps" report).
+// This lane fires a MINI series load (the current hour ONLY) when the page is cold, stored under
+// a distinct '_h0' key that getMarineSeriesFrame's containment fallback serves immediately; the
+// full page later lands under the exact page key and naturally supersedes it (exact-key loop wins;
+// the mini entry ages out via SERIES_TTL_MS). BYPASSES the 2-slot series queue deliberately — the
+// whole point is not queueing behind the 48-hour pages, and the storm experiment proved the
+// backend absorbs the tiny request concurrently. Completion re-drive = the SAME
+// 'marine_series_revalidated' event the full page fires (event-driven sharpen, not the 3 s poll).
+// Kill: __RAW_DISABLE_HOUR0_FIRST__. Telemetry: __MARINE_SERIES_DIAG__.h0Loads/h0Served.
+async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_HOUR0_FIRST__ === true) return;
+  if (!isMarineSeriesEnabled() || !bounds) return;
+  const page = marineSeriesPageForHour(hourOffset, model);
+  const h0key = `${pageKey(model, layer, bounds, page)}_h0`;
+  const existing = _seriesCache.get(h0key);
+  if ((existing && Date.now() - existing.ts < SERIES_TTL_MS) || _inFlight.has(h0key)) return;
+  const h = Math.max(0, Math.round(hourOffset / 3) * 3);   // snap to the 3-hourly frame grid
+  const reqBox = padRegionalBbox(bounds);
+  const surfFlavor = getSurfModeFlag();
+  const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
+    + `&domain=marine&layer=${encodeURIComponent(layer || 'waves')}`
+    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
+    + `&hours=${h}`
+    + (surfFlavor ? '&surf=1' : '');
+  const localController = new AbortController();
+  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
+  const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
+  const p = (async () => {
+    try {
+      const res = await fetch(url, { signal: localController.signal });
+      if (!res.ok) return;                                   // silent: the full page is coming anyway
+      const json = await res.json();
+      if (!json || !Array.isArray(json.frames) || json.frames.length === 0) return;
+      const f = json.frames.find((x) => typeof x.hour_offset === 'number' && x.vectors && x.vectors.length > 0);
+      if (!f) return;
+      const md = frameToMarineData(f, model, layer);
+      const sfb = md && md.grid && md.grid.bounds;
+      // A GLOBAL coarse SWR preview is useless as a regional first paint (the clamp class) — skip;
+      // the full-page lane's coarse-reval machinery owns that path.
+      const reqW = Math.abs(bounds.east - bounds.west);
+      const frameW = sfb ? ((sfb.east < sfb.west) ? (sfb.east + 360 - sfb.west) : (sfb.east - sfb.west)) : 0;
+      if (reqW < 15.0 && frameW >= 340.0) return;
+      const frames = new Map([[f.hour_offset, md]]);
+      _seriesCache.set(h0key, {
+        ts: Date.now(), frames, hours: [f.hour_offset], bounds: sfb || bounds,
+        model, layer, page, surf: surfFlavor, coarsePreview: false, revalCount: 0, h0: true,
+      });
+      if (typeof window !== 'undefined') {
+        const dg = (window.__MARINE_SERIES_DIAG__ = window.__MARINE_SERIES_DIAG__ || { loads: 0, hits: 0, misses: 0 });
+        dg.h0Loads = (dg.h0Loads || 0) + 1;
+        try { window.dispatchEvent(new Event('marine_series_revalidated')); } catch (e) { /* ignore */ }
+      }
+    } catch (e) { /* silent — full page is the safety net */ } finally {
+      clearTimeout(timeoutId);
+      _inFlight.delete(h0key);
+    }
+  })();
+  _inFlight.set(h0key, p);
+  await p;
+}
+
 /**
  * Background-load the marine time-series PAGE containing `hourOffset` (current hour) first,
  * then prefetch adjacent page(s) during idle. Idempotent + TTL'd + deduped. No-op when the
@@ -504,6 +569,21 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
 export async function ensureMarineSeries(model, layer, bounds, hourOffset = 0, signal, currentPageOnly = false, force = false) {
   if (!isMarineSeriesEnabled() || !bounds) return;
   const page = marineSeriesPageForHour(hourOffset, model);
+  // HOUR-0-FIRST: when the current page is COLD, race a 1-hour mini load ahead of it
+  // (fire-and-forget — it must not delay the page load it exists to beat). Fires on EVERY cold
+  // ensureMarineSeries call including the sibling prewarm's currentPageOnly path — the REAL
+  // activation goes through marineController's currentPageOnly=true call (probe run 1 proof:
+  // gating on that flag skipped the mini exactly where it was built to fire), and a 1-hour
+  // 36 KB mini is storm-immune (curl-proven), not the 48-frame adjacent-page fanout the sibling
+  // contract guards against. Sibling toggles gain an instant first frame as a side benefit.
+  // (Probe run 2 lesson: do NOT suppress on _inFlight.has(pageKey) — a page already in flight for
+  // 2.5-3.3 s cold is EXACTLY the window the mini exists to beat. The mini's own h0-key dedup
+  // prevents duplicate minis; the page-warm check below prevents pointless ones.)
+  const _pk = pageKey(model, layer, bounds, page);
+  const _pc = _seriesCache.get(_pk);
+  if (!(_pc && _pc.frames && _pc.frames.size && Date.now() - _pc.ts < SERIES_TTL_MS)) {
+    loadSeriesHour0(model, layer, bounds, hourOffset, signal);
+  }
   await loadSeriesPage(model, layer, bounds, page, signal, force);
   // currentPageOnly: load just the page containing hourOffset, no adjacent prefetch. Used by the
   // sibling-layer toggle prewarm — a toggle only needs the CURRENT hour, so fanning out to adjacent

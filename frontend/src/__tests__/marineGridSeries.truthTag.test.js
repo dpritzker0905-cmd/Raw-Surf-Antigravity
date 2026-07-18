@@ -27,6 +27,7 @@ function mockSeriesResponse() {
 
 describe('series-frame truthTag lineage (audit #18/A3)', () => {
   beforeEach(() => {
+    window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     resetTruthTracker('test');
     window.__MARINE_SERIES__ = true;

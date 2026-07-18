@@ -30,6 +30,7 @@ function mockSeriesResponse() {
 
 describe('marineGridSeries — flag-gated time-series client', () => {
   beforeEach(() => {
+    window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     delete window.__MARINE_SERIES__;
     global.fetch = jest.fn();
@@ -320,6 +321,7 @@ describe('coarseRevalDelayMs — exponential backoff for the coarse-preview reva
 
 describe('coarse-preview revalidation keeps re-driving past the old 8-attempt budget', () => {
   beforeEach(() => {
+    window.__RAW_DISABLE_HOUR0_FIRST__ = true; // these suites test the PAGE lane in isolation (hour-0 lane has its own suite)
     _resetMarineSeriesForTest();
     window.__MARINE_SERIES__ = true;
     global.fetch = jest.fn();
