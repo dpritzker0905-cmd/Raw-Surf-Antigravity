@@ -412,6 +412,55 @@ export function isMagnifiedCoarseField(cellDeg, zoom, win) {
   return pxPerCell >= minPx;
 }
 
+// === DEAD-EDGE TRIM (pure; exported for tests) ===
+// 2026-07-18 "hard vertical line of no animations": the NOAA-direct ingest fencepost baked an
+// ALL-INVALID east column (and north row) into every regional tile (FL -79.0 col = 21/21
+// is_valid:false, live-proven). Inside the resident bbox nothing paints it; ring-fill only engages
+// BEYOND the bbox — a one-cell dead stripe. The backend fix (79d34611) is cron-baked and heals
+// tiles only as ingest cycles re-run — this is the CLIENT defense at the commit choke point:
+// trim edge columns/rows that are 100% invalid (shrinking bounds+dims) so the resident ends at
+// real data and ring-fill covers the strip. Edge-only (interior invalid = real land/masks stays),
+// bounded to 2 per side, no-op returns the SAME object (no re-alloc churn on hot commits).
+// Kill: __RAW_DISABLE_DEAD_EDGE_TRIM__. Telemetry: __RAW_GPU__.deadEdgeTrim.
+export function trimDeadEdges(waveGrid, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_DEAD_EDGE_TRIM__ === true) return waveGrid;
+  if (!waveGrid || !waveGrid.vectors || !waveGrid.bounds || !(waveGrid.cols > 3) || !(waveGrid.rows > 3)) return waveGrid;
+  const b = waveGrid.bounds;
+  const stepX = (b.east - b.west) / (waveGrid.cols - 1);
+  const stepY = (b.north - b.south) / (waveGrid.rows - 1);
+  if (!(stepX > 0) || !(stepY > 0)) return waveGrid;
+  const colValid = new Array(waveGrid.cols).fill(0);
+  const rowValid = new Array(waveGrid.rows).fill(0);
+  for (const v of waveGrid.vectors) {
+    if (v.is_valid === false || !(v.speed > 0 || (v.value !== null && v.value !== undefined))) continue;
+    const c = Math.round((v.lng - b.west) / stepX);
+    const r = Math.round((v.lat - b.south) / stepY);
+    if (c >= 0 && c < waveGrid.cols) colValid[c]++;
+    if (r >= 0 && r < waveGrid.rows) rowValid[r]++;
+  }
+  let c0 = 0, c1 = waveGrid.cols - 1, r0 = 0, r1 = waveGrid.rows - 1;
+  for (let k = 0; k < 2 && c1 > c0 + 2 && colValid[c1] === 0; k++) c1--;
+  for (let k = 0; k < 2 && c1 > c0 + 2 && colValid[c0] === 0; k++) c0++;
+  for (let k = 0; k < 2 && r1 > r0 + 2 && rowValid[r1] === 0; k++) r1--;
+  for (let k = 0; k < 2 && r1 > r0 + 2 && rowValid[r0] === 0; k++) r0++;
+  if (c0 === 0 && c1 === waveGrid.cols - 1 && r0 === 0 && r1 === waveGrid.rows - 1) return waveGrid;
+  const nb = {
+    west: b.west + c0 * stepX, east: b.west + c1 * stepX,
+    south: b.south + r0 * stepY, north: b.south + r1 * stepY,
+  };
+  const eps = Math.min(stepX, stepY) * 0.25;
+  const vectors = waveGrid.vectors.filter((v) =>
+    v.lng >= nb.west - eps && v.lng <= nb.east + eps && v.lat >= nb.south - eps && v.lat <= nb.north + eps);
+  const trimmed = { ...waveGrid, vectors, bounds: nb, cols: c1 - c0 + 1, rows: r1 - r0 + 1 };
+  if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+    window.__RAW_GPU__.deadEdgeTrim = {
+      cols: (c0) + (waveGrid.cols - 1 - c1), rows: (r0) + (waveGrid.rows - 1 - r1), east: +nb.east.toFixed(2),
+    };
+  }
+  return trimmed;
+}
+
 // === SHARPEN-COMMIT OPACITY EASE (pure; exported for tests) ===
 // FIRST-ACTIVATION SWAP (2026-07-17, user: "activate a marine layer after refresh — one heatmap,
 // then 1-2 s later a DIFFERENT heatmap + animations"): probe_first_activation.js pinned the ladder —
@@ -556,6 +605,10 @@ WebGLMarineEngine.prototype.isHighResMaskLoaded = function() {
 
 WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   if (!waveGrid?.vectors?.length) return;
+
+  // DEAD-EDGE TRIM (2026-07-18): shave 100%-invalid edge columns/rows (the ingest fencepost's
+  // dead stripe) so the resident ends at real data and ring-fill paints the shaved strip.
+  waveGrid = trimDeadEdges(waveGrid) || waveGrid;
 
   // Every commit (re-)encodes the mask WITHOUT the basemap-truth patch — the repaint hysteresis
   // must forget its "already painted" state or it SKIPS the re-apply and the freshly-encoded
