@@ -268,7 +268,10 @@ export function recordTruthStage(stageName, data, file, functionName) {
     );
     if (previousStages.length > 0) {
       const prev = previousStages[previousStages.length - 1];
-      const isStartStage = stageName === "backendResponse" || stageName === "cacheRead";
+      // seriesFrameMint is a START stage (task #14, 2026-07-18): a re-minted series frame is a NEW
+      // chain on a stable product_id (series_*_h0 is reused every refresh) — comparing its tag
+      // backward against the superseded chain's commit produced the false-MISMATCH spam.
+      const isStartStage = stageName === "backendResponse" || stageName === "cacheRead" || stageName === "seriesFrameMint";
       if (!isStartStage) {
         if (prev.truthTag.traceId !== traceId) {
           mismatchFromPrevious = true;
@@ -345,7 +348,7 @@ export function recordTruthStage(stageName, data, file, functionName) {
 // NOT the A2 scope extension. Fires ONCE per dead chain: console.warn + verdict.failReasons +
 // window.__WEATHER_TRUTH_ABSENT__ (capped ring). verdict.status is left untouched.
 export const ABSENCE_WINDOW_MS = 30000; // > worst legit gap seen (style-deferred commits ~10s at boot)
-const _ARMING_STAGES = new Set(["backendResponse", "cacheRead", "mappedGrid", "cacheWrite", "orchestratorCommit"]);
+const _ARMING_STAGES = new Set(["backendResponse", "cacheRead", "mappedGrid", "cacheWrite", "orchestratorCommit", "seriesFrameMint"]);
 const _TERMINAL_STAGES = new Set(["webglUpload", "webglRender", "animationFrame"]);
 const _pendingChains = new Map(); // lane -> {traceId, productId, lane, lastStage, firstAt, lastAt}
 let _absenceTimer = null;

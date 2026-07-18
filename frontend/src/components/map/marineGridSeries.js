@@ -23,7 +23,7 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
-import { buildTruthTag } from './weatherTruthTracker';
+import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new Map();
@@ -299,6 +299,22 @@ function frameToMarineData(frame, model, layer) {
   if (truthTag) {
     if (Number.isFinite(frame.hour_offset)) truthTag.timeOffsetHours = frame.hour_offset;
     grid.truthTag = truthTag;
+    // Task #14 (2026-07-18): REGISTER the chain at its mint. Series frames legitimately commit
+    // through direct lanes (scrub-settle, clamp backstop, hour-0 revalidate) that never record an
+    // orchestratorCommit — their webglUpload then compared against the PREVIOUS chain's commit on
+    // the same stable product_id (series_*_h0) and console.error'd a false MISMATCH on every
+    // mini/series commit (TruthOverlay render storm rode the same spam). 'seriesFrameMint' is a
+    // START stage (exempt from backward comparison, arms the absence watchdog) so the upload
+    // compares within ITS OWN chain; real within-chain divergence still trips. Scope mirrors the
+    // tracker's GFS-waves@h0 gate. Kill: __RAW_DISABLE_SERIES_MINT_STAGE__.
+    if (model === 'GFS' && layer === 'waves' && frame.hour_offset === 0 &&
+        typeof window !== 'undefined' && !window.__RAW_DISABLE_SERIES_MINT_STAGE__) {
+      recordTruthStage('seriesFrameMint', {
+        model, domain: 'marine', layer,
+        valid_time: frame.valid_time, run_time: frame.run_time,
+        product_id, grid, truthTag,
+      }, 'marineGridSeries.js', 'mapSeriesFrame');
+    }
   }
   return {
     type: 'FeatureCollection',

@@ -70,4 +70,59 @@ describe('series-frame truthTag lineage (audit #18/A3)', () => {
     expect(upload.truthTag.traceId).toBe(commit.truthTag.traceId);   // was: divergent
     expect(window.__WEATHER_TRUTH_TRACE__.verdict.status).toBe('PASS');
   });
+
+  // Task #14 (2026-07-18): series product_ids are STABLE (series_GFS_waves_h0 is reused by every
+  // refresh), so a re-minted frame is a NEW chain superseding the old one — its upload used to be
+  // compared against the SUPERSEDED chain's commit (live order is upload → commit, so the last
+  // same-product stage at the next upload was orchestratorCommit) → a false console.error MISMATCH
+  // on every mini/series commit. The 'seriesFrameMint' start stage registers the new chain.
+  it('a re-minted series frame (new chain, same product) does NOT false-MISMATCH against the superseded commit', async () => {
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const a = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    expect(a).toBeTruthy();
+    // Live stage order for a state-driven commit: engine upload (layer render) THEN the React
+    // effect's orchestratorCommit.
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: a.grid, truthTag: a.grid.truthTag,
+    }, 'test', 'upload');
+    recordTruthStage('orchestratorCommit', a, 'test', 'commit');
+
+    // Refresh: series cache cleared (tracker KEEPS its stages — same page session), page re-fetched
+    // with revalidated data → mapSeriesFrame mints a NEW tag under the SAME product_id.
+    _resetMarineSeriesForTest();
+    window.__MARINE_SERIES__ = true;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => {
+      const r = mockSeriesResponse();
+      r.frames[0].vectors[0].speed = 9.9;      // revalidated data → different dataHash too
+      return r;
+    } });
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const b = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    expect(b).toBeTruthy();
+    expect(b.truthTag.traceId).not.toBe(a.truthTag.traceId);
+
+    // The direct-lane commit: engine upload with NO orchestratorCommit recorded for chain B.
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: b.grid, truthTag: b.grid.truthTag,
+    }, 'test', 'upload');
+
+    const stages = window.__WEATHER_TRUTH_TRACE__.stages;
+    expect(stages.filter(s => s.stage === 'seriesFrameMint').length).toBeGreaterThanOrEqual(2);
+    expect(stages.some(s => s.status === 'MISMATCH')).toBe(false);
+    expect(window.__WEATHER_TRUTH_TRACE__.verdict.status).toBe('PASS');
+  });
+
+  it('REAL within-chain divergence still trips the detector (mint is a start, not a blindfold)', async () => {
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const frame = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    expect(frame).toBeTruthy();
+    // Same chain (same traceId) but the uploaded bytes differ from what was minted/committed.
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: frame.grid,
+      truthTag: { ...frame.grid.truthTag, dataHash: 'tampered-hash' },
+    }, 'test', 'upload');
+    const stages = window.__WEATHER_TRUTH_TRACE__.stages;
+    expect(stages.some(s => s.status === 'MISMATCH')).toBe(true);
+    expect(window.__WEATHER_TRUTH_TRACE__.verdict.status).toBe('BLOCKED');
+  });
 });
