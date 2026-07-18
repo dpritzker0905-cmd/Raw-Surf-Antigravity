@@ -429,6 +429,27 @@ class WeatherNormalizer:
             else:
                 swell_stamp_suppressed = True
 
+        # ANTIMERIDIAN WRAP MIRROR (2026-07-18 deep audit — fencepost head #3): a full-wrap bbox
+        # (west=-180, east=180) declares BOTH endpoint columns inclusively above, but every
+        # fetcher's full-wrap axis is endpoint-EXCLUSIVE (+180 duplicates -180 geographically) —
+        # the +180 column never had supply and back-filled is_valid=false: a one-cell dead strip
+        # at the date line in EVERY global product (audit probe: east col 0/17 across all 8
+        # model/layer lanes). Mirror the west column's vectors into the east column so the seam
+        # carries real data and renders/interpolates seamlessly. DISTINCT objects — the emission
+        # loop below mutates vec.lng in place, so sharing one object would corrupt the west cell.
+        full_wrap = (east_monotonic - west) >= 360.0 - resolution * 0.5
+        if full_wrap and len(unique_lons) >= 2:
+            west_lon, east_lon = unique_lons[0], unique_lons[-1]
+            if abs((east_lon - west_lon) - 360.0) <= resolution * 0.5 + 1e-6:
+                for _lat in unique_lats:
+                    _src = grid_data.get((_lat, west_lon))
+                    if _src is not None and (_lat, east_lon) not in grid_data:
+                        grid_data[(_lat, east_lon)] = GridVector(
+                            lat=_src.lat, lng=east_lon, speed=_src.speed, direction=_src.direction,
+                            u=_src.u, v=_src.v, period=_src.period, gust=_src.gust,
+                            value=_src.value, is_valid=_src.is_valid,
+                            dir_confidence=_src.dir_confidence)
+
         # Build full rectangular grid
         vectors = []
         crosses_antimeridian = west > east

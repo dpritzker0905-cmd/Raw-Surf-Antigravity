@@ -319,3 +319,67 @@ def test_weather_normalizer_dir_confidence_plumb_through():
     # Without it (regional tiles, other providers) the field stays None — fully backward compatible
     product_legacy = normalizer.normalize(raw_results=[base], **kwargs)
     assert product_legacy.grid.vectors[0].dir_confidence is None
+
+
+def _wrap_raw_results(lons, lats, height=1.5):
+    """Raw per-point results for a coarse global fetch whose full-wrap lon axis is endpoint-
+    EXCLUSIVE (the fetchers' contract: +180 duplicates -180, so it is never fetched)."""
+    out = []
+    for lat in lats:
+        for lon in lons:
+            out.append({
+                "latitude": lat, "longitude": lon,
+                "hourly_units": {"wave_height": "m", "wave_direction": "°", "wave_period": "s"},
+                "hourly": {
+                    "time": ["2026-06-01T15:00:00Z"],
+                    "wave_height": [height + lon / 1000.0],
+                    "wave_direction": [200.0],
+                    "wave_period": [9.0],
+                },
+            })
+    return out
+
+
+def test_full_wrap_global_mirrors_the_antimeridian_column():
+    """Fencepost head #3 (2026-07-18 deep audit): the inclusive clean axis declares BOTH ±180
+    columns for a global bbox, but full-wrap supply is endpoint-exclusive — the +180 column was
+    back-filled is_valid=false in EVERY global product (live probe: east col 0/17 across all 8
+    lanes). The wrap mirror copies the -180 column into +180: real data at the date-line seam."""
+    normalizer = WeatherNormalizer()
+    lons = [round(-180.0 + i * 10.0, 4) for i in range(36)]       # -180..170 EXCLUSIVE
+    lats = [0.0, 10.0]
+    product = normalizer.normalize(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        raw_results=_wrap_raw_results(lons, lats),
+        bbox={"west": -180.0, "south": 0.0, "east": 180.0, "north": 10.0},
+        resolution=10.0,
+        target_time=datetime.fromisoformat("2026-06-01T15:00:00+00:00"),
+    )
+    assert product is not None
+    vecs = product.grid.vectors
+    assert product.grid.cols == 37                                 # shape unchanged (±180 both declared)
+    east = [v for v in vecs if v.lng == 180.0]
+    west = [v for v in vecs if v.lng == -180.0]
+    assert len(east) == 2 and len(west) == 2
+    for e, w in zip(sorted(east, key=lambda v: v.lat), sorted(west, key=lambda v: v.lat)):
+        assert e.is_valid is True                                  # was: back-filled invalid
+        assert e.speed == w.speed and e.direction == w.direction   # true duplicate of -180
+    # distinct objects: the mirror must not have corrupted the west column's lng
+    assert all(v.lng == -180.0 for v in west)
+
+
+def test_regional_grid_unaffected_by_wrap_mirror():
+    """A regional (non-wrap) bbox keeps its exact supply — no invented column."""
+    normalizer = WeatherNormalizer()
+    lons = [-85.0 + i * 0.25 for i in range(25)]                   # -85..-79 inclusive (fixed fetchers)
+    product = normalizer.normalize(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        raw_results=_wrap_raw_results([round(x, 4) for x in lons], [25.0]),
+        bbox={"west": -85.0, "south": 25.0, "east": -79.0, "north": 25.0},
+        resolution=0.25,
+        target_time=datetime.fromisoformat("2026-06-01T15:00:00+00:00"),
+    )
+    assert product is not None
+    assert product.grid.cols == 25
+    east_col = [v for v in product.grid.vectors if v.lng == -79.0]
+    assert len(east_col) == 1 and east_col[0].is_valid is True     # supplied by the fixed fetcher axis
