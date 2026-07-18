@@ -89,6 +89,17 @@ mask fallback beyond resident bounds + zoomlab/verdict UNKNOWN(-1)-counts-as-wat
 truth had an unknown-as-land blind spot in the ring-fill zone). CI-log clarity: the green
 nightly now ends "WITHIN BUDGET — PASS" (`1e8adf33`).
 
+## 3c. ⚡ EVE-2 ROUND 3 — ARBITER PHASE A SHIPPED (`06ee44c6`)
+Logging shim, zero behavior change: every commit path stamps its lane on the GRID
+(commitMarineData source · stampSeriesCommit lane param · the abort-recovery raw site), and the
+engine setWaveData ledger records {lane, tier, cellDeg, flavorWant, flavorMismatch} per commit.
+TRAP found en route: the useMarineWindData conform (explicit field list — the flag-eating mirror)
+ate __commitLane on the first probe run (lane:null at the engine); carried BY NAME now, its 4th
+victim after is_valid/dirConfidence/ratingMode. VERIFIED: wedge probe ENGAGED t+5s with
+lane:flavor_toggle tier:fine cellDeg:0.231 in the ring · staircase battery PASS 0 findings
+(746 frames) · suite 1166/1166. NEXT ARC: Phase B shadow mode (arbiterDecide logs would-be
+decisions; diff vs actual across the battery + probes before any flip).
+
 ## 4. QUEUE (post-EVE-2)
 1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
    (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
@@ -112,3 +123,4 @@ nightly now ends "WITHIN BUDGET — PASS" (`1e8adf33`).
   server before debugging the probe.
 - PowerShell `Select-Object -First N` on a live pipeline still kills the upstream process — write
   to a file, then read (re-learned).
+
