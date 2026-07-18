@@ -4,7 +4,8 @@ Shared utilities for the direct-source GRIB fetchers + their service wrappers.
 Consolidates the ~80% logic that every ``<src>_<model>_<layer>`` fetcher/service repeated, so a new
 or changed source is provider-specifics only (decode + var names), not another 250-LOC copy:
 
-  - ``coarse_axis``            half-open grid axis (identical to every fetcher's ``_coarse_axis``)
+  - ``coarse_axis``            endpoint-INCLUSIVE grid axis (full-wrap lon stays exclusive) — the
+                               ONE axis truth; the fetchers' ``_coarse_axis`` names delegate here
   - ``sanitize_*``            physical-range guards (NaN/masked/out-of-range -> None)
   - ``meteo_wind_dir``        u/v -> meteorological "from" direction
   - ``build_regular_nn``      nearest-neighbor map for a regular lat/lon source grid (NOAA / GWAM)
@@ -61,12 +62,25 @@ def is_test_environment() -> bool:
 
 # ─────────────────────────────── grid ───────────────────────────────
 def coarse_axis(lo: float, hi: float, step: float) -> List[float]:
-    """Half-open ``[lo, hi)`` axis at ``step``, rounded to 4dp."""
+    """Axis ``lo..hi`` INCLUSIVE of both endpoints, rounded to 4dp — matching
+    ``generate_bbox_coords`` / the open-meteo generator (both ``<= hi + eps``).
+
+    FENCEPOST (2026-07-18, round 2): the previous half-open ``[lo, hi)`` form under-supplied every
+    consumer's product by one east COLUMN and one north ROW relative to the normalizer's
+    bbox-declared inclusive grid, which back-filled them as explicit ``is_valid=false`` — the live
+    "hard vertical no-anim line". ``noaa_gfs_wave_fetcher`` was fixed first (79d34611, goldens);
+    the sweep missed these siblings: this shared copy (ECMWF/EURO all layers + ICON pressure) and
+    the five inlined ``_coarse_axis`` copies (NOAA wind/pressure, ICON wind, GWAM, Copernicus
+    global) — which now all delegate here.
+    EXCEPTION: a full-wrap 360° longitude axis stays endpoint-exclusive (+180 duplicates -180)."""
     vals: List[float] = []
-    v = float(lo)
+    lo = float(lo)
     hi = float(hi)
     step = float(step)
-    while v < hi - 1e-9:
+    full_wrap = (hi - lo) >= 360.0 - step * 0.5
+    limit = (hi - step * 0.5) if full_wrap else (hi + 1e-4)
+    v = lo
+    while v <= limit:
         vals.append(round(v, 4))
         v += step
     return vals

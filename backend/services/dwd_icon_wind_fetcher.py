@@ -39,12 +39,14 @@ HTTP_TIMEOUT = 120
 
 
 def _coarse_axis(lo, hi, step):
-    vals = []
-    v = lo
-    while v < hi - 1e-9:
-        vals.append(round(v, 4))
-        v += step
-    return vals
+    """Delegates to the ONE inclusive axis truth (fencepost round 2, 2026-07-18): the inlined
+    exclusive copy under-supplied the east column + north row vs the normalizer's inclusive grid
+    (dead-edge stripe class). Full-wrap 360° lon stays exclusive inside coarse_axis."""
+    try:
+        from _fetch_common import coarse_axis            # script-by-path
+    except ImportError:
+        from services._fetch_common import coarse_axis   # package context
+    return coarse_axis(lo, hi, step)
 
 
 def _download_decode(requests, pygrib, url, tmp):

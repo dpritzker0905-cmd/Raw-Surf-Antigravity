@@ -16,27 +16,43 @@ from services import _fetch_common as fc
 
 
 # ─────────────────────────── coarse_axis ───────────────────────────
-def test_coarse_axis_half_open_and_rounding():
-    # half-open [lo, hi): includes lo, excludes hi
-    assert fc.coarse_axis(-180.0, 180.0, 10.0)[0] == -180.0
-    ax = fc.coarse_axis(-80.0, 85.0, 10.0)
+# FENCEPOST ROUND 2 (2026-07-18): the half-open contract this suite used to pin WAS the bug — an
+# exclusive supply axis vs the normalizer's bbox-declared INCLUSIVE grid back-filled a dead east
+# column + north row into every consumer's products (the live no-anim stripe class). The contract
+# is now endpoint-INCLUSIVE (matching generate_bbox_coords / the open-meteo generator), with the
+# one honest exception: a full-wrap 360° lon axis stays exclusive (+180 duplicates -180).
+def test_coarse_axis_regional_axes_include_both_endpoints():
+    lons = fc.coarse_axis(-85.0, -79.0, 0.25)
+    assert lons[0] == -85.0
+    assert lons[-1] == -79.0          # THE fencepost: was -79.25
+    assert len(lons) == 25
+    lats = fc.coarse_axis(24.0, 31.0, 0.25)
+    assert lats[-1] == 31.0           # same fencepost on the north row
+    assert len(lats) == 29
+
+
+def test_coarse_axis_full_wrap_lon_stays_endpoint_exclusive():
+    lons = fc.coarse_axis(-180.0, 180.0, 0.5)
+    assert lons[0] == -180.0
+    assert lons[-1] == 179.5          # +180 would duplicate -180 across the wrap
+    assert len(lons) == 720
+
+
+def test_coarse_axis_wide_lat_axis_is_inclusive_not_wrap():
+    # step-aligned upper bound is INCLUDED (165° span is NOT a wrap); an off-lattice hi simply
+    # ends at the last on-lattice point <= hi (real region configs are step-aligned).
+    ax = fc.coarse_axis(-80.0, 85.0, 0.5)
     assert ax[0] == -80.0
-    assert 85.0 not in ax            # half-open upper bound
-    assert ax[-1] == 80.0
-    assert len(ax) == 17             # -80..80 step 10
+    assert ax[-1] == 85.0
+    assert len(ax) == 331
+    assert fc.coarse_axis(-80.0, 85.0, 10.0)[-1] == 80.0   # off-lattice hi: no invented point
 
 
-def test_coarse_axis_matches_legacy_impl():
-    # behaviourally identical to the inlined `_coarse_axis` every fetcher shipped
-    def legacy(lo, hi, step):
-        vals = []
-        v = lo
-        while v < hi - 1e-9:
-            vals.append(round(v, 4))
-            v += step
-        return vals
-    for lo, hi, step in [(-180.0, 180.0, 10.0), (-80.0, 85.0, 10.0), (24.0, 31.0, 0.25)]:
-        assert fc.coarse_axis(lo, hi, step) == legacy(lo, hi, step)
+def test_coarse_axis_matches_the_fixed_wave_fetcher_impl():
+    # ONE truth: identical to noaa_gfs_wave_fetcher._coarse_axis (79d34611), which fixed this first.
+    from services.noaa_gfs_wave_fetcher import _coarse_axis as wave_axis
+    for lo, hi, step in [(-180.0, 180.0, 0.5), (-85.0, -79.0, 0.25), (24.0, 31.0, 0.25), (-80.0, 85.0, 10.0)]:
+        assert fc.coarse_axis(lo, hi, step) == wave_axis(lo, hi, step)
 
 
 # ─────────────────────────── sanitizers ───────────────────────────
