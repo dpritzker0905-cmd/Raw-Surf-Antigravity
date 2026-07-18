@@ -180,6 +180,22 @@ class WeatherNormalizer:
         except ValueError:
             swell_min_frac = 0.35
         swell_stamped_count = 0
+        # §5i AVAILABILITY-COHERENCE (2026-07-17 Driver-B stitching audit): upstream partition
+        # AVAILABILITY can end mid-product at an internal upstream-model edge; per-cell stamping then
+        # flips the anim channel exactly at that edge (the photographed offshore seam-line class —
+        # swell-stamped west of the edge, blended-total east). Stamps are now DEFERRED and applied
+        # only when the partition-available fraction over wave-active cells ≥ WAVES_ANIM_SWELL_AVAIL_MIN
+        # (default 0.95) — seamless-or-unstamped. The per-cell ENERGY gate below is untouched:
+        # windsea-dominant cells keeping total direction is correct physics (round-12 §7h intent).
+        # Kill: WAVES_ANIM_SWELL_COHERENT=0 restores legacy immediate per-cell stamping.
+        swell_coherent = os.environ.get("WAVES_ANIM_SWELL_COHERENT", "1") == "1"
+        try:
+            swell_avail_min = float(os.environ.get("WAVES_ANIM_SWELL_AVAIL_MIN", "0.95"))
+        except ValueError:
+            swell_avail_min = 0.95
+        swell_stamp_candidates = {}   # (lat, lng) -> dominant swell direction (deferred apply)
+        swell_avail_count = 0         # wave-active cells whose payload carries any partition height
+        swell_active_count = 0        # wave-active cells seen by the stamp gate
 
         # Reconstruct clean coordinates by rounding to the nearest resolution step relative to bbox origins
         west = bbox["west"]
@@ -326,14 +342,20 @@ class WeatherNormalizer:
                 sw_d = s1_d_list[time_idx] if time_idx < len(s1_d_list) else None
                 s2_h = s2_h_list[time_idx] if time_idx < len(s2_h_list) else None
                 s2_d = s2_d_list[time_idx] if time_idx < len(s2_d_list) else None
+                swell_active_count += 1
+                if sw_h is not None or s2_h is not None:
+                    swell_avail_count += 1        # partition data EXISTS here (availability, not energy)
                 if s2_h is not None and s2_d is not None and (sw_h is None or s2_h > sw_h):
                     sw_h, sw_d = s2_h, s2_d
                 if (
                     sw_h is not None and sw_d is not None
                     and (sw_h * sw_h) >= swell_min_frac * (speed * speed)
                 ):
-                    direction = sw_d
-                    swell_stamped_count += 1
+                    if swell_coherent:
+                        swell_stamp_candidates[(lat, lng)] = sw_d   # deferred: §5i coherence decides
+                    else:
+                        direction = sw_d
+                        swell_stamped_count += 1
 
             # Guard against invalid or land null coordinates
             is_scalar = (direction_key is None)
@@ -388,6 +410,25 @@ class WeatherNormalizer:
         
         is_layer_estimated = has_estimated_points and not has_native_points
 
+        # §5i deferred coherent stamp: apply only when partitions exist essentially everywhere waves
+        # are — a mixed-availability product has an internal upstream edge; stamping would paint a
+        # direction cliff along it, so the whole product stays on the (seamless) total channel.
+        swell_avail_frac = (swell_avail_count / swell_active_count) if swell_active_count else None
+        swell_stamp_suppressed = False
+        if dominant_swell_anim and swell_coherent and swell_stamp_candidates:
+            if swell_avail_frac is not None and swell_avail_frac >= swell_avail_min:
+                for _key, _sw_d in swell_stamp_candidates.items():
+                    _vec = grid_data.get(_key)
+                    if _vec is None or not _vec.is_valid or _vec.speed <= 0:
+                        continue
+                    _rad = _sw_d * (math.pi / 180.0)
+                    _vec.direction = round(_sw_d, 2)
+                    _vec.u = round(-_vec.speed * math.sin(_rad), 4)
+                    _vec.v = round(-_vec.speed * math.cos(_rad), 4)
+                    swell_stamped_count += 1
+            else:
+                swell_stamp_suppressed = True
+
         # Build full rectangular grid
         vectors = []
         crosses_antimeridian = west > east
@@ -435,7 +476,11 @@ class WeatherNormalizer:
                 **({
                     "animChannel": "dominant_swell",
                     "swellStampedCount": swell_stamped_count,
-                    "swellMinFrac": swell_min_frac
+                    "swellMinFrac": swell_min_frac,
+                    # §5i coherence telemetry: availability fraction + whether the coherence gate
+                    # suppressed stamping (an internal upstream partition edge was present).
+                    "swellAvailFrac": round(swell_avail_frac, 4) if swell_avail_frac is not None else None,
+                    "swellStampSuppressed": swell_stamp_suppressed
                 } if dominant_swell_anim else {})
             }
         )

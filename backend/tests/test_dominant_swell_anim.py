@@ -128,3 +128,49 @@ def test_threshold_env_override(monkeypatch):
     product = _normalize(raw)
     vec = _vec_at(product, 24.0, -85.0)
     assert vec.direction == 90.0
+
+
+# ── §5i AVAILABILITY-COHERENCE goldens (2026-07-17 Driver-B stitching audit) ─────────────────────
+# Upstream partition availability can END mid-product at an internal model edge; per-cell stamping
+# painted a direction cliff there (the photographed offshore seam). Deferred stamping applies only
+# when partitions exist over ≥95% of wave-active cells — seamless-or-unstamped. The per-cell ENERGY
+# gate is untouched physics. Kill: WAVES_ANIM_SWELL_COHERENT=0.
+
+def test_availability_edge_suppresses_stamping(monkeypatch):
+    monkeypatch.setenv("WAVES_ANIM_DOMINANT_SWELL", "1")
+    raw = [
+        _point(24.0, -85.0, 2.0, 90.0, s1_h=1.9, s1_d=200.0),                        # partition avail
+        _point(24.0, -79.0, 2.0, 90.0, s1_h=None, s1_d=None, s2_h=None, s2_d=None),  # edge: no partitions
+    ]
+    p = _normalize(raw)
+    d = p.grid.diagnostics
+    assert d["swellStampSuppressed"] is True
+    assert d["swellStampedCount"] == 0
+    assert d["swellAvailFrac"] == pytest.approx(0.5)
+    assert _vec_at(p, 24.0, -85.0).direction == pytest.approx(90.0)  # kept TOTAL — seamless
+
+
+def test_full_availability_still_stamps(monkeypatch):
+    monkeypatch.setenv("WAVES_ANIM_DOMINANT_SWELL", "1")
+    raw = [
+        _point(24.0, -85.0, 2.0, 90.0, s1_h=1.9, s1_d=200.0),
+        _point(24.0, -79.0, 2.0, 90.0, s1_h=1.8, s1_d=210.0),
+    ]
+    p = _normalize(raw)
+    d = p.grid.diagnostics
+    assert d["swellStampedCount"] == 2
+    assert d["swellStampSuppressed"] is False
+    assert d["swellAvailFrac"] == pytest.approx(1.0)
+    assert _vec_at(p, 24.0, -85.0).direction == pytest.approx(200.0)
+
+
+def test_coherence_kill_switch_restores_percell(monkeypatch):
+    monkeypatch.setenv("WAVES_ANIM_DOMINANT_SWELL", "1")
+    monkeypatch.setenv("WAVES_ANIM_SWELL_COHERENT", "0")
+    raw = [
+        _point(24.0, -85.0, 2.0, 90.0, s1_h=1.9, s1_d=200.0),
+        _point(24.0, -79.0, 2.0, 90.0, s1_h=None, s1_d=None),
+    ]
+    p = _normalize(raw)
+    assert p.grid.diagnostics["swellStampedCount"] == 1               # legacy per-cell (the seam)
+    assert _vec_at(p, 24.0, -85.0).direction == pytest.approx(200.0)
