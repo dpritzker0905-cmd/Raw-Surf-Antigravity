@@ -570,13 +570,17 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
   return hitData;
 }
 
-export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false) {
+export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forceFetch = false, model = null, activeLayer = 'waves', isPrefetch = false, fetchOpts = null) {
   if (!bounds) return getModelSafeMarine(model, hourOffset, activeLayer);
 
   let west = bounds.west, east = bounds.east;
   if (east < west) east += 360;
 
-  const { snap, padding } = getSnapConfig(bounds);
+  // TIGHT snap (clamp_resharpen only — see getSnapConfig): a viewport-scoped request fits inside
+  // the fine regional tile the default 8°-wide snap overflows. Kill: __RAW_DISABLE_TIGHT_RESHARPEN__.
+  const _tight = !!(fetchOpts && fetchOpts.tightSnap) &&
+    !(typeof window !== 'undefined' && window.__RAW_DISABLE_TIGHT_RESHARPEN__ === true);
+  const { snap, padding } = getSnapConfig(bounds, _tight ? { tight: true } : undefined);
   let latMin = Math.max(-80, Math.min(84.5, Math.floor((bounds.south - padding) / snap) * snap));
   let latMax = Math.max(-79.5, Math.min(85, Math.ceil((bounds.north + padding) / snap) * snap));
   if (latMax <= latMin) { latMin = -80; latMax = 85; }

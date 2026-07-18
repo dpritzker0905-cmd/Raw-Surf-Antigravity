@@ -229,7 +229,16 @@ export function logMarineRequest(entry) {
  * Dynamic snapping configurator based on current viewport size.
  * Prevents redundant API requests on minor pans while keeping resolution crisp.
  */
-export function getSnapConfig(bounds) {
+export function getSnapConfig(bounds, opts) {
+  // TIGHT mode (2026-07-18, the rating-toggle direction-shift root): the default close-zoom snap
+  // (4° grid + 2° pad) makes EVERY <12°-span request ≥8° wide — wider than the 6° FL fine tile, so
+  // the resolver demotes to global_mid (2°/cell) and the clamp backstop's re-drive inherits the same
+  // snap → "no progress after 3 re-drives" (live-probed: 8° bbox → 2°/cell; ≤3° in-tile bbox →
+  // 0.25°). The rated surf lane requests viewport-scale and gets the fine tile — hence the 44-49°
+  // direction + 2-4x speed jump on the Rating toggle. TIGHT keeps the request viewport-scoped
+  // (0.5° snap + 0.25° pad — quantized so cache keys/dynamic-product cardinality stay bounded) and
+  // is used ONLY by the capped clamp_resharpen re-drive, never the general pan/cache lanes.
+  if (opts && opts.tight) return { snap: 0.5, padding: 0.25 };
   const lngSpan = Math.abs(bounds.east - bounds.west);
   const latSpan = Math.abs(bounds.north - bounds.south);
   const maxSpan = Math.max(lngSpan, latSpan);

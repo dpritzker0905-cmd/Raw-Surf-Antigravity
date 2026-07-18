@@ -222,4 +222,64 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(res.coverage).toEqual(PILOT_COVERAGE);
     });
   });
+
+  // MANIFEST-TILE CLIP (2026-07-18, the rating-toggle direction-shift root): at close zoom, a
+  // viewport fully inside a REGIONAL manifest tile requests the padded bbox CLIPPED to that tile —
+  // never crossing its edge into the mid-tier demotion the legacy 1°/2° snap caused (the Jupiter
+  // z9.31 44-49° direction jump + "no progress after 3 re-drives"). These lock the clip geometry,
+  // the straddler fall-through, and the kill switch.
+  describe('clampViewportBbox — manifest-tile clip (close zoom)', () => {
+    const FL_MANIFEST = {
+      products: [
+        { model: 'GFS', domain: 'marine', layer: 'waves', region_id: 'florida_east_coast', coverage: { west: -85, south: 24, east: -79, north: 31 } },
+        { model: 'GFS', domain: 'marine', layer: 'waves', region_id: 'global_coarse', coverage: { west: -180, south: -80, east: 180, north: 85 } },
+      ]
+    };
+    // The Jupiter z9.31 repro geometry: fully inside the FL tile, straddling the legacy 2°-aligned
+    // shortcut tile (-80..-78), and the legacy 1° snap would produce -82..-78 (crossing -79).
+    const JUPITER = { west: -80.65, south: 26.35, east: -79.25, north: 27.75 };
+
+    it('clips the padded request to the covering regional tile (never crosses the fine-tile edge)', () => {
+      setCachedManifest(FL_MANIFEST);
+      const res = clampViewportBbox(JUPITER, 'waves', 'GFS');
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox.east).toBeLessThanOrEqual(-79);      // clipped at the tile edge — the whole point
+      expect(res.clampedBbox.west).toBeLessThanOrEqual(JUPITER.west);   // padded on the open side
+      expect(res.clampedBbox.west).toBeGreaterThanOrEqual(-82);
+      expect(res.clampedBbox.south).toBeLessThanOrEqual(JUPITER.south);
+      expect(res.clampedBbox.north).toBeGreaterThanOrEqual(JUPITER.north);
+      expect(res.selectedTileId.startsWith('viewport_')).toBe(true);
+      // 0.25° quantization (cache-key + dynamic-product cardinality hygiene)
+      for (const v of [res.clampedBbox.west, res.clampedBbox.south, res.clampedBbox.east, res.clampedBbox.north]) {
+        expect(Math.abs(v / 0.25 - Math.round(v / 0.25))).toBeLessThan(1e-9);
+      }
+    });
+
+    it('a GLOBAL manifest product never qualifies as the covering tile', () => {
+      setCachedManifest({ products: [FL_MANIFEST.products[1]] });   // global only
+      const res = clampViewportBbox(JUPITER, 'waves', 'GFS');
+      // falls through to legacy snap (no regional tile covers) — east NOT clipped to -79
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox.east).toBeGreaterThan(-79);
+    });
+
+    it('a viewport straddling the real tile edge falls through to the legacy path', () => {
+      setCachedManifest(FL_MANIFEST);
+      const straddler = { west: -79.2, south: 26.5, east: -77.9, north: 27.8 };  // crosses -79
+      const res = clampViewportBbox(straddler, 'waves', 'GFS');
+      expect(res.isInside).toBe(true);
+      expect(res.clampedBbox.east).toBeGreaterThan(-79);            // legacy snap, not tile-clipped
+    });
+
+    it('kill switch __RAW_DISABLE_MANIFEST_TILE_CLIP__ restores the legacy snap', () => {
+      setCachedManifest(FL_MANIFEST);
+      window.__RAW_DISABLE_MANIFEST_TILE_CLIP__ = true;
+      try {
+        const res = clampViewportBbox(JUPITER, 'waves', 'GFS');
+        expect(res.clampedBbox.east).toBeGreaterThan(-79);          // the legacy crossing request
+      } finally {
+        delete window.__RAW_DISABLE_MANIFEST_TILE_CLIP__;
+      }
+    });
+  });
 });

@@ -342,6 +342,54 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
         _padN = Math.min(85, north + _pad);
       }
     }
+    // MANIFEST-TILE CLIP (2026-07-18, the rating-toggle direction-shift root — Jupiter z9.31
+    // live-pinned): the legacy pad+snap below turns a 1.4° viewport near a tile edge into e.g.
+    // -82..-78 — CROSSING the florida_east_coast east edge (-79), which demotes the serve to the
+    // 2°/cell global_mid... while the RATED surf lane requests viewport-scale and gets the 0.25°
+    // tile. Result: toggling Rating swapped mid-block-mean directions/heights for fine ones
+    // (measured 44-49° direction + 2-4x speed jumps) and the clamp backstop's re-drives inherited
+    // the same crossing bbox ("no progress after 3 re-drives"). The 1°/2° snap models the 07-04
+    // backend ("fine only within a single 2°-aligned tile") — SUPERSEDED by worldwide manifest
+    // tiles (07-13): ladder probes prove a raw in-tile 1.4° bbox serves the covering fine tile at
+    // 0.25°. So at close zoom, when a REGIONAL manifest tile fully contains the raw viewport,
+    // request the padded bbox CLIPPED to that tile (0.25°-quantized for cache/product-cardinality
+    // hygiene) — pan headroom kept on the inland sides, fine serve guaranteed. True straddlers of
+    // real tile edges and cold-boot (manifest not loaded) keep the legacy path unchanged.
+    // Kill: __RAW_DISABLE_MANIFEST_TILE_CLIP__.
+    if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_MANIFEST_TILE_CLIP__ === true) &&
+        spanLng <= 2.5 && spanLat <= 2.5 && !(east < west)) {
+      try {
+        const _tr2 = getAvailableTilesFromManifest(modelName, inferredDomain, layerName);
+        const _cover = (_tr2.tiles || []).find(t => {
+          const b = t.bounds;
+          if (!b || typeof b.west !== 'number') return false;
+          const tSpan = (b.east < b.west) ? (b.east + 360 - b.west) : (b.east - b.west);
+          if (tSpan >= 30 || (t.id && String(t.id).startsWith('global'))) return false;   // real regional tiles only
+          if (t.id && String(t.id).startsWith('viewport_')) return false;                  // not prior dynamic crops
+          return west >= b.west - 1e-6 && east <= b.east + 1e-6 &&
+                 south >= b.south - 1e-6 && north <= b.north + 1e-6;
+        });
+        if (_cover) {
+          const q = 0.25;
+          const cW = Math.max(_cover.bounds.west, Math.floor(_padW / q) * q);
+          const cS = Math.max(_cover.bounds.south, Math.floor(_padS / q) * q);
+          const cE = Math.min(_cover.bounds.east, Math.ceil(_padE / q) * q);
+          const cN = Math.min(_cover.bounds.north, Math.ceil(_padN / q) * q);
+          const rq = v => Number(v).toFixed(2);
+          return {
+            isInside: true,
+            clampedBbox: { west: cW, south: cS, east: cE, north: cN },
+            fallbackReason: null,
+            coverageBounds: PILOT_COVERAGE,
+            selectedTileId: `viewport_${rq(cW)}_${rq(cS)}_${rq(cE)}_${rq(cN)}`,
+            availableTileIds: (_tr2.tiles || []).map(t => t.id),
+            rejectedTileIds: [],
+            tileFallbackReason: null
+          };
+        }
+      } catch (e) { /* registry unavailable — legacy path */ }
+    }
+
     const tileSize = (modelName || '').toUpperCase() === 'GFS' ? 1.0 : 2.0;
     const snapW = Math.floor(_padW / tileSize) * tileSize;
     const snapS = Math.floor(_padS / tileSize) * tileSize;

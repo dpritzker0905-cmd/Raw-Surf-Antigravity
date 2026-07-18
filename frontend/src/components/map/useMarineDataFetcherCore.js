@@ -518,7 +518,8 @@ export function useMarineDataFetcherCore({
           if (getBackendCopernicusFlag()) {
             phase = 'standard_fetch_copernicus';
             try {
-              data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
+              data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer, false,
+                source === 'clamp_resharpen' ? { tightSnap: true } : null);
               if (!data || !data.grid || (!data.grid.renderable && (!data.grid.vectors || data.grid.vectors.length === 0))) {
                 console.warn('[Marine] Deployed Copernicus grid returned empty/unrenderable grid.');
                 const failureReason = data?.grid?.__failureReason || 'unavailable';
@@ -545,7 +546,11 @@ export function useMarineDataFetcherCore({
           }
         } else {
           phase = 'standard_fetch';
-          data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer);
+          // TIGHT bbox on the clamp re-drive (see getSnapConfig): the legacy snapped request
+          // overflows the fine tile and re-serves the same mid grid — the "no progress after 3
+          // re-drives" loop. Viewport-scoped, the re-drive actually upgrades.
+          data = await fetchMarineData(bounds, zoom, signal, timeOffset, false, model, layer, false,
+            source === 'clamp_resharpen' ? { tightSnap: true } : null);
         }
       }
 
