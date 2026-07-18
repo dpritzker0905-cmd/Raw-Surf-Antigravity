@@ -38,6 +38,14 @@ async function main() {
     log('ZL_FLAGS: ' + flags.join(', '));
   }
 
+  // ZL_THEME: boot the app in a specific theme (light|dark|beach) by seeding the ThemeContext
+  // localStorage key pre-boot — per-theme battery runs (2026-07-18: light-mode crest report).
+  if (process.env.ZL_THEME) {
+    const theme = process.env.ZL_THEME.trim();
+    await page.addInitScript((t) => { try { localStorage.setItem('raw-surf-theme', t); } catch (e) {} }, theme);
+    log('ZL_THEME: ' + theme);
+  }
+
   // Disable the service worker (E2E house pattern — always test the fresh bundle).
   await page.addInitScript(() => {
     const mockSW = {
@@ -50,7 +58,7 @@ async function main() {
   });
 
   const consoleErrors = [];
-  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 200)); });
+  page.on('console', (m) => { if (m.type() === 'error') consoleErrors.push(m.text().slice(0, 400)); });
 
   log('goto /map');
   await page.goto(BASE + '/map', { waitUntil: 'domcontentloaded', timeout: 60000 });
