@@ -124,7 +124,12 @@ describe('backendWeatherServiceClientCoverage', () => {
       // grid instantly and the SWR revalidation sharpens it to the fine 0.25° viewport grid.
       const res = clampViewportBbox({ west: 13.9, south: 44.6, east: 15.1, north: 45.4 }, 'waves', 'GFS');
       expect(res.isInside).toBe(true);
-      expect(res.clampedBbox).toEqual({ west: 13, south: 44, east: 16, north: 46 }); // covering snap
+      // Invariant: a COVERING snap (not the center tile) — exact box depends on the gesture pad
+      // (raised at close zoom 2026-07-18 for pan-ahead headroom), so assert coverage not geometry.
+      expect(res.clampedBbox.west).toBeLessThanOrEqual(13.9);
+      expect(res.clampedBbox.east).toBeGreaterThanOrEqual(15.1);
+      expect(res.clampedBbox.south).toBeLessThanOrEqual(44.6);
+      expect(res.clampedBbox.north).toBeGreaterThanOrEqual(45.4);
       expect(res.selectedTileId).not.toBe('viewport_14.00_44.00_16.00_46.00');
     });
 

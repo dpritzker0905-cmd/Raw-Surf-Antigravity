@@ -330,8 +330,15 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // viewport fetches ~4.8° ≈ 2.5× cells — trivial. Tune/kill: __RAW_MARINE_FETCH_PAD_FRAC__ (0 = off).
     let _padW = west, _padS = south, _padE = east, _padN = north;
     {
+      // CLOSE-ZOOM PAD RAISE (2026-07-18, probe_band_pan step-4 total-blank: a 0.35°/s coastal pan
+      // at z9.3 crossed the resident's north edge before the moveend refetch landed — the user's
+      // "band doesn't paint until I'm halfway into the new area"). At spans ≤2.5° the fine tile is
+      // 0.25°/cell, so ~¾-viewport headroom per side costs a trivial payload while keeping the
+      // committed grid ≥2 pan-steps ahead; the manifest-tile clip below still guarantees the padded
+      // request never crosses into the mid-tier demotion. Wider spans keep the legacy 0.3.
+      const _frDefault = (spanLng <= 2.5 && spanLat <= 2.5) ? 0.75 : 0.3;
       const _fr = (typeof window !== 'undefined' && window.__RAW_MARINE_FETCH_PAD_FRAC__ !== undefined)
-        ? Number(window.__RAW_MARINE_FETCH_PAD_FRAC__) : 0.3;
+        ? Number(window.__RAW_MARINE_FETCH_PAD_FRAC__) : _frDefault;
       if (_fr > 0) {
         const _span = Math.max(spanLng, spanLat);
         let _pad = Math.max(0.5, _fr * _span);
