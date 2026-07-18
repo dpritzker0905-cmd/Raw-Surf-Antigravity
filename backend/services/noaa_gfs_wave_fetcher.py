@@ -63,10 +63,18 @@ OM_ORDER = [om for _, om, _ in IDX_TO_OM]
 
 
 def _coarse_axis(lo, hi, step):
-    """Coarse axis matching the open-meteo grid generator: lo, lo+step, ... < hi."""
+    """Axis lo..hi INCLUSIVE of both endpoints — actually matching generate_bbox_coords / the
+    open-meteo generator (both `<= hi + eps`). The previous `< hi` EXCLUSIVE form under-supplied
+    every NOAA-direct product by one east COLUMN and one north ROW relative to the normalizer's
+    bbox-declared inclusive grid, which back-filled them as explicit is_valid=false — the
+    2026-07-18 live "hard vertical line of no animations": the FL tile's -79.0 column was 21/21
+    invalid (screen x=605 = the user's stripe; upstream open-meteo proven to HAVE data there).
+    EXCEPTION: a full-wrap 360° longitude axis stays endpoint-exclusive (+180 duplicates -180)."""
     vals = []
+    full_wrap = (hi - lo) >= 360.0 - step * 0.5
+    limit = (hi - step * 0.5) if full_wrap else (hi + 1e-4)
     v = lo
-    while v < hi - 1e-9:
+    while v <= limit:
         vals.append(round(v, 4))
         v += step
     return vals
