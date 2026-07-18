@@ -228,6 +228,9 @@ async function main() {
           realign: g.bridgeMultRealign,
           ndWhy: (window.__MARINE_NO_DOWNGRADE__ && window.__MARINE_NO_DOWNGRADE__.last && window.__MARINE_NO_DOWNGRADE__.last.why) || null,
           ndCount: (window.__MARINE_NO_DOWNGRADE__ && window.__MARINE_NO_DOWNGRADE__.count) || 0,
+          // ARBITER PHASE B shadow tallies: [decisions, disagreements] — battery-wide agreement data.
+          arb: (window.__RAW_ARBITER_SHADOW__)
+            ? [window.__RAW_ARBITER_SHADOW__.n, window.__RAW_ARBITER_SHADOW__.disagree] : null,
         });
       } catch (e) { T.frames.push({ err: String(e && e.message).slice(0, 60) }); }
     });

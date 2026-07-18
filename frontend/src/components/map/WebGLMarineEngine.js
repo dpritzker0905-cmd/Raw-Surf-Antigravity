@@ -8,6 +8,7 @@
 
 import { recordTruthStage } from './weatherTruthTracker';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer (one-read live diagnosis)
+import { arbiterDecide } from './marineCommitArbiter';   // ARBITER PHASE B: shadow verdicts at the commit choke
 import { captureWebGLState, restoreWebGLState } from './WebGLStateIsolation';
 import './maskFloodProbe';   // installs window.__MASK_PROBE__ (dev mask-flood diagnostic)
 import './marineSharpenTrace';   // installs window.__SHARPEN_TRACE__ (zoom-out sharpen-timeline instrument)
@@ -711,6 +712,41 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   const _rejSubcover = !_rejDowngrade && !!(this._waveData && this._waveData.waveGrid &&
       shouldRejectSubcoveringRegional(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds, _ndDisabled,
         typeof window !== 'undefined' ? window : undefined));
+  // ARBITER PHASE B SHADOW (2026-07-18 EVE-2; DESIGN-2026-07-18-marine-commit-arbiter.md):
+  // arbiterDecide runs on every commit attempt at this choke and its verdict is COMPARED against
+  // the real guards' outcome — it decides NOTHING. Agreement counts in
+  // window.__RAW_ARBITER_SHADOW__ {n, agree, disagree, byRule}; divergences ring-log as
+  // 'arb_shadow_diverge' with both verdicts + the descriptor. Divergence is DATA (a rule to tune
+  // or a guard nuance proven load-bearing), not an error. Kill: __RAW_DISABLE_ARBITER_SHADOW__.
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_ARBITER_SHADOW__ !== true) {
+      const _shadow = arbiterDecide(
+        this._waveData && this._waveData.waveGrid, waveGrid,
+        { zoom: this._lastZoom, viewportBounds: this._lastViewportBounds,
+          flavorWant: window.__SURF_MODE__ === true,
+          zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM });
+      const _actualReject = _rejDowngrade || _rejSubcover;
+      const _wouldReject = _shadow.verdict === 'reject';
+      const s = window.__RAW_ARBITER_SHADOW__
+        || (window.__RAW_ARBITER_SHADOW__ = { n: 0, agree: 0, disagree: 0, byRule: {} });
+      s.n++;
+      s.byRule[_shadow.rule] = (s.byRule[_shadow.rule] || 0) + 1;
+      if (_wouldReject === _actualReject) { s.agree++; } else {
+        s.disagree++;
+        s.last = { rule: _shadow.rule, would: _shadow.verdict, actual: _actualReject ? 'reject' : 'commit' };
+        recordMarineEvent('arb_shadow_diverge', {
+          rule: _shadow.rule, would: _shadow.verdict, actual: _actualReject ? 'reject' : 'commit',
+          why: _actualReject ? (_rejDowngrade ? 'downgrade' : 'subcover') : null,
+          resident: this._waveData && this._waveData.waveGrid
+            ? `${this._waveData.waveGrid.cols}x${this._waveData.waveGrid.rows}` : null,
+          incoming: `${waveGrid.cols}x${waveGrid.rows}`,
+          lane: waveGrid.__commitLane || null,
+          hour: waveGrid.hourOffset,
+          zoom: (typeof this._lastZoom === 'number') ? +this._lastZoom.toFixed(2) : null,
+        });
+      }
+    }
+  } catch (e) { /* shadow must never break a commit */ }
   if (_rejDowngrade || _rejSubcover) {
     const _res = this._waveData.waveGrid;
     const _why = _rejDowngrade ? 'downgrade' : 'subcover';
