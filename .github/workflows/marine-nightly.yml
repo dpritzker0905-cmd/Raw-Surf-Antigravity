@@ -42,6 +42,14 @@ jobs:
       - name: Install Playwright chromium
         working-directory: frontend
         run: npx playwright install chromium --with-deps
+      - name: Preflight — basemap token present
+        run: |
+          if [ -z "${{ secrets.MAPBOX_PUBLIC_TOKEN }}" ]; then
+            echo "::error::MAPBOX_PUBLIC_TOKEN repo secret is not set — the map cannot boot in CI."
+            echo "Set it once (the pk. CLIENT-PUBLIC token from frontend/.env.local):"
+            echo "  gh secret set MAPBOX_PUBLIC_TOKEN --repo dpritzker0905-cmd/Raw-Surf-Antigravity"
+            exit 1
+          fi
       - name: Boot dev server (mock auth, prod backend data)
         working-directory: frontend
         env:
@@ -49,6 +57,7 @@ jobs:
           PORT: '3009'
           BROWSER: none
           CI: 'false'   # CRA treats warnings as errors under CI=true — the dev server is not the build gate
+          REACT_APP_MAPBOX_TOKEN: ${{ secrets.MAPBOX_PUBLIC_TOKEN }}
         run: |
           nohup npm start > /tmp/devserver.log 2>&1 &
           for i in $(seq 1 120); do
