@@ -38,6 +38,22 @@
    has a repro vehicle.
 Probes live in the session scratchpad; rebuildable from this doc + the EVE session memory.
 
+## ⚡ PART 2 CLOSE-OUT — bakes verified, stripe re-battery verdict
+- **+180 HEALED AT SOURCE** (~16:1xZ, core `29646402826`): 18:00Z globals — east col 180 = exact
+  WEST mirror on GFS/ICON/EURO waves (16/16/13 of 17), GFS wind 17/17, ICON swell_1 16/17 (all
+  were 0/17). Both ends closed (client mirror + baked normalizer).
+- **FL edges healed live** (~14:40Z): all lanes -79 col 29/29; zero dead rows/cols in any FL product.
+- **CI + Lighthouse green** through `202b3486`.
+- **Stripe re-battery (queue #3) post-bake: 4 findings → 3** — the east-side persistent band
+  (cols 32-35) VANISHED with the bake ✓. The surviving cluster (cols 4-13, xFrac 0.10-0.35,
+  z2 tail) maps to lng ~136E→-134W = the WRAPPED WORLD COPY left of -180 at the FL-centered z2
+  view, and appears IDENTICALLY in pre-fix + baseline traces → NEW SHARPENED HYPOTHESIS:
+  **crest particles do not animate in wrapped world copies at far zoom** (heatmap wraps via
+  maplibre; the particle tile/advection domain doesn't — check the wrap-cull `f8d4f3fa`
+  lineage + the §7i tile clamp before touching). This is the remaining "dead zones" residual;
+  traces: zl-staircase-{postfix,baseline,postbake} in the 07-18 EVE session scratchpad
+  (verdict JSONs quoted in the session memory).
+
 **START HERE for a fresh context.** Supersedes `HANDOFF-2026-07-18-DEEP-AUDIT-fencepost-head3-and-state-of-the-sim.md`
 (read that second — it carries the three-head fencepost story + audit table). HEAD `2c3d9dd7` on `dev`.
 Every claim below is probe-proven (probe scripts named inline; scratchpad probes are re-buildable from this doc).
