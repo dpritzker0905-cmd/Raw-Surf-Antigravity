@@ -158,6 +158,12 @@ class PointResolutionService:
                 response.surf_height_m = round(surf, 4) if surf is not None else None
                 response.surf_regime = regime
                 response.shelf_depth_m = round(depth, 1) if depth is not None else None
+                # NEARSHORE display tag (see schemas.surf_nearshore): land within ~±0.25° — the
+                # frontend hides the Surf (est.) row for markers farther offshore than that.
+                try:
+                    response.surf_nearshore = bool(is_coastal(lat, lng, radius_cells=1))
+                except Exception:
+                    response.surf_nearshore = None
             except Exception as _se:
                 logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
 

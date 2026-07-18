@@ -450,7 +450,8 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     // Option-2 surf transform (estimate): nearshore breaking height for this point/hour, from the backend
     surf_height_m: status === 'exact_no_time_coverage' ? null : (cachedResponse.surf_height_m ?? null),
     surf_regime: cachedResponse.surf_regime ?? null,
-    shelf_depth_m: cachedResponse.shelf_depth_m ?? null
+    shelf_depth_m: cachedResponse.shelf_depth_m ?? null,
+    surf_nearshore: cachedResponse.surf_nearshore ?? null
   };
 }
 

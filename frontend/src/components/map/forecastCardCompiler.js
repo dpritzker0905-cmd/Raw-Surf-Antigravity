@@ -266,7 +266,12 @@ export function compileForecastCards({
       const _surf = useExactPoint?.surf_height_m;
       const _reg = useExactPoint?.surf_regime;
       const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown';
-      if (_surf != null && _reg && !_hidden) {
+      // NEARSHORE GATE (2026-07-18, user mandate: "Estimated surf should only appear on a marker
+      // that is nearshore"): the backend tags land-within-~±0.25° (surf_nearshore). Strictly hide
+      // when the backend says false; null/undefined (older cached responses, deploy skew) keeps the
+      // legacy regime-only behavior so the row never vanishes from stale caches alone.
+      const _near = useExactPoint?.surf_nearshore;
+      if (_surf != null && _reg && !_hidden && _near !== false) {
         const _surfFt = mToFt(_surf);
         if (_surfFt != null) {
           cards.push({ icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300' });

@@ -182,6 +182,11 @@ class NormalizedPointResponse(BaseModel):
     surf_regime: Optional[str] = None           # calm | deep | shelf | breaking | unknown
     shelf_depth_m: Optional[float] = None        # representative shelf depth used by the transform (m)
     shore_normal_deg: Optional[float] = None     # seaward bearing (0=N,90=E); offshore/onshore wind for the surf rating
+    # NEARSHORE display gate (2026-07-18, user: "Estimated surf should only appear on a marker that is
+    # nearshore"): land within ~±0.25° (is_coastal radius_cells=1) — STRICTER than the transform's own
+    # ±0.75° coastal gate, which kept the row visible for markers well offshore. Display-only tag; the
+    # estimate itself is computed the same either way.
+    surf_nearshore: Optional[bool] = None
 
 class ManifestProduct(BaseModel):
     model: str

@@ -549,7 +549,8 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // Option-2 bathymetry surf transform (estimate): nearshore breaking height for this point/hour.
       surf_height_m: (json.surf_height_m ?? null),
       surf_regime: (json.surf_regime ?? null),
-      shelf_depth_m: (json.shelf_depth_m ?? null)
+      shelf_depth_m: (json.shelf_depth_m ?? null),
+      surf_nearshore: (json.surf_nearshore ?? null)
     };
 
     const details = {
