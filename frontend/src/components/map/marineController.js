@@ -580,7 +580,7 @@ export async function fetchMarineData(bounds, zoom, signal, hourOffset = 0, forc
   // the fine regional tile the default 8°-wide snap overflows. Kill: __RAW_DISABLE_TIGHT_RESHARPEN__.
   const _tight = !!(fetchOpts && fetchOpts.tightSnap) &&
     !(typeof window !== 'undefined' && window.__RAW_DISABLE_TIGHT_RESHARPEN__ === true);
-  const { snap, padding } = getSnapConfig(bounds, _tight ? { tight: true } : undefined);
+  const { snap, padding } = getSnapConfig(bounds, _tight ? { tight: true } : { midCeilingGuard: true });
   let latMin = Math.max(-80, Math.min(84.5, Math.floor((bounds.south - padding) / snap) * snap));
   let latMax = Math.max(-79.5, Math.min(85, Math.ceil((bounds.north + padding) / snap) * snap));
   if (latMax <= latMin) { latMin = -80; latMax = 85; }

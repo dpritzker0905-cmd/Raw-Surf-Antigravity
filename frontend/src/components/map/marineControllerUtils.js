@@ -243,6 +243,21 @@ export function getSnapConfig(bounds, opts) {
   const latSpan = Math.abs(bounds.north - bounds.south);
   const maxSpan = Math.max(lngSpan, latSpan);
 
+  // MID-CEILING GUARD (2026-07-18, the z6.5 band FLAP root — marine lane only via opts): for
+  // viewport spans 4-14° the legacy 4°-snap + 2°-pad inflates the request PAST the backend's 15°
+  // mid-band ceiling (probe: z6.5's 11.2° viewport → 20° request), which resolves to the UNRATED
+  // 10° global_coarse instead of the RATED clipped mid — the cached coarse then ping-pongs with
+  // the sharpen lane's rated mid resident every few seconds (band paints ↔ vanishes, captured by
+  // probe_flavor_loss with recycled TraceIDs). Keep the snapped request UNDER the ceiling:
+  // 0.5° snap + a pad that caps the total at ≤14.5° (span+2·pad+2·snap ≤ 14.5). Spans ≥14 ride
+  // the legacy tiers (they're at the boundary where global is the honest serve anyway).
+  // Kill: __RAW_DISABLE_MID_CEILING_SNAP__.
+  if (opts && opts.midCeilingGuard && maxSpan >= 4 && maxSpan < 14 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_MID_CEILING_SNAP__ === true)) {
+    const padding = Math.max(0, Math.min(2.0, (13.5 - maxSpan) / 2));
+    return { snap: 0.5, padding };
+  }
+
   // v4.2.0: Coarser snapping grid to maximize regional containment cache hits
   if (maxSpan < 4) return { snap: 4.0, padding: 2.0 };
   if (maxSpan < 12) return { snap: 4.0, padding: 2.0 };
