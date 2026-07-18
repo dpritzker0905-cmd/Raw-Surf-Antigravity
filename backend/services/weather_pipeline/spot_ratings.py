@@ -354,6 +354,20 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
         except Exception as _pe:
             logger.warning(f"[spot-ratings] CMEMS pre-warm skipped: {_pe}")
 
+    # TIDE pre-warm (2026-07-18, RATING_TIDE flip): with the tide factor on, a fresh CI process would
+    # cold-fetch ~900 spot-cells ONE request at a time inside rate_one_spot (Open-Meteo quota + tail
+    # latency). Batch-seed the TTL cache first (~10 comma-separated-coords requests for ~1500 spots);
+    # the per-spot path then hits the cache. Never fatal — a failed pre-warm just leaves the per-spot
+    # fallback (and a tide miss is always a neutral rating).
+    if spots and os.environ.get("RATING_TIDE", "0") == "1":
+        try:
+            from services.weather_pipeline.tide import prewarm_tide_cache
+            n_tide = await prewarm_tide_cache(
+                [(sp.get("latitude"), sp.get("longitude")) for sp in spots])
+            logger.info("[spot-ratings] tide cache pre-warmed: %d cells.", n_tide)
+        except Exception as _te:
+            logger.warning(f"[spot-ratings] tide pre-warm skipped: {_te}")
+
     async def _one(resolver, sp, model, vt):
         async with sem:
             return await rate_one_spot(resolver, sp, model, vt, reference_size_m=ref_map.get(str(sp.get("id"))))

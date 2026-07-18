@@ -67,6 +67,7 @@ jobs:
           PREFETCH_WINDOW_DAYS: '1'     # precompute rates only the current frame → warm just near-term grids (faster)
           SPOT_RATINGS_PRECOMPUTE: '1'
           SPOT_RATINGS_PRECOMPUTE_MODELS: 'GFS,EURO,ICON'  # precompute glyphs for all 3 models (match forecast-ingest)
+          RATING_TIDE: '1'              # 2026-07-18 SOTA-gap #1 flip (match forecast-ingest): tide state on every rated spot + tide_fit where a best_tide prior exists; batched pre-warm keeps it ~10 requests/run. Kill: '0'.
           SPOT_RATINGS_PRECOMPUTE_HOURS: '0,3'  # TWO frames/model (2026-07-13): coverage to +5h59 per run → a missed/drifted run no longer opens a melt window; also covers near-term scrub (±2h tolerance around each frame)
           BUOY_CALIBRATION: '1'
           REPORT_CALIBRATION: '1'

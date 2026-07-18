@@ -129,6 +129,72 @@ async def fetch_tide_hourly(lat, lng, client=None, forecast_days: int = 3) -> Op
     return {"time": times, "level": levels}
 
 
+def _prewarm_keys(latlngs, now=None):
+    """PURE: unique rounded cache keys from (lat,lng) pairs that are not already cache-fresh — the batch
+    prewarm's work list. Order-preserving so a chunk's results zip back to its keys."""
+    now = time.time() if now is None else now
+    keys, seen = [], set()
+    for pair in latlngs or []:
+        try:
+            lat, lng = pair
+        except (TypeError, ValueError):
+            continue
+        if lat is None or lng is None:
+            continue
+        k = _round_key(lat, lng)
+        if k in seen:
+            continue
+        seen.add(k)
+        hit = _TIDE_CACHE.get(k)
+        if hit and (now - hit["ts"]) < _TIDE_TTL_S:
+            continue
+        keys.append(k)
+    return keys
+
+
+async def prewarm_tide_cache(latlngs, client=None, forecast_days: int = 3, chunk_size: int = 100) -> int:
+    """Batch-seed the tide cache for many spots in a few requests: Open-Meteo accepts comma-separated
+    latitude/longitude lists and returns an ARRAY of per-location results in request order (probed
+    2026-07-18). The ratings precompute calls this once per run — a fresh CI process would otherwise
+    cold-fetch ~900 spot-cells one request at a time inside rate_one_spot (quota + tail latency); batched
+    it's ~10 requests for ~1500 spots. Requests use the ROUNDED key coords, exactly what fetch_tide_hourly
+    would request, so the seeded entries are byte-identical to the per-spot path's. Never raises; returns
+    the number of cells seeded."""
+    keys = _prewarm_keys(latlngs)
+    seeded = 0
+    for i in range(0, len(keys), chunk_size):
+        chunk = keys[i:i + chunk_size]
+        url = (f"{OPEN_METEO_MARINE_API}?latitude={','.join(str(k[0]) for k in chunk)}"
+               f"&longitude={','.join(str(k[1]) for k in chunk)}"
+               f"&hourly=sea_level_height_msl&forecast_days={forecast_days}&timezone=GMT")
+        try:
+            if client is not None:
+                resp = await client.get(url)
+                data = resp.json() if resp.status_code == 200 else None
+            else:
+                import httpx
+                async with httpx.AsyncClient(timeout=60) as c:
+                    resp = await c.get(url)
+                    data = resp.json() if resp.status_code == 200 else None
+        except Exception as e:
+            logger.debug(f"[tide] prewarm chunk failed ({len(chunk)} cells): {e}")
+            continue
+        if not data:
+            continue
+        results = data if isinstance(data, list) else [data]   # a 1-coord batch comes back as a bare object
+        now = time.time()
+        for k, item in zip(chunk, results):
+            h = (item or {}).get("hourly") or {}
+            times, levels = h.get("time"), h.get("sea_level_height_msl")
+            if not times or not levels:
+                continue
+            if len(_TIDE_CACHE) >= _TIDE_CACHE_MAX:
+                _TIDE_CACHE.clear()
+            _TIDE_CACHE[k] = {"ts": now, "time": times, "level": levels}
+            seeded += 1
+    return seeded
+
+
 async def tide_norm_at(lat, lng, valid_time, client=None) -> Optional[dict]:
     """Convenience: fetch + resolve the tide state at a spot for ``valid_time``. Returns the tide_state_at dict
     ({height_m, norm, trend}) or None. The `norm` feeds surf_rating.tide_fit; the rest is for explainability."""

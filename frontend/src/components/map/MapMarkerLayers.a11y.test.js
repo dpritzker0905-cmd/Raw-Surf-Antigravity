@@ -49,6 +49,12 @@ describe('pure aria-label builders', () => {
     expect(spotGlyphAriaLabel({}, null)).toBe('Surf spot');
   });
 
+  it('appends the tide line as plain words when provided (2026-07-18 Tides toggle)', () => {
+    expect(spotGlyphAriaLabel(spot(), RATING, '-0.2 ft falling'))
+      .toBe('Sebastian Inlet: Fair, 3.3 ft at 12 seconds, tide -0.2 ft falling');
+    expect(spotGlyphAriaLabel(spot(), RATING, null)).toBe('Sebastian Inlet: Fair, 3.3 ft at 12 seconds');
+  });
+
   it('cluster label carries count and best rating when rated', () => {
     expect(clusterBubbleAriaLabel({ pointCount: 12 }, null)).toBe('12 surf spots — zoom in');
     expect(clusterBubbleAriaLabel({ pointCount: 12 }, { label: 'Good' }))

@@ -14,6 +14,13 @@ services:
         sync: false
       - key: PYTHON_VERSION
         value: 3.12.0
+      # 2026-07-18 SOTA-gap #1 flip — the serve box's LIVE spot-ratings fallback computes the same
+      # tide factor as the precompute lanes (parity rule). Viewport-bounded (limit<=200 spots,
+      # 0.1-degree TTL cache) so a cold cache adds ~1-3s to a rare live request, not a melt risk.
+      # Kill: "0". NOTE: if this service is not Blueprint-synced, set RATING_TIDE=1 in the Render
+      # dashboard by hand.
+      - key: RATING_TIDE
+        value: "1"
       - key: OPENAI_API_KEY
         sync: false
       - key: GEMINI_API_KEY

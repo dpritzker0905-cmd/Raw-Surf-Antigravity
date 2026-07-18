@@ -8,8 +8,10 @@
  *   - Dispatch tracking (photographer + surfer)
  *   - Friends on map
  */
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Marker } from 'react-map-gl/maplibre';
+import { getHeightUnit, formatHeightFromMeters } from './heightUnits';
+import { getCachedTideState, ensureTideState, formatTideLine, trendArrow } from './tideClient';
 
 /**
  * ACCESSIBILITY (user mandate 2026-07-14, §0a item 1): the rating glyph is the map's core data
@@ -19,7 +21,7 @@ import { Marker } from 'react-map-gl/maplibre';
  * 3.3 ft at 12 seconds"), unit-testable headless. Focus/hover both open the detail card, so the
  * text is keyboard-reachable too.
  */
-export function spotGlyphAriaLabel(cluster, rating) {
+export function spotGlyphAriaLabel(cluster, rating, tideText) {
   const name = (cluster && cluster.name) || 'Surf spot';
   if (!rating) return name;
   let label = `${name}: ${rating.label || 'rated'}`;
@@ -27,6 +29,7 @@ export function spotGlyphAriaLabel(cluster, rating) {
     label += `, ${(rating.surfHeightM * 3.28084).toFixed(1)} ft`;
     if (rating.periodS != null) label += ` at ${Math.round(rating.periodS)} seconds`;
   }
+  if (tideText) label += `, tide ${tideText}`;   // plain words (tideClient.formatTideLine) — no glyphs
   return label;
 }
 
@@ -81,6 +84,22 @@ var MapMarkerLayers = ({
   clusterRatings = null,
 }) => {
   const [hoveredSpotId, setHoveredSpotId] = useState(null);
+  // ft/m display preference (the heightUnits.js event pattern) so the detail card's readouts
+  // follow the preference-row pill live, without a remount.
+  const [heightUnit, setHeightUnit] = useState(() => getHeightUnit());
+  useEffect(() => {
+    const onUnit = () => setHeightUnit(getHeightUnit());
+    window.addEventListener('rawsurf:height-unit', onUnit);
+    return () => window.removeEventListener('rawsurf:height-unit', onUnit);
+  }, []);
+  // Client-side tide FALLBACK (tideClient.js): a version bump re-renders after a hover's fetch
+  // resolves, so the card's tide line pops in even before the baked payload carries tide.
+  const [, setTideFetchVersion] = useState(0);
+  const requestFallbackTide = (lat, lng) => {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__) return;
+    if (getCachedTideState(lat, lng) !== undefined) return;
+    ensureTideState(lat, lng).then(() => setTideFetchVersion((v) => v + 1));
+  };
   return (
     <>
       {/* Spot Clusters */}
@@ -131,6 +150,14 @@ var MapMarkerLayers = ({
         const isWithinGeofence = cluster.is_within_geofence;
         // Rating mode: this spot becomes a surf-quality glyph (colour = 7-level rating sampled from the grid).
         const rating = surfMode && spotRatings ? spotRatings[cluster.id] : null;
+        // Tide for the card + aria label — RIDES THE RATING TOGGLE (`rating` exists only in Rating
+        // mode): baked payload first (authoritative — it shaped the score), else the client-side
+        // fallback cell (display-only). Null when Rating is off / no data yet.
+        const tideState = rating
+          ? (rating.tide || (typeof window !== 'undefined' && window.__RAW_DISABLE_TIDE_FALLBACK__
+              ? null : getCachedTideState(lat, lng)) || null)
+          : null;
+        const tideLine = tideState ? formatTideLine(tideState, heightUnit) : null;
         return (
           <Marker
             key={`spot-${cluster.id}`}
@@ -146,10 +173,10 @@ var MapMarkerLayers = ({
               type="button"
               className={`relative cursor-pointer rounded-full ${BUTTON_RESET} ${FOCUS_RING}`}
               style={{ position: 'relative', width: 32, height: 32 }}
-              aria-label={spotGlyphAriaLabel(cluster, rating)}
-              onMouseEnter={() => setHoveredSpotId(cluster.id)}
+              aria-label={spotGlyphAriaLabel(cluster, rating, tideLine)}
+              onMouseEnter={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
               onMouseLeave={() => setHoveredSpotId(null)}
-              onFocus={() => setHoveredSpotId(cluster.id)}
+              onFocus={() => { setHoveredSpotId(cluster.id); if (rating && !rating.tide) requestFallbackTide(lat, lng); }}
               onBlur={() => setHoveredSpotId(null)}
               onClick={(e) => {
                 e.stopPropagation();
@@ -232,8 +259,16 @@ var MapMarkerLayers = ({
                       whenever a rating exists so the hover always carries the current surf height, not just prose. */}
                   {rating && rating.surfHeightM != null && (
                     <div className="mt-0.5 flex items-center gap-2 text-[11px] font-semibold text-cyan-300">
-                      <span>{(rating.surfHeightM * 3.28084).toFixed(1)} ft</span>
+                      <span>{formatHeightFromMeters(rating.surfHeightM, heightUnit, { withUnit: true })}</span>
                       {rating.periodS != null && <span className="text-zinc-400 font-normal">· {Math.round(rating.periodS)}s period</span>}
+                    </div>
+                  )}
+                  {/* Tide state (2026-07-18 Tides toggle): height in the ft/m display unit + the trend as a
+                      WORD (arrow is decoration — colour/glyph alone never carries meaning). */}
+                  {tideLine && (
+                    <div className="mt-0.5 text-[10px] font-semibold text-sky-300">
+                      <span aria-hidden="true">{trendArrow(tideState.trend)} </span>
+                      Tide {tideLine}
                     </div>
                   )}
                   {/* Rating reasoning (wind, tide) + confidence — the endpoint's explainable `why`. */}

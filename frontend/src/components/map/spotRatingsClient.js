@@ -45,6 +45,10 @@ export function mapSpotRatingsResponse(spots) {
       // (not just the prose `why`) lets the tooltip show the surf height + period as structured fields.
       surfHeightM: sp.surf_height_m != null ? sp.surf_height_m : null,
       periodS: sp.period_s != null ? sp.period_s : null,
+      // Tide state ({height_m, norm, trend}) — present once the backend RATING_TIDE lane bakes;
+      // the card's tide line (tideClient.js) rides the Rating toggle, payload-first with a
+      // client-side fallback fetch.
+      tide: sp.tide || null,
       why: sp.why || null,
       source: 'endpoint',
     };
