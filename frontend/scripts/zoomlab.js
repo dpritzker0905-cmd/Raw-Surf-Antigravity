@@ -257,16 +257,20 @@ async function main() {
         }
         const res = e2.probeMaskGPU(pts);
         if (!res || !Array.isArray(res)) return;
-        const frac = new Array(NCOL).fill(0);
+        // Per-column water fraction over the points the engine could actually answer (resident
+        // mask, overlay, or the world coarse-base fallback). A column with NO answerable points
+        // records -1 = UNKNOWN — the verdict must treat unknown as WATER (a dead band there is
+        // still a finding; never exclude on ignorance).
+        const water = new Array(NCOL).fill(0), known = new Array(NCOL).fill(0);
         for (let i = 0; i < res.length; i++) {
           const c = Math.floor(i / rows.length);
           const eff = res[i] && res[i].effective;
-          if (eff != null && eff >= 128) frac[c] += 1 / rows.length;
+          if (eff != null) { known[c]++; if (eff >= 128) water[c]++; }
         }
         T.water.push({
           t: Math.round(performance.now() - T.t0),
           z: +m.getZoom().toFixed(3),
-          w: frac.map((f) => +f.toFixed(2)),
+          w: water.map((f, c) => known[c] ? +(f / known[c]).toFixed(2) : -1),
         });
       } catch (err) { /* ground truth is best-effort; the verdict falls back to legacy behavior */ }
     };

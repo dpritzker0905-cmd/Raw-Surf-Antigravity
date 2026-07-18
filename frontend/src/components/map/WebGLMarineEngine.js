@@ -2169,7 +2169,26 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniformMatrix4fv(gl.getUniformLocation(this.drawProgram, 'u_matrix'), false, mat4);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherEnabledVal);
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherWidth'), edgeFeatherWidthVal);
+      // CREST FEATHER CAP under ring-fill (2026-07-18 EVE-2, transient-band forensics ×3 traces):
+      // the crest pass shares the heatmap's edge feather width, but on the SPARSE crest field a
+      // 0.18-0.31 feather is a DEAD RING — a fixed-lng stripe of crest-dead water just inside the
+      // resident's edge (probe-proven at the FL tile's -79 east edge across zoom steps: quiet cols
+      // shift screen-position exactly as fixed-lng geometry predicts, water ground truth = 1,
+      // ring-fill crests ALIVE just outside the edge). When ring-fill continues the field beyond
+      // the edge, cap the CREST feather to a 1-2 cell handoff; without ring-fill (no coarse base)
+      // the wide dissolve-into-nothing stays. The heatmap's width above is untouched (its blend
+      // dissolve is the clamp softener's actual job). Kill: __RAW_DISABLE_CREST_FEATHER_CAP__.
+      const _crestFeatherCapOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_CREST_FEATHER_CAP__ === true);
+      const _crestFeatherW = (!_crestFeatherCapOff && _ringFill.enabled)
+        ? Math.min(edgeFeatherWidthVal, 0.045) : edgeFeatherWidthVal;
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.crestFeather = {
+          w: +_crestFeatherW.toFixed(3),
+          capped: _crestFeatherW !== edgeFeatherWidthVal,
+          heatmapW: +edgeFeatherWidthVal.toFixed(3),
+        };
+      }
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherWidth'), _crestFeatherW);
       // Directional-spectrum spread (breaks the parallel-crest lattice over uniform/coarse fields). OPT-IN until
       // visually verified + tuned on real swell data (default 0 = legacy parallel crests, no regression). Enable +
       // tune live via window.__RAW_CREST_DIR_JITTER__ (radians, ~0.15–0.30 is a natural spread).
@@ -2874,6 +2893,13 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
   };
   const baseTex = this._cachedMaskTex, baseB = this._cachedMaskBounds, baseD = this._cachedMaskTexDims;
   const ovTex = this._overlayMaskTex, ovB = this._overlayMaskBounds, ovD = ovB ? dimsForOverlay(ovB) : null;
+  // COARSE-BASE FALLBACK (2026-07-18 EVE-2): beyond the RESIDENT mask bounds both reads return
+  // null, which callers (zoomlab's water ground truth) had to guess about — the ring-fill zone
+  // read as "unknown/land" and could hide a real dead-ring finding there. The held coarse base
+  // is world-covering with its own mask; sample it when the resident/overlay can't answer.
+  const cb = this._coarseBaseData;
+  const cbTex = cb && cb.u_oceanMaskTexture, cbB = cb && cb.bounds;
+  const cbD = (cb && cb.__maskCanvasDims) ? { w: cb.__maskCanvasDims.w, h: cb.__maskCanvasDims.h } : null;
   const res = points.map(({ lng, lat }) => {
     const base = read(baseTex, baseB, baseD, lng, lat);
     const overlay = read(ovTex, ovB, ovD, lng, lat);
@@ -2881,6 +2907,10 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     if (ps.overlayOn && overlay != null && inBounds(ovB, lng, lat)) {
       if (ps.replace) { effective = overlay; src = 'overlay_replace'; }
       else { effective = (base == null) ? overlay : Math.min(base, overlay); src = 'overlay_min'; }
+    }
+    if (effective == null && cbTex && cbB && cbD) {
+      const cbSample = read(cbTex, cbB, cbD, lng, lat);
+      if (cbSample != null) { effective = cbSample; src = 'coarse_base'; }
     }
     return { lng, lat, base, overlay, effective, src };
   });

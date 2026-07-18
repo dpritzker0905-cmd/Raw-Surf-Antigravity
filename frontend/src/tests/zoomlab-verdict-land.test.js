@@ -57,4 +57,11 @@ describe('zoomlab-verdict land exclusion', () => {
     const v = analyzeTrace({ frames, water });
     expect(v.findings.some((f) => f.type === 'DEAD_BAND_PERSISTENT')).toBe(true);
   });
+
+  it('UNKNOWN columns (-1: no mask source) count as water — never excluded on ignorance', () => {
+    const mk = (t) => { const s = waterSample(t, []); for (let c = 9; c <= 12; c++) s.w[c] = -1; return s; };
+    const v = analyzeTrace({ frames, water: [mk(0), mk(2000), mk(4000)] });
+    expect(v.findings.some((f) => f.type === 'DEAD_BAND_PERSISTENT')).toBe(true);
+    expect(v.landExcludedBandFrames).toBe(0);
+  });
 });

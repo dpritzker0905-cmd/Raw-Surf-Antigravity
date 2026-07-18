@@ -87,10 +87,14 @@ function analyzeTrace(trace, opts = {}) {
     const water = nearestWater(trace.water, f.t, cfg.waterMaxAgeMs);
     for (const [s, e] of bandsInFrame(f.anim, cfg)) {
       // LAND EXCLUSION: a quiet band over mostly-land columns is geography, not a finding
-      // (no water sample near this frame → legacy behavior, count it).
+      // (no water sample near this frame → legacy behavior, count it). A column recorded -1
+      // (UNKNOWN — no mask source could answer) counts as WATER: never exclude on ignorance.
       if (water) {
         let sum = 0;
-        for (let c = s; c <= e; c++) sum += (water.w[c] ?? 1);
+        for (let c = s; c <= e; c++) {
+          const v = water.w[c];
+          sum += (v == null || v < 0) ? 1 : v;
+        }
         if (sum / (e - s + 1) < cfg.landWaterMin) { landExcluded++; continue; }
       }
       const hit = runs.find((r) => !r.closed && s <= r.e + 1 && e >= r.s - 1 && f.t - r.last < 1500);
