@@ -58,6 +58,21 @@ Probes live in the session scratchpad; rebuildable from this doc + the EVE sessi
    shore-normals 325°/335° live · `surf_nearshore` live (all real breaks true) · animation
    direction ≡ data direction (engine-vector A/B) · infobox ≡ point (2.0 ft == 0.60 m).
 
+### ⚡ PART 4 — STABILIZATION ARC SHIPPED (structural items #2/#3/#4 done)
+- **`53b1ec66` COMMIT-STAMP INVARIANT** (structural #3): commitMarineData stamps hourOffset +
+  `__commitLane` on every direct-lane commit. THE z6.5 FLAP IS DEAD — probe_flavor_loss run 3:
+  settles RATED mid, HOLDS through pans, zero hour=undefined loop lines; only residual = the
+  DESIGNED §2b engine-empty fallback during a 6-viewport pan into a data gap, self-heals to
+  rated mid in ≤12 s. Wire capture: direct fetches now surf=1 at sub-ceiling bboxes.
+- **`(this commit)` MARINE NIGHTLY NET** (structural #2+#4): `frontend/scripts/ladder-contract.js`
+  (T1 fine / T2 mid-never-coarse / E1 ±180 seam / E2 FL edge; first live run 12/12 PASS ×3 models)
+  + `.github/workflows/marine-nightly.yml` (data-contract job + zoomlab staircase battery with a
+  budgeted verdict: >3 findings or any SETTLED_STEP fails; artifacts 14 d). zoomlab's playwright
+  require made portable for CI.
+- STILL OPEN from the review: #1 commit ARBITER (the big refactor — design it as its own arc
+  with the lane inventory from this session's probes) · #5 wrapped-copy particles (chip) ·
+  #6 nearshore 1 km bathymetry + break_type · #7 report-calibration loop.
+
 ### STRUCTURAL REVIEW — what the marine sim is missing (ranked, evidence-backed)
 1. **A single COMMIT ARBITER for the marine resident.** ~6 lanes (direct fetch, series sharpen,
    §2b recovery, blank backstop, clamp re-drive, SWR) each call setMarineData, arbitrated by
