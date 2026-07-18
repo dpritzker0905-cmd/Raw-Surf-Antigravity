@@ -53,6 +53,13 @@ async function main() {
     log('ZL_THEME: ' + theme);
   }
 
+  // ZL_SURF=1: boot with the Surf-Rating flag ON (localStorage __SURF_MODE__, the same key the
+  // toggle persists) — rating-flavor battery legs (ARBITER Phase B soak, 2026-07-18 EVE-2).
+  if (process.env.ZL_SURF === '1') {
+    await page.addInitScript(() => { try { localStorage.setItem('__SURF_MODE__', 'true'); } catch (e) {} });
+    log('ZL_SURF: rating flag ON');
+  }
+
   // Disable the service worker (E2E house pattern — always test the fresh bundle).
   await page.addInitScript(() => {
     const mockSW = {
@@ -389,7 +396,14 @@ async function main() {
 
   const trace = await page.evaluate(() => window.__ZT__);
   const zoomNow = await page.evaluate(() => window.map.getZoom());
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ scenario, zoomNow, consoleErrors: consoleErrors.slice(0, 20), ...trace }));
+  // ARBITER Phase B soak: persist the shadow tallies + full divergence events (the forensic ring
+  // dies with the browser; the per-frame arb:[n,disagree] locates WHEN, this preserves WHAT).
+  const arbShadow = await page.evaluate(() => ({
+    tallies: window.__RAW_ARBITER_SHADOW__ || null,
+    diverge: window.__RAW_FORENSIC__
+      ? window.__RAW_FORENSIC__.dump().events.filter((e) => e.type === 'arb_shadow_diverge') : [],
+  }));
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ scenario, zoomNow, consoleErrors: consoleErrors.slice(0, 20), arbShadow, ...trace }));
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 
   await context.close(); // flushes video
