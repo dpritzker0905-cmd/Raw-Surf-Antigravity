@@ -439,23 +439,58 @@ export function trimDeadEdges(waveGrid, win) {
     if (c >= 0 && c < waveGrid.cols) colValid[c]++;
     if (r >= 0 && r < waveGrid.rows) rowValid[r]++;
   }
+  // ANTIMERIDIAN WRAP MIRROR (2026-07-18, fencepost head #3's client twin — normalizer fix
+  // f60e765d bakes the same mirror at the source): a FULL-WRAP grid with a dead ±180 edge column
+  // must KEEP its 360° span. Trimming it (the original behavior) shrank world grids to ~350° and
+  // silently reclassified them as "regional" across every span≥359 predicate — isCoarseGlobalGrid
+  // (cold veil, close-zoom crest suppression, no-truth wash guard), the mask renderer's global
+  // branch, the encoder's global branch, the sharpen tracer. The ±180 columns are the SAME
+  // physical meridian, so the live seam column is real data for the dead one: replace the dead
+  // column with a mirrored copy (distinct objects; lng rewritten) and leave bounds/dims alone.
+  // Kill just the mirror (regional trim keeps working): __RAW_DISABLE_WRAP_MIRROR__.
+  const fullWrap = (b.east - b.west) >= 359.0 && w.__RAW_DISABLE_WRAP_MIRROR__ !== true;
+  let vecs = waveGrid.vectors;
+  let mirroredEdge = null;
+  if (fullWrap) {
+    const lastC = waveGrid.cols - 1;
+    const colOf = (v) => Math.round((v.lng - b.west) / stepX);
+    if (colValid[lastC] === 0 && colValid[0] > 0) {
+      vecs = vecs.filter((v) => colOf(v) !== lastC)
+        .concat(vecs.filter((v) => colOf(v) === 0).map((v) => ({ ...v, lng: b.east })));
+      colValid[lastC] = colValid[0];
+      mirroredEdge = 'east';
+    } else if (colValid[0] === 0 && colValid[lastC] > 0) {
+      vecs = vecs.filter((v) => colOf(v) !== 0)
+        .concat(vecs.filter((v) => colOf(v) === lastC).map((v) => ({ ...v, lng: b.west })));
+      colValid[0] = colValid[lastC];
+      mirroredEdge = 'west';
+    }
+  }
   let c0 = 0, c1 = waveGrid.cols - 1, r0 = 0, r1 = waveGrid.rows - 1;
   for (let k = 0; k < 2 && c1 > c0 + 2 && colValid[c1] === 0; k++) c1--;
   for (let k = 0; k < 2 && c1 > c0 + 2 && colValid[c0] === 0; k++) c0++;
   for (let k = 0; k < 2 && r1 > r0 + 2 && rowValid[r1] === 0; k++) r1--;
   for (let k = 0; k < 2 && r1 > r0 + 2 && rowValid[r0] === 0; k++) r0++;
-  if (c0 === 0 && c1 === waveGrid.cols - 1 && r0 === 0 && r1 === waveGrid.rows - 1) return waveGrid;
+  if (c0 === 0 && c1 === waveGrid.cols - 1 && r0 === 0 && r1 === waveGrid.rows - 1) {
+    if (!mirroredEdge) return waveGrid;    // true no-op: SAME object (no re-alloc churn)
+    const mirroredGrid = { ...waveGrid, vectors: vecs };
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.deadEdgeTrim = { cols: 0, rows: 0, mirrored: mirroredEdge, east: +b.east.toFixed(2) };
+    }
+    return mirroredGrid;
+  }
   const nb = {
     west: b.west + c0 * stepX, east: b.west + c1 * stepX,
     south: b.south + r0 * stepY, north: b.south + r1 * stepY,
   };
   const eps = Math.min(stepX, stepY) * 0.25;
-  const vectors = waveGrid.vectors.filter((v) =>
+  const vectors = vecs.filter((v) =>
     v.lng >= nb.west - eps && v.lng <= nb.east + eps && v.lat >= nb.south - eps && v.lat <= nb.north + eps);
   const trimmed = { ...waveGrid, vectors, bounds: nb, cols: c1 - c0 + 1, rows: r1 - r0 + 1 };
   if (typeof window !== 'undefined' && window.__RAW_GPU__) {
     window.__RAW_GPU__.deadEdgeTrim = {
       cols: (c0) + (waveGrid.cols - 1 - c1), rows: (r0) + (waveGrid.rows - 1 - r1), east: +nb.east.toFixed(2),
+      ...(mirroredEdge ? { mirrored: mirroredEdge } : {}),
     };
   }
   return trimmed;
@@ -497,6 +532,49 @@ export function applySharpenOpacityEase(ease, target, mult, nowMs, win) {
   const t = dt / ms;
   const k = t * t * (3 - 2 * t);            // smoothstep
   return { value: ease.from + (target - ease.from) * k, ease };
+}
+
+// === COLD-ACTIVATION COARSE VEIL (pure; exported for tests) ===
+// 2026-07-18 (user re-report of the 07-17 first-activation swap: "still flashing a different
+// colored heatmap for a second before the proper heatmap"): the opacity EASE above softened the
+// swap's opacity step, but the cold first paint's HUE is still wrong at coastal zoom — the 37-col
+// world grid is one ~10° cell of offshore-mean color across the whole viewport (firstpaint-lab
+// measured 6.0 ft world-cell vs 1.6 ft regional at Cocoa z9, ~3.2 s of wrong color). Crests are
+// already suppressed on a coarse-global resident at z≥7 (2026-07-14 direction-truth tightening);
+// this is the heatmap's matching guard: while the COLD window is open (first resident since
+// activation/clear is coarse-global, coastal viewport < 15°, non-rating), hold the heatmap
+// invisible so the regional sharpen (~1-3 s) is the FIRST thing painted.
+// BOUNDED by design (the 2026-06-29/07-04 lesson — every unbounded fade-to-zero here read as a
+// "blank heatmap" bug): a grace timer reveals the coarse anyway if no adequate commit lands
+// (mid-ocean viewports with no finer supply). Lift ramps 350 ms; a lift within 50 ms of the
+// stamp (wide zoom, rating band — never actually veiled) skips the ramp so those paths stay
+// pixel-identical to today. Rating grids are exempt (the band is a smoothed zone, wanted even
+// from coarse data — mirrors the coarseFade exemption).
+// Kill: __RAW_DISABLE_COLD_COARSE_VEIL__. Grace: __RAW_COLD_VEIL_GRACE_MS__ (default 4000).
+// Telemetry: __RAW_GPU__.coldVeil while a veil lifecycle is active.
+// Returns { mult, veil } — the opacity multiplier and the (possibly ended ⇒ null) veil state.
+export function resolveColdVeil(veil, opts, nowMs, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (!veil) return { mult: 1.0, veil: null };
+  if (w.__RAW_DISABLE_COLD_COARSE_VEIL__ === true || opts.debugIsolate === true) {
+    return { mult: 1.0, veil: null };       // killed ⇒ end the lifecycle, never resurrect
+  }
+  const grace = (Number.isFinite(+w.__RAW_COLD_VEIL_GRACE_MS__) && +w.__RAW_COLD_VEIL_GRACE_MS__ > 0)
+    ? +w.__RAW_COLD_VEIL_GRACE_MS__ : 4000;
+  const span = +opts.viewportSpanDeg;
+  const inadequate = opts.residentCoarseGlobal === true && span > 0 && span < 15 && opts.isRating !== true;
+  if (!veil.liftT0) {
+    if (inadequate && (nowMs - veil.t0) < grace) return { mult: 0.0, veil };
+    // Lift: adequate resident (regional swap / wide viewport / rating) or grace expiry.
+    if (!inadequate && (nowMs - veil.t0) < 50) return { mult: 1.0, veil: null }; // never engaged ⇒ no ramp
+    veil.liftT0 = nowMs;
+    veil.reason = inadequate ? 'grace' : 'adequate';
+  }
+  const RAMP_MS = 350;
+  const p = (nowMs - veil.liftT0) / RAMP_MS;
+  if (p >= 1) return { mult: 1.0, veil: null };
+  const k = p <= 0 ? 0 : p * p * (3 - 2 * p);   // smoothstep reveal
+  return { mult: k, veil };
 }
 
 export function resolveCoarseCrestControls(inVortexBand, win) {
@@ -686,6 +764,15 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
 
   const oldWaveData = this._waveData;
   this._waveData = newWaveData;
+
+  // COLD-ACTIVATION COARSE VEIL stamp (see resolveColdVeil): a COLD commit — nothing was resident
+  // (fresh activation, or the first commit after a model-switch clear). The render pass decides
+  // per frame whether the veil actually engages (coarse-global resident at a coastal viewport).
+  // A WARM commit while STILL VEILED is the lift path (the regional sharpen swapping in — the
+  // render pass ramps it up); a warm commit on an already-lifted/stale veil ends the lifecycle.
+  this._coldVeil = !oldWaveData
+    ? { t0: (typeof performance !== 'undefined' ? performance.now() : Date.now()) }
+    : (this._coldVeil && !this._coldVeil.liftT0 ? this._coldVeil : null);
 
   // Compare old grid dimensions/bounds to check if they shifted
   const oldGrid = oldWaveData?.waveGrid;
@@ -1990,7 +2077,30 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       heatmapOpacity = _eased.value;
     }
     // Last DRAWN value — the ease stamp chains from this so mid-ease re-commits stay smooth.
+    // (Stored PRE-veil: the veil below is a bounded final multiplier, not part of the ease chain.)
     this._lastHeatmapOpacity = heatmapOpacity;
+
+    // COLD-ACTIVATION COARSE VEIL apply (see resolveColdVeil + the setWaveData stamp): final
+    // multiplier over the fully-composed opacity — the ease/coarseFade/band machinery above is
+    // untouched. Engages only while the cold window's resident is the coarse-global at a coastal
+    // viewport; regional sharpen (or grace/zoom-out/rating) lifts it with a 350 ms ramp.
+    {
+      const _cvNow = (typeof performance !== 'undefined') ? performance.now() : Date.now();
+      const _cvSpan = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
+      const _cv = resolveColdVeil(this._coldVeil, {
+        residentCoarseGlobal: _residentCoarseGlobal,
+        viewportSpanDeg: _cvSpan,
+        isRating: !!(this._waveData.waveGrid && this._waveData.waveGrid.ratingMode),
+        debugIsolate: window.__WEATHER_DEBUG_ISOLATE_OVERLAY__ === true,
+      }, _cvNow, typeof window !== 'undefined' ? window : undefined);
+      this._coldVeil = _cv.veil;
+      if (_cv.mult < 1.0) heatmapOpacity *= _cv.mult;
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.coldVeil = _cv.veil
+          ? { mult: +_cv.mult.toFixed(3), lifted: !!_cv.veil.liftT0, reason: _cv.veil.reason || null }
+          : null;
+      }
+    }
 
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
