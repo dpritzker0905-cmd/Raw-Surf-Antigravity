@@ -27,6 +27,8 @@ GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / Mc
                     # period is unknown and as the centre of the period-dependent breaker_index() below.
 GAMMA_MIN = 0.62    # short-period windchop breaks low + mushy (spilling)
 GAMMA_MAX = 1.05    # long-period groundswell breaks tall + violent (plunging)
+GAMMA_MAX_STEEP = 1.25  # slope-aware ceiling (v3.2): steep-reef plunging γ_b reaches ~1.1-1.2 in the
+                        # incipient-breaking literature (Weggel 1972 b(m)→1.19 at m=0.1; Kaminsky 1994)
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 
@@ -34,7 +36,7 @@ def _clamp(x, lo, hi):
     return lo if x < lo else hi if x > hi else x
 
 
-def breaker_index(Tp_s):
+def breaker_index(Tp_s, slope=None):
     """Depth-limited breaker index gamma_b = H_b / h_b as a function of swell PERIOD (the f(s0,kh) breaker
     index of the nearshore literature — Galvin 1968; Battjes 1974 via the Iribarren number; Goda 2010).
 
@@ -44,10 +46,28 @@ def breaker_index(Tp_s):
     lever (L0 = gTp^2/2pi). We key gamma_b to Tp ONLY — not Hs — so the depth-limited cap stays INDEPENDENT
     of offshore height (a 5 m and a 2 m swell of the same period still break to the same depth-limited height,
     the shelf physics). Centred so a typical ~10.5 s swell ~= the legacy 0.78; bounded [GAMMA_MIN, GAMMA_MAX].
-    The full Iribarren breaker TYPE (which also needs a per-cell beach slope) is the next refinement."""
+
+    SLOPE TERM (SURF v3.2, 2026-07-18 literature pass): gamma_b also RISES with bottom slope — the
+    universal-γ assumption fails across bathymetries (Harris et al. 2018 reef flats: γ>0.85 at the crest;
+    Lin et al. 2017: non-linear slope dependence; Chen et al. 2022 Goda-type steepness+slope forms;
+    Zhang et al. 2021 composite s0/kh dependence). We adopt Weggel (1972)'s slope factor
+    b(m) = 1.56 / (1 + e^(-19.5 m)) as the CENTER of the period-adjusted index: b(m→0) → 0.78 exactly
+    (flat wide shelves — Florida — keep the legacy calibration byte-identical), while a steep shelf
+    (volcanic reef coasts, m ~ 0.03+) raises the cap toward ~1.0-1.2 — the taller, plunging reef break
+    (Pipeline-class) the flat-γ model under-capped. `slope` = the SHELF-SCALE proxy depth/width the
+    caller derives from the global bathymetry; None keeps the legacy fixed-0.78 center.
+    Bounds widen to GAMMA_MAX_STEEP only when a slope is supplied. Kill: SURF_V3_SLOPE_GAMMA=0."""
     if Tp_s is None or Tp_s <= 0:
         return GAMMA
-    return _clamp(0.78 + (Tp_s - 10.5) * 0.027, GAMMA_MIN, GAMMA_MAX)
+    period_adj = (Tp_s - 10.5) * 0.027
+    if (slope is not None and slope > 0
+            and os.environ.get("SURF_V3_SLOPE_GAMMA", "1") != "0"):
+        try:
+            center = 1.56 / (1.0 + math.exp(-19.5 * float(slope)))
+        except OverflowError:
+            center = 1.56
+        return _clamp(center + period_adj, GAMMA_MIN, GAMMA_MAX_STEEP)
+    return _clamp(0.78 + period_adj, GAMMA_MIN, GAMMA_MAX)
 
 
 def wavenumber(period_s: float, depth_m: float):
@@ -299,7 +319,12 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
         return float(Hs_m), 'shelf'                # coastal but no usable depth -> pass through
     Kf = shelf_dissipation(Tp_s, depth_m, shelf_width_km)   # v3 recal scales CF inside (kill-switched)
     Hs_surviving = Kf * Hs_m                       # the swell that makes it across the shelf
-    cap = breaker_index(Tp_s) * depth_m            # period-dependent: long-period swell breaks taller
+    # v3.2 SLOPE-AWARE CAP: shelf-scale slope proxy = depth / width. A flat wide shelf (FL:
+    # ~25 m / 90 km ≈ 0.0003) keeps the legacy 0.78-centred cap byte-identical; a steep shelf
+    # (volcanic reef coast: ~100 m / 3 km ≈ 0.03) raises γ_b toward the plunging-reef range —
+    # "Pipeline breaks taller than a beach break in the same depth". Kill: SURF_V3_SLOPE_GAMMA=0.
+    _slope_proxy = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
+    cap = breaker_index(Tp_s, slope=_slope_proxy) * depth_m   # period+slope: long-period/steep breaks taller
     if _v3("SURF_V3_KOMAR"):
         # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
         # break — surf CAN exceed offshore Hs on steep coasts (the reef-jack v2 never modeled;

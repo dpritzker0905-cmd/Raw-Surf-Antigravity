@@ -160,13 +160,49 @@ def test_estimate_surf_regimes():
     # capability v2 lacked; bounded by SURF_V3_JACK_MAX). The old "never amplified" pin was the bug.
     s, r = st.estimate_surf(2.0, 12.0, 2000.0, coastal=True, shelf_width_km=0.0)
     assert 2.0 <= s <= 2.0 * 2.0 + 1e-9
-    # very shallow + big swell -> depth-limited breaking cap binds (period-dependent breaker index)
+    # very shallow + big swell -> depth-limited breaking cap binds (period+slope breaker index; the
+    # cap carries the v3.2 shelf-slope proxy = depth/width — see test_breaker_index_slope below)
     s, r = st.estimate_surf(5.0, 14.0, 1.0, coastal=True, shelf_width_km=5.0)
-    assert r == 'breaking' and s == pytest.approx(st.breaker_index(14.0) * 1.0, rel=1e-6)
+    assert r == 'breaking' and s == pytest.approx(st.breaker_index(14.0, slope=1.0 / 5000.0) * 1.0, rel=1e-6)
     # calm / unknown
     assert st.estimate_surf(0.0, 10.0, 20.0) == (0.0, 'calm')
     assert st.estimate_surf(None, 10.0, 20.0) == (None, 'unknown')
     assert st.estimate_surf(2.0, 0.0, 20.0) == (None, 'unknown')
+
+
+def test_breaker_index_slope():
+    """v3.2 SLOPE-AWARE γ_b (Weggel 1972 b(m) center; lit: Harris 2018 reef γ>0.85, Lin 2017
+    non-linear slope dependence): flat wide shelves keep the legacy calibration; steep shelves
+    raise the depth-limited cap toward the plunging-reef range."""
+    # No slope supplied -> exact legacy behavior (backward compatible).
+    assert st.breaker_index(10.5) == pytest.approx(0.78, abs=1e-9)
+    assert st.breaker_index(10.5, slope=None) == pytest.approx(0.78, abs=1e-9)
+    # FLAT shelf proxy (Florida-class: ~25 m / 90 km ≈ 0.0003): b(m) → 0.78, legacy-equivalent.
+    assert st.breaker_index(10.5, slope=0.0003) == pytest.approx(0.78, abs=0.005)
+    # STEEP shelf proxy (volcanic reef coast: ~100 m / 3 km ≈ 0.033): cap raised meaningfully.
+    steep = st.breaker_index(10.5, slope=0.033)
+    assert steep > 0.90
+    # Monotonic in slope; bounded by the widened steep ceiling.
+    assert st.breaker_index(10.5, slope=0.1) >= steep
+    assert st.breaker_index(20.0, slope=1.0) <= st.GAMMA_MAX_STEEP + 1e-9
+    # Period term still applies on the slope path (long-period breaks taller).
+    assert st.breaker_index(14.0, slope=0.033) > st.breaker_index(8.0, slope=0.033)
+    # Kill switch restores the flat center even with a steep slope.
+    import os
+    os.environ["SURF_V3_SLOPE_GAMMA"] = "0"
+    try:
+        assert st.breaker_index(10.5, slope=0.033) == pytest.approx(0.78, abs=1e-9)
+    finally:
+        del os.environ["SURF_V3_SLOPE_GAMMA"]
+
+
+def test_estimate_surf_steep_shelf_breaks_taller():
+    """The user-visible v3.2 effect: at the same shallow depth, a STEEP-shelf break (reef-class)
+    is allowed a taller depth-limited wave than a wide-flat-shelf beach break."""
+    flat, rf = st.estimate_surf(5.0, 12.0, 2.0, coastal=True, shelf_width_km=90.0)   # FL-class
+    steep, rs = st.estimate_surf(5.0, 12.0, 2.0, coastal=True, shelf_width_km=2.0)   # reef-class
+    assert rf == 'breaking' and rs == 'breaking'
+    assert steep > flat
 
 
 def test_estimate_surf_wider_shelf_reduces_more():
