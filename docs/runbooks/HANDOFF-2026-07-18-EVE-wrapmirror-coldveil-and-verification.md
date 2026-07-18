@@ -118,8 +118,14 @@ Probes live in the session scratchpad; rebuildable from this doc + the EVE sessi
   (verdict JSONs quoted in the session memory).
 
 **START HERE for a fresh context.** Supersedes `HANDOFF-2026-07-18-DEEP-AUDIT-fencepost-head3-and-state-of-the-sim.md`
-(read that second — it carries the three-head fencepost story + audit table). HEAD `2c3d9dd7` on `dev`.
-Every claim below is probe-proven (probe scripts named inline; scratchpad probes are re-buildable from this doc).
+(read that second — it carries the three-head fencepost story + audit table). FINAL HEAD `fa46502f` on `dev`
+(the doc is LAYERED: §0-7 = part 1 at `2c3d9dd7`; the ⚡ PART 2/3/4 sections at top were appended as the
+session continued — read the ⚡ parts FIRST for the latest state). Every claim is probe-proven.
+END-OF-SESSION RE-VERIFICATION (fresh runs at close): frontend 1154/1154 · backend surf/weather 40/40 ·
+ladder-contract PASS vs prod · ±180 seam mirror live on 18:00Z products · cold veil 9/9 world frames at
+hm=0 (max in-window color jump 2.4, was 84) · rating off→on direction deltas 0.0° on the fine FL tile.
+KNOWN MINOR: the toggle-OFF path can briefly ride a 5×4 mid before re-sharpening (self-heals; the
+user-reported off→ON jump is the fixed one).
 
 ## 0. TL;DR
 The user reported three sim defects: (a) first marine toggle after hard refresh flashes a wrong-colored
