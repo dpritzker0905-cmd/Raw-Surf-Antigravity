@@ -38,6 +38,54 @@
    has a repro vehicle.
 Probes live in the session scratchpad; rebuildable from this doc + the EVE session memory.
 
+## ⚡ PART 3 (user round 3) — band battery, the z6.5 flap, science verification, STRUCTURAL REVIEW
+1. **Multi-zoom band pan battery** (probe_band_multizoom, z6.5-11.5, N+W pans, rating on): N-pan
+   leading edge painted at z8.5-11.5 post pad-raise ✓ (W-pan zeros = Florida landmass, geography
+   not bug). FOUND at z6.5: the band FLAPS (paints ↔ vanishes ~2 s cycle).
+2. **z6.5 FLAP root** (probe_flavor_loss, full provenance): TWO lanes fight — scrub-settle's
+   "rendered hour=undefined" verification loop re-commits a BOOT-ERA cached UNRATED
+   `global_coarse` (recycled TraceID `c052e65d`, `per_model_hour_cache_exact`) every ~2 s, while
+   the sharpen lane restores the RATED clipped mid. Shipped half: **mid-ceiling snap guard**
+   (spans 4-14° never pad past the 15° mid band; kill `__RAW_DISABLE_MID_CEILING_SNAP__`) — the
+   direct lane now serves the RATED mid once caches roll. BANKED half (NEXT ARC, minefield ×3:
+   scrub-settle × controller cache × display gate): kill the hour=undefined loop driver (stamp
+   `hourOffset` on every commit, or guard the verification branch) + flavor-check the zoomed-out
+   recovery reassert. probe_flavor_loss = the repro; §5b toggle wedge likely = the same starved
+   rated lane.
+3. **SCIENCE VERIFIED LIVE (prod, post-deploy)**: glyph↔point surf values agree within 2-14%
+   (bake-vs-live frames) at 5 Cocoa-area spots · **New Smyrna Inlet 0.89 m vs Flagler control
+   0.64 m = 1.39× (the designed 1.40× magnet, = the user's own anchor)** · Pipeline/Sunset
+   shore-normals 325°/335° live · `surf_nearshore` live (all real breaks true) · animation
+   direction ≡ data direction (engine-vector A/B) · infobox ≡ point (2.0 ft == 0.60 m).
+
+### STRUCTURAL REVIEW — what the marine sim is missing (ranked, evidence-backed)
+1. **A single COMMIT ARBITER for the marine resident.** ~6 lanes (direct fetch, series sharpen,
+   §2b recovery, blank backstop, clamp re-drive, SWR) each call setMarineData, arbitrated by
+   accumulated guard flags (no-downgrade, rating-grace, flavor-mismatch, hour-verification…).
+   Today's z6.5 flap IS two lanes disagreeing forever; the 07-09 lesson "THREE scrub pipelines,
+   fixes don't transfer" is the same disease. Replace with one arbiter: every commit carries
+   {lane, productId, tier, flavor, hourOffset}, one priority function decides, decisions logged
+   to a ring buffer. Converts every ping-pong class into a single debuggable decision point.
+2. **Client↔resolver CONTRACT TESTS.** Both snap-overshoot bugs (fine-tile crossing `8adf332f`,
+   mid-ceiling `this commit`) were the client's STALE MODEL of the backend ladder (07-04-era
+   assumptions). Add a fixture-backed contract suite: for request spans/positions × tiers,
+   assert the served tier AND assert every client snap/pad output stays inside its tier
+   boundary. Runs in CI; silent tier demotion becomes impossible.
+3. **Commit-stamp INVARIANTS at the choke point.** Every committed grid MUST carry
+   hourOffset + ratingMode + productId + lane; enforce in a setMarineData wrapper (dev-mode
+   assert + prod telemetry). The "rendered hour=undefined" loop class dies permanently.
+4. **zoomlab verdict battery IN CI** (nightly + PR-gated with a findings budget): the engine +
+   verdict already exist; today it only runs when a session remembers to run it.
+5. **Wrapped-copy particle domain** (chip spawned earlier — heatmap wraps, particles don't).
+6. **Nearshore PRECISION data**: 0.25° ETOPO is shelf-scale. Bake ~1 km nearshore bathymetry
+   (GEBCO subset) for tiles containing spots + a per-spot break_type/beach-slope table —
+   unlocks the already-written Iribarren `breaker_type()` (needs real slope,
+   `build_bathymetry_asset.py --slope` is referenced in-code) and quantitative reef vs beach vs
+   inlet physics beyond the magnet seeds.
+7. **Report-calibration LOOP**: automate a periodic compare of baked ratings/surf vs user
+   condition reports + buoys per region to tune SURF_V3_JACK_MAX / SHELF_CF / magnets from
+   data instead of sessions.
+
 ## ⚡ PART 2 CLOSE-OUT — bakes verified, stripe re-battery verdict
 - **+180 HEALED AT SOURCE** (~16:1xZ, core `29646402826`): 18:00Z globals — east col 180 = exact
   WEST mirror on GFS/ICON/EURO waves (16/16/13 of 17), GFS wind 17/17, ICON swell_1 16/17 (all
