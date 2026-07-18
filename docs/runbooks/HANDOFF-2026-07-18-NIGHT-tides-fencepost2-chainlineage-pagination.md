@@ -25,20 +25,25 @@ Two staircase_full batteries (light cold, dark) + one light **warm** re-run + ma
 - Battery hygiene: run themes SEQUENTIALLY and treat run-order as a cache-warmth confound;
   `zoomlab-diff.js` flags regime-differing buckets automatically.
 
-## 3. WATCHERS OWED (check these first next session)
-1. **FL tile heal**: pilots run `29633034715` (head `0a11a0bf`, carries the wave-fetcher fix) was
-   in_progress at close. On completion: re-probe per-column
-   (`/api/weather/grid?...bbox=-85,24,-79,31` → east col -79.0 and north row 31.0 must be valid).
+## 3. WATCHERS — RESOLVED IN-SESSION (07:56-08:0xZ)
+1. ✅ **FL tile HEALED**: pilots run `29633034715` (fix-carrying) completed success 07:56Z →
+   per-column probe of the fresh 09Z product: east col -79.0 **29/29 valid** (was 0/29); north
+   row 31.0 = 10/25 valid, the 15 invalid cells are inland Georgia (geography, not fencepost).
    NOTE: `provider: open-meteo` on NOAA-direct products is DELIBERATE label parity
-   (scheduler.py §196) — do not let it mislead the next forensics.
-2. **Tide bake**: first precompute/ingest run starting after `6471a7ec` bakes `tide` into
-   `spot_ratings/latest.json` (baseline recorded 06:11Z: 6 frames × 1000 spots, withTide=0).
-   Expect withTide≈spots AND **spots→1516** once a run also carries `dc1e74a7`.
-3. **CI**: `951bba42` + `11714c90` were in_progress at close.
-4. **Render env**: render.yaml now carries RATING_TIDE=1 — if the service is NOT Blueprint-synced,
-   set it in the Render dashboard (live-lane parity).
-5. Other direct-source lanes (wind/pressure/ICON/GWAM/EURO) heal as their crons re-bake with
-   `951bba42`+; spot-check east col/north row on one wind + one EURO product after.
+   (scheduler.py §196) — do not let it mislead future forensics.
+2. ✅ **Tide BAKED**: ingest run `29633827114` (RATING_TIDE-carrying) completed 07:58Z →
+   latest.json (generated 07:57:45Z): GFS 977/980, EURO 1000/1000, ICON 1000/1000 withTide per
+   frame. End-to-end: cold-booted map's glyph aria = "Playalinda Beach: Poor, 1.9 ft at 7
+   seconds, tide -2.3 ft falling" — from the BAKED payload lane (no hover/fallback involved).
+3. ✅ **CI green** through `4ee5b853` (+ Lighthouse).
+
+## 3b. STILL OWED (small)
+- **spots 1000→1516** in latest.json: needs a run carrying `dc1e74a7` (pushed 06:5xZ; the 06:20Z
+  run predates it) — check the next cycle's frame spot counts.
+- **Render env**: render.yaml now carries RATING_TIDE=1 — if the service is NOT Blueprint-synced,
+  set it in the Render dashboard (live-lane parity).
+- Other direct-source lanes (wind/pressure/ICON/GWAM/EURO) heal as their crons re-bake with
+  `951bba42`+ (pushed 06:47Z); spot-check east col/north row on one wind + one EURO product.
 
 ## 4. OPEN (carried queue)
 - **z8 halo — hypothesis SHARPENED (read-only forensics this session):** `coverage_gap` =
