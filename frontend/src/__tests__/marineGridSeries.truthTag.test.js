@@ -112,6 +112,41 @@ describe('series-frame truthTag lineage (audit #18/A3)', () => {
     expect(window.__WEATHER_TRUTH_TRACE__.verdict.status).toBe('PASS');
   });
 
+  // Round 2 (zoomlab-proven): the engine re-uploads HELD grids (bridge promote / coarse-base /
+  // ring-fill) with their ORIGINAL chain's tag while newer chains mint on the same product —
+  // chains legitimately INTERLEAVE. Lineage is per-CHAIN: no cross-chain comparison.
+  it('interleaved chains (held-grid re-upload between a newer chain\'s mint and upload) do not MISMATCH', async () => {
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const a = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: a.grid, truthTag: a.grid.truthTag,
+    }, 'test', 'upload');
+    recordTruthStage('orchestratorCommit', a, 'test', 'commit');
+
+    // Newer chain B mints on the same product…
+    _resetMarineSeriesForTest();
+    window.__MARINE_SERIES__ = true;
+    global.fetch = jest.fn().mockResolvedValue({ ok: true, json: async () => {
+      const r = mockSeriesResponse();
+      r.frames[0].vectors[0].speed = 7.7;
+      return r;
+    } });
+    await ensureMarineSeries('GFS', 'waves', bounds);
+    const b = getMarineSeriesFrame('GFS', 'waves', bounds, 0);
+
+    // …then the engine re-uploads chain A's HELD grid (bridge promote), then B uploads.
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: a.grid, truthTag: a.grid.truthTag,
+    }, 'test', 'held-re-upload');
+    recordTruthStage('webglUpload', {
+      model: 'GFS', domain: 'marine', layer: 'waves', grid: b.grid, truthTag: b.grid.truthTag,
+    }, 'test', 'upload');
+
+    const stages = window.__WEATHER_TRUTH_TRACE__.stages;
+    expect(stages.some(s => s.status === 'MISMATCH')).toBe(false);
+    expect(window.__WEATHER_TRUTH_TRACE__.verdict.status).toBe('PASS');
+  });
+
   it('REAL within-chain divergence still trips the detector (mint is a start, not a blindfold)', async () => {
     await ensureMarineSeries('GFS', 'waves', bounds);
     const frame = getMarineSeriesFrame('GFS', 'waves', bounds, 0);

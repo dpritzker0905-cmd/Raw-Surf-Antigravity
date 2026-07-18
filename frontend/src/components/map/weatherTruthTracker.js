@@ -267,16 +267,23 @@ export function recordTruthStage(stageName, data, file, functionName) {
       s.stage !== 'infoboxDisplay'
     );
     if (previousStages.length > 0) {
-      const prev = previousStages[previousStages.length - 1];
       // seriesFrameMint is a START stage (task #14, 2026-07-18): a re-minted series frame is a NEW
       // chain on a stable product_id (series_*_h0 is reused every refresh) — comparing its tag
       // backward against the superseded chain's commit produced the false-MISMATCH spam.
       const isStartStage = stageName === "backendResponse" || stageName === "cacheRead" || stageName === "seriesFrameMint";
-      if (!isStartStage) {
-        if (prev.truthTag.traceId !== traceId) {
-          mismatchFromPrevious = true;
-          mismatchReason = `traceId mismatch from stage ${prev.stage}: expected ${prev.truthTag.traceId}, got ${traceId}`;
-        } else if (prev.truthTag.product_id !== productId) {
+      // Lineage = CHAIN (task #14 round 2, 2026-07-18): compare only against the last stage of the
+      // SAME traceId. The zoomlab battery proved same-product chains legitimately INTERLEAVE — the
+      // engine re-uploads HELD grids (bridge promote, coarse-base, ring-fill) with their original
+      // chain's tag while newer chains mint/commit on the same stable series product_id, so
+      // "last same-product stage" routinely belongs to a DIFFERENT legit chain and the cross-chain
+      // compare fired false MISMATCH errors on every interleave. Within-chain divergence (same
+      // traceId, different dataHash/bounds/product across stages) is the real "rendered something
+      // other than what was committed" detector and remains fully compared; chain DEATH is the
+      // absence watchdog's job.
+      const ownStages = previousStages.filter(s => s.truthTag.traceId === traceId);
+      const prev = ownStages.length > 0 ? ownStages[ownStages.length - 1] : null;
+      if (!isStartStage && prev) {
+        if (prev.truthTag.product_id !== productId) {
           mismatchFromPrevious = true;
           mismatchReason = `productId mismatch from stage ${prev.stage}: expected ${prev.truthTag.product_id}, got ${productId}`;
         } else if (prev.truthTag.dataHash !== dataHash) {
