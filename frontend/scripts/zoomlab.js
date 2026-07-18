@@ -231,6 +231,46 @@ async function main() {
         });
       } catch (e) { T.frames.push({ err: String(e && e.message).slice(0, 60) }); }
     });
+
+    // WATER-COLUMN GROUND TRUTH (2026-07-18 EVE-2): the DEAD_BAND detectors flagged the FLORIDA
+    // PENINSULA as a persistent dead band whenever the staircase settled at mid zoom — land never
+    // animates, and the column profile alone cannot tell land from a dead marine band (that false
+    // positive spent a whole forensic arc as "wrapped-copy particles" / "gulf-edge ring" before
+    // probeMaskGPU exonerated geography). Every 2 s, probe the ENGINE'S OWN mask (base+overlay,
+    // the same selection the shader renders) at 5 rows × 40 column centers and record per-column
+    // water fraction. zoomlab-verdict excludes mostly-land columns from dead-band claims.
+    T.water = [];
+    const probeWater = () => {
+      try {
+        const e2 = window.__MARINE_ENGINE__;
+        if (!e2 || typeof e2.probeMaskGPU !== 'function' || !m || !m.unproject) return;
+        const NCOL = 40, rows = [0.15, 0.3, 0.5, 0.7, 0.85];
+        const cont = m.getContainer();
+        const cssW = cont.clientWidth, cssH = cont.clientHeight;
+        if (!cssW || !cssH) return;
+        const pts = [];
+        for (let c = 0; c < NCOL; c++) {
+          for (const r of rows) {
+            const ll = m.unproject([(c + 0.5) / NCOL * cssW, r * cssH]);
+            pts.push({ lng: ll.lng, lat: ll.lat });
+          }
+        }
+        const res = e2.probeMaskGPU(pts);
+        if (!res || !Array.isArray(res)) return;
+        const frac = new Array(NCOL).fill(0);
+        for (let i = 0; i < res.length; i++) {
+          const c = Math.floor(i / rows.length);
+          const eff = res[i] && res[i].effective;
+          if (eff != null && eff >= 128) frac[c] += 1 / rows.length;
+        }
+        T.water.push({
+          t: Math.round(performance.now() - T.t0),
+          z: +m.getZoom().toFixed(3),
+          w: frac.map((f) => +f.toFixed(2)),
+        });
+      } catch (err) { /* ground truth is best-effort; the verdict falls back to legacy behavior */ }
+    };
+    setInterval(probeWater, 2000);
   });
   log('trace installed');
 

@@ -32,6 +32,12 @@ const DEFAULTS = {
   persistFrames: 6,     // ≥6 consecutive frames = persistent
   transientFrames: 3,   // 3..5 consecutive frames = transient flash
   maxSettledStep: 16,   // |ΔL| between same-zoom consecutive frames (content-swap variance ~11-14)
+  // LAND EXCLUSION (2026-07-18 EVE-2): with trace.water (zoomlab's probeMaskGPU column ground
+  // truth), a band whose columns average below landWaterMin water fraction is LAND — never a
+  // marine dead-band finding. The Florida peninsula parked under cols 4-13 at the mid-zoom
+  // settled steps and burned two forensic arcs as a phantom sim defect before this.
+  landWaterMin: 0.35,        // mean water fraction across the band's columns to count as marine
+  waterMaxAgeMs: 4500,       // nearest water sample must be within this of the frame
 };
 
 function bandsInFrame(anim, cfg) {
@@ -58,15 +64,35 @@ function bandsInFrame(anim, cfg) {
   return bands;
 }
 
+// Nearest water-column sample to time t (from zoomlab's probeMaskGPU ground truth), or null.
+function nearestWater(water, t, maxAgeMs) {
+  if (!Array.isArray(water) || !water.length) return null;
+  let best = null, bd = Infinity;
+  for (const s of water) {
+    const d = Math.abs(s.t - t);
+    if (d < bd) { bd = d; best = s; }
+  }
+  return (best && bd <= maxAgeMs) ? best : null;
+}
+
 function analyzeTrace(trace, opts = {}) {
   const cfg = { ...DEFAULTS, ...opts };
   const F = (trace.frames || []).filter((f) => Array.isArray(f.anim) && f.anim.some((v) => v > 0));
   const findings = [];
 
   // --- dead-band tracking across frames (keyed by overlapping column ranges) ---
+  let landExcluded = 0;
   const runs = [];   // { s, e, first, last, count }
   for (const f of F) {
+    const water = nearestWater(trace.water, f.t, cfg.waterMaxAgeMs);
     for (const [s, e] of bandsInFrame(f.anim, cfg)) {
+      // LAND EXCLUSION: a quiet band over mostly-land columns is geography, not a finding
+      // (no water sample near this frame → legacy behavior, count it).
+      if (water) {
+        let sum = 0;
+        for (let c = s; c <= e; c++) sum += (water.w[c] ?? 1);
+        if (sum / (e - s + 1) < cfg.landWaterMin) { landExcluded++; continue; }
+      }
       const hit = runs.find((r) => !r.closed && s <= r.e + 1 && e >= r.s - 1 && f.t - r.last < 1500);
       if (hit) { hit.s = Math.min(hit.s, s); hit.e = Math.max(hit.e, e); hit.last = f.t; hit.count++; }
       else runs.push({ s, e, first: f.t, last: f.t, count: 1, closed: false });
@@ -96,7 +122,12 @@ function analyzeTrace(trace, opts = {}) {
   // --- console errors ride along ---
   for (const e of (trace.consoleErrors || [])) findings.push({ type: 'CONSOLE_ERROR', msg: String(e).slice(0, 120) });
 
-  return { pass: findings.length === 0, findings, framesAnalyzed: F.length, config: cfg };
+  return {
+    pass: findings.length === 0, findings, framesAnalyzed: F.length,
+    landExcludedBandFrames: landExcluded,
+    waterSamples: Array.isArray(trace.water) ? trace.water.length : 0,
+    config: cfg,
+  };
 }
 
 module.exports = { analyzeTrace, bandsInFrame, DEFAULTS };
@@ -108,7 +139,8 @@ if (require.main === module) {
   const verdict = analyzeTrace(trace);
   if (process.argv.includes('--json')) console.log(JSON.stringify(verdict, null, 1));
   else {
-    console.log(`[verdict] ${verdict.pass ? 'PASS' : 'FAIL'} — ${verdict.findings.length} finding(s), ${verdict.framesAnalyzed} anim frames`);
+    console.log(`[verdict] ${verdict.pass ? 'PASS' : 'FAIL'} — ${verdict.findings.length} finding(s), ${verdict.framesAnalyzed} anim frames`
+      + (verdict.waterSamples ? `, ${verdict.waterSamples} water samples, ${verdict.landExcludedBandFrames} land band-frames excluded` : ' (no water ground truth — legacy mode)'));
     for (const f of verdict.findings.slice(0, 20)) console.log('  ' + JSON.stringify(f));
   }
   process.exit(verdict.pass ? 0 : 1);

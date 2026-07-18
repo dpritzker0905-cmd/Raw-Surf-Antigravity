@@ -76,13 +76,16 @@ jobs:
           OUT=$(node frontend/scripts/zoomlab-verdict.js /tmp/zoomlab-out/trace_staircase_full.json 2>&1)
           CODE=$?
           echo "$OUT"
-          # BUDGET (documented in HANDOFF-2026-07-18-EVE part 2 close-out): the wrapped-copy
-          # particle cluster is a KNOWN pre-existing finding (≤3 DEAD_BAND findings at the z2
-          # tail). Fail on: any SETTLED_STEP finding, or more than 3 findings total.
+          # BUDGET (tightened 2026-07-18 EVE-2): zoomlab now records engine-mask water ground
+          # truth per column and the verdict excludes LAND columns from dead-band claims — the
+          # old ≤3 allowance existed for the Florida-peninsula false positive (which spent two
+          # forensic arcs mislabeled "wrapped-copy particles"). Fail on: any SETTLED_STEP, any
+          # DEAD_BAND_PERSISTENT, or more than 2 findings total (short water transients ride).
           FINDINGS=$(echo "$OUT" | grep -oP '(?<=FAIL — )\d+(?= finding)' || echo 0)
           SETTLED=$(echo "$OUT" | grep -c 'SETTLED_STEP' || true)
-          echo "findings=$FINDINGS settled_steps=$SETTLED (budget: ≤3 findings, 0 settled steps)"
-          if [ "$SETTLED" -gt 0 ] || [ "${FINDINGS:-0}" -gt 3 ]; then
+          PERSIST=$(echo "$OUT" | grep -c 'DEAD_BAND_PERSISTENT' || true)
+          echo "findings=$FINDINGS settled_steps=$SETTLED persistent=$PERSIST (budget: ≤2 findings, 0 persistent, 0 settled steps)"
+          if [ "$SETTLED" -gt 0 ] || [ "$PERSIST" -gt 0 ] || [ "${FINDINGS:-0}" -gt 2 ]; then
             echo "OVER BUDGET — failing"; exit 1
           fi
           exit 0
