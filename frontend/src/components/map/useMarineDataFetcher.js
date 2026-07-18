@@ -181,6 +181,17 @@ export function useMarineDataFetcher({
       // PINNING INSTRUMENT (2026-07-17 §5b): in one live repro the toggle's re-fetch was swallowed
       // before any network/guard breadcrumb and the band wedged until the flavor backstop broke it.
       // Record the entry state so the NEXT occurrence pins the swallowing branch from the ring alone.
+      // §5b WEDGE ROOT (2026-07-18 EVE-2, ring-pinned): 'manual' is classified an ACTIVATION source
+      // (isActivationSource), so the toggle's re-fetch went out with the WORLD bbox — and a
+      // world+surf=1 request structurally cannot return a rated grid (rating tiles are regional),
+      // so no-downgrade rejected the unrated global coarse and NO lane ever supplied the rated
+      // viewport tile (series pages are unrated; the flavor backstop's re-drive was guard-starved).
+      // The toggle is NOT an activation — the layer is already live with a resident. 'flavor_toggle'
+      // keeps the real viewport, so the manifest-tile clip serves the rated (or unrated, on
+      // toggle-OFF) fine tile directly. Kill: __RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__ = true
+      // restores the legacy 'manual' classification for A/B.
+      const _tglSrc = (typeof window !== 'undefined' && window.__RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__ === true)
+        ? 'manual' : 'flavor_toggle';
       try {
         const locks = marineFetchLocksRef.current || {};
         const inflight = abortControllerRef.current && abortControllerRef.current.__intent;
@@ -188,9 +199,10 @@ export function useMarineDataFetcher({
           flag: getSurfModeFlag(), isFetching: !!locks.isFetching,
           inflightSurf: inflight ? inflight.surf : null,
           inflightAgeMs: locks.fetchStartedAt ? (Date.now() - locks.fetchStartedAt) : null,
+          src: _tglSrc,
         });
       } catch (e) { /* breadcrumb never fatal */ }
-      try { enqueueMarineUpdate('manual'); } catch (e) {}
+      try { enqueueMarineUpdate(_tglSrc); } catch (e) {}
     };
     window.addEventListener('rawsurf:surf-toggle', onSurfToggle);
     // SERIES-ARRIVAL UPGRADE (2026-07-17, user @z8.63: post-toggle the 2° global_mid interim sat

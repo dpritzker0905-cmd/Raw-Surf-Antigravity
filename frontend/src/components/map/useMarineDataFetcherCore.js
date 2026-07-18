@@ -12,6 +12,7 @@ import {
   DISPLAY_EURO_COMPONENT_MAX_HOURS,
   DISPLAY_ICON_MAX_HOURS,
   checkShouldClearRegionalGrid,
+  isActivationSource,
   buildIconFallbackGrid,
   buildEuroFallbackGrid,
   buildCopernicusEmptyGrid,
@@ -228,7 +229,8 @@ export function useMarineDataFetcherCore({
       if (!viewportHash) {
         console.log(`[Marine] Viewport bounds are degenerate or map not ready. Skipping fetch (source=${source}).`);
         const isRetrySource = source.includes('retry');
-        const canRetry = source === 'mount' || source === 'load' || source === 'manual' || isRetrySource;
+        const canRetry = source === 'mount' || source === 'load' || source === 'manual'
+          || source === 'flavor_toggle' || isRetrySource;
         if (canRetry) {
           clearDebounce = false;
           scheduleDegenerateRetry(source, (nextSource) => {
@@ -340,7 +342,10 @@ export function useMarineDataFetcherCore({
       if (detachedWaitTimerRef.current) { clearTimeout(detachedWaitTimerRef.current); detachedWaitTimerRef.current = null; }
 
       phase = 'pre_fetch';
-      const isActivation = source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
+      // §5b: 'flavor_toggle' (the surf-rating toggle) is deliberately NON-activation — see
+      // isActivationSource. An activation here means a WORLD-bbox fetch, which can never serve
+      // the rated viewport tile the toggle needs.
+      const isActivation = isActivationSource(source);
       const bounds = handleRegionalGridClearing({
         mapInstance, isActivation, marineData, zoom, model, layer, setMarineData, lastCommittedSigRef
       });
@@ -890,7 +895,9 @@ export function useMarineDataFetcherCore({
       _dispatchRan = true;
       scheduledRef.current = false;
       if (timeoutIdRef.current) clearTimeout(timeoutIdRef.current);
-      const stableDelay = (isCached || source === 'manual' || source === 'timeline_scrub') ? 20 : 300;
+      // 'flavor_toggle' rides the fast lane: the user just clicked the Rating toggle — a 300 ms
+      // stall before dispatch reads as an unresponsive control.
+      const stableDelay = (isCached || source === 'manual' || source === 'flavor_toggle' || source === 'timeline_scrub') ? 20 : 300;
       timeoutIdRef.current = setTimeout(() => {
         timeoutIdRef.current = null;
         // Map can be torn down during the stableDelay (unmount / style reload / route change) —

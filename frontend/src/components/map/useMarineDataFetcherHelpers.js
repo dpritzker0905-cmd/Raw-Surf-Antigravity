@@ -13,6 +13,19 @@ export const DISPLAY_EURO_WAVES_MAX_HOURS = 336;
 export const DISPLAY_EURO_COMPONENT_MAX_HOURS = 336;
 export const DISPLAY_ICON_MAX_HOURS = 336;
 
+// ACTIVATION CLASSIFICATION (extracted 2026-07-18 EVE-2, §5b wedge root). Activation sources
+// fetch the WORLD base first (handleRegionalGridClearing world-bounds branch) and let sharpen
+// bring the viewport tile — correct for layer activation / model switch / style-ready, where
+// nothing is resident. The surf-rating toggle used to ride 'manual' and inherited the world
+// bbox: a world+surf=1 request can never return a rated grid (rating tiles are regional), the
+// unrated global coarse got no-downgrade-rejected, and the toggle WEDGED with no lane supplying
+// the rated viewport tile ([rating-band] OFF forever at a settled camera). 'flavor_toggle' is
+// deliberately NOT an activation: the layer is already live — re-fetch the current viewport in
+// the new flavor. Kill (in useMarineDataFetcher): __RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__.
+export function isActivationSource(source) {
+  return source.startsWith('mount') || source.startsWith('load') || source.startsWith('manual');
+}
+
 export function getLongitudinalOverlap(w1, e1, w2, e2) {
   const vpWidth = (e1 < w1) ? (e1 + 360) - w1 : e1 - w1;
   if (vpWidth >= 360.0 - 1e-5) {
