@@ -276,19 +276,34 @@ def load_spot_ratings_l2() -> Optional[dict]:
         return None
 
 
-def fetch_active_spots_via_rest(limit: int = 5000) -> list:
+def fetch_active_spots_via_rest(limit: int = 5000, page_size: int = 1000) -> list:
     """Read active surf spots via Supabase REST/PostgREST (the ingest runner has no DATABASE_URL, only the
-    Storage service key — which also authorizes PostgREST and bypasses RLS). Returns a list of spot dicts."""
+    Storage service key — which also authorizes PostgREST and bypasses RLS). Returns a list of spot dicts.
+
+    PAGINATED (2026-07-18): PostgREST caps ANY single response at its server-side max-rows (Supabase
+    default 1000) regardless of ``?limit=`` — with 1516 active spots the precompute silently rated
+    exactly the first 1000 and ~516 spots never got a precomputed rating (CDN-object fingerprint:
+    every frame spots=1000). Page by offset with a STABLE order (id) until a short page or `limit`."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
         return []
     import requests
-    url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,accuracy_flag,is_verified_peak,best_tide"
-           f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null&limit={limit}")
-    resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
-    resp.raise_for_status()
-    return resp.json()
+    out = []
+    while len(out) < limit:
+        take = min(page_size, limit - len(out))
+        url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,accuracy_flag,is_verified_peak,best_tide"
+               f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null"
+               f"&order=id&limit={take}&offset={len(out)}")
+        resp = requests.get(url, headers={"apikey": key, "Authorization": f"Bearer {key}"}, timeout=30)
+        resp.raise_for_status()
+        batch = resp.json()
+        if not isinstance(batch, list) or not batch:
+            break
+        out.extend(batch[:take])          # defensive: an over-serving page never blows past `limit`
+        if len(batch) < take:
+            break
+    return out
 
 
 def _make_point_resolver():

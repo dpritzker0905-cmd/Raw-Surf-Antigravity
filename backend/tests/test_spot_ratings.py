@@ -247,3 +247,68 @@ def test_precompute_round_trips_through_select(monkeypatch):
     assert sel is not None and [s["spot_id"] for s in sel] == ["a"]
     # An hour with no frame falls back to live (None).
     assert select_precomputed(obj, (-82, 24, -79, 28), "GFS", "2026-06-29T05:00:00Z") is None
+
+
+# ── REST spot fetch pagination (2026-07-18: PostgREST max-rows silently capped 1516 → 1000) ──
+def _mk_fake_requests(pages):
+    """A fake `requests` module whose GET returns `pages` in order; records requested URLs."""
+    calls = {"urls": []}
+
+    class FakeResp:
+        def __init__(self, payload):
+            self._payload = payload
+        def raise_for_status(self):
+            return None
+        def json(self):
+            return self._payload
+
+    class FakeRequests:
+        @staticmethod
+        def get(url, headers=None, timeout=None):
+            calls["urls"].append(url)
+            i = len(calls["urls"]) - 1
+            return FakeResp(pages[i] if i < len(pages) else [])
+
+    return FakeRequests, calls
+
+
+def test_fetch_active_spots_paginates_past_the_postgrest_cap(monkeypatch):
+    """A server-capped 1000-row page must NOT end the read: with 1516 active spots the old
+    single-request fetch rated exactly 1000 (CDN fingerprint) and ~516 spots never precomputed."""
+    import sys
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
+    page1 = [{"id": i} for i in range(1000)]          # server cap: a FULL page even though limit=5000
+    page2 = [{"id": 1000 + i} for i in range(516)]    # short page ends the loop
+    fake, calls = _mk_fake_requests([page1, page2])
+    monkeypatch.setitem(sys.modules, "requests", fake)
+
+    out = sr.fetch_active_spots_via_rest()
+    assert len(out) == 1516
+    assert len(calls["urls"]) == 2
+    assert "offset=0" in calls["urls"][0] and "order=id" in calls["urls"][0]
+    assert "offset=1000" in calls["urls"][1]
+
+
+def test_fetch_active_spots_short_first_page_stops(monkeypatch):
+    import sys
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
+    fake, calls = _mk_fake_requests([[{"id": 1}, {"id": 2}]])
+    monkeypatch.setitem(sys.modules, "requests", fake)
+    out = sr.fetch_active_spots_via_rest()
+    assert [s["id"] for s in out] == [1, 2]
+    assert len(calls["urls"]) == 1
+
+
+def test_fetch_active_spots_respects_hard_limit(monkeypatch):
+    import sys
+    monkeypatch.setenv("SUPABASE_URL", "https://x.supabase.co")
+    monkeypatch.setenv("SUPABASE_SERVICE_ROLE_KEY", "k")
+    full = [[{"id": i} for i in range(1000)] for _ in range(9)]   # server would keep serving forever
+    fake, calls = _mk_fake_requests(full)
+    monkeypatch.setitem(sys.modules, "requests", fake)
+    out = sr.fetch_active_spots_via_rest(limit=2500)
+    assert len(out) == 2500
+    assert len(calls["urls"]) == 3                                # 1000 + 1000 + 500
+    assert "limit=500" in calls["urls"][2]
