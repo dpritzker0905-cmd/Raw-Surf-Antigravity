@@ -433,6 +433,14 @@ export function applySharpenOpacityEase(ease, target, mult, nowMs, win) {
   if (mult === 0 || target <= 0.01 || typeof ease.from !== 'number') {
     return { value: target, ease: null };   // hidden intent (or bad stamp) ⇒ snap, drop the ease
   }
+  if (ease.from <= 0.01) {
+    // FROM-hidden snap (2026-07-17 zoomlab regression battery): a band-faded rated resident draws
+    // at hm 0; easing UP from 0 after the unrated world commit re-opened the §2c hard flip the
+    // wash-lift architecture engineered away (rated→unrated swap ΔL 1.9 → +48.3 with the ease).
+    // Easing from invisible IS the blank-window class — snap instead. The sharpen glide this ease
+    // exists for (0.53→0.76 first activation) always has a visible `from` and is unaffected.
+    return { value: target, ease: null };
+  }
   const ms = (typeof w.__RAW_SHARPEN_OPACITY_EASE_MS__ === 'number' && w.__RAW_SHARPEN_OPACITY_EASE_MS__ > 0)
     ? w.__RAW_SHARPEN_OPACITY_EASE_MS__ : 600;
   const dt = nowMs - ease.t0;

@@ -30,6 +30,14 @@ async function main() {
   });
   const page = await context.newPage();
 
+  // ZL_FLAGS: comma-separated window globals set true before app boot (kill-switch A/B runs),
+  // e.g. ZL_FLAGS="__RAW_DISABLE_FLAT_HEATMAP_OPACITY__,__RAW_DISABLE_SHARPEN_OPACITY_EASE__".
+  if (process.env.ZL_FLAGS) {
+    const flags = process.env.ZL_FLAGS.split(',').map((s) => s.trim()).filter(Boolean);
+    await page.addInitScript((fl) => { for (const f of fl) window[f] = true; }, flags);
+    log('ZL_FLAGS: ' + flags.join(', '));
+  }
+
   // Disable the service worker (E2E house pattern — always test the fresh bundle).
   await page.addInitScript(() => {
     const mockSW = {

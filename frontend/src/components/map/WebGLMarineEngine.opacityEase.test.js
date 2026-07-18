@@ -64,6 +64,13 @@ describe('applySharpenOpacityEase', () => {
     expect(applySharpenOpacityEase(ease(0.53, 5000), 0.76, 1.0, 1000, WIN)).toEqual({ value: 0.76, ease: null });
   });
 
+  it('FROM-hidden snap: never eases UP from an invisible state (the rated→unrated +48 L flip)', () => {
+    // a band-faded rated resident draws at hm 0; the unrated commit must paint at full strength
+    // immediately (the §2c wash-lift invariant), not glide 0→target over 600ms
+    expect(applySharpenOpacityEase(ease(0.0, 1000), 0.69, 1.0, 1100, WIN)).toEqual({ value: 0.69, ease: null });
+    expect(applySharpenOpacityEase(ease(0.009, 1000), 0.69, 1.0, 1100, WIN)).toEqual({ value: 0.69, ease: null });
+  });
+
   it('a malformed stamp (no numeric from) snaps to target', () => {
     expect(applySharpenOpacityEase({ from: null, t0: 1000 }, 0.76, 1.0, 1100, WIN)).toEqual({ value: 0.76, ease: null });
   });
