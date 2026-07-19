@@ -1,15 +1,23 @@
 /**
- * marineCommitArbiter.js — ARBITER PHASE B: the candidate decision function, running in SHADOW.
+ * marineCommitArbiter.js — the marine commit ARBITER: ONE priority-ordered rule list replacing
+ * the accumulated pairwise guards (no-downgrade, subcover, rating-grace, flavor-mismatch…).
  *
- * Design: docs/runbooks/DESIGN-2026-07-18-marine-commit-arbiter.md. Phase A gave every commit a
- * {lane, tier, flavor, hour} descriptor; this module is the ONE priority-ordered rule list that
- * is intended to eventually replace the accumulated pairwise guards (no-downgrade, subcover,
- * rating-grace, flavor-mismatch…). In Phase B it decides NOTHING — the engine calls it alongside
- * the real guards, counts agreement, and ring-logs divergences (`arb_shadow_diverge`). The rules
- * are the DESIGN's ideal list, deliberately simpler than the guards: divergences are the data
- * that tunes this list (or proves a guard nuance load-bearing) before any flip.
+ * Design: docs/runbooks/DESIGN-2026-07-18-marine-commit-arbiter.md.
+ * STATUS (2026-07-18 EVE-3, Phase C): wired at the single decision point
+ * (`decideMarineCommit` in WebGLMarineEngine.js) and reachable behind `__RAW_MARINE_ARBITER__`;
+ * the shipped DEFAULT is still the guard chain. In guard mode this module also runs in SHADOW,
+ * ring-logging divergences as `arb_shadow_diverge`.
  *
- * Pure and window-free: every input arrives via arguments. First match wins.
+ * ⚠️ THE RULES ARE NOT "the ideal simpler list" ANY MORE — that framing cost real time. Every
+ * guard nuance this list once omitted turned out to encode a historical outage (07-01 coarse⇄
+ * regional spin, 07-03 permanent wedge, 07-05 island shadow, round-12 §4f band blink). The list
+ * now reproduces the guard chain on 3000/3000 enumerated fixtures. Before "simplifying" a rule,
+ * read `marineCommitArbiter.differential.test.js` — it will tell you exactly which scar you are
+ * about to reopen. Live shadow agreement is NOT sufficient evidence: a live trajectory only walks
+ * the common path, which is how a 89/89 soak hid 166 divergences.
+ *
+ * Pure and window-free: every input (including time, and the caller-owned grace state) arrives
+ * via arguments. First match wins.
  */
 
 const ZOOMED_OUT_MAX_ZOOM_DEFAULT = 6.5;
@@ -75,8 +83,22 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
 
   // 5. Flavor rules (want = the surf-rating flag at decision time).
   const rRated = !!resident.ratingMode, iRated = !!incoming.ratingMode;
+  const rCell = cellDegOf(resident), iCell = cellDegOf(incoming);
+  // A ≥2× cell-size downgrade over a resident that still COVERS is the 07-01 coarse⇄regional
+  // "spin" / 07-05 island-shadow geometry. Computed here because two flavor rules below must
+  // respect it — a rating transition is not a licence to collapse resolution.
+  const rFracEarly = coverageFrac(resident, ctx.viewportBounds);
+  const tierCollapse = rFracEarly !== null && rFracEarly >= minCover
+    && rCell !== null && iCell !== null && iCell >= rCell * 2.0;
   if (ctx.flavorWant === true) {
-    if (iRated && !rRated) return { verdict: 'commit', rule: 'flavor_upgrade' };
+    // DIFFERENTIAL-SWEEP FIX (2026-07-18 EVE-3, 3000-fixture guard/arbiter sweep, 35 divergences
+    // in this class): `flavor_upgrade` sat ABOVE the tier check, so ANY rated incoming — including
+    // the WORLD coarse — displaced a covering finer unrated resident. At z9.3 that is a visible
+    // blocky collapse, and it is exactly the ping-pong the no-downgrade guard was built to kill
+    // (the guard rejects it; it was right). A rated upgrade still wins whenever it does not
+    // collapse resolution over a still-covering resident.
+    if (iRated && !rRated && !tierCollapse) return { verdict: 'commit', rule: 'flavor_upgrade' };
+    if (iRated && !rRated) return { verdict: 'reject', rule: 'flavor_upgrade_tier_collapse' };
     if (!iRated && rRated) {
       // A rated resident that no longer covers the viewport must still release (stranding is
       // worse than a band blink) — but NOT instantly. PHASE C PRE-FLIP FIX (2026-07-18 EVE-3):
@@ -114,7 +136,17 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
         }
         return { verdict: 'commit', rule: 'rated_uncovering_release' };
       }
-      return { verdict: 'reject', rule: 'flavor_downgrade' };
+      // DIFFERENTIAL-SWEEP FIX (2026-07-18 EVE-3; 75 divergences — the single largest class, 45%
+      // of all of them): the hold must be SCOPED to a regional resident, mirroring the guard's
+      // `isRegionalBounds(resident)` predicate. Unscoped, a rated WORLD-COARSE resident rejected
+      // every unrated incoming forever while the flag was on — an UNBOUNDED hold with no coverage
+      // release to end it (coverage can't drop: a world grid covers everything) and no grace bound
+      // either, since the grace lives on the uncovering branch. That is the 07-03 permanent-wedge
+      // shape, manufactured by a rule that reads as "protect the band".
+      const rSpanF = spanLngOf(resident);
+      const residentRegional = rSpanF !== null && rSpanF > 0 && rSpanF < 359.0;
+      if (residentRegional) return { verdict: 'reject', rule: 'flavor_downgrade' };
+      return { verdict: 'commit', rule: 'flavor_downgrade_world_resident' };
     }
   } else if (rRated && !iRated) {
     // Flag OFF: a rated resident renders scores-as-heights — any honest incoming is a truth upgrade.
@@ -139,7 +171,20 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   }
 
   // 8. Sub-covering regional over a covering world grid at a wide view: churn, reject.
-  const zoomedOut = typeof ctx.zoom === 'number' && ctx.zoom <= zMax;
+  // DIFFERENTIAL-SWEEP FIX (2026-07-18 EVE-3, 56 divergences across both directions — two
+  // distinct defects in one rule):
+  //  (a) the wide-view test gated on ZOOM ALONE, while the shipped guard's is
+  //      `zoom <= max OR lngSpan > 15 OR latSpan > 15`. `_lastZoom` is written only by the render
+  //      loop, so a commit racing a zoom change reads a STALE zoom (the 07-03 lesson) — a stale
+  //      close zoom with a genuinely wide viewport skipped this rule entirely and fell through to
+  //      `fresh_same_target`, committing the churn the rule exists to reject (32 cases).
+  //  (b) the guard also requires the FLAVOR to match (`!!resident.ratingMode === !!incoming
+  //      .ratingMode`); without it the rule rejected a RATED incoming during a rating transition,
+  //      which the flavor rules above own (24 cases).
+  const vbW = ctx.viewportBounds;
+  const wideNow = (typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
+    || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0));
+  const zoomedOut = wideNow && rRated === iRated;
   const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
   if (zoomedOut && rSpan !== null && rSpan >= 340 && iSpan !== null && iSpan < 340) {
     const iFrac = coverageFrac(incoming, ctx.viewportBounds);
