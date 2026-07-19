@@ -63,18 +63,25 @@ const CENTER = {
   // grid to arrive can belong to the map's INITIAL viewport (the jumpTo-triggered moveend
   // refetch is still in flight), and dumping that one races the refetch (seen live r1: grid
   // origin -85,24 = the default-view box while parked at -89,24).
+  // BASE+OVERLAY (queue #9): with the two-texture engine, the fine grid lives in _windFine (the
+  // global base stays in _windData). Prefer the fine overlay — it is the grid that can resolve a
+  // vortex; fall back to _windData for regional-as-base / legacy states.
   await page.waitForFunction((c) => {
     const e = window.__WIND_ENGINE__ || window.__RAW_WIND__;
-    const g = e && e._windData && e._windData.windGrid;
-    if (!(g && g.vectors && g.vectors.length > 700 && g.bounds)) return false;
+    const fg = e && e._windFine && e._windFine.windGrid;
+    const g = fg || (e && e._windData && e._windData.windGrid);
+    if (!(g && g.vectors && g.vectors.length > 400 && g.bounds)) return false;
     const b = g.bounds;
-    return b.west <= c.lng && c.lng <= b.east && b.south <= c.lat && c.lat <= b.north;
+    const spanOk = (b.east - b.west) < 350; // want the FINE product, not the global base
+    return spanOk && b.west <= c.lng && c.lng <= b.east && b.south <= c.lat && c.lat <= b.north;
   }, CENTER, { timeout: 150000 }).catch(() => {});
   await page.waitForTimeout(4000);
 
   const dump = await page.evaluate((c) => {
     const e = window.__WIND_ENGINE__ || window.__RAW_WIND__;
-    const g = e && e._windData && e._windData.windGrid;
+    const fineSet = e && e._windFine && e._windFine.windGrid;
+    const holder = fineSet ? e._windFine : (e && e._windData);
+    const g = holder && holder.windGrid;
     if (!g || !g.vectors) return { error: 'no windGrid on engine' };
     const b = g.bounds || {};
     // Sub-grid crop around the viewport centre so the dump stays small even for a global product.
@@ -105,8 +112,9 @@ const CENTER = {
         engineCols: g.cols, engineRows: g.rows, engineBounds: b,
         truthTag: g.truthTag || null,
         coverage_scope: g.coverage_scope || null,
+        fromFineOverlay: !!fineSet,
         maxWindSpeed: e._maxWindSpeed,
-        uMin: e._windData.uMin, uMax: e._windData.uMax,
+        uMin: holder.uMin, uMax: holder.uMax,
         crop: { c0, r0, cols2, rows2, west: b.west + c0 * dlng, south: b.south + r0 * dlat, dlng, dlat },
         cropOriginVector: { lat: v00.lat, lng: v00.lng },
         viewport: c,

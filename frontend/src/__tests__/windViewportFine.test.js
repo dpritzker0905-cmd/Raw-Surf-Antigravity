@@ -27,14 +27,18 @@ import { clampViewportBbox } from '../components/map/backendWeatherServiceClient
 const GLOBAL_BOX = { west: -180, south: -80, east: 180, north: 85 };
 const vp = (west, south, east, north) => ({ west, south, east, north });
 
-beforeEach(() => { window.__RAW_WIND_VIEWPORT_FINE__ = true; }); // the tier is OPT-IN (2026-07-19 night) — these tests exercise its geometry
+beforeEach(() => { window.__RAW_WIND_VIEWPORT_FINE__ = true; }); // explicit true == the default; kept so these geometry tests are default-independent
 afterEach(() => { delete window.__RAW_WIND_VIEWPORT_FINE__; delete window.__RAW_DISABLE_WIND_VIEWPORT_FINE__; });
 
-it('DEFAULT is always-global — the tier is opt-in until #5/#9 land (regression shield)', () => {
+it('DEFAULT is fine-tier ON — #5 (1bf55931) and #9 (639d5fce) landed; opt-out is = false', () => {
   delete window.__RAW_WIND_VIEWPORT_FINE__;
   const r = clampViewportBbox(vp(-95.2, 20.4, -84.9, 27.6), 'wind', 'GFS', 'wind');
-  expect(r.clampedBbox).toEqual(GLOBAL_BOX);
-  expect(r.selectedTileId).toBe('global_wind');
+  expect(r.selectedTileId).toMatch(/^wind_viewport_fine_/);
+  // explicit opt-out restores always-global
+  window.__RAW_WIND_VIEWPORT_FINE__ = false;
+  const r2 = clampViewportBbox(vp(-95.2, 20.4, -84.9, 27.6), 'wind', 'GFS', 'wind');
+  expect(r2.clampedBbox).toEqual(GLOBAL_BOX);
+  expect(r2.selectedTileId).toBe('global_wind');
 });
 
 describe('wind viewport-fine tier (clampViewportBbox)', () => {
