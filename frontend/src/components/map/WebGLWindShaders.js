@@ -37,6 +37,16 @@ uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density st
 uniform float u_size_monotonic;   // 2026-07-19: mirrors DRAW_VS — the ink budget must use the size actually drawn
 uniform float u_calm_marks;       // 2026-07-19: mirrors DRAW_VS calm band + the calm lifetime floor
 uniform float u_closezoom_density; // 2026-07-19: close-zoom respawn bias extension (0 = legacy plateau)
+// BASE+OVERLAY two-texture (2026-07-19, queue #9): a resident viewport-fine grid sharpens the
+// velocity field where it exists; the global base drives everywhere else. Feather-blended so
+// velocity is continuous at the seam. u_fine_enabled = 0 -> byte-identical single-texture path.
+uniform sampler2D u_wind_fine;    // fine viewport wind texture (same RG encoding)
+uniform vec2 u_fine_min;          // fine texture's own u/v decode range
+uniform vec2 u_fine_max;
+uniform vec2 u_fineBounds_min;    // fine grid bounds [west, south]
+uniform vec2 u_fineBounds_max;    // fine grid bounds [east, north]
+uniform float u_fine_enabled;
+uniform float u_fine_feather_frac; // feather band as a fraction of the fine grid span
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -99,6 +109,25 @@ void main() {
   // Lookup wind at this position
   vec4 windData = texture2D(u_wind, tex_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windData.r, windData.g));
+  // Fine-overlay lookup: inside the fine grid, advect from the SHARPER field, feather-blended
+  // into the base so there is no velocity step at the seam (and never a data edge to fall off).
+  if (u_fine_enabled > 0.5) {
+    float f_u;
+    if (u_fineBounds_min.x > u_fineBounds_max.x) {
+      float fspan = (u_fineBounds_max.x + 360.0) - u_fineBounds_min.x;
+      f_u = mod(lng - u_fineBounds_min.x, 360.0) / fspan;
+    } else {
+      f_u = (lng - u_fineBounds_min.x) / (u_fineBounds_max.x - u_fineBounds_min.x);
+    }
+    float f_v = (lat - u_fineBounds_min.y) / (u_fineBounds_max.y - u_fineBounds_min.y);
+    if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
+      float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
+      float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
+      vec4 fineData = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineData.r, fineData.g));
+      wind = mix(wind, fineWind, fw);
+    }
+  }
   float speed = length(wind);
 
   // Negate y for Mercator convention (+y is South, wind.y/v is Northward)
@@ -295,6 +324,15 @@ uniform float u_dpr;             // 2026-07-18: devicePixelRatio — gl_PointSiz
 uniform float u_size_monotonic;  // 2026-07-19: slower must NEVER draw larger than faster (0 = legacy)
 uniform float u_calm_marks;      // 2026-07-19: near-calm air draws small marks, not NOTHING (0 = legacy)
 uniform float u_closezoom_density; // 2026-07-19: keepRate floor 0.45->0.70 at z>=8 (0 = legacy cull)
+// BASE+OVERLAY two-texture (2026-07-19, queue #9): colour/orientation/size must read the SAME
+// field the advection used — the fine grid where resident, the base elsewhere. Mirrors ADVECT_FS.
+uniform sampler2D u_wind_fine;
+uniform vec2 u_fine_min;
+uniform vec2 u_fine_max;
+uniform vec2 u_fineBounds_min;
+uniform vec2 u_fineBounds_max;
+uniform float u_fine_enabled;
+uniform float u_fine_feather_frac;
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
@@ -371,6 +409,25 @@ void main() {
   // Speed for coloring
   vec4 windColor = texture2D(u_wind, tex_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
+  // Fine-overlay lookup (mirrors ADVECT_FS): the mark must be coloured and oriented by the field
+  // that actually advected it, or speed/colour truth breaks inside the fine box.
+  if (u_fine_enabled > 0.5) {
+    float f_u;
+    if (u_fineBounds_min.x > u_fineBounds_max.x) {
+      float fspan = (u_fineBounds_max.x + 360.0) - u_fineBounds_min.x;
+      f_u = mod(lng - u_fineBounds_min.x, 360.0) / fspan;
+    } else {
+      f_u = (lng - u_fineBounds_min.x) / (u_fineBounds_max.x - u_fineBounds_min.x);
+    }
+    float f_v = (lat - u_fineBounds_min.y) / (u_fineBounds_max.y - u_fineBounds_min.y);
+    if (f_u > 0.0 && f_u < 1.0 && f_v > 0.0 && f_v < 1.0) {
+      float fEdge = min(min(f_u, 1.0 - f_u), min(f_v, 1.0 - f_v));
+      float fw = smoothstep(0.0, max(u_fine_feather_frac, 0.001), fEdge);
+      vec4 fineColor = texture2D(u_wind_fine, vec2(f_u, f_v));
+      vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineColor.r, fineColor.g));
+      wind = mix(wind, fineWind, fw);
+    }
+  }
   v_speed = length(wind);
   // SCREEN-SPACE wind direction for the oriented mark. Mercator convention: +y is SOUTH on screen
   // while v is NORTHWARD, so the y component is negated — the same flip the advection step uses.
@@ -685,6 +742,15 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see DRAW_VS edgeFade)
 uniform sampler2D u_color_ramp;     // 2026-07-19: the SAME Beaufort LUT the particles use
 uniform float u_field_lut;          // 1 = sample the LUT (default), 0 = legacy inline 7-stop ramp
+// BASE-PASS CUTOUT under a resident fine overlay (2026-07-19, queue #9). The overlay pass draws
+// ON TOP with its own feathered edge; without a complementary hole the two semi-transparent
+// alphas COMPOUND inside the overlay (a visibly brighter rectangle). The base fades out exactly
+// where the overlay fades in, so the crossfade sums to one field. Rect is the overlay's bounds
+// expressed in THIS pass's v_uv space; feather is in overlay-relative units to mirror its band.
+uniform float u_cutout_enabled;
+uniform vec2 u_cutout_min;
+uniform vec2 u_cutout_max;
+uniform float u_cutout_feather;
 uniform float u_debug_mode;
 varying vec2 v_uv;
 
@@ -772,6 +838,15 @@ void main() {
     float minEdgeDist = min(edgeDistX, edgeDistY);
     float feather = smoothstep(0.0, max(u_edge_feather_frac, 0.001), minEdgeDist);
     alpha *= feather;
+  }
+  if (u_cutout_enabled > 0.5) {
+    vec2 cSpan = max(u_cutout_max - u_cutout_min, vec2(1e-6));
+    vec2 rel = (v_uv - u_cutout_min) / cSpan;
+    if (rel.x > 0.0 && rel.x < 1.0 && rel.y > 0.0 && rel.y < 1.0) {
+      float cEdge = min(min(rel.x, 1.0 - rel.x), min(rel.y, 1.0 - rel.y));
+      float cw = smoothstep(0.0, max(u_cutout_feather, 0.001), cEdge);
+      alpha *= (1.0 - cw);
+    }
   }
   // FIELD == LUT (2026-07-19, the palette split). Round 3 Beaufort-anchored the PARTICLE LUT
   // (13 stops in KNOTS — a colour change means a named sea-state change) but this shader kept

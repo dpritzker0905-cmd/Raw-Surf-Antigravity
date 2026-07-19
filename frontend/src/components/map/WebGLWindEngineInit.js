@@ -193,6 +193,7 @@ export function disposeEngine(engine, gl) {
   if (engine.particleStateA) gl.deleteTexture(engine.particleStateA);
   if (engine.particleStateB) gl.deleteTexture(engine.particleStateB);
   if (engine._windData?.texture) gl.deleteTexture(engine._windData.texture);
+  if (engine._windFine?.texture) gl.deleteTexture(engine._windFine.texture);
   if (engine._colorRamp) gl.deleteTexture(engine._colorRamp);
   if (engine.screenA) { gl.deleteFramebuffer(engine.screenA.fbo); gl.deleteTexture(engine.screenA.tex); }
   if (engine.screenB) { gl.deleteFramebuffer(engine.screenB.fbo); gl.deleteTexture(engine.screenB.tex); }
@@ -210,6 +211,7 @@ export function disposeEngine(engine, gl) {
   engine.particleStateA = null;
   engine.particleStateB = null;
   engine._windData = null;
+  engine._windFine = null;
   engine._colorRamp = null;
   engine.screenA = null;
   engine.screenB = null;

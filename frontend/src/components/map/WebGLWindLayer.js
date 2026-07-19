@@ -291,10 +291,15 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
 
     if (!data?.vectors?.length || data.renderable === false) {
       if (gl) {
-        if (engine._windData?.texture) {
-          gl.deleteTexture(engine._windData.texture);
+        // queue #9: clearWindData frees BOTH the base and the fine-overlay textures.
+        if (typeof engine.clearWindData === 'function') {
+          engine.clearWindData(gl);
+        } else {
+          if (engine._windData?.texture) {
+            gl.deleteTexture(engine._windData.texture);
+          }
+          engine._windData = null;
         }
-        engine._windData = null;
         engine.clearBuffers(gl);
         mapInstance.triggerRepaint();
       }
@@ -339,10 +344,12 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
         }
 
         const prevSource = engine.__lastWindSource;
-        engine.setWindData(gl, data);
+        const filingVerdict = engine.setWindData(gl, data);
         engine.__lastWindSource = data.source || null;
 
-        if (boundsChanged && typeof engine.reinitParticles === 'function') {
+        // queue #9: a grid filed as the FINE OVERLAY leaves the base (and every particle) in
+        // place — reseeding on it would scatter marks on every fine-box commit for no reason.
+        if (filingVerdict !== 'fine' && boundsChanged && typeof engine.reinitParticles === 'function') {
           // SAME-MODEL BOUNDS SWAPS KEEP TRAILS (2026-07-19). With the viewport-fine tier, bounds
           // changes are ROUTINE camera-driven events — crossing the ~z6 tier boundary swaps
           // global<->fine, and every ~1-deg pan at fine zoom mints a new snapped box. Full-clearing

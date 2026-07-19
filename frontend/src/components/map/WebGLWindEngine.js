@@ -65,6 +65,11 @@ function WebGLWindEngine() {
   this.dropRateBump = 0.008; // v3.15: Between original 0.006 and aggressive 0.01
   this._initialized = false;
   this._windData = null;
+  // BASE+OVERLAY (2026-07-19, queue #9): _windData stays the BASE grid (every probe/telemetry
+  // consumer keeps working); _windFine is a resident viewport-fine grid rendered ON TOP of it.
+  // Populated only when a regional grid commits while a GLOBAL base is resident with the same
+  // model+hour — so default (always-global) traffic never engages this path at all.
+  this._windFine = null;
   this._colorRamp = null; // v3.9.8: Color ramp LUT texture
   this._maxWindSpeed = 50; // knots: typical range 0-50kn for color ramp
   this._currentTheme = null; // Track theme for ramp updates
@@ -76,22 +81,94 @@ function WebGLWindEngine() {
 }
 export default WebGLWindEngine;
 
+// ── BASE+OVERLAY helpers (pure; exported for the gate tests) ──
+
+export function windGridIsGlobal(windGrid) {
+  var b = windGrid && windGrid.bounds;
+  if (!b) return false;
+  var crosses = b.west > b.east;
+  var lngSpan = crosses ? (b.east + 360.0) - b.west : b.east - b.west;
+  return (lngSpan >= 350.0) || windGrid.coverage_scope === 'global' || windGrid.coverage_scope === 'global_coarse';
+}
+
+export function windGridModel(windGrid) {
+  // source FIRST — the WeatherEngine choke and the layer's keepTrails compare data.source; the
+  // engine must agree with them or a fine grid could route into base-replacement instead of
+  // overlay filing when truthTag and source disagree.
+  return (windGrid && (windGrid.source || windGrid.truthTag?.model)) || null;
+}
+
+// Same model AND same committed hour — the two textures may only composite when they describe
+// the same air at the same time (truth first: never blend two hours or two models).
+export function windGridsCompatible(a, b) {
+  if (!a || !b) return false;
+  var ma = windGridModel(a);
+  var mb = windGridModel(b);
+  if (!ma || !mb || ma !== mb) return false;
+  if ((a.hourOffset || 0) !== (b.hourOffset || 0)) return false;
+  var va = a.valid_time || a.validTime;
+  var vb = b.valid_time || b.validTime;
+  if (va && vb) {
+    var ta = Date.parse(va);
+    var tb = Date.parse(vb);
+    // Fine products snap to the backend's 3-hourly steps while series frames are hourly —
+    // allow that snap distance, refuse anything further apart.
+    if (isFinite(ta) && isFinite(tb) && Math.abs(ta - tb) > 90 * 60 * 1000) return false;
+  }
+  return true;
+}
+
+export function windBaseOverlayEnabled(win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  return !(w && w.__RAW_DISABLE_WIND_BASE_OVERLAY__ === true);
+}
+
 WebGLWindEngine.prototype.init = function(gl) {
   initEngine(this, gl);
 };
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
-  if (!windGrid?.vectors?.length) return;
-  if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
-  this._windData = encodeWindTexture(gl, windGrid);
-  if (this._windData) {
-    this._windData.truthTag = windGrid.truthTag;
-    this._windData.windGrid = windGrid;
+  if (!windGrid?.vectors?.length) return 'skipped';
+  var verdict = 'base';
 
-    // v3.16: Update _maxWindSpeed from actual GFS data, with sane bounds
-    // Floor of 10kn prevents all-calm grids from blowing up the ramp
-    // Ceiling of 80kn keeps hurricane-force winds from washing out variation
-    var dataMaxSpeed = this._windData.maxSpeed || 50;
+  // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
+  // the same model+hour is resident files as the FINE overlay — the base stays resident, so a
+  // pan past the fine box shows base data, never a hole (clamp geometrically impossible). Any
+  // other commit takes the legacy replace path; a replaced base drops an incompatible overlay.
+  // Kill: __RAW_DISABLE_WIND_BASE_OVERLAY__ -> always legacy replace.
+  if (windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
+      && !windGridIsGlobal(windGrid)
+      && this._windData?.windGrid && windGridIsGlobal(this._windData.windGrid)
+      && windGridsCompatible(this._windData.windGrid, windGrid)) {
+    if (this._windFine?.texture) gl.deleteTexture(this._windFine.texture);
+    this._windFine = encodeWindTexture(gl, windGrid);
+    if (this._windFine) {
+      this._windFine.truthTag = windGrid.truthTag;
+      this._windFine.windGrid = windGrid;
+      console.log('[WebGLWind] FINE overlay filed over resident global base ('
+        + windGrid.cols + 'x' + windGrid.rows + ')');
+    }
+    verdict = 'fine';
+  } else {
+    if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
+    this._windData = encodeWindTexture(gl, windGrid);
+    if (this._windData) {
+      this._windData.truthTag = windGrid.truthTag;
+      this._windData.windGrid = windGrid;
+    }
+    // A new base invalidates any overlay that no longer describes the same air.
+    if (this._windFine && !windGridsCompatible(windGrid, this._windFine.windGrid)) {
+      if (this._windFine.texture) gl.deleteTexture(this._windFine.texture);
+      this._windFine = null;
+    }
+  }
+
+  // v3.16: Update _maxWindSpeed from actual data, with sane bounds — across BOTH textures so the
+  // shared colour ramp covers whichever grid carries the storm.
+  // Floor of 10kn prevents all-calm grids from blowing up the ramp
+  // Ceiling of 80kn keeps hurricane-force winds from washing out variation
+  if (this._windData || this._windFine) {
+    var dataMaxSpeed = Math.max(this._windData?.maxSpeed || 0, this._windFine?.maxSpeed || 0) || 50;
     var newMaxSpeed = Math.max(10, Math.min(dataMaxSpeed, 80));
     if (newMaxSpeed !== this._maxWindSpeed) {
       console.log('[WebGLWind] maxWindSpeed updated: ' + this._maxWindSpeed + ' -> ' + newMaxSpeed + ' kn (data max: ' + dataMaxSpeed + ')');
@@ -125,6 +202,18 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
       truthTag: windGrid.truthTag
     }, 'WebGLWindEngine.js', 'setWindData');
   }
+  return verdict;
+};
+
+/**
+ * BASE+OVERLAY (queue #9): free BOTH wind textures. The layer's empty-data path used to null
+ * _windData directly; routed here so the fine overlay can never leak a GL texture.
+ */
+WebGLWindEngine.prototype.clearWindData = function(gl) {
+  if (gl && this._windData?.texture) gl.deleteTexture(this._windData.texture);
+  if (gl && this._windFine?.texture) gl.deleteTexture(this._windFine.texture);
+  this._windData = null;
+  this._windFine = null;
 };
 
 WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeight, zoom, theme, worldOffsets, viewportBounds) {
@@ -262,10 +351,27 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // expressed as a fraction of THIS grid's span, capped at the legacy 0.18 so small pilot tiles
   // (FL 2-deg) keep their shipped look exactly.
   const edgeFeatherFrac = isRegionalGrid ? Math.min(0.18, 0.6 / Math.max(lngSpan, 1e-6)) : 0.18;
+
+  // BASE+OVERLAY (queue #9): a resident fine grid rides on top of the global base. Only active
+  // when the base really is global — regional-only mode keeps the legacy single-texture path.
+  const fine = (!isRegionalGrid
+    && windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
+    && this._windFine && this._windFine.texture) ? this._windFine : null;
+  let fineFeatherFrac = 0.18;
+  let fineCrosses = false;
+  if (fine) {
+    const fb = fine.bounds;
+    fineCrosses = fb.west > fb.east;
+    const fineSpan = fineCrosses ? (fb.east + 360.0) - fb.west : fb.east - fb.west;
+    fineFeatherFrac = Math.min(0.18, 0.6 / Math.max(fineSpan, 1e-6));
+  }
   if (typeof window !== 'undefined') {
     window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
       ? 'partial_regional_coverage'
       : 'full_coverage';
+    window.__WIND_FINE_OVERLAY__ = fine
+      ? { active: true, bounds: fine.bounds, cols: fine.windGrid?.cols, rows: fine.windGrid?.rows }
+      : { active: false };
   }
 
   const dataBoundsMinX = isRegionalGrid ? bounds.west : -180.0;
@@ -358,6 +464,23 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  // BASE-PASS CUTOUT (queue #9): fade the base out exactly where the fine overlay fades in so the
+  // two semi-transparent passes crossfade instead of compounding. Skipped when the fine box
+  // crosses the antimeridian (rect wraps in base-UV space); the compound there is feathered and
+  // brief, and correctness of DATA is unaffected.
+  if (fine && !fineCrosses) {
+    const fb = fine.bounds;
+    const cutMinX = (fb.west - dataBoundsMinX) / (dataBoundsMaxX - dataBoundsMinX);
+    const cutMaxX = (fb.east - dataBoundsMinX) / (dataBoundsMaxX - dataBoundsMinX);
+    const cutMinY = (fb.south - bounds.south) / Math.max(bounds.north - bounds.south, 1e-6);
+    const cutMaxY = (fb.north - bounds.south) / Math.max(bounds.north - bounds.south, 1e-6);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 1.0);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_min'), cutMinX, cutMinY);
+    gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_max'), cutMaxX, cutMaxY);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_feather'), fineFeatherFrac);
+  } else {
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+  }
   // FIELD == LUT (2026-07-19): the heatmap samples the same Beaufort ramp texture the particles
   // use — one palette everywhere, and the 0-21 kn band regains its full hue range.
   // Kill: __RAW_DISABLE_WIND_FIELD_LUT__ -> the legacy inline 7-stop ramp.
@@ -393,6 +516,23 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     for (var hi = 0; hi < heatOffsets.length; hi++) {
       gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
       gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
+    }
+    // OVERLAY PASS (queue #9): the fine grid drawn over the base with its feathered edge — which
+    // now dissolves into the base wash beneath it instead of into bare basemap. Same program,
+    // same mesh; only bounds/texture/decode-range/feather change.
+    if (fine) {
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), fine.bounds.west, fine.bounds.south);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), fine.bounds.east, fine.bounds.north);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), fine.uMin[0], fine.uMin[1]);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_max'), fine.uMax[0], fine.uMax[1]);
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 1.0);
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), fineFeatherFrac);
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+      bindTexture(gl, fine.texture, 0);
+      for (var fhi = 0; fhi < heatOffsets.length; fhi++) {
+        gl.uniform1f(heatOffsetLoc, heatOffsets[fhi]);
+        gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
+      }
     }
     if (this.heatmapVAO) {
       gl.bindVertexArray(null);
@@ -442,12 +582,23 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_closezoom_density'), _czDensity);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
+  // BASE+OVERLAY (queue #9): advect from the fine field where it exists (unit 2).
+  gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind_fine'), 2);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_fine_enabled'), fine ? 1.0 : 0.0);
+  if (fine) {
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_min'), fine.uMin[0], fine.uMin[1]);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_max'), fine.uMax[0], fine.uMax[1]);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fineBounds_min'), fine.bounds.west, fine.bounds.south);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fineBounds_max'), fine.bounds.east, fine.bounds.north);
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_fine_feather_frac'), fineFeatherFrac);
+  }
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
   gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, this.particleStateB, 0);
   gl.viewport(0, 0, this.particleRes, this.particleRes);
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
+  if (fine) bindTexture(gl, fine.texture, 2);
   if (this.advectVAO) {
     gl.bindVertexArray(this.advectVAO);
   } else {
@@ -559,9 +710,20 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     else if (mode === 'part_fbo') drawDebugModeVal = 8.0;
   }
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_debug_mode'), drawDebugModeVal);
+  // BASE+OVERLAY (queue #9): the mark reads the same composited field the advection used (unit 3).
+  gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_wind_fine'), 3);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_fine_enabled'), fine ? 1.0 : 0.0);
+  if (fine) {
+    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_fine_min'), fine.uMin[0], fine.uMin[1]);
+    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_fine_max'), fine.uMax[0], fine.uMax[1]);
+    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_fineBounds_min'), fine.bounds.west, fine.bounds.south);
+    gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_fineBounds_max'), fine.bounds.east, fine.bounds.north);
+    gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_fine_feather_frac'), fineFeatherFrac);
+  }
   bindTexture(gl, this.particleStateA, 0);
   bindTexture(gl, this._windData.texture, 1);
   if (this._colorRamp) bindTexture(gl, this._colorRamp, 2);
+  if (fine) bindTexture(gl, fine.texture, 3);
   var lngOffsetLoc = gl.getUniformLocation(this.drawProgram, 'u_lng_offset');
   if (this.drawVAO) {
     gl.bindVertexArray(this.drawVAO);

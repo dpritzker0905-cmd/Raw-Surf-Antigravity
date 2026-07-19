@@ -60,6 +60,20 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             || (lg.bounds.west <= vp.west + eps && lg.bounds.east >= vp.east - eps
               && lg.bounds.south <= vp.south + eps && lg.bounds.north >= vp.north - eps));
           if (lgCovers) {
+            // BASE+OVERLAY (2026-07-19 #9): with the two-texture engine live, a non-covering
+            // regional grid of the SAME model+hour as the covering base is not a threat — the
+            // engine files it as the FINE OVERLAY on top of the resident base (which stays on
+            // screen everywhere the fine box is not). Different model/hour still blocks: those
+            // grids would describe different air than the base under them.
+            // Kill: __RAW_DISABLE_WIND_BASE_OVERLAY__ -> the strict block below.
+            const twoTexLive = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_OVERLAY__ !== true;
+            const sameModel = (data.source || null) === (lg.source || null);
+            const sameHour = (data.hourOffset || 0) === (lg.hourOffset || 0);
+            if (twoTexLive && sameModel && sameHour && lgSpan >= 350.0) {
+              console.log('[WeatherEngine] commitWindData CHOKE: non-covering grid passes as FINE OVERLAY over the resident global base');
+              windRevision.current += 1;
+              return commitWindDataInner(data);
+            }
             console.log('[WeatherEngine] commitWindData CHOKE: non-covering regional grid blocked — keeping the covering grid on screen');
             windRevision.current += 1;
             setWindData(lg);
