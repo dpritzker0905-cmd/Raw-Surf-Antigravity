@@ -35,6 +35,7 @@ uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the ga
 uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost at z>=4 (0 = legacy curve)
 uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density stops tracking speed (0 = legacy)
 uniform float u_size_monotonic;   // 2026-07-19: mirrors DRAW_VS — the ink budget must use the size actually drawn
+uniform float u_calm_marks;       // 2026-07-19: mirrors DRAW_VS calm band + the calm lifetime floor
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -154,7 +155,8 @@ void main() {
   // exactly — the slowness ramp lives on only behind the kill switch. (DPR scales every mark
   // equally and so cannot change RELATIVE density; it stays out of this budget by design.)
   float sFloor = (speed >= 1.0 && speed < 10.0)
-    ? (u_size_monotonic > 0.5 ? 3.073 : mix(3.4, 4.2, smoothstep(10.0, 1.0, speed))) * floorZoomScale : 0.0;
+    ? (u_size_monotonic > 0.5 ? 3.073 : mix(3.4, 4.2, smoothstep(10.0, 1.0, speed))) * floorZoomScale
+    : ((u_calm_marks > 0.5 && speed >= 0.3 && speed < 1.0) ? 2.2 * floorZoomScale : 0.0);
   // The drawn mark is an oriented DASH, not a disc: DRAW_FS narrows the across-wind axis by
   // ~1.8-2.6x, so its true area is well below this square estimate. Using the square here is the
   // conservative direction (it can only over-estimate ink and shorten lifetime slightly).
@@ -163,6 +165,15 @@ void main() {
   // so the two rules agree exactly at the calibration point rather than by taste.
   float inkFlatDrop = (sCss * sCss) / 130.0;
   float dropRate = mix(legacyDrop, max(legacyDrop, inkFlatDrop), u_density_uniform);
+  // CALM LIFETIME FLOOR (2026-07-19, the dead-zone report's second half). The flat-ink rule
+  // recycles floored calm marks after ~15 frames (0.26 s) — calm PATCHES inside a circulation
+  // read as emptiness with flickers. Below 4.75 kn (where legacyDrop < 0.04 so never-hoard
+  // still holds via the max) lifetime is floored at 25 frames — a bounded, deliberate ink
+  // premium (<=1.6x flat, ink ratio stays under the density gate's 3.0) spent exactly where the
+  // user watches a low organise. Kill: __RAW_DISABLE_WIND_CALM_MARKS__.
+  if (u_calm_marks > 0.5 && speed < 4.75) {
+    dropRate = max(legacyDrop, min(dropRate, 0.04));
+  }
   float drop = step(1.0 - dropRate, rand(seed));
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
@@ -269,6 +280,7 @@ uniform float u_zoom;  // v3.13.5: for close-zoom density boost
 uniform float u_lowwind_boost;   // 2026-07-18: synoptic low-wind legibility (0 = off, kill switch)
 uniform float u_dpr;             // 2026-07-18: devicePixelRatio — gl_PointSize is in DEVICE pixels
 uniform float u_size_monotonic;  // 2026-07-19: slower must NEVER draw larger than faster (0 = legacy)
+uniform float u_calm_marks;      // 2026-07-19: near-calm air draws small marks, not NOTHING (0 = legacy)
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
@@ -461,13 +473,27 @@ void main() {
     float minCssPx = (u_size_monotonic > 0.5 ? 3.073 : mix(3.4, 4.2, slowness)) * zoomScale;
     gl_PointSize = max(gl_PointSize, minCssPx * max(u_dpr, 1.0) * edgeFade);
   }
+  // CALM MARKS (2026-07-19, user: "particle dead zones in the gulf, when we have low pressure
+  // spinning"). sizeBase is 0 below 0.5 kn and the low-wind floor starts at 1.0 — so near-calm
+  // air rendered as NOTHING, and a circulation core (smeared wide by coarse data) became a
+  // visible HOLE in the animation. A small flat floor for 0.3-1.0 kn draws that air as faint
+  // small dashes: 2.2 css px < the 3.073 monotone floor, so size ordering stays intact, and the
+  // ink budget below pays for the marks in lifetime. Dead-flat air (<0.3 kn) still draws nothing.
+  // Kill: __RAW_DISABLE_WIND_CALM_MARKS__ (u_calm_marks = 0 -> the legacy hole).
+  if (u_calm_marks > 0.5 && v_speed >= 0.3 && v_speed < 1.0) {
+    float calmZoomScale = mix(0.62, 1.0, smoothstep(3.0, 7.0, u_zoom));
+    gl_PointSize = max(gl_PointSize, 2.2 * calmZoomScale * max(u_dpr, 1.0) * edgeFade);
+  }
+
   // MONOTONE CLOSE-ZOOM LIFT (replaces the v3.21 boost when u_size_monotonic). The whole
   // sub-10 kn band is blended TOWARD the 10 kn size by an s-INDEPENDENT factor — monotone by
   // construction (a monotone curve mixed with a constant stays monotone), while the v3.21 goal
   // (slow marks readable when zoomed in) is preserved: at z11 a 2 kn mark draws at ~7.5 px vs
   // the 10 kn mark's 7.7, instead of OVER-drawing it at 10.4. The min() guard also caps any
   // residual overshoot at exactly the 10 kn size, so a slower mark can never exceed it.
-  if (u_size_monotonic > 0.5 && v_speed < 10.0 && v_speed >= 0.5) {
+  if (u_size_monotonic > 0.5 && v_speed < 10.0 && v_speed >= 1.0) {
+    // lower bound 1.0, NOT 0.5: the calm-marks band above must stay SMALL — lifting dead-calm
+    // air to the 10 kn size at close zoom would draw calm as prominently as moderate wind.
     float cap10 = 3.073 * zoomBoostBase * max(u_dpr, 1.0) * edgeFade;
     float lift = smoothstep(7.0, 11.0, u_zoom) * 0.85;
     gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
@@ -637,6 +663,8 @@ uniform float u_theme;
 uniform float u_max_speed;
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see DRAW_VS edgeFade)
+uniform sampler2D u_color_ramp;     // 2026-07-19: the SAME Beaufort LUT the particles use
+uniform float u_field_lut;          // 1 = sample the LUT (default), 0 = legacy inline 7-stop ramp
 uniform float u_debug_mode;
 varying vec2 v_uv;
 
@@ -719,7 +747,21 @@ void main() {
     float feather = smoothstep(0.0, max(u_edge_feather_frac, 0.001), minEdgeDist);
     alpha *= feather;
   }
-  gl_FragColor = vec4(ramp(t, u_theme) * alpha, alpha);
+  // FIELD == LUT (2026-07-19, the palette split). Round 3 Beaufort-anchored the PARTICLE LUT
+  // (13 stops in KNOTS — a colour change means a named sea-state change) but this shader kept
+  // its own 7-stop ramp keyed to FRACTIONS of the data max: the field's colours stretched with
+  // whatever max the grid had, the 0-21 kn band (where nearly all weather lives) collapsed into
+  // ~1.5 hue bands (the "flat wash" / "needs a longer range of spectrum" report), and the field
+  // no longer matched the LUT that DRAW_FS's composited-background casing math assumes it sits
+  // on. windParticleContrast.test.js has modelled the field FROM the LUT all along — the gate
+  // was right, this shader was wrong. Sampling the LUT restores one palette everywhere: ~6
+  // distinct hue bands below 21 kn in every theme, field == particle == legend convention.
+  // Alpha keeps THIS shader's formula (field transparency is a separate, tuned contract).
+  // Kill: __RAW_DISABLE_WIND_FIELD_LUT__ (u_field_lut = 0 -> the legacy inline ramp above).
+  vec3 fieldRgb = (u_field_lut > 0.5)
+    ? texture2D(u_color_ramp, vec2(t, 0.5)).rgb
+    : ramp(t, u_theme);
+  gl_FragColor = vec4(fieldRgb * alpha, alpha);
 }`;
 
 export const SCREEN_VS = `

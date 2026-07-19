@@ -41,7 +41,8 @@ const devicePx = (s, z, dpr) => {
   const d = Math.max(dpr, 1);
   let p = sizeBase(s) * zoomBoost(z) * d;
   p = Math.max(p, floorCss(s, z) * d);
-  if (s >= 0.5 && s < 10.0) {
+  if (s >= 0.3 && s < 1.0) p = Math.max(p, 2.2 * floorZoomScale(z) * d); // calm-marks band
+  if (s >= 1.0 && s < 10.0) {
     const cap10 = 3.073 * zoomBoost(z) * d;
     const lift = smoothstep(7.0, 11.0, z) * 0.85;
     p = Math.min(p, cap10) + (cap10 - Math.min(p, cap10)) * lift;

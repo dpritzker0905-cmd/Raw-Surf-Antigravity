@@ -36,10 +36,16 @@ const legacyDrop = (s) => DROP + s * BUMP;
 // inversion; the ramp survives only behind __RAW_DISABLE_WIND_SIZE_MONOTONIC__).
 const sizeCss = (s) => {
   const base = s < 0.5 ? 0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, s);
-  const floor = (s >= 1.0 && s < 10.0) ? 3.073 : 0;
+  const floor = (s >= 1.0 && s < 10.0) ? 3.073 : ((s >= 0.3 && s < 1.0) ? 2.2 : 0);
   return Math.max(base, floor);
 };
-const shippedDrop = (s) => Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / I0);
+// Calm lifetime floor (2026-07-19): below 4.75 kn lifetime >= 25 frames — a bounded ink premium
+// where calm patches otherwise flicker (the dead-zone report). never-hoard holds via the max.
+const shippedDrop = (s) => {
+  let d = Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / I0);
+  if (s < 4.75) d = Math.max(legacyDrop(s), Math.min(d, 0.04));
+  return d;
+};
 const ink = (s, drop) => (sizeCss(s) * sizeCss(s)) / drop(s);
 
 describe('wind particle ink budget', () => {

@@ -25,15 +25,20 @@ const speedBoost = (s, z) => (z > 7.0 && s < 8.5 ? smoothstep(8.5, 2.0, s) * smo
 const fzs = (z) => mix(0.62, 1.0, smoothstep(3.0, 7.0, z));
 
 // Full DRAW_VS mirror with the monotonic switch. Monotone mode: whole path DPR-correct, the
-// v3.21 additive boost replaced by the s-INDEPENDENT band lift toward the 10 kn size.
-function devicePx(s, z, dpr, monotonic) {
+// v3.21 additive boost replaced by the s-INDEPENDENT band lift toward the 10 kn size, and the
+// calm-marks band (0.3-1.0 kn, 2.2 css px — the dead-zone fix) below it. The lift's lower
+// bound is 1.0 so calm marks stay SMALL instead of lifting to the 10 kn size at close zoom.
+function devicePx(s, z, dpr, monotonic, calm = true) {
   const d = monotonic ? Math.max(dpr, 1) : 1;
   let p = sizeBase(s) * (zoomBoostBase(z) + (monotonic ? 0 : speedBoost(s, z))) * d;
   if (s >= 1.0 && s < 10.0) {
     const floor = (monotonic ? 3.073 : mix(3.4, 4.2, smoothstep(10.0, 1.0, s))) * fzs(z);
     p = Math.max(p, floor * Math.max(dpr, 1));             // the floor was ALWAYS dpr-correct
   }
-  if (monotonic && s >= 0.5 && s < 10.0) {
+  if (calm && s >= 0.3 && s < 1.0) {
+    p = Math.max(p, 2.2 * fzs(z) * Math.max(dpr, 1));
+  }
+  if (monotonic && s >= 1.0 && s < 10.0) {
     const cap10 = 3.073 * zoomBoostBase(z) * Math.max(dpr, 1);
     const lift = smoothstep(7.0, 11.0, z) * 0.85;
     p = Math.min(p, cap10) + (cap10 - Math.min(p, cap10)) * lift;
@@ -43,7 +48,7 @@ function devicePx(s, z, dpr, monotonic) {
 
 const ZOOMS = [3, 4, 5, 5.5, 6, 6.5, 7, 8, 9, 10, 11];
 const DPRS = [1, 2, 3];
-const SPEEDS = [0.6, 1, 2, 3, 4, 6, 8, 9.9, 10.1, 12, 15, 20, 30, 40];
+const SPEEDS = [0.35, 0.6, 1, 2, 3, 4, 6, 8, 9.9, 10.1, 12, 15, 20, 30, 40];
 
 describe('wind mark size is monotone in speed — slower never larger than faster', () => {
   it('MONOTONE at every zoom x DPR (the user-reported inversion, fixed)', () => {
@@ -104,6 +109,16 @@ describe('wind mark size is monotone in speed — slower never larger than faste
     // the monotone cap/lift exists and uses the same constant
     expect(DRAW_VS).toMatch(/cap10\s*=\s*3\.073/);
     expect(DRAW_VS).toMatch(/lift\s*=\s*smoothstep\(7\.0,\s*11\.0,\s*u_zoom\)\s*\*\s*0\.85/);
+    // the lift must EXCLUDE the calm band (lower bound 1.0) or calm air lifts to the 10kn size
+    expect(DRAW_VS).toMatch(/u_size_monotonic\s*>\s*0\.5\s*&&\s*v_speed\s*<\s*10\.0\s*&&\s*v_speed\s*>=\s*1\.0/);
+    // calm-marks band present in BOTH stages with the same constant and band
+    expect(DRAW_VS).toMatch(/u_calm_marks\s*>\s*0\.5\s*&&\s*v_speed\s*>=\s*0\.3\s*&&\s*v_speed\s*<\s*1\.0/);
+    expect(ADVECT_FS).toMatch(/u_calm_marks\s*>\s*0\.5\s*&&\s*speed\s*>=\s*0\.3\s*&&\s*speed\s*<\s*1\.0/);
+    expect(DRAW_VS).toMatch(/2\.2\s*\*\s*calmZoomScale/);
+    expect(ADVECT_FS).toMatch(/2\.2\s*\*\s*floorZoomScale/);
+    // the calm LIFETIME floor (dead zones read as flicker without it) — never-hoard preserved
+    expect(ADVECT_FS).toMatch(/u_calm_marks\s*>\s*0\.5\s*&&\s*speed\s*<\s*4\.75/);
+    expect(ADVECT_FS).toMatch(/max\(legacyDrop,\s*min\(dropRate,\s*0\.04\)\)/);
     // full-path DPR correctness is gated on the same switch
     expect(DRAW_VS).toMatch(/dprAll\s*=\s*\(u_size_monotonic\s*>\s*0\.5\)\s*\?\s*max\(u_dpr,\s*1\.0\)\s*:\s*1\.0/);
   });

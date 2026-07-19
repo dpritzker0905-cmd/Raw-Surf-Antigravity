@@ -358,6 +358,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
+  // FIELD == LUT (2026-07-19): the heatmap samples the same Beaufort ramp texture the particles
+  // use — one palette everywhere, and the 0-21 kn band regains its full hue range.
+  // Kill: __RAW_DISABLE_WIND_FIELD_LUT__ -> the legacy inline 7-stop ramp.
+  gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_color_ramp'), 1);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_lut'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_FIELD_LUT__ === true) ? 0.0 : 1.0);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
     window.__GPU_DEBUG__ = { mode: null };
@@ -372,6 +378,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   }
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), debugModeVal);
   bindTexture(gl, this._windData.texture, 0);
+  if (this._colorRamp) bindTexture(gl, this._colorRamp, 1);
     var heatOffsetLoc = gl.getUniformLocation(this.heatmapProgram, 'u_lng_offset');
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
@@ -429,6 +436,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
   var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_size_monotonic'), _sizeMono);
+  var _calmMarks = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_MARKS__ === true) ? 0.0 : 1.0;
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_calm_marks'), _calmMarks);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   unbindTexture(gl, this.particleStateB);
@@ -523,6 +532,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_size_monotonic'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_calm_marks'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_MARKS__ === true) ? 0.0 : 1.0);
   // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the
   // size floor above was ~3x physically smaller on a DPR-3 phone. Clamped [1,3] so an unusual
   // ratio cannot blow the sprite budget. Override for testing: __RAW_WIND_DPR__.
