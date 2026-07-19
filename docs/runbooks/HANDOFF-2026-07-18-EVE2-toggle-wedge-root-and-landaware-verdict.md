@@ -204,3 +204,52 @@ HARNESS RULES (cost Fable real time today — do not relearn):
 
 USER ACCEPTANCE still pending: rating toggle ~5s on the deployed build · far-zoom land ·
 Jupiter–Stuart line. The user runs Render deploys — never poll; ask and do ONE curl.
+
+## 7. ⚡ EVE-3 ROUND 7 — ARBITER PHASE C SHIPPED, FLIP-READY + KILL-SWITCHED (`8b002f73`)
+Queue #1 CLOSED (mechanism; the default stays guards — see the gate below). Default behavior is
+UNCHANGED: `__RAW_MARINE_ARBITER__=1` enables, `__RAW_DISABLE_MARINE_ARBITER__` outranks it and
+restores the guard chain wholesale. Both paths ship one release (design §5).
+
+**TWO ROOTS THE PHASE B SOAK STRUCTURALLY COULD NOT SEE — find these before trusting a soak:**
+1. **The rating-GRACE had no arbiter equivalent.** 89/89 agreement was a COVERAGE GAP, not
+   equivalence: every non-covering rated fixture in the battery was ≥15° wide, which trips the
+   guard's `wideView` exemption — the one place guard and arbiter both release immediately. At a
+   zoomed-IN NARROW viewport the guard HOLDS (bounded 4 s) and the pre-fix arbiter committed:
+   unit-proven divergence, and a straight regression of round-12 §4f (band blinks out). Now a
+   named rule `rated_uncovering_grace` (bounded + wide-view exempt, grace state passed BY
+   ARGUMENT so the module stays window-free).
+   **LESSON: a soak's agreement number is only as good as its fixture COVERAGE. Ask what class
+   the battery cannot reach before reading N/N as equivalence.**
+2. **The self-heal loop would have bounced at frame rate.** The verdict lives in TWO places —
+   the `setWaveData` choke and the `_pendingDowngrade` re-evaluation (~L1186) — and flipping only
+   the choke has the ARBITER reject while the GUARDS insta-accept the stash next frame: a
+   permanent commit⇄stash bounce, worse than the ping-pong the guards were built to kill. Both
+   sites now call `decideMarineCommit`, so the mirror is STRUCTURAL in both modes (pinned by the
+   MIRROR INVARIANT test).
+
+**EVIDENCE (all this session, land-aware verdicts):** shadow w/ the updated rule list 35/35 agree
+0 divergences (26 staircase + 9 layers), and its `tier_downgrade` counts (6,4) match the guards'
+actual rejects (6,4) · arbiter-mode battery ALL PASS 0 findings: staircase ×3, rated staircase
+(ZL_SURF — `rated_uncovering_release` exercised), pan_coverage, scrub (`hour_change` ×11), EURO,
+ICON · kill switch verified LIVE (both flags → `mode=guards, decisions=0`, PASS) · units
+1199/1199 + 33/33 arbiter contract.
+
+**⚠️ `layers` FAILs 2 SETTLED_STEP findings (−22.1/+27.9) in BOTH modes, identical magnitudes** —
+a pre-existing harness false-positive on a layer switch (waves→swell legitimately steps
+luminance). Do NOT chase it as an arbiter regression; do consider teaching the verdict to exempt
+layer-switch frames.
+
+**THE GATE BEFORE DEFAULTING THE ARBITER ON (the one open thread):** arbiter mode takes ~1.7×
+more choke rejects than guard mode on a MATCHED staircase (7 vs 4, same final zoom 3.61) despite
+per-decision agreement. Understood as extra commit ATTEMPTS downstream of self-heal timing, NOT a
+rule disagreement — but not root-caused, so the default stays guards. Root-cause that delta
+(instrument the self-heal accept timing in both modes), then flip the default.
+
+**NEW FORENSICS:** `__RAW_ARBITER_LIVE__ {n, rejects, byRule, last}` is the ENGAGEMENT proof — a
+flip that silently fell back to the guards would produce an identically green battery. zoomlab
+persists it as `arbLive` and prints it per run; `rule`/`decidedBy` are stamped on the reject ring.
+
+**TOOLING:** port 3009 was held by another chat → added a `frontend-arb` launch config on :3011
+(`ZL_BASE=http://localhost:3011`). `probe_boot.js` rebuilt in the session scratchpad (warm ≈17 s).
+⚠️ `npx eslint` is BROKEN repo-wide (ESLint 9 vs `unused-imports`: `context.getDeclaredVariables
+is not a function`) — pre-existing, `npm run lint` currently catches nothing; task chip filed.
