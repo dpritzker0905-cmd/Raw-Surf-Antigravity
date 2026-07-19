@@ -154,7 +154,10 @@ describe('wind theme parity + low-wind legibility', () => {
   });
 
   it('the boost is bounded to genuinely slow, genuinely moving air', () => {
-    expect(DRAW_VS).toMatch(/v_speed\s*>=\s*0\.15\s*&&\s*v_speed\s*<\s*10\.0/);
+    // Lower bound raised 0.15 -> 1.0 kn: below ~1 kn the air is genuinely calm and legacy drew
+    // nothing there. Resurrecting those marks added ink with no meteorological signal and was the
+    // single largest thing this arc inflated at close zoom.
+    expect(DRAW_VS).toMatch(/v_speed\s*>=\s*1\.0\s*&&\s*v_speed\s*<\s*10\.0/);
   });
 
   it('shader sources stay single template literals (no stray backticks)', () => {

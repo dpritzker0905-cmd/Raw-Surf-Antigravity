@@ -33,26 +33,34 @@ const legacyDrop = (s) => DROP + s * BUMP;
 // two shader stages shows up as a failing number rather than a silent density regression.
 const sizeCss = (s) => {
   const base = s < 0.5 ? 0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, s);
-  const floor = (s >= 0.15 && s < 10.0) ? 5.5 + (6.5 - 5.5) * smoothstep(10.0, 0.15, s) : 0;
+  const floor = (s >= 1.0 && s < 10.0) ? 3.4 + (4.2 - 3.4) * smoothstep(10.0, 1.0, s) : 0;
   return Math.max(base, floor);
 };
 const shippedDrop = (s) => Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / I0);
 const ink = (s, drop) => (sizeCss(s) * sizeCss(s)) / drop(s);
 
 describe('wind particle ink budget', () => {
-  it('documents the regression: the size floor alone took ink from 4.4x to ~124x', () => {
+  it('documents the regression: an uncompensated size floor blows the ink budget', () => {
     const sizeLegacy = (s) => (s < 0.5 ? 0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, s));
     const before = REAL.map((s) => (sizeLegacy(s) ** 2) / legacyDrop(s)).filter((x) => x > 0);
-    const after = REAL.map((s) => (sizeCss(s) ** 2) / legacyDrop(s));
+    const after = REAL.map((s) => (sizeCss(s) ** 2) / legacyDrop(s)).filter((x) => x > 0);
     const r = (a) => Math.max(...a) / Math.min(...a);
     // eslint-disable-next-line no-console
     console.log(`ink ratio — pre-floor ${r(before).toFixed(1)}x, floor-without-compensation ${r(after).toFixed(0)}x`);
-    expect(r(before)).toBeLessThan(6);   // 4.4x — the level that shipped for months
-    expect(r(after)).toBeGreaterThan(100);
+    expect(r(before)).toBeLessThan(6);    // 4.4x — the level that shipped for months
+    // The uncompensated figure has fallen as the floor itself grew more conservative across this
+    // arc — 124x (round-2/4 disc floor, 5.5-8 px, from 0.15 kn) -> 52x (round-5 dash floor) -> 12x
+    // (round-5b: zoom-scaled, and no longer resurrecting sub-1 kn calm). That shrinkage is the
+    // point. The invariant being pinned is only that an UNCOMPENSATED floor still blows past the
+    // 4.4x baseline, so the compensation cannot be quietly deleted.
+    expect(r(after)).toBeGreaterThan(8);
   });
 
   it('the shipped rule holds the ink ratio near the pre-regression level', () => {
-    const inks = REAL.map((s) => ink(s, shippedDrop));
+    // Speeds below ~1 kn draw NOTHING (sizeBase is 0 under 0.5 kn and the floor now starts at
+    // 1.0 kn), so they contribute zero ink by design — that is the calm air legacy also hid.
+    // They must be excluded rather than counted as an infinitely-light tile.
+    const inks = REAL.map((s) => ink(s, shippedDrop)).filter((x) => x > 0);
     const ratio = Math.max(...inks) / Math.min(...inks);
     // eslint-disable-next-line no-console
     console.log(`shipped ink ratio ${ratio.toFixed(2)}x  [${inks.map((i) => i.toFixed(0)).join(', ')}]`);
@@ -79,8 +87,11 @@ describe('wind particle ink budget', () => {
   });
 
   it('the two shader stages agree on the size curve (drift here IS a density bug)', () => {
-    expect(ADVECT_FS).toMatch(/mix\(5\.5,\s*6\.5,\s*smoothstep\(10\.0,\s*0\.15,\s*speed\)\)/);
-    expect(DRAW_VS).toMatch(/mix\(5\.5,\s*6\.5,\s*slowness\)/);
+    expect(ADVECT_FS).toMatch(/mix\(3\.4,\s*4\.2,\s*smoothstep\(10\.0,\s*1\.0,\s*speed\)\)/);
+    expect(DRAW_VS).toMatch(/mix\(3\.4,\s*4\.2,\s*slowness\)/);
+    // both stages must gate on the SAME speed band
+    expect(ADVECT_FS).toMatch(/speed\s*>=\s*1\.0\s*&&\s*speed\s*<\s*10\.0/);
+    expect(DRAW_VS).toMatch(/v_speed\s*>=\s*1\.0\s*&&\s*v_speed\s*<\s*10\.0/);
     expect(ADVECT_FS).toMatch(/\/\s*130\.0/);   // I0 mirrored above
   });
 

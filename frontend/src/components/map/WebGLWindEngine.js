@@ -497,6 +497,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme_rim'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_THEMED_PARTICLE_RIM__ === true) ? 0.0 : 1.0);
+  // Oriented dash — direction is carried by ELONGATION, not by mark area.
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
   // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the

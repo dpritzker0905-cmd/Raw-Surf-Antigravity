@@ -145,8 +145,15 @@ void main() {
   // Kill: __RAW_DISABLE_WIND_DENSITY_UNIFORM__ (u_density_uniform = 0 -> exact legacy formula).
   float legacyDrop = u_drop_rate + speed * u_drop_rate_bump;
   float sBase = speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, speed);
-  float sFloor = (speed >= 0.15 && speed < 10.0)
-    ? mix(5.5, 6.5, smoothstep(10.0, 0.15, speed)) : 0.0;
+  // Mirrors DRAW_VS's floor, INCLUDING its zoom scaling — the ink budget must be computed from the
+  // size the mark is actually drawn at, or the compensation is wrong at exactly the zooms where
+  // the floor is weakest.
+  float floorZoomScale = mix(0.62, 1.0, smoothstep(3.0, 7.0, u_zoom));
+  float sFloor = (speed >= 1.0 && speed < 10.0)
+    ? mix(3.4, 4.2, smoothstep(10.0, 1.0, speed)) * floorZoomScale : 0.0;
+  // The drawn mark is an oriented DASH, not a disc: DRAW_FS narrows the across-wind axis by
+  // ~1.8-2.6x, so its true area is well below this square estimate. Using the square here is the
+  // conservative direction (it can only over-estimate ink and shorten lifetime slightly).
   float sCss = max(sBase, sFloor);
   // I0 = the ink level the legacy rule already produces at mid speed (~11 kn, sprite 3.4 px),
   // so the two rules agree exactly at the calibration point rather than by taste.
@@ -250,6 +257,7 @@ uniform float u_tile_width;       // v3.22: local tile width for high zoom preci
 varying float v_speed;
 varying float v_alpha;
 varying vec4 v_debug_color;
+varying vec2 v_dir;              // 2026-07-18: screen-space wind direction — the mark is ORIENTED
 uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
@@ -326,6 +334,10 @@ void main() {
   vec4 windColor = texture2D(u_wind, tex_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windColor.r, windColor.g));
   v_speed = length(wind);
+  // SCREEN-SPACE wind direction for the oriented mark. Mercator convention: +y is SOUTH on screen
+  // while v is NORTHWARD, so the y component is negated — the same flip the advection step uses.
+  // Falls back to +x for a genuinely zero vector so normalize() cannot produce NaN.
+  v_dir = (v_speed > 1e-4) ? normalize(vec2(wind.x, -wind.y)) : vec2(1.0, 0.0);
 
   // Edge feathering: compute edgeFade from particle position in wind grid
   float edgeFade = 1.0;
@@ -370,25 +382,46 @@ void main() {
   // core are >= 1 px and the dot reads as an oriented mark rather than a speck. Truth is preserved —
   // colour still encodes speed exactly; only the MARK's legibility changes.
   // Kill: __RAW_DISABLE_LOWWIND_LEGIBILITY__ (u_lowwind_boost = 0.0).
-  // Sized so the DUAL-TONE CASING in DRAW_FS can actually resolve: its outer ring spans
-  // dist 0.38-0.50, i.e. 12% of the sprite's DIAMETER, so ~1 px of ring needs ~8 px of sprite.
-  // Under-sizing here silently defeats the casing — the rings land sub-pixel and the mark
-  // collapses back to a flat dot of the field colour, which is the original bug.
+  // LOW-WIND DIRECTION IS CARRIED BY ELONGATION, NOT BY AREA (2026-07-18 EVE-3 round 5).
+  // Rounds 2-4 grew the MARK so the dual-tone casing rings could resolve. That was solving the
+  // wrong problem: a round disc conveys ZERO direction information at any size, so growing it
+  // improved legibility OF THE MARK while doing nothing for legibility OF THE DIRECTION — and it
+  // covered the basemap (user: "particles are too large, you can't see land underneath"). The
+  // flow-vis literature is explicit that direction comes from trails/streaks, and that tail LENGTH
+  // is the speed cue. In this renderer the fade-buffer trail is proportional to displacement per
+  // frame, so it vanishes exactly where it is needed — at low wind.
+  // The mark is therefore ORIENTED instead of enlarged: DRAW_FS stretches it along v_dir into a
+  // small dash. A 2x6 px dash shows direction and covers ~40% of the ink of the 6.5 px disc it
+  // replaces, so land shows through AND the direction reads. The size floor drops back to a
+  // modest value whose only job is to keep the dash from going sub-pixel.
   //
-  // MOBILE / DPR (2026-07-18 EVE-3): gl_PointSize is in DEVICE pixels, and this pipeline had NO
-  // devicePixelRatio handling anywhere (engine, layer, shaders, init — verified by absence).
-  // MapLibre sizes its canvas at DPR, so on a DPR-3 phone an "8 px" sprite is 2.7 CSS px: every
-  // wind particle is physically ~3x smaller on a high-DPR phone than on a desktop, and the casing
-  // rings collapse sub-pixel again — the very bug this floor exists to prevent, surviving on
-  // exactly the devices most people use. The floor is therefore expressed in CSS pixels and
-  // multiplied by DPR. u_dpr is clamped [1,3] engine-side so a freak ratio cannot explode sizes.
-  if (u_lowwind_boost > 0.5 && v_speed >= 0.15 && v_speed < 10.0) {
-    float slowness = smoothstep(10.0, 0.15, v_speed);          // 0 at 10 kn -> 1 at near-calm
-    // 8.0 -> 6.5 at the slow end (2026-07-18 round 4): 8 px cost ~1.6x the AREA and the ink budget
-    // in ADVECT_FS has to buy that back in lifetime. 6.5 px still resolves the casing rings on any
-    // DPR>=1 display and leaves calm air legible. Keep this in sync with sFloor in ADVECT_FS —
-    // they are the same curve, and the density gate asserts they agree.
-    float minCssPx = mix(5.5, 6.5, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.5);
+  // MOBILE / DPR: gl_PointSize is in DEVICE pixels and this pipeline had NO devicePixelRatio
+  // handling anywhere (verified by absence across engine/layer/shaders/init). MapLibre sizes its
+  // canvas at DPR, so an "N px" sprite is N/DPR CSS px — every particle physically ~3x smaller on
+  // a DPR-3 phone. The floor is expressed in CSS px and multiplied by a clamped [1,3] u_dpr.
+  // LOWER BOUND 0.15 -> 1.0 kn. Below ~1 kn the air is genuinely calm, and legacy deliberately
+  // drew nothing there (sizeBase is 0 under 0.5 kn). Resurrecting those marks was pure cost: it
+  // added ink with no meteorological signal, and at close zoom it was the single largest thing
+  // this arc inflated. The band that actually matters for reading a forming low is light-but-real
+  // air, not dead calm.
+  if (u_lowwind_boost > 0.5 && v_speed >= 1.0 && v_speed < 10.0) {
+    float slowness = smoothstep(10.0, 1.0, v_speed);            // 0 at 10 kn -> 1 at 1 kn
+    // ZOOM-AWARE FLOOR (2026-07-18 round 5b, user: "the far out zoom is even worse"). The floor is
+    // in CSS px and was ZOOM-INVARIANT, but a fixed CSS mark covers vastly more GEOGRAPHY as you
+    // zoom out — and a wide view holds far more low-wind cells, so a larger share of the screen
+    // gets floored. Both effects compound, which is why the damage was worst at global zoom.
+    // Scale the floor down as the view widens: at z3 it lands near the legacy 2.5 px sizeBase
+    // (i.e. barely raised at all), reaching full strength only at the inspection zooms where the
+    // user is actually reading individual marks. Applied ONLY to this floor — sizeBase is the
+    // long-shipped curve and stays untouched, so far-out zoom returns to the original look.
+    float zoomScale = mix(0.62, 1.0, smoothstep(3.0, 7.0, u_zoom));
+    // Keep this curve in sync with sFloor in ADVECT_FS — they are the same curve, and the density
+    // gate asserts they agree (drift between the two stages IS a density bug).
+    // NO close-zoom boost on the floor. sizeBase already grows via zoomBoost when zoomed in, so
+    // stacking a second close-zoom multiplier here made the floor — whose only job is to stop a
+    // mark going sub-pixel — the thing making marks LARGE at exactly the zooms where they were
+    // already big enough. The floor stays flat-to-shrinking in CSS px across the whole range.
+    float minCssPx = mix(3.4, 4.2, slowness) * zoomScale;
     gl_PointSize = max(gl_PointSize, minCssPx * max(u_dpr, 1.0) * edgeFade);
   }
 
@@ -411,13 +444,33 @@ uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
 uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
+uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
+varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
 void main() {
   if (v_debug_color.a > 0.5) {
     gl_FragColor = v_debug_color;
     return;
   }
-  // Turn square points into beautiful, soft, anti-aliased circles
+  // ORIENTED DASH (2026-07-18 round 5). The point sprite is a square; rotate its local coordinate
+  // into the WIND frame and squash the across-wind axis, so the resulting mark is a dash aligned
+  // with the flow instead of a direction-less disc. Everything downstream (casing rings, alpha)
+  // then works in that frame unchanged, because dist remains a normalised radius.
+  // ELONGATION is capped at low speed rather than growing without bound: a very long dash at
+  // near-calm would imply motion that is not there, and truth outranks legibility here.
+  // Kill: __RAW_DISABLE_WIND_DASH__ (u_dash = 0 -> the legacy round mark).
   vec2 localCoord = gl_PointCoord - 0.5;
+  if (u_dash > 0.5) {
+    vec2 d = normalize(v_dir);
+    vec2 along = vec2(dot(localCoord, d), dot(localCoord, vec2(-d.y, d.x)));
+    // NARROW the across-wind axis rather than lengthening the along-wind one. Stretching along
+    // would push the mark past the point sprite's own square and CLIP it into a rectangle; and it
+    // would grow the mark, which is the opposite of what is wanted. Narrowing keeps the dash
+    // inside the sprite, keeps its length equal to the sprite, and cuts area by ~1/elong — so the
+    // basemap shows through MORE than with the round mark it replaces.
+    // 2.6:1 at the slow end easing to 1.8:1 once real motion supplies its own streak.
+    float elong = mix(1.8, 2.6, smoothstep(10.0, 0.5, v_speed));
+    localCoord = vec2(along.x, along.y * elong);
+  }
   float dist = length(localCoord);
   if (dist > 0.5) discard;
   
