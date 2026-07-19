@@ -161,3 +161,46 @@ them first or scope the flip to the engine choke only. Design §5 has the plan.
 
 
 
+
+## 6. ⚡ OPUS 4.8 TAKEOVER BRIEF (written by Fable at session close, DOUBLE-VERIFIED)
+FINAL STAMP (two fresh runs at close): suite 1186/1186 · staircase battery PASS 0 findings
+(706 frames, land-aware) · shadow 12/12 — lifetime 103 decisions, 101/101 post-tune agreement.
+origin/dev == local == this doc''s commit. Nightly cron 06:30 UTC armed (secret set, both jobs
+green on dispatch run 29655920874).
+
+READ ORDER: this doc §0→§3f → DESIGN-2026-07-18-marine-commit-arbiter.md → the EVE handoff ⚡
+parts → memory MEMORY.md (standing-work-rules FIRST — forensics/kill-switch/A-B are BINDING).
+
+THE QUEUE, IN ORDER, WITH THE TRAPS THAT WILL BITE YOU:
+1. **ARBITER Phase C flip** (engine choke ONLY — the commitMarineData guards dedup/short-circuit
+   are NOT shadowed; do NOT flip them). Method: `__RAW_MARINE_ARBITER__=1` routes the setWaveData
+   accept/reject through arbiterDecide; keep shouldRejectResolutionDowngrade/-Subcovering callable
+   behind `__RAW_DISABLE_MARINE_ARBITER__` for one release. GATE every step on: full battery set
+   (staircase, _ratingon or ZL_SURF, pan, layers, scrub, ZL_MODEL=EURO/ICON) all PASS + probe_wedge
+   ENGAGED t+5s. ⚠️ The guard''s rating-GRACE (bounded hold + _pendingDowngrade stash + self-heal)
+   has NO arbiter equivalent — the stash/self-heal loop (engine lines ~1150-1170) must survive the
+   flip or rejected grids strand (the 07-03 permanent-wedge class).
+2. z8 halo — minefield; read [[z8-halo-overlay-mincombine-structurally-excluded-2026-07-18]]
+   BEFORE touching computeWideOverlayMode/refreshViewportOverlayMask.
+3. Nearshore 1km bathymetry + break_type (backend, additive) → unlocks Iribarren breaker_type.
+4. Report-calibration loop. 5. USER CALLS: light crest palette · SURF_V3_JACK_MAX trim · security
+   buckets (LOCKED — ask first). 6. Peniche · a11y debt · REST caps.
+
+HARNESS RULES (cost Fable real time today — do not relearn):
+- Dev server: preview_start `frontend-verify` (:3009). After battery load it can WEDGE (compiles,
+  never serves) → restart. A fresh server answering `/` is NOT warm — run probe_boot.js (session
+  scratchpad; rebuild from this doc if gone: boots /map, waits map+engine, ~6s warm) BEFORE zoomlab.
+- EVERY zoomlab run ends with `node scripts/zoomlab-verdict.js <trace file>` (not outdir). A verdict
+  without "N water samples" ran an old trace. "[verdict] FAIL — 1 finding" inside a within-budget
+  nightly is NOT an error (the workflow budget is the authority).
+- Col→lng mapping from traces: 512-px tiles (z6.49/1280px ≈ 8.4°) — verify with map.getBounds();
+  the wrong scale manufactured the "wrapped-copy particles" phantom.
+- The useMarineWindData conform is an EXPLICIT field list that EATS grid flags (is_valid,
+  dirConfidence, ratingMode, __commitLane) — any new grid-level stamp must be added there BY NAME.
+- Parked cameras serve padded tiles with edges OFF-SCREEN — resident-edge bugs only reproduce
+  mid-gesture (the staircase). PowerShell: never pipe a live process into Select-Object -First.
+- Kill-switch registry added today: __RAW_DISABLE_FLAVOR_TOGGLE_VIEWPORT__ ·
+  __RAW_DISABLE_CREST_FEATHER_CAP__ · __RAW_DISABLE_ARBITER_SHADOW__ (+ all prior in memory).
+
+USER ACCEPTANCE still pending: rating toggle ~5s on the deployed build · far-zoom land ·
+Jupiter–Stuart line. The user runs Render deploys — never poll; ask and do ONE curl.
