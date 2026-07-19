@@ -239,11 +239,43 @@ a pre-existing harness false-positive on a layer switch (waves→swell legitimat
 luminance). Do NOT chase it as an arbiter regression; do consider teaching the verdict to exempt
 layer-switch frames.
 
-**THE GATE BEFORE DEFAULTING THE ARBITER ON (the one open thread):** arbiter mode takes ~1.7×
-more choke rejects than guard mode on a MATCHED staircase (7 vs 4, same final zoom 3.61) despite
-per-decision agreement. Understood as extra commit ATTEMPTS downstream of self-heal timing, NOT a
-rule disagreement — but not root-caused, so the default stays guards. Root-cause that delta
-(instrument the self-heal accept timing in both modes), then flip the default.
+**⚠️ CORRECTION (round 8, `25511f22`) — the "~1.7× more choke rejects" gate recorded here was a
+CONFOUNDED MEASUREMENT.** Separate zoomlab runs do NOT produce matched trajectories (final zoom
+3.17 vs 3.97, 15% frame delta), so aggregate reject counts ACROSS runs are not a per-decision
+comparison. Do not use them as one. The valid instruments are the SHADOW (both verdicts on
+identical inputs, same instant) and the differential sweep below.
+
+## 8. ⚡ ROUND 8 — THE REAL GATE: 3000/3000 DIFFERENTIAL (`25511f22`)
+`marineCommitArbiter.differential.test.js` ENUMERATES the decision space (5 tiers × 5 tiers × 3
+viewports × 5 zooms × rated/unrated × flag = 3000) instead of sampling it. First run: **166
+divergences in 19 classes — 94.5%**, where the live soak reported 89/89. 19 classes → **4 roots**,
+and in THREE the arbiter was WRONG in ways that map onto outages the guards exist to prevent:
+1. `flavor_downgrade` unscoped over a WORLD resident → an **UNBOUNDED hold** (a world grid always
+   covers, so no coverage release can end it; the grace bound lives on the other branch) — the
+   07-03 permanent-wedge shape, manufactured by a rule that reads as "protect the band". **75
+   cases, 45% of all divergences.** Now scoped to `isRegionalBounds`-equivalent, as the guard is.
+2. `flavor_upgrade` outranked the tier check → a rated WORLD coarse displaced a covering FINE
+   tile: blocky collapse at z9.3, the 07-01 coarse⇄regional spin. **35 cases.** Now `tierCollapse`-gated.
+3+4. `subcover_at_wide`, both directions, two defects in one rule: the wide-view test gated on
+   **ZOOM ALONE** where the guard uses `zoom≤max OR span>15` (a STALE `_lastZoom` — the 07-03 race
+   — skipped the rule entirely), and it omitted the guard's **flavor-match** predicate so it
+   rejected rated incomings mid-transition. **56 cases.**
+
+**Now 3000/3000, zero classes.** Q1 (guard mode ≡ raw guard chain) is **0/3000 mismatches** — the
+shipped default is a PROVABLE no-op. Gate teeth verified: reverting one fix drops it to 2965/3000
+and names the exact class. Live re-verify post-fix: shadow **34/34, 0 divergences** across
+staircase/rated-staircase/pan (the rated leg exercising `flavor_downgrade` ×2,
+`rated_uncovering_release` ×2, `flavor_upgrade` ×1 — the very rules changed), all verdicts PASS,
+suite 1200/1200.
+
+**STANDING LESSON: do not let a live soak define coverage.** A trajectory only walks the common
+path through a guard's conjunctive predicates; the branches stay unmeasured. Enumerate the space.
+
+**REMAINING BEFORE DEFAULTING THE ARBITER ON:** the sweep covers the PURE decision function, not
+the STATEFUL surfaces — `_pendingDowngrade` stash/self-heal timing, the rating-grace singleton
+across lane interleavings, and the commitMarineData-side guards (dedup / commit short-circuit)
+which are STILL NOT shadowed (do NOT flip them). Next step is a stateful sequence harness (replay
+lane interleavings against both modes), then flip the default.
 
 **NEW FORENSICS:** `__RAW_ARBITER_LIVE__ {n, rejects, byRule, last}` is the ENGAGEMENT proof — a
 flip that silently fell back to the guards would produce an identically green battery. zoomlab
