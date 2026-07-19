@@ -16,12 +16,15 @@ async def fetch_euro_wind_global_coarse(
     bbox: dict,
     resolution: float = 10.0,
     forecast_days: int = 10,
+    timeout_sec: Optional[int] = None,
 ) -> Optional[List[dict]]:
     """BACKGROUND-ONLY: coarse GLOBAL EURO 10 m wind grid direct from ECMWF Open Data (IFS 0.25° GRIB).
-    Slow (~3-6 min, low CPU/mem) — scheduler ingestion ONLY. Native horizon 10d (240h, 00/12 runs).
-    None in test env."""
+    Slow (~3-6 min, low CPU/mem) — scheduler ingestion or the wind native-recovery lane ONLY (never
+    the serve path). Native horizon 10d (240h, 00/12 runs). ``timeout_sec`` bounds the subprocess
+    (recovery passes ~900s; unset keeps the scheduler's 1800s default). None in test env."""
+    kwargs = {"timeout": int(timeout_sec)} if timeout_sec else {}
     return await run_fetcher_subprocess(
         "ecmwf_opendata_fetcher.py", bbox, resolution, forecast_days,
         log_tag="ECMWF EURO-Wind", out_prefix="ecmwfwind_global",
-        extra_payload={"layer": "wind"},
+        extra_payload={"layer": "wind"}, **kwargs,
     )

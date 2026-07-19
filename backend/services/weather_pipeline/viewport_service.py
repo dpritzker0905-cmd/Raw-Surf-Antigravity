@@ -29,6 +29,8 @@ logger = logging.getLogger(__name__)
 from services.weather_pipeline.wind_gates import (  # noqa: F401
     wind_global_parity_resolution, wind_horizon_fail_fast
 )
+# Native-upstream background recovery for failed wind dynamic-lane fetches (2026-07-19, queue #5).
+from services.weather_pipeline.wind_native_recovery import maybe_spawn_native_wind_recovery
 
 
 class FetchContext:
@@ -169,6 +171,14 @@ class ViewportService:
             expire_ts = self.NEGATIVE_CACHE[cache_key]
             if now_ts < expire_ts:
                 logger.warning(f"[Dynamic Viewport] Negative cache hit for {cache_key}. Attempting stale fallback before rejecting.")
+                # Wind fine lane: the open-meteo failure that registered this negative-cache entry
+                # blocks the WHOLE window — recover the bbox from the native upstream in the
+                # background (dedup/cooldown inside makes repeat hits free).
+                native_recovery_spawned = maybe_spawn_native_wind_recovery(
+                    self, model=model, domain=domain, layer=layer, target_dt=target_dt,
+                    west=west, south=south, east=east, north=north, resolution=resolution,
+                    bbox_str=bbox_str, bbox_key_str=bbox_key_str, coverage_scope=coverage_scope,
+                )
                 fallback_product = await self._find_any_cached_product(model, domain, layer, target_dt, bbox_str)
                 if fallback_product:
                     logger.info(f"[Dynamic Viewport] Fallback (Negative Cache Hit): Found previous cached product {fallback_product.product_id} for stale return")
@@ -207,7 +217,8 @@ class ViewportService:
                             "stale": True,
                             "staleReason": "upstream_rate_limited",
                             "fallbackReason": "upstream_rate_limited",
-                            "partial_coverage": False
+                            "partial_coverage": False,
+                            "native_recovery": "spawned" if native_recovery_spawned else "none"
                         }
                     return fallback_product
 
@@ -506,11 +517,19 @@ class ViewportService:
 
             err_cls, err_str = e.__class__.__name__.lower(), str(e).lower()
             is_cancelled = isinstance(e, asyncio.CancelledError) or any(x in err_cls or x in err_str for x in ("cancel", "abort", "disconnect"))
+            native_recovery_spawned = False
             if not is_cancelled:
                 is_429 = any(x in err_str for x in ("429", "rate limit", "too many requests"))
                 neg_ttl = 120 if is_429 else 60
                 self.NEGATIVE_CACHE[cache_key] = datetime.now(timezone.utc).timestamp() + neg_ttl
                 logger.info(f"[Dynamic Viewport] Registered negative cache key for {neg_ttl}s: {cache_key}")
+                # Wind fine lane: recover this bbox from the native upstream in the background
+                # while the request degrades to the instant stale/coarse fallback below.
+                native_recovery_spawned = maybe_spawn_native_wind_recovery(
+                    self, model=model, domain=domain, layer=layer, target_dt=target_dt,
+                    west=west, south=south, east=east, north=north, resolution=resolution,
+                    bbox_str=bbox_str, bbox_key_str=bbox_key_str, coverage_scope=coverage_scope,
+                )
             else:
                 logger.info(f"[Dynamic Viewport] Request cancelled or aborted ({e}). Skipping negative cache registration.")
 
@@ -552,7 +571,8 @@ class ViewportService:
                         "stale": True,
                         "staleReason": "upstream_rate_limited",
                         "fallbackReason": "upstream_rate_limited",
-                        "partial_coverage": False
+                        "partial_coverage": False,
+                        "native_recovery": "spawned" if native_recovery_spawned else "none"
                     }
                 return fallback_product
 

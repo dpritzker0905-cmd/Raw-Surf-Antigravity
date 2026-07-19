@@ -463,9 +463,13 @@ async def run_fetcher_subprocess(
     script = os.path.join(os.path.dirname(os.path.abspath(__file__)), script_name)
 
     def _run():
+        # stdin=DEVNULL: fetchers read argv, never stdin — and inheriting the parent's stdin
+        # handle fails CreateProcess (WinError 50) when the parent's fds are redirected
+        # (pytest capture; some daemon contexts). Explicit is strictly safer everywhere.
         return subprocess.run(
             [sys.executable, "-OO", script, json.dumps(payload)],
             capture_output=True, text=True, timeout=timeout,
+            stdin=subprocess.DEVNULL,
         )
 
     try:
