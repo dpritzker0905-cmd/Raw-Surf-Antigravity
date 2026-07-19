@@ -5,6 +5,26 @@ import { API_BASE } from '../../lib/apiClient';
 import { TruthOverlayVisualTab } from './TruthOverlayVisualTab';
 import { TruthOverlayGpuTab } from './TruthOverlayGpuTab';
 
+// PROD GATE (2026-07-19). This HUD was mounted UNCONDITIONALLY by MapWebGL — a 360px dark
+// diagnostics panel fixed bottom-left over the live map for EVERY production user (nearly
+// full-width on a 390px phone). Same dev-chrome class as MarineAnimTuner, which has carried a
+// prod gate all along; this component simply never got one. Contract mirrors
+// MarineAnimTuner.isEnabled exactly: '0' suppresses everywhere (the pixel-probe scripts set it —
+// a HUD inside the screenshot crop biases every contrast/density metric), ?diag=1 or
+// localStorage '1' enables anywhere, dev hosts stay default-ON, production is OFF, and any
+// storage failure fails CLOSED. Only the RENDER is gated — the truth-violation POST effect keeps
+// running in production because /api/weather/client-diagnostics is a real, tested backend route.
+export function isDiagHudEnabled(win) {
+  if (!win) return false;
+  try {
+    if (win.localStorage.getItem('__RAW_DIAG__') === '0') return false;
+    if (new URLSearchParams(win.location.search).get('diag') === '1') return true;
+    if (win.localStorage.getItem('__RAW_DIAG__') === '1') return true;
+    const h = win.location.hostname;
+    return h === 'localhost' || h === '127.0.0.1' || h === '0.0.0.0';
+  } catch (e) { return false; }
+}
+
 const getLayerTruth = (id, visible, wind, marine) => {
   const l = LAYER_REGISTRY[id];
   return !l ? "OFF" : l.type === "raster" ? (visible ? "LOADED" : "LOADING")
@@ -236,6 +256,10 @@ var TruthOverlay = ({
     || (typeof window !== 'undefined' ? window.__SIM_EVOLUTION__?.mode : null);
   // Live frame counter with the same window fallback.
   const liveSimFrame = simFrameIndex || (typeof window !== 'undefined' ? (window.__SIM_FRAME__ || 0) : 0);
+
+  // Render gate — AFTER every hook (rules of hooks), so the telemetry/report effects above keep
+  // running for production users while the panel itself never mounts for them.
+  if (!isDiagHudEnabled(typeof window !== 'undefined' ? window : null)) return null;
 
   return (
     <div style={{

@@ -131,6 +131,10 @@ async function leg(browser, theme, flags, tag, device) {
     // the WHOLE screen, so a centre crop measures the PANEL, not the map — that is exactly how
     // the first mobile run produced an identical 10.318 in both legs (a 0.0% 'result').
     localStorage.setItem('__RAW_TUNER__', '0');
+    // Diagnostics HUD (TruthOverlay) — same crop-bias class as the tuner: it sits bottom-left
+    // INSIDE the centre crop on both device classes. Constant across A/B legs (direction-safe)
+    // but dilutes magnitudes; suppressed for all future runs. Gate shipped 2026-07-19.
+    localStorage.setItem('__RAW_DIAG__', '0');
   } catch (e) {} }, theme);
   if (flags.length) {
     await page.addInitScript((fl) => { for (const f of fl) window[f] = true; }, flags);
@@ -180,6 +184,15 @@ async function leg(browser, theme, flags, tag, device) {
     if (m && m.jumpTo) m.jumpTo({ center: [c.lng, c.lat], zoom: c.zoom });
   }, CENTER);
   await page.waitForTimeout(9000);   // let the field load + particles populate
+
+  // Re-dismiss the cookie banner right before the screenshot: it can mount AFTER the first
+  // dismissal pass (~3s), and a bright banner inside the crop inflates whichever leg it lands in
+  // (seen live in z5.5 r1: BEFORE had the banner, FIXED did not — the A/B was UNDERSTATED).
+  await page.evaluate(() => {
+    const d = Array.from(document.querySelectorAll('button')).find((b) => (b.textContent || '').trim() === 'Decline');
+    if (d) d.click();
+  }).catch(() => {});
+  await page.waitForTimeout(400);
 
   const state = await page.evaluate(() => ({
     theme: (() => { try { return localStorage.getItem('raw-surf-theme'); } catch (e) { return null; } })(),
