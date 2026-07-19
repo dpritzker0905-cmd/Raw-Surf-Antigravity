@@ -12,6 +12,18 @@ import { recordTruthStage } from './weatherTruthTracker';
 
 // --- CACHES ---
 var WIND_CACHE = new Map();
+
+// STALE-AWARE TTL (2026-07-19, wind viewport-fine arc). When the backend's dynamic wind lane is
+// upstream-rate-limited it answers a FINE-bbox request with the stale GLOBAL 10-deg product
+// (fallbackReason: upstream_rate_limited) — honest, renderable, and cached here under the fine
+// tile key. Its GLOBAL bounds then satisfy the containment fallback for EVERY viewport, so the
+// full 10-min TTL pinned users to coarse long after the upstream recovered (observed live: one
+// rate-limited window -> every later zoom/pan served from that one stale entry, zero network).
+// A stale entry gets 2 min instead: long enough to ride out the backend's own 60-120s negative
+// cache without hammering it, short enough that recovery is minutes, not the TTL.
+function windCacheTtlMs(entry) {
+  return entry?.data?.stale ? 2 * 60 * 1000 : 10 * 60 * 1000;
+}
 // In-flight wind fetches keyed by the canonical target (model + hour + snapped tile) so the
 // primary refresh, moveend, and scrub-settle callers share ONE network request instead of
 // issuing duplicate same-hour wind URLs (F3).
@@ -150,13 +162,13 @@ export function getModelSafeWind(model, hourOffset, bounds) {
   const cacheKey = `${resolvedModel}_wind_grid_${tileId}_${hourOffset}`;
 
   const cached = WIND_CACHE.get(cacheKey);
-  if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) {
+  if (cached && Date.now() - cached.timestamp < windCacheTtlMs(cached)) {
     return cached.data;
   }
 
   // Fallback search: check if any cached entry contains the bounds for this hour
   for (const [key, entry] of WIND_CACHE.entries()) {
-    if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < 10 * 60 * 1000) {
+    if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < windCacheTtlMs(entry)) {
       const g = entry.data;
       if (g?.vectors?.length > 0 && g.bounds) {
         const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
@@ -241,7 +253,7 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
   
   if (!forceFetch) {
     const cached = WIND_CACHE.get(cacheKey);
-    if (cached && Date.now() - cached.timestamp < 10 * 60 * 1000) { // 10 minutes TTL
+    if (cached && Date.now() - cached.timestamp < windCacheTtlMs(cached)) { // 10 min, 2 min if stale
       console.log(`[Backend Wind Cache Hit] Returning cached backend wind grid for ${resolvedModel} at hourOffset=+${hourOffset}h`);
       if (!isPrewarm && hourOffset === 0) {
         recordTruthStage('cacheRead', cached.data, 'windController.js', 'fetchWindData');
@@ -251,9 +263,21 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
 
     // Check if any cached entry contains viewportBounds/snappedBounds
     const boundsToCheck = viewportBounds || snappedBounds;
+    const wantsFineTile = tileId.startsWith('wind_viewport_fine_');
     for (const [key, entry] of WIND_CACHE.entries()) {
-      if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < 10 * 60 * 1000) {
+      if (key.startsWith(`${resolvedModel}_wind_grid_`) && key.endsWith(`_${hourOffset}`) && Date.now() - entry.timestamp < windCacheTtlMs(entry)) {
         const g = entry.data;
+        // A WORLD-SPAN grid contains every viewport, so without this a fresh global fetch
+        // suppresses the fine-tier's AUTHORITATIVE fetch for its whole TTL (observed live:
+        // zoom out then back into the Gulf -> 10-deg coarse from cache, zero network). The
+        // global grid still renders instantly via the getModelSafeWind warm-commit path —
+        // containment just must not COUNT AS the fine product. Fine-over-fine containment
+        // (small pans inside the padded box) keeps the early return.
+        if (wantsFineTile && g?.bounds) {
+          const bSpan = g.bounds.west > g.bounds.east
+            ? (g.bounds.east + 360.0) - g.bounds.west : g.bounds.east - g.bounds.west;
+          if (bSpan >= 350.0) continue;
+        }
         if (g?.vectors?.length > 0 && g.bounds) {
           const ew = boundsToCheck.west, ee = boundsToCheck.east, es = boundsToCheck.south, en = boundsToCheck.north;
           const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;

@@ -237,6 +237,51 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // coarse resolution (5°) for efficiency. Viewport-clipped wind grids cause
     // visible rectangular edges when panning.
     if (inferredDomain === 'wind') {
+      // WIND VIEWPORT-FINE TIER (2026-07-19 — the circulation-centre data root).
+      // The v3.15 rule above globalized EVERY wind request, and the global wind manifest product
+      // is 37x17 = 10-DEGREE cells. A tropical circulation (~300-500 km, Invest 91L) is SUB-CELL
+      // in that texture at ANY zoom — its rotation is averaged away before the shaders ever see
+      // it, which is why a forming invest reads as still air. No particle treatment can render
+      // rotation the data does not contain.
+      // The backend has supported a finer lane all along: for requested spans <= 15.0 deg the
+      // global manifest is REJECTED (grid_resolver_selection.decide_manifest_product) and the
+      // dynamic viewport lane builds an adaptive 0.25-1.0 deg product — and when its upstream is
+      // rate-limited it falls back BY ITSELF to the stale global product, so the failure mode of
+      // asking is exactly the old behaviour. Marine has requested its viewport at spans <= 15 deg
+      // since 2026-07-05 (the mid-res band right below); wind was the one domain never asking.
+      // GEOMETRY: snap OUT to the 1-deg lattice (the server's own GFS t_sz snap — one snapped box
+      // = one server-side product key) from viewport spans <= 13.0 deg only, so the snapped span
+      // (< span + 2) can never cross the backend's 15.0-deg dynamic gate and silently degrade to
+      // the 10-deg coarse product. Antimeridian-crossing viewports keep the global product.
+      // CACHE: the tileId ENCODES the snapped bbox — windController keys WIND_CACHE by tileId,
+      // and a constant fine id would cross-serve different regions' grids within the 10-min TTL.
+      // ENGINE: no changes needed — regional wind grids already get edge feather + regional
+      // respawn (isRegionalGrid keys on lngSpan < 350 in WebGLWindEngine.render).
+      // Kill: __RAW_DISABLE_WIND_VIEWPORT_FINE__ = true -> the exact v3.15 always-global rule.
+      const fineDisabled = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_FINE__ === true;
+      if (!fineDisabled && west <= east) {
+        const wSpanLng = east - west;
+        const wSpanLat = Math.abs(north - south);
+        const FINE_MAX_VIEWPORT_SPAN = 13.0;
+        if (wSpanLng > 0 && wSpanLat > 0 && wSpanLng <= FINE_MAX_VIEWPORT_SPAN && wSpanLat <= FINE_MAX_VIEWPORT_SPAN) {
+          const fw = Math.max(-180, Math.floor(west));
+          const fe = Math.min(180, Math.ceil(east));
+          const fs = Math.max(-80, Math.floor(south));
+          const fn = Math.min(85, Math.ceil(north));
+          if (fe > fw && fn > fs) {
+            return {
+              isInside: true,
+              clampedBbox: { west: fw, south: fs, east: fe, north: fn },
+              fallbackReason: null,
+              coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+              selectedTileId: `wind_viewport_fine_${fw}_${fs}_${fe}_${fn}`,
+              availableTileIds: REGIONAL_TILES.map(t => t.id),
+              rejectedTileIds: [],
+              tileFallbackReason: null
+            };
+          }
+        }
+      }
       return {
         isInside: true,
         clampedBbox: { west: -180, south: -80, east: 180, north: 85 },

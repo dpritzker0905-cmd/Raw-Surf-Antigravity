@@ -59,12 +59,17 @@ const CENTER = {
     const m = window.__RAW_MAP__ || window.map;
     if (m && m.jumpTo) m.jumpTo({ center: [c.lng, c.lat], zoom: c.zoom });
   }, CENTER);
-  // Wait until the engine holds a wind grid whose bounds are NOT the 37x17 global coarse.
-  await page.waitForFunction(() => {
+  // Wait until the engine holds a grid whose bounds CONTAIN the parked centre — the first fine
+  // grid to arrive can belong to the map's INITIAL viewport (the jumpTo-triggered moveend
+  // refetch is still in flight), and dumping that one races the refetch (seen live r1: grid
+  // origin -85,24 = the default-view box while parked at -89,24).
+  await page.waitForFunction((c) => {
     const e = window.__WIND_ENGINE__ || window.__RAW_WIND__;
     const g = e && e._windData && e._windData.windGrid;
-    return !!(g && g.vectors && g.vectors.length > 700);
-  }, null, { timeout: 120000 }).catch(() => {});
+    if (!(g && g.vectors && g.vectors.length > 700 && g.bounds)) return false;
+    const b = g.bounds;
+    return b.west <= c.lng && c.lng <= b.east && b.south <= c.lat && c.lat <= b.north;
+  }, CENTER, { timeout: 150000 }).catch(() => {});
   await page.waitForTimeout(4000);
 
   const dump = await page.evaluate((c) => {

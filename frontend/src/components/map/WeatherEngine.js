@@ -206,9 +206,33 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     // Start the fetch loop
     attemptFetch();
 
+    // WIND VIEWPORT-FINE REFETCH (2026-07-19). The always-global era never needed a move
+    // listener — one grid covered the world and a 5-min timer refreshed it. With the fine tier
+    // (clampViewportBbox wind branch), panning/zooming can leave the committed regional grid
+    // behind, so a camera move that CHANGES THE CLAMP TILE ID re-drives the fetch. The id is
+    // 1-deg-snapped, so pans inside the same snapped box are free, and the global id is a
+    // constant — wide views never refetch on move (exact old behaviour). attemptFetch carries
+    // its own scrub-freeze, 429-cooldown, warm-cache and in-flight dedup, so re-entry is cheap.
+    // The kill switch that disables the fine tier makes the id constant again, which makes this
+    // listener a structural no-op — one lever kills both halves.
+    let lastWindTileId = null;
+    const onWindMoveEnd = () => {
+      if (cancelled || !isWindActive) return;
+      try {
+        const b = getBounds();
+        if (!b) return;
+        const tile = clampViewportBbox(b, 'wind', activeModel, 'wind').selectedTileId || '';
+        const prev = lastWindTileId;
+        lastWindTileId = tile;
+        if (prev !== null && tile !== prev) attemptFetch();
+      } catch (e) { /* the clamp must never break a move handler */ }
+    };
+    mapInstance.on('moveend', onWindMoveEnd);
+
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
+      try { mapInstance.off('moveend', onWindMoveEnd); } catch (e) { /* map may be disposed */ }
     };
   }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes
 
