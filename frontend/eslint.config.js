@@ -22,6 +22,10 @@ module.exports = [
         ...globals.browser,
         ...globals.es2021,
         process: "readonly",
+        // webpack provides `require` inside browser bundles — it is how this codebase does lazy
+        // requires to break import cycles (e.g. backendWeatherServiceClientDiag.getMainClient).
+        // Without it the linter reports a no-undef that is not real.
+        require: "readonly",
       },
       parserOptions: {
         ecmaFeatures: { jsx: true },
@@ -81,6 +85,16 @@ module.exports = [
         ...globals.jest,
         ...globals.node,
       },
+    },
+  },
+  {
+    // NODE-CONTEXT files that live under src/ but never run in the browser: the CRA dev-server
+    // proxy and the Jest module mocks. They are CommonJS, so browser-only globals reported
+    // `module`/`require` as undefined — linter noise, not defects.
+    files: ["src/setupProxy.js", "src/testMocks/**/*.{js,jsx}"],
+    languageOptions: {
+      sourceType: "commonjs",
+      globals: { ...globals.node },
     },
   },
   {

@@ -21,7 +21,10 @@ import MapPageModals from './map/MapPageModals';
 import MapWeatherControls from './map/MapWeatherControls';
 import MapForecastOverlay from './map/MapForecastOverlay';
 import { RequestProButton } from './map/RequestProButton';
-import { getSharedLandGeoJSON } from './map/mapUtils';
+// isValidLatLng guards the flyTo below (L~478). It was USED but never imported — a live
+// ReferenceError on the map-search spot-click path, invisible until the ESLint config was
+// repaired (2026-07-18: no-undef could not run at all while the linter was crashing).
+import { getSharedLandGeoJSON, isValidLatLng } from './map/mapUtils';
 import { useMapData } from '../hooks/useMapData';
 import { useUserLocation } from '../hooks/useUserLocation';
 import { useGoLiveFlow } from '../hooks/useGoLiveFlow';
