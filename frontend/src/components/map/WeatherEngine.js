@@ -204,7 +204,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // and the clamp resolved to a fine tile, race a cheap GLOBAL manifest fetch alongside the
       // fine one and commit it only while the screen is still empty — the fine product then
       // sharpens over it on arrival, and if the fine path lands first the base is skipped.
-      if (!lastCommittedWindRef.current && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
+      // Fire the base whenever nothing COVERING is on screen — not only when nothing is
+      // committed at all. On reload the first fetch can build its box from the PRE-RESTORE
+      // viewport; that box commits (nothing better exists), and gating the base on
+      // !lastCommitted left the mismatched rectangle standing (user repro 2026-07-19 night).
+      if ((!lastCommittedWindRef.current || !gridCovers(lastCommittedWindRef.current.bounds, getBounds()))
+        && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
         fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
           .then((gd) => {
             if (cancelled || lastCommittedWindRef.current) return;
@@ -326,7 +331,12 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         const tile = clampViewportBbox(b, 'wind', activeModel, 'wind').selectedTileId || '';
         const prev = lastWindTileId;
         lastWindTileId = tile;
-        if (prev !== null && tile !== prev) attemptFetch();
+        // Refetch on tile change — AND on any move that leaves the committed grid not covering
+        // the viewport (the reload/restore case: the first moveend used to be skipped entirely,
+        // leaving a wrong-viewport box standing until the 5-min timer).
+        const lc = lastCommittedWindRef.current;
+        const uncovered = !!(lc && lc.bounds && !gridCovers(lc.bounds, b));
+        if ((prev !== null && tile !== prev) || uncovered) attemptFetch();
       } catch (e) { /* the clamp must never break a move handler */ }
     };
     mapInstance.on('moveend', onWindMoveEnd);
