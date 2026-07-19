@@ -258,8 +258,17 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       // ENGINE: no changes needed — regional wind grids already get edge feather + regional
       // respawn (isRegionalGrid keys on lngSpan < 350 in WebGLWindEngine.render).
       // Kill: __RAW_DISABLE_WIND_VIEWPORT_FINE__ = true -> the exact v3.15 always-global rule.
-      const fineDisabled = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_FINE__ === true;
-      if (!fineDisabled && west <= east) {
+      // DEFAULT FLIPPED TO OPT-IN (2026-07-19 night). The tier's DATA win is real, but its
+      // single-texture integration produced every user-visible regression of the day: a fine box
+      // whose heatmap ends at its edge (the pan "clearing"/clamp), slow activation whenever the
+      // dynamic upstream is cold or rate-limited (vs the instant cached global), and commit
+      // races. It returns ON by default only behind its structural prerequisites — task #5
+      // (native quota-free upstreams) and #9 (base+overlay two-texture engine, which makes a
+      // clamp geometrically impossible). Until then: __RAW_WIND_VIEWPORT_FINE__ = true opts in
+      // (dev/probes); __RAW_DISABLE_WIND_VIEWPORT_FINE__ still hard-disables over everything.
+      const fineOptIn = typeof window !== 'undefined' && window.__RAW_WIND_VIEWPORT_FINE__ === true
+        && window.__RAW_DISABLE_WIND_VIEWPORT_FINE__ !== true;
+      if (fineOptIn && west <= east) {
         const wSpanLng = east - west;
         const wSpanLat = Math.abs(north - south);
         const FINE_MAX_VIEWPORT_SPAN = 13.0;
