@@ -213,6 +213,7 @@ uniform sampler2D u_wind;
 uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_zoom;  // v3.13.5: for close-zoom density boost
+uniform float u_lowwind_boost;   // 2026-07-18: synoptic low-wind legibility (0 = off, kill switch)
 uniform float u_edgeFeatherEnabled;
 uniform float u_debug_mode;
 
@@ -306,12 +307,32 @@ void main() {
   // Calibrated to keep low-speed particles (<= 8.5 kts) highly visible at close zoom
   float sizeBase = v_speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, v_speed);
   float zoomBoost = 1.0 + smoothstep(5.0, 11.0, u_zoom) * 1.5;
-  
+
   if (u_zoom > 7.0 && v_speed < 8.5) {
     float speedBoost = smoothstep(8.5, 2.0, v_speed) * smoothstep(7.0, 11.0, u_zoom) * 1.5;
     zoomBoost += speedBoost;
   }
   gl_PointSize = sizeBase * zoomBoost * edgeFade;
+
+  // === SYNOPTIC LOW-WIND LEGIBILITY (2026-07-18 EVE-3, user report: "at very light wind speeds
+  // it's hard to tell wind direction, which we need to see when low pressure systems form") ===
+  // THE GEOMETRY BUG, not a palette one. DRAW_FS separates a particle from the identically-coloured
+  // field beneath it with a rim (dist 0.28-0.46) and a core (dist < 0.18). Those are FRACTIONS OF
+  // THE SPRITE, so they only resolve if the sprite is big enough: a 2.5 px point puts the rim band
+  // at ~0.45 px and the core at ~0.45 px — both SUB-PIXEL, so the particle rasterises as a flat dot
+  // of exactly the field's colour and carries no direction cue at all.
+  // And the existing low-speed rescue is gated on u_zoom > 7.0 — i.e. it only fires when zoomed IN,
+  // while a forming low is read at SYNOPTIC scale (z3-6), where zoomBoost is 1.0. So the rescue was
+  // absent at precisely the speed AND zoom the user needs.
+  // Fix: a MINIMUM sprite diameter for slow-but-moving particles at any zoom, sized so the rim and
+  // core are >= 1 px and the dot reads as an oriented mark rather than a speck. Truth is preserved —
+  // colour still encodes speed exactly; only the MARK's legibility changes.
+  // Kill: __RAW_DISABLE_LOWWIND_LEGIBILITY__ (u_lowwind_boost = 0.0).
+  if (u_lowwind_boost > 0.5 && v_speed >= 0.15 && v_speed < 10.0) {
+    float slowness = smoothstep(10.0, 0.15, v_speed);          // 0 at 10 kn -> 1 at near-calm
+    float minPx = mix(4.0, 6.5, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.6);
+    gl_PointSize = max(gl_PointSize, minPx * edgeFade);
+  }
 
   // Debug mode colors
   if (u_debug_mode > 0.5) {
@@ -330,6 +351,8 @@ varying float v_alpha;
 varying vec4 v_debug_color;
 uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
+uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
+uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 void main() {
   if (v_debug_color.a > 0.5) {
     gl_FragColor = v_debug_color;
@@ -346,14 +369,39 @@ void main() {
   float normalizedSpeed = clamp(v_speed / u_max_speed, 0.0, 1.0);
   vec4 color = texture2D(u_color_ramp, vec2(normalizedSpeed, 0.5));
   
-  // Enhance particle contrast over heatmaps:
-  // 1. Solid dark outline/rim (98% black) to separate particle from matching heatmap background
+  // Enhance particle contrast over heatmaps. THE STRUCTURAL PROBLEM (2026-07-18 EVE-3, user
+  // report: "wind animations are hard to see as they blend too much with their heatmap colors"):
+  // the particle and the field beneath it sample the SAME ramp at the SAME normalised speed —
+  // texture2D(u_color_ramp, v_speed/u_max_speed) here vs ramp(speed/u_max_speed, u_theme) in
+  // HEATMAP_FS — so a particle's colour is IDENTICAL to the pixel behind it BY CONSTRUCTION. No
+  // palette edit can fix that; only a luminance separation can, which is what rim+core are for.
+  //
+  // THE GAP: rim/core were FIXED black/white, and this program was the one wind program that never
+  // received u_theme (the engine bound it to heatmapProgram only). Tuned against the dark theme,
+  // they invert in light mode — there the field ramp is DEEP NAVY/TEAL on a LIGHT basemap, so a
+  // 98%-black rim is camouflage against the very field it must separate from. Beach's bright
+  // coral/yellow field washes out the white core for the same reason, mirrored.
+  // Now theme-aware: the rim always runs AWAY from the local field's luminance.
+  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ (u_theme_rim = 0.0 -> the legacy black/white pair).
+  float rimL = 0.0, coreL = 1.0, rimK = 0.98, coreK = 0.75;
+  if (u_theme_rim > 0.5) {
+    if (u_theme > 1.5) {
+      // BEACH: bright pink/coral/yellow field -> deep rim, and a core pulled toward white but
+      // weaker, since a 75% white core on a sun-yellow field is invisible.
+      rimL = 0.06; coreL = 1.0; rimK = 0.95; coreK = 0.55;
+    } else if (u_theme > 0.5) {
+      // LIGHT: the field ramp is DARK (navy->teal->gold) over a LIGHT basemap. Invert the pair —
+      // a near-white rim separates the mark from the dark field AND from mid-tone land, and a
+      // DARK core keeps the mark readable where the field is pale.
+      rimL = 1.0; coreL = 0.05; rimK = 0.92; coreK = 0.70;
+    }
+    // DARK: unchanged (black rim / white core) — it was tuned here and is correct here.
+  }
   float rim = smoothstep(0.28, 0.46, dist);
-  vec3 rgb = mix(color.rgb, vec3(0.0), rim * 0.98);
-  
-  // 2. High-contrast bright core at the center (75% white) to make the particle pop
+  vec3 rgb = mix(color.rgb, vec3(rimL), rim * rimK);
+
   float core = smoothstep(0.18, 0.0, dist);
-  rgb = mix(rgb, vec3(1.0), core * 0.75);
+  rgb = mix(rgb, vec3(coreL), core * coreK);
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
   float alpha = v_alpha * soft * color.a;

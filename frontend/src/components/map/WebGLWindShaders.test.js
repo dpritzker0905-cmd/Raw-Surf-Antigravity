@@ -100,3 +100,53 @@ describe('WebGLWindShaders', () => {
     });
   });
 });
+
+// === THEME PARITY + LOW-WIND LEGIBILITY (2026-07-18 EVE-3) ===
+// User report: wind animations blend into their own heatmap in light/beach, and light winds carry
+// no direction cue (needed to see low-pressure systems form). Roots, both proven by inspection:
+//  (1) particle colour and field colour sample the SAME ramp at the SAME normalised speed, so they
+//      are identical BY CONSTRUCTION — only a luminance separation (rim/core) can break the tie,
+//      and the DRAW program was the one wind program never bound to u_theme;
+//  (2) that rim/core is a fraction of the sprite, and at synoptic zoom + low speed the sprite is
+//      ~2.5 px, making both sub-pixel — while the existing low-speed rescue only fired at zoom>7.
+describe('wind theme parity + low-wind legibility', () => {
+  it('DRAW_FS receives the theme (the parity gap: it never used to)', () => {
+    expect(DRAW_FS).toMatch(/uniform\s+float\s+u_theme\s*;/);
+    expect(DRAW_FS).toMatch(/uniform\s+float\s+u_theme_rim\s*;/);
+  });
+
+  it('DRAW_FS branches the rim/core on all THREE themes, not just dark', () => {
+    expect(DRAW_FS).toMatch(/u_theme\s*>\s*1\.5/);   // beach
+    expect(DRAW_FS).toMatch(/u_theme\s*>\s*0\.5/);   // light
+  });
+
+  it('LIGHT inverts the rim to a bright halo (a black rim is camouflage on the dark light-ramp)', () => {
+    // The light branch must set rimL to a HIGH luminance; dark's legacy pair stays 0.0/1.0.
+    const lightBranch = DRAW_FS.slice(DRAW_FS.indexOf('u_theme > 0.5'), DRAW_FS.indexOf('// DARK: unchanged'));
+    expect(lightBranch).toMatch(/rimL\s*=\s*1\.0/);
+    expect(lightBranch).toMatch(/coreL\s*=\s*0\.0?5/);
+  });
+
+  it('the legacy black/white pair is the kill-switch default (u_theme_rim = 0)', () => {
+    expect(DRAW_FS).toMatch(/float\s+rimL\s*=\s*0\.0\s*,\s*coreL\s*=\s*1\.0/);
+    expect(DRAW_FS).toMatch(/if\s*\(\s*u_theme_rim\s*>\s*0\.5\s*\)/);
+  });
+
+  it('DRAW_VS enforces a minimum sprite size for slow winds at ANY zoom', () => {
+    expect(DRAW_VS).toMatch(/uniform\s+float\s+u_lowwind_boost\s*;/);
+    expect(DRAW_VS).toMatch(/gl_PointSize\s*=\s*max\s*\(\s*gl_PointSize\s*,/);
+    // …and it must not be gated behind a close-zoom test the way the old rescue was.
+    const boost = DRAW_VS.slice(DRAW_VS.indexOf('u_lowwind_boost > 0.5'));
+    expect(boost).not.toMatch(/u_zoom\s*>\s*7\.0/);
+  });
+
+  it('the boost is bounded to genuinely slow, genuinely moving air', () => {
+    expect(DRAW_VS).toMatch(/v_speed\s*>=\s*0\.15\s*&&\s*v_speed\s*<\s*10\.0/);
+  });
+
+  it('shader sources stay single template literals (no stray backticks)', () => {
+    for (const src of [DRAW_VS, DRAW_FS, HEATMAP_FS, ADVECT_FS]) {
+      expect(src.includes('`')).toBe(false);
+    }
+  });
+});

@@ -485,6 +485,15 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), dataBoundsMinX, bnd.south);
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), dataBoundsMaxX, bnd.north);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_zoom'), z); // v3.13.5: close-zoom density boost
+  // THEME PARITY FIX (2026-07-18 EVE-3): the particle program was the ONE wind program that never
+  // received the theme — `u_theme` was bound to heatmapProgram only (L351), so the wind FIELD was
+  // theme-aware while the wind PARTICLES were not. Their separation rim/core were therefore tuned
+  // against dark and inverted in light mode. See DRAW_FS for the full reasoning.
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme_rim'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_THEMED_PARTICLE_RIM__ === true) ? 0.0 : 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
