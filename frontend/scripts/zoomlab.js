@@ -115,6 +115,29 @@ async function main() {
   }, null, { timeout: 90000 });
   log('waves resident committed');
 
+  // ZL_MODEL=EURO|ICON: switch the forecast model post-activation (ARBITER Phase B soak — the
+  // non-GFS ladders exercise the model_switch rule + the coarse-only-ceiling guard branches).
+  if (process.env.ZL_MODEL && process.env.ZL_MODEL !== 'GFS') {
+    const want = process.env.ZL_MODEL.trim().toUpperCase();
+    const clicked = await page.evaluate((m) => {
+      const b = Array.from(document.querySelectorAll('button')).find(
+        (x) => (x.textContent || '').trim() === m);
+      if (!b) return 'MODEL BUTTON NOT FOUND';
+      b.click(); return 'clicked';
+    }, want);
+    log(`ZL_MODEL ${want}: ${clicked}`);
+    try {
+      await page.waitForFunction((m) => {
+        const e = window.__MARINE_ENGINE__, wd = e && e._waveData;
+        return wd && wd.waveGrid && (wd.waveGrid.__sourceModel || 'GFS') === m;
+      }, want, { timeout: 60000 });
+      log(`ZL_MODEL ${want}: resident committed`);
+    } catch (e) {
+      log(`ZL_MODEL ${want}: resident WAIT TIMEOUT (continuing — trace will show the state)`);
+    }
+    await page.waitForTimeout(4000);
+  }
+
   if (scenario.endsWith('_ratingon')) {
     const rbState = await page.evaluate(() => {
       const rb = Array.from(document.querySelectorAll('button')).find((b) =>
@@ -380,6 +403,27 @@ async function main() {
     }
     fs.writeFileSync(path.join(outdir, 'alllayers_results.json'), JSON.stringify({ results, consoleErrors: consoleErrors.slice(0, 25) }, null, 1));
     log('alllayers results saved');
+  } else if (scenario === 'scrub') {
+    // SCRUB BATTERY (ARBITER Phase B soak, 2026-07-18 EVE-2): drive the forecast timeline via
+    // the ForecastWheel's KEYBOARD contract (role="slider", arrows ±1 — the a11y house pattern
+    // doubling as the test hook). Exercises hour_change commits, scrub-settle verification, and
+    // the series lanes at a settled coastal camera. Forward in bursts, settle, then Home back.
+    await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7.2 }));
+    await page.waitForTimeout(6000);
+    const wheelFocused = await page.evaluate(() => {
+      const w = document.querySelector('[role="slider"][aria-label*="Forecast timeline"]');
+      if (!w) return false;
+      w.focus(); return document.activeElement === w;
+    });
+    log('scrub wheel focused: ' + wheelFocused);
+    if (wheelFocused) {
+      for (let burst = 0; burst < 5; burst++) {
+        for (let k = 0; k < 6; k++) { await page.keyboard.press('ArrowRight'); await page.waitForTimeout(160); }
+        await page.waitForTimeout(5000);   // settle: scrub-settle verification + series commits
+      }
+      await page.keyboard.press('Home');   // jump back to now
+      await page.waitForTimeout(6000);
+    }
   } else if (scenario === 'pan_coverage') {
     // Zoom to mid-level, then drag-pan east repeatedly like a user exploring.
     await page.evaluate(() => window.map.jumpTo({ center: [-80.2, 28.33], zoom: 7 }));
