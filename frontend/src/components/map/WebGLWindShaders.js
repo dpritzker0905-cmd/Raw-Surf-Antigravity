@@ -627,7 +627,7 @@ void main() {
     float rampY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
     float baseA = 0.28; // sync with HEATMAP_FS baseAlpha (dark raised 0.20->0.28, 2026-07-19)
     if (u_theme > 1.5) { baseA = 0.45; } else if (u_theme > 0.5) { baseA = 0.35; }
-    float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, 10.0, v_speed));
+    float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, 7.0, v_speed));
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
     float fieldIsBright = step(0.179, fieldY);
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
@@ -761,7 +761,11 @@ void main() {
   } else if (u_theme > 0.5) {
     baseAlpha = 0.35;
   }
-  float alpha = u_opacity * (baseAlpha + (1.0 - baseAlpha) * smoothstep(0.0, 10.0, speed));
+  // Ramp saturates at 7 kn, not 10 (2026-07-19 night, user: light winds not visible). The field
+  // is the AREA signal for light air — at the old 10 kn ramp a 3-5 kn breeze sat at 19-27% of
+  // full alpha and read as bare basemap. 7 kn lifts 3 kn +19% and 5 kn +35%; >=7 kn unchanged.
+  // SYNC: DRAW_FS casing fieldA + windParticleContrast fieldAlpha mirror use the same 7.0.
+  float alpha = u_opacity * (baseAlpha + (1.0 - baseAlpha) * smoothstep(0.0, 7.0, speed));
   if (u_edgeFeatherEnabled > 0.5) {
     float edgeDistX = min(v_uv.x, 1.0 - v_uv.x);
     float edgeDistY = min(v_uv.y, 1.0 - v_uv.y);

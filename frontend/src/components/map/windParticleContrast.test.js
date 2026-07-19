@@ -38,7 +38,7 @@ const BASE_ALPHA = { dark: 0.28, light: 0.35, beach: 0.45 }; // dark 0.20->0.28 
 const BASEMAP_Y = { dark: 0.02, light: 0.72, beach: 0.30 };   // linear, mirrors the engine
 const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const fieldAlpha = (theme, s) =>
-  HEATMAP_OPACITY[theme] * (BASE_ALPHA[theme] + (1 - BASE_ALPHA[theme]) * smoothstep(0, 10, s));
+  HEATMAP_OPACITY[theme] * (BASE_ALPHA[theme] + (1 - BASE_ALPHA[theme]) * smoothstep(0, 7, s)); // 7kn ramp (2026-07-19): sync HEATMAP_FS + DRAW_FS
 // The luminance a mark is actually drawn against.
 const bgY = (theme, s, r, g, b) => {
   const rampY = 0.2126729 * Math.pow(r, 2.2) + 0.7151522 * Math.pow(g, 2.2) + 0.0721750 * Math.pow(b, 2.2);

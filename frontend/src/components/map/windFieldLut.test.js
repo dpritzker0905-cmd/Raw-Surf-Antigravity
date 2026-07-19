@@ -39,7 +39,9 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     expect(HEATMAP_FS).toMatch(/:\s*ramp\(t,\s*u_theme\)/);
     // the alpha contract is UNCHANGED — field transparency is a separately tuned surface that
     // the contrast gate's composite model depends on
-    expect(HEATMAP_FS).toMatch(/u_opacity\s*\*\s*\(baseAlpha\s*\+\s*\(1\.0\s*-\s*baseAlpha\)\s*\*\s*smoothstep\(0\.0,\s*10\.0,\s*speed\)\)/);
+    expect(HEATMAP_FS).toMatch(/u_opacity\s*\*\s*\(baseAlpha\s*\+\s*\(1\.0\s*-\s*baseAlpha\)\s*\*\s*smoothstep\(0\.0,\s*7\.0,\s*speed\)\)/); // 7kn ramp (2026-07-19)
+    // and the casing composite uses the SAME ramp endpoint
+    expect(require('./WebGLWindShaders').DRAW_FS).toMatch(/smoothstep\(0\.0,\s*7\.0,\s*v_speed\)/);
   });
 
   it('SPECTRAL SENSITIVITY: every theme traverses substantial hue distance across 0-21 kn', () => {

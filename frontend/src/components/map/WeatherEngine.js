@@ -33,7 +33,44 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   // hour) before committing — a scrub/model-switch during the fetch must not commit stale data.
   activeModelRef.current = activeModel;
 
+  // THE SINGLE CHOKE POINT (2026-07-19 night, after the clamp leaked through a THIRD path).
+  // Distributed coverage gates at call sites kept missing the next path (fetch, stale, warm,
+  // series, reload-restore...). The invariant now lives where every path must pass: a REGIONAL
+  // grid that does not cover the current viewport may never REPLACE a grid that does. Null
+  // (deliberate clears) and covering/world grids pass untouched.
+  const lastGoodCoveringRef = useRef(null); // the last committed grid that covered its viewport
   const commitWindData = (data) => {
+    try {
+      if (data && data.bounds && mapInstance) {
+        const b = mapInstance.getBounds();
+        const vp = { west: b.getWest(), south: Math.max(-85, b.getSouth()), east: b.getEast(), north: Math.min(85, b.getNorth()) };
+        const span = data.bounds.west > data.bounds.east
+          ? (data.bounds.east + 360.0) - data.bounds.west : data.bounds.east - data.bounds.west;
+        const eps = 0.05;
+        const covers = span >= 350.0
+          || (data.bounds.west <= vp.west + eps && data.bounds.east >= vp.east - eps
+            && data.bounds.south <= vp.south + eps && data.bounds.north >= vp.north - eps);
+        if (covers) {
+          lastGoodCoveringRef.current = data;
+        } else {
+          const lg = lastGoodCoveringRef.current;
+          const lgSpan = lg && lg.bounds ? (lg.bounds.west > lg.bounds.east
+            ? (lg.bounds.east + 360.0) - lg.bounds.west : lg.bounds.east - lg.bounds.west) : 0;
+          const lgCovers = lg && lg.bounds && (lgSpan >= 350.0
+            || (lg.bounds.west <= vp.west + eps && lg.bounds.east >= vp.east - eps
+              && lg.bounds.south <= vp.south + eps && lg.bounds.north >= vp.north - eps));
+          if (lgCovers) {
+            console.log('[WeatherEngine] commitWindData CHOKE: non-covering regional grid blocked — keeping the covering grid on screen');
+            windRevision.current += 1;
+            setWindData(lg);
+            return;
+          }
+        }
+      }
+    } catch (e) { /* the choke must never break commits */ }
+    return commitWindDataInner(data);
+  };
+  const commitWindDataInner = (data) => {
     if (data && typeof window !== 'undefined' && data.hourOffset === 0) {
       recordTruthStage('orchestratorCommit', {
         model: data.source || activeModel,
