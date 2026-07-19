@@ -447,7 +447,19 @@ async function main() {
     diverge: window.__RAW_FORENSIC__
       ? window.__RAW_FORENSIC__.dump().events.filter((e) => e.type === 'arb_shadow_diverge') : [],
   }));
-  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ scenario, zoomNow, consoleErrors: consoleErrors.slice(0, 20), arbShadow, ...trace }));
+  // PHASE C: in arbiter mode the shadow is off (it would compare the arbiter to itself), so the
+  // LIVE tally is the engagement proof + rule histogram for an `__RAW_MARINE_ARBITER__` A/B leg.
+  const arbLive = await page.evaluate(() => ({
+    mode: window.__RAW_MARINE_ARBITER__ === true && window.__RAW_DISABLE_MARINE_ARBITER__ !== true
+      ? 'arbiter' : 'guards',
+    tallies: window.__RAW_ARBITER_LIVE__ || null,
+    rejects: window.__RAW_FORENSIC__
+      ? window.__RAW_FORENSIC__.dump().events
+          .filter((e) => e.type === 'reject_downgrade' || e.type === 'reject_subcover')
+          .map((e) => ({ type: e.type, rule: e.rule, decidedBy: e.decidedBy, zoom: e.zoom })) : [],
+  }));
+  fs.writeFileSync(path.join(outdir, `trace_${scenario}.json`), JSON.stringify({ scenario, zoomNow, consoleErrors: consoleErrors.slice(0, 20), arbShadow, arbLive, ...trace }));
+  log(`arbiter: mode=${arbLive.mode} decisions=${arbLive.tallies ? arbLive.tallies.n : 0} rejects=${arbLive.tallies ? arbLive.tallies.rejects : 0} rules=${JSON.stringify(arbLive.tallies ? arbLive.tallies.byRule : {})}`);
   log(`trace saved: ${trace.frames.length} frames, final zoom ${zoomNow.toFixed(2)}`);
 
   await context.close(); // flushes video

@@ -5,7 +5,10 @@
  * runs are tuning data; these tests pin the INTENDED semantics of each rule.
  */
 import { arbiterDecide, _internal } from './marineCommitArbiter';
-import { shouldRejectResolutionDowngrade } from './WebGLMarineEngine';
+import {
+  shouldRejectResolutionDowngrade, decideMarineCommit,
+  __resetRatingGraceForTests, __resetArbiterGraceForTests,
+} from './WebGLMarineEngine';
 
 const mkGrid = (over = {}) => ({
   bounds: { west: -83, south: 26, east: -79, north: 30 },
@@ -133,5 +136,134 @@ describe('_internal geometry helpers', () => {
   });
   it('cellDegOf handles antimeridian-wrapped bounds', () => {
     expect(_internal.cellDegOf({ bounds: { west: 170, east: -170, south: 0, north: 10 }, cols: 20 })).toBeCloseTo(1.0, 5);
+  });
+});
+
+// === PHASE C — the rating-interlude GRACE, and the flip surface ===
+// The Phase B soak hit 89/89 agreement WITHOUT exercising the grace class: every non-covering
+// rated fixture in the battery was ≥15° wide, which trips the guard's wideView exemption (where
+// both sides release immediately). At a zoomed-IN NARROW viewport the guard holds and the
+// pre-fix arbiter released — proven divergence, and a straight regression of round-12 §4f.
+describe('rating-interlude grace (the divergence the Phase B soak could not see)', () => {
+  // Rated clip covering ~25% of a 2°x2° viewport at z7.5 → coverage release fires, NOT wideView.
+  const ratedSliver = () => mkGrid({ ratingMode: true, bounds: { west: -81, south: 26.5, east: -80.5, north: 28.5 } });
+  const VP_NARROW = [-81, 26.5, -79, 28.5];
+  const gs = () => ({ key: null, startedAt: 0, expired: false });
+  const ctx = (over = {}) => ({ zoom: 7.5, viewportBounds: VP_NARROW, flavorWant: true, zoomedOutMaxZoom: 6.5, ...over });
+
+  beforeEach(() => { __resetRatingGraceForTests(); window.__SURF_MODE__ = true; });
+  afterEach(() => { delete window.__SURF_MODE__; });
+
+  it('holds the rated resident inside the grace window — matching the guard', () => {
+    const state = gs();
+    expect(shouldRejectResolutionDowngrade(ratedSliver(), world(), 7.5, VP_NARROW, false, 1000)).toBe(true);
+    expect(arbiterDecide(ratedSliver(), world(), ctx({ graceState: state, nowMs: 1000 })))
+      .toEqual({ verdict: 'reject', rule: 'rated_uncovering_grace' });
+  });
+
+  it('releases once the bound expires — truth wins, stranding stays impossible BY THE BOUND', () => {
+    const state = gs();
+    arbiterDecide(ratedSliver(), world(), ctx({ graceState: state, nowMs: 1000 }));
+    expect(arbiterDecide(ratedSliver(), world(), ctx({ graceState: state, nowMs: 1000 + 4001 })))
+      .toEqual({ verdict: 'commit', rule: 'rated_uncovering_release' });
+    // …and the guard agrees at the same instant.
+    shouldRejectResolutionDowngrade(ratedSliver(), world(), 7.5, VP_NARROW, false, 1000);
+    expect(shouldRejectResolutionDowngrade(ratedSliver(), world(), 7.5, VP_NARROW, false, 1000 + 4001)).toBe(false);
+  });
+
+  it('WIDE view is exempt (2026-07-16 pt3: holding there wedged the zoom-out bridge)', () => {
+    const state = gs();
+    expect(arbiterDecide(ratedSliver(), world(),
+      ctx({ graceState: state, nowMs: 1000, viewportBounds: [-100, 10, -60, 40] })).rule)
+      .toBe('rated_uncovering_release');
+    // zoomed OUT is wide too, regardless of span
+    expect(arbiterDecide(ratedSliver(), world(), ctx({ graceState: state, nowMs: 1000, zoom: 5.0 })).rule)
+      .toBe('rated_uncovering_release');
+  });
+
+  it('a RATED incoming is untouched by the grace (rated→rated swap: no blink)', () => {
+    const state = gs();
+    expect(arbiterDecide(ratedSliver(), world({ ratingMode: true }), ctx({ graceState: state, nowMs: 1000 })).verdict)
+      .toBe('commit');
+  });
+
+  it('__RAW_DISABLE_RATING_GRACE__ parity: graceDisabled releases immediately', () => {
+    const state = gs();
+    expect(arbiterDecide(ratedSliver(), world(), ctx({ graceState: state, nowMs: 1000, graceDisabled: true })).rule)
+      .toBe('rated_uncovering_release');
+  });
+});
+
+describe('decideMarineCommit — the ONE decision point (Phase C flip surface)', () => {
+  const winBase = (over = {}) => ({ localStorage: { getItem: () => null }, ...over });
+
+  beforeEach(() => { __resetRatingGraceForTests(); __resetArbiterGraceForTests(); });
+
+  it('DEFAULT is guard mode — unchanged behavior, and it says so', () => {
+    const d = decideMarineCommit(fine(), world(), 9.3, VP_FL, winBase());
+    expect(d).toEqual({ reject: true, why: 'downgrade', rule: 'guard_downgrade', source: 'guards' });
+  });
+
+  it('__RAW_MARINE_ARBITER__ flips the source to the rule list', () => {
+    const d = decideMarineCommit(fine(), world(), 9.3, VP_FL, winBase({ __RAW_MARINE_ARBITER__: true }));
+    expect(d).toEqual({ reject: true, why: 'downgrade', rule: 'tier_downgrade', source: 'arbiter' });
+  });
+
+  it('__RAW_DISABLE_MARINE_ARBITER__ OUTRANKS the enable (the kill switch must always win)', () => {
+    const d = decideMarineCommit(fine(), world(), 9.3, VP_FL,
+      winBase({ __RAW_MARINE_ARBITER__: true, __RAW_DISABLE_MARINE_ARBITER__: true }));
+    expect(d.source).toBe('guards');
+  });
+
+  it('__RAW_DISABLE_NO_DOWNGRADE__ forces every commit through in BOTH modes', () => {
+    for (const arb of [false, true]) {
+      const d = decideMarineCommit(fine(), world(), 9.3, VP_FL,
+        winBase({ __RAW_MARINE_ARBITER__: arb, __RAW_DISABLE_NO_DOWNGRADE__: true }));
+      expect(d.reject).toBe(false);
+    }
+  });
+
+  it('subcover keeps its legacy `why` vocabulary across the flip (telemetry/zoomlab parse it)', () => {
+    const d = decideMarineCommit(world(), fine(), 3.0, [-120, -30, 0, 40],
+      winBase({ __RAW_MARINE_ARBITER__: true }));
+    expect(d).toEqual({ reject: true, why: 'subcover', rule: 'subcover_at_wide', source: 'arbiter' });
+  });
+
+  it('null resident never rejects (empty resident commits anything renderable)', () => {
+    for (const arb of [false, true]) {
+      expect(decideMarineCommit(null, fine(), 9.3, VP_FL, winBase({ __RAW_MARINE_ARBITER__: arb })).reject)
+        .toBe(false);
+    }
+  });
+
+  // THE STRUCTURAL INVARIANT. The choke and the render-loop self-heal both call this function; if
+  // they could ever disagree, a rejected grid would be stashed and then insta-accepted next frame —
+  // a permanent commit⇄stash bounce. Same inputs must give the same verdict in either mode.
+  it('MIRROR INVARIANT: the same inputs decide identically for the choke and the self-heal', () => {
+    const cases = [
+      [fine(), world(), 9.3, VP_FL],
+      [world(), fine(), 3.0, [-120, -30, 0, 40]],
+      [fine(), world(), 9.3, VP_PACIFIC],
+      [fine({ ratingMode: true }), world(), 7.5, [-81, 26.5, -79, 28.5]],
+      [world(), fine(), 9.3, VP_FL],
+      [fine(), world({ __sourceModel: 'EURO' }), 9.3, VP_FL],
+      [fine(), world({ hourOffset: 3 }), 9.3, VP_FL],
+      [fine(), world(), undefined, undefined],
+    ];
+    for (const arb of [false, true]) {
+      const w = winBase({ __RAW_MARINE_ARBITER__: arb });
+      for (const [res, inc, z, vb] of cases) {
+        const atChoke = decideMarineCommit(res, inc, z, vb, w, 5000);
+        const atSelfHeal = decideMarineCommit(res, inc, z, vb, w, 5000);
+        expect(atSelfHeal.reject).toBe(atChoke.reject);
+      }
+    }
+  });
+
+  it('unknown zoom AND viewport fails OPEN in both modes (a wrong reject strands — 07-03)', () => {
+    for (const arb of [false, true]) {
+      expect(decideMarineCommit(fine(), world(), undefined, undefined,
+        winBase({ __RAW_MARINE_ARBITER__: arb })).reject).toBe(false);
+    }
   });
 });

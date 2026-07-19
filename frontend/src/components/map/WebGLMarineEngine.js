@@ -703,28 +703,36 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
   // particle FBO and re-orients the direction field (the spin). Hour/coverage-scoped + directional, so coarse→
   // regional sharpen, a scrub to a new hour, a pan off the tile, and zoom-out all pass through untouched. Kill:
   // window.__RAW_DISABLE_NO_DOWNGRADE__. Telemetry: window.__MARINE_NO_DOWNGRADE__.count.
-  const _ndDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__;
-  const _rejDowngrade = !!(this._waveData && this._waveData.waveGrid &&
-      shouldRejectResolutionDowngrade(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds, _ndDisabled));
   // SUB-COVERING REGIONAL over a covering coarse-global at wide view (see
   // shouldRejectSubcoveringRegional): same choke point, same self-heal stash — the gate would hide
   // it (mult 0) and the bridge would bounce the world grid back, so the commit is pure churn.
-  const _rejSubcover = !_rejDowngrade && !!(this._waveData && this._waveData.waveGrid &&
-      shouldRejectSubcoveringRegional(this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds, _ndDisabled,
-        typeof window !== 'undefined' ? window : undefined));
+  // ARBITER PHASE C: both guards now resolve through the ONE decision point (decideMarineCommit),
+  // which the self-heal loop shares — see its header for why an inline `if` here would bounce.
+  const _decision = decideMarineCommit(
+    this._waveData && this._waveData.waveGrid, waveGrid, this._lastZoom, this._lastViewportBounds,
+    typeof window !== 'undefined' ? window : undefined);
+  const _rejDowngrade = _decision.reject && _decision.why === 'downgrade';
+  const _rejSubcover = _decision.reject && _decision.why === 'subcover';
   // ARBITER PHASE B SHADOW (2026-07-18 EVE-2; DESIGN-2026-07-18-marine-commit-arbiter.md):
   // arbiterDecide runs on every commit attempt at this choke and its verdict is COMPARED against
   // the real guards' outcome — it decides NOTHING. Agreement counts in
   // window.__RAW_ARBITER_SHADOW__ {n, agree, disagree, byRule}; divergences ring-log as
   // 'arb_shadow_diverge' with both verdicts + the descriptor. Divergence is DATA (a rule to tune
   // or a guard nuance proven load-bearing), not an error. Kill: __RAW_DISABLE_ARBITER_SHADOW__.
+  // PHASE C: in arbiter mode the shadow would compare the arbiter against itself (100% agreement,
+  // zero information) — it only means anything while the GUARDS are deciding.
   try {
-    if (typeof window !== 'undefined' && window.__RAW_DISABLE_ARBITER_SHADOW__ !== true) {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_ARBITER_SHADOW__ !== true
+        && _decision.source === 'guards') {
       const _shadow = arbiterDecide(
         this._waveData && this._waveData.waveGrid, waveGrid,
         { zoom: this._lastZoom, viewportBounds: this._lastViewportBounds,
           flavorWant: window.__SURF_MODE__ === true,
-          zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM });
+          zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
+          // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
+          // it re-reports the (now-fixed) rating-grace class as a divergence forever.
+          graceState: _arbiterGraceState,
+          graceDisabled: window.__RAW_DISABLE_RATING_GRACE__ === true });
       const _actualReject = _rejDowngrade || _rejSubcover;
       const _wouldReject = _shadow.verdict === 'reject';
       const s = window.__RAW_ARBITER_SHADOW__
@@ -762,6 +770,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
       layer: waveGrid.__componentLayer || 'waves', hour: waveGrid.hourOffset,
       zoom: (typeof this._lastZoom === 'number') ? +this._lastZoom.toFixed(2) : null,
       incomingRating: !!waveGrid.ratingMode, residentRating: !!_res.ratingMode,
+      rule: _decision.rule, decidedBy: _decision.source,
     });
     // SELF-HEAL STASH (2026-07-03): a rejected grid must never be lost — the commit path records its
     // signature, so it will NEVER be re-committed (dup-skip) and a wrong rejection (stale _lastZoom)
@@ -1185,12 +1194,12 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const _residentBeforeSwaps = this._waveData && this._waveData.waveGrid;
     if (this._pendingDowngrade) {
       const _pd = this._pendingDowngrade;
-      const _pdDisabled = typeof window !== 'undefined' && !!window.__RAW_DISABLE_NO_DOWNGRADE__;
       // COMBINED predicate — must mirror the setWaveData choke point exactly, or a grid stashed by
-      // the subcover clause would insta-accept here and bounce anyway.
-      if (!shouldRejectResolutionDowngrade(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled) &&
-          !shouldRejectSubcoveringRegional(this._waveData && this._waveData.waveGrid, _pd, z, vb, _pdDisabled,
-            typeof window !== 'undefined' ? window : undefined)) {
+      // the subcover clause would insta-accept here and bounce anyway. ARBITER PHASE C: both sites
+      // now call the SAME decision function, so "mirror" is structural rather than maintained by
+      // hand — and the mirror holds in guard mode and arbiter mode alike.
+      if (!decideMarineCommit(this._waveData && this._waveData.waveGrid, _pd, z, vb,
+            typeof window !== 'undefined' ? window : undefined).reject) {
         this._pendingDowngrade = null;
         if (typeof window !== 'undefined') {
           const nd = window.__MARINE_NO_DOWNGRADE__ || (window.__MARINE_NO_DOWNGRADE__ = { count: 0 });
@@ -3252,6 +3261,84 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   const frac = (ix * iy) / vpA;
   const minFrac = (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || 0.6;
   return frac < minFrac;
+}
+
+// === ARBITER PHASE C — THE ONE COMMIT DECISION POINT (2026-07-18 EVE-3) ===
+// Design: DESIGN-2026-07-18-marine-commit-arbiter.md §5. Phases A/B gave every commit a descriptor
+// and ran `arbiterDecide` in shadow to 89/89 agreement; this is the flip surface.
+//
+// WHY A SHARED FUNCTION AND NOT AN `if` AT THE CHOKE: the accept/reject verdict is computed in TWO
+// places that MUST agree exactly — the `setWaveData` choke and the `_pendingDowngrade` self-heal
+// re-evaluation in the render loop (which carries the standing comment "must mirror the setWaveData
+// choke point exactly, or a grid stashed by the subcover clause would insta-accept here and bounce
+// anyway"). Flipping only the choke would have the ARBITER reject and the GUARDS insta-accept the
+// stash on the very next frame: a permanent commit⇄stash bounce at frame rate — a worse shape than
+// the ping-pong the guards were built to kill. Routing BOTH call sites through this one function
+// makes that divergence structurally impossible, in either mode.
+//
+// MODE: guards (default, byte-identical to pre-flip) → `__RAW_MARINE_ARBITER__ = true` routes the
+// verdict through the arbiter rule list. Kill: `__RAW_DISABLE_MARINE_ARBITER__ = true` restores the
+// guard chain wholesale and outranks the enable (both paths ship for one release, per design §5).
+// The self-heal stash, its every-frame re-evaluation, and the rating-interlude grace all survive
+// the flip unchanged in SHAPE — the grace is a named arbiter rule (`rated_uncovering_grace`), not a
+// dropped nuance: releasing instantly there re-opens round-12 §4f (see marineCommitArbiter.js).
+// Returns { reject, why: 'downgrade'|'subcover'|null, rule, source }.
+const _arbiterGraceState = { key: null, startedAt: 0, expired: false };
+export function __resetArbiterGraceForTests() {
+  _arbiterGraceState.key = null; _arbiterGraceState.startedAt = 0; _arbiterGraceState.expired = false;
+}
+export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds, win, nowMs) {
+  const w = win || (typeof window !== 'undefined' ? window : undefined);
+  const disabled = !!(w && w.__RAW_DISABLE_NO_DOWNGRADE__);
+  const arbiterOn = !!(w && w.__RAW_MARINE_ARBITER__ === true && w.__RAW_DISABLE_MARINE_ARBITER__ !== true);
+
+  if (!arbiterOn) {
+    if (resident && incoming) {
+      if (shouldRejectResolutionDowngrade(resident, incoming, lastZoom, viewportBounds, disabled, nowMs)) {
+        return { reject: true, why: 'downgrade', rule: 'guard_downgrade', source: 'guards' };
+      }
+      if (shouldRejectSubcoveringRegional(resident, incoming, lastZoom, viewportBounds, disabled, w)) {
+        return { reject: true, why: 'subcover', rule: 'guard_subcover', source: 'guards' };
+      }
+    }
+    return { reject: false, why: null, rule: 'guard_pass', source: 'guards' };
+  }
+
+  // Arbiter mode. The whole-guard kill switch must keep killing the whole decision (operators reach
+  // for __RAW_DISABLE_NO_DOWNGRADE__ to force every commit through, in either mode).
+  if (disabled) return { reject: false, why: null, rule: 'no_downgrade_disabled', source: 'arbiter' };
+  const d = arbiterDecide(resident, incoming, {
+    zoom: lastZoom,
+    viewportBounds,
+    flavorWant: !!(w && (w.__SURF_MODE__ === true
+      || (w.__SURF_MODE__ === undefined && w.localStorage
+          && w.localStorage.getItem('__SURF_MODE__') === 'true'))),
+    zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
+    coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
+    graceState: _arbiterGraceState,
+    graceDisabled: !!(w && w.__RAW_DISABLE_RATING_GRACE__ === true),
+    graceMs: (w && typeof w.__RAW_RATING_GRACE_MS__ === 'number') ? w.__RAW_RATING_GRACE_MS__ : undefined,
+    nowMs,
+  });
+  const reject = d.verdict === 'reject';
+  // ENGAGEMENT PROOF (the A/B's positive control): a flip that silently fell back to the guards
+  // would produce an identical-looking green battery. This tally is how a run proves the arbiter
+  // actually decided, and the rule histogram is the decision log the design asked for.
+  if (w) {
+    const t = w.__RAW_ARBITER_LIVE__ || (w.__RAW_ARBITER_LIVE__ = { n: 0, rejects: 0, byRule: {} });
+    t.n++;
+    if (reject) t.rejects++;
+    t.byRule[d.rule] = (t.byRule[d.rule] || 0) + 1;
+    t.last = { rule: d.rule, verdict: d.verdict };
+  }
+  // `why` keeps the legacy telemetry/log vocabulary stable across the flip (dashboards + the
+  // zoomlab verdict parser key off 'downgrade'/'subcover').
+  return {
+    reject,
+    why: reject ? (d.rule === 'subcover_at_wide' ? 'subcover' : 'downgrade') : null,
+    rule: d.rule,
+    source: 'arbiter',
+  };
 }
 
 WebGLMarineEngine.prototype.bridgeToCoarseGlobalIfHeld = function(gl) {

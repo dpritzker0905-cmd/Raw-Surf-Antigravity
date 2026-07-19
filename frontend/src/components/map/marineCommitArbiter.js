@@ -43,7 +43,10 @@ function coverageFrac(grid, viewportBounds) {
 
 /**
  * Decide whether `incoming` should replace `resident`.
- * ctx: { zoom, viewportBounds:[w,s,e,n], flavorWant, zoomedOutMaxZoom?, coverFrac? }
+ * ctx: { zoom, viewportBounds:[w,s,e,n], flavorWant, zoomedOutMaxZoom?, coverFrac?,
+ *        graceState?, nowMs?, graceMs?, graceDisabled? }
+ * `graceState` is a caller-owned mutable {key,startedAt,expired} — the rating-interlude bound.
+ * The module stays window-free: every input (including time) arrives via arguments.
  * Returns { verdict: 'commit'|'reject', rule }.
  */
 export function arbiterDecide(resident, incoming, ctx = {}) {
@@ -76,10 +79,41 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
     if (iRated && !rRated) return { verdict: 'commit', rule: 'flavor_upgrade' };
     if (!iRated && rRated) {
       // A rated resident that no longer covers the viewport must still release (stranding is
-      // worse than a band blink) — the guards express this as coverage+grace; the ideal rule
-      // releases on coverage alone.
+      // worse than a band blink) — but NOT instantly. PHASE C PRE-FLIP FIX (2026-07-18 EVE-3):
+      // the Phase B soak reached 89/89 agreement WITHOUT ever exercising this class at a
+      // zoomed-IN narrow viewport, because every non-covering fixture in the battery was ≥15°
+      // wide — which trips the guard's wideView exemption, where guard and arbiter agree on an
+      // immediate release. Unit-proven divergence (`marineCommitArbiter.test.js`, "rating-grace"):
+      // guard=HOLD, arbiter=commit. Releasing instantly here re-opens round-12 §4f ("heatmap +
+      // animations clear between zooms with the rating band ON"): the incoming that wins the
+      // release is the UNRATED global, so ratingMode drops and the whole band blinks out until
+      // the wider rated clip lands. Mirror the guard: a BOUNDED grace hold (the stash re-offers
+      // every frame, so a rated incoming lands first with no blink, and expiry releases truth —
+      // the stranded-rectangle class stays impossible BY THE BOUND, never by coverage).
+      // WIDE-VIEW EXEMPTION (2026-07-16 pt3): at a wide viewport the display gate has ALREADY
+      // hidden this non-covering rated resident, so there is no band left to protect — and
+      // holding there WEDGED the zoom-out bridge promotion for the full grace window. Release
+      // immediately, matching the guard.
       const frac = coverageFrac(resident, ctx.viewportBounds);
-      if (frac !== null && frac < minCover) return { verdict: 'commit', rule: 'rated_uncovering_release' };
+      if (frac !== null && frac < minCover) {
+        const vb = ctx.viewportBounds;
+        const wideView = (typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
+          || (Array.isArray(vb) && vb.length >= 4
+              && ((vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0));
+        const gs = ctx.graceState;
+        if (!wideView && gs && ctx.graceDisabled !== true) {
+          const graceMs = (typeof ctx.graceMs === 'number') ? ctx.graceMs : 4000;
+          const t = (typeof ctx.nowMs === 'number') ? ctx.nowMs : Date.now();
+          const rb = resident.bounds;
+          const key = `${resident.__sourceModel || 'GFS'}|${resident.__componentLayer || 'waves'}`
+            + `|${resident.hourOffset}|${rb ? [rb.west, rb.south, rb.east, rb.north].join(',') : 'nb'}`;
+          if (gs.key !== key) { gs.key = key; gs.startedAt = t; gs.expired = false; }
+          if (t - gs.startedAt < graceMs) return { verdict: 'reject', rule: 'rated_uncovering_grace' };
+          gs.expired = true;
+          // expired → fall through to the release (bounded, self-healing).
+        }
+        return { verdict: 'commit', rule: 'rated_uncovering_release' };
+      }
       return { verdict: 'reject', rule: 'flavor_downgrade' };
     }
   } else if (rRated && !iRated) {
