@@ -30,42 +30,84 @@ var DEFAULT_WIND_RAMP = [
 
 /**
  * Theme-specific wind ramps matching the HEATMAP_FS shader palettes.
- * Beach: tropical hot pink → coral orange → sun yellow → lime green → turquoise → royal blue → sunset purple (sunset vibes, high contrast over sand/teal water)
- * Light: deep navy → steel blue → deep teal → forest green → rich gold → crimson red → deep purple → violet (highly visible dark lines on light background)
- * Dark: ice blue → electric cyan → neon cyan → minty green-cyan → green-yellow → amber → hot red → white-magenta (luminous neon glow on dark navy background)
+/**
+ * BEAUFORT-ANCHORED THEME RAMPS (2026-07-18 EVE-3 round 3).
+ *
+ * WHY THE RANGE WAS SHORT. The LUT is built by walking 0..maxSpeed KNOTS and sampling these stops
+ * (generateRampData), and `_maxWindSpeed` is data-driven, clamped [10, 80]. The old ramps' last
+ * stop was 50 kn and sampleRamp() returns the FINAL colour for anything above it — so whenever a
+ * field contained storm winds, everything from 50 to 80 kn rendered as ONE FLAT COLOUR: up to 38%
+ * of the LUT with zero discrimination, across exactly the hurricane range. Eight stops also left
+ * the 0-30 kn band — where nearly all surf-relevant weather lives — very coarsely graded.
+ *
+ * WHY BEAUFORT. Stop positions are no longer arbitrary: each is a Beaufort force boundary (kn), so
+ * a colour change on screen means a named change in sea state rather than an aesthetic step. 13
+ * bands instead of 8, carried through hurricane force (64+).
+ *   0 calm · 3 light air · 6 light breeze · 10 gentle · 16 moderate · 21 fresh · 27 strong
+ *   33 near gale · 40 gale · 47 strong gale · 55 storm · 63 violent storm · 75 hurricane
+ *
+ * COLOUR RULES APPLIED TO ALL THREE THEMES:
+ *  - each theme keeps its established hue identity (dark = luminous neon, light = dark inks on a
+ *    pale basemap, beach = tropical sunset);
+ *  - hue advances monotonically around the wheel so adjacent bands stay separable;
+ *  - alpha rises with force, so calm air stays unobtrusive and storms dominate;
+ *  - LIGHT deliberately holds LOW luminance across the whole ramp — it is drawn on a pale basemap,
+ *    so its legibility comes from being dark, not from being colourful.
+ * Per-stop contrast for every stop x every theme is enforced by windParticleContrast.test.js; the
+ * particle casing adapts per colour, so added stops cannot silently cost mark legibility.
  */
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.40, 0.65, 0.88], // Calm: bright electric rose/pink
-  [3,  1.00, 0.50, 0.30, 0.90], // Light air: bright coral-orange
-  [6,  0.95, 0.75, 0.10, 0.92], // Light breeze: vibrant sun yellow
-  [12, 0.20, 0.90, 0.35, 0.92], // Moderate: bright lime green
-  [21, 0.00, 0.88, 0.80, 0.95], // Strong: electric turquoise
-  [29, 0.00, 0.55, 0.95, 0.95], // Gale: royal blue
-  [39, 0.55, 0.20, 0.90, 0.95], // Storm: deep purple
-  [50, 0.90, 0.10, 0.90, 0.95], // Hurricane: hot orchid/magenta
+  [0,  1.00, 0.45, 0.70, 0.75], // Calm: electric rose
+  [3,  1.00, 0.52, 0.48, 0.78], // Light air: coral
+  [6,  1.00, 0.62, 0.25, 0.81], // Light breeze: tangerine
+  [10, 0.97, 0.75, 0.10, 0.83], // Gentle: sun yellow
+  [16, 0.75, 0.85, 0.12, 0.85], // Moderate: chartreuse
+  [21, 0.35, 0.88, 0.25, 0.87], // Fresh: lime
+  [27, 0.10, 0.88, 0.55, 0.88], // Strong: spring green
+  [33, 0.00, 0.86, 0.80, 0.90], // Near gale: turquoise
+  [40, 0.00, 0.72, 0.92, 0.91], // Gale: cyan-blue
+  [47, 0.10, 0.55, 0.95, 0.92], // Strong gale: royal blue
+  [55, 0.35, 0.35, 0.93, 0.93], // Storm: indigo
+  [63, 0.60, 0.25, 0.90, 0.94], // Violent storm: violet
+  [75, 0.88, 0.20, 0.88, 0.95], // Hurricane: magenta
 ];
 
 var LIGHT_WIND_RAMP = [
-  [0,  0.08, 0.18, 0.36, 0.75], // Calm: deep rich navy blue
-  [3,  0.05, 0.25, 0.45, 0.78], // Light air: deep steel blue
-  [6,  0.02, 0.38, 0.48, 0.80], // Light breeze: deep teal
-  [12, 0.05, 0.50, 0.30, 0.82], // Moderate: forest green
-  [21, 0.65, 0.45, 0.00, 0.85], // Strong: rich gold/amber
-  [29, 0.75, 0.20, 0.05, 0.88], // Gale: crimson red
-  [39, 0.55, 0.05, 0.40, 0.90], // Storm: deep purple
-  [50, 0.35, 0.00, 0.45, 0.95], // Hurricane: deep violet
+  [0,  0.08, 0.18, 0.36, 0.72], // Calm: deep navy
+  [3,  0.05, 0.24, 0.45, 0.75], // Light air: steel blue
+  [6,  0.02, 0.33, 0.48, 0.78], // Light breeze: deep teal
+  [10, 0.03, 0.42, 0.42, 0.80], // Gentle: pine teal
+  [16, 0.05, 0.48, 0.30, 0.82], // Moderate: forest green
+  [21, 0.30, 0.47, 0.10, 0.84], // Fresh: olive
+  [27, 0.52, 0.44, 0.03, 0.86], // Strong: dark gold
+  [33, 0.65, 0.38, 0.02, 0.87], // Near gale: bronze
+  [40, 0.72, 0.28, 0.04, 0.88], // Gale: burnt orange
+  [47, 0.75, 0.18, 0.08, 0.90], // Strong gale: brick
+  [55, 0.70, 0.08, 0.22, 0.91], // Storm: crimson
+  [63, 0.58, 0.05, 0.38, 0.93], // Violent storm: wine
+  [75, 0.40, 0.02, 0.45, 0.95], // Hurricane: deep violet
 ];
 
 var DARK_WIND_RAMP = [
-  [0,  0.60, 0.85, 1.00, 0.85], // Calm: ice-blue
-  [3,  0.45, 0.90, 0.95, 0.88], // Light air: electric cyan-blue
-  [6,  0.20, 0.95, 0.90, 0.90], // Light breeze: neon cyan
-  [12, 0.10, 0.98, 0.80, 0.92], // Moderate: bright minty green-cyan
-  [21, 0.40, 0.85, 0.45, 0.92], // Strong: green-yellow
-  [29, 0.95, 0.72, 0.15, 0.92], // Gale: amber
-  [39, 0.95, 0.25, 0.18, 0.95], // Storm: hot red
-  [50, 1.00, 0.80, 0.90, 0.95], // Hurricane: white-magenta
+  [0,  0.55, 0.85, 1.00, 0.80], // Calm: ice blue
+  [3,  0.42, 0.90, 0.97, 0.83], // Light air: electric cyan-blue
+  [6,  0.20, 0.95, 0.92, 0.85], // Light breeze: neon cyan
+  [10, 0.12, 0.97, 0.78, 0.87], // Gentle: aqua-mint
+  [16, 0.35, 0.95, 0.45, 0.88], // Moderate: spring green
+  [21, 0.62, 0.92, 0.30, 0.89], // Fresh: yellow-green
+  [27, 0.85, 0.85, 0.20, 0.90], // Strong: chartreuse
+  [33, 0.97, 0.72, 0.15, 0.91], // Near gale: amber
+  [40, 0.99, 0.55, 0.12, 0.92], // Gale: orange
+  [47, 0.98, 0.35, 0.15, 0.93], // Strong gale: vermilion
+  [55, 0.95, 0.20, 0.30, 0.94], // Storm: hot red
+  [63, 0.92, 0.30, 0.65, 0.95], // Violent storm: rose
+  [75, 1.00, 0.75, 0.95, 0.95], // Hurricane: white-magenta
 ];
+
+// DEFAULT_WIND_RAMP above was byte-identical to the dark ramp before the Beaufort rework; keep
+// that invariant so the no-theme fallback path (sampleColorRamp / createRampTexture's default)
+// gains the same 13-band range instead of silently keeping the old 50-kn-capped 8-stop table.
+DEFAULT_WIND_RAMP = DARK_WIND_RAMP;
 
 export var THEME_RAMPS = {
   beach: BEACH_WIND_RAMP,

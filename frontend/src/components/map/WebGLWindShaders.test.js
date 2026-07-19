@@ -125,7 +125,12 @@ describe('wind theme parity + low-wind legibility', () => {
   it('the rim adapts to the LOCAL field luminance rather than branching per theme', () => {
     expect(DRAW_FS).toMatch(/fieldY\s*=\s*dot\(/);
     expect(DRAW_FS).toMatch(/0\.2126729,\s*0\.7151522,\s*0\.0721750/);   // APCA coefficients
-    expect(DRAW_FS).toMatch(/step\(0\.36,\s*fieldY\)/);
+    // The pole must be chosen on LINEAR luminance at 0.179 — the exact point where
+    // contrast-to-white equals contrast-to-black, so it is the optimum rather than a taste call.
+    // Two earlier gamma-space thresholds (0.36, then 0.45) each mis-chose the pole at some
+    // mid-luminance stop; the optimality assertion in windParticleContrast.test.js caught both.
+    expect(DRAW_FS).toMatch(/pow\(color\.rgb,\s*vec3\(2\.2\)\)/);
+    expect(DRAW_FS).toMatch(/step\(0\.179,\s*fieldY\)/);
   });
 
   it('it is a DUAL-TONE casing — opposite poles give the mark a field-independent edge', () => {

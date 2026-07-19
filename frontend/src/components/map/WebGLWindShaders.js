@@ -429,8 +429,14 @@ void main() {
   // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
   vec3 rgb = color.rgb;
   if (u_theme_rim > 0.5) {
-    float fieldY = dot(color.rgb, vec3(0.2126729, 0.7151522, 0.0721750));
-    float fieldIsBright = step(0.36, fieldY);
+    // The pole choice must be made on LINEAR luminance: contrast-to-white equals contrast-to-black
+    // at linear Y = 0.179 exactly, so that threshold IS the optimum rather than a taste call.
+    // Thresholding the GAMMA-encoded value instead (first 0.36, then 0.45) mis-chose the pole at
+    // mid-luminance stops — the contract test caught both rounds. pow(2.2) approximates the sRGB
+    // EOTF closely enough that no ramp stop sits within a flip of the boundary.
+    vec3 fieldLin = pow(color.rgb, vec3(2.2));
+    float fieldY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
+    float fieldIsBright = step(0.179, fieldY);
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
     float innerL = 1.0 - outerL;                   // opposes the outer ring
     float outer = smoothstep(0.38, 0.50, dist);

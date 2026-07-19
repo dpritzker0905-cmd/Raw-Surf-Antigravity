@@ -29,8 +29,10 @@ const mix1 = (a, b, t) => a + (b - a) * t;
 // JS mirror of the DRAW_FS dual-tone casing. Kept deliberately literal so a shader edit that
 // changes the poles/orientation shows up here as a number, not as a silent visual regression.
 function casing(r, g, b) {
-  const fieldY = Y(r, g, b);
-  const fieldIsBright = fieldY >= 0.36 ? 1 : 0;
+  // Mirrors the shader exactly: pole chosen on LINEAR luminance at the 0.179 optimum, via the
+  // same pow(2.2) approximation of the sRGB EOTF the shader uses.
+  const fieldY = 0.2126729 * Math.pow(r, 2.2) + 0.7151522 * Math.pow(g, 2.2) + 0.0721750 * Math.pow(b, 2.2);
+  const fieldIsBright = fieldY >= 0.179 ? 1 : 0;
   const outerL = mix1(1.0, 0.0, fieldIsBright);
   const innerL = 1.0 - outerL;
   const outer = [0, 1, 2].map((i) => mix1([r, g, b][i], outerL, 0.98));
@@ -87,18 +89,27 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     expect(casing(lightStop[1], lightStop[2], lightStop[3]).outer[0]).toBeGreaterThan(0.9);
   });
 
-  it('light-mode mid-band (the reported failure) is materially better than the old fixed rim', () => {
-    // Old behaviour: a single near-white rim, mix(color, 1.0, 0.92).
-    const stop = THEME_RAMPS.light.find((s) => s[0] === 21);
-    const [, r, g, b] = stop;
-    const oldRim = [0, 1, 2].map((i) => mix1([r, g, b][i], 1.0, 0.92));
-    const oldC = ratio(Ylin(r, g, b), Ylin(...oldRim));
-    const { outer } = casing(r, g, b);
-    const newC = ratio(Ylin(r, g, b), Ylin(...outer));
+  it('the casing picks the BETTER pole at every stop (never worse than a fixed rim)', () => {
+    // The original form of this test pinned the OLD ramp's 21 kn gold at 3.78:1. That colour no
+    // longer exists — the Beaufort rework replaced it — so pinning one stop is brittle. The
+    // durable property is the one that made the casing worth adopting: choosing the pole from the
+    // local luminance must never do WORSE than committing to a single fixed pole. (This is what
+    // caught the mis-set 0.36 threshold: at the new 21 kn olive, Y=0.40, it chose the dark pole
+    // for 3.96:1 where the light pole gave 4.72:1.)
+    const worse = [];
+    for (const theme of THEMES) {
+      for (const [kn, r, g, b] of THEME_RAMPS[theme]) {
+        const { outer } = casing(r, g, b);
+        const chosen = ratio(Ylin(r, g, b), Ylin(...outer));
+        const toWhite = ratio(Ylin(r, g, b), Ylin(...[0, 1, 2].map((i) => mix1([r, g, b][i], 1.0, 0.98))));
+        const toBlack = ratio(Ylin(r, g, b), Ylin(...[0, 1, 2].map((i) => mix1([r, g, b][i], 0.0, 0.98))));
+        const best = Math.max(toWhite, toBlack);
+        if (chosen < best - 0.05) worse.push(`${theme}@${kn}kn chose ${chosen.toFixed(2)} over ${best.toFixed(2)}`);
+      }
+    }
     // eslint-disable-next-line no-console
-    console.log(`light@21kn: fixed-rim ${oldC.toFixed(2)}:1 -> casing ${newC.toFixed(2)}:1`);
-    expect(oldC).toBeLessThan(4.0);          // documents the failure that was reported
-    expect(newC).toBeGreaterThan(oldC);
+    if (worse.length) console.log('sub-optimal pole choices:', worse.join(' | '));
+    expect(worse).toEqual([]);
   });
 
   it('the shader implements the casing the maths above models', () => {
