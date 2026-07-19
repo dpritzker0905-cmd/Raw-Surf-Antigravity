@@ -124,6 +124,16 @@ ZL_SURF=1 boots the rating flag; traces persist arbShadow tallies + diverge even
 GATE REMAINING: EURO/ICON model legs (add a ZL_MODEL hook) + a scrub-heavy scenario, then the
 kill-switched flip with the guard chain retained one release (design §5).
 
+## 3f. ⚡ EVE-2 ROUND 6 — PHASE C GATE MET: 89/89, ZERO DIVERGENCES, 7 CLASSES (`2af79f30`)
+Soak complete: staircase 12/12 · pan 13/13 · layers 9/9 · rated staircase 11/11 · scrub 20/20
+(new scenario — the ForecastWheel KEYBOARD contract as the test hook, hour_change ×11) · EURO
+ladder 12/12 · ICON ladder 12/12 (new ZL_MODEL hook; a model switch lands as empty_resident —
+teardown clears the engine first). Every verdict PASS 0 findings. 91 lifetime shadow decisions,
+100% post-tune agreement. **NEXT ARC = PHASE C FLIP** (fresh context): arbiterDecide replaces
+the ENGINE-choke guards, kill-switched, guard chain retained one release — and NOTE the
+commitMarineData-side guards (dedup / commit short-circuit) are NOT yet shadowed: either shadow
+them first or scope the flip to the engine choke only. Design §5 has the plan.
+
 ## 4. QUEUE (post-EVE-2)
 1. **Commit ARBITER** (structural #1) — **DESIGN WRITTEN**: `DESIGN-2026-07-18-marine-commit-arbiter.md`
    (10-lane inventory from this session's rings, guard inventory, one-decision-point design,
@@ -147,6 +157,7 @@ kill-switched flip with the guard chain retained one release (design §5).
   server before debugging the probe.
 - PowerShell `Select-Object -First N` on a live pipeline still kills the upstream process — write
   to a file, then read (re-learned).
+
 
 
 
