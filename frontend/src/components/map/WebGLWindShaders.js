@@ -164,7 +164,15 @@ void main() {
   float sCss = max(sBase, sFloor);
   // I0 = the ink level the legacy rule already produces at mid speed (~11 kn, sprite 3.4 px),
   // so the two rules agree exactly at the calibration point rather than by taste.
-  float inkFlatDrop = (sCss * sCss) / 130.0;
+  // DASH-TRUE INK (2026-07-19 night, user: "lighter winds were easier to see before"). The
+  // square estimate over-charged the dash by its elongation factor (~2-2.6x at light winds), so
+  // 1-8 kn marks were recycled ~2x faster than the pre-arc tuning — fewer simultaneous marks =
+  // the visible GAPS in light air. Charging the dash's true area (square / elong, the same curve
+  // DRAW_FS narrows by) returns light-wind lifetimes to the legacy pace the never-hoard max()
+  // already enforces above ~4 kn. (With the dash killed the mark is round and this is slightly
+  // generous — documented, bounded by the calm lifetime floor.)
+  float dashElong = mix(1.8, 2.6, smoothstep(10.0, 0.5, speed));
+  float inkFlatDrop = (sCss * sCss) / dashElong / 130.0;
   float dropRate = mix(legacyDrop, max(legacyDrop, inkFlatDrop), u_density_uniform);
   // CALM LIFETIME FLOOR (2026-07-19, the dead-zone report's second half). The flat-ink rule
   // recycles floored calm marks after ~15 frames (0.26 s) — calm PATCHES inside a circulation

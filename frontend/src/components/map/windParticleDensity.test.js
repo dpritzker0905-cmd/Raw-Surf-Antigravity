@@ -41,12 +41,16 @@ const sizeCss = (s) => {
 };
 // Calm lifetime floor (2026-07-19): below 4.75 kn lifetime >= 25 frames — a bounded ink premium
 // where calm patches otherwise flicker (the dead-zone report). never-hoard holds via the max.
+// Dash-true ink (2026-07-19 night): the budget charges square/elong — the dash's real area —
+// restoring light-wind lifetimes to the legacy pace (the square over-charged 1-8 kn by ~2x,
+// which read as GAPS in light air).
+const elong = (s) => smoothstep(10.0, 0.5, s) * (2.6 - 1.8) + 1.8;
 const shippedDrop = (s) => {
-  let d = Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / I0);
+  let d = Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / elong(s) / I0);
   if (s < 4.75) d = Math.max(legacyDrop(s), Math.min(d, 0.04));
   return d;
 };
-const ink = (s, drop) => (sizeCss(s) * sizeCss(s)) / drop(s);
+const ink = (s, drop) => (sizeCss(s) * sizeCss(s)) / elong(s) / drop(s);
 
 describe('wind particle ink budget', () => {
   it('documents the regression: an uncompensated size floor blows the ink budget', () => {

@@ -177,10 +177,21 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           const sf = getWindSeriesFrame(activeModel, bounds, timeOffsetRef.current);
           if (sf && sf.vectors?.length > 0) warm = sf;
         }
+        // WARM COMMITS TAKE THE SAME COVERAGE GATE (2026-07-19 night, the LAST leak). The warm
+        // sources are bounds-blind lookups — getModelSafeWind's containment can be satisfied by
+        // stale-keyed entries, and the wind SERIES lane (default ON since 696f855e) keys frames
+        // by requested bounds — so a small fine box cached for a close-zoom viewport could warm-
+        // commit over a covering global after zooming out (reproduced on the mobile ladder even
+        // with the ref fix). A warm grid must COVER the current viewport, or be strictly better
+        // than what is showing (nothing / non-covering).
         if (warm && warm.vectors?.length > 0) {
-          windRevision.current += 1;
-          commitWindData(warm);
-          lastCommittedWindRef.current = { bounds: warm.bounds || null, stale: !!warm.stale };
+          const vpWarm = getBounds();
+          const lc = lastCommittedWindRef.current;
+          if (gridCovers(warm.bounds, vpWarm) || !lc || !gridCovers(lc.bounds, vpWarm)) {
+            windRevision.current += 1;
+            commitWindData(warm);
+            lastCommittedWindRef.current = { bounds: warm.bounds || null, stale: !!warm.stale };
+          }
         }
       } catch (e) { /* best-effort warm commit; fall through to the authoritative fetch */ }
 
