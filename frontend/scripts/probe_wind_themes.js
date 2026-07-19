@@ -87,11 +87,19 @@ fs.mkdirSync(OUT, { recursive: true });
 
 // Synoptic view over the N Atlantic — mid-latitude lows form here, with broad light-wind fields.
 const CENTER = { lng: -40, lat: 42, zoom: 4.2 };
+const DEVICES=[{name:'desktop',width:1280,height:800,dpr:1},{name:'mobile',width:390,height:844,dpr:3}];
 
-async function leg(browser, theme, flags, tag) {
-  const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+async function leg(browser, theme, flags, tag, device) {
+  const D = device || { name: 'desktop', width: 1280, height: 800, dpr: 1 };
+  const ctx = await browser.newContext({ viewport: { width: D.width, height: D.height }, deviceScaleFactor: D.dpr });
   const page = await ctx.newPage();
-  await page.addInitScript((t) => { try { localStorage.setItem('raw-surf-theme', t); } catch (e) {} }, theme);
+  await page.addInitScript((t) => { try {
+    localStorage.setItem('raw-surf-theme', t);
+    // Suppress the localhost-only dev chrome: on a 390px viewport the Marine Anim Tuner covers
+    // the WHOLE screen, so a centre crop measures the PANEL, not the map — that is exactly how
+    // the first mobile run produced an identical 10.318 in both legs (a 0.0% 'result').
+    localStorage.setItem('__RAW_TUNER__', '0');
+  } catch (e) {} }, theme);
   if (flags.length) {
     await page.addInitScript((fl) => { for (const f of fl) window[f] = true; }, flags);
   }
@@ -155,7 +163,9 @@ async function leg(browser, theme, flags, tag) {
   // nothing once the frame is composited (no preserveDrawingBuffer) — the first version reported
   // pixels=null for every leg because of it. Round-trip the screenshot back through a 2D canvas,
   // which reads back fine.
-  const stats = cropStats(decodePNG(fs.readFileSync(file)), 500, 380);
+  const _png = decodePNG(fs.readFileSync(file));
+  const stats = cropStats(_png, Math.floor(_png.w*0.42), Math.floor(_png.h*0.42));
+  stats.device = D.name; stats.dpr = D.dpr; stats.png = _png.w+"x"+_png.h;
 
   console.log(`[${tag}] toggle=${toggled} ${JSON.stringify(state)} pixels=${JSON.stringify(stats)}`);
   await ctx.close();
@@ -168,20 +178,26 @@ async function leg(browser, theme, flags, tag) {
     args: ['--enable-unsafe-swiftshader', '--disable-background-timer-throttling', '--disable-renderer-backgrounding'],
   });
   const results = [];
-  for (const theme of ['dark', 'light', 'beach']) {
-    results.push(await leg(browser, theme, [], `${theme}_FIXED`));
-    results.push(await leg(browser, theme,
-      ['__RAW_DISABLE_THEMED_PARTICLE_RIM__', '__RAW_DISABLE_LOWWIND_LEGIBILITY__'], `${theme}_BEFORE`));
+  for (const D of DEVICES) {
+    for (const theme of ['dark', 'light', 'beach']) {
+      results.push(await leg(browser, theme, [], D.name + '_' + theme + '_FIXED', D));
+      results.push(await leg(browser, theme,
+        ['__RAW_DISABLE_THEMED_PARTICLE_RIM__', '__RAW_DISABLE_LOWWIND_LEGIBILITY__'],
+        D.name + '_' + theme + '_BEFORE', D));
+    }
   }
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(results, null, 1));
   console.log('\n=== A/B — localContrast (mean |Laplacian|) = how much the MARKS stand out ===');
-  for (const t of ['dark', 'light', 'beach']) {
-    const f = results.find((r) => r.tag === `${t}_FIXED`);
-    const b = results.find((r) => r.tag === `${t}_BEFORE`);
-    const fc = f && f.stats && f.stats.localContrast, bc = b && b.stats && b.stats.localContrast;
-    const ok = (f && f.state.windEngine) && (b && b.state.windEngine) ? '' : '  [!] wind not engaged in a leg';
-    const delta = (fc && bc) ? `${((fc / bc - 1) * 100).toFixed(1)}%` : 'n/a';
-    console.log(`${t.padEnd(6)} before=${bc}  fixed=${fc}  delta=${delta}${ok}`);
+  for (const D of DEVICES) {
+    for (const t of ['dark', 'light', 'beach']) {
+      const f = results.find((r) => r.tag === D.name + '_' + t + '_FIXED');
+      const b = results.find((r) => r.tag === D.name + '_' + t + '_BEFORE');
+      const fc = f && f.stats && f.stats.localContrast;
+      const bc = b && b.stats && b.stats.localContrast;
+      const eng = (f && f.state.windEngine) && (b && b.state.windEngine) ? '' : '  [!] wind not engaged';
+      const delta = (fc && bc) ? (((fc / bc - 1) * 100).toFixed(1) + '%') : 'n/a';
+      console.log(`${D.name.padEnd(8)}${t.padEnd(6)} before=${bc}  fixed=${fc}  delta=${delta}${eng}`);
+    }
   }
   await browser.close();
 })();

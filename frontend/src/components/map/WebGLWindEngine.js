@@ -412,6 +412,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // resolveWindAnimTuning; physics stays linearly speed-proportional at gamma 1.0).
   const _windTune = resolveWindAnimTuning(typeof window !== 'undefined' ? window : null);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_lowband_bias'), _windTune.lowBandBias);
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_vp_density_boost'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_DENSITY__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
@@ -494,6 +496,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     (typeof window !== 'undefined' && window.__RAW_DISABLE_THEMED_PARTICLE_RIM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
+  // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the
+  // size floor above was ~3x physically smaller on a DPR-3 phone. Clamped [1,3] so an unusual
+  // ratio cannot blow the sprite budget. Override for testing: __RAW_WIND_DPR__.
+  var _dpr = (typeof window !== 'undefined' && Number(window.__RAW_WIND_DPR__))
+    || (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);

@@ -32,6 +32,7 @@ uniform float u_tile_width;       // v3.22: local tile width for high zoom preci
 uniform float u_lowband_bias;     // 2026-07-06: viewport-bias respawn floor in the z3.3-4.69 band (+~10% on-screen presence)
 uniform float u_speed_gamma;      // 2026-07-06: speed-contrast gamma; 1.0 = exact linear (physics), >1 damps slow relative to fast
 uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the gamma term (data units, from u_wind_max)
+uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost at z>=4 (0 = legacy curve)
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -169,7 +170,19 @@ void main() {
       // there lifts on-screen presence ~10% (bias B redirects B of respawns into the padded
       // viewport; at these spans ~0.01 B ≈ +10% relative). Soft edges avoid pops at the band rim.
       float lowBand = smoothstep(3.1, 3.3, u_zoom) * (1.0 - smoothstep(4.69, 4.9, u_zoom));
-      float viewportBias = max(smoothstep(4.0, 7.0, u_zoom) * 0.25, u_lowband_bias * lowBand);
+      // DENSITY AT z>=4 (2026-07-18 EVE-3, user: "closer up zooms around 4 or closer need a
+      // little bit more wind density"). Particle COUNT is fixed at init (particleRes^2), so
+      // on-screen density is entirely a function of what fraction of respawns land in the
+      // viewport. The old ramp only STARTED at z4 and did not reach 0.25 until z7 — so through
+      // the whole z4-6 band respawn was still ~uniform-global while the viewport covered a tiny
+      // fraction of the world, i.e. most particles were off-screen exactly where the user is
+      // reading the field. Start the ramp earlier and take it higher; the global lane still gets
+      // (1 - bias) of respawns, so off-viewport coverage never drops to zero.
+      // Kill: __RAW_DISABLE_WIND_VIEWPORT_DENSITY__ (u_vp_density_boost = 0 -> legacy curve).
+      float legacyBias = smoothstep(4.0, 7.0, u_zoom) * 0.25;
+      float boostedBias = smoothstep(3.6, 6.0, u_zoom) * 0.45;
+      float mainBias = mix(legacyBias, max(legacyBias, boostedBias), u_vp_density_boost);
+      float viewportBias = max(mainBias, u_lowband_bias * lowBand);
       
       if (spawnChoice < viewportBias && vpEast > vpWest) {
         float padLng = (vpEast - vpWest) * 0.15;
@@ -214,6 +227,7 @@ uniform vec2 u_wind_min;
 uniform vec2 u_wind_max;
 uniform float u_zoom;  // v3.13.5: for close-zoom density boost
 uniform float u_lowwind_boost;   // 2026-07-18: synoptic low-wind legibility (0 = off, kill switch)
+uniform float u_dpr;             // 2026-07-18: devicePixelRatio — gl_PointSize is in DEVICE pixels
 uniform float u_edgeFeatherEnabled;
 uniform float u_debug_mode;
 
@@ -328,10 +342,22 @@ void main() {
   // core are >= 1 px and the dot reads as an oriented mark rather than a speck. Truth is preserved —
   // colour still encodes speed exactly; only the MARK's legibility changes.
   // Kill: __RAW_DISABLE_LOWWIND_LEGIBILITY__ (u_lowwind_boost = 0.0).
+  // Sized so the DUAL-TONE CASING in DRAW_FS can actually resolve: its outer ring spans
+  // dist 0.38-0.50, i.e. 12% of the sprite's DIAMETER, so ~1 px of ring needs ~8 px of sprite.
+  // Under-sizing here silently defeats the casing — the rings land sub-pixel and the mark
+  // collapses back to a flat dot of the field colour, which is the original bug.
+  //
+  // MOBILE / DPR (2026-07-18 EVE-3): gl_PointSize is in DEVICE pixels, and this pipeline had NO
+  // devicePixelRatio handling anywhere (engine, layer, shaders, init — verified by absence).
+  // MapLibre sizes its canvas at DPR, so on a DPR-3 phone an "8 px" sprite is 2.7 CSS px: every
+  // wind particle is physically ~3x smaller on a high-DPR phone than on a desktop, and the casing
+  // rings collapse sub-pixel again — the very bug this floor exists to prevent, surviving on
+  // exactly the devices most people use. The floor is therefore expressed in CSS pixels and
+  // multiplied by DPR. u_dpr is clamped [1,3] engine-side so a freak ratio cannot explode sizes.
   if (u_lowwind_boost > 0.5 && v_speed >= 0.15 && v_speed < 10.0) {
     float slowness = smoothstep(10.0, 0.15, v_speed);          // 0 at 10 kn -> 1 at near-calm
-    float minPx = mix(4.0, 6.5, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.6);
-    gl_PointSize = max(gl_PointSize, minPx * edgeFade);
+    float minCssPx = mix(5.5, 8.0, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.5);
+    gl_PointSize = max(gl_PointSize, minCssPx * max(u_dpr, 1.0) * edgeFade);
   }
 
   // Debug mode colors
@@ -383,25 +409,40 @@ void main() {
   // coral/yellow field washes out the white core for the same reason, mirrored.
   // Now theme-aware: the rim always runs AWAY from the local field's luminance.
   // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ (u_theme_rim = 0.0 -> the legacy black/white pair).
-  float rimL = 0.0, coreL = 1.0, rimK = 0.98, coreK = 0.75;
+  // DUAL-TONE CASING (2026-07-18 EVE-3 round 2 — the cartographic halo/casing technique).
+  // A PER-THEME CONSTANT rim was still wrong. Measured contrast of the shipped rim against the
+  // field colour it must separate from, per ramp stop (scripts/probe_wind_contrast.js):
+  //   dark  worst 5.48:1 @39kn · light worst 3.78:1 @21kn · beach worst 3.30:1 @39kn
+  // The light ramp's luminance is NON-MONOTONIC — it PEAKS at the 21 kn gold (Y=0.460) — so a
+  // fixed near-white rim has the least headroom exactly in the common moderate-wind band. That is
+  // the "still hard to see at SOME wind speeds" report, and it is not fixable by choosing a better
+  // constant: a MID-luminance field contrasts poorly against BOTH poles at once.
+  //
+  // The fix is the technique mapmakers use for labels/lines over arbitrary terrain: give the mark
+  // its OWN high-contrast edge. An outer ring and an inner ring at OPPOSITE luminance poles put a
+  // ~21:1 boundary INSIDE the mark, so legibility stops depending on the field's luminance at all.
+  // The orientation flips on the LOCAL field luminance (APCA coefficients) so the OUTER ring is
+  // always the one opposing the field — that also makes the rule self-theming: the dark theme's
+  // neon ramp is BRIGHT (Y 0.72-0.85) so it resolves to the dark-outer/light-inner pair the dark
+  // theme was originally tuned with, while light's dark navy ramp resolves to the inverse.
+  // The BODY keeps the speed colour: truth (colour == speed) is never traded away.
+  // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
+  vec3 rgb = color.rgb;
   if (u_theme_rim > 0.5) {
-    if (u_theme > 1.5) {
-      // BEACH: bright pink/coral/yellow field -> deep rim, and a core pulled toward white but
-      // weaker, since a 75% white core on a sun-yellow field is invisible.
-      rimL = 0.06; coreL = 1.0; rimK = 0.95; coreK = 0.55;
-    } else if (u_theme > 0.5) {
-      // LIGHT: the field ramp is DARK (navy->teal->gold) over a LIGHT basemap. Invert the pair —
-      // a near-white rim separates the mark from the dark field AND from mid-tone land, and a
-      // DARK core keeps the mark readable where the field is pale.
-      rimL = 1.0; coreL = 0.05; rimK = 0.92; coreK = 0.70;
-    }
-    // DARK: unchanged (black rim / white core) — it was tuned here and is correct here.
+    float fieldY = dot(color.rgb, vec3(0.2126729, 0.7151522, 0.0721750));
+    float fieldIsBright = step(0.36, fieldY);
+    float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
+    float innerL = 1.0 - outerL;                   // opposes the outer ring
+    float outer = smoothstep(0.38, 0.50, dist);
+    float inner = smoothstep(0.38, 0.26, dist) * smoothstep(0.10, 0.20, dist);
+    rgb = mix(rgb, vec3(innerL), inner * 0.92);
+    rgb = mix(rgb, vec3(outerL), outer * 0.98);
+  } else {
+    float rim = smoothstep(0.28, 0.46, dist);
+    rgb = mix(rgb, vec3(0.0), rim * 0.98);
+    float core = smoothstep(0.18, 0.0, dist);
+    rgb = mix(rgb, vec3(1.0), core * 0.75);
   }
-  float rim = smoothstep(0.28, 0.46, dist);
-  vec3 rgb = mix(color.rgb, vec3(rimL), rim * rimK);
-
-  float core = smoothstep(0.18, 0.0, dist);
-  rgb = mix(rgb, vec3(coreL), core * coreK);
   
   // v3.20: Use color.a from the theme color ramp LUT to regulate particle transparency
   float alpha = v_alpha * soft * color.a;

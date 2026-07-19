@@ -115,21 +115,29 @@ describe('wind theme parity + low-wind legibility', () => {
     expect(DRAW_FS).toMatch(/uniform\s+float\s+u_theme_rim\s*;/);
   });
 
-  it('DRAW_FS branches the rim/core on all THREE themes, not just dark', () => {
-    expect(DRAW_FS).toMatch(/u_theme\s*>\s*1\.5/);   // beach
-    expect(DRAW_FS).toMatch(/u_theme\s*>\s*0\.5/);   // light
+  // SUPERSEDED BY THE CASING (2026-07-18 EVE-3 round 2). These three originally asserted a
+  // PER-THEME CONSTANT rim. That design was measured and found wanting: it scored only 3.78:1 at
+  // light@21kn because the light ramp's luminance PEAKS there, which is the "still hard to see at
+  // some wind speeds" report. A constant cannot fix it — a mid-luminance field contrasts poorly
+  // against BOTH poles. The rim is now chosen from the LOCAL FIELD LUMINANCE, which is strictly
+  // more general (it self-themes), so the assertions move from "has three theme branches" to
+  // "adapts per colour". Per-speed numbers live in windParticleContrast.test.js.
+  it('the rim adapts to the LOCAL field luminance rather than branching per theme', () => {
+    expect(DRAW_FS).toMatch(/fieldY\s*=\s*dot\(/);
+    expect(DRAW_FS).toMatch(/0\.2126729,\s*0\.7151522,\s*0\.0721750/);   // APCA coefficients
+    expect(DRAW_FS).toMatch(/step\(0\.36,\s*fieldY\)/);
   });
 
-  it('LIGHT inverts the rim to a bright halo (a black rim is camouflage on the dark light-ramp)', () => {
-    // The light branch must set rimL to a HIGH luminance; dark's legacy pair stays 0.0/1.0.
-    const lightBranch = DRAW_FS.slice(DRAW_FS.indexOf('u_theme > 0.5'), DRAW_FS.indexOf('// DARK: unchanged'));
-    expect(lightBranch).toMatch(/rimL\s*=\s*1\.0/);
-    expect(lightBranch).toMatch(/coreL\s*=\s*0\.0?5/);
+  it('it is a DUAL-TONE casing — opposite poles give the mark a field-independent edge', () => {
+    expect(DRAW_FS).toMatch(/outerL\s*=\s*mix\(1\.0,\s*0\.0,\s*fieldIsBright\)/);
+    expect(DRAW_FS).toMatch(/innerL\s*=\s*1\.0\s*-\s*outerL/);
   });
 
-  it('the legacy black/white pair is the kill-switch default (u_theme_rim = 0)', () => {
-    expect(DRAW_FS).toMatch(/float\s+rimL\s*=\s*0\.0\s*,\s*coreL\s*=\s*1\.0/);
+  it('the legacy fixed black-rim/white-core pair is still the kill-switch path', () => {
     expect(DRAW_FS).toMatch(/if\s*\(\s*u_theme_rim\s*>\s*0\.5\s*\)/);
+    const legacy = DRAW_FS.slice(DRAW_FS.indexOf('} else {'));
+    expect(legacy).toMatch(/vec3\(0\.0\),\s*rim\s*\*\s*0\.98/);
+    expect(legacy).toMatch(/vec3\(1\.0\),\s*core\s*\*\s*0\.75/);
   });
 
   it('DRAW_VS enforces a minimum sprite size for slow winds at ANY zoom', () => {
