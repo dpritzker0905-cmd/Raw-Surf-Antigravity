@@ -414,6 +414,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_lowband_bias'), _windTune.lowBandBias);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_vp_density_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_DENSITY__ === true) ? 0.0 : 1.0);
+  // Bounded drop rate — stops steady-state density from tracking (the inverse of) wind speed.
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);

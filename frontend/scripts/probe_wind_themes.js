@@ -75,7 +75,39 @@ function cropStats(png, CW, CH) {
       n++;
     }
   }
-  return { mean: +mean.toFixed(2), sd: +Math.sqrt(v / lum.length).toFixed(2), localContrast: +(edge / n).toFixed(3) };
+  // DENSITY UNIFORMITY (2026-07-18 round 4). localContrast answers "do the marks stand out"; it
+  // cannot answer "are they evenly spread", which is the clumping the user reported. Tile the crop
+  // and take the coefficient of variation of per-tile local-contrast energy: a clumped field has a
+  // few hot tiles and many empty ones (high CV); an even field has similar tiles (low CV).
+  const TILE = 40;
+  const tiles = [];
+  for (let ty = 1; ty + TILE < H - 1; ty += TILE) {
+    for (let tx = 1; tx + TILE < W - 1; tx += TILE) {
+      let e = 0, c = 0;
+      for (let y = ty; y < ty + TILE; y++) {
+        for (let x = tx; x < tx + TILE; x++) {
+          const p = y * W + x;
+          e += Math.abs(4 * lum[p] - lum[p - 1] - lum[p + 1] - lum[p - W] - lum[p + W]);
+          c++;
+        }
+      }
+      tiles.push(e / c);
+    }
+  }
+  let tMean = 0;
+  for (const t of tiles) tMean += t;
+  tMean /= Math.max(1, tiles.length);
+  let tVar = 0;
+  for (const t of tiles) tVar += (t - tMean) * (t - tMean);
+  const tCV = tMean > 0 ? Math.sqrt(tVar / Math.max(1, tiles.length)) / tMean : 0;
+
+  return {
+    mean: +mean.toFixed(2),
+    sd: +Math.sqrt(v / lum.length).toFixed(2),
+    localContrast: +(edge / n).toFixed(3),
+    densityCV: +tCV.toFixed(3),      // LOWER = more evenly spread
+    tiles: tiles.length,
+  };
 }
 let chromium;
 try { ({ chromium } = require('@playwright/test')); }
@@ -182,7 +214,7 @@ async function leg(browser, theme, flags, tag, device) {
     for (const theme of ['dark', 'light', 'beach']) {
       results.push(await leg(browser, theme, [], D.name + '_' + theme + '_FIXED', D));
       results.push(await leg(browser, theme,
-        ['__RAW_DISABLE_THEMED_PARTICLE_RIM__', '__RAW_DISABLE_LOWWIND_LEGIBILITY__'],
+        ['__RAW_DISABLE_THEMED_PARTICLE_RIM__', '__RAW_DISABLE_LOWWIND_LEGIBILITY__', '__RAW_DISABLE_WIND_DENSITY_UNIFORM__', '__RAW_DISABLE_WIND_VIEWPORT_DENSITY__'],
         D.name + '_' + theme + '_BEFORE', D));
     }
   }
@@ -196,7 +228,9 @@ async function leg(browser, theme, flags, tag, device) {
       const bc = b && b.stats && b.stats.localContrast;
       const eng = (f && f.state.windEngine) && (b && b.state.windEngine) ? '' : '  [!] wind not engaged';
       const delta = (fc && bc) ? (((fc / bc - 1) * 100).toFixed(1) + '%') : 'n/a';
-      console.log(`${D.name.padEnd(8)}${t.padEnd(6)} before=${bc}  fixed=${fc}  delta=${delta}${eng}`);
+      const fd = f && f.stats && f.stats.densityCV, bd = b && b.stats && b.stats.densityCV;
+      const dDelta = (fd && bd) ? (((fd / bd - 1) * 100).toFixed(1) + '%') : 'n/a';
+      console.log(`${D.name.padEnd(8)}${t.padEnd(6)} contrast ${bc}->${fc} (${delta})   densityCV ${bd}->${fd} (${dDelta}, lower=evener)${eng}`);
     }
   }
   await browser.close();

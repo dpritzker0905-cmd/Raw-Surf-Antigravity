@@ -33,6 +33,7 @@ uniform float u_lowband_bias;     // 2026-07-06: viewport-bias respawn floor in 
 uniform float u_speed_gamma;      // 2026-07-06: speed-contrast gamma; 1.0 = exact linear (physics), >1 damps slow relative to fast
 uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the gamma term (data units, from u_wind_max)
 uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost at z>=4 (0 = legacy curve)
+uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density stops tracking speed (0 = legacy)
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -121,9 +122,36 @@ void main() {
     nextPos.y = clamp(nextPos.y, 0.001, 0.999);
   }
 
-  // Respawn logic: randomly drop particles (more likely when slow)
+  // Respawn logic: randomly drop particles.
   vec2 seed = (nextPos + v_uv) * u_rand_seed;
-  float dropRate = u_drop_rate + speed * u_drop_rate_bump;
+  // INK BUDGET (2026-07-18 EVE-3, user: "some wind particle density is huge, while others is
+  // proper"). What the eye reads is INK, not particle count:
+  //     ink(speed) ~ mark AREA(speed) x COUNT(speed),  and  COUNT ~ lifetime ~ 1/dropRate.
+  //
+  // The legacy rule u_drop_rate + speed*u_drop_rate_bump is NOT a bug — measured against the
+  // webgl-wind lineage's trail rendering (ink ~ speed/dropRate) it holds ink flat to 1.06x above
+  // 4 kn. It is a well-tuned compensator and must not be "simplified" away.
+  //
+  // The clumping was introduced by THIS SESSION's low-wind size floor (DRAW_VS): it multiplied
+  // calm-air mark AREA by up to ~10x — and un-zeroed the sub-0.5 kn marks that legacy had made
+  // invisible entirely — without touching their LIFETIME. Measured on a real GFS Gulf field, the
+  // point-sprite ink ratio went from 4.4x to 124x. Calm air was drawing ~28x its share of ink.
+  //
+  // Fix: pay for the enlarged marks in lifetime, so ink stays flat. dropRate is solved from the
+  // area the mark will actually be drawn at (the speed-dependent part; DPR and zoom scale every
+  // particle equally and so cannot change RELATIVE density). Taking max() with the legacy rule
+  // means this can only ever recycle particles SOONER, never hoard them — so the >11 kn regime,
+  // long shipped and tuned, is left bit-identical, and only the band the floor inflated changes.
+  // Kill: __RAW_DISABLE_WIND_DENSITY_UNIFORM__ (u_density_uniform = 0 -> exact legacy formula).
+  float legacyDrop = u_drop_rate + speed * u_drop_rate_bump;
+  float sBase = speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, speed);
+  float sFloor = (speed >= 0.15 && speed < 10.0)
+    ? mix(5.5, 6.5, smoothstep(10.0, 0.15, speed)) : 0.0;
+  float sCss = max(sBase, sFloor);
+  // I0 = the ink level the legacy rule already produces at mid speed (~11 kn, sprite 3.4 px),
+  // so the two rules agree exactly at the calibration point rather than by taste.
+  float inkFlatDrop = (sCss * sCss) / 130.0;
+  float dropRate = mix(legacyDrop, max(legacyDrop, inkFlatDrop), u_density_uniform);
   float drop = step(1.0 - dropRate, rand(seed));
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
@@ -356,7 +384,11 @@ void main() {
   // multiplied by DPR. u_dpr is clamped [1,3] engine-side so a freak ratio cannot explode sizes.
   if (u_lowwind_boost > 0.5 && v_speed >= 0.15 && v_speed < 10.0) {
     float slowness = smoothstep(10.0, 0.15, v_speed);          // 0 at 10 kn -> 1 at near-calm
-    float minCssPx = mix(5.5, 8.0, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.5);
+    // 8.0 -> 6.5 at the slow end (2026-07-18 round 4): 8 px cost ~1.6x the AREA and the ink budget
+    // in ADVECT_FS has to buy that back in lifetime. 6.5 px still resolves the casing rings on any
+    // DPR>=1 display and leaves calm air legible. Keep this in sync with sFloor in ADVECT_FS —
+    // they are the same curve, and the density gate asserts they agree.
+    float minCssPx = mix(5.5, 6.5, slowness) * (1.0 + smoothstep(6.0, 11.0, u_zoom) * 0.5);
     gl_PointSize = max(gl_PointSize, minCssPx * max(u_dpr, 1.0) * edgeFade);
   }
 
