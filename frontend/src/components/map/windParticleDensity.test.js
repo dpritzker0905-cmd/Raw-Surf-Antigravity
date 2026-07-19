@@ -31,9 +31,12 @@ const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 -
 const legacyDrop = (s) => DROP + s * BUMP;
 // Mirror of ADVECT_FS sCss / DRAW_VS minCssPx — deliberately duplicated so a drift between the
 // two shader stages shows up as a failing number rather than a silent density regression.
+// 2026-07-19 size-monotonicity: the DEFAULT floor is now FLAT at sizeBase(10 kn) = 3.073 css px
+// (the slowness ramp 3.4->4.2 made SLOWER marks LARGER than 8-15 kn marks — the user-reported
+// inversion; the ramp survives only behind __RAW_DISABLE_WIND_SIZE_MONOTONIC__).
 const sizeCss = (s) => {
   const base = s < 0.5 ? 0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, s);
-  const floor = (s >= 1.0 && s < 10.0) ? 3.4 + (4.2 - 3.4) * smoothstep(10.0, 1.0, s) : 0;
+  const floor = (s >= 1.0 && s < 10.0) ? 3.073 : 0;
   return Math.max(base, floor);
 };
 const shippedDrop = (s) => Math.max(legacyDrop(s), (sizeCss(s) * sizeCss(s)) / I0);
@@ -50,10 +53,11 @@ describe('wind particle ink budget', () => {
     expect(r(before)).toBeLessThan(6);    // 4.4x — the level that shipped for months
     // The uncompensated figure has fallen as the floor itself grew more conservative across this
     // arc — 124x (round-2/4 disc floor, 5.5-8 px, from 0.15 kn) -> 52x (round-5 dash floor) -> 12x
-    // (round-5b: zoom-scaled, and no longer resurrecting sub-1 kn calm). That shrinkage is the
-    // point. The invariant being pinned is only that an UNCOMPENSATED floor still blows past the
-    // 4.4x baseline, so the compensation cannot be quietly deleted.
-    expect(r(after)).toBeGreaterThan(8);
+    // (round-5b: zoom-scaled, no longer resurrecting sub-1 kn calm) -> 6.5x (2026-07-19 monotone
+    // flat floor at sizeBase(10kn)). That shrinkage is the point. The invariant being pinned is
+    // only that an UNCOMPENSATED floor still blows past the 4.4x baseline, so the compensation
+    // cannot be quietly deleted.
+    expect(r(after)).toBeGreaterThan(5);
   });
 
   it('the shipped rule holds the ink ratio near the pre-regression level', () => {
@@ -87,6 +91,10 @@ describe('wind particle ink budget', () => {
   });
 
   it('the two shader stages agree on the size curve (drift here IS a density bug)', () => {
+    // Monotone default: BOTH stages carry the flat 3.073 floor AND the legacy ramp behind the
+    // same u_size_monotonic switch — the ramp literal must survive for the kill path.
+    expect(ADVECT_FS).toMatch(/u_size_monotonic\s*>\s*0\.5\s*\?\s*3\.073/);
+    expect(DRAW_VS).toMatch(/u_size_monotonic\s*>\s*0\.5\s*\?\s*3\.073/);
     expect(ADVECT_FS).toMatch(/mix\(3\.4,\s*4\.2,\s*smoothstep\(10\.0,\s*1\.0,\s*speed\)\)/);
     expect(DRAW_VS).toMatch(/mix\(3\.4,\s*4\.2,\s*slowness\)/);
     // both stages must gate on the SAME speed band

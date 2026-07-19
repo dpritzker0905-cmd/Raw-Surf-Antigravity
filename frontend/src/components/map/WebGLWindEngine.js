@@ -256,6 +256,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   const isGlobal = (lngSpan >= 350.0) || windGrid?.coverage_scope === 'global' || windGrid?.coverage_scope === 'global_coarse';
   const isRegionalGrid = !isGlobal;
   const edgeFeatherVal = isRegionalGrid ? 1.0 : 0.0;
+  // FEATHER WIDTH (2026-07-19): 0.18 of grid span was tuned for pilot tiles much larger than the
+  // viewport; a viewport-fine grid IS ~the viewport, so that band fell inside the screen on all
+  // four sides ("clamped wind heatmap"). Absolute width ~0.6 deg (the request pad/snap margin),
+  // expressed as a fraction of THIS grid's span, capped at the legacy 0.18 so small pilot tiles
+  // (FL 2-deg) keep their shipped look exactly.
+  const edgeFeatherFrac = isRegionalGrid ? Math.min(0.18, 0.6 / Math.max(lngSpan, 1e-6)) : 0.18;
   if (typeof window !== 'undefined') {
     window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
       ? 'partial_regional_coverage'
@@ -351,6 +357,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_max_speed'), this._maxWindSpeed);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
     window.__GPU_DEBUG__ = { mode: null };
@@ -418,6 +425,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_gamma'), _windTune.speedGamma);
+  // Size monotonicity (2026-07-19): slower never draws larger than faster. Mirrored into the
+  // advect stage's ink budget. Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__.
+  var _sizeMono = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0;
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_size_monotonic'), _sizeMono);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   unbindTexture(gl, this.particleStateB);
@@ -510,6 +521,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_basemap_y'), _basemapY);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_size_monotonic'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0);
   // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the
   // size floor above was ~3x physically smaller on a DPR-3 phone. Clamped [1,3] so an unusual
   // ratio cannot blow the sprite budget. Override for testing: __RAW_WIND_DPR__.
@@ -517,6 +530,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     || (typeof window !== 'undefined' && window.devicePixelRatio) || 1;
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dpr'), Math.max(1, Math.min(3, _dpr)));
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edgeFeatherEnabled'), edgeFeatherVal);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_edge_feather_frac'), edgeFeatherFrac);
   // v3.22: Bind tile origin and width for high zoom precision
   gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_tile_origin'), tileOriginX, tileOriginY);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_tile_width'), tileWidth);

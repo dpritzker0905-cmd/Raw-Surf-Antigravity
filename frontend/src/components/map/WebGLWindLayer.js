@@ -338,18 +338,20 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
           }
         }
 
+        const prevSource = engine.__lastWindSource;
         engine.setWindData(gl, data);
+        engine.__lastWindSource = data.source || null;
 
         if (boundsChanged && typeof engine.reinitParticles === 'function') {
-          // TIER SWAP = CAMERA-DRIVEN, KEEP TRAILS (2026-07-19). With the wind viewport-fine tier,
-          // zooming across ~z6 swaps the grid between the GLOBAL product and a regional fine box —
-          // a bounds change from the USER'S point of view caused by the camera, same as the
-          // 2026-07-10 recenter reseeds, so it takes the same trade: re-seed positions, keep the
-          // screen-space trails for a crossfade instead of a full blank. A regional->regional jump
-          // (genuinely different air) keeps the legacy full clear.
-          const spanOf = (b) => (b.west > b.east ? (b.east + 360.0) - b.west : b.east - b.west);
-          const tierSwap = !!(oldBounds && newBounds) && ((spanOf(oldBounds) >= 350.0) !== (spanOf(newBounds) >= 350.0));
-          engine.reinitParticles(gl, { keepTrails: tierSwap });
+          // SAME-MODEL BOUNDS SWAPS KEEP TRAILS (2026-07-19). With the viewport-fine tier, bounds
+          // changes are ROUTINE camera-driven events — crossing the ~z6 tier boundary swaps
+          // global<->fine, and every ~1-deg pan at fine zoom mints a new snapped box. Full-clearing
+          // on each one blanked the layer over and over (the zoom/pan "clearing" report) — the
+          // exact UX the 2026-07-10 keepTrails commit fixed for recenter reseeds. Same air, same
+          // model, new sampling => crossfade. Only a MODEL switch (genuinely different data) keeps
+          // the legacy full clear. Kill: __RAW_WIND_TRAIL_CLEAR_LEGACY__ restores clearing.
+          const sameModel = !!prevSource && prevSource === (data.source || null);
+          engine.reinitParticles(gl, { keepTrails: sameModel });
         }
 
         pendingDataRef.current = null;

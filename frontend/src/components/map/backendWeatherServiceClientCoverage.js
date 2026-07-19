@@ -264,10 +264,17 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
         const wSpanLat = Math.abs(north - south);
         const FINE_MAX_VIEWPORT_SPAN = 13.0;
         if (wSpanLng > 0 && wSpanLat > 0 && wSpanLng <= FINE_MAX_VIEWPORT_SPAN && wSpanLat <= FINE_MAX_VIEWPORT_SPAN) {
-          const fw = Math.max(-180, Math.floor(west));
-          const fe = Math.min(180, Math.ceil(east));
-          const fs = Math.max(-80, Math.floor(south));
-          const fn = Math.min(85, Math.ceil(north));
+          // PAD before snapping (2026-07-19, the "clamped wind heatmap" report): the engine
+          // feathers the grid edge, and an unpadded box == the viewport puts that fade band ON
+          // SCREEN. Up to 1 deg per side, shrinking as the viewport nears the tier limit so the
+          // final snapped span (span + 2*pad + <2 snap) provably stays inside the backend's
+          // 15.0-deg dynamic gate. The pad also buys pan headroom (fewer refetches, edge stays
+          // off-screen mid-gesture).
+          const wPad = Math.max(0, Math.min(1.0, (FINE_MAX_VIEWPORT_SPAN - Math.max(wSpanLng, wSpanLat)) / 2));
+          const fw = Math.max(-180, Math.floor(west - wPad));
+          const fe = Math.min(180, Math.ceil(east + wPad));
+          const fs = Math.max(-80, Math.floor(south - wPad));
+          const fn = Math.min(85, Math.ceil(north + wPad));
           if (fe > fw && fn > fs) {
             return {
               isInside: true,

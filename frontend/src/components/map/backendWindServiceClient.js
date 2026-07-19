@@ -54,7 +54,15 @@ export function mapNormalizedWindGridToWebGL(json, snappedBounds, hourOffset) {
     bounds: json.grid.bounds || snappedBounds,
     cols: json.grid.cols,
     rows: json.grid.rows,
-    stale: false,
+    // 2026-07-19: this was hardcoded `false`, ERASING the backend's stale flag. Harmless in the
+    // always-global era (every response was the same product, stale or not) — but with the
+    // viewport-fine tier a rate-limited upstream answers a FINE request with the stale GLOBAL
+    // 10-deg product, and with the flag erased that coarse fallback passed isRenderableWindData
+    // and REPLACED a good fine grid on screen (the zoom/pan "clearing" report). The flag is the
+    // contract: WeatherEngine retains the previous frame instead of committing a stale grid over
+    // it, and windController's stale-aware cache TTL (2 min) finally has something to key on.
+    stale: !!json.stale,
+    staleReason: json.staleReason || json.fallbackReason || null,
     source: json.model || 'GFS',
     hourOffset,
     provider: json.provider || 'backend-weather-service',

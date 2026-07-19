@@ -81,6 +81,24 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     let cancelled = false;
     let retryTimer = null;
     let retryCount = 0;
+    // ONE authoritative wind fetch at a time (2026-07-19). With the fine tier, every zoom/pan
+    // step mints a new bbox; on a slow upstream the responses stack up and resolve LATE — a z11
+    // 2-deg box was observed committing onto a z6.8 viewport two steps later (the "moving clamp").
+    // Superseded requests are aborted at the source; the covers-now gate below is the belt.
+    let windFetchController = null;
+    // COVERAGE-AWARE COMMIT STATE (2026-07-19). What is on screen, as this effect last set it.
+    // The stale-commit policy pivots on VIEWPORT COVERAGE, not just freshness: a retained fine
+    // box that no longer covers the viewport is a CLAMP (user-visible hole), strictly worse than
+    // a covering stale global. Ordering: fresh-covering > stale-covering > fresh-partial > blank.
+    let lastCommitted = null; // { bounds, stale }
+    const gridCovers = (gb, vp) => {
+      if (!gb || !vp) return false;
+      const span = gb.west > gb.east ? (gb.east + 360.0) - gb.west : gb.east - gb.west;
+      if (span >= 350.0) return true; // world grid covers every viewport
+      const eps = 0.05;
+      return gb.west <= vp.west + eps && gb.east >= vp.east - eps &&
+             gb.south <= vp.south + eps && gb.north >= vp.north - eps;
+    };
     const MAX_RETRIES = 5;
     // First empty-retry is fast (3s) so wind recovers quickly when its initial fetch returns
     // empty because the 1-CPU backend was momentarily storm-loaded (e.g. right after rapidly
@@ -157,29 +175,97 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         if (warm && warm.vectors?.length > 0) {
           windRevision.current += 1;
           commitWindData(warm);
+          lastCommitted = { bounds: warm.bounds || null, stale: !!warm.stale };
         }
       } catch (e) { /* best-effort warm commit; fall through to the authoritative fetch */ }
 
       console.log(`[FETCH] [WeatherEngine] Fetching wind (attempt ${retryCount + 1}/${MAX_RETRIES}, offset: ${timeOffsetRef.current}h)`);
-      
+
+      // COLD-START GLOBAL BASE (2026-07-19, marine's coarse-base-then-sharpen pattern). A cold
+      // enable at a fine-tier zoom used to wait on the DYNAMIC fetch with a bare ocean the whole
+      // time (20s+ when the upstream is rate-limited) — the "clearing" state, impossible in the
+      // always-global era where the manifest product painted instantly. If nothing is committed
+      // and the clamp resolved to a fine tile, race a cheap GLOBAL manifest fetch alongside the
+      // fine one and commit it only while the screen is still empty — the fine product then
+      // sharpens over it on arrival, and if the fine path lands first the base is skipped.
+      if (!lastCommitted && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
+        fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
+          .then((gd) => {
+            if (cancelled || lastCommitted) return;
+            if (gd?.vectors?.length > 0 && gd.renderable !== false) {
+              console.log(`[CACHE] [WeatherEngine] Committing GLOBAL base while the fine product loads (${gd.vectors.length} vectors)`);
+              windRevision.current += 1;
+              commitWindData(gd);
+              lastCommitted = { bounds: gd.bounds || null, stale: !!gd.stale };
+            }
+          })
+          .catch(() => { /* base is best-effort — the main lane keeps retrying */ });
+      }
+
       try {
-        const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
-        
+        if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
+        windFetchController = new AbortController();
+        const data = await fetchWindData(bounds, windFetchController.signal, timeOffsetRef.current, false, forecastDays, activeModel);
+
         if (cancelled) return;
         
         // Commit ONLY a renderable, non-stale grid. A failed redirect returns a 1-vector safe-zero
         // grid (renderable:false/stale:true) — committing it would CLEAR the wind heatmap. Instead
         // fall through to the retry branch and RETAIN the previous frame (the EURO-wind-clearing fix).
-        if (isRenderableWindData(data)) {
+        const vpNow = getBounds();
+        const freshCoversNow = isRenderableWindData(data)
+          && (gridCovers(data.bounds, vpNow) || !lastCommitted || !gridCovers(lastCommitted.bounds, vpNow));
+        if (isRenderableWindData(data) && !freshCoversNow) {
+          // LATE-ARRIVAL BELT (2026-07-19): a fresh regional grid that no longer covers the
+          // CURRENT viewport (slow upstream + the camera moved on) must not replace a covering
+          // grid — observed live as a z11 2-deg box committing onto a z6.8 viewport, i.e. the
+          // "moving clamp". The grid is already in WIND_CACHE for its own box; re-drive for the
+          // tile the user is actually looking at.
+          console.log(`[FETCH] [WeatherEngine] Dropping LATE wind grid (no longer covers viewport) — re-driving for the current tile`);
+          retryTimer = setTimeout(attemptFetch, 250);
+        } else if (freshCoversNow) {
           console.log(`[CACHE] [WeatherEngine] Wind data: ${data.vectors.length} vectors`);
           windRevision.current += 1;
           commitWindData(data);
+          lastCommitted = { bounds: data.bounds || null, stale: false };
           retryCount = 0; // Reset on success
           // Cross-model prewarm (DEFAULT OFF): warm the OTHER models' wind into the isolated
           // per-model cache so a subsequent model switch is an instant warm commit, not a cold fetch.
           prewarmSiblingModelWind(activeModel, bounds, timeOffsetRef.current, forecastDays, null);
+          // GLOBAL BACKSTOP PREFETCH (2026-07-19). When a REGIONAL fine grid commits, prefetch the
+          // cheap global manifest product into WIND_CACHE (isPrewarm — no commit, no shared-state
+          // clobber) so zooming OUT warm-commits the world instantly instead of showing the fine
+          // box clipped in a wide viewport until the network round-trip lands (the zoom-out
+          // "clamping" report). Cache-hit early-returns make repeat calls free.
+          try {
+            const gb = data.bounds;
+            const gspan = gb ? (gb.west > gb.east ? (gb.east + 360.0) - gb.west : gb.east - gb.west) : 360;
+            if (gspan < 350) {
+              fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel, true).catch(() => {});
+            }
+          } catch (e) { /* insurance only — never break the commit path */ }
           // Schedule periodic refresh (5 min)
           retryTimer = setTimeout(attemptFetch, 5 * 60 * 1000);
+        } else if (data?.vectors?.length > 0 && data.renderable !== false && data.stale
+          && (!lastCommitted
+              || lastCommitted.stale
+              || (!gridCovers(lastCommitted.bounds, getBounds()) && gridCovers(data.bounds, getBounds())))) {
+          // DEGRADED COMMIT, COVERAGE-AWARE (2026-07-19). A stale fallback grid (rate-limited
+          // upstream answering a fine request with the coarse global) must never replace a good
+          // COVERING grid — that was the zoom/pan "clearing" thrash. But refusing it in ALL
+          // cases created the OPPOSITE bug: after a pan/zoom the retained fine box no longer
+          // covers the viewport, every refetch returns stale, and the hole persists — the
+          // user-reported PERSISTENT CLAMP. Coverage outranks freshness: commit stale when the
+          // screen is empty, when what is showing is itself stale, or when the stale grid covers
+          // a viewport the current grid has fallen off of. Keep climbing the retry ladder for
+          // the real product either way.
+          console.log(`[CACHE] [WeatherEngine] Committing STALE fallback wind grid (${data.vectors.length} vectors, ${data.staleReason || 'stale'}) — coverage over freshness; retrying for fresh`);
+          windRevision.current += 1;
+          commitWindData(data);
+          lastCommitted = { bounds: data.bounds || null, stale: true };
+          retryCount++;
+          const delay = RETRY_DELAYS[Math.min(retryCount, RETRY_DELAYS.length - 1)] || 60000;
+          retryTimer = setTimeout(attemptFetch, delay);
         } else {
           retryCount++;
           if (retryCount < MAX_RETRIES) {
@@ -232,6 +318,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
+      if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
       try { mapInstance.off('moveend', onWindMoveEnd); } catch (e) { /* map may be disposed */ }
     };
   }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes

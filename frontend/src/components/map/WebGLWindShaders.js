@@ -34,6 +34,7 @@ uniform float u_speed_gamma;      // 2026-07-06: speed-contrast gamma; 1.0 = exa
 uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the gamma term (data units, from u_wind_max)
 uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost at z>=4 (0 = legacy curve)
 uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density stops tracking speed (0 = legacy)
+uniform float u_size_monotonic;   // 2026-07-19: mirrors DRAW_VS — the ink budget must use the size actually drawn
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -149,8 +150,11 @@ void main() {
   // size the mark is actually drawn at, or the compensation is wrong at exactly the zooms where
   // the floor is weakest.
   float floorZoomScale = mix(0.62, 1.0, smoothstep(3.0, 7.0, u_zoom));
+  // MONOTONE FLOOR mirror (2026-07-19): flat at sizeBase(10 kn) = 3.073 css px, matching DRAW_VS
+  // exactly — the slowness ramp lives on only behind the kill switch. (DPR scales every mark
+  // equally and so cannot change RELATIVE density; it stays out of this budget by design.)
   float sFloor = (speed >= 1.0 && speed < 10.0)
-    ? mix(3.4, 4.2, smoothstep(10.0, 1.0, speed)) * floorZoomScale : 0.0;
+    ? (u_size_monotonic > 0.5 ? 3.073 : mix(3.4, 4.2, smoothstep(10.0, 1.0, speed))) * floorZoomScale : 0.0;
   // The drawn mark is an oriented DASH, not a disc: DRAW_FS narrows the across-wind axis by
   // ~1.8-2.6x, so its true area is well below this square estimate. Using the square here is the
   // conservative direction (it can only over-estimate ink and shorten lifetime slightly).
@@ -264,7 +268,9 @@ uniform vec2 u_wind_max;
 uniform float u_zoom;  // v3.13.5: for close-zoom density boost
 uniform float u_lowwind_boost;   // 2026-07-18: synoptic low-wind legibility (0 = off, kill switch)
 uniform float u_dpr;             // 2026-07-18: devicePixelRatio — gl_PointSize is in DEVICE pixels
+uniform float u_size_monotonic;  // 2026-07-19: slower must NEVER draw larger than faster (0 = legacy)
 uniform float u_edgeFeatherEnabled;
+uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
 
 vec2 decodePos(vec4 color) {
@@ -339,13 +345,18 @@ void main() {
   // Falls back to +x for a genuinely zero vector so normalize() cannot produce NaN.
   v_dir = (v_speed > 1e-4) ? normalize(vec2(wind.x, -wind.y)) : vec2(1.0, 0.0);
 
-  // Edge feathering: compute edgeFade from particle position in wind grid
+  // Edge feathering: compute edgeFade from particle position in wind grid.
+  // FEATHER WIDTH IS A UNIFORM NOW (2026-07-19): the hardcoded 0.18 was 18% OF THE GRID SPAN,
+  // tuned for regional pilot tiles much larger than the viewport. A viewport-fine grid is
+  // approximately THE viewport, so 18% of it lay INSIDE the screen on all four sides — the
+  // "clamped wind heatmap" report. The engine now sends an absolute-width fraction
+  // (~0.6 deg / span, capped at 0.18) so the fade band sits in the request pad, off-screen.
   float edgeFade = 1.0;
   if (u_edgeFeatherEnabled > 0.5) {
     float distToEdgeX = min(tex_u, 1.0 - tex_u);
     float distToEdgeY = min(tex_v, 1.0 - tex_v);
     float minDistToEdge = min(distToEdgeX, distToEdgeY);
-    edgeFade = smoothstep(0.0, 0.18, minDistToEdge);
+    edgeFade = smoothstep(0.0, max(u_edge_feather_frac, 0.001), minDistToEdge);
   }
   v_alpha = edgeFade;
 
@@ -360,13 +371,34 @@ void main() {
   // v3.21: Speed-proportional base sizing with zoom-adaptive low-speed boost
   // Calibrated to keep low-speed particles (<= 8.5 kts) highly visible at close zoom
   float sizeBase = v_speed < 0.5 ? 0.0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, v_speed);
-  float zoomBoost = 1.0 + smoothstep(5.0, 11.0, u_zoom) * 1.5;
+  float zoomBoostBase = 1.0 + smoothstep(5.0, 11.0, u_zoom) * 1.5;
+  float zoomBoost = zoomBoostBase;
 
   if (u_zoom > 7.0 && v_speed < 8.5) {
+    // v3.21 additive low-speed boost — LEGACY ONLY: it decays with speed faster than sizeBase
+    // grows, producing interior inversions in the 3-8 kn band at z8-9 (the enumeration gate
+    // found them at ~1% magnitude after the first cap-only fix). The monotone path replaces it
+    // with the uniform band LIFT below, which serves the same close-zoom visibility goal.
     float speedBoost = smoothstep(8.5, 2.0, v_speed) * smoothstep(7.0, 11.0, u_zoom) * 1.5;
-    zoomBoost += speedBoost;
+    zoomBoost += speedBoost * (u_size_monotonic > 0.5 ? 0.0 : 1.0);
   }
-  gl_PointSize = sizeBase * zoomBoost * edgeFade;
+  // SIZE MONOTONICITY + FULL DPR CORRECTNESS (2026-07-19, user: "slower wind particles are
+  // appearing larger still than some of the faster wind particles"). Two stacked causes, both
+  // measured (see windParticleMonotonic.test.js for the enumeration):
+  //   1. the low-wind floor RAMPED UP as speed fell (mix 3.4->4.2 by slowness), so 1-8 kn marks
+  //      out-drew 8-15 kn marks at EVERY zoom (z6: 1 kn = 4.0 px vs 8 kn = 3.3 px);
+  //   2. sizeBase was DPR-BLIND while the floor was DPR-correct, so on a DPR-3 phone every
+  //      unfloored (fast) mark rendered at 1/3 physical size — slow-bigger-than-fast was
+  //      structural on mobile no matter what curve the floor used.
+  // Flow-vis practice is unambiguous: speed is read from trail length and motion; the MARK may
+  // grow with speed or stay constant, never shrink. Under u_size_monotonic the whole size path
+  // is DPR-correct (physical parity mobile==desktop for every speed, completing what the floor
+  // started), the floor is FLAT at sizeBase(10 kn) so it can never invert ordering, and the
+  // legacy v3.21 close-zoom low-speed boost is CAPPED at the 10 kn size — slow marks are lifted
+  // TO the moderate-wind size at close zoom, never beyond it.
+  // Kill: __RAW_DISABLE_WIND_SIZE_MONOTONIC__ (u_size_monotonic = 0 -> yesterday's exact sizing).
+  float dprAll = (u_size_monotonic > 0.5) ? max(u_dpr, 1.0) : 1.0;
+  gl_PointSize = sizeBase * zoomBoost * edgeFade * dprAll;
 
   // === SYNOPTIC LOW-WIND LEGIBILITY (2026-07-18 EVE-3, user report: "at very light wind speeds
   // it's hard to tell wind direction, which we need to see when low pressure systems form") ===
@@ -421,8 +453,24 @@ void main() {
     // stacking a second close-zoom multiplier here made the floor — whose only job is to stop a
     // mark going sub-pixel — the thing making marks LARGE at exactly the zooms where they were
     // already big enough. The floor stays flat-to-shrinking in CSS px across the whole range.
-    float minCssPx = mix(3.4, 4.2, slowness) * zoomScale;
+    // MONOTONE FLOOR (2026-07-19): the slowness ramp (3.4->4.2, larger when SLOWER) inverted the
+    // size ordering against 8-15 kn marks at every zoom. Flat at sizeBase(10 kn) = 3.073 css px
+    // (2.5 + 2.5*smoothstep(1,30,10)), the floor meets the base curve exactly at the band edge —
+    // continuous, and a slower mark can never out-draw a faster one. Legacy ramp kept behind the
+    // kill switch.
+    float minCssPx = (u_size_monotonic > 0.5 ? 3.073 : mix(3.4, 4.2, slowness)) * zoomScale;
     gl_PointSize = max(gl_PointSize, minCssPx * max(u_dpr, 1.0) * edgeFade);
+  }
+  // MONOTONE CLOSE-ZOOM LIFT (replaces the v3.21 boost when u_size_monotonic). The whole
+  // sub-10 kn band is blended TOWARD the 10 kn size by an s-INDEPENDENT factor — monotone by
+  // construction (a monotone curve mixed with a constant stays monotone), while the v3.21 goal
+  // (slow marks readable when zoomed in) is preserved: at z11 a 2 kn mark draws at ~7.5 px vs
+  // the 10 kn mark's 7.7, instead of OVER-drawing it at 10.4. The min() guard also caps any
+  // residual overshoot at exactly the 10 kn size, so a slower mark can never exceed it.
+  if (u_size_monotonic > 0.5 && v_speed < 10.0 && v_speed >= 0.5) {
+    float cap10 = 3.073 * zoomBoostBase * max(u_dpr, 1.0) * edgeFade;
+    float lift = smoothstep(7.0, 11.0, u_zoom) * 0.85;
+    gl_PointSize = mix(min(gl_PointSize, cap10), cap10, lift);
   }
 
   // Debug mode colors
@@ -588,6 +636,7 @@ uniform float u_opacity;
 uniform float u_theme;
 uniform float u_max_speed;
 uniform float u_edgeFeatherEnabled;
+uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see DRAW_VS edgeFade)
 uniform float u_debug_mode;
 varying vec2 v_uv;
 
@@ -667,7 +716,7 @@ void main() {
     float edgeDistX = min(v_uv.x, 1.0 - v_uv.x);
     float edgeDistY = min(v_uv.y, 1.0 - v_uv.y);
     float minEdgeDist = min(edgeDistX, edgeDistY);
-    float feather = smoothstep(0.0, 0.18, minEdgeDist);
+    float feather = smoothstep(0.0, max(u_edge_feather_frac, 0.001), minEdgeDist);
     alpha *= feather;
   }
   gl_FragColor = vec4(ramp(t, u_theme) * alpha, alpha);

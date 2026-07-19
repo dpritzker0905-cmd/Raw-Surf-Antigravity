@@ -23,7 +23,9 @@ import { DRAW_VS, DRAW_FS, ADVECT_FS } from './WebGLWindShaders';
 const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const mix = (a, b, t) => a + (b - a) * t;
 
-// Mirrors of the shipped shader arithmetic.
+// Mirrors of the shipped shader arithmetic (2026-07-19 monotone default: flat floor at
+// sizeBase(10kn)=3.073, FULL-path DPR correctness, and the v3.21 close-zoom low-speed boost
+// capped at the 10 kn size — see windParticleMonotonic.test.js for the ordering gate).
 const sizeBase = (s) => (s < 0.5 ? 0 : 2.5 + 2.5 * smoothstep(1.0, 30.0, s));
 const zoomBoost = (z) => 1.0 + smoothstep(5.0, 11.0, z) * 1.5;
 const floorZoomScale = (z) => mix(0.62, 1.0, smoothstep(3.0, 7.0, z));
@@ -31,10 +33,21 @@ const floorCss = (s, z) => {
   if (!(s >= 1.0 && s < 10.0)) return 0;
   // No close-zoom boost: sizeBase already grows via zoomBoost when zoomed in, and stacking a
   // second multiplier here made the FLOOR the thing inflating marks at close zoom.
-  return mix(3.4, 4.2, smoothstep(10.0, 1.0, s)) * floorZoomScale(z);
+  return 3.073 * floorZoomScale(z);
 };
-// gl_PointSize in DEVICE px, as the GPU receives it.
-const devicePx = (s, z, dpr) => Math.max(sizeBase(s) * zoomBoost(z), floorCss(s, z) * Math.max(dpr, 1));
+// gl_PointSize in DEVICE px, as the GPU receives it (monotone default: dpr scales the WHOLE
+// path; the v3.21 additive boost is replaced by the s-independent band lift toward cap10).
+const devicePx = (s, z, dpr) => {
+  const d = Math.max(dpr, 1);
+  let p = sizeBase(s) * zoomBoost(z) * d;
+  p = Math.max(p, floorCss(s, z) * d);
+  if (s >= 0.5 && s < 10.0) {
+    const cap10 = 3.073 * zoomBoost(z) * d;
+    const lift = smoothstep(7.0, 11.0, z) * 0.85;
+    p = Math.min(p, cap10) + (cap10 - Math.min(p, cap10)) * lift;
+  }
+  return p;
+};
 // What the user perceives.
 const cssPx = (s, z, dpr) => devicePx(s, z, dpr) / dpr;
 
