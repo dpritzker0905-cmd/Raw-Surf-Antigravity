@@ -118,7 +118,7 @@ const OUT = process.argv[3] || path.join(__dirname, 'wind-themes-out');
 fs.mkdirSync(OUT, { recursive: true });
 
 // Synoptic view over the N Atlantic — mid-latitude lows form here, with broad light-wind fields.
-const CENTER = { lng: -40, lat: 42, zoom: 4.2 };
+const CENTER = { lng: -40, lat: 42, zoom: Number(process.env.ZL_WZOOM || 4.2) };
 const DEVICES=[{name:'desktop',width:1280,height:800,dpr:1},{name:'mobile',width:390,height:844,dpr:3}];
 
 async function leg(browser, theme, flags, tag, device) {

@@ -500,6 +500,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // Oriented dash — direction is carried by ELONGATION, not by mark area.
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);
+  // COMPOSITED BACKGROUND (round 6). The wind field is SEMI-TRANSPARENT, so a particle sits on the
+  // ramp blended over the BASEMAP — in light mode only ~23% ramp at low wind. The casing must pick
+  // its pole from that composite, not from the ramp colour, or it inverts (measured 1.71:1 at
+  // light/0kn where 12.25:1 was available). These two uniforms let DRAW_FS reconstruct it.
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_field_opacity'), heatmapOpacity);
+  // Approximate LINEAR luminance of each theme's basemap behind the wind layer.
+  var _basemapY = effectiveTheme === 'light' ? 0.72 : (effectiveTheme === 'beach' ? 0.30 : 0.02);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_basemap_y'), _basemapY);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_lowwind_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_LOWWIND_LEGIBILITY__ === true) ? 0.0 : 1.0);
   // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the

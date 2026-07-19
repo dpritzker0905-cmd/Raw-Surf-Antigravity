@@ -26,12 +26,30 @@ const Ylin = (r, g, b) => 0.2126 * lin(r) + 0.7152 * lin(g) + 0.0722 * lin(b);
 const ratio = (a, b) => (Math.max(a, b) + 0.05) / (Math.min(a, b) + 0.05);
 const mix1 = (a, b, t) => a + (b - a) * t;
 
+// THE BACKGROUND IS THE COMPOSITE, NOT THE RAMP (round 6 — the root behind "light mode is really
+// hard to see"). The wind field is semi-transparent, so a particle sits on
+//     mix(basemapY, rampY, fieldAlpha)
+// and in light mode fieldAlpha is only ~0.23 at low wind, i.e. the surface is 77% LIGHT BASEMAP
+// even though the ramp is dark navy. Choosing the pole from the ramp alone inverted it for 6 of 8
+// light-mode speeds: measured 1.71:1 at 0 kn where 12.25:1 was available. Every contrast number
+// this file produced before this change compared against a background that is not on screen.
+const HEATMAP_OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
+const BASE_ALPHA = { dark: 0.20, light: 0.35, beach: 0.45 };
+const BASEMAP_Y = { dark: 0.02, light: 0.72, beach: 0.30 };   // linear, mirrors the engine
+const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
+const fieldAlpha = (theme, s) =>
+  HEATMAP_OPACITY[theme] * (BASE_ALPHA[theme] + (1 - BASE_ALPHA[theme]) * smoothstep(0, 10, s));
+// The luminance a mark is actually drawn against.
+const bgY = (theme, s, r, g, b) => {
+  const rampY = 0.2126729 * Math.pow(r, 2.2) + 0.7151522 * Math.pow(g, 2.2) + 0.0721750 * Math.pow(b, 2.2);
+  const a = Math.min(Math.max(fieldAlpha(theme, s), 0), 1);
+  return BASEMAP_Y[theme] * (1 - a) + rampY * a;
+};
+
 // JS mirror of the DRAW_FS dual-tone casing. Kept deliberately literal so a shader edit that
 // changes the poles/orientation shows up here as a number, not as a silent visual regression.
-function casing(r, g, b) {
-  // Mirrors the shader exactly: pole chosen on LINEAR luminance at the 0.179 optimum, via the
-  // same pow(2.2) approximation of the sRGB EOTF the shader uses.
-  const fieldY = 0.2126729 * Math.pow(r, 2.2) + 0.7151522 * Math.pow(g, 2.2) + 0.0721750 * Math.pow(b, 2.2);
+function casing(r, g, b, theme = 'dark', speed = 0) {
+  const fieldY = bgY(theme, speed, r, g, b);
   const fieldIsBright = fieldY >= 0.179 ? 1 : 0;
   const outerL = mix1(1.0, 0.0, fieldIsBright);
   const innerL = 1.0 - outerL;
@@ -53,7 +71,7 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     let worst = { r: Infinity };
     for (const theme of THEMES) {
       for (const [kn, r, g, b] of THEME_RAMPS[theme]) {
-        const { outer, inner } = casing(r, g, b);
+        const { outer, inner } = casing(r, g, b, theme, kn);
         const c = ratio(Ylin(...outer), Ylin(...inner));
         if (c < worst.r) worst = { r: c, theme, kn };
         report.push(`${theme}@${kn}kn ${c.toFixed(1)}:1`);
@@ -70,8 +88,8 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     for (const theme of THEMES) {
       let worst = { r: Infinity };
       for (const [kn, r, g, b] of THEME_RAMPS[theme]) {
-        const { outer } = casing(r, g, b);
-        const c = ratio(Ylin(r, g, b), Ylin(...outer));
+        const { outer } = casing(r, g, b, theme, kn);
+        const c = ratio(bgY(theme, kn, r, g, b), Ylin(...outer));
         if (c < worst.r) worst = { r: c, kn };
         if (c < MIN_VS_FIELD) failures.push(`${theme}@${kn}kn ${c.toFixed(2)}:1`);
       }
@@ -82,11 +100,21 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     expect(failures).toEqual([]);
   });
 
-  it('orientation actually flips with field luminance (not a per-theme constant)', () => {
-    // Dark's neon ramp is BRIGHT -> dark outer ring. Light's navy ramp is DARK -> bright outer.
-    const darkStop = THEME_RAMPS.dark[0], lightStop = THEME_RAMPS.light[0];
-    expect(casing(darkStop[1], darkStop[2], darkStop[3]).outer[0]).toBeLessThan(0.1);
-    expect(casing(lightStop[1], lightStop[2], lightStop[3]).outer[0]).toBeGreaterThan(0.9);
+  it('orientation follows the COMPOSITE, which inverts both themes at low wind', () => {
+    // This is the round-6 finding stated as a test. Judged on the RAMP alone the poles look
+    // obvious — dark's neon ramp is bright so "use a dark ring", light's navy ramp is dark so
+    // "use a bright ring". Judged on what is actually ON SCREEN, both invert at low wind, because
+    // the field is nearly transparent there and the BASEMAP dominates:
+    //   dark  @0kn: fieldAlpha 0.10 over a dark basemap  -> bg 0.079 (DARK)   -> WHITE ring
+    //   light @0kn: fieldAlpha 0.23 over a light basemap -> bg 0.563 (BRIGHT) -> DARK ring
+    // Choosing from the ramp gave each theme exactly the wrong pole at its calmest speeds, which
+    // is why light measured 1.71:1 and dark 2.58:1 at 0 kn.
+    const d = THEME_RAMPS.dark[0], l = THEME_RAMPS.light[0];
+    expect(casing(d[1], d[2], d[3], 'dark', d[0]).outer[0]).toBeGreaterThan(0.9);   // white
+    expect(casing(l[1], l[2], l[3], 'light', l[0]).outer[0]).toBeLessThan(0.1);     // dark
+    // …and at HIGH wind, where the field is opaque, the ramp does govern again.
+    const dFast = THEME_RAMPS.dark[THEME_RAMPS.dark.length - 1];
+    expect(casing(dFast[1], dFast[2], dFast[3], 'dark', dFast[0]).outer[0]).toBeLessThan(0.1);
   });
 
   it('the casing picks the BETTER pole at every stop (never worse than a fixed rim)', () => {
@@ -99,10 +127,11 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     const worse = [];
     for (const theme of THEMES) {
       for (const [kn, r, g, b] of THEME_RAMPS[theme]) {
-        const { outer } = casing(r, g, b);
-        const chosen = ratio(Ylin(r, g, b), Ylin(...outer));
-        const toWhite = ratio(Ylin(r, g, b), Ylin(...[0, 1, 2].map((i) => mix1([r, g, b][i], 1.0, 0.98))));
-        const toBlack = ratio(Ylin(r, g, b), Ylin(...[0, 1, 2].map((i) => mix1([r, g, b][i], 0.0, 0.98))));
+        const { outer } = casing(r, g, b, theme, kn);
+        const chosen = ratio(bgY(theme, kn, r, g, b), Ylin(...outer));
+        const mixPole = (L) => Ylin(...[0, 1, 2].map((i) => mix1([r, g, b][i], L, 0.98)));
+        const toWhite = ratio(bgY(theme, kn, r, g, b), mixPole(1.0));
+        const toBlack = ratio(bgY(theme, kn, r, g, b), mixPole(0.0));
         const best = Math.max(toWhite, toBlack);
         if (chosen < best - 0.05) worse.push(`${theme}@${kn}kn chose ${chosen.toFixed(2)} over ${best.toFixed(2)}`);
       }
@@ -165,11 +194,12 @@ describe('wind particle legibility on mobile / high-DPR', () => {
   });
 
   it('contrast is device-independent — the casing maths has no size term', () => {
-    // Guards against a future "shrink it on mobile" tweak silently costing contrast: the poles
-    // are chosen from colour alone, so every per-speed result above holds on every device.
+    // Guards against a future "shrink it on mobile" tweak silently costing contrast: the poles are
+    // chosen from COLOUR and field alpha only — never from size — so every per-speed result above
+    // holds identically on every device.
     for (const theme of THEMES) {
-      for (const [, r, g, b] of THEME_RAMPS[theme]) {
-        const { outer, inner } = casing(r, g, b);
+      for (const [kn, r, g, b] of THEME_RAMPS[theme]) {
+        const { outer, inner } = casing(r, g, b, theme, kn);
         expect(ratio(Ylin(...outer), Ylin(...inner))).toBeGreaterThanOrEqual(MIN_INTERNAL);
       }
     }

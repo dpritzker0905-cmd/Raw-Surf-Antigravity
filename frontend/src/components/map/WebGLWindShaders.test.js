@@ -122,8 +122,13 @@ describe('wind theme parity + low-wind legibility', () => {
   // against BOTH poles. The rim is now chosen from the LOCAL FIELD LUMINANCE, which is strictly
   // more general (it self-themes), so the assertions move from "has three theme branches" to
   // "adapts per colour". Per-speed numbers live in windParticleContrast.test.js.
-  it('the rim adapts to the LOCAL field luminance rather than branching per theme', () => {
-    expect(DRAW_FS).toMatch(/fieldY\s*=\s*dot\(/);
+  it('the rim adapts to the COMPOSITED background rather than branching per theme', () => {
+    // Round 6: fieldY is no longer the ramp's own luminance. The wind field is semi-transparent,
+    // so the surface a mark sits on is mix(basemapY, rampY, fieldAlpha) — and judging by the ramp
+    // alone chose the WRONG pole for 6 of 8 light-mode speeds (1.71:1 at 0 kn vs 12.25:1 available).
+    expect(DRAW_FS).toMatch(/rampY\s*=\s*dot\(/);
+    expect(DRAW_FS).toMatch(/fieldA\s*=\s*u_field_opacity\s*\*/);
+    expect(DRAW_FS).toMatch(/fieldY\s*=\s*mix\(u_basemap_y,\s*rampY,/);
     expect(DRAW_FS).toMatch(/0\.2126729,\s*0\.7151522,\s*0\.0721750/);   // APCA coefficients
     // The pole must be chosen on LINEAR luminance at 0.179 — the exact point where
     // contrast-to-white equals contrast-to-black, so it is the optimum rather than a taste call.

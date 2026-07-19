@@ -445,6 +445,8 @@ uniform float u_max_speed;
 uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
+uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
+uniform float u_basemap_y;     // linear luminance of the basemap showing through it
 varying vec2 v_dir;          // screen-space wind direction from DRAW_VS
 void main() {
   if (v_debug_color.a > 0.5) {
@@ -514,13 +516,25 @@ void main() {
   // Kill: __RAW_DISABLE_THEMED_PARTICLE_RIM__ -> the legacy fixed black-rim/white-core pair.
   vec3 rgb = color.rgb;
   if (u_theme_rim > 0.5) {
-    // The pole choice must be made on LINEAR luminance: contrast-to-white equals contrast-to-black
-    // at linear Y = 0.179 exactly, so that threshold IS the optimum rather than a taste call.
-    // Thresholding the GAMMA-encoded value instead (first 0.36, then 0.45) mis-chose the pole at
-    // mid-luminance stops — the contract test caught both rounds. pow(2.2) approximates the sRGB
-    // EOTF closely enough that no ramp stop sits within a flip of the boundary.
+    // THE POLE MUST BE CHOSEN FROM THE COMPOSITED BACKGROUND, NOT THE RAMP COLOUR
+    // (2026-07-18 round 6 — the root behind "light mode is really hard to see").
+    // The wind FIELD is semi-transparent: HEATMAP_FS draws it at
+    //     u_opacity * (baseAlpha + (1-baseAlpha)*smoothstep(0,10,speed))
+    // which in light mode is only ~0.23 at low wind. So the surface a particle actually sits on is
+    // the ramp composited OVER THE BASEMAP — and in light mode that composite is BRIGHT (measured
+    // bgY 0.27-0.56) even though the ramp itself is dark navy (rampY 0.03-0.20).
+    // Choosing from the ramp alone therefore picked WHITE for 6 of 8 light-mode speeds, against a
+    // bright background: measured 1.71:1 at 0 kn where 12.25:1 was available. Every contrast figure
+    // this arc produced before now shares that error — they compared against a background that is
+    // not what is on screen.
+    // Linear luminance is still the right space (contrast-to-white equals contrast-to-black at
+    // Y = 0.179 exactly), but it must be evaluated on the COMPOSITE.
     vec3 fieldLin = pow(color.rgb, vec3(2.2));
-    float fieldY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
+    float rampY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
+    float baseA = 0.20;
+    if (u_theme > 1.5) { baseA = 0.45; } else if (u_theme > 0.5) { baseA = 0.35; }
+    float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, 10.0, v_speed));
+    float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
     float fieldIsBright = step(0.179, fieldY);
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
     float innerL = 1.0 - outerL;                   // opposes the outer ring
