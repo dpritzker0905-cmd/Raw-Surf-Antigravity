@@ -438,6 +438,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_size_monotonic'), _sizeMono);
   var _calmMarks = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_MARKS__ === true) ? 0.0 : 1.0;
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_calm_marks'), _calmMarks);
+  var _czDensity = (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__ === true) ? 0.0 : 1.0;
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_closezoom_density'), _czDensity);
   const _speedMax = Math.max(1, Math.hypot(this._windData.uMax[0] || 0, this._windData.uMax[1] || 0));
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_speed_max'), _speedMax);
   unbindTexture(gl, this.particleStateB);
@@ -534,6 +536,8 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SIZE_MONOTONIC__ === true) ? 0.0 : 1.0);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_calm_marks'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_MARKS__ === true) ? 0.0 : 1.0);
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_closezoom_density'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__ === true) ? 0.0 : 1.0);
   // MOBILE: gl_PointSize is in DEVICE pixels and this pipeline had no DPR handling at all, so the
   // size floor above was ~3x physically smaller on a DPR-3 phone. Clamped [1,3] so an unusual
   // ratio cannot blow the sprite budget. Override for testing: __RAW_WIND_DPR__.

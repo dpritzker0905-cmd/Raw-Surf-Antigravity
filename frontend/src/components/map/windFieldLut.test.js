@@ -62,6 +62,21 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     }
   });
 
+  it('adjacent low-band HUE GAPS are >= 18 deg in every theme (the slow-wind sensitivity pin)', () => {
+    // 2026-07-19: dark's 0-3-6 kn gaps measured 12/10/11 deg — one cyan family. The spread
+    // redistributed the low stops; this pin stops them drifting back together.
+    for (const theme of ['dark', 'light', 'beach']) {
+      const ramp = THEME_RAMPS[theme];
+      for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
+        const a = rgbToHueDeg([ramp[i - 1][1], ramp[i - 1][2], ramp[i - 1][3]]);
+        const b = rgbToHueDeg([ramp[i][1], ramp[i][2], ramp[i][3]]);
+        let d = Math.abs(b - a);
+        if (d > 180) d = 360 - d;
+        expect(d).toBeGreaterThanOrEqual(18);
+      }
+    }
+  });
+
   it('adjacent low-band stops stay DISTINGUISHABLE in every theme (no two stops collapse)', () => {
     for (const theme of ['dark', 'light', 'beach']) {
       const ramp = THEME_RAMPS[theme];

@@ -36,6 +36,7 @@ uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost 
 uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density stops tracking speed (0 = legacy)
 uniform float u_size_monotonic;   // 2026-07-19: mirrors DRAW_VS — the ink budget must use the size actually drawn
 uniform float u_calm_marks;       // 2026-07-19: mirrors DRAW_VS calm band + the calm lifetime floor
+uniform float u_closezoom_density; // 2026-07-19: close-zoom respawn bias extension (0 = legacy plateau)
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -231,6 +232,10 @@ void main() {
       // Kill: __RAW_DISABLE_WIND_VIEWPORT_DENSITY__ (u_vp_density_boost = 0 -> legacy curve).
       float legacyBias = smoothstep(4.0, 7.0, u_zoom) * 0.25;
       float boostedBias = smoothstep(3.6, 6.0, u_zoom) * 0.45;
+      // CLOSE-ZOOM EXTENSION (2026-07-19): the bias plateaued at 0.45 while the viewport share
+      // of the world keeps shrinking with zoom — by z9 most respawns still landed off-screen.
+      // Ramps 0.45 -> 0.60 across z6-9. Kill: __RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__.
+      boostedBias += u_closezoom_density * smoothstep(6.0, 9.0, u_zoom) * 0.15;
       float mainBias = mix(legacyBias, max(legacyBias, boostedBias), u_vp_density_boost);
       float viewportBias = max(mainBias, u_lowband_bias * lowBand);
       
@@ -281,6 +286,7 @@ uniform float u_lowwind_boost;   // 2026-07-18: synoptic low-wind legibility (0 
 uniform float u_dpr;             // 2026-07-18: devicePixelRatio — gl_PointSize is in DEVICE pixels
 uniform float u_size_monotonic;  // 2026-07-19: slower must NEVER draw larger than faster (0 = legacy)
 uniform float u_calm_marks;      // 2026-07-19: near-calm air draws small marks, not NOTHING (0 = legacy)
+uniform float u_closezoom_density; // 2026-07-19: keepRate floor 0.45->0.70 at z>=8 (0 = legacy cull)
 uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: feather width as a fraction of grid span (see edgeFade)
 uniform float u_debug_mode;
@@ -316,10 +322,16 @@ void main() {
 
   // v3.20: Reduce particle density at higher zooms to prevent haze and keep landmasses visible
   // Seed rand with uv to prevent GPU precision loss on high index values.
+  // CLOSE-ZOOM DENSITY (2026-07-19, user: "some closer up zooms have less animations"). The 0.45
+  // cull floor was tuned in the fat-disc era; the oriented dash covers ~40% of that ink, so by
+  // z8 the cull discarded 55% of particles that no longer threatened the basemap. Floor raised
+  // to 0.70 — land visibility guarded by the dash geometry + the ink budget.
+  // Kill: __RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__ (u_closezoom_density = 0 -> the 0.45 floor).
   float p_rand = rand(uv + vec2(0.123, 0.456));
   float keepRate = 1.0;
   if (u_zoom > 4.0) {
-    keepRate = mix(1.0, 0.45, smoothstep(4.0, 8.0, u_zoom));
+    float keepFloor = (u_closezoom_density > 0.5) ? 0.70 : 0.45;
+    keepRate = mix(1.0, keepFloor, smoothstep(4.0, 8.0, u_zoom));
   }
   if (p_rand > keepRate) {
     gl_Position = vec4(-2.0, -2.0, -2.0, 1.0);
@@ -605,7 +617,7 @@ void main() {
     // Y = 0.179 exactly), but it must be evaluated on the COMPOSITE.
     vec3 fieldLin = pow(color.rgb, vec3(2.2));
     float rampY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
-    float baseA = 0.20;
+    float baseA = 0.28; // sync with HEATMAP_FS baseAlpha (dark raised 0.20->0.28, 2026-07-19)
     if (u_theme > 1.5) { baseA = 0.45; } else if (u_theme > 0.5) { baseA = 0.35; }
     float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, 10.0, v_speed));
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
@@ -731,9 +743,11 @@ void main() {
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   float speed = length(wind);
   float t = clamp(speed / max(u_max_speed, 1.0), 0.0, 1.0);
-  // v3.20: Theme-aware dynamic alpha floor (0.45 for beach, 0.35 for light, 0.20 for dark)
-  // Ensures low wind speeds (0-7 mph) remain visible on all maps while scaling smoothly
-  float baseAlpha = 0.20;
+  // v3.20: Theme-aware dynamic alpha floor (0.45 beach, 0.35 light, dark 0.20 -> 0.28 on
+  // 2026-07-19: measured calm-band screen delta in dark was 26-44/765 — sub-visible. MUST stay
+  // in sync with DRAW_FS's casing baseA and windParticleContrast.test.js's fieldAlpha mirror:
+  // three sites, one constant set.
+  float baseAlpha = 0.28;
   if (u_theme > 1.5) {
     baseAlpha = 0.45;
   } else if (u_theme > 0.5) {

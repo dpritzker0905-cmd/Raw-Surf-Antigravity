@@ -34,7 +34,7 @@ const mix1 = (a, b, t) => a + (b - a) * t;
 // light-mode speeds: measured 1.71:1 at 0 kn where 12.25:1 was available. Every contrast number
 // this file produced before this change compared against a background that is not on screen.
 const HEATMAP_OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
-const BASE_ALPHA = { dark: 0.20, light: 0.35, beach: 0.45 };
+const BASE_ALPHA = { dark: 0.28, light: 0.35, beach: 0.45 }; // dark 0.20->0.28 (2026-07-19 calm visibility); sync HEATMAP_FS + DRAW_FS
 const BASEMAP_Y = { dark: 0.02, light: 0.72, beach: 0.30 };   // linear, mirrors the engine
 const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const fieldAlpha = (theme, s) =>

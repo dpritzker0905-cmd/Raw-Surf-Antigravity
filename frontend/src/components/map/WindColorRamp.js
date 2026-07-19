@@ -56,13 +56,19 @@ var DEFAULT_WIND_RAMP = [
  * Per-stop contrast for every stop x every theme is enforced by windParticleContrast.test.js; the
  * particle casing adapts per colour, so added stops cannot silently cost mark legibility.
  */
+// SLOW-BAND HUE SPREAD (2026-07-19, user: "spectrum sensitivity must extend better into the
+// slower winds"). Measured composited over each theme's basemap: dark's 0-3-6 kn gaps were
+// 12/10/11 deg (one cyan family — indistinguishable) while its fast bands got 37-41; light's low
+// gaps were 7/12. The low stops now spread across more of each theme's wheel — every adjacent
+// gap below 21 kn is >=18 deg (pinned by windFieldLut.test.js) — while each theme keeps its hue
+// identity, monotone advance, and its 27+ kn stops untouched.
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.45, 0.70, 0.75], // Calm: electric rose
-  [3,  1.00, 0.52, 0.48, 0.78], // Light air: coral
-  [6,  1.00, 0.62, 0.25, 0.81], // Light breeze: tangerine
-  [10, 0.97, 0.75, 0.10, 0.83], // Gentle: sun yellow
-  [16, 0.75, 0.85, 0.12, 0.85], // Moderate: chartreuse
-  [21, 0.35, 0.88, 0.25, 0.87], // Fresh: lime
+  [0,  1.00, 0.35, 0.75, 0.75], // Calm: vivid magenta-rose
+  [3,  1.00, 0.48, 0.42, 0.78], // Light air: coral
+  [6,  1.00, 0.60, 0.20, 0.81], // Light breeze: orange
+  [10, 0.95, 0.82, 0.06, 0.83], // Gentle: yellow-gold
+  [16, 0.72, 0.90, 0.12, 0.85], // Moderate: lime
+  [21, 0.35, 0.88, 0.25, 0.87], // Fresh: green
   [27, 0.10, 0.88, 0.55, 0.88], // Strong: spring green
   [33, 0.00, 0.86, 0.80, 0.90], // Near gale: turquoise
   [40, 0.00, 0.72, 0.92, 0.91], // Gale: cyan-blue
@@ -73,11 +79,11 @@ var BEACH_WIND_RAMP = [
 ];
 
 var LIGHT_WIND_RAMP = [
-  [0,  0.08, 0.18, 0.36, 0.72], // Calm: deep navy
-  [3,  0.05, 0.24, 0.45, 0.75], // Light air: steel blue
+  [0,  0.16, 0.10, 0.42, 0.72], // Calm: deep indigo
+  [3,  0.06, 0.20, 0.48, 0.75], // Light air: navy blue
   [6,  0.02, 0.33, 0.48, 0.78], // Light breeze: deep teal
-  [10, 0.03, 0.42, 0.42, 0.80], // Gentle: pine teal
-  [16, 0.05, 0.48, 0.30, 0.82], // Moderate: forest green
+  [10, 0.03, 0.42, 0.40, 0.80], // Gentle: pine teal
+  [16, 0.08, 0.46, 0.20, 0.82], // Moderate: forest green
   [21, 0.30, 0.47, 0.10, 0.84], // Fresh: olive
   [27, 0.52, 0.44, 0.03, 0.86], // Strong: dark gold
   [33, 0.65, 0.38, 0.02, 0.87], // Near gale: bronze
@@ -89,11 +95,11 @@ var LIGHT_WIND_RAMP = [
 ];
 
 var DARK_WIND_RAMP = [
-  [0,  0.55, 0.85, 1.00, 0.80], // Calm: ice blue
-  [3,  0.42, 0.90, 0.97, 0.83], // Light air: electric cyan-blue
-  [6,  0.20, 0.95, 0.92, 0.85], // Light breeze: neon cyan
-  [10, 0.12, 0.97, 0.78, 0.87], // Gentle: aqua-mint
-  [16, 0.35, 0.95, 0.45, 0.88], // Moderate: spring green
+  [0,  0.35, 0.45, 1.00, 0.80], // Calm: bright indigo
+  [3,  0.25, 0.65, 1.00, 0.83], // Light air: azure
+  [6,  0.15, 0.90, 0.95, 0.85], // Light breeze: neon cyan
+  [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
+  [16, 0.38, 0.95, 0.40, 0.88], // Moderate: spring green
   [21, 0.62, 0.92, 0.30, 0.89], // Fresh: yellow-green
   [27, 0.85, 0.85, 0.20, 0.90], // Strong: chartreuse
   [33, 0.97, 0.72, 0.15, 0.91], // Near gale: amber
