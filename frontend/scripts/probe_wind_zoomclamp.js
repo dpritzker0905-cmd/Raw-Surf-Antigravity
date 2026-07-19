@@ -60,14 +60,18 @@ function coverage(basePng, onPng) {
   const y0 = Math.floor(h * 0.18), y1 = Math.floor(h * 0.78);
   const midX = (x0 + x1) >> 1, midY = (y0 + y1) >> 1;
   const q = [{ n: 0, d: 0 }, { n: 0, d: 0 }, { n: 0, d: 0 }, { n: 0, d: 0 }];
-  const TH = 10;
+  // SUM of channel deltas, not per-channel: the dark theme's calm field wash measures a uniform
+  // ~(-8,-9,-10) — a per-channel >10 test sat exactly on that knife-edge and read threshold
+  // wobble as quadrant asymmetry (a phantom CLAMP verdict on a uniformly-covered screen).
+  // Sum separates cleanly: wash ~27-31, AA/tile noise ~6-9.
+  const TH_SUM = 20;
   for (let y = y0; y < y1; y++) {
     for (let x = x0; x < x1; x++) {
       const i = (y * w + x) * ch;
       const dr = Math.abs(basePng.data[i] - onPng.data[i]);
       const dg = Math.abs(basePng.data[i + 1] - onPng.data[i + 1]);
       const db = Math.abs(basePng.data[i + 2] - onPng.data[i + 2]);
-      const changed = (dr > TH || dg > TH || db > TH) ? 1 : 0;
+      const changed = (dr + dg + db > TH_SUM) ? 1 : 0;
       const qi = (x < midX ? 0 : 1) + (y < midY ? 0 : 2);
       q[qi].n += changed; q[qi].d++;
     }
