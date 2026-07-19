@@ -210,7 +210,11 @@ async function ladder(page, tag, dirName, settleMs) {
     // CLAMP: quadrant asymmetry — the weakest quadrant under half the strongest, with wind clearly
     // present overall, means one side of the screen is bare.
     const clear = r.total < 0.10;
-    const clamp = !clear && r.maxQuad > 0.2 && r.minQuad < r.maxQuad * 0.45;
+    // At hemispheric zooms (z <= 3.5) the crop spans Arctic calm to tropical trades plus land —
+    // quadrant uniformity is a geography assumption, not a rendering one. Only the CLEAR check
+    // applies there; asymmetry with a world grid and everything >= 0.2 present is real weather.
+    const hemispheric = r.z <= 3.5;
+    const clamp = !clear && !hemispheric && r.maxQuad > 0.2 && r.minQuad < r.maxQuad * 0.45;
     if (clear || clamp) {
       fails++;
       console.log(`FAIL [${r.key}] step${r.step} z${r.z}: ${clear ? 'CLEAR (total ' + r.total + ')' : 'CLAMP (quads ' + JSON.stringify(r.quads) + ')'} grid ${r.grid}`);

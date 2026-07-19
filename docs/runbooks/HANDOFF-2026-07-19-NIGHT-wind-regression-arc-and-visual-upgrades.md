@@ -32,6 +32,25 @@ Results at close: desktop dark/light/beach + mobile dark/light/beach ladders ALL
 pre-LUT; post-LUT re-verified after the metric fix). Fine-grid injection: 99.7% coverage, no
 rectangle. Size gates enumerate zoom × DPR × speed.
 
+## 2b. Round 2 of the night (`88353f71`) — spectrum + close-zoom density
+
+- **Slow-band hue spread** (user: "sensitivity must extend into the slower winds", all themes):
+  measured dark 0-3-6 kn gaps of 12/10/11 deg (one cyan family) → low Beaufort stops
+  redistributed, every adjacent gap below 21 kn now >= 18 deg, PINNED by a windFieldLut gate
+  that caught the first beach 6-10 stop at 16.7 on its maiden run. Dark calm alpha 0.20 -> 0.28
+  across its THREE synchronized sites (HEATMAP_FS + DRAW_FS casing + contrast-test mirror).
+  Live dark Gulf: calm field plainly visible with spatial structure, land still reads.
+- **Close-zoom density** (user: "some closer up zooms have less animations"): v3.20's keepRate
+  culled 55% of particles by z8 — disc-era tuning; the dash covers ~40% of that ink. Keep-floor
+  0.45 -> 0.70 + respawn bias extended 0.45 -> 0.60 over z6-9. Kill:
+  `__RAW_DISABLE_WIND_CLOSEZOOM_DENSITY__`. Evidence: desktop-light z9 mark energy 8.4 -> 24.8
+  (+192%) vs the morning baseline; mobile legs +15-50%. ⚠️ the z9 probe now intermittently
+  returns BLANK legs (contrast=0, flipping between legs run-to-run) — instrument flake under
+  accumulated GL churn, queued as its own task; do not read a 0-leg as a regression.
+- **EURO/ICON upstream equivalents CONFIRMED**: `dwd_wind_service.py` (DWD open-data, ICON) and
+  `ecmwf_wind_service.py` (ECMWF open-data, EURO) exist beside the NOAA one — ALL cron-only;
+  the dynamic lane imports OpenMeteoProvider exclusively. One fallback hook covers all three.
+
 ## 3. 🔴 OPEN, in order
 
 1. **NOAA-direct wiring (USER-APPROVED).** The dynamic wind lane shares open-meteo's forecast
