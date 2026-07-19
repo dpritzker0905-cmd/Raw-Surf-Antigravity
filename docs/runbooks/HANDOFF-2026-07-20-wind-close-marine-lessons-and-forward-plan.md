@@ -55,13 +55,29 @@ visDelta = chromaDistance(LUT stop, basemap) × fieldAlpha. Current shipped stat
 | light | 107 | 164 | 226 | none — healthy |
 | beach | 61 ⚠ | 97 | 138 | mild chroma at 0-1 kn |
 
-**Prescription (next lever, NOT yet shipped):** dark's 0-3 kn stops need CHROMA, not alpha —
-move them toward saturated violet/purple (high R+B against the slate basemap's low R; the
-current indigo differs from slate almost only in the blue channel). Beach 0 kn: +saturation on
-the magenta-rose. Alpha is DONE (0.28 base + 7 kn ramp) — pushing further trades the land-
-visibility contract. Gates that must hold: windFieldLut (≥18° gaps, distinguishability),
-windParticleContrast (casing poles re-derive automatically). Verify with the zoomclamp ladder +
-eyes in all three themes; judge against THIS baseline (`3e886348`), not mid-regression states.
+**FINAL-PASS CORRECTION (user challenge upheld, 07-20): the table's "light healthy" verdict is
+WRONG.** The channel-sum metric is luminance-dominated — a uniform darkening reads to the eye
+as shadow/haze, not data. Measured in COMPOSITE space (post-alpha, on the real basemap):
+light theme's 0 kn and 3 kn stops render at the IDENTICAL hue (206° / 206°, sat 29%/41%), only
+17° from the basemap's own hue (189°) — light air in light mode is literally "slightly darker
+basemap." The 31° LUT-space gap compresses ~4× at alpha 0.23-0.39. **This is round 6's lesson
+in the palette domain: EVERY colour decision must be evaluated on the composite, never the
+ramp.** A mild chroma-boost candidate was computed and does NOT fix it (213° vs 215° — 2°).
+
+**Prescription (next lever, NOT yet shipped), per theme:**
+- LIGHT: the low-band ink hues must spread FAR wider than the LUT gate imagined so the
+  post-compression gaps survive — e.g. 0 kn violet (~270°), 3 kn indigo (~240°), 6 kn teal
+  (~195°) — target ≥12-15° adjacent gaps IN COMPOSITE SPACE; and consider a light-theme-only
+  calm-alpha raise (baseA 0.35 → ~0.42): a pale basemap tolerates darkening far better than
+  dark tolerates haze.
+- DARK: chroma, not alpha — 0-3 kn stops toward saturated violet/purple (high R+B vs the slate
+  basemap's low R). Alpha is spent (0.28 + 7 kn ramp; land-visibility contract).
+- BEACH: +saturation on the 0 kn magenta-rose (composite delta 61 at 1 kn — marginal).
+- **GATE UPGRADE REQUIRED FIRST:** extend windFieldLut.test.js to pin adjacent hue gaps in
+  COMPOSITE space (each theme's real alpha over its measured basemap [dark 93,117,126 · light
+  168,214,222 · beach 150,190,200]), ≥12° below 21 kn — the LUT-space ≥18° pin stays but is
+  provably insufficient alone. windParticleContrast re-derives casing poles automatically.
+  Verify with the zoomclamp ladder + eyes in all three themes against baseline `3e886348`.
 
 ## 3. VORTEX ROTATION — the plan (theme-complete by construction)
 
