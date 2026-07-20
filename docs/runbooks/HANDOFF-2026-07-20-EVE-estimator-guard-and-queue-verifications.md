@@ -175,3 +175,66 @@ Two distinct real systems + two calm controls = the window graduates from calibr
 contract. Provenance: `wind-vortex-out/sh_storm_42S132W_fine_20260720.json` (API response
 form; an engine-dumped fixture via probe_wind_vortex_dump on a visible session remains the
 gold format if a committed fixture #2 is wanted).
+
+## 10. ARBITER FLIP — LIVE BATTERY COMPLETE ×2 PASSES; ONLY THE USER EYE PASS REMAINS
+
+Server: `frontend-arb` on :3011 (session preview). Every leg = `ZL_BASE=http://localhost:3011`,
+arbiter legs add `ZL_FLAGS="__RAW_MARINE_ARBITER__"`; every run ended with zoomlab-verdict.
+
+| leg | mode | verdict | engagement (decisions / notable rules) |
+|---|---|---|---|
+| staircase p1 | arbiter | PASS 0 | 69 / tier_downgrade 55 |
+| staircase RATED p1 | arbiter | PASS 0 | 78 / flavor_downgrade 22, rated_uncovering_release 2 |
+| scrub p1 | arbiter | 1 SETTLED_STEP −16.7 z7.2 | 148 / hour_change 11 |
+| scrub control | guards | SAME class −16.3 z7.2 | 0 (kill verified) |
+| pan_coverage p1 | arbiter | 1 SETTLED_STEP −18.4 z7.0 | 83 |
+| pan_coverage control | guards | SAME class −17.1 z7.0 | 0 |
+| staircase p2 | arbiter | PASS 0 | 74 |
+| staircase RATED p2 | arbiter | PASS 0 | 40 / rated_uncovering_release 1 |
+| staircase LIGHT theme | arbiter | PASS 0 | 89 |
+| staircase BEACH theme | arbiter | PASS 0 | 68 |
+
+**Zero arbiter-attributable findings**: both SETTLED_STEPs reproduce in guard mode at the same
+zoom with matched magnitude (hour/pan content luminance change — the documented harness class),
+and the guard controls double as the kill-switch check (mode=guards, decisions=0).
+
+### THE USER EYE PASS — the last gate before the default flip (10-15 min)
+
+Setup: open **http://localhost:3011/map** (if the server died, restart the `frontend-arb`
+launch config). DevTools console: `window.__RAW_MARINE_ARBITER__ = true` (instant, no reload).
+Instant revert at ANY time: `window.__RAW_DISABLE_MARINE_ARBITER__ = true`.
+
+Do each numbered item; anything on the SUSPECT list = stop and report the number + what you saw:
+1. **Zoom ladder, waves layer, dark theme**: z10 → z3 → z10, smooth continuous wheel.
+   WATCH DURING the gesture (not after): the heatmap must only ever COARSEN or SHARPEN.
+   SUSPECT: any full clear to basemap, any blocky world-grid flash mid-band (z6-8), any
+   frame where animations freeze while color remains.
+2. **Same ladder with Surf Rating ON**: toggle the rating band on first.
+   SUSPECT: the colored band BLINKING OFF then back on during a zoom transition (§4f shape);
+   a rated band lingering over a viewport you have clearly panned away from >5 s
+   (stranded-rectangle shape).
+3. **Rating toggle interlude**: at z7-8 over Florida, toggle rating ON→OFF→ON while the map
+   is settled. SUSPECT: after toggling OFF, score-colored (rainbow-ish) cells persisting
+   >2 s instead of honest heights returning.
+4. **Pan sweep at z7**: grab the map over the Gulf and pan west→east across ~30° in one drag.
+   SUSPECT: a rectangular seam where fine data ends and NOTHING fills behind it (the fill
+   must be coarse wash, never blank).
+5. **Hour scrub**: hold the forecast wheel through ~12 hours at z7.
+   SUSPECT: the field freezing on one hour while the wheel advances, or flashing blank
+   between hours. (A legitimate brightness change hour-to-hour is EXPECTED — that is the
+   SETTLED_STEP the instruments flagged in BOTH modes.)
+6. **Layer rotation**: waves → swell 1 → swell 2 → wind waves at z7.
+   SUSPECT: any layer arriving as the 10° world lattice and STAYING blocky >5 s while
+   zoomed in.
+7. **Themes**: repeat #1 briefly in light and beach.
+   SUSPECT: theme-specific clearing (the commit layer is theme-blind; any difference
+   between themes is itself a finding).
+8. **Engagement check**: console `window.__RAW_ARBITER_LIVE__` — `n` must be climbing and
+   `byRule` non-empty. If `n` is 0 after all of the above, the flag did not take: report it
+   (that would have made your whole pass vacuous).
+
+**If all 8 clean** → the flip lands: default arbiter ON in `decideMarineCommit`
+(`__RAW_DISABLE_MARINE_ARBITER__` stays the wholesale kill), plus the mode-plumbing update in
+the three arbiter test files (Q1/guard legs must PIN guard mode via the disable flag once the
+default flips), suite ×3, push. **If anything on a SUSPECT list appeared** → report the item
+number; the ring buffer + `__RAW_ARBITER_LIVE__.last` carry the rule that decided the frame.
