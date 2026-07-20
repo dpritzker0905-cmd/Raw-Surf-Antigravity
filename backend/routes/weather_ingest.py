@@ -146,6 +146,14 @@ async def ingest_gfs_wind_global_mid_direct(admin=Depends(get_current_admin)):
     global'). Lets a deploy seed the mid product immediately instead of waiting a cron cycle."""
     return await _run_ingest("ingest_gfs_wind_global_mid")
 
+@router.post("/ingest_icon_wind_global_mid_direct")
+async def ingest_icon_wind_global_mid_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_icon_wind_global_mid")
+
+@router.post("/ingest_euro_wind_global_mid_direct")
+async def ingest_euro_wind_global_mid_direct(admin=Depends(get_current_admin)):
+    return await _run_ingest("ingest_euro_wind_global_mid")
+
 @router.post("/ingest_euro_wind_global_direct")
 async def ingest_euro_wind_global_direct(admin=Depends(get_current_admin)):
     return await _run_ingest("ingest_euro_wind_global")

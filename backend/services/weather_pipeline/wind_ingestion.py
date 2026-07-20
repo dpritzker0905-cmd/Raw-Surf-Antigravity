@@ -234,69 +234,6 @@ async def ingest_gfs_wind_global_impl(scheduler) -> bool:
     return count > 0
 
 
-async def ingest_gfs_wind_global_mid_impl(scheduler) -> bool:
-    """MID-RES (~2°) global GFS wind — the wind sibling of marine's global_mid tier (2026-07-20,
-    queue #3: "the clamp must fit the entire map"). Same NOAA-direct primary as the coarse job
-    (quota-free NOMADS — this tier can never rate-limit); region_id 'global_mid'; mid_res_tier's
-    Step 3.6 serves it CLIPPED wherever the request would otherwise get the 10° coarse: wide
-    spans past WIND_DYNAMIC_MAX_SPAN_DEG, world zoom, and every dynamic-lane failure window.
-    A 2° global frame is ~15k vectors — the same weight class as the proven marine global_mid.
-    Kill switch: GFS_WIND_MID_RES_INGEST=0 (registration site in scheduler/forecast.py)."""
-    logger.info("[Pipeline Scheduler] Starting GFS Wind Global MID-RES Ingestion job...")
-    env = get_env_flags()
-    run_time = datetime.now(timezone.utc)
-    global_region = {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0}
-    resolution = float(os.environ.get("GFS_WIND_MID_RES", "2.0"))
-    # Horizon MIRRORS the coarse sibling (the forecast timeline must not change resolution
-    # mid-scrub — the marine mid lesson, 2026-07-05).
-    forecast_days = int(os.environ.get(
-        "GFS_WIND_MID_RES_FORECAST_DAYS", "2" if env["is_test_env"] else str(_WIND_GLOBAL_FORECAST_DAYS)))
-
-    noaa_direct = os.environ.get("GFS_WIND_NOAA_DIRECT", "1") != "0"
-    results = None
-    from_noaa = False
-    if noaa_direct:
-        try:
-            from services.noaa_wind_service import fetch_gfs_wind_global_coarse
-            results = await fetch_gfs_wind_global_coarse(global_region, resolution, forecast_days)
-            if results:
-                from_noaa = True
-                logger.info(f"[Pipeline Scheduler] GFS wind mid-res NOAA-direct OK: {len(results)} points.")
-        except Exception as _ne:
-            logger.error(f"[Pipeline Scheduler] GFS wind mid-res NOAA-direct fetch errored: {_ne}")
-
-    if not results:
-        if noaa_direct:
-            logger.warning("[Pipeline Scheduler] GFS wind mid-res NOAA-direct unavailable; falling back to open-meteo.")
-        results = await scheduler._fetch_or_mock(
-            "GFS", "wind", "wind", global_region, resolution, forecast_days,
-            False,
-            lambda: generate_mock_wind_results(scheduler.om_provider, global_region, resolution, forecast_days=2),
-            "global_mid",
-            batch_size=_WIND_GLOBAL_BATCH_SIZE
-        )
-    if not results:
-        # No forecast_cache fallback at mid res: the coarse job's recycled-cache lane already
-        # covers total-outage continuity; a stale mid would just double-label the same estimate.
-        logger.warning("[Pipeline Scheduler] GFS wind global_mid fetch failed this cycle.")
-        return False
-
-    save_step = 1 if from_noaa else 3
-    count = await normalize_and_save_loop(
-        scheduler.normalizer, scheduler.store, results,
-        model="GFS", provider="open-meteo", domain="wind", layer="wind",
-        bbox=global_region, resolution=resolution, run_time=run_time,
-        region_id="global_mid", coverage_mode="global_tile",
-        is_test_env=env["is_test_env"], step=save_step,
-        log_prefix="[Pipeline Scheduler] GFS wind global_mid",
-    )
-    logger.info(f"[Pipeline Scheduler] Ingested {count} GFS Wind global mid grid files.")
-    if count > 0:
-        scheduler.store.prune_superseded_products("GFS", "wind", "wind", "global_mid", run_time)
-    await scheduler._cleanup_and_pause(results, 0)
-    return count > 0
-
-
 async def ingest_euro_wind_global_impl(scheduler) -> bool:
     """EURO global coarse wind ingestion."""
     logger.info("[Pipeline Scheduler] Starting EURO Wind Global Coarse Ingestion job...")

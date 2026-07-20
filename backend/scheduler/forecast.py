@@ -144,6 +144,10 @@ def ingest_marine_forecast_task():
                 # rate-limits. GFS first; ICON/EURO siblings follow once GFS is deploy-proven.
                 *([("GFS Wind Global Mid", weather_scheduler.ingest_gfs_wind_global_mid)]
                   if os.environ.get("GFS_WIND_MID_RES_INGEST", "1") != "0" else []),
+                *([("ICON Wind Global Mid", weather_scheduler.ingest_icon_wind_global_mid)]
+                  if os.environ.get("ICON_WIND_MID_RES_INGEST", "1") != "0" else []),
+                *([("EURO Wind Global Mid", weather_scheduler.ingest_euro_wind_global_mid)]
+                  if os.environ.get("EURO_WIND_MID_RES_INGEST", "1") != "0" else []),
                 # Regional GFS marine pilot (FL+SoCal 0.25°): slow NOAA-direct GRIB fetches (~5-15 min
                 # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
                 # EURO Marine Global job reuses), so isolating it is dependency-safe.

@@ -173,8 +173,18 @@ class WeatherPipelineScheduler:
     async def ingest_gfs_wind_global_mid(self) -> bool:
         """MID-RES (~2°) global GFS wind — the wind sibling of the marine mid tier. Delegates to
         wind_ingestion (LOC ceiling). Kill switch: GFS_WIND_MID_RES_INGEST=0."""
-        from services.weather_pipeline.wind_ingestion import ingest_gfs_wind_global_mid_impl
+        from services.weather_pipeline.wind_mid_res_ingestion import ingest_gfs_wind_global_mid_impl
         return await ingest_gfs_wind_global_mid_impl(self)
+
+    async def ingest_icon_wind_global_mid(self) -> bool:
+        """MID-RES (~2°) global ICON wind (native DWD only). Kill: ICON_WIND_MID_RES_INGEST=0."""
+        from services.weather_pipeline.wind_mid_res_ingestion import ingest_icon_wind_global_mid_impl
+        return await ingest_icon_wind_global_mid_impl(self)
+
+    async def ingest_euro_wind_global_mid(self) -> bool:
+        """MID-RES (~2°) global EURO wind (native ECMWF only). Kill: EURO_WIND_MID_RES_INGEST=0."""
+        from services.weather_pipeline.wind_mid_res_ingestion import ingest_euro_wind_global_mid_impl
+        return await ingest_euro_wind_global_mid_impl(self)
 
     async def ingest_gfs_marine_global(self) -> bool:
         """
