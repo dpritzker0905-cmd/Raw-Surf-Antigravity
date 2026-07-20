@@ -297,15 +297,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
               // this single fetch left the session without a global base until the 5-min refresh
               // (the two-texture engine dormant the whole time). Re-drive through attemptFetch
               // (its cooldown/scrub/dedup guards apply; the fine product re-serves from cache).
+              // First retry FAST (3 s): the zoomburst probe caught a mid-gesture structural clamp
+              // living exactly in this window (fine-as-base, global lost its race).
               baseRetryCount += 1;
-              retryTimer = setTimeout(attemptFetch, 8000);
+              retryTimer = setTimeout(attemptFetch, baseRetryCount === 1 ? 3000 : 8000);
             }
           })
           .catch(() => {
             if (cancelled) return;
             if (baseRetryCount < 5) {
               baseRetryCount += 1;
-              retryTimer = setTimeout(attemptFetch, 8000);
+              retryTimer = setTimeout(attemptFetch, baseRetryCount === 1 ? 3000 : 8000);
             }
           });
       }
@@ -428,11 +430,36 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     };
     mapInstance.on('moveend', onWindMoveEnd);
 
+    // GESTURE-START BASE KICK (2026-07-19, the zoomburst probe's frame-1 structural clamp — the
+    // user saw it live). Cold enable at fine zoom can leave the FINE box as the only resident
+    // grid (the global base fetch lost its race to a 429); a zoom-out that starts inside that
+    // window shows the box edge MID-GESTURE, before any moveend fires. On gesture start, if the
+    // committed grid is not world-span, re-drive attemptFetch immediately: the global backstop
+    // prefetch usually has the world grid in WIND_CACHE already, so the base lane commits it
+    // (engine PROMOTE) within a frame — before the viewport leaves the box. Dedup/cooldown
+    // guards inside attemptFetch make spurious kicks free.
+    const onWindGestureStart = () => {
+      if (cancelled || !isWindActive) return;
+      try {
+        const twoTex = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_OVERLAY__ !== true;
+        const lc = lastCommittedWindRef.current;
+        const span = lc && lc.bounds
+          ? (lc.bounds.west > lc.bounds.east
+            ? (lc.bounds.east + 360.0) - lc.bounds.west : lc.bounds.east - lc.bounds.west)
+          : 0;
+        if (twoTex && lc && lc.bounds && span < 350.0) attemptFetch();
+      } catch (e) { /* never break a gesture handler */ }
+    };
+    mapInstance.on('zoomstart', onWindGestureStart);
+    mapInstance.on('dragstart', onWindGestureStart);
+
     return () => {
       cancelled = true;
       if (retryTimer) clearTimeout(retryTimer);
       if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
       try { mapInstance.off('moveend', onWindMoveEnd); } catch (e) { /* map may be disposed */ }
+      try { mapInstance.off('zoomstart', onWindGestureStart); } catch (e) { /* map may be disposed */ }
+      try { mapInstance.off('dragstart', onWindGestureStart); } catch (e) { /* map may be disposed */ }
     };
   }, [mapInstance, activeModel, forecastDays, isWindActive]); // Refetch when model or forecast window changes
 

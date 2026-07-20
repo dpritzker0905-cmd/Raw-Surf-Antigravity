@@ -162,12 +162,59 @@ async function ladder(page, tag, dirName, settleMs) {
   return shots;
 }
 
+// ── GL-context-death hardening (2026-07-19, queue #8) ─────────────────────────────────────────
+// The flake: after ~30 GL contexts in ONE Chromium process (multi-run sessions), a leg's WebGL
+// context dies and every screenshot goes black — a whole-leg "CLEAR" verdict that reads like a
+// product regression but is instrument death. Three defenses:
+//   1. a FRESH BROWSER per device×theme key (≤2 contexts per process — the cap is unreachable);
+//   2. whole-leg blank detection (a dead context blacks EVERY step; a real wind bug never does)
+//      with ONE fresh-browser retry, loudly labeled;
+//   3. a real exit code (was unconditionally 0 — a FAIL verdict was invisible to callers).
+
+function isMostlyBlack(png) {
+  const { w, h, ch, data } = png;
+  const x0 = Math.floor(w * 0.18), x1 = Math.floor(w * 0.82);
+  const y0 = Math.floor(h * 0.18), y1 = Math.floor(h * 0.78);
+  let dark = 0, tot = 0;
+  for (let y = y0; y < y1; y += 3) for (let x = x0; x < x1; x += 3) {
+    const i = (y * w + x) * ch;
+    if (data[i] < 8 && data[i + 1] < 8 && data[i + 2] < 8) dark++;
+    tot++;
+  }
+  return dark / Math.max(1, tot) > 0.95;
+}
+
+let _blankDrillArmed = process.env.ZC_FORCE_BLANK_DRILL === '1';
+function legIsDead(shots) {
+  // Self-test drill: ZC_FORCE_BLANK_DRILL=1 reports the FIRST leg as dead so the fresh-browser
+  // retry path can be exercised on demand (it fires rarely in nature by design).
+  if (_blankDrillArmed) { _blankDrillArmed = false; return true; }
+  let black = 0;
+  for (const s of shots) {
+    try { if (isMostlyBlack(decodePNG(fs.readFileSync(s.file)))) black++; } catch (e) { black++; }
+  }
+  return black >= Math.max(2, shots.length - 2); // (nearly) every step black = context death
+}
+
+async function launchBrowser() {
+  return chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
+}
+
+async function captureLeg(browser, theme, device, windOn, dir, settleMs) {
+  const s = await bootPage(browser, theme, device);
+  await setWind(s.page, windOn);
+  if (windOn) await s.page.waitForTimeout(6000);
+  const shots = await ladder(s.page, windOn ? 'on' : 'off', dir, settleMs);
+  await s.ctx.close();
+  return shots;
+}
+
 (async () => {
-  const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
   const results = [];
   for (const device of DEVICES) {
     for (const theme of THEMES) {
       const key = `${device}_${theme}`;
+      let browser = await launchBrowser();
       const baseDir = path.join(OUT, 'baseline_' + key);
       fs.mkdirSync(baseDir, { recursive: true });
       let baseShots;
@@ -175,20 +222,25 @@ async function ladder(page, tag, dirName, settleMs) {
         baseShots = JSON.parse(fs.readFileSync(path.join(baseDir, 'manifest.json'), 'utf8'));
         console.log(`[${key}] baseline reused`);
       } else {
-        const b = await bootPage(browser, theme, device);
-        await setWind(b.page, false);
-        baseShots = await ladder(b.page, 'off', baseDir, 3500);
+        baseShots = await captureLeg(browser, theme, device, false, baseDir, 3500);
+        if (legIsDead(baseShots)) {
+          console.log(`[${key}] BLANK BASELINE (GL context death) — retrying with a fresh browser`);
+          await browser.close().catch(() => {});
+          browser = await launchBrowser();
+          baseShots = await captureLeg(browser, theme, device, false, baseDir, 3500);
+        }
         fs.writeFileSync(path.join(baseDir, 'manifest.json'), JSON.stringify(baseShots));
-        await b.ctx.close();
         console.log(`[${key}] baseline captured`);
       }
       const runDir = path.join(OUT, 'run_' + key);
       fs.mkdirSync(runDir, { recursive: true });
-      const s = await bootPage(browser, theme, device);
-      await setWind(s.page, true);
-      await s.page.waitForTimeout(6000);
-      const onShots = await ladder(s.page, 'on', runDir, 7000);
-      await s.ctx.close();
+      let onShots = await captureLeg(browser, theme, device, true, runDir, 7000);
+      if (legIsDead(onShots)) {
+        console.log(`[${key}] BLANK LEG (GL context death) — retrying with a fresh browser`);
+        await browser.close().catch(() => {});
+        browser = await launchBrowser();
+        onShots = await captureLeg(browser, theme, device, true, runDir, 7000);
+      }
 
       for (let i = 0; i < LADDER.length; i++) {
         const basePng = decodePNG(fs.readFileSync(baseShots[i].file));
@@ -199,6 +251,7 @@ async function ladder(page, tag, dirName, settleMs) {
         results.push({ key, step: i, z: LADDER[i], ...cov, grid: gridStr });
         console.log(`[${key}] step${i} z${LADDER[i]}: total ${cov.total} quads ${JSON.stringify(cov.quads)} grid ${gridStr}`);
       }
+      await browser.close().catch(() => {}); // fresh browser per key — the GL-context cap is unreachable
     }
   }
   fs.writeFileSync(path.join(OUT, 'summary.json'), JSON.stringify(results, null, 1));
@@ -221,6 +274,7 @@ async function ladder(page, tag, dirName, settleMs) {
     }
   }
   console.log(fails === 0 ? 'ALL STEPS PASS — no clamping, no clearing across the ladder.' : `${fails} failing step(s).`);
-  await browser.close();
-  process.exit(0);
+  // Real exit code (2026-07-19 #8): this was unconditionally 0 — a FAIL verdict was invisible
+  // to any caller that checked the exit status instead of parsing stdout.
+  process.exit(fails === 0 ? 0 : 1);
 })();
