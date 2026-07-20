@@ -165,7 +165,43 @@ vs 3-hourly fine products dropped the overlay at hours ≡2 mod 3), three-theme 
 9/9, model sweep (GFS/EURO/ICON) built but NOT yet run. **Everything since `4da586aa` is
 UNCOMMITTED at save time** — suite 1287/1287 ×3 green on the working tree.
 
-## 6. Next in queue
+## 6. FRESH-CONTEXT QUEUE (final audit 2026-07-20 ~03:30Z — numbered, in order)
+
+**State at close:** origin/dev `4b96d036`; suite 1287/1287 (re-verified fresh); prod backend
+carries #5 (NDBC truth agent independently confirmed a FRESH fine Gulf product, 357 vectors,
+no fallback). Sweeps green: 3 themes × 3 zooms 9/9 · 3 models (GFS/EURO/ICON) × 3 zooms 9/9.
+NDBC truth: 38 buoy-grid pairs, median |Δspd| 2.7 kn, median Δdir 16° — the DATA is faithful;
+**71% of the Gulf's current wind is below 12 kn** = the band the user says is under-visible.
+
+1. **SLOW-WIND VISIBILITY, all 3 themes (task #8, REOPENED — user bar).** The calm-band ALPHA is
+   the binding constraint, not hue. Use the calibration workflow output
+   (`.claude/projects/.../subagents/workflows/wf_1d124923-534/` — truth + sync map landed;
+   design-agent candidates for per-theme baseAlpha raises, ramp 7→~5 kn, wider low-band hues).
+   The SYNC MAP (one commit, all sites): WebGLWindShaders HEATMAP_FS L~890-900 baseAlpha trio +
+   7.0 ramp · DRAW_FS casing baseA mirror (~L728-734) · windParticleContrast.test.js fieldAlpha
+   mirror · windFieldLut.test.js BASE_A maps (×2 tests) · HEATMAP_OPACITY set (engine L~526,
+   co-load-bearing) · probe_wind_composite.js. Gate FIRST (visibility floors per stop at the NEW
+   alphas), then stops, then 3-theme × 3-model sweep + zoomburst + eyes. Kill-switch the alpha
+   change.
+2. **Drift bugs found by the sync audit (quick, same commit as #1 or before):**
+   probe_wind_composite.js still encodes dark 0.20 + 10 kn ramp (pre-07-19 — misleads any
+   rerun); stale comments: WebGLWindShaders DRAW_FS L~720 says smoothstep(0,10) (code is 7.0),
+   windParticleContrast L108 "fieldAlpha 0.10" (0.20-era).
+3. **Wind global_mid cron tier (~2°) (task #9)** — the structural data-fidelity fix: mirror
+   marine's mid_res_tier.py; NOAA-direct fetcher exists; resolver serves global→MID→fine;
+   kills the 10° smear whenever the fine lane is cold. This is why the user "doesn't believe"
+   the wind at uncovered viewports.
+4. **Vortex R-gate window on a REAL invest** — `probe_wind_vortex_dump.js` → analyzer +
+   `__GPU_DEBUG__={mode:'vortex'}` over a live system; confirm smoothstep(0.25, 0.8) against
+   real-data R before trusting it (synthetic-calibrated only).
+5. **Marine zoom-out orchestrator/ARBITER keystone** (07-20 §1.1) — the waves rectangle's true
+   root (tiny-tile fade is a render-side mitigation, shipped `4da586aa`); stateful sequence
+   harness first, then the commit choke, then default ON.
+6. **Deploy watch**: `[Wind Native Recovery]` spawn/COMPLETE logs on Render; recovery
+   cooldown/semaphore behavior under real traffic.
+7. **Standing protocol for EVERY wind/marine visual change** (memory-mandated): suite ×3 ·
+   zoomclamp ladder (alone) · zoomburst storm · 3-theme × 3-model zoom series · eyes on frames.
+   DATA NEVER FADES; visibility floors in every palette gate; probes prefer `_windFine`.
 
 1. **Vortex levers on a REAL invest**: when weather provides one, `probe_wind_vortex_dump.js` →
    analyzer on the live system + the `mode:'vortex'` debug view over it; confirm the 0.25–0.8
