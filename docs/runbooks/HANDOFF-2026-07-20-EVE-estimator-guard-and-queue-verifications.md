@@ -1,0 +1,100 @@
+# HANDOFF 2026-07-20 (eve) — estimator job-killer fixed · F1/F2 closed · queue verified live
+
+Autonomous verification sweep continuing the 07-20 DAY audit queue (`06d1247b`). Every claim
+below carries its evidence; every fix tested 3 ways per the standing mandate. Ships `f9c5e59a`.
+
+## 1. NEW BUG — found, rooted, fixed, proven: the extended-estimates job-killer
+
+**What broke.** Core CI run 29724899253 (09:22Z, `abbc9c76`): `estimate_euro_grid` crashed
+with `UnboundLocalError: w_gfs_real` at estimator.py:387 (post-loop diagnostics dict) for
+global_coarse/waves, EURO anchor 2026-07-30T00Z. Every one of the 629 cells took a `continue`
+path, so the loop-local weights were never bound. The caller caught only
+`EstimateContractError` → **the whole job died**: the FL/SoCal estimates generated seconds
+earlier were never batch-saved (save runs after all regions), and global_mid was never
+processed. One bad target hour cost the entire EURO 10→14d extension cycle.
+
+**Forensics.** All four input products AS STORED in L2 are healthy — probed via the live
+`/grid` API with a >400° bbox (forces raw global_coarse): EURO anchor 371/629 valid, GFS
+anchor/targets 541/629, world bounds, all resamples succeed. Five earlier runs were green and
+the very next run's EURO job completed → the trigger was **transient in-process state** (the
+class-level `ProductStore._product_cache` shared by all jobs in a CI process is the prime
+suspect; the mutator is NOT identified — the instrument below catches it next time).
+
+**The fix (`f9c5e59a`), three layers:**
+- estimator: nominal weights bound **before** the loop; `blended_cells == 0` → forensic ERROR
+  naming every input grid's id/cols/rows/nvec/bounds + skip-reason counts, then `return None`
+  (no garbage all-invalid product). Grep cron logs for **"ZERO blendable cells"**.
+- both callers (EURO `scheduler_helpers` + `icon_marine_extension` — they share the same
+  estimator): broad per-target `except Exception` — one bad target costs exactly one target.
+- 5 regression tests (`test_estimator_zero_blend_guard.py`).
+
+**Tested 3 ways.** (1) 28/28 estimator-family tests then full backend suite **806 passed**;
+(2) real-data repro: old code (git HEAD) crashes on the degenerate shape of the REAL fetched
+grids, new code blends the same healthy data identically (371/629, weights 0.66/0.34 @+3h)
+and skips the degenerate shape with the forensic line (`skipped_gfs_resample=371` — the
+production signature); (3) live CI: dispatched core run 29744936166 at `f9c5e59a` (in
+progress at handoff time — check `EURO Marine Extended Estimates` completes; the 12:32Z
+pre-fix run already re-proved intermittency by succeeding).
+
+**User impact repaired**: EURO estimated products at 07-31/08-01/08-02 serve live again
+(est=True, fresh) — the 14-day EURO scrub horizon is whole.
+
+## 2. F1 (CI ingest budget) — CLOSED, premise was stale
+
+The audit's F1 assumed the wind mids joined the CORE lane. Ground truth: `forecast.py` put
+all three in **pilot_jobs** from the start (34b17843/d15a6b79). Evidence:
+- Pilots run 29722124325 (@`abbc9c76`, all six global-mids + six pilots): **all green,
+  138 of 200 min**; the three wind mids cost ~11 min combined (GFS 1.5 + ICON 5.1 + EURO 4.3
+  — native byte-range fetches are cheap).
+- Core exec: 111 min (scheduled 12:15Z run) / 125-129 min (seed-morning runs) of 165 —
+  headroom ≥36 min. The 156-min number in the audit included ~31 min of queue wait.
+- Largest core line-items now: EURO Wind Global 22 min, EURO Marine Global 18, GFS Marine 15.
+
+## 3. F2 (stale prod frontend) — RESOLVED, verified 3 ways
+
+`dev--rawsurf.netlify.app` now serves `main.17c903f7.js` (was `main.9b725b49.js`):
+1. bundle hash rotated;
+2. chunk `5363.061737d4.chunk.js` contains `__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__` (the
+   audit's specified spot-check) and `wind_viewport_fine_`;
+3. the same chunk contains dbd142dc's minify-surviving `150:500` ternary (zoom-out fast lane)
+   → the deploy includes the LAST client commit of the arc.
+(`windTwoTexture` absent by design — it is a test-suite pin, not shipped code.)
+Production users now run the full 07-19/20 client arc: palette v3.22, single-pass composite,
+livelock/dedup fixes, fine tier, zoom-out fast lane.
+
+## 4. Queue #3 (native recovery) — ALIVE in prod
+
+Render logs via API (`RENDER_API_KEY`): 100+ `[Wind Native Recovery]` lines, spawns AND
+completions — e.g. "GFS recovery COMPLETE … 129 timesteps persisted (fine product now
+cached)". The `native_recovery:"none"` observations meant "no recovery was needed", not dead
+code. Item closed; no dashboard evening required.
+
+## 5. Queue #4 (EURO/ICON wind global_mid) — VERIFIED, 3 probes
+
+1. **World span**: GFS/ICON/EURO each serve `*_wind_wind_global_mid_20260720T180000Z.json`,
+   181×78 = 14,118 vectors @2.00°, fresh.
+2. **Regional clip**: 30° span serves the clipped mid (19×13 @2°).
+3. **SWR sharpen, per-model isolated**: all three models go mid(2°, `swr_revalidation_pending`)
+   → viewport fine (1.00°) within 75 s, on three different oceans (mid-Atlantic, SW Australia,
+   Biscay).
+
+⚠️ **Probe discipline learned**: a 3-model back-to-back probe on ONE viewport falsely shows
+"GFS never revals / EURO stuck pending" — that is the reval **queue cap 2**
+(`MARINE_REVAL_QUEUE_MAX`) plus the **clip-cache early return** freezing the first verdict.
+Probe one model at a time on fresh bboxes. Real clients fetch one model — not affected.
+
+Bonus: wind SERIES payload (the audit's unmeasured coupling) — 6 frames × 221 vectors at
+30×20° = **27 KB gzipped**; world 3-frame = 808 KB gz (rare path, acceptable).
+
+## 6. Loose ends / next
+
+- **Dispatched run 29744936166** (at `f9c5e59a`): confirm `EURO Marine Extended Estimates`
+  completes green; that is the fix's third leg. Next scheduled cores run the fix from 16:15Z.
+- **Phantom manifest entries**: the failing window also showed
+  `icon_marine_waves_global_coarse_20260730T000000Z_estimated.json` in the manifest with a
+  404 file in L2 (stale entry, pruned file). Self-healed later in-run this time; candidates
+  for the l2-orphan-sweep to also sweep the reverse direction (entry-without-file).
+- **React Scan pass** (queue #5): needs a VISIBLE tab (hidden-tab rAF throttling falsifies
+  FPS) — user-driven, post-deploy conditions are now met since F2 shipped.
+- **Then**: marine debt bank (ARBITER stateful harness first) → vortex second sample.
+- LOC watch: `scheduler_helpers.py` at 761/800.
