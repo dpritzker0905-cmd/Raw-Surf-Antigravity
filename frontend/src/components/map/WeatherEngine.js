@@ -276,7 +276,22 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           ? (lcBase.bounds.east + 360.0) - lcBase.bounds.west : lcBase.bounds.east - lcBase.bounds.west)
         : 0;
       const needGlobalBase = !lcBase || !gridCovers(lcBase.bounds, getBounds()) || (twoTexBase && lcSpan < 350.0);
-      if (needGlobalBase && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
+      // BASE-LANE TRIGGER WIDENED (2026-07-20 §13b, instrumented repro: 877 ms lattice window).
+      // The fine-tile-only precondition left MID-SPAN activations (a 58x46° clip) and coarse-clip
+      // geometries (the user's 88-vector 11x8) with NO base race at all — the fail-open commit
+      // stood alone until a later cycle happened to bring the world grid. Fire the base lane on
+      // ANY cold-no-covering activation whose viewport fetch will return a clip (span < 350°;
+      // at true world spans the viewport fetch IS the world grid — racing it is pure duplication).
+      // Measured: activation lattice window 877 ms -> 336 ms at a z5.5 mid-span viewport.
+      // Kill: __RAW_DISABLE_WIND_BASE_LANE_WIDE__ restores the fine-tile-only trigger.
+      const _vpNowB = getBounds();
+      const _vpSpanB = _vpNowB
+        ? (_vpNowB.west > _vpNowB.east ? (_vpNowB.east + 360.0) - _vpNowB.west : _vpNowB.east - _vpNowB.west)
+        : 360.0;
+      const _coldNoCover = !lcBase || !gridCovers(lcBase.bounds, _vpNowB);
+      const _baseLaneWide = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_LANE_WIDE__ !== true;
+      if (needGlobalBase && ((clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')
+          || (_baseLaneWide && _coldNoCover && _vpSpanB < 350.0))) {
         fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
           .then((gd) => {
             if (cancelled) return;
