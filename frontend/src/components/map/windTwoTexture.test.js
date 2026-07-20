@@ -57,7 +57,7 @@ describe('two-texture shader wiring', () => {
       expect(src).toMatch(/fw\s*=\s*smoothstep\(0\.0,\s*max\(u_fine_feather_frac,\s*0\.001\),\s*fEdge\)\s*;/);
       expect(src).not.toMatch(/fEdge\)\s*\*\s*u_fine_wide_fade/);
     }
-    expect(ADVECT_FS).toMatch(/vortexGate\s*=\s*smoothstep\(0\.25,\s*0\.8,\s*Rdom\)\s*\*\s*fw\s*\*\s*u_fine_wide_fade/);
+    expect(ADVECT_FS).toMatch(/vortexGate\s*=\s*smoothstep\(0\.5,\s*1\.2,\s*Rdom\)\s*\*\s*fw\s*\*\s*u_fine_wide_fade/);
     expect(DRAW_VS).not.toMatch(/u_fine_wide_fade/); // draw stage reads pure data
     // fade curve: full at >=45% viewport-area coverage, gone at <=15%
     expect(windFineWideFade(0.60)).toBe(1);

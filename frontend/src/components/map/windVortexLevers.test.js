@@ -9,8 +9,15 @@
  *
  * Calibration lives IN this test as a JS mirror of the shader formula over synthetic fields
  * (probe_wind_vortex_synth.js is the standalone twin): weak-forming-low annulus must gate IN,
- * synthetic ambient must gate OUT, and the smoothstep(0.25, 0.8) window must hold both. Drift
- * in the shader constants breaks the source pins; drift in the formula breaks the numbers.
+ * synthetic ambient must gate OUT. Drift in the shader constants breaks the source pins; drift
+ * in the formula breaks the numbers.
+ *
+ * WINDOW RECALIBRATED ON A REAL INVEST (2026-07-20, queue #4 — live FL low + two Gulf cyclonic
+ * centres, engine-dumped fine grid via probe_wind_vortex_dump/analyze): real cores R 1.4-2.2,
+ * but REAL ambient runs p90 0.59 / p99 1.46 — 6-15x the synthetic ambient (p99 0.10) that set
+ * the original 0.25/0.8 window, which therefore engaged ~2/3-strength on ~10% of plain air.
+ * smoothstep(0.5, 1.2): real-ambient p90 -> ~0.03 engagement, synthetic weak-low annulus keeps
+ * ~0.44 peak sensitivity, real cores saturate.
  */
 import { ADVECT_FS, DRAW_VS } from './WebGLWindShaders';
 
@@ -26,7 +33,7 @@ describe('vortex lever shader wiring', () => {
     // R with the analyzer's exact s0 = 2 kn noise floor
     expect(ADVECT_FS).toMatch(/Rdom\s*=\s*abs\(curlz\)\s*\*\s*dyKm\s*\/\s*\(length\(wind\)\s*\+\s*2\.0\)/);
     // the calibrated gate window, scaled by the SAME feather weight the velocity blend uses
-    expect(ADVECT_FS).toMatch(/vortexGate\s*=\s*smoothstep\(0\.25,\s*0\.8,\s*Rdom\)\s*\*\s*fw/);
+    expect(ADVECT_FS).toMatch(/vortexGate\s*=\s*smoothstep\(0\.5,\s*1\.2,\s*Rdom\)\s*\*\s*fw/);
   });
 
   it('persistence: gated ×0.35 with the 0.002 mortality floor, applied AFTER the ink budget', () => {
@@ -98,25 +105,26 @@ describe('R-gate calibration (numeric mirror of probe_wind_vortex_synth + analyz
     const cr = Math.round((24.5 - f.south) / f.dlat), cc = Math.round((-88.5 - f.west) / f.dlng);
     const gates = [];
     for (let dr = -4; dr <= 4; dr++) for (let dc = -4; dc <= 4; dc++) {
-      if (Math.hypot(dr, dc) <= 4) gates.push(smoothstep(0.25, 0.8, f.Rat(cr + dr, cc + dc)));
+      if (Math.hypot(dr, dc) <= 4) gates.push(smoothstep(0.5, 1.2, f.Rat(cr + dr, cc + dc)));
     }
     gates.sort((a, b) => a - b);
-    const median = gates[Math.floor(gates.length / 2)];
-    expect(median).toBeGreaterThan(0.15);                       // the annulus meaningfully gates in
-    expect(Math.max(...gates)).toBeGreaterThan(0.9);            // the core gates fully
+    // Real-ambient window (0.5/1.2) trades some weak-annulus engagement for near-zero ambient
+    // false positives (the 07-20 real-invest evidence): the annulus retains PEAK sensitivity
+    // near the core rather than a high median across the ring.
+    expect(Math.max(...gates)).toBeGreaterThan(0.4);            // the inner annulus still gates in
   });
 
   it('a STRONG invest analog (25 kn Vmax) fully gates its core', () => {
     const f = fieldR({ vortex: { lng: -88.5, lat: 24.5, coreKm: 100, vmax: 25 }, ambient: { u: -6, v: 0 } });
     const cr = Math.round((24.5 - f.south) / f.dlat), cc = Math.round((-88.5 - f.west) / f.dlng);
-    expect(smoothstep(0.25, 0.8, f.Rat(cr, cc))).toBe(1);
+    expect(smoothstep(0.5, 1.2, f.Rat(cr, cc))).toBe(1);
   });
 
   it('uniform ambient flow NEVER gates (zero false positives away from features)', () => {
     const f = fieldR({ ambient: { u: -6, v: 0 } });
     let maxGate = 0;
     for (let r = 2; r < f.rows - 2; r++) for (let c = 2; c < f.cols - 2; c++) {
-      maxGate = Math.max(maxGate, smoothstep(0.25, 0.8, f.Rat(r, c)));
+      maxGate = Math.max(maxGate, smoothstep(0.5, 1.2, f.Rat(r, c)));
     }
     expect(maxGate).toBe(0);
   });
@@ -128,7 +136,7 @@ describe('R-gate calibration (numeric mirror of probe_wind_vortex_synth + analyz
     const f = fieldR({ shear: { lat: 24.5, du: 12, widthKm: 120 }, ambient: { u: 0, v: 0 } });
     const onLine = Math.round((24.5 - f.south) / f.dlat);
     const off = Math.round((28.0 - f.south) / f.dlat);
-    expect(smoothstep(0.25, 0.8, f.Rat(onLine, 26))).toBeGreaterThan(0.5);
-    expect(smoothstep(0.25, 0.8, f.Rat(off, 26))).toBe(0);
+    expect(smoothstep(0.5, 1.2, f.Rat(onLine, 26))).toBeGreaterThan(0.5);
+    expect(smoothstep(0.5, 1.2, f.Rat(off, 26))).toBe(0);
   });
 });

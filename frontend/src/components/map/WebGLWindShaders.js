@@ -54,10 +54,14 @@ uniform float u_fine_wide_fade;   // wide-zoom fade [0..1] — rides ONLY the vo
 // R-GATED VORTEX LEVERS (2026-07-19, queue #2). Rotation legibility = angular displacement x
 // lifetime; the shipped gamma (1.15) and ink-budget lifetimes were tuned for TRANSLATION and
 // render a circulation's slow annulus as near-still sparse marks. Gate: rotation dominance
-// R = |curl|*Lcell/(speed+2), curl from 4 fine-texture taps. Calibrated on synthetic Rankine +
-// shear + the real calm field (probe_wind_vortex_synth/analyze): weak-forming-low annulus
-// R p50 0.39 / p90 0.82, strong core 4.7, synthetic ambient p99 0.10, real calm-field noise
-// p90 0.24 -> smoothstep(0.25, 0.8, R). KNOWN false positive: a straight shear line gates in
+// R = |curl|*Lcell/(speed+2), curl from 4 fine-texture taps. FIRST calibration was synthetic
+// (Rankine + shear + one calm field: ambient p99 0.10 -> window 0.25/0.8). REAL-INVEST
+// recalibration (2026-07-20, queue #4 — live FL low + two Gulf cyclonic centres, engine-dumped
+// fine grid): real cores R 1.4-2.2 (saturate any window), but real AMBIENT runs p90 0.59 /
+// p99 1.46 — 6-15x the synthetic ambient — so 0.25/0.8 engaged ~2/3-strength on ~10% of plain
+// air (a silent global particle-budget tax). Window raised to smoothstep(0.5, 1.2, R):
+// ambient p90 -> ~0.03, synthetic weak-low annulus (p90 0.82) keeps ~0.44 sensitivity, real
+// cores stay saturated. KNOWN false positive: a straight shear line gates in
 // (per-texel curl cannot tell it from rotation without a ring integral) — linear-truth motion
 // on a real shear feature is an accepted, documented cost. Levers live ONLY inside the fine
 // overlay (10-deg base cells cannot resolve a vortex — gating there would fire on smear).
@@ -161,7 +165,7 @@ void main() {
         // gate scaled by fw (seam continuity) AND the wide-zoom fade: at wide zoom the
         // persistence lever would hoard the fixed particle population inside the box and
         // deplete the rest of the viewport — the field carries the system's read there.
-        vortexGate = smoothstep(0.25, 0.8, Rdom) * fw * u_fine_wide_fade;
+        vortexGate = smoothstep(0.5, 1.2, Rdom) * fw * u_fine_wide_fade;
       }
     }
   }
@@ -885,7 +889,7 @@ void main() {
       float curlz = (wr.y - wl.y) / (2.0 * u_fine_cell_km.x) - (wu2.x - wd2.x) / (2.0 * u_fine_cell_km.y);
       vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, v_uv).rg);
       float Rd = abs(curlz) * u_fine_cell_km.y / (length(wc) + 2.0);
-      float g = smoothstep(0.25, 0.8, Rd);
+      float g = smoothstep(0.5, 1.2, Rd);
       gl_FragColor = vec4(g, 0.0, 0.0, max(g, 0.15));
       return;
     }
