@@ -304,3 +304,20 @@ cached base FIRST on activation, or retain base textures across the switch). Sec
 finds for the same session: 6x5=30-vector overlays passing the choke as FINE, safe-zero
 fallbacks from aborted redirects, commit churn loops (dup trace IDs) — bundled into #14.
 This is the WIND edition of the bounds-blind/ordering warm-source family (tasks #10-#11).
+
+### 13b. PROOF PASS (user challenge) — reproduced with instruments; one correction to 13
+
+CORRECTION: clearBuffers (WebGLWindEngine.js:1004) clears only the trail FRAMEBUFFERS, not
+the base/overlay data textures — that log line was coincident, not causal. The real mechanism
+is an EMPTY engine at activation + fine-first arrival order.
+
+LIVE REPRO (own instrument, :3011, setWindData hooked BEFORE the toggle):
+  t=0      wind hourly cache EXISTS (hash/results/bounds populated)
+  t=0      click Wind toggle
+  t=882ms  FIRST commit: 720 vectors, bounds [-114,-24,-56,22] (regional clip, engine empty)
+  t=1759ms SECOND commit: 15,023 vectors, [-180,-80,180,84] (the world base)
+= an 877 ms lattice window where the regional clip is the ONLY resident grid, on demand.
+The promote message (engine :241, "moved to overlay") structurally confirms the clip occupied
+the PRIMARY slot. Jacobian variable: ACTIVATION COMMIT ORDER — the fix is base-first on
+activation (or base-texture retention across the switch, marine coarse-base pattern). Task
+#14 updated with this repro protocol as its regression gate.
