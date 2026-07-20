@@ -102,3 +102,16 @@ probe on :3011 (`bhbnmmw77`). NEXT, in order: (1) confirm world-span serves 15k 
 reload tab → NO square at any zoom, worldwide; (2) full probe battery (zoomburst ALONE +
 3-model sweep + eyes); (3) ICON/EURO mid siblings; (4) full backend sweep (was interrupted);
 (5) React Scan re-check post-no-op-guard; (6) native-recovery Render-log verification.
+
+## 7. MORNING CONFIRMATION (2026-07-20 ~05:30 local)
+
+Ingest run 29718695874 succeeded; world-span /grid now serves `region_id: global_mid`
+(181x83 = 15,023 vectors, 2 deg, fresh). Engine on reload: BASE = the world-span 2 deg grid,
+fine box sharpening on top. Eyes-on ladder z6 -> z4.5 -> z3 -> z2: NO box, NO edge at any
+zoom - the whole planet renders the detailed field. Queue #1, #2 (drift), #3, #4 all CLOSED
+this session; the vortex window is real-invest-calibrated (0.5/1.2, fixture committed).
+
+PROBE TRAP for the record: FPS measured in a HIDDEN tab reads 1-4 (Chrome throttles rAF on
+`visibilityState: hidden`); main thread idle, heap 102 MB. Re-check FPS + React Scan on a
+VISIBLE tab before any perf conclusion. Still open: native-recovery Render logs; EURO/ICON
+mid products verify on the next cron cycles; marine debt bank.
