@@ -116,6 +116,39 @@ SwiftShader drift confound that produced one false PASS and one false FAIL first
 tier), and requires containment WITH ≥2° margin (a stale leftover box can contain the centre at
 its very edge). `probe_wind_vortex_synth.js` + `probe_wind_vortex_visual.js` new (see §4).
 
+## 5b. USER-CAUGHT mid-gesture clamp + the zoomburst mandate (`48ae0a4b`)
+
+The user saw clamping during zoom in/out ON A BUILD WHERE THREE 72/72 LADDERS HAD JUST PASSED —
+the ladder's jump+settle design cannot see mid-gesture states (the time-domain version of "an
+average can't find a per-band failure"). **STANDING MANDATE: every wind/marine zoom verification
+now includes `probe_wind_zoomburst.js`** — video + ~4/s frame+state pairs during ANIMATED
+gestures; structural detector (resident grid exists but covers nothing = the visible rectangle)
+vs cold-empty (nothing committed — bounded load window, not a failure); persistent-seam pixel
+detector; ZB_PREWAIT_MS=2000 stress + ZB_BLOCK_GLOBAL_MS fault-injection variants.
+
+Root (reproduced frame-for-frame): cold enable at fine zoom → FINE lands first and is the only
+resident grid (global lost its race to a 429 storm) → zoom-out shows the box edge mid-gesture.
+Fixes: **gesture-start base kick** (zoomstart/dragstart → attemptFetch when the committed grid
+is non-world-span; backstop-prefetched global then PROMOTES within a frame) + first base retry
+3 s. Post-fix: normal, stress and fault runs all 0 partial-data clamp frames. Fault run also
+proved the SERIES lane independently feeds the base (defense in depth). #8 ladder hardening in
+the same commit: per-key browsers, blank-leg retry (+ drill switch), real exit code.
+
+## 5c. Light-wind chroma lever (composite-space respread; this commit)
+
+The 07-20 correction upheld: the ≥18° LUT-space pins were PASSING while light's 0 kn and 3 kn
+stops composited to the IDENTICAL hue 206° — post-alpha gaps compress ~4×, and the composite
+hue only moves if ink CHROMA × ALPHA competes with the basemap's own chroma. Grid-searched
+low-band stops (only <6 kn rows changed): LIGHT 0 kn vivid violet [0.50,0,0.70] → composite
+233°, 3 kn ultramarine [0.10,0.20,0.68] → 215° (gaps 17.7°/17.7° at the SHIPPED alpha — the
+prescribed baseA 0.35→0.42 raise proved unnecessary, so the three-site constant set is
+untouched); DARK 0 kn violet [0.55,0.25,1.00] (gap 7.1°→21.4°, visibility delta +14%); BEACH
+0 kn saturated rose. New GATE in windFieldLut.test.js pins COMPOSITE-space gaps ≥12° below
+21 kn over the measured basemaps (dark 93,117,126 · light 168,214,222 · beach 150,190,200)
+with the exact HEATMAP_FS alpha model. Verified: calculator reproduction of the 206°/206°
+failure → candidate math → suite 1284/1284 ×3 (incl. casing-contrast auto-adaptation) →
+probe_wind_themes A/B all 6 theme×device legs healthy with the new palette live.
+
 ## 6. Next in queue
 
 1. **Vortex levers on a REAL invest**: when weather provides one, `probe_wind_vortex_dump.js` →

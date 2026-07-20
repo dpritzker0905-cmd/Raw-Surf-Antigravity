@@ -97,4 +97,36 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       expect(THEME_RAMPS[theme].map((s) => s[0])).toEqual(BEAUFORT);
     }
   });
+
+  it('COMPOSITE-SPACE hue gaps >= 12 deg below 21 kn (the 07-20 correction: LUT gaps compress ~4x post-alpha)', () => {
+    // The >=18° LUT pin above is provably insufficient: composited over each theme's REAL
+    // basemap at the field's real alpha, hue gaps compress ~4x — light's 0kn and 3kn stops both
+    // landed on the identical hue 206° while passing the LUT pin. EVERY colour decision is
+    // evaluated on the composite, never the ramp. Alpha model mirrors HEATMAP_FS exactly —
+    // u_opacity per theme x (baseAlpha + (1-baseAlpha)*smoothstep(0,7,kn)); baseAlpha is the
+    // THREE-SITE constant set (HEATMAP_FS + DRAW_FS casing + windParticleContrast mirror).
+    const BASEMAP = { dark: [93, 117, 126], light: [168, 214, 222], beach: [150, 190, 200] };
+    const OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
+    const BASE_A = { dark: 0.28, light: 0.35, beach: 0.45 };
+    const smoothstep = (e0, e1, x) => {
+      const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    };
+    const compositeHue = (theme, stop) => {
+      const [kn, r, g, b] = stop;
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, 7, kn));
+      const bm = BASEMAP[theme].map((v) => v / 255);
+      return rgbToHueDeg([bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a]);
+    };
+    for (const theme of ['dark', 'light', 'beach']) {
+      const ramp = THEME_RAMPS[theme];
+      for (let i = 1; i < ramp.length && ramp[i][0] <= 21; i++) {
+        const a = compositeHue(theme, ramp[i - 1]);
+        const b = compositeHue(theme, ramp[i]);
+        let d = Math.abs(b - a);
+        if (d > 180) d = 360 - d;
+        expect(d).toBeGreaterThanOrEqual(12);
+      }
+    }
+  });
 });

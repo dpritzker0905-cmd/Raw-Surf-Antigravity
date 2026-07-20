@@ -62,8 +62,17 @@ var DEFAULT_WIND_RAMP = [
 // gaps were 7/12. The low stops now spread across more of each theme's wheel — every adjacent
 // gap below 21 kn is >=18 deg (pinned by windFieldLut.test.js) — while each theme keeps its hue
 // identity, monotone advance, and its 27+ kn stops untouched.
+// COMPOSITE-SPACE RESPREAD (2026-07-19 late, the 07-20 final-pass correction upheld): the >=18°
+// LUT-space pins above proved INSUFFICIENT — post-alpha, over each theme's REAL basemap, hue
+// gaps compress ~4x (light's 0kn and 3kn both composited to the IDENTICAL hue 206°: light air in
+// light mode was literally "slightly darker basemap"). The composite hue only moves if ink
+// CHROMA x ALPHA competes with the basemap's own chroma, so the low stops are now saturated
+// far-side hues (light: vivid violet -> ultramarine; dark: violet calm; beach: +sat rose),
+// grid-searched so every adjacent composite gap below 21 kn is >=12° over the measured basemaps
+// (dark 93,117,126 · light 168,214,222 · beach 150,190,200) at the SHIPPED alpha — no alpha
+// change needed. Pinned by windFieldLut.test.js's composite-space gate. Stops >= 6 kn untouched.
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.35, 0.75, 0.75], // Calm: vivid magenta-rose
+  [0,  1.00, 0.20, 0.72, 0.75], // Calm: saturated magenta-rose (composite delta was marginal)
   [3,  1.00, 0.48, 0.42, 0.78], // Light air: coral
   [6,  1.00, 0.60, 0.20, 0.81], // Light breeze: orange
   [10, 0.95, 0.82, 0.06, 0.83], // Gentle: yellow-gold
@@ -79,8 +88,8 @@ var BEACH_WIND_RAMP = [
 ];
 
 var LIGHT_WIND_RAMP = [
-  [0,  0.16, 0.10, 0.42, 0.72], // Calm: deep indigo
-  [3,  0.06, 0.20, 0.48, 0.75], // Light air: navy blue
+  [0,  0.50, 0.00, 0.70, 0.72], // Calm: vivid violet (composite 233° vs the basemap's cyan 189°)
+  [3,  0.10, 0.20, 0.68, 0.75], // Light air: ultramarine (composite 215°)
   [6,  0.02, 0.33, 0.48, 0.78], // Light breeze: deep teal
   [10, 0.03, 0.42, 0.40, 0.80], // Gentle: pine teal
   [16, 0.08, 0.46, 0.20, 0.82], // Moderate: forest green
@@ -95,7 +104,7 @@ var LIGHT_WIND_RAMP = [
 ];
 
 var DARK_WIND_RAMP = [
-  [0,  0.35, 0.45, 1.00, 0.80], // Calm: bright indigo
+  [0,  0.55, 0.25, 1.00, 0.80], // Calm: violet (high R+B against the slate basemap's low R)
   [3,  0.25, 0.65, 1.00, 0.83], // Light air: azure
   [6,  0.15, 0.90, 0.95, 0.85], // Light breeze: neon cyan
   [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
