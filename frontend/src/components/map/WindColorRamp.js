@@ -104,7 +104,13 @@ var LIGHT_WIND_RAMP = [
 ];
 
 var DARK_WIND_RAMP = [
-  [0,  0.55, 0.25, 1.00, 0.80], // Calm: violet (high R+B against the slate basemap's low R)
+  // ROUND 2 (2026-07-19 late, user: "wind data missing at lower speeds"): round 1's violet
+  // [0.55,0.25,1.00] won its hue gap but LOST composite visibility vs the legacy indigo
+  // (visΔ ~4.5 vs 5.8 — the calm band went dimmer on an already chroma-bound theme). The
+  // re-derivation adds the missing constraint (visΔ >= legacy): bright magenta-violet keeps the
+  // 28° composite gap AND nearly doubles legacy calm visibility (visΔ 10.4). Pinned by the
+  // gate's visibility floors.
+  [0,  0.72, 0.25, 1.00, 0.80], // Calm: bright magenta-violet
   [3,  0.25, 0.65, 1.00, 0.83], // Light air: azure
   [6,  0.15, 0.90, 0.95, 0.85], // Light breeze: neon cyan
   [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
@@ -129,6 +135,24 @@ export var THEME_RAMPS = {
   light: LIGHT_WIND_RAMP,
   dark: DARK_WIND_RAMP
 };
+
+// KILL SWITCH for the low-band respread (added late — shipping palette constants without one
+// violated the every-lever-kill-switched rule): __RAW_DISABLE_WIND_LOWBAND_RESPREAD__ = true
+// restores the pre-respread low stops (effective on the next ramp regeneration: theme change or
+// reload). Only the rows that changed are listed.
+var LEGACY_LOW_STOPS = {
+  beach: { 0: [0, 1.00, 0.35, 0.75, 0.75] },
+  light: { 0: [0, 0.16, 0.10, 0.42, 0.72], 1: [3, 0.06, 0.20, 0.48, 0.75] },
+  dark: { 0: [0, 0.35, 0.45, 1.00, 0.80] },
+};
+
+export function resolveThemeRamp(theme) {
+  var ramp = THEME_RAMPS[theme] || DEFAULT_WIND_RAMP;
+  var killed = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__ === true;
+  if (!killed) return ramp;
+  var legacy = LEGACY_LOW_STOPS[theme] || LEGACY_LOW_STOPS.dark;
+  return ramp.map(function(stop, i) { return legacy[i] ? legacy[i].slice() : stop; });
+}
 
 /**
  * Interpolate between two color stops.
@@ -174,7 +198,7 @@ export function sampleRamp(ramp, speed) {
  * @returns {Uint8Array} 256×1 RGBA data (1024 bytes)
  */
 export function generateRampData(maxSpeed, ramp, theme) {
-  var stops = ramp || THEME_RAMPS[theme] || DEFAULT_WIND_RAMP;
+  var stops = ramp || (theme ? resolveThemeRamp(theme) : DEFAULT_WIND_RAMP);
   var data = new Uint8Array(256 * 4);
 
   for (var i = 0; i < 256; i++) {

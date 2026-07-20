@@ -2161,6 +2161,35 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       }
     }
 
+    // TINY-TILE VIVIDNESS PARITY (2026-07-19, the user's "strange clamping" caught by the
+    // zoomburst waves storm: at hemispheric zoom a sub-viewport regional tile draws at FULL
+    // vividness over the deliberately-faint coarse wash — even with the clamp softener's wide
+    // feather, the interior/exterior vividness step reads as a bright rectangle). When the blend
+    // base is engaged and the tile covers < ~45% of the viewport AREA, fade the regional passes
+    // (heatmap AND crest/particle ink below) toward the wash's own opacity — the tile becomes a
+    // PEER of the wash instead of a postage stamp. At >= 45% area coverage (all normal
+    // fine-zoom use) this is a strict no-op. Kill: __RAW_DISABLE_MARINE_TINYTILE_FADE__.
+    // Telemetry: __RAW_GPU__.tinyTileFade.
+    let _tinyTileFadeVal = 1.0;
+    if (blendEngaged && heatmapOpacity > 0 &&
+        !(typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_TINYTILE_FADE__ === true)) {
+      const _ttLon = boundsLonSpan(waveBounds);
+      const _ttVLon = (vb[2] < vb[0]) ? (vb[2] + 360 - vb[0]) : (vb[2] - vb[0]);
+      const _ttLat = Math.max(0.01, waveBounds.north - waveBounds.south);
+      const _ttVLat = Math.max(0.01, vb[3] - vb[1]);
+      const _ttCov = Math.min(1, _ttLon / Math.max(_ttVLon, 0.01)) * Math.min(1, _ttLat / _ttVLat);
+      if (_ttCov < 0.45) {
+        const _ttT = Math.max(0, _ttCov / 0.45);                 // 0 (vanishing tile) → 1 (engage edge)
+        const _ttPeer = Math.min(1, (_washOpacityEff || 0) / Math.max(heatmapOpacity, 0.001));
+        _tinyTileFadeVal = _ttPeer + (1 - _ttPeer) * (_ttT * _ttT); // quadratic ease to wash parity
+        heatmapOpacity *= _tinyTileFadeVal;
+      }
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.tinyTileFade = _ttCov < 0.45
+          ? { cov: +_ttCov.toFixed(2), fade: +_tinyTileFadeVal.toFixed(2) } : null;
+      }
+    }
+
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_opacity'), heatmapOpacity);
     // Per-frame MAIN-pass opacity + resident-mask identity forensics (2026-07-16 zoom-clear trace).
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
@@ -2315,7 +2344,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_shoalFoam'), _shoalFoam);
       gl.uniform1i(gl.getUniformLocation(this.drawProgram, 'u_bathTexture'), 3);
 
-      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult);
+      // Tiny-tile parity applies to the crest/particle ink too — a fully-faded heatmap with
+      // crisp crest animation inside the tile is still an animated rectangle.
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_opacity'), mult * _tinyTileFadeVal);
 
       // Constant-screen-density (flow-viz best practice): keep a FIXED number of seeded crests on screen at every
       // zoom instead of an ad-hoc per-zoom fraction. Particles live in a tile ~Nx the screen; the viewport's share

@@ -129,4 +129,55 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
       }
     }
   });
+
+  it('COMPOSITE VISIBILITY floors: low stops must not go DIMMER than the pre-respread palette', () => {
+    // Round 1 of the respread won its hue gaps while LOSING composite visibility on dark's calm
+    // band (the user's "wind data missing at lower speeds") — a hue-gap gate alone cannot see a
+    // stop fading toward the basemap. Perceptually-weighted composite distance vs the bare
+    // basemap, floored at the LEGACY palette's own values (computed once, hard-coded — a
+    // respread may improve on legacy, never regress below it).
+    const BASEMAP = { dark: [93, 117, 126], light: [168, 214, 222], beach: [150, 190, 200] };
+    const OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
+    const BASE_A = { dark: 0.28, light: 0.35, beach: 0.45 };
+    const smoothstep = (e0, e1, x) => {
+      const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
+      return t * t * (3 - 2 * t);
+    };
+    const visDelta = (theme, stop) => {
+      const [kn, r, g, b] = stop;
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, 7, kn));
+      const bm = BASEMAP[theme].map((v) => v / 255);
+      const c = [bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a];
+      return 255 * Math.sqrt(0.30 * (c[0] - bm[0]) ** 2 + 0.59 * (c[1] - bm[1]) ** 2 + 0.11 * (c[2] - bm[2]) ** 2);
+    };
+    // legacy floors (pre-respread palette, same model): dark0 5.76 · light0 37.57 · light3 60.70
+    // (96% tolerance where the hue fix costs a hair) · beach0 23.87
+    const FLOORS = {
+      dark: { 0: 5.76 },
+      light: { 0: 37.5, 3: 58.0 },
+      beach: { 0: 23.8 },
+    };
+    for (const theme of ['dark', 'light', 'beach']) {
+      const ramp = THEME_RAMPS[theme];
+      for (const stop of ramp) {
+        const floor = FLOORS[theme][stop[0]];
+        if (floor === undefined) continue;
+        expect(visDelta(theme, stop)).toBeGreaterThanOrEqual(floor);
+      }
+    }
+  });
+
+  it('the respread kill switch restores the legacy low stops', () => {
+    const { resolveThemeRamp } = require('./WindColorRamp');
+    window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__ = true;
+    try {
+      expect(resolveThemeRamp('dark')[0]).toEqual([0, 0.35, 0.45, 1.00, 0.80]);
+      expect(resolveThemeRamp('light')[1]).toEqual([3, 0.06, 0.20, 0.48, 0.75]);
+      expect(resolveThemeRamp('beach')[0]).toEqual([0, 1.00, 0.35, 0.75, 0.75]);
+      // untouched rows stay the live palette
+      expect(resolveThemeRamp('dark')[2]).toEqual(THEME_RAMPS.dark[2]);
+    } finally {
+      delete window.__RAW_DISABLE_WIND_LOWBAND_RESPREAD__;
+    }
+  });
 });

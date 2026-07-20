@@ -21,6 +21,11 @@
  *      ZB_BLOCK_GLOBAL_MS (fault injection: abort world-bbox /grid requests for N ms after load —
  *      deterministically forces the fine-as-base state so the gesture-start base kick's recovery
  *      can be measured instead of waiting for a natural 429 storm).
+ *      ZB_SEED / ZB_CYCLES — storm variation & length.
+ *      ZB_LAYER — 'wind' (default) | 'waves' | 'both'. waves = the MARINE layer under the same
+ *      storm (pixel/seam/video evidence; the wind structural sampler stays wind-only).
+ *      ZB_WHEEL=1 — add REAL mouse-wheel zoom bursts (MapLibre scrollZoom is a different code
+ *      path from easeTo: its own zoom-rate curve, inertia, and interrupt semantics).
  *
  * Usage: node probe_wind_zoomburst.js [baseUrl] [outdir] [theme]   (run from frontend/)
  */
@@ -82,7 +87,9 @@ function findSeams(png) {
   }
   const meanOfMeans = colDelta.reduce((a, c) => a + c.mean, 0) / colDelta.length;
   for (const c of colDelta) {
-    if (c.frac > 0.55 && c.mean > Math.max(18, meanOfMeans * 3)) seams.v.push(c.x);
+    // frac 0.40, not 0.55: the marine Gulf rectangle's vertical edge spanned ~53% of the crop
+    // and sailed under the first threshold — a sub-viewport tile's edge rarely runs full height.
+    if (c.frac > 0.40 && c.mean > Math.max(18, meanOfMeans * 3)) seams.v.push(c.x);
   }
   const rowDelta = [];
   for (let y = CROP.y0; y < CROP.y1 - 1; y++) {
@@ -96,7 +103,7 @@ function findSeams(png) {
   }
   const meanOfRowMeans = rowDelta.reduce((a, c) => a + c.mean, 0) / rowDelta.length;
   for (const c of rowDelta) {
-    if (c.frac > 0.55 && c.mean > Math.max(18, meanOfRowMeans * 3)) seams.h.push(c.y);
+    if (c.frac > 0.40 && c.mean > Math.max(18, meanOfRowMeans * 3)) seams.h.push(c.y);
   }
   return seams;
 }
@@ -150,44 +157,65 @@ const CENTER = { lng: -89, lat: 24 };
     const m = window.__RAW_MAP__ || window.map;
     m.jumpTo({ center: [c.lng, c.lat], zoom: 6.5 });
   }, CENTER);
-  // enable wind
-  await page.waitForFunction(() => {
+  // enable the requested layer(s)
+  const LAYER = process.env.ZB_LAYER || 'wind';
+  const wantChips = LAYER === 'both' ? ['Wind', 'Waves'] : [LAYER === 'waves' ? 'Waves' : 'Wind'];
+  await page.waitForFunction((first) => {
     const all = Array.from(document.querySelectorAll('button'));
     const label = (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim());
-    if (all.some((x) => label(x) === 'Wind')) return true;
+    if (all.some((x) => label(x) === first)) return true;
     const exp = all.find((x) => /weather controls/i.test((x.getAttribute('aria-label') || '') + (x.title || '')));
     if (exp) exp.click();
     return false;
-  }, null, { timeout: 90000 }).catch(() => {});
-  await page.evaluate(() => {
-    const all = Array.from(document.querySelectorAll('button'));
-    const label = (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim());
-    const b = all.find((x) => label(x) === 'Wind');
-    if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
-  });
+  }, wantChips[0], { timeout: 90000 }).catch(() => {});
+  for (const chip of wantChips) {
+    await page.evaluate((name) => {
+      const all = Array.from(document.querySelectorAll('button'));
+      const label = (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim());
+      const b = all.find((x) => label(x) === name);
+      if (b && b.getAttribute('aria-pressed') !== 'true') b.click();
+    }, chip);
+    await page.waitForTimeout(1200);
+  }
+  console.log(`layer(s): ${wantChips.join('+')}`);
   // Let the first commits land — but do NOT gate on a healthy two-texture state: the probe's
   // job is to capture whatever the user would see, including degraded states.
   // ZB_PREWAIT_MS=2000 is the STRESS variant: gestures start while the cold-enable fetch race
   // is still in flight — the exact window the gesture-start base kick exists for.
   await page.waitForTimeout(Number(process.env.ZB_PREWAIT_MS || 12000));
 
-  // The gesture script (ANIMATED — the ladder's jumpTo can't see mid-gesture states).
-  const gestures = [
-    { do: 'easeTo', zoom: 4.0, duration: 1600 },
-    { do: 'easeTo', zoom: 9.0, duration: 2000 },
-    { do: 'easeTo', zoom: 5.0, duration: 1600 },
-    { do: 'panBy', px: [420, 0], duration: 1200 },
-    { do: 'easeTo', zoom: 7.5, duration: 1600 },
-    { do: 'easeTo', zoom: 3.5, duration: 2000 },
-    { do: 'easeTo', zoom: 6.5, duration: 1600 },
-  ];
-  const frames = [];
+  // ── GESTURE STORM (round 2 — user: "you're not zooming in and out enough; various speeds and
+  // distances, enough times to discover issues"). A seeded generator drives CYCLES of realistic
+  // gesture families with NO recovery gaps between most of them:
+  //   wheel  — chained short zoom steps (scroll-wheel reality: each tick interrupts the last)
+  //   fast   — large-distance easeTo at 350-600 ms (fling zoom)
+  //   slow   — large-distance easeTo at 1500-2200 ms
+  //   jiggle — small +-0.4-0.8 zoom oscillations
+  //   interrupt — start a long zoom, reverse it mid-flight
+  //   pan    — panBy between zoom families, occasionally mid-zoom
+  // Console commit-path logs are captured with timestamps for correlation.
+  const SEED = Number(process.env.ZB_SEED || 1337);
+  const CYCLES = Number(process.env.ZB_CYCLES || 5);
+  let lcg = SEED >>> 0;
+  const rnd = () => ((lcg = (lcg * 1664525 + 1013904223) >>> 0) / 4294967296);
+  const pick = (arr) => arr[Math.floor(rnd() * arr.length)];
+  console.log(`gesture storm: seed ${SEED}, cycles ${CYCLES}`);
+
+  const consoleLog = [];
+  page.on('console', (msg) => {
+    const t = msg.text();
+    if (/WeatherEngine|WebGLWind|CHOKE|GLOBAL|FINE|clamp/i.test(t)) {
+      consoleLog.push({ t: Date.now(), text: t.slice(0, 220) });
+    }
+  });
+
+  // Decoupled STATE SAMPLER (~10 Hz — page.evaluate is ~10-30 ms, far faster than screenshots):
+  // the structural detector gets sub-gesture resolution; screenshots + video cover pixels.
+  const samples = [];
   let stop = false;
-  const burst = (async () => {
-    let n = 0;
+  const sampler = (async () => {
     while (!stop) {
-      const file = path.join(OUT, `burst_${String(n).padStart(3, '0')}.png`);
-      const state = await page.evaluate(() => {
+      const s = await page.evaluate(() => {
         const m = window.__RAW_MAP__ || window.map;
         const e = window.__WIND_ENGINE__;
         const vb = m.getBounds();
@@ -202,65 +230,145 @@ const CENTER = { lng: -89, lat: 24 };
           return b.west <= vp.w + eps && b.east >= vp.e - eps && b.south <= vp.s + eps && b.north >= vp.n - eps;
         };
         return {
-          zoom: +m.getZoom().toFixed(2), vp,
-          base: gb ? { w: gb.west, e: gb.east, s: gb.south, n: gb.north, span: +span(gb).toFixed(1) } : null,
-          fine: fb ? { w: fb.west, e: fb.east, s: fb.south, n: fb.north } : null,
+          zoom: +m.getZoom().toFixed(2),
+          baseSpan: gb ? +span(gb).toFixed(1) : null,
+          fine: fb ? [+fb.west.toFixed(1), +fb.east.toFixed(1)] : null,
           baseCovers: covers(gb), fineCovers: covers(fb),
         };
       }).catch(() => null);
+      if (s) samples.push({ t: Date.now(), ...s });
+      await new Promise((r) => setTimeout(r, 100));
+    }
+  })();
+
+  const frames = [];
+  const shooter = (async () => {
+    let n = 0;
+    while (!stop) {
+      const file = path.join(OUT, `burst_${String(n).padStart(3, '0')}.png`);
       try { await page.screenshot({ path: file, timeout: 5000 }); } catch (err) { break; }
-      frames.push({ n, file, state });
+      frames.push({ n, t: Date.now(), file });
       n++;
     }
   })();
 
-  for (const g of gestures) {
-    await page.evaluate((gg) => {
-      const m = window.__RAW_MAP__ || window.map;
-      if (gg.do === 'easeTo') m.easeTo({ zoom: gg.zoom, duration: gg.duration });
-      else if (gg.do === 'panBy') m.panBy(gg.px, { duration: gg.duration });
-    }, g);
-    await page.waitForTimeout(g.duration + 900); // gesture + fetch/commit window
+  const ease = (zoom, duration) => page.evaluate((g) => {
+    const m = window.__RAW_MAP__ || window.map;
+    m.easeTo({ zoom: g.zoom, duration: g.duration });
+  }, { zoom, duration });
+  const panBy = (px, duration) => page.evaluate((g) => {
+    const m = window.__RAW_MAP__ || window.map;
+    m.panBy(g.px, { duration: g.duration });
+  }, { px, duration });
+
+  const ZMIN = 3.2, ZMAX = 10.5;
+  const useRealWheel = process.env.ZB_WHEEL !== '0'; // default ON — scrollZoom is its own code path
+  for (let c = 0; c < CYCLES; c++) {
+    const family = ['wheel_out', 'wheel_in', 'fast', 'slow', 'jiggle', 'interrupt'];
+    if (useRealWheel) family.push('wheel_real_out', 'wheel_real_in');
+    for (const fam of family) {
+      const zNow = await page.evaluate(() => (window.__RAW_MAP__ || window.map).getZoom());
+      if (fam === 'wheel_out' || fam === 'wheel_in') {
+        const dir = fam === 'wheel_out' ? -1 : 1;
+        const ticks = 4 + Math.floor(rnd() * 5); // 4-8 chained ticks
+        for (let i = 0; i < ticks; i++) {
+          const step = 0.5 + rnd() * 0.6;
+          const target = Math.max(ZMIN, Math.min(ZMAX, (await page.evaluate(() => (window.__RAW_MAP__ || window.map).getZoom())) + dir * step));
+          await ease(target, 220 + Math.floor(rnd() * 120));
+          await page.waitForTimeout(140 + Math.floor(rnd() * 140)); // next tick interrupts the last
+        }
+        await page.waitForTimeout(500);
+      } else if (fam === 'fast' || fam === 'slow') {
+        const far = pick([ZMIN, ZMIN + 0.6, ZMAX - 1.2, ZMAX]);
+        const dur = fam === 'fast' ? 350 + Math.floor(rnd() * 250) : 1500 + Math.floor(rnd() * 700);
+        await ease(far, dur);
+        await page.waitForTimeout(dur + 250);
+        const back = 5.0 + rnd() * 3.0;
+        await ease(back, fam === 'fast' ? 400 : 1800);
+        await page.waitForTimeout((fam === 'fast' ? 400 : 1800) + 250);
+      } else if (fam === 'jiggle') {
+        for (let i = 0; i < 4; i++) {
+          const d = (rnd() - 0.5) * 1.6;
+          await ease(Math.max(ZMIN, Math.min(ZMAX, zNow + d)), 300);
+          await page.waitForTimeout(360);
+        }
+      } else if (fam === 'interrupt') {
+        await ease(ZMIN + rnd(), 2000);
+        await page.waitForTimeout(500 + Math.floor(rnd() * 500)); // interrupt mid-flight
+        await ease(ZMAX - 1 - rnd() * 2, 700);
+        await page.waitForTimeout(900);
+      } else if (fam === 'wheel_real_out' || fam === 'wheel_real_in') {
+        // REAL mouse-wheel over the canvas — MapLibre scrollZoom (its own rate curve, inertia,
+        // and interrupt semantics; what a desktop user actually does).
+        const dir = fam === 'wheel_real_out' ? 1 : -1; // wheel down (+deltaY) zooms OUT
+        await page.mouse.move(620, 420);
+        const ticks = 5 + Math.floor(rnd() * 6); // 5-10 rapid ticks
+        for (let i = 0; i < ticks; i++) {
+          await page.mouse.wheel(0, dir * (120 + Math.floor(rnd() * 240)));
+          await page.waitForTimeout(60 + Math.floor(rnd() * 130)); // trackpad-fast cadence
+        }
+        await page.waitForTimeout(700);
+      }
+      if (rnd() < 0.5) {
+        await panBy([Math.floor((rnd() - 0.5) * 900), Math.floor((rnd() - 0.5) * 400)], 500);
+        await page.waitForTimeout(650);
+      }
+    }
   }
   await page.waitForTimeout(2500);
   stop = true;
-  await burst;
+  await Promise.all([sampler, shooter]);
+  fs.writeFileSync(path.join(OUT, 'console_log.json'), JSON.stringify(consoleLog, null, 1));
   await ctx.close(); // flushes the video
   await browser.close();
 
   // ── Analysis ──
-  let structuralFails = 0;
-  let coldFrames = 0;
+  // STRUCTURAL over the 10 Hz samples: count clamp samples AND measure the worst DWELL — a
+  // 100 ms blip during an interrupted gesture reads differently than a 2 s hole.
+  let clampSamples = 0, coldSamples = 0;
+  let worstDwellMs = 0, dwellStart = null;
+  const clampWindows = [];
+  for (const s of samples) {
+    const hasAnyGrid = !!(s.baseSpan || s.fine);
+    const uncovered = !s.baseCovers && !s.fineCovers;
+    const clamp = uncovered && hasAnyGrid;
+    if (clamp) {
+      clampSamples++;
+      if (dwellStart === null) dwellStart = s.t;
+      worstDwellMs = Math.max(worstDwellMs, s.t - dwellStart);
+    } else {
+      if (dwellStart !== null) clampWindows.push({ from: dwellStart, to: s.t });
+      dwellStart = null;
+      if (uncovered) coldSamples++;
+    }
+  }
+  if (dwellStart !== null && samples.length) clampWindows.push({ from: dwellStart, to: samples[samples.length - 1].t });
+  for (const w of clampWindows) {
+    const logs = consoleLog.filter((l) => l.t >= w.from - 2000 && l.t <= w.to + 2000).map((l) => l.text);
+    console.log(`CLAMP WINDOW ${new Date(w.from).toISOString().slice(11, 23)} -> ${new Date(w.to).toISOString().slice(11, 23)} (${w.to - w.from} ms)`);
+    const inWin = samples.filter((s) => s.t >= w.from && s.t <= w.to);
+    for (const s of inWin.slice(0, 6)) console.log(`   z${s.zoom} baseSpan ${s.baseSpan} fine ${JSON.stringify(s.fine)} covers b:${s.baseCovers} f:${s.fineCovers}`);
+    for (const l of logs.slice(0, 8)) console.log(`   log: ${l}`);
+  }
+  // pixel seams over the screenshot stream (persistent >= 3 consecutive frames)
   const seamHistory = [];
   for (const f of frames) {
-    const st = f.state;
-    const hasAnyGrid = !!(st && (st.base || st.fine));
-    const uncovered = st && !st.baseCovers && !st.fineCovers;
-    // PARTIAL-DATA clamp (a resident box not covering = the visible rectangle) fails the run;
-    // COLD-EMPTY (nothing committed yet) is the bounded initial-load window — report, don't fail.
-    const clampFrame = uncovered && hasAnyGrid;
-    if (clampFrame) structuralFails++;
-    else if (uncovered) coldFrames++;
     let seams = { v: [], h: [] };
     try { seams = findSeams(decodePNG(fs.readFileSync(f.file))); } catch (e) {}
     seamHistory.push({ n: f.n, seams });
-    const flag = clampFrame ? '  << STRUCTURAL CLAMP (resident grid does not cover the viewport)'
-      : (uncovered ? '  (cold: nothing committed yet)' : '');
-    console.log(`frame ${String(f.n).padStart(3)} z${st ? st.zoom : '?'} base ${st && st.base ? st.base.span + 'deg' : 'none'}${st && st.fine ? ' fine[' + st.fine.w + '..' + st.fine.e + ']' : ''} covers b:${st ? st.baseCovers : '?'} f:${st ? st.fineCovers : '?'} seamsV:${seams.v.length} seamsH:${seams.h.length}${flag}`);
   }
-  // persistent seams: same x (+-10 px) in >= 3 consecutive frames
   let persistentSeams = 0;
   for (let i = 2; i < seamHistory.length; i++) {
     for (const x of seamHistory[i].seams.v) {
       const in1 = seamHistory[i - 1].seams.v.some((p) => Math.abs(p - x) <= 10);
       const in2 = seamHistory[i - 2].seams.v.some((p) => Math.abs(p - x) <= 10);
-      if (in1 && in2) { persistentSeams++; break; }
+      if (in1 && in2) { persistentSeams++; console.log(`persistent vertical seam near x=${x} at frames ${i - 2}-${i}`); break; }
     }
   }
-  fs.writeFileSync(path.join(OUT, 'burst_state.json'), JSON.stringify(frames.map((f) => ({ n: f.n, state: f.state })), null, 1));
-  console.log(`\nframes: ${frames.length} | structural-clamp frames: ${structuralFails} | cold frames: ${coldFrames} | persistent vertical seams: ${persistentSeams}`);
-  const pass = structuralFails === 0 && persistentSeams === 0;
-  console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp (structural or pixel).'
-    : 'ZOOMBURST FAIL — mid-gesture clamp captured; see burst_state.json + video in ' + OUT);
+  fs.writeFileSync(path.join(OUT, 'burst_state.json'), JSON.stringify({ seed: SEED, cycles: CYCLES, samples, frames: frames.map((f) => ({ n: f.n, t: f.t })) }, null, 1));
+  console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | persistent seams: ${persistentSeams}`);
+  const pass = clampSamples === 0 && persistentSeams === 0;
+  console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp (structural or pixel) across the storm.'
+    : 'ZOOMBURST FAIL — clamp captured; see clamp windows above + burst_state.json + console_log.json + video in ' + OUT);
   process.exit(pass ? 0 : 1);
 })();
