@@ -152,3 +152,26 @@ Per-item isolation shipped for all three surfaces, same rigor as f9c5e59a:
 Tests: `test_batch_blast_radius_isolation.py` 5/5 (each confirmed failure mode reproduced) ·
 ingestion/store/calibration subsets 73 green · full backend suite **811 green**.
 LOC watch: scheduler_helpers.py now 774/800.
+
+## 9. VORTEX R-GATE SECOND SAMPLE — the 0.5/1.2 window is now a CONTRACT
+
+Queue item closed with live data (2026-07-20T18Z field, 1° SWR fine tier, the analyzer's
+exact formula: R = |curl|·dyKm/(speed+2), central differences, cosLat-floored km spacing):
+
+| frame | speed p50 | R p50 | R p90 | R p99 | cores |
+|---|---|---|---|---|---|
+| SH winter cyclone 42S/132W (14×10°) | 28.9 kn | 0.246 | 0.950 | 3.32 | **3.49, 1.60** |
+| Pacific trades control (14×10°) | 13.4 kn | 0.073 | 0.183 | 0.28 | none |
+| Atlantic trades control (14×10°) | 13.1 kn | 0.077 | 0.228 | 0.77 | none |
+
+Verdict vs the abbc9c76 calibration (FL Gulf low: cores 1.4-2.2, ambient p90 0.59):
+- **Cores of a hemisphere-different, type-different system saturate the 1.2 ceiling** (1.60,
+  3.49) exactly like the calibrating invest — full vortex treatment engages on real cores.
+- **Calm air stays below the 0.5 floor across two ocean basins** (p90 ≤ 0.23) — the
+  no-particle-budget-tax property holds; today's calm frames are cleaner than the FL
+  "ambient" (which included Gulf periphery).
+- Storm annulus p90 0.95 mid-ramp = partial engagement inside the circulation, by design.
+Two distinct real systems + two calm controls = the window graduates from calibration to
+contract. Provenance: `wind-vortex-out/sh_storm_42S132W_fine_20260720.json` (API response
+form; an engine-dumped fixture via probe_wind_vortex_dump on a visible session remains the
+gold format if a committed fixture #2 is wanted).
