@@ -126,6 +126,37 @@ export function windBaseOverlayEnabled(win) {
   return !(w && w.__RAW_DISABLE_WIND_BASE_OVERLAY__ === true);
 }
 
+// Product IDENTITY (2026-07-20, the React Scan finding): metadata equality, not content diff.
+// Every field that can change the data changes one of these; two grids that agree on all of
+// them are the same served product, and re-committing it is pure GL waste (texture re-upload +
+// reseed = the measured 235.9 ms "other time" behind the 5x FPS drops).
+export function windGridsIdentical(a, b) {
+  if (!a || !b) return false;
+  if (windGridModel(a) !== windGridModel(b)) return false;
+  if ((a.hourOffset || 0) !== (b.hourOffset || 0)) return false;
+  if ((a.valid_time || a.validTime || null) !== (b.valid_time || b.validTime || null)) return false;
+  if ((a.stale === true) !== (b.stale === true)) return false;
+  if ((a.product_id || null) !== (b.product_id || null)) return false;
+  var ba = a.bounds, bb = b.bounds;
+  if (!ba || !bb) return false;
+  if (ba.west !== bb.west || ba.east !== bb.east || ba.south !== bb.south || ba.north !== bb.north) return false;
+  if ((a.cols || 0) !== (b.cols || 0) || (a.rows || 0) !== (b.rows || 0)) return false;
+  if ((a.truthTag?.product || null) !== (b.truthTag?.product || null)) return false;
+  var na = a.vectors ? a.vectors.length : 0;
+  if (na !== (b.vectors ? b.vectors.length : 0)) return false;
+  // 5-point content sample: a new model RUN can refresh values behind identical metadata
+  // (same valid_time/bounds/dims, and mapped grids may carry no product_id) — metadata alone
+  // would wrongly no-op that refresh.
+  if (na > 0) {
+    var probes = [0, na >> 2, na >> 1, (3 * na) >> 2, na - 1];
+    for (var pi = 0; pi < probes.length; pi++) {
+      var pa = a.vectors[probes[pi]], pb = b.vectors[probes[pi]];
+      if (!pa || !pb || pa.u !== pb.u || pa.v !== pb.v) return false;
+    }
+  }
+  return true;
+}
+
 // WIDE-ZOOM HANDLING, round 2 (2026-07-19 late). Round 1 faded the whole overlay out at wide
 // zoom — and the user immediately caught the crime: "when you removed the grid, so went the low
 // pressure system." The fine box's INTERIOR held the only data resolving the circulation;
@@ -156,6 +187,22 @@ WebGLWindEngine.prototype.init = function(gl) {
 
 WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   if (!windGrid?.vectors?.length) return 'skipped';
+
+  // NO-OP COMMIT GUARD (2026-07-20). React Scan measured the FPS drops during pans: 41 ms of
+  // React vs 235.9 ms of "other time" — the moveend refetch returns the SAME cached product and
+  // every re-commit re-uploads textures (and a base replace reseeds particles). This is THE
+  // single function every wind commit path calls, so the identity invariant lives here (the
+  // distributed-guards lesson). Kill: __RAW_DISABLE_WIND_COMMIT_NOOP__.
+  if (!(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_COMMIT_NOOP__ === true)) {
+    var residentSameSlot = null;
+    if (this._windData?.windGrid
+        && windGridIsGlobal(windGrid) === windGridIsGlobal(this._windData.windGrid)) {
+      residentSameSlot = this._windData.windGrid;
+    } else if (this._windFine?.windGrid && !windGridIsGlobal(windGrid)) {
+      residentSameSlot = this._windFine.windGrid;
+    }
+    if (residentSameSlot && windGridsIdentical(residentSameSlot, windGrid)) return 'noop';
+  }
   var verdict = 'base';
 
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
@@ -555,6 +602,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_color_ramp'), 1);
   gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_field_lut'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_FIELD_LUT__ === true) ? 0.0 : 1.0);
+  // 07-20 slow-wind visibility raise kill switch: restores the 07-19 calm-alpha constant set
+  // (dark 0.28/light 0.35/beach 0.45, 7 kn ramp) in BOTH the field and the casing model.
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_calm_alpha_kill'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_ALPHA_V3__ === true) ? 1.0 : 0.0);
 
   if (typeof window !== 'undefined' && !window.__GPU_DEBUG__) {
     window.__GPU_DEBUG__ = { mode: null };
@@ -754,6 +805,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme'), themeVal);
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_theme_rim'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_THEMED_PARTICLE_RIM__ === true) ? 0.0 : 1.0);
+  // casing mirror of the 07-20 calm-alpha kill switch — both programs must agree or the pole
+  // choice models a field alpha that is not on screen (the round-6 failure class).
+  gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_calm_alpha_kill'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_CALM_ALPHA_V3__ === true) ? 1.0 : 0.0);
   // Oriented dash — direction is carried by ELONGATION, not by mark area.
   gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_dash'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DASH__ === true) ? 0.0 : 1.0);

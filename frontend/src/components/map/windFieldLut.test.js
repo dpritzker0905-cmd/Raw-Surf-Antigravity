@@ -37,11 +37,24 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     // the legacy inline ramp must survive for the kill path
     expect(HEATMAP_FS).toMatch(/vec3\s+ramp\(float\s+t,\s*float\s+theme\)/);
     expect(HEATMAP_FS).toMatch(/:\s*ramp\(t,\s*u_theme\)/);
-    // the alpha contract is UNCHANGED — field transparency is a separately tuned surface that
-    // the contrast gate's composite model depends on
-    expect(HEATMAP_FS).toMatch(/u_opacity\s*\*\s*\(baseAlpha\s*\+\s*\(1\.0\s*-\s*baseAlpha\)\s*\*\s*smoothstep\(0\.0,\s*7\.0,\s*speed\)\)/); // 7kn ramp (2026-07-19)
-    // and the casing composite uses the SAME ramp endpoint
-    expect(require('./WebGLWindShaders').DRAW_FS).toMatch(/smoothstep\(0\.0,\s*7\.0,\s*v_speed\)/);
+    // the alpha contract (2026-07-20 slow-wind visibility raise — user bar: ALL wind visible on
+    // all three themes; 71% of the Gulf's real wind was below 12 kn and under-visible):
+    // per-theme baseAlpha dark 0.44 / light 0.42 / beach 0.45, ramp saturating at 5 kn (dark)
+    // / 7 kn (light+beach). Kill: __RAW_DISABLE_WIND_CALM_ALPHA_V3__ -> u_calm_alpha_kill
+    // restores the 07-19 set (0.28/0.35/0.45, 7 kn). The VALUE pins below are deliberate: the
+    // baseAlpha constants live in FIVE sites (HEATMAP_FS, DRAW_FS casing, windParticleContrast
+    // mirror, this file's two maps) and only a source-level pin fails when the shader alone drifts.
+    expect(HEATMAP_FS).toMatch(/u_opacity\s*\*\s*\(baseAlpha\s*\+\s*\(1\.0\s*-\s*baseAlpha\)\s*\*\s*smoothstep\(0\.0,\s*rampEnd,\s*speed\)\)/);
+    expect(HEATMAP_FS).toMatch(/uniform\s+float\s+u_calm_alpha_kill/);
+    expect(HEATMAP_FS).toMatch(/float\s+baseAlpha\s*=\s*0\.44/);            // dark default
+    expect(HEATMAP_FS).toMatch(/float\s+rampEnd\s*=\s*5\.0/);               // dark saturates at 5 kn
+    expect(HEATMAP_FS).toMatch(/baseAlpha\s*=\s*0\.45;\s*rampEnd\s*=\s*7\.0/); // beach branch
+    expect(HEATMAP_FS).toMatch(/baseAlpha\s*=\s*0\.42;\s*rampEnd\s*=\s*7\.0/); // light branch
+    // and the casing composite uses the SAME constants, ramp endpoint and kill switch
+    const DRAW = require('./WebGLWindShaders').DRAW_FS;
+    expect(DRAW).toMatch(/smoothstep\(0\.0,\s*rampEnd,\s*v_speed\)/);
+    expect(DRAW).toMatch(/uniform\s+float\s+u_calm_alpha_kill/);
+    expect(DRAW).toMatch(/float\s+baseA\s*=\s*0\.44/);
   });
 
   it('SPECTRAL SENSITIVITY: every theme traverses substantial hue distance across 0-21 kn', () => {
@@ -107,14 +120,16 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     // THREE-SITE constant set (HEATMAP_FS + DRAW_FS casing + windParticleContrast mirror).
     const BASEMAP = { dark: [93, 117, 126], light: [168, 214, 222], beach: [150, 190, 200] };
     const OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
-    const BASE_A = { dark: 0.28, light: 0.35, beach: 0.45 };
+    // 07-20 slow-wind visibility raise: sync HEATMAP_FS + DRAW_FS + windParticleContrast mirror
+    const BASE_A = { dark: 0.44, light: 0.42, beach: 0.45 };
+    const RAMP_KN = { dark: 5, light: 7, beach: 7 };
     const smoothstep = (e0, e1, x) => {
       const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
       return t * t * (3 - 2 * t);
     };
     const compositeHue = (theme, stop) => {
       const [kn, r, g, b] = stop;
-      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, 7, kn));
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn));
       const bm = BASEMAP[theme].map((v) => v / 255);
       return rgbToHueDeg([bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a]);
     };
@@ -125,7 +140,9 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
         const b = compositeHue(theme, ramp[i]);
         let d = Math.abs(b - a);
         if (d > 180) d = 360 - d;
-        expect(d).toBeGreaterThanOrEqual(12);
+        // the 0-10 kn band (where 71% of the Gulf's real wind lived on 07-20) carries the raised
+        // 18-deg bar the low-band re-derivation guaranteed; 12 remains the floor above it
+        expect(d).toBeGreaterThanOrEqual(ramp[i][0] <= 10 ? 18 : 12);
       }
     }
   });
@@ -138,24 +155,29 @@ describe('wind field samples the Beaufort LUT (one palette everywhere)', () => {
     // respread may improve on legacy, never regress below it).
     const BASEMAP = { dark: [93, 117, 126], light: [168, 214, 222], beach: [150, 190, 200] };
     const OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
-    const BASE_A = { dark: 0.28, light: 0.35, beach: 0.45 };
+    // 07-20 slow-wind visibility raise: sync HEATMAP_FS + DRAW_FS + windParticleContrast mirror
+    const BASE_A = { dark: 0.44, light: 0.42, beach: 0.45 };
+    const RAMP_KN = { dark: 5, light: 7, beach: 7 };
     const smoothstep = (e0, e1, x) => {
       const t = Math.max(0, Math.min(1, (x - e0) / (e1 - e0)));
       return t * t * (3 - 2 * t);
     };
     const visDelta = (theme, stop) => {
       const [kn, r, g, b] = stop;
-      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, 7, kn));
+      const a = OPACITY[theme] * (BASE_A[theme] + (1 - BASE_A[theme]) * smoothstep(0, RAMP_KN[theme], kn));
       const bm = BASEMAP[theme].map((v) => v / 255);
       const c = [bm[0] * (1 - a) + r * a, bm[1] * (1 - a) + g * a, bm[2] * (1 - a) + b * a];
       return 255 * Math.sqrt(0.30 * (c[0] - bm[0]) ** 2 + 0.59 * (c[1] - bm[1]) ** 2 + 0.11 * (c[2] - bm[2]) ** 2);
     };
-    // legacy floors (pre-respread palette, same model): dark0 5.76 · light0 37.57 · light3 60.70
-    // (96% tolerance where the hue fix costs a hair) · beach0 23.87
+    // 07-20 floors: pinned at ~92% of the composite deltas the raised-alpha derivation achieved
+    // (dark 26.3/42.3/37.4 · light 45.1/80.1/66.9 · beach 25.0/42.5/32.7 at 0/3/6 kn). These are
+    // no longer "never worse than legacy" floors — they pin the RAISED visibility itself, so any
+    // future stop/alpha drift that dims the calm band fails here first (the user bar this encodes:
+    // ALL wind must be visible on all three themes).
     const FLOORS = {
-      dark: { 0: 5.76 },
-      light: { 0: 37.5, 3: 58.0 },
-      beach: { 0: 23.8 },
+      dark: { 0: 24, 3: 39, 6: 34 },
+      light: { 0: 42, 3: 74, 6: 62 },
+      beach: { 0: 23.8, 3: 39, 6: 30 },
     };
     for (const theme of ['dark', 'light', 'beach']) {
       const ramp = THEME_RAMPS[theme];

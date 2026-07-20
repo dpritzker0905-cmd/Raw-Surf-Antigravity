@@ -34,11 +34,14 @@ const mix1 = (a, b, t) => a + (b - a) * t;
 // light-mode speeds: measured 1.71:1 at 0 kn where 12.25:1 was available. Every contrast number
 // this file produced before this change compared against a background that is not on screen.
 const HEATMAP_OPACITY = { dark: 0.48, light: 0.65, beach: 0.55 };
-const BASE_ALPHA = { dark: 0.28, light: 0.35, beach: 0.45 }; // dark 0.20->0.28 (2026-07-19 calm visibility); sync HEATMAP_FS + DRAW_FS
+// 07-20 slow-wind visibility raise (dark 0.28->0.44 + ramp 7->5 kn, light 0.35->0.42):
+// sync HEATMAP_FS + DRAW_FS + windFieldLut.test.js maps — five sites, one constant set.
+const BASE_ALPHA = { dark: 0.44, light: 0.42, beach: 0.45 };
+const RAMP_KN = { dark: 5, light: 7, beach: 7 };
 const BASEMAP_Y = { dark: 0.02, light: 0.72, beach: 0.30 };   // linear, mirrors the engine
 const smoothstep = (e0, e1, x) => { const t = Math.min(Math.max((x - e0) / (e1 - e0), 0), 1); return t * t * (3 - 2 * t); };
 const fieldAlpha = (theme, s) =>
-  HEATMAP_OPACITY[theme] * (BASE_ALPHA[theme] + (1 - BASE_ALPHA[theme]) * smoothstep(0, 7, s)); // 7kn ramp (2026-07-19): sync HEATMAP_FS + DRAW_FS
+  HEATMAP_OPACITY[theme] * (BASE_ALPHA[theme] + (1 - BASE_ALPHA[theme]) * smoothstep(0, RAMP_KN[theme], s));
 // The luminance a mark is actually drawn against.
 const bgY = (theme, s, r, g, b) => {
   const rampY = 0.2126729 * Math.pow(r, 2.2) + 0.7151522 * Math.pow(g, 2.2) + 0.0721750 * Math.pow(b, 2.2);
@@ -105,8 +108,8 @@ describe('wind particle contrast — every ramp stop, every theme', () => {
     // obvious — dark's neon ramp is bright so "use a dark ring", light's navy ramp is dark so
     // "use a bright ring". Judged on what is actually ON SCREEN, both invert at low wind, because
     // the field is nearly transparent there and the BASEMAP dominates:
-    //   dark  @0kn: fieldAlpha 0.10 over a dark basemap  -> bg 0.079 (DARK)   -> WHITE ring
-    //   light @0kn: fieldAlpha 0.23 over a light basemap -> bg 0.563 (BRIGHT) -> DARK ring
+    //   dark  @0kn: fieldAlpha 0.21 over a dark basemap  -> bg ~0.067 (DARK)  -> WHITE ring
+    //   light @0kn: fieldAlpha 0.27 over a light basemap -> bg ~0.555 (BRIGHT) -> DARK ring
     // Choosing from the ramp gave each theme exactly the wrong pole at its calmest speeds, which
     // is why light measured 1.71:1 and dark 2.58:1 at 0 kn.
     const d = THEME_RAMPS.dark[0], l = THEME_RAMPS.light[0];

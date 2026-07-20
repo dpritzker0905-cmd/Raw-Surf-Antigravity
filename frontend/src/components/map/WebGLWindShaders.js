@@ -642,6 +642,7 @@ uniform sampler2D u_color_ramp;
 uniform float u_max_speed;
 uniform float u_theme;       // 2026-07-18: 0=dark 1=light 2=beach — the particle program never had it
 uniform float u_theme_rim;   // 1 = theme-aware rim/core, 0 = legacy black/white (kill switch)
+uniform float u_calm_alpha_kill; // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
 uniform float u_dash;        // 2026-07-18: 1 = oriented dash, 0 = legacy round mark (kill switch)
 uniform float u_field_opacity; // heatmap u_opacity — the field is SEMI-TRANSPARENT
 uniform float u_basemap_y;     // linear luminance of the basemap showing through it
@@ -717,8 +718,9 @@ void main() {
     // THE POLE MUST BE CHOSEN FROM THE COMPOSITED BACKGROUND, NOT THE RAMP COLOUR
     // (2026-07-18 round 6 — the root behind "light mode is really hard to see").
     // The wind FIELD is semi-transparent: HEATMAP_FS draws it at
-    //     u_opacity * (baseAlpha + (1-baseAlpha)*smoothstep(0,10,speed))
-    // which in light mode is only ~0.23 at low wind. So the surface a particle actually sits on is
+    //     u_opacity * (baseAlpha + (1-baseAlpha)*smoothstep(0,rampEnd,speed))
+    // (theme-dependent baseAlpha/rampEnd — see HEATMAP_FS v3.22, which in light mode is ~0.27 at
+    // low wind). So the surface a particle actually sits on is
     // the ramp composited OVER THE BASEMAP — and in light mode that composite is BRIGHT (measured
     // bgY 0.27-0.56) even though the ramp itself is dark navy (rampY 0.03-0.20).
     // Choosing from the ramp alone therefore picked WHITE for 6 of 8 light-mode speeds, against a
@@ -729,9 +731,17 @@ void main() {
     // Y = 0.179 exactly), but it must be evaluated on the COMPOSITE.
     vec3 fieldLin = pow(color.rgb, vec3(2.2));
     float rampY = dot(fieldLin, vec3(0.2126729, 0.7151522, 0.0721750));
-    float baseA = 0.28; // sync with HEATMAP_FS baseAlpha (dark raised 0.20->0.28, 2026-07-19)
-    if (u_theme > 1.5) { baseA = 0.45; } else if (u_theme > 0.5) { baseA = 0.35; }
-    float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, 7.0, v_speed));
+    // sync with HEATMAP_FS v3.22 baseAlpha/rampEnd (07-20 slow-wind visibility raise) — the
+    // casing must model the SAME field alpha or the pole flips at mid-luminance speeds.
+    float baseA = 0.44;
+    float rampEnd = 5.0;
+    if (u_theme > 1.5) { baseA = 0.45; rampEnd = 7.0; }
+    else if (u_theme > 0.5) { baseA = 0.42; rampEnd = 7.0; }
+    if (u_calm_alpha_kill > 0.5) {
+      baseA = 0.28; rampEnd = 7.0;
+      if (u_theme > 1.5) { baseA = 0.45; } else if (u_theme > 0.5) { baseA = 0.35; }
+    }
+    float fieldA = u_field_opacity * (baseA + (1.0 - baseA) * smoothstep(0.0, rampEnd, v_speed));
     float fieldY = mix(u_basemap_y, rampY, clamp(fieldA, 0.0, 1.0));
     float fieldIsBright = step(0.179, fieldY);
     float outerL = mix(1.0, 0.0, fieldIsBright);   // opposes the field
@@ -789,6 +799,7 @@ uniform float u_edgeFeatherEnabled;
 uniform float u_edge_feather_frac;  // 2026-07-19: absolute-width feather (see DRAW_VS edgeFade)
 uniform sampler2D u_color_ramp;     // 2026-07-19: the SAME Beaufort LUT the particles use
 uniform float u_field_lut;          // 1 = sample the LUT (default), 0 = legacy inline 7-stop ramp
+uniform float u_calm_alpha_kill;    // 1 = restore the 07-19 calm-alpha set (kill switch; default 0)
 // BASE-PASS CUTOUT under a resident fine overlay (2026-07-19, queue #9). The overlay pass draws
 // ON TOP with its own feathered edge; without a complementary hole the two semi-transparent
 // alphas COMPOUND inside the overlay (a visibly brighter rectangle). The base fades out exactly
@@ -883,21 +894,27 @@ void main() {
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
   float speed = length(wind);
   float t = clamp(speed / max(u_max_speed, 1.0), 0.0, 1.0);
-  // v3.20: Theme-aware dynamic alpha floor (0.45 beach, 0.35 light, dark 0.20 -> 0.28 on
-  // 2026-07-19: measured calm-band screen delta in dark was 26-44/765 — sub-visible. MUST stay
-  // in sync with DRAW_FS's casing baseA and windParticleContrast.test.js's fieldAlpha mirror:
-  // three sites, one constant set.
-  float baseAlpha = 0.28;
+  // v3.22 (2026-07-20): slow-wind visibility raise — user bar: ALL wind must be visible on all
+  // three themes (NDBC truth check: 71% of the Gulf's real wind was <12 kn, the band that read
+  // as bare basemap). Per-theme baseAlpha dark 0.28->0.44 / light 0.35->0.42 / beach 0.45, and
+  // dark's ramp saturates at 5 kn (light/beach keep 7). Haze guard held: calm veil stays <=82%
+  // of the 0.55*u_opacity ceiling in every theme (dark 80% / light 76% / beach 82%), so the
+  // land-visibility contract survives. MUST stay in sync with DRAW_FS's casing baseA and the
+  // windParticleContrast/windFieldLut test mirrors: five sites, one constant set.
+  // Kill: __RAW_DISABLE_WIND_CALM_ALPHA_V3__ -> u_calm_alpha_kill restores the 07-19 set.
+  float baseAlpha = 0.44;
+  float rampEnd = 5.0;
   if (u_theme > 1.5) {
-    baseAlpha = 0.45;
+    baseAlpha = 0.45; rampEnd = 7.0;
   } else if (u_theme > 0.5) {
-    baseAlpha = 0.35;
+    baseAlpha = 0.42; rampEnd = 7.0;
   }
-  // Ramp saturates at 7 kn, not 10 (2026-07-19 night, user: light winds not visible). The field
-  // is the AREA signal for light air — at the old 10 kn ramp a 3-5 kn breeze sat at 19-27% of
-  // full alpha and read as bare basemap. 7 kn lifts 3 kn +19% and 5 kn +35%; >=7 kn unchanged.
-  // SYNC: DRAW_FS casing fieldA + windParticleContrast fieldAlpha mirror use the same 7.0.
-  float alpha = u_opacity * (baseAlpha + (1.0 - baseAlpha) * smoothstep(0.0, 7.0, speed));
+  if (u_calm_alpha_kill > 0.5) {
+    baseAlpha = 0.28; rampEnd = 7.0;
+    if (u_theme > 1.5) { baseAlpha = 0.45; }
+    else if (u_theme > 0.5) { baseAlpha = 0.35; }
+  }
+  float alpha = u_opacity * (baseAlpha + (1.0 - baseAlpha) * smoothstep(0.0, rampEnd, speed));
   if (u_edgeFeatherEnabled > 0.5) {
     float edgeDistX = min(v_uv.x, 1.0 - v_uv.x);
     float edgeDistY = min(v_uv.y, 1.0 - v_uv.y);

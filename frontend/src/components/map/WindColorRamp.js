@@ -71,10 +71,19 @@ var DEFAULT_WIND_RAMP = [
 // grid-searched so every adjacent composite gap below 21 kn is >=12° over the measured basemaps
 // (dark 93,117,126 · light 168,214,222 · beach 150,190,200) at the SHIPPED alpha — no alpha
 // change needed. Pinned by windFieldLut.test.js's composite-space gate. Stops >= 6 kn untouched.
+// SLOW-WIND VISIBILITY RAISE (2026-07-20, user bar: "ALL wind must be visible on all three
+// themes" — NDBC truth: 71% of the Gulf's live wind was <12 kn). The 0/3/6 kn stops were
+// re-derived TOGETHER with the raised field alphas (HEATMAP_FS v3.22: dark baseAlpha 0.44 +
+// 5 kn ramp, light 0.42, beach unchanged) — a stop is only right AT its alpha, because the
+// composite hue/visibility depend on ink x alpha vs the basemap's own chroma. Grid-searched
+// (hue step 2°, S x L dense) under: composite adjacent gaps >=18° below 10 kn, monotone wheel
+// advance, visΔ floors (>=12 @0kn, >=20 @3kn — achieved 25-45 @0kn), composite sat floors,
+// >=18° wheel clearance from the 75 kn stop, haze guard <=0.55*opacity. Pinned by
+// windFieldLut.test.js (composite gaps + visibility floors at the NEW alphas).
 var BEACH_WIND_RAMP = [
-  [0,  1.00, 0.20, 0.72, 0.75], // Calm: saturated magenta-rose (composite delta was marginal)
-  [3,  1.00, 0.48, 0.42, 0.78], // Light air: coral
-  [6,  1.00, 0.60, 0.20, 0.81], // Light breeze: orange
+  [0,  1.00, 0.32, 0.78, 0.75], // Calm: hot pink (composite 261°, visΔ 25.0)
+  [3,  0.94, 0.22, 0.49, 0.78], // Light air: raspberry (composite 314°, visΔ 42.5)
+  [6,  0.85, 0.53, 0.47, 0.81], // Light breeze: terracotta (composite 7°, visΔ 32.7)
   [10, 0.95, 0.82, 0.06, 0.83], // Gentle: yellow-gold
   [16, 0.72, 0.90, 0.12, 0.85], // Moderate: lime
   [21, 0.35, 0.88, 0.25, 0.87], // Fresh: green
@@ -88,9 +97,9 @@ var BEACH_WIND_RAMP = [
 ];
 
 var LIGHT_WIND_RAMP = [
-  [0,  0.50, 0.00, 0.70, 0.72], // Calm: vivid violet (composite 233° vs the basemap's cyan 189°)
-  [3,  0.10, 0.20, 0.68, 0.75], // Light air: ultramarine (composite 215°)
-  [6,  0.02, 0.33, 0.48, 0.78], // Light breeze: deep teal
+  [0,  0.54, 0.00, 0.92, 0.72], // Calm: electric violet (composite 243°, visΔ 45.1 @ baseA 0.42)
+  [3,  0.01, 0.00, 0.52, 0.75], // Light air: navy-indigo (composite 222°, visΔ 80.1)
+  [6,  0.06, 0.50, 0.78, 0.78], // Light breeze: cerulean (composite 201°, visΔ 66.9)
   [10, 0.03, 0.42, 0.40, 0.80], // Gentle: pine teal
   [16, 0.08, 0.46, 0.20, 0.82], // Moderate: forest green
   [21, 0.30, 0.47, 0.10, 0.84], // Fresh: olive
@@ -104,15 +113,14 @@ var LIGHT_WIND_RAMP = [
 ];
 
 var DARK_WIND_RAMP = [
-  // ROUND 2 (2026-07-19 late, user: "wind data missing at lower speeds"): round 1's violet
-  // [0.55,0.25,1.00] won its hue gap but LOST composite visibility vs the legacy indigo
-  // (visΔ ~4.5 vs 5.8 — the calm band went dimmer on an already chroma-bound theme). The
-  // re-derivation adds the missing constraint (visΔ >= legacy): bright magenta-violet keeps the
-  // 28° composite gap AND nearly doubles legacy calm visibility (visΔ 10.4). Pinned by the
-  // gate's visibility floors.
-  [0,  0.72, 0.25, 1.00, 0.80], // Calm: bright magenta-violet
-  [3,  0.25, 0.65, 1.00, 0.83], // Light air: azure
-  [6,  0.15, 0.90, 0.95, 0.85], // Light breeze: neon cyan
+  // ROUND 3 (2026-07-20 slow-wind raise): dark was chroma-bound at baseAlpha 0.28 — round 2's
+  // magenta-violet reached visΔ 10.4 and the user still called the calm band under-visible.
+  // The alpha raise (0.44 + 5 kn ramp) is what unlocked these stops: at a 0.211 calm veil the
+  // vivid magenta->blue->azure run composites to 269°/234°/200° with visΔ 26.3/42.3/37.4 —
+  // 2.5x round 2 — while staying 80% of the haze ceiling.
+  [0,  0.90, 0.00, 1.00, 0.80], // Calm: vivid magenta (composite 269°, visΔ 26.3 @ baseA 0.44)
+  [3,  0.03, 0.00, 1.00, 0.83], // Light air: pure blue (composite 234°, visΔ 42.3)
+  [6,  0.00, 0.67, 1.00, 0.85], // Light breeze: azure (composite 200°, visΔ 37.4)
   [10, 0.20, 0.95, 0.70, 0.87], // Gentle: aqua-green
   [16, 0.38, 0.95, 0.40, 0.88], // Moderate: spring green
   [21, 0.62, 0.92, 0.30, 0.89], // Fresh: yellow-green
