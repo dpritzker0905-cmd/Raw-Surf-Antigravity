@@ -103,7 +103,21 @@ def decide_manifest_product(matching_manifest_item, req_w, req_s, req_e, req_n, 
                 else:
                     req_span_lng = (180.0 - req_w) + (req_e + 180.0)
                 req_span_lat = abs(req_n - req_s)
-                if req_span_lng > 15.0 or req_span_lat > 15.0:
+                # WIND DYNAMIC WIDE BAND (2026-07-20, "the clamp must fit the map"): wind serves
+                # dynamic viewport products for spans up to WIND_DYNAMIC_MAX_SPAN_DEG (default 100)
+                # instead of degrading to the 10-deg global manifest above 15. The adaptive ladder
+                # prices this identically (~400 points: 40x30 -> 2.0-deg cells, 90x67 -> 5.0-deg),
+                # and every failure path still falls back to this manifest product. Marine keeps
+                # the 15.0 cut — its >15 band is served by the global_mid tier (Step 3.6), and the
+                # marine client caps its own requests at 15. Env-revert: WIND_DYNAMIC_MAX_SPAN_DEG=15.
+                if domain.lower() == "wind":
+                    try:
+                        manifest_cut = float(os.environ.get("WIND_DYNAMIC_MAX_SPAN_DEG", "100"))
+                    except (TypeError, ValueError):
+                        manifest_cut = 100.0
+                else:
+                    manifest_cut = 15.0
+                if req_span_lng > manifest_cut or req_span_lat > manifest_cut:
                     use_manifest_product = True
                 elif model.upper() == "ICON" and domain.lower() == "wind":
                     # Compute dynamic boundary for the maximum 5-day calendar forecast range of ICON

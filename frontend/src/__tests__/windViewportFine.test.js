@@ -58,39 +58,113 @@ describe('wind viewport-fine tier (clampViewportBbox)', () => {
     }
   });
 
-  it('ENUMERATES the span space: every fine bbox stays within the backend dynamic gate (<= 15.0 deg)', () => {
-    // The backend serves the 10-deg global manifest when span > 15.0 — a single overshoot
-    // silently degrades the tier, so enumerate rather than sample.
-    for (let span = 0.5; span <= 13.01; span += 0.25) {
-      for (const west of [-179.7, -95.2, -0.3, 10.14, 164.9]) {
+  it('ENUMERATES the span space: every fine bbox stays inside the backend gate AND covers the viewport', () => {
+    // Two invariants, enumerated (a single overshoot silently degrades to the 10-deg smear;
+    // a single non-covering box puts the border back on screen):
+    //  - <= 13-deg viewports (the proven snap-out+pad branch): bbox span <= 15.0 (the marine-era
+    //    dynamic gate that branch was built against).
+    //  - 13-90-deg viewports (the 2026-07-20 wide band): bbox span <= 96 (pad+snap headroom
+    //    inside the backend's WIND_DYNAMIC_MAX_SPAN_DEG=100), and the bbox COVERS the viewport
+    //    (the whole point: no visible clamp edge anywhere on the map).
+    for (let span = 0.5; span <= 90.01; span += span < 19 ? 0.25 : 3.75) {
+      for (const west of [-179.7, -95.2, -0.3, 10.14, 88.9]) {
         for (const south of [-44.6, 0.2, 20.4, 55.1]) {
-          const r = clampViewportBbox(vp(west, south, west + span, south + span * 0.7), 'wind', 'GFS', 'wind');
+          const east = west + span, north = Math.min(84.9, south + span * 0.7);
+          const r = clampViewportBbox(vp(west, south, east, north), 'wind', 'GFS', 'wind');
           if (r.selectedTileId && r.selectedTileId.startsWith('wind_viewport_fine_')) {
             const sLng = r.clampedBbox.east - r.clampedBbox.west;
             const sLat = r.clampedBbox.north - r.clampedBbox.south;
             expect(sLng).toBeGreaterThan(0);
-            expect(sLng).toBeLessThanOrEqual(15.0);
-            expect(sLat).toBeLessThanOrEqual(15.0);
+            expect(sLng).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 96.0);
+            expect(sLat).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 96.0);
             expect(r.clampedBbox.west).toBeGreaterThanOrEqual(-180);
             expect(r.clampedBbox.east).toBeLessThanOrEqual(180);
             expect(r.clampedBbox.south).toBeGreaterThanOrEqual(-80);
             expect(r.clampedBbox.north).toBeLessThanOrEqual(85);
+            if (span > 13.01) {
+              expect(r.clampedBbox.west).toBeLessThanOrEqual(west + 0.001);
+              expect(r.clampedBbox.east).toBeGreaterThanOrEqual(east - 0.001);
+              expect(r.clampedBbox.south).toBeLessThanOrEqual(south + 0.001);
+              expect(r.clampedBbox.north).toBeGreaterThanOrEqual(north - 0.001);
+            }
           }
         }
       }
     }
   });
 
-  it('wide viewports keep the exact v3.15 global product (synoptic look unchanged)', () => {
+  it('only world-scale viewports keep the v3.15 global product', () => {
     for (const box of [
-      vp(-100, 15, -75, 32),      // 25-deg Gulf overview (z ~4.8)
-      vp(-40.2, 20.1, -25.9, 36), // 14.3 lng span — above the 13-deg viewport cut
+      vp(-130, -20, -28, 60),     // 102-deg span — beyond the wide band
       vp(-179, -70, 179, 80),     // world
     ]) {
       const r = clampViewportBbox(box, 'wind', 'GFS', 'wind');
       expect(r.clampedBbox).toEqual(GLOBAL_BOX);
       expect(r.selectedTileId).toBe('global_wind');
     }
+  });
+
+  describe('WIDE BAND (13-90 deg, 2026-07-20 "the clamp must fit the map"): full padded viewport bbox', () => {
+    // THE USER REPORTS (same day, same root): at z5.55 (16.1-deg viewport) the tier stopped
+    // asking for fine data entirely — a stale leftover box sat over the 10-deg smear; then the
+    // interim centered-15 cap still left uncovered margins ("widen it... it needs to fit the
+    // map, not just the viewport"). With the backend's WIND_DYNAMIC_MAX_SPAN_DEG=100 gate, the
+    // client now requests the PADDED SNAPPED VIEWPORT for spans up to 90 deg: the box always
+    // covers the screen (border off-screen by >= 1 deg pad), and the adaptive ladder prices it
+    // at the same ~400 points (16 deg -> 1.0-deg cells, 40 -> 2.0, 90 -> 5.0 — always beats the
+    // 10-deg manifest). On a pre-gate backend the request degrades to exactly the old global
+    // product — the failure mode of asking is the old behaviour (the tier's founding rule).
+    it('the reporting viewport (z5.55 Florida) gets a COVERING fine box', () => {
+      const r = clampViewportBbox(vp(-87.83, 22.84, -71.73, 34.8), 'wind', 'GFS', 'wind');
+      expect(r.selectedTileId).toMatch(/^wind_viewport_fine_/);
+      const b = r.clampedBbox;
+      for (const v of [b.west, b.south, b.east, b.north]) expect(Number.isInteger(v)).toBe(true);
+      // covers with >= the 1-deg pad on every side (border provably off-screen)
+      expect(b.west).toBeLessThanOrEqual(-88.83);
+      expect(b.east).toBeGreaterThanOrEqual(-70.73);
+      expect(b.south).toBeLessThanOrEqual(21.84);
+      expect(b.north).toBeGreaterThanOrEqual(35.8);
+      expect(b.east - b.west).toBeLessThanOrEqual(20);
+    });
+
+    it('the 25-deg continental overview (formerly global) gets a covering box at 2-deg pad', () => {
+      const r = clampViewportBbox(vp(-100, 15, -75, 32), 'wind', 'GFS', 'wind');
+      expect(r.selectedTileId).toMatch(/^wind_viewport_fine_/);
+      const b = r.clampedBbox;
+      expect(b.west).toBeLessThanOrEqual(-100);
+      expect(b.east).toBeGreaterThanOrEqual(-75);
+      expect(b.south).toBeLessThanOrEqual(15);
+      expect(b.north).toBeGreaterThanOrEqual(32);
+    });
+
+    it('world-edge viewports clamp to world bounds without losing coverage', () => {
+      const r = clampViewportBbox(vp(-90, -79, -74, -65), 'wind', 'GFS', 'wind');
+      expect(r.selectedTileId).toMatch(/^wind_viewport_fine_/);
+      const b = r.clampedBbox;
+      expect(b.south).toBe(-80);
+      expect(b.north).toBeGreaterThanOrEqual(-64);
+    });
+
+    it('kill switch __RAW_DISABLE_WIND_FINE_WIDE__ restores the 13-deg gate exactly', () => {
+      window.__RAW_DISABLE_WIND_FINE_WIDE__ = true;
+      try {
+        const wide = clampViewportBbox(vp(-87.83, 22.84, -71.73, 34.8), 'wind', 'GFS', 'wind');
+        expect(wide.selectedTileId).toBe('global_wind');
+        // the proven <= 13 branch is untouched by the kill
+        const small = clampViewportBbox(vp(-95.2, 20.4, -84.9, 27.6), 'wind', 'GFS', 'wind');
+        expect(small.selectedTileId).toMatch(/^wind_viewport_fine_/);
+      } finally {
+        delete window.__RAW_DISABLE_WIND_FINE_WIDE__;
+      }
+    });
+
+    it('wide tileIds stay bbox-unique and pan-stable (WIND_CACHE contract)', () => {
+      const a = clampViewportBbox(vp(-87.83, 22.84, -71.73, 34.8), 'wind', 'GFS', 'wind');
+      const nudge = clampViewportBbox(vp(-87.9, 22.9, -71.8, 34.86), 'wind', 'GFS', 'wind');
+      expect(nudge.selectedTileId).toBe(a.selectedTileId); // sub-quantum pan reuses the box
+      const shifted = clampViewportBbox(vp(-92.83, 22.84, -76.73, 34.8), 'wind', 'GFS', 'wind');
+      expect(shifted.selectedTileId).not.toBe(a.selectedTileId);
+    });
   });
 
   it('kill switch __RAW_DISABLE_WIND_VIEWPORT_FINE__ restores always-global bit-exactly', () => {

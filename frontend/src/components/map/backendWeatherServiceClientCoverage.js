@@ -298,6 +298,45 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
             };
           }
         }
+        // WIDE BAND (2026-07-20 user reports, same afternoon: "widen the clamp" -> "it needs to
+        // fit the map, not just the viewport"). Above the snap-out branch the tier used to stop
+        // asking for fine data entirely: the on-screen fine box was a stale leftover from a
+        // deeper zoom and everything around it (the user's "wet side") was the 10-deg smear.
+        // The backend's wind dynamic gate is now WIND_DYNAMIC_MAX_SPAN_DEG (default 100, same
+        // commit), so the client requests the PADDED SNAPPED VIEWPORT for spans up to 90 deg —
+        // the box always COVERS the screen (border off-screen by the pad on every side) and
+        // choose_adaptive_resolution prices any span at ~400 points (16 deg -> 1.0-deg cells,
+        // 40 -> 2.0, 90 -> 5.0 — always beats the 10-deg manifest). On a pre-gate backend the
+        // request serves the old global product unclipped — the failure mode of asking is
+        // exactly the old behaviour (this tier's founding rule). Above 90 deg the adaptive
+        // ladder stops beating the manifest -> global (the ~2-deg mid cron tier remains the
+        // world-zoom fix). Kill: __RAW_DISABLE_WIND_FINE_WIDE__ = true -> the 13-deg gate.
+        // Tune: __RAW_WIND_FINE_WIDE_MAX__ (default 90).
+        const wideMax = (typeof window !== 'undefined' && Number(window.__RAW_WIND_FINE_WIDE_MAX__)) || 90.0;
+        const wideKilled = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_FINE_WIDE__ === true;
+        if (!wideKilled
+            && wSpanLng > 0 && wSpanLat > 0
+            && wSpanLng <= wideMax && wSpanLat <= wideMax
+            && (wSpanLng > FINE_MAX_VIEWPORT_SPAN || wSpanLat > FINE_MAX_VIEWPORT_SPAN)) {
+          // integer pad keeps the 1-deg lattice (stable tileIds): 1 deg to 20-deg spans, 2 above
+          const widePad = Math.max(wSpanLng, wSpanLat) <= 20 ? 1 : 2;
+          const fw2 = Math.max(-180, Math.floor(west - widePad));
+          const fe2 = Math.min(180, Math.ceil(east + widePad));
+          const fs2 = Math.max(-80, Math.floor(south - widePad));
+          const fn2 = Math.min(85, Math.ceil(north + widePad));
+          if (fe2 > fw2 && fn2 > fs2) {
+            return {
+              isInside: true,
+              clampedBbox: { west: fw2, south: fs2, east: fe2, north: fn2 },
+              fallbackReason: null,
+              coverageBounds: { west: -180, south: -80, east: 180, north: 85 },
+              selectedTileId: `wind_viewport_fine_${fw2}_${fs2}_${fe2}_${fn2}`,
+              availableTileIds: REGIONAL_TILES.map(t => t.id),
+              rejectedTileIds: [],
+              tileFallbackReason: null
+            };
+          }
+        }
       }
       return {
         isInside: true,
