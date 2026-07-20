@@ -275,3 +275,15 @@ orchestrator's `regionalValidInPlace` containment predicate. Tasks #10 (cluster)
   loud measured-flakiness warning + ≥3-leg median protocol; metric re-architecture in task #12.
 - `zoomlab-diff.js` ANIM_RATIO_MAX=1.6 sits exactly AT the measured legitimate light-vs-dark
   ratio with zero margin (documented in the code-audit evidence; task #12).
+
+## 12. USER EYE-PASS FINDING: the Ecuador rectangle line — ROOTED, mode-independent
+
+Reported live: horizontal rectangle line out of Ecuador during zoom-out. Reproduced on :3011
+in GUARD MODE (no arbiter flag), so it is NOT arbiter-attributable and NOT a flip blocker.
+Mechanism (instrumented): rating ON at Ecuador z6.5 -> rated 8x8 clip [-92,-8,-78,+6] resident;
+zoom-out -> the incoming world grid is REJECTED at the choke by the downgrade rule on a STALE
+viewport read (ring: resident 8x8, rejected 37x17, why=downgrade, zoom 5.5 — the documented
+07-03 race), stashed, selfHealed=1 next frame. During the interlude the rated clip paints
+beyond its coverage and its horizontal bounds (-8 / +6, bracketing Ecuador) draw the line
+mid-gesture. Fix direction + verification protocol in task #13 (band cover-fade at the rated
+geometry); same clip supply as the task #10 containment cluster.
