@@ -276,8 +276,10 @@ def run_report_calibration() -> tuple:
                     "score": d["score"], "surf_height_m": d.get("surf_height_m")}
 
         try:
-            rated = asyncio.run(asyncio.wait_for(_gather_snapshot(_one, spots), timeout=budget_s))
-        except (asyncio.TimeoutError, Exception) as _se:
+            # Deadline lives INSIDE _gather_snapshot now (asyncio.wait keeps completed
+            # partials); the outer catch remains for loop-setup catastrophes only.
+            rated = asyncio.run(_gather_snapshot(_one, spots, timeout=budget_s))
+        except Exception as _se:
             logger.warning("[report-calibration] snapshot bounded/failed (%s) — archiving what's available.", _se)
             rated = []
         new_entries = [e for e in rated if e]
@@ -306,6 +308,32 @@ def run_report_calibration() -> tuple:
     return len(new_entries), summary["n_matched"]
 
 
-async def _gather_snapshot(fn, spots):
+async def _gather_snapshot(fn, spots, timeout=None):
+    """PER-SPOT ISOLATION + DEADLINE PARTIALS (2026-07-20 bug-class sweep, the f9c5e59a
+    blast-radius shape): the old bare ``asyncio.gather`` meant ONE raising spot discarded
+    every completed snapshot (the caller's fallback logged "archiving what's available"
+    and archived nothing), and the caller's outer ``wait_for`` CANCELLED the whole gather
+    on timeout — zero entries, not the partial archive the budget comment promises.
+    ``asyncio.wait`` keeps what finished by the deadline; a failed spot costs one spot."""
     import asyncio
-    return list(await asyncio.gather(*[fn(sp) for sp in spots]))
+    if not spots:
+        return []
+    tasks = [asyncio.ensure_future(fn(sp)) for sp in spots]
+    done, pending = await asyncio.wait(tasks, timeout=timeout)
+    for t in pending:
+        t.cancel()
+    if pending:
+        logger.warning("[report-calibration] snapshot deadline: %d/%d spots unfinished (kept the rest).",
+                       len(pending), len(tasks))
+    out = []
+    failed = 0
+    for t in done:
+        try:
+            out.append(t.result())
+        except Exception as e:
+            failed += 1
+            if failed <= 3:
+                logger.warning("[report-calibration] spot snapshot failed: %s", e)
+    if failed:
+        logger.warning("[report-calibration] %d spot snapshot(s) failed; %d kept.", failed, len(out))
+    return out

@@ -192,47 +192,69 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
         dict_by_slice[key] = p
 
     success_count = 0
+    failed_count = 0
     has_non_tf = False
 
     for product, resolution in products_to_save:
-        if not product or not product.grid:
-            logger.warning("[Product Store] Attempted to save empty or ungrid product in batch.")
-            continue
+        # PER-ITEM ISOLATION (2026-07-20 bug-class sweep, the f9c5e59a blast-radius shape,
+        # skeptic-confirmed): this loop had NO try/except, so one escaping error (the live
+        # trigger: _upload_executor.submit raising RuntimeError('cannot schedule new futures
+        # after interpreter shutdown') when a CI run is cancelled mid-batch) aborted before
+        # _save_manifest below — the REST of the batch was lost AND every already-written
+        # item became an unregistered orphan on L1/L2 (the phantom-manifest-entry shape).
+        # One bad product must cost exactly one product; the manifest write for the saved
+        # subset must always be reached.
+        try:
+            if not product or not product.grid:
+                logger.warning("[Product Store] Attempted to save empty or ungrid product in batch.")
+                continue
 
-        _apply_florida_region_defaults(product)
+            _apply_florida_region_defaults(product)
 
-        filename = _build_product_filename(product)
-        product.product_id = filename  # Ensure product_id is set to the saved filename
-        target_path = store.cache_dir / filename
+            filename = _build_product_filename(product)
+            product.product_id = filename  # Ensure product_id is set to the saved filename
+            target_path = store.cache_dir / filename
 
-        # Double check test fixture guard before writing to disk
-        is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
-        if is_tf and not is_test_env:
-            logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
-            continue
+            # Double check test fixture guard before writing to disk
+            is_tf = product.provider == "test-fixture" or getattr(product, "is_test_fixture", False)
+            if is_tf and not is_test_env:
+                logger.error(f"[Product Store] Security Violation: Refusing to save test-fixture product '{filename}' in non-test environment.")
+                continue
 
-        # 1. Write product data atomically to disk (L1)
-        product_json_bytes = product.model_dump_json().encode("utf-8")
-        if not _write_product_to_disk(target_path, product_json_bytes):
-            continue
-        logger.info(f"[Product Store] Atomic save complete in batch: {filename}")
+            # 1. Write product data atomically to disk (L1)
+            product_json_bytes = product.model_dump_json().encode("utf-8")
+            if not _write_product_to_disk(target_path, product_json_bytes):
+                continue
+            logger.info(f"[Product Store] Atomic save complete in batch: {filename}")
 
-        # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
-        if not is_tf:
-            _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
-            has_non_tf = True
+            # 2. Upload product to Supabase Storage (L2 — fire-and-forget)
+            if not is_tf:
+                _upload_executor.submit(store._upload_to_supabase, filename, product_json_bytes)
+                has_non_tf = True
 
-        # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
-        slice_key = (
-            (product.model or "").upper(),
-            (product.provider or "").lower(),
-            (product.domain or "").lower(),
-            (product.layer or "").lower(),
-            product.valid_time,
-            product.region_id
+            # 3. Add to manifest dict, updating/overwriting any existing duplicate slice
+            slice_key = (
+                (product.model or "").upper(),
+                (product.provider or "").lower(),
+                (product.domain or "").lower(),
+                (product.layer or "").lower(),
+                product.valid_time,
+                product.region_id
+            )
+            dict_by_slice[slice_key] = _build_manifest_item(product, filename, resolution, is_tf)
+            success_count += 1
+        except Exception as e:
+            failed_count += 1
+            logger.error(
+                f"[Product Store] Batch-save item failed (product_id="
+                f"{getattr(product, 'product_id', None)!r}): {type(e).__name__}: {e}"
+            )
+
+    if failed_count:
+        logger.error(
+            f"[Product Store] Batch save completed with {failed_count} failed item(s); "
+            f"{success_count} saved and registered."
         )
-        dict_by_slice[slice_key] = _build_manifest_item(product, filename, resolution, is_tf)
-        success_count += 1
 
     manifest.products = list(dict_by_slice.values())
     store._save_manifest(manifest)
@@ -248,8 +270,12 @@ def save_products_batch_helper(store, products_to_save: List[Tuple[NormalizedPro
 
     with ProductStore._product_cache_lock:
         for product, _ in products_to_save:
-            if product and product.product_id:
-                ProductStore._product_cache.pop(product.product_id, None)
+            # getattr, not direct access: failed items may be arbitrary objects, and an
+            # exception HERE (after the manifest write) would skip the remaining cache
+            # invalidations — stale pre-overwrite copies would serve from L1 up to the TTL.
+            pid = getattr(product, "product_id", None) if product else None
+            if pid:
+                ProductStore._product_cache.pop(pid, None)
 
     return success_count
 

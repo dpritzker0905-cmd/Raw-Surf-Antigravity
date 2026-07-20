@@ -338,12 +338,22 @@ async def normalize_and_save_loop(
     for idx, time_str in enumerate(times):
         if idx % step != 0:
             continue
-        if not time_str.endswith("Z"):
-            time_str += "Z"
-        target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
-        norm_kwargs["target_time"] = target_dt
-
         try:
+            # PARSE INSIDE the per-item guard (2026-07-20 bug-class sweep — the f9c5e59a
+            # blast-radius shape, confirmed at all ~25 ingestion call sites): hourly.time is
+            # unvalidated external JSON, and a degenerate entry here used to abort the loop
+            # BEFORE save_products_batch — a completed multi-minute fetch's entire batch lost
+            # instead of one timestep. Also: fromisoformat handles offset-suffixed ISO-8601
+            # natively; the old blind Z-append turned a VALID '+00:00'-suffixed time into a
+            # double-offset ValueError. Only bare-Z / naive strings need the shim.
+            if time_str.endswith("Z"):
+                target_dt = datetime.fromisoformat(time_str.replace("Z", "+00:00"))
+            else:
+                target_dt = datetime.fromisoformat(time_str)
+                if target_dt.tzinfo is None:
+                    target_dt = target_dt.replace(tzinfo=timezone.utc)
+            norm_kwargs["target_time"] = target_dt
+
             product = await normalizer.normalize_async(**norm_kwargs)
             if product:
                 # Security guard: reject test fixtures in non-test environments
@@ -372,7 +382,10 @@ async def normalize_and_save_loop(
                 products_to_save.append((product, resolution))
                 await asyncio.sleep(0.01)
         except Exception as e:
-            logger.error(f"{log_prefix} Normalization error for {model} {layer} at hour index {idx}: {e}")
+            logger.error(
+                f"{log_prefix} Normalization error for {model} {layer} at hour index {idx} "
+                f"(time_str={time_str!r}): {e}"
+            )
 
     success_count = 0
     if products_to_save:
