@@ -238,3 +238,40 @@ Do each numbered item; anything on the SUSPECT list = stop and report the number
 the three arbiter test files (Q1/guard legs must PIN guard mode via the disable flag once the
 default flips), suite ×3, push. **If anything on a SUSPECT list appeared** → report the item
 number; the ring buffer + `__RAW_ARBITER_LIVE__.last` carry the rule that decided the frame.
+
+## 11. DEBT-BANK AUDIT RESULTS (items #4/#5/#7) — 8 confirmed findings, 2 tooling fixes shipped
+
+Workflow wf_af7a2e23-a4f: 3 finders → 11 candidates → 2-skeptic adversarial verify → 8
+confirmed (full verifier evidence: the workflow output file + tasks #10-#12).
+
+**Refs-not-locals (item #4): CLEAN** — its one candidate (`wasScrubbingRef` effect-local in
+useMarineScrubSettle) was refuted on materialization (timer-cancel and settle-check are
+mutually exclusive).
+
+**Bounds-blind warm commits (item #7): FIVE confirmed** — the wind-arc class, alive in marine:
+1. scrub-cache instant commit containment-blind at zoomed-IN views (isContained computed then
+   never consulted; non-covering exact-tile hit preempts the containment-proven series frame);
+2. handleCooldownFallback commits on vectors.length alone (no containment, no __staleHour
+   skip, bypasses the choke; cooldown suppresses the healing fetch);
+3. getMarineSeriesFrame proves containment against entry.bounds (first frame's) while served
+   frames can be narrower — per-frame bounds unchecked (the wind series bug one level down);
+4. reactivate_refeed / initial_onAdd re-feed the OLD viewport's grid into an empty engine
+   unchecked (floating rectangle after toggle-off→pan→toggle-on past the hold TTL);
+5. non-backend remap lanes (flag-gated reachability) — bounds-blind AND they poison the fetch
+   dedup hash after committing stale data.
+The engine choke does NOT backstop these (empty_resident/hour_change/layer_switch commit
+before any coverage rule, in BOTH modes) — the fix belongs at the warm sources, mirroring the
+orchestrator's `regionalValidInPlace` containment predicate. Tasks #10 (cluster), #11
+(re-feeds), #12 (non-backend + tooling), each demanding kill switch + A/B + zoomlab legs.
+
+**Zoomlab SUM thresholds (item #5): three confirmed; two fixed now, one documented:**
+- `probe_wind_finegrid_visual.js` → TH_SUM=20 SHIPPED (regime-matched to zoomclamp's measured
+  wash calibration — same static base-vs-ON comparison; validated verdict-preserving on the
+  committed off/fine_A_padded pair: coverage 0.9968→0.9946).
+- `probe_wind_vortex_visual.js` → conversion REJECTED BY MEASUREMENT and reverted: offline
+  validation on the committed vx_levers_* frames showed SUM=20 makes the frame-pair motion
+  metric WORSE (OFF-leg spread 0.0022→0.0185; lever verdict flips 1.202→0.952). The frame-pair
+  regime ≠ the wash regime — zoomclamp's constant does not transplant. Per-channel kept with a
+  loud measured-flakiness warning + ≥3-leg median protocol; metric re-architecture in task #12.
+- `zoomlab-diff.js` ANIM_RATIO_MAX=1.6 sits exactly AT the measured legitimate light-vs-dark
+  ratio with zero margin (documented in the code-audit evidence; task #12).

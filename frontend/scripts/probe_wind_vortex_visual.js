@@ -59,6 +59,17 @@ function decodePNG(buf) {
 
 function inkInRect(basePng, onPng, rect) {
   const { w, ch } = basePng;
+  // ⚠️ MEASURED-FLAKY VERDICT (2026-07-20 debt-bank audit + offline validation on the
+  // committed vx_levers_* frames). This is a FRAME-PAIR motion metric, a different delta
+  // regime from zoomclamp/finegrid's static base-vs-ON wash — DO NOT transplant their
+  // TH_SUM=20 fix here: validated offline, SUM=20 makes it WORSE on the committed frames
+  // (OFF-leg control-ink spread 0.0022 → 0.0185; the lever verdict flips 1.202 → 0.952).
+  // The per-channel TH=10 is itself knife-edged in this regime (verdict flips PASS/WEAK as
+  // the threshold moves 1-2 units: TH=8 FAIL, 9 PASS, 10 PASS by 0.063, 12 FAIL), and the
+  // downstream leverEffect>1.1 cutoff carries leg noise (~0.07 between identical OFF legs)
+  // of the same order as its pass margin. PROTOCOL: never cite a single-run behavioral
+  // verdict — run ≥3 leg pairs and take the median ratio. Re-architecting the metric
+  // (multi-leg median built into the probe) is the real fix; tracked in the 07-20 handoff.
   const TH = 10;
   let n = 0, d = 0;
   for (let y = rect.y0; y < rect.y1; y++) for (let x = rect.x0; x < rect.x1; x++) {

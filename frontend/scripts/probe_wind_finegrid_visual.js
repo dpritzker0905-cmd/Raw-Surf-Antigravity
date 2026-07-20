@@ -60,12 +60,17 @@ function quadCoverage(basePng, onPng) {
   const y0 = Math.floor(h * 0.18), y1 = Math.floor(h * 0.78);
   const midX = (x0 + x1) >> 1, midY = (y0 + y1) >> 1;
   const q = [{ n: 0, d: 0 }, { n: 0, d: 0 }, { n: 0, d: 0 }, { n: 0, d: 0 }];
-  const TH = 10;
+  // SUM of channel deltas, not per-channel (2026-07-20 debt-bank audit, skeptic-confirmed —
+  // the identical pre-fix pattern probe_wind_zoomclamp.js documents): the dark calm wash
+  // measures a uniform ~(-8,-9,-10) per channel, so a per-channel >10 test sat on the knife
+  // edge and read threshold wobble as quadrant asymmetry (phantom Case-A verdicts). Sum
+  // separates cleanly: wash ~27-31, AA/tile noise ~6-9.
+  const TH_SUM = 20;
   for (let y = y0; y < y1; y++) for (let x = x0; x < x1; x++) {
     const i = (y * w + x) * ch;
-    const changed = (Math.abs(basePng.data[i] - onPng.data[i]) > TH
-      || Math.abs(basePng.data[i + 1] - onPng.data[i + 1]) > TH
-      || Math.abs(basePng.data[i + 2] - onPng.data[i + 2]) > TH) ? 1 : 0;
+    const changed = ((Math.abs(basePng.data[i] - onPng.data[i])
+      + Math.abs(basePng.data[i + 1] - onPng.data[i + 1])
+      + Math.abs(basePng.data[i + 2] - onPng.data[i + 2])) > TH_SUM) ? 1 : 0;
     const qi = (x < midX ? 0 : 1) + (y < midY ? 0 : 2);
     q[qi].n += changed; q[qi].d++;
   }
@@ -77,13 +82,14 @@ function quadCoverage(basePng, onPng) {
 // (pixels between "fully changed" and "unchanged" runs).
 function edgeBandWidth(basePng, onPng, yPix, xFrom, xTo) {
   const { w, ch } = basePng;
-  const TH = 10;
+  // Channel-SUM threshold — same conversion as quadCoverage above (and zoomclamp's fix).
+  const TH_SUM = 20;
   const changed = [];
   for (let x = xFrom; x < xTo; x++) {
     const i = (yPix * w + x) * ch;
-    changed.push((Math.abs(basePng.data[i] - onPng.data[i]) > TH
-      || Math.abs(basePng.data[i + 1] - onPng.data[i + 1]) > TH
-      || Math.abs(basePng.data[i + 2] - onPng.data[i + 2]) > TH) ? 1 : 0);
+    changed.push(((Math.abs(basePng.data[i] - onPng.data[i])
+      + Math.abs(basePng.data[i + 1] - onPng.data[i + 1])
+      + Math.abs(basePng.data[i + 2] - onPng.data[i + 2])) > TH_SUM) ? 1 : 0);
   }
   // smooth with a 9-px box to kill particle speckle, then find the 0.8->0.2 transition span
   const sm = changed.map((_, k) => {
