@@ -125,6 +125,14 @@ async def ingest_icon_marine_extended_estimates_impl(scheduler) -> bool:
                 except EstimateContractError as e:
                     logger.error(f"[Pipeline Scheduler] Skipped invalid ICON {layer} {tier} estimate @{target_time.isoformat()}: {e}")
                     continue
+                except Exception as e:
+                    # Same isolation as the EURO job (2026-07-20 UnboundLocalError class): one bad
+                    # target must not kill the batch save of everything already generated.
+                    logger.error(
+                        f"[Pipeline Scheduler] Unexpected ICON {layer} {tier} estimate failure "
+                        f"@{target_time.isoformat()}: {type(e).__name__}: {e}", exc_info=True
+                    )
+                    continue
                 if not est:
                     continue
                 # Relabel: the estimator stamps EURO/euro_* — this product's identity is ICON.

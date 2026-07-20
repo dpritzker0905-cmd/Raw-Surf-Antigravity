@@ -243,9 +243,21 @@ def estimate_euro_grid(
     w_icon = weights_dict["icon"]
     confidence = weights_dict["confidence"]
 
+    # Nominal (whole-grid) weight split, bound BEFORE the loop. The per-cell w_*_real below may
+    # redistribute the ICON share to GFS where an individual cell lacks ICON coverage — but if
+    # EVERY cell short-circuits (`continue`) the loop never binds them, and the post-loop
+    # diagnostics raised UnboundLocalError, killing the whole extended-estimates job (2026-07-20
+    # cron run 29724899253: all 629 global_coarse cells skipped while the stored L2 copies of all
+    # inputs were healthy — the degenerate state lived in the shared in-process product cache).
+    w_icon_real = w_icon if is_icon_valid else 0.0
+    w_gfs_real = w_gfs + (0.0 if is_icon_valid else w_icon)
+
     vectors = []
     vector_count = 0
     nonzero_count = 0
+    blended_cells = 0
+    skipped_invalid_anchor = 0
+    skipped_gfs_resample = 0
 
     for v_euro_anchor in euro_anchor_grid.vectors:
         vector_count += 1
@@ -254,6 +266,7 @@ def estimate_euro_grid(
         is_valid = v_euro_anchor.is_valid
 
         if not is_valid:
+            skipped_invalid_anchor += 1
             vectors.append(
                 GridVector(
                     lat=lat, lng=lng,
@@ -278,6 +291,7 @@ def estimate_euro_grid(
         c_gfs_target = resample_from_grid(lat, lng, gfs_target_grid)
 
         if not c_gfs_anchor or not c_gfs_target:
+            skipped_gfs_resample += 1
             vectors.append(
                 GridVector(
                     lat=lat, lng=lng,
@@ -374,6 +388,31 @@ def estimate_euro_grid(
                 is_valid=True
             )
         )
+        blended_cells += 1
+
+    if blended_cells == 0:
+        # Every cell short-circuited: a blend product here would be all-invalid garbage. Log the
+        # geometry of every input so the NEXT occurrence identifies WHICH grid was degenerate
+        # (2026-07-20: the stored L2 copies were all healthy, so the corruption was in-process),
+        # then skip this target instead of saving or raising.
+        def _geo(tag, p):
+            g = getattr(p, "grid", None) if p else None
+            b = getattr(g, "bounds", None) if g else None
+            return (
+                f"{tag}={getattr(p, 'product_id', None) if p else None} "
+                f"cols={getattr(g, 'cols', None)} rows={getattr(g, 'rows', None)} "
+                f"nvec={len(g.vectors) if (g and g.vectors) else 0} "
+                f"bounds={(b.west, b.south, b.east, b.north) if b else None}"
+            )
+        logger.error(
+            "[Estimator] ZERO blendable cells for %s@%.0fh — skipped_invalid_anchor=%d "
+            "skipped_gfs_resample=%d of %d anchor cells. %s | %s | %s",
+            active_layer, target_hour, skipped_invalid_anchor, skipped_gfs_resample, vector_count,
+            _geo("euro_anchor", euro_anchor_product),
+            _geo("gfs_anchor", gfs_anchor_product),
+            _geo("gfs_target", gfs_target_product),
+        )
+        return None
 
     new_grid = NormalizedGrid(
         bounds=euro_anchor_grid.bounds,

@@ -737,6 +737,17 @@ async def ingest_euro_marine_extended_estimates_impl(scheduler) -> bool:
                         f"target_time={target_time.isoformat()} due to contract error: {e}"
                     )
                     continue
+                except Exception as e:
+                    # 2026-07-20 (run 29724899253): an UnboundLocalError out of estimate_euro_grid
+                    # escaped this narrow catch and killed the WHOLE job — the FL/SoCal estimates
+                    # already generated were never batch-saved (save runs after all regions) and
+                    # global_coarse/global_mid never processed. One bad target must cost exactly
+                    # one target.
+                    logger.error(
+                        f"[Pipeline Scheduler] Unexpected estimate failure for region={region_id}, layer={layer}, "
+                        f"target_time={target_time.isoformat()}: {type(e).__name__}: {e}", exc_info=True
+                    )
+                    continue
                         
     total_saved = 0
     if products_to_save:
