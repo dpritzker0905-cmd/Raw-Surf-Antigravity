@@ -133,6 +133,19 @@ describe('filing predicates', () => {
     expect(windBaseOverlayEnabled({ __RAW_DISABLE_WIND_BASE_OVERLAY__: true })).toBe(false);
     expect(windBaseOverlayEnabled(null)).toBe(true);
   });
+
+  it('windGridsIdentical: metadata equality + 5-point content sample (the no-op guard predicate)', () => {
+    const { windGridsIdentical } = require('./WebGLWindEngine');
+    const mk = (speed) => ({ ...GLOBAL_GRID, vectors: Array.from({ length: 629 }, () => ({ u: speed, v: 0, speed })) });
+    expect(windGridsIdentical(mk(10), mk(10))).toBe(true);
+    // a new RUN behind identical metadata still refuses on sampled content
+    expect(windGridsIdentical(mk(10), mk(11))).toBe(false);
+    expect(windGridsIdentical(mk(10), { ...mk(10), stale: true })).toBe(false);
+    expect(windGridsIdentical(mk(10), { ...mk(10), valid_time: '2026-07-19T15:00:00Z' })).toBe(false);
+    expect(windGridsIdentical(mk(10), { ...mk(10), hourOffset: 3 })).toBe(false);
+    expect(windGridsIdentical(mk(10), { ...mk(10), bounds: { ...GLOBAL_GRID.bounds, east: 179 } })).toBe(false);
+    expect(windGridsIdentical(mk(10), null)).toBe(false);
+  });
 });
 
 // ── 3. setWindData filing with a mock GL ──
@@ -166,7 +179,35 @@ function grid(base, cols, rows, speed) {
 }
 
 describe('setWindData filing', () => {
-  afterEach(() => { delete window.__RAW_DISABLE_WIND_BASE_OVERLAY__; });
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_BASE_OVERLAY__; delete window.__RAW_DISABLE_WIND_COMMIT_NOOP__; });
+
+  it('NO-OP GUARD: re-committing the identical product touches no GL state (the FPS-drop root)', () => {
+    const { gl, deleted } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    const g1 = grid(GLOBAL_GRID, 37, 17, 20);
+    expect(engine.setWindData(gl, g1)).toBe('base');
+    const baseData = engine._windData;
+    const deletedBefore = deleted.length;
+    // the moveend churn: the same cached product arrives again
+    expect(engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 20))).toBe('noop');
+    expect(engine._windData).toBe(baseData);            // texture object untouched
+    expect(deleted.length).toBe(deletedBefore);         // nothing freed/re-uploaded
+    // content change behind identical metadata still commits (run refresh)
+    expect(engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 22))).toBe('base');
+    // kill switch restores the old always-commit behaviour
+    window.__RAW_DISABLE_WIND_COMMIT_NOOP__ = true;
+    expect(engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 22))).toBe('base');
+  });
+
+  it('NO-OP GUARD: identical FINE overlay re-commit noops; a different fine box still files', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 20));
+    expect(engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12))).toBe('fine');
+    expect(engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12))).toBe('noop');
+    const wider = { ...FINE_GRID, bounds: { west: -96, south: 16, east: -62, north: 42 } };
+    expect(engine.setWindData(gl, grid(wider, 18, 14, 12))).toBe('fine');
+  });
 
   it('global files as base; compatible fine files as overlay with the base untouched', () => {
     const { gl } = makeMockGL();

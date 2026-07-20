@@ -772,8 +772,52 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             // CLEARED the wind buffers (the same guard-class bug the settle path fixed in 06fbeef2).
             // Hold the last-good frame instead; kill __RAW_WIND_HOLD_LAST_FRAME_DISABLED__ restores.
             const _holdDisabled = typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true;
-            if (isRenderableWindData(data) || (_holdDisabled && data && data.vectors?.length > 0)) {
-              console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors`);
+            // STALE-COVERING UPGRADE (2026-07-20, live-caught): during an upstream rate-limit
+            // window the backend serves a STALE dynamic product that COVERS the whole viewport
+            // (containment fallback) — but `!d.stale` in isRenderableWindData rejected it, so
+            // the screen kept a tiny old fine box surrounded by the 10-deg smear ("the clamp is
+            // hiding the wind"). Coverage outranks freshness (the native-recovery lane's own
+            // rule): accept a stale REAL regional grid that covers the viewport when no fresh
+            // covering fine overlay is resident. Safe-zero/empty fallbacks stay held (they carry
+            // __failureReason / renderable:false / <4 vectors). World-span stale never upgrades
+            // (the global manifest lane owns that). Kill: __RAW_DISABLE_WIND_STALE_COVERING__.
+            const staleCoveringUpgrade = (() => {
+              try {
+                if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_STALE_COVERING__ === true) return false;
+                if (!data || data.stale !== true || data.renderable === false) return false;
+                if (data.__failureReason) return false;
+                if (!Array.isArray(data.vectors) || data.vectors.length < 4) return false;
+                const db = data.bounds;
+                if (!db) return false;
+                const dSpan = db.east >= db.west ? db.east - db.west : (db.east + 360.0) - db.west;
+                if (dSpan >= 350.0) return false;
+                const eps = 0.05;
+                const vpS = Math.max(-85, bounds.south), vpN = Math.min(85, bounds.north);
+                const covers = db.west <= bounds.west + eps && db.east >= bounds.east - eps
+                  && db.south <= vpS + eps && db.north >= vpN - eps;
+                if (!covers) return false;
+                const f = typeof window !== 'undefined' ? window.__WIND_FINE_OVERLAY__ : null;
+                const fineCovers = !!(f && f.active && f.bounds
+                  && f.bounds.west <= bounds.west + eps && f.bounds.east >= bounds.east - eps
+                  && f.bounds.south <= vpS + eps && f.bounds.north >= vpN - eps);
+                if (fineCovers) return false;
+                // RESOLUTION GUARD (2026-07-20 regression study #1): a stale 2-deg covering
+                // product must never REPLACE a finer resident box over the viewport centre —
+                // that trade erased a live tropical system (the 0.5-deg box resolved its
+                // rotation; the 2-deg replacement cannot). Coverage wins at the margins only.
+                if (f && f.active && f.bounds && f.cols > 0) {
+                  const fCell = (f.bounds.east - f.bounds.west) / Math.max(1, f.cols - 1);
+                  const dCell = (db.east - db.west) / Math.max(1, (data.cols || 2) - 1);
+                  const cx = (bounds.west + bounds.east) / 2, cy = (vpS + vpN) / 2;
+                  const centerInFine = f.bounds.west <= cx && f.bounds.east >= cx
+                    && f.bounds.south <= cy && f.bounds.north >= cy;
+                  if (centerInFine && dCell > fCell * 1.5) return false;
+                }
+                return true;
+              } catch (e) { return false; }
+            })();
+            if (isRenderableWindData(data) || staleCoveringUpgrade || (_holdDisabled && data && data.vectors?.length > 0)) {
+              console.log(`[FETCH] [WeatherEngine] Viewport wind fetch success: ${data.vectors.length} vectors${staleCoveringUpgrade && !isRenderableWindData(data) ? ' (STALE-COVERING upgrade — covering beats holding)' : ''}`);
               windRevision.current += 1;
               commitWindData(data);
             } else if (data) {
