@@ -72,12 +72,23 @@ describe('two-texture shader wiring', () => {
     expect(windFineFeatherFrac(2, 1)).toBeCloseTo(0.18, 5);    // small pilot tile: legacy cap
   });
 
-  it('HEATMAP_FS carries the complementary base-pass cutout', () => {
+  it('HEATMAP_FS composites base+fine in a SINGLE pass (the hairline-seam fix, 2026-07-20)', () => {
+    // Two stacked translucent draws in the crossfade band compose to a different total opacity
+    // than one draw (a_total = a1 + a2*(1-a1) != a) — the visible bright hairline rectangle the
+    // user reported once the DATA matched on both sides. The fix mirrors ADVECT/DRAW: sample
+    // BOTH textures in the base pass, mix the WIND (not the colors), draw ONCE with one alpha.
+    expect(HEATMAP_FS).toMatch(/uniform\s+sampler2D\s+u_wind_fine\s*;/);
+    expect(HEATMAP_FS).toMatch(/uniform\s+float\s+u_fine_singlepass\s*;/);
+    expect(HEATMAP_FS).toMatch(/uniform\s+vec2\s+u_fine_min\s*;/);
+    expect(HEATMAP_FS).toMatch(/uniform\s+vec2\s+u_fine_max\s*;/);
+    expect(HEATMAP_FS).toMatch(/wind\s*=\s*mix\(wind,\s*fineWind,\s*fw\)/); // the same mix ADVECT/DRAW use
+    // the legacy complementary-cutout two-pass path survives for the kill switch
     expect(HEATMAP_FS).toMatch(/uniform\s+float\s+u_cutout_enabled\s*;/);
     expect(HEATMAP_FS).toMatch(/uniform\s+vec2\s+u_cutout_min\s*;/);
     expect(HEATMAP_FS).toMatch(/uniform\s+vec2\s+u_cutout_max\s*;/);
-    // complementary fade: base alpha goes DOWN exactly where the overlay's edge fade goes up
     expect(HEATMAP_FS).toMatch(/alpha\s*\*=\s*\(1\.0\s*-\s*cw\)/);
+    // and the alpha hole must be DISABLED in single-pass mode (no second draw to crossfade with)
+    expect(HEATMAP_FS).toMatch(/u_cutout_enabled\s*>\s*0\.5\s*&&\s*u_fine_singlepass\s*<\s*0\.5/);
   });
 });
 

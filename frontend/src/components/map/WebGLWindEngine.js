@@ -580,6 +580,14 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   // two semi-transparent passes crossfade instead of compounding. Skipped when the fine box
   // crosses the antimeridian (rect wraps in base-UV space); the compound there is feathered and
   // brief, and correctness of DATA is unaffected.
+  // SINGLE-PASS BASE+FINE (2026-07-20, the hairline-seam fix): with the fine box mapped into
+  // base-UV space below, the base pass samples BOTH textures and mixes the WIND in-shader —
+  // one draw, one alpha, so the two-pass crossfade band (and its bright hairline rectangle)
+  // cannot exist. Legacy two-pass path kept behind the kill switch AND for the vortex debug
+  // view (which paints on the overlay pass). Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__.
+  var _vortexDebugOn = (typeof window !== 'undefined' && window.__GPU_DEBUG__ && window.__GPU_DEBUG__.mode === 'vortex');
+  var heatmapSinglePass = !!(fine && !fineCrosses && !_vortexDebugOn
+    && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__ === true));
   if (fine && !fineCrosses) {
     const fb = fine.bounds;
     const cutMinX = (fb.west - dataBoundsMinX) / (dataBoundsMaxX - dataBoundsMinX);
@@ -593,8 +601,18 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     // full strength — the overlay's data no longer fades, so the cutout mirrors its full edge
     // (both share fineFeatherFrac, so the widened dissolve stays complementary)
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_strength'), 1.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_singlepass'), heatmapSinglePass ? 1.0 : 0.0);
+    if (heatmapSinglePass) {
+      gl.uniform1i(gl.getUniformLocation(this.heatmapProgram, 'u_wind_fine'), 2);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_min'), fine.uMin[0], fine.uMin[1]);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_max'), fine.uMax[0], fine.uMax[1]);
+      gl.activeTexture(gl.TEXTURE2);
+      gl.bindTexture(gl.TEXTURE_2D, fine.texture);
+      gl.activeTexture(gl.TEXTURE0);
+    }
   } else {
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_singlepass'), 0.0);
   }
   // FIELD == LUT (2026-07-19): the heatmap samples the same Beaufort ramp texture the particles
   // use — one palette everywhere, and the 0-21 kn band regains its full hue range.
@@ -636,12 +654,11 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       gl.uniform1f(heatOffsetLoc, heatOffsets[hi]);
       gl.drawElements(gl.TRIANGLES, this.heatmapIndexCount, gl.UNSIGNED_SHORT, 0);
     }
-    // OVERLAY PASS (queue #9): the fine grid drawn over the base with its feathered edge — which
-    // now dissolves into the base wash beneath it instead of into bare basemap. Same program,
-    // same mesh; only bounds/texture/decode-range/feather change. The pass ALWAYS draws when a
-    // fine grid is resident (round-2 lesson: its interior may hold the only data resolving a
-    // live system); at wide zoom the widened feather removes the rectangle reading instead.
-    if (fine) {
+    // OVERLAY PASS (queue #9) — LEGACY path only (kill switch / vortex debug / antimeridian
+    // boxes): the single-pass composite above replaces it, drawing base+fine in one pass so the
+    // crossfade band cannot compound (the 2026-07-20 hairline-seam fix). When single-pass is
+    // active this second draw is SKIPPED entirely.
+    if (fine && !heatmapSinglePass) {
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), fine.bounds.west, fine.bounds.south);
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), fine.bounds.east, fine.bounds.north);
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_wind_min'), fine.uMin[0], fine.uMin[1]);

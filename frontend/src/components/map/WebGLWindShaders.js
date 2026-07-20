@@ -815,6 +815,17 @@ uniform vec2 u_cutout_max;
 uniform float u_cutout_feather;
 uniform float u_cutout_strength; // rides the wide-zoom overlay fade — a fading overlay must not
                                  // leave a hole in the base beneath it
+// SINGLE-PASS BASE+FINE COMPOSITE (2026-07-20, the hairline-seam fix). Two stacked translucent
+// draws in the crossfade band compose to a different total opacity than one draw
+// (a1 + a2*(1-a1) != a) — once the DATA matched on both sides of the fine box, the residue was
+// a thin bright rectangle exactly on the feather band. Mirror ADVECT/DRAW: sample BOTH wind
+// textures here, mix the WIND vectors by the feather weight, and draw ONCE with one alpha.
+// The cutout rect/feather/strength uniforms above double as the fine box's UV mapping.
+// Kill: __RAW_DISABLE_WIND_HEATMAP_SINGLEPASS__ -> the legacy two-pass cutout+overlay path.
+uniform sampler2D u_wind_fine;
+uniform vec2 u_fine_min;
+uniform vec2 u_fine_max;
+uniform float u_fine_singlepass;
 // VORTEX GATE DEBUG VIEW (queue #2): __GPU_DEBUG__.mode='vortex' paints the R-gate value from
 // THIS pass's texture as red — the deterministic wiring proof that the shader-side curl/gate
 // fires where the field rotates (engine sends mode 9 on the FINE overlay pass only). Same cell
@@ -896,6 +907,19 @@ void main() {
   }
   vec4 encoded = texture2D(u_wind, v_uv);
   vec2 wind = mix(u_wind_min, u_wind_max, encoded.rg);
+  // SINGLE-PASS fine composite (see uniform block): inside the fine box, mix toward the fine
+  // texture's wind by the SAME feather weight the legacy overlay edge used — then one draw,
+  // one alpha, no compounding band.
+  if (u_fine_singlepass > 0.5 && u_cutout_enabled > 0.5) {
+    vec2 fSpan = max(u_cutout_max - u_cutout_min, vec2(1e-6));
+    vec2 fRel = (v_uv - u_cutout_min) / fSpan;
+    if (fRel.x > 0.0 && fRel.x < 1.0 && fRel.y > 0.0 && fRel.y < 1.0) {
+      float fEdge = min(min(fRel.x, 1.0 - fRel.x), min(fRel.y, 1.0 - fRel.y));
+      float fw = smoothstep(0.0, max(u_cutout_feather, 0.001), fEdge) * u_cutout_strength;
+      vec2 fineWind = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, fRel).rg);
+      wind = mix(wind, fineWind, fw);
+    }
+  }
   float speed = length(wind);
   float t = clamp(speed / max(u_max_speed, 1.0), 0.0, 1.0);
   // v3.22 (2026-07-20): slow-wind visibility raise — user bar: ALL wind must be visible on all
@@ -926,7 +950,7 @@ void main() {
     float feather = smoothstep(0.0, max(u_edge_feather_frac, 0.001), minEdgeDist);
     alpha *= feather;
   }
-  if (u_cutout_enabled > 0.5) {
+  if (u_cutout_enabled > 0.5 && u_fine_singlepass < 0.5) {
     vec2 cSpan = max(u_cutout_max - u_cutout_min, vec2(1e-6));
     vec2 rel = (v_uv - u_cutout_min) / cSpan;
     if (rel.x > 0.0 && rel.x < 1.0 && rel.y > 0.0 && rel.y < 1.0) {
