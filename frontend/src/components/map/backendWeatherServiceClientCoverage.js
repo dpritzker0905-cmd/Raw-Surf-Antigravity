@@ -318,8 +318,12 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
             && wSpanLng > 0 && wSpanLat > 0
             && wSpanLng <= wideMax && wSpanLat <= wideMax
             && (wSpanLng > FINE_MAX_VIEWPORT_SPAN || wSpanLat > FINE_MAX_VIEWPORT_SPAN)) {
-          // integer pad keeps the 1-deg lattice (stable tileIds): 1 deg to 20-deg spans, 2 above
-          const widePad = Math.max(wSpanLng, wSpanLat) <= 20 ? 1 : 2;
+          // integer pad keeps the 1-deg lattice (stable tileIds). Proportional (2026-07-20 live
+          // review: a flat 2 deg is proportionally thin at a 70-deg span — small pans revealed
+          // the seam): ~8% of span, 1-4 deg. Worst case 90 + 2*4 + snap 2 = 100 = the backend
+          // gate exactly (inclusive), enumerated by the shield test.
+          const wideSpanMax = Math.max(wSpanLng, wSpanLat);
+          const widePad = wideSpanMax <= 20 ? 1 : Math.min(4, Math.ceil(wideSpanMax * 0.08));
           const fw2 = Math.max(-180, Math.floor(west - widePad));
           const fe2 = Math.min(180, Math.ceil(east + widePad));
           const fs2 = Math.max(-80, Math.floor(south - widePad));

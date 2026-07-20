@@ -63,9 +63,9 @@ describe('wind viewport-fine tier (clampViewportBbox)', () => {
     // a single non-covering box puts the border back on screen):
     //  - <= 13-deg viewports (the proven snap-out+pad branch): bbox span <= 15.0 (the marine-era
     //    dynamic gate that branch was built against).
-    //  - 13-90-deg viewports (the 2026-07-20 wide band): bbox span <= 96 (pad+snap headroom
-    //    inside the backend's WIND_DYNAMIC_MAX_SPAN_DEG=100), and the bbox COVERS the viewport
-    //    (the whole point: no visible clamp edge anywhere on the map).
+    //  - 13-90-deg viewports (the 2026-07-20 wide band): bbox span <= 100 (proportional 1-4 deg
+    //    pad + snap, inclusive-boundary-exact against WIND_DYNAMIC_MAX_SPAN_DEG=100), and the
+    //    bbox COVERS the viewport (the whole point: no visible clamp edge anywhere on the map).
     for (let span = 0.5; span <= 90.01; span += span < 19 ? 0.25 : 3.75) {
       for (const west of [-179.7, -95.2, -0.3, 10.14, 88.9]) {
         for (const south of [-44.6, 0.2, 20.4, 55.1]) {
@@ -75,8 +75,8 @@ describe('wind viewport-fine tier (clampViewportBbox)', () => {
             const sLng = r.clampedBbox.east - r.clampedBbox.west;
             const sLat = r.clampedBbox.north - r.clampedBbox.south;
             expect(sLng).toBeGreaterThan(0);
-            expect(sLng).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 96.0);
-            expect(sLat).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 96.0);
+            expect(sLng).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 100.0);
+            expect(sLat).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 100.0);
             expect(r.clampedBbox.west).toBeGreaterThanOrEqual(-180);
             expect(r.clampedBbox.east).toBeLessThanOrEqual(180);
             expect(r.clampedBbox.south).toBeGreaterThanOrEqual(-80);
