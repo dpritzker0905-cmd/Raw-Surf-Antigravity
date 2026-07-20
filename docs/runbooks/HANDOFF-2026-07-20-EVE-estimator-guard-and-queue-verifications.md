@@ -131,5 +131,24 @@ shape-B siblings of the estimator bug** — filed as tasks #6-#8: `normalize_and
 per-timestep parse outside the per-item try (shared by ALL wind/pressure/mid ingestion jobs);
 `save_products_batch_helper` per-item loop with NO try/except (an escaping error mid-batch
 loses the rest AND skips the manifest write — the orphan/phantom-entry shape);
-`run_report_calibration` bare gather without return_exceptions. Fix next session with the
-f9c5e59a rigor (per-item isolation + regression test each + full suite).
+`run_report_calibration` bare gather without return_exceptions.
+
+## 8. ALL THREE SIBLINGS FIXED (`be8771c3`) — tasks #6-#8 closed
+
+Per-item isolation shipped for all three surfaces, same rigor as f9c5e59a:
+- `normalize_and_save_loop`: parse inside the per-item guard; the blind Z-append no longer
+  breaks VALID offset-suffixed ISO-8601; error log carries the raw string. One degenerate
+  `hourly.time` entry now costs one timestep, not a completed fetch.
+- `save_products_batch_helper`: per-item try + failure tally; the manifest write and cache
+  invalidation are always reached (the live trigger was executor shutdown on a cancelled CI
+  run — it orphaned already-uploaded files). Writing the test exposed a SECOND latent defect:
+  the post-save invalidation loop did direct `product.product_id` access over all items — an
+  exception there skipped remaining invalidations (stale L1 copies up to TTL). Now
+  getattr-defensive.
+- `_gather_snapshot`: `asyncio.wait` with the deadline INSIDE — one raising spot costs one
+  spot, and a budget timeout keeps completed partials (the old outer `wait_for` cancelled
+  everything: zero, not the "partial archive" the budget comment promises).
+
+Tests: `test_batch_blast_radius_isolation.py` 5/5 (each confirmed failure mode reproduced) ·
+ingestion/store/calibration subsets 73 green · full backend suite **811 green**.
+LOC watch: scheduler_helpers.py now 774/800.
