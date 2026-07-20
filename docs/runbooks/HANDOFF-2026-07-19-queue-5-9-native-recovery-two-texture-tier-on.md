@@ -174,9 +174,22 @@ NDBC truth: 38 buoy-grid pairs, median |Δspd| 2.7 kn, median Δdir 16° — the
 **71% of the Gulf's current wind is below 12 kn** = the band the user says is under-visible.
 
 1. **SLOW-WIND VISIBILITY, all 3 themes (task #8, REOPENED — user bar).** The calm-band ALPHA is
-   the binding constraint, not hue. Use the calibration workflow output
-   (`.claude/projects/.../subagents/workflows/wf_1d124923-534/` — truth + sync map landed;
-   design-agent candidates for per-theme baseAlpha raises, ramp 7→~5 kn, wider low-band hues).
+   the binding constraint, not hue. **DESIGN LANDED (workflow wf_1d124923-534, constraint-solved
+   in composite space with visibility + saturation floors, monotone wheel, haze ceiling):**
+   - **DARK: baseAlpha 0.28→0.44, ramp 7→5 kn** · 0 kn rgb(230,0,255) magenta-violet · 3 kn
+     rgb(8,0,255) blue · 6 kn rgb(0,170,255) azure → min composite gap 34.5° (was 18.5),
+     visΔ0 26.3 (was 10.4), visΔ3 42.3 (was 16.0). Dark NEEDS the alpha raise (0.28 tops out at
+     26.9/14.7). Runner-up 0.40/5 if the user finds 0.44 hazy (31.6/21.0, 73% of haze ceiling).
+   - **LIGHT: baseAlpha 0.35→0.42, ramp stays 7** · 0 kn rgb(137,0,235) violet · 3 kn
+     rgb(2,0,133) indigo · 6 kn rgb(16,129,198) azure → min gap 21.2°, visΔ 45.1/80.1. Light is
+     wheel-budget-bound (~22° max — the 75 kn wrap neighbor caps the calm hue).
+   - **BEACH: NO alpha change** · 0 kn rgb(255,82,199) hot pink · 3 kn rgb(239,57,126)
+     raspberry · 6 kn rgb(216,135,121) terracotta → min gap 52.8° (was 24.9), visΔ 25.0/42.5.
+     Alpha raises evaluated and REJECTED (87-95% of haze ceiling for no gap gain).
+   - The 7.0 ramp literal becomes a PER-THEME knot (dark 5, light/beach 7) — synced across
+     HEATMAP_FS, DRAW_FS casing fieldA, and the windParticleContrast mirror simultaneously.
+   Full metric tables + the constraint model in the workflow output
+   (`tasks/w6su1f130.output` + `subagents/workflows/wf_1d124923-534/journal.jsonl`).
    The SYNC MAP (one commit, all sites): WebGLWindShaders HEATMAP_FS L~890-900 baseAlpha trio +
    7.0 ramp · DRAW_FS casing baseA mirror (~L728-734) · windParticleContrast.test.js fieldAlpha
    mirror · windFieldLut.test.js BASE_A maps (×2 tests) · HEATMAP_OPACITY set (engine L~526,
