@@ -39,8 +39,12 @@ describe('ADVECT_FS wiring (shader carries the new uniforms and applies them)', 
     expect(ADVECT_FS).toContain('uniform float u_speed_max;');
   });
 
-  it('applies the speed-contrast gamma to the advection offset', () => {
-    expect(ADVECT_FS).toContain('pow(speedNorm, u_speed_gamma - 1.0)');
+  it('applies the speed-contrast gamma to the advection offset (R-gate yields to LINEAR inside a vortex)', () => {
+    // queue #2 (2026-07-19): gamma is applied through gammaEff = mix(u_speed_gamma, 1.0,
+    // vortexGate) — bit-exact pow(speedNorm, u_speed_gamma - 1.0) when the gate is 0 (which is
+    // always outside a fine-overlay circulation), LINEAR truth inside one.
+    expect(ADVECT_FS).toContain('float gammaEff = mix(u_speed_gamma, 1.0, vortexGate);');
+    expect(ADVECT_FS).toContain('pow(speedNorm, gammaEff - 1.0)');
   });
 
   it('applies the low-band viewport-bias floor over the stock z4-7 ramp', () => {

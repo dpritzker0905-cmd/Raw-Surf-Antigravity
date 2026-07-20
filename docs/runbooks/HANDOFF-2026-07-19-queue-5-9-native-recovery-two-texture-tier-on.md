@@ -69,16 +69,58 @@ working); `_windFine` is a resident viewport-fine grid rendered on top.
 shield test now pins the NEW contract (fine id by default, opt-out restores global bit-exactly).
 Evidence: suite 1274/1274 ×3 · tier-ON zoomclamp ladder (see summary.json / session log).
 
-## 4. Probe updates
+## 4. Queue #2 — R-gated vortex levers (with three base+overlay completions it forced)
 
-`probe_wind_vortex_dump.js` prefers `_windFine` (the vortex-resolving grid) and records
-`fromFineOverlay` + the holder's own uMin/uMax.
+**Calibration (instrument-first; the live Gulf held NO vortex that day — analyzer verdict R
+inside ≈ ambient):** synthetic both-sides via `probe_wind_vortex_synth.js` → analyzer.
+Weak forming low (10 kn Vmax/120 km) annulus R p50 0.39 / p90 0.82 · strong invest (25 kn) core
+4.7 · synthetic ambient p99 0.10 · real calm-field noise p90 0.24 · shear line ON-line 2.58
+(KNOWN false positive — per-texel curl cannot tell shear from rotation without a ring integral;
+linear-truth motion on a real shear feature is the accepted cost). → **gate smoothstep(0.25,
+0.8, R)**, R = |curl|·Lcell/(speed+2) from 4 fine-texture taps, scaled by the seam feather fw.
 
-## 5. Next in queue
+**Levers (ADVECT_FS, fine-overlay branch ONLY — 10° base cells cannot resolve a vortex):**
+gamma restore `gammaEff = mix(u_speed_gamma, 1.0, vortexGate)` (slow annulus air back to LINEAR
+truth) + persistence `dropRate = max(dropRate*mix(1,0.35,gate), 0.002)` (arcs 2.0% → 5.9% of the
+annulus circle per lifetime at annulus-median speed). Kill:
+`__RAW_DISABLE_WIND_VORTEX_LEVERS__`. Cell-km carries the box's MEAN cosLat (one convention,
+shared with the debug view). Diagnostic: `__GPU_DEBUG__ = {mode:'vortex'}` paints the live gate
+as red on the overlay heatmap pass — use this to check gating on a REAL invest when one exists.
 
-1. **#2 vortex levers**: dump a real fine grid (`probe_wind_vortex_dump.js` → analyze), then
-   R-gated gamma restore + R-gated persistence, calibrated on the analyzer's numbers.
-   z5.5-8 live, 3 runs, both devices, three themes.
+**Three completions the probe's failures forced (all live-verified):**
+1. **PROMOTE** (`WebGLWindEngine.setWindData` verdict `base_promote`): on a cold enable at fine
+   zoom the FINE product lands first and becomes base; a compatible GLOBAL arriving later now
+   slides UNDER it (regional base MOVES to the overlay slot, texture preserved) instead of
+   replacing the sharper data. Without it the two-texture engine stayed dormant all session.
+2. **Explicit-global requests** (`windController._fetchWindDataInner`): a world-span bbox
+   (≥350°) keeps its own bbox — the legacy viewport substitution rewrote it to the current
+   viewport, which under the fine tier re-clamped to the FINE tile, so the "global base" fetch
+   returned the fine product ("Committing GLOBAL base ... 425 vectors" = the smoking log).
+3. **Bounded base-lane retry** (WeatherEngine): the cold-start global-base fetch was ONE-SHOT —
+   a transient 429 left the session without a base until the 5-min refresh. Now ≤5 re-drives
+   through attemptFetch (8 s apart).
+
+**Verification:** `windVortexLevers.test.js` (source pins + NUMERIC CALIBRATION MIRROR of the
+synth fields — drift in formula or constants breaks CI) · promote/incompat tests in
+windTwoTexture · full suite 1283/1283 ×3 · `probe_wind_vortex_visual.js`: deterministic gate
+view red-fraction core 0.243 vs ambient 0.000, behavioral A/B/A normalized 1.01→1.22→1.08
+(reversible; lever effect 1.16 — persistence lowers GLOBAL turnover [fewer respawn teleports]
+while concentrating annulus activity, exactly the intended read) · zoomclamp ladder (see log).
+**Metric lesson:** wind-off-baseline pixel diffs SATURATE (the field wash changes every pixel)
+— frame-pair diffs inside one state isolate particles; A/B/A + control-normalization kills the
+SwiftShader drift confound that produced one false PASS and one false FAIL first.
+
+## 5. Probe updates
+
+`probe_wind_vortex_dump.js` prefers `_windFine`, parks at z6.5 (z6's 14° span never fires the
+tier), and requires containment WITH ≥2° margin (a stale leftover box can contain the centre at
+its very edge). `probe_wind_vortex_synth.js` + `probe_wind_vortex_visual.js` new (see §4).
+
+## 6. Next in queue
+
+1. **Vortex levers on a REAL invest**: when weather provides one, `probe_wind_vortex_dump.js` →
+   analyzer on the live system + the `mode:'vortex'` debug view over it; confirm the 0.25–0.8
+   window against real-data R, adjust only with evidence.
 2. **#8 probe hardening** (blank-leg flake after ~30 GL contexts) — also: ladder runs contend
    badly with concurrent jest/dev-server load on this box (mobile legs took 80 min under load,
    ~15 min clean) — run ladders alone.

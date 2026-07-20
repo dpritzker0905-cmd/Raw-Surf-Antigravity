@@ -19,7 +19,9 @@ fs.mkdirSync(path.dirname(OUT), { recursive: true });
 const CENTER = {
   lng: Number(process.env.VX_LNG || -90),
   lat: Number(process.env.VX_LAT || 24),
-  zoom: Number(process.env.VX_ZOOM || 6),
+  // z6.5, not 6: at z6 a 1280px viewport spans ~14 deg > the tier's 13-deg gate, so the fine
+  // lane never fires for the parked view and the wait below can only match a STALE box.
+  zoom: Number(process.env.VX_ZOOM || 6.5),
 };
 
 (async () => {
@@ -70,10 +72,15 @@ const CENTER = {
     const e = window.__WIND_ENGINE__ || window.__RAW_WIND__;
     const fg = e && e._windFine && e._windFine.windGrid;
     const g = fg || (e && e._windData && e._windData.windGrid);
-    if (!(g && g.vectors && g.vectors.length > 400 && g.bounds)) return false;
+    if (!(g && g.vectors && g.vectors.length > 100 && g.bounds)) return false;
     const b = g.bounds;
     const spanOk = (b.east - b.west) < 350; // want the FINE product, not the global base
-    return spanOk && b.west <= c.lng && c.lng <= b.east && b.south <= c.lat && c.lat <= b.north;
+    // Containment WITH MARGIN (>= 2 deg inside every edge): a stale leftover box from the
+    // map's INITIAL viewport can contain the parked centre at its very edge and satisfy a
+    // bare containment check (seen live: a 2x2-deg box "containing" -90,24 at its corner).
+    const M = 2.0;
+    return spanOk && b.west + M <= c.lng && c.lng <= b.east - M
+      && b.south + M <= c.lat && c.lat <= b.north - M;
   }, CENTER, { timeout: 150000 }).catch(() => {});
   await page.waitForTimeout(4000);
 

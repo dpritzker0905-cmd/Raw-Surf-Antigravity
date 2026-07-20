@@ -47,6 +47,20 @@ uniform vec2 u_fineBounds_min;    // fine grid bounds [west, south]
 uniform vec2 u_fineBounds_max;    // fine grid bounds [east, north]
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac; // feather band as a fraction of the fine grid span
+// R-GATED VORTEX LEVERS (2026-07-19, queue #2). Rotation legibility = angular displacement x
+// lifetime; the shipped gamma (1.15) and ink-budget lifetimes were tuned for TRANSLATION and
+// render a circulation's slow annulus as near-still sparse marks. Gate: rotation dominance
+// R = |curl|*Lcell/(speed+2), curl from 4 fine-texture taps. Calibrated on synthetic Rankine +
+// shear + the real calm field (probe_wind_vortex_synth/analyze): weak-forming-low annulus
+// R p50 0.39 / p90 0.82, strong core 4.7, synthetic ambient p99 0.10, real calm-field noise
+// p90 0.24 -> smoothstep(0.25, 0.8, R). KNOWN false positive: a straight shear line gates in
+// (per-texel curl cannot tell it from rotation without a ring integral) — linear-truth motion
+// on a real shear feature is an accepted, documented cost. Levers live ONLY inside the fine
+// overlay (10-deg base cells cannot resolve a vortex — gating there would fire on smear).
+// Kill: __RAW_DISABLE_WIND_VORTEX_LEVERS__ (u_vortex_levers = 0 -> bit-exact shipped behavior).
+uniform float u_vortex_levers;
+uniform vec2 u_fine_texel;        // one CELL in fine tex coords: (1/(cols-1), 1/(rows-1))
+uniform vec2 u_fine_cell_km;      // physical cell size km: (dlng*111.32*cos(meanLat), dlat*110.57)
 varying vec2 v_uv;
 
 // Decode position from 2-channel encoding (16-bit precision per axis)
@@ -111,6 +125,7 @@ void main() {
   vec2 wind = mix(u_wind_min, u_wind_max, vec2(windData.r, windData.g));
   // Fine-overlay lookup: inside the fine grid, advect from the SHARPER field, feather-blended
   // into the base so there is no velocity step at the seam (and never a data edge to fall off).
+  float vortexGate = 0.0;
   if (u_fine_enabled > 0.5) {
     float f_u;
     if (u_fineBounds_min.x > u_fineBounds_max.x) {
@@ -126,6 +141,22 @@ void main() {
       vec4 fineData = texture2D(u_wind_fine, vec2(f_u, f_v));
       vec2 fineWind = mix(u_fine_min, u_fine_max, vec2(fineData.r, fineData.g));
       wind = mix(wind, fineWind, fw);
+      if (u_vortex_levers > 0.5) {
+        // central-difference curl on the fine grid (4 taps, one cell each side)
+        vec2 wr = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u + u_fine_texel.x, f_v)).rg);
+        vec2 wl = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u - u_fine_texel.x, f_v)).rg);
+        vec2 wu2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v + u_fine_texel.y)).rg);
+        vec2 wd2 = mix(u_fine_min, u_fine_max, texture2D(u_wind_fine, vec2(f_u, f_v - u_fine_texel.y)).rg);
+        // cell km carries the fine box's MEAN cosLat (engine-side): a box is <= 13 deg of
+        // latitude, so the cos varies < ~7% across it — irrelevant to a 0.25..0.8 gate band —
+        // and one convention is shared with the HEATMAP debug view (no drift between the two).
+        float dxKm = u_fine_cell_km.x;
+        float dyKm = u_fine_cell_km.y;
+        float curlz = (wr.y - wl.y) / (2.0 * dxKm) - (wu2.x - wd2.x) / (2.0 * dyKm);
+        float Rdom = abs(curlz) * dyKm / (length(wind) + 2.0);
+        // gate scaled by fw so the levers fade with the same seam the velocity does
+        vortexGate = smoothstep(0.25, 0.8, Rdom) * fw;
+      }
     }
   }
   float speed = length(wind);
@@ -142,7 +173,11 @@ void main() {
   // particles relative to fast ones (pow(speedNorm, gamma-1): →1 at max speed, <1 below) so speed
   // differences read visibly on screen. gamma == 1.0 is a exact no-op (pure linear preserved).
   float speedNorm = clamp(speed / max(u_speed_max, 1.0), 0.02, 1.0);
-  offset *= pow(speedNorm, u_speed_gamma - 1.0);
+  // R-GATED GAMMA RESTORE (queue #2): inside a gated circulation the perceptual-contrast gamma
+  // yields back to LINEAR physics truth — slow annulus air moves at its real relative speed
+  // instead of being damped toward stillness. gate 0 -> exactly pow(speedNorm, u_speed_gamma-1).
+  float gammaEff = mix(u_speed_gamma, 1.0, vortexGate);
+  offset *= pow(speedNorm, gammaEff - 1.0);
   
   vec2 nextPos;
   if (u_zoom > 6.0) {
@@ -212,6 +247,12 @@ void main() {
   if (u_calm_marks > 0.5 && speed < 4.75) {
     dropRate = max(legacyDrop, min(dropRate, 0.04));
   }
+  // R-GATED PERSISTENCE (queue #2): inside a gated circulation, marks live ~3x longer so their
+  // arcs subtend a readable fraction of the annulus (analyzer: 2.0% -> 5.9% of the circle per
+  // lifetime at annulus-median speed). A deliberate, GATED ink premium like the calm floor —
+  // bounded to the vortex's small screen area; the 0.002 floor (== the base drop rate) keeps
+  // particles mortal. gate 0 -> dropRate unchanged.
+  dropRate = max(dropRate * mix(1.0, 0.35, vortexGate), 0.002);
   float drop = step(1.0 - dropRate, rand(seed));
 
   // If regional grid and exits bounding box, drop it. For global grid, only drop if it exits latitude bounds.
@@ -751,6 +792,12 @@ uniform float u_cutout_enabled;
 uniform vec2 u_cutout_min;
 uniform vec2 u_cutout_max;
 uniform float u_cutout_feather;
+// VORTEX GATE DEBUG VIEW (queue #2): __GPU_DEBUG__.mode='vortex' paints the R-gate value from
+// THIS pass's texture as red — the deterministic wiring proof that the shader-side curl/gate
+// fires where the field rotates (engine sends mode 9 on the FINE overlay pass only). Same cell
+// convention as ADVECT_FS (u_fine_cell_km carries mean cosLat).
+uniform vec2 u_fine_texel;
+uniform vec2 u_fine_cell_km;
 uniform float u_debug_mode;
 varying vec2 v_uv;
 
@@ -810,6 +857,17 @@ void main() {
       return;
     } else if (u_debug_mode < 4.5) { // 'mercator' -> 4.0
       gl_FragColor = vec4(v_uv.x, 1.0 - v_uv.y, 1.0, u_opacity);
+      return;
+    } else if (u_debug_mode > 8.5 && u_debug_mode < 9.5) { // 'vortex' gate view -> 9.0
+      vec2 wr = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x + u_fine_texel.x, v_uv.y)).rg);
+      vec2 wl = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x - u_fine_texel.x, v_uv.y)).rg);
+      vec2 wu2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y + u_fine_texel.y)).rg);
+      vec2 wd2 = mix(u_wind_min, u_wind_max, texture2D(u_wind, vec2(v_uv.x, v_uv.y - u_fine_texel.y)).rg);
+      float curlz = (wr.y - wl.y) / (2.0 * u_fine_cell_km.x) - (wu2.x - wd2.x) / (2.0 * u_fine_cell_km.y);
+      vec2 wc = mix(u_wind_min, u_wind_max, texture2D(u_wind, v_uv).rg);
+      float Rd = abs(curlz) * u_fine_cell_km.y / (length(wc) + 2.0);
+      float g = smoothstep(0.25, 0.8, Rd);
+      gl_FragColor = vec4(g, 0.0, 0.0, max(g, 0.15));
       return;
     }
   }

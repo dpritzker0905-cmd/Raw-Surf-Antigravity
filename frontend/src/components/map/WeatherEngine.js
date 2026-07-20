@@ -137,6 +137,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     let cancelled = false;
     let retryTimer = null;
     let retryCount = 0;
+    let baseRetryCount = 0; // cold-start GLOBAL-base lane retries (bounded; see the base lane)
     // ONE authoritative wind fetch at a time (2026-07-19). With the fine tier, every zoom/pan
     // step mints a new bbox; on a slow upstream the responses stack up and resolve LATE — a z11
     // 2-deg box was observed committing onto a z6.8 viewport two steps later (the "moving clamp").
@@ -259,19 +260,54 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       // committed at all. On reload the first fetch can build its box from the PRE-RESTORE
       // viewport; that box commits (nothing better exists), and gating the base on
       // !lastCommitted left the mismatched rectangle standing (user repro 2026-07-19 night).
-      if ((!lastCommittedWindRef.current || !gridCovers(lastCommittedWindRef.current.bounds, getBounds()))
-        && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
+      // BASE+OVERLAY completion (2026-07-19 #2/#9, found by the vortex probe's failed
+      // precondition): when the FINE product lands FIRST on a cold enable, the old guard
+      // (`lastCommittedWindRef.current` set -> skip) meant a GLOBAL base never committed for the
+      // whole session, so the two-texture engine stayed dormant and every later fine commit was
+      // a regional REPLACE (feathered box edges — the residual clamp path). With the two-texture
+      // engine live, the global base is valuable even AFTER a fine commit: the engine PROMOTES
+      // it underneath the resident fine grid (which moves to the overlay slot, no visual
+      // downgrade). The lane fires when nothing covering-GLOBAL is committed yet.
+      const twoTexBase = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_OVERLAY__ !== true;
+      const lcBase = lastCommittedWindRef.current;
+      const lcSpan = lcBase && lcBase.bounds
+        ? (lcBase.bounds.west > lcBase.bounds.east
+          ? (lcBase.bounds.east + 360.0) - lcBase.bounds.west : lcBase.bounds.east - lcBase.bounds.west)
+        : 0;
+      const needGlobalBase = !lcBase || !gridCovers(lcBase.bounds, getBounds()) || (twoTexBase && lcSpan < 350.0);
+      if (needGlobalBase && (clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')) {
         fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
           .then((gd) => {
-            if (cancelled || lastCommittedWindRef.current) return;
+            if (cancelled) return;
+            const lc2 = lastCommittedWindRef.current;
+            const lc2Span = lc2 && lc2.bounds
+              ? (lc2.bounds.west > lc2.bounds.east
+                ? (lc2.bounds.east + 360.0) - lc2.bounds.west : lc2.bounds.east - lc2.bounds.west)
+              : 0;
+            // commit while the screen is empty (legacy) OR to slide the base under a resident
+            // fine grid (two-texture promote); never re-commit when a global is already up.
+            if (lc2 && (!twoTexBase || lc2Span >= 350.0)) return;
             if (gd?.vectors?.length > 0 && gd.renderable !== false) {
-              console.log(`[CACHE] [WeatherEngine] Committing GLOBAL base while the fine product loads (${gd.vectors.length} vectors)`);
+              console.log(`[CACHE] [WeatherEngine] Committing GLOBAL base ${lc2 ? 'UNDER the resident fine grid (promote)' : 'while the fine product loads'} (${gd.vectors.length} vectors)`);
               windRevision.current += 1;
               commitWindData(gd);
               lastCommittedWindRef.current = { bounds: gd.bounds || null, stale: !!gd.stale };
+            } else if (baseRetryCount < 5) {
+              // BOUNDED RETRY (2026-07-19): the base lane was ONE-SHOT — a transient 429/empty on
+              // this single fetch left the session without a global base until the 5-min refresh
+              // (the two-texture engine dormant the whole time). Re-drive through attemptFetch
+              // (its cooldown/scrub/dedup guards apply; the fine product re-serves from cache).
+              baseRetryCount += 1;
+              retryTimer = setTimeout(attemptFetch, 8000);
             }
           })
-          .catch(() => { /* base is best-effort — the main lane keeps retrying */ });
+          .catch(() => {
+            if (cancelled) return;
+            if (baseRetryCount < 5) {
+              baseRetryCount += 1;
+              retryTimer = setTimeout(attemptFetch, 8000);
+            }
+          });
       }
 
       try {

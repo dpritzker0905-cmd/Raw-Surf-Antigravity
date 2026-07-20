@@ -224,10 +224,21 @@ async function _fetchWindDataInner(bounds, signal, hourOffset = 0, forceFetch = 
 
   const resolvedModel = model || 'GFS';
 
+  // EXPLICIT GLOBAL REQUEST (2026-07-19, base+overlay completion): a caller passing a
+  // WORLD-SPAN bbox (the cold-start global-base lane, the zoom-out backstop prefetch) wants THE
+  // GLOBE. The viewport substitution below rewrote it to the current viewport — harmless in the
+  // always-global era, but under the fine tier that re-clamps to the FINE tile, so the "global
+  // base" fetch returned the fine product (observed live: "Committing GLOBAL base ... 425
+  // vectors" = the 25x17 fine box) and the two-texture engine never got its base on a cold
+  // enable at fine zoom. A world-span request now keeps its own bbox (clampViewportBbox resolves
+  // it to the global tile); the substitution remains for viewport-shaped requests.
+  const reqSpanLng = (bounds.east < bounds.west ? bounds.east + 360 : bounds.east) - bounds.west;
+  const isExplicitGlobal = reqSpanLng >= 350.0;
+
   // Resolve actual viewport bounds to pass explicitly
   let viewportBounds = bounds;
   let source = "controller";
-  if (bounds && Math.abs(bounds.east - bounds.west) > 180) {
+  if (!isExplicitGlobal && bounds && Math.abs(bounds.east - bounds.west) > 180) {
     if (typeof window !== 'undefined' && window.map) {
       try {
         const b = window.map.getBounds();

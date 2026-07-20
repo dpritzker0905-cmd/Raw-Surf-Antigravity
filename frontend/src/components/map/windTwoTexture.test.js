@@ -237,4 +237,30 @@ describe('setWindData filing', () => {
     expect(engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12))).toBe('base');
     expect(engine._windFine).toBeFalsy();
   });
+
+  it('PROMOTE: a compatible global arriving over a regional base slides UNDER it (fine data kept)', () => {
+    // The cold-enable-at-fine-zoom ordering: fine lands first (becomes base), global lands
+    // second. Replacing would visually downgrade the sharper data — instead the global becomes
+    // the base and the regional grid MOVES to the overlay slot, texture preserved (no re-encode).
+    const { gl, deleted } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12));
+    const fineHolder = engine._windData;
+    const fineTex = fineHolder.texture;
+
+    expect(engine.setWindData(gl, grid(GLOBAL_GRID, 37, 17, 20))).toBe('base_promote');
+    expect(engine._windFine).toBe(fineHolder);            // moved, not re-encoded
+    expect(engine._windFine.texture).toBe(fineTex);
+    expect(deleted).not.toContain(fineTex);               // and never freed in the move
+    expect(windGridIsGlobal(engine._windData.windGrid)).toBe(true);
+  });
+
+  it('an INCOMPATIBLE global over a regional base replaces it (no promote across hours)', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12));
+    const laterGlobal = { ...GLOBAL_GRID, hourOffset: 3, valid_time: '2026-07-19T15:00:00Z' };
+    expect(engine.setWindData(gl, grid(laterGlobal, 37, 17, 20))).toBe('base');
+    expect(engine._windFine).toBeFalsy();
+  });
 });

@@ -349,7 +349,10 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
 
         // queue #9: a grid filed as the FINE OVERLAY leaves the base (and every particle) in
         // place — reseeding on it would scatter marks on every fine-box commit for no reason.
-        if (filingVerdict !== 'fine' && boundsChanged && typeof engine.reinitParticles === 'function') {
+        // Same for a PROMOTE (global slid UNDER the resident fine data): the field on screen is
+        // unchanged where the particles are.
+        if (filingVerdict !== 'fine' && filingVerdict !== 'base_promote'
+            && boundsChanged && typeof engine.reinitParticles === 'function') {
           // SAME-MODEL BOUNDS SWAPS KEEP TRAILS (2026-07-19). With the viewport-fine tier, bounds
           // changes are ROUTINE camera-driven events — crossing the ~z6 tier boundary swaps
           // global<->fine, and every ~1-deg pan at fine zoom mints a new snapped box. Full-clearing

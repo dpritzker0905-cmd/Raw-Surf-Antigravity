@@ -149,6 +149,25 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
         + windGrid.cols + 'x' + windGrid.rows + ')');
     }
     verdict = 'fine';
+  } else if (windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
+      && windGridIsGlobal(windGrid)
+      && this._windData?.windGrid && !windGridIsGlobal(this._windData.windGrid)
+      && windGridsCompatible(windGrid, this._windData.windGrid)) {
+    // PROMOTE (the cold-enable-at-fine-zoom ordering): the fine product landed FIRST and became
+    // the base; when the global arrives it must not REPLACE the sharper data on screen — it
+    // becomes the new base and the resident regional grid MOVES to the overlay slot (texture
+    // reference moved, not re-encoded). Found by the vortex probe's failed precondition.
+    if (this._windFine?.texture) gl.deleteTexture(this._windFine.texture);
+    this._windFine = this._windData;
+    this._windData = encodeWindTexture(gl, windGrid);
+    if (this._windData) {
+      this._windData.truthTag = windGrid.truthTag;
+      this._windData.windGrid = windGrid;
+    }
+    console.log('[WebGLWind] GLOBAL base promoted under resident regional grid ('
+      + (this._windFine.windGrid?.cols || '?') + 'x' + (this._windFine.windGrid?.rows || '?')
+      + ' moved to overlay)');
+    verdict = 'base_promote';
   } else {
     if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
     this._windData = encodeWindTexture(gl, windGrid);
@@ -364,6 +383,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     fineCrosses = fb.west > fb.east;
     const fineSpan = fineCrosses ? (fb.east + 360.0) - fb.west : fb.east - fb.west;
     fineFeatherFrac = Math.min(0.18, 0.6 / Math.max(fineSpan, 1e-6));
+    // Vortex-lever cell geometry (computed HERE because the heatmap debug view — Step 0 —
+    // needs it before the advect step does). cell_km.x carries the box's mean cosLat.
+    const fCols = Math.max(2, fine.windGrid?.cols || 2);
+    const fRows = Math.max(2, fine.windGrid?.rows || 2);
+    const meanCos = Math.max(0.2, Math.cos((fb.south + fb.north) * 0.5 * Math.PI / 180));
+    this._fineTexel = [1.0 / (fCols - 1), 1.0 / (fRows - 1)];
+    this._fineCellKm = [(fineSpan / (fCols - 1)) * 111.32 * meanCos, ((fb.north - fb.south) / (fRows - 1)) * 110.57];
   }
   if (typeof window !== 'undefined') {
     window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
@@ -528,6 +554,12 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edgeFeatherEnabled'), 1.0);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_edge_feather_frac'), fineFeatherFrac);
       gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
+      // VORTEX GATE DEBUG VIEW: __GPU_DEBUG__.mode='vortex' paints the R-gate on THIS pass only
+      // (the base pass keeps its normal render — 10-deg cells cannot resolve a vortex anyway).
+      var _vortexDebug = (typeof window !== 'undefined' && window.__GPU_DEBUG__ && window.__GPU_DEBUG__.mode === 'vortex') ? 9.0 : debugModeVal;
+      gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_debug_mode'), _vortexDebug);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_texel'), this._fineTexel[0], this._fineTexel[1]);
+      gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_fine_cell_km'), this._fineCellKm[0], this._fineCellKm[1]);
       bindTexture(gl, fine.texture, 0);
       for (var fhi = 0; fhi < heatOffsets.length; fhi++) {
         gl.uniform1f(heatOffsetLoc, heatOffsets[fhi]);
@@ -591,6 +623,13 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fineBounds_min'), fine.bounds.west, fine.bounds.south);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fineBounds_max'), fine.bounds.east, fine.bounds.north);
     gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_fine_feather_frac'), fineFeatherFrac);
+    // R-GATED VORTEX LEVERS (queue #2): cell geometry precomputed in the fine block above.
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_vortex_levers'),
+      (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VORTEX_LEVERS__ === true) ? 0.0 : 1.0);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_texel'), this._fineTexel[0], this._fineTexel[1]);
+    gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_cell_km'), this._fineCellKm[0], this._fineCellKm[1]);
+  } else {
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_vortex_levers'), 0.0);
   }
   unbindTexture(gl, this.particleStateB);
   gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
