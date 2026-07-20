@@ -63,20 +63,23 @@ describe('wind viewport-fine tier (clampViewportBbox)', () => {
     // a single non-covering box puts the border back on screen):
     //  - <= 13-deg viewports (the proven snap-out+pad branch): bbox span <= 15.0 (the marine-era
     //    dynamic gate that branch was built against).
-    //  - 13-90-deg viewports (the 2026-07-20 wide band): bbox span <= 100 (proportional 1-4 deg
-    //    pad + snap, inclusive-boundary-exact against WIND_DYNAMIC_MAX_SPAN_DEG=100), and the
-    //    bbox COVERS the viewport (the whole point: no visible clamp edge anywhere on the map).
-    for (let span = 0.5; span <= 90.01; span += span < 19 ? 0.25 : 3.75) {
+    //  - 13-180-deg viewports (the 2026-07-20 wide band): bbox span <= 190 (proportional 1-4 deg
+    //    pad + snap; <=100 stays on the dynamic lane, beyond it the server mid tier clips its
+    //    2-deg world product — WIND_MID_RES_MAX_SPAN=200 headroom), and the bbox COVERS the
+    //    viewport (the whole point: no visible clamp edge anywhere on the map).
+    for (let span = 0.5; span <= 180.01; span += span < 19 ? 0.25 : 7.5) {
       for (const west of [-179.7, -95.2, -0.3, 10.14, 88.9]) {
         for (const south of [-44.6, 0.2, 20.4, 55.1]) {
           const east = west + span, north = Math.min(84.9, south + span * 0.7);
+          if (east > 180) continue; // not a real (normalized) viewport
+
           const r = clampViewportBbox(vp(west, south, east, north), 'wind', 'GFS', 'wind');
           if (r.selectedTileId && r.selectedTileId.startsWith('wind_viewport_fine_')) {
             const sLng = r.clampedBbox.east - r.clampedBbox.west;
             const sLat = r.clampedBbox.north - r.clampedBbox.south;
             expect(sLng).toBeGreaterThan(0);
-            expect(sLng).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 100.0);
-            expect(sLat).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 100.0);
+            expect(sLng).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 190.0);
+            expect(sLat).toBeLessThanOrEqual(span <= 13.01 ? 15.0 : 190.0);
             expect(r.clampedBbox.west).toBeGreaterThanOrEqual(-180);
             expect(r.clampedBbox.east).toBeLessThanOrEqual(180);
             expect(r.clampedBbox.south).toBeGreaterThanOrEqual(-80);
@@ -93,15 +96,25 @@ describe('wind viewport-fine tier (clampViewportBbox)', () => {
     }
   });
 
-  it('only world-scale viewports keep the v3.15 global product', () => {
+  it('only true world-scale viewports keep the v3.15 global product', () => {
     for (const box of [
-      vp(-130, -20, -28, 60),     // 102-deg span — beyond the wide band
+      vp(-179, -70, 10, 80),      // 189-deg span — beyond the 180-deg wide band
       vp(-179, -70, 179, 80),     // world
     ]) {
       const r = clampViewportBbox(box, 'wind', 'GFS', 'wind');
       expect(r.clampedBbox).toEqual(GLOBAL_BOX);
       expect(r.selectedTileId).toBe('global_wind');
     }
+  });
+
+  it('100-180-deg spans still request the viewport (the server mid tier clips its 2-deg world product)', () => {
+    const r = clampViewportBbox(vp(-130, -20, -28, 60), 'wind', 'GFS', 'wind'); // 102 x 80
+    expect(r.selectedTileId).toMatch(/^wind_viewport_fine_/);
+    const b = r.clampedBbox;
+    expect(b.west).toBeLessThanOrEqual(-130);
+    expect(b.east).toBeGreaterThanOrEqual(-28);
+    expect(b.south).toBeLessThanOrEqual(-20);
+    expect(b.north).toBeGreaterThanOrEqual(60);
   });
 
   describe('WIDE BAND (13-90 deg, 2026-07-20 "the clamp must fit the map"): full padded viewport bbox', () => {

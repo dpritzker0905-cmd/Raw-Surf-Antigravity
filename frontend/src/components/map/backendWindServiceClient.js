@@ -462,9 +462,21 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
   const bboxParam = `${clampedBbox.west},${clampedBbox.south},${clampedBbox.east},${clampedBbox.north}`;
   const url = `${GRID_URL}?model=${model}&domain=wind&layer=wind&valid_time=${validTimeStr}&bbox=${bboxParam}`;
 
-  if (inFlightWindRequests.has(url)) {
-    return inFlightWindRequests.get(url);
+  const _inFlight = inFlightWindRequests.get(url);
+  if (_inFlight) {
+    // STRANDED-DEDUP GUARD (2026-07-20 — the marine stranded fetch-lock lesson, wind edition;
+    // see marine-stranded-fetch-lock-wedge / releaseStaleMarineLock). The shared promise is
+    // bound to its CREATOR's abort signal. WeatherEngine's retry loop aborts its previous
+    // controller each attempt, so every later caller joined a corpse promise that rejects
+    // instantly with "signal is aborted without reason" (live: attempt 6/5, 7/5 — the lane
+    // starved itself while the backend was healthy). Serve the dedup ONLY while its creating
+    // signal is alive; a provably-dead entry is dropped and refetched fresh.
+    if (!(_inFlight.signal && _inFlight.signal.aborted)) {
+      return _inFlight.promise;
+    }
+    inFlightWindRequests.delete(url);
   }
+  let _entry;
   const promise = (async () => {
     try {
       const res = await fetch(url, { signal });
@@ -598,11 +610,16 @@ export async function fetchBackendWindGrid(bounds, hourOffset, signal, snappedBo
       console.error(`[Backend Weather Service] Wind grid fetch error: ${err.message}. Falling back cleanly.`);
       throw err;
     } finally {
-      inFlightWindRequests.delete(url);
+      // delete only OUR entry — an aborted predecessor's late finally must not evict a
+      // fresh successor registered for the same url (the map-clobber twin of the guard above)
+      if (inFlightWindRequests.get(url) === _entry) {
+        inFlightWindRequests.delete(url);
+      }
     }
   })();
 
-  inFlightWindRequests.set(url, promise);
+  _entry = { promise, signal };
+  inFlightWindRequests.set(url, _entry);
   return promise;
 }
 

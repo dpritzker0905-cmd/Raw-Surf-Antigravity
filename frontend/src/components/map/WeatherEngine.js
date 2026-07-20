@@ -143,6 +143,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     // 2-deg box was observed committing onto a z6.8 viewport two steps later (the "moving clamp").
     // Superseded requests are aborted at the source; the covers-now gate below is the belt.
     let windFetchController = null;
+    let windFetchGen = 0; // supersession token — see attemptFetch's mutual-abort livelock note
     // COVERAGE-AWARE COMMIT STATE (2026-07-19). What is on screen — held in a REF (see its
     // declaration) so effect re-runs cannot blind the gates. The stale-commit policy pivots on
     // VIEWPORT COVERAGE, not just freshness: a retained fine box that no longer covers the
@@ -312,12 +313,22 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           });
       }
 
+      // SUPERSESSION TOKEN (2026-07-20, the mutual-abort livelock): attemptFetch is re-entered
+      // by FOUR schedulers (base-lane retries, late-arrival re-drives, the 5-min refresh,
+      // moveend/gesture kicks). Each entry aborts the shared controller — killing a sibling's
+      // in-flight fetch — and the sibling's abort surfaces as a SAFE-ZERO grid (the redirect
+      // chain converts abort errors to zero-grid fallbacks), which walks the retry ladder and
+      // aborts the next attempt in turn: the livelock behind "attempt 9/5" + "signal is aborted
+      // without reason" storms while the backend was healthy. A superseded attempt must die
+      // SILENTLY: no commit, no reschedule — the newer attempt owns the loop now.
+      const myGen = ++windFetchGen;
       try {
         if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
         windFetchController = new AbortController();
         const data = await fetchWindData(bounds, windFetchController.signal, timeOffsetRef.current, false, forecastDays, activeModel);
 
         if (cancelled) return;
+        if (myGen !== windFetchGen) return; // superseded mid-flight — the newer attempt owns the loop
         
         // Commit ONLY a renderable, non-stale grid. A failed redirect returns a 1-vector safe-zero
         // grid (renderable:false/stale:true) — committing it would CLEAR the wind heatmap. Instead
@@ -390,6 +401,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         }
       } catch (e) {
         if (e.name === 'AbortError' || cancelled) return;
+        if (myGen !== windFetchGen) return; // superseded — no retry from a dead generation
         retryCount++;
         if (retryCount < MAX_RETRIES) {
           const delay = RETRY_DELAYS[retryCount] || 60000;
@@ -801,17 +813,24 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
                   && f.bounds.west <= bounds.west + eps && f.bounds.east >= bounds.east - eps
                   && f.bounds.south <= vpS + eps && f.bounds.north >= vpN - eps);
                 if (fineCovers) return false;
-                // RESOLUTION GUARD (2026-07-20 regression study #1): a stale 2-deg covering
-                // product must never REPLACE a finer resident box over the viewport centre —
-                // that trade erased a live tropical system (the 0.5-deg box resolved its
-                // rotation; the 2-deg replacement cannot). Coverage wins at the margins only.
+                // RESOLUTION GUARD (2026-07-20 regression study #1, refined same day): a stale
+                // coarse covering product must never REPLACE a finer resident box over the
+                // viewport centre — that trade erased a live tropical system (the 0.5-deg box
+                // resolved its rotation; the 2-deg replacement cannot). BUT the guard only
+                // holds while the sharp box still covers MOST of the view (>= 70% area):
+                // below that, the un-covered remainder is depleted 10-deg base ("animations
+                // missing for the top part of the low") and coverage outranks sharpness.
                 if (f && f.active && f.bounds && f.cols > 0) {
                   const fCell = (f.bounds.east - f.bounds.west) / Math.max(1, f.cols - 1);
                   const dCell = (db.east - db.west) / Math.max(1, (data.cols || 2) - 1);
                   const cx = (bounds.west + bounds.east) / 2, cy = (vpS + vpN) / 2;
                   const centerInFine = f.bounds.west <= cx && f.bounds.east >= cx
                     && f.bounds.south <= cy && f.bounds.north >= cy;
-                  if (centerInFine && dCell > fCell * 1.5) return false;
+                  const ovW = Math.max(0, Math.min(f.bounds.east, bounds.east) - Math.max(f.bounds.west, bounds.west));
+                  const ovH = Math.max(0, Math.min(f.bounds.north, vpN) - Math.max(f.bounds.south, vpS));
+                  const vpArea = Math.max(1e-6, (bounds.east - bounds.west) * (vpN - vpS));
+                  const fineCoverFrac = (ovW * ovH) / vpArea;
+                  if (centerInFine && dCell > fCell * 1.5 && fineCoverFrac >= 0.7) return false;
                 }
                 return true;
               } catch (e) { return false; }

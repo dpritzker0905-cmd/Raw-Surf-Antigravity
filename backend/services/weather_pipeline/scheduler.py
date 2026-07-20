@@ -170,6 +170,12 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.wind_ingestion import ingest_gfs_wind_global_impl
         return await ingest_gfs_wind_global_impl(self)
 
+    async def ingest_gfs_wind_global_mid(self) -> bool:
+        """MID-RES (~2°) global GFS wind — the wind sibling of the marine mid tier. Delegates to
+        wind_ingestion (LOC ceiling). Kill switch: GFS_WIND_MID_RES_INGEST=0."""
+        from services.weather_pipeline.wind_ingestion import ingest_gfs_wind_global_mid_impl
+        return await ingest_gfs_wind_global_mid_impl(self)
+
     async def ingest_gfs_marine_global(self) -> bool:
         """
         Ingests GFS waves grid forecast globally at a coarse resolution.

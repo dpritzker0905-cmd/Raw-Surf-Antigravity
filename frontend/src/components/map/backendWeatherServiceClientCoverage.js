@@ -308,11 +308,13 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
         // choose_adaptive_resolution prices any span at ~400 points (16 deg -> 1.0-deg cells,
         // 40 -> 2.0, 90 -> 5.0 — always beats the 10-deg manifest). On a pre-gate backend the
         // request serves the old global product unclipped — the failure mode of asking is
-        // exactly the old behaviour (this tier's founding rule). Above 90 deg the adaptive
-        // ladder stops beating the manifest -> global (the ~2-deg mid cron tier remains the
-        // world-zoom fix). Kill: __RAW_DISABLE_WIND_FINE_WIDE__ = true -> the 13-deg gate.
-        // Tune: __RAW_WIND_FINE_WIDE_MAX__ (default 90).
-        const wideMax = (typeof window !== 'undefined' && Number(window.__RAW_WIND_FINE_WIDE_MAX__)) || 90.0;
+        // exactly the old behaviour (this tier's founding rule). 100-180 deg falls past the
+        // dynamic gate server-side, where the wind global_mid tier (2026-07-20, queue #3)
+        // serves the cron's ~2-deg world product CLIPPED to this bbox — so the request is
+        // still worth making at any non-antimeridian span. True world spans (>180 or crossing)
+        // keep the global product. Kill: __RAW_DISABLE_WIND_FINE_WIDE__ = true -> the 13-deg
+        // gate. Tune: __RAW_WIND_FINE_WIDE_MAX__ (default 180).
+        const wideMax = (typeof window !== 'undefined' && Number(window.__RAW_WIND_FINE_WIDE_MAX__)) || 180.0;
         const wideKilled = typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_FINE_WIDE__ === true;
         if (!wideKilled
             && wSpanLng > 0 && wSpanLat > 0

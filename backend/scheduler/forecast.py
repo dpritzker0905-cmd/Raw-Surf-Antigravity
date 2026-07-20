@@ -137,6 +137,13 @@ def ingest_marine_forecast_task():
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]
                   if os.environ.get("EURO_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                # WIND global_mid (~2°, 2026-07-20 queue #3): the fixed-resolution background wind
+                # field (the Windy/nullschool pattern) — mid_res_tier serves it clipped wherever
+                # wind would otherwise get the 10° coarse (wide spans, world zoom, dynamic-lane
+                # failure windows). NOAA-direct primary = quota-free, so this tier never
+                # rate-limits. GFS first; ICON/EURO siblings follow once GFS is deploy-proven.
+                *([("GFS Wind Global Mid", weather_scheduler.ingest_gfs_wind_global_mid)]
+                  if os.environ.get("GFS_WIND_MID_RES_INGEST", "1") != "0" else []),
                 # Regional GFS marine pilot (FL+SoCal 0.25°): slow NOAA-direct GRIB fetches (~5-15 min
                 # x2 regions). No downstream dependents (unlike GFS Marine Global, whose _GRID_CACHE the
                 # EURO Marine Global job reuses), so isolating it is dependency-safe.

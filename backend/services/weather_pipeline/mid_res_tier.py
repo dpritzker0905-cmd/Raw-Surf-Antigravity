@@ -104,9 +104,35 @@ async def try_serve_mid_res_tier(
     a regional/finer product — only fills a hole (current_product None) or upgrades an UNCLIPPED
     GLOBAL-span grid (the 10° coarse the estimated-hour Step 3 shortcut serves).
     """
-    if os.environ.get("MARINE_MID_RES_TIER", "1") == "0":
+    if not bbox or req_w is None:
         return None
-    if not bbox or req_w is None or domain.lower() != "marine" or layer.lower() not in _MID_LAYERS:
+    dom = (domain or "").lower()
+    if dom == "marine":
+        if os.environ.get("MARINE_MID_RES_TIER", "1") == "0":
+            return None
+        if layer.lower() not in _MID_LAYERS:
+            return None
+        _lo_env, _lo_def = "MARINE_MID_RES_MIN_SPAN", "0.0"
+        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "15.0"
+    elif dom == "wind":
+        # WIND MID TIER (2026-07-20, queue #3 — "the clamp must fit the entire map"). The wind
+        # sibling of the marine tier: serves the cron's ~2-deg wind global_mid CLIPPED wherever
+        # the request would otherwise get the 10-deg coarse — wide spans past the dynamic gate
+        # (WIND_DYNAMIC_MAX_SPAN_DEG), world zoom, and every dynamic-lane failure window (the
+        # tier is cron-fed from quota-free NOAA, so it never rate-limits). The replace-guard
+        # below keeps any regional/finer product untouched — the mid only fills holes and
+        # upgrades unclipped globals. Kill: WIND_MID_RES_TIER=0.
+        if os.environ.get("WIND_MID_RES_TIER", "1") == "0":
+            return None
+        if layer.lower() != "wind":
+            return None
+        # hi default 400: WORLD-SPAN wind requests (360 deg — the client's global base fetch)
+        # serve the FULL global_mid (~15k vectors, far under _MAX_SERVEABLE_GRID_VECTORS) —
+        # "the overlay needs to be global" (user, 2026-07-20): the 2-deg field IS the base at
+        # every zoom, so no box edge can exist anywhere; fine boxes only sharpen on top.
+        _lo_env, _lo_def = "WIND_MID_RES_MIN_SPAN", "0.0"
+        _hi_env, _hi_def = "WIND_MID_RES_MAX_SPAN", "400.0"
+    else:
         return None
 
     span = _request_span(req_w, req_s, req_e, req_n)
@@ -120,8 +146,8 @@ async def try_serve_mid_res_tier(
     # guard (below) still keeps a WARM fine viewport untouched, so this only fills a COLD hole; serving
     # mid at every zoomed span also keeps the band CONTINUOUS while panning (each new snapped viewport
     # clips instantly). Restore the old resolution cliff with MARINE_MID_RES_MIN_SPAN=2.0.
-    lo = float(os.environ.get("MARINE_MID_RES_MIN_SPAN", "0.0"))
-    hi = float(os.environ.get("MARINE_MID_RES_MAX_SPAN", "15.0"))
+    lo = float(os.environ.get(_lo_env, _lo_def))
+    hi = float(os.environ.get(_hi_env, _hi_def))
     if not (lo < span <= hi):
         return None
 
@@ -209,7 +235,8 @@ async def try_serve_mid_res_tier(
     # queue; skipped hours sharpen on a later request (the user dwells on one hour at a time anyway).
     _reval_queue_max = int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2"))
     if (
-        viewport_service is not None and valid_time is not None
+        dom == "marine"  # wind has its own dynamic lane + client tiers; no SWR reval from here
+        and viewport_service is not None and valid_time is not None
         and span <= _reval_cap
         and len(getattr(viewport_service, "ACTIVE_REVALIDATIONS", ())) < _reval_queue_max
         and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
