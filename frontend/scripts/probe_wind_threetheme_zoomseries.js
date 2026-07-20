@@ -10,6 +10,11 @@
  * PASS per theme = fine overlay resident at every step once first filed, base 360° at every
  * step, and the overlay's field visibly present (screenshotted for eyes).
  *
+ * Env: ZS_THEMES (default dark,light,beach) · ZS_MODELS (default GFS — set GFS,EURO,ICON for
+ * the model sweep; the model chip is clicked before the wind toggle). EURO wind's open-meteo
+ * upstream fast-fails by design — its fine data usually arrives via the ECMWF native recovery,
+ * so a missing EURO fine overlay reports as "(fine never arrived — upstream)" rather than FAIL.
+ *
  * Usage: node probe_wind_threetheme_zoomseries.js [baseUrl] [outdir]   (run from frontend/)
  */
 const path = require('path');
@@ -29,7 +34,10 @@ const ZOOMS = [6.4, 5.2, 4.3];
 (async () => {
   const browser = await chromium.launch({ headless: true, args: ['--enable-unsafe-swiftshader'] });
   let fails = 0;
-  for (const theme of ['dark', 'light', 'beach']) {
+  const THEMES = (process.env.ZS_THEMES || 'dark,light,beach').split(',');
+  const MODELS = (process.env.ZS_MODELS || 'GFS').split(',');
+  for (const model of MODELS) {
+  for (const theme of THEMES) {
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 800 } });
     const page = await ctx.newPage();
     await page.addInitScript((t) => { try {
@@ -59,6 +67,14 @@ const ZOOMS = [6.4, 5.2, 4.3];
       if (exp) exp.click();
       return false;
     }, null, { timeout: 90000 }).catch(() => {});
+    // model chip first (GFS/EURO/ICON), then the wind toggle
+    await page.evaluate((m) => {
+      const all = Array.from(document.querySelectorAll('button'));
+      const label = (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim());
+      const chip = all.find((x) => label(x) === m);
+      if (chip) chip.click();
+    }, model);
+    await page.waitForTimeout(1200);
     await page.evaluate(() => {
       const all = Array.from(document.querySelectorAll('button'));
       const label = (x) => ((x.title || x.getAttribute('aria-label') || x.textContent || '').trim());
@@ -86,14 +102,15 @@ const ZOOMS = [6.4, 5.2, 4.3];
           baseSpan: e && e._windData ? +(e._windData.bounds.east - e._windData.bounds.west).toFixed(0) : null,
         };
       });
-      const shot = path.join(OUT, `${theme}_z${z}.png`);
+      const shot = path.join(OUT, `${model}_${theme}_z${z}.png`);
       await page.screenshot({ path: shot });
-      const fineOk = !gotFine || (st.tele && st.tele.active); // if fine never arrived (upstream), don't fail the theme
+      const fineOk = !gotFine || (st.tele && st.tele.active); // if fine never arrived (upstream), don't fail the leg
       const baseOk = st.baseSpan === 360 || st.baseSpan === null;
       if (!fineOk || !baseOk) fails++;
-      console.log(`[${theme}] z${z} base ${st.baseSpan} fine ${st.tele && st.tele.active ? 'ACTIVE wideFade ' + st.tele.wideFade : 'none'}${gotFine ? '' : ' (fine never arrived — upstream)'} ${(!fineOk || !baseOk) ? '<< FAIL' : ''}`);
+      console.log(`[${model}/${theme}] z${z} base ${st.baseSpan} fine ${st.tele && st.tele.active ? 'ACTIVE wideFade ' + st.tele.wideFade : 'none'}${gotFine ? '' : ' (fine never arrived — upstream)'} ${(!fineOk || !baseOk) ? '<< FAIL' : ''}`);
     }
     await ctx.close();
+  }
   }
   await browser.close();
   console.log(fails === 0 ? '\nTHREE-THEME ZOOM SERIES PASS — data resident at every step in every theme.'

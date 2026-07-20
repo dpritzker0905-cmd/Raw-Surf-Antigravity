@@ -149,6 +149,22 @@ with the exact HEATMAP_FS alpha model. Verified: calculator reproduction of the 
 failure → candidate math → suite 1284/1284 ×3 (incl. casing-contrast auto-adaptation) →
 probe_wind_themes A/B all 6 theme×device legs healthy with the new palette live.
 
+## 5d. LATE-SESSION USER BAR (in flight at save time — see the task list + workflow)
+
+The user's live review raised the bar beyond §5c: **"the wind color spectrum isn't wide enough
+to show all the slow low level winds — ALL wind must be visible on all three themes."** The
+chroma respread fixed hue gaps but the calm-band ALPHA (dark 0.13-0.35 effective below 7 kn) is
+the binding constraint — REOPENED as a task. A workflow is deriving: per-theme baseAlpha raises
++ ramp steepening (7 kn → ~5 kn saturation) + wider low-band hue spreads, with composite
+visibility floors AND a haze guard; plus an NDBC-buoy truth check of the served Gulf grid (the
+user doubts the data — without fine data resident the 10° smear genuinely is not reality), plus
+the three-site alpha sync map. ALSO: wide-zoom round 2 shipped in the working tree (DATA NEVER
+FADES — round 1's overlay fade erased a live low and the user caught it; edge-dissolve widening
++ persistence-only fade instead), overlay hour-pairing widened ±90→±180 min (hourly base frames
+vs 3-hourly fine products dropped the overlay at hours ≡2 mod 3), three-theme zoom series probe
+9/9, model sweep (GFS/EURO/ICON) built but NOT yet run. **Everything since `4da586aa` is
+UNCOMMITTED at save time** — suite 1287/1287 ×3 green on the working tree.
+
 ## 6. Next in queue
 
 1. **Vortex levers on a REAL invest**: when weather provides one, `probe_wind_vortex_dump.js` →
