@@ -287,3 +287,20 @@ viewport read (ring: resident 8x8, rejected 37x17, why=downgrade, zoom 5.5 — t
 beyond its coverage and its horizontal bounds (-8 / +6, bracketing Ecuador) draw the line
 mid-gesture. Fix direction + verification protocol in task #13 (band cover-fade at the rated
 geometry); same clip supply as the task #10 containment cluster.
+
+## 13. USER LIVE FINDING #2: wind grid-lattice transient on layer switch — ROOTED from console
+
+Live dev (main.70de3bef.js — current build, Netlify rebuilt from today's pushes): marine->wind
+toggle with rating ON, zoom in/out -> wind briefly renders as a coarse lattice before
+smoothing. The user's console names the mechanism exactly:
+  1. "[WebGLWind] Buffers cleared (layer switch)" — the resident GLOBAL BASE is dropped;
+  2. first post-clear commit = an 88-vector 11x8 clip rendered ALONE (+ maxWindSpeed
+     50.3->21.1 palette collapse) = the visible lattice;
+  3. only later "Committing GLOBAL base UNDER the resident fine grid (promote) (15023)".
+The BASE+OVERLAY invariant (global always resident) is violated during (re)activation:
+re-establishment is fine-first/base-later while the 15023 global sat in cache the whole time
+("Backend Wind Cache Hit"). Fix direction + full verification protocol in task #14 (commit
+cached base FIRST on activation, or retain base textures across the switch). Secondary log
+finds for the same session: 6x5=30-vector overlays passing the choke as FINE, safe-zero
+fallbacks from aborted redirects, commit churn loops (dup trace IDs) — bundled into #14.
+This is the WIND edition of the bounds-blind/ordering warm-source family (tasks #10-#11).
