@@ -142,3 +142,60 @@ async def test_non_wind_layer_refused():
 @pytest.mark.asyncio
 async def test_no_mid_item_falls_through():
     assert await _serve(mid_auth=[]) is None
+
+
+class _ViewportService:
+    def __init__(self):
+        self.ACTIVE_REVALIDATIONS = set()
+        self.scheduled = []
+
+    def is_viewport_enabled(self, model, domain, layer, flag, bbox, target_dt=None):
+        return True
+
+    async def _revalidate_fetch(self, *a, **k):
+        self.scheduled.append(a)
+
+
+class _BG:
+    def __init__(self):
+        self.tasks = []
+
+    def add_task(self, fn, *a):
+        self.tasks.append((fn, a))
+
+
+async def _serve_with_reval(*, bbox, req, domain="wind", layer="wind"):
+    store = _Store(_global_product(res=5.0))
+    vs = _ViewportService()
+    bg = _BG()
+    p = await try_serve_mid_res_tier(
+        store, model="GFS", domain=domain, layer=layer, bbox=bbox,
+        req_w=req[0], req_s=req[1], req_e=req[2], req_n=req[3],
+        mid_auth=[(_mid_item(domain=domain, layer=layer), 0)], mid_est=[],
+        current_product=None, viewport_service=vs, valid_time="2026-07-20T15:00:00Z",
+        target_dt=TARGET, background_tasks=bg,
+    )
+    return p, vs, bg
+
+
+@pytest.mark.asyncio
+async def test_wind_swr_reval_scheduled_at_close_zoom():
+    """The mid serves INSTANTLY (why zoom-out feels fast) but a close-zoom viewport must
+    SHARPEN: the same SWR reval marine uses upgrades 2-deg -> the fine dynamic product on the
+    next refetch. Without this the mid tier silently killed the wind fine lane (found by
+    probing: an 11x8-deg request served 8x7 mid cells instead of 0.5-deg)."""
+    p, vs, bg = await _serve_with_reval(bbox="-85,24,-74,32", req=(-85.0, 24.0, -74.0, 32.0))
+    assert p is not None
+    assert p.stale is True and p.staleReason == "swr_revalidation_pending"
+    assert len(vs.ACTIVE_REVALIDATIONS) == 1
+    assert len(bg.tasks) == 1
+
+
+@pytest.mark.asyncio
+async def test_wind_no_reval_at_wide_zoom():
+    """Wide spans keep the mid as the steady state — no background fine build for a 40-deg view."""
+    p, vs, bg = await _serve_with_reval(bbox="-110,5,-70,35", req=(-110.0, 5.0, -70.0, 35.0))
+    assert p is not None
+    assert not p.stale
+    assert len(vs.ACTIVE_REVALIDATIONS) == 0
+    assert len(bg.tasks) == 0

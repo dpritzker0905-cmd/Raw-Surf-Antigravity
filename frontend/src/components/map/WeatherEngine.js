@@ -741,6 +741,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     if (!mapInstance || !isWindActive) return;
 
     let timer = null;
+    let lastMoveSpan = 0;
 
     const onMoveEnd = () => {
       if (window.isScrubbingTimeline) return;
@@ -757,7 +758,14 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         };
         // Turbo-boost: check if the new bounds are contained in cache, drop pan delay to 50ms instead of 500ms
         const isCached = isContainedInWindCache(bounds, activeModel);
-        const delay = isCached ? 50 : 500;
+        // ZOOM-OUT FAST LANE (2026-07-20, user: "the zoom out is a little slower than I'd like"):
+        // an EXPANDING viewport (new span > previous) refetches after 150 ms instead of 500 —
+        // the server answers expansion requests instantly from the clipped global_mid, and the
+        // no-op commit guard + supersession token make an early duplicate harmless.
+        const moveSpan = bounds.east - bounds.west;
+        const expanding = lastMoveSpan > 0 && moveSpan > lastMoveSpan + 0.01;
+        lastMoveSpan = moveSpan;
+        const delay = isCached ? 50 : (expanding ? 150 : 500);
 
         timer = setTimeout(async () => {
           timer = null;

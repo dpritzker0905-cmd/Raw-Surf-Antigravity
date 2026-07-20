@@ -229,14 +229,23 @@ async def try_serve_mid_res_tier(
     # the REQUESTED span — a raw ~3.1-3.8° viewport now requests 5-6.1°, and the 5° cap silently
     # stopped its fine sharpen (live: z7.20→7.35 off LA flips mid↔fine = a visible color step at the
     # cap boundary). 8° ≈ the old 5° raw reach × the pad factor; a ~1k-cell background fine fetch.
-    _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
+    # Per-domain reval caps. WIND (2026-07-20): the mid serves INSTANTLY at every span — that is
+    # what makes cold starts and zoom-outs feel immediate — but without a reval the mid tier
+    # silently KILLED the wind fine lane (probed: an 11x8-deg request served 8x7 mid cells where
+    # the dynamic lane had served 0.5-deg). Close-zoom wind viewports therefore schedule the same
+    # background sharpen marine uses; wide spans keep the mid steady state (a 40-deg fine build
+    # is a heavy upstream call nobody's zoom benefits from). Side effect: the dynamic lane now
+    # runs almost only from revals — open-meteo pressure drops accordingly.
+    if dom == "wind":
+        _reval_cap = float(os.environ.get("WIND_MID_REVAL_MAX_SPAN", "20.0"))
+    else:
+        _reval_cap = float(os.environ.get("MARINE_MID_REVAL_MAX_SPAN", "8.0"))
     # QUEUE CAP (2026-07-05 OOM #3): a 17-hour grid_series scheduled 17 revals in one burst — the
     # semaphore serialized them but the queue ground the box for minutes. Cap the OUTSTANDING reval
     # queue; skipped hours sharpen on a later request (the user dwells on one hour at a time anyway).
     _reval_queue_max = int(os.environ.get("MARINE_REVAL_QUEUE_MAX", "2"))
     if (
-        dom == "marine"  # wind has its own dynamic lane + client tiers; no SWR reval from here
-        and viewport_service is not None and valid_time is not None
+        viewport_service is not None and valid_time is not None
         and span <= _reval_cap
         and len(getattr(viewport_service, "ACTIVE_REVALIDATIONS", ())) < _reval_queue_max
         and viewport_service.is_viewport_enabled(model, domain, layer, False, bbox, target_dt=target_dt)
