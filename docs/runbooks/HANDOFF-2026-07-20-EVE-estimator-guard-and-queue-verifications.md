@@ -98,3 +98,38 @@ Bonus: wind SERIES payload (the audit's unmeasured coupling) — 6 frames × 221
   FPS) — user-driven, post-deploy conditions are now met since F2 shipped.
 - **Then**: marine debt bank (ARBITER stateful harness first) → vortex second sample.
 - LOC watch: `scheduler_helpers.py` at 761/800.
+
+## 7. SESSION CONTINUATION (same day) — re-verification, ARBITER harness, bug-class sweep
+
+**Re-verification of §1-§5 from fresh angles, all green:** the dispatched fix-commit run
+29744936166 finished 11/11 jobs, zero error lines, 114 min (fastest core run of the day);
+the served 08-01 EURO estimate's `estimate_basis` anchors on TODAY's
+`euro_..._20260730T000000Z.json` (the fix-run's 362-file batch is live in serving);
+`grid.diagnostics.weights` has ZERO consumers repo-wide (the nominal-weights change cannot
+regress anything).
+
+**ARBITER stateful sequence harness SHIPPED (`86979a94`)** — the named flip gate from 07-18
+EVE-3 §8. `marineCommitArbiter.sequence.test.js`: 37,268 enumerated interleavings × both
+modes through the REAL `decideMarineCommit` (synthetic clock, per-frame self-heal, per-mode
+grace singletons) → **0 trajectory divergences, 0 bounces, engagement exact
+(120,147/120,147)**, three outage anchors (§4f interlude, bounded grace, 07-03 wedge).
+Teeth proven: resurrecting the unscoped `flavor_downgrade` fails the harness with 2,468
+divergences in 12 classes that read as the wedge. Suite 1300/1300.
+**The arbiter default flip is now gated ONLY on the live protocol** (zoomlab ladder + eye
+pass, three themes, rating ON/OFF) — one evening with a visible tab.
+
+**Marine debt bank items 2+3 AUDITED CLEAN:** mappers propagate `stale`/`staleReason` on both
+marine lanes (helpers:268/319, copernicus:72/118); `fallbackReason:null` sites are telemetry
+success-path defaults, not mappers; `windGridSeries stale:false` is a default for a field the
+series schema lacks (schema-verified live — becomes the wind-bug shape only if the backend
+adds per-frame stale); `partial_coverage` is sent but consumed by NOBODY (opportunity, not
+defect). Series cache is span-aware at all three lookup layers; coarse-base LRU is role-scoped
+coarse-only; the engine choke is the structural backstop wind lacked.
+
+**Bug-class sweep (workflow, 4 finders + 2-skeptic adversarial verify) found 3 CONFIRMED
+shape-B siblings of the estimator bug** — filed as tasks #6-#8: `normalize_and_save_loop`
+per-timestep parse outside the per-item try (shared by ALL wind/pressure/mid ingestion jobs);
+`save_products_batch_helper` per-item loop with NO try/except (an escaping error mid-batch
+loses the rest AND skips the manifest write — the orphan/phantom-entry shape);
+`run_report_calibration` bare gather without return_exceptions. Fix next session with the
+f9c5e59a rigor (per-item isolation + regression test each + full suite).
