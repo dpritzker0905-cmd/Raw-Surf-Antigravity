@@ -20,7 +20,8 @@ import WebGLWindEngine, {
   windGridIsGlobal,
   windGridModel,
   windGridsCompatible,
-  windBaseOverlayEnabled
+  windBaseOverlayEnabled,
+  windFineWideFade
 } from './WebGLWindEngine';
 import { ADVECT_FS, DRAW_VS, HEATMAP_FS } from './WebGLWindShaders';
 
@@ -43,6 +44,32 @@ describe('two-texture shader wiring', () => {
 
   it('ADVECT_FS remains theme-free (density is physical) after the two-texture edit', () => {
     expect(ADVECT_FS).not.toMatch(/u_theme/);
+  });
+
+  it('WIDE-ZOOM round 2: DATA never fades; only the vortex gate rides the fade; the edge widens', () => {
+    // Round 1 faded the whole overlay at wide zoom and ERASED a live low pressure system (the
+    // user caught it immediately). The corrected contract, pinned here:
+    //   1. fw (the velocity/colour DATA blend) carries NO wide fade in either stage;
+    //   2. ONLY the vortex gate rides u_fine_wide_fade (its persistence hoards the fixed
+    //      particle population into the box at wide zoom — the Texas depletion);
+    //   3. the rectangle reading is removed by WIDENING the edge dissolve instead.
+    for (const src of [ADVECT_FS, DRAW_VS]) {
+      expect(src).toMatch(/fw\s*=\s*smoothstep\(0\.0,\s*max\(u_fine_feather_frac,\s*0\.001\),\s*fEdge\)\s*;/);
+      expect(src).not.toMatch(/fEdge\)\s*\*\s*u_fine_wide_fade/);
+    }
+    expect(ADVECT_FS).toMatch(/vortexGate\s*=\s*smoothstep\(0\.25,\s*0\.8,\s*Rdom\)\s*\*\s*fw\s*\*\s*u_fine_wide_fade/);
+    expect(DRAW_VS).not.toMatch(/u_fine_wide_fade/); // draw stage reads pure data
+    // fade curve: full at >=45% viewport-area coverage, gone at <=15%
+    expect(windFineWideFade(0.60)).toBe(1);
+    expect(windFineWideFade(0.45)).toBe(1);
+    expect(windFineWideFade(0.30)).toBeCloseTo(0.5, 5);
+    expect(windFineWideFade(0.15)).toBe(0);
+    // edge dissolve: shipped 0.6-deg rule at full coverage, widening to 30% per side as the
+    // viewport dwarfs the box — the core keeps full truth
+    const { windFineFeatherFrac } = require('./WebGLWindEngine');
+    expect(windFineFeatherFrac(12, 1)).toBeCloseTo(0.05, 5);   // full coverage: absolute rule
+    expect(windFineFeatherFrac(12, 0)).toBeCloseTo(0.30, 5);   // vanishing coverage: wide dissolve
+    expect(windFineFeatherFrac(2, 1)).toBeCloseTo(0.18, 5);    // small pilot tile: legacy cap
   });
 
   it('HEATMAP_FS carries the complementary base-pass cutout', () => {
@@ -90,9 +117,12 @@ describe('filing predicates', () => {
     expect(windGridsCompatible(null, FINE_GRID)).toBe(false);
     expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, source: 'ICON' })).toBe(false);
     expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, hourOffset: 3 })).toBe(false);
-    // valid_time drift beyond the 3-hourly snap (90 min) refuses
-    expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, valid_time: '2026-07-19T15:00:00Z' })).toBe(false);
-    // within the snap window passes (series frames are hourly, fine products 3-hourly)
+    // valid_time drift beyond the 3-hourly step distance (180 min) refuses
+    expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, valid_time: '2026-07-19T15:30:00Z' })).toBe(false);
+    // the FULL 3-hourly step distance passes: hourly base frames sit up to 2 h from a 3-hourly
+    // fine product (hours ≡ 2 mod 3) — the ±90 min window dropped the overlay exactly there
+    // (the "low vanishes at every zoom" hour)
+    expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, valid_time: '2026-07-19T14:00:00Z' })).toBe(true);
     expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, valid_time: '2026-07-19T13:00:00Z' })).toBe(true);
     // missing valid_time on either side: hour/model checks alone decide
     expect(windGridsCompatible(GLOBAL_GRID, { ...FINE_GRID, valid_time: undefined })).toBe(true);

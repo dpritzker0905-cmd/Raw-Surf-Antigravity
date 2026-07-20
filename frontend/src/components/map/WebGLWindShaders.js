@@ -47,6 +47,10 @@ uniform vec2 u_fineBounds_min;    // fine grid bounds [west, south]
 uniform vec2 u_fineBounds_max;    // fine grid bounds [east, north]
 uniform float u_fine_enabled;
 uniform float u_fine_feather_frac; // feather band as a fraction of the fine grid span
+uniform float u_fine_wide_fade;   // wide-zoom fade [0..1] — rides ONLY the vortex persistence/
+                                  // gamma gate (its particle hoarding depletes the rest of the
+                                  // viewport at wide zoom). The DATA blend fw never fades:
+                                  // round 2's contract — fading data erased a live low.
 // R-GATED VORTEX LEVERS (2026-07-19, queue #2). Rotation legibility = angular displacement x
 // lifetime; the shipped gamma (1.15) and ink-budget lifetimes were tuned for TRANSLATION and
 // render a circulation's slow annulus as near-still sparse marks. Gate: rotation dominance
@@ -154,8 +158,10 @@ void main() {
         float dyKm = u_fine_cell_km.y;
         float curlz = (wr.y - wl.y) / (2.0 * dxKm) - (wu2.x - wd2.x) / (2.0 * dyKm);
         float Rdom = abs(curlz) * dyKm / (length(wind) + 2.0);
-        // gate scaled by fw so the levers fade with the same seam the velocity does
-        vortexGate = smoothstep(0.25, 0.8, Rdom) * fw;
+        // gate scaled by fw (seam continuity) AND the wide-zoom fade: at wide zoom the
+        // persistence lever would hoard the fixed particle population inside the box and
+        // deplete the rest of the viewport — the field carries the system's read there.
+        vortexGate = smoothstep(0.25, 0.8, Rdom) * fw * u_fine_wide_fade;
       }
     }
   }
@@ -792,6 +798,8 @@ uniform float u_cutout_enabled;
 uniform vec2 u_cutout_min;
 uniform vec2 u_cutout_max;
 uniform float u_cutout_feather;
+uniform float u_cutout_strength; // rides the wide-zoom overlay fade — a fading overlay must not
+                                 // leave a hole in the base beneath it
 // VORTEX GATE DEBUG VIEW (queue #2): __GPU_DEBUG__.mode='vortex' paints the R-gate value from
 // THIS pass's texture as red — the deterministic wiring proof that the shader-side curl/gate
 // fires where the field rotates (engine sends mode 9 on the FINE overlay pass only). Same cell
@@ -902,7 +910,7 @@ void main() {
     vec2 rel = (v_uv - u_cutout_min) / cSpan;
     if (rel.x > 0.0 && rel.x < 1.0 && rel.y > 0.0 && rel.y < 1.0) {
       float cEdge = min(min(rel.x, 1.0 - rel.x), min(rel.y, 1.0 - rel.y));
-      float cw = smoothstep(0.0, max(u_cutout_feather, 0.001), cEdge);
+      float cw = smoothstep(0.0, max(u_cutout_feather, 0.001), cEdge) * u_cutout_strength;
       alpha *= (1.0 - cw);
     }
   }

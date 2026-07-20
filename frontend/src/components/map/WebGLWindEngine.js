@@ -111,9 +111,12 @@ export function windGridsCompatible(a, b) {
   if (va && vb) {
     var ta = Date.parse(va);
     var tb = Date.parse(vb);
-    // Fine products snap to the backend's 3-hourly steps while series frames are hourly —
-    // allow that snap distance, refuse anything further apart.
-    if (isFinite(ta) && isFinite(tb) && Math.abs(ta - tb) > 90 * 60 * 1000) return false;
+    // Fine products are 3-HOURLY while base series frames are HOURLY, so a resident fine grid
+    // can legitimately sit up to 2 h from the base frame (hours ≡ 2 mod 3). The first window
+    // (±90 min) dropped the overlay exactly there — the user's "low pressure vanishes at every
+    // zoom" hour. ±180 min covers the full 3-hourly step distance; coverage-over-freshness: a
+    // 2 h-old FINE circulation beats a fresh 10° smear for reading a live system.
+    if (isFinite(ta) && isFinite(tb) && Math.abs(ta - tb) > 180 * 60 * 1000) return false;
   }
   return true;
 }
@@ -121,6 +124,30 @@ export function windGridsCompatible(a, b) {
 export function windBaseOverlayEnabled(win) {
   var w = win || (typeof window !== 'undefined' ? window : null);
   return !(w && w.__RAW_DISABLE_WIND_BASE_OVERLAY__ === true);
+}
+
+// WIDE-ZOOM HANDLING, round 2 (2026-07-19 late). Round 1 faded the whole overlay out at wide
+// zoom — and the user immediately caught the crime: "when you removed the grid, so went the low
+// pressure system." The fine box's INTERIOR held the only data resolving the circulation;
+// fading data to fix a frame artifact inverts the truth-first contract. The corrected split:
+//   - the fine DATA never fades (colour == speed at every zoom; a circulation must never vanish);
+//   - only the box EDGE dissolves — the feather band widens as the viewport dwarfs the box, so
+//     the rectangle reading disappears while the core keeps full truth;
+//   - only the vortex PERSISTENCE lever rides the fade (it hoards the fixed particle population
+//     into the box at wide zoom — the "no animations over Texas" depletion; arc-reading is a
+//     close-zoom concern).
+// Pure + exported for the gate tests. Kill: __RAW_DISABLE_WIND_WIDEFADE__ (fade pinned to 1,
+// feather stays narrow).
+export function windFineWideFade(coverage) {
+  return Math.max(0, Math.min(1, (coverage - 0.15) / 0.30));
+}
+
+// Edge-dissolve width: the shipped absolute-0.6° rule at full coverage, widening to 30% of the
+// box span per side as coverage vanishes — the boundary becomes a broad crossfade into the
+// base, the core (inner ~40%) keeps full fine data (an invest core of 3-5° fits inside).
+export function windFineFeatherFrac(fineSpan, wideFade) {
+  const base = Math.min(0.18, 0.6 / Math.max(fineSpan, 1e-6));
+  return Math.min(0.30, base + (1 - wideFade) * 0.25);
 }
 
 WebGLWindEngine.prototype.init = function(gl) {
@@ -378,6 +405,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     && this._windFine && this._windFine.texture) ? this._windFine : null;
   let fineFeatherFrac = 0.18;
   let fineCrosses = false;
+  let fineWideFade = 1.0;
   if (fine) {
     const fb = fine.bounds;
     fineCrosses = fb.west > fb.east;
@@ -390,13 +418,24 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     const meanCos = Math.max(0.2, Math.cos((fb.south + fb.north) * 0.5 * Math.PI / 180));
     this._fineTexel = [1.0 / (fCols - 1), 1.0 / (fRows - 1)];
     this._fineCellKm = [(fineSpan / (fCols - 1)) * 111.32 * meanCos, ((fb.north - fb.south) / (fRows - 1)) * 110.57];
+    // WIDE-ZOOM: coverage-driven fade for the PERSISTENCE lever + edge-dissolve widening.
+    // The fine DATA itself never fades (truth first — the round-1 mistake erased a live low).
+    if (viewportBounds && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_WIDEFADE__ === true)) {
+      const vpLng = (viewportBounds[2] < viewportBounds[0])
+        ? (viewportBounds[2] + 360 - viewportBounds[0]) : (viewportBounds[2] - viewportBounds[0]);
+      const vpLat = Math.max(0.01, viewportBounds[3] - viewportBounds[1]);
+      const cov = Math.min(1, fineSpan / Math.max(vpLng, 0.01)) * Math.min(1, (fb.north - fb.south) / vpLat);
+      fineWideFade = windFineWideFade(cov);
+      fineFeatherFrac = windFineFeatherFrac(fineSpan, fineWideFade);
+    }
   }
   if (typeof window !== 'undefined') {
     window.__WIND_COVERAGE_STATUS__ = isRegionalGrid
       ? 'partial_regional_coverage'
       : 'full_coverage';
     window.__WIND_FINE_OVERLAY__ = fine
-      ? { active: true, bounds: fine.bounds, cols: fine.windGrid?.cols, rows: fine.windGrid?.rows }
+      ? { active: true, bounds: fine.bounds, cols: fine.windGrid?.cols, rows: fine.windGrid?.rows,
+          wideFade: +fineWideFade.toFixed(2) }
       : { active: false };
   }
 
@@ -504,6 +543,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_min'), cutMinX, cutMinY);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_max'), cutMaxX, cutMaxY);
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_feather'), fineFeatherFrac);
+    // full strength — the overlay's data no longer fades, so the cutout mirrors its full edge
+    // (both share fineFeatherFrac, so the widened dissolve stays complementary)
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_strength'), 1.0);
   } else {
     gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_cutout_enabled'), 0.0);
   }
@@ -545,7 +587,9 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
     }
     // OVERLAY PASS (queue #9): the fine grid drawn over the base with its feathered edge — which
     // now dissolves into the base wash beneath it instead of into bare basemap. Same program,
-    // same mesh; only bounds/texture/decode-range/feather change.
+    // same mesh; only bounds/texture/decode-range/feather change. The pass ALWAYS draws when a
+    // fine grid is resident (round-2 lesson: its interior may hold the only data resolving a
+    // live system); at wide zoom the widened feather removes the rectangle reading instead.
     if (fine) {
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), fine.bounds.west, fine.bounds.south);
       gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), fine.bounds.east, fine.bounds.north);
@@ -618,6 +662,7 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_wind_fine'), 2);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_fine_enabled'), fine ? 1.0 : 0.0);
   if (fine) {
+    gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_fine_wide_fade'), fineWideFade);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_min'), fine.uMin[0], fine.uMin[1]);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fine_max'), fine.uMax[0], fine.uMax[1]);
     gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_fineBounds_min'), fine.bounds.west, fine.bounds.south);
