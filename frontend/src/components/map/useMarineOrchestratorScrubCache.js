@@ -6,6 +6,7 @@ import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 
 let _lastMarineScrubLogTime = 0;
@@ -129,7 +130,27 @@ export function useMarineOrchestratorScrubCache({
         );
       }
 
-      const rejectRegionalCache = isViewportZoomedOut && (isRegional || (isGridWidthRegional && !isContained));
+      // Legacy reject (verbatim): a regional / non-contained grid is rejected when zoomed OUT so a
+      // clamped tile isn't served for a wide view.
+      const legacyReject = isViewportZoomedOut && (isRegional || (isGridWidthRegional && !isContained));
+      // #10 warm-commit coverage guard: ALSO reject a width-regional grid that does NOT cover the
+      // current viewport while zoomed IN — otherwise a cached regional tile for another region paints
+      // a floating rectangle here (the render's regional cull only fires zoomed out). Mirrors
+      // regionalValidInPlace (useMarineOrchestrator.js:556). Kill: __RAW_DISABLE_MARINE_WARM_COVERAGE__.
+      const warmCoverGuardOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_WARM_COVERAGE__ === true;
+      const zoomedInNonCovering = !warmCoverGuardOff && !isViewportZoomedOut &&
+        !marineWarmCommitCovers(cachedBackendData, vpBounds);
+      const rejectRegionalCache = legacyReject || zoomedInNonCovering;
+
+      // Live A/B tripwire: count only the NEW rejections (would have committed under the legacy
+      // formula) so a floating-rectangle repro shows a clean before/after via the kill switch.
+      if (zoomedInNonCovering && !legacyReject && typeof window !== 'undefined') {
+        const t = window.__MARINE_WARM_COVER_REJECT__ || { count: 0 };
+        t.count += 1;
+        t.last = { hour: timeOffsetHours, model: curModel, layer: curLayer,
+          gridBounds: cachedBackendData.grid?.bounds || cachedBackendData.bounds || null, vpBounds };
+        window.__MARINE_WARM_COVER_REJECT__ = t;
+      }
 
       if (cachedBackendData && cachedBackendData.grid && !cachedBackendData.__staleHour && !rejectRegionalCache) {
         extractedGrid = cachedBackendData.grid;
