@@ -214,3 +214,22 @@ describe('low-height crest self-contrast (island swell-shadow dash camouflage)',
     expect(DRAW_FS).toContain('clamp(crestContrastEff, 0.0, 1.0)');
   });
 });
+
+// LAND-MASK HALO GATE (2026-07-21, user-reported): where a pixel is outside BOTH the data grid AND the
+// ocean mask, both textures GL_CLAMP_TO_EDGE their edge water value and the heatmap floods onto coastal
+// land beyond the grid. The gate blanks oceanAlpha there. Must gate on BOTH uv pairs (not one) so the
+// DECOUPLED world-grid case (outside the viewport mask but inside the world data — Istria/Susak) is kept.
+describe('land-mask halo gate (outside both data and mask bounds)', () => {
+  it('declares the u_dataMaskGate uniform', () => {
+    expect(HEATMAP_FS).toContain('uniform float u_dataMaskGate;');
+  });
+  it('blanks oceanAlpha when outside BOTH data and mask, gated by u_dataMaskGate', () => {
+    expect(HEATMAP_FS).toContain('u_dataMaskGate > 0.5');
+    expect(HEATMAP_FS).toMatch(/_outData\s*&&\s*_outMask/);
+    expect(HEATMAP_FS).toContain('oceanAlpha = 0.0');
+  });
+  it('tests the DATA uv (tex_u/tex_v) AND the MASK uv (mask_u/mask_v) — never one alone', () => {
+    expect(HEATMAP_FS).toContain('tex_u <= 0.0 || tex_u >= 1.0');
+    expect(HEATMAP_FS).toContain('mask_u <= 0.0 || mask_u >= 1.0');
+  });
+});

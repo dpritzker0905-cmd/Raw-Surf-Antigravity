@@ -75,6 +75,7 @@ uniform highp vec2 u_overlayBounds_min; // [west, south] of the overlay — pixe
 uniform highp vec2 u_overlayBounds_max; // [east, north]
 uniform float u_overlayMaskEnabled;     // 1.0 when a painted overlay applies to the resident grid (wide grid, or regional at deep zoom)
 uniform float u_overlayReplace;         // 1.0 = overlay REPLACES the base sample (wide grid, base too coarse); 0.0 = min() combine (regional base already truthful; overlay only removes wash)
+uniform float u_dataMaskGate;           // 1.0 = blank the heatmap where the pixel is outside BOTH the data grid AND the mask (no data — kills the land-mask halo where both textures clamp-to-edge water). Set from __RAW_DISABLE_HEATMAP_BOUNDS_GATE__.
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -325,6 +326,18 @@ void main() {
   vec2 mask_uv = vec2(mask_u, mask_v);
 
   float oceanAlpha = texture2D(u_oceanMaskTexture, mask_uv).r;
+  // LAND-MASK HALO FIX (2026-07-21): outside BOTH the data grid AND the ocean mask, both textures
+  // GL_CLAMP_TO_EDGE their edge value (edge WATER + edge wave) so the heatmap floods onto land beyond
+  // the grid — the land-mask halo the user reported. There is no data there: blank it. Global grids/
+  // masks wrap via mod() so their u never leaves [0,1) => this never fires for them (they cover all).
+  // The overlay block below still overrides inside its viewport-truth bounds. The DECOUPLED case
+  // (outside the viewport mask but INSIDE the world data grid — the Istria/Susak regression) is
+  // preserved: outside-MASK but inside-DATA makes the AND false, so the base edge-clamp stands.
+  if (u_dataMaskGate > 0.5) {
+    bool _outData = (tex_u <= 0.0 || tex_u >= 1.0 || tex_v <= 0.0 || tex_v >= 1.0);
+    bool _outMask = (mask_u <= 0.0 || mask_u >= 1.0 || mask_v <= 0.0 || mask_v >= 1.0);
+    if (_outData && _outMask) { oceanAlpha = 0.0; }
+  }
   // VIEWPORT-TRUTH OVERLAY (2026-07-04): while the WORLD grid is resident its 1024×512 mask
   // (~39 km/texel) cannot carve islands/harbours — a second, viewport-scoped basemap-truth mask
   // overrides the base ONLY where this pixel lies inside the overlay's bounds. Outside (stale

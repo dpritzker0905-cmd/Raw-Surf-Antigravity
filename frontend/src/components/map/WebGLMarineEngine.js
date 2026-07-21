@@ -1834,6 +1834,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
     gl.useProgram(this.heatmapProgram);
     gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+    gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_dataMaskGate'),
+      (typeof window === 'undefined' || window.__RAW_DISABLE_HEATMAP_BOUNDS_GATE__ !== true) ? 1.0 : 0.0);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
     gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
@@ -3420,6 +3422,8 @@ WebGLMarineEngine.prototype._drawCoarseBasePass = function(gl, mat4, themeVal, t
 
   gl.useProgram(this.heatmapProgram);
   gl.uniformMatrix4fv(gl.getUniformLocation(this.heatmapProgram, 'u_matrix'), false, mat4);
+  gl.uniform1f(gl.getUniformLocation(this.heatmapProgram, 'u_dataMaskGate'),
+    (typeof window === 'undefined' || window.__RAW_DISABLE_HEATMAP_BOUNDS_GATE__ !== true) ? 1.0 : 0.0);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_min'), bb.west, bb.south);
   gl.uniform2f(gl.getUniformLocation(this.heatmapProgram, 'u_dataBounds_max'), bb.east, bb.north);
   // The base binds its OWN world mask (encoded with the base grid), so its mask bounds = its grid.
