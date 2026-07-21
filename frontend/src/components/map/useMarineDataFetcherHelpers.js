@@ -5,6 +5,7 @@
 // estimator + capabilities; post-240 EURO products stay model=EURO, provider=estimated.)
 import { getMarineSeriesFrame } from './marineGridSeries';
 import { MARINE_ZOOMED_OUT_MAX_ZOOM } from './marineZoomThresholds';
+import { marineWarmCommitCovers } from './marineWarmCoverage';
 import { shouldShortCircuitSameProductCommit } from './marineCommitShortCircuit';
 import { recordMarineEvent } from './marineForensics';
 
@@ -281,13 +282,38 @@ export function handleCooldownFallback({
   logPipelineEventHelper('rate_limit_429', { model, layer, hour: timeOffset });
 
   let cachedData = null;
+  // #10 warm-commit coverage guard: getModelSafeMarine's per_model_hour_cache_nearest lane
+  // (marineController.js:456-471) returns a nearest-HOUR grid with NO containment check (flagged
+  // __staleHour). Unlike the scrub cache, this cooldown path commits any cachedData with vectors
+  // (no __staleHour / coverage gate), so a non-covering nearest-hour tile for another region could
+  // paint a floating rectangle during the 429 cooldown. Reuse a grid only if it COVERS the viewport
+  // while zoomed IN (zoomed-out reuse unchanged; covering grids reuse as before, incl. __staleHour).
+  // Kill: __RAW_DISABLE_MARINE_WARM_COVERAGE__.
+  let warmCovers = true;
   try {
     const b = mapInstance.getBounds();
     const vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
     cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds);
+    const guardOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_WARM_COVERAGE__ === true;
+    if (!guardOff && cachedData) {
+      const zoom = mapInstance.getZoom();
+      const vpW = (vpBounds.east < vpBounds.west) ? (vpBounds.east + 360) - vpBounds.west : vpBounds.east - vpBounds.west;
+      const vpH = Math.abs(vpBounds.north - vpBounds.south);
+      const zoomedOut = (zoom <= MARINE_ZOOMED_OUT_MAX_ZOOM) || (vpW > 15.0 || vpH > 15.0);
+      if (!zoomedOut && !marineWarmCommitCovers(cachedData, vpBounds)) {
+        warmCovers = false;
+        if (typeof window !== 'undefined') {
+          const t = window.__MARINE_WARM_COVER_REJECT__ || { count: 0 };
+          t.count += 1;
+          t.last = { source: 'cooldown_fallback', hour: timeOffset, model, layer,
+            gridBounds: cachedData.grid?.bounds || cachedData.bounds || null, vpBounds };
+          window.__MARINE_WARM_COVER_REJECT__ = t;
+        }
+      }
+    }
   } catch (e) { console.warn('[Cooldown Fallback] cache check failed:', e.message); }
 
-  if (cachedData?.grid?.vectors?.length > 0) {
+  if (cachedData?.grid?.vectors?.length > 0 && warmCovers) {
     console.log(`[Cooldown Fallback] Reusing valid cached grid for ${model} layer=${layer} hour=+${timeOffset}h`);
     const sig = _marineDataSignature(cachedData, layer);
     if (sig && sig !== lastCommittedSigRef.current) {
