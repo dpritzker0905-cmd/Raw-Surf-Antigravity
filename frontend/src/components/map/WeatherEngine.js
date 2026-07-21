@@ -378,9 +378,17 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       const _baseLaneWide = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_LANE_WIDE__ !== true;
       if (needGlobalBase && ((clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')
           || (_baseLaneWide && _vpSpanB < 350.0))) {
+        // LANE TELEMETRY (2026-07-20 #14 forensics): splits "lane not firing" from "fetch
+        // failing" from "arrival guarded away" — the model-switch-back leg's world fetch
+        // vanished without a trace and this counter set is the instrument-to-catch.
+        const _bl = (typeof window !== 'undefined')
+          ? (window.__WIND_BASE_LANE__ = window.__WIND_BASE_LANE__
+              || { fires: 0, committed: 0, skippedResident: 0, emptyRetry: 0, cancelledArrival: 0, error: 0 })
+          : null;
+        if (_bl) { _bl.fires += 1; _bl.lastFireAt = Date.now(); }
         fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
           .then((gd) => {
-            if (cancelled) return;
+            if (cancelled) { if (_bl) _bl.cancelledArrival += 1; return; }
             const lc2 = lastCommittedWindRef.current;
             const lc2Span = lc2 && lc2.bounds
               ? (lc2.bounds.west > lc2.bounds.east
@@ -388,13 +396,15 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
               : 0;
             // commit while the screen is empty (legacy) OR to slide the base under a resident
             // fine grid (two-texture promote); never re-commit when a global is already up.
-            if (lc2 && (!twoTexBase || lc2Span >= 350.0)) return;
+            if (lc2 && (!twoTexBase || lc2Span >= 350.0)) { if (_bl) _bl.skippedResident += 1; return; }
             if (gd?.vectors?.length > 0 && gd.renderable !== false) {
+              if (_bl) _bl.committed += 1;
               console.log(`[CACHE] [WeatherEngine] Committing GLOBAL base ${lc2 ? 'UNDER the resident fine grid (promote)' : 'while the fine product loads'} (${gd.vectors.length} vectors)`);
               windRevision.current += 1;
               commitWindData(gd);
               lastCommittedWindRef.current = { bounds: gd.bounds || null, stale: !!gd.stale };
             } else if (baseRetryCount < 5) {
+              if (_bl) { _bl.emptyRetry += 1; _bl.lastEmpty = { n: gd?.vectors?.length || 0, renderable: gd?.renderable }; }
               // BOUNDED RETRY (2026-07-19): the base lane was ONE-SHOT — a transient 429/empty on
               // this single fetch left the session without a global base until the 5-min refresh
               // (the two-texture engine dormant the whole time). Re-drive through attemptFetch
@@ -405,7 +415,8 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
               retryTimer = setTimeout(attemptFetch, baseRetryCount === 1 ? 3000 : 8000);
             }
           })
-          .catch(() => {
+          .catch((err) => {
+            if (_bl) { _bl.error += 1; _bl.lastError = (err && err.message) || String(err); }
             if (cancelled) return;
             if (baseRetryCount < 5) {
               baseRetryCount += 1;
