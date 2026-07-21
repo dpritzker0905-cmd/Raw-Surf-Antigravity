@@ -57,19 +57,36 @@ Clean guard-ON vs guard-OFF reproduction on localhost:3009 (toggle waves OFF →
   engine bounds NEVER non-covering. No rectangle.
 `marineRefeedCovers` validated live. Item closed.
 
-## 4. THE CLUSTER NOW — what's left and why
-Live-reachable floating-rectangle vectors are covered: #11 refeed (fixed+live-verified), Source 1 scrub-
-cache commit-point (fixed+3-way), Source 2 cooldown (fixed+tested). `getModelSafeMarine` is containment-
-gated on all lanes but nearest-hour (now caught at the two commit points that consume it).
-- **Source 3 (`getMarineSeriesFrame`)**: already heavily guarded (bboxContains vs entry.bounds :678/:717
-  + global-width guards). The mapped gap (entry-aggregate vs per-frame bounds) is largely theoretical —
-  frames within an entry share the entry bbox. Source 1's commit-point guard already catches any non-
-  covering series frame in the scrub path. VERIFY the frame.grid.bounds≠entry.bounds case actually occurs
-  before investing. Other consumer to check: `useMarineScrubSettle` (commits series frames; has its own
-  detectClamp/gridCoversViewport at :8 — likely already coverage-safe).
-- **Source 5 (non-backend remap lanes)**: reachable only when backend flags OFF ⇒ dead in prod. Skip.
-- **#13 Ecuador**: a rated-clip-edge during the stash interlude (handoff EVE §12, `968f428b`) — a DIFFERENT
-  (rating/stash) mechanism, "not a flip blocker." Distinct from the coverage cluster.
+## 3b. SHIPPED — #10 Source 3 (`ef72136e`, pushed): getMarineSeriesFrame served-frame coverage
+Looked theoretical (entry.bounds vs per-frame) until an **empirical live grid_series probe overturned it**:
+EURO across the 240h native→estimated boundary returns HETEROGENEOUS-bounds frames — h228 `5x5
+[-84,24,-76,32]` WIDE, h240+ `13x17 [-82,26,-79,30]` NARROW. entry.bounds = the FIRST frame (wide,
+:457-467), so the entry-bounds containment (:678/:717) passes for a viewport the served NARROW frame
+doesn't cover → clamped sub-rectangle. series_sharpen has its own frameCovers gate; recovery_2b/series_settle
+commit with NONE. Fix at the choke: reject a served frame whose OWN bounds don't cover the request
+(marineWarmCommitCovers). Kill `__RAW_DISABLE_MARINE_SERIES_FRAME_COVER__`; tripwire
+`__MARINE_SERIES_DIAG__.coverMisses`. Tested 4×: empirical probe · 5 units (kill-switch leg reproduces the
+bug) · suite 1340 · live EURO 52 series hits/0 false rejects (live suppression not reachable — app data
+horizon caps EURO scrub ~168h before the boundary).
+
+## 4. THE CLUSTER IS COMPLETE — every marine warm-commit path is covering-safe
+A 6-path code-only audit workflow + Sources 1/2/3 + #11 together close the non-covering-commit (floating-
+rectangle) class:
+- Source 1 scrub-cache commit-point ✓ · Source 2 cooldown ✓ · Source 3 series choke ✓ · #11 refeed
+  (live-verified) ✓.
+- **Core.js:687 recoveryGrid** — global-width + empty/non-renderable placeholder (audit: cannot paint).
+- **useMarineOrchestrator.js:450 cachedNow** — local coverage gate (gridWidth≥340 OR contained&&!zoomedOut);
+  :594 = regionalValidInPlace (both audit-safe).
+- **Source 5 lanes A/B** (useMarineOrchestrator.js:628 / scrubCache.js:263) — audit-confirmed UNREACHABLE
+  in prod: they live in the `!isBackendActive` else-branch, and GFS/ICON/EURO backend flags all default
+  true → isBackendActive always true. Skip.
+- Kill family: `__RAW_DISABLE_MARINE_WARM_COVERAGE__` (master) + per-source switches.
+- **#13 Ecuador**: a DIFFERENT (rating/stash) mechanism (handoff EVE §12, `968f428b`) — distinct from this
+  coverage cluster, unaffected.
+
+**LESSON (recorded):** the code-only audit wrongly cleared Source 3 as "covers-by-construction" — it assumed
+getMarineSeriesFrame checks the SERVED frame's bounds; it checks entry.bounds. The EMPIRICAL backend probe
+caught the heterogeneity pure code-reading missed. Forensics = probe the real data, not only read the code.
 
 ## 5. STILL OPEN (need the user)
 - **Issue B** (future-scrub cleared-surroundings): ROOTED, FIX DEFERRED — coverage-vs-freshness product
