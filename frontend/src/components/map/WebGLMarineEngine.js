@@ -384,6 +384,41 @@ export function __resetRatingGraceForTests() {
   _ratingGraceState.key = null; _ratingGraceState.startedAt = 0; _ratingGraceState.expired = false;
 }
 
+// === NULL-ENCODE RESIDENT GUARD (pure; exported for tests) ===
+// 2026-07-21 (SDF handoff §9, verified defect): encodeMarineTexture returns null for a DEGENERATE grid
+// (no vectors / cols<2 / rows<2 — WebGLMarineTextureEncoder.js ~87). setWaveData's unconditional
+// `this._waveData = newWaveData` then DISCARDS a valid resident, and renderHeatmapAndParticles returns
+// early on `!this._waveData` (~line 995) → the heatmap goes BLANK, the resident GPU texture is stranded,
+// and the commit path dup-skips the same signature → NO re-drive (the user-reported "heatmap clears"
+// class). A degenerate grid is never a legitimate CLEAR — real clears go through clearBuffers()/dispose().
+// So: when the encode failed BUT a real renderable resident is held, DROP the degenerate commit and keep
+// the resident. Returns true ⇒ setWaveData early-returns (keeping the resident intact); false ⇒ legacy
+// behaviour (cold start with nothing to preserve keeps the harmless null-assign). Kill switch:
+// window.__RAW_DISABLE_NULL_ENCODE_RESIDENT_GUARD__ = true.
+export function shouldKeepResidentOnNullEncode(resident, incoming, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (w && w.__RAW_DISABLE_NULL_ENCODE_RESIDENT_GUARD__ === true) return false;
+  const rg = resident && resident.waveGrid;
+  if (!rg) return false;
+  // Only hold a resident that would actually PAINT — a non-renderable resident is no better than blank,
+  // so let the legacy path run (nothing worth protecting). Mirrors the encoder's renderability floor.
+  if (!(rg.vectors && rg.vectors.length && rg.cols >= 2 && rg.rows >= 2)) return false;
+  // TRUTH GUARD (defense-in-depth): only hold across the SAME layer + SAME model. A degenerate grid for
+  // a DIFFERENT layer/model must never silently keep the old selection's heatmap MISLABELED under the new
+  // one (the documented ICON swell_2→swell_1 mislabel class) — blanking is safer than lying. Today no
+  // legitimate cross-layer/model no-data path reaches here as a vectors-present degenerate grid
+  // (WebGLMarineLayer drops mismatches first), so this only bites a future refeed/self-heal path. A
+  // DIFFERENT hour is still held (a scrub that came back degenerate keeps the last-good frame — a stale
+  // hour is a transient, not a truth violation; the real hour re-commits when a valid grid lands).
+  if (incoming) {
+    if ((incoming.__componentLayer || 'waves') !== (rg.__componentLayer || 'waves')) return false;
+    const inModel = incoming.__sourceModel || null;
+    const resModel = rg.__sourceModel || null;
+    if (inModel && resModel && inModel !== resModel) return false;
+  }
+  return true;
+}
+
 // === COARSE-BAND CREST CONTROLS (pure; exported for tests) ===
 // How crests behave on a magnified coarse-global grid in the vortex band (z3.5–7). The 2026-07-01 fix
 // SUPPRESSED all crests there (dirCoherenceMin=2 → shader discards everything), which killed the vortex but
@@ -802,6 +837,37 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
     console.error('[WebGLMarineEngine] encodeMarineTexture threw an error:', err);
     this.clearBuffers(gl);
     throw err;
+  }
+
+  // NULL-ENCODE RESIDENT GUARD (see shouldKeepResidentOnNullEncode): a degenerate grid encodes to null.
+  // Assigning that null unconditionally below would blank a valid resident with no re-drive. Drop the
+  // degenerate commit and keep the resident intact — an EARLY RETURN (not `newWaveData || oldWaveData`)
+  // is required because the teardown at ~885 frees the old NON-resident textures a kept _waveData would
+  // still reference (use-after-free), and the tail (~935) records a phantom 'commit'/truth-upload.
+  if (!newWaveData && shouldKeepResidentOnNullEncode(this._waveData, waveGrid)) {
+    const _res = this._waveData.waveGrid;
+    // Instrument the incoming cols/rows/vectors so this counter is a live FALSIFIABILITY probe: this
+    // null-encode path is a latent gap (setWaveData's top empty-vector guard makes it unreachable from
+    // known callers today). If count never moves in prod, the user-reported zoom-clear blank is elsewhere.
+    const _rejVec = waveGrid.vectors ? waveGrid.vectors.length : 0;
+    const _rejDims = `${waveGrid.cols || 0}x${waveGrid.rows || 0}`;
+    recordMarineEvent('null_encode_kept_resident', {
+      residentDims: _res ? `${_res.cols}x${_res.rows}` : null,
+      rejectedDims: _rejDims, rejectedVectors: _rejVec,
+      layer: waveGrid.__componentLayer || 'waves',
+      model: waveGrid.__sourceModel || null,
+      hour: waveGrid.hourOffset || 0,
+    });
+    if (typeof window !== 'undefined') {
+      const g = window.__MARINE_NULL_ENCODE_GUARD__ || (window.__MARINE_NULL_ENCODE_GUARD__ = { count: 0 });
+      g.count++;
+      g.last = { rejectedDims: _rejDims, rejectedVectors: _rejVec, layer: waveGrid.__componentLayer || 'waves',
+        model: waveGrid.__sourceModel || null, hour: waveGrid.hourOffset || 0, ts: Date.now() };
+      if (window.__MARINE_VERBOSE__ === true) {
+        console.log(`[WebGLMarineEngine] Null-encode guard: kept resident ${_res ? `${_res.cols}x${_res.rows}` : '?'}, dropped degenerate ${_rejDims} (${_rejVec} vec) ${waveGrid.__componentLayer || 'waves'} commit.`);
+      }
+    }
+    return;
   }
 
   if (newWaveData) {
