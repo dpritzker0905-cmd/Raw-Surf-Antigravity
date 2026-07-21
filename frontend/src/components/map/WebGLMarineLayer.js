@@ -18,7 +18,7 @@ import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMari
 import { recordResolutionSample } from './marineResolutionWatch';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
 import { desiredMaskRes, HIRES_MASK_EXIT_ZOOM } from './maskSmoothing';
-import { createCustomLayer, LAYER_ID } from './WebGLMarineCustomLayer';
+import { createCustomLayer, LAYER_ID, marineRefeedCovers, marineViewportBounds } from './WebGLMarineCustomLayer';
 
 // createCustomLayer and getLongitudinalOverlap helper functions are imported from WebGLMarineCustomLayer.js
 
@@ -1183,7 +1183,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
     if (!engine || !gl || !active || engine._waveData) return;
     const cur = dataRef.current;
-    if (cur && cur.vectors?.length > 0 && cur.__renderable !== false) {
+    // #11 COVERAGE GUARD: only re-feed the retained frame if it still covers the current viewport
+    // (or is global). A regional grid from a PANNED-AWAY viewport would paint a floating rectangle.
+    if (cur && cur.vectors?.length > 0 && cur.__renderable !== false
+        && marineRefeedCovers(cur, marineViewportBounds(mapInstance))) {
       safeUploadWaveData('reactivate_refeed', gl, cur, landGeoJSONRef.current);
     }
   }, [data, active, revision]);

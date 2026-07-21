@@ -26,6 +26,35 @@ function getLongitudinalOverlap(w1, e1, w2, e2) {
   return overlap;
 }
 
+// #11 RE-FEED COVERAGE GUARD (2026-07-21). The retained frame is the grid last on screen. After a
+// toggle-off → pan → toggle-on (past the hold TTL), re-feeding a REGIONAL grid that no longer covers
+// the current viewport paints a floating rectangle at the OLD location — the render's regional cull
+// only fires when zoomed OUT, so a partial overlap at a zoomed-in view still draws. Only re-feed a
+// grid that COVERS the viewport, or a GLOBAL grid (covers everything). Pure + exported for the gate
+// test. Fail-open (returns true) on any missing input so it can never suppress a legitimate feed.
+// Kill: __RAW_DISABLE_MARINE_REFEED_COVER_GUARD__ -> legacy always-feed.
+export function marineRefeedCovers(grid, vb, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (w && w.__RAW_DISABLE_MARINE_REFEED_COVER_GUARD__ === true) return true;
+  if (!grid) return false;
+  const gb = grid.grid?.bounds || grid.bounds;
+  if (!gb) return true; // no bounds to test -> legacy behaviour
+  const cs = grid.coverage_scope || grid.coverageMode || grid.grid?.coverage_scope || grid.grid?.coverageMode;
+  const span = gb.west > gb.east ? (gb.east + 360) - gb.west : gb.east - gb.west;
+  if (span >= 340 || cs === 'global' || cs === 'global_coarse') return true; // global covers everything
+  if (!vb) return true; // no viewport -> fail-open
+  const eps = 0.05;
+  return gb.west <= vb.west + eps && gb.east >= vb.east - eps && gb.south <= vb.south + eps && gb.north >= vb.north - eps;
+}
+
+// Viewport bounds ({west,south,east,north}) from a maplibre map, or null.
+export function marineViewportBounds(map) {
+  try {
+    const b = map && map.getBounds && map.getBounds();
+    return b ? { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() } : null;
+  } catch (e) { return null; }
+}
+
 export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef, activeModelRef) {
   let errorCount = 0;
   return {
@@ -40,7 +69,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
       try {
         engine.init(_gl);
         registerMarineEngine(engine, _gl);
-        if (dataRef.current?.vectors?.length) {
+        if (dataRef.current?.vectors?.length && marineRefeedCovers(dataRef.current, marineViewportBounds(mapRef?.current))) {
           console.log(`[WebGLMarine] Binding initial data onAdd:`, dataRef.current.vectors.length, 'vectors (forecast-authoritative)');
           if (safeUploadRef?.current) {
             safeUploadRef.current('initial_onAdd', _gl, dataRef.current, landGeoJSONRef.current);
