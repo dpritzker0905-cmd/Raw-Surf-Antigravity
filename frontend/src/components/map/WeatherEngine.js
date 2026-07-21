@@ -973,6 +973,16 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
 
           try {
             const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
+            // STALE-MODEL GUARD (2026-07-21, hunt defect #2): this viewport-refetch passes NO abort
+            // signal, so a model switch (e.g. GFS->EURO) mid-flight cannot cancel it. Without a parity
+            // check the PREVIOUS model's covering grid commits below and renders AS the newly-selected
+            // model until the new model lands (seconds on the 1-CPU backend). Mirror the scrub/base-lane
+            // guards (:884/:253). Kill: __RAW_DISABLE_WIND_VIEWPORT_MODEL_GUARD__.
+            if (activeModelRef.current !== activeModel
+                && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_MODEL_GUARD__ === true)) {
+              console.log(`[WeatherEngine] Discarding stale-model viewport wind fetch (req ${activeModel}; now ${activeModelRef.current}).`);
+              return;
+            }
             // Renderable guard (2026-07-10, the "ICON wind heatmap cleared" report): the 1-vector
             // safe-zero fallback PASSED the old vectors.length>0 check and committed here ×5 on
             // moveend refetches of a failed far hour — the layer's renderable===false branch then
