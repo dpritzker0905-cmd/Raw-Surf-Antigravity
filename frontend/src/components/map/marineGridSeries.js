@@ -30,6 +30,16 @@ import { marineWarmCommitCovers } from './marineWarmCoverage';
 const _seriesCache = new Map();
 const _inFlight = new Map();
 const _idleTimers = new Set(); // pending adjacent-page prefetch timers (cleared on reset)
+
+// Arm a self-cleaning idle timer: track it for _resetMarineSeriesForTest, but REMOVE its id from the
+// Set once it fires so the Set doesn't accumulate fired ids across a long session (leak: the raw
+// `setTimeout(...); _idleTimers.add(t)` sites at coarse-reval / warming / fail-retry never deleted the
+// fired id — the Set only shrank on reset). Mirrors scheduleIdlePrefetch's self-delete. Behaviour-neutral.
+function armIdleTimer(fn, delay) {
+  const t = setTimeout(() => { _idleTimers.delete(t); fn(); }, delay);
+  _idleTimers.add(t);
+  return t;
+}
 const SERIES_TTL_MS = 5 * 60 * 1000; // mirror backend upstream cache TTL
 const SERIES_MAX = 48;              // bounded; heavy-class targets hold up to 8 SMALL pages each
                                     // (16 frames vs 48), so more entries ≈ same total memory
@@ -81,8 +91,7 @@ function scheduleFailRetry(model, layer, bounds, page, signal, key, reason) {
     }
   }
   if (n > SERIES_FAIL_RETRY_MAX) return;
-  const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n));
-  _idleTimers.add(t);
+  armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(n));
 }
 
 // Concurrency gate for grid_series fetches. The backend is 1-CPU: firing N series requests at
@@ -399,7 +408,12 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
   // instantly via the caller-signal listener when the viewport supersedes.
   const localController = new AbortController();
   let timeoutId = null;
-  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
+  // Named handler so the finally can REMOVE it: the caller signal is long-lived (one AbortController per
+  // model+layer+map, reused across every moveend/scrub for the whole session), so an anonymous listener
+  // left registered here accumulated monotonically over a pan/scrub session (leak). Removing it once the
+  // fetch settles is behaviour-neutral (a post-settle abort has nothing left to cancel).
+  const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
+  if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
 
   const p = (async () => {
     // Wait for a concurrency slot before hitting the 1-CPU backend. If the signal aborts while
@@ -435,8 +449,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
                 model, layer, page, warming: true, warmingRetries: prevWarm + 1,
               });
             }
-            const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1));
-            _idleTimers.add(t);
+            armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal, true); }, coarseRevalDelayMs(prevWarm + 1));
           }
         }
         return;
@@ -475,8 +488,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       // Self-schedule a revalidation re-fetch while still coarse (the backend is building the regional
       // grid in the background). Bounded by COARSE_REVAL_MAX. Aborts with the active signal.
       if (isCoarsePreview && revalCount < COARSE_REVAL_MAX && !localController.signal.aborted) {
-        const t = setTimeout(() => { loadSeriesPage(model, layer, bounds, page, signal); }, coarseRevalDelayMs(revalCount));
-        _idleTimers.add(t);
+        armIdleTimer(() => { loadSeriesPage(model, layer, bounds, page, signal); }, coarseRevalDelayMs(revalCount));
       } else if (!isCoarsePreview && typeof window !== 'undefined') {
         // A REGIONAL frame just landed. Notify so a held coarse-global / clamped grid is sharpened
         // IMMEDIATELY (event-driven) instead of waiting on the ~3s render backstop's polling timer.
@@ -505,6 +517,7 @@ async function loadSeriesPage(model, layer, bounds, page, signal, force = false)
       releaseSeriesSlot(); // hand the slot to the next queued load
       clearTimeout(timeoutId);
       _inFlight.delete(key);
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
   _inFlight.set(key, p);
@@ -542,7 +555,8 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
     + `&hours=${h}`
     + (surfFlavor ? '&surf=1' : '');
   const localController = new AbortController();
-  if (signal) { try { signal.addEventListener('abort', () => localController.abort()); } catch (e) { /* ignore */ } }
+  const onCallerAbort = () => { try { localController.abort(); } catch (e) { /* ignore */ } };
+  if (signal) { try { signal.addEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
   const timeoutId = setTimeout(() => { try { localController.abort(); } catch (e) { /* ignore */ } }, 15000);
   const p = (async () => {
     try {
@@ -572,6 +586,7 @@ async function loadSeriesHour0(model, layer, bounds, hourOffset, signal) {
     } catch (e) { /* silent — full page is the safety net */ } finally {
       clearTimeout(timeoutId);
       _inFlight.delete(h0key);
+      if (signal) { try { signal.removeEventListener('abort', onCallerAbort); } catch (e) { /* ignore */ } }
     }
   })();
   _inFlight.set(h0key, p);
