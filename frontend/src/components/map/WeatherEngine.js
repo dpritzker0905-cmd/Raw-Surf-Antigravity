@@ -222,6 +222,48 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     setWindData(data);
   };
 
+  // SCRUB BASE BACKFILL (2026-07-21, user-reported "half heatmap clear" on a far scrub). The
+  // base-lane world fetch lives in the PRIMARY fetch effect (deps exclude timeOffsetHours) so it
+  // NEVER fires on a forecast scrub — the scrub effect commits only the new-hour CLIP from the
+  // series cache, leaving the engine clip-primary (no world base). While the clip covers the
+  // viewport it looks fine, but any pan/zoom-out shows the base-less region (smeared clamp /
+  // basemap-through) until a moveend recovers it (measured: persists indefinitely with no move).
+  // Mirror the base lane: when a scrub commits a NON-covering clip, fetch the world grid for THAT
+  // hour and commit it — the engine promotes it under the resident clip, restoring base+overlay.
+  // Kill: __RAW_DISABLE_WIND_SCRUB_BASE_LANE__. Telemetry: __WIND_SCRUB_BASE_LANE__.
+  const scrubBaseBackfillRef = useRef(null); // last model|hour a backfill fired for (fetchWindData caches repeats)
+  const backfillScrubWorldBase = (committed, hourOffset) => {
+    try {
+      if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_SCRUB_BASE_LANE__ === true) return;
+      if (!getBackendWindFlag() || !mapInstance) return;
+      const b = committed && committed.bounds;
+      const span = b ? (b.west > b.east ? (b.east + 360) - b.west : b.east - b.west) : 0;
+      if (span >= 350.0) return; // the scrub already committed a world base — nothing to backfill
+      const model = committed.source || activeModel;
+      const key = `${model}|${hourOffset}`;
+      if (scrubBaseBackfillRef.current === key) return; // one backfill per model|hour
+      scrubBaseBackfillRef.current = key;
+      const _bl = (typeof window !== 'undefined')
+        ? (window.__WIND_SCRUB_BASE_LANE__ = window.__WIND_SCRUB_BASE_LANE__ || { fires: 0, committed: 0, staleModel: 0, empty: 0, error: 0 })
+        : null;
+      if (_bl) { _bl.fires += 1; _bl.lastFireAt = Date.now(); }
+      fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, hourOffset, false, forecastDays, model)
+        .then((gd) => {
+          // Request-intent parity: a scrub/model-switch during the fetch invalidates this backfill.
+          if (timeOffsetRef.current !== hourOffset || activeModelRef.current !== model) { if (_bl) _bl.staleModel += 1; return; }
+          const gb = gd && gd.bounds;
+          const gspan = gb ? (gb.west > gb.east ? (gb.east + 360) - gb.west : gb.east - gb.west) : 0;
+          if (gd && gd.vectors?.length > 0 && gd.renderable !== false && gspan >= 350.0) {
+            if (_bl) _bl.committed += 1;
+            windRevision.current += 1;
+            commitWindData(gd); // engine promotes the world UNDER the resident clip
+            lastCommittedWindRef.current = { bounds: gd.bounds || null, stale: !!gd.stale };
+          } else if (_bl) { _bl.empty += 1; }
+        })
+        .catch((err) => { if (_bl) { _bl.error += 1; _bl.lastError = (err && err.message) || String(err); } });
+    } catch (e) { /* backfill is best-effort — never break the scrub commit */ }
+  };
+
   const isWindActive = useMemo(
     () => activeLayers.includes('wind'),
      
@@ -847,6 +889,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             console.log(`[SCRUB] [WeatherEngine] Fetch wind grid success for hour +${timeOffsetHours}h: ${data.vectors.length} vectors`);
             windRevision.current += 1;
             commitWindData(data);
+            backfillScrubWorldBase(data, timeOffsetHours); // world base for the scrubbed hour (no clip-primary)
           } else if (typeof window !== 'undefined' && window.__RAW_WIND_HOLD_LAST_FRAME_DISABLED__ === true) {
             // Kill switch: restore the old clear-on-no-coverage behavior exactly.
             console.log(`[WeatherEngine] No wind forecast coverage at offset +${timeOffsetHours}h. Clearing visual.`);
@@ -874,6 +917,7 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
         }
         windRevision.current += 1;
         commitWindData(targetData);
+        backfillScrubWorldBase(targetData, timeOffsetHours); // world base for the scrubbed hour (no clip-primary)
       }
     }, 150);
     return () => clearTimeout(t);
