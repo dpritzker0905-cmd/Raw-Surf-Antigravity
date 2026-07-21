@@ -175,6 +175,18 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     };
   }, [marineData, activeMarineLayer, activeModel]);
 
+  // Effective hour for the conformed frame: the COMMITTED grid's own hour when present, else the slider
+  // position. Hoisted so the memo below depends on the VALUE actually used (below), not on timeOffsetHours
+  // per se — the grid carries its own hourOffset on every committed frame, so a bare timeOffsetHours dep
+  // minted a fresh marineWindData identity on EVERY scrub step even when the frame was RETAINED (unchanged),
+  // re-running the FCE (useSimulationField) + engine reconcile for nothing (scrubPerfProbe 2026-07-21:
+  // marineWindData churned 18/14 steps). Output is byte-identical (hourOffset resolves the same); only the
+  // memo's recompute frequency drops. Kill (revert to the timeOffsetHours dep): __RAW_DISABLE_MARINE_WIND_HOUROFFSET_MEMO__.
+  const effectiveHourOffset = (marineData?.grid?.hourOffset !== undefined) ? marineData.grid.hourOffset : timeOffsetHours;
+  const memoHourDep = (typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_WIND_HOUROFFSET_MEMO__ === true)
+    ? timeOffsetHours
+    : effectiveHourOffset;
+
   // 2. Perform the lightweight viewport bounds and overlap checks.
   return useMemo(() => {
     if (!conformedGridBase) {
@@ -411,7 +423,7 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
 
     const res = {
       ...conformedGridBase,
-      hourOffset: marineData.grid.hourOffset !== undefined ? marineData.grid.hourOffset : timeOffsetHours,
+      hourOffset: effectiveHourOffset,
     };
 
     const upstreamRenderable = marineData?.grid?.__renderable !== false;
@@ -483,5 +495,5 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
     lastValidKeyRef.current = { model: activeModel, layer: activeMarineLayer, hour: res.hourOffset, surf: getSurfModeFlag() };
     markDisplayed(lastValidKeyRef.current);
     return res;
-  }, [conformedGridBase, timeOffsetHours, mapInstance, viewState, marineData]);
+  }, [conformedGridBase, memoHourDep, mapInstance, viewState, marineData]);
 }
