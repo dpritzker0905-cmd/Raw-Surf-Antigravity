@@ -20,7 +20,38 @@ let _lastScrubLogTime = 0;
  * - Timeline scrub uses local hourly cache (zero API calls)
  */
 export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 0, activeModel = 'GFS', forecastDays = 3 }) {
-  const [windData, setWindData] = useState(null);
+  const [windData, _setWindData] = useState(null);
+  // #14 DELIVERY QUEUE (the fix, 2026-07-21). Every committed grid is appended here in commit
+  // order. React 18 automatic batching collapses multiple same-flush commits (e.g. a world base
+  // + its covering clip on a model round-trip) into a SINGLE effect run whose `windData` is only
+  // the LAST-in-batch — the world base is dropped before it reaches engine.setWindData (measured
+  // live: world base committed to state x2, delivered to the engine x0, so the engine ends
+  // clip-primary with no global base and a same-model pan shows a hole). The layer effect drains
+  // this queue and delivers EVERY grid; the engine's base/fine/promote filing is order-independent
+  // so the base+overlay invariant is restored regardless of interleaving. This is the ONE function
+  // all React-state commits pass through (the choke), never a per-call-site guard. Kill:
+  // __RAW_DISABLE_WIND_DELIVERY_QUEUE__ -> single-`data` delivery (the legacy lossy path).
+  const windDeliveryQueueRef = useRef([]);
+  // #14 STATE-COMMIT TRIPWIRE (permanent, bounded 200; the __WIND_BASE_LANE__ telemetry precedent):
+  // logs EVERY windData React-state transition (span, source, hour, revision). Comparing
+  // window.__WIND_STATE_COMMITS__ (what state was SET to) against window.__WIND_LAYER_DELIVERY__
+  // (what the layer effect DELIVERED to the engine) is the regression detector for the
+  // batching-collapse drop class — if a world span commits here but worldApplied stays 0 there,
+  // the queue drain regressed.
+  const setWindData = (d) => {
+    if (typeof window !== 'undefined') {
+      if (window.__RAW_DISABLE_WIND_DELIVERY_QUEUE__ !== true) {
+        const q = windDeliveryQueueRef.current;
+        q.push(d);
+        if (q.length > 16) q.splice(0, q.length - 16); // bounded — never accumulate unboundedly while inactive
+      }
+      const _c = (window.__WIND_STATE_COMMITS__ = window.__WIND_STATE_COMMITS__ || []);
+      const b = d && d.bounds;
+      const sp = b ? (b.west > b.east ? (b.east + 360) - b.west : b.east - b.west) : 0;
+      if (_c.length < 200) _c.push({ t: Date.now(), span: d ? Math.round(sp) : null, src: d?.source || null, hr: d?.hourOffset || 0, rev: windRevision.current });
+    }
+    _setWindData(d);
+  };
   const windRevision = useRef(0);
   // COVERAGE STATE MUST BE A REF (2026-07-19 night). As an effect-local variable it reset to
   // null on every effect re-run (model switch, wind toggle), blinding BOTH commit gates — a
@@ -984,5 +1015,5 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
     return unsub;
   }, []);
 
-  return { windData, windRevision };
+  return { windData, windRevision, windDeliveryQueue: windDeliveryQueueRef };
 }

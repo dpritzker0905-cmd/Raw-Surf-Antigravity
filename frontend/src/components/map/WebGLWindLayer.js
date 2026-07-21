@@ -192,7 +192,7 @@ function createCustomLayer(engine, activeRef, mapRef, glRef, onErrorRef, themeRe
 // memo (2026-07-07, chip task_c5366c79 slice 3): MapWebGL re-renders per radar frame step;
 // all props here are primitives or stable refs once the caller hoists onError. Skipping
 // renders on equal props is behavior-identical (effects key on the same prop values).
-function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, theme }) {
+function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revision, onError, theme }) {
   const engineRef = useRef(null);
   const activeRef = useRef(active);
   const mapRef = useRef(mapInstance);
@@ -202,6 +202,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
   const pendingDataRef = useRef(null); // Stash data that arrives before GL is ready
   const themeRef = useRef(theme);
   const dataRef = useRef(data);
+  const deliveryQueueRef = useRef(deliveryQueue); // #14: the WeatherEngine choke's commit-order queue
 
   // Keep refs in sync
   useEffect(() => { activeRef.current = active; }, [active]);
@@ -209,6 +210,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
   useEffect(() => { onErrorRef.current = onError; }, [onError]);
   useEffect(() => { themeRef.current = theme; }, [theme]);
   useEffect(() => { dataRef.current = data; }, [data]);
+  useEffect(() => { deliveryQueueRef.current = deliveryQueue; }, [deliveryQueue]);
 
   // Initialize engine + add custom layer
   useEffect(() => {
@@ -281,15 +283,29 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
 
   // Update wind data texture when data changes
   useEffect(() => {
+    // #14 DELIVERY TRIPWIRE (permanent, bounded log 80): counts every effect invocation, the branch
+    // taken, and — inside applyWindUpdate — the data span (world>=350 vs clip), source, and the
+    // engine filing verdict + resident-slot state before/after. worldApplied vs the choke's
+    // __WIND_STATE_COMMITS__ is the regression detector: a world committed to state but not applied
+    // here means the batching-collapse drop is back. Read: window.__WIND_LAYER_DELIVERY__.
+    const _dl = (typeof window !== 'undefined')
+      ? (window.__WIND_LAYER_DELIVERY__ = window.__WIND_LAYER_DELIVERY__
+          || { runs: 0, noEngine: 0, inactive: 0, clear: 0, noGl: 0, applied: 0, worldApplied: 0, clipApplied: 0, verdicts: {}, log: [] })
+      : null;
+    const _spanOf = (b) => b ? (b.west > b.east ? (b.east + 360) - b.west : b.east - b.west) : 0;
+    if (_dl) _dl.runs += 1;
+
     const engine = engineRef.current;
     const gl = glRef.current || mapInstance?.painter?.context?.gl;
-    if (!engine || !mapInstance) return;
+    if (!engine || !mapInstance) { if (_dl) _dl.noEngine += 1; return; }
 
     if (!active) {
+      if (_dl) _dl.inactive += 1;
       return;
     }
 
     if (!data?.vectors?.length || data.renderable === false) {
+      if (_dl) _dl.clear += 1;
       if (gl) {
         // queue #9: clearWindData frees BOTH the base and the fine-overlay textures.
         if (typeof engine.clearWindData === 'function') {
@@ -308,6 +324,7 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
 
     // v3.13: If GL isn't ready yet (onAdd hasn't fired), stash data for deferred application
     if (!gl) {
+      if (_dl) _dl.noGl += 1;
       pendingDataRef.current = data;
       return;
     }
@@ -319,49 +336,88 @@ function WebGLWindLayerInner({ mapInstance, active, data, revision, onError, the
 
     try {
       const applyWindUpdate = () => {
-        console.log(`[WebGLWind] setWindData triggered by effect:`, data.vectors.length, 'vectors');
+        // #14 DELIVERY DRAIN (2026-07-21): React batching collapses several same-flush commits
+        // into ONE effect run whose `data` is only the last-in-batch — a world base committed
+        // earlier is invisible here (measured: world committed to state x2, delivered to engine
+        // x0 → engine ends clip-primary, a same-model pan shows a hole). Deliver EVERY grid the
+        // choke queued, in commit order; the engine's base/fine/promote filing is order-independent.
+        const scrubbing = typeof window !== 'undefined' && window.isScrubbingTimeline;
+        const queueOn = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_DELIVERY_QUEUE__ !== true;
+        const q = deliveryQueueRef.current && deliveryQueueRef.current.current;
+        let grids;
+        if (queueOn && !scrubbing && q && q.length) {
+          // renderable grids in commit order, guaranteed to end with the current `data`
+          grids = q.filter(g => g && g.vectors?.length && g.renderable !== false);
+          if (!grids.length || grids[grids.length - 1] !== data) grids.push(data);
+        } else {
+          // scrub stays single-delivery so frames scrubbed past are never GPU-uploaded
+          grids = [data];
+        }
+        if (q) q.length = 0; // drained (scrub drops intermediates by design)
 
-        const oldBounds = engine._windData?.bounds;
-        const newBounds = data.bounds;
-        let boundsChanged = false;
-        if (!oldBounds && newBounds) {
-          boundsChanged = true;
-        } else if (oldBounds && newBounds) {
-          const getLongitudeSpan = (b) => {
-            const crosses = b.west > b.east;
-            return crosses ? (b.east + 360.0) - b.west : b.east - b.west;
-          };
-          const oldSpan = getLongitudeSpan(oldBounds);
-          const newSpan = getLongitudeSpan(newBounds);
-          const dw = Math.abs(newSpan - oldSpan);
-          const dh = Math.abs((newBounds.north - newBounds.south) - (oldBounds.north - oldBounds.south));
-          let dx = Math.abs(newBounds.west - oldBounds.west);
-          if (dx > 180.0) dx = 360.0 - dx;
-          const dy = Math.abs(newBounds.south - oldBounds.south);
-          if (dw > 2.0 || dh > 2.0 || dx > 2.0 || dy > 2.0) {
-            boundsChanged = true;
+        console.log(`[WebGLWind] setWindData triggered by effect: delivering ${grids.length} grid(s), last ${data.vectors.length} vectors`);
+
+        const getLongitudeSpan = (b) => {
+          const crosses = b.west > b.east;
+          return crosses ? (b.east + 360.0) - b.west : b.east - b.west;
+        };
+        const preModel = engine.__lastWindSource;
+        const preBounds = engine._windData?.bounds;
+
+        let lastVerdict = 'skipped';
+        for (let gi = 0; gi < grids.length; gi++) {
+          const grid = grids[gi];
+          if (!grid || !grid.vectors?.length) continue;
+          const _preBaseGlobal = !!(engine._windData && _spanOf(engine._windData.bounds) >= 350);
+          const _preFine = !!engine._windFine;
+          const v = engine.setWindData(gl, grid);
+          lastVerdict = v;
+          // #14 DELIVERY TRIPWIRE: record what the engine did with THIS grid.
+          if (_dl) {
+            const sp = _spanOf(grid.bounds);
+            _dl.applied += 1;
+            if (sp >= 350) _dl.worldApplied += 1; else _dl.clipApplied += 1;
+            _dl.verdicts[v] = (_dl.verdicts[v] || 0) + 1;
+            if (_dl.log.length < 80) _dl.log.push({
+              t: Date.now(), span: Math.round(sp), src: grid.source || null, hr: grid.hourOffset || 0,
+              vt: grid.valid_time || grid.validTime || null, verdict: v, drained: grids.length,
+              preBaseGlobal: _preBaseGlobal, preFine: _preFine,
+              postBaseGlobal: !!(engine._windData && _spanOf(engine._windData.bounds) >= 350),
+              postFine: !!engine._windFine
+            });
           }
         }
-
-        const prevSource = engine.__lastWindSource;
-        const filingVerdict = engine.setWindData(gl, data);
         engine.__lastWindSource = data.source || null;
 
-        // queue #9: a grid filed as the FINE OVERLAY leaves the base (and every particle) in
-        // place — reseeding on it would scatter marks on every fine-box commit for no reason.
-        // Same for a PROMOTE (global slid UNDER the resident fine data): the field on screen is
-        // unchanged where the particles are.
-        if (filingVerdict !== 'fine' && filingVerdict !== 'base_promote'
-            && boundsChanged && typeof engine.reinitParticles === 'function') {
-          // SAME-MODEL BOUNDS SWAPS KEEP TRAILS (2026-07-19). With the viewport-fine tier, bounds
-          // changes are ROUTINE camera-driven events — crossing the ~z6 tier boundary swaps
-          // global<->fine, and every ~1-deg pan at fine zoom mints a new snapped box. Full-clearing
-          // on each one blanked the layer over and over (the zoom/pan "clearing" report) — the
-          // exact UX the 2026-07-10 keepTrails commit fixed for recenter reseeds. Same air, same
-          // model, new sampling => crossfade. Only a MODEL switch (genuinely different data) keeps
-          // the legacy full clear. Kill: __RAW_WIND_TRAIL_CLEAR_LEGACY__ restores clearing.
-          const sameModel = !!prevSource && prevSource === (data.source || null);
-          engine.reinitParticles(gl, { keepTrails: sameModel });
+        // NET particle reseed (2026-07-19 keepTrails contract, evaluated on the drained net
+        // change instead of per grid). A grid filed as the FINE OVERLAY or a PROMOTE leaves the
+        // on-screen field unchanged where particles are — no reseed. A MODEL switch full-clears
+        // (old-air trails must not linger on new air). A same-model base swap with a materially
+        // different box crossfades (keepTrails). A cold engine (no prior base) must seed the field
+        // once. Kill: __RAW_WIND_TRAIL_CLEAR_LEGACY__ restores the legacy always-clear.
+        const finalGrid = grids[grids.length - 1] || data;
+        let netBoundsChanged = false;
+        if (!preBounds && finalGrid.bounds) {
+          netBoundsChanged = true;
+        } else if (preBounds && finalGrid.bounds) {
+          const oldSpan = getLongitudeSpan(preBounds);
+          const newSpan = getLongitudeSpan(finalGrid.bounds);
+          let dx = Math.abs(finalGrid.bounds.west - preBounds.west);
+          if (dx > 180.0) dx = 360.0 - dx;
+          if (Math.abs(newSpan - oldSpan) > 2.0
+              || Math.abs((finalGrid.bounds.north - finalGrid.bounds.south) - (preBounds.north - preBounds.south)) > 2.0
+              || dx > 2.0
+              || Math.abs(finalGrid.bounds.south - preBounds.south) > 2.0) {
+            netBoundsChanged = true;
+          }
+        }
+        const engineWasEmpty = !preBounds;
+        const modelChanged = !!preModel && preModel !== (data.source || null);
+        if (typeof engine.reinitParticles === 'function'
+            && (engineWasEmpty
+                || modelChanged
+                || (netBoundsChanged && lastVerdict !== 'fine' && lastVerdict !== 'base_promote'))) {
+          engine.reinitParticles(gl, { keepTrails: !modelChanged && !engineWasEmpty });
         }
 
         pendingDataRef.current = null;

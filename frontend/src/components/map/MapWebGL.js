@@ -245,7 +245,7 @@ const MapWebGL = ({
 
   // Weather Engine: Decoupled weather analytics
   const forecastDays = useMemo(() => resolveForecastWindow(userTier, activeModel, activeLayers && activeLayers[0]), [userTier, activeModel, activeLayers]);
-  const { windData, windRevision } = useWeatherEngine({
+  const { windData, windRevision, windDeliveryQueue } = useWeatherEngine({
     activeLayers,
     mapInstance,
     timeOffsetHours: debouncedTimeOffsetHours,
@@ -1050,6 +1050,7 @@ const MapWebGL = ({
             mapInstance={mapInstance}
             active={activeLayers.includes('wind')}
             data={windData}
+            deliveryQueue={windDeliveryQueue}
             revision={windRevision?.current || 0}
             theme={theme}
             onError={onWindWebglError}
