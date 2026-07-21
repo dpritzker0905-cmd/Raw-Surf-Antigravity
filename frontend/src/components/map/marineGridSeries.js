@@ -24,6 +24,7 @@
 import { API_BASE } from '../../lib/apiClient';
 import { getSurfModeFlag } from './backendWeatherServiceClient';
 import { buildTruthTag, recordTruthStage } from './weatherTruthTracker';
+import { marineWarmCommitCovers } from './marineWarmCoverage';
 
 // pageKey (model_layer_viewportKey_pN) -> { ts, frames: Map<hourOffset, marineData>, hours: number[] }
 const _seriesCache = new Map();
@@ -738,6 +739,26 @@ export function getMarineSeriesFrame(model, layer, bounds, hourOffset) {
     if ((best === null || bestDiff > 1.5) && globalFallbackFrame !== null) {
       best = globalFallbackFrame; bestDiff = globalFallbackDiff;
     }
+  }
+  // SERVED-FRAME COVERAGE INVARIANT (#10 Source 3, 2026-07-21 — VERIFIED against the live backend).
+  // A grid_series page CAN hold frames with DIFFERENT bounds: EURO past the 240h native boundary
+  // returns a WIDER coarse first frame (live: h228 5x5 [-84,24,-76,32]) followed by FINER, NARROWER
+  // frames (h240+ 13x17 [-82,26,-79,30]). entry.bounds is the FIRST frame's bounds (:457-467), so the
+  // entry-bounds containment checks above (:678/:717) can pass for a viewport that the SERVED (finer,
+  // later) frame does NOT cover — serving a clamped sub-rectangle / floating rectangle. series_sharpen
+  // guards this with its own frameCovers check, but recovery_2b / series_settle (useMarineScrubSettle)
+  // commit a getMarineSeriesFrame result with NO per-frame gate. Enforce the contract at the one
+  // function all series paths call: never return a frame whose OWN bounds don't cover the request — the
+  // caller then fetches a covering grid. marineWarmCommitCovers is antimeridian/global/eps-safe and
+  // fail-open. No-op for homogeneous pages (GFS verified uniform). Kill:
+  // __RAW_DISABLE_MARINE_SERIES_FRAME_COVER__ (or the family master __RAW_DISABLE_MARINE_WARM_COVERAGE__).
+  if (best !== null && bestDiff <= 1.5 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_SERIES_FRAME_COVER__ === true) &&
+      !marineWarmCommitCovers(best, bounds)) {
+    if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) {
+      window.__MARINE_SERIES_DIAG__.coverMisses = (window.__MARINE_SERIES_DIAG__.coverMisses || 0) + 1;
+    }
+    best = null;
   }
   if (best === null || bestDiff > 1.5) {
     if (typeof window !== 'undefined' && window.__MARINE_SERIES_DIAG__) window.__MARINE_SERIES_DIAG__.misses++;
