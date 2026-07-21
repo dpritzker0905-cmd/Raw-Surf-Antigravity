@@ -2,6 +2,7 @@ import { useState, useEffect, useRef, useMemo } from 'react';
 import { fetchWindData, getRemainingCooldown, getWindHourlyCache, extractWindAtOffset, isContainedInWindCache, getModelSafeWind, getBackendWindFlag, prewarmSiblingModelWind, isRenderableWindData } from './marineController';
 import { onForecastUpdate } from '../../engine/data/forecast-pipeline';
 import { clampViewportBbox } from './backendWeatherServiceClientCoverage';
+import { windGridsCompatible } from './WebGLWindEngine';
 import { recordTruthStage } from './weatherTruthTracker';
 import { ensureWindSeries, getWindSeriesFrame, prewarmWindSeries } from './windGridSeries';
 import { isTerminalNoCoverage } from './marineControllerCache';
@@ -39,6 +40,11 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
   // grid that does not cover the current viewport may never REPLACE a grid that does. Null
   // (deliberate clears) and covering/world grids pass untouched.
   const lastGoodCoveringRef = useRef(null); // the last committed grid that covered its viewport
+  // Which model|hour the ENGINE currently holds a world base for — the BASE-FIRST churn guard.
+  // Tracks the engine, not history: any different-model commit REPLACES the engine base, so it
+  // must invalidate this (2026-07-20 live: a stale 'GFS|0' entry skipped the probe after an
+  // EURO interlude had evicted the GFS base — the persistent-lattice state).
+  const windWorldBaseRef = useRef(null);
   const commitWindData = (data) => {
     try {
       if (data && data.bounds && mapInstance) {
@@ -51,6 +57,48 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           || (data.bounds.west <= vp.west + eps && data.bounds.east >= vp.east - eps
             && data.bounds.south <= vp.south + eps && data.bounds.north >= vp.north - eps);
         if (covers) {
+          // BASE-FIRST (2026-07-20 #14 v2). A covering CLIP committing into a base-less engine
+          // renders alone — its box edge/lattice visible until the base lane's fetch lands
+          // (measured 336 ms-1.6 s). When the client cache already holds a world grid that the
+          // ENGINE ITSELF would composite with this clip (windGridsCompatible — the engine's own
+          // gate: model+hour+valid_time), commit the world first and defer the clip ONE tick
+          // (React batches same-tick setStates — the engine never saw the world in v1). The
+          // compatibility precheck is what makes this safe: BASE-FIRST only fires when the
+          // engine is GUARANTEED to file the clip as the fine overlay, never a wasted commit.
+          // Churn guard: windWorldBaseRef (probe once per model|hour; engine-tracking — see its
+          // declaration). Kill: __RAW_DISABLE_WIND_BASE_FIRST__.
+          try {
+            const bfModel = data.source || activeModel;
+            const bfKey = `${bfModel}|${data.hourOffset || 0}`;
+            if (windWorldBaseRef.current && !windWorldBaseRef.current.startsWith(`${bfModel}|`)) {
+              windWorldBaseRef.current = null; // cross-model commit → the engine base is replaced
+            }
+            const baseFirstOn = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_FIRST__ !== true;
+            if (baseFirstOn && span < 350.0 && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
+              windWorldBaseRef.current = bfKey; // one probe per model|hour, hit or miss
+              const world = getModelSafeWind(bfModel, data.hourOffset || 0,
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+              const wSpan = world && world.bounds
+                ? (world.bounds.west > world.bounds.east
+                  ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
+                : 0;
+              if (world && world.vectors?.length > 0 && wSpan >= 350.0
+                  && world.renderable !== false && windGridsCompatible(world, data)) {
+                console.log('[WeatherEngine] commitWindData CHOKE: BASE-FIRST — compatible cached world base under the covering clip');
+                lastGoodCoveringRef.current = data;
+                windRevision.current += 1;
+                commitWindDataInner(world);
+                setTimeout(() => {
+                  if (lastGoodCoveringRef.current === data) {
+                    windRevision.current += 1;
+                    commitWindDataInner(data);
+                  }
+                }, 0);
+                return;
+              }
+            }
+            if (span >= 350.0) windWorldBaseRef.current = bfKey; // a world commit IS the base
+          } catch (e) { /* base-first is best-effort; plain commit below */ }
           lastGoodCoveringRef.current = data;
         } else {
           const lg = lastGoodCoveringRef.current;
@@ -79,6 +127,40 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             setWindData(lg);
             return;
           }
+          // BASE-FIRST for the fail-open case (no covering resident at all): same validated
+          // pattern as the covering branch above — only fires when the engine is guaranteed
+          // to composite (windGridsCompatible), clip deferred one tick past React batching.
+          try {
+            const bfModel = data.source || activeModel;
+            const bfKey = `${bfModel}|${data.hourOffset || 0}`;
+            if (windWorldBaseRef.current && !windWorldBaseRef.current.startsWith(`${bfModel}|`)) {
+              windWorldBaseRef.current = null;
+            }
+            const baseFirstOn = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_FIRST__ !== true;
+            if (baseFirstOn && windWorldBaseRef.current !== bfKey && getBackendWindFlag()) {
+              windWorldBaseRef.current = bfKey;
+              const world = getModelSafeWind(bfModel, data.hourOffset || 0,
+                { west: -179.0, south: -75.0, east: 179.0, north: 80.0 });
+              const wSpan = world && world.bounds
+                ? (world.bounds.west > world.bounds.east
+                  ? (world.bounds.east + 360.0) - world.bounds.west : world.bounds.east - world.bounds.west)
+                : 0;
+              if (world && world.vectors?.length > 0 && wSpan >= 350.0
+                  && world.renderable !== false && windGridsCompatible(world, data)) {
+                console.log('[WeatherEngine] commitWindData CHOKE: BASE-FIRST — compatible cached world base under the incoming clip');
+                lastGoodCoveringRef.current = world;
+                windRevision.current += 1;
+                commitWindDataInner(world);
+                setTimeout(() => {
+                  if (lastGoodCoveringRef.current === world) {
+                    windRevision.current += 1;
+                    commitWindDataInner(data);
+                  }
+                }, 0);
+                return;
+              }
+            }
+          } catch (e) { /* best-effort; fail open below */ }
         }
       }
     } catch (e) { /* the choke must never break commits */ }
@@ -288,10 +370,14 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       const _vpSpanB = _vpNowB
         ? (_vpNowB.west > _vpNowB.east ? (_vpNowB.east + 360.0) - _vpNowB.west : _vpNowB.east - _vpNowB.west)
         : 360.0;
-      const _coldNoCover = !lcBase || !gridCovers(lcBase.bounds, _vpNowB);
+      // needGlobalBase ALREADY encodes "the engine lacks a world base" (twoTex && lcSpan<350) —
+      // an extra cold-no-cover conjunct here blocked the fresh-world race exactly when a
+      // COVERING clip was resident (model switch: clip covers → no world ever fetched → the
+      // engine stayed clip-primary until the 5-min refresh; live round 6). The only condition
+      // the wide trigger needs is "the viewport fetch will return a clip" (span < 350°).
       const _baseLaneWide = typeof window === 'undefined' || window.__RAW_DISABLE_WIND_BASE_LANE_WIDE__ !== true;
       if (needGlobalBase && ((clampResult.selectedTileId || '').startsWith('wind_viewport_fine_')
-          || (_baseLaneWide && _coldNoCover && _vpSpanB < 350.0))) {
+          || (_baseLaneWide && _vpSpanB < 350.0))) {
         fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
           .then((gd) => {
             if (cancelled) return;
