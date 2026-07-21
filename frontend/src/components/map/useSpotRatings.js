@@ -143,6 +143,29 @@ export function aggregateLeafRatings(leaves, spotRatings) {
  * and clusters with no rated leaves (→ plain orange bubble, graceful). `supercluster.getLeaves` is capped at
  * `leafCap` so a giant zoomed-out cluster can't stall the render (best-of-a-sample is plenty for a tint).
  */
+/**
+ * PURE: value-equality for a spotId -> rating map. Two maps are equal when they hold the SAME spot ids
+ * and each spot's rendered fields (score, level) match — color/label are derived from level. Used to
+ * STABILIZE the hook's output identity: gridRatings recomputes a fresh {} on every marineData.grid commit
+ * (grid identity churns each ~3-hourly frame during scrub), which minted a new spotRatings -> clusterRatings
+ * identity even when the discrete rating LEVELS were unchanged, re-rendering the React.memo'd MapMarkerLayers
+ * (all spot/cluster markers) needlessly. Returning the prior ref when value-equal skips those renders.
+ */
+export function ratingsShallowEqual(a, b) {
+  if (a === b) return true;
+  if (!a || !b) return false;
+  const ka = Object.keys(a);
+  const kb = Object.keys(b);
+  if (ka.length !== kb.length) return false;
+  for (const k of ka) {
+    const ra = a[k];
+    const rb = b[k];
+    if (!rb) return false;
+    if (ra.score !== rb.score || ra.level !== rb.level) return false;
+  }
+  return true;
+}
+
 export function computeClusterRatings(spotClusters, spotRatings, supercluster, leafCap = 100) {
   const out = {};
   if (!Array.isArray(spotClusters) || !spotRatings || !supercluster) return out;
@@ -302,7 +325,18 @@ export function useSpotRatings({ spotClusters, marineData, surfMode, mapInstance
   }, [surfMode, mapInstance, activeModel, timeOffsetHours, moveNonce, viewKey]);
 
   // Endpoint ratings (accurate) override the instant grid-sample fallback.
-  const merged = useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
+  const mergedRaw = useMemo(() => ({ ...gridRatings, ...endpointRatings }), [gridRatings, endpointRatings]);
+  // STABILIZE the output identity (2026-07-21, clusterRatings re-render storm): gridRatings recomputes a
+  // fresh object on every marineData.grid commit (grid identity churns each frame during scrub), so mergedRaw
+  // churned identity per commit even when the discrete rating LEVELS were unchanged — re-rendering the
+  // React.memo'd MapMarkerLayers (all markers) and the clusterRatings useMemo needlessly. Return the PRIOR ref
+  // when value-equal so downstream memos hold. Kill: __RAW_DISABLE_RATINGS_STABLE_MEMO__.
+  const stableMergedRef = useRef(mergedRaw);
+  const stableMemoOff = typeof window !== 'undefined' && window.__RAW_DISABLE_RATINGS_STABLE_MEMO__ === true;
+  const merged = (!stableMemoOff && ratingsShallowEqual(stableMergedRef.current, mergedRaw))
+    ? stableMergedRef.current
+    : mergedRaw;
+  stableMergedRef.current = merged;
 
   // Record the EFFECTIVE state (what actually reaches the glyphs) so a live capture distinguishes
   // "endpoint empty but grid fallback covering" from "nothing at all". Eligible = non-cluster spots in view.
