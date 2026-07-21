@@ -88,6 +88,24 @@ rectangle) class:
 getMarineSeriesFrame checks the SERVED frame's bounds; it checks entry.bounds. The EMPIRICAL backend probe
 caught the heterogeneity pure code-reading missed. Forensics = probe the real data, not only read the code.
 
+## 4b. SHIPPED — scrub re-render churn (2 Jacobian-rooted perf fixes, live A/B proven)
+Measured with `__SCRUB_PROBE__` (`__SCRUB_PROBE_ON__=true; reset(); scrub; snapshot().byProp` = renders
+where each value's identity changed). MapMarkerLayers is `React.memo` (MapMarkerLayers.js:403).
+- **clusterRatings (`51f12179`)**: useSpotRatings minted a fresh `merged` per marineData.grid commit →
+  spotRatings→clusterRatings churned even when rating LEVELS were unchanged, re-rendering all markers. Fix:
+  stable prior ref when VALUE-equal (`ratingsShallowEqual`). **Live A/B: 9→3 churn (−67%).** Kill
+  `__RAW_DISABLE_RATINGS_STABLE_MEMO__`.
+- **marineWindData (`5355e65e`)**: the FCE-input memo depended on the raw `timeOffsetHours` (dep at
+  useMarineWindData.js:486), used ONLY as a fallback for `hourOffset` (grids always carry their own,
+  verified live). Fix: depend on the EFFECTIVE hour (`grid.hourOffset ?? timeOffsetHours`); output byte-
+  identical, recompute freq drops. **Live A/B: 21→9 settled / 12→1 scrubbing (−57%), engine frames
+  identical (no freeze), GFS↔EURO + zoom-out clean.** Kill `__RAW_DISABLE_MARINE_WIND_HOUROFFSET_MEMO__`.
+- **NOT a problem (forensically cleared):** `simulationField` churn (16 on Step-buttons) is a SETTLED
+  artifact — during a real drag (`isScrubbingTimeline=true`) useSimulationField uses the in-place metadata
+  path (useSimulationField.js:131-148) → 1-2 churns; the settled revision-bump (:154-175) is INTENTIONAL
+  temporal propagation. `omTileUrls` churns per hour = time-dependent raster tiles (legitimate). Do NOT
+  refactor the FCE for these — measured, not real. Both real avoidable churns are fixed.
+
 ## 5. STILL OPEN (need the user)
 - **Issue B** (future-scrub cleared-surroundings): ROOTED, FIX DEFERRED — coverage-vs-freshness product
   trade-off. Candidates (a)/(b)/(c) in the 07-21 EVE handoff §2. **Needs the user's preference.**
