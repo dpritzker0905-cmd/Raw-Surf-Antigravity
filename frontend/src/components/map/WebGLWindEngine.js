@@ -126,6 +126,29 @@ export function windBaseOverlayEnabled(win) {
   return !(w && w.__RAW_DISABLE_WIND_BASE_OVERLAY__ === true);
 }
 
+// Approx cell size in degrees longitude — a resolution proxy for base/overlay ordering.
+export function windGridCellDeg(g) {
+  if (!g || !g.bounds || !g.cols || g.cols < 2) return Infinity;
+  var b = g.bounds;
+  var spanLng = b.west > b.east ? (b.east + 360.0) - b.west : b.east - b.west;
+  return spanLng / (g.cols - 1);
+}
+
+// True when `a` is CLEARLY coarser than `b` (a's cells ≥1.3× b's). The FINE overlay must SHARPEN
+// the base; a coarser grid there (e.g. a 5x4 `swr_revalidation_pending` SWR preview over the sharp
+// 2° world base) renders a blocky patch/lattice on top of good data — the user's "grid shape /
+// small clamp". Such a grid must never be filed as, or promoted into, the overlay.
+export function windGridClearlyCoarserThan(a, b) {
+  var ca = windGridCellDeg(a), cb = windGridCellDeg(b);
+  if (!isFinite(ca) || !isFinite(cb) || cb <= 0) return false;
+  return ca > cb * 1.3;
+}
+
+export function windCoarseOverlayGuardEnabled(win) {
+  var w = win || (typeof window !== 'undefined' ? window : null);
+  return !(w && w.__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__ === true);
+}
+
 // Product IDENTITY (2026-07-20, the React Scan finding): metadata equality, not content diff.
 // Every field that can change the data changes one of these; two grids that agree on all of
 // them are the same served product, and re-committing it is pure GL waste (texture re-upload +
@@ -205,6 +228,20 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
   }
   var verdict = 'base';
 
+  // COARSE-OVERLAY GUARD (2026-07-21, user "grid shape / small clamp"). The FINE overlay must
+  // SHARPEN the base. A compatible regional grid that is CLEARLY coarser than the resident global
+  // base (a 5x4 `swr_revalidation_pending` SWR preview over the sharp 2° world base) would render a
+  // blocky patch on top of good data — keep the base, ignore the preview. Kill:
+  // __RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__.
+  if (windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null)
+      && windBaseOverlayEnabled(typeof window !== 'undefined' ? window : null)
+      && !windGridIsGlobal(windGrid)
+      && this._windData?.windGrid && windGridIsGlobal(this._windData.windGrid)
+      && windGridsCompatible(this._windData.windGrid, windGrid)
+      && windGridClearlyCoarserThan(windGrid, this._windData.windGrid)) {
+    return 'noop_coarse';
+  }
+
   // BASE+OVERLAY filing (2026-07-19, queue #9). A REGIONAL grid arriving while a GLOBAL base of
   // the same model+hour is resident files as the FINE overlay — the base stays resident, so a
   // pan past the fine box shows base data, never a hole (clamp geometrically impossible). Any
@@ -231,17 +268,27 @@ WebGLWindEngine.prototype.setWindData = function(gl, windGrid) {
     // the base; when the global arrives it must not REPLACE the sharper data on screen — it
     // becomes the new base and the resident regional grid MOVES to the overlay slot (texture
     // reference moved, not re-encoded). Found by the vortex probe's failed precondition.
+    // COARSE-OVERLAY GUARD (2026-07-21): only KEEP the resident as the overlay if it actually
+    // SHARPENS the incoming world base. A coarser resident (an SWR preview that landed first) would
+    // render a blocky patch — drop it and take the world base alone.
+    var _keepAsFine = !(windCoarseOverlayGuardEnabled(typeof window !== 'undefined' ? window : null)
+      && windGridClearlyCoarserThan(this._windData.windGrid, windGrid));
     if (this._windFine?.texture) gl.deleteTexture(this._windFine.texture);
-    this._windFine = this._windData;
+    if (_keepAsFine) {
+      this._windFine = this._windData;
+    } else {
+      if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
+      this._windFine = null;
+    }
     this._windData = encodeWindTexture(gl, windGrid);
     if (this._windData) {
       this._windData.truthTag = windGrid.truthTag;
       this._windData.windGrid = windGrid;
     }
-    console.log('[WebGLWind] GLOBAL base promoted under resident regional grid ('
-      + (this._windFine.windGrid?.cols || '?') + 'x' + (this._windFine.windGrid?.rows || '?')
-      + ' moved to overlay)');
-    verdict = 'base_promote';
+    console.log('[WebGLWind] GLOBAL base ' + (_keepAsFine
+      ? ('promoted under resident regional grid (' + (this._windFine.windGrid?.cols || '?') + 'x' + (this._windFine.windGrid?.rows || '?') + ' moved to overlay)')
+      : 'replaced coarse resident preview (dropped, no overlay)'));
+    verdict = _keepAsFine ? 'base_promote' : 'base';
   } else {
     if (this._windData?.texture) gl.deleteTexture(this._windData.texture);
     this._windData = encodeWindTexture(gl, windGrid);

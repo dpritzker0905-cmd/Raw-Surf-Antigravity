@@ -346,3 +346,73 @@ describe('setWindData filing', () => {
     expect(engine._windFine).toBeFalsy();
   });
 });
+
+// ── 4. COARSE-OVERLAY GUARD (2026-07-21, user "grid shape / small clamp" report) ──
+// A grid may only occupy the FINE overlay if it SHARPENS the base. The live root: a 5x4 (~4°/cell)
+// SWR-preview clip (`swr_revalidation_pending`) filed as the fine overlay over the sharp 2° world
+// base (181x83), then rendered as a blocky patch/lattice on top of good data. The fine overlay's
+// purpose is to sharpen; a coarser grid there is strictly a downgrade.
+
+const SHARP_GLOBAL = { // the real 2°/cell world base (global_mid)
+  bounds: { west: -180, south: -80, east: 180, north: 85 },
+  coverage_scope: 'global', source: 'GFS', hourOffset: 0, valid_time: '2026-07-19T12:00:00Z',
+  cols: 181, rows: 83
+};
+const COARSE_REGIONAL = { // a 5x4 (~4°/cell) SWR-preview clip — coarser than the base
+  bounds: { west: -90, south: 14, east: -74, north: 30 },
+  coverage_scope: 'viewport', source: 'GFS', hourOffset: 0, valid_time: '2026-07-19T12:00:00Z',
+  cols: 5, rows: 4
+};
+
+describe('coarse-overlay guard (the "grid shape / small clamp")', () => {
+  afterEach(() => { delete window.__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__; });
+
+  it('windGridClearlyCoarserThan: cell-size ordering', () => {
+    const { windGridClearlyCoarserThan, windGridCellDeg } = require('./WebGLWindEngine');
+    expect(windGridCellDeg(SHARP_GLOBAL)).toBeCloseTo(2.0, 1);       // 360/180
+    expect(windGridCellDeg(COARSE_REGIONAL)).toBeCloseTo(4.0, 1);    // 16/4
+    expect(windGridClearlyCoarserThan(COARSE_REGIONAL, SHARP_GLOBAL)).toBe(true);   // 4 > 2*1.3
+    expect(windGridClearlyCoarserThan(SHARP_GLOBAL, COARSE_REGIONAL)).toBe(false);
+    expect(windGridClearlyCoarserThan(FINE_GRID, SHARP_GLOBAL)).toBe(false);         // 0.33° fine sharpens
+  });
+
+  it('a coarse regional grid does NOT file as the fine overlay over a sharp global base', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    expect(engine.setWindData(gl, grid(SHARP_GLOBAL, 181, 83, 20))).toBe('base');
+    const base = engine._windData;
+    // the 5x4 SWR preview must be ignored — the base already covers it with better detail
+    expect(engine.setWindData(gl, grid(COARSE_REGIONAL, 5, 4, 12))).toBe('noop_coarse');
+    expect(engine._windData).toBe(base);          // base untouched
+    expect(engine._windFine).toBeFalsy();          // NO coarse overlay patch
+  });
+
+  it('PROMOTE drops a coarse resident instead of moving it to the overlay', () => {
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    // the SWR preview lands first as the base, then the real world arrives
+    engine.setWindData(gl, grid(COARSE_REGIONAL, 5, 4, 12));
+    expect(engine.setWindData(gl, grid(SHARP_GLOBAL, 181, 83, 20))).toBe('base'); // NOT base_promote
+    expect(engine._windFine).toBeFalsy();          // coarse resident dropped, not filed as fine
+    expect(windGridIsGlobal(engine._windData.windGrid)).toBe(true);
+  });
+
+  it('a genuinely SHARPER regional still promotes to the overlay (the good case is preserved)', () => {
+    const { gl, deleted } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(FINE_GRID, 25, 29, 12)); // 0.33°/cell sharp fine
+    const fineHolder = engine._windData;
+    expect(engine.setWindData(gl, grid(SHARP_GLOBAL, 181, 83, 20))).toBe('base_promote');
+    expect(engine._windFine).toBe(fineHolder);     // sharp fine kept as overlay
+    expect(deleted).not.toContain(fineHolder.texture);
+  });
+
+  it('kill switch restores the legacy coarse-files-as-fine behaviour', () => {
+    window.__RAW_DISABLE_WIND_COARSE_OVERLAY_GUARD__ = true;
+    const { gl } = makeMockGL();
+    const engine = new WebGLWindEngine();
+    engine.setWindData(gl, grid(SHARP_GLOBAL, 181, 83, 20));
+    expect(engine.setWindData(gl, grid(COARSE_REGIONAL, 5, 4, 12))).toBe('fine');
+    expect(engine._windFine).toBeTruthy();
+  });
+});

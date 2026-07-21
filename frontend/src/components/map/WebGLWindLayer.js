@@ -389,25 +389,26 @@ function WebGLWindLayerInner({ mapInstance, active, data, deliveryQueue, revisio
         }
         engine.__lastWindSource = data.source || null;
 
-        // NET particle reseed (2026-07-19 keepTrails contract, evaluated on the drained net
-        // change instead of per grid). A grid filed as the FINE OVERLAY or a PROMOTE leaves the
-        // on-screen field unchanged where particles are — no reseed. A MODEL switch full-clears
-        // (old-air trails must not linger on new air). A same-model base swap with a materially
-        // different box crossfades (keepTrails). A cold engine (no prior base) must seed the field
-        // once. Kill: __RAW_WIND_TRAIL_CLEAR_LEGACY__ restores the legacy always-clear.
-        const finalGrid = grids[grids.length - 1] || data;
+        // NET particle reseed (2026-07-19 keepTrails contract, evaluated on the ENGINE's actual
+        // BASE bounds before/after the drain — the field particles advect on). A grid the engine
+        // NO-OP'd (an identical re-commit, or a coarse SWR preview dropped by the coarse-overlay
+        // guard) leaves the base unchanged → NO reseed. A FINE overlay leaves the base unchanged
+        // too. A MODEL switch full-clears via modelChanged below (old-air trails must not linger).
+        // A same-model base swap to a materially different box crossfades (keepTrails). A cold
+        // engine seeds once. Kill: __RAW_WIND_TRAIL_CLEAR_LEGACY__ restores the legacy always-clear.
+        const postBounds = engine._windData?.bounds;
         let netBoundsChanged = false;
-        if (!preBounds && finalGrid.bounds) {
+        if (!preBounds && postBounds) {
           netBoundsChanged = true;
-        } else if (preBounds && finalGrid.bounds) {
+        } else if (preBounds && postBounds) {
           const oldSpan = getLongitudeSpan(preBounds);
-          const newSpan = getLongitudeSpan(finalGrid.bounds);
-          let dx = Math.abs(finalGrid.bounds.west - preBounds.west);
+          const newSpan = getLongitudeSpan(postBounds);
+          let dx = Math.abs(postBounds.west - preBounds.west);
           if (dx > 180.0) dx = 360.0 - dx;
           if (Math.abs(newSpan - oldSpan) > 2.0
-              || Math.abs((finalGrid.bounds.north - finalGrid.bounds.south) - (preBounds.north - preBounds.south)) > 2.0
+              || Math.abs((postBounds.north - postBounds.south) - (preBounds.north - preBounds.south)) > 2.0
               || dx > 2.0
-              || Math.abs(finalGrid.bounds.south - preBounds.south) > 2.0) {
+              || Math.abs(postBounds.south - preBounds.south) > 2.0) {
             netBoundsChanged = true;
           }
         }

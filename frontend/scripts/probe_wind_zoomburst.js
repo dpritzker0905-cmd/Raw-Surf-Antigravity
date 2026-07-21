@@ -229,10 +229,16 @@ const CENTER = { lng: -89, lat: 24 };
           const eps = 0.05;
           return b.west <= vp.w + eps && b.east >= vp.e - eps && b.south <= vp.s + eps && b.north >= vp.n - eps;
         };
+        var bWG = e && e._windData && e._windData.windGrid;
+        var fWG = e && e._windFine && e._windFine.windGrid;
         return {
           zoom: +m.getZoom().toFixed(2),
           baseSpan: gb ? +span(gb).toFixed(1) : null,
+          baseN: bWG && bWG.vectors ? bWG.vectors.length : null,
+          baseCell: (gb && bWG && bWG.cols > 1) ? +(span(gb) / (bWG.cols - 1)).toFixed(2) : null,
           fine: fb ? [+fb.west.toFixed(1), +fb.east.toFixed(1)] : null,
+          fineN: fWG && fWG.vectors ? fWG.vectors.length : null,
+          fineCell: (fb && fWG && fWG.cols > 1) ? +(span(fb) / (fWG.cols - 1)).toFixed(2) : null,
           baseCovers: covers(gb), fineCovers: covers(fb),
         };
       }).catch(() => null);
@@ -365,10 +371,24 @@ const CENTER = { lng: -89, lat: 24 };
       if (in1 && in2) { persistentSeams++; console.log(`persistent vertical seam near x=${x} at frames ${i - 2}-${i}`); break; }
     }
   }
+  // ISSUE A ("grid within a full heatmap"): a coarse grid filed as the FINE overlay while the base
+  // covers — a blocky patch on top of good data. The coarse-overlay guard should make this ZERO.
+  const coarseOverlay = samples.filter((s) => s.baseCovers && s.fineCell && s.baseCell && s.fineCell > s.baseCell * 1.3);
+  // ISSUE B ("grid-square heatmap with cleared surroundings"): a COARSE grid resident but not
+  // covering — a blocky box with the rest cleared (clip-primary on a coarse grid).
+  const coarseClamp = samples.filter((s) => !s.baseCovers && !s.fineCovers && (s.baseCell >= 3.0 || s.fineCell >= 3.0));
+  if (coarseOverlay.length) {
+    console.log(`\nISSUE-A COARSE-OVERLAY samples: ${coarseOverlay.length}`);
+    for (const s of coarseOverlay.slice(0, 8)) console.log(`   t${s.t} z${s.zoom} baseCell ${s.baseCell} fineCell ${s.fineCell} (fineN ${s.fineN})`);
+  }
+  if (coarseClamp.length) {
+    console.log(`\nISSUE-B COARSE-CLIP-PRIMARY samples: ${coarseClamp.length}`);
+    for (const s of coarseClamp.slice(0, 8)) console.log(`   t${s.t} z${s.zoom} baseCell ${s.baseCell} baseN ${s.baseN} covers b:${s.baseCovers} f:${s.fineCovers}`);
+  }
   fs.writeFileSync(path.join(OUT, 'burst_state.json'), JSON.stringify({ seed: SEED, cycles: CYCLES, samples, frames: frames.map((f) => ({ n: f.n, t: f.t })) }, null, 1));
-  console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | persistent seams: ${persistentSeams}`);
-  const pass = clampSamples === 0 && persistentSeams === 0;
-  console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp (structural or pixel) across the storm.'
-    : 'ZOOMBURST FAIL — clamp captured; see clamp windows above + burst_state.json + console_log.json + video in ' + OUT);
+  console.log(`\nsamples: ${samples.length} (~10 Hz) | screenshots: ${frames.length} | clamp samples: ${clampSamples} (worst dwell ${worstDwellMs} ms across ${clampWindows.length} windows) | cold samples: ${coldSamples} | persistent seams: ${persistentSeams} | coarse-overlay(A): ${coarseOverlay.length} | coarse-clip(B): ${coarseClamp.length}`);
+  const pass = clampSamples === 0 && persistentSeams === 0 && coarseOverlay.length === 0;
+  console.log(pass ? 'ZOOMBURST PASS — no mid-gesture clamp, coarse overlay, or seam across the storm.'
+    : 'ZOOMBURST FAIL — see windows above + burst_state.json + console_log.json + video in ' + OUT);
   process.exit(pass ? 0 : 1);
 })();
