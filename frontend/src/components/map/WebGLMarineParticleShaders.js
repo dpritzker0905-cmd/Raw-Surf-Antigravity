@@ -362,6 +362,13 @@ uniform float u_opacity;
 uniform float u_densityBase;   // engine-computed constant-screen-density cull fraction (z>tileZoomMin); <=0 → legacy per-zoom curve
 uniform float u_endpointLandFade; // 1 = fade ribbon corners whose along-crest END lies over land (0 = legacy center-only cull)
 uniform float u_crestLandThreshold; // crest-center oceanFlag discard cut (2026-07-07): match the heatmap's 0.5 so crests don't survive on soft/partial-land mask values (thin cays, coastal edges) the wash discards
+// COAST SDF (2026-07-21): when the mask .b carries a signed distance-to-coast, threshold the DISTANCE
+// (not the binary .r) so crests cut at the SAME crisp, eroded coast as the heatmap wash — no crest
+// streaks surviving past the wash coastline. Must equal the HEATMAP_FS uniforms every frame.
+uniform float u_coastSDFEnabled;    // 1.0 = base mask .b is a signed dist-to-coast
+uniform float u_overlaySDFEnabled;  // 1.0 = overlay mask .b is a signed dist-to-coast
+uniform float u_coastErode;         // coast erosion offset in normalized SDF units (matches heatmap)
+uniform float u_coastAA;            // coast smoothstep half-width
 uniform float u_ringFillEnabled;    // CREST RING-FILL (2026-07-16) — must match ADVECT_FS exactly (advected positions and drawn crests share field semantics beyond the grid edge, or crests die where particles advect and vice versa).
 uniform sampler2D u_coarseWaveTexture; // held coarse-global base field (== the wash's texture)
 uniform sampler2D u_coarseMaskTexture; // the base's OWN world mask (bounds == u_coarseBounds)
@@ -489,7 +496,10 @@ void main() {
   vec4 baseMaskSample = useCoarse
     ? texture2D(u_coarseMaskTexture, vec2(c_u, (cMercMaxY - global_pos.y) / max(cMercMaxY - cMercMinY, 0.0001)))
     : texture2D(u_oceanMaskTexture, mask_uv);
-  float oceanFlag = max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
+  // COAST SDF: threshold the .b distance (crisp, eroded coast == the heatmap wash) when active; else legacy binary.
+  float oceanFlag = (u_coastSDFEnabled > 0.5 && !useCoarse)
+    ? smoothstep(-u_coastAA, u_coastAA, (baseMaskSample.b - 0.5) - u_coastErode)
+    : max(baseMaskSample.r, baseMaskSample.g * u_motionUnlock);
   // Viewport-truth overlay (2026-07-04): override ONLY inside the overlay bounds; outside falls
   // back to the base mask (stale-safe — see HEATMAP_FS note). Matches ADVECT_FS exactly.
   float oMercMinY = latToMercatorY(u_overlayBounds_max.y);
@@ -498,7 +508,10 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - global_pos.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      float ovs = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      vec4 ovSample = texture2D(u_overlayMaskTexture, vec2(o_u, o_v));
+      float ovs = (u_overlaySDFEnabled > 0.5)
+        ? smoothstep(-u_coastAA, u_coastAA, (ovSample.b - 0.5) - u_coastErode)
+        : ovSample.r;
       oceanFlag = (u_overlayReplace > 0.5) ? ovs : min(oceanFlag, ovs);
     }
   }
@@ -520,7 +533,10 @@ void main() {
   // Trace-level waves (especially Swell 2) have unreliable directions — no animation.
   // NO coherence discard here (2026-07-03): incoherent-direction seams DIM via u_seamFadeFloor below
   // instead of vanishing — the core discard made divergence hotspots a band-wide crest dead zone.
-  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < u_crestLandThreshold || isNan || isOob)) {
+  // COAST SDF: when active, oceanFlag is a coverage crossing 0.5 at the eroded coast — cut there
+  // (matching the heatmap wash discard) instead of the binary crest threshold.
+  float _crestCut = (u_coastSDFEnabled > 0.5 || u_overlaySDFEnabled > 0.5) ? 0.5 : u_crestLandThreshold;
+  if (!bypassDiscard && (waveHeight < 0.01 || length(waveVec) < 0.02 || oceanFlag < _crestCut || isNan || isOob)) {
     gl_Position = vec4(9999.0, 9999.0, 9999.0, 1.0);
     v_alpha = 0.0; v_phase = 0.0; v_period_norm = 0.5; v_whitecap = 0.0;
     v_debug_color = vec4(0.0);

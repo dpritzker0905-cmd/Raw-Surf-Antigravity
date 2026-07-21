@@ -1,6 +1,7 @@
 import { renderMaskToCanvas, maskDensityPxPerDeg, incomingMaskDensityPxPerDeg } from './WebGLMarineMaskRenderer';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
 import { applyPatchCarry } from './maskSmoothing';
+import { writeCoastDistanceField } from './maskCoastSDF'; // signed dist-to-coast → mask .b (opt-in, best-in-class crisp coast)
 import {
   getEncoderScratchBuffers,
   scaleUnitDirByConfidence,
@@ -714,6 +715,11 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
               if (_bx) window.__RAW_MASK_PATCH_CARRY_LAST__ = { box: { ..._bx }, ts: Date.now() };
             } catch (e) { /* telemetry only */ }
           }
+          // COAST SDF (2026-07-21): pack a signed distance-to-coast into the finalized mask canvas'
+          // free .b channel so the shader can threshold a crisp, resolution-independent coast. Opt-in
+          // (__RAW_COAST_SDF__); no-op + byte-identical .b otherwise. Runs on the NE-truth base here;
+          // the basemap-water re-upload (refreshMaskWithBasemapWater) re-writes it on the patched coast.
+          const _sdfWritten = writeCoastDistanceField(maskCanvas);
           const prevTex = gl.getParameter(gl.TEXTURE_BINDING_2D);
           const prevFlipY = gl.getParameter(gl.UNPACK_FLIP_Y_WEBGL);
           maskTex = gl.createTexture();
@@ -735,6 +741,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
 
           if (engine) {
             engine._cachedMaskTex = maskTex;
+            engine._cachedMaskHasSDF = _sdfWritten; // .b carries a signed dist-to-coast (shader gate)
             engine._cachedMaskTexDims = { w: maskCanvas.width, h: maskCanvas.height };
             engine._cachedMaskGeoJSON = effectiveGeoJSON;
             engine._cachedMaskBounds = { ...bounds };
@@ -747,6 +754,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
           console.warn('[WebGLMarineEngine] Failed to create high-res mask texture, falling back to grid-mask', e);
           maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
           if (maskTex) allocatedTextures.push(maskTex);
+          if (engine) engine._cachedMaskHasSDF = false; // grid fallback has no .b SDF
         }
       }
     } else {
@@ -755,6 +763,7 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
       } else {
         maskTex = createTexture(gl, gl.LINEAR, dataMask, cols, rows);
         if (maskTex) allocatedTextures.push(maskTex);
+        if (engine) engine._cachedMaskHasSDF = false; // grid fallback has no .b SDF
       }
     }
   } catch (err) {

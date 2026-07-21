@@ -83,6 +83,9 @@ describe('particle shaders — §4.2 lifted land checks', () => {
 
   it('overlay combine still consumes geography .r (unchanged semantics)', () => {
     expect(ADVECT_FS).toContain('texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r');
-    expect(DRAW_VS).toContain('texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r');
+    // DRAW_VS was refactored for the coast SDF (2026-07-21): it samples the overlay into a vec4 and
+    // uses .r as the legacy (SDF-off) fallback, so the geography .r consumption is preserved intact.
+    expect(DRAW_VS).toContain('vec4 ovSample = texture2D(u_overlayMaskTexture, vec2(o_u, o_v));');
+    expect(DRAW_VS).toContain('ovSample.r');
   });
 });

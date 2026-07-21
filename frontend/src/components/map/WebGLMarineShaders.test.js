@@ -164,8 +164,19 @@ describe('DRAW_VS ribbon-endpoint land fade (2026-07-04, dashes crossing Venice/
     // The center-cull threshold is now a tunable uniform (2026-07-07): default 0.5 (set in the
     // engine) matches the heatmap's discard so crests stop surviving on soft/partial-land mask
     // values the wash rejects. Kept as a cull (not removed) — still gates crest centers on land.
-    expect(DRAW_VS).toContain('oceanFlag < u_crestLandThreshold');
+    // 2026-07-21 COAST SDF: the cut is now `_crestCut`, which falls back to u_crestLandThreshold when
+    // the SDF is off (legacy byte-identical) and to 0.5 (the eroded SDF coast) when it is on.
+    expect(DRAW_VS).toContain('oceanFlag < _crestCut');
+    expect(DRAW_VS).toContain('u_crestLandThreshold'); // legacy binary cut preserved as the SDF-off fallback
     expect(DRAW_VS).toContain('uniform float u_crestLandThreshold;');
+  });
+
+  it('crests read the coast SDF from .b when active (parity with the heatmap wash)', () => {
+    // The DRAW crest pass thresholds the mask .b signed-distance (crisp, eroded coast) when the SDF
+    // is live, so crests cut at the SAME coastline as the heatmap — no streaks past the wash edge.
+    expect(DRAW_VS).toContain('uniform float u_coastSDFEnabled;');
+    expect(DRAW_VS).toContain('uniform float u_coastErode;');
+    expect(DRAW_VS).toContain('baseMaskSample.b'); // distance decode, not the binary .r
   });
 });
 

@@ -76,6 +76,14 @@ uniform highp vec2 u_overlayBounds_max; // [east, north]
 uniform float u_overlayMaskEnabled;     // 1.0 when a painted overlay applies to the resident grid (wide grid, or regional at deep zoom)
 uniform float u_overlayReplace;         // 1.0 = overlay REPLACES the base sample (wide grid, base too coarse); 0.0 = min() combine (regional base already truthful; overlay only removes wash)
 uniform float u_dataMaskGate;           // 1.0 = blank the heatmap where the pixel is outside BOTH the data grid AND the mask (no data — kills the land-mask halo where both textures clamp-to-edge water). Set from __RAW_DISABLE_HEATMAP_BOUNDS_GATE__.
+// COAST SDF (2026-07-21): the mask .b optionally carries a signed distance-to-coast (0.5 = coastline,
+// >0.5 offshore water, <0.5 inland; CPU EDT on the mask canvas). Thresholding the DISTANCE, not the
+// binary .r, gives a crisp, resolution-independent coast at ANY zoom (LINEAR-interp of a distance is
+// sub-texel-accurate; raw .r staircases). u_coastErode shifts the coast seaward to erode land bleed.
+uniform float u_coastSDFEnabled;        // 1.0 when the BASE mask .b is a signed dist-to-coast
+uniform float u_overlaySDFEnabled;      // 1.0 when the OVERLAY mask .b is a signed dist-to-coast
+uniform float u_coastErode;             // threshold shift in normalized SDF units (+ erodes water / grows land)
+uniform float u_coastAA;                // smoothstep half-width around the coast (normalized SDF units)
 
 float mercatorYToLat(float y) {
   float sinhVal = (exp(3.141592653589793 * (1.0 - 2.0 * y)) - exp(-3.141592653589793 * (1.0 - 2.0 * y))) * 0.5;
@@ -325,7 +333,12 @@ void main() {
   float mask_v = (maskMercMaxY - v_mercator_xy.y) / max(maskMercMaxY - maskMercMinY, 0.0001);
   vec2 mask_uv = vec2(mask_u, mask_v);
 
-  float oceanAlpha = texture2D(u_oceanMaskTexture, mask_uv).r;
+  vec4 _maskSample = texture2D(u_oceanMaskTexture, mask_uv);
+  float oceanAlpha = _maskSample.r;
+  if (u_coastSDFEnabled > 0.5) {
+    // threshold the signed distance in .b (0.5 = coast) → crisp AA coverage; u_coastErode pulls seaward
+    oceanAlpha = smoothstep(-u_coastAA, u_coastAA, (_maskSample.b - 0.5) - u_coastErode);
+  }
   // LAND-MASK HALO FIX (2026-07-21): outside BOTH the data grid AND the ocean mask, both textures
   // GL_CLAMP_TO_EDGE their edge value (edge WATER + edge wave) so the heatmap floods onto land beyond
   // the grid — the land-mask halo the user reported. There is no data there: blank it. Global grids/
@@ -350,7 +363,11 @@ void main() {
     float o_u = (lng - u_overlayBounds_min.x) / max(u_overlayBounds_max.x - u_overlayBounds_min.x, 0.0001);
     float o_v = (oMercMaxY - v_mercator_xy.y) / max(oMercMaxY - oMercMinY, 0.0001);
     if (o_u > 0.0 && o_u < 1.0 && o_v > 0.0 && o_v < 1.0) {
-      float ovs = texture2D(u_overlayMaskTexture, vec2(o_u, o_v)).r;
+      vec4 _ovSample = texture2D(u_overlayMaskTexture, vec2(o_u, o_v));
+      float ovs = _ovSample.r;
+      if (u_overlaySDFEnabled > 0.5) {
+        ovs = smoothstep(-u_coastAA, u_coastAA, (_ovSample.b - 0.5) - u_coastErode);
+      }
       oceanAlpha = (u_overlayReplace > 0.5) ? ovs : min(oceanAlpha, ovs);
     }
   }
@@ -525,9 +542,16 @@ void main() {
   vec3 finalColor = blendedWaveColor + directionalSwellLighting;
 
   float alpha = u_opacity;
-  float maskFade = (u_maskEdgeSharp > 0.5)
-    ? smoothstep(0.45, 0.6, oceanAlpha)   // coarse mask: crisp midline cut — no halo band
-    : smoothstep(0.3, 0.8, oceanAlpha);   // fine mask: legacy soft coastal feather
+  // COAST SDF: oceanAlpha is ALREADY a crisp AA coverage from the distance threshold — pass it through
+  // (a second smoothstep would re-soften the edge). Legacy binary path keeps the two-branch feather.
+  float maskFade;
+  if (u_coastSDFEnabled > 0.5 || u_overlaySDFEnabled > 0.5) {
+    maskFade = oceanAlpha;
+  } else {
+    maskFade = (u_maskEdgeSharp > 0.5)
+      ? smoothstep(0.45, 0.6, oceanAlpha)   // coarse mask: crisp midline cut — no halo band
+      : smoothstep(0.3, 0.8, oceanAlpha);   // fine mask: legacy soft coastal feather
+  }
   alpha *= maskFade;
 
   // BLEND BOTH (regional-over-coarse composite): on the regional OVERLAY pass, fade near-flat cells to
