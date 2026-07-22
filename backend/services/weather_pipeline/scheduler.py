@@ -383,6 +383,25 @@ class WeatherPipelineScheduler:
             _ew_max = _parse_iso(_ew_times[-1]) if _ew_times else None
             _ew_gfs_ext = _slice_after(gfs_ext_src, _ew_max) if ecmwf_waves else None
 
+            # GFS-FILL (2026-07-22) — the ACTUAL Gulf/enclosed-sea/Antarctic fix. Both the ECMWF-WAM and
+            # CMEMS coarse `waves` sources structurally MASK enclosed seas (Gulf of Mexico, E Med, Black
+            # Sea, Sea of Japan, Gulf of California) AND the Southern Ocean south of ~-60 (the "Antarctic
+            # projection" regression) -> is_valid=FALSE -> the heatmap inflates those holes from distant
+            # open-ocean cells. NOAA GFS's land-sea mask HAS those cells (why GFS renders correctly), its
+            # coarse grid is already in hand (gfs_ext_src) and cell-aligned (all coarse fetchers share
+            # coarse_axis). Fill the masked `waves` cells from the RAW gfs_ext_src — the FULL 0-14d horizon,
+            # NOT the _slice_after(_cop_max) tail (which would leave 0-10d cells masked). Open-ocean
+            # ECMWF/CMEMS values are untouched (only NaN cells are filled). Mutates the waves source in
+            # place so the layer loop below saves the filled grid. Kill: EURO_MARINE_COARSE_GFS_FILL=0.
+            _waves_src = ecmwf_waves if ecmwf_waves is not None else cop_results
+            if os.environ.get("EURO_MARINE_COARSE_GFS_FILL", "1") != "0" and gfs_ext_src and _waves_src:
+                try:
+                    from services._fetch_common import fill_masked_waves_from_gfs
+                    _nfilled = fill_masked_waves_from_gfs(_waves_src, gfs_ext_src)
+                    logger.info(f"[Pipeline Scheduler] EURO coarse waves GFS-fill: filled {_nfilled} masked (cell,hour) values from GFS (Gulf/enclosed seas/Antarctic).")
+                except Exception as _fe:
+                    logger.error(f"[Pipeline Scheduler] EURO coarse waves GFS-fill errored (waves stay masked): {_fe}")
+
             for layer in ["waves", "swell_1", "swell_2", "wind_waves"]:
                 # `waves` rides ECMWF (has the Gulf) when available; swells + fallback ride CMEMS.
                 _use_ecmwf = (layer == "waves" and ecmwf_waves is not None)

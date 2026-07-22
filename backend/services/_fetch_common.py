@@ -431,6 +431,89 @@ def build_icosahedral_nn(lats, lons, clat, clon) -> List[int]:
 
 
 # ─────────────────────────── point-dict shaping ───────────────────────────
+def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height",
+                               dir_key="wave_direction", period_key="wave_period"):
+    """GULF / ENCLOSED-SEA / ANTARCTIC FIX (2026-07-22). The EURO coarse `waves` source (ECMWF-WAM or
+    CMEMS) structurally MASKS enclosed seas (Gulf of Mexico, E Med, Black Sea, Sea of Japan, Gulf of
+    California) AND the Southern Ocean south of ~-60 (the "Antarctic projection" regression): those cells
+    come back NaN/None -> is_valid=FALSE and the heatmap inflates them from distant open-ocean cells
+    (~4-5ft where reality is ~1.5ft). NOAA GFS/WW3's land-sea mask DOES carry those cells (why GFS renders
+    correctly). This fills every masked wave-height cell from the ALIGNED GFS coarse grid (all coarse
+    fetchers share coarse_axis -> identical cell centres), leaving the ECMWF/CMEMS open-ocean values
+    untouched; direction/period are filled alongside so the arrows stay honest. Matches by (lat,lon) cell
+    and by TIME value (GFS is hourly, waves 3-hourly -> a superset). Mutates waves_points in place and
+    returns the number of (cell,hour) values filled. Pure + side-effect-scoped for unit testing."""
+    if not waves_points or not gfs_points:
+        return 0
+
+    def _key(p):
+        try:
+            return (round(float(p.get("latitude")), 3), round(float(p.get("longitude")), 3))
+        except (TypeError, ValueError):
+            return None
+
+    def _masked(v):
+        return v is None or (isinstance(v, float) and math.isnan(v))
+
+    # Time-value match must be FORMAT-ROBUST: GFS via open-meteo is offset-NAIVE ('...T00:00'), while
+    # ECMWF/CMEMS/NOAA-direct are aware ('...T00:00:00Z'). String-matching them would silently fill 0
+    # cells. Normalize every timestamp to a UTC-aware datetime key (falls back to the raw string).
+    from datetime import datetime, timezone
+
+    def _tkey(t):
+        if not t:
+            return None
+        try:
+            dt = datetime.fromisoformat(str(t).replace("Z", "+00:00"))
+            return dt if dt.tzinfo is not None else dt.replace(tzinfo=timezone.utc)
+        except (ValueError, TypeError):
+            return str(t)
+
+    # GFS lookup: cell -> {time_key: (height, dir, period)}
+    gfs = {}
+    for gp in gfs_points:
+        k = _key(gp)
+        if k is None:
+            continue
+        gh = gp.get("hourly", {}) or {}
+        gt = gh.get("time", []) or []
+        ghh = gh.get(height_key, []) or []
+        gdd = gh.get(dir_key, []) or []
+        gpp = gh.get(period_key, []) or []
+        m = {}
+        for i, t in enumerate(gt):
+            tk = _tkey(t)
+            if tk is not None:
+                m[tk] = (ghh[i] if i < len(ghh) else None,
+                         gdd[i] if i < len(gdd) else None,
+                         gpp[i] if i < len(gpp) else None)
+        gfs[k] = m
+
+    filled = 0
+    for wp in waves_points:
+        cell = gfs.get(_key(wp))
+        if not cell:
+            continue
+        wh = wp.get("hourly", {}) or {}
+        wt = wh.get("time", []) or []
+        whh = wh.get(height_key, [])
+        wdd = wh.get(dir_key, [])
+        wpp = wh.get(period_key, [])
+        for i, t in enumerate(wt):
+            if i >= len(whh) or not _masked(whh[i]):
+                continue
+            g = cell.get(_tkey(t))
+            if not g or _masked(g[0]):
+                continue  # GFS also has no ocean cell here (true land) -> leave masked (nothing on land)
+            whh[i] = g[0]
+            if i < len(wdd) and _masked(wdd[i]) and g[1] is not None:
+                wdd[i] = g[1]
+            if i < len(wpp) and _masked(wpp[i]) and g[2] is not None:
+                wpp[i] = g[2]
+            filled += 1
+    return filled
+
+
 def make_point_dict(lat: float, lon: float, provider: str, hourly_units: dict, hourly: dict) -> dict:
     """Open-Meteo-shaped point dict — the exact shape the normalizer consumes. ``provider`` is the
     ``__provider`` provenance tag ('noaa'/'dwd'/...); the caller still saves with provider='open-meteo'

@@ -442,3 +442,87 @@ async def test_euro_marine_coarse_ecmwf_fallback_to_cmems(tmp_path, monkeypatch)
     waves_native = _coarse_prods(store, layer="waves", native_only=True)
     assert waves_native, "expected a native EURO coarse waves product"
     assert all(p.provider == "copernicus" for p in waves_native), "ECMWF outage -> waves on CMEMS (no regression)"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_gfs_fill_wired_on_waves_with_raw_gfs(tmp_path, monkeypatch):
+    """The Gulf/enclosed-sea/Antarctic fix: ingest_euro_marine_global must call fill_masked_waves_from_gfs
+    on the WAVES source with the RAW full-horizon GFS grid (gfs_ext_src), NOT the sliced 10->14d tail —
+    the landmine that would leave 0-10d Gulf cells masked. Spies on the fill to prove the wiring."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.ecmwf_wave_service as wave_svc
+    import services.copernicus_marine_service as cms
+    import services._fetch_common as fc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_COARSE_ECMWF", "1")
+    monkeypatch.setenv("EURO_MARINE_COARSE_GFS_FILL", "1")
+
+    ecmwf_pts = _mock_ecmwf_wave_points()
+
+    async def fake_ecmwf(bbox, resolution=2.0, forecast_days=10):
+        return ecmwf_pts
+
+    async def fake_cmems(region, resolution, days):
+        return _mock_cmems_marine_points()
+
+    captured = {}
+
+    def spy_fill(waves_points, gfs_points, **kw):
+        captured["waves_is_ecmwf"] = (waves_points is ecmwf_pts)
+        captured["gfs_len"] = len(gfs_points) if gfs_points else 0
+        gt = gfs_points[0].get("hourly", {}).get("time", []) if gfs_points else []
+        captured["gfs_hours"] = len(gt)
+        return 0
+
+    monkeypatch.setattr(wave_svc, "fetch_euro_marine_waves_global", fake_ecmwf)
+    monkeypatch.setattr(cms, "fetch_euro_marine_global_coarse", fake_cmems)
+    monkeypatch.setattr(fc, "fill_masked_waves_from_gfs", spy_fill)
+
+    ok = await scheduler.ingest_euro_marine_global()
+    assert ok is True
+    assert captured, "fill_masked_waves_from_gfs was never called (GFS-fill not wired)"
+    assert captured["waves_is_ecmwf"] is True, "fill must run on the WAVES source (the ecmwf points), not swells"
+    assert captured["gfs_len"] > 0, "fill must receive the in-hand GFS coarse grid"
+    # RAW gfs_ext_src is the FULL horizon; the CMEMS-max-sliced tail would be strictly shorter. The mock
+    # GFS spans the full forecast horizon, so a healthy raw pass has multiple hours.
+    assert captured["gfs_hours"] >= 1, "fill must receive the RAW gfs_ext_src (full horizon), not an empty/over-trimmed tail"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_gfs_fill_kill_switch(tmp_path, monkeypatch):
+    """EURO_MARINE_COARSE_GFS_FILL=0 disables the fill entirely (legacy masked-Gulf behavior)."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.ecmwf_wave_service as wave_svc
+    import services.copernicus_marine_service as cms
+    import services._fetch_common as fc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_COARSE_ECMWF", "1")
+    monkeypatch.setenv("EURO_MARINE_COARSE_GFS_FILL", "0")
+
+    async def fake_ecmwf(bbox, resolution=2.0, forecast_days=10):
+        return _mock_ecmwf_wave_points()
+
+    async def fake_cmems(region, resolution, days):
+        return _mock_cmems_marine_points()
+
+    called = {"fill": False}
+
+    def spy_fill(*a, **k):
+        called["fill"] = True
+        return 0
+
+    monkeypatch.setattr(wave_svc, "fetch_euro_marine_waves_global", fake_ecmwf)
+    monkeypatch.setattr(cms, "fetch_euro_marine_global_coarse", fake_cmems)
+    monkeypatch.setattr(fc, "fill_masked_waves_from_gfs", spy_fill)
+
+    ok = await scheduler.ingest_euro_marine_global()
+    assert ok is True
+    assert called["fill"] is False, "kill switch must skip the GFS-fill entirely"
