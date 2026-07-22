@@ -297,9 +297,10 @@ async def resolve_grid(
                     f"({len(candidate_product.grid.vectors)} vectors) in Step 3.5."
                 )
 
-    # Step 3.6: MID-RES GLOBAL TIER (2026-07-05; extracted to mid_res_tier.py). The z6-7 quality tier:
-    # serves the ~2° global_mid CLIPPED to the viewport for marine spans in (0,15]° (tight-zoom floor
-    # dropped 2026-07-12 so cold/panned surf zooms get an instant coastal band), authoritative-first
+    # Step 3.6: MID-RES GLOBAL TIER (2026-07-05; extracted to mid_res_tier.py). The z5-7 quality tier:
+    # serves the ~2° global_mid CLIPPED to the viewport for marine spans in (0,40]° (tight-zoom floor
+    # dropped 2026-07-12 so cold/panned surf zooms get an instant coastal band; MAX_SPAN raised 15→40
+    # 2026-07-22 so a zoom-out to ~z5 keeps compact storms resolved — see mid_res_tier.py), authoritative-first
     # then ESTIMATED (mirroring the coarse products' extended-estimate blend structure so scrubbing past a
     # model's native horizon keeps mid-res quality). Also a REPLACE pass: at estimated hours Step 3 above
     # short-circuits and serves the UNCLIPPED 10° coarse global — the tier upgrades that to the clipped

@@ -17,6 +17,10 @@ try {
 }
 
 const BASE = process.env.ZL_BASE || 'http://localhost:3009';
+// ZL_CENTER="lng,lat" / ZL_START_ZOOM: camera start override (2026-07-22, the TS Bertha Gulf
+// zoom-out repro — the default FL-east-coast camera doesn't frame the Gulf storm). Backward-compatible.
+const ZL_CENTER = (process.env.ZL_CENTER || '-80.2,28.33').split(',').map(Number);
+const ZL_START_ZOOM = Number(process.env.ZL_START_ZOOM || 9);
 const scenario = process.argv[2] || 'zoomout_ratingoff';
 const outdir = process.argv[3] || path.join(__dirname, 'zoomlab-out');
 fs.mkdirSync(outdir, { recursive: true });
@@ -108,7 +112,7 @@ async function main() {
   log('waves toggle: ' + toggled);
   // The activation lane alone may not fetch — a camera move triggers the moveend lane.
   await page.waitForTimeout(1500);
-  await page.evaluate(() => { window.map.jumpTo({ center: [-80.2, 28.33], zoom: 9 }); });
+  await page.evaluate(([c, z]) => { window.map.jumpTo({ center: c, zoom: z }); }, [ZL_CENTER, ZL_START_ZOOM]);
   await page.waitForFunction(() => {
     const e = window.__MARINE_ENGINE__;
     return e && e._waveData && e._waveData.bounds;
@@ -172,10 +176,10 @@ async function main() {
     log('rated resident committed');
   }
 
-  // Camera start: coastal FL at z9 (React-controlled camera applies within a frame at full rAF).
-  await page.evaluate(() => { window.map.jumpTo({ center: [-80.2, 28.33], zoom: 9 }); });
-  await page.waitForFunction(() => Math.abs(window.map.getZoom() - 9) < 0.01 &&
-    Math.abs(window.map.getCenter().lng - (-80.2)) < 0.01, null, { timeout: 20000 });
+  // Camera start: coastal FL at z9 by default; ZL_CENTER/ZL_START_ZOOM override (Gulf/Bertha repro).
+  await page.evaluate(([c, z]) => { window.map.jumpTo({ center: c, zoom: z }); }, [ZL_CENTER, ZL_START_ZOOM]);
+  await page.waitForFunction(([c, z]) => Math.abs(window.map.getZoom() - z) < 0.01 &&
+    Math.abs(window.map.getCenter().lng - c[0]) < 0.01, [ZL_CENTER, ZL_START_ZOOM], { timeout: 20000 });
   // Let a fresh resident commit for this camera (moveend debounce + fetch).
   await page.waitForTimeout(6000);
 

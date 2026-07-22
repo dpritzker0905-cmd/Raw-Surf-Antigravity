@@ -113,7 +113,18 @@ async def try_serve_mid_res_tier(
         if layer.lower() not in _MID_LAYERS:
             return None
         _lo_env, _lo_def = "MARINE_MID_RES_MIN_SPAN", "0.0"
-        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "15.0"
+        # MAX_SPAN 15.0 → 40.0 (2026-07-22, the "TS Bertha vanishes on zoom-out to z5.35" report):
+        # a compact storm (~3.1m Hs core) lives in ONE 2° mid cell but gets block-averaged into the
+        # ~0.7-1.8m ambient of a 10° global_coarse cell — so at the 15° cliff (≈z6.2 on a desktop map)
+        # zooming out dropped the mid tier and the storm smeared into the background (GFS/ICON) or hit
+        # the enclosed-sea mask (EURO). 40° keeps the pre-baked global_mid (clipped to the viewport,
+        # LRU + semaphore guarded — cheap) active down to ~z5, the natural regional/storm-watch band;
+        # genuine continental/world views (>40°) still take the 10° coarse. The clip stays tiny (a 40°
+        # box @2° ≈ 400 vectors, far under _MAX_SERVEABLE_GRID_VECTORS=250k). Frontend match: the
+        # request-side ceiling __RAW_MARINE_GLOBAL_SPAN__ (backendWeatherServiceClientCoverage.js) is
+        # raised in lockstep so GFS/ICON/EURO request the viewport bbox (not the global bbox) up to 40°.
+        # Kill / revert: MARINE_MID_RES_MAX_SPAN=15.
+        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "40.0"
     elif dom == "wind":
         # WIND MID TIER (2026-07-20, queue #3 — "the clamp must fit the entire map"). The wind
         # sibling of the marine tier: serves the cron's ~2-deg wind global_mid CLIPPED wherever

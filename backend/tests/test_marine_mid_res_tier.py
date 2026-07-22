@@ -186,13 +186,72 @@ def test_mid_res_tier_min_span_floor_restorable(monkeypatch):
 
 
 def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
-    """A wide (>15°) view is a genuine global zoom-out — keep the coarse path, not the mid tier."""
+    """A wide (>40°) view is a genuine global/continental zoom-out — keep the coarse path, not the
+    mid tier (ceiling raised 15→40 on 2026-07-22; a 70×60° continental view is still well past it)."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
     vp = _FakeViewport()
     out = _resolve(store, vp, monkeypatch, bbox="-170,-10,-100,50")  # ~70°×60° continental
     # Mid tier must NOT fire → falls through to the coarse-preview path (which returns None here).
     assert not (out is not None and out.grid and out.grid.diagnostics
                 and out.grid.diagnostics.get("mid_res_tier"))
+
+
+def _make_gulf_mid_product():
+    """A ~2° global-extent mid product with vectors spanning a wide Gulf/W-Atlantic box
+    (lng -100..-70, lat 14..40), carrying a compact 'Bertha' storm peak (3.1m) at (28,-88).
+    Used to prove the z5 zoom-out (span ~30°) keeps the storm-resolved 2° mid, not the 10° coarse."""
+    vecs = []
+    lat = 14.0
+    while lat <= 40.0:
+        lng = -100.0
+        while lng <= -70.0:
+            # Compact storm core at (28,-88): 3.1m; calm ambient elsewhere: 0.7m
+            h = 3.1 if (abs(lat - 28.0) < 1.5 and abs(lng - (-88.0)) < 1.5) else 0.7
+            vecs.append(GridVector(lat=lat, lng=lng, speed=h, u=h, v=0.0))
+            lng += 2.0
+        lat += 2.0
+    bounds = CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0)  # global extent in storage
+    grid = NormalizedGrid(bounds=bounds, cols=180, rows=90, vectors=vecs)
+    return NormalizedProduct(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        run_time=_VT_DT, valid_time=_VT_DT,
+        is_forecast_authoritative=True, is_estimated=False, coverage=bounds, grid=grid,
+        value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+        source_variables=[], freshness_sec=1800,
+        product_id="gfs_marine_waves_global_mid_gulf.json",
+    )
+
+
+def test_mid_res_tier_serves_at_z5_zoomout_keeping_storm_resolved(monkeypatch):
+    """THE FIX (2026-07-22, "TS Bertha vanishes on zoom-out to z5.35"): a ~30° span (≈z5 on a
+    desktop map) must now serve the clipped 2° mid — NOT drop to the 10° coarse where a compact
+    storm smears into the ambient. Ceiling default is 40°, so a 30° request is inside the band."""
+    store = _FakeStore([_mid_manifest_item()], _make_gulf_mid_product())
+    vp = _FakeViewport()
+    # ~30°×22° viewport over the Gulf/Florida — the z5.35 zoom the user reported.
+    out = _resolve(store, vp, monkeypatch, bbox="-99,17,-69,39")
+
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True, "z5 zoom-out must serve the 2° mid tier"
+    assert out.coverage_scope == "regional"
+    # Clipped, not the unclipped 10° global.
+    b = out.grid.bounds
+    span = (b.east - b.west) if b.east >= b.west else (b.east + 360.0 - b.west)
+    assert span < 350.0
+    # The storm survives at 2° resolution: the (28,-88) core is still 3.1m in the served grid.
+    peak = max((v.speed for v in out.grid.vectors), default=0.0)
+    assert peak >= 3.0, f"storm core must survive the 2° mid clip (got peak {peak})"
+
+
+def test_mid_res_tier_z5_reverts_to_coarse_under_kill_switch(monkeypatch):
+    """Kill switch / A-B pin: MARINE_MID_RES_MAX_SPAN=15 restores the pre-fix cliff — the same 30°
+    zoom-out then SKIPS the mid tier (falls through to the coarse path), reproducing the bug."""
+    monkeypatch.setenv("MARINE_MID_RES_MAX_SPAN", "15.0")
+    store = _FakeStore([_mid_manifest_item()], _make_gulf_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-99,17,-69,39")  # 30° span > 15° cap
+    assert not (out is not None and out.grid and out.grid.diagnostics
+                and out.grid.diagnostics.get("mid_res_tier")), "30° must skip mid when ceiling=15"
 
 
 def _make_coarse_product(is_estimated=False):

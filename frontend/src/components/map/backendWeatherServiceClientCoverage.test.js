@@ -88,6 +88,52 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(resICON.selectedTileId).toBe('global_coarse');
     });
 
+    // MID-BAND CEILING 15 → 40 (2026-07-22, "TS Bertha vanishes on zoom-out to z5.35"): a ~30° span
+    // (≈z5 on a desktop map) must now request the VIEWPORT bbox (→ the backend's clipped 2° mid,
+    // storm-resolved) instead of the global bbox (→ 10° coarse, storm smeared / EURO enclosed-sea
+    // mask). The kill-switch __RAW_MARINE_GLOBAL_SPAN__=15 reproduces the old cliff.
+    describe('mid-band ceiling (storm-at-zoom-out fix)', () => {
+      afterEach(() => { delete window.__RAW_MARINE_GLOBAL_SPAN__; });
+
+      it('GFS ~30° zoom-out requests the viewport bbox (2° mid), not global_coarse', () => {
+        const z5 = { west: -99, south: 17, east: -69, north: 39 }; // ~30°×22°, the reported z5.35
+        const res = clampViewportBbox(z5, 'waves', 'GFS');
+        expect(res.isInside).toBe(true);
+        expect(res.selectedTileId).not.toBe('global_coarse');
+        expect(String(res.selectedTileId)).toMatch(/^viewport_/);
+        // Request must COVER the viewport (so the clipped mid paints the whole screen, no wash).
+        expect(res.clampedBbox.west).toBeLessThanOrEqual(-99);
+        expect(res.clampedBbox.east).toBeGreaterThanOrEqual(-69);
+      });
+
+      it('ICON ~30° zoom-out requests the viewport bbox (2° mid), not global_coarse', () => {
+        const z5 = { west: -99, south: 17, east: -69, north: 39 };
+        const res = clampViewportBbox(z5, 'waves', 'ICON');
+        expect(res.isInside).toBe(true);
+        expect(res.selectedTileId).not.toBe('global_coarse');
+      });
+
+      it('EURO ~30° zoom-out requests a COVERING viewport bbox (maxSpan raised in lockstep)', () => {
+        const z5 = { west: -99, south: 17, east: -69, north: 39 };
+        const res = clampViewportBbox(z5, 'waves', 'EURO');
+        expect(res.isInside).toBe(true);
+        expect(res.selectedTileId).not.toBe('global_coarse');
+        // The old 20° cost cap would have clamped this 30° viewport to ~20° (center-only → edge wash).
+        // The raised cap keeps the request covering the full span.
+        expect(res.clampedBbox.east - res.clampedBbox.west).toBeGreaterThanOrEqual(28.0);
+      });
+
+      it('kill-switch: __RAW_MARINE_GLOBAL_SPAN__=15 reverts the same 30° span to global_coarse (the bug)', () => {
+        window.__RAW_MARINE_GLOBAL_SPAN__ = 15;
+        const z5 = { west: -99, south: 17, east: -69, north: 39 };
+        const resGFS = clampViewportBbox(z5, 'waves', 'GFS');
+        expect(resGFS.selectedTileId).toBe('global_coarse');
+        expect(resGFS.clampedBbox).toEqual({ west: -180, south: -80, east: 180, north: 85 });
+        const resEURO = clampViewportBbox(z5, 'waves', 'EURO');
+        expect(resEURO.selectedTileId).toBe('global_coarse');
+      });
+    });
+
     it('EURO world viewport NEVER produces the null-island box (2026-07-06 regression pin)', () => {
       const world = { west: -180, south: -85, east: 180, north: 85 };
       const res = clampViewportBbox(world, 'waves', 'EURO');
@@ -97,7 +143,9 @@ describe('backendWeatherServiceClientCoverage', () => {
       expect(res.selectedTileId).toBe('global_coarse');
     });
 
-    it('EURO regional spans (≤15°) keep the dynamic-subset path with the 20° cost cap intact', () => {
+    it('EURO small regional spans stay tightly viewport-scoped (no ballooning)', () => {
+      // The mid-band cap rose 20→40 (2026-07-22), but small viewports must still request a tight box
+      // (only pan-pad added) — an 8° viewport stays well under 20°, not blown up toward the ceiling.
       const regional = { west: -122, south: 30, east: -114, north: 38 }; // 8° span
       const res = clampViewportBbox(regional, 'waves', 'EURO');
       expect(res.isInside).toBe(true);
