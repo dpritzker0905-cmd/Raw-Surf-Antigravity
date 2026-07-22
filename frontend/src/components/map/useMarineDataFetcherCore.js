@@ -70,6 +70,20 @@ export const MARINE_FETCH_HARD_LEASE_MS = 25000;
 // strands (no entry / different controller) keep healing at the hard lease exactly as before.
 export const MARINE_FETCH_LIVE_CEILING_MS = 120000;
 
+// STRANDED-DEBOUNCE HEAL decision (2026-07-22, hunt defect 3.3). A pre-dispatch early return in
+// updateMarineGrid leaves requestId=0 (it never reached the :486 dispatch-time clear), so the finally's
+// requestId===marineRequestIdRef.current block — which a real prior fetch bumped to N>0 — never clears
+// __MARINE_FETCH_DEBOUNCING__. The enqueue set it true, so it strands, holding the ~8 "transitioning"
+// gates on stale frames until the settle watchdog (>8s) or the next gesture heals it. A requestId=0
+// invocation owns no in-flight fetch, so clearing the flag can never stomp a live one (a dispatched
+// fetch already cleared it at :486). Heal ONLY when the flag is genuinely stranded true AND this path
+// did not deliberately preserve the debounce (clearDebounce; the isMoving/detached/degenerate-retry
+// paths set it false because they schedule a re-drive). Kill: __RAW_DISABLE_MARINE_DEBOUNCE_STRAND_HEAL__.
+export function shouldHealStrandedDebounce(requestId, clearDebounce, debouncingFlag) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_DEBOUNCE_STRAND_HEAL__ === true) return false;
+  return requestId === 0 && clearDebounce === true && debouncingFlag === true;
+}
+
 /**
  * Stale-lock watchdog. A superseded marine fetch can strand locks.isFetching=true +
  * __MARINE_FETCH_PENDING__/__MARINE_FETCH_DEBOUNCING__ when its finally skips cleanup (the
@@ -780,6 +794,13 @@ export function useMarineDataFetcherCore({
             }
           }
         } catch (e) { /* backstop never fatal */ }
+      }
+      // hunt defect 3.3: heal a debounce flag stranded true by a pre-dispatch early return (see
+      // shouldHealStrandedDebounce). Kill: __RAW_DISABLE_MARINE_DEBOUNCE_STRAND_HEAL__.
+      if (typeof window !== 'undefined'
+          && shouldHealStrandedDebounce(requestId, clearDebounce, window.__MARINE_FETCH_DEBOUNCING__)) {
+        window.__MARINE_FETCH_DEBOUNCING__ = false;
+        window.__MARINE_DEBOUNCE_FINALLY_HEAL__ = (window.__MARINE_DEBOUNCE_FINALLY_HEAL__ || 0) + 1;
       }
     }
   }, [
