@@ -459,9 +459,19 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
               || { fires: 0, committed: 0, skippedResident: 0, emptyRetry: 0, cancelledArrival: 0, error: 0 })
           : null;
         if (_bl) { _bl.fires += 1; _bl.lastFireAt = Date.now(); }
-        fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, timeOffsetRef.current, false, forecastDays, activeModel)
+        // Snapshot the requested hour so the arrival can't commit a stale-hour global base after a scrub.
+        const _baseReqHour = timeOffsetRef.current;
+        fetchWindData({ west: -180, south: -80, east: 180, north: 85 }, null, _baseReqHour, false, forecastDays, activeModel)
           .then((gd) => {
             if (cancelled) { if (_bl) _bl.cancelledArrival += 1; return; }
+            // STALE-HOUR GUARD (2026-07-22, hunt): same class as the primary commit above — a scrub during
+            // this abort-less base-lane fetch would commit the OLD hour's global base (visible when zoomed
+            // out). The scrub effect owns the fresh hour, so discarding never wedges. Kill:
+            // __RAW_DISABLE_WIND_PRIMARY_HOUR_GUARD__ (shared with the primary attemptFetch hour guard).
+            if (timeOffsetRef.current !== _baseReqHour
+                && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_PRIMARY_HOUR_GUARD__ === true)) {
+              return;
+            }
             const lc2 = lastCommittedWindRef.current;
             const lc2Span = lc2 && lc2.bounds
               ? (lc2.bounds.west > lc2.bounds.east
@@ -510,10 +520,27 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
       try {
         if (windFetchController) { try { windFetchController.abort(); } catch (e) { /* already done */ } }
         windFetchController = new AbortController();
-        const data = await fetchWindData(bounds, windFetchController.signal, timeOffsetRef.current, false, forecastDays, activeModel);
+        // Snapshot the requested hour at fetch-start so the stale-hour guard below compares against the
+        // SAME value the fetch used (timeOffsetRef.current is live and can move during the await).
+        const reqHour = timeOffsetRef.current;
+        const data = await fetchWindData(bounds, windFetchController.signal, reqHour, false, forecastDays, activeModel);
 
         if (cancelled) return;
         if (myGen !== windFetchGen) return; // superseded mid-flight — the newer attempt owns the loop
+        // STALE-HOUR GUARD (2026-07-22, hunt): this PRIMARY attemptFetch effect's deps EXCLUDE timeOffsetHours
+        // (they are [mapInstance, activeModel, forecastDays, isWindActive]), so a timeline SCRUB during the
+        // await does NOT re-run the effect, does NOT set `cancelled`, and does NOT bump windFetchGen — the OLD
+        // hour's covering grid would commit below and render AS the newly-scrubbed hour (the pan-then-scrub
+        // race: a pan starts an hour-X fetch, the user scrubs to hour Y, the hour-X grid still covers the
+        // viewport → paints). The stale-MODEL case is already covered (activeModel IS a dep → the effect
+        // re-runs → `cancelled`). Mirror the viewport-refetch hour guard (:997) + the scrub/base-lane guards
+        // (:884/:253). SAFE (never wedges): the scrub effect (:747, deps include timeOffsetHours) re-fires on
+        // the hour change and OWNS the fresh hour. Kill: __RAW_DISABLE_WIND_PRIMARY_HOUR_GUARD__.
+        if (timeOffsetRef.current !== reqHour
+            && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_PRIMARY_HOUR_GUARD__ === true)) {
+          console.log(`[WeatherEngine] Discarding stale-hour PRIMARY wind fetch (req +${reqHour}h; now +${timeOffsetRef.current}h).`);
+          return;
+        }
         
         // Commit ONLY a renderable, non-stale grid. A failed redirect returns a 1-vector safe-zero
         // grid (renderable:false/stale:true) — committing it would CLEAR the wind heatmap. Instead
