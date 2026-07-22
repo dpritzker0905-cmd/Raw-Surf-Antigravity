@@ -107,6 +107,63 @@ export function shouldHoldClearOnDeactivate() {
   return false;
 }
 
+// SWITCH-HOLD (2026-07-21, user "switching models and layers is the issue with the clearing"): a
+// model/LAYER switch fires the non_renderable_terminal clear (WebGLMarineLayer data-commit effect)
+// BEFORE beginTransition sets __MARINE_TRANSITIONING__ — a multi-render effect-ordering race that the
+// render-phase beginTransition guard (useMarineOrchestrator) can't win, live-proven: at the clear the
+// coordinator _target was still the OLD model/layer and transitioning===false, so isTransitionGuard was
+// false and (modelOrLayerChanged ⇒ sameTargetTransient false) fell straight through to the clear → a
+// ~875ms blank. The resident GPU texture (_residentWaveTex) is still alive; only _waveData was nulled.
+// This predicate makes the hold cover the switch window WITHOUT depending on the flag race: while a
+// switch is in progress and a renderable resident is held, HOLD the last-good frame until the new
+// target's data commits — BOUNDED by a TTL so a stalled/failed switch can't strand a stale frame, and
+// keyed on the target so each distinct switch restarts the clock (consecutive switches always change
+// the key, so the clock is self-resetting per switch). Truth-safe: the held frame's DISPLAYED identity
+// is unchanged and the infobox/readout parity gate compares displayed-vs-requested identity (never
+// recency), so the readout shows the transition, not a mislabel. Kill: __RAW_DISABLE_SWITCH_HOLD__;
+// tune: __RAW_SWITCH_HOLD_TTL_MS__; telemetry: __MARINE_SWITCH_HOLD_COUNT__.
+// TTL only needs to bridge the sub-second PRE-FLAG race (once beginTransition sets the flags,
+// isTransitionGuard owns the hold for the whole fetch). 2s is a conservative bridge for flag latency;
+// on a normal switch the new renderable commit replaces the held frame the instant it lands regardless.
+// Its only real effect is the stalled/no-coverage switch, where it bridges ~2s then blanks honestly.
+const SWITCH_HOLD_TTL_MS_DEFAULT = 2000;
+let _switchHoldStartedAt = null;
+let _switchHoldTargetKey = null;
+
+export function shouldHoldFrameThroughSwitch(opts, nowMs, win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (!w) return false;
+  if (w.__RAW_DISABLE_SWITCH_HOLD__ === true) { _switchHoldStartedAt = null; _switchHoldTargetKey = null; return false; }
+  const { hasRenderableResident, modelOrLayerChanged, residentRegionalAtGlobalViewport, targetKey } = opts || {};
+  // Only a real switch with a renderable resident that would actually PAINT is worth holding. A regional
+  // resident at a global viewport must NOT be held (it renders as a clamped rectangle — the zoom-out
+  // bridge owns that case). Any of these ⇒ drop the clock and let the normal path run.
+  if (!modelOrLayerChanged || !hasRenderableResident || residentRegionalAtGlobalViewport) {
+    _switchHoldStartedAt = null; _switchHoldTargetKey = null; return false;
+  }
+  const now = (typeof nowMs === 'number') ? nowMs : Date.now();
+  const ttl = (typeof w.__RAW_SWITCH_HOLD_TTL_MS__ === 'number') ? Math.max(0, w.__RAW_SWITCH_HOLD_TTL_MS__) : SWITCH_HOLD_TTL_MS_DEFAULT;
+  // A new target (or first hold) starts a fresh window; the same target keeps counting.
+  if (_switchHoldTargetKey !== targetKey || _switchHoldStartedAt === null) {
+    _switchHoldStartedAt = now; _switchHoldTargetKey = targetKey;
+  }
+  if (now - _switchHoldStartedAt < ttl) {
+    w.__MARINE_SWITCH_HOLD_COUNT__ = (w.__MARINE_SWITCH_HOLD_COUNT__ || 0) + 1;
+    return true;
+  }
+  // TTL expired — a genuinely stalled switch. Allow the clear (blank) rather than hold a stale frame forever.
+  if (typeof recordChurn === 'function') recordChurn('switch_hold_expired', { targetKey, heldMs: now - _switchHoldStartedAt });
+  return false;
+}
+
+// Reset the switch-hold clock when a renderable frame commits (belt-and-suspenders: the target-keying
+// already self-resets per switch, but an explicit reset on a successful commit guarantees a subsequent
+// same-target transient can never inherit a stale clock). Cheap + idempotent.
+export function noteMarineRenderableCommit() {
+  _switchHoldStartedAt = null;
+  _switchHoldTargetKey = null;
+}
+
 function emit() {
   // Mirror pending status to the legacy global so un-migrated readers keep working.
   if (typeof window !== 'undefined') {
@@ -259,6 +316,8 @@ export function __resetForTests() {
   _displayed = null;
   _xfamDeactivatedAt = null;
   _xfamExpiredLogged = false;
+  _switchHoldStartedAt = null;
+  _switchHoldTargetKey = null;
   _subs.clear();
   if (typeof window !== 'undefined') {
     window.__MARINE_TRANSITIONING__ = false;

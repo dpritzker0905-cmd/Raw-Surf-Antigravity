@@ -13,7 +13,7 @@ import { shouldHoldScrubDowngrade } from './marineScrubHold';
 import { getMarineParticleRes } from './deviceTier';
 import { getMarineHourlyCache, getBackendWeatherFlag, getBackendCopernicusFlag, getBackendIconMarineFlag, getModelSafeMarine, prewarmZoomOutMarineGrid } from './marineController';
 import { getSharedLandGeoJSON, getSharedLandGeoJSONHiRes, safeMoveLayer } from './mapUtils';
-import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive } from './marineTransitionCoordinator';
+import { recordClear, shouldHoldClearOnDeactivate, noteMarineActive, shouldHoldFrameThroughSwitch, noteMarineRenderableCommit } from './marineTransitionCoordinator';
 import { updateWebGLMarineLayerDiag, computeVectorDiffAndLog } from './WebGLMarineLayerDiag';
 import { recordResolutionSample } from './marineResolutionWatch';
 import { isBasemapWaterSourceReady } from './WebGLMarineMaskRenderer';
@@ -358,6 +358,10 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       return;
     }
     const uploadElapsed = Date.now() - uploadStart;
+
+    // A renderable frame just committed — end any switch-hold window (the new target's data has landed,
+    // so a subsequent same-target transient can never inherit a stale hold clock). See shouldHoldFrameThroughSwitch.
+    noteMarineRenderableCommit();
 
     updateMarineTruthTrace('upload', grid, activeModelRef.current, activeMarineLayer, timeOffsetHoursRef.current, 'forecast_direct', null, true);
 
@@ -1022,8 +1026,21 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
         }
       } catch (e) { /* getBounds/getZoom can throw mid-style-load — fall back to holding */ }
 
-      if ((isTransitionGuard || sameTargetTransient) && lastUploadedSignatureRef.current && !isResidentRegionalAtGlobalViewport) {
-        runDiagnosticsUpdate('transition_hold');
+      // SWITCH-HOLD (see shouldHoldFrameThroughSwitch): a model/LAYER switch races the transition flag —
+      // isTransitionGuard is often still false when this non-renderable interlude arrives (live-proven:
+      // non_renderable_terminal with transitioning=false), and modelOrLayerChanged makes sameTargetTransient
+      // false, so the frame blanks. Hold the last-good renderable frame through the switch (bounded TTL,
+      // target-keyed, kill-switched) instead of clearing. Subject to the same lastUploadedSignature +
+      // !regional-at-global gates as the other holds (the zoom-out bridge owns the regional-at-global case).
+      const switchHold = shouldHoldFrameThroughSwitch({
+        hasRenderableResident: !!engine._waveData,
+        modelOrLayerChanged,
+        residentRegionalAtGlobalViewport: isResidentRegionalAtGlobalViewport,
+        targetKey: `${activeModelRef.current || 'GFS'}|${activeMarineLayer}`,
+      });
+
+      if ((isTransitionGuard || sameTargetTransient || switchHold) && lastUploadedSignatureRef.current && !isResidentRegionalAtGlobalViewport) {
+        runDiagnosticsUpdate((switchHold && !isTransitionGuard && !sameTargetTransient) ? 'switch_hold' : 'transition_hold');
         return;
       }
 
