@@ -561,13 +561,26 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         }
         if (safe) {
           const sig = _marineDataSignature(cachedNow, activeMarineLayer);
-          if (sig && !shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
-            lastCommittedSigRef.current = sig;
-            cachedNow.__committedSig = sig;
-            marineRevision.current += 1;
-            cachedNow.__commitRevision = marineRevision.current;
-            console.log(`[SWITCH] [Marine] Instant cache-hit commit for ${activeMarineLayer} (no coalesce wait).`);
-            setMarineData(cachedNow);
+          if (sig) {
+            if (!shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
+              lastCommittedSigRef.current = sig;
+              cachedNow.__committedSig = sig;
+              marineRevision.current += 1;
+              cachedNow.__commitRevision = marineRevision.current;
+              console.log(`[SWITCH] [Marine] Instant cache-hit commit for ${activeMarineLayer} (no coalesce wait).`);
+              setMarineData(cachedNow);
+            }
+            // The instant path just confirmed this layer's cached grid IS safely displayable now (committed
+            // above, or already on-screen as a duplicate). Advance lastFetchedLayerRef to match — EVERY
+            // coalesce commit path does this, but the instant path omitted it. Without it, a rapid A→B→A
+            // toggle within SWITCH_FETCH_COALESCE_MS (instant-commit B, then back to A) early-returned at
+            // the `lastFetchedLayerRef.current === activeMarineLayer` guard (~line 514) because the ref was
+            // never advanced off A — leaving the heatmap rendering layer B while control A is selected until
+            // a backstop/moveend re-fetched A (live-observed ~1.4s wrong-layer window). Kill via
+            // __RAW_DISABLE_INSTANT_COMMIT_LASTLAYER__ (belt-and-suspenders; the coalesce path still commits).
+            if (typeof window === 'undefined' || window.__RAW_DISABLE_INSTANT_COMMIT_LASTLAYER__ !== true) {
+              lastFetchedLayerRef.current = activeMarineLayer;
+            }
           }
         }
       }
