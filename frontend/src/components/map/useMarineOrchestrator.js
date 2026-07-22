@@ -70,6 +70,17 @@ export function shouldSkipDuplicateCommit(sig, ledgerSig, prevStateSig) {
   return !!sig && sig === ledgerSig && sig === prevStateSig;
 }
 
+// COALESCE LIVE-HOUR RESOLUTION (2026-07-22, hunt defect 3.2). The layer-switch coalesce body runs
+// SWITCH_FETCH_COALESCE_MS after the switch with a frozen closure whose captured `timeOffsetHours` is
+// the SWITCH-TIME hour; a scrub within that window moves the live hour. The model there already
+// resolves off the live ref (activeModelRef.current), so the hour was the one stale input — the cache
+// lookup/remap committed the switch-time hour and overwrote the scrubbed display. The live ref (kept
+// current in useMarineOrchestratorScrubCache) is authoritative. Kill switch restores the legacy prop.
+export function resolveCoalesceHour(propHour, refHour) {
+  if (typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_COALESCE_LIVE_HOUR__ === true) return propHour;
+  return (typeof refHour === 'number' && !Number.isNaN(refHour)) ? refHour : propHour;
+}
+
 export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHours = 0, activeModel = 'GFS' }) {
   const timeOffsetRef = useRef(timeOffsetHours);
   const activeModelRef = useRef(activeModel);
@@ -485,6 +496,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       // Verify this is still the target layer after the coalescing window
       if (activeMarineLayerRef.current !== activeMarineLayer) return;
 
+    // hunt defect 3.2: operate on the LIVE hour, not the frozen switch-time prop, so a scrub within
+    // the coalesce window can't commit a stale-hour cache hit over the scrubbed display (see
+    // resolveCoalesceHour above). Kill: __RAW_DISABLE_MARINE_COALESCE_LIVE_HOUR__.
+    const hour = resolveCoalesceHour(timeOffsetHours, timeOffsetRef.current);
+
     resetTruthTracker(`layer_switch_to_${activeMarineLayer}`);
     lastCommittedSigRef.current = null;
 
@@ -508,11 +524,11 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     // (168→336h) when the backend ICON flag is on — only fall back to GFS when ICON is
     // unsupported (>168h && flag off) or truly out of range (>336h). Previously this swapped
     // ICON→GFS at >168h unconditionally, so ICON-extended products never cache-hit (churn).
-    if (curModel === 'ICON' && timeOffsetHours > 168 && !getBackendIconMarineFlag()) {
+    if (curModel === 'ICON' && hour > 168 && !getBackendIconMarineFlag()) {
       curModel = 'GFS';
-    } else if (curModel === 'ICON' && timeOffsetHours > DISPLAY_ICON_MAX_HOURS) {
+    } else if (curModel === 'ICON' && hour > DISPLAY_ICON_MAX_HOURS) {
       curModel = 'GFS';
-    } else if (curModel === 'EURO' && timeOffsetHours > euroMax) {
+    } else if (curModel === 'EURO' && hour > euroMax) {
       curModel = 'GFS';
     }
     const isGfsBackend = getBackendWeatherFlag() && (curModel === 'GFS' || !curModel);
@@ -522,7 +538,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
 
     if (isBackendActive) {
       try {
-        const cached = getModelSafeMarine(curModel, timeOffsetHours, activeMarineLayer, vpBounds);
+        const cached = getModelSafeMarine(curModel, hour, activeMarineLayer, vpBounds);
         if (cached && cached.grid && !cached.__staleHour) {
           const prodId = cached.product_id || cached.productId;
           const regionId = cached.region_id || cached.regionId || cached.grid?.region_id || cached.grid?.regionId;
@@ -606,7 +622,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
                   didRejectStaleRegional: true,
                   didClearPreviousRegionalBeforeViewport: true,
                   commitRevision: marineRevision.current,
-                  timeOffsetHours: timeOffsetHours
+                  timeOffsetHours: hour
                 };
                 if (typeof window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__ === 'function') {
                   window.__UPDATE_GFS_WAVES_SINGLE_SLICE_VERDICT__();
@@ -630,7 +646,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         try {
           const cache = getMarineHourlyCache();
           if (cache?.results?.length && cache.model === activeModelRef.current) {
-            const remapped = extractMarineAtOffset(cache, timeOffsetHours, activeMarineLayer);
+            const remapped = extractMarineAtOffset(cache, hour, activeMarineLayer);
             if (remapped?.grid?.vectors?.length > 0) {
               const isRenderable = remapped.grid.__renderable !== false, sig = _marineDataSignature(remapped, activeMarineLayer);
               if (shouldSkipDuplicateCommit(sig, lastCommittedSigRef.current, prevCommittedSig())) {
@@ -641,7 +657,7 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
               }
               const evtType = isRenderable ? 'local_cache_remap_renderable' : 'local_cache_remap_no_data';
               console.log(`[Marine] Layer switch to ${activeMarineLayer}: ${evtType}`);
-              logPipelineEventHelper(evtType, { model: activeModelRef.current, layer: activeMarineLayer, hour: timeOffsetHours, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
+              logPipelineEventHelper(evtType, { model: activeModelRef.current, layer: activeMarineLayer, hour: hour, renderable: isRenderable, noDataReason: remapped.grid.__noDataReason });
 
               lastCommittedSigRef.current = sig; remapped.__committedSig = sig; marineRevision.current += 1; remapped.__commitRevision = marineRevision.current;
               const vHash = getViewportHash();
