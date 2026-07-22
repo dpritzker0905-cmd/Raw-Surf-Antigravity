@@ -23,6 +23,21 @@ var MAP_STATE = {
   INTERACTING: 'INTERACTING',
 };
 
+// FUNCTIONAL-READY signal (2026-07-21): mapbox-gl 5.x `isStyleLoaded()` transiently returns FALSE while
+// any source is (re)loading — so a first-READY path that gates ONLY on it can miss and, if `style.load`
+// already fired before this contract mounted, leave the contract stuck in STYLE_LOADING FOREVER, silently
+// blocking every raster commit (precip/radar/pressure/OM). `areTilesLoaded()` is the reliable
+// functional-ready truth (already the load-gate in WebGLMarineMaskRenderer + the marine fetch trigger).
+// Either being true means the map can render. Pure + exported for tests.
+export function isMapFunctionallyReady(mapInstance) {
+  if (!mapInstance) return false;
+  try {
+    if (typeof mapInstance.isStyleLoaded === 'function' && mapInstance.isStyleLoaded()) return true;
+    if (typeof mapInstance.areTilesLoaded === 'function' && mapInstance.areTilesLoaded()) return true;
+  } catch (e) { /* getters can throw mid-style-load */ }
+  return false;
+}
+
 export function useMapRenderContract(mapInstance) {
   const stateRef = useRef(MAP_STATE.INIT);
   const idleTimer = useRef(null);
@@ -67,17 +82,35 @@ export function useMapRenderContract(mapInstance) {
 
     const onStyleLoad = () => transitionToReady();
     mapInstance.on('style.load', onStyleLoad);
+    // 'idle' fires once the style + sources + tiles have loaded and the map is still — a reliable
+    // first-READY signal even if `style.load` fired before this contract mounted (the missed-event case).
+    const onIdle = () => transitionToReady();
+    mapInstance.on('idle', onIdle);
 
-    if (mapInstance.isStyleLoaded?.()) {
+    if (isMapFunctionallyReady(mapInstance)) {
       transitionToReady();
     }
 
+    // Functional-ready poll (isStyleLoaded OR areTilesLoaded — no longer isStyleLoaded-only, which could
+    // sit false forever while a source reloaded and strand the whole raster pipeline).
     const fallbackTimer = setTimeout(() => {
-      if (stateRef.current !== MAP_STATE.READY && mapInstance.isStyleLoaded?.()) {
+      if (stateRef.current !== MAP_STATE.READY && isMapFunctionallyReady(mapInstance)) {
  console.log('[RenderContract] Fallback poll READY');
         transitionToReady();
       }
     }, 500);
+
+    // BOUNDED BACKSTOP (2026-07-21): the map is interactive within a few seconds regardless of the flaky
+    // readiness signals; staying STYLE_LOADING forever (no raster ever commits) is strictly worse than a
+    // slightly-early READY. Force it once, unconditionally, as a last resort. This no-ops on the happy
+    // path (already READY via style.load/idle). Kill: __RAW_DISABLE_RENDER_CONTRACT_BACKSTOP__.
+    const backstopTimer = setTimeout(() => {
+      const killed = typeof window !== 'undefined' && window.__RAW_DISABLE_RENDER_CONTRACT_BACKSTOP__ === true;
+      if (stateRef.current !== MAP_STATE.READY && !killed) {
+ console.log('[RenderContract] Bounded backstop READY');
+        transitionToReady();
+      }
+    }, 4000);
 
     // v244: Reference-counted interaction state
     // Uses matched pairs: dragstart/dragend + zoomstart/zoomend
@@ -123,12 +156,14 @@ export function useMapRenderContract(mapInstance) {
 
     return () => {
       mapInstance.off('style.load', onStyleLoad);
+      mapInstance.off('idle', onIdle);
       mapInstance.off('dragstart', incrementInteraction);
       mapInstance.off('zoomstart', incrementInteraction);
       mapInstance.off('dragend', decrementInteraction);
       mapInstance.off('zoomend', decrementInteraction);
       mapInstance.off('moveend', confirmIdle);
       clearTimeout(fallbackTimer);
+      clearTimeout(backstopTimer);
       clearTimeout(idleTimer.current);
     };
   }, [mapInstance, fireReadyCallbacks]);
