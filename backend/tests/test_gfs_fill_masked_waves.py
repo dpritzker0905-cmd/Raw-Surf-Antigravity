@@ -62,6 +62,59 @@ def test_partial_hours_filled_only_where_masked():
     assert waves[0]["hourly"]["wave_height"] == [3.0, 4.5, 4.6], "kept valid t0, filled masked t1/t2 (Antarctic restored)"
 
 
+def _gpt(lat, lon, times, total, wind_wave, swell1, swell2):
+    """GFS point with the TOTAL (wave_height) + the 3 partition heights (as prod NOAA GFS-wave carries)."""
+    return {
+        "latitude": lat, "longitude": lon,
+        "hourly": {
+            "time": list(times),
+            "wave_height": list(total),
+            "wave_direction": [None] * len(times), "wave_period": [None] * len(times),
+            "wind_wave_height": list(wind_wave),
+            "swell_wave_height": list(swell1),
+            "secondary_swell_wave_height": list(swell2),
+        },
+    }
+
+
+def test_gfs_total_masked_but_partitions_valid_reconstructs_total():
+    # THE DIAG ROOT CAUSE (run 29933575013 + 29948647704): GFS's TOTAL (HTSGW/wave_height) is MASKED at
+    # the Gulf/enclosed seas/Antarctic even though its PARTITIONS (wind-wave + swell1 + swell2) are VALID
+    # (that's how the SERVED GFS `waves` gets a valid Gulf the raw total lacks). The raw-total-only fill
+    # therefore filled 0. The fix must reconstruct the total from the partitions as Hs = sqrt(sum sq).
+    waves = [_pt(25.0, -90.0, ["2026-07-22T00:00"], [float("nan")])]     # EURO Gulf masked
+    gfs = [_gpt(25.0, -90.0, ["2026-07-22T00:00"], [float("nan")],       # GFS total MASKED
+                wind_wave=[0.6], swell1=[0.5], swell2=[0.3])]            # partitions VALID
+    n = fill_masked_waves_from_gfs(waves, gfs)
+    assert n == 1, "Gulf filled from GFS partitions (total was masked) — the fix"
+    expected = math.sqrt(0.6 ** 2 + 0.5 ** 2 + 0.3 ** 2)                 # ≈ 0.8485
+    assert abs(waves[0]["hourly"]["wave_height"][0] - expected) < 1e-6, "total = RMS of partitions"
+
+
+def test_use_partitions_false_reverts_to_total_only():
+    # Kill switch use_partitions=False => raw-total-only (the pre-fix behavior): fills 0 here.
+    waves = [_pt(25.0, -90.0, ["2026-07-22T00:00"], [float("nan")])]
+    gfs = [_gpt(25.0, -90.0, ["2026-07-22T00:00"], [float("nan")], wind_wave=[0.6], swell1=[0.5], swell2=[0.3])]
+    n = fill_masked_waves_from_gfs(waves, gfs, use_partitions=False)
+    assert n == 0, "total-only fill leaves the Gulf masked (the pre-fix bug it reverts to)"
+
+
+def test_partition_fallback_skips_true_land():
+    # Total masked AND all partitions masked (genuine land) -> stays empty even with partitions on.
+    waves = [_pt(45.0, 10.0, ["2026-07-22T00:00"], [float("nan")])]
+    gfs = [_gpt(45.0, 10.0, ["2026-07-22T00:00"], [None], wind_wave=[None], swell1=[float("nan")], swell2=[None])]
+    n = fill_masked_waves_from_gfs(waves, gfs)
+    assert n == 0, "true land (all partitions masked too) stays empty"
+
+
+def test_valid_total_prefers_total_over_partitions():
+    # When GFS's total IS valid it is used as-is (partitions are only a fallback), no double-count.
+    waves = [_pt(25.0, -90.0, ["2026-07-22T00:00"], [float("nan")])]
+    gfs = [_gpt(25.0, -90.0, ["2026-07-22T00:00"], [0.44], wind_wave=[0.6], swell1=[0.5], swell2=[0.3])]
+    n = fill_masked_waves_from_gfs(waves, gfs)
+    assert n == 1 and waves[0]["hourly"]["wave_height"][0] == 0.44, "valid total used directly"
+
+
 def test_time_value_matching_gfs_hourly_superset():
     # GFS is hourly (superset); waves 3-hourly. Fill must match by TIME VALUE, not index.
     waves = [_pt(25.0, -90.0, ["2026-07-22T06:00"], [float("nan")])]
