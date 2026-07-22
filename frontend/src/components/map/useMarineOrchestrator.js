@@ -31,6 +31,35 @@ let _lastMarineScrubLogTime = 0;
 // downstream. (Does NOT touch the 150ms scrub coalescing or engine residency.)
 const SWITCH_FETCH_COALESCE_MS = 350;
 
+// STYLE-READY FETCH TRIGGER (2026-07-21, live-rooted): a marine model/layer switch (and layer activation)
+// defers its manual fetch until the map style is "ready" via `isStyleLoaded()`. But that signal is
+// PERMANENTLY FALSE in this app — live-confirmed 5 lazy sources (mapbox-traffic/-incidents/composite/
+// esri-satellite/spot-geofences) report `isSourceLoaded()===false` forever, so `isStyleLoaded()` never
+// flips and `map.once('idle', …)` never re-fires → the deferred switch fetch STRANDS: the new model/layer
+// never loads (`__MARINE_FETCH_PENDING__`=null, transition stuck pending, the held frame keeps showing
+// under the new selection). Live A/B proved firing the fetch PROMPTLY while `isStyleLoaded()` is false
+// commits fine, and that a slow fallback misses a ~0.5-1.5s window after which the trigger no-ops.
+// Fix: treat the map as ready when `isStyleLoaded()` OR `areTilesLoaded()` (the reliable functional-ready
+// signal — true post-load, when every switch happens) → fires IMMEDIATELY at the coalesce, no timing race.
+// The idle listener + a SHORT bounded fallback remain only for a genuine not-ready map (cold start).
+// Idempotent (fires `fn` at most once; the caller's stale-target guard no-ops a late fire). Kill (legacy
+// idle-only, no fallback): `__RAW_DISABLE_STYLE_READY_FALLBACK__`. Tune: `__RAW_STYLE_READY_FALLBACK_MS__`.
+export const STYLE_READY_FALLBACK_MS = 250;
+export function fireWhenStyleReady(mapInstance, fn) {
+  const ready = !mapInstance
+    || typeof mapInstance.isStyleLoaded !== 'function'
+    || mapInstance.isStyleLoaded()
+    || (typeof mapInstance.areTilesLoaded === 'function' && (() => { try { return mapInstance.areTilesLoaded(); } catch (e) { return false; } })());
+  if (ready) { fn(); return; }
+  let fired = false;
+  const once = () => { if (fired) return; fired = true; fn(); };
+  try { mapInstance.once('idle', once); } catch (e) { once(); return; }
+  const w = typeof window !== 'undefined' ? window : null;
+  if (w && w.__RAW_DISABLE_STYLE_READY_FALLBACK__ === true) return; // legacy idle-only behavior
+  const ms = (w && typeof w.__RAW_STYLE_READY_FALLBACK_MS__ === 'number') ? Math.max(0, w.__RAW_STYLE_READY_FALLBACK_MS__) : STYLE_READY_FALLBACK_MS;
+  setTimeout(once, ms);
+}
+
 // State-authoritative dedup decision (the bd61afda pattern, extended to the orchestrator sites
 // 2026-07-03): the sig LEDGER alone records commits the ENGINE may still reject downstream
 // (no-downgrade guard racing a stale _lastZoom), so a ledger-only skip can wedge the display on
@@ -199,13 +228,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         console.log('[Marine] Layer activated, triggering manual fetch...');
         manualMarineTriggerRef.current?.();
       };
-      const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
-      if (styleReady) {
-        fireActivation();
-      } else {
-        console.log('[Marine] Activation deferred — waiting for map style to finish loading...');
-        try { mapInstance.once('idle', fireActivation); } catch (e) { fireActivation(); }
-      }
+      // Style-ready trigger with a bounded fallback so a stuck-false isStyleLoaded()/never-firing 'idle'
+      // can't strand the activation fetch (see fireWhenStyleReady).
+      fireWhenStyleReady(mapInstance, fireActivation);
     }
   }, [activeLayersKey]);
 
@@ -380,13 +405,10 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
         manualMarineTriggerRef.current?.();
       };
 
-      const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
-      if (styleReady) {
-        fireModelFetch();
-      } else {
-        console.log(`[MODEL] [Marine] Model switch to ${activeModel} fetch deferred — waiting for map style to finish loading...`);
-        try { mapInstance.once('idle', fireModelFetch); } catch (e) { fireModelFetch(); }
-      }
+      // Style-ready trigger with a bounded fallback: isStyleLoaded() can stay false while the map is
+      // already idle, so 'idle' never re-fires and the switch fetch would strand (the new model never
+      // loads — live-rooted 2026-07-21). See fireWhenStyleReady.
+      fireWhenStyleReady(mapInstance, fireModelFetch);
     }, SWITCH_FETCH_COALESCE_MS);
   }, [activeModel, mapInstance, setMarineData]);
 
@@ -642,13 +664,9 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       manualMarineTriggerRef.current?.();
     };
 
-    const styleReady = !mapInstance || typeof mapInstance.isStyleLoaded !== 'function' || mapInstance.isStyleLoaded();
-    if (styleReady) {
-      fireLayerFetch();
-    } else {
-      console.log(`[LAYER] [Marine] Layer switch to ${activeMarineLayer} fetch deferred — waiting for map style to finish loading...`);
-      try { mapInstance.once('idle', fireLayerFetch); } catch (e) { fireLayerFetch(); }
-    }
+    // Style-ready trigger with a bounded fallback (see fireWhenStyleReady) — a stuck-false isStyleLoaded()
+    // / never-firing 'idle' must not strand the layer-switch fetch.
+    fireWhenStyleReady(mapInstance, fireLayerFetch);
     }, SWITCH_FETCH_COALESCE_MS); // end coalescing setTimeout — absorbs rapid layer cycling
   }, [activeMarineLayer, mapInstance, setMarineData]);
 
