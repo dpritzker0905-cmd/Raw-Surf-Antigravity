@@ -972,7 +972,10 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
           }
 
           try {
-            const data = await fetchWindData(bounds, null, timeOffsetRef.current, false, forecastDays, activeModel);
+            // Snapshot the requested hour at fetch-start so the guard below compares against the
+            // SAME value the fetch used (timeOffsetRef.current is live and can move during the await).
+            const reqHour = timeOffsetRef.current;
+            const data = await fetchWindData(bounds, null, reqHour, false, forecastDays, activeModel);
             // STALE-MODEL GUARD (2026-07-21, hunt defect #2): this viewport-refetch passes NO abort
             // signal, so a model switch (e.g. GFS->EURO) mid-flight cannot cancel it. Without a parity
             // check the PREVIOUS model's covering grid commits below and renders AS the newly-selected
@@ -981,6 +984,19 @@ export function useWeatherEngine({ activeLayers, mapInstance, timeOffsetHours = 
             if (activeModelRef.current !== activeModel
                 && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_MODEL_GUARD__ === true)) {
               console.log(`[WeatherEngine] Discarding stale-model viewport wind fetch (req ${activeModel}; now ${activeModelRef.current}).`);
+              return;
+            }
+            // STALE-HOUR GUARD (2026-07-22, hunt defect 3.1): the same abort-less refetch also can't
+            // cancel on a timeline SCRUB. The model guard above only catches a model switch; an hour
+            // change (e.g. +0h -> +48h) slips through, so the OLD hour's covering grid commits below
+            // and renders AS the newly-scrubbed hour until the scrub effect's own fetch (:924) lands.
+            // reqHour is snapshotted at fetch-start; timeOffsetRef.current is live. The scrub effect
+            // depends on timeOffsetHours, so it re-fires on the hour change and OWNS the fresh hour —
+            // discarding the stale-hour grid here never wedges. Mirrors the model guard above.
+            // Kill: __RAW_DISABLE_WIND_VIEWPORT_HOUR_GUARD__.
+            if (timeOffsetRef.current !== reqHour
+                && !(typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_HOUR_GUARD__ === true)) {
+              console.log(`[WeatherEngine] Discarding stale-hour viewport wind fetch (req +${reqHour}h; now +${timeOffsetRef.current}h).`);
               return;
             }
             // Renderable guard (2026-07-10, the "ICON wind heatmap cleared" report): the 1-vector
