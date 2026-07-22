@@ -6,7 +6,7 @@ import { computeGridContentHash } from './marineGridHash';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordTruthStage, resetTruthTracker } from './weatherTruthTracker';
 import { useMarineDataFetcher } from './useMarineDataFetcher';
-import { beginTransition, endCurrentTransition, recordChurn } from './marineTransitionCoordinator';
+import { beginTransition, endCurrentTransition, recordChurn, getTarget, displayMatchesRequested, decideStrandAction } from './marineTransitionCoordinator';
 import { ensureMarineSeries, getMarineSeriesFrame, prewarmMarineSeries } from './marineGridSeries';
 import { DISPLAY_ICON_MAX_HOURS, DISPLAY_EURO_WAVES_MAX_HOURS, DISPLAY_EURO_COMPONENT_MAX_HOURS } from './useMarineDataFetcherHelpers';
 import { isTerminalNoCoverage } from './marineControllerCache';
@@ -30,6 +30,14 @@ let _lastMarineScrubLogTime = 0;
 // abort cleanly. So restore snappiness to 350ms — fast single switches, storm still contained
 // downstream. (Does NOT touch the 150ms scrub coalescing or engine residency.)
 const SWITCH_FETCH_COALESCE_MS = 350;
+
+// STRAND WATCHDOG settle window (2026-07-22): how long after a switch's beginTransition to first check
+// for the "fp:null, transition pending" strand (see decideStrandAction in marineTransitionCoordinator).
+// Must comfortably exceed a HEALTHY cold switch (coalesce 350ms + fireWhenStyleReady + a coarse fetch;
+// measured ~1.5-2s live) so it never re-drives a slow-but-healthy fetch — the in-flight guard also
+// protects that case. Re-arms at this interval; bounded by decideStrandAction's maxAttempts. Tune via
+// __RAW_MARINE_STRAND_WATCHDOG_MS__; kill via __RAW_DISABLE_MARINE_STRAND_WATCHDOG__.
+const STRAND_WATCHDOG_MS_DEFAULT = 3500;
 
 // STYLE-READY FETCH TRIGGER (2026-07-21, live-rooted): a marine model/layer switch (and layer activation)
 // defers its manual fetch until the map style is "ready" via `isStyleLoaded()`. But that signal is
@@ -129,12 +137,15 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
   const layerFetchTimeoutRef = useRef(null);
   const modelFetchTimeoutRef = useRef(null);
   const activationTimeoutRef = useRef(null);
+  // Strand watchdog state (see decideStrandAction): { timer, gen, attempts }.
+  const strandWatchdogRef = useRef({ timer: null, gen: 0, attempts: 0 });
 
   useEffect(() => {
     return () => {
       if (layerFetchTimeoutRef.current) clearTimeout(layerFetchTimeoutRef.current);
       if (modelFetchTimeoutRef.current) clearTimeout(modelFetchTimeoutRef.current);
       if (activationTimeoutRef.current) clearTimeout(activationTimeoutRef.current);
+      if (strandWatchdogRef.current && strandWatchdogRef.current.timer) clearTimeout(strandWatchdogRef.current.timer);
     };
   }, []);
 
@@ -401,13 +412,65 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     enqueueMarineUpdate
   });
 
+  // STRAND WATCHDOG (2026-07-22): heal a switch transition that stranded because the fetcher early-returned
+  // before dispatch (see decideStrandAction). Armed with the generation beginTransition returned; on each
+  // fire it re-drives the switch fetch ONLY when the "fp:null, transition pending" strand signature is
+  // present, never piling onto a healthy in-flight fetch, and gives up honestly after a bounded number of
+  // attempts. Stable (refs + imports only) so it needs no effect deps. Kill: __RAW_DISABLE_MARINE_STRAND_WATCHDOG__.
+  const strandTelRef = useRef(null);
+  strandTelRef.current = (action, gen, attempts) => {
+    if (typeof window === 'undefined') return;
+    const s = window.__MARINE_STRAND_WATCHDOG__ || (window.__MARINE_STRAND_WATCHDOG__ = { counts: {}, log: [] });
+    s.counts[action] = (s.counts[action] || 0) + 1;
+    s.log.push({ action, gen: gen || 0, attempts: attempts || 0, t: Date.now() });
+    if (s.log.length > 50) s.log.shift();
+  };
+  const clearStrandWatchdog = () => {
+    const w = strandWatchdogRef.current;
+    if (w && w.timer) { clearTimeout(w.timer); w.timer = null; }
+  };
+  const armStrandWatchdog = (gen) => {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_STRAND_WATCHDOG__ === true) return;
+    if (!gen) return;
+    const w = strandWatchdogRef.current;
+    if (w.gen !== gen) { w.gen = gen; w.attempts = 0; } // a genuinely new switch resets the attempt budget
+    clearStrandWatchdog();
+    const ms = (typeof window !== 'undefined' && typeof window.__RAW_MARINE_STRAND_WATCHDOG_MS__ === 'number')
+      ? Math.max(500, window.__RAW_MARINE_STRAND_WATCHDOG_MS__) : STRAND_WATCHDOG_MS_DEFAULT;
+    w.timer = setTimeout(() => {
+      w.timer = null;
+      const target = getTarget();
+      const fp = (typeof window !== 'undefined' && window.__MARINE_FETCH_PENDING__) || null;
+      const action = decideStrandAction({
+        target,
+        armedGen: gen,
+        displayedMatchesTarget: target ? displayMatchesRequested({ model: target.model, layer: target.layer }) : false,
+        fetchPendingModel: fp ? fp.model : null,
+        attempts: w.attempts,
+      });
+      strandTelRef.current(action, gen, w.attempts);
+      if (action === 'redrive') {
+        w.attempts += 1;
+        try { manualMarineTriggerRef.current?.(); } catch (e) { /* re-drive best-effort */ }
+        armStrandWatchdog(gen); // confirm the re-drive settled (or escalate)
+      } else if (action === 'inflight_wait') {
+        w.attempts += 1; // count waits too, so a hung in-flight fetch can't loop the watchdog forever
+        armStrandWatchdog(gen);
+      } else if (action === 'giveup') {
+        try { endCurrentTransition('settled'); } catch (e) { /* clear the stuck flag honestly */ }
+        recordChurn('strand_watchdog_giveup', { gen });
+      }
+      // 'superseded' / 'healed' → nothing to do; the timer is already cleared.
+    }, ms);
+  };
 
   useEffect(() => {
     if (!mapInstance || !activeMarineLayersRef.current) return;
     if (lastFetchedModelRef.current === activeModel) return;
 
     // Immediately open an ownership-tracked transition for responsiveness.
-    beginTransition({ model: activeModel, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
+    const _switchGen = beginTransition({ model: activeModel, layer: activeMarineLayerRef.current || 'waves', hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
+    armStrandWatchdog(_switchGen);
 
     // Coalesce rapid model switches (e.g. GFS→EURO→ICON in quick succession).
     // Only the final model in the sequence will execute the full reset + fetch logic.
@@ -441,7 +504,8 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     if (lastFetchedLayerRef.current === activeMarineLayer) return;
 
     // Immediately open an ownership-tracked transition for responsiveness.
-    beginTransition({ model: activeModelRef.current || 'GFS', layer: activeMarineLayer, hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
+    const _layerSwitchGen = beginTransition({ model: activeModelRef.current || 'GFS', layer: activeMarineLayer, hour: timeOffsetRef.current, viewportKey: getViewportHash?.() });
+    armStrandWatchdog(_layerSwitchGen);
 
     // INSTANT cache-hit commit (out of the coalescing window). If the new layer's data is ALREADY
     // cached for this model/hour/viewport, display it NOW so a layer switch is instant instead of

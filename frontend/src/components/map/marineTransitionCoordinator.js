@@ -164,6 +164,41 @@ export function noteMarineRenderableCommit() {
   _switchHoldTargetKey = null;
 }
 
+// STRAND WATCHDOG DECISION (2026-07-22, hunt "model-switch strands at the coarse tier"): a model/layer
+// switch calls beginTransition (opens a pending generation) and then fires the switch fetch; the fetcher
+// ends the transition ONLY when it reaches dispatch (useMarineDataFetcherCore: the finally's transition-end
+// is gated behind `requestId === marineRequestIdRef.current`, and requestId is bumped only at dispatch).
+// So ANY of the fetcher's ~10 pre-dispatch early returns (isScrubbing/isCommitting guard, isMoving/isZooming
+// + hasValidData, same-target-inflight, cooldown, consecutiveFailures>=3, ...) leaves the transition PENDING
+// FOREVER with `__MARINE_FETCH_PENDING__` null — the live-reproduced "fp:null, transition pending" strand:
+// the new model never commits and nothing re-drives (locks.isFetching was never set, so the fetcher's own
+// stale-lock watchdog can't arm; lastFetchedModelRef was already advanced, so the switch effect won't re-fire).
+// At the zoomed-out coarse tier the slow commit/mask-rebuild widens the isCommitting window, so a switch
+// clicked mid-commit reliably strands. This pure decision drives a bounded watchdog (in useMarineOrchestrator):
+// after a settle window, re-drive the switch fetch ONLY when the strand signature is present, never piling
+// onto a healthy in-flight fetch, and give up (settle honestly) after a bounded number of attempts so the
+// stuck `transitioning` flag can't wedge residents/gates forever.
+//   Returns one of:
+//     'superseded'    — no target, or a newer switch replaced ours → nothing to heal.
+//     'healed'        — settled, or the displayed frame already IS the target → done.
+//     'inflight_wait' — a fetch for THIS target is in flight → it will settle; keep watching, don't pile on.
+//     'redrive'       — pending + displayed != target + NO in-flight fetch = the strand → re-drive the fetch.
+//     'giveup'        — attempts exhausted → caller settles the stuck transition honestly.
+export function decideStrandAction({
+  target,
+  armedGen,
+  displayedMatchesTarget,
+  fetchPendingModel,
+  attempts,
+  maxAttempts = 4,
+} = {}) {
+  if (!target || target.gen !== armedGen) return 'superseded';
+  if (target.status !== 'pending' || displayedMatchesTarget) return 'healed';
+  if (typeof attempts === 'number' && attempts >= maxAttempts) return 'giveup';
+  if (fetchPendingModel && fetchPendingModel === target.model) return 'inflight_wait';
+  return 'redrive';
+}
+
 function emit() {
   // Mirror pending status to the legacy global so un-migrated readers keep working.
   if (typeof window !== 'undefined') {
