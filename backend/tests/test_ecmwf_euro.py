@@ -349,3 +349,96 @@ def test_euro_mid_registration_default_on():
     from scheduler import forecast
     src = inspect.getsource(forecast.ingest_marine_forecast_task)
     assert 'os.environ.get("EURO_MARINE_MID_RES_INGEST", "1")' in src
+
+
+# ── EURO marine COARSE-tier Gulf fix (2026-07-22): route the `waves` layer through ECMWF Open-Data
+#    (has the Gulf/enclosed seas, where CMEMS structurally masks them), keep swells on CMEMS. Direct
+#    port of the mid-tier hybrid (test_euro_marine_mid_ecmwf_* above). Kill: EURO_MARINE_COARSE_ECMWF. ──
+
+async def _run_coarse_ingest(tmp_path, monkeypatch, coarse_ecmwf, ecmwf_returns):
+    """Shared harness: mock both fetchers, run ingest_euro_marine_global, return (scheduler, called)."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.ecmwf_wave_service as wave_svc
+    import services.copernicus_marine_service as cms
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_COARSE_ECMWF", coarse_ecmwf)
+
+    called = {"ecmwf": False, "cmems": False}
+
+    async def fake_ecmwf(bbox, resolution=2.0, forecast_days=10):
+        called["ecmwf"] = True
+        return _mock_ecmwf_wave_points() if ecmwf_returns else None
+
+    async def fake_cmems(region, resolution, days):
+        called["cmems"] = True
+        return _mock_cmems_marine_points()
+
+    monkeypatch.setattr(wave_svc, "fetch_euro_marine_waves_global", fake_ecmwf)
+    monkeypatch.setattr(cms, "fetch_euro_marine_global_coarse", fake_cmems)
+
+    ok = await scheduler.ingest_euro_marine_global()
+    return temp_store, called, ok
+
+
+def _coarse_prods(store, layer=None, native_only=False):
+    out = []
+    for p in store.get_manifest().products:
+        if p.model == "EURO" and p.domain == "marine" and (p.region_id or "") == "global_coarse":
+            if layer is not None and p.layer != layer:
+                continue
+            if native_only and p.is_estimated:
+                continue
+            out.append(p)
+    return out
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_ecmwf_direct(tmp_path, monkeypatch):
+    """The `waves` layer is sourced from ECMWF (has the Gulf) with honest native provenance
+    (provider='open-meteo' -> source_dataset='ecmwf_wam025'); swells stay on CMEMS."""
+    store, called, ok = await _run_coarse_ingest(tmp_path, monkeypatch, "1", ecmwf_returns=True)
+    assert ok is True
+    assert called["ecmwf"] is True, "waves must be sourced from ECMWF (Gulf-covered)"
+    assert called["cmems"] is True, "swells still need CMEMS"
+
+    waves_native = _coarse_prods(store, layer="waves", native_only=True)
+    assert waves_native, "expected a native EURO coarse waves product"
+    for p in waves_native:
+        assert p.provider == "open-meteo", "coarse waves must be ECMWF-sourced (Gulf-covered)"
+        assert p.source_dataset == "ecmwf_wam025"
+        assert p.is_estimated is False
+        assert p.is_forecast_authoritative is True
+    swells_native = [p for p in _coarse_prods(store)
+                     if p.layer in ("swell_1", "swell_2", "wind_waves") and not p.is_estimated]
+    assert swells_native, "expected native EURO coarse swell products"
+    assert all(p.provider == "copernicus" for p in swells_native), "native swells stay on CMEMS"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_ecmwf_kill_switch(tmp_path, monkeypatch):
+    """EURO_MARINE_COARSE_ECMWF=0 -> legacy CMEMS-primary waves (the Gulf drops again)."""
+    store, called, ok = await _run_coarse_ingest(tmp_path, monkeypatch, "0", ecmwf_returns=True)
+    assert ok is True
+    assert called["ecmwf"] is False, "kill switch must gate the ECMWF service call"
+    assert called["cmems"] is True
+
+    waves_native = _coarse_prods(store, layer="waves", native_only=True)
+    assert waves_native, "expected a native EURO coarse waves product"
+    assert all(p.provider == "copernicus" for p in waves_native), "kill switch -> waves back on CMEMS"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_ecmwf_fallback_to_cmems(tmp_path, monkeypatch):
+    """ECMWF fetch returns None (outage) -> `waves` falls back to CMEMS, no regression."""
+    store, called, ok = await _run_coarse_ingest(tmp_path, monkeypatch, "1", ecmwf_returns=False)
+    assert ok is True
+    assert called["ecmwf"] is True, "ECMWF was attempted"
+    assert called["cmems"] is True
+
+    waves_native = _coarse_prods(store, layer="waves", native_only=True)
+    assert waves_native, "expected a native EURO coarse waves product"
+    assert all(p.provider == "copernicus" for p in waves_native), "ECMWF outage -> waves on CMEMS (no regression)"

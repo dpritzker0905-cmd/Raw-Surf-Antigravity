@@ -356,27 +356,61 @@ class WeatherPipelineScheduler:
             _cop_times = cop_results[0].get("hourly", {}).get("time", []) if cop_results else []
             _cop_max = _parse_iso(_cop_times[-1]) if _cop_times else None
             gfs_ext = _slice_after(gfs_ext_src, _cop_max)
+
+            # ENCLOSED-SEA GULF FIX (2026-07-22): CMEMS cmems_mod_glo_wav STRUCTURALLY MASKS the Gulf of
+            # Mexico + other enclosed seas (E Med, Black Sea, Sea of Japan, Gulf of California) — verified
+            # live: the CMEMS coarse row has valid open-ocean cells worldwide but is_valid=False over those
+            # basins, so the `waves` heatmap inflates them from distant cells (~4-5ft; user-reported). The
+            # 0fcde49c block-mean CANNOT recover data CMEMS lacks. The MID tier already solved this by
+            # sourcing `waves` from the ECMWF Open-Data wave stream (ECMWF-WAM HAS the Gulf, ~0.5m — proven
+            # live: the 2deg mid tile shows 0.41-0.50m Gulf cells). Port that hybrid to the COARSE tier for
+            # the `waves` layer ONLY; swells stay on CMEMS (the free ECMWF feed has no swell partitions, and
+            # swells are not what the height heatmap renders). ECMWF fail -> `waves` falls back to CMEMS
+            # (today's behavior, no regression). Kill: EURO_MARINE_COARSE_ECMWF=0. Mirrors
+            # ingest_euro_marine_global_mid_impl / EURO_MARINE_MID_ECMWF.
+            ecmwf_waves = None
+            if os.environ.get("EURO_MARINE_COARSE_ECMWF", "1") != "0":
+                try:
+                    from services.ecmwf_wave_service import fetch_euro_marine_waves_global
+                    ecmwf_waves = await fetch_euro_marine_waves_global(global_region, resolution, cop_days)
+                except Exception as _ewe:
+                    logger.error(f"[Pipeline Scheduler] EURO marine coarse ECMWF-direct waves fetch errored: {_ewe}")
+                if ecmwf_waves:
+                    logger.info(f"[Pipeline Scheduler] EURO marine coarse ECMWF-direct waves OK: {len(ecmwf_waves)} points (Gulf/enclosed seas covered).")
+                else:
+                    logger.warning("[Pipeline Scheduler] EURO marine coarse ECMWF-direct waves unavailable; `waves` stays on CMEMS (Gulf may drop).")
+            _ew_times = ecmwf_waves[0].get("hourly", {}).get("time", []) if ecmwf_waves else []
+            _ew_max = _parse_iso(_ew_times[-1]) if _ew_times else None
+            _ew_gfs_ext = _slice_after(gfs_ext_src, _ew_max) if ecmwf_waves else None
+
             for layer in ["waves", "swell_1", "swell_2", "wind_waves"]:
-                # native Copernicus 0-10d (CMEMS is natively 3-hourly -> step=1)
+                # `waves` rides ECMWF (has the Gulf) when available; swells + fallback ride CMEMS.
+                _use_ecmwf = (layer == "waves" and ecmwf_waves is not None)
+                _src = ecmwf_waves if _use_ecmwf else cop_results
+                _prov = "open-meteo" if _use_ecmwf else "copernicus"
+                # ECMWF waves: NO estimate_basis (mirror the mid tier) so the normalizer derives the honest
+                # native provider='open-meteo' -> source_dataset='ecmwf_wam025', is_estimated=False.
+                _basis = None if _use_ecmwf else _cop_basis
+                _layer_gfs_ext = _ew_gfs_ext if _use_ecmwf else gfs_ext
+                # native 0-10d (both CMEMS and the ECMWF wave stream are 3-hourly -> step=1)
                 c = await normalize_and_save_loop(
-                    self.normalizer, self.store, cop_results,
-                    model="EURO", provider="copernicus", domain="marine", layer=layer,
+                    self.normalizer, self.store, _src,
+                    model="EURO", provider=_prov, domain="marine", layer=layer,
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
                     is_test_env=env["is_test_env"], step=1,
-                    log_prefix=f"[Pipeline Scheduler] EURO {layer} (copernicus native) global_coarse",
-                    # NATIVE data (2026-07-04): no estimated_after_index — these are REAL CMEMS partitions,
-                    # and stamping them estimated_after_index=0 mis-labeled every native hour (the
-                    # "all 108 EURO products _estimated-named" audit finding). The basis still rides
-                    # along as fetch-method provenance; the normalizer derives the truthful
-                    # is_estimated=False / is_forecast_authoritative=True / cmems source_dataset.
-                    estimate_basis=_cop_basis
+                    log_prefix=f"[Pipeline Scheduler] EURO {layer} ({'ecmwf wave stream' if _use_ecmwf else 'copernicus native'}) global_coarse",
+                    # NATIVE data (2026-07-04): no estimated_after_index — these are REAL partitions
+                    # (CMEMS or ECMWF-WAM), and stamping estimated_after_index=0 mis-labeled every native
+                    # hour. The basis rides along as fetch-method provenance; the normalizer derives the
+                    # truthful is_estimated=False / is_forecast_authoritative=True / source_dataset.
+                    estimate_basis=_basis
                 )
                 e_cnt = 0
-                if gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
+                if _layer_gfs_ext:  # GFS days 10->14 (open-meteo hourly -> step=3)
                     e_cnt = await normalize_and_save_loop(
-                        self.normalizer, self.store, gfs_ext,
-                        model="EURO", provider="copernicus", domain="marine", layer=layer,
+                        self.normalizer, self.store, _layer_gfs_ext,
+                        model="EURO", provider=_prov, domain="marine", layer=layer,
                         bbox=global_region, resolution=resolution, run_time=run_time,
                         region_id="global_coarse", coverage_mode="global_tile",
                         is_test_env=env["is_test_env"], step=3,
@@ -388,6 +422,8 @@ class WeatherPipelineScheduler:
                 if (c + e_cnt) > 0:
                     self.store.prune_superseded_products("EURO", "marine", layer, "global_coarse", run_time)
             await self._cleanup_and_pause(cop_results, 0)
+            if ecmwf_waves:
+                await self._cleanup_and_pause(ecmwf_waves, 0)
             if gfs_ext_src:
                 await self._cleanup_and_pause(gfs_ext_src, 0)
             return total_saved > 0
