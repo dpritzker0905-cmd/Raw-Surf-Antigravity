@@ -52,12 +52,25 @@ export function fireWhenStyleReady(mapInstance, fn) {
     || (typeof mapInstance.areTilesLoaded === 'function' && (() => { try { return mapInstance.areTilesLoaded(); } catch (e) { return false; } })());
   if (ready) { fn(); return; }
   let fired = false;
-  const once = () => { if (fired) return; fired = true; fn(); };
-  try { mapInstance.once('idle', once); } catch (e) { once(); return; }
+  let timer = null;
+  // Idempotent settle that fires `fn` at most once AND tears down BOTH the idle listener and the
+  // fallback timer, from whichever source wins (hunt defect 3.4). Without the off('idle'), a
+  // fallback-timeout win leaked the once('idle') listener — and through it the `fn` closure — for
+  // the life of the map whenever 'idle' never re-fires, which is the exact stuck-map condition this
+  // fallback exists for (mapbox 5.24 can stay non-idle with lazy sources loading). map.off matches
+  // the once-registered listener by reference.
+  const settle = () => {
+    if (fired) return;
+    fired = true;
+    try { if (mapInstance && typeof mapInstance.off === 'function') mapInstance.off('idle', settle); } catch (e) { /* ignore */ }
+    if (timer) { clearTimeout(timer); timer = null; }
+    fn();
+  };
+  try { mapInstance.once('idle', settle); } catch (e) { settle(); return; }
   const w = typeof window !== 'undefined' ? window : null;
   if (w && w.__RAW_DISABLE_STYLE_READY_FALLBACK__ === true) return; // legacy idle-only behavior
   const ms = (w && typeof w.__RAW_STYLE_READY_FALLBACK_MS__ === 'number') ? Math.max(0, w.__RAW_STYLE_READY_FALLBACK_MS__) : STYLE_READY_FALLBACK_MS;
-  setTimeout(once, ms);
+  timer = setTimeout(settle, ms);
 }
 
 // State-authoritative dedup decision (the bd61afda pattern, extended to the orchestrator sites

@@ -13,6 +13,7 @@ function makeMap({ styleLoaded, tilesLoaded = false }) {
     isStyleLoaded: () => styleLoaded,
     areTilesLoaded: () => tilesLoaded,
     once: (evt, cb) => { if (evt === 'idle') idleCbs.push(cb); },
+    off: (evt, cb) => { if (evt === 'idle') { const i = idleCbs.indexOf(cb); if (i >= 0) idleCbs.splice(i, 1); } },
     _fireIdle: () => { idleCbs.splice(0).forEach((cb) => cb()); },
     _idleCount: () => idleCbs.length,
   };
@@ -65,6 +66,27 @@ describe('fireWhenStyleReady — bounded style-ready fetch trigger', () => {
     fireWhenStyleReady(map, fn);
     expect(fn).not.toHaveBeenCalled();
     jest.advanceTimersByTime(STYLE_READY_FALLBACK_MS + 1); // idle never fires; fallback fires
+    expect(fn).toHaveBeenCalledTimes(1);
+  });
+
+  it('THE LEAK FIX (defect 3.4): a fallback-timeout win TEARS DOWN the idle listener (no leak)', () => {
+    const fn = jest.fn();
+    const map = makeMap({ styleLoaded: false });
+    fireWhenStyleReady(map, fn);
+    expect(map._idleCount()).toBe(1); // idle listener registered while deferring
+    jest.advanceTimersByTime(STYLE_READY_FALLBACK_MS + 1); // fallback wins
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(map._idleCount()).toBe(0); // pre-fix: stayed 1 forever (leak) when idle never fires
+  });
+
+  it('an idle win removes the listener (once) and a stray later timer cannot re-fire fn', () => {
+    const fn = jest.fn();
+    const map = makeMap({ styleLoaded: false });
+    fireWhenStyleReady(map, fn);
+    map._fireIdle();               // idle wins
+    expect(fn).toHaveBeenCalledTimes(1);
+    expect(map._idleCount()).toBe(0);
+    jest.advanceTimersByTime(STYLE_READY_FALLBACK_MS + 1); // the fallback timer was cleared → no double-fire
     expect(fn).toHaveBeenCalledTimes(1);
   });
 
