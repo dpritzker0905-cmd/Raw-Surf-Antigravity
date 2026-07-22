@@ -414,8 +414,8 @@ class WeatherPipelineScheduler:
             if os.environ.get("EURO_MARINE_COARSE_GFS_FILL", "1") != "0" and gfs_ext_src and _waves_src:
                 try:
                     from services._fetch_common import fill_masked_waves_from_gfs
-                    _nfilled = fill_masked_waves_from_gfs(_waves_src, gfs_ext_src)
-                    logger.info(f"[Pipeline Scheduler] EURO coarse waves GFS-fill: filled {_nfilled} masked (cell,hour) values from GFS (Gulf/enclosed seas/Antarctic).")
+                    _nfilled = fill_masked_waves_from_gfs(_waves_src, gfs_ext_src, _diag=(_fd := {}))
+                    logger.info(f"[Pipeline Scheduler] EURO coarse waves GFS-fill: filled {_nfilled} masked (cell,hour) values (Gulf/enclosed seas/Antarctic) DIAG={_fd}")
                 except Exception as _fe:
                     logger.error(f"[Pipeline Scheduler] EURO coarse waves GFS-fill errored (waves stay masked): {_fe}")
 

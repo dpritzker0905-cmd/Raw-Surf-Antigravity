@@ -432,7 +432,7 @@ def build_icosahedral_nn(lats, lons, clat, clon) -> List[int]:
 
 # ─────────────────────────── point-dict shaping ───────────────────────────
 def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height",
-                               dir_key="wave_direction", period_key="wave_period"):
+                               dir_key="wave_direction", period_key="wave_period", _diag=None):
     """GULF / ENCLOSED-SEA / ANTARCTIC FIX (2026-07-22). The EURO coarse `waves` source (ECMWF-WAM or
     CMEMS) structurally MASKS enclosed seas (Gulf of Mexico, E Med, Black Sea, Sea of Japan, Gulf of
     California) AND the Southern Ocean south of ~-60 (the "Antarctic projection" regression): those cells
@@ -490,10 +490,23 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
         gfs[k] = m
 
     filled = 0
+    # DIAGNOSTIC (2026-07-22): the fill ran with valid GFS data in hand yet filled 0 cells in prod bakes
+    # (run 29933575013) while a served-data reproduction fills 126 — the mismatch is invisible to static
+    # analysis, so instrument the RAW ingest data. When `_diag` is a dict, record the breakdown + one sample
+    # so a single re-bake pinpoints the cause (cell-key miss vs time-value miss vs GFS-also-masked). Cheap;
+    # no behavior change. See scheduler.ingest_euro_marine_global.
+    d_cellhit = d_cellmiss = d_masked = d_timemiss = d_gfsmasked = 0
+    d_sample = None
     for wp in waves_points:
         cell = gfs.get(_key(wp))
         if not cell:
+            d_cellmiss += 1
+            if _diag is not None and d_sample is None and gfs:
+                # first waves cell with NO matching GFS cell: capture both keys for comparison
+                _gk = next(iter(gfs))
+                d_sample = {"reason": "cell_miss", "wkey": list(_key(wp) or ()), "sample_gfs_key": list(_gk)}
             continue
+        d_cellhit += 1
         wh = wp.get("hourly", {}) or {}
         wt = wh.get("time", []) or []
         whh = wh.get(height_key, [])
@@ -502,8 +515,16 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
         for i, t in enumerate(wt):
             if i >= len(whh) or not _masked(whh[i]):
                 continue
+            d_masked += 1
             g = cell.get(_tkey(t))
-            if not g or _masked(g[0]):
+            if not g:
+                d_timemiss += 1
+                if _diag is not None and (d_sample is None or d_sample.get("reason") == "cell_miss"):
+                    d_sample = {"reason": "time_miss", "wkey": list(_key(wp) or ()),
+                                "wtime": str(t), "gfs_times": [str(x) for x in list(cell.keys())[:4]]}
+                continue
+            if _masked(g[0]):
+                d_gfsmasked += 1
                 continue  # GFS also has no ocean cell here (true land) -> leave masked (nothing on land)
             whh[i] = g[0]
             if i < len(wdd) and _masked(wdd[i]) and g[1] is not None:
@@ -511,6 +532,10 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
             if i < len(wpp) and _masked(wpp[i]) and g[2] is not None:
                 wpp[i] = g[2]
             filled += 1
+    if _diag is not None:
+        _diag.update({"n_waves": len(waves_points), "n_gfs": len(gfs_points), "gfs_cells": len(gfs),
+                      "cell_hit": d_cellhit, "cell_miss": d_cellmiss, "masked_seen": d_masked,
+                      "time_miss": d_timemiss, "gfs_masked": d_gfsmasked, "filled": filled, "sample": d_sample})
     return filled
 
 
