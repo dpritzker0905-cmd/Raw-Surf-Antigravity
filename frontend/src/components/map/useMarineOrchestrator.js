@@ -435,8 +435,12 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
     const w = strandWatchdogRef.current;
     if (w.gen !== gen) { w.gen = gen; w.attempts = 0; } // a genuinely new switch resets the attempt budget
     clearStrandWatchdog();
+    // Floor of 1500ms: a re-drive routes through manualMarineTrigger -> enqueueMarineUpdate('manual'),
+    // which the fetcher dedupes within 800ms + rate-limits within 1200ms (useMarineDataFetcherCore); an
+    // interval below that would perpetually collide with those windows and the re-drive would never
+    // dispatch (observed with a 1200ms test value). 1500ms clears both; the default 3500ms clears them easily.
     const ms = (typeof window !== 'undefined' && typeof window.__RAW_MARINE_STRAND_WATCHDOG_MS__ === 'number')
-      ? Math.max(500, window.__RAW_MARINE_STRAND_WATCHDOG_MS__) : STRAND_WATCHDOG_MS_DEFAULT;
+      ? Math.max(1500, window.__RAW_MARINE_STRAND_WATCHDOG_MS__) : STRAND_WATCHDOG_MS_DEFAULT;
     w.timer = setTimeout(() => {
       w.timer = null;
       const target = getTarget();
@@ -459,8 +463,14 @@ export function useMarineOrchestrator({ mapInstance, activeLayers, timeOffsetHou
       } else if (action === 'giveup') {
         try { endCurrentTransition('settled'); } catch (e) { /* clear the stuck flag honestly */ }
         recordChurn('strand_watchdog_giveup', { gen });
+      } else if (action === 'healed') {
+        // Displayed already IS the target (or the transition settled). Ensure the pending flag is cleared
+        // even when the fetch early-returned but the resident frame already matched — e.g. reactivating a
+        // layer whose resident data equals the new selection while a commit/scrub guard was active leaves
+        // status stuck 'pending' with displayed==target. endCurrentTransition is a no-op if already settled.
+        try { endCurrentTransition('settled'); } catch (e) { /* honest flag clear */ }
       }
-      // 'superseded' / 'healed' → nothing to do; the timer is already cleared.
+      // 'superseded' → nothing to do; the timer is already cleared.
     }, ms);
   };
 
