@@ -65,10 +65,28 @@ DIR_TO_HEIGHT = {
     "wind_wave_direction": "wind_wave_height",
 }
 
+# SCALAR (height/period) BLOCK-MEAN over the 10° coarse block — the fix for the ENCLOSED-SEA DROPOUT
+# (2026-07-22): heights were POINT-SAMPLED at the coarse cell centre (arr[r,c]). A 10° cell whose centre
+# lands on a masked native cell — a coastline, a delta (Mississippi at (30,-90)), or an enclosed-sea edge
+# — sampled NaN and the whole cell was dropped, so the Gulf of Mexico / Mediterranean / Gulf of California /
+# Black Sea / Baltic / … went BLANK for ICON worldwide (they render correctly for GFS, which already
+# block-means its heights — energy_mean_height_block, 2026-07-04). Block-mean = RMS over the block's FINITE
+# (ocean) subcells, so a cell survives as long as ANY ocean subcell exists in the block; an all-NaN (true
+# land) block still drops, so nothing paints on land. Periods energy-mean over the same block. This is the
+# exact NOAA-coarse mechanism ported to GWAM. Kill: DWD_GWAM_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
+HEIGHT_VARS = {"wave_height", "swell_wave_height", "wind_wave_height"}
+PERIOD_TO_HEIGHT = {
+    "wave_period": "wave_height",
+    "swell_wave_period": "swell_wave_height",
+    "wind_wave_period": "wind_wave_height",
+}
+
 try:
-    from _fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf      # script-by-path
+    from _fetch_common import (energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+                               energy_mean_height_block, energy_mean_scalar_block)      # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_block, energy_mean_direction_block_multi_conf  # package context
+    from services._fetch_common import (energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+                                        energy_mean_height_block, energy_mean_scalar_block)  # package context
 
 # §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
 # wired 2026-07-15): the FE fades crest rendering below ~0.65 confidence, but only when the field
@@ -176,6 +194,8 @@ def fetch_global_coarse(payload):
     # Native GWAM grid is global 0.25° -> half-block in native cells; longitude always wraps.
     blockmean = os.environ.get("DWD_GWAM_DIR_BLOCKMEAN", "1") != "0"
     export_confidence = blockmean and os.environ.get("DWD_GWAM_DIR_CONFIDENCE", "1") != "0"
+    # Height/period block-mean (enclosed-sea dropout fix, see HEIGHT_VARS note). Default ON.
+    scalar_blockmean = os.environ.get("DWD_GWAM_SCALAR_BLOCKMEAN", "1") != "0"
     half = max(1, int(round(resolution / 0.25 / 2.0)))
     # The confidence series is initialized WITH the variables so failed steps keep it time-aligned.
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
@@ -220,6 +240,8 @@ def fetch_global_coarse(payload):
                     if om in DIR_TO_HEIGHT.values():
                         height_arrs[om] = arr
                     h_arr = height_arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
+                    is_height = scalar_blockmean and om in HEIGHT_VARS
+                    p_h_arr = height_arrs.get(PERIOD_TO_HEIGHT[om]) if (scalar_blockmean and om in PERIOD_TO_HEIGHT) else None
                     _conf_here = export_confidence and om == "wave_direction"
                     for rid, im in idx_by.items():
                         series = series_by[rid]
@@ -229,6 +251,12 @@ def fetch_global_coarse(payload):
                                 series[pi][DIR_CONFIDENCE_OM].append(round(float(conf), 4) if conf is not None else None)
                             elif h_arr is not None:
                                 x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                            elif is_height:
+                                # RMS of the block's finite (ocean) subcells — survives enclosed-sea cells
+                                # whose 10° centre lands on masked land; all-NaN (true land) still drops.
+                                x = energy_mean_height_block(arr, r, c, half, True)
+                            elif p_h_arr is not None:
+                                x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
                             else:
                                 x = arr[r, c]
                                 if _conf_here:  # point sample: no blockwise evidence either way

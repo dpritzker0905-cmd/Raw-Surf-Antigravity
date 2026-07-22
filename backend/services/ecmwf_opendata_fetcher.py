@@ -39,13 +39,13 @@ try:
     from _fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block,
     )
 except ImportError:  # pragma: no cover - package-context fallback
     from services._fetch_common import (
         coarse_axis, build_regular_nn, sanitize_speed_ms, sanitize_pressure_hpa,
         sanitize_direction_deg, sanitize_height_m, sanitize_period_s,
-        meteo_wind_dir, make_point_dict,
+        meteo_wind_dir, make_point_dict, energy_mean_height_block,
     )
 
 LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "mwp", "pp1d", "mwd"]}
@@ -79,6 +79,15 @@ def fetch_global_coarse(payload):
         return ({} if multi else []), 0, 0, None
     params = LAYER_PARAMS[layer]
     max_hours = min(forecast_days * 24, 240)
+    # WAVE HEIGHT BLOCK-MEAN (enclosed-sea dropout fix, 2026-07-22): the coarse wave height was
+    # POINT-SAMPLED at the cell centre (arr[r,c]); a 10° cell whose centre lands on a masked native cell
+    # (coastline / delta / enclosed-sea edge) sampled NaN and dropped the whole cell — so the Gulf of
+    # Mexico / Mediterranean / Gulf of California / Black Sea / … went BLANK for EURO worldwide (GFS was
+    # fine — it already block-means heights). RMS over the block's finite (ocean) subcells survives such
+    # cells; an all-NaN (true land) block still drops → nothing paints on land. Native ECMWF wave grid is
+    # global 0.25° (longitude wraps). Kill: ECMWF_WAVE_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
+    scalar_blockmean = os.environ.get("ECMWF_WAVE_SCALAR_BLOCKMEAN", "1") != "0"
+    _half = max(1, int(round(resolution / 0.25 / 2.0)))
 
     axes = {}    # rid -> (lats, lons)
     for rid, bb in regions.items():
@@ -142,7 +151,12 @@ def fetch_global_coarse(payload):
             kind = ("u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
             for rid, im in idx_by.items():
-                by[rid][kind][vt] = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
+                if kind == "h" and scalar_blockmean:
+                    # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
+                    # survive (see the ECMWF_WAVE_SCALAR_BLOCKMEAN note); everything else point-samples.
+                    by[rid][kind][vt] = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
+                else:
+                    by[rid][kind][vt] = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
             del arr
         grbs.close()
     finally:

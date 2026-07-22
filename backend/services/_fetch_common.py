@@ -312,6 +312,31 @@ def energy_mean_direction_lonspan_conf(dir_tyx, h_tyx, col: int, half_cols: int)
     return out, conf
 
 
+def energy_mean_height_lonspan(h_tyx, col: int, half_cols: int):
+    """Per-TIMESTEP RMS significant height over a LONGITUDE window (all band rows) — the HEIGHT sibling
+    of energy_mean_direction_lonspan for the thin-band Copernicus (CMEMS) fetcher. Hs² ∝ energy, so the
+    honest coarse Hs is the RMS of the window's FINITE subcells (genuine 0.0 ocean subcells INCLUDED so
+    calm blocks stay honest; land/ice-masked NaN excluded). THE ENCLOSED-SEA DROPOUT FIX (2026-07-22):
+    the height was point-sampled at one native column (a[:, row, col]); a coarse cell whose exact column
+    lands on masked land (a coastline / delta / enclosed-sea edge) sampled NaN and dropped the whole
+    cell — so the Gulf of Mexico / Mediterranean / Gulf of California / … went BLANK for EURO. The window
+    RMS survives such a cell as long as ANY ocean subcell exists in ±half_cols; an all-NaN (true land)
+    window still falls back to the NaN point sample → the cell stays empty (nothing paints on land).
+    Inputs shaped (T, Y, X); columns clamp at the band edge. Returns a (T,) float array."""
+    T, Y, X = h_tyx.shape
+    c0, c1 = max(0, col - half_cols), min(X, col + half_cols)
+    h = h_tyx[:, :, c0:c1]
+    ok = np.isfinite(h)
+    cnt = np.sum(ok, axis=(1, 2))
+    with np.errstate(invalid="ignore", divide="ignore"):
+        e_sum = np.sum(np.where(ok, h, 0.0) ** 2, axis=(1, 2))
+        rms = np.sqrt(e_sum / np.where(cnt > 0, cnt, 1))
+    empty = cnt == 0
+    if empty.any():
+        rms = np.where(empty, h_tyx[:, 0, col], rms)
+    return rms
+
+
 # ─────────────────────────────── sanitizers ───────────────────────────────
 # Each maps NaN/masked/out-of-physical-range -> None. (Inputs already np.ma.filled(..., nan) upstream.)
 def sanitize_pressure_hpa(x) -> Optional[float]:

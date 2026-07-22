@@ -53,9 +53,16 @@ DIR_TO_HEIGHT = {
 }
 
 try:
-    from _fetch_common import energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf      # script-by-path
+    from _fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
+                               energy_mean_height_lonspan)      # script-by-path
 except ImportError:
-    from services._fetch_common import energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf  # package context
+    from services._fetch_common import (energy_mean_direction_lonspan, energy_mean_direction_lonspan_conf,
+                                        energy_mean_height_lonspan)  # package context
+
+# HEIGHT vars — block-meaned (longitudinally, like the directions) so an enclosed-sea coarse cell whose
+# exact point-sample column is masked land survives (the Gulf/Med/... dropout fix, 2026-07-22 — parity
+# with the GWAM + ECMWF fetchers). Kill: COPERNICUS_SCALAR_BLOCKMEAN=0 -> legacy centre-point sampling.
+HEIGHT_VARS = {"wave_height", "swell_wave_height", "secondary_swell_wave_height", "wind_wave_height"}
 
 # §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
 # wired 2026-07-15): CMEMS VMDR is a MEAN direction, and in bimodal water a mean is a meaningless
@@ -160,6 +167,7 @@ def fetch_global_coarse(payload):
             # Longitudinal energy-mean window for direction vars: ±half-block in native columns.
             blockmean = os.environ.get("COPERNICUS_DIR_BLOCKMEAN", "1") != "0"
             export_confidence = blockmean and os.environ.get("COPERNICUS_DIR_CONFIDENCE", "1") != "0"
+            scalar_blockmean = os.environ.get("COPERNICUS_SCALAR_BLOCKMEAN", "1") != "0"
             dlon = float(abs(band_lons[1] - band_lons[0])) if len(band_lons) > 1 else 0.083
             half_cols = max(1, int(round((resolution / 2.0) / max(dlon, 1e-6))))
             for lon in lons:
@@ -178,6 +186,11 @@ def fetch_global_coarse(payload):
                             hourly[DIR_CONFIDENCE_OM] = [round(float(c), 4) if c == c else None for c in confs]
                         else:
                             vals = energy_mean_direction_lonspan(a, arrs[DIR_TO_HEIGHT[om]], col, half_cols)
+                        hourly[om] = [_sanitize_om(om, x) for x in vals]
+                    elif scalar_blockmean and om in HEIGHT_VARS:
+                        # longitudinal RMS so an enclosed-sea cell whose exact column is masked land
+                        # survives (any ocean cell in ±half_cols); all-masked still falls back to NaN.
+                        vals = energy_mean_height_lonspan(a, col, half_cols)
                         hourly[om] = [_sanitize_om(om, x) for x in vals]
                     else:
                         series = a[:, row, col]
