@@ -34,6 +34,10 @@ class WeatherPipelineScheduler:
         self.om_provider = OpenMeteoProvider()
         self.cop_provider = CopernicusProvider()
         self.normalizer = WeatherNormalizer()
+        # Cross-job handoff (2026-07-22): ingest_gfs_marine_global stashes its NOAA-direct GFS coarse grid here
+        # so ingest_euro_marine_global reuses it for the enclosed-sea/Antarctic GFS-fill without a 429-prone
+        # open-meteo re-fetch (that re-fetch stranded the fill in run 29922098897).
+        self._gfs_coarse_marine_cache = None
 
     def _get_resolution(self, region: dict, is_render: bool) -> float:
         return region["resolution"]
@@ -237,7 +241,12 @@ class WeatherPipelineScheduler:
             )
         if not results:
             logger.error("[Pipeline Scheduler] GFS marine global_coarse fetch failed. Skipping.")
+            self._gfs_coarse_marine_cache = None
             return False
+
+        # Stash for the EURO enclosed-sea/Antarctic GFS-fill (next job, same process, coarse_axis-aligned).
+        # `del results` in _cleanup_and_pause below drops only the local name; this ref survives (EURO clears it).
+        self._gfs_coarse_marine_cache = results if results else None
 
         # NOAA GFS-Wave is natively 3-hourly (step=1 keeps every step); open-meteo all_marine is hourly
         # (step=3 -> 3-hourly products). Same 3-hourly product cadence either way.
@@ -346,13 +355,21 @@ class WeatherPipelineScheduler:
 
         if cop_results:
             logger.info(f"[Pipeline Scheduler] EURO Copernicus global-coarse OK: {len(cop_results)} points (native swells).")
-            # cached GFS (ingest_gfs_marine_global ran ~1 min earlier -> _GRID_CACHE hit) for the 10->14d tail
-            gfs_ext_src = await self._fetch_or_mock(
-                "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
-                env["is_test_env"],
-                lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
-                "global_coarse"
-            )
+            # GFS coarse grid for the 10->14d `gfs_ext` tail AND the enclosed-sea/Antarctic GFS-fill below.
+            # PREFER the NOAA-direct grid ingest_gfs_marine_global stashed (reliable, HAS the Gulf, coarse_axis-
+            # aligned) over a 429-prone open-meteo re-fetch that stranded the fill (run 29922098897). Kill: env.
+            gfs_ext_src = None
+            if os.environ.get("EURO_MARINE_GFS_REUSE_CACHE", "1") != "0" and self._gfs_coarse_marine_cache:
+                gfs_ext_src = self._gfs_coarse_marine_cache
+                logger.info(f"[Pipeline Scheduler] EURO coarse reusing cached NOAA GFS coarse grid "
+                            f"({len(gfs_ext_src)} pts) for gfs_ext + enclosed-sea/Antarctic GFS-fill (no re-fetch).")
+            if not gfs_ext_src:
+                gfs_ext_src = await self._fetch_or_mock(
+                    "GFS", "marine", "all_marine", global_region, resolution, gfs_forecast_days,
+                    env["is_test_env"],
+                    lambda: generate_mock_marine_results(self.om_provider, global_region, resolution),
+                    "global_coarse"
+                )
             _cop_times = cop_results[0].get("hourly", {}).get("time", []) if cop_results else []
             _cop_max = _parse_iso(_cop_times[-1]) if _cop_times else None
             gfs_ext = _slice_after(gfs_ext_src, _cop_max)
@@ -445,6 +462,7 @@ class WeatherPipelineScheduler:
                 await self._cleanup_and_pause(ecmwf_waves, 0)
             if gfs_ext_src:
                 await self._cleanup_and_pause(gfs_ext_src, 0)
+            self._gfs_coarse_marine_cache = None  # release the cross-job handoff (consumed above)
             return total_saved > 0
 
         # ══ FALLBACK: Copernicus unavailable -> existing open-meteo path (ecmwf_wam025 + cached GFS), no regression ══

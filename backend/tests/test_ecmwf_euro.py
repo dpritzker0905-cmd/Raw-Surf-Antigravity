@@ -526,3 +526,122 @@ async def test_euro_marine_coarse_gfs_fill_kill_switch(tmp_path, monkeypatch):
     ok = await scheduler.ingest_euro_marine_global()
     assert ok is True
     assert called["fill"] is False, "kill switch must skip the GFS-fill entirely"
+
+
+# ── CROSS-JOB GFS-GRID REUSE (2026-07-22) ──────────────────────────────────────────────────────────
+# Root cause of the persisting masked Gulf (run 29922098897): the GFS-fill's source grid (gfs_ext_src) was
+# fetched via _fetch_or_mock -> open-meteo all_marine, which is UNCACHED and got 429-rate-limited -> empty
+# -> the fill guard went False -> Gulf stayed masked. Fix: ingest_gfs_marine_global stashes its reliable
+# NOAA-direct coarse grid on self._gfs_coarse_marine_cache; ingest_euro_marine_global reuses it (no re-fetch).
+@pytest.mark.asyncio
+async def test_gfs_marine_global_stashes_coarse_grid(tmp_path, monkeypatch):
+    """ingest_gfs_marine_global must stash its GFS coarse grid on self._gfs_coarse_marine_cache so the EURO
+    enclosed-sea/Antarctic GFS-fill can reuse it (cross-job handoff, same process)."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    assert scheduler._gfs_coarse_marine_cache is None, "cache starts empty"
+
+    sentinel = _mock_cmems_marine_points()
+
+    async def spy_fetch_or_mock(*a, **k):
+        return sentinel
+
+    monkeypatch.setattr(scheduler, "_fetch_or_mock", spy_fetch_or_mock)
+
+    await scheduler.ingest_gfs_marine_global()
+    assert scheduler._gfs_coarse_marine_cache is sentinel, "GFS coarse grid must be stashed for cross-job reuse"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_reuses_cached_gfs_grid(tmp_path, monkeypatch):
+    """When a NOAA GFS coarse grid is stashed, the EURO coarse job feeds THAT to the GFS-fill and must NOT
+    re-fetch open-meteo all_marine (the 429-prone path that stranded the fill in run 29922098897). The cache
+    is released after the EURO job consumes it."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.ecmwf_wave_service as wave_svc
+    import services.copernicus_marine_service as cms
+    import services._fetch_common as fc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_COARSE_ECMWF", "1")
+    monkeypatch.setenv("EURO_MARINE_COARSE_GFS_FILL", "1")
+    monkeypatch.setenv("EURO_MARINE_GFS_REUSE_CACHE", "1")
+
+    cached_gfs = _mock_cmems_marine_points()  # distinct sentinel stashed by the prior GFS marine job
+    scheduler._gfs_coarse_marine_cache = cached_gfs
+
+    fetch_calls = {"n": 0}
+
+    async def spy_fetch_or_mock(*a, **k):
+        fetch_calls["n"] += 1
+        return _mock_cmems_marine_points()
+
+    captured = {}
+
+    def spy_fill(waves_points, gfs_points, **kw):
+        captured["gfs_is_cache"] = (gfs_points is cached_gfs)
+        return 0
+
+    async def fake_ecmwf(bbox, resolution=2.0, forecast_days=10):
+        return _mock_ecmwf_wave_points()
+
+    async def fake_cmems(region, resolution, days):
+        return _mock_cmems_marine_points()
+
+    monkeypatch.setattr(wave_svc, "fetch_euro_marine_waves_global", fake_ecmwf)
+    monkeypatch.setattr(cms, "fetch_euro_marine_global_coarse", fake_cmems)
+    monkeypatch.setattr(fc, "fill_masked_waves_from_gfs", spy_fill)
+    monkeypatch.setattr(scheduler, "_fetch_or_mock", spy_fetch_or_mock)
+
+    ok = await scheduler.ingest_euro_marine_global()
+    assert ok is True
+    assert fetch_calls["n"] == 0, "warm cache must PREVENT the open-meteo GFS re-fetch (the 429-prone strand)"
+    assert captured.get("gfs_is_cache") is True, "GFS-fill must receive the cached NOAA grid"
+    assert scheduler._gfs_coarse_marine_cache is None, "cache must be released after the EURO job consumes it"
+
+
+@pytest.mark.asyncio
+async def test_euro_marine_coarse_gfs_reuse_kill_switch(tmp_path, monkeypatch):
+    """EURO_MARINE_GFS_REUSE_CACHE=0 ignores the warm cache and falls back to the open-meteo GFS fetch."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.ecmwf_wave_service as wave_svc
+    import services.copernicus_marine_service as cms
+    import services._fetch_common as fc
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+    monkeypatch.setenv("EURO_MARINE_COARSE_ECMWF", "1")
+    monkeypatch.setenv("EURO_MARINE_COARSE_GFS_FILL", "1")
+    monkeypatch.setenv("EURO_MARINE_GFS_REUSE_CACHE", "0")
+
+    scheduler._gfs_coarse_marine_cache = _mock_cmems_marine_points()  # warm, but kill switch ignores it
+
+    fetch_calls = {"n": 0}
+
+    async def spy_fetch_or_mock(*a, **k):
+        fetch_calls["n"] += 1
+        return _mock_cmems_marine_points()
+
+    async def fake_ecmwf(bbox, resolution=2.0, forecast_days=10):
+        return _mock_ecmwf_wave_points()
+
+    async def fake_cmems(region, resolution, days):
+        return _mock_cmems_marine_points()
+
+    monkeypatch.setattr(wave_svc, "fetch_euro_marine_waves_global", fake_ecmwf)
+    monkeypatch.setattr(cms, "fetch_euro_marine_global_coarse", fake_cmems)
+    monkeypatch.setattr(fc, "fill_masked_waves_from_gfs", lambda *a, **k: 0)
+    monkeypatch.setattr(scheduler, "_fetch_or_mock", spy_fetch_or_mock)
+
+    ok = await scheduler.ingest_euro_marine_global()
+    assert ok is True
+    assert fetch_calls["n"] >= 1, "kill switch must fall back to the open-meteo GFS fetch (cache ignored)"
