@@ -1,9 +1,31 @@
 # HANDOFF 2026-07-22 (Opus 4.8) — 4 lifecycle/race fixes + the EURO coarse Gulf saga (GFS-fill)
 
+> ## ⏭️ UPDATE (later 07-22, `77b712b2`) — THE GFS-FILL WAS STRANDED; A 4TH DEAD-END + THE REAL WIRING FIX
+> Run `29922098897` (which §4.1 below expected to activate `7a50c437`) **completed but the Gulf stayed
+> masked (`is_valid=0/2`).** Forensics on the FULL run log (13,385 lines): **zero "GFS-fill" lines** — the
+> fill NEVER RAN. Its guard `... and gfs_ext_src and ...` went **False** because `gfs_ext_src` was **empty**:
+> the GFS source grid is fetched via `_fetch_or_mock → open-meteo all_marine`, which is **UNCACHED** (the
+> "cache hit" code comment was a LIE — no `_GRID_CACHE` exists) and got **429-rate-limited** twice → empty →
+> fill skipped → Gulf masked. `7a50c437`'s fill logic is correct but was **starved of its data source.**
+> **FIX `77b712b2`:** `ingest_gfs_marine_global` stashes its reliable NOAA-direct coarse grid (already
+> fetched, HAS the Gulf, `coarse_axis`-aligned) on `self._gfs_coarse_marine_cache`; `ingest_euro_marine_global`
+> **reuses it** for `gfs_ext` + the GFS-fill (zero network, no 429), open-meteo only as cold fallback; cache
+> released after use. Kill: `EURO_MARINE_GFS_REUSE_CACHE=0`. Verified: 3 new unit tests (stash · reuse-no-
+> refetch+release · kill-switch) + 15 EURO + 7 GFS-fill + 28 marine/scheduler green; AST OK; **scheduler.py
+> now 800 LOC = AT the hard gate — trim before adding.** ⚠️ **LIVE STILL PENDING:** run `29933575013`
+> (`77b712b2`) is QUEUED behind in-progress old run `29928488687` (`7a50c437`, no fix) — same concurrency
+> group, mine runs last → wins. Live probe (base 15:00Z): GFS coarse HAS Gulf (30/-90=**1.82m**, 20/-90=
+> **0.71m** valid); EURO Gulf/E-Med/Antarctic-70 masked, open ocean 6/6 healthy. Before-snapshot for the
+> worldwide gap-diff saved (`euro_before_snapshot.json`, 8 masked fix-target cells). See
+> [[marine-euro-gfsfill-429-strand-2026-07-22]]. **NEW LANDMINE:** an ingest run started BEFORE your push
+> runs the OLD code — always re-check the run's `headSha` and grep the run log for your NEW log line, don't
+> assume "run completed" == "your fix ran."
+
 Base was `e65530b8` on `origin/dev`. HEAD is now **`7a50c437`**, `HEAD==origin/dev` (verified). **6 commits
 shipped + pushed this session.** Two of them (`0fcde49c` pre-existing, `bedc0def` this session) were later
 PROVEN INEFFECTIVE by live verification — the real EURO Gulf fix is **`7a50c437` (GFS-fill)**, whose
-activation is **pending a coarse marine re-ingest** (run `29922098897`, in progress at handoff).
+activation is **pending a coarse marine re-ingest** (run `29922098897`, in progress at handoff). ⚠️ **see the
+UPDATE box above — `7a50c437` alone was insufficient; the real fix is `77b712b2` (GFS-grid reuse).**
 
 ## 0. BINDING RULES (applied all session)
 forensics-not-guessing · Jacobian lens (isolate the ONE variable) · study memory + recent commits before
