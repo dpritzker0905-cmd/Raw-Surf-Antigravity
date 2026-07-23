@@ -3393,6 +3393,25 @@ export function computeMidZoomOverlayEngage(opts) {
 // grid, the view is wide (zoomed out ≤ MARINE_ZOOMED_OUT_MAX_ZOOM or >15° either axis), and the
 // resident covers < __RAW_DOWNGRADE_COVER_FRAC__ (0.6) of the viewport — i.e. exactly the
 // coverage boundary where the no-downgrade guard also releases it, so the two never fight.
+// MID-BAND BRIDGE CEILING (2026-07-22, USER "Bertha clears / heatmap changes as I zoom out"): the
+// 2° mid tier now SERVES to 40° (MARINE_MID_RES_MAX_SPAN / __RAW_MARINE_GLOBAL_SPAN__), so a 15-40°
+// viewport is NOT "too wide for the mid" — the bridge (and its mirror reject) must only fire PAST the
+// ceiling, i.e. genuine world zoom where no mid exists. The old `zoom<=7 || span>15` classed z5-7 as
+// wide and bridged the covering mid → 10° global-coarse during the mid fetch-latency window (EURO
+// Copernicus ~7-10s) = a ~5s coarse flash where the compact storm vanished (zoomlab-proven: bridge
+// OFF → EURO holds the mid, cols 7-13, no flash; bridge ON → cols 37 for ~5s). Below the ceiling the
+// mid keeps up on a moderate zoom-out (each viewport gets a wider mid) with the coarse base under any
+// uncovered edge; past it the coarse is honest. Kill: __RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ restores 15°.
+function _midBandBridgeWide(vb, lastZoom, w) {
+  if (!vb) return false;
+  if (w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true) {
+    return (typeof lastZoom === 'number' && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
+      || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
+  }
+  const ceil = (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
+  return (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
+}
+
 export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportBounds, win) {
   const w = win || (typeof window !== 'undefined' ? window : undefined);
   if (w && w.__RAW_DISABLE_ZOOMOUT_BRIDGE__ === true) return false;
@@ -3400,9 +3419,7 @@ export function shouldBridgeToCoarseGlobal(resident, coarse, lastZoom, viewportB
   if (!resident || !resident.bounds || !isRegionalBounds(resident.bounds) || isCoarseGlobalGrid(resident)) return false;
   const vb = viewportBounds;
   if (!vb) return false;
-  const wideView = (typeof lastZoom === 'number' && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
-    || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
-  if (!wideView) return false;
+  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
   const rb = resident.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(rb.east, vb[2]) - Math.max(rb.west, vb[0]));
@@ -3438,9 +3455,10 @@ export function shouldRejectSubcoveringRegional(resident, incoming, lastZoom, vi
   if (!!resident.ratingMode !== !!incoming.ratingMode) return false;
   const vb = viewportBounds;
   if (typeof lastZoom !== 'number' || !vb) return false;   // unknown → fail open
-  const wideView = lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM
-    || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
-  if (!wideView) return false;
+  // Mirror of shouldBridgeToCoarseGlobal (2026-07-22): fire only PAST the mid-band ceiling so a
+  // 15-40° mid is ACCEPTED over a coarse resident (it covers) instead of rejected as "subcovering" —
+  // the reject and the bridge share this classification so commit/gate/bridge can never disagree.
+  if (!_midBandBridgeWide(vb, lastZoom, w)) return false;
   const ib = incoming.bounds;
   const vpA = Math.max(1e-9, (vb[2] - vb[0]) * (vb[3] - vb[1]));
   const ix = Math.max(0, Math.min(ib.east, vb[2]) - Math.max(ib.west, vb[0]));

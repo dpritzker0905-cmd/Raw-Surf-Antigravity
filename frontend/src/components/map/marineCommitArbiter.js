@@ -182,8 +182,16 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   //      .ratingMode`); without it the rule rejected a RATED incoming during a rating transition,
   //      which the flavor rules above own (24 cases).
   const vbW = ctx.viewportBounds;
-  const wideNow = (typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
-    || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0));
+  // MID-BAND CEILING sync (2026-07-22, EURO zoom-out coarse-flash): mirror shouldBridgeToCoarseGlobal
+  // / shouldRejectSubcoveringRegional's _midBandBridgeWide — the 2° mid tier now serves to 40°, so a
+  // 15-40° viewport is NOT "wide" (the mid covers). Read the SAME window ceiling + kill-switch the
+  // guards read so guard and arbiter stay byte-agreed (the differential harness enforces it).
+  const _amcOff = (typeof window !== 'undefined' && window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true);
+  const _amc = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
+  const wideNow = _amcOff
+    ? ((typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
+        || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0)))
+    : (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > _amc || (vbW[3] - vbW[1]) > _amc));
   const zoomedOut = wideNow && rRated === iRated;
   const rSpan = spanLngOf(resident), iSpan = spanLngOf(incoming);
   if (zoomedOut && rSpan !== null && rSpan >= 340 && iSpan !== null && iSpan < 340) {

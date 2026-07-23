@@ -22,7 +22,8 @@ const REGIONAL = {
   __sourceModel: 'GFS', __componentLayer: 'waves',
   vectors: new Array(56).fill({ speed: 1 }),
 };
-const WIDE_VP = [-88, 20, -66, 33];   // 22° x 13°
+const WIDE_VP = [-88, 20, -66, 33];   // 22° x 13° — now INSIDE the 40° mid-band (mid serves)
+const WORLD_VP = [-110, 5, -55, 45];  // 55° x 40° — PAST the mid-band ceiling (genuine world zoom)
 const TIGHT_VP = [-81, 26, -79, 28];  // 2° x 2°
 
 afterEach(() => {
@@ -31,17 +32,26 @@ afterEach(() => {
 });
 
 describe('shouldRejectSubcoveringRegional', () => {
-  it('REJECTS a sub-covering same-target regional over a covering coarse-global at wide view', () => {
-    expect(shouldRejectSubcoveringRegional(WORLD, REGIONAL, 5.5, WIDE_VP, false)).toBe(true);
+  it('REJECTS a sub-covering same-target regional over a covering coarse-global PAST the mid-band ceiling', () => {
+    expect(shouldRejectSubcoveringRegional(WORLD, REGIONAL, 5.5, WORLD_VP, false)).toBe(true);
+  });
+
+  it('does NOT reject in the 15-40° MID-BAND — the 2° mid serves there (2026-07-22, the Bertha zoom-out)', () => {
+    // A 22° viewport is now inside the mid ceiling: a subcovering mid there is the storm we WANT to
+    // hold, not a churn to reject. The old 15° rule rejected it (→ the coarse-bridge flash).
+    expect(shouldRejectSubcoveringRegional(WORLD, REGIONAL, 5.5, WIDE_VP, false)).toBe(false);
+    // kill switch restores the old 15° reject
+    expect(shouldRejectSubcoveringRegional(WORLD, REGIONAL, 5.5, WIDE_VP, false, { __RAW_DISABLE_MIDBAND_BRIDGE_CEIL__: true })).toBe(true);
   });
 
   it('accepts once coverage reaches the shared cover-frac lever (default 0.6)', () => {
-    // widen the regional to cover most of the viewport
-    const covering = { ...REGIONAL, bounds: { west: -89, south: 19, east: -66, north: 34 } };
-    expect(shouldRejectSubcoveringRegional(WORLD, covering, 5.5, WIDE_VP, false)).toBe(false);
-    // or shrink the required fraction below the actual coverage
-    window.__RAW_DOWNGRADE_COVER_FRAC__ = 0.3;
-    expect(shouldRejectSubcoveringRegional(WORLD, REGIONAL, 5.5, WIDE_VP, false)).toBe(false);
+    // widen the regional to cover most of the >40° world viewport
+    const covering = { ...REGIONAL, bounds: { west: -108, south: 6, east: -57, north: 44 } };
+    expect(shouldRejectSubcoveringRegional(WORLD, covering, 5.5, WORLD_VP, false)).toBe(false);
+    // or shrink the required fraction below the actual coverage: a ~0.49-covering regional
+    const halfReg = { ...REGIONAL, bounds: { west: -95, south: 9, east: -60, north: 40 } };
+    window.__RAW_DOWNGRADE_COVER_FRAC__ = 0.4;
+    expect(shouldRejectSubcoveringRegional(WORLD, halfReg, 5.5, WORLD_VP, false)).toBe(false);
   });
 
   it('accepts at zoomed-in views (the gate/bridge never fight there)', () => {

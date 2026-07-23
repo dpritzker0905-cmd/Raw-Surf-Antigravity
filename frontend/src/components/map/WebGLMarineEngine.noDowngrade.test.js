@@ -143,32 +143,38 @@ describe('shouldBridgeToCoarseGlobal — zoom-out bridge (coverage complement of
   it('does NOT bridge while the regional still covers the viewport (guard keeps it)', () => {
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
   });
-  it('BRIDGES once the viewport outgrows the tile at a wide zoom (the fast-flick held rectangle + the settle blank)', () => {
-    const wideVp = [-100, 10, -60, 40]; // 40°×30° — the 3° tile covers ~0.7%
-    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, wideVp, {})).toBe(true);
+  it('BRIDGES once the viewport outgrows the MID-BAND CEILING (genuine world zoom past 40°)', () => {
+    const worldVp = [-110, 5, -55, 45]; // 55°×40° — past the 40° mid ceiling; the 3° tile covers ~0%
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, worldVp, {})).toBe(true);
   });
-  it('BRIDGES on a wide-by-span viewport even at a mid zoom number (>15° axis)', () => {
-    const wideSpanVp = [-95, 22, -75, 34]; // 20°×12° — width >15° → wideView, tile covers ~4%
-    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, wideSpanVp, {})).toBe(true);
+  it('does NOT bridge in the 15-40° MID-BAND — the 2° mid serves there (2026-07-22, the Bertha zoom-out flash)', () => {
+    // The old 15° threshold bridged a 20-38° viewport to the 10° coarse; that IS the EURO zoom-out
+    // flash that cleared the storm. The mid tier now serves to 40° so it must be HELD through this band.
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, [-95, 22, -75, 34], {})).toBe(false); // 20°
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 5, [-100, 10, -64, 40], {})).toBe(false); // 36°
+  });
+  it('kill switch __RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ restores the old 15° bridge (A/B revert)', () => {
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, [-95, 22, -75, 34], { __RAW_DISABLE_MIDBAND_BRIDGE_CEIL__: true })).toBe(true);
   });
   it('does NOT bridge at a tight zoom with a small viewport (never downgrades a covering zoomed-in view)', () => {
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
   });
   it('does NOT bridge without a held coarse-global grid, or when the resident is already global', () => {
-    const wideVp = [-100, 10, -60, 40];
-    expect(shouldBridgeToCoarseGlobal(regional(), null, 3, wideVp, {})).toBe(false);
-    expect(shouldBridgeToCoarseGlobal(regional(), regional(), 3, wideVp, {})).toBe(false); // incoming not coarse-global
-    expect(shouldBridgeToCoarseGlobal(coarseGlobal(), coarseGlobal(), 3, wideVp, {})).toBe(false); // resident already global
+    const worldVp = [-110, 5, -55, 45];
+    expect(shouldBridgeToCoarseGlobal(regional(), null, 3, worldVp, {})).toBe(false);
+    expect(shouldBridgeToCoarseGlobal(regional(), regional(), 3, worldVp, {})).toBe(false); // incoming not coarse-global
+    expect(shouldBridgeToCoarseGlobal(coarseGlobal(), coarseGlobal(), 3, worldVp, {})).toBe(false); // resident already global
   });
   it('respects the kill switch', () => {
-    const wideVp = [-100, 10, -60, 40];
-    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, wideVp, { __RAW_DISABLE_ZOOMOUT_BRIDGE__: true })).toBe(false);
+    const worldVp = [-110, 5, -55, 45];
+    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, worldVp, { __RAW_DISABLE_ZOOMOUT_BRIDGE__: true })).toBe(false);
   });
-  it('the cover-fraction lever tunes the threshold', () => {
-    // A viewport the tile covers ~50%: default (0.6) bridges; raising the floor below 0.5 keeps it.
-    const halfVp = [-80.5, 27.5, -77.5, 28.5]; // 1.5/3 = 0.5 covered, width 3° (not wide-by-span)
-    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, halfVp, {})).toBe(true);        // z6 ≤ zoomed-out max → wideView
-    expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 6, halfVp, { __RAW_DOWNGRADE_COVER_FRAC__: 0.4 })).toBe(false);
+  it('the cover-fraction lever tunes the threshold (past the mid-band ceiling)', () => {
+    // A big regional covering ~50% of a >40° viewport: default (0.6) bridges; floor 0.4 keeps it.
+    const bigReg = regional({ bounds: { west: -100, east: -70, south: 10, north: 40 } }); // 30° wide
+    const halfWorldVp = [-100, 10, -40, 40]; // 60°×30°: bigReg covers 30/60 = 0.5 lng, full lat
+    expect(shouldBridgeToCoarseGlobal(bigReg, coarseGlobal(), 4, halfWorldVp, {})).toBe(true);
+    expect(shouldBridgeToCoarseGlobal(bigReg, coarseGlobal(), 4, halfWorldVp, { __RAW_DOWNGRADE_COVER_FRAC__: 0.4 })).toBe(false);
   });
 });
 
