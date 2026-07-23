@@ -49,6 +49,15 @@ async function main() {
     log('ZL_FLAGS: ' + flags.join(', '));
   }
 
+  // ZL_GLOBAL_SPAN: pre-boot numeric override of window.__RAW_MARINE_GLOBAL_SPAN__ (the mid-band
+  // ceiling). Used for the storm-at-zoom-out A/B: default (unset=40) keeps the 2° mid to ~z5 so a
+  // Gulf storm stays resolved; ZL_GLOBAL_SPAN=15 reverts to the old cliff (mid→10° coarse at 15°).
+  if (process.env.ZL_GLOBAL_SPAN) {
+    const gs = Number(process.env.ZL_GLOBAL_SPAN);
+    await page.addInitScript((v) => { window.__RAW_MARINE_GLOBAL_SPAN__ = v; }, gs);
+    log('ZL_GLOBAL_SPAN: ' + gs);
+  }
+
   // ZL_THEME: boot the app in a specific theme (light|dark|beach) by seeding the ThemeContext
   // localStorage key pre-boot — per-theme battery runs (2026-07-18: light-mode crest report).
   if (process.env.ZL_THEME) {
@@ -318,7 +327,21 @@ async function main() {
   const cx = 640, cy = 400;
   await page.mouse.move(cx, cy);
 
-  if (scenario.startsWith('zoomout')) {
+  if (scenario === 'zoomto') {
+    // STOP-AND-SETTLE at a target zoom (2026-07-22, the TS Bertha z5.35 verify): real wheel zoom-out
+    // until the target (ZL_TARGET_ZOOM, default 5.35), then a LONG settle so the mid-tier grid_series
+    // fully commits against the 1-CPU backend — answers "does the storm stay at the SETTLED zoom?"
+    // (the continuous zoomout scenario blows past the target to z2 and only settles there).
+    const target = Number(process.env.ZL_TARGET_ZOOM || 5.35);
+    for (let i = 0; i < 60; i++) {
+      const z = await page.evaluate(() => window.map.getZoom());
+      if (z <= target + 0.02) break;
+      await page.mouse.wheel(0, 120);
+      await page.waitForTimeout(120);
+    }
+    log('reached ~z' + (await page.evaluate(() => +window.map.getZoom().toFixed(2))) + ', settling 14s');
+    await page.waitForTimeout(14000); // long settle: mid grid_series commit + arbiter
+  } else if (scenario.startsWith('zoomout')) {
     // Real wheel zoom-out: z9 -> ~z4 in a continuous stream, like a user rolling the wheel.
     for (let i = 0; i < 42; i++) {
       await page.mouse.wheel(0, 120);
