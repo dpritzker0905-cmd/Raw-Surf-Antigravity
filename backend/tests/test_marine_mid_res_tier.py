@@ -254,6 +254,65 @@ def test_mid_res_tier_z5_reverts_to_coarse_under_kill_switch(monkeypatch):
                 and out.grid.diagnostics.get("mid_res_tier")), "30° must skip mid when ceiling=15"
 
 
+def _make_wide_mid_product():
+    """A ~2° global-extent mid product with vectors across a WIDE W-Atlantic/Gulf box
+    (lng -140..-40, lat 0..50) — wide enough to exercise the zoom-out coverage OVERHANG pad."""
+    vecs = []
+    lat = 0.0
+    while lat <= 50.0:
+        lng = -140.0
+        while lng <= -40.0:
+            vecs.append(GridVector(lat=lat, lng=lng, speed=0.9, u=0.9, v=0.0))
+            lng += 2.0
+        lat += 2.0
+    bounds = CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0)
+    grid = NormalizedGrid(bounds=bounds, cols=180, rows=90, vectors=vecs)
+    return NormalizedProduct(
+        model="GFS", provider="open-meteo", domain="marine", layer="waves",
+        run_time=_VT_DT, valid_time=_VT_DT,
+        is_forecast_authoritative=True, is_estimated=False, coverage=bounds, grid=grid,
+        value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+        source_variables=[], freshness_sec=1800,
+        product_id="gfs_marine_waves_global_mid_wide.json",
+    )
+
+
+def _served_span(out):
+    b = out.grid.bounds
+    return (b.east - b.west) if b.east >= b.west else (b.east + 360.0 - b.west)
+
+
+def test_mid_clip_overhang_proportional_on_zoomout(monkeypatch):
+    """ZOOM-OUT COVERAGE OVERHANG (2026-07-22, "Bertha clears + heatmap changes as I zoom out"): a
+    wide (24°) mid serve must OVERHANG the viewport by the proportional pad (~0.5×span, cap 12°) so
+    it keeps COVERING as the viewport grows a step — this is what defeats the engine coarse-bridge
+    (frac<0.6) that cleared the storm on the (slow-fetch) EURO zoom-out. Served span >> the old
+    fixed-2°-pad span."""
+    store = _FakeStore([_mid_manifest_item()], _make_wide_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-96,16,-72,38")  # 24° span
+    assert out is not None and out.grid.diagnostics.get("mid_res_tier") is True
+    assert _served_span(out) > 24 + 6, f"served mid must overhang the 24° viewport past the old 2° pad (got {_served_span(out):.1f}°)"
+
+
+def test_mid_clip_pad_floor_keeps_tight_zoom_tight(monkeypatch):
+    """The proportional pad has a 2° FLOOR: a 1.5° surf zoom must NOT balloon (stays ~viewport+2°)."""
+    store = _FakeStore([_mid_manifest_item()], _make_wide_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-81,27,-79.5,28.5")  # 1.5° span
+    assert out is not None and out.grid.diagnostics.get("mid_res_tier") is True
+    assert _served_span(out) < 1.5 + 8, "tight zoom must stay tight (2° floor, not proportional)"
+
+
+def test_mid_clip_pad_fixed_kill_switch(monkeypatch):
+    """MARINE_MID_CLIP_PAD_DEG restores the OLD fixed pad (disables the proportional overhang)."""
+    monkeypatch.setenv("MARINE_MID_CLIP_PAD_DEG", "2.0")
+    store = _FakeStore([_mid_manifest_item()], _make_wide_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-96,16,-72,38")  # 24° span
+    assert _served_span(out) < 24 + 10, f"fixed-pad kill-switch serves ~viewport+2°/side (got {_served_span(out):.1f}°)"
+
+
 def _make_coarse_product(is_estimated=False):
     """A 10° global_coarse product (global extent, 37x17-ish sparse vectors over the CA viewport)."""
     vecs = []

@@ -214,7 +214,25 @@ async def try_serve_mid_res_tier(
     try:
         from services.weather_pipeline.route_helpers import parse_bbox as _pb
         _sw, _ss, _se, _sn = _pb(get_snapped_bbox(bbox, model))
-        _pad = float(os.environ.get("MARINE_MID_CLIP_PAD_DEG", "2.0"))
+        # ZOOM-OUT COVERAGE OVERHANG (2026-07-22, USER "Bertha clears + heatmap changes as I zoom
+        # out"): a FIXED 2° pad let the committed mid BARELY cover the viewport, so on zoom-out the
+        # growing viewport outran it and the engine's coarse-bridge promoted the 10° global for the
+        # mid fetch-latency window (EURO Copernicus lag ~7-10s) = the ~5s storm-clearing flash
+        # (zoomlab-proven). Overhang the clip PROPORTIONALLY to the span so the served mid keeps
+        # COVERING as the viewport grows a step — this defeats the bridge's frac<0.6 trigger AT THE
+        # SOURCE (coverage stays high) without touching the fortified bridge/reject/arbiter. Cheap:
+        # a resident-product slice (≤~800 cells at the 40° ceiling, far under the serve cap). The 2°
+        # floor keeps CLOSE zoom tight (a 1.5° surf zoom still pads 2°, not 0.75°). Kill/tune:
+        # MARINE_MID_CLIP_PAD_DEG (set = old fixed pad, disables the proportional term) ·
+        # MARINE_MID_CLIP_PAD_FRAC (default 0.5 → clip ≈ 2× viewport ≈ covers a 2× zoom-out step) ·
+        # MARINE_MID_CLIP_PAD_MAX (cap, default 12°).
+        _pad_fixed = os.environ.get("MARINE_MID_CLIP_PAD_DEG")
+        if _pad_fixed is not None:
+            _pad = float(_pad_fixed)
+        else:
+            _frac = float(os.environ.get("MARINE_MID_CLIP_PAD_FRAC", "0.5"))
+            _cap = float(os.environ.get("MARINE_MID_CLIP_PAD_MAX", "12.0"))
+            _pad = min(_cap, max(2.0, _frac * span))
         _pw = max(-180.0, _sw - _pad); _ps = max(-80.0, _ss - _pad)
         _pe = min(180.0, _se + _pad); _pn = min(85.0, _sn + _pad)
         product = filter_grid_to_bbox(product, f"{_pw:.4f},{_ps:.4f},{_pe:.4f},{_pn:.4f}")
