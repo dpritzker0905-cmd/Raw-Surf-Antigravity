@@ -185,15 +185,28 @@ def test_mid_res_tier_min_span_floor_restorable(monkeypatch):
     assert vp.preview_called is True
 
 
-def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
-    """A wide (>120°) view is a genuine world/hemispheric zoom-out — keep the coarse path, not the
-    mid tier (ceiling raised 15→40→120 for the EURO enclosed-sea zoom-out; a 159×90° view is past it)."""
+def test_mid_res_tier_serves_continental_view(monkeypatch):
+    """2° AT ALL ZOOMS (2026-07-23, "Bertha STILL clears further out than you tested"): a wide
+    continental/world view (>120°) must NOW serve the 2° global_mid too — matching the WIND sibling
+    (WIND_MID_RES_MAX_SPAN=400) — so a compact storm never block-averages into the 10° coarse on
+    zoom-out. This REVERSES the old 'skipped_for_continental_view' behaviour under the 40° ceiling;
+    the default ceiling is 400° now (USER-confirmed 2026-07-23). Kill: MARINE_MID_RES_MAX_SPAN=40."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
     vp = _FakeViewport()
     out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # ~159°×90° hemispheric
-    # Mid tier must NOT fire → falls through to the coarse-preview path (which returns None here).
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True, "continental view must now serve the 2° mid"
+
+
+def test_mid_res_tier_continental_reverts_to_coarse_under_40_ceiling(monkeypatch):
+    """Kill switch / A-B pin for the 2026-07-23 change: MARINE_MID_RES_MAX_SPAN=40 restores the prior
+    'coarse at continental zoom' decision — the same 159° view then SKIPS the mid tier."""
+    monkeypatch.setenv("MARINE_MID_RES_MAX_SPAN", "40.0")
+    store = _FakeStore([_mid_manifest_item()], _make_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # 159° span > 40° cap
     assert not (out is not None and out.grid and out.grid.diagnostics
-                and out.grid.diagnostics.get("mid_res_tier"))
+                and out.grid.diagnostics.get("mid_res_tier")), "159° must skip mid when ceiling=40"
 
 
 def _make_gulf_mid_product():
@@ -393,10 +406,12 @@ def test_estimated_hour_serves_estimated_mid_replacing_unclipped_coarse(monkeypa
     assert span < 350.0, "the replacing mid must be served CLIPPED"
 
 
-def test_world_zoom_never_serves_global_mid(monkeypatch):
-    """DETERMINISM GUARD: global_mid ties with global_coarse in the generic selection (same coverage,
-    same valid_times) and would win/lose by MANIFEST ORDER — a wide/world request must ALWAYS serve the
-    629-vector coarse, never the ~15k-vector mid, regardless of manifest ordering."""
+def test_world_zoom_serves_global_mid_deterministically(monkeypatch):
+    """2° AT ALL ZOOMS + DETERMINISM (2026-07-23): the mid TIER now OWNS the world/wide serve (ceiling
+    400°, matching wind) so a compact storm stays 2°-resolved instead of smearing into the 10° coarse.
+    The determinism guarantee is UNCHANGED in spirit — global_mid still can't win by generic MANIFEST
+    ORDER (split_mid_candidates removes it from the generic lists); the TIER replaces the generic coarse
+    deterministically, so BOTH manifest orders yield the mid, never an order-luck draw."""
     for order in ("mid_first", "coarse_first"):
         items = [_mid_manifest_item(), _coarse_manifest_item()] if order == "mid_first" \
             else [_coarse_manifest_item(), _mid_manifest_item()]
@@ -405,12 +420,24 @@ def test_world_zoom_never_serves_global_mid(monkeypatch):
             "gfs_marine_waves_global_mid_x.json": _make_mid_product(),
         })
         vp = _FakeViewport()
-        out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # ~159°x90° world/hemispheric (> 120° ceiling)
+        out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # ~159°x90° world/hemispheric
         assert out is not None, f"({order}) wide request must serve a product"
-        assert out.product_id == "gfs_marine_waves_global_coarse_x.json", \
-            f"({order}) wide request must serve global_coarse, got {out.product_id}"
-        assert not (out.grid and out.grid.diagnostics and out.grid.diagnostics.get("mid_res_tier")), \
-            f"({order}) mid tier must not fire on a wide request"
+        assert out.grid.diagnostics.get("mid_res_tier") is True, \
+            f"({order}) world zoom must serve the 2° mid tier deterministically, got {out.product_id}"
+
+
+def test_world_zoom_keeps_storm_resolved(monkeypatch):
+    """THE FAR-ZOOM FIX (2026-07-23, "Bertha STILL clears further out than you tested"): a WORLD-span
+    request must serve the 2° global_mid so the compact (28,-88) storm core survives at 3.1m — the
+    exact peak the 10° global_coarse block-averaged to ~1.65m (a 4°-away cell) = the visual 'clearing'.
+    Mirrors the wind sibling's test_wind_world_span_served_whole."""
+    store = _FakeStore([_mid_manifest_item()], _make_gulf_mid_product())
+    vp = _FakeViewport()
+    out = _resolve(store, vp, monkeypatch, bbox="-179,-80,180,85")  # true world span
+    assert out is not None
+    assert out.grid.diagnostics.get("mid_res_tier") is True, "world zoom must serve the 2° mid tier"
+    peak = max((v.speed for v in out.grid.vectors), default=0.0)
+    assert peak >= 3.0, f"storm core must survive the 2° world serve (got peak {peak})"
 
 
 def test_mid_res_tier_swr_revalidation_for_small_spans(monkeypatch):
