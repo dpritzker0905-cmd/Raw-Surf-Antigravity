@@ -36,7 +36,7 @@ const CONTROLS = [
   { key: '__RAW_SPEED_HEIGHT_CAP__', tkey: 'speedHeightCap', label: 'Speed height cap', min: 1,   max: 8,    step: 0.5,  def: 3,    hint: 'Caps how fast big swell drifts (m)' },
   { key: '__RAW_PART_TARGET__',      tkey: 'partTarget',     label: 'Crest density',    min: 600, max: 3000, step: 50,   def: 1650, hint: 'On-screen crest count (held constant across zoom)' },
   { key: '__RAW_TILE_ZOOM_MIN__',    tkey: 'tileZoomMin',    label: 'Tile zoom min',    min: 2,   max: 7,    step: 0.5,  def: 3,    hint: 'Zoom where the dense tile mode kicks in' },
-  { key: '__RAW_TILE_BACKOFF__',     tkey: 'tileBackoff',    label: 'Tile backoff',     min: 1,   max: 3,    step: 1,    def: 2,    hint: 'Particle tile vs screen: 2 = 4× (denser); 3 = 8× (steadier pans)' },
+  { key: '__RAW_TILE_BACKOFF__',     tkey: 'tileBackoff',    label: 'Tile backoff',     min: 1,   max: 3,    step: 1,    def: 2,    hint: 'AUTO unless dragged: z3-4 uses the whole-world tile (backoff 3, seamless, kills the split), else 2. GPU:N = live applied; drag to PIN a constant for A/B' },
   { key: '__RAW_BLEND_BASE_WASH__',  tkey: 'blendWash',      label: 'Coarse wash',      min: 0,   max: 1,    step: 0.02, def: 0.72, hint: 'Faded coarse under-wash strength beneath a regional tile' },
 ];
 
@@ -93,7 +93,15 @@ export default function MarineAnimTuner() {
   // Single global value set — never re-applies on zoom (that was the band regression that self-zeroed).
   useEffect(() => {
     if (!enabled) return;
-    for (const c of CONTROLS) { if (typeof valsRef.current[c.key] === 'number') window[c.key] = valsRef.current[c.key]; }
+    for (const c of CONTROLS) {
+      // Do NOT seed __RAW_TILE_BACKOFF__ on mount: the engine now zoom-GATES it (backoff 1 at wide zoom to
+      // kill the particle-tile split, 2 at close zoom for pan-stability — WebGLMarineEngine.js §wide-zoom
+      // split fix). Seeding the panel default (2) here would pin a CONSTANT and MASK the gate on the very
+      // localhost/tuner hosts where we verify. Leave it unset (= auto gate). Dragging the Tile-backoff slider
+      // still writes the global via apply() to pin a constant for A/B; the GPU echo shows the real applied value.
+      if (c.key === '__RAW_TILE_BACKOFF__') continue;
+      if (typeof valsRef.current[c.key] === 'number') window[c.key] = valsRef.current[c.key];
+    }
     const id = setInterval(() => {
       const anim = (window.__RAW_GPU__ && window.__RAW_GPU__.anim) || null;
       if (anim) {

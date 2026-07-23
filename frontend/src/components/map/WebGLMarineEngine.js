@@ -207,6 +207,31 @@ export function clampTileToViewport(tileZoom, tileWidth, vpMercW, vpMercH) {
   return { tileZoom: z, tileWidth: w, clamped };
 }
 
+// === WIDE-ZOOM PARTICLE-TILE BACKOFF (pure; exported for tests) — HANDOFF item B, 2026-07-23 ===
+// Resolves how many power-of-two steps SMALLER than the map zoom the particle-advection tile is sized
+// (tileZoom = floor(z) − backoff; tileWidth = 1/2^tileZoom). The knob matters at WIDE zoom, where backoff 2
+// makes a 0.5-merc (180°) PARTIAL tile whose fract()-wrap edge is a geographic DISCONTINUITY near the
+// antimeridian (the "split"). Resolution order & modes (see the call-site comment for the full rationale):
+//   • explicit numeric __RAW_TILE_BACKOFF__            → pinned (mode 'pin'); wins over everything.
+//   • __RAW_DISABLE_TILE_BACKOFF_ZOOMGATE__ === true    → forces mode 'off' (constant backoff 2 = pre-fix).
+//   • __RAW_TILE_BACKOFF_GATE_MODE__ (default 'world'):
+//       'world'  z∈(3,4) → backoff 3 (tileWidth 1.0, WHOLE-WORLD tile: seamless antimeridian wrap, never
+//                re-anchors → no split, no edge-gap/blink on pan; density solve still on-target to ~z3.7).
+//       'dense'  z∈(3,5) → backoff 1 (tileWidth 0.25: DISPROVEN — edge-gap + 2× reseed-blink on pan; A/B only).
+//       else               backoff 2 (the proven pan-stable default at every other zoom).
+// Live-validated 2026-07-23: world @z3.5 across the antimeridian = seamless crests, 2 reinits/270° pan.
+export function resolveTileBackoff(z, win) {
+  win = win || {};
+  if (typeof win.__RAW_TILE_BACKOFF__ === 'number') return { backoff: win.__RAW_TILE_BACKOFF__, mode: 'pin' };
+  let mode = (typeof win.__RAW_TILE_BACKOFF_GATE_MODE__ === 'string') ? win.__RAW_TILE_BACKOFF_GATE_MODE__ : 'world';
+  if (win.__RAW_DISABLE_TILE_BACKOFF_ZOOMGATE__ === true) mode = 'off';
+  let backoff;
+  if (mode === 'world' && z >= 3 && z < 4) backoff = 3;
+  else if (mode === 'dense' && z >= 3 && z < 5) backoff = 1;
+  else backoff = 2;
+  return { backoff, mode };
+}
+
 // Per-cell longitude size in degrees; null when unknowable. Feeds the CELL-SIZE branch of the
 // no-downgrade guard (a mid 2°/cell clip is "regional" by bounds but a hard resolution downgrade
 // over a resident 0.25° tile).
@@ -1435,8 +1460,35 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // the tile, the fewer usable on-screen crests (and the deeper the per-zoom density sawtooth). Backoff is the
       // root density-headroom lever: 3 = 8×screen (default, max pan-stability); 2 = 4×screen (4× more on-screen
       // crests, slightly more reseed-on-pan). Default-neutral; tune live via window.__RAW_TILE_BACKOFF__.
-      var _tileBackoff = (typeof window !== 'undefined' && typeof window.__RAW_TILE_BACKOFF__ === 'number') ? window.__RAW_TILE_BACKOFF__ : 2;
+      //
+      // WIDE-ZOOM SPLIT — the tile-sizing dilemma at the split zone z∈(3,4], where backoff 2 makes a
+      // 0.5-merc (180°) PARTIAL tile whose fract()-wrap edge is a geographic DISCONTINUITY near the
+      // antimeridian (a particle exits the tile's +lng edge and re-appears at its −lng edge = a teleport
+      // seam = the reported "split"). 2026-07-23 live testing DISPROVED the naive "shrink the tile" fix
+      // (mode 'dense', backoff 1 → tile 0.25): a tile that small is barely wider than the viewport, so on
+      // pan the viewport pokes PAST the tile edge (EDGE_GAP: driftReinitThresh > tileHalf−vpHalf) → a
+      // strip of ocean with NO crests, and the drift-reinit BLINK (full reseed, WebGLMarineEngineInit.js
+      // reinitParticles) fires ~2× as often → the user's "animations continually clearing". The RIGHT fix
+      // is mode 'world': at z∈(3,4] use the WHOLE-WORLD tile (backoff 3 → tileWidth 1.0). A full-world tile
+      // wraps SEAMLESSLY at the antimeridian (merc 1.0→0.0 is the same meridian and the wave grid is global
+      // there → continuous flow, no teleport seam), NEVER re-anchors (max pan-stability: no blink, no edge
+      // gap), and the constant-density solve still reaches target down to ~z3.7 (mildly sparse only at the
+      // z3.9–4.0 top — far better than blink+gap+split). Selectable live for A/B:
+      // window.__RAW_TILE_BACKOFF_GATE_MODE__ = 'world' | 'dense' | 'off'. DEFAULT = 'world' (validated
+      // live 2026-07-23: at z3.5 across the antimeridian the whole-world tile renders crests seamlessly
+      // with NO split; pan is stable at 2 reinits per 270° of longitude — 6× fewer than 'dense'; a full
+      // z9→z3.4 zoom-out fires only 2 reinits with no storm; EDGE_GAP_RISK=false; density on target ~1650).
+      // 'off' = constant backoff 2 (the pre-item-B pan-stable behavior). 'dense' = backoff 1 (REGRESSIVE:
+      // edge-gap + 2× reseed-blink on pan — the DISPROVEN naive fix, kept for A/B). Explicit numeric
+      // __RAW_TILE_BACKOFF__ still wins (live tuning); __RAW_DISABLE_TILE_BACKOFF_ZOOMGATE__=true forces
+      // constant 2 regardless of mode (the escape hatch if 'world' ever misbehaves).
+      var _tb = resolveTileBackoff(z, (typeof window !== 'undefined') ? window : {});
+      var _tileBackoff = _tb.backoff;
+      var _tbMode = _tb.mode;
       var tileZoom = Math.max(0, Math.floor(z) - _tileBackoff);
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.tileBackoffGate = { z: +z.toFixed(2), backoff: _tileBackoff, tileZoomPreClamp: tileZoom, mode: _tbMode };
+      }
       tileWidth = 1.0 / Math.pow(2.0, tileZoom);
 
       // §7i tile≥viewport clamp — see clampTileToViewport. Runs BEFORE the change detection so
@@ -2543,7 +2595,8 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           partTarget: _partTarget,
           densityBase: +densityBase.toFixed(3),
           tileZoomMin: tileZoomMin,
-          tileBackoff: _g('__RAW_TILE_BACKOFF__', 2),
+          tileBackoff: (typeof _tileBackoff === 'number' ? _tileBackoff : _g('__RAW_TILE_BACKOFF__', 2)),  // ACTUAL applied backoff this frame (the gate's decision), not the raw default — tuner echoes truth
+          tileBackoffMode: (typeof _tbMode === 'string' ? _tbMode : 'off'),  // 'off'(=const 2) | 'world'(whole-world tile z3-4) | 'dense'(regressive) | 'pin'(explicit override)
           stratifiedReseed: (typeof window.__RAW_STRATIFIED_RESEED__ === 'number' ? window.__RAW_STRATIFIED_RESEED__ !== 0 : true),
           farzoomSizeFloor: _g('__RAW_FARZOOM_SIZE_FLOOR__', 0.55),
           endpointLandFade: _endpointLandFade === 1.0,  // crest ribbons dissolve toward land ends (kill: __RAW_DISABLE_ENDPOINT_LAND_FADE__)
