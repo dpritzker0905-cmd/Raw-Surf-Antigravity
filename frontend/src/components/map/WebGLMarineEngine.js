@@ -1104,10 +1104,26 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
   // OFF-SCREEN — 2 of every 3 draws are wasted vertex work every frame (measured: pan FPS 30→18 at
   // z9). Cull to the main copy unless the viewport can actually see a world edge (low zoom, or near
   // ±180). Render-time only, imperceptible. Kill: __RAW_DISABLE_WRAP_CULL__.
+  // ⚠ TYPE BUG FIXED 2026-07-23 (user: "half the heatmap clears but not the animations"): viewportBounds
+  // is an ARRAY [west, south, east, north] everywhere else in this file (see the [0]/[2] reads in
+  // shouldRejectResolutionDowngrade), but this predicate read .west/.east — property access on an array is
+  // undefined, and every comparison against undefined is false. So ALL THREE antimeridian conditions were
+  // DEAD CODE and the only thing that ever enabled wrapping was `zoom < 4`. Result: at z>=4 a viewport
+  // straddling ±180 drew a SINGLE world copy, so the heatmap mesh (which spans only the data bounds) simply
+  // stopped at the antimeridian — half the field blanked — while particles kept rendering (their tile spans a
+  // whole world regardless). Read the array indices (object form still tolerated), and treat unknown bounds
+  // as "wrap" (safe). Kill: __RAW_DISABLE_WRAP_CULL__ (forces wrap always).
+  const _vbWest = Array.isArray(viewportBounds) ? viewportBounds[0] : (viewportBounds ? viewportBounds.west : undefined);
+  const _vbEast = Array.isArray(viewportBounds) ? viewportBounds[2] : (viewportBounds ? viewportBounds.east : undefined);
+  const _vbKnown = (typeof _vbWest === 'number' && typeof _vbEast === 'number');
   const _needWrap = (typeof window !== 'undefined' && window.__RAW_DISABLE_WRAP_CULL__ === true)
-    || !viewportBounds || viewportBounds.east < viewportBounds.west
-    || viewportBounds.west < -170 || viewportBounds.east > 170
+    || !viewportBounds || !_vbKnown
+    || _vbEast < _vbWest                      // viewport crosses the antimeridian
+    || _vbWest < -170 || _vbEast > 170        // ...or is near it (unwrapped bounds run past ±180)
     || typeof zoom !== 'number' || zoom < 4;
+  if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+    window.__RAW_GPU__.wrapCull = { needWrap: _needWrap, vbWest: _vbWest, vbEast: _vbEast, boundsKnown: _vbKnown };
+  }
 
   // ANTIMERIDIAN LNG WRAP for the particle data/mask lookups (2026-07-23) — the root of "crests only on
   // one side of the antimeridian, and they jump to the other tile when you pan". The particle tile is
