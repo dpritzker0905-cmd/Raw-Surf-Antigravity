@@ -188,7 +188,7 @@ export function arbiterDecide(resident, incoming, ctx = {}) {
   // via CTX (decideMarineCommit passes it from the SAME `w` the guards read), keeping this module
   // window-free and byte-agreed with the guard (the differential/sequence harnesses enforce it).
   const _amcOff = ctx.midBandCeilOff === true;
-  const _amc = typeof ctx.midBandCeil === 'number' ? ctx.midBandCeil : 120.0;
+  const _amc = typeof ctx.midBandCeil === 'number' ? ctx.midBandCeil : 40.0;
   const wideNow = _amcOff
     ? ((typeof ctx.zoom === 'number' && ctx.zoom <= zMax)
         || (Array.isArray(vbW) && vbW.length >= 4 && ((vbW[2] - vbW[0]) > 15.0 || (vbW[3] - vbW[1]) > 15.0)))

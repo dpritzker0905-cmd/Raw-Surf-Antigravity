@@ -125,11 +125,17 @@ async def get_grid(
     """
     from services.weather_pipeline.grid_resolver import resolve_grid
     try:
-        return await resolve_grid(
+        product = await resolve_grid(
             store, viewport_service,
             model=model, domain=domain, layer=layer, valid_time=valid_time,
             bbox=bbox, surf=surf, background_tasks=background_tasks, request=request
         )
+        # ROOT FIX (2026-07-23): the 10° coarse EURO/ICON `waves` tier masks enclosed seas (Gulf) →
+        # wrong colors on zoom-out. Fill those holes from the SERVED GFS coarse (valid Gulf) at serve
+        # time — the ingest fill can't (it reads a raw grid whose Gulf doesn't reconstruct). grid_series
+        # reuses this route per frame, so both endpoints get it. Kill: MARINE_COARSE_GULF_FILL=0.
+        from services.weather_pipeline.coarse_gulf_fill import fill_coarse_enclosed_sea_from_gfs_served
+        return await fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain, layer)
     except HTTPException:
         # Intentional, CORS-safe statuses (499 client-closed, 503 temporarily-unavailable, 4xx) — keep.
         raise

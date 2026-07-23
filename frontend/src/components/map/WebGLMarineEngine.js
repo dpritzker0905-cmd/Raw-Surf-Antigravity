@@ -767,7 +767,7 @@ WebGLMarineEngine.prototype.setWaveData = function(gl, waveGrid, landGeoJSON) {
           flavorWant: window.__SURF_MODE__ === true,
           zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
           // Mid-band ceiling from the SAME window the guard read, so the shadow can't diverge on it.
-          midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 120.0,
+          midBandCeil: Number(window.__RAW_MARINE_GLOBAL_SPAN__) || 40.0,
           midBandCeilOff: window.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true,
           // Shadow must exercise the SAME rule list the flip will run, grace included — otherwise
           // it re-reports the (now-fixed) rating-grace class as a divergence forever.
@@ -3411,7 +3411,7 @@ function _midBandBridgeWide(vb, lastZoom, w) {
     return (typeof lastZoom === 'number' && lastZoom <= MARINE_ZOOMED_OUT_MAX_ZOOM)
       || (vb[2] - vb[0]) > 15.0 || (vb[3] - vb[1]) > 15.0;
   }
-  const ceil = (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 120.0;
+  const ceil = (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
   return (vb[2] - vb[0]) > ceil || (vb[3] - vb[1]) > ceil;
 }
 
@@ -3523,7 +3523,7 @@ export function decideMarineCommit(resident, incoming, lastZoom, viewportBounds,
           && w.localStorage.getItem('__SURF_MODE__') === 'true'))),
     zoomedOutMaxZoom: MARINE_ZOOMED_OUT_MAX_ZOOM,
     // Mid-band ceiling from the SAME `w` the guard's shouldRejectSubcoveringRegional read above.
-    midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 120.0,
+    midBandCeil: (w && Number(w.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0,
     midBandCeilOff: !!(w && w.__RAW_DISABLE_MIDBAND_BRIDGE_CEIL__ === true),
     coverFrac: (w && Number(w.__RAW_DOWNGRADE_COVER_FRAC__)) || undefined,
     graceState: _arbiterGraceState,

@@ -176,7 +176,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
       // MID-BAND CEILING 15 → 40 (2026-07-22, "TS Bertha vanishes on zoom-out to z5.35"): globalize
       // (drop to the 10° coarse) only past 40° so a z5 storm-watch view keeps the 2° global_mid. The
       // backend mirrors this with MARINE_MID_RES_MAX_SPAN=40 (mid_res_tier.py). Kill: __RAW_MARINE_GLOBAL_SPAN__=15.
-      const _euroGlobalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 120.0;
+      const _euroGlobalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
       if (_euroSpanLng > _euroGlobalSpan || _euroSpanLat > _euroGlobalSpan) {
         // Globalize ONLY when the wide viewport actually intersects EURO coverage (same
         // manifest-tile test as the outside_coverage_clear check below) — a wide viewport wholly
@@ -380,7 +380,7 @@ export function clampViewportBbox(requestedBbox, layerName = "waves", modelName 
     // visible) for the 10° coarse (the core smeared into the ~1.8m ambient / EURO enclosed-sea mask)
     // and the storm disappeared. 40° keeps the viewport-bbox request → clipped 2° mid down to ~z5.
     // Matches backend MARINE_MID_RES_MAX_SPAN=40. Tune/revert: window.__RAW_MARINE_GLOBAL_SPAN__ (=15).
-    const _globalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 120.0;
+    const _globalSpan = (typeof window !== 'undefined' && Number(window.__RAW_MARINE_GLOBAL_SPAN__)) || 40.0;
     if ((modelName || '').toUpperCase() !== 'EURO' && (spanLng > _globalSpan || spanLat > _globalSpan)) {
       return {
         isInside: true,

@@ -131,7 +131,7 @@ async def try_serve_mid_res_tier(
         # serve it out to ~z3.7 (120° span) — the whole practical surf zoom range — instead of dropping to
         # the broken coarse tier at z5. The clip stays bounded (~2-4k cells at 120° with the overhang, far
         # under the 250k serve cap). Genuine world zoom (>120°) still takes the 10° coarse.
-        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "120.0"
+        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "40.0"
     elif dom == "wind":
         # WIND MID TIER (2026-07-20, queue #3 — "the clamp must fit the entire map"). The wind
         # sibling of the marine tier: serves the cron's ~2-deg wind global_mid CLIPPED wherever
