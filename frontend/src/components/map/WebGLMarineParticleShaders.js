@@ -46,6 +46,16 @@ uniform sampler2D u_coarseWaveTexture; // held coarse-global base field (== the 
 uniform sampler2D u_coarseMaskTexture; // the base's OWN world mask — the RESIDENT mask/wave pair must never be read beyond their bounds (CLAMP_TO_EDGE junk)
 uniform vec2 u_coarseBounds_min;   // base grid bounds; its mask was encoded with the base grid, so mask bounds == grid bounds (matches _drawCoarseBasePass)
 uniform vec2 u_coarseBounds_max;
+// ANTIMERIDIAN LNG WRAP (2026-07-23, the "crests only on one side of the antimeridian" root): the particle
+// tile is CAMERA-CENTERED, so near lng ±180 half the tile sits at global_pos.x < 0 (or > 1) — i.e. lng < -180.
+// The data/mask lookups below only wrapped when the DATA BOUNDS themselves cross the antimeridian; for a
+// normal global grid (-180..180) they took the un-wrapped branch, so those particles produced tex_u outside
+// [0,1] -> CLAMP_TO_EDGE junk / oob-drop -> the crest field DIED on one side of the antimeridian and appeared
+// to "jump to the other tile" on pan. Mercator X is periodic (mercX -0.3 === 0.7 === the same meridian), so
+// fract() recovers the TRUE longitude for every lookup. Position/rendering is unaffected (only the lookup lng
+// is wrapped). Regional grids are unchanged in outcome: an out-of-region particle is still rejected either way.
+// 1 = wrap (default). Kill: window.__RAW_DISABLE_PARTICLE_LNG_WRAP__ = true.
+uniform float u_wrapLng;
 varying vec2 v_uv;
 
 vec2 decodePos(vec4 color) {
@@ -85,7 +95,7 @@ void main() {
 
   // Convert global Mercator coordinates to geographic lng/lat
   vec2 global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + pos * u_tile_width) : pos;
-  float lng = global_pos.x * 360.0 - 180.0;
+  float lng = ((u_wrapLng > 0.5) ? fract(global_pos.x) : global_pos.x) * 360.0 - 180.0;  // antimeridian wrap (see u_wrapLng)
   float lat = mercatorYToLat(global_pos.y);
 
   // Map to local texture coordinate of u_waveTexture and u_oceanMaskTexture
@@ -208,7 +218,7 @@ void main() {
 
   // Check land / oob for next position
   vec2 next_global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + nextPos * u_tile_width) : nextPos;
-  float next_lng = next_global_pos.x * 360.0 - 180.0;
+  float next_lng = ((u_wrapLng > 0.5) ? fract(next_global_pos.x) : next_global_pos.x) * 360.0 - 180.0;  // antimeridian wrap
   float next_lat = mercatorYToLat(next_global_pos.y);
   float next_tex_u;
   if (u_dataBounds_min.x > u_dataBounds_max.x) {
@@ -340,6 +350,7 @@ uniform float u_time;              // elapsed time in seconds
 uniform float u_zoom;              // map zoom level
 uniform float u_tileZoomMin;       // zoom above which the camera-centered tile is used (matches ADVECT_FS)
 uniform float u_merc_offset;       // world-copy offset (-1.0, 0.0, or +1.0)
+uniform float u_wrapLng;           // 1 = wrap the LOOKUP longitude across the antimeridian (see ADVECT_FS note). Kill: __RAW_DISABLE_PARTICLE_LNG_WRAP__
 uniform float u_debug_mode;        // debug mode selector
 uniform vec2 u_viewport;           // v5.3: canvas size in device pixels
 uniform float u_device_pixel_ratio; // v5.3: DPR for CSS pixel correction
@@ -424,7 +435,7 @@ void main() {
   );
 
   vec2 global_pos = (u_zoom > u_tileZoomMin) ? (u_tile_origin + pos * u_tile_width) : pos;
-  float lng = global_pos.x * 360.0 - 180.0;
+  float lng = ((u_wrapLng > 0.5) ? fract(global_pos.x) : global_pos.x) * 360.0 - 180.0;  // antimeridian wrap (lookup only; render pos untouched)
   float lat = mercatorYToLat(global_pos.y);
 
   float tex_u;
@@ -732,7 +743,7 @@ void main() {
       vec2 pxDelta = crestDir * (deviceHalfLength * cornerUV.x);
       vec2 mercDelta = vec2(jy.y * pxDelta.x - jy.x * pxDelta.y, jx.x * pxDelta.y - jx.y * pxDelta.x) / jdet;
       vec2 endMerc = global_pos + mercDelta;
-      float endLng = endMerc.x * 360.0 - 180.0;
+      float endLng = ((u_wrapLng > 0.5) ? fract(endMerc.x) : endMerc.x) * 360.0 - 180.0;  // antimeridian wrap (ribbon-end mask lookup)
       // RING-FILL: a coarse-fallback crest's ribbon END is checked against the base's world mask
       // (the resident mask is CLAMP_TO_EDGE junk out there); the overlay refinement below is
       // bounds-agnostic and applies to both branches unchanged.

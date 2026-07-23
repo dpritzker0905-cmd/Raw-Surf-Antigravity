@@ -1109,6 +1109,15 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     || viewportBounds.west < -170 || viewportBounds.east > 170
     || typeof zoom !== 'number' || zoom < 4;
 
+  // ANTIMERIDIAN LNG WRAP for the particle data/mask lookups (2026-07-23) — the root of "crests only on
+  // one side of the antimeridian, and they jump to the other tile when you pan". The particle tile is
+  // CAMERA-CENTERED, so near lng ±180 half of it sits at global_pos.x < 0 (lng < -180); the shader lookups
+  // only wrapped when the DATA BOUNDS crossed the antimeridian, so on a normal global grid those particles
+  // produced UV outside [0,1] and were dropped. fract() recovers the true longitude (mercX is periodic).
+  // DEFAULT ON. Kill (restores the pre-fix one-sided field): __RAW_DISABLE_PARTICLE_LNG_WRAP__ = true.
+  const _wrapLngVal = (typeof window !== 'undefined' && window.__RAW_DISABLE_PARTICLE_LNG_WRAP__ === true) ? 0.0 : 1.0;
+  if (typeof window !== 'undefined' && window.__RAW_GPU__) window.__RAW_GPU__.particleLngWrap = (_wrapLngVal === 1.0);
+
   // COARSE-BASE SEED consume (2026-07-04, Part 2 of the z7 zoom-out bridge): a cold coast never commits a
   // coarse grid, so prewarmGlobalMarineGrid stages the global here — snapshot it into the bridge base NOW,
   // inside the render callback where the GL context is valid (never from the prewarm's detached Promise).
@@ -2619,6 +2628,10 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      // ANTIMERIDIAN LNG WRAP (2026-07-23) — see the u_wrapLng note in WebGLMarineParticleShaders.js.
+      // The camera-centered tile puts half its particles at global_pos.x<0 near lng ±180; without the wrap
+      // their lookup UV falls outside [0,1] and the crest field dies on one side. Kill: __RAW_DISABLE_PARTICLE_LNG_WRAP__.
+      gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_wrapLng'), _wrapLngVal);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.drawProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
       gl.uniform1f(gl.getUniformLocation(this.drawProgram, 'u_time'), time);
@@ -2709,6 +2722,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_oceanMaskTexture'), 2);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_min'), waveBounds.west, waveBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_dataBounds_max'), waveBounds.east, waveBounds.north);
+      gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_wrapLng'), _wrapLngVal);  // antimeridian wrap — see drawProgram note
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_min'), maskBounds.west, maskBounds.south);
       gl.uniform2f(gl.getUniformLocation(this.advectProgram, 'u_maskBounds_max'), maskBounds.east, maskBounds.north);
       gl.uniform1i(gl.getUniformLocation(this.advectProgram, 'u_overlayMaskTexture'), 3);
