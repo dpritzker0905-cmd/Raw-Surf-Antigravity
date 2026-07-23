@@ -1903,8 +1903,24 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // base mask reads fine — live probe: base floodPct 0 at z3.5/z2.3), so a DEGRADED overlay is
     // dropped there and the base renders alone. Non-degraded overlays keep the old behavior.
     // Kill: __RAW_DISABLE_DEGRADED_OVERLAY_DROP__. Telemetry: overlayMask.reason='degraded_drop'.
-    const _degradedDrop = this._overlayPaintDegraded === true && z < 4.4 &&
-      !(typeof window !== 'undefined' && window.__RAW_DISABLE_DEGRADED_OVERLAY_DROP__ === true);
+    // GRAY BOX (2026-07-23, user live report; rooted with numbers): at WIDE zoom a STALE viewport-truth
+    // overlay that covers only a FRACTION of the view was still applied in REPLACE mode — `_rawWideTrigger`
+    // fires on a world grid and has NO coverage test, and the REPLACE branch is chosen off `!_mbCov` (the
+    // BASE doesn't cover) without ever asking whether the OVERLAY covers. When NEITHER covers, the overlay
+    // overrides the ocean flag inside its little rectangle and paints a visible GRAY BOX over open water.
+    // Live proof at z2.53: overlayMask {on:true, replace:true, reason:'world_grid'}, overlay bounds
+    // -202.6..-150.3 covering just 0.263 of the viewport, while _cachedMaskBounds was the GLOBAL mask that
+    // would have rendered it correctly. The existing degraded-drop can't catch this (it needs
+    // _overlayPaintDegraded, which is false for a merely STALE box). Extend the SAME z<4.4 gate — where
+    // this file already argues the overlay "isn't needed at all" because the dense base reads fine — to
+    // also drop an overlay that does NOT cover the viewport. Close zoom (z>=4.4) is untouched, so the
+    // coastal-carve/halo behaviour that REPLACE exists for is preserved byte-for-byte.
+    // Kill: __RAW_DISABLE_NONCOVERING_OVERLAY_DROP__. Telemetry: overlayMask.reason='noncovering_drop'.
+    const _nonCoveringDrop = !!this._overlayMaskBounds && _overlayCoversViewport === false && z < 4.4 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_NONCOVERING_OVERLAY_DROP__ === true);
+    const _degradedDrop = (this._overlayPaintDegraded === true && z < 4.4 &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_DEGRADED_OVERLAY_DROP__ === true))
+      || _nonCoveringDrop;
     // MID-ZOOM COASTAL CARVE (2026-07-21, user live A/B off John Pennekamp; halo band z~8.75–12.13):
     // the coarse coastline-geojson BASE mask haloes the wash onto the coast BELOW the z>=12 overlay
     // gate (base carve ~186 m/px vs the fine viewport overlay's ~26–102 m/px — Jacobian-proven: the
@@ -1920,7 +1936,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       (_rawWideTrigger || (z >= 12 && _ovSpan > 0 && _ovSpan < _gwSpan * 0.5) || _midCarveEngage));
     const ob = overlayOn ? this._overlayMaskBounds : { west: 0, south: 0, east: 0, north: 0 };
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
-      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, reason: _degradedDrop ? 'degraded_drop' : (_overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off')), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
+      window.__RAW_GPU__.overlayMask = { on: overlayOn, replace: _overlayReplace, overlayCoversView: _overlayCoversViewport, reason: _nonCoveringDrop ? 'noncovering_drop' : _degradedDrop ? 'degraded_drop' : (_overlayReplace ? (_gwSpan >= 340 ? 'world_grid' : 'coverage_gap') : (overlayOn ? (_baseGlobalDense ? 'dense_base_min_combine' : 'min_combine') : 'off')), baseCoversView: _mbCov, baseGlobalDense: _baseGlobalDense, bounds: overlayOn ? ob : null };
     }
     // Probe state (maskFloodProbe.js): the exact mask-selection the shader just used, so the
     // GPU read-back diagnostic samples what is actually on screen. Dev-only; cheap object write.
