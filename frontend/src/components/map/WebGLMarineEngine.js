@@ -1701,10 +1701,36 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // opacity when PHASE 0 will actually draw. The regional heatmap (heatmapOpacity*=mult below) and the
     // crests (u_opacity=mult) STAY hidden at mult 0 — no clamped-rectangle regression. Kill switch:
     // __RAW_DISABLE_COARSE_BRIDGE__ (layer-side). Tune: __RAW_COARSE_BRIDGE_OPACITY__ (default 1.0).
-    const _bridgeActive = !!this.__coarseBridgeActive && blendEngaged;
+    // ZOOM-OUT WASH GAP (2026-07-23, user live: "the marine heatmap just cleared as I zoomed out from FLA").
+    // A COLD zoom-out from FLA was traced frame-by-frame: the resident regional STOPS COVERING at z7.99, but
+    // the layer-set __coarseBridgeActive only fires at z6.29 — a ~1.7-zoom-level window where the resident
+    // does not cover AND the bridge floor is off, so _baseMult falls back to `mult`, which the display gate
+    // drives to 0 once it hides the rejected regional. The coarse wash therefore COLLAPSES exactly when it is
+    // the only thing that could paint, and the field reads as CLEARED — even though a covering GLOBAL base was
+    // held and blendEngaged was true for the whole window (measured: base EURO/waves, haveBase true, z7.99→z4.08).
+    // FIX: derive the bridge condition GEOMETRICALLY rather than trusting a separately-timed flag — if the wash
+    // is engaged and the resident does NOT cover the viewport, floor the wash. Uses the SAME intersection math
+    // as the display gate / bridge / subcover predicates (the comments require they agree). This only ever makes
+    // the wash MORE present in the uncovered ring, which is the standing "never blank the revealed ring" lesson
+    // (and the reason the covering-resident gate was demoted to opt-in after it caused "heatmap clears leaving
+    // just the animations"). The COVERING case is untouched. Kill: __RAW_DISABLE_ZOOMOUT_WASH_FLOOR__.
+    let _washResidentCovers = true;
+    if (viewportBounds && this._waveData && this._waveData.bounds && isRegionalBounds(this._waveData.bounds)) {
+      const _wrb = this._waveData.bounds;
+      const _wvpA = Math.max(1e-9, (viewportBounds[2] - viewportBounds[0]) * (viewportBounds[3] - viewportBounds[1]));
+      const _wix = Math.max(0, Math.min(_wrb.east, viewportBounds[2]) - Math.max(_wrb.west, viewportBounds[0]));
+      const _wiy = Math.max(0, Math.min(_wrb.north, viewportBounds[3]) - Math.max(_wrb.south, viewportBounds[1]));
+      _washResidentCovers = ((_wix * _wiy) / _wvpA) >= 0.999;
+    }
+    const _zoomOutWashFloor = blendEngaged && !_washResidentCovers &&
+      !(typeof window !== 'undefined' && window.__RAW_DISABLE_ZOOMOUT_WASH_FLOOR__ === true);
+    const _bridgeActive = (!!this.__coarseBridgeActive || _zoomOutWashFloor) && blendEngaged;
     const _baseMult = _bridgeActive
       ? ((typeof window !== 'undefined' && typeof window.__RAW_COARSE_BRIDGE_OPACITY__ === 'number') ? window.__RAW_COARSE_BRIDGE_OPACITY__ : 1.0)
       : mult;
+    if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+      window.__RAW_GPU__.washFloor = { bridgeActive: _bridgeActive, flagBridge: !!this.__coarseBridgeActive, geomFloor: _zoomOutWashFloor, residentCovers: _washResidentCovers, baseMult: _baseMult };
+    }
     // COVERING-RESIDENT GATE (2026-07-06, "shadow underneath the coastal edge" — A/B-proven on the
     // Florida panhandle: wash OFF = clean coast, wash ON = dark halo): when the resident regional
     // COVERS the viewport (the no-downgrade guard's own ≥0.8 predicate, shared lever
