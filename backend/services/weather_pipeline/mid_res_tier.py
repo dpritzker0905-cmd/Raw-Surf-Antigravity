@@ -263,6 +263,14 @@ async def try_serve_mid_res_tier(
                 f"{product.grid.bounds.west:.4f},{product.grid.bounds.south:.4f},"
                 f"{product.grid.bounds.east:.4f},{product.grid.bounds.north:.4f}"
             )
+    # 3° WIDE BASE (2026-07-23): mean-pool the WORLD base (served span >= 350°) to a lighter tier
+    # (MARINE_WIDE_BASE_RES, default 3°) for a ~2.3× faster cold-load + lighter world-series/memory;
+    # the bilinear shader keeps it a smooth storm blob at continental zoom. VIEWPORT clips (span < 350°,
+    # the z5-8 storm-watch tier) are untouched — they stay full 2°. Runs BEFORE the LRU store below so a
+    # cache hit serves the pooled base directly. Kill / A-B: MARINE_WIDE_BASE_RES=2.0.
+    if dom == "marine" and layer.lower() == "waves":
+        from services.weather_pipeline.wide_base_decimate import maybe_decimate_wide_base
+        product = maybe_decimate_wide_base(product)
     # SWR SHARPEN (2026-07-05, #2 — the Irvine straddle second pass): the mid grid is the INSTANT
     # covering preview; schedule the SAME background fine-viewport revalidation Step 3.7 uses so a
     # dwelling viewport sharpens 2° → 0.25° on the next request (pre-mid, fine WAS the steady state
