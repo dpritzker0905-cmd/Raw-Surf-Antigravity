@@ -81,8 +81,12 @@ async def test_wind_hole_served_clipped():
     assert p.coverage_scope == "regional"
     assert p.grid.diagnostics.get("mid_res_tier") is True
     b = p.grid.bounds
-    # clipped near the viewport (pad <= ~one mid cell + snap), NOT the whole world
-    assert b.west >= -110 and b.east <= -60
+    # clipped near the viewport, NOT the whole world. The overhang pad is now PROPORTIONAL to the span
+    # (≤12°/side — f50f80bc, shared with marine), so a 33° viewport clips to ~±12° beyond it; the point
+    # of the test is that it's a bounded VIEWPORT CLIP, not the 360° global product.
+    span = (b.east - b.west) if b.east >= b.west else (b.east + 360.0 - b.west)
+    assert span < 80, f"served must be a bounded viewport clip, not the world (got {span:.0f}°)"
+    assert b.west > -130 and b.east < -50
     assert len(p.grid.vectors) < 500
 
 
