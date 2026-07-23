@@ -1,4 +1,4 @@
-import { getCenterLng, wrapLngRelative } from './mapUtils';
+import { getCenterLng, wrapLngRelative, wrapLongitude } from './mapUtils';
 import { applyInlandWaterGuard, snapshotNeTruth } from './inlandWaterGuard';
 
 // --- Coordinate Projection and Land Mask Renderer ---
@@ -37,6 +37,71 @@ export function polygonOverlapsTarget(bbox, wrappedWest, wrappedEast, south, nor
   return (projected - halfSpan <= wrappedEast + pad) && (projected + halfSpan >= wrappedWest - pad);
 }
 
+// ── ANTIMERIDIAN RING UNWRAP (2026-07-23 — the N-Pacific "RECTANGLE": heatmap AND crests blank) ──
+// Both tracers here wrap every vertex INDEPENDENTLY (`wrapLngRelative(lng, center)`), so a ring that
+// straddles the projector's ANTI-CENTER meridian (center ± 180) teleports 360° between two
+// consecutive vertices and the `ctx.fill()` sweeps the whole canvas black.
+//
+// Live proof (viewport near ±180 ⇒ overlay bounds −183.6..−116.2, center −149.89 ⇒ seam at +30.1°E,
+// straight through Africa/Eurasia): the NE-10m "Land" polygon (bbox −17.5..180 / −34.8..77.7) jumped
+// **2732 px on a 512 px canvas** and painted **landFraction 1.0000** — an all-LAND overlay. That
+// overlay is applied in REPLACE mode while a world grid is resident, so it overrides the (correct)
+// base mask, and "land" suppresses the heatmap AND the crest particles TOGETHER — both read the same
+// oceanFlag. GPU read-back at the time: base=255 water, overlay=0 land, effective=0, src=
+// overlay_replace, across the entire open Pacific.
+//
+// This is the same FAMILY as the per-POLYGON cull in drawPolygon, but a cull cannot fix it: this
+// polygon LEGITIMATELY reaches the target (Chukotka at +176..180 wraps to −184..−180). The cull is
+// right to admit it; it is the TRACE that tears.
+//
+// Fix: walk each ring accumulating the SHORTEST delta between consecutive vertices, so the ring is
+// continuous BY CONSTRUCTION (same live probe: max jump 2732 px → 13 px, landFraction 1.0 → 0.0009,
+// with Hawaii still correctly drawn at −158.9/20.9). Then place the continuous ring into the target
+// window at every 360° offset whose span actually overlaps — a ring straddling the window edge draws
+// twice, which is what the per-vertex wrap was blindly (and destructively) approximating.
+// Kill: `window.__RAW_DISABLE_MASK_RING_UNWRAP__ = true` restores the per-vertex wrap.
+export function unwrapRingLngs(ring, center) {
+  const lngs = new Array(ring.length);
+  let prev = null, min = Infinity, max = -Infinity;
+  for (let i = 0; i < ring.length; i++) {
+    const raw = ring[i][0];
+    let lng;
+    if (prev === null) {
+      lng = wrapLngRelative(raw, center);
+    } else {
+      // shortest step from the PREVIOUS (possibly already-unwrapped) vertex — never ±360
+      let d = raw - wrapLongitude(prev);
+      let wd = ((d + 180) % 360);
+      if (wd < 0) wd += 360;
+      wd -= 180;
+      lng = prev + wd;
+    }
+    lngs[i] = lng;
+    prev = lng;
+    if (lng < min) min = lng;
+    if (lng > max) max = lng;
+  }
+  return { lngs, min, max };
+}
+
+// Which 360° copies of a continuous ring [min,max] land inside the target window. Empty = the ring
+// genuinely misses the window (a free, CORRECT cull — the span is authoritative once continuous).
+// STRICTLY POSITIVE overlap: a copy that only touches the window edge fills zero area, and admitting
+// it would make the GLOBAL world mask draw every ring twice (caught by the byte-identity test).
+// Capped at 3 so a ring spanning >360° (Antarctica) cannot fan out unboundedly.
+export function ringCopyOffsets(min, max, wrappedWest, wrappedEast) {
+  if (!isFinite(min) || !isFinite(max)) return [];
+  const kLo = Math.floor((wrappedWest - max) / 360) + 1;   // max + 360k >  wrappedWest
+  const kHi = Math.ceil((wrappedEast - min) / 360) - 1;    // min + 360k <  wrappedEast
+  const out = [];
+  for (let k = kLo; k <= kHi && out.length < 3; k++) out.push(k * 360);
+  return out;
+}
+
+export function maskRingUnwrapEnabled() {
+  return !(typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_RING_UNWRAP__ === true);
+}
+
 // Shared canvas projector for the mask renderers: Web-Mercator Y, wrap-relative X, scaled to the
 // canvas. Same math renderMaskToCanvas uses internally — exported so the basemap-water overlay
 // registers EXACTLY like the base mask.
@@ -56,12 +121,23 @@ export function makeMaskProjector(bounds, width, height) {
   const mercMaxY = latToMercatorY(south);
   const mercXSpan = mercMaxX - mercMinX;
   const mercYSpan = mercMaxY - mercMinY;
-  return (lng, lat) => {
+  const project = (lng, lat) => {
     const projectedLng = wrapLngRelative(lng, center);
     const mx = (projectedLng + 180.0) / 360.0;
     const my = latToMercatorY(lat);
     return [((mx - mercMinX) / mercXSpan) * width, ((my - mercMinY) / mercYSpan) * height];
   };
+  // RAW variant: the caller has ALREADY placed this longitude on a continuous ring (see
+  // unwrapRingLngs) — re-wrapping it here would re-introduce the very 360° tear we just removed.
+  project.raw = (lng, lat) => {
+    const mx = (lng + 180.0) / 360.0;
+    const my = latToMercatorY(lat);
+    return [((mx - mercMinX) / mercXSpan) * width, ((my - mercMinY) / mercYSpan) * height];
+  };
+  project.center = center;
+  project.wrappedWest = wrappedWest;
+  project.wrappedEast = wrappedEast;
+  return project;
 }
 
 // ── BASEMAP-WATER TRUTH OVERLAY (2026-07-04, "Gull Park / Pier 15-16 under water") ──────────────
@@ -246,18 +322,46 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
       for (const poly of polys) fn(poly);
     }
   };
-  const tracePoly = (rings) => {
-    ctx.beginPath();
+  // ANTIMERIDIAN-SAFE ring tracing (see unwrapRingLngs): identical tear risk to the NE tracer — a
+  // water polygon straddling the projector's anti-center meridian would sweep the canvas white.
+  const unwrapEnabled = maskRingUnwrapEnabled();
+  const traceRings = (rings, fillRule) => {
+    if (!unwrapEnabled) {
+      ctx.beginPath();
+      for (const ring of rings) {
+        if (!ring || !ring.length) continue;
+        ring.forEach((pt, i) => {
+          const [x, y] = project(pt[0], pt[1]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        });
+        ctx.closePath();
+      }
+      ctx.fill(fillRule || 'nonzero');
+      return;
+    }
+    const prepared = [];
+    let rMin = Infinity, rMax = -Infinity;
     for (const ring of rings) {
       if (!ring || !ring.length) continue;
-      ring.forEach((pt, i) => {
-        const [x, y] = project(pt[0], pt[1]);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.closePath();
+      const u = unwrapRingLngs(ring, project.center);
+      prepared.push({ ring, lngs: u.lngs });
+      if (u.min < rMin) rMin = u.min;
+      if (u.max > rMax) rMax = u.max;
     }
-    ctx.fill('evenodd');
+    if (!prepared.length) return;
+    for (const off of ringCopyOffsets(rMin, rMax, project.wrappedWest, project.wrappedEast)) {
+      ctx.beginPath();
+      for (const r of prepared) {
+        for (let i = 0; i < r.ring.length; i++) {
+          const [x, y] = project.raw(r.lngs[i] + off, r.ring[i][1]);
+          if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
+        }
+        ctx.closePath();
+      }
+      ctx.fill(fillRule || 'nonzero');
+    }
   };
+  const tracePoly = (rings) => traceRings(rings, 'evenodd');
 
   ctx.fillStyle = '#ffffff';
   let painted = 0;
@@ -273,13 +377,7 @@ export function overlayBasemapWaterOnMask(canvas, bounds, mapInstance) {
     for (let h = 1; h < poly.length; h++) {
       const ring = poly[h];
       if (!ring || !ring.length) continue;
-      ctx.beginPath();
-      ring.forEach((pt, i) => {
-        const [x, y] = project(pt[0], pt[1]);
-        if (i === 0) ctx.moveTo(x, y); else ctx.lineTo(x, y);
-      });
-      ctx.closePath();
-      ctx.fill();
+      traceRings([ring], undefined);   // antimeridian-safe (same unwrap as the white pass)
     }
   });
 
@@ -864,11 +962,17 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
     const projectedLng = wrapLngRelative(lng, center);
     const mx = (projectedLng + 180.0) / 360.0;
     const my = latToMercatorY(lat);
-    
+
     // Normalize and scale to canvas dimensions
     const x = ((mx - mercMinX) / mercXSpan) * width;
     const y = ((my - mercMinY) / mercYSpan) * height;
     return [x, y];
+  }
+  // Continuous-ring variant: the longitude is already placed (unwrapRingLngs) — do NOT re-wrap it.
+  function projectRaw(lng, lat) {
+    const mx = (lng + 180.0) / 360.0;
+    const my = latToMercatorY(lat);
+    return [((mx - mercMinX) / mercXSpan) * width, ((my - mercMinY) / mercYSpan) * height];
   }
   
   const isGlobalTarget = (east - west) >= 359.0;
@@ -921,6 +1025,36 @@ export function renderMaskToCanvas(geojson, bounds, opts) {
       // whole canvas black (the dead-crest close-zoom state). Only draw member polygons whose own
       // bbox is actually near the target box.
       if (!isGlobalTarget && !polygonOverlapsTarget(getPolygonBbox(coords), wrappedWest, wrappedEast, south, north, center)) {
+        return;
+      }
+      // ANTIMERIDIAN RING UNWRAP (see unwrapRingLngs): trace each ring CONTINUOUSLY and place it at
+      // the 360° offsets that actually overlap the window. Without this, a ring straddling the
+      // anti-center meridian (Afro-Eurasia when the viewport sits near ±180) teleports 360° mid-path
+      // and floods the whole canvas black — the N-Pacific rectangle.
+      if (maskRingUnwrapEnabled()) {
+        const rings = [];
+        let rMin = Infinity, rMax = -Infinity;
+        coords.forEach((ring) => {
+          if (!ring || !ring.length) return;
+          const u = unwrapRingLngs(ring, center);
+          rings.push({ ring, lngs: u.lngs });
+          if (u.min < rMin) rMin = u.min;
+          if (u.max > rMax) rMax = u.max;
+        });
+        if (!rings.length) return;
+        const offsets = ringCopyOffsets(rMin, rMax, wrappedWest, wrappedEast);
+        for (const off of offsets) {
+          ctx.beginPath();
+          for (const r of rings) {
+            for (let i = 0; i < r.ring.length; i++) {
+              const [px, py] = projectRaw(r.lngs[i] + off, r.ring[i][1]);
+              if (i === 0) ctx.moveTo(px, py); else ctx.lineTo(px, py);
+            }
+          }
+          ctx.closePath();
+          ctx.fill();
+          ctx.stroke();
+        }
         return;
       }
       ctx.beginPath();
