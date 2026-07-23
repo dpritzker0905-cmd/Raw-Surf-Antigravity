@@ -124,7 +124,14 @@ async def try_serve_mid_res_tier(
         # request-side ceiling __RAW_MARINE_GLOBAL_SPAN__ (backendWeatherServiceClientCoverage.js) is
         # raised in lockstep so GFS/ICON/EURO request the viewport bbox (not the global bbox) up to 40°.
         # Kill / revert: MARINE_MID_RES_MAX_SPAN=15.
-        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "40.0"
+        # 40 → 120 (2026-07-23, USER "EURO wrong colors + Bertha missing zooming out FURTHER"): the 10°
+        # global_coarse tier STRUCTURALLY MASKS enclosed seas for EURO (the Gulf reads is_valid=False →
+        # the frontend inflates the hole = wrong colors), and it block-averages compact storms away. The
+        # 2° global_mid has NEITHER problem (Gulf valid, Bertha 3.01m) and is a full-global product, so
+        # serve it out to ~z3.7 (120° span) — the whole practical surf zoom range — instead of dropping to
+        # the broken coarse tier at z5. The clip stays bounded (~2-4k cells at 120° with the overhang, far
+        # under the 250k serve cap). Genuine world zoom (>120°) still takes the 10° coarse.
+        _hi_env, _hi_def = "MARINE_MID_RES_MAX_SPAN", "120.0"
     elif dom == "wind":
         # WIND MID TIER (2026-07-20, queue #3 — "the clamp must fit the entire map"). The wind
         # sibling of the marine tier: serves the cron's ~2-deg wind global_mid CLIPPED wherever

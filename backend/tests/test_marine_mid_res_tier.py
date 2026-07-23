@@ -186,11 +186,11 @@ def test_mid_res_tier_min_span_floor_restorable(monkeypatch):
 
 
 def test_mid_res_tier_skipped_for_continental_view(monkeypatch):
-    """A wide (>40°) view is a genuine global/continental zoom-out — keep the coarse path, not the
-    mid tier (ceiling raised 15→40 on 2026-07-22; a 70×60° continental view is still well past it)."""
+    """A wide (>120°) view is a genuine world/hemispheric zoom-out — keep the coarse path, not the
+    mid tier (ceiling raised 15→40→120 for the EURO enclosed-sea zoom-out; a 159×90° view is past it)."""
     store = _FakeStore([_mid_manifest_item()], _make_mid_product())
     vp = _FakeViewport()
-    out = _resolve(store, vp, monkeypatch, bbox="-170,-10,-100,50")  # ~70°×60° continental
+    out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # ~159°×90° hemispheric
     # Mid tier must NOT fire → falls through to the coarse-preview path (which returns None here).
     assert not (out is not None and out.grid and out.grid.diagnostics
                 and out.grid.diagnostics.get("mid_res_tier"))
@@ -405,7 +405,7 @@ def test_world_zoom_never_serves_global_mid(monkeypatch):
             "gfs_marine_waves_global_mid_x.json": _make_mid_product(),
         })
         vp = _FakeViewport()
-        out = _resolve(store, vp, monkeypatch, bbox="-170,-10,-100,50")  # ~70°x60° continental
+        out = _resolve(store, vp, monkeypatch, bbox="-179,-40,-20,50")  # ~159°x90° world/hemispheric (> 120° ceiling)
         assert out is not None, f"({order}) wide request must serve a product"
         assert out.product_id == "gfs_marine_waves_global_coarse_x.json", \
             f"({order}) wide request must serve global_coarse, got {out.product_id}"

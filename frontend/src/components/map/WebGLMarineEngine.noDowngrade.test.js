@@ -144,7 +144,7 @@ describe('shouldBridgeToCoarseGlobal — zoom-out bridge (coverage complement of
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
   });
   it('BRIDGES once the viewport outgrows the MID-BAND CEILING (genuine world zoom past 40°)', () => {
-    const worldVp = [-110, 5, -55, 45]; // 55°×40° — past the 40° mid ceiling; the 3° tile covers ~0%
+    const worldVp = [-175, -5, -25, 45]; // 150° — past the 120° mid ceiling // 55°×40° — past the 40° mid ceiling; the 3° tile covers ~0%
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, worldVp, {})).toBe(true);
   });
   it('does NOT bridge in the 15-40° MID-BAND — the 2° mid serves there (2026-07-22, the Bertha zoom-out flash)', () => {
@@ -160,19 +160,19 @@ describe('shouldBridgeToCoarseGlobal — zoom-out bridge (coverage complement of
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 9, coveredVp, {})).toBe(false);
   });
   it('does NOT bridge without a held coarse-global grid, or when the resident is already global', () => {
-    const worldVp = [-110, 5, -55, 45];
+    const worldVp = [-175, -5, -25, 45]; // 150° — past the 120° mid ceiling
     expect(shouldBridgeToCoarseGlobal(regional(), null, 3, worldVp, {})).toBe(false);
     expect(shouldBridgeToCoarseGlobal(regional(), regional(), 3, worldVp, {})).toBe(false); // incoming not coarse-global
     expect(shouldBridgeToCoarseGlobal(coarseGlobal(), coarseGlobal(), 3, worldVp, {})).toBe(false); // resident already global
   });
   it('respects the kill switch', () => {
-    const worldVp = [-110, 5, -55, 45];
+    const worldVp = [-175, -5, -25, 45]; // 150° — past the 120° mid ceiling
     expect(shouldBridgeToCoarseGlobal(regional(), coarseGlobal(), 3, worldVp, { __RAW_DISABLE_ZOOMOUT_BRIDGE__: true })).toBe(false);
   });
   it('the cover-fraction lever tunes the threshold (past the mid-band ceiling)', () => {
     // A big regional covering ~50% of a >40° viewport: default (0.6) bridges; floor 0.4 keeps it.
-    const bigReg = regional({ bounds: { west: -100, east: -70, south: 10, north: 40 } }); // 30° wide
-    const halfWorldVp = [-100, 10, -40, 40]; // 60°×30°: bigReg covers 30/60 = 0.5 lng, full lat
+    const bigReg = regional({ bounds: { west: -175, east: -100, south: 5, north: 45 } }); // 75° wide
+    const halfWorldVp = [-175, 5, -25, 45]; // 150°×40°: bigReg covers 75/150 = 0.5 lng, full lat
     expect(shouldBridgeToCoarseGlobal(bigReg, coarseGlobal(), 4, halfWorldVp, {})).toBe(true);
     expect(shouldBridgeToCoarseGlobal(bigReg, coarseGlobal(), 4, halfWorldVp, { __RAW_DOWNGRADE_COVER_FRAC__: 0.4 })).toBe(false);
   });

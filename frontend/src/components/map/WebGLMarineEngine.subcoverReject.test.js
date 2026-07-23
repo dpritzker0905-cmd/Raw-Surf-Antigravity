@@ -23,7 +23,7 @@ const REGIONAL = {
   vectors: new Array(56).fill({ speed: 1 }),
 };
 const WIDE_VP = [-88, 20, -66, 33];   // 22° x 13° — now INSIDE the 40° mid-band (mid serves)
-const WORLD_VP = [-110, 5, -55, 45];  // 55° x 40° — PAST the mid-band ceiling (genuine world zoom)
+const WORLD_VP = [-175, -5, -25, 45];  // 150° x 50° — PAST the 120° mid-band ceiling (genuine world zoom)
 const TIGHT_VP = [-81, 26, -79, 28];  // 2° x 2°
 
 afterEach(() => {
@@ -45,11 +45,11 @@ describe('shouldRejectSubcoveringRegional', () => {
   });
 
   it('accepts once coverage reaches the shared cover-frac lever (default 0.6)', () => {
-    // widen the regional to cover most of the >40° world viewport
-    const covering = { ...REGIONAL, bounds: { west: -108, south: 6, east: -57, north: 44 } };
+    // widen the regional to cover most of the >120° world viewport (~0.86)
+    const covering = { ...REGIONAL, bounds: { west: -170, south: -3, east: -30, north: 43 } };
     expect(shouldRejectSubcoveringRegional(WORLD, covering, 5.5, WORLD_VP, false)).toBe(false);
-    // or shrink the required fraction below the actual coverage: a ~0.49-covering regional
-    const halfReg = { ...REGIONAL, bounds: { west: -95, south: 9, east: -60, north: 40 } };
+    // or shrink the required fraction below the actual coverage: a ~0.57-covering regional
+    const halfReg = { ...REGIONAL, bounds: { west: -175, south: -5, east: -90, north: 45 } };
     window.__RAW_DOWNGRADE_COVER_FRAC__ = 0.4;
     expect(shouldRejectSubcoveringRegional(WORLD, halfReg, 5.5, WORLD_VP, false)).toBe(false);
   });

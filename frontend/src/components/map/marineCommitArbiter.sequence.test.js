@@ -47,7 +47,7 @@ const GRIDS = {
 const VIEWS = {
   narrow_z9: { vb: [-80.6, 26.6, -79.4, 27.6], zoom: 9.3 },
   mid_z7: { vb: [-84, 25, -76, 31], zoom: 7.5 },
-  wide_z5: { vb: [-110, 5, -50, 45], zoom: 5.2 },
+  wide_z5: { vb: [-175, -35, 25, 50], zoom: 3.0 },  // 200°×85° — past the 120° mid ceiling (genuine world zoom)
 };
 const VIEW_CYCLE = ['narrow_z9', 'wide_z5', 'mid_z7'];
 const GRACE_MS = 4000;

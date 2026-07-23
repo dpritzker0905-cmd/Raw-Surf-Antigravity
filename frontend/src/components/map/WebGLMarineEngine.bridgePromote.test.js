@@ -28,8 +28,8 @@ const REGIONAL = {
   vectors: new Array(169).fill({ speed: 1 }),
 };
 
-// Wide continental viewport (z4.5): the 8°×8° regional covers ~2% of it → promotion territory.
-const WIDE_VIEWPORT = [-125, 10, -60, 55];
+// World viewport (z~3): past the 120° mid ceiling; the 8°×8° regional covers ~0% → promotion territory.
+const WIDE_VIEWPORT = [-175, -30, 25, 55];
 const FAKE_GL = { __fakeGl: true };
 
 function makeEngine(overrides) {

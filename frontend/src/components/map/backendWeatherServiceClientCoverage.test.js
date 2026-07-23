@@ -67,7 +67,7 @@ describe('backendWeatherServiceClientCoverage', () => {
     });
 
     it('returns global bounds for GFS, EURO, and ICON when viewport span is wide', () => {
-      const bboxWide = { west: -120.0, south: 10.0, east: -60.0, north: 50.0 }; // span is 60°
+      const bboxWide = { west: -175.0, south: 5.0, east: -25.0, north: 45.0 }; // span 150° — past the 120° mid ceiling
       
       const resGFS = clampViewportBbox(bboxWide, 'waves', 'GFS');
       expect(resGFS.isInside).toBe(true);

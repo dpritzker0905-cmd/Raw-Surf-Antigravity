@@ -91,7 +91,7 @@ describe('arbiterDecide rule list (first match wins)', () => {
   });
 
   it('8 sub-covering regional over world grid at wide view → reject', () => {
-    const r = arbiterDecide(world(), fine(), { zoom: 3.0, viewportBounds: [-120, -30, 0, 40], flavorWant: false });
+    const r = arbiterDecide(world(), fine(), { zoom: 3.0, viewportBounds: [-160, -30, 0, 40], flavorWant: false });
     expect(r).toEqual({ verdict: 'reject', rule: 'subcover_at_wide' });
   });
 
@@ -224,7 +224,7 @@ describe('decideMarineCommit — the ONE decision point (Phase C flip surface)',
   });
 
   it('subcover keeps its legacy `why` vocabulary across the flip (telemetry/zoomlab parse it)', () => {
-    const d = decideMarineCommit(world(), fine(), 3.0, [-120, -30, 0, 40],
+    const d = decideMarineCommit(world(), fine(), 3.0, [-160, -30, 0, 40],
       winBase({ __RAW_MARINE_ARBITER__: true }));
     expect(d).toEqual({ reject: true, why: 'subcover', rule: 'subcover_at_wide', source: 'arbiter' });
   });
@@ -242,7 +242,7 @@ describe('decideMarineCommit — the ONE decision point (Phase C flip surface)',
   it('MIRROR INVARIANT: the same inputs decide identically for the choke and the self-heal', () => {
     const cases = [
       [fine(), world(), 9.3, VP_FL],
-      [world(), fine(), 3.0, [-120, -30, 0, 40]],
+      [world(), fine(), 3.0, [-160, -30, 0, 40]],
       [fine(), world(), 9.3, VP_PACIFIC],
       [fine({ ratingMode: true }), world(), 7.5, [-81, 26.5, -79, 28.5]],
       [world(), fine(), 9.3, VP_FL],
