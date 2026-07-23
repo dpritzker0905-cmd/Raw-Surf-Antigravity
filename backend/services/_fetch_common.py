@@ -432,9 +432,7 @@ def build_icosahedral_nn(lats, lons, clat, clon) -> List[int]:
 
 # ─────────────────────────── point-dict shaping ───────────────────────────
 def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height",
-                               dir_key="wave_direction", period_key="wave_period",
-                               part_height_keys=("wind_wave_height", "swell_wave_height", "secondary_swell_wave_height"),
-                               use_partitions=True, _diag=None):
+                               dir_key="wave_direction", period_key="wave_period", _diag=None):
     """GULF / ENCLOSED-SEA / ANTARCTIC FIX (2026-07-22). The EURO coarse `waves` source (ECMWF-WAM or
     CMEMS) structurally MASKS enclosed seas (Gulf of Mexico, E Med, Black Sea, Sea of Japan, Gulf of
     California) AND the Southern Ocean south of ~-60 (the "Antarctic projection" regression): those cells
@@ -471,16 +469,7 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
         except (ValueError, TypeError):
             return str(t)
 
-    # GFS lookup: cell -> {time_key: (height, dir, period)}. `height` is the TOTAL significant wave
-    # height (HTSGW). ROOT-CAUSE FIX (2026-07-22, DIAG-driven): at enclosed seas (Gulf of Mexico, Med,
-    # Black Sea, Sea of Japan, ...) and the Southern Ocean, the GFS TOTAL (HTSGW) is often MASKED (None)
-    # even though the PARTITIONS (wind-wave WVHGT + swell1 + swell2) are VALID — which is exactly how the
-    # SERVED GFS `waves` product gets a valid Gulf value the raw total lacks (the normalizer builds the
-    # total from the partitions). The raw-total-only lookup therefore filled 0 in prod bakes
-    # (run 29933575013 + 29948647704 DIAG: gfs_masked==masked_seen==4615, filled=0) while a served-data
-    # repro filled 126. So when the total is masked, reconstruct it from the valid partitions as the
-    # significant-height RMS Hs = sqrt(Hww^2 + Hsw1^2 + Hsw2^2) — the standard sea-state combination and
-    # what the normalizer effectively does. Kill via use_partitions=False (revert to total-only).
+    # GFS lookup: cell -> {time_key: (height, dir, period)}
     gfs = {}
     for gp in gfs_points:
         k = _key(gp)
@@ -491,26 +480,13 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
         ghh = gh.get(height_key, []) or []
         gdd = gh.get(dir_key, []) or []
         gpp = gh.get(period_key, []) or []
-        gparts = [gh.get(pk, []) or [] for pk in (part_height_keys or ())] if use_partitions else []
         m = {}
         for i, t in enumerate(gt):
             tk = _tkey(t)
-            if tk is None:
-                continue
-            _h = ghh[i] if i < len(ghh) else None
-            if use_partitions and _masked(_h):
-                _sumsq = 0.0
-                _any = False
-                for _pl in gparts:
-                    _pv = _pl[i] if i < len(_pl) else None
-                    if not _masked(_pv):
-                        _sumsq += float(_pv) * float(_pv)
-                        _any = True
-                if _any:
-                    _h = math.sqrt(_sumsq)  # reconstruct the total from the valid partitions
-            m[tk] = (_h,
-                     gdd[i] if i < len(gdd) else None,
-                     gpp[i] if i < len(gpp) else None)
+            if tk is not None:
+                m[tk] = (ghh[i] if i < len(ghh) else None,
+                         gdd[i] if i < len(gdd) else None,
+                         gpp[i] if i < len(gpp) else None)
         gfs[k] = m
 
     filled = 0
