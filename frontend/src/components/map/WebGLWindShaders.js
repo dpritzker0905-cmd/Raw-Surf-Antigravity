@@ -33,6 +33,7 @@ uniform float u_lowband_bias;     // 2026-07-06: viewport-bias respawn floor in 
 uniform float u_speed_gamma;      // 2026-07-06: speed-contrast gamma; 1.0 = exact linear (physics), >1 damps slow relative to fast
 uniform float u_speed_max;        // 2026-07-06: |wind| normalization for the gamma term (data units, from u_wind_max)
 uniform float u_vp_density_boost; // 2026-07-18: viewport-respawn density boost at z>=4 (0 = legacy curve)
+uniform float u_respawn_lng_wrap; // 2026-07-23: wrap viewport-respawn lng at +-180 (0 = legacy edge clamp = the seam)
 uniform float u_density_uniform;  // 2026-07-18: bounded drop rate so density stops tracking speed (0 = legacy)
 uniform float u_size_monotonic;   // 2026-07-19: mirrors DRAW_VS — the ink budget must use the size actually drawn
 uniform float u_calm_marks;       // 2026-07-19: mirrors DRAW_VS calm band + the calm lifetime floor
@@ -331,6 +332,23 @@ void main() {
         float padLng = (vpEast - vpWest) * 0.15;
         float padLat = (vpNorth - vpSouth) * 0.15;
         randLng = mix(vpWest - padLng, vpEast + padLng, randVal.x);
+        // ANTIMERIDIAN RESPAWN WRAP (2026-07-23 — THE WIND SEAM at lng 180).
+        // map.getBounds() returns UNWRAPPED longitudes across +-180 (measured: west -189.3,
+        // east -156.2), and the 15% pad widens that further, so randLng routinely leaves
+        // [-180,180]. newPos.x = (randLng+180)/360 then leaves [0,1] and encodePos() CLAMPS it --
+        // so every overflowing respawn is pinned to exactly x=0 or x=1. Both edges render on the
+        // SAME on-screen meridian, so the two pinned stacks land on one line: the seam.
+        // Measured live at centre 180 (half the padded range lies beyond +-180 at every zoom),
+        // edge-bin share vs the uniform mid-mean scaling with the viewport-bias fraction:
+        //     z3.2 bias 0.000 -> 1.2x     z4.5 bias 0.142 -> 11.8x     z5.5 bias 0.400 -> 50.6x
+        // (at z5.5 that is 23% of ALL 147,456 particles stacked on the two edge bins).
+        // Advection was never the dam -- nextPos.x already does fract(); this is the RESPAWN lane.
+        // The REGIONAL branch above has always wrapped correctly (the mod() at randLng); this
+        // viewport branch simply never got the same treatment.
+        // Kill: __RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__ (u_respawn_lng_wrap = 0 -> legacy clamp).
+        if (u_respawn_lng_wrap > 0.5) {
+          randLng = mod(randLng + 180.0, 360.0) - 180.0;
+        }
         float vpMercN = latToMercatorY(clamp(vpNorth + padLat, -85.0, 85.0));
         float vpMercS = latToMercatorY(clamp(vpSouth - padLat, -85.0, 85.0));
         randY = mix(vpMercN, vpMercS, randVal.y);

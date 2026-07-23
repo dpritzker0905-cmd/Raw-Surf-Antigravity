@@ -759,6 +759,10 @@ WebGLWindEngine.prototype.render = function(gl, matrix, screenWidth, screenHeigh
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_lowband_bias'), _windTune.lowBandBias);
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_vp_density_boost'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_VIEWPORT_DENSITY__ === true) ? 0.0 : 1.0);
+  // ANTIMERIDIAN RESPAWN WRAP (the wind seam at lng 180) — see ADVECT_FS. Kill restores the
+  // legacy edge clamp that stacked up to 23% of all particles onto the +-180 meridian.
+  gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_respawn_lng_wrap'),
+    (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_RESPAWN_LNG_WRAP__ === true) ? 0.0 : 1.0);
   // Bounded drop rate — stops steady-state density from tracking (the inverse of) wind speed.
   gl.uniform1f(gl.getUniformLocation(this.advectProgram, 'u_density_uniform'),
     (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_DENSITY_UNIFORM__ === true) ? 0.0 : 1.0);
