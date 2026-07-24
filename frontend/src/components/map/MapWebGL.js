@@ -18,6 +18,20 @@ import TruthOverlay from './TruthOverlay';
 import MarineAnimTuner from './MarineAnimTuner';
 import { LAYER_REGISTRY, MODEL_METADATA_CACHE } from './LayerRegistry';
 import { radarForecastTileUrl, rainviewerTileTemplate } from './radarForecastSources';
+
+// SPOT GEOFENCE circles. The radius ramp and the layer's zoom floor are ONE contract: below the
+// ramp's first stop Mapbox clamps the radius, so the circles stop shrinking with zoom and ~1900 of
+// them merge into a solid coastal band (see the layer comment). Exported so a test can assert the
+// floor never drifts away from the ramp's first stop again.
+export const SPOT_GEOFENCE_RADIUS = [
+  'interpolate',
+  ['exponential', 2],
+  ['zoom'],
+  10, 5,
+  14, 25,
+  18, 150
+];
+export const SPOT_GEOFENCE_MIN_ZOOM = SPOT_GEOFENCE_RADIUS[3];   // === the ramp's first stop zoom
 // Strike points come via window.__LTG_STRIKES__ / __LTG_REFRESH__ (published by radarTileRecolor
 // at protocol registration) — keeps this heavy chunk free of a direct maplibre-gl-importing edge.
 import { useMarineWindData } from './useMarineWindData';
@@ -911,15 +925,24 @@ const MapWebGL = ({
       <Layer
         id="spot-geofences-layer"
         type="circle"
+        // ZOOM FLOOR (2026-07-24 — the "marine heatmap is covering land" report).
+        // The radius ramp below starts at zoom 10; below its first stop Mapbox CLAMPS the radius to
+        // 5 px, so all ~1900 spot geofences kept drawing at world zoom as 5 px cyan discs hugging
+        // every coastline. They merge into a continuous band that reads EXACTLY like the marine
+        // field bleeding inland — and #06b6d4 is rgb(6,182,212), which is precisely the colour
+        // measured over land in the report. Two things made it read as solid rather than as a 10%
+        // wash: the discs overlap heavily once coastal spots collide at wide zoom, and
+        // `circle-stroke-width: 1` carries NO `circle-stroke-opacity`, so every ring is drawn fully
+        // opaque regardless of `circle-opacity`.
+        // Measured at z3.1 on the Florida west coast: cyan reached ~50 km inland (5 px at z3.1
+        // is ~45 km), and queryRenderedFeatures confirmed `spot-geofences-layer` on every painted
+        // land pixel and absent from every bare one. Setting minzoom cleared all of them.
+        // The floor is tied to the ramp's own first stop so the two cannot drift apart again.
+        // Kill: window.__RAW_DISABLE_GEOFENCE_MINZOOM__ = true (restores the always-on layer).
+        minzoom={(typeof window !== 'undefined' && window.__RAW_DISABLE_GEOFENCE_MINZOOM__ === true)
+          ? 0 : SPOT_GEOFENCE_MIN_ZOOM}
         paint={{
-          'circle-radius': [
-            'interpolate',
-            ['exponential', 2],
-            ['zoom'],
-            10, 5,
-            14, 25,
-            18, 150
-          ],
+          'circle-radius': SPOT_GEOFENCE_RADIUS,
           'circle-color': '#06b6d4',
           'circle-opacity': 0.1,
           'circle-stroke-width': 1,
