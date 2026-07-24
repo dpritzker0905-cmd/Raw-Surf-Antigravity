@@ -58,14 +58,23 @@ async function main() {
   });
 
   // Network ledger, wall-clock relative to the activation click.
+  //
+  // ⚠️ RECORD REQUESTS *AND* RESPONSES. The first version of this harness listened only to
+  // `response`, so every timestamp was a RESPONSE ARRIVAL — and I misread the first one (3382 ms)
+  // as "3.4 s of app-side gating before the first network call". It was nothing of the kind: the
+  // request had gone out long before, and the same first response landed at 1609 ms in the other
+  // A/B leg with identical client code, i.e. a 1.8 s swing that can only be backend variance.
+  // click->first-REQUEST is the number that actually indicts the client, and it was never measured.
+  // Keeping both series is what makes "app-side gating" vs "backend latency" separable at all.
   let t0 = null;
   const net = [];
+  page.on('request', (q) => {
+    try { net.push({ kind: 'req', at: t0 ? Math.round(Date.now() - t0) : null, url: q.url() }); } catch (e) {}
+  });
   page.on('response', async (r) => {
     try {
-      const url = r.url();
-      const hdr = r.headers();
-      const len = Number(hdr['content-length'] || 0);
-      net.push({ at: t0 ? Math.round(Date.now() - t0) : null, url, status: r.status(), bytes: len });
+      const len = Number(r.headers()['content-length'] || 0);
+      net.push({ kind: 'res', at: t0 ? Math.round(Date.now() - t0) : null, url: r.url(), status: r.status(), bytes: len });
     } catch (e) {}
   });
 
@@ -124,15 +133,24 @@ async function main() {
   log(`  click -> first painted frame : ${r.firstPaint} ms`);
   log(`  resident: ${r.cols}x${r.rows}  bounds ${JSON.stringify(r.bounds)}`);
   log('');
-  const big = net.filter((n) => n.bytes > 200000).sort((a, b) => b.bytes - a.bytes);
-  log(`  network responses after the click: ${net.length}; over 200 KB: ${big.length}`);
+  // THE number that indicts the CLIENT: click -> first marine REQUEST leaving the browser.
+  const marineReq = net.filter((n) => n.kind === 'req' && /grid_series|weather\/grid/.test(n.url));
+  const marineRes = net.filter((n) => n.kind === 'res' && /grid_series|weather\/grid/.test(n.url));
+  log(`  click -> first marine REQUEST  : ${marineReq.length ? marineReq[0].at : 'n/a'} ms   <- app-side gating`);
+  log(`  click -> first marine RESPONSE : ${marineRes.length ? marineRes[0].at : 'n/a'} ms   <- gating + backend`);
+  log('');
+  const big = net.filter((n) => n.kind === 'res' && n.bytes > 200000).sort((a, b) => b.bytes - a.bytes);
+  log(`  responses after the click: ${net.filter((n) => n.kind === 'res').length}; over 200 KB: ${big.length}`);
   for (const n of big.slice(0, 12)) {
     log(`    ${String(n.at).padStart(6)} ms  ${String(Math.round(n.bytes / 1024)).padStart(7)} KB  ${n.status}  ${n.url.slice(0, 120)}`);
   }
-  const marine = net.filter((n) => /grid_series|weather\/grid/.test(n.url));
-  log(`  marine grid requests: ${marine.length}`);
-  for (const n of marine.slice(0, 8)) {
-    log(`    ${String(n.at).padStart(6)} ms  ${String(Math.round(n.bytes / 1024)).padStart(7)} KB  ${n.url.replace(/^https?:\/\/[^/]+/, '').slice(0, 130)}`);
+  log(`  marine grid REQUESTS: ${marineReq.length}`);
+  for (const n of marineReq.slice(0, 10)) {
+    log(`    req ${String(n.at).padStart(6)} ms  ${n.url.replace(/^https?:\/\/[^/]+/, '').slice(0, 130)}`);
+  }
+  log(`  marine grid RESPONSES: ${marineRes.length}`);
+  for (const n of marineRes.slice(0, 10)) {
+    log(`    res ${String(n.at).padStart(6)} ms  ${String(Math.round(n.bytes / 1024)).padStart(7)} KB  ${n.url.replace(/^https?:\/\/[^/]+/, '').slice(0, 130)}`);
   }
   await context.close(); await browser.close();
 }

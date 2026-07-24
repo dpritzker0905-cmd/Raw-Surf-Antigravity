@@ -112,6 +112,54 @@ the recentre frame) instead of re-seeding.
   to an **18,292,962-byte** jsdelivr download — but it is promise-cached (once per session) and did
   NOT appear in the activation trace. Real fragility (core asset on a public CDN), NOT the 10 s cause.
 
+## 6b. ADDENDUM — D1/D2 PATCHES DESIGNED, ATTACKED, AND **HELD** (do not ship as written)
+
+A guarded design pass ran: 32-guard inventory → one patch per defect → **two independent regression
+hunters per patch**. **All four hunters returned `breaksSomething: true`. Both patches are HOLD.**
+This is the pass working; both would have shipped green (their own tests and probes pass).
+
+**D2 patch would have BLANKED EURO AT EVERY ZOOM.** It gated on `tileId !== 'global_coarse'`, but
+`backendWeatherServiceClientCoverage.js:384` **excludes EURO from the global branch**, so EURO's
+`selectedTileId` is NEVER `'global_coarse'` at any zoom. The skip is therefore unconditionally true
+for EURO, with no regional entry to fall back to → hard 0-hit → Guard #11 (layer-switch instant
+cache-hit commit) broken outright, cascading into Guard #18 `shouldHoldFrameThroughSwitch` whose
+2000 ms bound expires and blanks.
+→ SAFER (from the hunter): never import the FETCH path's request-routing STRING predicate into a
+DISPLAY-cache path. Use a **geometry** test on the caller's own viewport span vs
+`__RAW_MARINE_GLOBAL_SPAN__` (model-independent by construction). Alternative: fix at the RETENTION
+end (`marineCommitShortCircuit.js` world→clip downsize exemption) and change no supply lane at all.
+
+**The "redundant" world fetch in D1 is LOAD-BEARING.** `findCachedGlobalWidthMarine` reads via
+`cache.entries()`, which bypasses `LRUMap.get()`'s recency bump. Today the duplicate fetch is the
+ONLY thing re-promoting and re-timestamping the world entry in the 50-slot LRU (via
+`_cacheMarineResult` → `.set()`). Delete it and the world entry ages/evicts → the 429-cooldown
+fallback (Guard #25) and the zoom-out bridge (Guard #6) lose their supply → a cold ~5 s world fetch
+with a BASELESS bridge, i.e. the 2026-07-04 z7 zoom-out blank re-opened.
+→ SAFER: keep the geometric probe, but make it a PROMOTING read — one `cache.get(key)` on hit.
+Deliberately do NOT refresh `entry.timestamp` (today's endless TTL renewal is itself a latent
+staleness bug); let the 30-min TTL expire honestly.
+
+**D2's other structural error:** its rootCause claimed the world grid becoming the resident does not
+feed `_coarseBaseData`. False — `WebGLMarineEngine.js:1007-1020` runs `_captureCoarseBase` whenever
+`isCoarseGlobalGrid(waveGrid)` (span≥359 && span/cols>1.0; the world grid is 360/181 = 1.99°/cell →
+TRUE). The resident IS a second organic supply for the bridge base and the §2d LRU.
+
+**D3 (toggle blank) produced no design** — its agent hit the structured-output retry cap. Unstarted.
+
+## 6c. ⚠️ A THIRD INVALID MEASUREMENT — `activationlab.js` only listened to `response`
+The claim "3382 ms = first network call, i.e. 3.4 s of app-side gating" was an **instrument
+artifact**: the harness registered only `page.on('response')`, so every timestamp was a RESPONSE
+arrival and click→first-REQUEST was never measured. Fixed (the harness now records BOTH). Re-measured
+on the same camera:
+```
+click -> first marine REQUEST  :  805 ms   <- app-side gating (real)
+click -> first marine RESPONSE : 1259 ms   <- gating + backend
+```
+**805 ms, not 3.4 s** — about one frame plus the documented 20 ms 'manual' fast-lane delay. There is
+nothing avoidable there, and shortening the 250 ms style-ready fallback would re-open `8c48615c`.
+Running tally of instruments that lied this session: the Waves-toggle A/B, the ungated flat-block
+detector, and this. **Check the instrument before trusting the number.**
+
 ## 7. LANDMINES
 - Do **NOT** revert `MARINE_MID_RES_MAX_SPAN` to 40: the user explicitly chose 2° at all zooms to fix
   the Bertha far-zoom clear and the EURO wrong-colours zoom-out. Fix the amplifier, not the setting.
