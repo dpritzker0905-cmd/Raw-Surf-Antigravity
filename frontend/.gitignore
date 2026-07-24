@@ -24,3 +24,16 @@ yarn-error.log*
 
 # Local Netlify folder
 .netlify
+
+# Forensics harness OUTPUT dirs (videos/PNG/JSON) — the harness SCRIPTS are tracked, their runs are not.
+scripts/*-out/
+scripts/*-out2/
+scripts/*-final/
+scripts/artifactlab-*/
+scripts/masklab-*/
+scripts/activationlab-*/
+scripts/rectlab-*/
+scripts/tier-A/
+scripts/tier-B/
+scripts/zoomlab-out/
+scripts/wind-*-out/
