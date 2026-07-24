@@ -2,6 +2,8 @@ import os
 import httpx
 import logging
 import asyncio
+import time
+import threading
 from typing import Dict, List, Any, Optional
 import math
 from datetime import datetime, timezone, timedelta
@@ -187,6 +189,42 @@ class OpenMeteoProvider:
     _GRID_CACHE: Dict[str, tuple] = {}
     _POINT_CACHE: Dict[str, tuple] = {}
     _CACHE_TTL_SEC = 300.0  # 5 minutes
+
+    # ── SHARED 429 CIRCUIT BREAKER (2026-07-24, the Render restart-under-load) ────────────────────
+    # Render crash log signature: a burst of ICON marine work (many cold L2→L1 product restores +
+    # per-hour gulf-fills + deepcopies) on a 512 MB / 1-CPU box, INTERLEAVED with a storm of
+    # POST /v1/marine that all 429, each retrying with 8·attempt backoff (8+16+24+32+40 = up to 120 s
+    # HELD per request), then a 9 s silent gap and a no-traceback restart — the signature of an
+    # OOM/health-timeout kill, not an app exception. Each held 429 request pins a connection, task
+    # state, and response buffers; N of them concurrently is real memory + connection pressure on a
+    # tiny box, and it hammers an upstream that is already saying "stop".
+    #
+    # The breaker is SHARED across all requests: the FIRST 429 opens it for a short cooldown, and
+    # every other in-flight or new request then fails FAST — raising the SAME RuntimeError the
+    # retry-exhaustion path already raises, so callers fall back to the stored/cached product exactly
+    # as before, just in ~0 s instead of up to 120 s. Behaviour is UNCHANGED whenever Open-Meteo is
+    # not 429ing (the breaker is only ever consulted after a real 429). Kill: OPEN_METEO_BREAKER_DISABLED=1
+    # (restores the pure per-request retry storm). Tune: OPEN_METEO_BREAKER_COOLDOWN_SEC (default 30).
+    _rl_lock = threading.Lock()
+    _rate_limited_until = 0.0  # time.monotonic() timestamp; live requests short-circuit until then
+
+    @classmethod
+    def _breaker_open(cls) -> bool:
+        if os.environ.get("OPEN_METEO_BREAKER_DISABLED") == "1":
+            return False
+        with cls._rl_lock:
+            return time.monotonic() < cls._rate_limited_until
+
+    @classmethod
+    def _trip_breaker(cls) -> None:
+        if os.environ.get("OPEN_METEO_BREAKER_DISABLED") == "1":
+            return
+        try:
+            cooldown = float(os.environ.get("OPEN_METEO_BREAKER_COOLDOWN_SEC", "30"))
+        except ValueError:
+            cooldown = 30.0
+        with cls._rl_lock:
+            cls._rate_limited_until = time.monotonic() + cooldown
 
     # Mapping from model name to Open-Meteo models identifier
     MARINE_MODELS = {
@@ -388,12 +426,17 @@ class OpenMeteoProvider:
                     max_retries = 5
                     response = None
                     for attempt in range(1, max_retries + 2):
+                        # Shared 429 breaker: if a sibling request already saw a 429, fail fast to the
+                        # caller's stored/cached fallback instead of adding to the held-request pile-up.
+                        if self._breaker_open():
+                            raise RuntimeError("Open-Meteo circuit breaker open (recent 429s) — failing fast to fallback.")
                         if use_proxy:
                             response = await client.post(proxy_url, json=payload, timeout=45.0)
                         else:
                             response = await client.post(url, data=query_params, timeout=45.0)
 
                         if response.status_code == 429:
+                            self._trip_breaker()  # open the breaker so concurrent requests short-circuit
                             retry_delay = 8.0 * attempt
                             if attempt > max_retries:
                                 raise RuntimeError(f"Hit rate limits (429) and exhausted all {max_retries} retries.")
@@ -581,11 +624,14 @@ class OpenMeteoProvider:
                 max_retries = 5
                 response = None
                 for attempt in range(1, max_retries + 2):
+                    if self._breaker_open():
+                        raise RuntimeError("Open-Meteo circuit breaker open (recent 429s) — failing fast to fallback.")
                     if use_proxy:
                         response = await client.post(proxy_url, json=payload, timeout=15.0)
                     else:
                         response = await client.get(request_url, params=params, timeout=15.0)
                     if response.status_code == 429:
+                        self._trip_breaker()  # open the breaker so concurrent requests short-circuit
                         retry_delay = 2.0 * attempt
                         if attempt > max_retries:
                             raise RuntimeError(f"Hit rate limits (429) for point query and exhausted all {max_retries} retries.")
