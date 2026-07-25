@@ -10,8 +10,10 @@ from typing import List, Optional
 from datetime import datetime, timedelta
 
 from database import get_db
-from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum
-from core.security import get_user_id_from_jwt_or_query, get_optional_user_id_from_jwt_or_query
+from models import Profile, Post, PostLike, Comment, PostReaction, PostCollaboration, SurfSpot, RoleEnum, Follow
+from core.security import get_current_user_id, get_optional_user_id
+from services.grom_media_policy import approval_status_for_grom_post, is_verified_guardian, normalize_controls
+from services.private_media import parse_private_media_ref
 from .schemas import (
     PostCreate, PostResponse, CommentResponse, ReactionData, CollaboratorData, SpotData
 )
@@ -21,7 +23,14 @@ router = APIRouter()
 logger = logging.getLogger(__name__)
 
 @router.post("/posts", response_model=PostResponse)
-async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depends(get_db)):
+async def create_post(
+    author_id: str,
+    data: PostCreate,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    if current_user_id != author_id:
+        raise HTTPException(status_code=403, detail="Cannot create a post for another user")
     # Debug: Log carousel data received from frontend
     logger.info(f"CREATE_POST: author={author_id}, is_carousel={data.is_carousel}, "
                 f"carousel_media_count={len(data.carousel_media) if data.carousel_media else 0}, "
@@ -33,6 +42,22 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
     if not profile:
         raise HTTPException(status_code=404, detail="Profile not found")
         
+    visibility = data.visibility
+    guardian_approval_status = None
+    if profile.role == RoleEnum.GROM:
+        media_urls = [data.media_url]
+        if data.is_carousel and data.carousel_media:
+            media_urls.extend(item.get('url') for item in data.carousel_media if item.get('url'))
+        private_refs = [parse_private_media_ref(url) for url in media_urls]
+        if not media_urls or any(ref is None or ref.bucket != 'grom_media' for ref in private_refs):
+            raise HTTPException(status_code=409, detail="Grom posts require protected Grom media")
+        visibility, guardian_approval_status = approval_status_for_grom_post(
+            requested_visibility=data.visibility,
+            controls=normalize_controls(profile),
+        )
+        if guardian_approval_status == 'blocked_by_parent_policy':
+            raise HTTPException(status_code=403, detail="Requested audience is not allowed by guardian media policy")
+
     # RBAC: Prevent Hobbyist/Grom Parent from creating commerce-enabled posts
     if getattr(data, 'session_price_per_person', None) is not None and float(data.session_price_per_person) > 0:
         if profile.role in [RoleEnum.HOBBYIST, RoleEnum.GROM_PARENT]:
@@ -68,7 +93,11 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
         wind_direction=data.wind_direction,
         tide_status=data.tide_status,
         tide_height_ft=data.tide_height_ft,
-        conditions_source=data.conditions_source or 'manual'
+        conditions_source=data.conditions_source or 'manual',
+        visibility=visibility,
+        requested_visibility=data.visibility if profile.role == RoleEnum.GROM else None,
+        guardian_approval_status=guardian_approval_status,
+        visibility_changed_at=datetime.utcnow()
     )
     
     db.add(post)
@@ -134,6 +163,8 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
         tide_status=post.tide_status,
         tide_height_ft=post.tide_height_ft,
         conditions_source=post.conditions_source,
+        visibility=post.visibility,
+        guardian_approval_status=post.guardian_approval_status,
         # Carousel support
         is_carousel=post.is_carousel or False,
         carousel_media=post.carousel_media or []
@@ -143,7 +174,7 @@ async def create_post(author_id: str, data: PostCreate, db: AsyncSession = Depen
 async def get_feed(
     limit: int = 20,
     cursor: Optional[str] = Query(None, description="ISO timestamp cursor for pagination (created_at of last post)"),
-    user_id: Optional[str] = Depends(get_optional_user_id_from_jwt_or_query),
+    user_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -155,23 +186,13 @@ async def get_feed(
       loading entire comment histories for every post
     - liked/saved status scoped to this page only
     """
-    # First, get the viewer's accepted friends (if viewing user is provided)
-    viewer_friend_ids = set()
+    # Private accounts are visible to followers, never to a caller-supplied identity.
+    viewer_following_ids = set()
     if user_id:
-        from models import Friend, FriendshipStatusEnum
-        friends_result = await db.execute(
-            select(Friend.requester_id, Friend.addressee_id).where(
-                and_(
-                    or_(Friend.requester_id == user_id, Friend.addressee_id == user_id),
-                    Friend.status == FriendshipStatusEnum.ACCEPTED
-                )
-            )
+        following_result = await db.execute(
+            select(Follow.following_id).where(Follow.follower_id == user_id)
         )
-        for row in friends_result:
-            if row.requester_id == user_id:
-                viewer_friend_ids.add(row.addressee_id)
-            else:
-                viewer_friend_ids.add(row.requester_id)
+        viewer_following_ids = {row[0] for row in following_result.fetchall()}
     
     # Build query with optional cursor for pagination
     query = select(Post).where(Post.media_url.isnot(None))
@@ -311,14 +332,14 @@ async def get_feed(
         if not p.media_url:
             continue
         
-        # PRIVACY ENFORCEMENT
+        # Grom media is absent from public feeds unless a guardian explicitly approved it.
+        if p.author and p.author.role == RoleEnum.GROM:
+            if p.visibility != 'public' or p.guardian_approval_status != 'approved':
+                continue
+
+        # Private accounts are visible only to the owner and accepted followers.
         if p.author and getattr(p.author, 'is_private', False):
-            if user_id:
-                is_own_post = str(p.author_id) == str(user_id)
-                is_friend = str(p.author_id) in viewer_friend_ids
-                if not is_own_post and not is_friend:
-                    continue
-            else:
+            if not user_id or (str(p.author_id) != str(user_id) and str(p.author_id) not in viewer_following_ids):
                 continue
         
         if len(response) >= limit:
@@ -491,9 +512,9 @@ async def get_posts_by_spot(
 
 @router.get("/posts/{post_id}", response_model=PostResponse)
 async def get_single_post(
-    post_id: str, 
-    viewer_id: Optional[str] = Query(None),
-    db: AsyncSession = Depends(get_db)
+    post_id: str,
+    viewer_id: Optional[str] = Depends(get_optional_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Get a single post by ID with full details"""
     result = await db.execute(
@@ -512,6 +533,19 @@ async def get_single_post(
     
     if not post:
         raise HTTPException(status_code=404, detail="Post not found")
+
+    if post.author and post.author.role == RoleEnum.GROM:
+        is_publicly_approved = post.visibility == 'public' and post.guardian_approval_status == 'approved'
+        if not is_publicly_approved:
+            if not viewer_id or (viewer_id != post.author_id and not await is_verified_guardian(db, post.author, viewer_id)):
+                raise HTTPException(status_code=404, detail="Post not found")
+    elif post.author and post.author.is_private:
+        if not viewer_id or viewer_id != post.author_id:
+            follows_result = await db.execute(
+                select(Follow.id).where(Follow.follower_id == viewer_id, Follow.following_id == post.author_id)
+            ) if viewer_id else None
+            if not follows_result or not follows_result.scalar_one_or_none():
+                raise HTTPException(status_code=404, detail="Post not found")
     
     # Check if viewer has liked this post (PostLike OR PostReaction)
     is_liked = False
@@ -672,6 +706,8 @@ async def get_single_post(
         # Single post view fields
         liked=is_liked,
         saved=is_saved,
+        visibility=post.visibility,
+        guardian_approval_status=post.guardian_approval_status,
         # Carousel support
         is_carousel=post.is_carousel or False,
         carousel_media=post.carousel_media or []

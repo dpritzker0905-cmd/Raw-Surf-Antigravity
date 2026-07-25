@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id, get_optional_user_id
 from models import (
     Profile, GalleryItem, GalleryPurchase, Notification,
     Gallery, XPTransaction, PhotoTag
@@ -36,9 +37,12 @@ async def purchase_gallery_item(
     item_id: str,
     buyer_id: str,
     data: PurchaseRequest,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Purchase a gallery item with SmugMug-style quality tiers"""
+    """Purchase a gallery item with the authenticated buyer's account."""
+    if current_user_id != buyer_id:
+        raise HTTPException(status_code=403, detail="Cannot purchase media for another user")
     from utils.credits import deduct_credits, add_credits
     
     # Get item with photographer
@@ -218,12 +222,12 @@ async def claim_free_photo(
     item_id: str,
     user_id: str,
     tag_id: Optional[str] = None,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """
-    Claim a photo that is free (session participant with $0 per-photo price).
-    This adds it to the user's gallery without payment.
-    """
+    """Claim a free photo for the authenticated tagged user."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot claim media for another user")
     # Verify the user has access (through PhotoTag with access_granted=True or is_gift=True)
     if tag_id:
         tag_result = await db.execute(
@@ -288,9 +292,12 @@ async def download_gallery_item(
     item_id: str,
     buyer_id: str,
     quality: Optional[str] = None,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get download link for purchased item at purchased quality"""
+    """Get a download link only for the authenticated purchaser."""
+    if current_user_id != buyer_id:
+        raise HTTPException(status_code=403, detail="Cannot download another user's purchased media")
     # Verify purchase - if quality specified, check for that tier
     if quality:
         purchase_result = await db.execute(
@@ -344,7 +351,7 @@ async def download_gallery_item(
 @router.get("/gallery/watermarked-preview/{item_id}")
 async def get_watermarked_preview(
     item_id: str,
-    viewer_id: Optional[str] = None,
+    viewer_id: Optional[str] = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -487,8 +494,14 @@ async def generate_watermark_preview_endpoint(
 
 
 @router.get("/gallery/my-purchases/{buyer_id}")
-async def get_my_purchases(buyer_id: str, db: AsyncSession = Depends(get_db)):
-    """Get all photos purchased by a user"""
+async def get_my_purchases(
+    buyer_id: str,
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
+):
+    """Get all photos purchased by the authenticated user."""
+    if current_user_id != buyer_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's purchases")
     result = await db.execute(
         select(GalleryPurchase)
         .where(GalleryPurchase.buyer_id == buyer_id)

@@ -19,7 +19,7 @@ import httpx
 logger = logging.getLogger(__name__)
 
 PRIVATE_MEDIA_SCHEME = "supabase://"
-PRIVATE_MEDIA_BUCKETS = frozenset({"chat_media", "crew_chat"})
+PRIVATE_MEDIA_BUCKETS = frozenset({"chat_media", "crew_chat", "grom_media"})
 DEFAULT_SIGNED_URL_TTL_SECONDS = 60 * 60
 
 

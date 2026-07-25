@@ -10,9 +10,11 @@ from .verification import router as verification_router
 from .monitoring import router as monitoring_router
 from .family import router as family_router
 from .purchases import router as purchases_router
+from .media_privacy import router as media_privacy_router
 
 router.include_router(parental_router)
 router.include_router(verification_router)
 router.include_router(monitoring_router)
 router.include_router(family_router)
 router.include_router(purchases_router)
+router.include_router(media_privacy_router)

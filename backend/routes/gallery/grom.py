@@ -17,6 +17,7 @@ import logging
 gallery_logger = logging.getLogger("routes.gallery")
 
 from database import get_db
+from core.security import get_current_user_id
 from models import (
     Profile, SurfSpot, GalleryItem, GalleryPurchase, Notification,
     RoleEnum, Gallery, LiveSession, LiveSessionParticipant,
@@ -34,6 +35,7 @@ from services.gallery_sync import (
 from websocket_manager import broadcast_earnings_update
 from services.watermark import watermark_image_from_url, generate_watermarked_preview
 from utils.grom_parent import is_grom_parent_eligible
+from services.grom_media_policy import is_verified_guardian
 
 from .schemas import (
     GalleryItemCreate, GalleryItemUpdate, GalleryItemResponse,
@@ -288,9 +290,9 @@ async def get_grom_highlights(
 @router.get("/gallery/grom-profile-photos/{grom_id}")
 async def get_grom_profile_photos(
     grom_id: str,
-    viewer_id: Optional[str] = None,
     limit: int = 20,
     offset: int = 0,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
@@ -311,18 +313,12 @@ async def get_grom_profile_photos(
         raise HTTPException(status_code=400, detail="Profile is not a Grom")
     
     # Check viewer authorization
-    is_authorized = False
-    if viewer_id:
-        viewer_result = await db.execute(select(Profile).where(Profile.id == viewer_id))
-        viewer = viewer_result.scalar_one_or_none()
-        
-        if viewer:
-            is_authorized = (
-                viewer.is_admin or
-                viewer_id == grom_id or
-                viewer_id == grom.parent_id
-            )
-    
+    viewer_result = await db.execute(select(Profile).where(Profile.id == current_user_id))
+    viewer = viewer_result.scalar_one_or_none()
+    is_authorized = bool(viewer and (viewer.is_admin or current_user_id == grom_id))
+    if not is_authorized:
+        is_authorized = await is_verified_guardian(db, grom, current_user_id)
+
     if not is_authorized:
         raise HTTPException(status_code=403, detail="Not authorized to view Grom's tagged photos")
     

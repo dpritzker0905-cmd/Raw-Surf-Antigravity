@@ -2,7 +2,7 @@
 Posts schemas — Pydantic models and constants for the posts domain.
 """
 from pydantic import BaseModel, ConfigDict
-from typing import List, Optional
+from typing import List, Literal, Optional
 from datetime import datetime
 
 
@@ -39,6 +39,7 @@ class PostCreate(BaseModel):
     tide_status: Optional[str] = None
     tide_height_ft: Optional[float] = None
     conditions_source: Optional[str] = 'manual'
+    visibility: Literal['public', 'followers', 'guardian_only'] = 'public'
 
 class CommentCreate(BaseModel):
     content: Optional[str] = None
@@ -148,6 +149,10 @@ class PostResponse(BaseModel):
     session_price_per_person: Optional[float] = None
     booking_id: Optional[str] = None
     
+    # Audience and guardian state
+    visibility: str = 'public'
+    guardian_approval_status: Optional[str] = None
+
     # Post settings
     hide_like_count: bool = False
     comments_disabled: bool = False

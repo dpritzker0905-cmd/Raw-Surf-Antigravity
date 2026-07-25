@@ -12,6 +12,7 @@ from typing import Optional, List
 from datetime import datetime
 
 from database import get_db
+from core.security import get_current_user_id
 from models import Profile, UserMedia, GalleryItem, GalleryPurchase
 
 router = APIRouter()
@@ -53,9 +54,12 @@ class UserMediaResponse(BaseModel):
 async def create_user_media(
     user_id: str,
     data: UserMediaCreate,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Add media to user's personal gallery (user uploads, capped at 1080p)"""
+    """Add media to the authenticated user's personal gallery (user uploads, capped at 1080p)."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot modify another user's private media")
     # Verify user exists
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = result.scalar_one_or_none()
@@ -95,9 +99,12 @@ async def get_user_media(
     source_type: Optional[str] = None,  # Filter by 'user_upload' or 'photographer_transfer'
     limit: int = 50,
     offset: int = 0,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get user's personal media gallery"""
+    """Get the authenticated user's personal media gallery."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's private media")
     query = select(UserMedia).where(UserMedia.user_id == user_id)
     
     if source_type:
@@ -138,9 +145,12 @@ async def get_user_media(
 async def get_user_uploads(
     user_id: str,
     limit: int = 50,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get only user's own uploads (not transferred content)"""
+    """Get only the authenticated user's own uploads (not transferred content)."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's private media")
     result = await db.execute(
         select(UserMedia)
         .where(UserMedia.user_id == user_id)
@@ -165,9 +175,12 @@ async def get_user_uploads(
 async def get_user_purchased_media(
     user_id: str,
     limit: int = 50,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Get media transferred from photographers (purchased content - preserves 4K)"""
+    """Get authenticated user's transferred photographer media (preserves 4K)."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot view another user's private media")
     result = await db.execute(
         select(UserMedia)
         .where(UserMedia.user_id == user_id)
@@ -194,9 +207,12 @@ async def get_user_purchased_media(
 async def delete_user_media(
     user_id: str,
     media_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
-    """Delete media from user's gallery"""
+    """Delete media from the authenticated user's gallery."""
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot modify another user's private media")
     result = await db.execute(
         select(UserMedia)
         .where(UserMedia.id == media_id)
@@ -218,12 +234,16 @@ async def delete_user_media(
 async def transfer_purchased_media(
     user_id: str,
     gallery_item_id: str,
+    current_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
-    Transfer purchased gallery item to user's personal collection
+    Transfer a purchased gallery item to the authenticated user's personal collection.
     Preserves original 4K resolution from photographer
     """
+    if current_user_id != user_id:
+        raise HTTPException(status_code=403, detail="Cannot modify another user's private media")
+
     # Verify purchase exists
     purchase_result = await db.execute(
         select(GalleryPurchase)

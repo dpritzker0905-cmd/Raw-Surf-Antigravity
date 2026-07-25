@@ -76,6 +76,14 @@ class Post(Base):
     is_carousel = Column(Boolean, default=False)
     carousel_media = Column(JSON, default=list)  # [{"url": "...", "type": "image/video", "thumbnail": "..."}]
     
+    # Audience and guardian approval. Grom posts are fail-closed until approved.
+    visibility = Column(String(32), nullable=False, default='public', index=True)
+    requested_visibility = Column(String(32), nullable=True)
+    guardian_approval_status = Column(String(48), nullable=True, index=True)
+    guardian_approved_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    guardian_approved_at = Column(DateTime(timezone=True), nullable=True)
+    visibility_changed_at = Column(DateTime(timezone=True), nullable=True)
+
     # Post Settings (user preferences)
     hide_like_count = Column(Boolean, default=False)   # Hide likes from others
     comments_disabled = Column(Boolean, default=False)  # Disable commenting
