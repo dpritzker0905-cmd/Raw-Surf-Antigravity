@@ -22,7 +22,14 @@ STRICT_AUTH_FUNCTIONS = {
         "create_identity_verification_session",
     },
     "routes/messages/conversations.py": {"get_conversations"},
-    "routes/bookings/booking_lifecycle.py": {"create_user_booking"},
+    "routes/bookings/booking_lifecycle.py": {
+        "create_user_booking",
+        "complete_booking",
+        "mark_content_delivered",
+        "share_booking_to_feed",
+        "leave_live_session",
+    },
+    "routes/bookings/booking_cancellation.py": {"cancel_booking"},
     "routes/bookings/crew_payments.py": {"get_crew_payment_details"},
     "routes/bookings/stripe_checkout.py": {"create_booking_with_stripe"},
 }
@@ -84,3 +91,19 @@ def test_request_a_pro_checkout_identity_and_webhook_are_fail_closed():
     assert "transaction.user_id != user_id" in payments
     assert "STRIPE_WEBHOOK_SECRET is not configured" in payments
     assert "stripe.Webhook.construct_event(body, signature, webhook_secret)" in payments
+
+def test_public_upload_contract_is_disjoint_from_private_media():
+    upload_core = (BACKEND / "routes/uploads/core.py").read_text(encoding="utf-8")
+    provision = (BACKEND.parent / "supabase_scripts/provision_public_media_buckets.sql").read_text(
+        encoding="utf-8"
+    )
+
+    for bucket in ("avatars", "conditions", "gallery", "general", "stories", "user-gallery"):
+        assert f'"{bucket}"' in upload_core
+        assert f"'{bucket}'" in provision
+    assert "if bucket not in PUBLIC_UPLOAD_BUCKETS" in upload_core
+    assert "create_bucket(" not in upload_core
+    public_bucket_block = upload_core.split("PUBLIC_UPLOAD_BUCKETS = ", 1)[1].split(")", 1)[0]
+    assert "chat_media" not in public_bucket_block
+    assert "crew_chat" not in public_bucket_block
+    assert "RAISE EXCEPTION" in provision

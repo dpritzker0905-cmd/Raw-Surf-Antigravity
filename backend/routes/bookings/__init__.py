@@ -1,10 +1,11 @@
 """
 bookings/__init__.py - Bookings package router composition
 
-Bookings Domain — 9 Focused Modules
+Bookings Domain — 10 Focused Modules
 =========================================================
   crud.py              — Core CRUD: list, get, settings, share-link, nearby, sessions
-  booking_lifecycle.py — Write ops: create, cancel, complete, content-deliver, share-to-feed (v85)
+  booking_lifecycle.py — Write ops: create, complete, content-deliver, share-to-feed (v85)
+  booking_cancellation.py — Cancellation/refund policy (extracted from lifecycle)
   payments.py          — Stripe checkout, split payments, join booking, enable splitting
   crew_hub.py          — Crew Hub captain command center (v83 split, v92 trimmed)
   crew_payments.py     — Crew payment deep-link, crew-pay, selfie upload (v92 extract from crew_hub)
@@ -20,6 +21,7 @@ from fastapi import APIRouter
 
 from .crud import router as _crud_router
 from .directory import router as _directory_router
+from .booking_cancellation import router as _cancellation_router
 from .booking_lifecycle import router as _lifecycle_router
 from .payments import router as _payments_router
 from .stripe_checkout import router as _stripe_checkout_router
@@ -35,6 +37,7 @@ from .waitlist import router as _waitlist_router
 router = APIRouter()
 router.include_router(_crud_router)
 router.include_router(_directory_router)
+router.include_router(_cancellation_router)
 router.include_router(_lifecycle_router)
 router.include_router(_payments_router)
 router.include_router(_stripe_checkout_router)

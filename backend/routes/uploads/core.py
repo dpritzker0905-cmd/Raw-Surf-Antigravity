@@ -66,6 +66,12 @@ MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB for videos
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
 STREAM_CHUNK_SIZE = 1024 * 1024    # 1 MB chunks for streaming video to disk
 
+# This helper returns public CDN URLs. Keep its contract disjoint from
+# services.private_media, which owns signed delivery for sensitive chat media.
+PUBLIC_UPLOAD_BUCKETS = frozenset({
+    "avatars", "conditions", "gallery", "general", "stories", "user-gallery",
+})
+
 # ── Egress-reduction: cache headers for static media ────────────────────
 # Filenames contain UUIDs (content-addressed), so aggressive caching is safe.
 _IMMUTABLE_CACHE = 'public, max-age=31536000, immutable'  # 1 year
@@ -88,9 +94,16 @@ def _cached_file_response(
 
 
 def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
-    """Upload a local file to Supabase Storage and return the public URL.
-    Returns None if Supabase is unavailable or upload fails."""
+    """Upload a product-public asset and return its public CDN URL.
+
+    Bucket provisioning is deliberately outside this request path. A missing or
+    private bucket is a deploy/configuration failure, not a reason to silently
+    change a bucket's access model at runtime.
+    """
     _log = logging.getLogger(__name__)
+    if bucket not in PUBLIC_UPLOAD_BUCKETS:
+        _log.error("Rejected non-public bucket from public upload helper: %s", bucket)
+        return None
     if not SUPABASE_STORAGE_AVAILABLE or _supabase is None:
         _log.warning('Supabase Storage not available (client=%s, available=%s)', _supabase is not None, SUPABASE_STORAGE_AVAILABLE)
         return None
@@ -98,11 +111,8 @@ def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, c
         with open(local_path, 'rb') as f:
             data = f.read()
         _log.info('Uploading %d bytes to Supabase bucket=%s key=%s', len(data), bucket, remote_key)
-        # Ensure bucket exists (ignore error if already exists)
-        try:
-            _supabase.storage.create_bucket(bucket, options={'public': True})
-        except Exception:
-            pass
+        # Public bucket state is provisioned and verified by SQL migration, not here.
+
         res = _supabase.storage.from_(bucket).upload(
             remote_key, data,
             file_options={'content-type': content_type, 'upsert': 'true'}
