@@ -94,3 +94,37 @@ async def test_private_upload_returns_only_an_opaque_reference(monkeypatch):
             },
         )
     ]
+
+
+@pytest.mark.asyncio
+async def test_private_stream_upload_returns_only_an_opaque_reference(monkeypatch):
+    calls = []
+
+    class FakeResponse:
+        status_code = 201
+
+    class FakeClient:
+        async def __aenter__(self):
+            return self
+
+        async def __aexit__(self, *args):
+            return None
+
+        async def post(self, url, **kwargs):
+            calls.append((url, kwargs))
+            assert b''.join([chunk async for chunk in kwargs['content']]) == b'streamed-bytes'
+            return FakeResponse()
+
+    async def chunks():
+        yield b'streamed-'
+        yield b'bytes'
+
+    monkeypatch.setattr(private_media, '_storage_settings', lambda: ('https://project.supabase.co', 'service-key'))
+    monkeypatch.setattr(private_media.httpx, 'AsyncClient', lambda **kwargs: FakeClient())
+
+    value = await private_media.upload_private_media_stream(
+        bucket='grom_media', object_key='grom-1/clip.mp4', content=chunks(), content_type='video/mp4'
+    )
+
+    assert value == 'supabase://grom_media/grom-1/clip.mp4'
+    assert calls[0][0] == 'https://project.supabase.co/storage/v1/object/grom_media/grom-1/clip.mp4'

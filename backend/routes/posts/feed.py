@@ -46,8 +46,14 @@ async def create_post(
     guardian_approval_status = None
     if profile.role == RoleEnum.GROM:
         media_urls = [data.media_url]
+        if data.thumbnail_url:
+            media_urls.append(data.thumbnail_url)
         if data.is_carousel and data.carousel_media:
-            media_urls.extend(item.get('url') for item in data.carousel_media if item.get('url'))
+            for item in data.carousel_media:
+                if item.get('url'):
+                    media_urls.append(item['url'])
+                if item.get('thumbnail'):
+                    media_urls.append(item['thumbnail'])
         private_refs = [parse_private_media_ref(url) for url in media_urls]
         if not media_urls or any(ref is None or ref.bucket != 'grom_media' for ref in private_refs):
             raise HTTPException(status_code=409, detail="Grom posts require protected Grom media")

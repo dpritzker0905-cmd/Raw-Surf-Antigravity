@@ -10,7 +10,7 @@ from __future__ import annotations
 import logging
 import os
 from dataclasses import dataclass
-from typing import Optional
+from typing import AsyncIterator, Optional
 from urllib.parse import quote, unquote, urlsplit
 
 import httpx
@@ -115,6 +115,43 @@ async def upload_private_media(
         logger.exception("Private media upload request failed for bucket=%s", bucket)
     return None
 
+
+async def upload_private_media_stream(
+    *,
+    bucket: str,
+    object_key: str,
+    content: AsyncIterator[bytes],
+    content_type: str,
+) -> Optional[str]:
+    """Stream an upload to private storage and return only its durable reference.
+
+    This lets callers upload ``UploadFile`` bodies without materializing media in RAM.
+    The caller owns content validation and may stop the iterator on its size cap.
+    """
+    reference = make_private_media_ref(bucket, object_key)
+    supabase_url, service_key = _storage_settings()
+    if not supabase_url or not service_key:
+        logger.warning("Private media storage is unavailable; no persistent media reference was created")
+        return None
+
+    encoded_key = quote(object_key, safe="/")
+    try:
+        async with httpx.AsyncClient(timeout=60.0) as client:
+            response = await client.post(
+                f"{supabase_url}/storage/v1/object/{bucket}/{encoded_key}",
+                headers={
+                    "Authorization": f"Bearer {service_key}",
+                    "Content-Type": content_type or "application/octet-stream",
+                    "x-upsert": "false",
+                },
+                content=content,
+            )
+        if response.status_code in (200, 201):
+            return reference
+        logger.error("Private streamed upload failed for bucket=%s status=%s", bucket, response.status_code)
+    except httpx.HTTPError:
+        logger.exception("Private streamed upload request failed for bucket=%s", bucket)
+    return None
 
 async def signed_private_media_url(
     value: Optional[str], *, expires_in: int = DEFAULT_SIGNED_URL_TTL_SECONDS

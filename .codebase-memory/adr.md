@@ -29,3 +29,26 @@ the most decision-dense part of the repo.)
 Forecast data must stay FRESH (startup-run + 3h interval) and degrade GRACEFULLY at every layer
 (provider timeouts → EURO→GFS fallback → no-coverage 404; frontend retains the last good frame, never
 a bare 500, never a hung worker, never a permanently-blank heatmap).
+
+## Protected Grom media delivery (2026-07-25)
+
+### Decision
+Grom uploads use a JWT-bound route and stream directly to private `grom_media`. Database rows retain only `supabase://grom_media/<grom-id>/<uuid>` references. Delivery signs a post/story-owned reference only after checking Grom ownership, verified guardian relationship, guardian approval, and approved public/follower visibility.
+
+### Guardrails
+- No arbitrary bucket/object-key signer.
+- Upload actor must equal the Grom path id.
+- `grom_media` remains private, has a 100 MiB limit, and allows only the configured image/video MIME types.
+- Guardian ceilings remain authoritative; delivery never broadens visibility.
+- Grom post thumbnails and carousel thumbnails must be protected references too; previews cannot bypass the media policy.
+
+### Evidence
+- Production bucket verified private with 100 MiB and the configured allow-list.
+- Dynamic mocked streaming primitive and source authorization contracts passed.
+
+### Residual debt
+- Frontend not yet migrated to protected upload/delivery endpoints.
+- Legacy public Grom URLs intentionally return 409 from the resolver, not a signed URL.
+- Content signature validation/malware moderation remain ingestion work.
+- Follow relationships have no acceptance state; follower-only means an existing Follow row.
+- Full endpoint tests remain blocked by broken host Python and absent bundled pytest/FastAPI dependencies.

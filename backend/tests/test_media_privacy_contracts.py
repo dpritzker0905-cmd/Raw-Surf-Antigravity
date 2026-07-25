@@ -32,6 +32,7 @@ def test_post_feed_uses_followers_and_hides_unapproved_grom_media():
     assert 'Follow.following_id' in source
     assert "p.guardian_approval_status != 'approved'" in source
     assert "ref.bucket != 'grom_media'" in source
+    assert 'data.thumbnail_url' in source
 
 
 def test_story_routes_require_protected_grom_media_and_apply_view_gate():
@@ -39,3 +40,14 @@ def test_story_routes_require_protected_grom_media_and_apply_view_gate():
     assert "private_ref.bucket != 'grom_media'" in source
     assert 'can_view_story' in source
     assert "story.guardian_approval_status == 'approved'" in source
+
+
+def test_protected_grom_media_has_jwt_bound_upload_and_authorized_delivery():
+    source = _source('routes/grom_hq/protected_media.py')
+    assert 'get_current_user_id' in source
+    assert "bucket='grom_media'" in source
+    assert 'upload_private_media_stream' in source
+    assert 'signed_private_media_url' in source
+    assert 'parse_private_media_ref(media.media_url)' in source
+    assert "media.guardian_approval_status != 'approved'" in source
+    assert "Follow.follower_id == viewer_id" in source
