@@ -196,5 +196,3 @@ async def cancel_booking(
         "refund_percentage": refund_percentage,
         "refund_policy": f"{'Full refund (photographer cancelled)' if is_photographer_cancelling else f'{refund_percentage}% refund ({hours_until_session:.0f}hrs before session)'}"
     }
-
-

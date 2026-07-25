@@ -93,17 +93,17 @@ def test_request_a_pro_checkout_identity_and_webhook_are_fail_closed():
     assert "stripe.Webhook.construct_event(body, signature, webhook_secret)" in payments
 
 def test_public_upload_contract_is_disjoint_from_private_media():
-    upload_core = (BACKEND / "routes/uploads/core.py").read_text(encoding="utf-8")
+    upload_storage = (BACKEND / "routes/uploads/storage.py").read_text(encoding="utf-8")
     provision = (BACKEND.parent / "supabase_scripts/provision_public_media_buckets.sql").read_text(
         encoding="utf-8"
     )
 
     for bucket in ("avatars", "conditions", "gallery", "general", "stories", "user-gallery"):
-        assert f'"{bucket}"' in upload_core
+        assert f'"{bucket}"' in upload_storage
         assert f"'{bucket}'" in provision
-    assert "if bucket not in PUBLIC_UPLOAD_BUCKETS" in upload_core
-    assert "create_bucket(" not in upload_core
-    public_bucket_block = upload_core.split("PUBLIC_UPLOAD_BUCKETS = ", 1)[1].split(")", 1)[0]
+    assert "if bucket not in PUBLIC_UPLOAD_BUCKETS" in upload_storage
+    assert "create_bucket(" not in upload_storage
+    public_bucket_block = upload_storage.split("PUBLIC_UPLOAD_BUCKETS = ", 1)[1].split(")", 1)[0]
     assert "chat_media" not in public_bucket_block
     assert "crew_chat" not in public_bucket_block
     assert "RAISE EXCEPTION" in provision

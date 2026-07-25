@@ -51,6 +51,7 @@ from utils.video_processor import (
     MAX_GALLERY_WIDTH
 )
 from sqlalchemy import text
+from .storage import upload_public_media
 
 router = APIRouter()
 logger = logging.getLogger(__name__)
@@ -66,11 +67,6 @@ MAX_FILE_SIZE = 500 * 1024 * 1024  # 500MB for videos
 MAX_IMAGE_SIZE = 50 * 1024 * 1024  # 50MB for images
 STREAM_CHUNK_SIZE = 1024 * 1024    # 1 MB chunks for streaming video to disk
 
-# This helper returns public CDN URLs. Keep its contract disjoint from
-# services.private_media, which owns signed delivery for sensitive chat media.
-PUBLIC_UPLOAD_BUCKETS = frozenset({
-    "avatars", "conditions", "gallery", "general", "stories", "user-gallery",
-})
 
 # ── Egress-reduction: cache headers for static media ────────────────────
 # Filenames contain UUIDs (content-addressed), so aggressive caching is safe.
@@ -93,40 +89,21 @@ def _cached_file_response(
     return FileResponse(path, headers=headers)
 
 
-def upload_to_supabase_storage(local_path: Path, bucket: str, remote_key: str, content_type: str = 'video/mp4') -> str | None:
-    """Upload a product-public asset and return its public CDN URL.
-
-    Bucket provisioning is deliberately outside this request path. A missing or
-    private bucket is a deploy/configuration failure, not a reason to silently
-    change a bucket's access model at runtime.
-    """
-    _log = logging.getLogger(__name__)
-    if bucket not in PUBLIC_UPLOAD_BUCKETS:
-        _log.error("Rejected non-public bucket from public upload helper: %s", bucket)
-        return None
-    if not SUPABASE_STORAGE_AVAILABLE or _supabase is None:
-        _log.warning('Supabase Storage not available (client=%s, available=%s)', _supabase is not None, SUPABASE_STORAGE_AVAILABLE)
-        return None
-    try:
-        with open(local_path, 'rb') as f:
-            data = f.read()
-        _log.info('Uploading %d bytes to Supabase bucket=%s key=%s', len(data), bucket, remote_key)
-        # Public bucket state is provisioned and verified by SQL migration, not here.
-
-        res = _supabase.storage.from_(bucket).upload(
-            remote_key, data,
-            file_options={'content-type': content_type, 'upsert': 'true'}
-        )
-        if hasattr(res, 'error') and res.error:
-            _log.warning('Supabase upload returned error: %s', res.error)
-            return None
-        public_url = _supabase.storage.from_(bucket).get_public_url(remote_key)
-        _log.info('Supabase upload success: %s', public_url)
-        return public_url
-    except Exception as e:
-        _log.error('Supabase upload exception for bucket=%s key=%s: %s', bucket, remote_key, e, exc_info=True)
-        return None
-
+def upload_to_supabase_storage(
+    local_path: Path,
+    bucket: str,
+    remote_key: str,
+    content_type: str = "video/mp4",
+) -> str | None:
+    """Compatibility wrapper for callers that return public media URLs."""
+    return upload_public_media(
+        local_path,
+        bucket,
+        remote_key,
+        content_type=content_type,
+        supabase_client=_supabase,
+        storage_available=SUPABASE_STORAGE_AVAILABLE,
+    )
 
 @router.get("/uploads/supabase-diagnostic")
 async def supabase_diagnostic():
