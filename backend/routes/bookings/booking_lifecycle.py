@@ -16,7 +16,7 @@ import json
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id, get_user_id_from_jwt_or_query
 from models import (
     Profile, Booking, BookingParticipant,
     Notification, RoleEnum, Post
@@ -69,8 +69,8 @@ class CancelBookingRequest(BaseModel):
 
 @router.post("/bookings/create")
 async def create_user_booking(
-    user_id: str,
     data: CreateUserBookingRequest,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """User creates a booking with a photographer - supports account credit application"""

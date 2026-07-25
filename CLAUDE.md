@@ -20,6 +20,13 @@
   `docs/runbooks/HANDOFF-2026-07-14-marathon-close-stability-arc.md` §0a for the debt inventory.
   New/touched code must not add to that debt.
 
+- **UNCOMMITTED AUDIT WIP — NOT RELEASE STATUS (2026-07-25):**
+  - **Sensitive BOLA and payments:** The credit, payment, booking, and conversation routes touched in this worktree now use strict JWT identity (`get_current_user_id`) and ownership checks; focused contract tests pass. Stripe webhook handling now fails closed unless `STRIPE_WEBHOOK_SECRET` and a valid Stripe signature are present. Configure that secret before deployment. This does not certify the remaining BOLA backlog.
+  - **Private chat media:** New writes use opaque refs plus member-authorized signed URLs and fail closed if private storage is unavailable. The Supabase backfill/bucket-flip script is prepared but has **not** been executed; it requires production preflight counts and a deployed app first.
+  - **Generic uploads:** `uploads/core.py` currently creates missing buckets private while still returning public URLs. Do not deploy that change until a product-approved public/private bucket policy and matching delivery mechanism exist.
+  - **WebGL & marine:** The global-grid cache guard is caller-aware: normal close-zoom reuse rejects world grids, while the 429 cooldown fallback may reuse a covering one. Focused tests pass. Deactivation-retain still lacks a reactivation regression test.
+  - **Codebase Indexing Note:** `trevec` is active and synchronized for code discovery. `weather_sim_mcp.py` simulation logic is height-blind (calculates `quality_score` from wind/swell alignment/period, ignoring `swell_h`); treat production `surf_rating.py` as authoritative.
+
 <!-- trevec:rules:start -->
 
 ## Trevec MCP Tools

@@ -16,6 +16,7 @@ const NON_COVERING = { grid: { vectors: [{ speed: 1 }], bounds: { west: -70, sou
 const GLOBAL = { grid: { vectors: [{ speed: 1 }], bounds: { west: -180, south: -80, east: 180, north: 85 } } };
 
 function run({ cached, zoom = 9, vp = VP, hasPrev = true }) {
+  let lookupArgs = null;
   const commits = [];
   let prevState = hasPrev
     ? { grid: { vectors: [{ speed: 2 }], bounds: { west: -90, south: 20, east: -74, north: 34 } } }
@@ -38,11 +39,14 @@ function run({ cached, zoom = 9, vp = VP, hasPrev = true }) {
     cooldownRetryRef: { current: null },
     consecutiveFailuresRef: { current: 0 },
     clearTimeoutFunc: () => {},
-    getModelSafeMarine: () => cached,
+    getModelSafeMarine: (...args) => {
+      lookupArgs = args;
+      return cached;
+    },
     _marineDataSignature: (d) => (d ? 'sig-' + (d.grid?.bounds?.west ?? 'x') : null),
     getSharedValidTime: () => null,
   });
-  return { commits, committedCached: commits.includes(cached) };
+  return { commits, committedCached: commits.includes(cached), lookupArgs };
 }
 
 describe('handleCooldownFallback #10 coverage guard (Source 2)', () => {
@@ -51,6 +55,12 @@ describe('handleCooldownFallback #10 coverage guard (Source 2)', () => {
   it('zoomed IN + a COVERING cached grid still reuses it (no regression)', () => {
     const { committedCached } = run({ cached: COVERING, zoom: 9 });
     expect(committedCached).toBe(true);
+  });
+
+
+  it('explicitly permits the global fallback only for the cooldown caller', () => {
+    const { lookupArgs } = run({ cached: GLOBAL, zoom: 9 });
+    expect(lookupArgs[4]).toEqual({ allowGlobalCoarseFallback: true });
   });
 
   it('zoomed IN + a NON-COVERING nearest-hour tile is NOT reused (the floating rectangle)', () => {

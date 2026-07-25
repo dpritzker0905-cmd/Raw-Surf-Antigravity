@@ -18,6 +18,8 @@ from models import (
     Profile, Booking, CrewChatMessage, Notification
 )
 from services.mentions_service import mentions_service
+from core.security import get_current_user_id
+from services.private_media import delivery_url_for_media, parse_private_media_ref
 
 # Reaction endpoints, WebSocket manager, and WS endpoint extracted to crew_chat_reactions.py (v94)
 from .crew_chat_reactions import crew_chat_manager, verify_chat_access  # noqa: F401
@@ -82,12 +84,15 @@ async def get_crew_chat_messages(
     user_id: str,
     limit: int = 50,
     before: Optional[str] = None,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Get chat message history for a booking.
     Supports pagination with 'before' cursor (message ID).
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's crew chat")
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -154,7 +159,7 @@ async def get_crew_chat_messages(
             "sender_role": sender_role,
             "content": msg.content,
             "message_type": msg.message_type,
-            "media_url": msg.media_url,
+            "media_url": await delivery_url_for_media(msg.media_url),
             "voice_duration_seconds": msg.voice_duration_seconds,
             "created_at": msg.created_at.isoformat(),
             "is_system": msg.message_type == "system",
@@ -180,13 +185,19 @@ async def send_crew_chat_message(
     booking_id: str,
     user_id: str,
     data: SendCrewChatMessageRequest,
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Send a message to the crew chat.
     Supports @mentions and threaded replies.
     Broadcasts to all connected WebSocket clients.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot send a crew-chat message for another user")
+    if parse_private_media_ref(data.media_url):
+        raise HTTPException(status_code=400, detail="Private media must be sent through the crew-chat upload endpoints")
+
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:

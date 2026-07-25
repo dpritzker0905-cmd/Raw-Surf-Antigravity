@@ -24,7 +24,7 @@ from models import (
     Notification, PaymentTransaction
 )
 from utils.credits import deduct_credits, add_credits
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 
 from .crud import (
     CreateBookingWithStripeRequest,
@@ -54,7 +54,7 @@ class UpdateSplitsRequest(BaseModel):
 @router.post("/bookings/create-with-stripe")
 async def create_booking_with_stripe(
     data: CreateBookingWithStripeRequest,
-    user_id: str = Depends(get_user_id_from_jwt_or_query),
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a booking with Stripe payment for remaining balance after credits"""

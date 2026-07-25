@@ -12,6 +12,8 @@ import json
 import httpx
 import logging
 from models import Conversation, Message, MessageReaction, Notification, Profile
+from core.security import get_current_user_id
+from services.private_media import delivery_url_for_media, upload_private_media
 
 from .schemas import (
     ALLOWED_REACTIONS,
@@ -194,10 +196,13 @@ async def upload_voice_note(
     duration: int = Form(...),
     conversation_id: str = Form(...),
     sender_id: str = Form(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Upload a voice note and create a message"""
     from models import VoiceNote
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot upload media for another user")
     
     # Verify conversation exists and sender is participant
     result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
@@ -211,34 +216,20 @@ async def upload_voice_note(
     
     # Read file content
     file_content = await file.read()
-    file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'webm'
-    storage_filename = f"voice_notes/{uuid.uuid4()}.{file_ext}"
-    
-    audio_url = None
-    
-    # Upload to Supabase Storage
-    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{SUPABASE_URL}/storage/v1/object/chat_media/{storage_filename}",
-                    headers={
-                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                        "Content-Type": file.content_type or "audio/webm"
-                    },
-                    content=file_content
-                )
-                
-                if response.status_code not in [200, 201]:
-                    logger.error(f"Supabase upload error: {response.text}")
-                    raise HTTPException(status_code=500, detail="Failed to upload voice note")
-                
-                audio_url = f"{SUPABASE_URL}/storage/v1/object/public/chat_media/{storage_filename}"
-        except Exception as e:
-            logger.error(f"Supabase upload error: {e}")
-            audio_url = f"/api/uploads/{storage_filename}"
-    else:
-        audio_url = f"/api/uploads/{storage_filename}"
+    file_ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename and '.' in file.filename else 'webm'
+    if not file_ext.isalnum() or len(file_ext) > 10:
+        file_ext = 'webm'
+    storage_filename = f"voice_{uuid.uuid4()}.{file_ext}"
+    object_key = f"{conversation.id}/{storage_filename}"
+
+    audio_url = await upload_private_media(
+        bucket="chat_media",
+        object_key=object_key,
+        content=file_content,
+        content_type=file.content_type or "audio/webm",
+    )
+    if audio_url is None:
+        raise HTTPException(status_code=503, detail="Private media storage is temporarily unavailable")
     
     # Get recipient ID
     recipient_id = conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id
@@ -292,7 +283,7 @@ async def upload_voice_note(
     
     return {
         "message_id": message.id,
-        "audio_url": audio_url,
+        "audio_url": await delivery_url_for_media(audio_url),
         "duration": duration,
         "created_at": message.created_at.isoformat()
     }
@@ -309,13 +300,17 @@ async def upload_message_media(
     caption: str = Form(default=""),
     reply_to_id: Optional[str] = Form(default=None),
     message_type_override: Optional[str] = Form(default=None),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """Upload photo/video media to a conversation"""
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot upload media for another user")
     
     # If starting a new chat via media upload, create the conversation first
     if not conversation_id and recipient_id:
         conversation, _ = await get_or_create_conversation(sender_id, recipient_id, db)
+        conversation_id = conversation.id
     else:
         # Verify conversation exists and sender is participant
         result = await db.execute(select(Conversation).where(Conversation.id == conversation_id))
@@ -342,48 +337,22 @@ async def upload_message_media(
     
     # Read file content
     file_content = await file.read()
-    file_ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
-    storage_filename = f"chat_media/{uuid.uuid4()}.{file_ext}"
-    
-    media_url = None
-    
-    # Upload to Supabase Storage
-    if SUPABASE_URL and SUPABASE_SERVICE_KEY:
-        try:
-            async with httpx.AsyncClient() as client:
-                response = await client.post(
-                    f"{SUPABASE_URL}/storage/v1/object/chat_media/{storage_filename}",
-                    headers={
-                        "Authorization": f"Bearer {SUPABASE_SERVICE_KEY}",
-                        "Content-Type": content_type
-                    },
-                    content=file_content
-                )
-                
-                if response.status_code not in [200, 201]:
-                    logger.error(f"Supabase upload error: {response.text}")
-                    raise HTTPException(status_code=500, detail="Failed to upload media")
-                
-                media_url = f"{SUPABASE_URL}/storage/v1/object/public/chat_media/{storage_filename}"
-        except Exception as e:
-            logger.error(f"Supabase upload error: {e}")
-            # Fall back to local storage
-            from pathlib import Path
-            UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
-            local_path = UPLOAD_DIR / storage_filename
-            local_path.parent.mkdir(parents=True, exist_ok=True)
-            with open(local_path, 'wb') as f:
-                f.write(file_content)
-            media_url = f"/api/uploads/{storage_filename}"
-    else:
-        # Save to local storage
-        from pathlib import Path
-        UPLOAD_DIR = Path(__file__).parent.parent / "uploads"
-        local_path = UPLOAD_DIR / storage_filename
-        local_path.parent.mkdir(parents=True, exist_ok=True)
-        with open(local_path, 'wb') as f:
-            f.write(file_content)
-        media_url = f"/api/uploads/{storage_filename}"
+    file_ext = file.filename.rsplit('.', 1)[-1].lower() if file.filename and '.' in file.filename else 'jpg'
+    if not file_ext.isalnum() or len(file_ext) > 10:
+        file_ext = 'bin'
+    storage_filename = f"{uuid.uuid4()}.{file_ext}"
+    object_key = f"{conversation.id}/{storage_filename}"
+
+    # Persist an opaque object reference. URL signing happens only on a
+    # conversation-member response, never at write time or in the database.
+    media_url = await upload_private_media(
+        bucket="chat_media",
+        object_key=object_key,
+        content=file_content,
+        content_type=content_type or "application/octet-stream",
+    )
+    if media_url is None:
+        raise HTTPException(status_code=503, detail="Private media storage is temporarily unavailable")
     
     # Get recipient ID
     recipient_id = conversation.participant_two_id if conversation.participant_one_id == sender_id else conversation.participant_one_id
@@ -437,7 +406,7 @@ async def upload_message_media(
     
     return {
         "message_id": message.id,
-        "media_url": media_url,
+        "media_url": await delivery_url_for_media(media_url),
         "media_type": media_type,
         "created_at": message.created_at.isoformat()
     }

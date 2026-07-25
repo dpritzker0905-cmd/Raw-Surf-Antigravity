@@ -9,7 +9,7 @@ import json
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 from models import Profile, PaymentTransaction, CreditTransaction
 from utils.credits import get_balance, get_transaction_history, add_credits
 
@@ -25,7 +25,7 @@ class CreditPurchaseRequest(BaseModel):
     origin_url: str
 
 @router.post("/credits/purchase")
-async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(get_user_id_from_jwt_or_query), db: AsyncSession = Depends(get_db)):
+async def purchase_credits(data: CreditPurchaseRequest, user_id: str = Depends(get_current_user_id), db: AsyncSession = Depends(get_db)):
     result = await db.execute(select(Profile).where(Profile.id == user_id))
     profile = result.scalar_one_or_none()
     if not profile:
@@ -146,16 +146,23 @@ async def check_credit_status(session_id: str, db: AsyncSession = Depends(get_db
 
 
 @router.get("/credits/balance/{user_id}")
-async def get_user_balance(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_user_balance(
+    user_id: str,
+    auth_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
     """Get user's current credit balance"""
-    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access another user's balance")
+
+    result = await db.execute(select(Profile).where(Profile.id == auth_user_id))
     profile = result.scalar_one_or_none()
     
     if not profile:
         raise HTTPException(status_code=404, detail="User not found")
     
     return {
-        "user_id": user_id,
+        "user_id": auth_user_id,
         "balance": profile.credit_balance,
         "currency": "credits",
         "note": "1 credit = $1 USD"
@@ -167,35 +174,46 @@ async def get_credit_history(
     user_id: str,
     limit: int = Query(default=50, le=100),
     transaction_type: Optional[str] = None,
+    auth_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get user's credit transaction history"""
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access another user's history")
+
     # Verify user
-    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    result = await db.execute(select(Profile).where(Profile.id == auth_user_id))
     if not result.scalar_one_or_none():
         raise HTTPException(status_code=404, detail="User not found")
     
     history = await get_transaction_history(
-        user_id=user_id,
+        user_id=auth_user_id,
         db=db,
         limit=limit,
         transaction_type=transaction_type
     )
     
     return {
-        "user_id": user_id,
+        "user_id": auth_user_id,
         "transactions": history,
         "count": len(history)
     }
 
 
 @router.get("/credits/summary/{user_id}")
-async def get_credit_summary(user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_credit_summary(
+    user_id: str,
+    auth_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
     """Get summary of user's credit activity"""
     from sqlalchemy import func
     
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access another user's summary")
+
     # Verify user
-    result = await db.execute(select(Profile).where(Profile.id == user_id))
+    result = await db.execute(select(Profile).where(Profile.id == auth_user_id))
     profile = result.scalar_one_or_none()
     if not profile:
         raise HTTPException(status_code=404, detail="User not found")
@@ -206,7 +224,7 @@ async def get_credit_summary(user_id: str, db: AsyncSession = Depends(get_db)):
             CreditTransaction.transaction_type,
             func.sum(CreditTransaction.amount).label('total')
         )
-        .where(CreditTransaction.user_id == user_id)
+        .where(CreditTransaction.user_id == auth_user_id)
         .group_by(CreditTransaction.transaction_type)
     )
     totals = {row[0]: row[1] for row in totals_result.all()}
@@ -216,7 +234,7 @@ async def get_credit_summary(user_id: str, db: AsyncSession = Depends(get_db)):
     total_spent = abs(sum(v for k, v in totals.items() if v < 0))
     
     return {
-        "user_id": user_id,
+        "user_id": auth_user_id,
         "current_balance": profile.credit_balance,
         "total_earned": total_earned,
         "total_spent": total_spent,

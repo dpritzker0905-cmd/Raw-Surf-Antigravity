@@ -8,12 +8,13 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from pydantic import BaseModel
 from typing import Optional
-from pathlib import Path
 import uuid
 import logging
 
 from database import get_db
 from models import Profile, CrewChatMessage
+from core.security import get_current_user_id
+from services.private_media import delivery_url_for_media, upload_private_media
 
 from .crew_chat import verify_chat_access, crew_chat_manager
 
@@ -25,10 +26,6 @@ router = APIRouter()
 # ============================================================
 # MEDIA UPLOAD CONFIG
 # ============================================================
-
-# Upload directory for crew chat media
-CREW_CHAT_UPLOAD_DIR = Path(__file__).parent.parent / "uploads" / "crew_chat"
-CREW_CHAT_UPLOAD_DIR.mkdir(parents=True, exist_ok=True)
 
 ALLOWED_IMAGE_TYPES = {"image/jpeg", "image/png", "image/webp"}
 ALLOWED_AUDIO_TYPES = {"audio/webm", "audio/mp4", "audio/mpeg", "audio/wav", "audio/ogg"}
@@ -59,6 +56,21 @@ MAX_VOICE_SIZE = 2 * 1024 * 1024  # 2MB
 MAX_FILE_SIZE = 25 * 1024 * 1024  # 25MB for general files
 
 
+async def _persist_crew_chat_media(booking_id: str, filename: str, content: bytes, content_type: str) -> tuple[str, str]:
+    """Persist an opaque reference and mint a one-hour URL only for the response."""
+    media_url = await upload_private_media(
+        bucket="crew_chat",
+        object_key=f"{booking_id}/{filename}",
+        content=content,
+        content_type=content_type or "application/octet-stream",
+    )
+    if media_url is None:
+        raise HTTPException(status_code=503, detail="Private media storage is temporarily unavailable")
+    delivery_url = await delivery_url_for_media(media_url)
+    if not delivery_url:
+        raise HTTPException(status_code=503, detail="Private media delivery is temporarily unavailable")
+    return media_url, delivery_url
+
 # ============================================================
 # MEDIA UPLOAD ENDPOINTS
 # ============================================================
@@ -69,12 +81,15 @@ async def upload_crew_chat_image(
     user_id: str = Form(...),
     caption: str = Form(""),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Upload an image to crew chat.
     Creates a message with the image attached.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot upload media for another user")
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -92,13 +107,10 @@ async def upload_crew_chat_image(
     # Generate unique filename
     ext = file.filename.split('.')[-1] if '.' in file.filename else 'jpg'
     filename = f"{uuid.uuid4()}.{ext}"
-    file_path = CREW_CHAT_UPLOAD_DIR / filename
     
-    # Save file
-    with open(file_path, 'wb') as f:
-        f.write(content)
-    
-    media_url = f"/api/uploads/crew_chat/{filename}"
+    media_url, delivery_url = await _persist_crew_chat_media(
+        booking_id, filename, content, file.content_type or "application/octet-stream"
+    )
     
     # Get sender profile
     sender_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -127,7 +139,7 @@ async def upload_crew_chat_image(
             "sender_role": role,
             "content": message.content,
             "message_type": "image",
-            "media_url": media_url,
+            "media_url": delivery_url,
             "voice_duration_seconds": None,
             "created_at": message.created_at.isoformat(),
             "is_system": False
@@ -140,7 +152,7 @@ async def upload_crew_chat_image(
     return {
         "success": True,
         "message_id": message.id,
-        "media_url": media_url
+        "media_url": delivery_url
     }
 
 
@@ -150,12 +162,15 @@ async def upload_crew_chat_voice(
     user_id: str = Form(...),
     duration: int = Form(...),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Upload a voice note to crew chat.
     Max duration: 30 seconds.
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot upload media for another user")
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -184,13 +199,10 @@ async def upload_crew_chat_voice(
         ext = "ogg"
     
     filename = f"voice_{uuid.uuid4()}.{ext}"
-    file_path = CREW_CHAT_UPLOAD_DIR / filename
     
-    # Save file
-    with open(file_path, 'wb') as f:
-        f.write(content)
-    
-    media_url = f"/api/uploads/crew_chat/{filename}"
+    media_url, delivery_url = await _persist_crew_chat_media(
+        booking_id, filename, content, file.content_type or "application/octet-stream"
+    )
     
     # Get sender profile
     sender_result = await db.execute(select(Profile).where(Profile.id == user_id))
@@ -220,7 +232,7 @@ async def upload_crew_chat_voice(
             "sender_role": role,
             "content": "Voice message",
             "message_type": "voice",
-            "media_url": media_url,
+            "media_url": delivery_url,
             "voice_duration_seconds": duration,
             "created_at": message.created_at.isoformat(),
             "is_system": False
@@ -233,7 +245,7 @@ async def upload_crew_chat_voice(
     return {
         "success": True,
         "message_id": message.id,
-        "media_url": media_url,
+        "media_url": delivery_url,
         "duration": duration
     }
 
@@ -244,13 +256,16 @@ async def upload_crew_chat_file(
     user_id: str = Form(...),
     caption: str = Form(""),
     file: UploadFile = File(...),
-    db: AsyncSession = Depends(get_db)
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
 ):
     """
     Upload a file (document, PDF, etc.) to crew chat.
     Supports: PDF, Word, Excel, PowerPoint, TXT, CSV, ZIP, images
     Max size: 25MB
     """
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot upload media for another user")
     # Verify access
     booking, role = await verify_chat_access(booking_id, user_id, db)
     if not booking:
@@ -274,13 +289,10 @@ async def upload_crew_chat_file(
     original_name = file.filename or f"file.{ext}"
     safe_name = "".join(c for c in original_name if c.isalnum() or c in "._- ").strip()
     filename = f"{uuid.uuid4()}_{safe_name}"
-    file_path = CREW_CHAT_UPLOAD_DIR / filename
     
-    # Save file
-    with open(file_path, 'wb') as f:
-        f.write(content)
-    
-    media_url = f"/api/uploads/crew_chat/{filename}"
+    media_url, delivery_url = await _persist_crew_chat_media(
+        booking_id, filename, content, file.content_type or "application/octet-stream"
+    )
     file_size = len(content)
     file_size_display = f"{file_size / 1024:.1f}KB" if file_size < 1024*1024 else f"{file_size / (1024*1024):.1f}MB"
     
@@ -312,7 +324,7 @@ async def upload_crew_chat_file(
             "sender_role": role,
             "content": message_content,
             "message_type": "file",
-            "media_url": media_url,
+            "media_url": delivery_url,
             "file_name": original_name,
             "file_size": file_size_display,
             "file_type": ext,
@@ -328,7 +340,7 @@ async def upload_crew_chat_file(
     return {
         "success": True,
         "message_id": message.id,
-        "media_url": media_url,
+        "media_url": delivery_url,
         "file_name": original_name,
         "file_size": file_size_display,
         "file_type": ext

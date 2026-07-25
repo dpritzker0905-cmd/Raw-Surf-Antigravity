@@ -293,7 +293,11 @@ export function handleCooldownFallback({
   try {
     const b = mapInstance.getBounds();
     const vpBounds = { west: b.getWest(), south: b.getSouth(), east: b.getEast(), north: b.getNorth() };
-    cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds);
+    // A covering global grid is preferable to a blank map only while the marine request governor
+    // is cooling down. Normal callers keep DEBT-CACHE-03's zoomed-in global-grid exclusion.
+    cachedData = getModelSafeMarine(model, timeOffset, layer, vpBounds, {
+      allowGlobalCoarseFallback: true
+    });
     const guardOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MARINE_WARM_COVERAGE__ === true;
     if (!guardOff && cachedData) {
       const zoom = mapInstance.getZoom();

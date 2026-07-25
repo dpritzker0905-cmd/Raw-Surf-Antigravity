@@ -12,7 +12,7 @@ import os
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 from models import Profile, PaymentTransaction
 
 router = APIRouter()
@@ -80,18 +80,18 @@ class StripeCheckout:
         return LocalStatus(session)
 
     async def handle_webhook(self, body: bytes, signature: str) -> WebhookResponse:
-        try:
-            event_data = json.loads(body.decode('utf-8'))
-        except Exception:
-            event_data = {}
         webhook_secret = os.environ.get("STRIPE_WEBHOOK_SECRET")
-        if webhook_secret and signature:
-            try:
-                event = stripe.Webhook.construct_event(body, signature, webhook_secret)
-                event_data = event
-            except stripe.error.SignatureVerificationError as e:
-                logger.error(f"Stripe Webhook signature verification failed: {e}")
-                raise HTTPException(status_code=400, detail="Invalid signature")
+        if not webhook_secret:
+            logger.critical("Stripe webhook rejected because STRIPE_WEBHOOK_SECRET is not configured")
+            raise HTTPException(status_code=503, detail="Webhook verification is not configured")
+        if not signature:
+            raise HTTPException(status_code=400, detail="Missing Stripe signature")
+
+        try:
+            event_data = stripe.Webhook.construct_event(body, signature, webhook_secret)
+        except stripe.error.SignatureVerificationError as e:
+            logger.error(f"Stripe Webhook signature verification failed: {e}")
+            raise HTTPException(status_code=400, detail="Invalid signature")
         event_type = event_data.get("type")
         data_obj = event_data.get("data", {}).get("object", {})
         session_id = data_obj.get("id") if event_type and event_type.startswith("checkout.session.") else None
@@ -117,7 +117,6 @@ DEFAULT_DEPOSIT_PACKAGES = {
 class CheckoutRequest(BaseModel):
     package_id: str  # "1hr", "2hr", "3hr" or custom duration
     origin_url: str  # Frontend origin for success/cancel URLs
-    user_id: str
     spot_id: Optional[str] = None
     photographer_id: Optional[str] = None
     duration_hours: Optional[int] = None  # For custom duration
@@ -138,6 +137,7 @@ class PhotographerPricingUpdate(BaseModel):
 async def create_checkout_session(
     request: Request,
     data: CheckoutRequest,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Create a Stripe Checkout session for Request a Pro deposit.
@@ -149,7 +149,7 @@ async def create_checkout_session(
         raise HTTPException(status_code=500, detail="Stripe not configured")
     
     # Verify user exists
-    user_result = await db.execute(select(Profile).where(Profile.id == data.user_id))
+    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
     user = user_result.scalar_one_or_none()
     if not user:
         raise HTTPException(status_code=404, detail="User not found")
@@ -199,7 +199,7 @@ async def create_checkout_session(
     
     # Build metadata
     metadata = {
-        "user_id": data.user_id,
+        "user_id": user_id,
         "user_email": user.email,
         "package_id": data.package_id,
         "type": "request_a_pro_deposit",
@@ -229,7 +229,7 @@ async def create_checkout_session(
         
         # Create payment transaction record (PENDING status)
         transaction = PaymentTransaction(
-            user_id=data.user_id,
+            user_id=user_id,
             session_id=session.session_id,
             amount=deposit_amount,
             currency="usd",
@@ -240,7 +240,7 @@ async def create_checkout_session(
         db.add(transaction)
         await db.commit()
         
-        logger.info(f"Checkout session created: {session.session_id} for user {data.user_id}")
+        logger.info(f"Checkout session created: {session.session_id} for user {user_id}")
         
         return {
             "url": session.url,
@@ -262,14 +262,20 @@ async def create_checkout_session(
 async def get_checkout_status(
     session_id: str,
     request: Request,
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Check payment status and update database"""
-    pass
-    
+
     if not STRIPE_API_KEY:
         raise HTTPException(status_code=500, detail="Stripe not configured")
-    
+
+    result = await db.execute(
+        select(PaymentTransaction).where(PaymentTransaction.session_id == session_id)
+    )
+    transaction = result.scalar_one_or_none()
+    if not transaction or transaction.user_id != user_id:
+        raise HTTPException(status_code=404, detail="Checkout session not found")
     host_url = str(request.base_url).rstrip('/')
     webhook_url = f"{host_url}/api/webhook/stripe"
     
@@ -491,12 +497,16 @@ async def get_deposit_packages(
 @router.get("/payments/history/{user_id}")
 async def get_payment_history(
     user_id: str,
+    auth_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Get payment history for a user"""
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to access another user's payment history")
+
     result = await db.execute(
         select(PaymentTransaction)
-        .where(PaymentTransaction.user_id == user_id)
+        .where(PaymentTransaction.user_id == auth_user_id)
         .order_by(PaymentTransaction.created_at.desc())
         .limit(50)
     )
@@ -519,10 +529,14 @@ async def get_payment_history(
 async def update_photographer_pricing(
     photographer_id: str,
     pricing: PhotographerPricingUpdate,
+    auth_user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """Update a photographer's session pricing in their toolkit"""
-    result = await db.execute(select(Profile).where(Profile.id == photographer_id))
+    if photographer_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to modify another photographer's pricing")
+
+    result = await db.execute(select(Profile).where(Profile.id == auth_user_id))
     photographer = result.scalar_one_or_none()
     
     if not photographer:
@@ -576,7 +590,7 @@ async def get_photographer_pricing(
 
 @router.post("/payments/identity/create-session")
 async def create_identity_verification_session(
-    user_id: str = Depends(get_user_id_from_jwt_or_query),
+    user_id: str = Depends(get_current_user_id),
     return_url: str = None,
     db: AsyncSession = Depends(get_db)
 ):

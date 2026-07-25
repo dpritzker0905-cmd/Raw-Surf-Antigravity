@@ -8,6 +8,8 @@ from datetime import datetime, timedelta, timezone
 import json
 from models import Conversation, Message, MessageReaction, Notification, Profile, RoleEnum
 from utils.grom_parent import is_grom_parent_eligible
+from core.security import get_current_user_id
+from services.private_media import delivery_url_for_media, parse_private_media_ref
 
 from .schemas import (
     SendMessageRequest,
@@ -70,7 +72,16 @@ async def check_existing_thread(user_id: str, recipient_id: str, db: AsyncSessio
 
 
 @router.post("/messages/send")
-async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSession = Depends(get_db)):
+async def send_message(
+    data: SendMessageRequest,
+    sender_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    if sender_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot send a message for another user")
+    if parse_private_media_ref(data.media_url):
+        raise HTTPException(status_code=400, detail="Private media must be sent through the message-media upload endpoint")
     # GROM SAFETY GATE: Check Grom-to-Grom restriction
     grom_check = await check_grom_to_grom_only(sender_id, data.recipient_id, db)
     if not grom_check["allowed"]:
@@ -201,15 +212,24 @@ async def send_message(data: SendMessageRequest, sender_id: str, db: AsyncSessio
     }
 
 @router.get("/messages/conversations/{user_id}")
-async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone: bool = False, db: AsyncSession = Depends(get_db)):
+async def get_conversations(
+    user_id: str,
+    inbox_type: str = "primary",
+    grom_zone: bool = False,
+    auth_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db)
+):
+    if user_id != auth_user_id:
+        raise HTTPException(status_code=403, detail="Not authorized to view another user's conversations")
+
     # GROM SAFETY GATE: Check messaging permission first
-    perm_check = await check_grom_messaging_permission(user_id, db, is_grom_channel=grom_zone)
+    perm_check = await check_grom_messaging_permission(auth_user_id, db, is_grom_channel=grom_zone)
     if not perm_check["allowed"]:
         # Return empty list instead of error for cleaner UX
         return []
     
     # Get current user's role
-    user_result = await db.execute(select(Profile).where(Profile.id == user_id))
+    user_result = await db.execute(select(Profile).where(Profile.id == auth_user_id))
     current_user = user_result.scalar_one_or_none()
     current_user_role = current_user.role.value if current_user and current_user.role else 'Surfer'
     is_current_user_grom = current_user_role == 'Grom'
@@ -337,7 +357,15 @@ async def get_conversations(user_id: str, inbox_type: str = "primary", grom_zone
     return response
 
 @router.get("/messages/conversation/{conversation_id}")
-async def get_conversation_messages(conversation_id: str, user_id: str, db: AsyncSession = Depends(get_db)):
+async def get_conversation_messages(
+    conversation_id: str,
+    user_id: str,
+    db: AsyncSession = Depends(get_db),
+    current_user_id: str = Depends(get_current_user_id),
+):
+    if user_id != current_user_id:
+        raise HTTPException(status_code=403, detail="Cannot read another user's conversation")
+
     result = await db.execute(
         select(Conversation)
         .where(Conversation.id == conversation_id)
@@ -427,8 +455,8 @@ async def get_conversation_messages(conversation_id: str, user_id: str, db: Asyn
             is_read=m.is_read,
             created_at=m.created_at,
             is_mine=(m.sender_id == user_id),
-            media_url=getattr(m, 'media_url', None),
-            media_thumbnail_url=getattr(m, 'media_thumbnail_url', None),
+            media_url=await delivery_url_for_media(getattr(m, 'media_url', None)),
+            media_thumbnail_url=await delivery_url_for_media(getattr(m, 'media_thumbnail_url', None)),
             voice_duration_seconds=getattr(m, 'voice_duration_seconds', None),
             reply_to=reply_preview,
             reactions=reactions_by_message.get(m.id, [])

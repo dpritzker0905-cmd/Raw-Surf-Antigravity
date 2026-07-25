@@ -304,8 +304,12 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
 }
 
 /** getModelSafeMarine - returns safe model cached results */
-export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null) {
+export function getModelSafeMarine(requestedModel, requestedHourOffset, requestedLayer, bounds = null, options = {}) {
   const wanted = requestedModel || 'GFS', wantedLayer = requestedLayer || 'waves', wantedHour = requestedHourOffset !== undefined ? requestedHourOffset : 0;
+  // A world-coarse grid is intentionally not an ordinary zoomed-in cache fallback: it masks a
+  // regional revalidation. The 429 cooldown caller is different—it has no network path and its
+  // own coverage guard—so it may explicitly retain a covering world grid instead of blanking.
+  const allowGlobalCoarseFallback = options?.allowGlobalCoarseFallback === true;
   let hitData = null, cacheSource = 'none', staleHour = false, returnedHour = null;
   const marineHourlyCache = getMarineHourlyCache();
   const cacheLayerKey = marineHourlyCache?.__layerKey || 'all';
@@ -356,10 +360,19 @@ export function getModelSafeMarine(requestedModel, requestedHourOffset, requeste
 
     if (!hitData) {
       // Fallback search: check if any cached entry in _perModelHourCache contains these bounds
+      const disableGlobalSkip = typeof window !== 'undefined' && window.__RAW_DISABLE_SAFECACHE_GLOBAL_SKIP__ === true;
       for (const [key, entry] of _perModelHourCache.entries()) {
         if (key.startsWith(`${wanted}_${layerPart}_`) && key.endsWith(`_${wantedHour}`) && Date.now() - entry.timestamp < PER_MODEL_HOUR_CACHE_TTL) {
           const g = entry.data?.grid;
           if (g?.vectors?.length > 0 && g.bounds) {
+            // DEBT-CACHE-03: Avoid committing world-coarse grids (gwid >= 340) as safe-cache at zoomed-in viewports
+            const gwid = Math.abs(g.bounds.east - g.bounds.west);
+            if (!disableGlobalSkip && !allowGlobalCoarseFallback && (gwid >= 340 || key.includes('global_coarse'))) {
+              const reqWidth = Math.abs(bounds.east - bounds.west);
+              if (reqWidth < 100) {
+                continue; // Skip global grid fallback for zoomed-in requests
+              }
+            }
             const ew = bounds.west, ee = bounds.east, es = bounds.south, en = bounds.north;
             const gw = g.bounds.west, ge = g.bounds.east, gs = g.bounds.south, gn = g.bounds.north;
             const containsLng = ge < gw 

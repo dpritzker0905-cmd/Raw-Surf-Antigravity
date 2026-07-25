@@ -12,7 +12,7 @@ import json
 import logging
 
 from database import get_db
-from core.security import get_user_id_from_jwt_or_query
+from core.security import get_current_user_id
 from models import (
     Profile, Booking, BookingParticipant, Notification
 )
@@ -31,7 +31,7 @@ logger = logging.getLogger(__name__)
 @router.get("/bookings/{booking_id}/crew-payment-details")
 async def get_crew_payment_details(
     booking_id: str,
-    user_id: str = Depends(get_user_id_from_jwt_or_query),
+    user_id: str = Depends(get_current_user_id),
     db: AsyncSession = Depends(get_db)
 ):
     """
