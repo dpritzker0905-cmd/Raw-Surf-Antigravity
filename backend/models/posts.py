@@ -82,6 +82,9 @@ class Post(Base):
     guardian_approval_status = Column(String(48), nullable=True, index=True)
     guardian_approved_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
     guardian_approved_at = Column(DateTime(timezone=True), nullable=True)
+    guardian_visibility_cap = Column(String(32), nullable=True)
+    guardian_override_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    guardian_override_at = Column(DateTime(timezone=True), nullable=True)
     visibility_changed_at = Column(DateTime(timezone=True), nullable=True)
 
     # Post Settings (user preferences)
@@ -354,6 +357,17 @@ class Story(Base):
     # Stories expire after 24 hours
     expires_at = Column(DateTime(timezone=True), nullable=False)
     is_expired = Column(Boolean, default=False)
+
+    # Guardian ceilings mirror Post: the effective audience may never exceed either cap.
+    visibility = Column(String(32), nullable=False, default='public', index=True)
+    requested_visibility = Column(String(32), nullable=True)
+    guardian_approval_status = Column(String(48), nullable=True, index=True)
+    guardian_approved_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    guardian_approved_at = Column(DateTime(timezone=True), nullable=True)
+    guardian_visibility_cap = Column(String(32), nullable=True)
+    guardian_override_by = Column(String(36), ForeignKey('profiles.id', ondelete='SET NULL'), nullable=True)
+    guardian_override_at = Column(DateTime(timezone=True), nullable=True)
+    visibility_changed_at = Column(DateTime(timezone=True), nullable=True)
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     

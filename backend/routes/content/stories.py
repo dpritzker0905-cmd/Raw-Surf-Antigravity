@@ -3,12 +3,15 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, or_, and_
 from sqlalchemy.orm import selectinload
 from pydantic import BaseModel
-from typing import Optional, List
+from typing import Literal, Optional, List
 from datetime import datetime, timedelta, timezone
 import math
 
 from database import get_db
-from models import Profile, SurfSpot, Story, StoryView, RoleEnum
+from models import Follow, Profile, SurfSpot, Story, StoryView, RoleEnum
+from core.security import get_current_user_id
+from services.grom_media_policy import approval_status_for_grom_media, is_verified_guardian, normalize_controls
+from services.private_media import parse_private_media_ref
 
 router = APIRouter()
 
@@ -23,6 +26,7 @@ class StoryCreate(BaseModel):
     latitude: Optional[float] = None
     longitude: Optional[float] = None
     location_name: Optional[str] = None
+    visibility: Literal['public', 'followers', 'guardian_only'] = 'public'
 
 class StoryResponse(BaseModel):
     id: str
@@ -40,6 +44,8 @@ class StoryResponse(BaseModel):
     is_viewed: bool
     created_at: datetime
     expires_at: datetime
+    visibility: str = 'public'
+    guardian_approval_status: Optional[str] = None
 
 class StoryAuthorGroup(BaseModel):
     author_id: str
@@ -66,6 +72,29 @@ def calculate_distance_miles(lat1: float, lon1: float, lat2: float, lon2: float)
     c = 2 * math.asin(math.sqrt(a))
     return R * c
 
+async def can_view_story(db: AsyncSession, story: Story, viewer_id: str, following_ids: Optional[set] = None) -> bool:
+    """Apply the same owner/follower/guardian visibility contract to one story."""
+    author = story.author
+    if not author:
+        return False
+    if author.role == RoleEnum.GROM:
+        if story.visibility == 'public' and story.guardian_approval_status == 'approved':
+            return True
+        if viewer_id == author.id or await is_verified_guardian(db, author, viewer_id):
+            return True
+        if story.visibility != 'followers' or story.guardian_approval_status != 'approved':
+            return False
+    elif not author.is_private:
+        return True
+    elif viewer_id == author.id:
+        return True
+
+    if following_ids is not None:
+        return author.id in following_ids
+    result = await db.execute(select(Follow.id).where(Follow.follower_id == viewer_id, Follow.following_id == author.id))
+    return result.scalar_one_or_none() is not None
+
+
 def should_show_location(viewer_tier: str, distance_miles: float) -> bool:
     """
     Determine if location should be shown based on subscription tier and distance
@@ -84,15 +113,31 @@ def should_show_location(viewer_tier: str, distance_miles: float) -> bool:
 async def create_story(
     author_id: str,
     data: StoryCreate,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Create a new story"""
+    """Create a new story for the authenticated author."""
+    if current_user_id != author_id:
+        raise HTTPException(status_code=403, detail="Cannot create a story for another user")
     # Get author profile
     author_result = await db.execute(select(Profile).where(Profile.id == author_id))
     author = author_result.scalar_one_or_none()
     if not author:
         raise HTTPException(status_code=404, detail="Author not found")
     
+    visibility = data.visibility
+    guardian_approval_status = None
+    if author.role == RoleEnum.GROM:
+        private_ref = parse_private_media_ref(data.media_url)
+        if not private_ref or private_ref.bucket != 'grom_media':
+            raise HTTPException(status_code=409, detail="Grom stories require protected Grom media")
+        visibility, guardian_approval_status = approval_status_for_grom_media(
+            requested_visibility=data.visibility,
+            controls=normalize_controls(author),
+        )
+        if guardian_approval_status == 'blocked_by_parent_policy':
+            raise HTTPException(status_code=403, detail="Requested audience is not allowed by guardian media policy")
+
     # Determine story type based on author role and shooting status
     photographer_roles = [RoleEnum.GROM_PARENT, RoleEnum.HOBBYIST, RoleEnum.PHOTOGRAPHER, RoleEnum.APPROVED_PRO]
     is_photographer = author.role in photographer_roles
@@ -140,7 +185,11 @@ async def create_story(
         longitude=longitude,
         location_name=location_name,
         is_live_report=is_live_report,
-        expires_at=expires_at
+        expires_at=expires_at,
+        visibility=visibility,
+        requested_visibility=data.visibility if author.role == RoleEnum.GROM else None,
+        guardian_approval_status=guardian_approval_status,
+        visibility_changed_at=datetime.now(timezone.utc)
     )
     
     db.add(story)
@@ -158,7 +207,7 @@ async def create_story(
 
 @router.get("/stories/feed")
 async def get_stories_feed(
-    viewer_id: str,
+    viewer_id: str = Depends(get_current_user_id),
     viewer_lat: Optional[float] = None,
     viewer_lon: Optional[float] = None,
     story_type_filter: Optional[str] = None,  # 'photographer', 'surf', or None for all
@@ -215,7 +264,7 @@ async def get_stories_feed(
     
     for story in stories:
         author = story.author
-        if not author:
+        if not author or not await can_view_story(db, story, viewer_id, following_ids):
             continue
         
         # Calculate distance for location visibility
@@ -244,7 +293,9 @@ async def get_stories_feed(
             view_count=story.view_count,
             is_viewed=is_viewed,
             created_at=story.created_at,
-            expires_at=story.expires_at
+            expires_at=story.expires_at,
+            visibility=story.visibility,
+            guardian_approval_status=story.guardian_approval_status
         )
         
         if author.id not in author_groups:
@@ -327,7 +378,7 @@ async def get_stories_feed(
 @router.get("/stories/author/{author_id}")
 async def get_author_stories(
     author_id: str,
-    viewer_id: str,
+    viewer_id: str = Depends(get_current_user_id),
     viewer_lat: Optional[float] = None,
     viewer_lon: Optional[float] = None,
     db: AsyncSession = Depends(get_db)
@@ -350,7 +401,7 @@ async def get_author_stories(
         .options(selectinload(Story.author), selectinload(Story.spot))
         .order_by(Story.created_at.asc())
     )
-    stories = result.scalars().all()
+    stories = [story for story in result.scalars().all() if await can_view_story(db, story, viewer_id)]
     
     # Get viewed stories
     viewed_result = await db.execute(
@@ -385,7 +436,9 @@ async def get_author_stories(
             view_count=story.view_count,
             is_viewed=story.id in viewed_ids,
             created_at=story.created_at,
-            expires_at=story.expires_at
+            expires_at=story.expires_at,
+            visibility=story.visibility,
+            guardian_approval_status=story.guardian_approval_status
         ))
     
     return {
@@ -397,14 +450,14 @@ async def get_author_stories(
 @router.post("/stories/{story_id}/view")
 async def mark_story_viewed(
     story_id: str,
-    viewer_id: str,
-    db: AsyncSession = Depends(get_db)
+    viewer_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
     """Mark a story as viewed by a user"""
     # Check story exists
-    story_result = await db.execute(select(Story).where(Story.id == story_id))
+    story_result = await db.execute(select(Story).where(Story.id == story_id).options(selectinload(Story.author)))
     story = story_result.scalar_one_or_none()
-    if not story:
+    if not story or not await can_view_story(db, story, viewer_id):
         raise HTTPException(status_code=404, detail="Story not found")
     
     # Check if already viewed
@@ -432,9 +485,12 @@ async def mark_story_viewed(
 async def delete_story(
     story_id: str,
     author_id: str,
-    db: AsyncSession = Depends(get_db)
+    current_user_id: str = Depends(get_current_user_id),
+    db: AsyncSession = Depends(get_db),
 ):
-    """Delete a story (only author can delete)"""
+    """Delete a story (only the authenticated author can delete)."""
+    if current_user_id != author_id:
+        raise HTTPException(status_code=403, detail="Not authorized to delete this story")
     result = await db.execute(select(Story).where(Story.id == story_id))
     story = result.scalar_one_or_none()
     
