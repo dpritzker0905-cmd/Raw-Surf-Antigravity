@@ -121,3 +121,18 @@ The shared picker now uses GIPHY's Tenor-compatible v2 API with a Netlify build 
 - GIPHY beta keys are capped at 100 calls/hour; apply for an approved production key before traffic exceeds that budget.
 - GIPHY requests distinct keys by platform/section. The initial shared web key restores the unified picker; provision separate message/comment web keys before wider launch.
 - Evaluate KLIPY as a secondary provider only after a vendor review of content catalog, moderation, privacy, availability, and commercial terms. Do not add an automatic provider fallback until that review is complete.
+
+## Authentication theme contrast remediation (2026-07-25)
+
+### Root cause and decision
+The unauthenticated Auth surface hard-coded a dark page, card, and input palette. Separately, broad theme selectors applied `!important` near-black input text in light mode and dark-brown input text in beach mode. Those declarations overrode Auth's intended white input text on a dark input surface, making typed credentials and the insertion caret hard to see.
+
+Authentication now uses theme tokens for its page, card, and all login/sign-up inputs. A narrowly scoped `.auth-card .auth-input` rule deliberately outranks the legacy broad selectors and sets foreground text, caret, input surface, border, placeholder, and focus border from the active theme. This preserves dark mode and makes light and beach modes self-consistent without changing global input behavior elsewhere.
+
+### Evidence
+- Targeted `eslint src/components/Auth.js` passed.
+- Token-based WCAG contrast calculations for typed text / input backgrounds: light 13.94:1, dark 14.50:1, beach 18.42:1. Placeholders: light 6.16:1, dark 8.23:1, beach 9.81:1.
+- Local development server compiled this change; existing unrelated repository-wide accessibility warnings remain warnings only.
+
+### Residual debt
+- Add a logged-out browser E2E test that sets each saved theme and asserts computed Auth input, caret, and placeholder styles. The current authenticated development-browser session redirects away from `/auth`, so this needs an isolated test context.

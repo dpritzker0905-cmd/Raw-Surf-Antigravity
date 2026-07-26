@@ -249,8 +249,8 @@ export const Auth = () => {
   };
 
   return (
-    <div className="min-h-screen flex items-center justify-center p-4 bg-black">
-      <Card className="w-full max-w-md bg-zinc-900 border-zinc-800 overflow-hidden" data-testid="auth-card">
+    <div className="auth-page min-h-screen flex items-center justify-center p-4">
+      <Card className="auth-card w-full max-w-md overflow-hidden" data-testid="auth-card">
         {/* Header with Logo */}
         <div className="text-center pt-8 pb-4">
           <div 
@@ -263,7 +263,7 @@ export const Auth = () => {
               alt="Raw Surf"
               className="w-10 h-10"
             />
-            <span className="text-2xl font-bold text-white font-oswald" >Raw Surf</span>
+            <span className="auth-title text-2xl font-bold font-oswald" >Raw Surf</span>
           </div>
 
           {/* Login / Sign Up Tabs */}
@@ -304,7 +304,7 @@ export const Auth = () => {
                 aria-label="Email address"
                 value={formData.email}
                 onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                className="bg-zinc-800 border-zinc-700 text-white h-12"
+                className="auth-input h-12"
                 required
                 data-testid="login-email-input"
                 id="login-email"
@@ -317,7 +317,7 @@ export const Auth = () => {
                   aria-label="Password"
                   value={formData.password}
                   onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                  className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"
+                  className="auth-input h-12 pr-10"
                   required
                   data-testid="login-password-input"
                   id="login-password"
@@ -422,7 +422,7 @@ export const Auth = () => {
                     aria-label="Company name"
                     value={formData.company_name}
                     onChange={(e) => setFormData({ ...formData, company_name: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-white h-12"
+                    className="auth-input h-12"
                     required
                     data-testid="company-name-input"
                   />
@@ -434,7 +434,7 @@ export const Auth = () => {
                   aria-label={category === 'business' ? 'Contact name' : 'Full name'}
                   value={formData.full_name}
                   onChange={(e) => setFormData({ ...formData, full_name: e.target.value })}
-                  className="bg-zinc-800 border-zinc-700 text-white h-12"
+                  className="auth-input h-12"
                   required
                   data-testid="full-name-input"
                 />
@@ -448,7 +448,7 @@ export const Auth = () => {
                     aria-label="Username"
                     value={formData.username}
                     onChange={(e) => setFormData({ ...formData, username: e.target.value.toLowerCase().replace(/[^a-z0-9_]/g, '') })}
-                    className="bg-zinc-800 border-zinc-700 text-white h-12 pl-8"
+                    className="auth-input h-12 pl-8"
                     required
                     minLength={3}
                     maxLength={30}
@@ -465,7 +465,7 @@ export const Auth = () => {
                   aria-label="Email address"
                   value={formData.email}
                   onChange={(e) => setFormData({ ...formData, email: e.target.value })}
-                  className="bg-zinc-800 border-zinc-700 text-white h-12"
+                  className="auth-input h-12"
                   required
                   data-testid="email-input"
                 />
@@ -478,7 +478,7 @@ export const Auth = () => {
                     aria-describedby="password-hint"
                     value={formData.password}
                     onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-                    className="bg-zinc-800 border-zinc-700 text-white h-12 pr-10"
+                    className="auth-input h-12 pr-10"
                     required
                     data-testid="password-input"
                   />
@@ -504,7 +504,7 @@ export const Auth = () => {
                       aria-label="Parent or guardian email"
                       value={formData.parent_email}
                       onChange={(e) => setFormData({ ...formData, parent_email: e.target.value })}
-                      className="bg-zinc-800 border-zinc-700 text-white h-12"
+                      className="auth-input h-12"
                       required
                       data-testid="parent-email-input"
                     />
@@ -514,7 +514,7 @@ export const Auth = () => {
                       aria-label="Birthdate"
                       value={formData.birthdate}
                       onChange={(e) => setFormData({ ...formData, birthdate: e.target.value })}
-                      className="bg-zinc-800 border-zinc-700 text-white h-12"
+                      className="auth-input h-12"
                       required
                       max={new Date().toISOString().split('T')[0]}
                       data-testid="birthdate-input"

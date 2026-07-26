@@ -704,6 +704,39 @@ input[type="range"].appearance-none::-moz-range-track {
   color: #b45309 !important; /* text-amber-700 */
 }
 
+/* ============ AUTHENTICATION THEME CONTRAST ============ */
+/* Auth is available before sign-in, so it must respect a previously saved theme. */
+.auth-page {
+  background-color: hsl(var(--background));
+  color: hsl(var(--foreground));
+}
+
+.auth-card {
+  background-color: hsl(var(--card)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--card-foreground));
+}
+
+.auth-title {
+  color: hsl(var(--foreground));
+}
+
+/* The important declarations deliberately outrank the legacy broad theme input rules above. */
+.auth-card .auth-input {
+  background-color: hsl(var(--input)) !important;
+  border-color: hsl(var(--border)) !important;
+  color: hsl(var(--foreground)) !important;
+  caret-color: hsl(var(--foreground));
+}
+
+.auth-card .auth-input::placeholder {
+  color: hsl(var(--foreground) / 0.72) !important;
+  opacity: 1;
+}
+
+.auth-card .auth-input:focus-visible {
+  border-color: hsl(var(--ring)) !important;
+}
 /* ============ COMPACT MESSAGES VIEW ON SHORT VERTICAL SCREENS ============ */
 @media (max-height: 800px) and (min-width: 768px) {
   /* Shrink note bubbles */
