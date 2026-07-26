@@ -161,25 +161,32 @@ def fetch_spots(base, key) -> list:
         offset += PAGE
 
 
-def write_buoy_ids(base, key, pairs, chunk=200) -> tuple:
-    """Bulk-assign noaa_buoy_id. `pairs` = [(spot_id, buoy_id)]. Returns (ok, failed).
+def write_buoy_ids(base, key, pairs, chunk=150) -> tuple:
+    """Assign noaa_buoy_id, ONE PATCH PER BUOY. `pairs` = [(spot_id, buoy_id)]. Returns (ok, failed).
 
-    One PATCH per spot meant 365 sequential round-trips — slow and easy to leave half-applied. This
-    batches with PostgREST's upsert (POST + resolution=merge-duplicates on the id PK), so a run is a
-    handful of requests. Only the two columns are sent, so no other field can be clobbered."""
+    Deliberately an UPDATE, not an upsert. `surf_spots` is locked down — service_role holds SELECT
+    plus UPDATE on noaa_buoy_id ALONE (migration grant_service_role_update_noaa_buoy_id). A bulk
+    upsert (POST + resolution=merge-duplicates) would need INSERT, which service_role does not have
+    and should not be given, so it fails 42501 exactly like the original table-wide denial did.
+
+    Grouping by buoy keeps it to ~1 request per distinct station (measured: 441 spots -> 62 buoys)
+    instead of 441 sequential round-trips, using only the one column-scoped privilege."""
     requests, headers = _rest(base, key)
+    by_buoy = {}
+    for sid, bid in pairs:
+        by_buoy.setdefault(bid, []).append(str(sid))
     ok = fail = 0
-    for i in range(0, len(pairs), chunk):
-        rows = [{"id": sid, "noaa_buoy_id": bid} for sid, bid in pairs[i:i + chunk]]
-        r = requests.post(
-            f"{base}/rest/v1/surf_spots?on_conflict=id",
-            headers={**headers, "Prefer": "resolution=merge-duplicates,return=minimal"},
-            json=rows, timeout=60)
-        if r.status_code in (200, 201, 204):
-            ok += len(rows)
-        else:
-            fail += len(rows)
-            print(f"    chunk {i//chunk}: HTTP {r.status_code} {r.text[:200]}")
+    for bid, ids in by_buoy.items():
+        for i in range(0, len(ids), chunk):
+            group = ids[i:i + chunk]
+            url = f"{base}/rest/v1/surf_spots?id=in.({','.join(group)})"
+            r = requests.patch(url, headers={**headers, "Prefer": "return=minimal"},
+                               json={"noaa_buoy_id": bid}, timeout=60)
+            if r.status_code in (200, 204):
+                ok += len(group)
+            else:
+                fail += len(group)
+                print(f"    buoy {bid}: HTTP {r.status_code} {r.text[:180]}")
     return ok, fail
 
 
