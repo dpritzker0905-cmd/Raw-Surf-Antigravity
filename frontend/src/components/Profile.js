@@ -46,6 +46,7 @@ import { getFullUrl } from '../utils/media';
 import { ROLES } from '../constants/roles';
 import AvatarCropModal from './AvatarCropModal';
 import { PhotographerSubscriptionPlans } from './PhotographerSubscriptionPlans';
+import { createFollowStatusGate } from '../utils/followStatusGate';
 
 // Extracted hooks
 import { useProfileBlock } from '../hooks/useProfileBlock';
@@ -95,6 +96,10 @@ export const Profile = () => {
   const [contentStats, setContentStats] = useState({ posts: 0, photos: 0, videos: 0, session_shots: 0, saved: 0, tagged: 0 });
   const [isFollowing, setIsFollowing] = useState(false);
   const [followLoading, setFollowLoading] = useState(false);
+  const followStatusGateRef = useRef(null);
+  if (!followStatusGateRef.current) {
+    followStatusGateRef.current = createFollowStatusGate();
+  }
   
   // Tab state - read ?tab= param from URL to deep-link to a specific tab (e.g. reviews)
   const [searchParams] = useSearchParams();
@@ -241,12 +246,15 @@ export const Profile = () => {
 
   const checkFollowStatus = async () => {
     if (!user?.id || !profileUserId) return;
+    const statusSnapshot = followStatusGateRef.current.snapshot();
     try {
       // Use direct check: GET /follow/check?follower_id=X&following_id=Y
       // Fallback: load the following list and search
       try {
         const response = await apiClient.get(`/follow/check?follower_id=${user.id}&following_id=${profileUserId}`);
-        setIsFollowing(response.data?.is_following === true);
+        if (followStatusGateRef.current.isCurrent(statusSnapshot)) {
+          setIsFollowing(response.data?.is_following === true);
+        }
         return;
       } catch (checkErr) {
         // Endpoint doesn't exist yet - fall back to list search
@@ -254,7 +262,9 @@ export const Profile = () => {
       const response = await apiClient.get(`/following/${user.id}`);
       const following = response.data || [];
       // Compare as strings to avoid UUID type mismatch
-      setIsFollowing(following.some(f => String(f.id) === String(profileUserId)));
+      if (followStatusGateRef.current.isCurrent(statusSnapshot)) {
+        setIsFollowing(following.some(f => String(f.id) === String(profileUserId)));
+      }
     } catch (error) {
       logger.error('Error checking follow status:', error);
     }
@@ -320,6 +330,7 @@ export const Profile = () => {
     setStreak,
     setTabContent,
     setTabLoading,
+    onFollowMutationStart: followStatusGateRef.current.invalidate,
   });
 
   if (loading || authLoading) {

@@ -136,3 +136,18 @@ Authentication now uses theme tokens for its page, card, and all login/sign-up i
 
 ### Residual debt
 - Add a logged-out browser E2E test that sets each saved theme and asserts computed Auth input, caret, and placeholder styles. The current authenticated development-browser session redirects away from `/auth`, so this needs an isolated test context.
+## Profile follow-state stale-read remediation (2026-07-25)
+
+### Root cause and decision
+A profile-open `GET /follow/check` could remain in flight when the viewer tapped Follow. The follow mutation correctly persisted and optimistically set `isFollowing=true`, but the older read later returned its pre-follow `false` snapshot and overwrote the UI. Revisiting the profile started a fresh read, so the persisted relationship then appeared correctly.
+
+`Profile` now owns a lightweight version gate. Every follow/unfollow mutation invalidates outstanding status snapshots before its optimistic transition. `checkFollowStatus` applies a response only when its captured snapshot is still current. This preserves the existing optimistic UI, rollback behavior, backend route, and social-stat update without changing relationship persistence.
+
+### Evidence
+- `followStatusGate.test.js` simulates the exact sequence: profile-open read snapshot, newer mutation invalidation, stale response rejection.
+- Targeted frontend Jest test passed: 1 suite, 1 assertion group.
+- Targeted ESLint passed for `Profile.js`, `useProfileActions.js`, and the gate/test; `git diff --check` passed.
+
+### Residual debt
+- The follow state is duplicated across profile, feed, storefront, modal, and single-post surfaces. This fix protects the reported profile surface only. A future social-state consolidation should define one client follow-store/query invalidation policy rather than broaden this change opportunistically.
+- Add a browser-level deferred-network test for the complete Profile UI sequence when a reliable logged-out test context is available.

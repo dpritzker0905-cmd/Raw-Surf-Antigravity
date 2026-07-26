@@ -35,6 +35,7 @@ const useProfileActions = ({
   setStreak,
   setTabContent,
   setTabLoading,
+  onFollowMutationStart,
 }) => {
 
   const fetchProfile = async (retryCount = 0) => {
@@ -140,7 +141,11 @@ const useProfileActions = ({
     // Capture previous state for rollback
     const wasFollowing = isFollowing;
     const prevFollowers = socialStats.followers;
-    
+
+    // A profile-open status check may still be in flight. Mark its response
+    // stale before the optimistic transition so it cannot revert this UI.
+    onFollowMutationStart?.();
+
     // Optimistic update - instant UI
     setIsFollowing(!wasFollowing);
     setSocialStats(prev => ({
