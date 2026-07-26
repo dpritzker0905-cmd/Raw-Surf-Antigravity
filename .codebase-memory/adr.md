@@ -103,3 +103,21 @@ Standard comment/reply likes now submit escaped shaka (`\u{1F919}`), and the bac
 
 ### Residual debt
 - `test_comment_reaction_contract.py` and `test_orm_mapper_configuration.py` are committed regression guards, but could not execute locally because the bundled Python lacks pytest, SQLAlchemy, and FastAPI dependencies. Run them in dependency-backed CI.
+
+## GIF provider migration (2026-07-25)
+
+### Root cause and decision
+The single shared GIF picker serving direct messages and social-comment input called the Tenor API. Its configured key now receives HTTP 403 because Tenor API was sunset on 2026-06-30. This was an external provider retirement, not a rendering failure.
+
+The shared picker now uses GIPHY's Tenor-compatible v2 API with a Netlify build variable (`REACT_APP_GIPHY_API_KEY`), family-safe `high` content filtering, GIPHY attribution, HTTP error handling, and an explicit retry state. The key is excluded from source control. The compatibility API preserves the current picker’s response mapping and opaque cursor pagination.
+
+### Evidence
+- Direct Tenor featured request returned HTTP 403 with the discontinuation message.
+- Supplied GIPHY key returned HTTP 200 with featured results, GIF URLs, and a pagination cursor.
+- Shared picker is the only picker implementation; it is consumed by `ChatViewPanel` and `CommentInputForm`.
+- Targeted ESLint and `GifPicker.test.js` passed.
+
+### Residual debt
+- GIPHY beta keys are capped at 100 calls/hour; apply for an approved production key before traffic exceeds that budget.
+- GIPHY requests distinct keys by platform/section. The initial shared web key restores the unified picker; provision separate message/comment web keys before wider launch.
+- Evaluate KLIPY as a secondary provider only after a vendor review of content catalog, moderation, privacy, availability, and commercial terms. Do not add an automatic provider fallback until that review is complete.
