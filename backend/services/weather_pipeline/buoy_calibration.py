@@ -116,6 +116,65 @@ def aggregate_residuals(residuals) -> dict:
     }
 
 
+NDBC_LATEST_OBS_URL = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
+_STATION_COORDS_CACHE: dict = {}
+
+
+def parse_station_coords(text: str) -> dict:
+    """PURE: {STATION_ID: (lat, lon)} from the NDBC bulk latest-observations feed.
+
+    Column positions are read from the '#STN LAT LON ...' header rather than hardcoded, so an NDBC
+    format change yields an EMPTY map (callers fall back to the spot location and tag the row) instead
+    of silently reading some other column as a latitude."""
+    lines = [ln for ln in (text or "").splitlines() if ln.strip()]
+    header = next((ln for ln in lines if ln.startswith("#STN")), None)
+    if not header:
+        return {}
+    cols = header.lstrip("#").split()
+    try:
+        i_stn, i_lat, i_lon = cols.index("STN"), cols.index("LAT"), cols.index("LON")
+    except ValueError:
+        return {}
+    out = {}
+    for ln in lines:
+        if ln.startswith("#"):
+            continue
+        t = ln.split()
+        if len(t) <= max(i_stn, i_lat, i_lon):
+            continue
+        lat, lon = _num(t[i_lat]), _num(t[i_lon])
+        if lat is None or lon is None:
+            continue
+        out[t[i_stn].strip().upper()] = (lat, lon)
+    return out
+
+
+async def fetch_ndbc_station_coords(client=None) -> dict:
+    """Station positions for the whole NDBC network in ONE request, cached for the process.
+
+    Never raises: on any failure it returns {} and calibrate_spots falls back to spot coordinates,
+    tagging each affected row so the degradation is visible in the report rather than silent."""
+    if _STATION_COORDS_CACHE:
+        return _STATION_COORDS_CACHE
+    try:
+        if client is not None:
+            resp = await client.get(NDBC_LATEST_OBS_URL)
+            text = resp.text
+        else:
+            import httpx
+            async with httpx.AsyncClient(timeout=30.0) as c:
+                text = (await c.get(NDBC_LATEST_OBS_URL)).text
+        coords = parse_station_coords(text)
+        if coords:
+            _STATION_COORDS_CACHE.update(coords)
+        else:
+            logger.warning("[buoy-calibration] NDBC station coords empty — falling back to spot positions.")
+        return coords
+    except Exception as e:
+        logger.warning(f"[buoy-calibration] station coords unavailable ({e}); using spot positions.")
+        return {}
+
+
 async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
     """Fetch + parse the latest NDBC observation for a station. Uses an injected httpx-like async client when
     given (tests), else a short-lived httpx.AsyncClient. Returns the obs dict or None (missing/error)."""
@@ -137,12 +196,36 @@ async def fetch_ndbc_latest(station_id: str, client=None) -> Optional[dict]:
         return None
 
 
+def _one_residual_per_buoy(spot_residuals):
+    """The aggregate must weight each BUOY once, not each spot.
+
+    Many spots map to the same station (measured 2026-07-26: 1516 spots -> ~49 distinct buoys within
+    100 km), and since the model is now resolved AT THE BUOY every spot sharing a station produces an
+    IDENTICAL residual. Averaging per-spot would silently weight the summary by how many surf spots
+    happen to cluster near a station — a dense stretch of Florida coast would outvote all of Hawaii.
+    Rows without a buoy_id fall through individually so older/parital callers behave as before."""
+    seen, out = set(), []
+    for r in spot_residuals or []:
+        bid = r.get("buoy_id")
+        if bid is None:
+            out.append(r.get("residual"))
+            continue
+        if bid in seen:
+            continue
+        seen.add(bid)
+        out.append(r.get("residual"))
+    return out
+
+
 def build_calibration_report(spot_residuals) -> dict:
-    """Wrap per-spot residual rows + the aggregate in the versioned L2 report object."""
+    """Wrap per-spot residual rows + the aggregate in the versioned L2 report object.
+
+    `spots` keeps every per-spot row for auditability; `summary` aggregates ONE residual per distinct
+    buoy (see _one_residual_per_buoy) so the bias/MAE is a property of the MODEL, not of spot density."""
     return {
         "version": BUOY_CALIBRATION_SCHEMA_VERSION,
         "generated_at": datetime.now(timezone.utc).isoformat(),
-        "summary": aggregate_residuals([r.get("residual") for r in spot_residuals]),
+        "summary": aggregate_residuals(_one_residual_per_buoy(spot_residuals)),
         "spots": spot_residuals,
     }
 
@@ -150,30 +233,49 @@ def build_calibration_report(spot_residuals) -> dict:
 async def calibrate_spots(resolver, spots, model: str, valid_time: str, client=None) -> dict:
     """The CALIBRATION LOOP: for every spot with a noaa_buoy_id, fetch its buoy obs + the model's offshore
     Hs/Tp at the spot, and record the residual. `spots` are dicts (id/name/latitude/longitude/noaa_buoy_id).
-    Returns the report object (build_calibration_report). The model is resolved at the SPOT location (the
-    buoy is the spot's nearby offshore buoy) — good enough for a first systematic bias/MAE read; per-buoy
-    coordinates can refine it later. Never raises per spot (a bad buoy/resolve just yields a null residual)."""
+    Returns the report object (build_calibration_report).
+
+    The model is resolved AT THE BUOY's own coordinates (2026-07-26), not at the spot. Resolving at the
+    spot conflated two different things: our MODEL's error, and the real physical difference between
+    deep water where the buoy floats and the nearshore where the spot breaks. Only the first is a bias
+    we should ever correct — "correcting" the second would be deleting real shoaling. Station
+    coordinates come from the same bulk NDBC feed as the observations; if a station's position is
+    unknown we fall back to the spot location and TAG the row (`resolved_at`), so a mixed report can
+    never be read as if it were uniform.
+
+    Model resolves are cached per buoy: many spots share a station, and the answer at a given buoy is
+    the same for all of them. Never raises per spot (a bad buoy/resolve just yields a null residual)."""
     from services.weather_pipeline.schemas import NormalizedPointResponse
+    coords = await fetch_ndbc_station_coords(client=client)
     rows = []
+    _resolved = {}                      # buoy_id -> (model_hs, model_tp, resolved_at)
     for spot in spots:
         buoy_id = spot.get("noaa_buoy_id")
         if not buoy_id:
             continue
-        obs = await fetch_ndbc_latest(buoy_id, client=client)
-        model_hs = model_tp = None
-        try:
-            marine = await resolver.resolve_point(
-                model=model, domain="marine", layer="waves",
-                lat=spot["latitude"], lng=spot["longitude"], valid_time_str=valid_time)
-            if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
-                model_hs = marine.point.speed          # offshore significant wave height (m)
-                model_tp = marine.point.period
-        except Exception as e:
-            logger.debug(f"[buoy-calibration] resolve failed for {spot.get('id')}: {e}")
+        bid = str(buoy_id).strip().upper()
+        obs = await fetch_ndbc_latest(bid, client=client)
+        if bid not in _resolved:
+            station = coords.get(bid)
+            lat, lng, at = ((station[0], station[1], "buoy") if station
+                            else (spot.get("latitude"), spot.get("longitude"), "spot"))
+            model_hs = model_tp = None
+            try:
+                marine = await resolver.resolve_point(
+                    model=model, domain="marine", layer="waves",
+                    lat=lat, lng=lng, valid_time_str=valid_time)
+                if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
+                    model_hs = marine.point.speed      # offshore significant wave height (m)
+                    model_tp = marine.point.period
+            except Exception as e:
+                logger.debug(f"[buoy-calibration] resolve failed for buoy {bid}: {e}")
+            _resolved[bid] = (model_hs, model_tp, at)
+        model_hs, model_tp, resolved_at = _resolved[bid]
         residual = compare_obs_to_model(obs, model_hs, model_tp) if obs else None
         rows.append({
-            "spot_id": str(spot.get("id")), "name": spot.get("name"), "buoy_id": str(buoy_id),
-            "buoy_time": obs.get("time") if obs else None, "residual": residual,
+            "spot_id": str(spot.get("id")), "name": spot.get("name"), "buoy_id": bid,
+            "buoy_time": obs.get("time") if obs else None, "resolved_at": resolved_at,
+            "residual": residual,
         })
     return build_calibration_report(rows)
 

@@ -128,3 +128,104 @@ async def test_calibrate_spots_loop(monkeypatch):
     # model 1.5 m vs buoy 1.2 m → +0.3 m bias; model 10 s vs buoy 9 s → +1 s
     assert rep["spots"][0]["residual"]["height_err_m"] == pytest.approx(0.3)
     assert rep["summary"]["height_mae_m"] == pytest.approx(0.3) and rep["summary"]["n_spots"] == 1
+
+
+# ── Resolve-at-BUOY + per-buoy aggregation (2026-07-26) ────────────────────────────────────────────
+# Before this, calibrate_spots resolved the model at the SPOT and the summary averaged per SPOT. Both
+# were wrong: the first conflated model error with the real deep-water -> nearshore difference (which
+# is physics, not bias, and must never be "corrected" away); the second let spot DENSITY weight the
+# summary, so a crowded stretch of coast could outvote an entire ocean basin.
+
+_LATEST_OBS = """#STN       LAT      LON  YYYY MM DD hh mm WDIR WSPD   GST WVHT  DPD APD MWD   PRES
+#text      deg      deg   yr mo day hr mn degT  m/s   m/s   m   sec sec degT   hPa
+41013    33.441  -77.764 2026 07 26 19 40   MM  0.0   1.0  0.7   MM 5.0 103 1012.9
+46026    37.759 -122.833 2026 07 26 19 00    4  1.1    MM  2.1   12 8.0 270     MM
+"""
+
+
+def test_parse_station_coords_reads_the_header():
+    c = bc.parse_station_coords(_LATEST_OBS)
+    assert c["41013"] == (33.441, -77.764)
+    assert c["46026"] == (37.759, -122.833)
+
+
+def test_parse_station_coords_fails_CLOSED_on_a_format_change():
+    """An NDBC re-order must yield {} (fall back + tag), never a wrong latitude."""
+    assert bc.parse_station_coords(_LATEST_OBS.replace("#STN       LAT      LON", "#STN       XXX      YYY")) == {}
+    assert bc.parse_station_coords("") == {}
+    assert bc.parse_station_coords("garbage\n1 2 3") == {}
+
+
+def test_summary_weights_each_BUOY_once_not_each_spot():
+    """Ten spots on one buoy must not outvote a single spot on another."""
+    hot = {"height_err_m": 2.0, "abs_height_err_m": 2.0, "period_err_s": None, "abs_period_err_s": None}
+    cool = {"height_err_m": 0.0, "abs_height_err_m": 0.0, "period_err_s": None, "abs_period_err_s": None}
+    rows = [{"buoy_id": "AAA", "residual": hot} for _ in range(10)]
+    rows.append({"buoy_id": "BBB", "residual": cool})
+    summary = bc.build_calibration_report(rows)["summary"]
+    # per-buoy: mean(2.0, 0.0) = 1.0.  per-spot would have been (10*2.0+0)/11 = 1.82
+    assert summary["height_bias_m"] == pytest.approx(1.0, abs=0.01)
+    assert summary["height_n"] == 2
+
+
+def test_one_residual_per_buoy_passes_through_rows_without_a_buoy_id():
+    r = {"height_err_m": 1.0, "abs_height_err_m": 1.0}
+    assert len(bc._one_residual_per_buoy([{"residual": r}, {"residual": r}])) == 2
+
+
+@pytest.mark.asyncio
+async def test_calibrate_spots_resolves_at_the_BUOY_and_tags_the_row(monkeypatch):
+    seen = []
+
+    class _R:
+        async def resolve_point(self, **kw):
+            seen.append((kw["lat"], kw["lng"]))
+            return None
+
+    async def _coords(client=None):
+        return {"41013": (33.441, -77.764)}
+
+    async def _obs(station_id, client=None):
+        return {"wvht_m": 0.7, "dpd_s": 9.0, "time": "t"}
+
+    monkeypatch.setattr(bc, "fetch_ndbc_station_coords", _coords)
+    monkeypatch.setattr(bc, "fetch_ndbc_latest", _obs)
+
+    # two spots share one buoy; the spot coords are deliberately far from the station
+    spots = [
+        {"id": "s1", "name": "A", "latitude": 34.9, "longitude": -76.1, "noaa_buoy_id": "41013"},
+        {"id": "s2", "name": "B", "latitude": 33.9, "longitude": -78.9, "noaa_buoy_id": "41013"},
+    ]
+    rep = await bc.calibrate_spots(_R(), spots, "GFS", "2026-07-26T19:00:00Z")
+
+    assert seen == [(33.441, -77.764)], seen        # resolved AT the buoy, and only ONCE (cached)
+    assert all(r["resolved_at"] == "buoy" for r in rep["spots"])
+    # Both per-spot rows are retained for auditability; the per-BUOY collapse of the summary is
+    # proven by test_summary_weights_each_BUOY_once_not_each_spot (this fake resolver returns no
+    # model value, so there is deliberately nothing to aggregate here).
+    assert len(rep["spots"]) == 2
+    assert {r["buoy_id"] for r in rep["spots"]} == {"41013"}
+
+
+@pytest.mark.asyncio
+async def test_calibrate_spots_falls_back_to_the_spot_and_says_so(monkeypatch):
+    seen = []
+
+    class _R:
+        async def resolve_point(self, **kw):
+            seen.append((kw["lat"], kw["lng"]))
+            return None
+
+    async def _no_coords(client=None):
+        return {}
+
+    async def _obs(station_id, client=None):
+        return {"wvht_m": 1.0, "dpd_s": None, "time": "t"}
+
+    monkeypatch.setattr(bc, "fetch_ndbc_station_coords", _no_coords)
+    monkeypatch.setattr(bc, "fetch_ndbc_latest", _obs)
+
+    spots = [{"id": "s1", "name": "A", "latitude": 34.9, "longitude": -76.1, "noaa_buoy_id": "41013"}]
+    rep = await bc.calibrate_spots(_R(), spots, "GFS", "2026-07-26T19:00:00Z")
+    assert seen == [(34.9, -76.1)]                  # fell back to the spot
+    assert rep["spots"][0]["resolved_at"] == "spot"  # ...and the row SAYS so
