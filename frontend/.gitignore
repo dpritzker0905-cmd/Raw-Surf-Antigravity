@@ -32,6 +32,9 @@ scripts/*-final/
 scripts/artifactlab-*/
 scripts/masklab-*/
 scripts/activationlab-*/
+# activation A/B legs (MAR-01, 2026-07-26) — reports only, regenerate with activationlab.js
+scripts/ac-before-*/
+scripts/ac-after-*/
 scripts/rectlab-*/
 scripts/tier-A/
 scripts/tier-B/
