@@ -176,6 +176,33 @@ export function breakerTypeQuality(xi) {
   return _clamp(1.0 - 0.06 * (xi - 3.3), 0.82, 1.0);
 }
 
+// ── BLOWN-OUT VETO (mirror of surf_rating.wind_gate, 2026-07-26) ──────────────────────────────────
+// The wind term is an ADDEND (W_WIND*wq + W_PERIOD*pq), so period alone floored a 100 kt DEAD-ONSHORE
+// gale at 43/100 "fair" — and the ordering inverted (longer period scored HIGHER in a gale). This
+// MULTIPLIES, so a blown-out day cannot be rescued by swell period. Keyed on the physics rather than
+// on wq, because wq saturates at a flat 0.0500 from 16 kt to 100 kt onshore and cannot tell a sea
+// breeze from a hurricane. Inert for offshore/cross/unknown geometry and anything under the start
+// threshold. Kill: window.__RAW_DISABLE_WIND_GATE__ = true.
+export const WIND_GATE_START_KT = 14.0;
+export const WIND_GATE_ZERO_KT = 40.0;
+const _WIND_GATE_MIN_ONSHORE = 0.25;
+
+export function windGate(speedMs, windFromDeg = null, shoreNormalDeg = null) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_WIND_GATE__) return 1.0;
+  } catch (e) { /* no window (tests/SSR) -> gate stays on */ }
+  if (speedMs == null || speedMs < 0) return 1.0;
+  const off = offshoreness(windFromDeg, shoreNormalDeg);
+  if (off == null || off >= 0.0) return 1.0;
+  const onshore = Math.min(1.0, Math.max(_WIND_GATE_MIN_ONSHORE, -off));
+  const kt = speedMs * MS_TO_KT;
+  const start = WIND_GATE_START_KT / onshore;
+  const zero = WIND_GATE_ZERO_KT / onshore;
+  if (kt <= start) return 1.0;
+  if (kt >= zero) return 0.0;
+  return _clamp((zero - kt) / (zero - start), 0.0, 1.0);
+}
+
 export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
   const sg = sizeScore(h, referenceSizeM);
   if (sg <= 0.0) return 0.0;
@@ -188,7 +215,9 @@ export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg =
   const wq = windQuality(speedMs, windFromDeg, shoreNormalDeg);
   const ptp = (partitions && partitions.length) ? dominantSwellPeriod(partitions) : null;
   const pq = periodQuality(ptp != null ? ptp : tp);
-  return Math.round(100.0 * sg * ex * sc * tf * bt * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  // `wg` MULTIPLIES so a blown-out onshore day cannot be floored up by period (see windGate).
+  const wg = windGate(speedMs, windFromDeg, shoreNormalDeg);
+  return Math.round(100.0 * sg * ex * sc * tf * bt * wg * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];

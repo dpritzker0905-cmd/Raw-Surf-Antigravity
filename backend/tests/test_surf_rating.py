@@ -364,3 +364,54 @@ def test_partition_secondary_swell_recovered_when_dominant_shadowed():
     parts = [{"h": 2.0, "tp": 14.0, "dir": 90.0, "kind": "swell"},
              {"h": 1.0, "tp": 10.0, "dir": 270.0, "kind": "swell"}]
     assert rating_score(*args, partitions=parts) > rating_score(*args)
+
+
+# ── BLOWN-OUT VETO (wind_gate, 2026-07-26) ──────────────────────────────────────────────────────────
+# Measured before the gate: at 2.0 m head-on, DEAD onshore, the score was IDENTICAL at 16/30/60/100 kt
+# (19.0 / 35.0 / 43.0 for tp 6 / 12 / 16 s) because the wind term is an ADDEND — and the ordering
+# INVERTED, a longer period scoring higher in a 100 kt gale.
+import os as _os
+from services.weather_pipeline.surf_rating import wind_gate as _wind_gate
+
+_KT = 1.943844
+
+
+def test_wind_gate_is_inert_where_it_must_be():
+    """It may only ever remove score from strong ONSHORE wind — never anything else."""
+    assert _wind_gate(40 / _KT, 90.0, 270.0) == 1.0      # dead offshore, gale
+    assert _wind_gate(40 / _KT, 180.0, 270.0) == 1.0     # exactly cross-shore
+    assert _wind_gate(40 / _KT, None, None) == 1.0       # unknown geometry
+    assert _wind_gate(10 / _KT, 270.0, 270.0) == 1.0     # onshore but light
+    assert _wind_gate(2.0, 90.0, 270.0) == 1.0           # the pinned calibration anchor's wind
+    assert _wind_gate(None, 270.0, 270.0) == 1.0         # missing speed
+
+
+def test_wind_gate_vetoes_a_blown_out_day_regardless_of_period():
+    """A 100 kt dead-onshore gale is unsurfable at EVERY period. Was 19.0-43.0 'poor'..'fair'."""
+    scores = [rating_score(2.0, float(tp), 100 / _KT, 270.0, 270.0, 270.0) for tp in (6, 9, 12, 16, 20)]
+    assert scores == [0.0] * 5, scores
+
+
+def test_wind_gate_removes_the_period_inversion():
+    """Before: at 100 kt onshore, score ROSE with period. After: never rises as wind worsens."""
+    for tp in (6, 12, 16, 20):
+        prev = None
+        for kt in (12, 16, 25, 40, 100):
+            s = rating_score(2.0, float(tp), kt / _KT, 270.0, 270.0, 270.0)
+            if prev is not None:
+                assert s <= prev, f"tp={tp}s score rose as wind grew: {prev} -> {s} at {kt} kt"
+            prev = s
+
+
+def test_wind_gate_kill_switch_restores_prior_behaviour():
+    prior = _os.environ.get("RATING_WIND_GATE")
+    try:
+        _os.environ["RATING_WIND_GATE"] = "0"
+        assert rating_score(2.0, 16.0, 100 / _KT, 270.0, 270.0, 270.0) == 43.0
+        _os.environ["RATING_WIND_GATE"] = "1"
+        assert rating_score(2.0, 16.0, 100 / _KT, 270.0, 270.0, 270.0) == 0.0
+    finally:
+        if prior is None:
+            _os.environ.pop("RATING_WIND_GATE", None)
+        else:
+            _os.environ["RATING_WIND_GATE"] = prior

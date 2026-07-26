@@ -7,9 +7,11 @@ thing a pure height layer can't tell you and the differentiator vs chart-only co
 Grounding: surf quality is a MULTIVARIABLE composite of breaking wave height, swell period and wind
 (offshore vs onshore + speed) — the expert-judgment multivariable surf index of Espejo et al. (2014)
 "Surfing wave climate variability" (Global and Planetary Change). Breaking-height physics come from the
-bundled surf_transform (depth-limited breaking; Goda 2010 breaker statistics). Pure ``math`` only — no
-I/O, no numpy — so it runs in-process on the serve-only box (cheap, per-cell + per-point) and is fully
-unit-testable.
+bundled surf_transform (depth-limited breaking; Goda 2010 breaker statistics). ``math`` + a single
+``os.environ`` read for the wind-gate kill switch — no file/network I/O, no numpy — so it runs
+in-process on the serve-only box (cheap, per-cell + per-point) and is fully unit-testable. (Header
+corrected 2026-07-26: it previously said "Pure ``math`` only"; the sibling surf_transform.py has read
+env flags the same way since v3. Pass `wind_gate(..., enabled=)` explicitly to keep a call site pure.)
 
 Model:
     rating = size_gate(surf_height) * swell_exposure(angle) * sea_clean * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
@@ -24,6 +26,7 @@ Model:
 mapped to a 7-level surf-quality scale: very_poor, poor, poor_fair, fair, fair_good, good, epic.
 """
 import math
+import os
 
 LEVELS = ["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]
 # (exclusive upper score bound, level) — last bucket is open-ended 'epic'.
@@ -145,6 +148,52 @@ def wind_quality(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None):
     tol_kt = 8.0 + 14.0 * max(0.0, off)  # offshore tolerates more speed (~22 kt) than onshore (~8 kt)
     sf = _clamp(1.0 - max(0.0, spd_kt - 4.0) / (tol_kt * 2.0), 0.10, 1.0)
     return _clamp(eff_base * sf, 0.05, 1.0)
+
+
+# ── BLOWN-OUT VETO (2026-07-26) ─────────────────────────────────────────────────────────────────────
+# The composite's wind term is an ADDEND: (W_WIND*wq + W_PERIOD*pq). So `pq` alone floors the score no
+# matter how bad the wind is — measured on this engine at 2.0 m head-on, DEAD onshore:
+#     tp= 6 s -> 19.0    tp=12 s -> 35.0    tp=16 s -> 43.0 "fair"
+# and every one of those is IDENTICAL at 16, 30, 60 and 100 kt. Worse, the ordering inverts: in a
+# 100 kt onshore gale a LONGER period scores HIGHER. A blown-out day is unsurfable regardless of swell
+# period, so the veto has to MULTIPLY, not be averaged in.
+#
+# It is keyed on the physics (onshore component x speed), NOT on `wind_quality`, because wq saturates
+# hard on its own floors — onshore wq is a flat 0.0500 from 16 kt to 100 kt, so a wq-keyed gate could
+# not tell a sea breeze from a hurricane.
+#
+# Deliberately CANNOT touch: offshore wind, cross-shore wind, unknown geometry, or anything under
+# WIND_GATE_START_KT. That makes it provably inert for the user's pinned calibration anchors
+# (2 m/s dead offshore), which is why those tests stay green.
+WIND_GATE_START_KT = 14.0   # dead-onshore speed at which the veto begins to bite
+WIND_GATE_ZERO_KT = 40.0    # dead-onshore speed at which the day is fully vetoed
+_WIND_GATE_MIN_ONSHORE = 0.25   # scale thresholds by the onshore component, floored so they stay finite
+
+
+def wind_gate(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, enabled=None):
+    """Multiplicative blown-out veto in [0,1]. 1.0 (inert) unless the wind is ONSHORE and strong.
+
+    Returns 1.0 for unknown geometry, any offshore/cross component, or light wind — so it can only
+    ever REMOVE score from genuinely blown-out onshore conditions. Kill: RATING_WIND_GATE=0, or pass
+    `enabled=False` to keep a call site free of the environment read."""
+    if enabled is None:
+        enabled = os.environ.get("RATING_WIND_GATE", "1") != "0"
+    if not enabled:
+        return 1.0
+    if wind_speed_ms is None or wind_speed_ms < 0:
+        return 1.0
+    off = offshoreness(wind_from_deg, shore_normal_deg)
+    if off is None or off >= 0.0:
+        return 1.0                      # unknown, offshore, or exactly cross-shore -> untouched
+    onshore = min(1.0, max(_WIND_GATE_MIN_ONSHORE, -off))
+    kt = wind_speed_ms * MS_TO_KT
+    start = WIND_GATE_START_KT / onshore
+    zero = WIND_GATE_ZERO_KT / onshore
+    if kt <= start:
+        return 1.0
+    if kt >= zero:
+        return 0.0
+    return _clamp((zero - kt) / (zero - start), 0.0, 1.0)
 
 
 def swell_exposure(swell_from_deg, shore_normal_deg):
@@ -311,7 +360,9 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     wq = wind_quality(wind_speed_ms, wind_from_deg, shore_normal_deg)
     ptp = dominant_swell_period(partitions) if partitions else None
     pq = period_quality(ptp if ptp is not None else tp_s)
-    return round(100.0 * sg * ex * sc * tf * bt * (W_WIND * wq + W_PERIOD * pq), 1)
+    # `wg` MULTIPLIES so a blown-out onshore day cannot be floored up by period (see wind_gate).
+    wg = wind_gate(wind_speed_ms, wind_from_deg, shore_normal_deg)
+    return round(100.0 * sg * ex * sc * tf * bt * wg * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):

@@ -4,6 +4,7 @@ import {
   parseBestTide, tideFit, breakerTypeQuality,
   dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
   observationGate, OBS_CAP_UNCONFIRMED, OBS_CAP_GOOD,
+  windGate, WIND_GATE_START_KT, WIND_GATE_ZERO_KT,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -260,5 +261,61 @@ describe('surfRating (JS mirror of surf_rating.py)', () => {
     const parts = [{ h: 2.0, tp: 14.0, dir: 90.0, kind: 'swell' },
                    { h: 1.0, tp: 10.0, dir: 270.0, kind: 'swell' }];
     expect(ratingScore(...args, null, null, null, null, parts)).toBeGreaterThan(ratingScore(...args));
+  });
+});
+
+// ── BLOWN-OUT VETO parity with surf_rating.wind_gate (2026-07-26) ─────────────────────────────────
+// Backend goldens computed from the real engine; these MUST match or the glyph and the infobox drift.
+describe('windGate (JS mirror of surf_rating.wind_gate)', () => {
+  const KT = 1.943844;
+
+  test('inert wherever it must be — it may only remove score from strong ONSHORE wind', () => {
+    expect(windGate(40 / KT, 90.0, 270.0)).toBe(1.0);   // dead offshore, gale
+    expect(windGate(40 / KT, 180.0, 270.0)).toBe(1.0);  // exactly cross-shore
+    expect(windGate(40 / KT, null, null)).toBe(1.0);    // unknown geometry
+    expect(windGate(10 / KT, 270.0, 270.0)).toBe(1.0);  // onshore but light
+    expect(windGate(2.0, 90.0, 270.0)).toBe(1.0);       // the pinned calibration anchor's wind
+    expect(windGate(null, 270.0, 270.0)).toBe(1.0);
+  });
+
+  test('a 100 kt dead-onshore gale is vetoed at every period', () => {
+    for (const tp of [6, 9, 12, 16, 20]) {
+      expect(ratingScore(2.0, tp, 100 / KT, 270.0, 270.0, 270.0)).toBe(0.0);
+    }
+  });
+
+  test('score never rises as onshore wind grows (the period inversion is gone)', () => {
+    for (const tp of [6, 12, 16, 20]) {
+      let prev = Infinity;
+      for (const kt of [12, 16, 25, 40, 100]) {
+        const s = ratingScore(2.0, tp, kt / KT, 270.0, 270.0, 270.0);
+        expect(s).toBeLessThanOrEqual(prev);
+        prev = s;
+      }
+    }
+  });
+
+  test('PARITY: exact backend goldens at 2.0 m head-on, dead onshore', () => {
+    // from services/weather_pipeline/surf_rating.py run this session
+    const golden = [
+      [6, 16, 17.5], [6, 25, 11.0], [6, 40, 0.0],
+      [12, 16, 32.3], [12, 25, 20.2], [12, 40, 0.0],
+      [16, 16, 39.7], [16, 25, 24.8], [16, 40, 0.0],
+    ];
+    for (const [tp, kt, want] of golden) {
+      expect(ratingScore(2.0, tp, kt / KT, 270.0, 270.0, 270.0)).toBeCloseTo(want, 1);
+    }
+  });
+
+  test('kill switch restores the prior behaviour', () => {
+    window.__RAW_DISABLE_WIND_GATE__ = true;
+    expect(ratingScore(2.0, 16.0, 100 / KT, 270.0, 270.0, 270.0)).toBeCloseTo(43.0, 1);
+    delete window.__RAW_DISABLE_WIND_GATE__;
+    expect(ratingScore(2.0, 16.0, 100 / KT, 270.0, 270.0, 270.0)).toBe(0.0);
+  });
+
+  test('thresholds are the documented ones', () => {
+    expect(WIND_GATE_START_KT).toBe(14.0);
+    expect(WIND_GATE_ZERO_KT).toBe(40.0);
   });
 });
