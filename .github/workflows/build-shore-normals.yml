@@ -39,7 +39,7 @@ jobs:
           cache: pip
 
       - name: Install build deps
-        run: pip install numpy requests
+        run: pip install numpy requests pytest
 
       - name: Fit shore normals against ETOPO 2022 15s
         working-directory: backend
@@ -54,18 +54,22 @@ jobs:
           fi
           python scripts/build_shore_normals.py $ARGS
 
-      - name: Verify the asset against its own gate
-        working-directory: backend
-        run: python -m pytest tests/test_shore_normal_asset.py tests/test_shore_normal_fit.py -q
-
+      # Uploaded BEFORE the verify gate, and with always(), so a failing check can never swallow the
+      # review data — the fit is the expensive part (1516 ERDDAP fetches) and must not be re-run just
+      # to recover it.
       # The placement review is a by-product of the same ETOPO fetch: `shoreline_km` is how far each
       # spot sits from the nearest shoreline, which is the actionable input to the spot editor.
       - name: Upload the spot placement review
+        if: always()
         uses: actions/upload-artifact@v4
         with:
           name: shore-normal-build-review
           path: backend/shore_normal_build_review.csv
           if-no-files-found: warn
+
+      - name: Verify the asset against its own gate
+        working-directory: backend
+        run: python -m pytest tests/test_shore_normal_asset.py tests/test_shore_normal_fit.py -q
 
       - name: Commit the asset if it changed
         run: |
