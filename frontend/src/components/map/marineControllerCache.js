@@ -203,7 +203,10 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
   const _aw = bounds.west !== undefined
     ? ((bounds.east < bounds.west) ? (bounds.east + 360 - bounds.west) : (bounds.east - bounds.west))
     : 0;
-  if (_aw >= 340 && tileId !== GLOBAL_LOOKUP_TILE_ID) {
+  // Kill: window.__RAW_DISABLE_GLOBAL_TILE_ALIAS__ = true (restores the desynced pre-fix behaviour,
+  // so the activation A/B can measure both legs under identical conditions).
+  const _aliasOff = typeof window !== 'undefined' && window.__RAW_DISABLE_GLOBAL_TILE_ALIAS__ === true;
+  if (!_aliasOff && _aw >= 340 && tileId !== GLOBAL_LOOKUP_TILE_ID) {
     _perModelHourCache.set(`${model || 'GFS'}_${layerPart}_${GLOBAL_LOOKUP_TILE_ID}_${hourOffset}`, entry);
   }
 
