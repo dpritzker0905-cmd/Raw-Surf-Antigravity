@@ -241,12 +241,21 @@ vec3 getRatingColorSmooth(float s) {
   vec3 c4 = vec3(0.078, 0.722, 0.651); // fair-good  #14b8a6
   vec3 c5 = vec3(0.486, 0.227, 0.929); // good       #7c3aed
   vec3 c6 = vec3(0.659, 0.333, 0.969); // epic       #a855f7
-  if (s < 14.0) return mix(c0, c1, s / 14.0);
-  if (s < 28.0) return mix(c1, c2, (s - 14.0) / 14.0);
-  if (s < 42.0) return mix(c2, c3, (s - 28.0) / 14.0);
-  if (s < 56.0) return mix(c3, c4, (s - 42.0) / 14.0);
-  if (s < 70.0) return mix(c4, c5, (s - 56.0) / 14.0);
-  if (s < 84.0) return mix(c5, c6, (s - 70.0) / 14.0);
+  // Anchors sit on bucket CENTRES (7/21/35/49/63/77/92), not the _BUCKETS EDGES (14/28/42/56/70/84).
+  // With edge anchors the ramp reached the NEXT level's colour by the top of each bucket — a score of
+  // 41, squarely "poor_fair", rendered 93% of the way to "fair" green, so the band disagreed with its
+  // own discrete legend by a full swatch across most of the scale, and every level's upper edge
+  // painted as the level above it. Centre anchors keep the deliberate smooth gradient while making
+  // the colour AT a bucket's centre exactly that bucket's colour, and a bucket boundary an honest
+  // 50/50 blend of the two levels it separates. Mirrored in RATING_RAMP_ANCHORS (surfRating.js) and
+  // pinned numerically by ratingRampAnchors.test.js.
+  if (s <= 7.0) return c0;
+  if (s < 21.0) return mix(c0, c1, (s - 7.0) / 14.0);
+  if (s < 35.0) return mix(c1, c2, (s - 21.0) / 14.0);
+  if (s < 49.0) return mix(c2, c3, (s - 35.0) / 14.0);
+  if (s < 63.0) return mix(c3, c4, (s - 49.0) / 14.0);
+  if (s < 77.0) return mix(c4, c5, (s - 63.0) / 14.0);
+  if (s < 92.0) return mix(c5, c6, (s - 77.0) / 15.0);
   return c6;
 }
 

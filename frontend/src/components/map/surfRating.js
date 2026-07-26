@@ -257,3 +257,12 @@ export const RATING_COLOR = {
   very_poor: '#f0476b', poor: '#f59e2c', poor_fair: '#f7d038', fair: '#2fd07a',
   fair_good: '#14b8a6', good: '#7c3aed', epic: '#a855f7', unknown: '#6b7280',
 };
+
+// Score positions the SMOOTH band ramp (getRatingColorSmooth in WebGLMarineShaders.js) anchors each
+// RATING_COLOR at — the CENTRE of each level's bucket, not its edge. `_BUCKETS` edges are
+// 14/28/42/56/70/84, so the buckets are [0,14) [14,28) ... [84,100] and their centres are these.
+// Anchoring the ramp on the EDGES (the pre-2026-07-26 behaviour) shifted the whole gradient half a
+// bucket: a 41 — squarely poor_fair — painted 93% of the way to fair-green, and the band contradicted
+// its own legend, which uses the discrete RATING_COLOR map. Keep this in sync with the shader;
+// ratingRampAnchors.test.js pins them together.
+export const RATING_RAMP_ANCHORS = Object.freeze([7, 21, 35, 49, 63, 77, 92]);
