@@ -13,6 +13,93 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import weather_sim_mcp
+from services.conditions_labels import CONDITION_LABELS
+from services.weather_pipeline.surf_rating import LEVELS
+
+MAVS = weather_sim_mcp.MOCK_SPOTS["Mavericks"]
+
+
+# ── Rating correctness (regression pins for the height-blind score, 2026-07-26) ──────────────
+# The former local formula was wind_factor * swell_alignment * (period/18) * 100 and omitted
+# swell height ENTIRELY, so a flat ocean with clean wind and long period scored 88 = "Epic".
+# There was no test on the rating VALUE at all, which is why it survived. These pin the fix.
+
+def test_flat_ocean_is_not_epic():
+    """A 0.0 m swell must score 0 no matter how perfect the wind and period are."""
+    out = weather_sim_mcp.calculate_surf_rating(MAVS, 0.0, 16.0, 290.0, 2.0, 95.0)
+    assert out["quality_rating"] == 0
+    assert out["quality_label"] == "very_poor"
+    assert out["conditions_label"] == "Flat"
+
+
+def test_ankle_high_glass_is_not_epic():
+    """Ankle-high on a perfect period/wind must stay near the floor, not saturate."""
+    out = weather_sim_mcp.calculate_surf_rating(MAVS, 0.15, 16.0, 290.0, 1.0, 95.0)
+    assert out["quality_rating"] < 20
+    assert out["conditions_label"] in ("Flat", "Ankle High"), out["conditions_label"]
+
+
+def test_rating_is_relative_to_the_spot():
+    """THE Surfline principle: the same wave is a small day at a big-wave spot and a good day at a
+    beach break. Guards the per-spot reference_size_m wiring — with it dropped, every spot shares
+    the global 1.2 m curve and these three scores collapse to the same value."""
+    args = (1.0, 13.0, 275.0, 5.0, 90.0)   # identical swell + wind at all three spots
+    mavs = weather_sim_mcp.calculate_surf_rating(weather_sim_mcp.MOCK_SPOTS["Mavericks"], *args)
+    paci = weather_sim_mcp.calculate_surf_rating(weather_sim_mcp.MOCK_SPOTS["Pacifica State Beach"], *args)
+    # same breaking height, materially different quality
+    assert mavs["breaking_height_ft"] == paci["breaking_height_ft"]
+    assert mavs["quality_rating"] < paci["quality_rating"], (mavs, paci)
+    assert LEVELS.index(mavs["quality_label"]) < LEVELS.index(paci["quality_label"])
+
+
+def test_breaking_height_uses_the_production_transform():
+    """Height must come from surf_transform.komar_breaker_height, not a local approximation."""
+    from services.weather_pipeline.surf_transform import komar_breaker_height
+    for h, tp in ((0.5, 8.0), (1.2, 14.0), (3.0, 18.0)):
+        out = weather_sim_mcp.calculate_surf_rating(MAVS, h, tp, 290.0, 5.0, 95.0)
+        assert out["breaking_height_ft"] == round(komar_breaker_height(h, tp) * 3.28084, 1)
+
+
+def test_zero_and_degenerate_inputs_do_not_crash():
+    """komar_breaker_height returns None for non-physical input — must degrade to flat, not raise."""
+    for h, tp in ((0.0, 16.0), (0.0, 0.0), (1.0, 0.0)):
+        out = weather_sim_mcp.calculate_surf_rating(MAVS, h, tp, 290.0, 5.0, 95.0)
+        assert out["breaking_height_ft"] == 0.0
+        assert out["quality_rating"] == 0
+        assert out["conditions_label"] == "Flat"
+
+
+def test_rating_is_monotonic_in_swell_height():
+    """All else equal, more swell must never score lower — the property the old formula lacked."""
+    fixed = dict(swell_p=14.0, swell_dir=290.0, wind_spd=6.0, wind_dir=95.0)
+    scores = [
+        weather_sim_mcp.calculate_surf_rating(
+            MAVS, h, fixed["swell_p"], fixed["swell_dir"], fixed["wind_spd"], fixed["wind_dir"]
+        )["quality_rating"]
+        for h in (0.0, 0.3, 0.8, 1.5)
+    ]
+    assert scores == sorted(scores), f"non-monotonic in height: {scores}"
+    assert scores[0] == 0 and scores[-1] > scores[0]
+
+
+def test_labels_conform_to_their_vocabularies():
+    """conditions_label is the app's SIZE ladder; quality_label is the rating engine's level.
+
+    SpotHubConditionsTab.js keys a colour map on the size strings — an off-vocabulary value
+    (the old "Epic" / "Flat/Blown-out") silently renders grey.
+    """
+    for h in (0.0, 0.2, 0.6, 1.2, 2.5, 5.0):
+        out = weather_sim_mcp.calculate_surf_rating(MAVS, h, 13.0, 290.0, 8.0, 95.0)
+        assert out["conditions_label"] in CONDITION_LABELS, out["conditions_label"]
+        assert out["quality_label"] in LEVELS, out["quality_label"]
+
+
+def test_persisted_label_is_size_vocabulary_not_a_verdict():
+    """The value written to condition_reports.conditions_label must be a size, never a verdict."""
+    out = weather_sim_mcp.calculate_surf_rating(MAVS, 1.2, 14.0, 290.0, 6.0, 95.0)
+    assert out["conditions_label"] not in ("Epic", "Good", "Fair", "Poor", "Flat/Blown-out")
+    assert out["conditions_label"] in CONDITION_LABELS
+
 
 def test_role_based_access_control():
     """Verify that only admin callers can execute the mutating weather simulation override."""

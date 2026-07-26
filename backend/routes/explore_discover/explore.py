@@ -20,6 +20,7 @@ from core.security import get_optional_user_id
 from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
+from services.conditions_labels import get_conditions_label
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -102,27 +103,6 @@ async def fetch_marine_conditions(lat: float, lng: float, forecast_days: int, mo
     except Exception as e:
         logger.error(f"Error resolving marine conditions via service: {e}")
         return None
-
-def get_conditions_label(wave_height_ft: float) -> str:
-    if wave_height_ft < 1:
-        return "Flat"
-    elif wave_height_ft < 2:
-        return "Ankle High"
-    elif wave_height_ft < 3:
-        return "Knee High"
-    elif wave_height_ft < 4:
-        return "Waist High"
-    elif wave_height_ft < 5:
-        return "Chest High"
-    elif wave_height_ft < 6:
-        return "Head High"
-    elif wave_height_ft < 8:
-        return "Overhead"
-    elif wave_height_ft < 10:
-        return "Double Overhead"
-    else:
-        return "Triple Overhead+"
-
 
 @router.get("/explore/search")
 async def explore_search(

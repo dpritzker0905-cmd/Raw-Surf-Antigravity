@@ -6,6 +6,12 @@ import os
 from typing import List, Dict, Any, Optional
 from fastmcp import FastMCP
 from utils.sqlite_helpers import get_sqlite_connection
+# The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
+# carrying a second formula — a divergent copy is exactly how this file came to rate a flat ocean
+# "Epic". Both imports are dependency-free (no FastAPI/route side effects).
+from services.weather_pipeline.surf_rating import rating_score, score_to_level, MS_TO_KT
+from services.weather_pipeline.surf_transform import komar_breaker_height
+from services.conditions_labels import get_conditions_label
 
 # Setup logger
 logger = logging.getLogger("weather_sim_mcp")
@@ -28,7 +34,12 @@ MOCK_SPOTS = {
         "base_swell_period": 16.0,
         "base_swell_direction": 290.0,
         "base_wind_speed": 12.0,
-        "base_wind_direction": 95.0
+        "base_wind_direction": 95.0,
+        # p80 good-day BREAKING height (m) — calibrates surf_rating.size_score to LOCAL
+        # expectation. Without it every spot shares the global 1.2 m curve and a 2.5 ft day
+        # at Mavericks scores "fair" instead of the user-anchored "poor". Domain estimates
+        # pending real p80 climatology.
+        "reference_size_m": 4.0
     },
     "Montara State Beach": {
         "id": 2,
@@ -43,7 +54,8 @@ MOCK_SPOTS = {
         "base_swell_period": 12.0,
         "base_swell_direction": 270.0,
         "base_wind_speed": 8.0,
-        "base_wind_direction": 85.0
+        "base_wind_direction": 85.0,
+        "reference_size_m": 1.5
     },
     "Pacifica State Beach": {
         "id": 3,
@@ -58,7 +70,8 @@ MOCK_SPOTS = {
         "base_swell_period": 11.0,
         "base_swell_direction": 275.0,
         "base_wind_speed": 5.0,
-        "base_wind_direction": 90.0
+        "base_wind_direction": 90.0,
+        "reference_size_m": 1.2
     }
 }
 
@@ -115,9 +128,13 @@ def calculate_surf_rating(
 
     based on shallow-water amplification physics and wind orientation vectors.
     """
-    # 1. Shallow-water wave breaking amplification calculation
-    # Breaking height increases with swell period due to wave shoaling: Hb = H * (Period / 10)^1.2
-    breaking_height = swell_h * math.pow(swell_p / 10.0, 1.2)
+    # 1. Nearshore breaking height — DELEGATED to the production transform.
+    # The former local approximation `Hb = H * (Tp/10)^1.2` tracked Komar & Gaughan well around 1-2 m
+    # but diverged badly at the extremes (measured: -53% at 0.5 m/8 s, +31% at 9 m/14 s), which then
+    # propagated straight into `conditions_label` and the persisted wave_height_ft.
+    breaking_height = komar_breaker_height(swell_h, swell_p)
+    if breaking_height is None:  # non-physical input (h<=0 or Tp<=0) -> flat, not a crash
+        breaking_height = 0.0
     
     # 2. Wind factor (offshore vs onshore orientation)
     # Optimum wind is optimal_wind_dir. Calculate angular difference
@@ -146,27 +163,34 @@ def calculate_surf_rating(
     swell_alignment = math.cos(math.radians(swell_diff))  # 1.0 perfect alignment, 0.0 perpendicular
     swell_alignment = max(0.1, swell_alignment)
     
-    # 4. Final Wave Quality Rating (0 to 100)
-    # Higher rating requires combination of matched swell direction, clean wind, and solid period
-    quality_score = int(wind_factor * swell_alignment * (min(swell_p, 18.0) / 18.0) * 100.0)
-    quality_score = max(0, min(100, quality_score))
-    
-    # Qualitative Labels
-    if quality_score >= 80:
-        label = "Epic"
-    elif quality_score >= 60:
-        label = "Good"
-    elif quality_score >= 40:
-        label = "Fair"
-    elif quality_score >= 20:
-        label = "Poor"
-    else:
-        label = "Flat/Blown-out"
+    breaking_height_ft = round(breaking_height * 3.28084, 1)  # convert meters to feet
 
+    # 4. Final Wave Quality Rating (0 to 100) — DELEGATED to the production engine.
+    # The former local formula was `wind_factor * swell_alignment * (period/18) * 100` and omitted
+    # swell height ENTIRELY, so a 0.0 ft ocean scored 85 = "Epic" while a 30 ft onshore day read
+    # "Flat/Blown-out". surf_rating.rating_score applies the multiplicative size_gate that is 0 below
+    # the rideability floor, so flat is now 0 by construction rather than by luck.
+    quality_score = rating_score(
+        breaking_height,                      # nearshore BREAKING height, metres
+        swell_p,
+        wind_spd / MS_TO_KT,                  # engine wants m/s; sim inputs are knots
+        wind_from_deg=wind_dir,
+        shore_normal_deg=spot.get("orientation"),
+        swell_from_deg=swell_dir,
+        reference_size_m=spot.get("reference_size_m"),
+    )
+    quality_label = score_to_level(quality_score)
+
+    # 5. `conditions_label` is the app's SIZE ladder, not a quality verdict. Every other writer
+    # (explore/spot_details/surf_data) emits "Waist High"/"Chest High"/…, and
+    # SpotHubConditionsTab.js keys a colour map on those exact strings — the old "Epic" /
+    # "Flat/Blown-out" values missed the lookup and rendered grey. The quality verdict now travels
+    # in its own `quality_label` field instead of overloading this one.
     return {
-        "breaking_height_ft": round(breaking_height * 3.28084, 1), # convert meters to feet
+        "breaking_height_ft": breaking_height_ft,
         "quality_rating": quality_score,
-        "conditions_label": label,
+        "quality_label": quality_label,
+        "conditions_label": get_conditions_label(breaking_height_ft),
         "wind_class": wind_label,
         "swell_alignment_pct": round(swell_alignment * 100, 0)
     }
