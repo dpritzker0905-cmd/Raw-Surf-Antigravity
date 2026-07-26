@@ -136,21 +136,51 @@ def _rest(base, key):
                       "Content-Type": "application/json"}
 
 
-def fetch_spots(base, key, limit=5000) -> list:
-    requests, headers = _rest(base, key)
-    url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,noaa_buoy_id"
-           f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null&limit={limit}")
-    r = requests.get(url, headers=headers, timeout=60)
-    r.raise_for_status()
-    return r.json()
+PAGE = 1000
 
 
-def patch_buoy_id(base, key, spot_id, buoy_id) -> bool:
+def fetch_spots(base, key) -> list:
+    """ALL active spots, paginated.
+
+    PostgREST enforces a SERVER-SIDE max-rows (1000 here) that a `limit=` query param does NOT
+    override — it silently truncates and returns 200. A single unpaginated request looked completely
+    successful while quietly dropping 516 of 1516 spots (caught 2026-07-26 by comparing the script's
+    'Active spots' line against a direct SQL count). Page until a short page comes back."""
     requests, headers = _rest(base, key)
-    url = f"{base}/rest/v1/surf_spots?id=eq.{spot_id}"
-    r = requests.patch(url, headers={**headers, "Prefer": "return=minimal"},
-                       json={"noaa_buoy_id": buoy_id}, timeout=30)
-    return r.status_code in (200, 204)
+    out, offset = [], 0
+    while True:
+        url = (f"{base}/rest/v1/surf_spots?select=id,name,latitude,longitude,noaa_buoy_id"
+               f"&is_active=eq.true&latitude=not.is.null&longitude=not.is.null"
+               f"&order=id&limit={PAGE}&offset={offset}")
+        r = requests.get(url, headers=headers, timeout=60)
+        r.raise_for_status()
+        batch = r.json()
+        out.extend(batch)
+        if len(batch) < PAGE:
+            return out
+        offset += PAGE
+
+
+def write_buoy_ids(base, key, pairs, chunk=200) -> tuple:
+    """Bulk-assign noaa_buoy_id. `pairs` = [(spot_id, buoy_id)]. Returns (ok, failed).
+
+    One PATCH per spot meant 365 sequential round-trips — slow and easy to leave half-applied. This
+    batches with PostgREST's upsert (POST + resolution=merge-duplicates on the id PK), so a run is a
+    handful of requests. Only the two columns are sent, so no other field can be clobbered."""
+    requests, headers = _rest(base, key)
+    ok = fail = 0
+    for i in range(0, len(pairs), chunk):
+        rows = [{"id": sid, "noaa_buoy_id": bid} for sid, bid in pairs[i:i + chunk]]
+        r = requests.post(
+            f"{base}/rest/v1/surf_spots?on_conflict=id",
+            headers={**headers, "Prefer": "resolution=merge-duplicates,return=minimal"},
+            json=rows, timeout=60)
+        if r.status_code in (200, 201, 204):
+            ok += len(rows)
+        else:
+            fail += len(rows)
+            print(f"    chunk {i//chunk}: HTTP {r.status_code} {r.text[:200]}")
+    return ok, fail
 
 
 def main() -> int:
@@ -175,6 +205,11 @@ def main() -> int:
 
     spots = fetch_spots(base, key)
     print(f"Active spots with coordinates: {len(spots)}")
+    if len(spots) % PAGE == 0 and spots:
+        # Pagination should always end on a SHORT page. Landing exactly on a page boundary is the
+        # signature of the silent PostgREST truncation this loop exists to defeat — say so loudly.
+        print(f"  ⚠ count is an exact multiple of the {PAGE}-row page size — verify against a direct"
+              f" SQL count before trusting this run.")
 
     matched, unmatched, dists = [], [], []
     for sp in spots:
@@ -203,12 +238,7 @@ def main() -> int:
         return 0
 
     print(f"\nWriting noaa_buoy_id for {len(matched)} spots …")
-    ok = fail = 0
-    for sp, b, _km in matched:
-        if patch_buoy_id(base, key, sp["id"], b["id"]):
-            ok += 1
-        else:
-            fail += 1
+    ok, fail = write_buoy_ids(base, key, [(sp["id"], b["id"]) for sp, b, _km in matched])
     print(f"  updated {ok}, failed {fail}")
     return 0 if fail == 0 else 1
 
