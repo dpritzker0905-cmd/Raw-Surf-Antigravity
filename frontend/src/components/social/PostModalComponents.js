@@ -322,7 +322,7 @@ const CommentItem = ({ comment, userId, _onReact }) => {
     try {
       const response = await apiClient.post(
         `/comments/${comment.id}/reactions`,
- { emoji: '=' }
+ { emoji: '\u{1F919}' }
       );
       
       if (response.data.action === 'added') {

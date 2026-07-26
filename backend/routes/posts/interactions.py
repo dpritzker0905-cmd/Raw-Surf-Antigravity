@@ -440,7 +440,12 @@ async def edit_comment(
 
 
 # Comment Reaction endpoints
-VALID_COMMENT_REACTIONS = ['❤️', '🤙', '🌊', '🔥']
+# Keep in sync with frontend/src/constants/emojis.js::REACTION_EMOJIS.
+# Use escapes so Windows shell tooling cannot corrupt the API contract.
+VALID_COMMENT_REACTIONS = [
+    "\U0001F919", "\U0001F30A", "\U0001F3C4", "\U0001F525", "\U0001F4AF",
+    "\u2764\ufe0f", "\U0001F44F", "\U0001F602", "\U0001F60E", "\U0001F4AA",
+]
 
 class CommentReactionCreate(BaseModel):
     emoji: str = '❤️'
