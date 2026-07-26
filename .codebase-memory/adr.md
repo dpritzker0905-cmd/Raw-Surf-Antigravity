@@ -52,3 +52,19 @@ Grom uploads use a JWT-bound route and stream directly to private `grom_media`. 
 - Content signature validation/malware moderation remain ingestion work.
 - Follow relationships have no acceptance state; follower-only means an existing Follow row.
 - Full endpoint tests remain blocked by broken host Python and absent bundled pytest/FastAPI dependencies.
+
+
+## Feed durability and protected composer cutover (2026-07-25)
+
+### Decision
+Public social-feed uploads must persist to the public `feed` bucket before the API returns a usable media URL. A storage failure is a 503, never a fallback to Render-local `/api/uploads`. Grom composer uploads use the protected Grom endpoint; rows retain private references and guardian policy determines eventual audience.
+
+### Evidence
+- Production contained 21 video posts with Render-local feed paths that now 404, and six more with missing `feed` objects.
+- The public storage allow-list omitted `feed`, causing every attempted durable feed write through this helper to fail and triggering the ephemeral fallback.
+- Production `/api/posts` and single-post probes returned 500 independently of the media-object failures. Schema checks ruled out the recently added post/privacy fields; the exact runtime exception still requires Render application logs.
+
+### Residual debt
+- Historical unavailable videos require owner replacement or an explicit archive action; do not delete them automatically.
+- Complete render-side protected Grom media resolution for every post/modal/story surface and add the audience selector to the Grom composer.
+- Obtain production application logs and resolve the list-feed 500 before treating the frontend migration as complete.

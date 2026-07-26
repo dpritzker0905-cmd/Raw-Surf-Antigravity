@@ -159,14 +159,19 @@ async def upload_feed_media(
         supabase_video_url = await asyncio.to_thread(
             upload_to_supabase_storage, video_path, 'feed', remote_key, 'video/mp4'
         )
-        media_url = supabase_video_url or f"/api/uploads/feed/{result['filename']}"
+        if not supabase_video_url:
+            logger.error("Feed video was not persisted to durable storage: %s", remote_key)
+            raise HTTPException(status_code=503, detail="Feed media storage is temporarily unavailable")
+        media_url = supabase_video_url
 
         if thumb_success:
             remote_thumb_key = f"feed/{thumbnail_filename}"
             supabase_thumb_url = await asyncio.to_thread(
                 upload_to_supabase_storage, thumbnail_path, 'feed', remote_thumb_key, 'image/jpeg'
             )
-            thumbnail_url = supabase_thumb_url or f"/api/uploads/feed/{thumbnail_filename}"
+            if not supabase_thumb_url:
+                logger.warning("Feed video thumbnail was not persisted; publishing without poster: %s", remote_thumb_key)
+            thumbnail_url = supabase_thumb_url
 
         return {
             "media_url": media_url,
@@ -208,18 +213,18 @@ async def upload_feed_media(
             upload_to_supabase_storage, file_path, 'feed', remote_key,
             content_type=file.content_type or 'image/jpeg'
         )
-        media_url = supabase_image_url or f"/api/uploads/feed/{filename}"
-        if supabase_image_url:
-            logger.info(f"Feed image persisted to Supabase: {supabase_image_url}")
-        else:
-            logger.warning(f"Feed image saved to ephemeral disk only: {media_url}")
+        if not supabase_image_url:
+            logger.error("Feed image was not persisted to durable storage: %s", remote_key)
+            raise HTTPException(status_code=503, detail="Feed media storage is temporarily unavailable")
+        media_url = supabase_image_url
+        logger.info(f"Feed image persisted to Supabase: {supabase_image_url}")
 
         return {
             "media_url": media_url,
             "media_type": "image",
             "filename": filename,
             "size": content_size,
-            "persistent": bool(supabase_image_url)
+            "persistent": True
         }
 
 

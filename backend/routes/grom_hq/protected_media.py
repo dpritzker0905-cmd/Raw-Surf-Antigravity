@@ -16,7 +16,7 @@ from sqlalchemy import select
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy.orm import selectinload
 
-from core.security import get_current_user_id
+from core.security import get_current_user_id, get_optional_user_id
 from database import get_db
 from models import Follow, Post, Profile, RoleEnum, Story
 from services.grom_media_policy import is_verified_guardian
@@ -68,10 +68,10 @@ def _safe_extension(filename: str | None, content_type: str) -> str:
 
 
 async def can_view_grom_media(
-    db: AsyncSession, *, media, grom: Profile, viewer_id: str,
+    db: AsyncSession, *, media, grom: Profile, viewer_id: str | None,
 ) -> bool:
     """Authorize Grom post/story delivery without disclosing an object key."""
-    if viewer_id == grom.id or await is_verified_guardian(db, grom, viewer_id):
+    if viewer_id and (viewer_id == grom.id or await is_verified_guardian(db, grom, viewer_id)):
         return True
     if media.guardian_approval_status != 'approved':
         return False
@@ -79,11 +79,27 @@ async def can_view_grom_media(
         return True
     if media.visibility != 'followers':
         return False
+    if not viewer_id:
+        return False
     follows = await db.execute(
         select(Follow.id).where(Follow.follower_id == viewer_id, Follow.following_id == grom.id)
     )
     return follows.scalar_one_or_none() is not None
 
+
+async def _signed_grom_reference(value: str | None, *, required: bool = False) -> str | None:
+    """Sign only private references already owned by the authorized media row."""
+    if not value:
+        return None
+    reference = parse_private_media_ref(value)
+    if not reference or reference.bucket != 'grom_media':
+        if required:
+            raise HTTPException(status_code=409, detail='Grom media is not yet protected-delivery eligible')
+        return None
+    signed_url = await signed_private_media_url(value)
+    if not signed_url:
+        raise HTTPException(status_code=503, detail='Protected media delivery is temporarily unavailable')
+    return signed_url
 
 @router.post('/groms/{grom_id}/media')
 async def upload_grom_media(
@@ -122,7 +138,7 @@ async def get_grom_media_delivery_url(
     grom_id: str,
     kind: MediaKind,
     media_id: str,
-    current_user_id: str = Depends(get_current_user_id),
+    current_user_id: str | None = Depends(get_optional_user_id),
     db: AsyncSession = Depends(get_db),
 ):
     """Return a short-lived URL only for a viewable Grom post or story."""
@@ -136,12 +152,18 @@ async def get_grom_media_delivery_url(
     ).scalar_one_or_none()
     if not media or not media.author or media.author.role != RoleEnum.GROM:
         raise HTTPException(status_code=404, detail='Grom media not found')
-    reference = parse_private_media_ref(media.media_url)
-    if not reference or reference.bucket != 'grom_media':
-        raise HTTPException(status_code=409, detail='Grom media is not yet protected-delivery eligible')
     if not await can_view_grom_media(db, media=media, grom=media.author, viewer_id=current_user_id):
         raise HTTPException(status_code=404, detail='Grom media not found')
-    signed_url = await signed_private_media_url(media.media_url)
-    if not signed_url:
-        raise HTTPException(status_code=503, detail='Protected media delivery is temporarily unavailable')
-    return {'url': signed_url, 'expires_in': 3600}
+    signed_url = await _signed_grom_reference(media.media_url, required=True)
+    response = {'url': signed_url, 'expires_in': 3600}
+    if kind == 'post':
+        response['thumbnail_url'] = await _signed_grom_reference(media.thumbnail_url)
+        carousel = []
+        for item in media.carousel_media or []:
+            if not isinstance(item, dict):
+                raise HTTPException(status_code=409, detail='Grom carousel is not protected-delivery eligible')
+            signed_item_url = await _signed_grom_reference(item.get('url'), required=True)
+            signed_thumbnail = await _signed_grom_reference(item.get('thumbnail_url') or item.get('thumbnail'))
+            carousel.append({**item, 'url': signed_item_url, 'thumbnail_url': signed_thumbnail})
+        response['carousel_media'] = carousel
+    return response

@@ -8,7 +8,7 @@ from pathlib import Path
 # This helper returns public CDN URLs. Keep its contract disjoint from
 # services.private_media, which owns signed delivery for sensitive chat media.
 PUBLIC_UPLOAD_BUCKETS = frozenset({
-    "avatars", "conditions", "gallery", "general", "stories", "user-gallery",
+    "avatars", "conditions", "feed", "gallery", "general", "stories", "user-gallery",
 })
 
 

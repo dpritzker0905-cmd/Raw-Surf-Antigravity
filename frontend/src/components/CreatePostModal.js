@@ -13,6 +13,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '.
 import { CreateAdModal } from './CreateAdModal';
 import logger from '../utils/logger';
 import MediaPreviewCarousel from './social/MediaPreviewCarousel';
+import { ROLES } from '../constants/roles';
 const DIRECTIONS = ['N', 'NE', 'E', 'SE', 'S', 'SW', 'W', 'NW'];
 const DirSelect = ({ value, onChange, placeholder = 'Dir' }) => (
   <Select value={value} onValueChange={onChange}>
@@ -202,12 +203,13 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
     try {
       const uploadedMedia = [];
       const isCarousel = selectedFiles.length > 1;
+      const isGrom = user?.role === ROLES.GROM;
       
       for (let i = 0; i < selectedFiles.length; i++) {
         const file = selectedFiles[i];
         const formData = new FormData();
         formData.append('file', file);
-        formData.append('user_id', user.id);
+        if (!isGrom) formData.append('user_id', user.id);
 
         const isVideoFile = file.type.startsWith('video/');
 
@@ -218,7 +220,8 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
         );
 
         try {
-          const uploadResponse = await apiClient.post(`/upload/feed`, formData, {
+          const uploadResponse = await apiClient.post(
+            isGrom ? `/grom-hq/groms/${user.id}/media` : `/upload/feed`, formData, {
             headers: { 'Content-Type': 'multipart/form-data' },
             timeout: isVideoFile ? 300000 : 120000, // 5min for video, 2min for images
             onUploadProgress: (progressEvent) => {
@@ -232,7 +235,7 @@ const CreatePostModal = ({ isOpen, onClose, onCreated }) => {
           });
           
           uploadedMedia.push({
-            url: uploadResponse.data.media_url,
+            url: isGrom ? uploadResponse.data.media_ref : uploadResponse.data.media_url,
             type: uploadResponse.data.media_type,
             thumbnail_url: uploadResponse.data.thumbnail_url,
             width: uploadResponse.data.final_width,
