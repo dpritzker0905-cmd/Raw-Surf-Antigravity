@@ -378,6 +378,17 @@ const useFeedDataActions = ({
       }
     } catch (error) {
       logger.error('Error fetching posts:', error);
+      // A server error is authoritative evidence that the cached list cannot
+      // be revalidated. Do not keep showing deleted/broken posts indefinitely.
+      if (error.response?.status >= 500) {
+        try {
+          localStorage.removeItem('rawsurf_cached_feed');
+          localStorage.removeItem('rawsurf_cached_feed_ts');
+        } catch { /* storage may be unavailable */ }
+        setPosts([]);
+        setFeedLastUpdated(null);
+        return;
+      }
       // Try loading cached feed before falling back to demo posts
       try {
         const cached = localStorage.getItem('rawsurf_cached_feed');
