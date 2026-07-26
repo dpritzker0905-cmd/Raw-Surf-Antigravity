@@ -371,7 +371,10 @@ class Story(Base):
     
     created_at = Column(DateTime(timezone=True), default=lambda: datetime.now(timezone.utc), index=True)
     
-    author = relationship('Profile', backref='stories')
+    # Story also records guardian audit actors, so SQLAlchemy cannot infer which
+    # Profile foreign key represents the content author. Pin this relationship
+    # to author_id so every mapper can initialize deterministically.
+    author = relationship('Profile', foreign_keys=[author_id], backref='stories')
     spot = relationship('SurfSpot', backref='stories')
     views = relationship('StoryView', back_populates='story', cascade='all, delete-orphan')
 
