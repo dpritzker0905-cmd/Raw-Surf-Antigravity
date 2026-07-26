@@ -73,3 +73,18 @@ Public social-feed uploads must persist to the public `feed` bucket before the A
 ### Remediation applied (2026-07-25)
 - After direct HTTP checks, the 21 posts referencing `/api/uploads/feed/test-video.mp4` were deleted from production. The Render asset returned 404 and no matching object existed in Supabase Storage, so recovery was not possible.
 - Re-query after deletion: 14 video posts remain; all 14 reference durable public-storage URLs. No healthy remote videos were deleted.
+
+## ORM mapper outage remediation (2026-07-25)
+
+### Root cause and decision
+The newly expanded `Story` model has three foreign keys to `profiles` (`author_id`, `guardian_approved_by`, and `guardian_override_by`). `Story.author` did not name its foreign key, so SQLAlchemy could not configure the Story mapper. Mapper configuration is global: an unrelated query that initialized any ORM mapper then failed, taking down feed, profiles, dispatch, and surf-spot surfaces with HTTP 500.
+
+`Story.author` now explicitly uses `foreign_keys=[author_id]`. Guardian fields remain audit references and are not author candidates.
+
+### Evidence
+- Render application traceback identified `InvalidRequestError` on `Story.author` exactly.
+- Commit `8bec0230` deployed successfully.
+- Post-deploy direct checks returned HTTP 200 for `/api/posts`, `/api/profiles/84843d7f-8b32-45e4-8d39-5e7fa3de8a41`, and `/api/explore/surf-spots`.
+
+### Residual debt
+- Add a dependency-backed mapper-configuration regression test that imports all ORM models and calls `configure_mappers()` in CI. The local bundled Python lacks SQLAlchemy/FastAPI test dependencies, so this test was not executable in this desktop runtime.
