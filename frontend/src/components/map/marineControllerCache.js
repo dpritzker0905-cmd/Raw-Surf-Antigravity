@@ -107,6 +107,12 @@ class LRUMap extends Map {
 var PER_MODEL_HOUR_CACHE_MAX = 50;
 var _perModelHourCache = new LRUMap(PER_MODEL_HOUR_CACHE_MAX);
 
+// The tile id the REQUEST side (clampViewportBbox) uses for world-bounds marine lookups. Kept here
+// so the store can mirror world grids under it — see the WORLD-GRID KEY ALIAS note in
+// _cacheMarineResult. globalGridCacheKeyParity.test.js pins this equal to the value clampViewportBbox
+// actually returns, so the two can never drift apart silently again.
+export const GLOBAL_LOOKUP_TILE_ID = 'global_coarse';
+
 export function getPerModelHourCache() { return _perModelHourCache; }
 
 // ---------------------------------------------------------------------------
@@ -176,12 +182,30 @@ export function _cacheMarineResult(model, hourOffset, data, layer, silent = fals
     vectorsLength: g.vectors?.length || 0
   };
 
-  _perModelHourCache.set(key, { 
-    data, 
-    timestamp: Date.now(), 
+  const entry = {
+    data,
+    timestamp: Date.now(),
     model: model || 'GFS',
     signature
-  });
+  };
+  _perModelHourCache.set(key, entry);
+
+  // WORLD-GRID KEY ALIAS (MAR-01, 2026-07-26). This key is derived from the RESPONSE
+  // (tile_id/region_id), but getModelSafeMarine looks up by the REQUEST-derived selectedTileId,
+  // which clampViewportBbox hardcodes to GLOBAL_LOOKUP_TILE_ID for world bounds. Nothing kept the
+  // two in sync: backendWeatherServiceClientCoverage.js:390 documents this exact desync being fixed
+  // ONCE already, and then 41addb91 (2026-07-22) moved the served world tier from 'global_coarse' to
+  // 'global_mid' and silently broke it again — verified live 2026-07-26, /api/weather/grid at
+  // bbox=-180,-80,180,85 returns region_id='global_mid'. Every world lookup therefore missed the
+  // exact key and fell through to the O(N) containment scan, on the activation hot path.
+  // Mirroring the SAME entry object under the lookup id costs one map slot and no extra payload,
+  // and makes a future tier rename unable to desync the cache again.
+  const _aw = bounds.west !== undefined
+    ? ((bounds.east < bounds.west) ? (bounds.east + 360 - bounds.west) : (bounds.east - bounds.west))
+    : 0;
+  if (_aw >= 340 && tileId !== GLOBAL_LOOKUP_TILE_ID) {
+    _perModelHourCache.set(`${model || 'GFS'}_${layerPart}_${GLOBAL_LOOKUP_TILE_ID}_${hourOffset}`, entry);
+  }
 
   if (!silent && model === 'GFS' && layer === 'waves' && hourOffset === 0) {
     recordTruthStage('cacheWrite', {
