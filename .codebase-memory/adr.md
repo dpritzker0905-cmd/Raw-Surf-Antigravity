@@ -87,4 +87,19 @@ The newly expanded `Story` model has three foreign keys to `profiles` (`author_i
 - Post-deploy direct checks returned HTTP 200 for `/api/posts`, `/api/profiles/84843d7f-8b32-45e4-8d39-5e7fa3de8a41`, and `/api/explore/surf-spots`.
 
 ### Residual debt
-- Add a dependency-backed mapper-configuration regression test that imports all ORM models and calls `configure_mappers()` in CI. The local bundled Python lacks SQLAlchemy/FastAPI test dependencies, so this test was not executable in this desktop runtime.
+- `test_orm_mapper_configuration.py` now imports all ORM models and calls `configure_mappers()`. The local bundled Python lacks pytest/SQLAlchemy/FastAPI dependencies, so this regression guard still needs execution in dependency-backed CI.
+
+## Comment reaction contract remediation (2026-07-25)
+
+### Root cause and decision
+Post-detail comment likes submitted the literal `=` value from three UI components. The comment-reaction API correctly rejected it with 400 because it was not an approved reaction, and the UI reduced that error to “Failed to like.” The frontend picker also exposed more reaction options than the backend accepted.
+
+Standard comment/reply likes now submit escaped shaka (`\u{1F919}`), and the backend allowlist matches the shared ten-item frontend reaction set. Unicode escapes are intentionally used in source so Windows shell tooling cannot corrupt the contract.
+
+### Evidence
+- Commit `54128bad` deployed successfully; production health reports that version.
+- Live no-write probe: `=` returns 400; shaka passes validation and reaches the expected nonexistent-comment 404.
+- Targeted frontend ESLint and backend `py_compile` passed.
+
+### Residual debt
+- `test_comment_reaction_contract.py` and `test_orm_mapper_configuration.py` are committed regression guards, but could not execute locally because the bundled Python lacks pytest, SQLAlchemy, and FastAPI dependencies. Run them in dependency-backed CI.
