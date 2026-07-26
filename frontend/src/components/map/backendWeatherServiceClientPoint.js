@@ -550,7 +550,12 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       surf_height_m: (json.surf_height_m ?? null),
       surf_regime: (json.surf_regime ?? null),
       shelf_depth_m: (json.shelf_depth_m ?? null),
-      surf_nearshore: (json.surf_nearshore ?? null)
+      surf_nearshore: (json.surf_nearshore ?? null),
+      // MapForecastOverlay feeds this to computeSurfRating as shoreNormalDeg. Dropping it made the
+      // infobox rating permanently geometry-BLIND (offshoreness -> null -> speed-only wind ladder;
+      // swellExposure -> neutral 1.0), so it disagreed with the geometry-aware backend glyph on the
+      // same spot at the same instant. The backend has always served it (schemas.py:184).
+      shore_normal_deg: (json.shore_normal_deg ?? null)
     };
 
     const details = {

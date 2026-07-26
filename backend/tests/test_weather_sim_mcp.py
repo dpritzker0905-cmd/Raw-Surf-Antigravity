@@ -13,7 +13,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import weather_sim_mcp
-from services.conditions_labels import CONDITION_LABELS
+from services.conditions_labels import CONDITION_LABELS, get_conditions_label
 from services.weather_pipeline.surf_rating import LEVELS
 
 MAVS = weather_sim_mcp.MOCK_SPOTS["Mavericks"]
@@ -99,6 +99,34 @@ def test_persisted_label_is_size_vocabulary_not_a_verdict():
     out = weather_sim_mcp.calculate_surf_rating(MAVS, 1.2, 14.0, 290.0, 6.0, 95.0)
     assert out["conditions_label"] not in ("Epic", "Good", "Fair", "Poor", "Flat/Blown-out")
     assert out["conditions_label"] in CONDITION_LABELS
+
+
+def test_size_ladder_agrees_with_the_calibration_anchors():
+    """THE size ladder must agree with report_calibration's body-height anchors — those are what the
+    forecast is graded against using real logged surfer sessions, so they are the ground truth.
+
+    The pre-2026-07-26 ladder put Double Overhead at 8-10 ft while calibration says 11 ft, and the
+    ladder's own Head High = 5-6 ft implies one head ~= 5.5 ft => double ~= 11, triple ~= 16.
+    """
+    from services.weather_pipeline.report_calibration import _HEIGHT_LABELS
+    anchors = dict(_HEIGHT_LABELS)
+    assert get_conditions_label(anchors["head high"]) == "Head High"
+    assert get_conditions_label(anchors["overhead"]) == "Overhead"
+    assert get_conditions_label(anchors["double overhead"]) == "Double Overhead"
+    assert get_conditions_label(anchors["triple overhead"]) == "Triple Overhead+"
+
+
+def test_size_ladder_is_monotonic_and_covers_every_label():
+    prev = -1
+    seen = []
+    for tenth_ft in range(0, 300):
+        lbl = get_conditions_label(tenth_ft / 10.0)
+        idx = CONDITION_LABELS.index(lbl)
+        assert idx >= prev, f"ladder went backwards at {tenth_ft/10.0} ft: {lbl}"
+        if idx != prev:
+            seen.append(lbl)
+        prev = idx
+    assert seen == list(CONDITION_LABELS), seen
 
 
 def test_role_based_access_control():

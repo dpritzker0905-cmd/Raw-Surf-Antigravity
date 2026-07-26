@@ -656,7 +656,10 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       // infobox had no "Surf" tab while GFS/ICON (which go through fetchBackendExactPoint) did. Carry them.
       surf_height_m: (json.surf_height_m ?? null),
       surf_regime: (json.surf_regime ?? null),
-      shelf_depth_m: (json.shelf_depth_m ?? null)
+      shelf_depth_m: (json.shelf_depth_m ?? null),
+      // Same geometry field the GFS/ICON builder carries — without it the EURO infobox rating
+      // evaluates the speed-only wind branch and a neutral swell exposure.
+      shore_normal_deg: (json.shore_normal_deg ?? null)
     };
 
     const details = {

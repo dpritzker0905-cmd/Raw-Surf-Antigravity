@@ -3,6 +3,11 @@ import math
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
+# THE canonical size ladder — a 5th byte-identical copy of it lived inline here as
+# `get_local_label` and was missed by the 2026-07-26 de-triplication, so it would have silently
+# contradicted the corrected 10/15 ft thresholds.
+from services.conditions_labels import get_conditions_label
+
 logger = logging.getLogger(__name__)
 
 def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
@@ -104,27 +109,6 @@ async def resolve_spot_conditions_impl(
         except Exception as e:
             logger.error(f"[Spot conditions] Upstream point fallback failed for {model} at ({lat}, {lng}): {e}")
 
-    # Local helper for labels
-    def get_local_label(wave_height_ft: float) -> str:
-        if wave_height_ft < 1:
-            return "Flat"
-        elif wave_height_ft < 2:
-            return "Ankle High"
-        elif wave_height_ft < 3:
-            return "Knee High"
-        elif wave_height_ft < 4:
-            return "Waist High"
-        elif wave_height_ft < 5:
-            return "Chest High"
-        elif wave_height_ft < 6:
-            return "Head High"
-        elif wave_height_ft < 8:
-            return "Overhead"
-        elif wave_height_ft < 10:
-            return "Double Overhead"
-        else:
-            return "Triple Overhead+"
-
     # Construct current conditions response dict
     current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
     current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
@@ -138,7 +122,7 @@ async def resolve_spot_conditions_impl(
         "wave_period": current_waves["wave_period"],
         "swell_height_ft": current_swell_height_ft,
         "swell_direction": current_swell["swell_direction"],
-        "label": get_local_label(current_wave_height_ft),
+        "label": get_conditions_label(current_wave_height_ft),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
     
@@ -160,7 +144,7 @@ async def resolve_spot_conditions_impl(
             "wave_direction": day_waves["wave_direction"],
             "wave_period": day_waves["wave_period"],
             "swell_height_ft": swell_max_ft,
-            "label": get_local_label(max_ft)
+            "label": get_conditions_label(max_ft)
         })
 
     return {

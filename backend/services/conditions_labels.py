@@ -45,9 +45,16 @@ def get_conditions_label(wave_height_ft: float) -> str:
         return "Chest High"
     elif wave_height_ft < 6:
         return "Head High"
-    elif wave_height_ft < 8:
-        return "Overhead"
+    # Top of the ladder corrected 2026-07-26. The previous 8/10 ft edges were internally impossible:
+    # this same ladder sets Head High = 5-6 ft, i.e. one head ~= 5.5 ft, so DOUBLE overhead is ~11 ft
+    # and TRIPLE ~16 ft — not 8 and 10. `report_calibration.py:37`, the module that grades forecasts
+    # against real logged surfer sessions, already stored the correct anchors all along
+    # (("double overhead", 11.0), ("triple overhead", 16.0), ("overhead", 7.0), ("head high", 5.5)),
+    # so two modules in this package disagreed and the calibration one was right. Label STRINGS are
+    # unchanged, so every frontend colour map keyed on them keeps working.
     elif wave_height_ft < 10:
+        return "Overhead"
+    elif wave_height_ft < 15:
         return "Double Overhead"
     else:
         return "Triple Overhead+"

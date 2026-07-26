@@ -451,7 +451,9 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     surf_height_m: status === 'exact_no_time_coverage' ? null : (cachedResponse.surf_height_m ?? null),
     surf_regime: cachedResponse.surf_regime ?? null,
     shelf_depth_m: cachedResponse.shelf_depth_m ?? null,
-    surf_nearshore: cachedResponse.surf_nearshore ?? null
+    surf_nearshore: cachedResponse.surf_nearshore ?? null,
+    // Seaward bearing — required for the infobox rating to grade wind direction and swell angle.
+    shore_normal_deg: cachedResponse.shore_normal_deg ?? null
   };
 }
 

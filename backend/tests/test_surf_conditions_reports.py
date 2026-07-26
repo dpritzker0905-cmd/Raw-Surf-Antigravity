@@ -7,6 +7,8 @@ import requests
 import os
 from datetime import datetime
 
+from services.conditions_labels import get_conditions_label
+
 BASE_URL = os.environ.get('REACT_APP_BACKEND_URL', '').rstrip('/')
 
 # Test credentials
@@ -335,25 +337,10 @@ class TestConditionsLabelLogic:
                 height = cond["wave_height_ft"]
                 label = cond.get("conditions_label")
                 
-                # Verify label matches height
-                if height < 1:
-                    assert label == "Flat"
-                elif height < 2:
-                    assert label == "Ankle High"
-                elif height < 3:
-                    assert label == "Knee High"
-                elif height < 4:
-                    assert label == "Waist High"
-                elif height < 5:
-                    assert label == "Chest High"
-                elif height < 6:
-                    assert label == "Head High"
-                elif height < 8:
-                    assert label == "Overhead"
-                elif height < 10:
-                    assert label == "Double Overhead"
-                else:
-                    assert label == "Triple Overhead+"
+                # Verify the label matches the height by delegating to THE canonical ladder rather
+                # than re-implementing it here — this block was a 6th copy of the thresholds and
+                # would have silently contradicted the 2026-07-26 top-of-ladder correction.
+                assert label == get_conditions_label(height)
                 
                 print(f"  {height}ft -> {label} (correct)")
         
