@@ -9,7 +9,7 @@ from utils.sqlite_helpers import get_sqlite_connection
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file came to rate a flat ocean
 # "Epic". Both imports are dependency-free (no FastAPI/route side effects).
-from services.weather_pipeline.surf_rating import rating_score, score_to_level, MS_TO_KT
+from services.weather_pipeline.surf_rating import rating_score, score_to_level, offshoreness, MS_TO_KT
 from services.weather_pipeline.surf_transform import komar_breaker_height
 from services.conditions_labels import get_conditions_label
 
@@ -136,27 +136,28 @@ def calculate_surf_rating(
     if breaking_height is None:  # non-physical input (h<=0 or Tp<=0) -> flat, not a crash
         breaking_height = 0.0
     
-    # 2. Wind factor (offshore vs onshore orientation)
-    # Optimum wind is optimal_wind_dir. Calculate angular difference
-    opt_wind = spot.get("optimal_wind_dir", 90.0)
-    wind_diff = abs((wind_dir - opt_wind + 180) % 360 - 180)
-    
-    # Wind Quality Coefficient (1.0 = perfect offshore, 0.2 = blown out onshore)
+    # 2. Wind CLASS — derived from the SAME reference frame the delegated score uses.
+    # This previously keyed off `optimal_wind_dir` while the score keys off `orientation` (the seaward
+    # bearing surf_rating wants as shore_normal). Those two frames DISAGREE in the mock catalog —
+    # Montara by 20 deg, Pacifica by 10 deg — so the sim could persist wind_conditions="Offshore" for
+    # a wind the score was penalising as onshore. One frame now, so the label and the score cannot
+    # contradict each other. Thresholds are the exact equivalents of the old angular ones
+    # (wind_diff < 45 deg <=> offshoreness > cos45; > 135 deg <=> offshoreness < -cos45).
+    # The old `wind_factor` computed here is GONE: it became dead code when the quality score was
+    # delegated to surf_rating.rating_score, and nothing read it.
+    _off = offshoreness(wind_dir, spot.get("orientation"))
     if wind_spd < 3.0:
         wind_label = "Glassy"
-        wind_factor = 1.0
-    elif wind_diff < 45.0:
+    elif _off is None:
+        wind_label = "Sideshore"          # unknown geometry -> the neutral class
+    elif _off > 0.7071:
         wind_label = "Offshore"
-        wind_factor = 1.0 - (wind_spd / 45.0) * 0.15  # Very clean
-    elif wind_diff > 135.0:
+    elif _off < -0.7071:
         wind_label = "Onshore"
-        wind_factor = 1.0 - (wind_spd / 20.0) * 0.8  # Blown out fast
-        wind_factor = max(0.1, wind_factor)
     else:
         wind_label = "Sideshore"
-        wind_factor = 1.0 - (wind_spd / 30.0) * 0.5
-        wind_factor = max(0.2, wind_factor)
-        
+
+
     # 3. Swell Direction Alignment Factor
     opt_swell = spot.get("optimal_swell_dir", 270.0)
     swell_diff = abs((swell_dir - opt_swell + 180) % 360 - 180)

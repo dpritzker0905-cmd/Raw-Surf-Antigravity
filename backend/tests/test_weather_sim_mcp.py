@@ -129,6 +129,26 @@ def test_size_ladder_is_monotonic_and_covers_every_label():
     assert seen == list(CONDITION_LABELS), seen
 
 
+def test_wind_class_and_score_share_one_reference_frame():
+    """`wind_class` (persisted to condition_reports.wind_conditions) must not contradict the score.
+
+    It used to key off `optimal_wind_dir` while the delegated score keys off `orientation`. Those
+    disagree in the mock catalog by 20 deg (Montara) and 10 deg (Pacifica), so the sim could persist
+    "Offshore" for a wind the score was penalising as onshore.
+    """
+    for name in ("Mavericks", "Montara State Beach", "Pacifica State Beach"):
+        spot = weather_sim_mcp.MOCK_SPOTS[name]
+        o = float(spot["orientation"])
+        onshore = weather_sim_mcp.calculate_surf_rating(spot, 1.5, 13.0, o, 18.0, o)
+        offshore = weather_sim_mcp.calculate_surf_rating(spot, 1.5, 13.0, o, 18.0, (o - 180) % 360)
+        cross = weather_sim_mcp.calculate_surf_rating(spot, 1.5, 13.0, o, 18.0, (o - 90) % 360)
+        assert onshore["wind_class"] == "Onshore", (name, onshore)
+        assert offshore["wind_class"] == "Offshore", (name, offshore)
+        assert cross["wind_class"] == "Sideshore", (name, cross)
+        # the label must move the SAME way the score does
+        assert offshore["quality_rating"] > cross["quality_rating"] > onshore["quality_rating"], name
+
+
 def test_role_based_access_control():
     """Verify that only admin callers can execute the mutating weather simulation override."""
     # Unauthorized role should fail
