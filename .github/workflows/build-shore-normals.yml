@@ -39,7 +39,9 @@ jobs:
           cache: pip
 
       - name: Install build deps
-        run: pip install numpy requests pytest
+        # pytest-asyncio because backend/tests/conftest.py imports it at collection time, even
+        # though these two test files are entirely synchronous.
+        run: pip install numpy requests pytest pytest-asyncio
 
       - name: Fit shore normals against ETOPO 2022 15s
         working-directory: backend
