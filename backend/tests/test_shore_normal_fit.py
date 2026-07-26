@@ -113,6 +113,28 @@ def test_ambiguous_corner_has_a_large_spread():
         f"a bending coast must exceed the gate, got spread={spread}")
 
 
+def test_barrier_island_faces_the_deep_side_not_the_lagoon():
+    """A barrier island has water on BOTH sides — the sign test must pick the ocean, not the sound.
+
+    Measured at Waves on the Outer Banks: a ±5 km window held 210 water cells on each side, Pamlico
+    Sound (mean 0.9 m) to the west and the Atlantic (mean 11.1 m) to the east. With an unweighted
+    water centroid the estimator faced the lagoon — 273.7° instead of ~90° — and reported a spread
+    of 4.5°, so the confidence gate gave no warning at all. Only depth weighting separates them."""
+    e = np.full((N, N), LAND)
+    e[:, : N // 2 - 1] = -1.0          # shallow lagoon to the WEST (1 m)
+    e[:, N // 2 + 1:] = -12.0          # deep open ocean to the EAST (12 m)
+    got = coast_pca_bearing(e, LATS, LONS)
+    assert got is not None
+    assert angular_diff(got, 90.0) < 15.0, (
+        f"must face the deep ocean (~90°), got {got} — the lagoon side won")
+
+
+def test_equal_depth_water_on_both_sides_is_unchanged_by_weighting():
+    """Sanity check on the weighting: when both sides are equally deep it must not bias the answer,
+    so the ordinary single-coast cases stay exactly as they were."""
+    assert angular_diff(coast_pca_bearing(_ocean_west(), LATS, LONS), 270.0) < 5.0
+
+
 def test_circular_mean_wraps():
     """359° and 1° average to 0°, not to 180°."""
     assert angular_diff(circular_mean([359.0, 1.0]), 0.0) < 1e-6

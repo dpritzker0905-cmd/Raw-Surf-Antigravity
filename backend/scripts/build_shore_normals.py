@@ -47,7 +47,8 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
-    MAX_SPREAD_DEG, WINDOW_HALF_DEGS, fit_shore_normal, nearest_shoreline_km,
+    MAX_SPREAD_DEG, WINDOW_HALF_DEGS, fit_shore_normal, fronting_water_depth_m,
+    nearest_shoreline_km,
 )
 
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
@@ -129,7 +130,7 @@ def measure(spot):
     lat, lon = float(spot["latitude"]), float(spot["longitude"])
     out = {"id": spot.get("id"), "name": spot.get("name"), "region": spot.get("region"),
            "lat": lat, "lng": lon, "normal": None, "spread": None, "n_windows": 0,
-           "shoreline_km": None, "elev_m": None, "status": "ok"}
+           "shoreline_km": None, "elev_m": None, "front_depth_m": None, "status": "ok"}
     try:
         elev, lats, lons = fetch_window(lat, lon)
     except Exception as e:
@@ -141,6 +142,7 @@ def measure(spot):
         j = int(np.argmin(np.abs(lons - lon)))
         out["elev_m"] = round(float(elev[i, j]), 1)
         out["shoreline_km"] = nearest_shoreline_km(elev, lats, lons, lat, lon)
+        out["front_depth_m"] = fronting_water_depth_m(elev, lats, lons, lat, lon)
         bearing, spread, n = fit_shore_normal(elev, lats, lons, lat, lon)
         out["normal"] = None if bearing is None else round(bearing, 1)
         out["spread"] = None if spread is None else round(spread, 1)
@@ -239,11 +241,11 @@ def main():
     with open(args.out_csv, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["id", "name", "region", "lat", "lng", "normal_deg", "spread_deg",
-                    "n_windows", "shoreline_km", "elev_m", "verdict", "status"])
+                    "n_windows", "shoreline_km", "elev_m", "front_depth_m", "verdict", "status"])
         for r in sorted(rows, key=lambda r: -(r["shoreline_km"] or 0)):
             w.writerow([r["id"], r["name"], r["region"], r["lat"], r["lng"], r["normal"],
                         r["spread"], r["n_windows"], r["shoreline_km"], r["elev_m"],
-                        r["verdict"], r["status"]])
+                        r["front_depth_m"], r["verdict"], r["status"]])
     print(f"Review CSV (worst placement first): {args.out_csv}")
 
     misplaced = [r for r in rows if (r["shoreline_km"] or 0) > MAX_SHORELINE_KM]

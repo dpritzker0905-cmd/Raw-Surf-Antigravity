@@ -125,8 +125,16 @@ def coast_pca_bearing(elev, lats, lons):
 
     The principal axis of the shoreline points along the coast (the tangent); the shore normal is
     perpendicular to it. Of the two perpendiculars we take the one pointing at the ocean, decided by
-    the bulk land→ocean vector (a sign test only — its magnitude, which is what makes the plain
-    centroid estimator jittery, is discarded).
+    the land→ocean vector (a sign test only — its magnitude, which is what makes the plain centroid
+    estimator jittery, is discarded).
+
+    ★ THE SIGN TEST IS DEPTH-WEIGHTED, and it has to be. On a barrier island an unweighted water
+    centroid is a coin flip and it lands wrong: measured at Waves on the Outer Banks, a ±5 km window
+    holds 210 water cells on each side — Pamlico Sound to the west at a mean depth of 0.9 m, the
+    Atlantic to the east at 11.1 m — and the estimator confidently faced the lagoon (273.7° instead
+    of ~90°), with a spread of 4.5° that gave no hint anything was wrong. Weighting each water cell
+    by its depth encodes the physics: swell arrives from DEEP water, not from a 1 m sound. Land is
+    weighted uniformly since only the water side can be ambiguous.
 
     Returns None when the window has no shoreline (all ocean / all land) or too few shoreline cells
     to fit an axis.
@@ -148,8 +156,16 @@ def coast_pca_bearing(elev, lats, lons):
     normal = np.array([-tangent[1], tangent[0]])
     rows, cols = np.indices(elev.shape)
     land = ~ocean
-    to_sea = np.array([float(rows[ocean].mean() - rows[land].mean()) * my,
-                       float(cols[ocean].mean() - cols[land].mean()) * mx])
+    depth = np.where(ocean, -elev, 0.0)                          # metres, positive down
+    w = depth[ocean]
+    w_sum = float(w.sum())
+    if w_sum <= 0:                                               # degenerate: fall back to unweighted
+        sea_row, sea_col = float(rows[ocean].mean()), float(cols[ocean].mean())
+    else:
+        sea_row = float((rows[ocean] * w).sum() / w_sum)
+        sea_col = float((cols[ocean] * w).sum() / w_sum)
+    to_sea = np.array([(sea_row - float(rows[land].mean())) * my,
+                       (sea_col - float(cols[land].mean())) * mx])
     if float(np.dot(normal, to_sea)) < 0:
         normal = -normal
     return _bearing(float(normal[0]), float(normal[1]))
@@ -188,6 +204,32 @@ def fit_shore_normal(elev, lats, lons, clat, clon, half_degs=WINDOW_HALF_DEGS):
     if len(bearings) < 2:
         return None, None, len(bearings)
     return circular_mean(bearings), max_spread(bearings), len(bearings)
+
+
+def fronting_water_depth_m(elev, lats, lons, lat, lon, radius_cells=3):
+    """Mean depth (m, positive down) of the water immediately in front of the spot — a PLACEMENT
+    signal that distinguishes an ocean beach from a lagoon shore.
+
+    Measured need: "Cape Canaveral Air Force Station" is geocoded onto the Banana River, whose water
+    averages 1.3 m, with the Atlantic barely reaching the ±5 km window. Its bearing is confidently
+    computed and confidently useless. A real ocean break fronts water metres to tens of metres deep,
+    so this number separates the two — but it is REPORTED, not gated on, because a gently shelving
+    coast (Florida's Atlantic side) is genuinely shallow this close in and must not be discarded.
+
+    Returns None when there is no water in the neighbourhood."""
+    import numpy as np
+    elev = np.asarray(elev, dtype=float)
+    lats = np.asarray(lats, dtype=float)
+    lons = np.asarray(lons, dtype=float)
+    i = int(np.argmin(np.abs(lats - lat)))
+    j = int(np.argmin(np.abs(lons - lon)))
+    i0, i1 = max(0, i - radius_cells), min(elev.shape[0], i + radius_cells + 1)
+    j0, j1 = max(0, j - radius_cells), min(elev.shape[1], j + radius_cells + 1)
+    sub = elev[i0:i1, j0:j1]
+    water = sub[sub < 0]
+    if water.size == 0:
+        return None
+    return float(-water.mean())
 
 
 def nearest_shoreline_km(elev, lats, lons, lat, lon):
