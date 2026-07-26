@@ -1,8 +1,8 @@
 /**
- * GifPicker.js -- Tenor API-powered GIF picker for MessagesPage.
+ * GifPicker.js -- GIPHY-compatible GIF picker shared by messages and comments.
  *
  * Fully self-contained: no backend calls, no auth context.
- * Uses Tenor v2 API (Google) with free public key.
+ * Uses GIPHY's Tenor-compatible v2 API with a build-time public API key.
  *
  * Features:
  *  - Infinite scroll with "next" cursor pagination
@@ -18,14 +18,17 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { Search, X, Loader2 } from 'lucide-react';
 
-// Tenor API key - Google free tier (replace with env var if needed)
-const TENOR_API_KEY = process.env.REACT_APP_TENOR_API_KEY || 'AIzaSyAyimkuYQYF_FXVALexPuGQctUWRURdCYQ';
-const TENOR_BASE = 'https://tenor.googleapis.com/v2';
+// GIPHY's Tenor-compatible API preserves the existing response/pagination shape.
+// This value is injected by Netlify at build time, never committed.
+const GIPHY_API_KEY = process.env.REACT_APP_GIPHY_API_KEY;
+const GIPHY_BASE = 'https://api.giphy.com/v2';
+const GIPHY_CLIENT_KEY = 'raw_surf_web';
 const GIF_LIMIT = 20;
 const MEDIA_FILTERS = 'gif,tinygif';
+const CONTENT_FILTER = 'high'; // GIPHY compatibility mode: G-rated content only.
 
-/** Map a Tenor v2 result to a consistent GIF shape */
-const mapTenorResult = (g) => ({
+/** Map a Tenor-compatible GIPHY result to the picker display shape. */
+export const mapGifResult = (g) => ({
   id: g.id,
   title: g.content_description || 'GIF',
   images: {
@@ -41,18 +44,31 @@ const mapTenorResult = (g) => ({
   },
 });
 
+export const buildGifUrl = (endpoint, params = {}) => {
+  const query = new URLSearchParams({
+    key: GIPHY_API_KEY || '',
+    client_key: GIPHY_CLIENT_KEY,
+    contentfilter: CONTENT_FILTER,
+    media_filter: MEDIA_FILTERS,
+    limit: String(GIF_LIMIT),
+    ...params,
+  });
+  return `${GIPHY_BASE}/${endpoint}?${query.toString()}`;
+};
+
 const GifPicker = ({ show, onSelect, onClose }) => {
   const [searchTerm, setSearchTerm] = useState('');
   const [gifs, setGifs] = useState([]);
   const [trendingGifs, setTrendingGifs] = useState([]);
   const [loading, setLoading] = useState(false);
   const [loadingMore, setLoadingMore] = useState(false);
+  const [error, setError] = useState('');
   const pickerRef = useRef(null);
   const gridRef = useRef(null);
   const searchInputRef = useRef(null);
   const isScrollingRef = useRef(false);
   
-  // Pagination cursors (Tenor uses string "next" token)
+  // Pagination cursors remain opaque in GIPHY's Tenor-compatible API.
   const [trendingNext, setTrendingNext] = useState('');
   const [searchNext, setSearchNext] = useState('');
 
@@ -92,14 +108,18 @@ const GifPicker = ({ show, onSelect, onClose }) => {
   }, [searchTerm]);
 
   const fetchTrending = async (loadMore = false) => {
+    if (!GIPHY_API_KEY) {
+      setError('GIF search is not configured. Please try again later.');
+      return;
+    }
     if (loadMore) setLoadingMore(true); else setLoading(true);
+    setError('');
     try {
-      let url = `${TENOR_BASE}/featured?key=${TENOR_API_KEY}&limit=${GIF_LIMIT}&media_filter=${MEDIA_FILTERS}`;
-      if (loadMore && trendingNext) url += `&pos=${trendingNext}`;
-      
+      const url = buildGifUrl('featured', loadMore && trendingNext ? { pos: trendingNext } : {});
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`GIF provider returned ${res.status}`);
       const data = await res.json();
-      const mapped = (data.results || []).map(mapTenorResult);
+      const mapped = (data.results || []).map(mapGifResult);
       
       if (loadMore) {
         setTrendingGifs(prev => [...prev, ...mapped]);
@@ -108,7 +128,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
       }
       setTrendingNext(data.next || '');
     } catch (err) {
- // Silent -- picker just shows empty state
+      setError('Unable to load trending GIFs. Please retry.');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -116,14 +136,21 @@ const GifPicker = ({ show, onSelect, onClose }) => {
   };
 
   const searchGifs = async (query, loadMore = false) => {
+    if (!GIPHY_API_KEY) {
+      setError('GIF search is not configured. Please try again later.');
+      return;
+    }
     if (loadMore) setLoadingMore(true); else setLoading(true);
+    setError('');
     try {
-      let url = `${TENOR_BASE}/search?key=${TENOR_API_KEY}&q=${encodeURIComponent(query)}&limit=${GIF_LIMIT}&media_filter=${MEDIA_FILTERS}`;
-      if (loadMore && searchNext) url += `&pos=${searchNext}`;
-      
+      const url = buildGifUrl('search', {
+        q: query,
+        ...(loadMore && searchNext ? { pos: searchNext } : {}),
+      });
       const res = await fetch(url);
+      if (!res.ok) throw new Error(`GIF provider returned ${res.status}`);
       const data = await res.json();
-      const mapped = (data.results || []).map(mapTenorResult);
+      const mapped = (data.results || []).map(mapGifResult);
       
       if (loadMore) {
         setGifs(prev => [...prev, ...mapped]);
@@ -132,7 +159,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
       }
       setSearchNext(data.next || '');
     } catch (err) {
-      // Silent
+      setError('Unable to search GIFs. Please retry.');
     } finally {
       setLoading(false);
       setLoadingMore(false);
@@ -195,7 +222,7 @@ const GifPicker = ({ show, onSelect, onClose }) => {
           <span className="text-xs text-muted-foreground">
             {searchTerm ? `Results for "${searchTerm}"` : 'Trending GIFs'}
           </span>
-          <span className="text-[10px] text-muted-foreground opacity-50">Powered by Tenor</span>
+          <span className="text-[10px] text-muted-foreground opacity-50">Powered by GIPHY</span>
         </div>
       </div>
 
@@ -208,7 +235,18 @@ const GifPicker = ({ show, onSelect, onClose }) => {
         onTouchMove={() => { isScrollingRef.current = true; }}
         onTouchEnd={() => { setTimeout(() => { isScrollingRef.current = false; }, 100); }}
       >
-        {loading && displayGifs.length === 0 ? (
+        {error ? (
+          <div className="text-center py-8 text-muted-foreground text-sm">
+            <p>{error}</p>
+            <button
+              type="button"
+              onClick={() => searchTerm ? searchGifs(searchTerm.trim(), false) : fetchTrending()}
+              className="mt-3 text-cyan-400 hover:text-cyan-300 font-medium"
+            >
+              Retry
+            </button>
+          </div>
+        ) : loading && displayGifs.length === 0 ? (
           <div className="flex items-center justify-center py-8">
             <Loader2 className="w-6 h-6 text-cyan-400 animate-spin" />
           </div>
