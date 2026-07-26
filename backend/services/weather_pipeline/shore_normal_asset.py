@@ -87,7 +87,11 @@ def _haversine_km(lat1, lng1, lat2, lng2):
     return 2 * _EARTH_KM * math.asin(math.sqrt(a))
 
 
-@lru_cache(maxsize=200_000)
+# Measured, not copied from the neighbouring bathymetry helpers: an uncached lookup is 13 us (it
+# scans 9 spatial-hash buckets), and caching saves only 2.5 us of that. At the 200_000 those helpers
+# use, the cache would hold ~30 MB — a bad trade for microseconds on a 512 MB Render box with a
+# documented OOM history. 20_000 costs ~3 MB and still exceeds the real working set (1516 spots).
+@lru_cache(maxsize=20_000)
 def shore_normal_at(lat: float, lng: float,
                     max_km: float = MATCH_RADIUS_KM) -> Tuple[Optional[float], Optional[float]]:
     """Nearest gate-passing shore normal within ``max_km``.
