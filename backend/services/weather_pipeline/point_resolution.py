@@ -128,8 +128,27 @@ class PointResolutionService:
                     response.shore_normal_deg = shore_normal_at(lat, lng)
                 except Exception:
                     response.shore_normal_deg = None
+                # ETOPO 2022 15s (~463 m) per-spot shore normal, replacing the 0.25° grid's answer —
+                # that grid decides which way a beach faces from a 7x7 window 194.6 km across, which
+                # is why Pipeline and Sunset both read 0.0 on a coast facing ~325-335 and Uluwatu
+                # read the wrong side of its peninsula. Only spots that passed the build-time
+                # confidence gate are in the asset (see shore_normal_fit), so a hit is already
+                # known-trustworthy and a miss correctly leaves the coarse value in place.
+                # Measured on 8 spots: mean angular change 70.7 deg, ~0.39 rating points per degree.
+                # Kill: SHORE_NORMAL_ASSET=0.
+                try:
+                    from services.weather_pipeline.shore_normal_asset import (
+                        shore_normal_at as _asset_normal_at)
+                    _fine_normal, _fine_spread = _asset_normal_at(lat, lng)
+                    if _fine_normal is not None:
+                        response.shore_normal_deg = _fine_normal
+                        logger.debug(f"[Surf] ETOPO shore normal {_fine_normal}° "
+                                     f"(spread {_fine_spread}°) at ({lat},{lng})")
+                except Exception:
+                    pass
                 # SURF v3.1 per-spot shore-normal override (ground truth beats the 0.25° bathymetry
                 # where it provably fails — Pipeline/Sunset read due-north 0.0 vs the real ~NW).
+                # Hand-audited, so it still outranks the derived asset above.
                 # Kill: SURF_V3_NORMAL_OVERRIDES=0.
                 if os.environ.get("SURF_V3_NORMAL_OVERRIDES", "1") != "0":
                     try:

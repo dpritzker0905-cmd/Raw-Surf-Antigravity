@@ -1,0 +1,84 @@
+# Builds the per-spot shore-normal asset from NOAA ETOPO 2022 15s (~463 m, CC0) and commits it.
+#
+# WHY: bathymetry.shore_normal_at() derives a beach's orientation from a 7x7 window on the bundled
+# 0.25 deg grid — 194.6 km across. Measured 2026-07-26: Pipeline and Sunset both read 0.0 deg on a coast
+# facing ~325-335, and Uluwatu returned the wrong side of its peninsula. ~0.39 rating points per
+# degree of error. See backend/services/weather_pipeline/shore_normal_fit.py for the full evidence.
+#
+# Manual dispatch only — spot geometry is near-static. RE-RUN THIS whenever spots are added, moved,
+# or re-placed, otherwise moved spots simply stop matching the asset and fall back to the coarse
+# value (safe, but they lose the fix).
+#   Actions -> "Build Shore Normal Asset" -> Run workflow.
+name: Build Shore Normal Asset
+
+on:
+  workflow_dispatch:
+    inputs:
+      limit:
+        description: 'Only fit the first N spots (blank = all). Use for a smoke test.'
+        required: false
+        default: ''
+
+permissions:
+  contents: write          # commit the generated asset back to the branch
+
+concurrency:
+  group: build-shore-normals
+  cancel-in-progress: false
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install build deps
+        run: pip install numpy requests
+
+      - name: Fit shore normals against ETOPO 2022 15s
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          ARGS=""
+          if [ -n "${{ github.event.inputs.limit }}" ]; then
+            ARGS="--limit ${{ github.event.inputs.limit }}"
+          fi
+          python scripts/build_shore_normals.py $ARGS
+
+      - name: Verify the asset against its own gate
+        working-directory: backend
+        run: python -m pytest tests/test_shore_normal_asset.py tests/test_shore_normal_fit.py -q
+
+      # The placement review is a by-product of the same ETOPO fetch: `shoreline_km` is how far each
+      # spot sits from the nearest shoreline, which is the actionable input to the spot editor.
+      - name: Upload the spot placement review
+        uses: actions/upload-artifact@v4
+        with:
+          name: shore-normal-build-review
+          path: backend/shore_normal_build_review.csv
+          if-no-files-found: warn
+
+      - name: Commit the asset if it changed
+        run: |
+          set -e
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          ASSET="backend/services/weather_pipeline/data/shore_normals.json"
+          git add "$ASSET"
+          if git diff --cached --quiet; then
+            echo "No change to the shore-normal asset — nothing to commit."
+          else
+            git commit -m "chore(bathymetry): build per-spot shore normals from ETOPO 2022 15s [skip ci]" \
+                       -m "Co-Authored-By: Claude Opus 5 <noreply@anthropic.com>"
+            git push origin HEAD:${GITHUB_REF_NAME}
+            echo "Committed + pushed the shore-normal asset to ${GITHUB_REF_NAME}."
+          fi
