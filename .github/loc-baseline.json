@@ -1,0 +1,19 @@
+{
+  "_comment": "Pre-existing 800-LOC violations, grandfathered by scripts/loc_ratchet.py. These files may only SHRINK. Nothing may be added by hand \u2014 run `python scripts/loc_ratchet.py --update-baseline` after splitting a file.",
+  "max_lines": 800,
+  "files": {
+    "frontend/src/components/map/WebGLMarineEngine.js": 3844,
+    "frontend/src/components/map/WebGLMarineLayer.js": 1221,
+    "frontend/src/components/map/WeatherEngine.js": 1116,
+    "frontend/src/components/map/WebGLMarineMaskRenderer.js": 1098,
+    "frontend/src/components/map/MapWebGL.js": 1097,
+    "frontend/src/components/map/WebGLWindEngine.js": 1095,
+    "frontend/src/components/map/WebGLWindShaders.js": 1029,
+    "frontend/src/components/map/WebGLMarineParticleShaders.js": 978,
+    "frontend/src/components/map/useMarineDataFetcherCore.js": 966,
+    "frontend/src/components/map/MapWeatherControls.js": 957,
+    "frontend/src/components/map/openMeteoProtocol.js": 943,
+    "frontend/src/components/map/useMarineOrchestrator.js": 908,
+    "frontend/src/components/map/OceanMask.js": 905
+  }
+}
