@@ -68,3 +68,8 @@ Public social-feed uploads must persist to the public `feed` bucket before the A
 - Historical unavailable videos require owner replacement or an explicit archive action; do not delete them automatically.
 - Complete render-side protected Grom media resolution for every post/modal/story surface and add the audience selector to the Grom composer.
 - Obtain production application logs and resolve the list-feed 500 before treating the frontend migration as complete.
+
+
+### Remediation applied (2026-07-25)
+- After direct HTTP checks, the 21 posts referencing `/api/uploads/feed/test-video.mp4` were deleted from production. The Render asset returned 404 and no matching object existed in Supabase Storage, so recovery was not possible.
+- Re-query after deletion: 14 video posts remain; all 14 reference durable public-storage URLs. No healthy remote videos were deleted.
