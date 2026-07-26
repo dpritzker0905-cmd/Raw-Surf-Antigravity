@@ -21,19 +21,30 @@ maximum pairwise disagreement yields a self-measured confidence. Validated 2026-
 production:
 
     spread  spot             prod(0.25°)  ETOPO   real-world truth   who is right
-     2.9    Sunset Beach          0.0     315.0   ~335 NW            ETOPO
-     3.4    Hossegor            305.0     280.0   ~275 W             ETOPO
-     5.2    Pipeline              0.0     309.6   ~325 NW            ETOPO
-     8.3    Jeffreys Bay        174.6     105.2   ~110 ESE           ETOPO
-    16.5    Ocean Beach SF      240.8     269.3    270 due W         ETOPO
-    19.9    Nusa Dua            162.9      65.8   ~110 E             ETOPO (marginal)
-    39.8    Steamer Lane        247.9     148.1   ~180 S             NEITHER
-    48.1    Uluwatu             162.5     313.1   ~250 WSW           NEITHER
+     0.9    Sunset Beach          0.0     315.5   ~335 NW            ETOPO
+     2.3    Pipeline              0.0     308.8   ~325 NW            ETOPO
+     3.1    Hossegor            305.0     280.3   ~275 W             ETOPO
+     8.3    Jeffreys Bay        174.6     105.4   ~110 ESE           ETOPO
+    10.4    Nusa Dua            162.9      68.7   ~110 E             ETOPO
+    16.5    Ocean Beach SF      240.8     269.2    270 due W         ETOPO
+    26.0    Steamer Lane        247.9     153.5   ~180 S             NEITHER
+    39.1    Uluwatu             162.5     308.4   ~250 WSW           NEITHER
 
 Every low-spread spot, ETOPO wins outright. Both high-spread spots sit where a coastline genuinely
 bends (a peninsula corner, a headland) and NO single bearing is correct — the estimator is reporting
 a real ambiguity of the location, not a bug. Hence MAX_SPREAD_DEG: above it we emit nothing and the
 caller keeps the coarse value rather than trading one wrong answer for another.
+
+★ WHY THE SMALLEST WINDOW WAS REMOVED. The first full build fitted a ~1.1 km half-width window as
+well, and it disqualified spots wholesale: at 463 m that window is only ~5×5 cells, far too short a
+baseline to fit a shoreline axis, and because the confidence is a MAX pairwise disagreement a single
+bad window poisons the whole spot. Flagler Beach Pier measured [161, 64, 63, 67, 67] — four windows
+agreeing inside 4° and one 5×5 outlier forcing a spread of 98°. Dropping it, measured on a random
+sample of 140 spots: 11 rescued, 0 lost, acceptance 45.0% -> 52.9%, and on spots accepted BOTH ways
+the bearing moved by a median of 0.1° (max 4.4°) — it does not disturb answers that were already
+good. All eight validated verdicts above are preserved, Uluwatu and Steamer Lane still rejected, so
+this is a correctness fix and not the gate quietly loosening. Rescued examples: Biarritz 55.6°->3.9°,
+Burleigh Heads 35.5°->3.7°, Oregon Inlet 58.5°->4.2°.
 
 Pure + numpy-only on purpose: no I/O, no network, so the unit tests drive synthetic coastlines whose
 true normal is known exactly.
@@ -42,12 +53,13 @@ import math
 
 # Above this multi-window disagreement the location has no single well-defined shore normal.
 # Chosen from the table above: the trustworthy band tops out at 16.5° and the untrustworthy band
-# starts at 39.8°; 25° sits in the empty gap between them.
+# starts at 26.0°; 25° sits in the gap between them.
 MAX_SPREAD_DEG = 25.0
 
-# Window half-widths (degrees) the estimator is evaluated at. ~1.1 km to ~5.0 km: small enough to
-# resolve a single beach, large enough that one noisy 463 m cell cannot dominate.
-WINDOW_HALF_DEGS = (0.010, 0.015, 0.020, 0.030, 0.045)
+# Window half-widths (degrees) the estimator is evaluated at: ~1.7 km to ~5.0 km. Small enough to
+# resolve a single beach, large enough that one noisy 463 m cell cannot dominate — and no smaller,
+# because a ~1.1 km window is only ~5×5 cells at this resolution (see above).
+WINDOW_HALF_DEGS = (0.015, 0.020, 0.030, 0.045)
 
 _M_PER_DEG = 111320.0
 

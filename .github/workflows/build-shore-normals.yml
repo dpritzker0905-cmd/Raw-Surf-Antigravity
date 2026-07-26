@@ -39,9 +39,7 @@ jobs:
           cache: pip
 
       - name: Install build deps
-        # pytest-asyncio because backend/tests/conftest.py imports it at collection time, even
-        # though these two test files are entirely synchronous.
-        run: pip install numpy requests pytest pytest-asyncio
+        run: pip install numpy requests pytest
 
       - name: Fit shore normals against ETOPO 2022 15s
         working-directory: backend
@@ -69,9 +67,13 @@ jobs:
           path: backend/shore_normal_build_review.csv
           if-no-files-found: warn
 
+      # --noconftest: backend/tests/conftest.py imports the whole app stack (pytest_asyncio, httpx,
+      # the FastAPI app) at collection time. These two files are deliberately standalone — synthetic
+      # rasters and a tmp_path asset, no fixtures — so the gate should not drag in the app's runtime
+      # deps just to check that the geometry is sane.
       - name: Verify the asset against its own gate
         working-directory: backend
-        run: python -m pytest tests/test_shore_normal_asset.py tests/test_shore_normal_fit.py -q
+        run: python -m pytest tests/test_shore_normal_asset.py tests/test_shore_normal_fit.py -q --noconftest
 
       - name: Commit the asset if it changed
         run: |
