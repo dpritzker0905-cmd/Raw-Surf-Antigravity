@@ -92,6 +92,57 @@ def ocean_access_km(elev, lats, lons, lat, lon,
     return float(dist[k]), (float(la[idx[k, 0]]), float(lo[idx[k, 1]]))
 
 
+def swell_exposure_fraction(elev, lats, lons, lat, lon, shore_normal_deg,
+                            half_angle_deg: float = 80.0, n_rays: int = 17) -> Optional[float]:
+    """Fraction of the seaward half-plane that is OPEN water all the way to the window edge.
+
+    ★ `ocean_access_km` asks "is there deep water near this pin". A large bay answers YES. That is
+    fine for VALIDATING a spot someone already named, and wrong for DISCOVERING one: the 2026-07-27
+    Florida pilot surfaced Ballast Point and Bird Island (Tampa Bay), Biscayne Island (Biscayne Bay)
+    and Bayard Point (St. Johns River) as candidates, because each sits beside water deeper than 3 m.
+    None of them receives ocean swell.
+
+    Exposure is the missing question, and it is a different one: can swell REACH the pin, or is
+    there land across the approach? Cast rays over the seaward half-plane; a ray "escapes" if it
+    reaches the window edge without crossing land. An open coast escapes on most bearings; an
+    enclosed bay is fenced in on nearly all of them.
+
+    Returns None when the shore normal is unknown (fails OPEN — the caller decides)."""
+    import numpy as np
+    if shore_normal_deg is None:
+        return None
+    e = np.where(np.isnan(np.asarray(elev, dtype=float)), 0.0, np.asarray(elev, dtype=float))
+    la, lo = np.asarray(lats), np.asarray(lons)
+    n_rows, n_cols = e.shape
+    i0 = int(np.argmin(np.abs(la - lat)))
+    j0 = int(np.argmin(np.abs(lo - lon)))
+    # cell size in km, so a ray steps roughly one cell at a time
+    d_lat_km = abs(float(la[1] - la[0])) * 111.32 if n_rows > 1 else 0.5
+    d_lon_km = abs(float(lo[1] - lo[0])) * 111.32 * math.cos(math.radians(lat)) if n_cols > 1 else 0.5
+    step_km = max(min(d_lat_km, d_lon_km), 0.05)
+    max_km = max(n_rows * d_lat_km, n_cols * d_lon_km)
+    n_steps = max(int(max_km / step_km), 4)
+
+    escaped = 0
+    for k in range(n_rays):
+        frac = (k / (n_rays - 1)) * 2.0 - 1.0 if n_rays > 1 else 0.0
+        bearing = math.radians(shore_normal_deg + frac * half_angle_deg)
+        d_north, d_east = math.cos(bearing), math.sin(bearing)
+        blocked = False
+        for s in range(1, n_steps + 1):
+            i = i0 + int(round(s * step_km * d_north / max(d_lat_km, 1e-9)))
+            j = j0 + int(round(s * step_km * d_east / max(d_lon_km, 1e-9)))
+            if i < 0 or j < 0 or i >= n_rows or j >= n_cols:
+                escaped += 1                      # reached the edge over water
+                break
+            if e[i, j] > 0.0 and s > 1:           # land across the approach (skip the pin's own cell)
+                blocked = True
+                break
+        if blocked:
+            continue
+    return escaped / float(n_rays)
+
+
 def placement_verdict(elev, lats, lons, lat, lon,
                       max_km: float = MAX_OCEAN_KM, deep_m: float = DEEP_M) -> dict:
     """Classify a stored coordinate by whether ocean swell can reach it.

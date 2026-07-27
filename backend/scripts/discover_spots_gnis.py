@@ -167,7 +167,16 @@ def main():
     ap = argparse.ArgumentParser(description="Discover surf-spot candidates from GNIS (read-only)")
     ap.add_argument("--gnis", required=True, help="GNIS state .txt or .zip")
     ap.add_argument("--catalog", default=None, help="CSV of our existing spots (name,lat,lng)")
-    ap.add_argument("--limit", type=int, default=None)
+    ap.add_argument("--bbox", default=None,
+                    help="min_lat,max_lat,min_lng,max_lng — REQUIRED for a meaningful recall "
+                         "number: recall is only interpretable when the candidate pool and the "
+                         "ground truth cover the SAME coast.")
+    ap.add_argument("--limit", type=int, default=None,
+                    help="cap AFTER shuffling. ⚠️ GNIS files are sorted by feature name, so an "
+                         "un-shuffled cap samples the ALPHABET, not the coast — the 2026-07-27 "
+                         "pilot's first run returned only A- and B- names and its recall number "
+                         "was meaningless.")
+    ap.add_argument("--seed", type=int, default=17, help="shuffle seed, so runs are reproducible")
     ap.add_argument("--out", default="gnis_spot_candidates.csv")
     args = ap.parse_args()
 
@@ -176,11 +185,20 @@ def main():
     for k, v in Counter(f["feature_class"] for f in feats).most_common():
         print(f"  {k:<12} {v:>6}")
 
+    if args.bbox:
+        a, b, c, d = (float(x) for x in args.bbox.split(","))
+        feats = [f for f in feats if a <= f["lat"] <= b and c <= f["lng"] <= d]
+        print(f"inside bbox {args.bbox}: {len(feats)}")
+    else:
+        print("⚠️ no --bbox: any recall number below is NOT interpretable")
+
     feats = dedupe(feats)
     print(f"after {DEDUPE_KM} km dedupe: {len(feats)}")
-    if args.limit:
+    if args.limit and args.limit < len(feats):
+        import random
+        random.Random(args.seed).shuffle(feats)
         feats = feats[:args.limit]
-        print(f"limited to {len(feats)}")
+        print(f"shuffled (seed {args.seed}) and limited to {len(feats)}")
 
     rows = []
     with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
