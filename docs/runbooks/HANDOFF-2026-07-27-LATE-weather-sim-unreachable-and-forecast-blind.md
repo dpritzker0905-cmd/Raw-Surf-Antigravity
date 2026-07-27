@@ -350,3 +350,52 @@ paths naming the same population is the strongest evidence either of them is rig
 * `get_surf_spots` reports coarse orientations at full float precision
   (`160.25316339457387`) — cosmetic only; the ETOPO ones are clean.
 * `test_media_privacy_contracts.py` still fails on `dev`, unrelated to all of this.
+
+---
+
+## 8. ★★★ SPOT ACCURACY: WHAT GEOMETRY CAN AND CANNOT DO (`af7d95c1`)
+
+### ⚠️ First, a claim of mine that measurement overturned
+The 3rd decimal of latitude is **`8` on 633 of 1515 spots and `2` on 316** — 949 of 1515 (62.6%)
+where uniform would be ~151 each, i.e. **41 sigma** — and the four Mentawai breaks sit on a perfect
+0.010° diagonal lattice. I concluded a large block of coordinates was **synthetic**.
+
+**Wikidata (CC0) says no.** Name-matched, n=18 famous breaks: **p50 0.47 km**, 55.6% within 0.5 km,
+83.3% within 3 km — Snapper Rocks **0.035 km**, Pipeline 0.245, Trestles 0.26.
+★ And the instrument validated itself: the worst four are **Jaws 5.13 · Guincho 3.50 · Mavericks
+3.46 · Cloud 9 2.42 km**, reproducing `find_missing_spots`' known PLACEMENT_DISCREPANCY set exactly.
+⇒ **The catalogue is broadly accurate with a specific bad tail.** The digit anomaly is real but does
+not imply wrong coordinates.
+
+### THE STRUCTURAL FINDING: detection and correction are different problems
+
+| verdict | n | nearest-ocean proposal | usable? |
+|---|---|---|---|
+| `not_on_open_ocean_inland` | 74 | p50 **4.63 km**, max 12.01 | **0 of 74** inside the 3.0 km bound |
+| `spot_misplaced` | 65 | 0.19 km — but they are ALREADY at sea | points the **wrong way** |
+| `spot_misplaced_at_sea` | 17 | same | no shoreline in window to snap to |
+| `not_on_open_ocean_no_ocean` | 8 | none | — |
+
+⇒ **All 164 need an authoritative name→coordinate source.** This is the Volusia lesson at catalogue
+scale: an ETOPO-only proposal kept Bethune Beach's wrong LATITUDE.
+
+### The tool, proven
+`scripts/propose_spot_corrections.py` — review CSV + any gazetteer CSV → name-match → **validate the
+candidate against ETOPO** (a proposal that is itself misplaced launders a bad coordinate into a
+reviewed-looking one) → ranked review artefact. **It never writes to the database.**
+
+Against EEA bathing waters (CC-BY, 4478 ES/FR/PT sites): **7 proposals, all passing**, recognisably
+correct — **Nazaré → `NORTE (NAZARE)`** (Praia do Norte, the canyon big-wave break), **El Socorro →
+`PLAYA SOCORRO (EL)`, 7.57 km** from a pin sitting at **+1020 m elevation**, plus La Piste, Santocha
+and Les Estagnots at Capbreton by exact name.
+
+### ⛔ THE GAP, now precise — and it is the same gap as global expansion
+**157 unmatched.** Flagged spots by country: Indonesia 23 · Chile 12 · Philippines 11 · Mexico 9 ·
+USA 8 · Sri Lanka 8 · Nicaragua 7 · Spain 7 · Japan 6 · Peru 6. GNIS reaches 8, EEA ~12; **~144 are
+outside US/Europe.** Worst-covered: Mentawai 8, South Coast 6, Rivas 4, Siargao 4, Arica 4.
+
+★★ **`NGA GNS` (public domain, worldwide) is the missing source, and it serves BOTH goals — fixing
+the 164 AND growing the catalogue globally. One fetcher, two jobs.** Add as
+`spot_sources.py --source gns`, then re-run this proposer and `filter_spot_candidates`.
+⚠️ **Not OpenStreetMap:** production holds zero `osm_id` and ODbL must not ride in through a
+coordinate correction.
