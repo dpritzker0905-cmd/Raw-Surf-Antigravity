@@ -397,7 +397,15 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
         query: Optional case-insensitive substring to filter spot names.
         limit: Maximum spots to return (the catalog holds ~1547 active spots).
     """
-    db_spots = query_spots_from_db(name_query=query or None, limit=max(1, min(int(limit), 500)))
+    # ⚠️ THE CAP IS A MEASURED BUDGET, NOT A ROUND NUMBER. Serialised size 2026-07-27:
+    # 50 spots = 9.4 KB (~2.4k tokens) · 200 = 37.4 KB (~9.6k) · 500 = 93.5 KB (~24k). An MCP client
+    # REJECTS a result of that size rather than showing it, which reads to the caller as "the tool
+    # is broken" — so a limit the client cannot receive is not a feature. 200 is the largest round
+    # figure that stays comfortably inside a normal budget. Narrow with `query` to see more; the
+    # response reports `total_matching` so a truncated answer never looks complete.
+    hard_cap = int(os.environ.get("SIM_SPOTS_MAX", "200"))
+    requested = max(1, int(limit))
+    db_spots = query_spots_from_db(name_query=query or None, limit=min(requested, hard_cap))
     # Name the real source. `dev.db` has drifted into WRONG COORDINATES (Bethune Beach sits 7 km
     # from where production put it), so "which catalogue answered" is not a detail.
     source = "live_catalog" if sim_forecast.fetch_catalog() else "surf_spots_snapshot"
@@ -409,15 +417,38 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
             for s in MOCK_SPOTS.values()
             if not query or query.lower() in s["name"].lower()
         ]
+    # ⚠️ RESPONSE SIZE IS A FAILURE MODE. Measured 2026-07-27, `limit=500` serialised to 94.8 KB
+    # (~24k tokens) — at or past the point where an MCP client REJECTS the result instead of showing
+    # it, which reads to the caller as "the tool is broken". Most of that was noise: an unrounded
+    # coast-PCA bearing serialises as `160.25316339457387`, 17 significant digits for a number that
+    # is meaningful to about one tenth of a degree. Rounding costs no information and roughly a
+    # third of the payload.
+    def _tidy(value, places):
+        return None if value is None else round(float(value), places)
+
     out = []
     for s in db_spots:
         # `orientation` used to be hardcoded 270 for every database row. It is now the real seaward
         # bearing from the same chain production uses, so a caller reasoning about swell windows
         # gets the spot's actual aspect.
-        out.append({**s, "orientation": shore_normal_for(s),
-                    "orientation_source": (spot_geometry(s).shore_normal_src
-                                           if spot_geometry(s) is not None else "catalog_fallback")})
-    return {"source": source, "returned": len(out), "spots": out}
+        geo = spot_geometry(s)
+        out.append({**s,
+                    "latitude": _tidy(s.get("latitude"), 5),      # 5 dp ~= 1 m; more is noise
+                    "longitude": _tidy(s.get("longitude"), 5),
+                    "orientation": _tidy(shore_normal_for(s), 1),
+                    "orientation_source": (geo.shore_normal_src if geo is not None
+                                           else "catalog_fallback")})
+    # Count the full match set so a capped answer can never be mistaken for the whole catalogue.
+    live = sim_forecast.fetch_catalog()
+    total = (sum(1 for s in live if not query or query.lower() in (s["name"] or "").lower())
+             if live else None)
+    payload = {"source": source, "returned": len(out), "spots": out}
+    if total is not None:
+        payload["total_matching"] = total
+        if total > len(out):
+            payload["note"] = (f"showing {len(out)} of {total} matches (cap {hard_cap}) — narrow "
+                               f"with `query` to see the rest.")
+    return payload
 
 
 @mcp.tool
@@ -705,6 +736,12 @@ def _warm_hot_path() -> bool:
 
 
 _warm_hot_path()
+
+# The live catalogue, warmed OFF the request path. The first tool call would otherwise pay the whole
+# round trip, and on a cold Render instance (~50 s to wake) that is the difference between an answer
+# and a client-side timeout. Non-blocking by construction: a slow or dead app delays nothing here,
+# the tools simply fall back to the snapshot until it lands.
+sim_forecast.prefetch_catalog_async()
 
 
 if __name__ == "__main__":

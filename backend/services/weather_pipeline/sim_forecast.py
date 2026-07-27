@@ -35,6 +35,8 @@ CONTRACT
 import json
 import logging
 import os
+import threading
+import time
 import urllib.error
 import urllib.parse
 # `urllib.request` pulls `ssl`, whose `_ssl` C extension must load on the MAIN thread. Importing a
@@ -49,7 +51,35 @@ logger = logging.getLogger(__name__)
 BASE_URL = os.environ.get(
     "SIM_FORECAST_BASE_URL", "https://raw-surf-antigravity.onrender.com").rstrip("/")
 MODEL = os.environ.get("SIM_FORECAST_MODEL", "GFS")
-TIMEOUT_S = float(os.environ.get("SIM_FORECAST_TIMEOUT_S", "30"))
+
+# ⚠️ A LIVE-DATA ENRICHMENT MUST NEVER DOMINATE THE RESPONSE TIME.
+# This was 30 s, and measured 2026-07-27 against an unreachable app that made `get_surf_spots` block
+# 42.2 s and `get_weather_forecast` 42.1 s — past the point where an MCP client reports a TIMEOUT
+# instead of an answer. The sim then looks broken while being merely patient. The host is a free
+# Render instance that cold-starts in ~50 s, so "slow" is a NORMAL state here, not an exceptional
+# one. 8 s is longer than a warm request needs (0.5-1.1 s measured) and short enough that two of
+# them still fit inside any sane client budget.
+TIMEOUT_S = float(os.environ.get("SIM_FORECAST_TIMEOUT_S", "8"))
+
+# After a failure, stop dialling for a while. Without this every tool call re-pays the full timeout
+# — the same pile-up the 429 circuit breaker was added for on 2026-07-24. `get_weather_forecast`
+# makes TWO requests, so an unbreakered outage costs double.
+DOWN_COOLDOWN_S = float(os.environ.get("SIM_FORECAST_COOLDOWN_S", "60"))
+_down_until = 0.0
+
+
+def _is_down() -> bool:
+    return time.monotonic() < _down_until
+
+
+def _mark_down() -> None:
+    global _down_until
+    _down_until = time.monotonic() + DOWN_COOLDOWN_S
+
+
+def _mark_up() -> None:
+    global _down_until
+    _down_until = 0.0
 
 # Keyed by (lat, lng, valid_time) — the valid_time is the top of the hour, so entries expire on
 # their own as the hour turns. A what-if sweep hits one spot repeatedly and must not re-fetch.
@@ -80,6 +110,8 @@ def fetch_catalog() -> Optional[list]:
         return None
     if "spots" in _CATALOG_CACHE:
         return _CATALOG_CACHE["spots"]
+    if _is_down():
+        return None                      # fail FAST while the app is known unreachable
     try:
         req = urllib.request.Request(f"{BASE_URL}/api/surf-spots",
                                      headers={"User-Agent": "raw-surf-weather-sim"})
@@ -94,10 +126,29 @@ def fetch_catalog() -> Optional[list]:
             logger.warning("live catalogue returned no usable spots; falling back")
             return None
         _CATALOG_CACHE["spots"] = spots
+        _mark_up()
         return spots
     except Exception as e:
-        logger.warning(f"live catalogue fetch failed ({e}); falling back to the local snapshot.")
+        _mark_down()
+        logger.warning(f"live catalogue fetch failed ({e}); falling back to the local snapshot "
+                       f"and pausing live lookups for {DOWN_COOLDOWN_S:g}s.")
         return None
+
+
+def prefetch_catalog_async() -> Optional[threading.Thread]:
+    """Warm the catalogue OFF the request path, at server start.
+
+    The first tool call would otherwise pay the whole round trip — and on a cold Render instance
+    that is the difference between an answer and a client-side timeout. Done in a daemon thread so
+    a slow or dead app delays NOTHING: the tool simply falls back until the warm-up lands.
+    ⚠️ Safe to run off the main thread only because `urllib`/`ssl` are imported at MODULE scope
+    above — a C-extension import inside a worker thread is what deadlocked this server once already.
+    """
+    if os.environ.get("SIM_LIVE_CATALOG", "1") == "0":
+        return None
+    t = threading.Thread(target=fetch_catalog, name="sim-catalog-prefetch", daemon=True)
+    t.start()
+    return t
 
 
 def current_valid_time() -> str:
@@ -115,8 +166,11 @@ def fetch_point(domain: str, layer: str, lat: float, lng: float,
     url = f"{BASE_URL}/api/weather/point?{qs}"
     try:
         with urllib.request.urlopen(url, timeout=TIMEOUT_S) as resp:
-            return json.loads(resp.read().decode("utf-8"))
+            out = json.loads(resp.read().decode("utf-8"))
+        _mark_up()
+        return out
     except Exception as e:
+        _mark_down()
         logger.warning(f"live forecast {domain}/{layer} at ({lat},{lng}) failed: {e}")
         return None
 
@@ -133,6 +187,9 @@ def fetch_live_forecast(lat: float, lng: float
     key = (round(float(lat), 4), round(float(lng), 4), valid_time)
     if key in _FORECAST_CACHE:
         return _FORECAST_CACHE[key]
+    if _is_down():
+        # NOT cached: the app is down now, not wrong about this coordinate.
+        return None, {"reason": "the app is not reachable right now", "valid_time": valid_time}
 
     marine = fetch_point("marine", "waves", lat, lng, valid_time)
     wind = fetch_point("wind", "wind", lat, lng, valid_time)

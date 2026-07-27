@@ -457,7 +457,11 @@ def test_catalog_prefers_the_apps_live_spots(monkeypatch):
          "latitude": 28.950892, "longitude": -80.83899}])
     res = weather_sim_mcp.get_surf_spots(query="Bethune")
     assert res["source"] == "live_catalog"
-    assert res["spots"][0]["latitude"] == 28.950892      # the CORRECTED coordinate
+    # The CORRECTED coordinate, not the snapshot's 28.998 which is ~7 km away. Compared with a
+    # tolerance because the response rounds to 5 dp (~1 m) to keep the payload inside a client's
+    # size budget — that rounding must never be confused with a stale value.
+    assert abs(res["spots"][0]["latitude"] - 28.950892) < 1e-4
+    assert abs(res["spots"][0]["longitude"] - (-80.83899)) < 1e-4
 
 
 def test_catalog_falls_back_to_the_snapshot_when_the_app_is_unreachable(monkeypatch):
@@ -484,6 +488,69 @@ def test_catalog_kill_switch_and_failure_never_raise(monkeypatch):
 
     monkeypatch.setattr(sim_forecast.urllib.request, "urlopen", boom)
     assert sim_forecast.fetch_catalog() is None          # degraded, not raised
+
+
+# ── The live lane must never dominate the response time (2026-07-27) ─────────────────────────
+# Measured against an unreachable app, the 30 s timeout made `get_surf_spots` block 42.2 s and
+# `get_weather_forecast` 42.1 s — past the point where an MCP client reports a TIMEOUT instead of an
+# answer, so the sim looked broken while being merely patient. The host is a free Render instance
+# that cold-starts in ~50 s, so slow is a NORMAL state here.
+
+def test_the_live_timeout_is_short_enough_for_a_client_budget():
+    """Two sequential fetches must still fit inside any sane client timeout."""
+    assert sim_forecast.TIMEOUT_S <= 10, sim_forecast.TIMEOUT_S
+
+
+def test_a_failure_opens_the_breaker_so_the_next_call_is_instant(monkeypatch):
+    """THE regression: without this, EVERY tool call re-pays the full timeout — and
+    `get_weather_forecast` makes two requests, so an outage costs double."""
+    monkeypatch.setenv("SIM_LIVE_FORECAST", "1")
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "1")
+    sim_forecast._FORECAST_CACHE.clear()
+    sim_forecast._CATALOG_CACHE.clear()
+    sim_forecast._mark_up()
+
+    calls = []
+
+    def slow_and_failing(*a, **k):
+        calls.append(1)
+        raise OSError("unreachable")
+
+    monkeypatch.setattr(sim_forecast.urllib.request, "urlopen", slow_and_failing)
+    assert sim_forecast.fetch_catalog() is None
+    assert len(calls) == 1
+    # Breaker is now open: further attempts must not touch the network at all.
+    assert sim_forecast.fetch_catalog() is None
+    assert sim_forecast.fetch_live_forecast(37.5, -122.5)[0] is None
+    assert len(calls) == 1, f"the breaker did not hold — {len(calls)} network attempts"
+    sim_forecast._mark_up()
+
+
+def test_a_recovered_app_closes_the_breaker(monkeypatch):
+    """An outage must not latch: one success re-opens the live lane."""
+    sim_forecast._mark_down()
+    assert sim_forecast._is_down()
+    _stub_points(monkeypatch)                     # a working fetch_point
+    sim_forecast._mark_up()
+    assert not sim_forecast._is_down()
+    assert weather_sim_mcp.get_weather_forecast("Mavericks")["baseline_source"] == "live_forecast"
+
+
+def test_the_catalogue_prefetch_never_blocks_or_raises(monkeypatch):
+    """It runs at server START. A slow or dead app must delay nothing — the tools fall back."""
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "1")
+    sim_forecast._CATALOG_CACHE.clear()
+    sim_forecast._mark_up()
+    monkeypatch.setattr(sim_forecast.urllib.request, "urlopen",
+                        lambda *a, **k: (_ for _ in ()).throw(OSError("down")))
+    t = sim_forecast.prefetch_catalog_async()
+    assert t is not None
+    t.join(timeout=10)
+    assert not t.is_alive(), "the prefetch thread did not finish"
+    sim_forecast._mark_up()
+
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "0")
+    assert sim_forecast.prefetch_catalog_async() is None      # honours the kill switch
 
 
 def test_live_forecast_kill_switch(monkeypatch):
