@@ -211,3 +211,71 @@ Kill switches, in precedence order at the single call site in `point_resolution.
 `SURF_V3_NORMAL_OVERRIDES=0` (hand overrides) · `SHORE_NORMAL_ASSET=0` (this asset) · deleting the
 JSON. All three degrade to today's coarse behaviour; **nothing here can make a rating worse than it
 was.**
+
+---
+
+## 8. ★★★ ADDENDUM 2026-07-27 — THE NEXT JACOBIAN, AND A PRIORITY INVERSION
+
+Measured after shipping §1-7. Two of this handoff's own "what to do next" items are **demoted by
+measurement**, and the real binding constraint is named.
+
+### (a) THE ROOT: three of four per-spot inputs are STILL on 28 km data
+The nearshore transform differentiates spots inside one 28 km marine cell using four bathymetric
+inputs. This session fixed exactly one of them.
+
+| input | window | feeds |
+|---|---|---|
+| `shore_normal_at` | ~~194 km~~ → **463 m** | wind + swell exposure — **FIXED (§2)** |
+| `shelf_depth_at` | **139 km** (5×5 median) | **surf HEIGHT** (shoaling) |
+| `shelf_width_km` | **search to 222 km** | **surf HEIGHT** (bottom friction) |
+| `is_coastal` | 194 km | whether surf exists at all |
+| `bed_slope_at` | 11 km | breaker type (Iribarren) |
+
+**Cowell's and Steamer Lane are 1.9 km apart and receive BYTE-IDENTICAL values** — depth `452.0`,
+shelf_width `27.8`, coastal `True`, slope `0.0067`. On ETOPO 2022 15s their nearshore depths are
+**8.5 m and 13.4 m** (Pleasure Point 13.2 m), correctly separating a shallow sheltered beach from a
+deeper point. **452 m is the median across the Monterey Canyon** — the shoaling maths is off by
+~40× for a wave breaking in 10 m of water.
+
+⇒ **This is the binding constraint on per-spot surf height**, and the fix is the pattern already
+shipped here: ETOPO 15s → per-spot asset → confidence gate → CI builder → kill switch.
+⚠️ **Bigger blast radius than the shore normal** — it moves surf HEIGHT for every spot, so it needs
+a flag plus a measured A/B, not a straight swap.
+
+### (b) PLACEMENT IS WORTH FAR LESS THAN THE COUNTS SUGGEST
+Priced 25 proposed moves (~2.9 km each) against live production:
+**|surf height change| median 0.00 m** · **|rating change| median 0.1 pts** · **gained a shore
+normal 0/25** · level changed 3/25. **A 2.9 km move cannot leave a 28 km cell**, so placement's
+value is geometric (letting spots into the shore-normal asset), not forecast-sampling. The three
+material movers were all spots whose SHORE NORMAL changed. Item §6.2 is real but low-yield — do not
+over-invest.
+
+### (c) RATING_LOCAL_SIZE — do NOT flip (item §6.4 answered)
+`rating_score = sg·ex·sc·tf·bt·wg·(…)` and **nothing penalises a spot for being OVERSIZED**
+(`size_score` saturates at 1.0, never falls). `sg` is purely multiplicative so the effect is exact:
+at every plausible reference pair **a beginner beach (Cowell's) outranks the point break (Steamer
+Lane)** on an 8 ft day — 55.9 `fair` vs 36.1 `poor_fair`. That contradicts the flag's own recorded
+intent ("keep small-wave spots honest, NOT lift them"). Also **862 spots (57%) sit at size gate
+1.0**; the multiplier at a spot's own good-day size is **0.60** (a 40% cut) while small spots get
+**1.20**. The user's anchors stay green because they pin each spot class IN ISOLATION — nothing
+pins **relative ordering between classes on the same swell**. Needs an oversize rolloff first.
+⚠️ The motivating symptom ("29 CA spots epic at once") **no longer reproduces**: only 15 spots
+(1.0%) now score ≥95, median 27.5. The earlier rating arc fixed it.
+⚠️ Coverage is genuinely unreadable without admin — `weather-products` is private and the anon
+policy covers `latest.json` ONLY (verified HTTP 400). Use
+`GET /api/admin/surf-forecast/status` for the authoritative `spots_tracked`/`spots_ready`.
+
+### (d) COORDINATE SOURCES — what is usable
+**OSM/Nominatim = ODbL share-alike, REFUSED** (would make `surf_spots` a derivative database).
+**Wikidata = CC0** ✓ but 2/12 coverage. **GeoNames = CC BY** ✓ (username `RAWSURF`; needs BOTH
+email confirmation AND "enable free web services") — **5/12 raw, ~2-3 trustworthy**: it returned
+Tarimbang **118 km away** (name collision), a *lagoon* for Okanda, a bay centroid in **58 m of
+water** for Lavanono. Needs ≤40 km radius + feature-code weighting + ETOPO cross-check.
+**Surfline = ToS prohibits scraping — declined.**
+
+### (e) THE CORRECTION MECHANISM EXISTS AND IS STARVING
+`spot_refinements` (propose→review→approve) = **1 row**; `spot_verifications` = 2; `spot_edit_logs`
+already carries `was_on_land` + `override_land_warning`. **`check_ins` carry REAL at-the-beach
+positions — median 0.36 km from the spot, 3 of 4 under 1 km — but there are 4 of them.**
+⚠️ `stories`/`condition_reports` coordinates are UNUSABLE: median 297.77 km with p90 IDENTICAL
+(a degenerate constant over 4-5 spots = test data). Same shape as the `surf_reports` starvation.
