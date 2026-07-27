@@ -51,7 +51,7 @@ WORKERS = 6
 
 OUT_COLS = ["decision", "confidence", "name", "country", "lat", "lng", "fetch_km", "ocean_km",
             "ocean_verdict", "shore_normal_deg", "spread_deg", "elev_m", "break_depth_m",
-            "osm_surf_km", "nearest_ours", "nearest_ours_km", "source", "source_id", "licence",
+            "local_size_m", "osm_surf_km", "nearest_ours", "nearest_ours_km", "source", "source_id", "licence",
             "attribution", "note"]
 
 
@@ -74,13 +74,68 @@ def looks_non_surf(name):
     return bool(re.search(NON_SURF_PATTERN, name or ""))
 
 
+def load_climatology():
+    """The gridded size climatology, if this process can reach L2.
+
+    ★ THE RANKING SIGNAL THAT ACTUALLY WORKS ON AN EXPOSED COAST. Measured on the Portugal+Ireland
+    run, open-water FETCH SATURATES — 258 of 373 candidates scored >= 500 km against a 600 km cap —
+    so it is a good GATE and a useless RANKER once you are already on the Atlantic. This blob
+    carries OBSERVED p80 breaking heights per coastal 2-degree cell, accumulated 6x/day, so it
+    separates a beach that gets 2 m from a cove that gets 0.3 m. Measurement, not inference.
+
+    It lives in the PRIVATE weather-products bucket, so it only resolves where the service-role key
+    exists: in CI (the same secrets `build-shore-normals.yml` uses) or on the server. Absent,
+    everything still works and the run says the ranking is geometry-only."""
+    try:
+        from services.weather_pipeline.grid_size_climatology import (
+            load_grid_size_climatology_l2_cached)
+        return load_grid_size_climatology_l2_cached()
+    except Exception:
+        return None
+
+
+def annotate_local_size(rows, clim):
+    """Attach the measured local good-day breaking height. Returns how many resolved."""
+    if not clim:
+        return 0
+    try:
+        from services.weather_pipeline.grid_size_climatology import reference_for
+    except Exception:
+        return 0
+    n = 0
+    for r in rows:
+        la, lo = r.get("lat"), r.get("lng")
+        if la is None:
+            continue
+        try:
+            ref = reference_for(clim, la, lo)
+        except Exception:
+            ref = None
+        r["local_size_m"] = None if ref is None else round(float(ref), 2)
+        if ref is not None:
+            n += 1
+    return n
+
+
 def confidence(r):
     """0-100, so the reviewer works the best rows first instead of reading 4,500 alphabetically.
 
-    Built only from signals we measure ourselves. Deliberately NOT from OSM: its 536 named
-    `sport=surfing` features include German river waves (Eisbachwelle, Almwelle, blackforestwave)
-    and surf clubs, so a nearby OSM feature is a weak positive hint and never a gate. It is
-    reported in `osm_surf_km` for the reviewer to weigh, not folded into the score."""
+    When a MEASURED local size is available it dominates (0-50), because it is the only input here
+    that is observed rather than inferred from shape; geometry then contributes at half weight.
+    Without it the score is geometry-only and identical to before.
+
+    Deliberately NOT from OSM: its 536 named `sport=surfing` features include German river waves
+    (Eisbachwelle, Almwelle, blackforestwave) and surf clubs, so a nearby OSM feature is a weak
+    positive hint and never a gate. It is reported in `osm_surf_km` for the reviewer to weigh."""
+    geo = _geometry_score(r)
+    ls = r.get("local_size_m")
+    if ls in (None, ""):
+        return round(geo, 1)
+    return round(min(50.0 * min(float(ls) / 2.5, 1.0) + geo * 0.5, 100.0), 1)
+
+
+def _geometry_score(r):
+    """The geometry-only score, used verbatim when no climatology is reachable."""
     score = 0.0
     f = r.get("fetch_km")
     if f:                                   # open-ocean exposure, 0-40
@@ -261,6 +316,15 @@ def main():
             r["decision"] = "DUPLICATE_CLUSTER"
         kept.append(r)
 
+    clim = load_climatology()
+    n_ls = annotate_local_size(kept, clim)
+    print()
+    if clim:
+        print(f"climatology: {len(clim.get('cells') or {})} cells "
+              f"(updated {clim.get('updated_at')}) - {n_ls} candidates got a MEASURED local size")
+    else:
+        print("WARNING: no climatology reachable (needs SUPABASE_SERVICE_ROLE_KEY) - "
+              "ranking is GEOMETRY-ONLY, which saturates on an exposed coast")
     if args.osm:
         annotate_osm(kept, args.osm)
     for r in kept:
@@ -275,7 +339,8 @@ def main():
         print(f"\ntop 10 NEW by confidence (review these first):")
         for r in news[:10]:
             print(f"  {r['confidence']:>5.1f}  {r['name'][:34]:<36}{(r.get('country') or '')[:14]:<16}"
-                  f"fetch {r.get('fetch_km')} km  spread {r.get('spread_deg')}")
+                  f"fetch {r.get('fetch_km')} km  spread {r.get('spread_deg')}  "
+                  f"local {r.get('local_size_m')} m")
 
     with open(args.out, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)

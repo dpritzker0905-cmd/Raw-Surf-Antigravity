@@ -1,0 +1,143 @@
+# Proposes new surf spots from OPEN GOVERNMENT DATA and uploads them for review.
+#
+# WHY IT RUNS HERE AND NOT LOCALLY: the ranking needs the gridded size climatology, which lives in
+# the PRIVATE weather-products bucket. Only a process holding SUPABASE_SERVICE_ROLE_KEY can read it,
+# and the right answer to that is to run the job where the key already is — the same pattern
+# build-shore-normals.yml uses — rather than passing a production credential around. Without the
+# climatology the ranking falls back to geometry, which measurably SATURATES on an exposed coast
+# (258 of 373 Portugal+Ireland candidates scored >= 500 km of a 600 km fetch cap).
+#
+# ⚠️ THIS NEVER WRITES TO THE DATABASE. It uploads a reviewed CSV as an artifact. Importing is a
+# separate, deliberate step: scripts/import_reviewed_spots.py, which is dry-run by default and
+# requires --commit.
+#
+# Sources and their licences (verified 2026-07-27):
+#   EEA / EMODnet bathing waters   CC-BY 4.0 — 15,091 coastal sites in Europe
+#   GNIS (USGS)                    U.S. public domain
+# Attribution travels per row in the CSV, so an importer can honour CC-BY precisely.
+name: Discover Spot Candidates
+
+on:
+  workflow_dispatch:
+    inputs:
+      countries:
+        description: 'EEA ISO codes, comma-separated (e.g. PT,ES,FR,IE,UK). Blank = all Europe.'
+        required: false
+        default: 'PT,ES,FR,IE,UK'
+      min_fetch_km:
+        description: 'Reject candidates with less open-water fetch than this (km).'
+        required: false
+        default: '200'
+      offline_only:
+        description: 'true = stage 1 only (no ERDDAP), for a fast look.'
+        required: false
+        default: 'false'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: discover-spot-candidates
+  cancel-in-progress: false
+
+jobs:
+  discover:
+    runs-on: ubuntu-latest
+    timeout-minutes: 180
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install deps
+        run: pip install numpy requests
+
+      - name: Pull open coastal locations
+        working-directory: backend
+        run: |
+          set -e
+          ARGS="--source eea --out candidates_raw.csv"
+          if [ -n "${{ github.event.inputs.countries }}" ]; then
+            ARGS="$ARGS --countries ${{ github.event.inputs.countries }}"
+          else
+            ARGS="$ARGS --all-europe"
+          fi
+          python scripts/spot_sources.py $ARGS
+
+      # The catalogue we already have, so candidates can be marked KNOWN vs NEW. Read-only.
+      - name: Snapshot the live catalogue
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          python - <<'PY'
+          import csv, os
+          from scripts.build_shore_normals import fetch_spots
+          base = os.environ["SUPABASE_URL"].rstrip("/")
+          key = os.environ["SUPABASE_SERVICE_ROLE_KEY"]
+          spots = fetch_spots(base, key)
+          with open("catalog.csv", "w", newline="", encoding="utf-8") as fh:
+              w = csv.writer(fh); w.writerow(["name", "lat", "lng"])
+              for s in spots:
+                  w.writerow([s.get("name"), s.get("latitude"), s.get("longitude")])
+          print(f"catalogue: {len(spots)} spots")
+          PY
+
+      - name: Filter to surf candidates and rank
+        working-directory: backend
+        env:
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+        run: |
+          set -e
+          ARGS="--in candidates_raw.csv --catalog catalog.csv --out spot_candidates_reviewed.csv"
+          ARGS="$ARGS --min-fetch ${{ github.event.inputs.min_fetch_km }}"
+          if [ "${{ github.event.inputs.offline_only }}" = "true" ]; then
+            ARGS="$ARGS --offline-only"
+          fi
+          python scripts/filter_spot_candidates.py $ARGS
+
+      # always(), and BEFORE anything that can fail: stage 2 is thousands of ERDDAP round-trips and
+      # must never be thrown away by a later step. The shore-normal build lost a full run that way.
+      - name: Upload the reviewed candidates
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: spot-candidates-reviewed
+          path: |
+            backend/spot_candidates_reviewed.csv
+            backend/candidates_raw.csv
+          if-no-files-found: warn
+          retention-days: 30
+
+      - name: Summarise
+        if: always()
+        working-directory: backend
+        run: |
+          echo "### Spot candidates" >> $GITHUB_STEP_SUMMARY
+          if [ -f spot_candidates_reviewed.csv ]; then
+            python - <<'PY' >> $GITHUB_STEP_SUMMARY
+          import csv, collections
+          rows = list(csv.DictReader(open("spot_candidates_reviewed.csv", encoding="utf-8")))
+          c = collections.Counter(r["decision"] for r in rows)
+          print("| decision | count |"); print("|---|---|")
+          for k, v in c.most_common():
+              print(f"| {k} | {v} |")
+          new = [r for r in rows if r["decision"] == "NEW"]
+          def conf(r):
+              try: return float(r["confidence"])
+              except Exception: return 0.0
+          new.sort(key=conf, reverse=True)
+          print("\n**Top 20 NEW by confidence**\n")
+          print("| conf | name | country | local size (m) | fetch km |"); print("|---|---|---|---|---|")
+          for r in new[:20]:
+              print(f"| {r['confidence']} | {r['name']} | {r['country']} | "
+                    f"{r.get('local_size_m') or '-'} | {r.get('fetch_km') or '-'} |")
+          PY
+          else
+            echo "No candidate file produced." >> $GITHUB_STEP_SUMMARY
+          fi
