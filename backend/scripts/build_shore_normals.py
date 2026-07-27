@@ -86,6 +86,11 @@ MAX_SHORELINE_KM = 3.0
 # How many of the four window sizes must produce a bearing. See `accepted()` for the measurement
 # that moved this from 3 to 2. Kill: SHORE_NORMAL_MIN_WINDOWS=3 restores the pre-2026-07-27 gate.
 MIN_WINDOWS = int(os.environ.get("SHORE_NORMAL_MIN_WINDOWS", "2"))
+# Water deeper than this cannot produce a breaking wave: a wave breaks in roughly 1.3x its own
+# height, so even a 30 m monster is broken by ~38 m. A pin below it with no land in the window is
+# stranded at sea, not merely imprecise. Generous on purpose — a real shallow offshore bank (Cortes
+# Bank breaks over a seamount) must NOT be caught by this.
+MIN_BREAKABLE_DEPTH_M = float(os.environ.get("SHORE_NORMAL_MIN_BREAKABLE_DEPTH_M", "50"))
 
 
 def fetch_spots(base, key, limit=None):
@@ -238,6 +243,24 @@ def accepted(row):
     # a spot stranded in open water passes it — this is the clause that catches those.
     if row["shoreline_km"] is not None and row["shoreline_km"] > MAX_SHORELINE_KM:
         return False, "spot_misplaced"
+    # ★ AND THE WORST CASE OF ALL, which the clause above CANNOT see. `shoreline_km` is None when
+    # there is no shoreline anywhere in the fetched window (~±0.08 deg, about 18 km across) — so the
+    # further out to sea a pin is, the more certainly it escapes a bound expressed in km-from-shore.
+    # The same "worse error, weaker diagnosis" shape as the ordering bug above, one level deeper.
+    #
+    # Measured 2026-07-27: 25 spots have no shoreline measurement at all. They split cleanly by the
+    # sign of the pin elevation — 8 are ABOVE sea level and were already caught as
+    # `not_on_open_ocean_no_ocean`, while 17 are UNDERWATER and were reported as a FITTING failure:
+    # Telescopes -1778 m, Macaronis -1686 m, Scorpion Bay Second Point -1677 m, Iron Bottom Sound
+    # -654 m. World-famous breaks whose stored pin sits in over a kilometre of water.
+    #
+    # The bound is physics, not a percentile: a wave breaks in roughly 1.3x its own height, so even
+    # a 30 m monster breaks by ~38 m. Below MIN_BREAKABLE_DEPTH_M nothing can break, so a pin there
+    # with no land in sight is not a surf break — while a genuine shallow offshore bank (Cortes Bank
+    # breaks over a seamount) reads far shallower and is deliberately NOT caught.
+    if row["shoreline_km"] is None and (row.get("elev_m") is not None
+                                        and row["elev_m"] < -MIN_BREAKABLE_DEPTH_M):
+        return False, "spot_misplaced_at_sea"
 
     # ── 2. Is the fit trustworthy? Not actionable by a human; it describes the data. ──
     if row["normal"] is None or row["spread"] is None:

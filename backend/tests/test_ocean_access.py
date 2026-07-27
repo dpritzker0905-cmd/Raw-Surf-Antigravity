@@ -193,6 +193,37 @@ def test_an_inland_spot_outranks_every_other_diagnosis():
     assert not ok and why == "not_on_open_ocean_inland", why
 
 
+def test_a_spot_stranded_at_sea_is_named_not_called_unfittable():
+    """The worst case the km-from-shore bound CANNOT see.
+
+    `shoreline_km` is None when no shoreline exists anywhere in the fetched window, so the further
+    out a pin is, the more certainly it escapes a bound expressed in km-from-shore. Measured: 17
+    spots sat in 110-1778 m of water — Telescopes, Macaronis, Scorpion Bay — reported as fitting
+    failures.
+    """
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": None, "spread": None, "n_windows": 0, "shoreline_km": None,
+                        "ocean_verdict": "ON_OCEAN", "elev_m": -1778.0})
+    assert not ok and why == "spot_misplaced_at_sea", why
+
+
+def test_a_shallow_offshore_bank_is_not_condemned_as_stranded():
+    """Cortes Bank is a real break over a seamount with no land for miles. The bound is the depth a
+    wave can break in, so a shallow bank must survive a test that kills a 1.7 km-deep pin."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": 270.0, "spread": 6.0, "n_windows": 3, "shoreline_km": None,
+                        "ocean_verdict": "ON_OCEAN", "elev_m": -12.0})
+    assert ok and why == "accepted", why
+
+
+def test_a_spot_above_sea_level_with_no_water_keeps_its_inland_verdict():
+    """The 8 dry-land members of the same population are already diagnosed; do not relabel them."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": None, "spread": None, "n_windows": 0, "shoreline_km": None,
+                        "ocean_verdict": "NO_OCEAN", "elev_m": 946.0})
+    assert not ok and why == "not_on_open_ocean_no_ocean", why
+
+
 def test_a_well_placed_spot_still_reports_its_fit_problem():
     """Reordering must not swallow the fit diagnoses for spots that ARE well placed."""
     from scripts.build_shore_normals import accepted
