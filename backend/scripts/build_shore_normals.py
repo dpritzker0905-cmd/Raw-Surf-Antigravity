@@ -50,9 +50,18 @@ from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
     MAX_SPREAD_DEG, WINDOW_HALF_DEGS, fit_shore_normal, fronting_water_depth_m,
     nearest_shoreline_km, nearshore_depth_m,
 )
+from services.weather_pipeline.ocean_access import (  # noqa: E402
+    placement_verdict as ocean_placement_verdict,
+)
 
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
-FETCH_HALF_DEG = max(WINDOW_HALF_DEGS)      # one fetch per spot; every window is cropped from it
+# One fetch per spot; every shore-normal window is CROPPED from it, so enlarging the box cannot
+# change a fitted bearing. It was max(WINDOW_HALF_DEGS) = ~5 km, which is too small to answer the
+# ocean-access question: Bethune Beach's nearest real sea is 5.29 km away and simply fell outside
+# the window. ~8.9 km sees it with margin. Accepted spots are unaffected — their nearest shoreline
+# is already inside the smaller box, and `nearest_shoreline_km` returns the NEAREST, so a bigger
+# box cannot move it.
+FETCH_HALF_DEG = 0.08
 PAGE = 1000                                  # PostgREST silently caps at 1000 AND still returns 200
 WORKERS = 6                                  # polite to NOAA; ~1516 spots lands in a few minutes
 RETRIES = 3
@@ -131,7 +140,8 @@ def measure(spot):
     out = {"id": spot.get("id"), "name": spot.get("name"), "region": spot.get("region"),
            "lat": lat, "lng": lon, "normal": None, "spread": None, "n_windows": 0,
            "shoreline_km": None, "elev_m": None, "front_depth_m": None,
-           "break_depth_m": None, "status": "ok"}
+           "break_depth_m": None, "ocean_km": None, "ocean_verdict": None,
+           "ocean_lat": None, "ocean_lng": None, "status": "ok"}
     try:
         elev, lats, lons = fetch_window(lat, lon)
     except Exception as e:
@@ -143,6 +153,15 @@ def measure(spot):
         j = int(np.argmin(np.abs(lons - lon)))
         out["elev_m"] = round(float(elev[i, j]), 1)
         out["shoreline_km"] = nearest_shoreline_km(elev, lats, lons, lat, lon)
+        # ★ `shoreline_km` counts the LAGOON bank as shore. New Smyrna's Flagler Avenue reads
+        # 0.24 km from "shore" while sitting +1.5 m up in the town, 3.3 km from the Atlantic across
+        # the Indian River AND the barrier island — and it was ACCEPTED, contributing a shore normal
+        # of 84.8 deg fitted to the lagoon bank (its correctly-placed neighbours read 50-65 deg).
+        # ocean_access asks the question that actually matters: how far to water swell can reach.
+        oa = ocean_placement_verdict(elev, lats, lons, lat, lon)
+        out["ocean_km"] = oa["ocean_km"]
+        out["ocean_verdict"] = oa["verdict"]
+        out["ocean_lat"], out["ocean_lng"] = oa["ocean_lat"], oa["ocean_lng"]
         out["front_depth_m"] = fronting_water_depth_m(elev, lats, lons, lat, lon)
         bd = nearshore_depth_m(elev, lats, lons, lat, lon)
         out["break_depth_m"] = None if bd is None else round(bd, 1)
@@ -165,6 +184,13 @@ def accepted(row):
         return False, "ambiguous_coastline"
     if row["shoreline_km"] is not None and row["shoreline_km"] > MAX_SHORELINE_KM:
         return False, "spot_misplaced"
+    # ★ THE SPOT MUST BE ON WATER SWELL CAN REACH. Every clause above is satisfied by a pin sitting
+    # on the bank of an enclosed lagoon — all three spots the owner reported inland in Volusia
+    # County (2026-07-27) passed them and shipped a shore normal fitted to the Intracoastal.
+    # A bearing derived from the wrong body of water is worse than no bearing: the caller falls
+    # back to the coarse grid on a miss, but a confident wrong answer is used as-is.
+    if row.get("ocean_verdict") in ("INLAND", "NO_OCEAN"):
+        return False, f"not_on_open_ocean_{(row.get('ocean_verdict') or '').lower()}"
     return True, "accepted"
 
 
@@ -245,13 +271,17 @@ def main():
     with open(args.out_csv, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["id", "name", "region", "lat", "lng", "normal_deg", "spread_deg",
-                    "n_windows", "shoreline_km", "elev_m", "front_depth_m", "break_depth_m",
+                    "n_windows", "shoreline_km", "ocean_km", "ocean_verdict",
+                    "ocean_lat", "ocean_lng", "elev_m", "front_depth_m", "break_depth_m",
                     "verdict", "status"])
-        for r in sorted(rows, key=lambda r: -(r["shoreline_km"] or 0)):
+        # Sorted by OCEAN distance, not shoreline distance — the lagoon-bank spots are the ones
+        # that most need a human, and shoreline_km sorts them to the bottom as if they were fine.
+        for r in sorted(rows, key=lambda r: -(r["ocean_km"] or 0)):
             w.writerow([r["id"], r["name"], r["region"], r["lat"], r["lng"], r["normal"],
-                        r["spread"], r["n_windows"], r["shoreline_km"], r["elev_m"],
+                        r["spread"], r["n_windows"], r["shoreline_km"], r["ocean_km"],
+                        r["ocean_verdict"], r["ocean_lat"], r["ocean_lng"], r["elev_m"],
                         r["front_depth_m"], r["break_depth_m"], r["verdict"], r["status"]])
-    print(f"Review CSV (worst placement first): {args.out_csv}")
+    print(f"Review CSV (worst OCEAN ACCESS first): {args.out_csv}")
 
     misplaced = [r for r in rows if (r["shoreline_km"] or 0) > MAX_SHORELINE_KM]
     if misplaced:
