@@ -42,6 +42,34 @@ SPARQL = "https://query.wikidata.org/sparql"
 UA = {"User-Agent": "raw-surf-spot-gap-analysis/1.0", "Accept": "application/sparql-results+json"}
 NEAR_KM = 2.0            # a Wikidata break within this of one of ours is the SAME break
 CONFIRM_SHORE_KM = 2.0   # ETOPO must put the candidate this close to a real shoreline
+# Beyond NEAR_KM, a NAME match up to this distance is still the same break in a different place —
+# measured: the four false "missing" headline breaks sat 2.42-5.13 km from their catalogue row.
+SAME_BREAK_KM = 8.0
+NEIGHBOUR_DEG = 0.12     # ~13 km prefilter box, comfortably outside SAME_BREAK_KM
+
+
+def normalise_name(s):
+    """Lowercase alphanumeric tokens, minus decoration that differs between sources.
+
+    'Jaws (Peahi)' vs 'Jaws', 'Guincho Beach' vs 'Guincho', 'El Médano' vs 'El Medano'."""
+    import unicodedata
+    s = unicodedata.normalize("NFKD", s or "")
+    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
+    # Apostrophes and the Hawaiian okina are INTERNAL to a word, not separators — splitting on them
+    # turns "Pe'ahi" into {pe, ahi}, which matches nothing and would drop every Hawaiian break
+    # (Pe'ahi, Ho'okipa, Ka'ena) out of the duplicate gate.
+    for ch in ("'", "‘", "’", "ʻ", "`"):
+        s = s.replace(ch, "")
+    drop = {"the", "beach", "point", "bay", "surf", "break", "spot", "praia", "playa", "plage"}
+    return {t for t in "".join(c if c.isalnum() else " " for c in s).split() if t and t not in drop}
+
+
+def names_match(a, b):
+    """True when two spot names plausibly denote the same break."""
+    ta, tb = normalise_name(a), normalise_name(b)
+    if not ta or not tb:
+        return False
+    return bool(ta & tb) and (ta <= tb or tb <= ta or len(ta & tb) >= 2)
 
 # No wdt:P279* subclass closure — the transitive walk times the public endpoint out (504), and
 # direct P31 on the two classes is what we actually want.
@@ -127,28 +155,53 @@ def main():
     print(f"Wikidata surf breaks/spots with coordinates: {len(wd)}")
 
     missing = []
+    discrepancies = []
     for w in wd:
         best = None
         for name, lat, lng in ours:
-            if abs(lat - w["lat"]) > 0.05:          # cheap prefilter before the haversine
+            # Prefilter on BOTH axes. Latitude alone let the "nearest existing spot" column report a
+            # break 3636 km away (Lunada Bay -> Apache Pier: same latitude band, opposite coast of
+            # the USA), because nothing bounded the longitude. A degree of longitude shrinks with
+            # latitude, hence the cosine.
+            if abs(lat - w["lat"]) > NEIGHBOUR_DEG:
+                continue
+            if abs(lng - w["lng"]) > NEIGHBOUR_DEG / max(0.05, math.cos(math.radians(w["lat"]))):
                 continue
             km = haversine_km(w["lat"], w["lng"], lat, lng)
             if best is None or km < best[0]:
                 best = (km, name)
-        if best is None or best[0] > NEAR_KM:
-            w["nearest_ours_km"] = None if best is None else round(best[0], 2)
-            w["nearest_ours"] = None if best is None else best[1]
+        if best is not None and best[0] <= NEAR_KM:
+            continue                                    # same break, same place — nothing to do
+        w["nearest_ours_km"] = None if best is None else round(best[0], 2)
+        w["nearest_ours"] = None if best is None else best[1]
+        # ★ A NAME MATCH A FEW KM AWAY IS A PLACEMENT DISAGREEMENT, NOT A MISSING BREAK.
+        # Proximity alone said Jaws, Cloud 9, Mavericks and Guincho were all absent — every one of
+        # them is in the catalogue under a slightly different name, 2.4-5.1 km from the Wikidata
+        # coordinate. Importing on that verdict would have created a duplicate of four of the most
+        # famous breaks in the world, and a duplicate is worse than a gap: it splits reports,
+        # ratings and search between two rows that both look real.
+        if best is not None and best[0] <= SAME_BREAK_KM and names_match(w["name"], best[1]):
+            w["verdict"] = "PLACEMENT_DISCREPANCY"
+            discrepancies.append(w)
+        else:
+            w["verdict"] = "MISSING"
             missing.append(w)
-    print(f"absent from the catalogue (no spot within {NEAR_KM} km): {len(missing)}")
+    print(f"absent from the catalogue (no spot within {NEAR_KM} km): "
+          f"{len(missing)} missing + {len(discrepancies)} placement discrepancies")
+    for w in discrepancies:
+        print(f"  ⚠ {w['name']} — matches '{w['nearest_ours']}' {w['nearest_ours_km']} km away. "
+              f"DO NOT IMPORT: review the coordinate instead.")
 
     rows = []
     with cf.ThreadPoolExecutor(max_workers=4) as ex:
-        for cand, chk in ex.map(verify_against_etopo, missing):
+        for cand, chk in ex.map(verify_against_etopo, missing + discrepancies):
             rows.append((cand, chk))
 
     good = [(c, k) for c, k in rows
-            if k and k["shore_km"] is not None and k["shore_km"] <= CONFIRM_SHORE_KM]
-    print(f"ETOPO confirms {len(good)} are within {CONFIRM_SHORE_KM} km of a real shoreline\n")
+            if k and k["shore_km"] is not None and k["shore_km"] <= CONFIRM_SHORE_KM
+            and c.get("verdict") == "MISSING"]
+    print(f"ETOPO confirms {len(good)} IMPORTABLE candidates within {CONFIRM_SHORE_KM} km "
+          f"of a real shoreline\n")
     print(f"{'name':<32}{'country':<18}{'shore_km':>9}{'normal':>8}  qid")
     for c, k in sorted(good, key=lambda x: x[1]["shore_km"]):
         nrm = "  n/a" if k["normal"] is None else f"{k['normal']:6.1f}"
@@ -158,17 +211,24 @@ def main():
     out = "missing_spots_wikidata.csv"
     with open(out, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["name", "country", "latitude", "longitude", "wikidata_qid",
+        # `verdict` leads the row because it is the only column that decides what to DO. The
+        # previous layout put every candidate under one heading and left the duplicate risk in a
+        # column ("nearest_existing_spot") that a summary could quietly drop — and did.
+        w.writerow(["verdict", "name", "country", "latitude", "longitude", "wikidata_qid",
                     "etopo_shore_km", "etopo_shore_normal_deg", "etopo_spread_deg",
                     "nearest_existing_spot", "nearest_existing_km", "source_licence"])
-        for c, k in sorted(rows, key=lambda x: (x[1] is None,
+        order = {"MISSING": 0, "PLACEMENT_DISCREPANCY": 1}
+        for c, k in sorted(rows, key=lambda x: (order.get(x[0].get("verdict"), 9),
+                                                x[1] is None,
                                                 (x[1] or {}).get("shore_km") or 9e9)):
-            w.writerow([c["name"], c["country"], c["lat"], c["lng"], c["qid"],
+            w.writerow([c.get("verdict"), c["name"], c["country"], c["lat"], c["lng"], c["qid"],
                         None if not k or k["shore_km"] is None else round(k["shore_km"], 2),
                         None if not k or k["normal"] is None else round(k["normal"], 1),
                         None if not k or k["spread"] is None else round(k["spread"], 1),
                         c.get("nearest_ours"), c.get("nearest_ours_km"), "Wikidata CC0"])
     print(f"\nwrote {out} — review before importing; nothing was written to the database.")
+    print("⚠ PLACEMENT_DISCREPANCY rows are ALREADY in the catalogue under another name. "
+          "Importing them creates duplicates — route them to the spot editor instead.")
     return 0
 
 
