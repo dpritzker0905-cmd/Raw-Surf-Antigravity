@@ -49,9 +49,54 @@ KNOWN_KM = 2.0
 DEDUPE_KM = 0.8
 WORKERS = 6
 
-OUT_COLS = ["decision", "name", "country", "lat", "lng", "fetch_km", "ocean_km", "ocean_verdict",
-            "shore_normal_deg", "spread_deg", "elev_m", "break_depth_m", "nearest_ours",
-            "nearest_ours_km", "source", "source_id", "licence", "attribution", "note"]
+OUT_COLS = ["decision", "confidence", "name", "country", "lat", "lng", "fetch_km", "ocean_km",
+            "ocean_verdict", "shore_normal_deg", "spread_deg", "elev_m", "break_depth_m",
+            "osm_surf_km", "nearest_ours", "nearest_ours_km", "source", "source_id", "licence",
+            "attribution", "note"]
+
+
+def confidence(r):
+    """0-100, so the reviewer works the best rows first instead of reading 4,500 alphabetically.
+
+    Built only from signals we measure ourselves. Deliberately NOT from OSM: its 536 named
+    `sport=surfing` features include German river waves (Eisbachwelle, Almwelle, blackforestwave)
+    and surf clubs, so a nearby OSM feature is a weak positive hint and never a gate. It is
+    reported in `osm_surf_km` for the reviewer to weigh, not folded into the score."""
+    score = 0.0
+    f = r.get("fetch_km")
+    if f:                                   # open-ocean exposure, 0-40
+        score += 40.0 * min(float(f) / 500.0, 1.0)
+    ok = r.get("ocean_km")
+    if ok is not None and ok != "":         # sitting ON the water, 0-30
+        score += 30.0 * max(0.0, 1.0 - float(ok) / 3.0)
+    sp = r.get("spread_deg")
+    if sp is not None and sp != "":         # a confident coastal aspect, 0-20
+        score += 20.0 * max(0.0, 1.0 - float(sp) / 40.0)
+    bd = r.get("break_depth_m")
+    if bd is not None and bd != "":         # a plausible surf-zone depth, 0-10
+        score += 10.0 if 1.0 <= float(bd) <= 30.0 else 0.0
+    return round(score, 1)
+
+
+def annotate_osm(rows, osm_csv):
+    """Distance to the nearest OSM `sport=surfing` feature — a hint, never a filter."""
+    try:
+        osm = read_csv(osm_csv)
+    except Exception:
+        return
+    pts = []
+    for o in osm:
+        try:
+            pts.append((float(o["lat"]), float(o["lng"])))
+        except (TypeError, ValueError, KeyError):
+            continue
+    for r in rows:
+        la, lo = r.get("lat"), r.get("lng")
+        if la is None:
+            continue
+        near = [haversine_km(la, lo, a, b) for a, b in pts
+                if abs(a - la) < 0.2 and abs(b - lo) < 0.25]
+        r["osm_surf_km"] = round(min(near), 2) if near else None
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -131,6 +176,9 @@ def main():
     ap.add_argument("--out", default="spot_candidates_reviewed.csv")
     ap.add_argument("--min-fetch", type=float, default=MIN_FETCH_KM)
     ap.add_argument("--offline-only", action="store_true")
+    ap.add_argument("--osm", default=None,
+                    help="CSV of OSM sport=surfing features (name,lat,lng) — reported as a hint "
+                         "in osm_surf_km, never used as a gate")
     ap.add_argument("--limit", type=int, default=None)
     args = ap.parse_args()
 
@@ -190,16 +238,29 @@ def main():
             r["decision"] = "DUPLICATE_CLUSTER"
         kept.append(r)
 
+    if args.osm:
+        annotate_osm(kept, args.osm)
+    for r in kept:
+        r["confidence"] = confidence(r)
+
     print()
     for k, v in Counter(r["decision"] for r in kept).most_common():
         print(f"  {k:<22}{v:>6}")
+    news = [r for r in kept if r["decision"] == "NEW"]
+    if news:
+        news.sort(key=lambda r: -r["confidence"])
+        print(f"\ntop 10 NEW by confidence (review these first):")
+        for r in news[:10]:
+            print(f"  {r['confidence']:>5.1f}  {r['name'][:34]:<36}{(r.get('country') or '')[:14]:<16}"
+                  f"fetch {r.get('fetch_km')} km  spread {r.get('spread_deg')}")
 
     with open(args.out, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(OUT_COLS)
+        # Best-first, so the reviewer's time goes to the rows most likely to be real.
         order = {"NEW": 0, "KNOWN": 1, "DUPLICATE_CLUSTER": 2}
         for r in sorted(kept + rejected,
-                        key=lambda r: (order.get(r["decision"], 9), -(r.get("fetch_km") or 0))):
+                        key=lambda r: (order.get(r["decision"], 9), -(r.get("confidence") or 0))):
             w.writerow([r.get(c) for c in OUT_COLS])
     print(f"\nWrote {args.out}. NOTHING was written to the database.")
     print("Review the NEW rows, then import with scripts/import_reviewed_spots.py.")
