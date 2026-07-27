@@ -70,6 +70,25 @@ GNIS_CLASSES = {"Beach", "Cape", "Bar", "Bay", "Channel", "Island", "Reef", "Pil
 GNS_QUERY = ("https://geonames.nga.mil/geon-ags/rest/services/RESEARCH/GIS_OUTPUT/"
              "MapServer/0/query")
 
+# ⚠️⚠️ GNS IS A CORRECTION SOURCE, NOT A DISCOVERY SOURCE — measured 2026-07-27, and this corrects
+# an optimistic claim of mine ("global expansion now uses the same fetcher").
+# Calibrated the way the PT/IE pilot was: point it at regions where we already hold spots and ask
+# whether it can rediscover them. Recall of our own catalogue, by GNS coastal landforms:
+#     Bali / Java            6.1% @1 km   48.5% @3 km
+#     SoCal                  0.0%         0.0%
+#     SW France / N Spain    3.4%        55.2%
+#     Sri Lanka south       35.7%        57.1%
+#     Nicaragua / Costa Rica 6.2%        37.5%
+#     (EEA bathing waters   45.9%        77.4%  — the bar to beat)
+# TWO STRUCTURAL FACTS behind those numbers:
+#   * ★ GNS EXCLUDES THE UNITED STATES. It is the FOREIGN names database; US names are in GNIS.
+#     SoCal returned 44 features for the entire box, which is why its recall is a flat zero.
+#   * The service caps at 3000 records per query and three of the five boxes hit it, so those
+#     figures are LOWER BOUNDS — a real sweep must tile, not widen the box.
+# It is excellent at the job it was added for: anchored NAME lookup near a known coordinate gave
+# 75 of 164 corrections, 9 of them high-confidence. As a primary discovery source it would surface
+# mostly non-surf coastal features while missing half the real breaks. Use EEA where it reaches.
+
 # ⚠️ THE DESIGNATION FILTER IS NOT COSMETIC — it is what stops a confidently wrong proposal.
 # Measured 2026-07-27 on 20 misplaced spots, an unfiltered name match returned:
 #     Manzanillo        -> Manzanillo [FRM]  18.41 km   a FARM
