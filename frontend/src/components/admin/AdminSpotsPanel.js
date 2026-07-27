@@ -21,6 +21,7 @@ import '../../utils/leafletLoader'; // sets window.L (see file for why this was 
 const AdminSpotsPanel = ({ userId }) => {
   const [stats, setStats] = useState(null);
   const [spotTotal, setSpotTotal] = useState(0);
+  const [lastRefreshed, setLastRefreshed] = useState(null);
   // 'all' | 'flagged' | 'low_accuracy' | 'verified' — the review state is the reason to open this
   // panel, so it needs to be filterable, not just countable.
   const [accuracyFilter, setAccuracyFilter] = useState('all');
@@ -67,14 +68,31 @@ const AdminSpotsPanel = ({ userId }) => {
     }
   }, [filterCountry, accuracyFilter]);
 
+  // ONE refresh for every mutation. The tiles and the list read different endpoints, and
+  // `handleUpdateSpot` used to refresh only the list — so editing a spot's accuracy left the
+  // "Global Spot Database" counts showing the pre-edit numbers until a manual Refresh. Every
+  // handler calls this instead of remembering to call both.
+  const refreshAll = useCallback(async () => {
+    await Promise.all([fetchStats(), fetchSpots()]);
+    setLastRefreshed(new Date());
+  }, [fetchStats, fetchSpots]);
+
   useEffect(() => {
     const load = async () => {
       setLoading(true);
-      await Promise.all([fetchStats(), fetchSpots()]);
+      await refreshAll();
       setLoading(false);
     };
     load();
-  }, [fetchStats, fetchSpots]);
+  }, [refreshAll]);
+
+  // The counts are a live view of production, so say when they were last read. Without it a stale
+  // panel is indistinguishable from a correct one — which is exactly how the 165 flagged spots
+  // went unnoticed.
+  useEffect(() => {
+    const id = setInterval(() => { refreshAll(); }, 60000);
+    return () => clearInterval(id);
+  }, [refreshAll]);
 
   // Import tier state
 
@@ -103,8 +121,7 @@ const AdminSpotsPanel = ({ userId }) => {
         );
       }
       setShowImportDialog(false);
-      fetchSpots();
-      fetchStats();
+      refreshAll();
     } catch (error) {
       logger.error('Import failed:', error);
       toast.error(error.response?.data?.detail || 'Import failed');
@@ -118,7 +135,7 @@ const AdminSpotsPanel = ({ userId }) => {
       await apiClient.put(`/admin/spots/${spotId}`, null, { params: updates });
       toast.success('Spot updated');
       setEditingSpot(null);
-      fetchSpots();
+      refreshAll();
     } catch (error) {
       toast.error('Update failed');
     }
@@ -129,8 +146,7 @@ const AdminSpotsPanel = ({ userId }) => {
     try {
       await apiClient.delete(`/admin/spots/${spotId}`);
       toast.success('Spot deleted');
-      fetchSpots();
-      fetchStats();
+      refreshAll();
     } catch (error) {
       toast.error('Delete failed');
     }
@@ -255,8 +271,7 @@ const AdminSpotsPanel = ({ userId }) => {
       toast.success(`Peak location verified for ${pinMapSpot.name}`);
       setPrecisionPinOpen(false);
       setPinMapSpot(null);
-      fetchSpots();
-      fetchStats();
+      refreshAll();
     } catch (error) {
       toast.error('Failed to save pin location');
     }
@@ -310,9 +325,16 @@ const AdminSpotsPanel = ({ userId }) => {
       {/* Stats Overview */}
       <Card className="bg-card border-border">
         <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2">
+          <CardTitle className="text-foreground flex items-center gap-2 flex-wrap">
             <MapPin className="w-5 h-5 text-cyan-400" />
             Global Spot Database
+            {/* Every number below is read live from production. Saying WHEN makes a stale panel
+                distinguishable from a correct one — the failure mode that hid 165 flagged spots. */}
+            <span className="text-xs font-normal text-muted-foreground ml-auto" aria-live="polite">
+              {lastRefreshed
+                ? `Live · updated ${lastRefreshed.toLocaleTimeString()}`
+                : 'Loading live data…'}
+            </span>
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -401,7 +423,7 @@ const AdminSpotsPanel = ({ userId }) => {
         </Button>
         <Button aria-label="Refresh"
           variant="outline"
-          onClick={() => { fetchStats(); fetchSpots(); }}
+          onClick={() => refreshAll()}
           className="border-input"
         >
           <RefreshCw className="w-4 h-4 mr-2" />
