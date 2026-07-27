@@ -279,3 +279,51 @@ already carries `was_on_land` + `override_land_warning`. **`check_ins` carry REA
 positions — median 0.36 km from the spot, 3 of 4 under 1 km — but there are 4 of them.**
 ⚠️ `stories`/`condition_reports` coordinates are UNUSABLE: median 297.77 km with p90 IDENTICAL
 (a degenerate constant over 4-5 spots = test data). Same shape as the `surf_reports` starvation.
+
+---
+
+## 9. ★★ SHIPPED 2026-07-27 — THE DEPTH-LIMITED BREAKING CAP WAS DEAD
+
+`H <= gamma*d` is the most basic law in surf and it had **never once applied in production**.
+Measured across 395 live spots: the cap **bound on ZERO of them**, median cap **107x the wave**.
+
+**Root — one number doing two jobs.** `estimate_surf` uses a single `depth_m` for cross-shelf
+friction AND for the depth-limited cap. Santa Cruz reads 452 m: correct as "deep water offshore,
+little friction", absurd as "waves here break at 350 m".
+
+**Fix (additive, not a swap).** A separate `break_depth_m` from ETOPO 15s (`nearshore_depth_m`)
+feeds the cap only; the friction path is untouched. Asset entries gained a 5th element and
+4-element entries from older builds still load. **725 of 950 spots carry a trusted depth**
+(p50 10.4 m). Kill: `SURF_BREAK_DEPTH=0` or `SHORE_NORMAL_ASSET=0`; absent depth is byte-identical
+to before.
+
+### ⚠️ THE FIRST BUILD CAPPED REAL BREAKS OUT OF EXISTENCE
+Caught by measuring the live effect before trusting it. Black Rock got a break depth of **0.1 m**
+and the cap crushed it from **2.40 m to 0.12 m**; Monterrico 3.78 -> 1.00; Aroa Beach 3.63 -> 1.00.
+**66 spots (8%) were being capped.** Two roots, two guards:
+* **reef flat / swash** — Aroa medianed 0.8 m across ALL water in range; excluding cells under 1 m
+  gives **16.9 m**, the water beyond the flat, which is what actually limits the wave.
+* **unresolvable nearshore** — at 463 m a cell straddling a beach reads near-zero, so a very
+  shallow answer means the INSTRUMENT failed. Below 3 m now returns None (legacy behaviour).
+
+After both guards: **6 spots (1%)**, all at the 3 m floor, largest Muriwai 3.58 -> 2.47.
+★ **A wrong break depth destroys a spot; a missing one is free.**
+
+### LIVE
+| check | result |
+|---|---|
+| `/point` Muriwai | `surf=2.4675`, regime **`breaking`** (was 3.58 `shoaling`) |
+| `/point` Steamer Lane | 1.996 `shoaling` — uncapped spots unchanged |
+| `/point` Black Rock | **2.6663** — the trust guard held (would have been 0.12) |
+
+### ⚠️ TWO CORRECTIONS TO §8, BOTH FROM MEASUREMENT
+1. **`shelf_depth_at` is NOT broken.** §8 called it "off by 40x". That measured it against the
+   wrong purpose. For friction it works: Cocoa Beach 24 m/73 km -> **24.6% loss**, Galveston
+   16 m/167 km -> **57.1%**, Mavericks 2.7%, Pipeline 0% — exactly the wide-shallow-shelf vs
+   steep-coast distinction it documents. **Do not "fix" it.**
+2. **`shelf_width_km` is NOT dead.** It looked inert only because the sensitivity sweep held depth
+   at 452 m. At Florida's 24 m it drives that 25-57% loss.
+
+★ **SENSITIVITY RANKING (measured, Komar branch on):** the shore normal swings surf height **40%**
+(2.97 -> 1.77 m across bearings); depth is inert above ~50 m. So §2's shore-normal asset was the
+high-leverage move, and this cap is **correctness, not volume**.
