@@ -20,20 +20,33 @@ comparing bulk land/ocean centroids, so it does not care how much land happens t
 maximum pairwise disagreement yields a self-measured confidence. Validated 2026-07-26 against
 production:
 
-    spread  spot             prod(0.25°)  ETOPO   real-world truth   who is right
-     0.9    Sunset Beach          0.0     315.5   ~335 NW            ETOPO
-     2.3    Pipeline              0.0     308.8   ~325 NW            ETOPO
-     3.1    Hossegor            305.0     280.3   ~275 W             ETOPO
-     8.3    Jeffreys Bay        174.6     105.4   ~110 ESE           ETOPO
-    10.4    Nusa Dua            162.9      68.7   ~110 E             ETOPO
-    16.5    Ocean Beach SF      240.8     269.2    270 due W         ETOPO
-    26.0    Steamer Lane        247.9     153.5   ~180 S             NEITHER
-    39.1    Uluwatu             162.5     308.4   ~250 WSW           NEITHER
+    spread  spot             prod(0.25°)  ETOPO    OSM (independent)   ETOPO err   coarse err
+     0.9    Sunset Beach          0.0     315.5           -                -            -
+     2.3    Pipeline              0.0     308.8         304.3            4.5°        ~55°
+     3.1    Hossegor            305.0     280.3         276.8            3.5°        28.2°
+     8.3    Jeffreys Bay        174.6     105.4          99.0            6.4°        75.6°
+    10.4    Nusa Dua            162.9      68.7          59.9            8.8°       103.0°
+    16.5    Ocean Beach SF      240.8     269.2         270.0            0.8°        29.2°
+    26.0    Steamer Lane        247.9     153.5         143.0           10.5°       105.0°
+    39.1    Uluwatu             162.5     308.4         318.6           10.2°       156.2°
 
-Every low-spread spot, ETOPO wins outright. Both high-spread spots sit where a coastline genuinely
-bends (a peninsula corner, a headland) and NO single bearing is correct — the estimator is reporting
-a real ambiguity of the location, not a bug. Hence MAX_SPREAD_DEG: above it we emit nothing and the
-caller keeps the coarse value rather than trading one wrong answer for another.
+The truth column is NOT my reading of a map — it is OSM coastline geometry (see below), which shares
+no assumption with this estimator. ETOPO wins every row, and the two worst-spread spots are wins by
+the largest margin of all.
+
+★ THE GATE THRESHOLD IS MEASURED, NOT CHOSEN. It was first set to 25° on the assumption that a high
+spread meant "no single bearing is correct". **That assumption was wrong.** Cross-validating the
+440 gate-rejected spots against OSM showed a high spread means the bearing is scale-DEPENDENT, while
+the circular mean across scales stays good:
+
+    spread band   n    ETOPO err vs OSM    coarse err vs OSM    ETOPO closer
+      25-40°     17         31.9°                63.1°              76%
+      40-60°      7         25.6°                20.0°              14%
+      60-120°     7         44.4°                30.8°              43%
+
+In 25-40° the ETOPO bearing HALVES the error and wins 3 times in 4, so gating it out was costing
+accuracy on 176 spots. Past 40° the advantage disappears. Hence MAX_SPREAD_DEG = 40: above it we
+emit nothing and the caller keeps the coarse value rather than trading one wrong answer for another.
 
 ★ WHY THE SMALLEST WINDOW WAS REMOVED. The first full build fitted a ~1.1 km half-width window as
 well, and it disqualified spots wholesale: at 463 m that window is only ~5×5 cells, far too short a
@@ -51,10 +64,10 @@ true normal is known exactly.
 """
 import math
 
-# Above this multi-window disagreement the location has no single well-defined shore normal.
-# Chosen from the table above: the trustworthy band tops out at 16.5° and the untrustworthy band
-# starts at 26.0°; 25° sits in the gap between them.
-MAX_SPREAD_DEG = 25.0
+# Above this multi-window disagreement the ETOPO bearing stops beating the coarse one it replaces.
+# Set from the OSM band measurement above (25-40° wins 76%, past 40° it does not), NOT from a guess
+# about what a "confident" spread ought to be.
+MAX_SPREAD_DEG = 40.0
 
 # Window half-widths (degrees) the estimator is evaluated at: ~1.7 km to ~5.0 km. Small enough to
 # resolve a single beach, large enough that one noisy 463 m cell cannot dominate — and no smaller,

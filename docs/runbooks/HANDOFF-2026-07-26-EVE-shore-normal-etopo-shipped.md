@@ -88,6 +88,42 @@ spots stayed bit-identical.**
 
 ---
 
+## 3b. ★ INDEPENDENTLY VALIDATED (added after shipping — the asset was checked, not assumed)
+
+Everything in §3 was validated against *my own reading* of coastline geography, and I got that wrong
+twice today. So the shipped bearings were re-checked against an instrument sharing **no assumption**
+with ETOPO: **OSM coastline ways**, which are hand-digitised vectors drawn with **land on the left,
+water on the right** — so the seaward normal is `segment bearing + 90°`, with no elevation, no depth,
+no raster. (Validation only. Nothing OSM-derived is written into the asset — ODbL is share-alike.)
+
+```
+n = 90 sampled shipped spots      median 6.4°   mean 14.1°   p90 26.6°
+                                  within 15°: 70%    within 30°: 91%
+gate predicts truth:  spread <=10° -> median error 5.4°   |   spread >10° -> 7.6°
+```
+The gate's own confidence **monotonically predicts real-world error**, which is the property it was
+assumed to have and had never been tested for.
+
+⚠️ **The first pass of this validation was itself wrong, and its failure mode is instructive.**
+Averaging every OSM segment within 3 km made the **two shores of an island or spit cancel** — their
+normals oppose — producing a meaningless residual and 7 apparent "worst disagreements". Using the
+nearest-shore cluster instead: Outer Banks 86°→**1°**, Cuba 104°→**5°**, Maldives 118°→**13°**,
+Dingle 62°→**7°**, Pensacola 52°→**8°**, SW Florida 46°→**5°**. **Six of the seven were the
+validator's bug, not the asset's** — and it is the *same* structural trap that depth weighting
+already fixes in ETOPO (§3c). Only one genuine disagreement survived (Chile, 41°).
+
+### LIVE, in production
+| check | result | proves |
+|---|---|---|
+| `/point` Hossegor | **279.8** (coarse would be 304.99) | asset is serving |
+| `/point` Uluwatu (gate-rejected) | `162.474…` — the exact coarse float | **fallback is safe** |
+| `/point` Salvo OBX | 104.9 (east) | barrier-island fix is live |
+| `/point` Pipeline | **325.0**, not the asset's 309.0 | **hand overrides still outrank** |
+
+⚠️ Two independent instruments (ETOPO raster and OSM vectors) put Pipeline at **304-309°**, while the
+hand override says **325°**. The override was tuned to match one Surfline reading on one day. It
+still wins by design, but it is worth revisiting.
+
 ## 4. ⚠️ TWO PUBLISHED CLAIMS CORRECTED
 
 1. **"~31% of spots misplaced ⇒ ~465 of 1516" is an OVERCOUNT.** That came from elevation banding,

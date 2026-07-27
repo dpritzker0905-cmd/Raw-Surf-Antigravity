@@ -97,16 +97,16 @@ def test_clean_coast_has_a_small_spread():
 def test_ambiguous_corner_has_a_large_spread():
     """A coastline that BENDS inside the window has no single normal — the spread must say so.
 
-    This is the Uluwatu/Steamer Lane case (measured spreads 48.1° and 39.8° against production).
-    Without this the gate would be vacuous: it must be possible to exceed it.
+    Without this the gate would be vacuous: it must be possible to exceed MAX_SPREAD_DEG.
 
-    The bend must sit OUTSIDE the smallest window and inside the largest — a corner that is present
-    at every scale is self-similar and correctly yields a spread of ~0. Here the coast reads due
-    west (270°) in the tight windows and swings to ~241° once the peninsula tip comes into view,
-    the same way Uluwatu swings 341° -> 275° as its window grows."""
+    A small ISLAND sitting wholly inside the larger windows is the honest case. Its shoreline is a
+    closed loop, so there is no single seaward direction at all and the fit swings ~90° across
+    scales. Note that a mere coastal BEND is NOT enough any more: measured against OSM, a bend
+    (spread 25-40°) still yields a bearing that beats the coarse value 76% of the time, which is
+    exactly why the gate sits at 40° and not 25°."""
     e = np.full((N, N), OCEAN)
     rows, cols = np.indices(e.shape)
-    e[(cols >= N // 2) & (rows >= 16)] = LAND
+    e[(rows >= 17) & (rows < 23) & (cols >= N // 2) & (cols < N // 2 + 6)] = LAND
     _, spread, n = fit_shore_normal(e, LATS, LONS, 0.0, 0.0)
     assert n >= 3
     assert spread is not None and spread > MAX_SPREAD_DEG, (
