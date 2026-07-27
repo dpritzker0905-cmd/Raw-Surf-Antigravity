@@ -188,9 +188,20 @@ Bay, Scheveningen, El Médano, Brouwersdam, Pointe du Diable, Elbow Ledge. Owner
    point break. (The sim now follows the flag, so it will track whenever it is flipped.)
 
 ### ⚠️ OPEN / LATENT
-* **The rebuild got much slower: ~3 min → 25 min+**, because `FETCH_HALF_DEG` grew 0.045 → 0.08 for
-  the ocean test (3.2× the cells). If that is a problem, fetch the ocean window at a coarser ERDDAP
-  **stride** rather than shrinking it — 1.5 km resolution is plenty for a 1.5 km test.
+* ⛔ **THE ASSET HAS NOT BEEN REBUILT YET.** The run hit the 45-min timeout and recovered nothing.
+  A fresh run is in flight (`17d831cc` raised the timeout to 150 min and made the review CSV
+  **stream**). **Until it lands, the inland spots are still in the asset** — the ocean gate exists
+  in code but has not been applied to production geometry. Re-check
+  `gh run list --workflow build-shore-normals.yml`, then flag from `ocean_verdict`.
+* ⚠️⚠️ **I BLAMED THE WINDOW FOR THE SLOWDOWN AND WAS WRONG — corrected in `17d831cc`.** The build
+  went ~3 min → 40 min right after `FETCH_HALF_DEG` grew 0.045 → 0.08, so I "optimised" it into a
+  separate coarse ocean fetch. Measured on one spot, same instant:
+  **0.045/stride1 = 484 cells → 22.06 s · 0.08/stride4 = 100 cells → 22.05 s · 0.08/stride1 =
+  1600 cells → 21.83 s.** **ERDDAP charges per REQUEST, not per payload** — 16× the data is free
+  and a second request would have DOUBLED the build. The same code ran at 0.7 s/request that
+  morning and 22 s/request that afternoon. **The build's wall time tracks ERDDAP's mood, not the
+  window.** The coarse variant was wrong twice: same cost, and at 1.85 km cells it false-flagged
+  Pipeline, Cocoa Beach, Jeffreys Bay and Ponce Inlet as INLAND.
 * Size-climatology coupling (unchanged): `grid_size_climatology.py:95` / `surf_rating.py:453`
   compute climatology **without** a break depth while served heights have one. Harmless at
   `RATING_LOCAL_SIZE=0`; fix before flipping.
