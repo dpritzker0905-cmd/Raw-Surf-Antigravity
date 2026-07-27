@@ -40,6 +40,7 @@ import concurrent.futures as cf
 import csv
 import io
 import json
+import logging
 import os
 import sys
 import time
@@ -55,12 +56,23 @@ from services.weather_pipeline.ocean_access import (  # noqa: E402
 )
 
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
-# One fetch per spot; every shore-normal window is CROPPED from it, so enlarging the box cannot
-# change a fitted bearing. It was max(WINDOW_HALF_DEGS) = ~5 km, which is too small to answer the
-# ocean-access question: Bethune Beach's nearest real sea is 5.29 km away and simply fell outside
-# the window. ~8.9 km sees it with margin. Accepted spots are unaffected — their nearest shoreline
-# is already inside the smaller box, and `nearest_shoreline_km` returns the NEAREST, so a bigger
-# box cannot move it.
+# ONE fetch per spot; every shore-normal window is CROPPED from it, so enlarging the box cannot
+# change a fitted bearing. Grown from max(WINDOW_HALF_DEGS) (~5 km) because that is too small to
+# answer the ocean-access question — Bethune Beach's nearest real sea is 5.11 km out and simply
+# fell outside it. Accepted spots are unaffected: their nearest shoreline is already inside the
+# smaller box and `nearest_shoreline_km` returns the NEAREST, so a bigger box cannot move it.
+#
+# ⚠️ DO NOT "OPTIMISE" THIS INTO TWO FETCHES. Measured 2026-07-27 on one spot, same instant:
+#     0.045 stride 1 =  484 cells -> 22.06 s
+#     0.08  stride 4 =  100 cells -> 22.05 s
+#     0.08  stride 2 =  400 cells -> 21.69 s
+#     0.08  stride 1 = 1600 cells -> 21.83 s
+# ERDDAP charges per REQUEST, not per payload — 16x the data is free, a second request doubles the
+# build. (A wide-but-coarse ocean window was tried for exactly that reason and was wrong twice:
+# it cost the same, and at 1.85 km cells it false-flagged Pipeline, Cocoa Beach, Jeffreys Bay and
+# Ponce Inlet as INLAND, because the quantised nearest-deep-cell lands past the 1.5 km cutoff.)
+# The build's wall time tracks ERDDAP's mood, not this constant: the same code ran in 3 min at
+# 0.7 s/request and >40 min at 22 s/request on the same day.
 FETCH_HALF_DEG = 0.08
 PAGE = 1000                                  # PostgREST silently caps at 1000 AND still returns 200
 WORKERS = 6                                  # polite to NOAA; ~1516 spots lands in a few minutes
@@ -94,12 +106,17 @@ def fetch_spots(base, key, limit=None):
         offset += PAGE
 
 
-def fetch_window(lat, lon, half=FETCH_HALF_DEG):
-    """One ETOPO 2022 15s box around a spot -> (elev, lats, lons) with BOTH axes ascending."""
+def fetch_window(lat, lon, half=FETCH_HALF_DEG, stride=1):
+    """One ETOPO 2022 15s box around a spot -> (elev, lats, lons) with BOTH axes ascending.
+
+    ``stride`` subsamples the grid server-side. Cost is quadratic in half/stride, and ERDDAP is far
+    more sensitive to payload than to request count: widening the box to 0.08 at stride 1 took the
+    full build from ~3 min to >40 min (it hit the 45 min timeout). The ocean-access test only needs
+    to resolve ~1.5 km, so it takes its own wide-but-coarse window instead."""
     import numpy as np
     import requests
-    q = (f"?z%5B({lat - half:.6f}):1:({lat + half:.6f})%5D"
-         f"%5B({lon - half:.6f}):1:({lon + half:.6f})%5D")
+    q = (f"?z%5B({lat - half:.6f}):{stride}:({lat + half:.6f})%5D"
+         f"%5B({lon - half:.6f}):{stride}:({lon + half:.6f})%5D")
     last = None
     for attempt in range(RETRIES):
         try:
@@ -174,6 +191,21 @@ def measure(spot):
     return out
 
 
+REVIEW_COLUMNS = ["id", "name", "region", "lat", "lng", "normal_deg", "spread_deg",
+                  "n_windows", "shoreline_km", "ocean_km", "ocean_verdict",
+                  "ocean_lat", "ocean_lng", "elev_m", "front_depth_m", "break_depth_m",
+                  "verdict", "status"]
+
+
+def review_row(r):
+    """One review-CSV row. Shared by the streaming writer and the final sorted rewrite, so a
+    timeout-truncated file has the same shape as a complete one."""
+    return [r["id"], r["name"], r["region"], r["lat"], r["lng"], r["normal"],
+            r["spread"], r["n_windows"], r["shoreline_km"], r["ocean_km"],
+            r["ocean_verdict"], r["ocean_lat"], r["ocean_lng"], r["elev_m"],
+            r["front_depth_m"], r["break_depth_m"], r.get("verdict"), r["status"]]
+
+
 def accepted(row):
     """The gate. Every clause is a measured failure mode, not a precaution."""
     if row["normal"] is None or row["spread"] is None:
@@ -227,12 +259,22 @@ def main():
 
     print(f"Fitting {len(spots)} spots against ETOPO 2022 15s (~463 m), "
           f"windows {[round(h * 111.32, 1) for h in WINDOW_HALF_DEGS]} km half-width…")
+    # Rows are STREAMED to the review CSV as they complete, not written at the end. The fit is
+    # ~1516 ERDDAP round-trips and ERDDAP's latency is wildly variable (measured the same day:
+    # 0.7 s/request -> a 3 min build; 22 s/request -> killed by the job timeout). The 2026-07-27
+    # run that hit the timeout lost EVERY fitted row, because the CSV had not been opened yet —
+    # the `if: always()` artifact upload correctly ran and found no file. Partial data beats none.
     rows = []
-    with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
-        for i, row in enumerate(ex.map(measure, spots)):
-            rows.append(row)
-            if (i + 1) % 100 == 0:
-                print(f"  {i + 1}/{len(spots)}")
+    with open(args.out_csv, "w", newline="", encoding="utf-8") as _fh:
+        _w = csv.writer(_fh)
+        _w.writerow(REVIEW_COLUMNS)
+        with cf.ThreadPoolExecutor(max_workers=WORKERS) as ex:
+            for i, row in enumerate(ex.map(measure, spots)):
+                rows.append(row)
+                _w.writerow(review_row(row))
+                if (i + 1) % 100 == 0:
+                    _fh.flush()
+                    print(f"  {i + 1}/{len(spots)}")
 
     entries, reasons = [], {}
     for row in rows:
@@ -268,19 +310,14 @@ def main():
     print(f"\nAsset: {len(entries)}/{len(rows)} spots -> {args.asset} "
           f"({os.path.getsize(args.asset) / 1024:.0f} KB)")
 
+    # Rewrite the streamed CSV now that every row has a verdict, sorted by OCEAN distance rather
+    # than shoreline distance — sorting by shoreline_km put the lagoon-bank spots at the BOTTOM,
+    # looking fine, which is exactly how they went unnoticed.
     with open(args.out_csv, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
-        w.writerow(["id", "name", "region", "lat", "lng", "normal_deg", "spread_deg",
-                    "n_windows", "shoreline_km", "ocean_km", "ocean_verdict",
-                    "ocean_lat", "ocean_lng", "elev_m", "front_depth_m", "break_depth_m",
-                    "verdict", "status"])
-        # Sorted by OCEAN distance, not shoreline distance — the lagoon-bank spots are the ones
-        # that most need a human, and shoreline_km sorts them to the bottom as if they were fine.
+        w.writerow(REVIEW_COLUMNS)
         for r in sorted(rows, key=lambda r: -(r["ocean_km"] or 0)):
-            w.writerow([r["id"], r["name"], r["region"], r["lat"], r["lng"], r["normal"],
-                        r["spread"], r["n_windows"], r["shoreline_km"], r["ocean_km"],
-                        r["ocean_verdict"], r["ocean_lat"], r["ocean_lng"], r["elev_m"],
-                        r["front_depth_m"], r["break_depth_m"], r["verdict"], r["status"]])
+            w.writerow(review_row(r))
     print(f"Review CSV (worst OCEAN ACCESS first): {args.out_csv}")
 
     misplaced = [r for r in rows if (r["shoreline_km"] or 0) > MAX_SHORELINE_KM]
