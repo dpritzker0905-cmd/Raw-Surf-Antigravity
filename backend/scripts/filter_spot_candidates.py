@@ -55,6 +55,25 @@ OUT_COLS = ["decision", "confidence", "name", "country", "lat", "lng", "fetch_km
             "attribution", "note"]
 
 
+# Bathing-water registers list every supervised swimming location, which includes tidal pools,
+# marinas, naval clubs and river/lagoon sites. Measured on the Portugal+Ireland run, 16 of 373
+# candidates were these — "PISCINA DO CAIS", "COMPLEXO BALNEAR DAS SALINAS", "CLUBE NAVAL DE SÃO
+# VICENTE", "LAGOA DE ALBUFEIRA", "FOZ DO ARELHO-LAGOA". They pass every geometric test because
+# they genuinely sit on the coast; only the NAME reveals what they are. Cheap, and it is review
+# time the owner does not have to spend.
+# PT/ES/FR/EN, matched case-insensitively on word-ish boundaries.
+NON_SURF_PATTERN = (
+    r"(?i)(piscina|complexo\s+balnear|clube\s+naval|club\s+n[aá]utico|doca|marina\b|cais\b|"
+    r"barragem|fluvial|lagoa\b|albufeira\b|estu[aá]rio|embalse|r[ií]o\b|"
+    r"harbour|harbor|\bpier\b|\bquay\b|\blough\b|\briver\b|\blake\b|swimming|lido\b)"
+)
+
+
+def looks_non_surf(name):
+    import re
+    return bool(re.search(NON_SURF_PATTERN, name or ""))
+
+
 def confidence(r):
     """0-100, so the reviewer works the best rows first instead of reading 4,500 alphabetically.
 
@@ -118,6 +137,10 @@ def stage1_offline(rows, min_fetch):
         try:
             la, lo = float(r["lat"]), float(r["lng"])
         except (TypeError, ValueError):
+            continue
+        if looks_non_surf(r.get("name")):
+            out.append(dict(r, lat=la, lng=lo, decision="REJECT_NOT_A_BEACH",
+                            note="name denotes a pool, marina, club or inland water"))
             continue
         sn = None
         try:
