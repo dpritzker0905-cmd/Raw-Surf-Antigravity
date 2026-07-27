@@ -210,7 +210,36 @@ def review_row(r):
 
 
 def accepted(row):
-    """The gate. Every clause is a measured failure mode, not a precaution."""
+    """The gate. Every clause is a measured failure mode, not a precaution.
+
+    ★ PLACEMENT IS TESTED BEFORE FIT QUALITY, and the order is the point. These clauses answer two
+    different questions — "is this coordinate a surf spot at all?" and "is the fit trustworthy?" —
+    and only the first is actionable by a human. Checking fit first made the diagnosis lie in
+    exactly the worst cases: a badly misplaced pin has no coastline in its window, so it failed the
+    FIT clause and short-circuited the placement check.
+
+    Measured 2026-07-27: `spot_misplaced` fired on **0 of 1515 spots** while **133 were provably
+    beyond MAX_SHORELINE_KM** — Manzanillo 12.01 km from shore at +79.9 m, Nihiwatu 10.58 km at
+    +264 m — every one of them reported as `no_shoreline_in_window`, a fitting failure. ★ The worse
+    the misplacement, the less likely it was called one. The review CSV is what a human works from,
+    so a wrong label there is the difference between a fixable coordinate and an unexplained gap.
+
+    Reordering CANNOT change which spots are accepted — every clause here is a rejection, so the
+    shipped asset is unaffected and only the reported reason changes.
+    """
+    # ── 1. Is the coordinate physically a surf spot? Actionable: move the pin. ──
+    # A pin on the bank of an enclosed lagoon satisfies every fit-quality clause below — all three
+    # spots the owner reported inland in Volusia County (2026-07-27) passed them and shipped a shore
+    # normal fitted to the Intracoastal. A bearing from the wrong body of water is worse than no
+    # bearing: a miss falls back to the coarse grid, a confident wrong answer is used as-is.
+    if row.get("ocean_verdict") in ("INLAND", "NO_OCEAN"):
+        return False, f"not_on_open_ocean_{(row.get('ocean_verdict') or '').lower()}"
+    # The seaward mirror of that test. `ocean_verdict` only asks whether swell can REACH the pin, so
+    # a spot stranded in open water passes it — this is the clause that catches those.
+    if row["shoreline_km"] is not None and row["shoreline_km"] > MAX_SHORELINE_KM:
+        return False, "spot_misplaced"
+
+    # ── 2. Is the fit trustworthy? Not actionable by a human; it describes the data. ──
     if row["normal"] is None or row["spread"] is None:
         return False, "no_shoreline_in_window"
     # ★ TWO AGREEING WINDOWS ARE ENOUGH — the SPREAD does the confidence work, not the count.
@@ -235,15 +264,6 @@ def accepted(row):
         return False, "too_few_windows"
     if row["spread"] > MAX_SPREAD_DEG:
         return False, "ambiguous_coastline"
-    if row["shoreline_km"] is not None and row["shoreline_km"] > MAX_SHORELINE_KM:
-        return False, "spot_misplaced"
-    # ★ THE SPOT MUST BE ON WATER SWELL CAN REACH. Every clause above is satisfied by a pin sitting
-    # on the bank of an enclosed lagoon — all three spots the owner reported inland in Volusia
-    # County (2026-07-27) passed them and shipped a shore normal fitted to the Intracoastal.
-    # A bearing derived from the wrong body of water is worse than no bearing: the caller falls
-    # back to the coarse grid on a miss, but a confident wrong answer is used as-is.
-    if row.get("ocean_verdict") in ("INLAND", "NO_OCEAN"):
-        return False, f"not_on_open_ocean_{(row.get('ocean_verdict') or '').lower()}"
     return True, "accepted"
 
 

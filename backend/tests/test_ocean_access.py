@@ -168,6 +168,41 @@ def test_the_build_gate_is_backward_compatible_when_the_field_is_absent():
 # 2-window fits scored median 10.1° vs the coarse fallback's 17.4°, winning 68% — against the
 # accepted population's own 6.2°/14.6°/70% on the same instrument.
 
+# ── Placement is diagnosed BEFORE fit quality (2026-07-27) ───────────────────────────────────
+# `spot_misplaced` fired on 0 of 1515 spots while 133 were provably beyond MAX_SHORELINE_KM —
+# Manzanillo 12.01 km from shore, Nihiwatu 10.58 km at +264 m — all reported as
+# `no_shoreline_in_window`. A badly misplaced pin has no coastline in its window, so it failed the
+# FIT clause first and short-circuited the placement check: the worse the error, the less likely it
+# was named. The review CSV is what a human works from, so the label IS the deliverable.
+
+def test_a_misplaced_spot_is_called_misplaced_not_unfittable():
+    """THE regression: a pin 12 km from shore has a placement problem, not a fitting problem —
+    even though it also, inevitably, has no coastline in its window."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": None, "spread": None, "n_windows": 0,
+                        "shoreline_km": 12.01, "ocean_verdict": "ON_OCEAN"})
+    assert not ok and why == "spot_misplaced", why
+
+
+def test_an_inland_spot_outranks_every_other_diagnosis():
+    """Not on water swell can reach is the most actionable verdict there is, so it is reported
+    even when the fit also failed."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": None, "spread": None, "n_windows": 0,
+                        "shoreline_km": 8.0, "ocean_verdict": "INLAND"})
+    assert not ok and why == "not_on_open_ocean_inland", why
+
+
+def test_a_well_placed_spot_still_reports_its_fit_problem():
+    """Reordering must not swallow the fit diagnoses for spots that ARE well placed."""
+    from scripts.build_shore_normals import accepted
+    base = {"shoreline_km": 0.4, "ocean_verdict": "ON_OCEAN"}
+    assert accepted({**base, "normal": None, "spread": None,
+                     "n_windows": 0})[1] == "no_shoreline_in_window"
+    assert accepted({**base, "normal": 90.0, "spread": 90.0,
+                     "n_windows": 3})[1] == "ambiguous_coastline"
+
+
 def test_two_agreeing_windows_are_accepted():
     """The measured change: two windows that agree within the spread gate must ship."""
     from scripts.build_shore_normals import accepted
