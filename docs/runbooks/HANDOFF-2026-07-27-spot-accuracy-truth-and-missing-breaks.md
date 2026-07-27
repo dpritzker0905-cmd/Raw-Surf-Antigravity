@@ -191,3 +191,72 @@ Re-run after moving any spot or it silently falls back. Precedence at the single
 `point_resolution.py`: hand overrides (`surf_magnets`) > ETOPO asset > coarse `bathymetry`.
 Kills: `SURF_V3_NORMAL_OVERRIDES=0` · `SHORE_NORMAL_ASSET=0` · `SURF_BREAK_DEPTH=0` · delete the
 JSON. **Every path degrades to previous behaviour; nothing here can make a rating worse.**
+
+---
+
+## 8. ADDENDUM — the OSM question answered properly, and the import button's real bug
+
+### 8a. ⚠️ I OVERSTATED THE OSM RISK. Correcting it.
+I said importing OSM "would make the whole table a derivative database". **That is stronger than
+ODbL actually requires, and this codebase already contradicts the absolutist framing.**
+
+What is actually true:
+* **The app ALREADY uses OSM in production, in two user-facing places** — `LocationPicker.js:173`
+  and `BookingPricingModal.js:382` both call **Nominatim** (OSM) for geocoding. So OSM is not
+  categorically off-limits here; it is already a dependency.
+* ODbL share-alike attaches to a **Derivative Database** that is publicly used. The OSMF
+  *Collective Database* guideline is the relevant one: where OSM-sourced records stay **identifiable
+  and separable** from your own, the obligation travels with those records, not with the whole
+  table. **`surf_spots.osm_id` already provides exactly that separability** — it was designed for it.
+* **Attribution is required regardless**, and today the only OSM credit in the app is the Mapbox
+  basemap line in `mapUtils.js:240`. Nominatim-derived data has no attribution.
+
+So the real objection to `include_osm` is **not legal doom, it is value**: OSM holds ~1,254 surf
+objects globally and ~699 of those are shops/schools, i.e. roughly **555 actual surf features
+against our 1,516**. You take on an attribution + share-alike obligation on the imported subset for
+a modest, unmeasured gain. **That is a judgement call, not a prohibition, and it is yours to make.**
+(Not legal advice — if the catalogue is a commercial asset, this is worth ten minutes of a lawyer's
+time, because the Collective vs Derivative line is the whole question.)
+
+### 8b. ★ THE IMPORT BUTTON HAS A REAL BUG — the OSM checkbox is silently ignored
+`admin_spots.py`:
+```python
+osm_count = 0
+if include_osm and tier > 0:          # <-- tier 0 is excluded
+    osm_count = await import_osm_spots(db, tier)
+```
+`AdminSpotsPanel.js:70` defaults `importTier = 0` ("All curated spots"). **So in the default UI
+state, ticking the OSM box does nothing at all** — `import_osm_spots` is never called, `osm_count`
+stays 0, and the handler still fires `toast.success("Imported N spots successfully")`. The checkbox
+appears to work and silently is not wired for the option most people will pick.
+
+Second, quieter reason it "does nothing": `import_curated_spots` re-imports the same 358 hardcoded
+`CURATED_SPOTS`, which are already in the catalogue, so a correct idempotent run returns 0 and reads
+as a failure.
+
+**Fix (small):** either allow OSM on tier 0, or disable the checkbox in the UI when tier 0 is
+selected; and report skipped/duplicate counts in the toast instead of only `total_imported`. Until
+then the button is doing what it was written to do, which is not what it appears to offer.
+
+### 8c. THE PATH FORWARD, BY LEVERAGE (Jacobian)
+The accuracy chain is **offshore model → nearshore transform → rating → what the UI claims**.
+Measured leverage at each stage:
+
+| stage | state | leverage |
+|---|---|---|
+| offshore model | **compression: +0.206 m small → −0.230 m big, monotonic** | **100% of spots — the biggest lever left**, time-gated on buoy accumulation |
+| nearshore transform | shore normal FIXED (40% height sensitivity), depth cap FIXED | largest single-input lever already taken |
+| placement | 302 spots without geometry | **median 0.1 rating pts** — low; do not over-invest |
+| what the UI claims | `is_verified_peak` false on 1256 spots; Precision Queue empty | **cheap, and it is the app telling users something untrue** |
+
+1. **Run the §0 SQL.** One statement, snapshot already taken. Stops the app claiming HIGH confidence
+   on 1256 unchecked pins.
+2. **Populate `flagged_for_review` + `accuracy_flag='low_accuracy'`** from the 302 placement
+   failures — converts analysis into the admin workflow you already built.
+3. **Import the 14 missing breaks** (Jaws, Cloud 9, Mavericks, Shipstern Bluff…). CC0, verified.
+4. **Then the real accuracy work:** once the buoy loop has ~a week of samples, fit the **quantile**
+   correction for the offshore compression. That is the owner's original "off by a little", it
+   touches every spot, and it cannot be rushed — a single-number bias fix does nothing because the
+   mean error is already ~zero.
+5. **Do NOT** flip `RATING_LOCAL_SIZE` (no oversize penalty ⇒ beginner beach outranks the point
+   break), and do not chase placement beyond the 113 defensible proposals.
