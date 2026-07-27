@@ -81,6 +81,14 @@ WINDOW_HALF_DEGS = (0.015, 0.020, 0.030, 0.045)
 
 _M_PER_DEG = 111320.0
 
+# Water shallower than this is swash / reef flat, not the depth a wave breaks in. Excluding it is
+# what turns Aroa Beach from 0.8 m (the flat) into 16.9 m (the water beyond it).
+_MIN_WATER_CELL_M = 1.0
+# Below this the 463 m instrument is not resolving nearshore bathymetry — a cell straddling a beach
+# reads near-zero. Measured: Black Rock returned 0.1 m and would have capped a real break to 0.12 m.
+# Emit nothing instead; a missing break depth is legacy behaviour, a wrong one destroys a spot.
+_MIN_TRUSTWORTHY_DEPTH_M = 3.0
+
 
 def _cell_metres(lats, lons):
     """(metres per row, metres per column) — longitude spacing shrinks with cos(latitude)."""
@@ -248,7 +256,18 @@ def nearshore_depth_m(elev, lats, lons, lat, lon, radius_m=1000.0):
     offshore swell, so ordinary days are untouched and big-swell days stop going unphysical.
 
     Deliberately the MEDIAN of water cells rather than the minimum: one 463 m cell that clips a
-    sandbar should not cap an entire break. Returns None when there is no water in range.
+    sandbar should not cap an entire break.
+
+    ★ TWO GUARDS, BOTH FROM MEASURED FAILURES — a bad break depth is worse than none, because it
+    caps a real break out of existence.
+      * SWASH/REEF-FLAT cells are excluded (`_MIN_WATER_CELL_M`). Aroa Beach sits behind a reef flat
+        and medianed to **0.8 m** over all water, which would have capped it to ~1 m; excluding the
+        sub-1 m cells gives **16.9 m**, the water outside the flat, which is the depth that matters.
+      * Anything still below `_MIN_TRUSTWORTHY_DEPTH_M` returns **None**. At 463 m a cell straddling
+        a beach reads near-zero, so a very shallow answer means the instrument cannot resolve the
+        nearshore — not that the water is 10 cm deep. Measured: Black Rock came back at **0.1 m**
+        and the cap crushed a real break from 2.40 m to **0.12 m**. Emitting nothing there keeps
+        legacy behaviour, exactly as the shore-normal gate does when it cannot tell.
     """
     import numpy as np
     elev = np.asarray(elev, dtype=float)
@@ -259,10 +278,12 @@ def nearshore_depth_m(elev, lats, lons, lat, lon, radius_m=1000.0):
     j = int(np.argmin(np.abs(lons - lon)))
     rows, cols = np.indices(elev.shape)
     dist = np.hypot((rows - i) * my, (cols - j) * mx)
-    water = (elev < 0) & (dist <= radius_m)
+    depth = -elev
+    water = (elev < 0) & (dist <= radius_m) & (depth >= _MIN_WATER_CELL_M)
     if not water.any():
         return None
-    return float(np.median(-elev[water]))
+    med = float(np.median(depth[water]))
+    return med if med >= _MIN_TRUSTWORTHY_DEPTH_M else None
 
 
 def fronting_water_depth_m(elev, lats, lons, lat, lon, radius_cells=3):

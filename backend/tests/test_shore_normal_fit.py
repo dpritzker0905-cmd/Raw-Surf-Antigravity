@@ -219,3 +219,22 @@ def test_median_not_minimum_so_one_sandbar_cell_cannot_cap_a_break():
     e[N // 2, N // 2 - 2] = -0.5                 # a single shallow sandbar cell
     got = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=3000.0)
     assert got == pytest.approx(12.0, abs=0.5), "one shallow cell must not drag the depth down"
+
+
+def test_reef_flat_is_excluded_from_the_break_depth():
+    """Aroa Beach medianed to 0.8 m over ALL water (a reef flat) and 16.9 m once the sub-1 m cells
+    were excluded. Capping to ~1 m would have destroyed a real break."""
+    e = np.full((N, N), LAND)
+    e[:, N // 2 - 4: N // 2] = -0.4        # reef flat / swash right at the shore
+    e[:, : N // 2 - 4] = -18.0             # real water beyond it
+    got = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=3000.0)
+    assert got is not None and got > 10.0, f"the flat must not set the break depth, got {got}"
+
+
+def test_unresolvable_shallow_returns_none_rather_than_a_wrong_cap():
+    """Black Rock returned 0.1 m and the cap crushed a 2.40 m break to 0.12 m. At 463 m a cell
+    straddling a beach reads near-zero — that is the instrument failing, not shallow water. A
+    missing break depth is legacy behaviour; a wrong one destroys the spot."""
+    e = np.full((N, N), LAND)
+    e[:, : N // 2] = -0.3                  # nothing but sub-metre water in range
+    assert nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=3000.0) is None
