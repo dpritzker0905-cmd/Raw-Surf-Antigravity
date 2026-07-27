@@ -19,6 +19,17 @@ from services.weather_pipeline.surf_rating import LEVELS
 MAVS = weather_sim_mcp.MOCK_SPOTS["Mavericks"]
 
 
+@pytest.fixture(autouse=True)
+def _no_live_forecast(monkeypatch):
+    """Keep this suite hermetic. `get_weather_forecast` now reaches the app's /api/weather/point for
+    a real baseline, which must never make these tests depend on a network or on today's swell —
+    the live path has its own tests below, with the fetch stubbed."""
+    monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
+    weather_sim_mcp._FORECAST_CACHE.clear()
+    yield
+    weather_sim_mcp._FORECAST_CACHE.clear()
+
+
 # ── Rating correctness (regression pins for the height-blind score, 2026-07-26) ──────────────
 # The former local formula was wind_factor * swell_alignment * (period/18) * 100 and omitted
 # swell height ENTIRELY, so a flat ocean with clean wind and long period scored 88 = "Epic".
@@ -329,8 +340,11 @@ def test_simulation_override_does_not_mutate_the_catalog_defaults():
 
 
 def test_forecast_for_a_spot_without_a_baseline_is_empty_not_invented():
-    """A catalog spot has no stored forecast and this server does no network I/O. It must say so
-    rather than fabricate a swell."""
+    """When no forecast can be established, say so rather than fabricate a swell.
+
+    The live lane is disabled by the autouse fixture, which is exactly the unreachable-app case:
+    a catalog spot then has no baseline at all, and the honest answer is an empty one that names
+    its reason."""
     if not _db_available():
         pytest.skip("dev.db unavailable in this environment")
     candidates = [s for s in weather_sim_mcp.query_spots_from_db(limit=400)
@@ -341,6 +355,109 @@ def test_forecast_for_a_spot_without_a_baseline_is_empty_not_invented():
     assert res["baseline_source"] == "none"
     assert "wave_simulation" not in res
     assert res["geometry"]["resolved"] is True
+    assert res["forecast_provenance"]["reason"]           # names WHY, never a bare null
+
+
+# ── The live forecast lane: every catalog spot can now be forecast, not just the three ───────
+# Before 2026-07-27 `get_weather_forecast` answered for 3 of 1547 spots (0.2%) and returned
+# `forecast: null` for the rest. These stub the HTTP leg — the mapping and precedence are what
+# must not drift, and they are what the network cannot be trusted to exercise deterministically.
+
+def _stub_points(monkeypatch, marine=None, wind=None):
+    """Stand in for /api/weather/point with fixed payloads, per domain."""
+    marine = marine if marine is not None else {
+        "point": {"speed": 2.0, "period": 14.0, "direction": 300.0},
+        "surf_height_m": 3.0, "valid_time": "2026-07-27T19:00:00Z",
+        "run_time": "2026-07-27T18:00:00Z", "product_id": "stub", "is_forecast_authoritative": True}
+    wind = wind if wind is not None else {
+        "point": {"speed": 7.0, "period": 0.0, "direction": 45.0}}
+
+    def fake(domain, layer, lat, lng, valid_time):
+        return marine if domain == "marine" else wind
+
+    monkeypatch.setenv("SIM_LIVE_FORECAST", "1")
+    monkeypatch.setattr(weather_sim_mcp, "_fetch_point", fake)
+    weather_sim_mcp._FORECAST_CACHE.clear()
+
+
+def test_a_catalog_spot_gets_a_real_forecast_from_the_app(monkeypatch):
+    """THE feature: a spot with no hand-tuned baseline is forecast from the app's own point lane."""
+    if not _db_available():
+        pytest.skip("dev.db unavailable in this environment")
+    candidates = [s for s in weather_sim_mcp.query_spots_from_db(limit=400)
+                  if s["name"] not in weather_sim_mcp.MOCK_SPOTS]
+    assert candidates
+    _stub_points(monkeypatch)
+    res = weather_sim_mcp.get_weather_forecast(candidates[0]["name"])
+    assert res["baseline_source"] == "live_forecast"
+    assert res["forecast"]["swell_height_m"] == 2.0        # marine point.speed = OFFSHORE Hs
+    assert res["forecast"]["swell_period_sec"] == 14.0
+    assert res["forecast"]["swell_direction_deg"] == 300.0
+    assert res["forecast"]["wind_speed_knots"] == 7.0      # that endpoint reports knots already
+    assert res["forecast"]["wind_direction_deg"] == 45.0
+    assert res["wave_simulation"]["breaking_height_ft"] > 0
+
+
+def test_live_forecast_outranks_the_invented_catalog_defaults(monkeypatch):
+    """A real forecast beats a hardcoded constant — but never beats an explicit override."""
+    _stub_points(monkeypatch)
+    try:
+        live = weather_sim_mcp.get_weather_forecast("Mavericks")
+        assert live["baseline_source"] == "live_forecast"
+        assert live["forecast"]["swell_height_m"] == 2.0
+
+        weather_sim_mcp.simulate_weather_change(
+            spot_name="Mavericks", wind_speed_knots=5.0, wind_direction_deg=100.0,
+            swell_height_m=4.2, swell_period_sec=18.0, swell_direction_deg=290.0,
+            caller_role="admin")
+        staged = weather_sim_mcp.get_weather_forecast("Mavericks")
+        assert staged["baseline_source"] == "simulated_override"
+        assert staged["forecast"]["swell_height_m"] == 4.2
+    finally:
+        weather_sim_mcp.clear_simulation_overrides()
+
+
+def test_a_half_answer_is_refused_rather_than_half_invented(monkeypatch):
+    """Both legs are required. With marine but no wind the vector would have to invent a wind, and
+    an invented wind is exactly how a blown-out day reads clean."""
+    _stub_points(monkeypatch, wind={"point": {"speed": None, "direction": None}})
+    res = weather_sim_mcp.get_weather_forecast("Mavericks")
+    assert res["baseline_source"] == "catalog_default"      # falls back, does not fabricate
+    assert "wind" in res["forecast_provenance"]["reason"]
+
+
+def test_live_forecast_reports_parity_with_the_height_the_app_serves(monkeypatch):
+    """The app serves its own breaking height; the sim computes one from the offshore Hs. Divergence
+    between them is the defect `cf2efb48` was written to end, so the payload must expose it."""
+    _stub_points(monkeypatch)
+    res = weather_sim_mcp.get_weather_forecast("Mavericks")
+    assert res["parity"]["served_surf_height_m"] == 3.0
+    assert res["parity"]["sim_breaking_height_m"] > 0
+    assert isinstance(res["parity"]["delta_pct"], float)
+
+
+def test_live_forecast_kill_switch(monkeypatch):
+    """SIM_LIVE_FORECAST=0 restores the pre-07-27 behaviour exactly."""
+    _stub_points(monkeypatch)
+    monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
+    weather_sim_mcp._FORECAST_CACHE.clear()
+    assert weather_sim_mcp.get_weather_forecast("Mavericks")["baseline_source"] == "catalog_default"
+
+
+def test_a_failed_fetch_never_raises_out_of_the_tool(monkeypatch):
+    """A forecast is an ENRICHMENT: the app being down must degrade the answer, not break the tool."""
+    def boom(domain, layer, lat, lng, valid_time):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setenv("SIM_LIVE_FORECAST", "1")
+    monkeypatch.setattr(weather_sim_mcp, "_fetch_point", boom)
+    weather_sim_mcp._FORECAST_CACHE.clear()
+    with pytest.raises(RuntimeError):
+        weather_sim_mcp._fetch_point("marine", "waves", 0, 0, "")   # the stub really does raise
+    monkeypatch.setattr(weather_sim_mcp, "_fetch_point",
+                        lambda *a, **k: None)                       # what the real one returns
+    res = weather_sim_mcp.get_weather_forecast("Mavericks")
+    assert res["baseline_source"] == "catalog_default"
 
 
 def test_forecasts_summary_does_not_label_a_size_as_a_quality():
