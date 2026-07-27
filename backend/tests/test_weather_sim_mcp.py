@@ -13,6 +13,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import weather_sim_mcp
+from services.weather_pipeline import sim_forecast
 from services.conditions_labels import CONDITION_LABELS, get_conditions_label
 from services.weather_pipeline.surf_rating import LEVELS
 
@@ -25,9 +26,9 @@ def _no_live_forecast(monkeypatch):
     a real baseline, which must never make these tests depend on a network or on today's swell —
     the live path has its own tests below, with the fetch stubbed."""
     monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
-    weather_sim_mcp._FORECAST_CACHE.clear()
+    sim_forecast._FORECAST_CACHE.clear()
     yield
-    weather_sim_mcp._FORECAST_CACHE.clear()
+    sim_forecast._FORECAST_CACHE.clear()
 
 
 # ── Rating correctness (regression pins for the height-blind score, 2026-07-26) ──────────────
@@ -376,8 +377,8 @@ def _stub_points(monkeypatch, marine=None, wind=None):
         return marine if domain == "marine" else wind
 
     monkeypatch.setenv("SIM_LIVE_FORECAST", "1")
-    monkeypatch.setattr(weather_sim_mcp, "_fetch_point", fake)
-    weather_sim_mcp._FORECAST_CACHE.clear()
+    monkeypatch.setattr(sim_forecast, "fetch_point", fake)
+    sim_forecast._FORECAST_CACHE.clear()
 
 
 def test_a_catalog_spot_gets_a_real_forecast_from_the_app(monkeypatch):
@@ -440,7 +441,7 @@ def test_live_forecast_kill_switch(monkeypatch):
     """SIM_LIVE_FORECAST=0 restores the pre-07-27 behaviour exactly."""
     _stub_points(monkeypatch)
     monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
-    weather_sim_mcp._FORECAST_CACHE.clear()
+    sim_forecast._FORECAST_CACHE.clear()
     assert weather_sim_mcp.get_weather_forecast("Mavericks")["baseline_source"] == "catalog_default"
 
 
@@ -450,11 +451,11 @@ def test_a_failed_fetch_never_raises_out_of_the_tool(monkeypatch):
         raise RuntimeError("connection refused")
 
     monkeypatch.setenv("SIM_LIVE_FORECAST", "1")
-    monkeypatch.setattr(weather_sim_mcp, "_fetch_point", boom)
-    weather_sim_mcp._FORECAST_CACHE.clear()
+    monkeypatch.setattr(sim_forecast, "fetch_point", boom)
+    sim_forecast._FORECAST_CACHE.clear()
     with pytest.raises(RuntimeError):
-        weather_sim_mcp._fetch_point("marine", "waves", 0, 0, "")   # the stub really does raise
-    monkeypatch.setattr(weather_sim_mcp, "_fetch_point",
+        sim_forecast.fetch_point("marine", "waves", 0, 0, "")   # the stub really does raise
+    monkeypatch.setattr(sim_forecast, "fetch_point",
                         lambda *a, **k: None)                       # what the real one returns
     res = weather_sim_mcp.get_weather_forecast("Mavericks")
     assert res["baseline_source"] == "catalog_default"
