@@ -86,12 +86,31 @@ def load_climatology():
     It lives in the PRIVATE weather-products bucket, so it only resolves where the service-role key
     exists: in CI (the same secrets `build-shore-normals.yml` uses) or on the server. Absent,
     everything still works and the run says the ranking is geometry-only."""
+    # Report WHY it failed. Production's L2 loader swallows every exception by design (fail-open
+    # when serving), which is right there and wrong here: the first CI run of this pipeline said
+    # only "not reachable" while the real cause was that `store -> schemas` imports pydantic and
+    # the job had installed numpy+requests. A silent degrade to geometry-only ranking is exactly
+    # the kind of thing that looks like it worked.
+    if not os.environ.get("SUPABASE_URL") or not (
+            os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY")):
+        print("  climatology: no SUPABASE_URL / SERVICE_ROLE_KEY in env")
+        return None
     try:
         from services.weather_pipeline.grid_size_climatology import (
             load_grid_size_climatology_l2_cached)
-        return load_grid_size_climatology_l2_cached()
-    except Exception:
+    except Exception as e:
+        print(f"  climatology: import failed ({type(e).__name__}: {e}) — "
+              f"missing a dependency of services.weather_pipeline.store?")
         return None
+    try:
+        obj = load_grid_size_climatology_l2_cached()
+    except Exception as e:
+        print(f"  climatology: L2 load raised {type(e).__name__}: {e}")
+        return None
+    if not obj:
+        print("  climatology: L2 returned nothing (blob absent, or the key cannot read the "
+              "private weather-products bucket)")
+    return obj
 
 
 def annotate_local_size(rows, clim):

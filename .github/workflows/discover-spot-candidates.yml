@@ -52,8 +52,13 @@ jobs:
           python-version: '3.11'
           cache: pip
 
+      # pydantic is NOT optional here even though nothing in this job validates a model:
+      # grid_size_climatology -> store -> schemas imports it, and production's L2 loader swallows
+      # ImportError by design (fail-open when serving). Without pydantic the climatology silently
+      # returns None and the ranking degrades to geometry with only a warning to show for it —
+      # which is exactly what the first run of this workflow did.
       - name: Install deps
-        run: pip install numpy requests
+        run: pip install numpy requests pydantic
 
       - name: Pull open coastal locations
         working-directory: backend
