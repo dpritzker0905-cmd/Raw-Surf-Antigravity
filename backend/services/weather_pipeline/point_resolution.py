@@ -113,87 +113,33 @@ class PointResolutionService:
             and os.environ.get("SURF_TRANSFORM", "1") != "0"
         ):
             try:
-                from services.weather_pipeline.bathymetry import shelf_depth_at, is_coastal, shelf_width_km, shore_normal_at
-                from services.weather_pipeline.surf_transform import estimate_surf
-                depth = shelf_depth_at(lat, lng)
-                # Coastal-proximity gate is GEOGRAPHY-only (model-independent) so the surf row shows at the
-                # same coastal points for GFS/EURO/ICON; open-ocean points get regime 'open_ocean' (hidden).
-                # shelf_width drives cross-shelf bottom friction: a wide shallow shelf (Florida) yields surf
-                # MUCH smaller than the offshore swell; a steep/deep coast passes most of it through.
-                # Seaward bearing for the surf-quality rating's offshore/onshore wind factor. Pure bathymetry
-                # (lru-cached, no fetch) so it adds no latency to the marine point. The frontend pairs it with
-                # the already-fetched wind point + surf height/period to compute the rating badge ([[surf_rating]]).
-                # Computed BEFORE estimate_surf (v3): the surf HEIGHT now also uses it for swell-angle exposure.
-                try:
-                    response.shore_normal_deg = shore_normal_at(lat, lng)
-                except Exception:
-                    response.shore_normal_deg = None
-                # ETOPO 2022 15s (~463 m) per-spot shore normal, replacing the 0.25° grid's answer —
-                # that grid decides which way a beach faces from a 7x7 window 194.6 km across, which
-                # is why Pipeline and Sunset both read 0.0 on a coast facing ~325-335 and Uluwatu
-                # read the wrong side of its peninsula. Only spots that passed the build-time
-                # confidence gate are in the asset (see shore_normal_fit), so a hit is already
-                # known-trustworthy and a miss correctly leaves the coarse value in place.
-                # Measured on 8 spots: mean angular change 70.7 deg, ~0.39 rating points per degree.
-                # Kill: SHORE_NORMAL_ASSET=0.
-                try:
-                    from services.weather_pipeline.shore_normal_asset import (
-                        shore_normal_at as _asset_normal_at)
-                    _fine_normal, _fine_spread = _asset_normal_at(lat, lng)
-                    if _fine_normal is not None:
-                        response.shore_normal_deg = _fine_normal
-                        logger.debug(f"[Surf] ETOPO shore normal {_fine_normal}° "
-                                     f"(spread {_fine_spread}°) at ({lat},{lng})")
-                except Exception:
-                    pass
-                # SURF v3.1 per-spot shore-normal override (ground truth beats the 0.25° bathymetry
-                # where it provably fails — Pipeline/Sunset read due-north 0.0 vs the real ~NW).
-                # Hand-audited, so it still outranks the derived asset above.
-                # Kill: SURF_V3_NORMAL_OVERRIDES=0.
-                if os.environ.get("SURF_V3_NORMAL_OVERRIDES", "1") != "0":
-                    try:
-                        from services.weather_pipeline.surf_magnets import shore_normal_override_at
-                        _ov_normal, _ov_name = shore_normal_override_at(lat, lng)
-                        if _ov_normal is not None:
-                            response.shore_normal_deg = _ov_normal
-                            logger.debug(f"[Surf v3.1] shore-normal override '{_ov_name}' {_ov_normal}° at ({lat},{lng})")
-                    except Exception:
-                        pass
-                # SURF v3 per-spot wave-magnet focusing (sub-grid inlet/jetty amplification — e.g. New
-                # Smyrna Inlet reads ~1.4x its neighboring beach). /point lane only; the grid band stays
-                # cell-honest. Factor is inert unless SURF_V3_MAGNETS is on inside estimate_surf.
-                try:
-                    from services.weather_pipeline.surf_magnets import magnet_factor_at
-                    _magnet, _magnet_name = magnet_factor_at(lat, lng)
-                except Exception:
-                    _magnet, _magnet_name = 1.0, None
-                # ETOPO nearshore depth for the depth-limited breaking cap ONLY. `depth` above is a
-                # ~139 km shelf median — correct for cross-shelf friction, useless as a breaking
-                # depth: measured 2026-07-27 the cap bound on 0 of 395 live spots (median cap 107x
-                # the wave; Santa Cruz "limits" waves to 350 m off a 452 m canyon median). Absent ->
-                # legacy behaviour unchanged. Kill: SHORE_NORMAL_ASSET=0 or SURF_BREAK_DEPTH=0.
-                try:
-                    from services.weather_pipeline.shore_normal_asset import break_depth_at
-                    _break_depth = break_depth_at(lat, lng)
-                except Exception:
-                    _break_depth = None
-                surf, regime = estimate_surf(response.point.speed, response.point.period, depth,
-                                             coastal=is_coastal(lat, lng), shelf_width_km=shelf_width_km(lat, lng),
-                                             swell_from_deg=response.point.direction,
-                                             shore_normal_deg=response.shore_normal_deg,
-                                             magnet_factor=_magnet,
-                                             break_depth_m=_break_depth)
-                if _magnet_name and surf is not None:
-                    logger.debug(f"[Surf v3] magnet '{_magnet_name}' x{_magnet} at ({lat},{lng})")
+                # ── The geometry chain lives in surf_point.resolve_surf_geometry (extracted
+                # 2026-07-27), NOT here. It resolves, in production precedence: the shelf depth
+                # (cross-shelf friction — a wide shallow shelf like Florida yields surf MUCH smaller
+                # than the offshore swell), the GEOGRAPHY-only coastal gate (model-independent, so
+                # the surf row shows at the same points for GFS/EURO/ICON), the shelf width, the
+                # seaward shore normal (coarse bathymetry -> ETOPO 15s asset -> hand-audited
+                # override), the sub-grid magnet factor, and the ETOPO nearshore break depth.
+                #
+                # It was extracted because this block was the ONLY copy, so the weather-sim MCP had
+                # re-implemented it and drifted — measured 19.1% median / 39.2% max over-read against
+                # what this lane serves, on a shore normal 44.9 deg off. One function, every caller.
+                # Behaviour here is unchanged; test_surf_point_parity.py pins that.
+                from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
+                _geo = resolve_surf_geometry(lat, lng)
+                # The frontend pairs the shore normal with the already-fetched wind point + surf
+                # height/period to compute the rating badge ([[surf_rating]]).
+                response.shore_normal_deg = _geo.shore_normal_deg
+                surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
+                                                swell_from_deg=response.point.direction, geometry=_geo)
+                if _geo.magnet_name and surf is not None:
+                    logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
                 response.surf_height_m = round(surf, 4) if surf is not None else None
                 response.surf_regime = regime
-                response.shelf_depth_m = round(depth, 1) if depth is not None else None
+                response.shelf_depth_m = round(_geo.depth_m, 1) if _geo.depth_m is not None else None
                 # NEARSHORE display tag (see schemas.surf_nearshore): land within ~±0.25° — the
                 # frontend hides the Surf (est.) row for markers farther offshore than that.
-                try:
-                    response.surf_nearshore = bool(is_coastal(lat, lng, radius_cells=1))
-                except Exception:
-                    response.surf_nearshore = None
+                response.surf_nearshore = _geo.nearshore
             except Exception as _se:
                 logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
 
