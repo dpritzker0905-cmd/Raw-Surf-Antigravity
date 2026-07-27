@@ -224,6 +224,47 @@ def fit_shore_normal(elev, lats, lons, clat, clon, half_degs=WINDOW_HALF_DEGS):
     return circular_mean(bearings), max_spread(bearings), len(bearings)
 
 
+def nearshore_depth_m(elev, lats, lons, lat, lon, radius_m=1000.0):
+    """Median depth (m, positive down) of the water within ``radius_m`` — the depth a wave actually
+    breaks in, as opposed to the shelf it crossed to get here.
+
+    WHY THIS IS A SEPARATE NUMBER FROM shelf_depth_at() — AND WHY THAT ONE IS NOT A BUG
+    `surf_transform.estimate_surf` uses ONE depth for two unrelated jobs: cross-shelf bottom
+    friction, and the depth-limited breaking cap (`breaker_index * depth`).
+
+    `bathymetry.shelf_depth_at` answers the FIRST one well, and measurement says so — Cocoa Beach
+    24 m over a 73 km shelf gives a 24.6% friction loss, Galveston 16 m over 167 km gives 57.1%,
+    while Mavericks (101 m) loses 2.7% and Pipeline (2534 m) loses none. That is exactly the wide-
+    shallow-shelf vs steep-coast distinction it was built for. Do NOT "fix" it.
+
+    Fed to the SECOND job the same number is meaningless: measured 2026-07-27 across 395 live spots
+    the cap **binds on 0 of them**, median cap **107x the wave**. Santa Cruz reads 452 m — correct as
+    "deep water offshore, little friction", absurd as "waves here break at 350 m".
+
+    So this is an ADDITIONAL depth, not a replacement. At ETOPO's 463 m the same points read 8.5 m
+    (Cowell's) and 13.4 m (Steamer Lane), so H <= gamma*d becomes real physics again — and it
+    distinguishes two spots 1.9 km apart, which a 139 km median cannot do by construction.
+    ⚠️ Small blast radius by design: with the live breaker index the cap only binds above ~9 m of
+    offshore swell, so ordinary days are untouched and big-swell days stop going unphysical.
+
+    Deliberately the MEDIAN of water cells rather than the minimum: one 463 m cell that clips a
+    sandbar should not cap an entire break. Returns None when there is no water in range.
+    """
+    import numpy as np
+    elev = np.asarray(elev, dtype=float)
+    lats = np.asarray(lats, dtype=float)
+    lons = np.asarray(lons, dtype=float)
+    my, mx = _cell_metres(lats, lons)
+    i = int(np.argmin(np.abs(lats - lat)))
+    j = int(np.argmin(np.abs(lons - lon)))
+    rows, cols = np.indices(elev.shape)
+    dist = np.hypot((rows - i) * my, (cols - j) * mx)
+    water = (elev < 0) & (dist <= radius_m)
+    if not water.any():
+        return None
+    return float(np.median(-elev[water]))
+
+
 def fronting_water_depth_m(elev, lats, lons, lat, lon, radius_cells=3):
     """Mean depth (m, positive down) of the water immediately in front of the spot — a PLACEMENT
     signal that distinguishes an ocean beach from a lagoon shore.

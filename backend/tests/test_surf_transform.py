@@ -295,3 +295,48 @@ def test_surf_transform_grid_no_coastal_fn_treats_all_coastal():
     vecs = [mk(28.4, -80.5, 2.0), mk(30.0, -150.0, 2.0)]
     n_transformed, n_masked = st.surf_transform_grid(vecs, lambda la, lo: 1000.0)
     assert n_masked == 0 and all(v.is_valid for v in vecs)
+
+
+# ── nearshore break depth (2026-07-27) ──────────────────────────────────────────────────────────
+def test_break_depth_caps_the_wave_where_the_shelf_depth_never_could():
+    """H <= gamma*d is the most basic law in surf, and it was DEAD in production.
+
+    `depth_m` is a ~139 km shelf median. Measured across 395 live spots the depth-limited cap bound
+    on ZERO of them (median cap 107x the wave) because Santa Cruz's shelf median is 452 m — the
+    Monterey Canyon. Passing the ETOPO nearshore depth (8.5 m there) makes the cap real again."""
+    import os
+    os.environ.pop("SURF_BREAK_DEPTH", None)
+    big = dict(Hs_m=12.0, Tp_s=16.0, coastal=True, shelf_width_km=27.8)
+    uncapped, _ = st.estimate_surf(depth_m=452.0, **big)
+    capped, regime = st.estimate_surf(depth_m=452.0, break_depth_m=8.5, **big)
+    assert capped < uncapped, "the nearshore depth must limit a big swell"
+    assert capped <= 0.78 * 8.5 * 1.6, "capped height must be within breaker-index range of gamma*d"
+
+
+def test_absent_break_depth_is_byte_identical_to_legacy():
+    """The whole safety argument: no asset entry -> nothing changes."""
+    args = dict(Hs_m=2.5, Tp_s=13.0, depth_m=452.0, coastal=True, shelf_width_km=27.8)
+    assert st.estimate_surf(**args) == st.estimate_surf(break_depth_m=None, **args)
+
+
+def test_break_depth_kill_switch_restores_legacy(monkeypatch):
+    args = dict(Hs_m=12.0, Tp_s=16.0, depth_m=452.0, coastal=True, shelf_width_km=27.8)
+    monkeypatch.setenv("SURF_BREAK_DEPTH", "0")
+    assert st.estimate_surf(break_depth_m=8.5, **args) == st.estimate_surf(**args)
+
+
+def test_break_depth_separates_two_spots_in_the_same_grid_cell():
+    """Cowell's (8.5 m) and Steamer Lane (13.4 m) are 1.9 km apart and share every coarse input.
+    The nearshore depth is what finally tells them apart on a big day."""
+    import os
+    os.environ.pop("SURF_BREAK_DEPTH", None)
+    big = dict(Hs_m=16.0, Tp_s=16.0, depth_m=452.0, coastal=True, shelf_width_km=27.8)
+    cowells, _ = st.estimate_surf(break_depth_m=8.5, **big)
+    steamer, _ = st.estimate_surf(break_depth_m=13.4, **big)
+    assert steamer > cowells, "the deeper break must hold a bigger wave"
+
+
+def test_nonsense_break_depth_is_ignored():
+    args = dict(Hs_m=2.0, Tp_s=12.0, depth_m=452.0, coastal=True, shelf_width_km=27.8)
+    for bad in (0.0, -5.0):
+        assert st.estimate_surf(break_depth_m=bad, **args) == st.estimate_surf(**args)

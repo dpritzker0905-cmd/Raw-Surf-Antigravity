@@ -59,7 +59,10 @@ def _load():
             idx = {}
             for row in doc.get("entries", []):
                 lat, lng, normal, spread = float(row[0]), float(row[1]), float(row[2]), float(row[3])
-                idx.setdefault(_bucket(lat, lng), []).append((lat, lng, normal, spread))
+                # 5th element (nearshore break depth) added 2026-07-27; a 4-element entry from an
+                # older asset is still valid and simply carries no depth.
+                depth = float(row[4]) if len(row) > 4 and row[4] is not None else None
+                idx.setdefault(_bucket(lat, lng), []).append((lat, lng, normal, spread, depth))
             _meta = {k: v for k, v in doc.items() if k != "entries"}
             _index = idx
         except Exception:
@@ -119,6 +122,31 @@ def shore_normal_at(lat: float, lng: float,
     return best[2], best[3]
 
 
+@lru_cache(maxsize=20_000)
+def break_depth_at(lat: float, lng: float,
+                   max_km: float = MATCH_RADIUS_KM) -> Optional[float]:
+    """Nearshore water depth (m, positive down) at the nearest asset entry, or None.
+
+    This is the depth a wave BREAKS in, for `surf_transform`'s depth-limited cap — not the shelf
+    depth that drives cross-shelf friction. See `shore_normal_fit.nearshore_depth_m` for why the two
+    cannot be the same number. Same kill switch as the bearing: SHORE_NORMAL_ASSET=0."""
+    if os.environ.get("SHORE_NORMAL_ASSET", "1") == "0":
+        return None
+    idx = _load()
+    if not idx or lat is None or lng is None:
+        return None
+    b_lat, b_lng = _bucket(float(lat), float(lng))
+    best = None
+    best_km = None
+    for d_lat in (-1, 0, 1):
+        for d_lng in (-1, 0, 1):
+            for entry in idx.get((b_lat + d_lat, b_lng + d_lng), ()):  # noqa: B905
+                km = _haversine_km(float(lat), float(lng), entry[0], entry[1])
+                if km <= max_km and (best_km is None or km < best_km):
+                    best, best_km = entry, km
+    return None if best is None else best[4]
+
+
 def _reset_for_tests():
     """Drop the cached index + memoised lookups so a test can point at a different asset."""
     global _index, _meta, _load_failed
@@ -127,3 +155,4 @@ def _reset_for_tests():
         _meta = None
         _load_failed = False
     shore_normal_at.cache_clear()
+    break_depth_at.cache_clear()

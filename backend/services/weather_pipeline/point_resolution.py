@@ -167,11 +167,22 @@ class PointResolutionService:
                     _magnet, _magnet_name = magnet_factor_at(lat, lng)
                 except Exception:
                     _magnet, _magnet_name = 1.0, None
+                # ETOPO nearshore depth for the depth-limited breaking cap ONLY. `depth` above is a
+                # ~139 km shelf median — correct for cross-shelf friction, useless as a breaking
+                # depth: measured 2026-07-27 the cap bound on 0 of 395 live spots (median cap 107x
+                # the wave; Santa Cruz "limits" waves to 350 m off a 452 m canyon median). Absent ->
+                # legacy behaviour unchanged. Kill: SHORE_NORMAL_ASSET=0 or SURF_BREAK_DEPTH=0.
+                try:
+                    from services.weather_pipeline.shore_normal_asset import break_depth_at
+                    _break_depth = break_depth_at(lat, lng)
+                except Exception:
+                    _break_depth = None
                 surf, regime = estimate_surf(response.point.speed, response.point.period, depth,
                                              coastal=is_coastal(lat, lng), shelf_width_km=shelf_width_km(lat, lng),
                                              swell_from_deg=response.point.direction,
                                              shore_normal_deg=response.shore_normal_deg,
-                                             magnet_factor=_magnet)
+                                             magnet_factor=_magnet,
+                                             break_depth_m=_break_depth)
                 if _magnet_name and surf is not None:
                     logger.debug(f"[Surf v3] magnet '{_magnet_name}' x{_magnet} at ({lat},{lng})")
                 response.surf_height_m = round(surf, 4) if surf is not None else None

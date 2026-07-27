@@ -19,7 +19,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
     MAX_SPREAD_DEG, angular_diff, circular_mean, coast_pca_bearing, crop,
-    fit_shore_normal, max_spread, nearest_shoreline_km, shoreline_mask,
+    fit_shore_normal, max_spread, nearest_shoreline_km, nearshore_depth_m, shoreline_mask,
 )
 
 N = 40
@@ -184,3 +184,38 @@ def test_crop_rejects_a_window_too_small_to_fit():
 def test_fit_returns_none_without_a_shoreline():
     bearing, spread, n = fit_shore_normal(np.full((N, N), OCEAN), LATS, LONS, 0.0, 0.0)
     assert bearing is None and spread is None and n == 0
+
+
+def test_nearshore_depth_is_the_median_of_nearby_water():
+    """The breaking depth is the median of the water in range, NOT the shelf median.
+
+    Cowell's and Steamer Lane are 1.9 km apart and the 0.25 deg grid gives both the SAME 452.0 m
+    (the median across the Monterey Canyon); ETOPO gives 8.5 m and 13.4 m. This pins the estimator
+    that produces that separation."""
+    e = np.full((N, N), LAND)
+    e[:, : N // 2] = -10.0                       # a uniform 10 m shelf to the west
+    got = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=2000.0)
+    assert got == pytest.approx(10.0, abs=0.01)
+
+
+def test_nearshore_depth_ignores_deep_water_outside_the_radius():
+    """A canyon 5 km offshore must not set the breaking depth — that is exactly the 452 m bug."""
+    e = np.full((N, N), LAND)
+    e[:, N // 2 - 3: N // 2] = -8.0              # shallow nearshore strip
+    e[:, : N // 2 - 3] = -3000.0                 # canyon further out
+    shallow = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=1200.0)
+    wide = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=20000.0)
+    assert shallow == pytest.approx(8.0, abs=0.01)
+    assert wide > 100.0, "a wide radius SHOULD pull in the canyon — that is the bug being avoided"
+
+
+def test_nearshore_depth_none_without_water():
+    assert nearshore_depth_m(np.full((N, N), LAND), LATS, LONS, 0.0, 0.0) is None
+
+
+def test_median_not_minimum_so_one_sandbar_cell_cannot_cap_a_break():
+    e = np.full((N, N), LAND)
+    e[:, : N // 2] = -12.0
+    e[N // 2, N // 2 - 2] = -0.5                 # a single shallow sandbar cell
+    got = nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=3000.0)
+    assert got == pytest.approx(12.0, abs=0.5), "one shallow cell must not drag the depth down"

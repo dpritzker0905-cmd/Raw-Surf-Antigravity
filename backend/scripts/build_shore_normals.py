@@ -48,7 +48,7 @@ sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
     MAX_SPREAD_DEG, WINDOW_HALF_DEGS, fit_shore_normal, fronting_water_depth_m,
-    nearest_shoreline_km,
+    nearest_shoreline_km, nearshore_depth_m,
 )
 
 ERDDAP = "https://coastwatch.pfeg.noaa.gov/erddap/griddap/ETOPO_2022_v1_15s.csv"
@@ -130,7 +130,8 @@ def measure(spot):
     lat, lon = float(spot["latitude"]), float(spot["longitude"])
     out = {"id": spot.get("id"), "name": spot.get("name"), "region": spot.get("region"),
            "lat": lat, "lng": lon, "normal": None, "spread": None, "n_windows": 0,
-           "shoreline_km": None, "elev_m": None, "front_depth_m": None, "status": "ok"}
+           "shoreline_km": None, "elev_m": None, "front_depth_m": None,
+           "break_depth_m": None, "status": "ok"}
     try:
         elev, lats, lons = fetch_window(lat, lon)
     except Exception as e:
@@ -143,6 +144,8 @@ def measure(spot):
         out["elev_m"] = round(float(elev[i, j]), 1)
         out["shoreline_km"] = nearest_shoreline_km(elev, lats, lons, lat, lon)
         out["front_depth_m"] = fronting_water_depth_m(elev, lats, lons, lat, lon)
+        bd = nearshore_depth_m(elev, lats, lons, lat, lon)
+        out["break_depth_m"] = None if bd is None else round(bd, 1)
         bearing, spread, n = fit_shore_normal(elev, lats, lons, lat, lon)
         out["normal"] = None if bearing is None else round(bearing, 1)
         out["spread"] = None if spread is None else round(spread, 1)
@@ -212,7 +215,7 @@ def main():
         reasons[why] = reasons.get(why, 0) + 1
         if ok:
             entries.append([round(row["lat"], 5), round(row["lng"], 5),
-                            row["normal"], row["spread"]])
+                            row["normal"], row["spread"], row["break_depth_m"]])
 
     n_fetch_fail = sum(1 for r in rows if r["status"].startswith("fetch_failed"))
     print(f"\nVERDICTS ({len(rows)} spots)")
@@ -223,8 +226,9 @@ def main():
 
     asset = {
         "source": "NOAA ETOPO 2022 v1 15s via ERDDAP (CC0 public domain, ~463 m)",
-        "method": ("coast-PCA fitted at 5 window sizes, circular mean; gated on the maximum "
-                   "pairwise spread across windows (the estimator's self-measured confidence)"),
+        "method": ("coast-PCA fitted at 4 window sizes, circular mean; gated on the maximum "
+                   "pairwise spread across windows (the estimator's self-measured confidence). "
+                   "entry = [lat, lng, shore_normal_deg, spread_deg, nearshore_break_depth_m]"),
         "max_spread_deg": MAX_SPREAD_DEG,
         "max_shoreline_km": MAX_SHORELINE_KM,
         "windows_half_deg": list(WINDOW_HALF_DEGS),
@@ -241,11 +245,12 @@ def main():
     with open(args.out_csv, "w", newline="", encoding="utf-8") as fh:
         w = csv.writer(fh)
         w.writerow(["id", "name", "region", "lat", "lng", "normal_deg", "spread_deg",
-                    "n_windows", "shoreline_km", "elev_m", "front_depth_m", "verdict", "status"])
+                    "n_windows", "shoreline_km", "elev_m", "front_depth_m", "break_depth_m",
+                    "verdict", "status"])
         for r in sorted(rows, key=lambda r: -(r["shoreline_km"] or 0)):
             w.writerow([r["id"], r["name"], r["region"], r["lat"], r["lng"], r["normal"],
                         r["spread"], r["n_windows"], r["shoreline_km"], r["elev_m"],
-                        r["front_depth_m"], r["verdict"], r["status"]])
+                        r["front_depth_m"], r["break_depth_m"], r["verdict"], r["status"]])
     print(f"Review CSV (worst placement first): {args.out_csv}")
 
     misplaced = [r for r in rows if (r["shoreline_km"] or 0) > MAX_SHORELINE_KM]

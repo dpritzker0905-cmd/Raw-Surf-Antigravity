@@ -286,7 +286,8 @@ def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
 
 
 def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
-                  swell_from_deg=None, shore_normal_deg=None, magnet_factor: float = 1.0):
+                  swell_from_deg=None, shore_normal_deg=None, magnet_factor: float = 1.0,
+                  break_depth_m=None):
     """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative shelf depth,
     the shelf WIDTH, and whether the point is near a coast. Worldwide — every input comes from the global
     bathymetry, so the same physics applies on any coast.
@@ -324,7 +325,16 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # (volcanic reef coast: ~100 m / 3 km ≈ 0.03) raises γ_b toward the plunging-reef range —
     # "Pipeline breaks taller than a beach break in the same depth". Kill: SURF_V3_SLOPE_GAMMA=0.
     _slope_proxy = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
-    cap = breaker_index(Tp_s, slope=_slope_proxy) * depth_m   # period+slope: long-period/steep breaks taller
+    # ★ THE CAP USES THE NEARSHORE DEPTH, NOT THE SHELF DEPTH. `depth_m` is a ~139 km median — the
+    # right answer for cross-shelf friction above, and nonsense here: measured 2026-07-27 across 395
+    # live spots the cap BOUND ON ZERO of them, median cap 107x the wave (Santa Cruz "limits" waves
+    # to 350 m because its shelf median is 452 m — the Monterey Canyon). `break_depth_m` comes from
+    # ETOPO 2022 15s at ~463 m (8.5 m at Cowell's, 13.4 m at Steamer Lane) so H <= gamma*d becomes
+    # real physics again. Absent -> legacy behaviour byte-identical. Kill: SURF_BREAK_DEPTH=0.
+    _cap_depth = depth_m
+    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
+        _cap_depth = float(break_depth_m)
+    cap = breaker_index(Tp_s, slope=_slope_proxy) * _cap_depth  # period+slope: long-period/steep breaks taller
     if _v3("SURF_V3_KOMAR"):
         # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
         # break — surf CAN exceed offshore Hs on steep coasts (the reef-jack v2 never modeled;
