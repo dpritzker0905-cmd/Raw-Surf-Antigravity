@@ -20,6 +20,10 @@ import '../../utils/leafletLoader'; // sets window.L (see file for why this was 
 // Admin Spots Panel - Global Spot Manager
 const AdminSpotsPanel = ({ userId }) => {
   const [stats, setStats] = useState(null);
+  const [spotTotal, setSpotTotal] = useState(0);
+  // 'all' | 'flagged' | 'low_accuracy' | 'verified' — the review state is the reason to open this
+  // panel, so it needs to be filterable, not just countable.
+  const [accuracyFilter, setAccuracyFilter] = useState('all');
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
@@ -45,16 +49,23 @@ const AdminSpotsPanel = ({ userId }) => {
     }
   }, [userId]);
 
+  // ★ Reads the ADMIN list, not the public one. This panel was written for admin data — the row
+  // already renders `spot.is_verified_peak` — but it was fed `/surf-spots`, whose
+  // SurfSpotResponse omits is_verified_peak, flagged_for_review and accuracy_flag entirely. Every
+  // accuracy badge was therefore `undefined && ...` and silently rendered nothing, so 165 flagged
+  // spots and 55 human-verified ones were invisible while the summary tiles counted them.
   const fetchSpots = useCallback(async () => {
     try {
-      const params = new URLSearchParams();
+      const params = new URLSearchParams({ limit: '5000' });
       if (filterCountry) params.append('country', filterCountry);
-      const response = await apiClient.get(`/surf-spots?${params.toString()}`);
-      setSpots(response.data);
+      if (accuracyFilter === 'flagged') params.append('flagged_only', 'true');
+      const response = await apiClient.get(`/admin/spots/list?${params.toString()}`);
+      setSpots(response.data.spots || []);
+      setSpotTotal(response.data.total ?? (response.data.spots || []).length);
     } catch (error) {
       logger.error('Error fetching spots:', error);
     }
-  }, [filterCountry]);
+  }, [filterCountry, accuracyFilter]);
 
   useEffect(() => {
     const load = async () => {
@@ -251,11 +262,38 @@ const AdminSpotsPanel = ({ userId }) => {
     }
   };
 
-  const filteredSpots = spots.filter(spot => 
-    spot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (spot.country || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-    (spot.region || '').toLowerCase().includes(searchQuery.toLowerCase())
+  const matchesAccuracy = (spot) => {
+    if (accuracyFilter === 'all') return true;
+    if (accuracyFilter === 'flagged') return !!spot.flagged_for_review;
+    if (accuracyFilter === 'low_accuracy') return spot.accuracy_flag === 'low_accuracy';
+    if (accuracyFilter === 'verified') {
+      return ['verified', 'admin_verified', 'community_verified'].includes(spot.accuracy_flag);
+    }
+    return true;
+  };
+
+  const filteredSpots = spots.filter(spot =>
+    matchesAccuracy(spot) && (
+      spot.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (spot.country || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (spot.region || '').toLowerCase().includes(searchQuery.toLowerCase())
+    )
   );
+
+  // The one thing a reviewer needs to see at a glance, per row. Colour is paired with TEXT because
+  // rating/accuracy state must never be conveyed by colour alone (accessibility mandate).
+  const accuracyBadge = (spot) => {
+    if (spot.flagged_for_review || spot.accuracy_flag === 'low_accuracy') {
+      return { label: 'Misplaced — needs review', cls: 'bg-red-500/20 text-red-400' };
+    }
+    if (spot.accuracy_flag === 'offset_adjusted') {
+      return { label: 'Relocated', cls: 'bg-amber-500/20 text-amber-500' };
+    }
+    if (['verified', 'admin_verified', 'community_verified'].includes(spot.accuracy_flag)) {
+      return { label: 'Verified', cls: 'bg-emerald-500/20 text-emerald-400' };
+    }
+    return { label: 'Unverified', cls: 'bg-slate-500/20 text-muted-foreground' };
+  };
 
   const countries = [...new Set(spots.map(s => s.country).filter(Boolean))].sort();
 
@@ -475,6 +513,7 @@ const AdminSpotsPanel = ({ userId }) => {
             <select
               value={filterCountry}
               onChange={(e) => setFilterCountry(e.target.value)}
+              aria-label="Filter spots by country"
               className="bg-muted border border-border rounded-lg px-3 text-foreground"
             >
               <option value="">All Countries</option>
@@ -482,7 +521,22 @@ const AdminSpotsPanel = ({ userId }) => {
                 <option key={c} value={c}>{c}</option>
               ))}
             </select>
+            <select
+              value={accuracyFilter}
+              onChange={(e) => setAccuracyFilter(e.target.value)}
+              aria-label="Filter spots by accuracy state"
+              className="bg-muted border border-border rounded-lg px-3 text-foreground"
+            >
+              <option value="all">All accuracy</option>
+              <option value="flagged">Flagged for review</option>
+              <option value="low_accuracy">Low accuracy (misplaced)</option>
+              <option value="verified">Verified by a human</option>
+            </select>
           </div>
+          <p className="text-xs text-muted-foreground mb-2" aria-live="polite">
+            Showing {Math.min(filteredSpots.length, 50)} of {filteredSpots.length} matching
+            {' '}({spotTotal} in the database)
+          </p>
 
           {/* Spots List */}
           <div className="space-y-2 max-h-[500px] overflow-y-auto">
@@ -505,11 +559,9 @@ const AdminSpotsPanel = ({ userId }) => {
                   </div>
                 </div>
                 <div className="flex items-center gap-2">
-                  {spot.is_verified_peak && (
-                    <Badge className="bg-cyan-500/20 text-cyan-400 text-[10px]">
-                      Verified
-                    </Badge>
-                  )}
+                  <Badge className={`${accuracyBadge(spot).cls} text-[10px]`}>
+                    {accuracyBadge(spot).label}
+                  </Badge>
                   <Badge className={spot.is_active ? 'bg-green-500/20 text-green-400' : 'bg-red-500/20 text-red-400'}>
                     {spot.is_active ? 'Active' : 'Inactive'}
                   </Badge>
