@@ -488,3 +488,52 @@ strands.
 1.5 m` is 939 candidates; ≥ 1.0 m is 1645. Start with one country at the top tier, rebuild the
 shore-normal asset, look at the map and search, then widen. The measurement to watch is whether a
 curated break is still findable among its neighbours.
+
+---
+
+## 11. ✅ PRODUCTION WRITES APPLIED (owner-approved) — catalogue 1515 → 1820
+
+| | before | after |
+|---|---|---|
+| active spots | 1515 | **1820** |
+| EEA-imported | 0 | **305** |
+| `accuracy_flag='offset_adjusted'` | 2 | **11** (the 9 corrections) |
+| `flagged_for_review` | 164 | **469** (every import is flagged by design) |
+| `is_verified_peak` | 55 | 55 (unchanged — imports are never verified) |
+
+### 11a. The 9 HIGH coordinate corrections
+Applied from `propose_spot_corrections.py --gns`, all named coastal features within 5 km:
+La Herradura → Bahía de La Herradura 3.34 km · Cabo Blanco 3.64 · **Nazaré → Enseada da Nazaré 3.67**
+· Playa de la Pared 4.26 · Cobquecura 4.60 · La Puntilla 4.74 · Maitencillo 4.80 · Pease Bay 4.82 ·
+Pacasmayo 5.00. Nazaré is cross-validated — EEA independently put it at 3.62 km, **50 m apart**.
+
+**Snapshot:** `surf_spots_coord_backup_20260727c` (1516 rows).
+```sql
+UPDATE surf_spots s SET latitude = b.latitude, longitude = b.longitude,
+       accuracy_flag = b.accuracy_flag
+  FROM surf_spots_coord_backup_20260727c b WHERE b.id = s.id;
+```
+
+### 11b. The PT+IE import — 305 of 352, the owner's "first batch, then measure"
+Applied with the importer's exact semantics: **`decision == NEW` only**, **2.0 km proximity dedupe
+against LIVE production**, `is_verified_peak=false`, `accuracy_flag='unverified'`,
+`flagged_for_review=true`, and the CC-BY attribution in `description`.
+
+★ **47 were rejected by the dedupe, and correctly so** — chunk 2 onward deduped against rows
+inserted moments earlier, which is exactly why the importer dedupes against live state rather than
+a CSV snapshot. Per chunk: 90/90, 72/90, 80/90, 63/82.
+
+```sql
+DELETE FROM surf_spots WHERE description LIKE 'Imported from EEA Bathing Water Directive%';
+```
+
+### ⛔ NEXT — this is the "then measure" half, and it is not done
+1. **Shore-normal asset rebuild** (run 30312350220) — triggered, covers both the 9 moved spots and
+   the 305 new ones. Until it lands the new spots have NO fitted bearing and fall back to the
+   coarse 0.25° grid.
+2. **Then look at the app**: does a curated break stay findable among its new neighbours? Portugal
+   went from ~30 curated spots to ~300. That question is the whole reason for importing one batch
+   first, and it decides whether FR/ES/UK (2333 more) ever happens.
+3. **Watch precompute load** — 20% more spots on infrastructure with a recorded 429/OOM history.
+4. The 469 flagged now mix two populations: **164 genuinely misplaced** and **305 unverified
+   imports**. The admin filter should separate them before the Precision Queue is worked again.
