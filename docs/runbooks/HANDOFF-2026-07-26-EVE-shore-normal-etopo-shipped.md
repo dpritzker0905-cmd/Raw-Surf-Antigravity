@@ -28,16 +28,19 @@ the word the user reads.
 | `a3229d5c` | **Barrier islands faced the lagoon.** Depth-weighted the seaward sign test. |
 | `ce9a0396` · `a770f352` | CI plumbing (see §5.4). |
 | `230536e4` | The asset itself, built from production by GitHub Actions. |
+| `d5b0f4bb`* | Cache sized from measurement (~30 MB → ~3 MB, see §5.6). |
+| `6b1a4ecb`* | **The gate was measured wrong** — 25 → 40, +176 spots (§3b). |
 
-Asset: `backend/services/weather_pipeline/data/shore_normals.json`, 21 KB, 774 entries.
+\* see `git log` for exact hashes. Asset: `backend/services/weather_pipeline/data/shore_normals.json`,
+**950 entries**.
 
 ### The measured result
 ```
-spots in asset            774 / 1516  (51.1%)
-had NO geometry before     18         (rating graded wind on speed alone)
-angular change            p50 18.8°   mean 28.8°   >45°: 21.8%   >90°: 4.6%
-rating change             p50  1.6    mean  8.2 pts   p90 25.7   max 74.4
-LEVEL CHANGES             798 / 3096  = 25.8%      <-- the headline
+spots in asset            950 / 1516  (62.7%)      gate 40° spread, 3 km shoreline
+had NO geometry before     23         (rating graded wind on speed alone)
+angular change            p50 20.4°   mean 31.0°   >45°: 23.8%   >90°: 5.6%
+rating change             p50  1.9    mean  8.8 pts   p90 28.1   max 74.4
+LEVEL CHANGES            1043 / 3800  = 27.4%      <-- the headline
 ```
 (4 sea states × 774 spots, evaluated through the **real** `surf_rating` module with the sea state
 held fixed so the only variable is the shore normal.)
@@ -53,25 +56,34 @@ was 10.1° (centroid) vs 5.2° (coast-PCA), at Sunset 6.1° vs 2.9°. The shippe
 **shoreline's** orientation by PCA and takes the seaward perpendicular, using the land→water vector
 only for its SIGN — discarding the magnitude that causes the jitter.
 
-### (b) ★ THE ESTIMATOR MEASURES ITS OWN CONFIDENCE, and that is the whole safety story
+### (b) ★ THE ESTIMATOR MEASURES ITS OWN CONFIDENCE — but I read that confidence WRONG at first
 Each spot is fitted at 4 window sizes (1.7-5.0 km); the max pairwise disagreement is the confidence.
-Validation against production — **every low-spread spot beats production outright, and both
-high-spread spots are places where NO single bearing is correct**:
+I first set `MAX_SPREAD_DEG=25` believing a high spread meant **no single bearing is correct**, and
+published Steamer Lane and Uluwatu as cases where NEITHER source was right. **That was wrong**, and
+OSM (§3b) shows they were the two biggest ETOPO wins in the whole set:
 
-| spread | spot | prod (0.25°) | ETOPO | real truth | right |
-|---|---|---|---|---|---|
-| 0.9 | Sunset | 0.0 | 315.5 | ~335 NW | ETOPO |
-| 2.3 | Pipeline | 0.0 | 308.8 | ~325 NW | ETOPO |
-| 3.1 | Hossegor | 305.0 | 280.3 | ~275 W | ETOPO |
-| 8.3 | Jeffreys Bay | 174.6 | 105.4 | ~110 ESE | ETOPO |
-| 10.4 | Nusa Dua | 162.9 | 68.7 | ~110 E | ETOPO |
-| 16.5 | Ocean Beach SF | 240.8 | 269.2 | 270 due W | ETOPO |
-| **26.0** | Steamer Lane | 247.9 | 153.5 | ~180 S | **NEITHER** |
-| **39.1** | Uluwatu | 162.5 | 308.4 | ~250 WSW | **NEITHER** |
+| spread | spot | prod (0.25°) | ETOPO | OSM (independent) | ETOPO err | coarse err |
+|---|---|---|---|---|---|---|
+| 2.3 | Pipeline | 0.0 | 308.8 | 304.3 | 4.5° | ~55° |
+| 3.1 | Hossegor | 305.0 | 280.3 | 276.8 | 3.5° | 28.2° |
+| 8.3 | Jeffreys Bay | 174.6 | 105.4 | 99.0 | 6.4° | 75.6° |
+| 10.4 | Nusa Dua | 162.9 | 68.7 | 59.9 | 8.8° | 103.0° |
+| 16.5 | Ocean Beach SF | 240.8 | 269.2 | 270.0 | 0.8° | 29.2° |
+| **26.0** | Steamer Lane | 247.9 | 153.5 | 143.0 | **10.5°** | **105.0°** |
+| **39.1** | Uluwatu | 162.5 | 308.4 | 318.6 | **10.2°** | **156.2°** |
 
-`MAX_SPREAD_DEG=25` sits in the gap. Above it we emit **nothing** and the caller keeps the coarse
-value — we never trade one wrong answer for another. This is why 49% of spots are *deliberately* not
-in the asset.
+A high spread means the bearing is scale-DEPENDENT, not that the circular mean is bad. Measured
+across the 440 gate-rejected spots:
+
+| spread band | n | ETOPO err | coarse err | ETOPO closer |
+|---|---|---|---|---|
+| **25-40°** | 17 | **31.9°** | **63.1°** | **76%** |
+| 40-60° | 7 | 25.6° | 20.0° | 14% |
+| 60-120° | 7 | 44.4° | 30.8° | 43% |
+
+So the gate was costing accuracy on **176 spots**. `MAX_SPREAD_DEG` is now **40** — measured, not
+guessed. Above it we emit **nothing** and the caller keeps the coarse value. Coverage **950/1516
+(62.7%)**; the remaining 37% are *deliberately* absent.
 
 ### (c) ★ BARRIER ISLANDS FACED THE LAGOON — and the gate could not see it
 The first shipped asset gave Waves/Salvo/Avon Pier on the Outer Banks **273.7-289.6° (due WEST, into
@@ -145,10 +157,16 @@ still wins by design, but it is worth revisiting.
    **dump the ASCII map before trusting a bearing you find surprising.**
 2. **MAX-pairwise is poisoned by one bad window.** Flagler Beach Pier: `[161, 64, 63, 67, 67]` — four
    windows inside 4°, one 5×5-cell outlier forcing 98° and disqualifying the spot.
-3. **My own geographic recall was wrong twice.** I asserted Uluwatu faces SW and that Bingin's NW
-   bearing looked wrong; the raster showed the estimator was reading the terrain faithfully both
-   times. Same class as the prior session's "hand-mirror of the maths" lesson — **check the data, not
-   your memory of the map.**
+3. ★ **My own geographic recall was wrong THREE times, and it cost a shipped threshold.** I asserted
+   Uluwatu faces ~250 SW, Steamer Lane ~180 S, and that Bingin's NW bearing looked wrong. OSM says
+   Uluwatu 318.6 and Steamer Lane 143.0 — ETOPO was within ~10° of both. Because I trusted my recall
+   over the data, I built a gate that excluded 176 spots for no reason. **Never let recall of a
+   coastline be the truth column; get an independent instrument.**
+6. **A cache size copied from a neighbour is not a measurement.** `maxsize=200_000` copied from the
+   bathymetry helpers would hold ~30 MB to save 2.5 µs on a 13 µs lookup — on a 512 MB box with a
+   documented OOM history. Now 20_000 (~3 MB measured).
+7. **`gh run watch` and `sleep` chains are not how to wait here** — use `until <condition>; do sleep;
+   done`, backgrounded.
 4. **`gh run watch` hid three CI failures in a row** that were all the same shape: `tests/conftest.py`
    imports the whole app stack at collection time (pytest_asyncio, then httpx, ...). Use
    `--noconftest` for standalone test files rather than chasing the dependency chain.
@@ -164,9 +182,11 @@ still wins by design, but it is worth revisiting.
 2. **The 158-spot placement list** (`shore-normal-build-review` artifact, sorted worst-first, columns
    `shoreline_km` + `front_depth_m`) → the owner's spot editor. Every spot fixed there also becomes
    eligible for a shore normal on the next asset rebuild. **Re-run the workflow after moving spots.**
-3. **The 440 `ambiguous_coastline` spots** are the remaining headroom. They are genuinely bending
-   coastlines; a per-spot hand-audited override (`surf_magnets.SHORE_NORMAL_OVERRIDES`, which still
-   outranks the asset) is the correct escape hatch for famous breaks.
+3. **The remaining 566 unaccepted spots** split into: spread >40° (measured NOT to beat the coarse
+   value — leave them), `too_few_windows`/`no_shoreline_in_window` (these are mostly the misplaced
+   spots from item 2 — fixing placement converts them). A hand-audited override
+   (`surf_magnets.SHORE_NORMAL_OVERRIDES`, which still outranks the asset) is the escape hatch for
+   famous breaks. ⚠️ Do NOT raise the gate past 40 without new evidence — it was measured.
 4. Unchanged from the prior handoff: let buoy calibration accumulate a week then fit a **quantile**
    correction; `RATING_LOCAL_SIZE=1` is still the owner's call; the marine items in its §5.
 5. ⚠️ **`backend/tests/test_media_privacy_contracts.py` fails on `dev` and is NOT from this work**
