@@ -91,7 +91,39 @@ def test_depth_threshold_is_the_documented_one():
     """DEEP_M is measured against the Indian River bottoming at 2.7 m — if someone lowers it below
     that, the lagoon qualifies again and the whole test silently reverts."""
     assert DEEP_M >= 3.0, "the measured lagoon floor is 2.7 m; below 3.0 m this test stops working"
-    assert MAX_OCEAN_KM == pytest.approx(1.5)
+
+
+def test_distance_cutoff_is_the_catalogue_calibrated_one_not_the_17_spot_one():
+    """MAX_OCEAN_KM was 1.5 km, calibrated on 17 hand-picked spots. It did not survive 1515.
+
+    At 1.5 km it flagged 250 spots (17% of the catalogue) including real breaks — Jeffreys Bay -
+    Kitchen Windows (1.99), Puerto Escondido - Carrizalillo (1.77), Thurso (1.57), Torquay - Rincon
+    (2.68), Maroubra, Nai Harn, Ribeira d'Ilhas, Sunzal (all ~1.51-1.53). Measured against the
+    catalogue's own coordinates the populations separate at max-good 2.68 / min-bad 3.17, so the
+    threshold belongs in that gap. Dropping it back under ~2.7 re-flags real breaks."""
+    assert MAX_OCEAN_KM == pytest.approx(3.0)
+    assert MAX_OCEAN_KM > 2.68, "below the worst correctly-placed spot, real breaks get flagged"
+    assert MAX_OCEAN_KM < 3.17, "above the best misplaced spot, Flagler Avenue escapes"
+
+
+@pytest.mark.parametrize("name,ocean_km,expected", [
+    # every one measured from the catalogue's stored coordinates, 2026-07-27
+    ("Jeffreys Bay - Kitchen Windows", 1.99, "ON_OCEAN"),
+    ("Puerto Escondido - Carrizalillo", 1.77, "ON_OCEAN"),
+    ("Thurso - The Shit Pipe", 1.57, "ON_OCEAN"),
+    ("Torquay - Rincon", 2.68, "ON_OCEAN"),
+    ("Maroubra", 1.53, "ON_OCEAN"),
+    ("Ribeira d'Ilhas", 1.51, "ON_OCEAN"),
+    ("New Smyrna Beach - Flagler Avenue", 3.17, "INLAND"),
+    ("Shimei Bay", 3.54, "INLAND"),
+    ("Cape Canaveral Air Force Station", 4.06, "INLAND"),
+    ("Bethune Beach", 5.11, "INLAND"),
+    ("Lakey Peak", 5.17, "INLAND"),
+])
+def test_the_measured_population_lands_on_the_right_side(name, ocean_km, expected):
+    """Guards the threshold against the real distribution, without needing the network."""
+    got = "INLAND" if ocean_km > MAX_OCEAN_KM else "ON_OCEAN"
+    assert got == expected, f"{name} at {ocean_km} km"
 
 
 def test_nan_cells_do_not_crash_or_count_as_water():

@@ -50,10 +50,25 @@ from typing import Optional, Tuple
 # Depth that a lagoon/estuary does not reach but open sea passes within a cell of shore. Measured,
 # not chosen: the Indian River bottoms out at 2.7 m.
 DEEP_M = 3.0
-# A surf spot must be this close to that water. ETOPO 15s is ~463 m, so sub-500 m distinctions are
-# below the instrument; 1.5 km sits in the measured gap between 1.06 km (worst true positive) and
-# 2.14 km (best true negative).
-MAX_OCEAN_KM = 1.5
+# How far a surf spot may sit from that water.
+#
+# ⚠️ THIS WAS 1.5 km AND THAT WAS WRONG — calibrated on 17 hand-picked spots, it did not survive
+# the catalogue. At 1.5 km it flagged 250 spots including real breaks: Jeffreys Bay - Kitchen
+# Windows, Puerto Escondido - Carrizalillo, Thurso, Torquay - Rincon, Maroubra, Nai Harn, Ribeira
+# d'Ilhas, Sunzal. The tell was the shape of the failures — the "mildest" catches piled up at
+# exactly 1.50-1.53 km, which is a threshold slicing through a dense population, not separating two.
+#
+# Re-measured against the CATALOGUE's own stored coordinates, the two populations do separate
+# cleanly, just further out:
+#   correctly placed  0.28 0.30 0.30 0.33 0.48 0.50 0.69 1.51 1.52 1.52 1.53 1.53 1.57 1.77 1.99 2.68
+#   misplaced                                                   3.17 3.54 4.06 4.99 5.11 5.17
+# Max good 2.68, min bad 3.17. 3.0 km sits in the gap.
+#
+# ⚠️ A "LAND BETWEEN THE PIN AND THE SEA" TEST WAS TRIED AND DOES NOT SEPARATE THEM — measured,
+# correctly-placed spots score 0,0,0,0,0,0,1,1,2,2,2,3,3,3,4,5 while misplaced score 3,4,6,7,8,12.
+# At ~463 m the straight path from a pin to open water routinely clips a headland or cliff cell, so
+# the signal is noise. It is a plausible idea that the data refutes; do not re-add it.
+MAX_OCEAN_KM = 3.0
 
 
 def ocean_access_km(elev, lats, lons, lat, lon,
@@ -82,9 +97,15 @@ def placement_verdict(elev, lats, lons, lat, lon,
     """Classify a stored coordinate by whether ocean swell can reach it.
 
     ON_OCEAN    within ``max_km`` of open sea — placement is fine by this test
-    INLAND      open sea is in the window but the pin is not near it: the coordinate is wrong,
-                and ``ocean_lat``/``ocean_lng`` name the nearest real water
+    INLAND      open sea is in the window but the pin is not near it: the coordinate is wrong, and
+                ``ocean_lat``/``ocean_lng`` name the nearest real water so the editor has somewhere
+                to move it to
     NO_OCEAN    no sea at all within the window — a far bigger error, or not a surf spot
+
+    ⚠️ ON_OCEAN is NOT "correctly placed" — it only means swell can reach the pin. A spot stranded
+    in 654 m of open water (Iron Bottom Sound) passes this and is caught by the shoreline-distance
+    gate instead. The two tests are complementary: measured across the catalogue they overlap on
+    only 76 spots while each finds ~80-180 the other misses.
     """
     import numpy as np
     e = np.where(np.isnan(np.asarray(elev, dtype=float)), 0.0, np.asarray(elev, dtype=float))
