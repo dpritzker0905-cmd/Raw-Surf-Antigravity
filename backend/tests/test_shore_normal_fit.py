@@ -238,3 +238,25 @@ def test_unresolvable_shallow_returns_none_rather_than_a_wrong_cap():
     e = np.full((N, N), LAND)
     e[:, : N // 2] = -0.3                  # nothing but sub-metre water in range
     assert nearshore_depth_m(e, LATS, LONS, 0.0, float(LONS[N // 2 - 1]), radius_m=3000.0) is None
+
+
+# ── A bearing must be in [0, 360). `% 360.0` alone does not guarantee it (2026-07-27) ─────────
+# `math.degrees(math.atan2(-1e-17, 1.0))` is -5.73e-16, and `-5.73e-16 % 360.0` evaluates to
+# EXACTLY 360.0 — the true result is unrepresentable so it rounds up to the modulus. A coast facing
+# infinitesimally west of due north shipped a bearing of 360.0. The asset build's own gate caught
+# it and refused to commit, which is what that guard is for.
+
+def test_a_bearing_just_west_of_north_stays_inside_the_contract():
+    from services.weather_pipeline.shore_normal_fit import _bearing, _wrap360
+    assert _wrap360(-5.7295779513082326e-16) == 0.0
+    assert (-5.7295779513082326e-16) % 360.0 == 360.0, "the hazard this guards is gone; re-check"
+    b = _bearing(1.0, -1e-17)          # due north, a hair to the west
+    assert b is not None and 0.0 <= b < 360.0, b
+
+
+def test_circular_mean_never_returns_360():
+    from services.weather_pipeline.shore_normal_fit import circular_mean
+    for group in ([359.9999999, 0.0000001], [0.0, 360.0 - 1e-13], [270.0, 90.0, 0.0]):
+        m = circular_mean(group)
+        if m is not None:
+            assert 0.0 <= m < 360.0, (group, m)

@@ -98,11 +98,26 @@ def _cell_metres(lats, lons):
     return dlat * _M_PER_DEG, dlon * _M_PER_DEG * coslat
 
 
+def _wrap360(deg):
+    """Force a bearing into [0, 360). `% 360.0` alone does NOT guarantee that.
+
+    ⚠️ Measured 2026-07-27: `math.degrees(math.atan2(-1e-17, 1.0))` is -5.73e-16, and
+    `-5.73e-16 % 360.0` evaluates to **exactly 360.0** — the true result is unrepresentable, so it
+    rounds up to the modulus. A coast facing infinitesimally west of due north therefore produced a
+    bearing of 360.0, which is outside the contract every consumer relies on.
+    Caught by `test_shipped_asset_respects_its_own_gate` when a spot imported on 2026-07-27 happened
+    to fit that angle: the asset build FAILED and refused to commit, which is exactly what that
+    guard exists for.
+    """
+    d = deg % 360.0
+    return 0.0 if d >= 360.0 else d
+
+
 def _bearing(north_m, east_m):
     """Compass bearing (0=N, 90=E) of a north/east vector, or None for a zero vector."""
     if abs(north_m) < 1e-12 and abs(east_m) < 1e-12:
         return None
-    return math.degrees(math.atan2(east_m, north_m)) % 360.0
+    return _wrap360(math.degrees(math.atan2(east_m, north_m)))
 
 
 def angular_diff(a, b):
@@ -121,7 +136,7 @@ def circular_mean(bearings):
     c = sum(math.cos(math.radians(v)) for v in vals)
     if abs(s) < 1e-12 and abs(c) < 1e-12:
         return None
-    return math.degrees(math.atan2(s, c)) % 360.0
+    return _wrap360(math.degrees(math.atan2(s, c)))
 
 
 def max_spread(bearings):
