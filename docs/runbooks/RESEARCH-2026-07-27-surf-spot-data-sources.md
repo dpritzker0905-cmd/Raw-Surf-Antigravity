@@ -98,6 +98,87 @@ licence, not a scraper.
 
 ---
 
+---
+
+## ADDENDUM — the measured market, and why 9,000 is not obtainable for free
+
+Everything above was licence research. This is the **size** research, measured directly rather
+than quoted.
+
+**OSM, counted live via Overpass on two independent mirrors:**
+
+| query | worldwide total |
+|---|---|
+| `nwr[sport=surfing]` | **1,254** (kumi 1,246 — the two mirrors agree to 0.6%) |
+| …with a `name` | 1,052 |
+| …named, excluding shop / office / club / school / sports_centre | **539** |
+| `nwr[natural=reef][name]` | 4,330 (mostly dive reefs and navigation hazards, not breaks) |
+
+**Wikipedia, counted via the category API:** `Category:Surfing_locations` = **29** pages,
+`Category:Surfing_in_the_United_States` = 17, `Category:Surf_breaks` = **0**. Even walking every
+subcategory this is low hundreds, not thousands.
+
+### THE TABLE THAT MATTERS
+
+| source | real named surf spots | licence |
+|---|---|---|
+| **Wannasurf** | **9,511** (6,262 with GPS) | closed — permission "may be subject to a fee" |
+| **Stormrider** | **5,000+** | closed, subscription |
+| **★ Raw Surf (ours)** | **1,516** | ours outright |
+| surfing-waves | 1,378 | closed |
+| SwellArchive | 1,000+ | closed |
+| **OSM** | **539** | ODbL (separable via `osm_id`) |
+| Wikipedia | ~29–100 | CC-BY-SA |
+| Wikidata | 40 | CC0 |
+| GNIS / NGA GNS | *unlimited coverage, OFFICIAL names* | public domain |
+
+★★ **Our 1,516 is already the largest freely-obtainable surf catalogue in existence, and third
+largest overall.** Everything bigger is closed; everything open is smaller. The 9,000 exists in
+exactly two places on the internet and both require permission. That is not a research failure —
+it is the measured structure of the market.
+
+### ★ THE REFRAME: coverage and naming are SEPARABLE problems
+
+The reason "get 9,000 spots" feels stuck is that it bundles two problems with different answers.
+
+* **Exact GPS coverage — SOLVED, free, unlimited.** GNIS + NGA GNS name every coastal feature on
+  Earth in the public domain, and our `ocean_access` + shore-normal chain filters them to
+  geometrically valid coastal locations. Measured recall against our own Florida spots: **92.2%**.
+* **Proper surf names — genuinely scarce.** A gazetteer says *Ehukai Beach*; a surfer says
+  *Pipeline*. Only three sources map official → surf names, and two are tiny: OSM (539, ODbL),
+  Wikidata (40, CC0), and our own community.
+
+So the build is a layered one, and only the top layer is hard:
+
+1. **GNIS/GNS + our physics** → thousands of valid coastal locations with exact GPS and official
+   names. Public domain, unlimited, ours outright.
+2. **Proximity-overlay OSM's 539** real surf names onto those locations. `surf_spots.osm_id`
+   already exists to keep those rows separable, which is exactly what the OSMF *Collective
+   Database* guideline turns on.
+3. **Overlay Wikidata's 40** (CC0) and the 8 confirmed-absent famous breaks.
+4. **Community renames and confirms** via `refinements.py` — the propose→review→approve flow that
+   is fully built and holds **one row**.
+
+Realistic unilateral ceiling: **~2,000 properly-named spots plus thousands of rated, correctly-
+placed coastal locations.** Not 9,000 named. Nobody free has 9,000 named.
+
+### ★ AND THE ASYMMETRY THAT IS ACTUALLY IN OUR FAVOUR
+
+Wannasurf has 9,511 pins and no forecast physics. We have 1,516 spots with ETOPO-derived shore
+normals, nearshore break depths, cross-shelf friction and a calibrated rating engine — and the
+ability to rate **any coastal coordinate on Earth** without a catalogue entry at all. A user
+standing on an unnamed beach can already be told what it is doing.
+
+**A named pin is a lookup key. A rating is the product.** Chasing 9,000 unverified pins into a
+catalogue with a measured 11% placement-error rate optimises the wrong number.
+
+### THE ONE PATH TO LITERALLY 9,000
+
+**Ask Wannasurf.** Their terms name the route explicitly: *"Requests for permission for other uses
+may be sent to the Webmaster"*, and *"such requests may be subject to a fee."* There is no API and
+no named contact — it is the site feedback form, addressed to the Webmaster. 6,262 GPS waypoints
+behind one email and a commercial negotiation. That is the whole distance between 1,516 and 9,511.
+
 ## NEXT
 
 1. **Owner decision: approach Wannasurf** (permission-request page) and/or Stormrider about
