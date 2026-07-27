@@ -211,15 +211,70 @@ the real stdio server: **Bethune Beach resolves at 28.950892,-80.83899 with shor
 
 ---
 
+## 6b. ★★★ A MISPLACED SPOT WAS REPORTED AS AN UNFITTABLE ONE (`084a29f4`)
+
+Chasing the remaining 442 spots without a normal turned up something better than a fitting fix.
+
+**`spot_misplaced` fired on 0 of 1515 spots while 133 were provably beyond `MAX_SHORELINE_KM`** —
+Manzanillo **12.01 km** from shore at +79.9 m, Nihiwatu 10.58 km at **+264 m** — every one labelled
+`no_shoreline_in_window`.
+
+★ **The cause is clause ORDER.** A badly misplaced pin has no coastline in its window, so it failed
+the FIT clause first, short-circuiting the placement check that would have named the real problem.
+**The worse the misplacement, the less likely it was called one.** The clauses answer two different
+questions — *is this coordinate a surf spot at all?* (actionable: move the pin) versus *is the fit
+trustworthy?* (describes the data) — so placement is now tested first.
+
+⚠️ **This cannot change which spots are accepted** — every clause is a rejection, so reordering can
+only change the reported reason. Verified by replaying BOTH orders over the real 1515-row review
+CSV: **accepted 1070 both ways, accept set IDENTICAL.** The shipped asset is unaffected.
+
+**140 labels change**, all from an unactionable fitting failure to an actionable placement error:
+
+| was | actually is | n |
+|---|---|---|
+| `no_shoreline_in_window` | **`spot_misplaced`** | 58 |
+| `no_shoreline_in_window` | **`not_on_open_ocean_inland`** | 52 |
+| `spot_misplaced` | `not_on_open_ocean_inland` | 13 |
+| `no_shoreline_in_window` | `not_on_open_ocean_no_ocean` | 8 |
+
+⇒ **127 spots with fixable coordinate errors were invisible.** That signal is the prerequisite for
+importing new spots safely — an import gate needs a truthful "misplaced".
+
+### ⚠️ The detector is one-sided, and this is its seaward half
+`placement_verdict` returns ON_OCEAN | INLAND | NO_OCEAN — it asks only whether swell can REACH the
+pin, so a spot stranded in open water passes. Measured: **293 spots (19.3%) have their pin in water
+deeper than 20 m**, 141 deeper than 50 m, 90 deeper than 100 m — **all ON_OCEAN**, and **114 already
+ship a shore normal**. Cannon Beach sits at **−40 m, 2.7 km offshore**; Punta de Lobos at −107 m.
+⚠️ Depth alone is NOT a misplacement test — Cane Bay is 0.32 km from shore in 240 m of water, a real
+steep drop-off. The shoreline-DISTANCE gate is the one that catches these, which is why its ordering
+mattered so much.
+
+### ⚠️ I corrected my own estimate here
+The previous handoff said "most likely the next +89" for the `no_shoreline_in_window` bucket. **That
+was wrong**: only **~31** of the 89 ON_OCEAN spots are inside the 3 km bound and therefore
+recoverable at all; the other 58 fail the misplacement gate regardless. They are not a fitting
+problem to solve — they are coordinates to fix.
+
+---
+
 ## 7. NEXT (ranked)
 
 1. **Restart the MCP server** (§0), then re-probe the four tools through the client.
-1b. **The remaining 442 spots without a normal, ranked by tractability:**
-   * **`no_shoreline_in_window` 149** — but **89 are ON_OCEAN** with 0-1 fitted windows and a median
-     `ocean_km` of **0.26 km**. They are on the sea and the WINDOW LADDER fails them, which is the
-     same shape as the bug just fixed. The ladder is (0.015, 0.02, 0.03, 0.045)° — worth testing a
-     larger rung. **Most likely the next +89.**
+2. ⛔ **A PRODUCTION WRITE IS NOW PENDING YOUR APPROVAL — the placement flags are stale.**
+   Production carries **164 flagged** spots, set from the INLAND detector alone. The rebuilt review
+   CSV now names **~147 placement problems** (≈65 `spot_misplaced` + ~74 inland + 8 no-ocean), and
+   **127 of them were previously reported as fitting failures**, so they are almost certainly not
+   all in the existing 164. Re-flagging from the review CSV's verdict column is the highest-value
+   data change available — **but it is a production write and I did not make it.** Overlap with the
+   existing 164 needs measuring first.
+3. **The remaining spots without a normal, corrected estimate:**
+   * **`no_shoreline_in_window`** — only **~31** are inside the 3 km bound and recoverable by
+     fitting; the rest are coordinates to fix, not fits to rescue.
    * **`ambiguous_coastline` 268** — genuinely ambiguous (p50 spread 69.7°). Leave them.
+   * The window ladder is (0.015, 0.02, 0.03, 0.045)° while the FETCH window is ±0.08°, so a larger
+     rung costs **no extra ERDDAP request** (that API charges per request, not payload). Cheap to
+     test for the ~31.
 2. **The owner's call this session: refine existing spots before growing the list.** The reasoning
    is recorded and still stands — placement error moves the shore bearing 35° per 1.6 km and the
    normal swings breaking height **40%**, there are **165 flagged spots and that is an undercount**
