@@ -141,9 +141,85 @@ the hourly cache, the two point fetches and the mapping. **`weather_sim_mcp.py` 
 
 ---
 
-## 5. NEXT (ranked)
+## 5. ★★★ THE SHORE-NORMAL GATE: A COUNT WAS DOING A CONFIDENCE JOB (`6b739835`)
+
+With the sim reachable, the next Jacobian is the largest degraded population in the app:
+**567 of 1515 spots (37%) had NO ETOPO shore normal** and fell back to the coarse 0.25° grid — a
+bearing decided from a **194.6 km window** — while shore normal swings breaking height **40%**.
+That is far bigger than the 164 flagged placements.
+
+Verdict breakdown from the 15:38 build: accepted 948 · **ambiguous_coastline 264** ·
+**too_few_windows 153** · **no_shoreline_in_window 149** · not_on_open_ocean 1.
+
+### What was actually wrong
+`accepted()` required `n_windows >= 3`. But **`fit_shore_normal` returns a bearing at TWO windows**
+and None below — the build was stricter than its own fitter. All 153 rejects had exactly 2 windows,
+**133 of them ON_OCEAN a median 0.21 km from open water**, agreeing to a **median spread of 5.5°**.
+
+### ★★ The instrument, and why it can be trusted
+Overpass was down (a real 504 from the main instance, timeouts from both mirrors), so OSM was
+unavailable. Substitute: **accepted spots within 15 km as a local reference frame** — that
+population was OSM-validated as a class at median 6.4°. ★ **Run leave-one-out on the accepted set,
+the instrument reports 6.2°, reproducing the independent OSM number.** Calibrating a substitute
+against the known result BEFORE using it on new data is what makes the rest of this defensible.
+
+| | vs local consensus | coarse | ETOPO wins |
+|---|---|---|---|
+| accepted (control, n=176) | **6.2°** | 14.6° | 70% |
+| 2-window candidates (n=41) | **10.1°** | 17.4° | 68% |
+
+⚠️ **Measurement killed the obvious alternative.** "Loosen the spread gate to recover the 264
+ambiguous" — NO: their spreads are p50 **69.7°**, p75 107°, p90 165°, not clustered at the boundary;
+≤50° recovers only 54. They are genuinely ambiguous coastlines. **The 40° gate stays.**
+
+### ✅ Rebuilt: 948 → **1073** of 1515 (62.6% → **70.8%**)
+Predicted +129, actual **+125**; `too_few_windows` is now 0 and the 4 difference went to the ocean
+gate (1→5) and spread gate (264→268) — the other clauses still bite.
+
+**Payoff through the REAL rating engine** (118 comparable spots, 8 swell directions, sea state
+fixed): shore normal moves **median 22.0°** (p90 67.0), rating **median 2.8 pts** (p90 36.3), and
+**43.1% of evaluations CHANGE LEVEL** — above the original ETOPO rollout's 27.4%, because these are
+the spots the coarse grid served worst. ⚠️ That is CHANGE; the *improvement* evidence is the table
+above. Kill: `SHORE_NORMAL_MIN_WINDOWS=3`.
+
+`scripts/validate_shore_normals_osm.py` **is now committed** — written, used and thrown away on
+07-26, then needed again 24 h later. It carries its own historic bug as a warning (averaging every
+segment within N km makes the two shores of a spit CANCEL), plus mirror rotation and a certifi CA
+context. ⚠️ **This machine's system CA store has an expired root**: Overpass fails
+`CERTIFICATE_VERIFY_FAILED` while other hosts succeed, so "our API works" proves nothing.
+
+---
+
+## 6. ★★ THE SIM'S CATALOGUE WAS A DRIFTED SNAPSHOT (`913b4af7`)
+
+Shipping the live forecast lane exposed this: the sim read its spot list from `dev.db`, which has
+diverged from production in the way that matters most — **coordinates**.
+
+| | dev.db (what the sim served) | production |
+|---|---|---|
+| Bethune Beach | 28.998,-80.926 — **the pre-fix coordinate** | 28.950892,-80.83899 (**~7 km**) |
+| New Smyrna Beach Inlet | active | **deactivated** (inland duplicate) |
+| row count | 1547 active | 1515 active |
+
+★ **A stale catalogue is worse than a missing one once the forecast is real** — the sim was about to
+sample a genuine forecast at a point 7 km from the spot and report it with full confidence.
+
+Now served from the public `/api/surf-spots` (1515 spots, no credentials), snapshot as fallback, and
+`source` names which answered (`live_catalog` vs `surf_spots_snapshot`). Verified end to end through
+the real stdio server: **Bethune Beach resolves at 28.950892,-80.83899 with shore normal 57.9° etopo
+— the value the relocation produced.** Kill: `SIM_LIVE_CATALOG=0`.
+
+---
+
+## 7. NEXT (ranked)
 
 1. **Restart the MCP server** (§0), then re-probe the four tools through the client.
+1b. **The remaining 442 spots without a normal, ranked by tractability:**
+   * **`no_shoreline_in_window` 149** — but **89 are ON_OCEAN** with 0-1 fitted windows and a median
+     `ocean_km` of **0.26 km**. They are on the sea and the WINDOW LADDER fails them, which is the
+     same shape as the bug just fixed. The ladder is (0.015, 0.02, 0.03, 0.045)° — worth testing a
+     larger rung. **Most likely the next +89.**
+   * **`ambiguous_coastline` 268** — genuinely ambiguous (p50 spread 69.7°). Leave them.
 2. **The owner's call this session: refine existing spots before growing the list.** The reasoning
    is recorded and still stands — placement error moves the shore bearing 35° per 1.6 km and the
    normal swings breaking height **40%**, there are **165 flagged spots and that is an undercount**
