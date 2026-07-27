@@ -120,7 +120,29 @@ def test_shipped_asset_respects_its_own_gate():
     assert doc["count"] == len(doc["entries"])
     gate = doc["max_spread_deg"]
     assert gate <= MAX_SPREAD_DEG, "the shipped asset was built with a looser gate than the code"
-    for lat, lng, normal, spread in doc["entries"]:
+    for row in doc["entries"]:
+        # 4 elements = pre-2026-07-27 asset; 5 adds the nearshore break depth. Both must load.
+        assert len(row) in (4, 5), f"unexpected entry arity {len(row)}"
+        lat, lng, normal, spread = row[0], row[1], row[2], row[3]
         assert -90.0 <= lat <= 90.0 and -180.0 <= lng <= 180.0
         assert 0.0 <= normal < 360.0
         assert 0.0 <= spread <= gate
+        if len(row) == 5 and row[4] is not None:
+            # A break depth must be plausible surf-zone water, not a canyon median. The whole point
+            # of the field is that it is NOT the 452 m the shelf grid reports for Santa Cruz.
+            assert 0.0 < row[4] < 200.0, f"implausible break depth {row[4]} m"
+
+
+@pytest.mark.skipif(not os.path.exists(SHIPPED), reason="asset not built yet")
+def test_shipped_break_depths_are_surf_zone_scale():
+    """Guards the reason the field exists: if a rebuild ever started emitting shelf-scale depths
+    the breaking cap would go dead again silently."""
+    with open(SHIPPED) as fh:
+        doc = json.load(fh)
+    depths = [r[4] for r in doc["entries"] if len(r) > 4 and r[4] is not None]
+    if not depths:
+        pytest.skip("asset predates the break-depth field")
+    depths.sort()
+    median = depths[len(depths) // 2]
+    assert median < 100.0, (
+        f"median break depth {median} m is shelf-scale — the cap would never bind")
