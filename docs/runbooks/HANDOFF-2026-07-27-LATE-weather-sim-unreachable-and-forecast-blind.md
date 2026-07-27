@@ -1,0 +1,168 @@
+# HANDOFF 2026-07-27 LATE — the weather simulation server answered nothing, and could not forecast the catalogue
+
+**Continues `HANDOFF-2026-07-27-NIGHT-catalogue-from-open-data.md`.**
+3 commits on `dev`, tree clean. Backend **1092 passed / 0 failed** (the pre-existing unrelated
+`test_media_privacy_contracts.py` grom-media failure excluded, as before).
+
+Read [[standing-work-rules-user-mandate]] first. Everything below was measured against the running
+server, and **two claims in my own memory were overturned** — marked ⛔ where they appear.
+
+---
+
+## 0. ⛔ DO THIS FIRST: RESTART THE WeatherSimulation MCP SERVER
+
+The running server process holds the OLD module and is **still deadlocked**. Until it is restarted,
+`mcp__WeatherSimulation__*` calls will keep hanging to the 1800 s client timeout. Nothing else in
+this handoff is observable through the MCP tools until then.
+
+---
+
+## 1. ★★★ THE SERVER WAS UNREACHABLE, AND 26 GREEN UNIT TESTS SAID OTHERWISE
+
+`mcp__WeatherSimulation__get_surf_spots` **aborted at the client's 1800 s idle timeout** — the same
+hang the 2026-07-26 memory recorded and dismissed. Driving the server over stdio the way the client
+does:
+
+```
+initialize      4.11s  OK
+tools/list      0.01s  OK
+get_surf_spots  *** NO RESPONSE after 480s ***
+```
+
+### The root, from faulthandler stacks of the live server (byte-identical at 25 s, 50 s, 75 s)
+
+```
+get_surf_spots -> shore_normal_for -> spot_geometry -> resolve_surf_geometry
+  -> bathymetry.shelf_depth_at:108 -> import numpy -> create_module   <- STUCK
+     [AnyIO worker thread]
+```
+
+`import numpy` is a **function-level import inside `shelf_depth_at`**. So the first tool call is the
+thing that loads numpy's `_multiarray_umath` C extension — inside a worker thread, under the running
+stdio event loop — and that DLL load never returns.
+
+### ⚠️ Four hypotheses killed by measurement — so nobody re-tries them
+
+1. **Not slowness.** The hung process had **3.7 s of CPU across 43 minutes**. Blocked, not computing.
+2. **Not fastmcp, and not sync-vs-async dispatch.** A minimal server containing **zero Raw-Surf
+   code**, with a trivial *sync* tool, answers in **0.01 s** on the same interpreter.
+3. **Not `get_surf_spots`.** ★ Whichever tool is called **FIRST** is the one that hangs — swapping
+   the order moved the hang to `get_weather_forecast`. And **a second request unblocks the first**,
+   whose response then arrives under the OLDER id. **Read the response `id`**, or you will credit
+   the wrong call: that is exactly what made my first probe look like "one bad tool".
+4. **Not fixed by importing `bathymetry`.** numpy is imported inside the function, not at that
+   module's scope, so importing the module warms nothing. I tried this first and it cost a cycle.
+
+⚠️ A plain `threading.Thread` (0.115 s) and a bare `anyio.to_thread.run_sync` (0.11 s) both
+**complete** the same call. **Only the real stdio server reproduces it.**
+
+### The fix (`f794f78f`)
+
+`_warm_hot_path()` runs one full `calculate_surf_rating` at module import **on the main thread**, so
+every lazy import on the tool hot path — numpy, the bathymetry grid, the ETOPO shore-normal asset,
+the magnet overrides, `estimate_surf` — is resolved before the server serves. Measured cost
+**0.2 s**. The identical call now returns in **0.02 s**, and all four tools work end to end.
+Kill: `SIM_EAGER_WARMUP=0`.
+
+★★ **THE LESSON.** The 26 unit tests on this file all passed throughout, because they call the tool
+functions **directly on the main thread** — the one context in which the bug cannot occur. A green
+suite proved nothing about whether the server could answer at all.
+`tests/test_weather_sim_mcp_server_startup.py` now drives the real server over stdio and **fails
+with a 60 s hang** under `SIM_EAGER_WARMUP=0`.
+
+★ **THE GENERAL RULE: in an MCP/async server, never let a C-extension import happen for the first
+time inside a request handler.**
+
+---
+
+## 2. ★★★ IT COULD FORECAST 3 OF 1547 SPOTS (`7f04c945`)
+
+`get_weather_forecast` carried a baseline only for the three hand-tuned `MOCK_SPOTS`; the other
+**1544 returned `forecast: null`**. My own memory called that "by design, not a bug". It is design,
+**and it is the missing feature** — a forecast tool that cannot forecast 99.8% of the catalogue.
+
+The app already serves exactly this at **`/api/weather/point`**, off the same cached product grid the
+heatmaps sample. So the sim **asks it** rather than modelling a second forecast, and
+★ **the mapping is copied verbatim from `spot_ratings.rate_one_spot`** — the production consumer of
+that endpoint — so a second caller cannot drift into a private reading of the same payload:
+
+| sim field | source | ⚠️ |
+|---|---|---|
+| `swell_height_m` | marine `point.speed` | **OFFSHORE Hs, not the breaking height** |
+| `swell_period_sec` / `swell_direction_deg` | marine `point.period` / `.direction` | |
+| `wind_speed_knots` | wind `point.speed` | **that endpoint already reports KNOTS** |
+| `wind_direction_deg` | wind `point.direction` | |
+
+**Precedence: staged override → LIVE forecast → hand-tuned catalog default.** Live outranks those
+defaults deliberately — they are invented constants for three spots. An override still wins, because
+it is the caller's explicit what-if.
+
+⚠️ **Both legs are required.** Marine-without-wind falls back and **names its reason** rather than
+fabricating a wind — an invented wind is exactly how a blown-out day reads clean.
+
+### The parity block — the divergence is now printed, not hidden
+
+`marine.surf_height_m` is the **breaking** height the app itself serves. The sim computes its own
+from the offshore Hs through the production chain, and the response now reports both plus
+`delta_pct`. A silent divergence there is the defect `cf2efb48` was written to end.
+
+Measured live: **Mavericks served 2.3077 m vs sim 2.3165 m = +0.38%**, **Pipeline −0.2%** — entirely
+the 0.1 ft rounding of the reported value.
+
+**Live-verified through the real stdio server:** `Trestles`, previously `null`, returns a
+**0.77 m / 17.6 s swell from 202.8°** against its **220.9° ETOPO normal** (18° off — a textbook south
+swell) in **0.72 s**. Kill: `SIM_LIVE_FORECAST=0`; also `SIM_FORECAST_BASE_URL`,
+`SIM_FORECAST_MODEL` (GFS), `SIM_FORECAST_TIMEOUT_S`.
+
+⚠️ The suite is kept hermetic by an autouse fixture setting `SIM_LIVE_FORECAST=0`; the live lane's
+own tests stub `sim_forecast.fetch_point`. A network cannot exercise a mapping deterministically,
+and today's swell is not a fixture.
+
+---
+
+## 3. THE 800-LOC RATCHET FORCED A GOOD SEAM (`5d8babe4`)
+
+`weather_sim_mcp.py` landed at **exactly 800 lines**, so the next change to it would have failed
+`loc-check`. The forecast lane was the natural seam — cohesive, no MCP dependency, useful to any
+out-of-process caller. `services/weather_pipeline/sim_forecast.py` (120 lines) now owns the config,
+the hourly cache, the two point fetches and the mapping. **`weather_sim_mcp.py` 800 → 700.**
+
+---
+
+## 4. Verified along the way, not changed
+
+* `condition_reports` in `dev.db` is **schema-valid** for the sim's UPDATE (`spot_name`,
+  `wave_height_ft`, `conditions_label`, `wind_conditions`, `is_active` all present) but holds
+  **0 rows**, so `database_updated: false` is correct in dev, not a defect.
+* `get_surf_spots(limit=500)` resolves geometry for all 500 in **0.29 s** — no robustness issue at
+  the maximum limit.
+* The sim's geometry matches production exactly at Mavericks: shore normal **225.1° etopo**, shelf
+  depth **101.5 m**, regime `shoaling` — identical to what `/api/weather/point` returns.
+
+---
+
+## 5. NEXT (ranked)
+
+1. **Restart the MCP server** (§0), then re-probe the four tools through the client.
+2. **The owner's call this session: refine existing spots before growing the list.** The reasoning
+   is recorded and still stands — placement error moves the shore bearing 35° per 1.6 km and the
+   normal swings breaking height **40%**, there are **165 flagged spots and that is an undercount**
+   (the water-blind detector missed all three Volusia spots the owner caught by eye), and every
+   import runs through the same geometry chain, so expansion multiplies whatever it does.
+3. **Re-run the placement flags from `ocean_verdict`** once the shore-normal asset rebuild lands.
+4. **Work the Precision Queue** — the 165 flagged spots are visible and filterable in the admin.
+5. Only then: import the ranked PT/IE candidates (`--commit`), then France/Spain/UK.
+6. Buoy calibration: fit a **quantile** correction, not a single number.
+7. **Do NOT flip `RATING_LOCAL_SIZE`** — still no oversize penalty, so a beginner beach outranks the
+   point break. (The sim follows the flag, so it tracks whenever it is flipped.)
+
+### ⚠️ OPEN / LATENT
+* `data://forecasts/summary` still iterates **`MOCK_SPOTS` only** — now that every spot has a live
+  forecast, that resource is the narrowest surface left.
+* `caller_role` remains **caller-asserted**. A sandbox gate, never the app's auth pattern.
+* Size-climatology coupling (unchanged): `grid_size_climatology.py:95` / `surf_rating.py:453`
+  compute climatology **without** a break depth while served heights have one. Harmless at
+  `RATING_LOCAL_SIZE=0`; fix before flipping.
+* `get_surf_spots` reports coarse orientations at full float precision
+  (`160.25316339457387`) — cosmetic only; the ETOPO ones are clean.
+* `test_media_privacy_contracts.py` still fails on `dev`, unrelated to all of this.
