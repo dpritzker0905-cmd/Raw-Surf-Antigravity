@@ -473,13 +473,21 @@ CURATED_SPOTS = [
 ]
 
 
-async def import_curated_spots(db_session) -> int:
-    """Import curated surf spots into the database."""
+async def import_curated_spots(db_session, return_detail: bool = False):
+    """Import curated surf spots into the database.
+
+    Returns the number imported, or ``(imported, skipped_existing)`` when ``return_detail`` is set.
+
+    ⚠️ THIS IS IDEMPOTENT AND THE CATALOGUE IS ALREADY SATURATED WITH ITS ONLY SOURCE. It reads
+    358 hardcoded `CURATED_SPOTS` and skips anything already present by (name, country), so a
+    CORRECT run today adds ZERO. The admin Import button reported that as a green success toast,
+    which is why it looked broken — the caller needs the skipped count to say something honest."""
     from models import SurfSpot
     from sqlalchemy import select
-    
+
     imported = 0
-    
+    skipped = 0
+
     for spot_data in CURATED_SPOTS:
         # Check if spot already exists (by name and country)
         result = await db_session.execute(
@@ -505,9 +513,11 @@ async def import_curated_spots(db_session) -> int:
             db_session.add(spot)
             imported += 1
             logger.info(f"Imported: {spot_data['name']} ({spot_data['country']})")
-    
+        else:
+            skipped += 1
+
     await db_session.commit()
-    return imported
+    return (imported, skipped) if return_detail else imported
 
 
 async def fetch_osm_surf_spots(bbox: str) -> List[Dict]:

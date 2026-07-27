@@ -287,15 +287,22 @@ async def trigger_spot_import(
         # Temporarily replace and restore
         import scripts.import_global_spots as import_module
         import_module.CURATED_SPOTS = filtered_spots
-        curated_count = await import_curated_spots(db)
+        curated_count, skipped = await import_curated_spots(db, return_detail=True)
         import_module.CURATED_SPOTS = original_spots
     else:
-        curated_count = await import_curated_spots(db)
-    
+        curated_count, skipped = await import_curated_spots(db, return_detail=True)
+
+    # ⚠️ The OSM leg was gated on `tier > 0` while the UI defaults to tier 0 ("All curated spots"),
+    # so in the default state ticking "include OSM" did NOTHING and the toast still said success.
+    # It now runs at every tier — but note production deliberately carries ZERO `osm_id`, because
+    # OSM is ODbL share-alike. Leaving the checkbox off keeps the catalogue clean of it.
     osm_count = 0
-    if include_osm and tier > 0:
+    osm_skipped_reason = None
+    if include_osm:
         osm_count = await import_osm_spots(db, tier)
-    
+    elif include_osm is False:
+        osm_skipped_reason = "not requested"
+
     total = curated_count + osm_count
     
     tier_names = {0: "All", 1: "East Coast USA", 2: "West Coast & Islands", 3: "Global"}
@@ -304,10 +311,16 @@ async def trigger_spot_import(
         "success": True,
         "imported_curated": curated_count,
         "imported_osm": osm_count,
+        # The number the caller actually needs to tell the truth: a run that adds nothing because
+        # everything is already present is CORRECT, not a failure, and must not read as a win.
+        "skipped_existing": skipped,
+        "osm_skipped_reason": osm_skipped_reason,
         "total_imported": total,
         "tier": tier,
         "tier_name": tier_names.get(tier, f"Tier {tier}"),
-        "message": f"Imported {total} spots for {tier_names.get(tier, f'Tier {tier}')}"
+        "message": (f"Imported {total} spots for {tier_names.get(tier, f'Tier {tier}')}"
+                    if total else
+                    f"No new spots — all {skipped} curated spots are already in the catalogue")
     }
 
 

@@ -77,7 +77,20 @@ const AdminSpotsPanel = ({ userId }) => {
       const response = await apiClient.post(
         `/admin/spots/import?tier=${importTier}&include_osm=${includeOSM}`
       );
-      toast.success(response.data.message || `Imported ${response.data.total_imported} spots successfully`);
+      const { total_imported: added = 0, skipped_existing: skipped = 0 } = response.data;
+      // A green "success" on zero rows is what made this button look broken. It imports from 358
+      // hardcoded CURATED_SPOTS and skips anything already present by (name, country) — and the
+      // catalogue already contains all of them, so a CORRECT run adds nothing. Say so plainly
+      // instead of reporting a win.
+      if (added > 0) {
+        toast.success(`Imported ${added} new spot${added === 1 ? '' : 's'}` +
+          (skipped ? ` (${skipped} already in the catalogue)` : ''));
+      } else {
+        toast.warning(
+          `Nothing to import — all ${skipped || 'curated'} spots are already in the catalogue.`,
+          { description: 'This button only adds the built-in curated list. It cannot add new spots.' }
+        );
+      }
       setShowImportDialog(false);
       fetchSpots();
       fetchStats();
