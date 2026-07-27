@@ -132,6 +132,15 @@ def query_spots_from_db(name_query: Optional[str] = None,
     """
     if not _sim_flag("SIM_SPOT_CATALOG"):
         return []
+    # The app's LIVE catalogue first — `dev.db` is a snapshot and it has drifted into wrong
+    # coordinates, not just missing rows (see `sim_forecast.fetch_catalog`). Filtering here rather
+    # than in the fetch keeps the fetch cacheable for the whole process.
+    live = sim_forecast.fetch_catalog()
+    if live:
+        rows = [s for s in live
+                if not name_query or name_query.lower() in (s["name"] or "").lower()]
+        rows.sort(key=lambda s: s["name"] or "")
+        return [dict(s) for s in (rows[:int(limit)] if limit else rows)]
     conn = get_db_connection()
     if not conn:
         return []
@@ -389,7 +398,9 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
         limit: Maximum spots to return (the catalog holds ~1547 active spots).
     """
     db_spots = query_spots_from_db(name_query=query or None, limit=max(1, min(int(limit), 500)))
-    source = "surf_spots"
+    # Name the real source. `dev.db` has drifted into WRONG COORDINATES (Bethune Beach sits 7 km
+    # from where production put it), so "which catalogue answered" is not a detail.
+    source = "live_catalog" if sim_forecast.fetch_catalog() else "surf_spots_snapshot"
     if not db_spots:
         source = "catalog_defaults"
         db_spots = [

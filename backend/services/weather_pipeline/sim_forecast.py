@@ -56,6 +56,50 @@ TIMEOUT_S = float(os.environ.get("SIM_FORECAST_TIMEOUT_S", "30"))
 _FORECAST_CACHE: Dict[Any, Any] = {}
 
 
+# ── THE CATALOGUE, from the app rather than a local snapshot ─────────────────────────────────
+# The sim read its spot list from `dev.db`, a SQLite snapshot that has drifted from production.
+# Measured 2026-07-27, the drift is not cosmetic — it is wrong COORDINATES:
+#     Bethune Beach          dev.db 28.998,-80.926   production 28.950892,-80.83899  (~7 km)
+#     New Smyrna Beach Inlet dev.db is_active=1      production is_active=false (inland duplicate)
+#     row counts             dev.db 1547 active      production 1515 active
+# Bethune's dev.db coordinate is the exact one the owner caught by eye and the one production was
+# corrected away from. Every geometry lookup, and now every live forecast sample, would be taken at
+# a point 7 km from the spot — and reported with full confidence. A stale catalogue is worse than a
+# missing one once the forecast is real.
+# Kill: SIM_LIVE_CATALOG=0 falls back to dev.db exactly as before.
+_CATALOG_CACHE: Dict[str, Any] = {}
+
+
+def fetch_catalog() -> Optional[list]:
+    """The app's active spot catalogue, or None. Never raises; cached for the process.
+
+    Uses the PUBLIC `/api/surf-spots`, which returns every active spot with coordinates (1515 as of
+    2026-07-27) and needs no credentials — the same reason the forecast lane asks the app instead of
+    modelling one."""
+    if os.environ.get("SIM_LIVE_CATALOG", "1") == "0":
+        return None
+    if "spots" in _CATALOG_CACHE:
+        return _CATALOG_CACHE["spots"]
+    try:
+        req = urllib.request.Request(f"{BASE_URL}/api/surf-spots",
+                                     headers={"User-Agent": "raw-surf-weather-sim"})
+        with urllib.request.urlopen(req, timeout=TIMEOUT_S) as resp:
+            rows = json.loads(resp.read().decode("utf-8"))
+        spots = [{"id": r.get("id"), "name": r.get("name"), "region": r.get("region"),
+                  "latitude": float(r["latitude"]), "longitude": float(r["longitude"])}
+                 for r in rows
+                 if r.get("is_active") and r.get("latitude") is not None
+                 and r.get("longitude") is not None]
+        if not spots:
+            logger.warning("live catalogue returned no usable spots; falling back")
+            return None
+        _CATALOG_CACHE["spots"] = spots
+        return spots
+    except Exception as e:
+        logger.warning(f"live catalogue fetch failed ({e}); falling back to the local snapshot.")
+        return None
+
+
 def current_valid_time() -> str:
     """The forecast hour to sample: the current UTC hour, top of the hour."""
     return datetime.now(timezone.utc).replace(

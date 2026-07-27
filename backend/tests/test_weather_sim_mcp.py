@@ -26,9 +26,12 @@ def _no_live_forecast(monkeypatch):
     a real baseline, which must never make these tests depend on a network or on today's swell —
     the live path has its own tests below, with the fetch stubbed."""
     monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "0")
     sim_forecast._FORECAST_CACHE.clear()
+    sim_forecast._CATALOG_CACHE.clear()
     yield
     sim_forecast._FORECAST_CACHE.clear()
+    sim_forecast._CATALOG_CACHE.clear()
 
 
 # ── Rating correctness (regression pins for the height-blind score, 2026-07-26) ──────────────
@@ -269,7 +272,9 @@ def test_get_surf_spots_reports_a_real_orientation_per_spot():
     if not _db_available():
         pytest.skip("dev.db unavailable in this environment")
     res = weather_sim_mcp.get_surf_spots(limit=40)
-    assert res["source"] == "surf_spots"
+    # A REAL catalogue, not the three hand-tuned defaults. Which real one — the app's live
+    # catalogue or the local snapshot — is what `source` distinguishes, and either satisfies this.
+    assert res["source"] in ("live_catalog", "surf_spots_snapshot"), res["source"]
     oriented = [s for s in res["spots"] if s["orientation"] is not None]
     assert len(oriented) >= 5, res
     assert len({round(s["orientation"], 1) for s in oriented}) > 1, (
@@ -435,6 +440,50 @@ def test_live_forecast_reports_parity_with_the_height_the_app_serves(monkeypatch
     assert res["parity"]["served_surf_height_m"] == 3.0
     assert res["parity"]["sim_breaking_height_m"] > 0
     assert isinstance(res["parity"]["delta_pct"], float)
+
+
+# ── The catalogue: the app's live spots, not a drifted local snapshot ────────────────────────
+# `dev.db` still holds Bethune Beach at 28.998,-80.926 — the coordinate the owner caught by eye and
+# production was corrected AWAY from, 7 km off — and still lists the deactivated inland duplicate
+# `New Smyrna Beach Inlet` as active. Serving a live forecast at a stale coordinate is worse than
+# serving none: it is wrong with full confidence.
+
+def test_catalog_prefers_the_apps_live_spots(monkeypatch):
+    """The live catalogue must win over the local snapshot, and say so."""
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "1")
+    sim_forecast._CATALOG_CACHE.clear()
+    monkeypatch.setattr(sim_forecast, "fetch_catalog", lambda: [
+        {"id": "x1", "name": "Bethune Beach", "region": "Volusia",
+         "latitude": 28.950892, "longitude": -80.83899}])
+    res = weather_sim_mcp.get_surf_spots(query="Bethune")
+    assert res["source"] == "live_catalog"
+    assert res["spots"][0]["latitude"] == 28.950892      # the CORRECTED coordinate
+
+
+def test_catalog_falls_back_to_the_snapshot_when_the_app_is_unreachable(monkeypatch):
+    """Offline must still answer — from the snapshot, named honestly as a snapshot."""
+    monkeypatch.setattr(sim_forecast, "fetch_catalog", lambda: None)
+    if not _db_available():
+        pytest.skip("dev.db unavailable in this environment")
+    res = weather_sim_mcp.get_surf_spots(limit=3)
+    assert res["source"] == "surf_spots_snapshot"
+    assert res["returned"] >= 1
+
+
+def test_catalog_kill_switch_and_failure_never_raise(monkeypatch):
+    """SIM_LIVE_CATALOG=0 restores the snapshot path; a raising fetch must not break the tool."""
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "0")
+    sim_forecast._CATALOG_CACHE.clear()
+    assert sim_forecast.fetch_catalog() is None
+
+    monkeypatch.setenv("SIM_LIVE_CATALOG", "1")
+    sim_forecast._CATALOG_CACHE.clear()
+
+    def boom(*a, **k):
+        raise RuntimeError("connection refused")
+
+    monkeypatch.setattr(sim_forecast.urllib.request, "urlopen", boom)
+    assert sim_forecast.fetch_catalog() is None          # degraded, not raised
 
 
 def test_live_forecast_kill_switch(monkeypatch):
