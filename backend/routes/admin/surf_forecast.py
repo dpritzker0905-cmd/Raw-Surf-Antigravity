@@ -90,6 +90,63 @@ async def get_surf_forecast_status(admin: Profile = Depends(get_current_admin)):
     return {"flags": flags, "blobs": blobs, "now": datetime.now(timezone.utc).isoformat()}
 
 
+@router.post("/admin/surf-forecast/size-reference")
+async def get_size_reference(
+    payload: dict,
+    admin: Profile = Depends(get_current_admin),
+):
+    """Local good-day breaking height (m) for a batch of coordinates, from the gridded size
+    climatology.
+
+    WHY THIS EXISTS: `grid_size_climatology` accumulates observed p80 breaking heights for every
+    coastal 2-degree cell on Earth, 6x/day, into an L2 blob. It is the best available answer to
+    "does this coast actually receive rideable swell" — better than any geometric proxy, because it
+    is measured rather than inferred.
+
+    It lives in the PRIVATE `weather-products` bucket, so only this process (which holds the
+    service-role key) can read it. Candidate-filtering tooling runs outside the app and cannot.
+    Rather than hand a production credential around, the server answers the question.
+
+    That gap is real and it cost something: the 2026-07-27 spot-discovery filter fell back to a
+    geometric open-water FETCH, which separates the Atlantic from the Baltic but NOT from the
+    Mediterranean — Naples scores 344 km against Bundoran's 264 km. Storm climate is the actual
+    discriminator and this blob measures it.
+
+    Body: {"points": [[lat, lng], ...]}  (max 2000)
+    Returns a reference per point, null where the cell has too few samples.
+    """
+    pts = payload.get("points") or []
+    if not isinstance(pts, list) or len(pts) > 2000:
+        raise HTTPException(status_code=400,
+                            detail="points must be a list of at most 2000 [lat, lng] pairs")
+    try:
+        from services.weather_pipeline.grid_size_climatology import (
+            load_grid_size_climatology_l2_cached, reference_for)
+        clim = load_grid_size_climatology_l2_cached()
+    except Exception as e:
+        raise HTTPException(status_code=503, detail=f"climatology unavailable: {e}")
+    if not clim:
+        raise HTTPException(status_code=503, detail="climatology blob not present in L2")
+
+    out = []
+    for p in pts:
+        try:
+            lat, lng = float(p[0]), float(p[1])
+        except (TypeError, ValueError, IndexError):
+            out.append(None)
+            continue
+        try:
+            out.append(reference_for(clim, lat, lng))
+        except Exception:
+            out.append(None)
+    return {
+        "updated_at": clim.get("updated_at"),
+        "cells_tracked": len(clim.get("cells") or {}),
+        "lattice_deg": clim.get("lattice_deg"),
+        "references": out,
+    }
+
+
 @router.get("/admin/surf-forecast/reports")
 async def get_recent_surf_reports(
     hours: int = 168, limit: int = 200,
