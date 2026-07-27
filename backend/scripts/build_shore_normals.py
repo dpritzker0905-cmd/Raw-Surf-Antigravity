@@ -83,6 +83,9 @@ ASSET = os.path.join(OUT_DIR, "shore_normals.json")
 # A spot whose nearest shoreline is farther than this is misplaced, not just imprecise — its window
 # describes some other piece of coast, so a bearing from it would be confidently wrong.
 MAX_SHORELINE_KM = 3.0
+# How many of the four window sizes must produce a bearing. See `accepted()` for the measurement
+# that moved this from 3 to 2. Kill: SHORE_NORMAL_MIN_WINDOWS=3 restores the pre-2026-07-27 gate.
+MIN_WINDOWS = int(os.environ.get("SHORE_NORMAL_MIN_WINDOWS", "2"))
 
 
 def fetch_spots(base, key, limit=None):
@@ -210,7 +213,25 @@ def accepted(row):
     """The gate. Every clause is a measured failure mode, not a precaution."""
     if row["normal"] is None or row["spread"] is None:
         return False, "no_shoreline_in_window"
-    if row["n_windows"] < 3:
+    # ★ TWO AGREEING WINDOWS ARE ENOUGH — the SPREAD does the confidence work, not the count.
+    # This clause read `< 3` and threw away 153 spots, 133 of them ON_OCEAN a median 0.21 km from
+    # open water, whose two fitted windows agreed to a median of 5.5 deg. It was also stricter than
+    # `fit_shore_normal`'s own contract, which returns a bearing at two windows and None below that.
+    # Every rejected spot fell back to the coarse 0.25 deg grid — a bearing decided from a 194.6 km
+    # window, i.e. the least trustworthy answer available.
+    #
+    # Measured 2026-07-27 against the LOCAL ACCEPTED CONSENSUS (accepted spots within 15 km, which
+    # were OSM-validated as a class at median 6.4 deg). The instrument reproduces that control at
+    # median 6.2 deg leave-one-out, so it is measuring the same thing:
+    #     accepted (control, n=176) ETOPO  6.2 deg vs coarse 14.6 deg, ETOPO wins 70%
+    #     2-window (n=41 gradeable) ETOPO 10.1 deg vs coarse 17.4 deg, ETOPO wins 68%
+    # The 2-window fits are barely behind the ones already shipped and clearly ahead of the fallback
+    # they get today. Win rate is flat at ~74% out to spread 25 and 68% at 40, so the EXISTING
+    # single spread gate is kept rather than inventing a second threshold for a 7-spot difference.
+    # Expected effect: +129 spots (948 -> ~1077 of 1515, 62.6% -> 71.1%).
+    # ⚠️ 88 of the 129 had too few coherent neighbours to grade — the mechanism generalises but that
+    # portion is inference, not measurement. Kill: SHORE_NORMAL_MIN_WINDOWS=3.
+    if row["n_windows"] < MIN_WINDOWS:
         return False, "too_few_windows"
     if row["spread"] > MAX_SPREAD_DEG:
         return False, "ambiguous_coastline"

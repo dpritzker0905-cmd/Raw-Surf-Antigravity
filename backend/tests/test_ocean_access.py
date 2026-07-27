@@ -159,3 +159,38 @@ def test_the_build_gate_is_backward_compatible_when_the_field_is_absent():
     from scripts.build_shore_normals import accepted
     ok, why = accepted({"normal": 60.0, "spread": 5.0, "n_windows": 4, "shoreline_km": 0.2})
     assert ok and why == "accepted"
+
+
+# ── The window-count gate: the SPREAD carries the confidence, not the count (2026-07-27) ──────
+# `n_windows < 3` discarded 153 spots — 133 of them ON_OCEAN a median 0.21 km from open water,
+# whose two fitted windows agreed to a median 5.5°. All of them fell back to the coarse 0.25° grid,
+# whose bearing comes from a 194.6 km window. Graded against the local accepted consensus, the
+# 2-window fits scored median 10.1° vs the coarse fallback's 17.4°, winning 68% — against the
+# accepted population's own 6.2°/14.6°/70% on the same instrument.
+
+def test_two_agreeing_windows_are_accepted():
+    """The measured change: two windows that agree within the spread gate must ship."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": 118.0, "spread": 5.5, "n_windows": 2,
+                        "shoreline_km": 0.21, "ocean_verdict": "ON_OCEAN"})
+    assert ok and why == "accepted", why
+
+
+def test_a_single_window_is_still_refused():
+    """One window cannot disagree with itself, so it has no confidence measure at all — and
+    `fit_shore_normal` does not even return a bearing below two."""
+    from scripts.build_shore_normals import accepted
+    ok, why = accepted({"normal": 118.0, "spread": 0.0, "n_windows": 1,
+                        "shoreline_km": 0.21, "ocean_verdict": "ON_OCEAN"})
+    assert not ok and why == "too_few_windows", why
+
+
+def test_two_windows_still_face_every_other_clause():
+    """Loosening the COUNT must not loosen anything else — a 2-window fit that is ambiguous,
+    misplaced, or off the open ocean is still refused, for its own reason."""
+    from scripts.build_shore_normals import accepted
+    base = {"normal": 118.0, "n_windows": 2, "shoreline_km": 0.21, "ocean_verdict": "ON_OCEAN"}
+    assert accepted({**base, "spread": 62.1})[1] == "ambiguous_coastline"
+    assert accepted({**base, "spread": 5.5, "shoreline_km": 4.6})[1] == "spot_misplaced"
+    assert accepted({**base, "spread": 5.5,
+                     "ocean_verdict": "INLAND"})[1] == "not_on_open_ocean_inland"
