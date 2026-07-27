@@ -54,10 +54,30 @@ from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
     MAX_SPREAD_DEG, fit_shore_normal, nearshore_depth_m)
 from scripts.build_shore_normals import FETCH_HALF_DEG, fetch_window  # noqa: E402
 
-# GNIS feature classes that a surf break gets named after. `Cape` is GNIS's class for
-# "projecting point of land: cape, head, neck, peninsula, point" — i.e. every point break.
-# `Bar` is "bar, ledge, reef, sandbar, shoal, spit" — i.e. every reef and sandbar.
-COASTAL_CLASSES = {"Beach", "Cape", "Bar", "Bay", "Channel", "Island", "Reef", "Pillar"}
+# GNIS feature classes a surf break gets named after.
+#
+# `Cape` is GNIS's class for "projecting point of land: cape, head, neck, peninsula, point" — every
+# point break. `Bar` is "bar, ledge, reef, sandbar, shoal, spit" — every reef and sandbar.
+#
+# ★★ `Populated Place` IS NOT OPTIONAL, AND LEAVING IT OUT WAS THE BUG. Surf spots are named after
+# coastal TOWNS at least as often as after landforms — Ormond Beach, Melbourne Beach, Atlantic
+# Beach, Flagler Beach, New Smyrna Beach, Delray Beach, Ponte Vedra. Measured against our 102
+# Florida spots, the nearest GNIS feature is a `Populated Place` for 40 of them, more than any
+# landform class. Recall at 2 km:
+#
+#     physical classes only ............ 64.7%   (pool  4,066)
+#     + Populated Place ................ 90.2%   (pool 11,141)
+#     + Civil / Census / Park / Locale .. 92.2%   (pool 12,889)
+#
+# Dropping the place classes costs 27.5 points of recall. The extra pool is not a problem: these
+# are CANDIDATES, and `ocean_access` plus the shore-normal gate discard the inland ones — an inland
+# town fails the ocean test by construction.
+COASTAL_CLASSES = {
+    # landforms
+    "Beach", "Cape", "Bar", "Bay", "Channel", "Island", "Reef", "Pillar",
+    # the places surfers actually name breaks after
+    "Populated Place", "Civil", "Census", "Park", "Locale",
+}
 
 # A gazetteer feature this far from the sea is not a surf break, whatever it is called. Same
 # threshold the placement detector uses, and calibrated the same way.
