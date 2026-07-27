@@ -202,10 +202,32 @@ async def get_spot_stats(
     db: AsyncSession = Depends(get_db)
 ):
     """Get global spot statistics for admin dashboard."""
-    # Total spots
+    # Total spots. NOTE this counts every row; `active_spots` below is the number the map and the
+    # public list actually show (they filter is_active). They are equal today, which is exactly why
+    # a divergence would go unnoticed — report both rather than one ambiguous number.
     total_result = await db.execute(select(func.count(SurfSpot.id)))
     total = total_result.scalar()
-    
+
+    # ── ACCURACY / REVIEW STATE ──────────────────────────────────────────────────────────
+    # These were absent, so nothing the admin panel rendered could change when a spot's
+    # verification or placement state changed. On 2026-07-27 a correction moved 1256 spots out of
+    # is_verified_peak and flagged 158 as low_accuracy, and the dashboard showed the same four
+    # numbers before and after — because it only ever counted rows, countries and import tiers.
+    accuracy_result = await db.execute(
+        select(
+            func.count(SurfSpot.id).filter(SurfSpot.is_active.is_(True)),
+            func.count(SurfSpot.id).filter(SurfSpot.flagged_for_review.is_(True)),
+            func.count(SurfSpot.id).filter(SurfSpot.is_verified_peak.is_(True)),
+            func.count(SurfSpot.id).filter(SurfSpot.verified_by.isnot(None)),
+        )
+    )
+    active_spots, flagged, verified_peak, has_verifier = accuracy_result.one()
+
+    flag_result = await db.execute(
+        select(SurfSpot.accuracy_flag, func.count(SurfSpot.id)).group_by(SurfSpot.accuracy_flag)
+    )
+    by_accuracy = {(f or "unset"): cnt for f, cnt in flag_result.all()}
+
     # By country
     country_result = await db.execute(
         select(SurfSpot.country, func.count(SurfSpot.id))
@@ -223,8 +245,19 @@ async def get_spot_stats(
     
     return {
         "total_spots": total,
+        "active_spots": active_spots,
         "by_country": by_country,
-        "by_tier": by_tier
+        "by_tier": by_tier,
+        # The review workload the Precision Queue is meant to surface.
+        "flagged_for_review": flagged,
+        "by_accuracy_flag": by_accuracy,
+        "low_accuracy": by_accuracy.get("low_accuracy", 0),
+        "unverified": by_accuracy.get("unverified", 0),
+        # `is_verified_peak` vs a real `verified_by`. These were 1300 and 44 before the 2026-07-27
+        # correction — the bulk import scripts hardcoded the flag True for every row it wrote, so
+        # the number meant nothing. Reporting them side by side makes any future drift visible.
+        "verified_peak": verified_peak,
+        "has_verifier": has_verifier,
     }
 
 

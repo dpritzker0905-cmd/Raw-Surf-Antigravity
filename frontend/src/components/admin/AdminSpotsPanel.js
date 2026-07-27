@@ -284,17 +284,56 @@ const AdminSpotsPanel = ({ userId }) => {
             </div>
           </div>
 
-          {/* Countries breakdown */}
+          {/* ── Accuracy / review state ────────────────────────────────────────────────
+              These four numbers were absent, so nothing on this dashboard could change when
+              a spot's verification or placement state did: a 2026-07-27 correction moved 1256
+              spots out of is_verified_peak and flagged 158 as low_accuracy, and the panel
+              rendered identically before and after. "Verified" deliberately shows the count
+              with a REAL verified_by, not is_verified_peak — the bulk import scripts hardcoded
+              that flag True on every row they wrote, so it carried no accuracy information. */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-3xl font-bold text-foreground">{stats?.active_spots ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Active (shown on map)</p>
+            </div>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-3xl font-bold text-amber-500">{stats?.flagged_for_review ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Flagged for review</p>
+            </div>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-3xl font-bold text-red-500">{stats?.low_accuracy ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Low accuracy (misplaced)</p>
+            </div>
+            <div className="bg-muted rounded-lg p-3 text-center">
+              <p className="text-3xl font-bold text-emerald-500">{stats?.has_verifier ?? 0}</p>
+              <p className="text-xs text-muted-foreground">Verified by a human</p>
+            </div>
+          </div>
+
+          {/* Countries breakdown — real <button>s. These were Badges with onClick, i.e.
+              keyboard-unreachable and invisible to assistive tech (accessibility mandate). */}
           <div className="flex flex-wrap gap-2">
-            {stats?.by_country?.slice(0, 10).map((item) => (
-              <Badge 
-                key={item.country} 
-                className="bg-input text-gray-300 cursor-pointer hover:bg-muted"
-                onClick={() => setFilterCountry(item.country)}
-              >
-                {item.country}: {item.count}
-              </Badge>
-            ))}
+            {stats?.by_country?.slice(0, 10).map((item) => {
+              const isActive = filterCountry === item.country;
+              return (
+                <button
+                  key={item.country}
+                  type="button"
+                  onClick={() => setFilterCountry(isActive ? '' : item.country)}
+                  aria-pressed={isActive}
+                  aria-label={`Filter spots by ${item.country} (${item.count} spots)`}
+                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded-full"
+                >
+                  <Badge
+                    className={`cursor-pointer ${isActive
+                      ? 'bg-cyan-500 text-white hover:bg-cyan-400'
+                      : 'bg-input text-muted-foreground hover:bg-muted'}`}
+                  >
+                    {item.country}: {item.count}
+                  </Badge>
+                </button>
+              );
+            })}
           </div>
         </CardContent>
       </Card>
