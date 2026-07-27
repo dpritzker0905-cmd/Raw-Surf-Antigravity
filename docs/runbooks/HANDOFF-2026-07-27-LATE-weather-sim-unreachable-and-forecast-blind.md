@@ -399,3 +399,51 @@ the 164 AND growing the catalogue globally. One fetcher, two jobs.** Add as
 `spot_sources.py --source gns`, then re-run this proposer and `filter_spot_candidates`.
 ⚠️ **Not OpenStreetMap:** production holds zero `osm_id` and ODbL must not ride in through a
 coordinate correction.
+
+---
+
+## 9. ★★★ NGA GNS SHIPPED — one authority, both goals (`2764e1d5`)
+
+`spot_sources.py --source gns` / `propose_spot_corrections.py --gns`. **Public domain**, worldwide,
+queried through NGA's **ArcGIS REST service** rather than the ~400 MB bulk download — both jobs ask
+a LOCAL question ("what is officially named near this coordinate?") and a bbox query answers it.
+
+**Coverage 7 → 75 of 164 proposals.**
+
+### ⚠️ Two defects measured and fixed BEFORE trusting it
+1. An unfiltered name match returned `Manzanillo [FRM]` (a **farm**, 18.41 km) and `Salalah [ADM2]`
+   (an **administrative division**, 14.11 km) — both look clean and would move a pin somewhere with
+   the right name and the wrong meaning. Fixed with a **designation allowlist**. `Populated Place`
+   stays IN: excluding it cost 27.5 points of recall on GNIS, because breaks are named after towns.
+2. `Playa Hermosa (Nicaragua)` matched a feature called **`Nicaragua`** 11.33 km away — the
+   parenthetical disambiguator is a token like any other. Fixed with a **stricter matcher here, not
+   in the shared one**: the duplicate gate must stay loose (a missed duplicate is worse than a false
+   one) while a correction must be strict (a false match MOVES A REAL SPOT).
+   ⚠️ Stripping parentheticals in the shared matcher was tried first and **regressed
+   `Jaws (Peahi)` → `Peahi`**, which is how the Jaws duplicate was caught. Reverted.
+
+### ★ And a name match is still not a coordinate
+The largest moves were the least trustworthy, all the same way — the authority names a PLACE and the
+place is not the break: **Margaret River** (the town, ~10 km inland of Surfers Point), **`Same
+Adentro`** (*adentro* = inland), **`Chiba Peninsula`** (a centroid). A coastal town passes
+`is_coastal` while sitting kilometres from surf. Proposals are therefore **tiered by evidence**:
+
+| tier | n | what it means |
+|---|---|---|
+| **HIGH** | 9 | a named coastal feature (bay/cape/point/beach) within 5 km |
+| MEDIUM | 27 | a coastal feature further out, or a settlement within 5 km |
+| LOW | 39 | a long move to a place-name — needs an independent source |
+| UNMATCHED | 89 | surf-only names no official gazetteer carries |
+
+HIGH examples: Bahía de La Herradura 3.34 km · Cabo Blanco 3.64 · Playa de la Pared 4.26 · Punta La
+Puntilla 4.74 · Playa Maitencillo 4.80 · Pease Bay 4.82.
+★★ **Cross-validated:** Nazaré reads `Enseada da Nazaré` **3.67 km** from GNS and `NORTE (NAZARE)`
+**3.62 km** from EEA — two independent authorities agreeing to within **50 metres**.
+
+### NEXT on this thread
+1. **Apply the 9 HIGH proposals** in `AdminSpotEditor` (a production write — owner's call), re-run
+   **Build Shore Normal Asset** afterwards or the geometry silently keeps the old bearing.
+2. The 89 unmatched are the genuine surf-name gap. That is what the **`refinements.py`
+   crowdsourced flow** is for — it is built, wired, and holds one row.
+3. **Global expansion now uses the same fetcher**: point `fetch_gns` at coastal bboxes instead of at
+   known spots, then run it through `filter_spot_candidates` exactly as the EEA batch was.
