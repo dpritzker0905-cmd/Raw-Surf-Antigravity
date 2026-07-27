@@ -141,6 +141,27 @@ real `<button>`s with `aria-pressed` + focus ring (they were `Badge` + `onClick`
 while `spot_admin.py:/list` returns exactly those plus a real `total` and **is unused by this
 panel**. The per-row accuracy state still cannot be displayed. **Not fixed — next session.**
 
+### 4a. AND THE IMPORT BUTTON REPORTED SUCCESS WHILE IMPORTING NOTHING (`dcd7c9f6`)
+
+Owner: *"We added some, and I don't see them visible in the admin yet."* **Nothing was hidden —
+nothing was written.** `surf_spots` has **no row created after 2026-04-23**; `spot_edit_logs` none
+after 2026-07-13.
+
+`import_curated_spots` reads **358 hardcoded `CURATED_SPOTS`** and skips anything already present by
+`(name, country)`. The catalogue already contains all of them, so a **correct** run imports **zero**
+— and `handleImport` fired `toast.success()` regardless, on a message reading *"Imported 0 spots for
+All"*. ★ **The button is structurally incapable of adding a spot: its only data source is already
+fully imported.**
+
+Fixed: the import returns `skipped_existing`, and the UI now distinguishes imported-N /
+nothing-to-import (a warning that says so) / error. Second defect fixed: the OSM leg was gated on
+`include_osm and tier > 0` while the UI defaults `importTier` to **0**, so in the default state
+ticking the OSM box **did nothing** and still reported success.
+✅ **The create path is NOT at fault** — `AdminSpotEditor` already handles `land_detected`
+correctly and offers an override.
+
+⇒ **This is why the catalogue needs a real source, which is what §10 is for.**
+
 ---
 
 ## 5. ⚠️ THE "14 MISSING BREAKS" CLAIM WAS WRONG — 4 already exist (`22f84245`)
