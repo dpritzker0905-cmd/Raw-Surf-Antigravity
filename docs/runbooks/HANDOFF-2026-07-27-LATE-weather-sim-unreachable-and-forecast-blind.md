@@ -447,3 +447,44 @@ Puntilla 4.74 · Playa Maitencillo 4.80 · Pease Bay 4.82.
    crowdsourced flow** is for — it is built, wired, and holds one row.
 3. **Global expansion now uses the same fetcher**: point `fetch_gns` at coastal bboxes instead of at
    known spots, then run it through `filter_spot_candidates` exactly as the EEA batch was.
+
+---
+
+## 10. EEA FR/ES/UK CANDIDATES — the numbers, and the product decision they force
+
+Run [30310941056](https://github.com/dpritzker0905-cmd/Raw-Surf-Antigravity/actions/runs/30310941056),
+artifact `spot-candidates-reviewed`. Dry-run; **nothing imported**.
+
+```
+NEW 2333 · KNOWN 125 · DUPLICATE_CLUSTER 736 · REJECT_NO_GEOMETRY 703
+REJECT_SHELTERED 598 · REJECT_NOT_A_BEACH 52 · REJECT_NOT_ON_OCEAN 30
+```
+
+**They are real surf, not just beaches.** Measured p80 good-day breaking height: **p50 1.32 m**,
+93.6% ≥ 0.8 m, 70.5% ≥ 1.0 m, 40.2% ≥ 1.5 m. Median open-water fetch **369 km**. Top-ranked are
+La Réunion's west coast (Plage de l'Hermitage, Saint-Pierre, Grande Anse) — EEA's "France" includes
+the overseas départements, which is a feature here, not a bug.
+
+### ⛔ THE DECISION IS STRATEGIC, NOT TECHNICAL
+
+| | curated today | EEA NEW |
+|---|---|---|
+| Spain | 40 | **1069** |
+| France | 36 | **980** |
+| UK (Eng/Scot/Wal/NI) | 32 | 284 |
+| **catalogue** | **1515** | **+2333 → ~3848** |
+
+Importing wholesale **more than doubles the catalogue** and changes what the product IS: a curated
+surf-break guide becomes a comprehensive coastal-conditions catalogue. 1069 Spanish beaches would
+surround the 40 curated Spanish breaks — search, the map at zoom, and "which spot is good today"
+all change character. That is the owner's call, not an engineering one.
+
+⚠️ **Load, too:** every imported spot needs a shore-normal fit and enters the ratings precompute.
+2.5× the spots is 2.5× that work, on infrastructure with a recorded history of Render OOM and 429
+strands.
+
+### Recommendation
+**Import in ranked batches with the size climatology as the bar, not wholesale.** `local_size_m ≥
+1.5 m` is 939 candidates; ≥ 1.0 m is 1645. Start with one country at the top tier, rebuild the
+shore-normal asset, look at the map and search, then widen. The measurement to watch is whether a
+curated break is still findable among its neighbours.
