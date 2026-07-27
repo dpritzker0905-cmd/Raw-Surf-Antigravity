@@ -128,9 +128,17 @@ already fixes in ETOPO (§3c). Only one genuine disagreement survived (Chile, 41
 | check | result | proves |
 |---|---|---|
 | `/point` Hossegor | **279.8** (coarse would be 304.99) | asset is serving |
-| `/point` Uluwatu (gate-rejected) | `162.474…` — the exact coarse float | **fallback is safe** |
+| `/point` a point with no asset entry | `162.474…` — the exact coarse float | **fallback is safe** |
 | `/point` Salvo OBX | 104.9 (east) | barrier-island fix is live |
 | `/point` Pipeline | **325.0**, not the asset's 309.0 | **hand overrides still outrank** |
+| `/point` Uluwatu (DB coords) | **273.9**, was 162.5 pointing *inland* | gate-40 spots are live |
+| `/spot-ratings` Impossibles | live **5.6** == asset recompute **5.7** (coarse would be 25.0) | **precompute uses the asset** |
+| `/spot-ratings` gate-rejected Bali spots | live 24.9 == coarse recompute 25.0 | fallback holds in precompute too |
+
+⚠️ **Watch the coordinates.** I spent much of the session testing "Uluwatu" at -8.815/115.088, a
+point I wrote down from memory. The catalog's Uluwatu is 1.6 km away at -8.829/115.085 and fits to
+**273.9°, not 308.4°**. The science is unaffected (the estimator was validated at real locations),
+but it is a live demonstration of §4.2: at 463 m, 1.6 km of placement error moves the answer 35°.
 
 ⚠️ Two independent instruments (ETOPO raster and OSM vectors) put Pipeline at **304-309°**, while the
 hand override says **325°**. The override was tuned to match one Surfline reading on one day. It

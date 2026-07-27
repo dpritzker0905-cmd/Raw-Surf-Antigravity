@@ -34,6 +34,11 @@ The truth column is NOT my reading of a map — it is OSM coastline geometry (se
 no assumption with this estimator. ETOPO wins every row, and the two worst-spread spots are wins by
 the largest margin of all.
 
+⚠️ These are hand-picked test COORDINATES near the named breaks, not necessarily the catalog's stored
+coordinates — the "Uluwatu" row is -8.815/115.088, while the DB spot is 1.6 km away at -8.829/115.085
+and fits to 273.9°. That gap is itself the point: at 463 m, 1.6 km of placement error changes the
+answer by 35°, which is why placement (`nearest_shoreline_km`) and geometry must be fixed together.
+
 ★ THE GATE THRESHOLD IS MEASURED, NOT CHOSEN. It was first set to 25° on the assumption that a high
 spread meant "no single bearing is correct". **That assumption was wrong.** Cross-validating the
 440 gate-rejected spots against OSM showed a high spread means the bearing is scale-DEPENDENT, while
