@@ -58,7 +58,80 @@ EMODNET_WFS = "https://ows.emodnet-humanactivities.eu/wfs"
 GNIS_CLASSES = {"Beach", "Cape", "Bar", "Bay", "Channel", "Island", "Reef", "Pillar",
                 "Populated Place", "Civil", "Census", "Park", "Locale"}
 
+# ── NGA GNS: the WORLDWIDE gazetteer, and the one source that serves both jobs ────────────────
+# 144 of our 164 misplaced spots are outside the US and Europe (Indonesia 23, Chile 12, Philippines
+# 11, Mexico 9, Sri Lanka 8), so GNIS and EEA cannot reach them. GNS covers everywhere outside the
+# US, is US-Government PUBLIC DOMAIN (no attribution burden, no ODbL contamination), and it is the
+# same gazetteer that grows the catalogue globally — one fetcher, two jobs.
+#
+# Queried through the ArcGIS REST service rather than the ~400 MB bulk download, because both jobs
+# are LOCAL questions ("what is officially named near this coordinate?"), and a bbox query answers
+# them without moving the whole planet.
+GNS_QUERY = ("https://geonames.nga.mil/geon-ags/rest/services/RESEARCH/GIS_OUTPUT/"
+             "MapServer/0/query")
+
+# ⚠️ THE DESIGNATION FILTER IS NOT COSMETIC — it is what stops a confidently wrong proposal.
+# Measured 2026-07-27 on 20 misplaced spots, an unfiltered name match returned:
+#     Manzanillo        -> Manzanillo [FRM]  18.41 km   a FARM
+#     Salalah - Fizayah -> Salalah    [ADM2] 14.11 km   an ADMINISTRATIVE DIVISION
+# Both look like clean matches and would move a pin to somewhere with the right name and the wrong
+# meaning. A surf break is named after a coastal FEATURE or a coastal TOWN, never after a district.
+GNS_DESIGNATIONS = {
+    # coastal landforms — the strongest evidence a break is here
+    "BCH", "BCHS", "CAPE", "PT", "PTS", "BAY", "BAYS", "COVE", "COVES", "RF", "RFS",
+    "ISL", "ISLS", "ISLET", "SPIT", "PEN", "CST", "HDLD", "ANCH", "SHOL", "BAR", "LGN",
+    # and coastal TOWNS: `Populated Place` is not optional. Measured on GNIS, excluding it cost
+    # 27.5 points of recall — breaks are named after the town (Ormond Beach, Flagler Beach).
+    "PPL", "PPLA", "PPLA2", "PPLA3", "PPLC", "PPLL", "PPLQ", "PPLS", "PPLX",
+    # a named stretch of coast
+    "AREA", "LCTY", "RGN",
+}
+
 FIELDS = ["name", "country", "lat", "lng", "source", "source_id", "licence", "attribution"]
+
+
+def fetch_gns(lat, lng, box_deg=0.25, timeout=120):
+    """Officially named features near a coordinate, from NGA GNS. Never raises; [] on failure.
+
+    `box_deg` is a HALF-box: 0.25 deg is about 28 km, comfortably wider than the worst misplacement
+    measured (12.01 km) while staying inside the service's 3000-record page."""
+    import ssl
+    import urllib.request
+    try:
+        import certifi
+        ctx = ssl.create_default_context(cafile=certifi.where())
+    except Exception:
+        ctx = ssl.create_default_context()
+    params = {
+        "f": "json", "where": "1=1",
+        "geometry": json.dumps({"xmin": lng - box_deg, "ymin": lat - box_deg,
+                                "xmax": lng + box_deg, "ymax": lat + box_deg}),
+        "geometryType": "esriGeometryEnvelope", "inSR": "4326",
+        "spatialRel": "esriSpatialRelIntersects",
+        "outFields": "full_name,full_nm_nd,lat_dd,long_dd,desig_cd,fc,cc_ft",
+        "returnGeometry": "false", "resultRecordCount": "3000",
+    }
+    try:
+        req = urllib.request.Request(GNS_QUERY, data=urllib.parse.urlencode(params).encode(),
+                                     headers={"User-Agent": "raw-surf-spot-sources/1.0"})
+        with urllib.request.urlopen(req, timeout=timeout, context=ctx) as r:
+            payload = json.loads(r.read().decode("utf-8"))
+    except Exception as e:
+        print(f"  GNS query failed at ({lat},{lng}): {e}", file=sys.stderr)
+        return []
+    out = []
+    for f in payload.get("features", []):
+        a = f.get("attributes") or {}
+        if a.get("desig_cd") not in GNS_DESIGNATIONS:
+            continue
+        name = a.get("full_nm_nd") or a.get("full_name")
+        if not name or a.get("lat_dd") is None:
+            continue
+        out.append({"name": name, "country": a.get("cc_ft") or "", "lat": float(a["lat_dd"]),
+                    "lng": float(a["long_dd"]), "source": f"gns:{a.get('desig_cd')}",
+                    "source_id": a.get("ufi") or "", "licence": "public domain",
+                    "attribution": "NGA GEOnet Names Server (US Government, public domain)"})
+    return out
 
 
 def fetch_eea(countries=None, year=2024, limit=20000):
