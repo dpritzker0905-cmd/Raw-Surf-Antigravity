@@ -258,16 +258,69 @@ problem to solve — they are coordinates to fix.
 
 ---
 
+## 6c. ★★★ THE OWNER'S ERRORS: THE LIVE LANE COULD OUT-WAIT THE CLIENT (`576dcbdd`)
+
+Owner reported errors from the MCP server. **Reproduced, and it was my own regression.** Putting
+network I/O inside the tool handlers with a 30 s timeout meant that with the app unreachable
+**`get_surf_spots` blocked 42.2 s and `get_weather_forecast` 42.1 s** — past the point where an MCP
+client reports a TIMEOUT instead of an answer. The sim looked broken while being merely patient.
+⚠️ **The host is a free Render instance that cold-starts in ~50 s: slow is a NORMAL state here.**
+
+| | before | after |
+|---|---|---|
+| `get_surf_spots`, app down | 42.16 s | **8.03 s** |
+| `get_weather_forecast`, app down | 42.08 s | **0.00 s** |
+| second call, app down | 42 s | **0.00 s** |
+| live data when reachable | ✓ | ✓ (0.58 s / 0.39 s) |
+
+Three fixes: timeout **30 → 8 s** (warm requests measure 0.5–1.1 s) · a **circuit breaker** with a
+60 s cooldown (without it every call re-pays the timeout, and `get_weather_forecast` makes TWO
+requests — the same pile-up the 429 breaker was added for) · the catalogue **prefetched in a daemon
+thread at start**, safe off the main thread only because `urllib`/`ssl` are imported at module scope.
+
+★★ **A second failure mode found while measuring: RESPONSE SIZE.** `limit=500` serialised to
+**93.5 KB (~24k tokens)**, which a client REJECTS rather than displays — also indistinguishable from
+"the tool is broken". The cap is now a measured budget (200 ≈ 9.6k tokens), coordinates round to
+5 dp and bearings to 1 dp (they were serialising at 17 significant digits), and the payload carries
+`total_matching` + a note so a truncated answer can never look complete.
+
+---
+
+## 6d. ★★★ THE WORST-PLACED SPOTS ESCAPED THE MISPLACEMENT BOUND (`bf47d86e`)
+
+A bound expressed in km-from-shore **cannot see a pin that has no shore in its window**:
+`shoreline_km` is None when the ~18 km fetch window holds no shoreline, so the further out to sea a
+pin is, the more certainly it escapes. The same shape as §6b, one level deeper.
+
+25 spots have no shoreline measurement, and they split cleanly by the **sign of the pin elevation**:
+8 above sea level were already caught as `not_on_open_ocean_no_ocean`; **17 UNDERWATER were reported
+as unfittable** — **Telescopes −1778 m · Macaronis −1686 m · Scorpion Bay Second Point −1677 m ·
+Iron Bottom Sound −654 m.** World-famous breaks whose stored pin sits in over a kilometre of water.
+
+New verdict `spot_misplaced_at_sea`, bounded by **physics not a percentile**: a wave breaks in
+roughly 1.3× its own height, so nothing breaks below 50 m — while a genuine shallow offshore bank
+(Cortes Bank breaks over a seamount) reads far shallower and is deliberately NOT caught, pinned by
+its own test. Accept set still exactly 1073.
+
+### ★★ THE CONVERGENCE — and the production write that turned out NOT to be needed
+I predicted the newly-named misplacements were "very unlikely to all be inside the existing 164
+production flags". **WRONG. All 147 were already flagged — `newly_flagged: 0`.** The earlier session
+flagged from `ocean_verdict` + shoreline distance directly; only the build's *label* was wrong.
+⇒ **No production write was needed, and none was made.** A snapshot was taken, found unnecessary,
+and dropped.
+
+★ Final diagnosis: **74 inland + 65 misplaced + 17 at-sea + 8 no-ocean = 164** — *exactly* the 164
+spots production has flagged, reached by a different route on a different day. **Two independent
+paths naming the same population is the strongest evidence either of them is right.**
+
+---
+
 ## 7. NEXT (ranked)
 
 1. **Restart the MCP server** (§0), then re-probe the four tools through the client.
-2. ⛔ **A PRODUCTION WRITE IS NOW PENDING YOUR APPROVAL — the placement flags are stale.**
-   Production carries **164 flagged** spots, set from the INLAND detector alone. The rebuilt review
-   CSV now names **~147 placement problems** (≈65 `spot_misplaced` + ~74 inland + 8 no-ocean), and
-   **127 of them were previously reported as fitting failures**, so they are almost certainly not
-   all in the existing 164. Re-flagging from the review CSV's verdict column is the highest-value
-   data change available — **but it is a production write and I did not make it.** Overlap with the
-   existing 164 needs measuring first.
+2. ✅ **RESOLVED, NOT PENDING — the placement flags were already correct.** See §6d: the measured
+   overlap was **147 of 147 already flagged, 0 new**. No production write was needed or made.
+   ⇒ The remaining accuracy work is **moving the 164 coordinates**, not finding more of them.
 3. **The remaining spots without a normal, corrected estimate:**
    * **`no_shoreline_in_window`** — only **~31** are inside the 3 km bound and recoverable by
      fitting; the rest are coordinates to fix, not fits to rescue.
