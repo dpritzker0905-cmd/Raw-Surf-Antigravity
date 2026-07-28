@@ -260,3 +260,16 @@ def test_circular_mean_never_returns_360():
         m = circular_mean(group)
         if m is not None:
             assert 0.0 <= m < 360.0, (group, m)
+
+
+def test_rounding_a_bearing_cannot_push_it_to_360():
+    """★ THE instance that actually fired. `_wrap360` inside the fitter fixed the arithmetic and
+    missed this: the build ROUNDS the bearing for storage, and `round(359.97, 1)` is `360.0`. A
+    perfectly legal bearing became illegal purely by being stored, so the asset build failed its own
+    gate twice. The invariant must be the LAST operation applied, not an earlier one."""
+    from services.weather_pipeline.shore_normal_fit import _wrap360
+    assert round(359.97, 1) == 360.0, "the hazard this guards is gone; re-check the fix"
+    for raw in (359.97, 359.999, 359.95, 0.04, 180.0):
+        stored = _wrap360(round(raw, 1))
+        assert 0.0 <= stored < 360.0, (raw, stored)
+    assert _wrap360(round(359.97, 1)) == 0.0

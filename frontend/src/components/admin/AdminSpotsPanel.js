@@ -22,8 +22,10 @@ const AdminSpotsPanel = ({ userId }) => {
   const [stats, setStats] = useState(null);
   const [spotTotal, setSpotTotal] = useState(0);
   const [lastRefreshed, setLastRefreshed] = useState(null);
-  // 'all' | 'flagged' | 'low_accuracy' | 'verified' — the review state is the reason to open this
-  // panel, so it needs to be filterable, not just countable.
+  // 'all' | 'flagged' | 'low_accuracy' | 'unverified' | 'verified' — the review state is the reason
+  // to open this panel, so it needs to be filterable, not just countable. `flagged` is the UNION
+  // and is now too coarse on its own: measured 2026-07-27 it holds 155 misplaced spots (fix the
+  // COORDINATE) and 305 machine imports (confirm the SPOT EXISTS), which are different jobs.
   const [accuracyFilter, setAccuracyFilter] = useState('all');
   const [spots, setSpots] = useState([]);
   const [loading, setLoading] = useState(true);
@@ -281,6 +283,9 @@ const AdminSpotsPanel = ({ userId }) => {
     if (accuracyFilter === 'all') return true;
     if (accuracyFilter === 'flagged') return !!spot.flagged_for_review;
     if (accuracyFilter === 'low_accuracy') return spot.accuracy_flag === 'low_accuracy';
+    // Machine-imported and awaiting a human's "yes, this is a surf break". Measured 2026-07-27:
+    // 305 of the 469 flagged spots are these, and every one of them is an EEA import.
+    if (accuracyFilter === 'unverified') return spot.accuracy_flag === 'unverified';
     if (accuracyFilter === 'verified') {
       return ['verified', 'admin_verified', 'community_verified'].includes(spot.accuracy_flag);
     }
@@ -552,6 +557,12 @@ const AdminSpotsPanel = ({ userId }) => {
               <option value="all">All accuracy</option>
               <option value="flagged">Flagged for review</option>
               <option value="low_accuracy">Low accuracy (misplaced)</option>
+              {/* The 2026-07-27 EEA import added 305 spots that are flagged for a DIFFERENT
+                  reason than the misplaced ones: their coordinate is an official government
+                  beach location, but nobody has confirmed a surf break is there. Reviewing them
+                  means "is this a spot?", not "where is this spot?" — mixing the two queues makes
+                  both unworkable, and `flagged` alone shows all 469 together. */}
+              <option value="unverified">Newly imported (needs confirming)</option>
               <option value="verified">Verified by a human</option>
             </select>
           </div>

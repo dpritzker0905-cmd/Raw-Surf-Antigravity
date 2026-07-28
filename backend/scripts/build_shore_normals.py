@@ -48,7 +48,7 @@ import time
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 from services.weather_pipeline.shore_normal_fit import (  # noqa: E402
-    MAX_SPREAD_DEG, WINDOW_HALF_DEGS, fit_shore_normal, fronting_water_depth_m,
+    MAX_SPREAD_DEG, WINDOW_HALF_DEGS, _wrap360, fit_shore_normal, fronting_water_depth_m,
     nearest_shoreline_km, nearshore_depth_m,
 )
 from services.weather_pipeline.ocean_access import (  # noqa: E402
@@ -191,7 +191,12 @@ def measure(spot):
         bd = nearshore_depth_m(elev, lats, lons, lat, lon)
         out["break_depth_m"] = None if bd is None else round(bd, 1)
         bearing, spread, n = fit_shore_normal(elev, lats, lons, lat, lon)
-        out["normal"] = None if bearing is None else round(bearing, 1)
+        # ⚠️ WRAP **AFTER** ROUNDING — rounding is what breaks the [0, 360) contract in practice.
+        # `round(359.97, 1)` is `360.0`, so a perfectly legal bearing becomes an illegal one purely
+        # by being stored. Wrapping inside `fit_shore_normal` (2026-07-27) fixed the arithmetic and
+        # missed this, and this is the instance that actually fired: 359.97 is far more likely than
+        # the -1e-17 atan2 case. The invariant has to be the LAST thing applied, not an earlier one.
+        out["normal"] = None if bearing is None else _wrap360(round(bearing, 1))
         out["spread"] = None if spread is None else round(spread, 1)
         out["n_windows"] = n
     except Exception as e:
