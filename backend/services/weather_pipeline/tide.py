@@ -12,7 +12,7 @@ slowly and one hourly series covers the whole forecast window. Never raises: a t
 """
 import logging
 import time
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -45,6 +45,102 @@ def normalize_tide(level, lo, hi):
     if level is None or lo is None or hi is None or hi <= lo:
         return 0.5
     return max(0.0, min(1.0, (level - lo) / (hi - lo)))
+
+
+# ── HIGH/LOW EVENTS FROM THE HOURLY SERIES (2026-07-29) ─────────────────────────────────────────
+# The `/tides/{spot_id}` endpoint used NOAA CO-OPS with a FIVE-ENTRY region->station map, every entry
+# a Florida region, and defaulted to 8721604 (Trident Pier, Port Canaveral FL). Measured against
+# production: 1,743 of 1,773 active spots across 491 regions took that default, so 98.3% of the
+# catalogue — Pipeline, Nazare, Teahupo'o and every new pin anywhere on Earth — was served FLORIDA
+# tide times stamped with its own spot_id. Same class as the fabricated GFS zeros: confidently-wrong
+# data rendered as authoritative, and worse because a tide time looks plausible.
+#
+# This module already exists precisely to replace that path — see the header: a lat/lng source
+# "covers every spot worldwide with no schema change". It was only ever wired to the rating. These
+# helpers give the endpoint the HIGH/LOW EVENT shape it needs from the same global hourly series, so
+# there is one tide source instead of two.
+_MIN_EXTREMA_SEPARATION_H = 4.0   # semidiurnal highs are ~6h12m apart; 4h rejects sampling wobble
+                                  # without merging genuine consecutive turns
+
+
+def _interpolate_turn(y0, y1, y2):
+    """Sub-hour offset (in samples, -0.5..0.5) of a parabola's vertex through three equally spaced
+    points. Hourly sampling puts the true turn up to 30 min from the sampled peak; this recovers it.
+    Returns 0.0 when the three points are collinear (a flat or perfectly linear stretch)."""
+    denom = y0 - 2.0 * y1 + y2
+    if denom == 0:
+        return 0.0
+    return max(-0.5, min(0.5, 0.5 * (y0 - y2) / denom))
+
+
+def tide_extrema(times, levels, min_separation_h: float = _MIN_EXTREMA_SEPARATION_H):
+    """High/low water events from an hourly sea-level series.
+
+    Returns [{"time": datetime (UTC, tz-aware), "level_m": float, "type": "High"|"Low"}] in time
+    order. Pure — no I/O — so it is unit-testable against a synthetic sinusoid.
+
+    A turn is a strict local extremum over its two neighbours; its time and height are refined by a
+    parabolic fit so an hourly series does not quantise every high tide to the top of an hour. When
+    two same-type turns fall within ``min_separation_h`` the more extreme one wins, which suppresses
+    the double-peak wobble a flat-topped tide produces without discarding a real semidiurnal pair."""
+    if not times or not levels or len(times) != len(levels):
+        return []
+    parsed = [_parse_iso(t) for t in times]
+    out = []
+    for i in range(1, len(levels) - 1):
+        y0, y1, y2 = levels[i - 1], levels[i], levels[i + 1]
+        if y0 is None or y1 is None or y2 is None or parsed[i] is None:
+            continue
+        is_high = y1 > y0 and y1 >= y2
+        is_low = y1 < y0 and y1 <= y2
+        if not (is_high or is_low):
+            continue
+        shift = _interpolate_turn(y0, y1, y2)
+        # Vertex height of the same parabola; falls back to the sampled value when degenerate.
+        peak = y1 - 0.25 * (y0 - y2) * shift
+        step_s = 3600.0
+        if parsed[i - 1] is not None:
+            step_s = (parsed[i] - parsed[i - 1]).total_seconds() or 3600.0
+        out.append({"time": parsed[i] + timedelta(seconds=shift * step_s),
+                    "level_m": float(peak), "type": "High" if is_high else "Low"})
+
+    # Collapse turns that are too close together to be a real semidiurnal pair.
+    #
+    # ⚠️ A flat-topped tide wobbles as High -> shallow Low -> High, so the two spurious highs are NOT
+    # adjacent in the list — an opposite-type turn sits between them. Comparing only against the
+    # PREVIOUS event therefore never fires (measured: it left both highs of a 2 h wobble). Collapse
+    # the whole TRIPLE instead: when events i and i+2 share a type and span less than the minimum
+    # separation, keep the more extreme of the pair and drop the wobble between them. Repeat until
+    # stable, because removing one triple can expose another.
+    window_s = min_separation_h * 3600.0
+    collapsed = list(out)
+    changed = True
+    while changed and len(collapsed) >= 3:
+        changed = False
+        for i in range(len(collapsed) - 2):
+            a, b, c = collapsed[i], collapsed[i + 1], collapsed[i + 2]
+            if a["type"] != c["type"]:
+                continue
+            if (c["time"] - a["time"]).total_seconds() >= window_s:
+                continue
+            keep = max((a, c), key=lambda e: e["level_m"]) if a["type"] == "High" \
+                else min((a, c), key=lambda e: e["level_m"])
+            collapsed[i:i + 3] = [keep]
+            changed = True
+            break
+    return collapsed
+
+
+def tide_trend_at(extrema, at):
+    """"Rising" | "Falling" | None — from the NEXT event after ``at``. Rising into a High, falling
+    into a Low. None when there is no future event (the series ran out), because guessing a trend
+    from an exhausted series is the kind of confident invention this whole change is removing."""
+    if not extrema or at is None:
+        return None
+    for ev in extrema:
+        if ev["time"] > at:
+            return "Rising" if ev["type"] == "High" else "Falling"
+    return None
 
 
 def tide_state_at(times, levels, valid_time, window_h: int = 12) -> Optional[dict]:

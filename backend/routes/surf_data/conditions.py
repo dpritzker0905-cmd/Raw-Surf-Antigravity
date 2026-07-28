@@ -2,9 +2,10 @@ from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select
 from typing import Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 import httpx
 import logging
+import os
 
 from database import get_db
 from models import SurfSpot
@@ -176,8 +177,59 @@ async def get_spot_tides(spot_id: str, db: AsyncSession = Depends(get_db)):
     if not spot:
         raise HTTPException(status_code=404, detail="Surf spot not found")
     
+    # ── GLOBAL TIDE (2026-07-29). ─────────────────────────────────────────────────────────────
+    # This endpoint used to pick a NOAA CO-OPS station from REGION_TIDE_STATIONS, a FIVE-ENTRY map
+    # whose every entry is a Florida region, defaulting to 8721604 = Trident Pier, Port Canaveral FL.
+    # Measured against production: 1,743 of 1,773 active spots across 491 distinct regions took that
+    # default, so 98.3% of the catalogue — Pipeline, Nazare, Teahupo'o and every newly pinned spot
+    # anywhere on Earth — was served FLORIDA tide times stamped with its own spot_id. Same class of
+    # defect as the fabricated GFS zeros (a44d5d23): confidently-wrong data rendered as authoritative,
+    # and worse, because a tide time looks entirely plausible.
+    #
+    # `services/weather_pipeline/tide.py` exists precisely to replace that path — its header says it
+    # "deliberately sidesteps the NOAA CO-OPS path (US stations only + needs a per-spot station map)"
+    # because a lat/lng source "covers every spot worldwide with no schema change". It was only ever
+    # wired into the rating. Routing this endpoint through it means ONE tide source, not two, which
+    # is the same ONE FORECAST COMPOSITION rule the surf chain follows.
+    #
+    # Response shape is unchanged (tides[].time/height/type + current_status) so SpotConditions.js
+    # needs no change. `station_id` is retained for compatibility and now reports the real source.
+    # Heights are metres from Open-Meteo, converted to FEET here because the UI prints "ft".
+    # Kill: TIDES_GLOBAL_SOURCE=0 restores the NOAA/Florida path byte-identically.
+    if os.environ.get("TIDES_GLOBAL_SOURCE", "1") != "0":
+        try:
+            from services.weather_pipeline.tide import (
+                fetch_tide_hourly, tide_extrema, tide_trend_at)
+            series = await fetch_tide_hourly(spot.latitude, spot.longitude)
+            if series:
+                events = tide_extrema(series.get("time"), series.get("level"))
+                now_utc = datetime.now(timezone.utc)
+                tides = [{
+                    "time": e["time"].strftime("%Y-%m-%dT%H:%M:%SZ"),
+                    "height": round(e["level_m"] * 3.28084, 2),
+                    "type": e["type"],
+                } for e in events if e["time"] >= now_utc - timedelta(hours=6)]
+                if tides:
+                    return {
+                        "spot_id": spot_id,
+                        "station_id": "open-meteo:sea_level_height_msl",
+                        "source": "global",
+                        "tides": tides,
+                        "current_status": tide_trend_at(events, now_utc),
+                    }
+            # No usable series -> say so. NEVER fall through to another region's tides: serving
+            # Florida to a spot in Portugal is what this change exists to stop.
+            logger.info(f"[tides] no global tide series for spot {spot_id} "
+                        f"({spot.latitude},{spot.longitude})")
+            return {"error": "Tide data unavailable for this location", "spot_id": spot_id,
+                    "source": "global"}
+        except Exception as e:
+            logger.error(f"[tides] global tide lookup failed for {spot_id}: {e}")
+            return {"error": "Tide data unavailable for this location", "spot_id": spot_id,
+                    "source": "global"}
+
     station_id = REGION_TIDE_STATIONS.get(spot.region, "8721604")
-    
+
     try:
         async with httpx.AsyncClient(timeout=10.0) as client:
             response = await client.get(NOAA_TIDES_URL, params={
