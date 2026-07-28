@@ -496,6 +496,29 @@ class PointResolutionService:
                         speed = safe_index_get(raw_point["hourly"], speed_key, idx, 0.0)
                         direction = safe_index_get(raw_point["hourly"], dir_key, idx, 0.0)
                         period = safe_index_get(raw_point["hourly"], period_key, idx, 0.0)
+
+                        # ⚠️ A LITERAL ZERO IS THE SAME LAND-MASK SIGNATURE AS A NULL, AND THE GUARD
+                        # ABOVE ONLY CAUGHT None. Measured 2026-07-28 against production: Biarritz,
+                        # Guéthary, Anglet, Busua (GH) and Barra da Lagoa (BR) served
+                        # Hs=0.0 / Tp=0.0 / dir=0.0 with is_forecast_authoritative=true at the hours
+                        # NOT covered by a cached grid frame (source=backend_direct_point,
+                        # product_id=None), while EURO had 0.8-1.5 m of swell at the identical
+                        # coordinate and hour. A user dragging the scrubber watched the swell blink
+                        # out: Biarritz real at 08-18Z, hard zero at 02Z/05Z/20Z/23Z.
+                        #
+                        # ★ THE PHYSICAL TELL: a dead-calm sea still has a PEAK PERIOD. Height AND
+                        # period simultaneously exactly zero is a mask/no-data signature, never a sea
+                        # state — so it must degrade to the stashed coarse sample or an honest
+                        # no-coverage response, exactly as the NULL case above already does.
+                        # Kill: MARINE_ZERO_IS_NO_COVERAGE=0 restores the pre-fix behaviour.
+                        if (speed == 0.0 and period == 0.0
+                                and os.environ.get("MARINE_ZERO_IS_NO_COVERAGE", "1") != "0"):
+                            logger.info(
+                                f"[Point] {model} {layer} at ({lat},{lng}) {valid_time_str}: direct "
+                                f"point returned Hs=0 AND Tp=0 — treating as NO COVERAGE, not data.")
+                            if coarse_last_resort is not None:
+                                return coarse_last_resort
+                            return make_no_coverage_point_response(model, layer, lat, lng, valid_time_str, grid_product_id)
                         
                         rad = direction * (math.pi / 180.0)
                         u = -speed * math.sin(rad)

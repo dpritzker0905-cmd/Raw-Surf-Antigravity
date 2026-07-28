@@ -199,19 +199,35 @@ surface was wrong differently.
 
 ---
 
-## 8. NEXT — ranked by feet of surf moved per unit of effort
+## 8. ⛔ THE QUEUE — ranked by feet of surf moved per unit of effort
 
-1. ★★★ **REFRACTION / SHELTERING (Kr)** — `surf_transform.py:338-348`. ±1.5 ft; −1.0 ft at Trestles.
-   Cheap global 80%: ray-cast the swell bearing against the land mask out to ~200 km (ETOPO + the
-   land mask are already in the repo). Proper for California: CDIP MOP transfer functions.
-   Should supersede the hand-tuned `surf_magnets.py`. ⚠️ SIGNED — validate both directions.
-2. ★★★ **USE THE SWELL PARTITION, NOT TOTAL Hs** (§2) — up to +111% on windy days, four size rungs.
-   `swell_1` already exists; this is plumbing.
-3. ★★ **QUANTILE-MAP THE OFFSHORE INPUT** (§3) — needs the residual archive to fill first
-   (see previous handoff §6; all five bands still under the 30-row / 10-buoy gate).
-4. ★★ **Delete or fix `SURF_V3_KOMAR=0`** (§4) — 0 ft today, 96.7% of evaluations if flipped.
-5. ★ **Shore-normal confidence + exposure floor** (§6) — coupled; do after 1.
-6. **TIDE / MOON** — see §9 (worldwide audit).
+**✅ DONE THIS SESSION:** #0 below. Everything else is open.
+
+0. ✅ **GFS fabricated zeros** (§9a) — *fixed*, `point_resolution.py`, kill
+   `MARINE_ZERO_IS_NO_COVERAGE=0`. Was the single highest-value change: turned "flat" into honest
+   no-coverage at ~6% of spots for the hours outside the cached grid window.
+1. ★★★ **THE SIZE GATE SATURATES AT ~4 ft** (§9b) — `surf_rating.py:63-91`. **All 1,773 spots**,
+   up to 3 rating levels, and a **safety** issue at size. ⚠️ Must ship WITH an oversize penalty,
+   not just `RATING_LOCAL_SIZE=1`. **Cheapest large win now that #0 is done.**
+2. ★★★ **REFRACTION / SHELTERING (Kr)** (§1 + §9e-b) — `surf_transform.py:338-348`. ±1.5 ft;
+   −1.0 ft at Trestles; dominant error for ~130 island spots. Cheap global 80%: ray-cast the swell
+   bearing against the land mask to ~200 km (ETOPO + land mask already in repo). Proper for
+   California: CDIP MOP transfer functions. Should supersede hand-tuned `surf_magnets.py`.
+   ⚠️⚠️ **SIGNED** — Trestles 0.755, Mavericks >1. Validate BOTH directions or it will make spots worse.
+3. ★★★ **USE THE SWELL PARTITION, NOT TOTAL Hs** (§2) — up to **+111%**, four size rungs, worst on
+   blown-out days. `swell_1` already flows through the pipeline; this is plumbing, not science.
+4. ★★ **MAKE THE HEIGHT DEPTH-DEPENDENT** (§2b) — the enabling change for tide/moon. Today the cap
+   binds 2.45% of the time, so depth (and therefore tide) cannot matter.
+5. ★★ **TIDE** (§9c) — ~480 spots / 27% of catalogue; Thurso 43-point, 3-level, twice daily.
+   ⚠️ Needs #4 first for height; `best_tide` populated on only **2.1%** of spots, so it also needs a
+   data backfill. **MOON** (§9d) is a small rider on this: stop dividing out the spring–neap
+   amplitude in `tide.py:76-81`.
+6. ★★ **Shore normals** (§9e-c) — 434 spots with none, 337 low-confidence. Gates #2 and the
+   exposure floor. ⇒ then tighten the 0.595 floor toward 0.2–0.3 (§6) **coupled with confidence**.
+7. ★★ **QUANTILE-MAP THE OFFSHORE INPUT** (§3) — blocked on the residual archive filling
+   (all five bands still under the 30-row / 10-buoy gate).
+8. ★ **Delete or fix `SURF_V3_KOMAR=0`** (§4) — 0 ft today, 96.7% of evaluations if flipped.
+9. ★ **Period floor lets 4-second chop rate "good"** (§9f).
 
 ### Carried over, unchanged
 * **107 VARIANT duplicate pairs** — now reviewable in the admin console (Duplicate Review panel).
@@ -221,9 +237,115 @@ surface was wrong differently.
 
 ---
 
-## 9. WORLDWIDE AUDIT (tide · moon · wind · direction · regions)
+## 9. WORLDWIDE AUDIT — 46 agents, 152 findings, 42 confirmed-correct, 13 survived refutation
 
-*(Filled in below when the second workflow completes — see §10 for what I verified by hand.)*
+### ★ THE VERDICT
+> **"Not state of the art. A professional-grade core wired to amateur-grade inputs."**
+
+Of the six factors the owner named: **wind** is the best-implemented; **height** and **period** are
+modelled but gated badly; **tide**, **moon** and (largely) **direction** are dark.
+⚠️ In two situations the app is **worse than a naive baseline**: a GFS mask hole (says *flat* on a
+5 ft day) and any wave over 4 ft (says *epic* on a 35 ft closeout).
+
+### 9a. ★★★ #1 — GFS SERVES A FABRICATED ZERO AS AUTHORITATIVE (I reproduced and localised this)
+**My own live measurement, Biarritz, GFS marine waves, hour by hour:**
+```
+02:00Z Hs 0.0    Tp 0.0   source=backend_direct_point  product_id=None   <-- FABRICATED
+05:00Z Hs 0.0    Tp 0.0   source=backend_direct_point  product_id=None   <-- FABRICATED
+08:00Z Hs 0.7401 Tp 7.40  source=grid_file  gfs_marine_waves_global_coarse_...T090000Z
+11:00Z Hs 0.6809 Tp 7.24  source=grid_file  ...T120000Z
+17:00Z Hs 0.5152 Tp 6.91  source=grid_file  ...T180000Z
+20:00Z Hs 0.0    Tp 0.0   source=backend_direct_point  product_id=None   <-- FABRICATED
+23:00Z Hs 0.0    Tp 0.0   source=backend_direct_point  product_id=None   <-- FABRICATED
+```
+★ **ROOT (mine, further than the audit got): the cached grid covers ~08–18Z. OUTSIDE that window
+the DIRECT-POINT fallback returns 0.0/0.0/0.0 and stamps `is_forecast_authoritative=true`.**
+**5 of 5 non-US spots** I sampled were zero at 05Z (Biarritz, Guéthary, Anglet, Busua GH, Barra da
+Lagoa BR) while **EURO had 0.8–1.5 m of swell at the identical coordinate and hour**. The US spot
+was unaffected. A user dragging the scrubber watches the swell blink out.
+⇒ **✅ FIXED THIS SESSION** (`point_resolution.py`). The NULL guard already existed and said *"Do NOT
+coerce to 0.0 and serve it as data"* — it just never caught a literal zero.
+★ **THE PHYSICAL TELL: a dead-calm sea still has a PEAK PERIOD.** Height AND period simultaneously
+zero is a mask signature, never a sea state. Kill: `MARINE_ZERO_IS_NO_COVERAGE=0`.
+⚠️ Audit overreach corrected: it claimed the whole Black Sea/Caspian are dead. True of the API but
+**the catalogue has 0 spots in either basin** — it is a point-query defect, not a listing defect.
+
+### 9b. ★★★ #2 — THE RATING'S SIZE GATE SATURATES AT ~4 ft (I reproduced this exactly)
+`surf_rating.py:63-91`; `_DEFAULT_REF_SIZE_M = 1.2`; `RATING_LOCAL_SIZE` defaults `"0"`.
+**My own run, clean offshore wind, head-on swell, Tp 14 s:**
+| surf | 2 ft | 3 ft | **4 ft** | 6 ft | 12 ft | 17.4 ft | 25 ft | **35.5 ft** |
+|---|---|---|---|---|---|---|---|---|
+| score | 38.8 | 67.8 | **94.8** | 94.8 | 94.8 | 94.8 | 94.8 | **94.8** |
+
+Nazaré: 16.2 / 23.1 / 32.9 ft all score **97.5 `epic`**. ⚠️ **This is a safety problem**, not just
+information loss — a 35 ft closeout is rated identically to a clean 4 ft day, at **all 1,773 spots**.
+⚠️ The fix is NOT just flipping `RATING_LOCAL_SIZE`: the curve is monotonic to 1.0 with **no
+oversize penalty**. Both must ship together (the repo's own memory records that flipping local size
+alone makes a beginner beach outrank a point break).
+
+### 9c. ★★★ TIDE — indefensible in ~27% of the catalogue
+| region | spots | typical range |
+|---|---|---|
+| NE Atlantic Europe (PT/IE/FR/UK/ES) | **356** | 10–20 ft |
+| Pacific Central & South America | ~124 | 8–13 ft (Costa Rica alone 41 spots @ ~10 ft) |
+| Pacific NW / Alaska / Canada Maritimes | (within 630 N.American) | 10–25 ft |
+
+⇒ **~480 of 1,773 spots (27%)** where tide is a first-order control on whether the wave breaks.
+Thurso East: a measured **43-point, three-level ("fair"→"epic") overstatement, twice a day**.
+★★ **AND THE FIX IS BIGGER THAN THE FLAG — this independently reproduces my §2b finding.** Even with
+`RATING_TIDE=1` and full `best_tide` coverage, tide is only a *rating multiplier*; it would still not
+move the **height**, because the break depth is static. Adding the tidal excursion to the break depth
+would swing the height **6.6%–159.5%** across a cycle. ⇒ **tide requires §2b (depth-dependence) first.**
+
+### 9d. ★★★ MOON — the signal is measured, then explicitly DIVIDED OUT (verified by hand)
+No surfer rates a session by lunar phase; what matters is its consequence — the **spring–neap cycle,
+±40% tidal range every ~2 weeks**, which on a macrotidal coast exceeds most swells.
+`tide.py` pulls a real hourly sea-level series that **contains** spring–neap. Then `tide_state_at`
+(**`tide.py:76-81`**, I read it) computes `lo`/`hi` as the local ±window min/max and normalises into
+that band:
+```python
+lo = hi = height
+for i, dt in enumerate(parsed):
+    if abs((dt - req).total_seconds()) <= window_h * 3600:
+        lo = min(lo, levels[i]); hi = max(hi, levels[i])
+norm = normalize_tide(height, lo, hi)
+```
+⇒ **a 0.9 m neap and a 4.5 m spring BOTH map to 0.0–1.0.** The returned dict has `height_m` but not
+the amplitude, so nothing downstream can recover it.
+★ **The moon's real effect is present in the data and deleted in code.** Fix is small: also return
+the absolute window amplitude, let `tide_fit` scale with it, and feed the excursion into break depth.
+
+### 9e. SWELL DIRECTION — two failures, one severe
+* **(a) Exposure floor 0.595** — see §6. Deliberate fail-open, but far too generous; **0.2–0.3
+  retention** would keep the fail-open property without inventing waves.
+* **(b) ⚠️ NO OBSTRUCTION MODEL AT ALL** — the chain asks "what angle to the shore normal", never
+  "is there 400 km of Sumatra in the way". **Dominant directional error for ~130 island/archipelago
+  spots**, and much larger than (a). This is the same gap as the missing **Kr** in §1.
+* **(c) The normal itself:** ETOPO asset holds **1,386 of 1,820** ⇒ **434 spots (23.8%) have NO
+  high-resolution normal**; of those that do, **337 (24.3%) carry spread > 20°**, 216 > 25°
+  (p50 11.6°, p90 30.1°, max 40° = the gate). ⇒ shadowing work is downstream of fixing this.
+★ "The direction channel is **silently** wrong — nothing in the UI tells the user the model does not
+know which way the beach faces."
+
+### 9f. Also confirmed by the worldwide pass
+* **42 findings marked CORRECT** — the cross-shelf friction model, the wind offshore/onshore
+  decomposition (**the best-implemented factor in the model**), and the period ingestion all check out.
+* ⚠️ The quality curve has a **period floor that lets 4-second chop rate "good"**.
+* **`best_tide` is populated on only 2.1% of spots** — so even switching `RATING_TIDE=1` would do
+  almost nothing without a data backfill.
+
+## 9g. ⚠️ WHERE THE AUDITS OVERREACHED — corrected, so nobody acts on them
+* **"The whole Black Sea and Caspian are permanently zero."** True of the point API, but **the
+  catalogue holds 0 spots in either basin** (0 Black Sea, 0 Caspian, 50 Mediterranean). It is a
+  point-query defect, not a spot-listing defect.
+* **Shore-normal "true bearing" errors at Fistral and Nazaré** were inherited from the first audit
+  and **not independently re-sourced** — treat the exact degree values as MEDIUM confidence.
+  Likewise my own §6 table (Mavericks 44.9°, Uluwatu 72.5°) uses MY estimates of the true bearing,
+  not an authority. The *existence* of large errors is solid; the specific numbers are not.
+* **The ~6% GFS-zero spot count** is extrapolated from n=150 (95% CI ≈ 50–195 spots). The mechanism
+  is certain; the count is loose.
+
+---
 
 ## 10. VERIFIED BY HAND BEFORE THE WORLDWIDE AUDIT REPORTED
 
@@ -236,3 +358,57 @@ surface was wrong differently.
 * **Moon phase: entirely absent** (the only "Moon" in the backend is "Half Moon Bay" in a docstring).
   Spring/neap doubles tidal range on a ~14.8-day cycle, so it modulates any tide term added later.
 * **The transform consumes `layer="waves"` (TOTAL Hs)**, not `swell_1` — see §2.
+
+---
+
+## 11. SESSION STATE — for a fresh context picking this up
+
+**Branch `dev`, tree clean, all CI green.** Commits this session (newest last):
+
+| commit | what |
+|---|---|
+| `f845fedc` | sim spot identity — one name → one production spot |
+| `5f0085fd` | sim `valid_time` — forecast a future hour (+168 h) |
+| `48b923b3` | admin: 401 rendered as "0 spots"; LOC ratchet red 8 commits |
+| `c91e9530` | importer dedupe: name+proximity, not distance alone |
+| `da25f7c4` | `triage_duplicate_spots.py` — the 47 the merge tool can't see |
+| `f58187a4` | `dedup_surf_spots.py` FK list missing `surf_log_entries` (8 CASCADE) |
+| `29368b2b` | **Duplicate Review panel** in the admin console (live, self-verifying) |
+| `902f47a9` | **spot hub / infoboxes / alerts** onto the one forecast chain |
+| `222d8255` | this audit's findings |
+| *(pending)* | **GFS fabricated-zero guard** + `test_marine_zero_is_no_coverage.py` |
+
+**Production data changed (owner-approved, reversible):** 47 duplicate pairs merged, **1818 → 1773
+active spots**. Snapshot `surf_spots_dupe_backup_20260728` (1821 rows); rollback SQL in the
+2026-07-28 handoff §7c.
+
+### HOW THE OWNER VERIFIES THINGS NOW (they asked; this was the answer)
+* **Duplicates** — admin console → Spots → **Duplicate Review**. Recomputes live from the DB on
+  every open, so it is both the worklist AND the proof a merge worked. `IDENTICAL` should read **0**.
+* **Catalogue** — the map shows **1773**; search `Teahup` returns exactly two real breaks.
+* **Sim** — `get_weather_forecast(spot, valid_time=...)` reports `spot_source` and a `parity` block.
+
+### ⚠️ THE ONE THING TO TELL THEM FIRST
+`902f47a9` made the spot hub **consistent, not yet accurate**. At Trestles it moved the hub from
+**−20%** (raw offshore) to **+53%** (unrefracted breaking, 4.6 ft vs ~3.0 measured). It was shipped
+because there is now ONE number and ONE place to fix it — **Kr (§8 item 2) corrects the map, sim,
+hub, infoboxes and alerts simultaneously.** It is reversible if the owner prefers.
+
+### CARRIED OVER, UNCHANGED
+* **107 VARIANT duplicate pairs** — reviewable in the admin panel; needs human judgement.
+* **Calibration residual archive** — accumulating; read `report["archive"]` in ~a week. All five
+  bands still under the 30-row / 10-buoy gate.
+* **155 misplaced spots** (75 have GNS proposals, 89 need `refinements.py`).
+* **FR/ES/UK expansion** — 2333 candidates; a product decision, not a technical block.
+* `weather_sim_mcp.py` **753/800**; `AdminSpotsPanel.js` **672**; both under the ratchet.
+* ⛔ **The map has been eyeballed at one viewport/zoom only.** Zoom ladders + marine layers still
+  need the `zoomlab.js` protocol, run alone.
+
+### ★ METHOD NOTES WORTH KEEPING
+1. ★★ **When validating a formula, the INPUT CONVENTION is part of the formula.** I "verified" Komar
+   by feeding it the same wrong input the model uses (§0).
+2. **Ship the SURFACE, not the list** — a review list in a chat log makes the assistant the mechanism.
+3. **Verify FK lists from `information_schema`, never a hardcoded constant** — 8 of 23 CASCADE.
+4. **A green CI on a docs-only commit says nothing about the code gates** (`paths:` filters).
+5. **Calibrate an instrument against a known answer before trusting it on new data** — it rejected
+   the first duplicate classifier and the first shore-normal instrument.
