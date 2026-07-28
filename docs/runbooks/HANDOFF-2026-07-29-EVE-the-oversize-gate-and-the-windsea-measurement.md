@@ -191,10 +191,66 @@ through the real tool functions with the live catalogue.
 
 ---
 
+## 6b. ★★★ THE INSTRUMENT — `validate_nearshore_transform.py` (`c2084874` + `e5546fa5`)
+
+Every accuracy loop here validated the model's **INPUT** (`buoy_calibration.py` = offshore Hs vs
+NDBC). **Nothing ever scored the transform's OUTPUT.** That is exactly why the missing Kr survived
+on one hand calculation. The new tool cannot repeat that mistake — **neither side of its comparison
+is our model**:
+
+```
+implied_Kr = [Hs(nearshore buoy) / Hs(deep buoy)] / shoaling_coefficient(Tp, near_depth)
+```
+
+Buoy pairs are **DISCOVERED** from the CDIP catalogue, not recalled. It independently rediscovered
+both pairs the audit used by hand and reproduces the audit's `100p1->153p1` ratio **0.840** exactly.
+
+### What it measured — 385,651 QC-good swell hours, 10 California sites
+**Kr median 0.797, range 0.612–1.031** ⇒ the transform over-predicts nearshore height by **~25%** at
+the median site, and UNDER-predicts at one — **Kr > 1 is real focusing, not noise.**
+
+### ⚠️⚠️ IT CORRECTED THE ROADMAP TWICE — both proposed fixes are the wrong shape
+1. **SNELL REFRACTION DOES NOT EXPLAIN IT.** Straight-parallel-contour Kr spans only 0.907–0.993
+   across the same sites and is **ANTI-correlated (r = −0.565)**. A site at near-normal incidence
+   (θ 11.8°, Snell 0.993 ≈ no refraction at all) **measures 0.677**. Snell is ≤1 by construction, so
+   it can never reproduce the focusing site.
+2. **HORIZON BLOCKING EXPLAINS THE *DIRECTION*, NOT THE *SIZE*.** Ray-casting the bundled 0.25°
+   ETOPO grid (±25° spread, 300 km) and fitting `Kr = A_site·(1 − B·shadow)`:
+
+   | site | A (open-water Kr) | B (blocking gain) | r |
+   |---|---|---|---|
+   | 264p1 | 0.852 | 0.026 | −0.611 |
+   | 153p1 | 0.881 | 0.135 | −0.885 |
+   | 101p1 | 0.909 | 0.183 | −0.898 |
+   | 043p1 | 0.924 | 0.043 | −0.774 |
+   | 215p1 | **1.250** | 0.342 | −0.872 |
+
+   All five negative, as blocking predicts; at the focusing site it tracks the entire **1.75× swing**.
+   ⚠️ **But `A` — the direction-independent SITE OFFSET — spans 0.852–1.250 and is the DOMINANT
+   term, while `B` removes a median 13.5% at full shadow.** The queue called a land-mask ray-cast the
+   *"cheap global 80%"*. **Measured, it buys the directional ~13%**; the larger half is the offset,
+   which a ray-cast cannot supply. Shipping a shadow model alone would leave most of the error in
+   place while feeling like a fix.
+
+⇒ **Kr(site, direction) needs BOTH terms.** The offset wants a measured or MOP-style spectral
+source, and is unknown at **1,763 of our 1,773 spots**.
+★ Resolution bound: 0.25° (~28 km) resolves Catalina / Palos Verdes / Point Loma but **not the ~2 km
+Coronado Islands** — 155p1 returns r = +0.10, no signal.
+
+⚠️ **Traps this cost:** CDIP's CSV has an **unquoted comma inside the station name**, so every data
+row has one more field than the header — header-position indexing read `waveDp` as the QC flag and
+**discarded 100% of rows while reporting success** (index from the RIGHT). Each buoy has its own
+deployment span, and querying outside it is a hard **HTTP 400**, not an empty result.
+
+---
+
 ## 7. ⛔ THE QUEUE — updated
 
 1. ✅ **SIZE GATE** — done this session, spot-aware.
-2. ★★★ **REFRACTION / SHELTERING (Kr)** — unchanged; ±1.5 ft, **signed** (Trestles 0.755, Mavericks >1).
+2. ★★★ **REFRACTION / SHELTERING (Kr)** — **RE-SCOPED BY MEASUREMENT (§6b).** No longer "implement
+   Snell" (anti-correlated) nor "ray-cast for the cheap 80%" (buys ~13%). It is a **directional
+   transfer function `Kr = A_site · (1 − B·shadow)`**: the horizon term is computable globally today;
+   the **site offset is the dominant unknown**. ⚠️ Still **signed** — one validated site focuses at 1.25.
 3. ★★★ **SWELL PARTITION** — §4. Now MEASURED live (+105% at Ocean Beach SF) and **re-scoped**: the
    rating half is already written and dark; the height half needs a reconciliation guard because the
    partitions can exceed the total; and the cost lands on precompute, not the live lane.
