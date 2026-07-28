@@ -260,3 +260,45 @@ def test_two_windows_still_face_every_other_clause():
     assert accepted({**base, "spread": 5.5, "shoreline_km": 4.6})[1] == "spot_misplaced"
     assert accepted({**base, "spread": 5.5,
                      "ocean_verdict": "INLAND"})[1] == "not_on_open_ocean_inland"
+
+
+# ── The asset build must not overwrite a good asset with a collapsed one (2026-07-28) ─────────
+# A build emitted 0 of 1820 entries because every ERDDAP fetch failed, and nothing stopped it:
+# the asset gate passed VACUOUSLY (an empty entry list satisfies "every entry is legal"), the
+# commit step committed the empty file, and only a `git push` race kept it out of `dev`. An empty
+# asset silently reverts every spot to the coarse 0.25° / 194.6 km grid.
+
+def _write_asset(tmp_path, previous_count):
+    import json as _json
+    a = tmp_path / "shore_normals.json"
+    a.write_text(_json.dumps({"count": previous_count,
+                              "entries": [[0, 0, 1.0, 1.0, 5.0]] * previous_count}))
+    return str(a)
+
+
+def test_a_collapsed_asset_is_refused(tmp_path, monkeypatch):
+    """0 of 1820 after a total fetch failure must NOT replace a good asset."""
+    from scripts.build_shore_normals import write_is_safe
+    monkeypatch.delenv("SHORE_NORMAL_ALLOW_SHRINK", raising=False)
+    asset = _write_asset(tmp_path, 1386)
+    ok, why = write_is_safe(0, asset)
+    assert not ok and "EMPTY" in why, why
+    ok, why = write_is_safe(200, asset)          # 14% retained — still a collapse
+    assert not ok and "1386" in why, why
+
+
+def test_a_normal_rebuild_is_allowed(tmp_path, monkeypatch):
+    """Ordinary growth and small churn must still write, or the guard blocks real work."""
+    from scripts.build_shore_normals import write_is_safe
+    monkeypatch.delenv("SHORE_NORMAL_ALLOW_SHRINK", raising=False)
+    assert write_is_safe(1386, _write_asset(tmp_path, 1073))[0]     # growth
+    assert write_is_safe(1300, _write_asset(tmp_path, 1386))[0]     # 94% retained
+    assert write_is_safe(5, str(tmp_path / "absent.json"))[0]       # first ever build
+
+
+def test_a_deliberate_shrink_has_an_escape_hatch(tmp_path, monkeypatch):
+    from scripts.build_shore_normals import write_is_safe
+    monkeypatch.setenv("SHORE_NORMAL_ALLOW_SHRINK", "1")
+    assert write_is_safe(200, _write_asset(tmp_path, 1386))[0]
+    # ...but never for a totally empty build, which is always a failure signal
+    assert not write_is_safe(0, _write_asset(tmp_path, 1386))[0]

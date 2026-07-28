@@ -214,6 +214,39 @@ def review_row(r):
             r["front_depth_m"], r["break_depth_m"], r.get("verdict"), r["status"]]
 
 
+def write_is_safe(new_count, asset_path):
+    """May a build with `new_count` entries overwrite the asset at `asset_path`? (ok, reason).
+
+    ★★ 2026-07-28 a build emitted **0 of 1820** because every ERDDAP fetch failed, and NOTHING
+    stopped it: `test_shipped_asset_respects_its_own_gate` passed VACUOUSLY (an empty entry list
+    satisfies "every entry is legal"), the commit step committed the empty file, and only a
+    `git push` race — unrelated commits landing first — kept it out of `dev`. An empty asset
+    silently reverts every spot to the coarse 0.25 deg / 194.6 km grid while the build still looks
+    like it ran. **Production was saved by luck, once.** Same shape as `17d831cc`, where a timed-out
+    build lost every fitted row.
+
+    The floor is measured against the asset ALREADY ON DISK, which in CI is the committed one.
+    Kill: SHORE_NORMAL_ALLOW_SHRINK=1 for a deliberate catalogue shrink.
+    """
+    if new_count == 0:
+        return False, ("an EMPTY asset — every spot would fall back to the coarse 0.25 deg grid. "
+                       "This is what a total fetch failure looks like. Re-run.")
+    previous = 0
+    try:
+        with open(asset_path) as fh:
+            previous = int(json.load(fh).get("count") or 0)
+    except Exception:
+        previous = 0
+    if os.environ.get("SHORE_NORMAL_ALLOW_SHRINK", "0") == "1" or not previous:
+        return True, "ok"
+    floor = int(previous * float(os.environ.get("SHORE_NORMAL_MIN_RETAIN", "0.8")))
+    if new_count < floor:
+        return False, (f"{new_count} entries would replace {previous} (floor {floor}). The asset on "
+                       f"disk is better than what this run produced. Re-run; set "
+                       f"SHORE_NORMAL_ALLOW_SHRINK=1 only if the catalogue genuinely shrank.")
+    return True, "ok"
+
+
 def accepted(row):
     """The gate. Every clause is a measured failure mode, not a precaution.
 
@@ -368,6 +401,21 @@ def main():
         "count": len(entries),
         "entries": entries,
     }
+    # ★★ REFUSE TO OVERWRITE A GOOD ASSET WITH A COLLAPSED ONE.
+    # 2026-07-28 this build emitted **0 of 1820** entries because every ERDDAP fetch failed, and
+    # NOTHING STOPPED IT: `test_shipped_asset_respects_its_own_gate` passed VACUOUSLY (an empty
+    # entry list satisfies "every entry is legal"), the commit step committed the empty file, and
+    # only a `git push` race — unrelated commits landing first — kept it out of `dev`. An empty
+    # asset silently reverts every spot to the coarse 0.25 deg grid, which is a 194.6 km window,
+    # while the build still looks like it ran. Production was saved by luck, once.
+    # This is the same shape as `17d831cc`, where a timed-out build lost every fitted row.
+    # The floor is measured against the asset ALREADY ON DISK, which in CI is the committed one.
+    # Kill: SHORE_NORMAL_ALLOW_SHRINK=1 (for a deliberate catalogue shrink).
+    ok, why = write_is_safe(len(entries), args.asset)
+    if not ok:
+        print(f"\n⛔ REFUSING TO WRITE — {why}")
+        return 1
+
     os.makedirs(os.path.dirname(args.asset), exist_ok=True)
     with open(args.asset, "w") as fh:
         json.dump(asset, fh, separators=(",", ":"))
