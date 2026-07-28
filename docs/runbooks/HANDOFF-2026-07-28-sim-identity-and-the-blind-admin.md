@@ -156,8 +156,25 @@ with `[WinError 5] Access is denied` on an atomic rename, then passed in isolati
 full run. Windows file-lock flake, not a regression — but it is order-dependent, so expect it again.
 
 **NOT verified:** the admin panel with a REAL admin token (only the 401 path was exercised — the
-success path is unchanged code, but unproven this session). The map at 1818 spots is still
-unlooked-at, carried over from the previous handoff.
+success path is unchanged code, but unproven this session).
+
+### ✅ THE MAP HAS NOW BEEN LOOKED AT — a gap carried across three handoffs
+It was recorded as blocked because "`/map` redirects to the landing page without auth". ★ **The
+unblock is `localStorage['raw-surf-user']`** — `ProtectedRoute` hydrates from it synchronously, so
+seeding a mock admin object renders the whole app on a dev server. No backend auth needed.
+
+Verified by eye at **1773 spots**:
+* Mapbox canvas renders; **clustering works** ("6 surf spots — zoom in", "2 surf spots — zoom in").
+* ★ **The markers are ACCESSIBLE** — real `<button>`s with per-spot labels (`Bethune Beach`,
+  `Playalinda Beach`), which satisfies the accessibility mandate rather than adding to its debt.
+* **Search reflects the merge**: `Teahup` → exactly `Teahupo'o` (Tahiti Iti) and
+  `Teahupoo - End of the Road` (Tahiti). The duplicate is gone; both real breaks remain.
+* No Mapbox or render errors. Every console error is a 401/404 from the tokenless mock session.
+* Dev chrome (`MarineAnimTuner`, `TruthOverlay` Diagnostics HUD) is correctly **prod-gated** —
+  localhost-only, with `truthOverlayGate.test.js` pinning the contract. It appears locally by
+  design, not as a leak.
+⚠️ Only the Florida viewport at one zoom was inspected. Zoom ladders and the marine layers were NOT
+exercised — that needs the `zoomlab.js` protocol, run alone.
 
 ---
 
