@@ -11,8 +11,18 @@ Session ran from `59a9c6af` (14:30) to `a3457650` (20:45): **24 commits + 2 CI a
 
 ## 0. ⛔ DO THESE FIRST
 
-1. **RESTART THE WeatherSimulation MCP SERVER.** It holds the old module. Every fix in §1 is
-   invisible until it restarts.
+1. ✅ **The WeatherSimulation MCP server was restarted and VERIFIED** at the end of this session —
+   `get_surf_spots("Supertubos")` returned instantly through the real MCP connection, reporting
+   `source: live_catalog` and `orientation_source: etopo`. Nothing to do.
+   **How, for next time — no app restart needed:**
+   ```powershell
+   Get-CimInstance Win32_Process -Filter "Name like '%python%'" |
+     Where-Object { $_.CommandLine -like '*weather_sim_mcp*' } | Select-Object ProcessId
+   Stop-Process -Id <pid> -Force    # Claude Code respawns it on the next tool call
+   ```
+   ⚠️ Before killing it, confirm the fix you want is committed — a bad server used to cost a 30-minute
+   client hang. It cannot deadlock any more (`_warm_hot_path`), but verify out-of-band with
+   `scratchpad/mcp_call.py` (own timeout) rather than by calling the MCP tool blind.
 2. **Do not re-run `Build Shore Normal Asset` casually** — it is healthy now (1386/1820) and a run
    during an ERDDAP outage used to be able to destroy it. That hole is closed (§2d) but the asset is
    the input to every rating.
@@ -126,8 +136,8 @@ TOWN 10 km inland, `Same Adentro` (*adentro* = inland), `Chiba Peninsula` (a cen
 
 | | before | after |
 |---|---|---|
-| active spots | 1515 | **1820** |
-| EEA-imported | 0 | **305** |
+| active spots | 1515 | **1818** (1820 imported, 2 duplicates deactivated in §9a) |
+| EEA-imported | 0 | **303** active |
 | `offset_adjusted` | 2 | **11** |
 | `flagged_for_review` | 164 | **460** |
 | `is_verified_peak` | 55 | **55** |
