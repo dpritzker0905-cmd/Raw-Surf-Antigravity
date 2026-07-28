@@ -19,7 +19,7 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-from scripts.triage_duplicate_spots import classify, find_pairs  # noqa: E402
+from services.spot_duplicates import classify, find_pairs  # noqa: E402
 
 
 # ── Adjudicated 2026-07-27 as REAL, DISTINCT PEAKS — merging these would destroy a break ──────
@@ -46,42 +46,42 @@ REAL_DUPLICATES = [
 def test_real_separate_peaks_are_never_offered_for_merge(a, b, km):
     """★ THE EXPENSIVE MISTAKE. Merging Upper into Lower Trestles deletes a world-class peak, and
     unlike a duplicate it cannot be noticed by looking at the map."""
-    tier, why = classify(a, b, km)
+    tier, why = classify(a, b)
     assert tier == "DISTINCT_PEAKS", (a, b, tier, why)
 
 
 @pytest.mark.parametrize("a,b,km", REAL_DUPLICATES)
 def test_real_duplicates_are_surfaced(a, b, km):
-    tier, _ = classify(a, b, km)
+    tier, _ = classify(a, b)
     assert tier != "DISTINCT_PEAKS", (a, b, tier)
 
 
 def test_the_apostrophe_pair_is_the_unambiguous_case():
     """`Teahupo'o` vs `Teahupoo` at 140 m — the clearest single defect in the catalogue, and
     invisible to dedup_surf_spots.py because it groups on exact string equality."""
-    tier, why = classify("Teahupo'o", "Teahupoo", 0.14)
+    tier, why = classify("Teahupo'o", "Teahupoo")
     assert tier == "IDENTICAL"
     assert "normalisation" in why
 
 
 def test_case_and_accent_variants_are_identical_not_merely_similar():
     for a, b in (("COXOS", "Coxos"), ("CONSOLAÇÃO", "Consolação"), ("El Médano", "El Medano")):
-        assert classify(a, b, 1.0)[0] == "IDENTICAL", (a, b)
+        assert classify(a, b)[0] == "IDENTICAL", (a, b)
 
 
 def test_a_contained_name_is_a_variant_needing_review_not_an_auto_merge():
     """`Uluwatu` vs `Uluwatu - The Peak` is probably one break — but 'probably' is not a mandate to
     delete a row, so it lands in the tier a human reads."""
-    tier, _ = classify("Uluwatu", "Uluwatu - The Peak", 0.35)
+    tier, _ = classify("Uluwatu", "Uluwatu - The Peak")
     assert tier == "VARIANT"
 
 
 def test_numbered_streets_count_as_positional_without_being_listed():
     """90th/92nd are not in the POSITIONAL set — digits make a token positional by construction, so
     the rule generalises to street grids nobody enumerated."""
-    assert classify("Rockaway Beach 90th Street", "Rockaway Beach 92nd Street", 0.39)[0] \
+    assert classify("Rockaway Beach 90th Street", "Rockaway Beach 92nd Street")[0] \
         == "DISTINCT_PEAKS"
-    assert classify("Ocean City 12th St", "Ocean City 40th St", 3.0)[0] == "DISTINCT_PEAKS"
+    assert classify("Ocean City 12th St", "Ocean City 40th St")[0] == "DISTINCT_PEAKS"
 
 
 def test_pair_finding_respects_distance_and_reports_both_ids():
@@ -96,7 +96,7 @@ def test_pair_finding_respects_distance_and_reports_both_ids():
     ]
     pairs = find_pairs(spots)
     assert len(pairs) == 1
-    assert {pairs[0]["id_a"], pairs[0]["id_b"]} == {"a", "b"}
+    assert {pairs[0]["a"]["id"], pairs[0]["b"]["id"]} == {"a", "b"}
     assert pairs[0]["tier"] == "IDENTICAL"
     assert pairs[0]["km"] < 0.3
 

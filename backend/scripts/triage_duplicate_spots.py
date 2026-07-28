@@ -41,47 +41,11 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
-from scripts.find_missing_spots import (  # noqa: E402
-    SAME_BREAK_KM, haversine_km, names_match, normalise_name)
+from services.spot_duplicates import (  # noqa: E402
+    SAME_BREAK_KM, classify, find_pairs, summarise)
 
 BASE_URL = os.environ.get("SIM_FORECAST_BASE_URL",
                           "https://raw-surf-antigravity.onrender.com").rstrip("/")
-
-# Tokens that mean "a DIFFERENT peak on the same feature", not "the same place spelled twice".
-# Every one of these was learned from a pair a human adjudicated as REAL AND DISTINCT.
-# ⚠️ ONLY TRUE POSITIONS BELONG HERE. Calibration against the adjudicated pairs rejected a first
-# draft that also listed feature nouns — `main`, `peak`, `bowl(s)`, `reef`, `inlet`, `mouth`,
-# `harbour`. Those mark the SAME break described differently, and including them classified three
-# known duplicates as distinct peaks:
-#     Uluwatu / Uluwatu - The Peak · Margaret River / Main Break Margaret River ·
-#     Ala Moana Beach / Ala Moana Bowls
-# A surf name's feature noun is decoration; its POSITION is what separates two peaks.
-POSITIONAL = {
-    "north", "south", "east", "west", "n", "s", "e", "w", "ne", "nw", "se", "sw",
-    "upper", "lower", "middle", "inner", "outer", "left", "right",
-    "first", "second", "third",
-    "jetty", "pier", "groyne",
-}
-# ...and numbers ("90th"/"92nd" Street) are positional by construction — see _positional.
-
-
-def _positional(tokens):
-    return {t for t in tokens if t in POSITIONAL or any(c.isdigit() for c in t)}
-
-
-def classify(name_a, name_b, km):
-    """(tier, why) for a candidate pair. Tiers: IDENTICAL / VARIANT / DISTINCT_PEAKS / WEAK."""
-    ta, tb = normalise_name(name_a), normalise_name(name_b)
-    diff = (ta ^ tb)
-    positional = _positional(diff)
-    if positional:
-        return "DISTINCT_PEAKS", f"differ by position: {sorted(positional)}"
-    if ta == tb:
-        # Same normalised name at close range: an apostrophe/case/accent variant of one break.
-        return "IDENTICAL", "identical after normalisation"
-    if ta <= tb or tb <= ta:
-        return "VARIANT", f"one name contains the other; extra: {sorted(diff)}"
-    return "WEAK", f"partial overlap: shared {sorted(ta & tb)}, differ {sorted(diff)}"
 
 
 def fetch_spots():
@@ -92,30 +56,6 @@ def fetch_spots():
     return [r for r in rows
             if r.get("is_active") and r.get("latitude") is not None
             and r.get("longitude") is not None]
-
-
-def find_pairs(spots, max_km=SAME_BREAK_KM):
-    """Every active pair within `max_km` whose names match. Prefiltered by a degree box."""
-    box = max_km / 111.0 + 0.01
-    by_lat = sorted(spots, key=lambda s: s["latitude"])
-    pairs = []
-    for i, a in enumerate(by_lat):
-        for b in by_lat[i + 1:]:
-            if b["latitude"] - a["latitude"] > box:
-                break                      # sorted by latitude: nothing further can be in range
-            if abs(b["longitude"] - a["longitude"]) > box * 1.3:
-                continue
-            if not names_match(a["name"], b["name"]):
-                continue
-            km = haversine_km(a["latitude"], a["longitude"], b["latitude"], b["longitude"])
-            if km <= max_km:
-                tier, why = classify(a["name"], b["name"], km)
-                pairs.append({"tier": tier, "km": round(km, 3), "why": why,
-                              "name_a": a["name"], "id_a": a["id"], "region_a": a.get("region"),
-                              "name_b": b["name"], "id_b": b["id"], "region_b": b.get("region")})
-    order = {"IDENTICAL": 0, "VARIANT": 1, "WEAK": 2, "DISTINCT_PEAKS": 3}
-    pairs.sort(key=lambda p: (order[p["tier"]], p["km"]))
-    return pairs
 
 
 def main():

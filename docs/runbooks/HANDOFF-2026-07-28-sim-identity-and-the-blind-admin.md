@@ -313,6 +313,34 @@ INSERT INTO surf_spots SELECT * FROM surf_spots_dupe_backup_20260728 b
 ```
 Snapshot `surf_spots_dupe_backup_20260728` holds all **1821** pre-merge rows.
 
+## 7d. ★★★ THE REVIEW SURFACE IS IN THE PRODUCT NOW — not in a terminal
+
+**The owner's objection was the right one: "how am I supposed to verify these things?"** The answer
+had been "run a script, read a terminal, trust the prose in a chat log," which is not verification
+and puts a person in the loop for something the product should show.
+
+* `services/spot_duplicates.py` — **ONE implementation** of the name matcher + tier classifier.
+  `find_missing_spots` now RE-EXPORTS from it (dependency inverted: services are the library,
+  scripts and routes are consumers), so the admin UI and the tooling cannot drift into two
+  definitions of "duplicate" — the same split that let the sim and production disagree about a
+  spot's coordinates.
+* `GET /api/admin/spots/duplicates` — admin-guarded, computed **LIVE from the DB on every call**,
+  never cached. ⚠️ Read-only by design: discovery is broad, deletion is narrow.
+* `AdminSpotDuplicates.js` — tiered review in the admin console. Each pair shows distance, the
+  reason, and BOTH spots with coordinates, region and accuracy flag: enough to judge in seconds.
+  ★ **Because it recomputes live, it is also the VERIFICATION that a merge worked** — the counts
+  move on their own, with nobody's word involved.
+* **7 component tests** pin the render, including ★ *"a failed scan renders — and says why, never a
+  confident zero"*, so the blind-panel bug cannot recur here. That replaced a browser hack: I tried
+  intercepting XHR to prove the render and was fighting axios internals — a component test is both
+  more honest and permanent.
+
+**Also fixed while touching it:** `AdminSpotsPanel` was **794/800** — six lines from breaking CI.
+The import tier picker moved to `AdminSpotsImportDialog.js` (**719** now), and ★ **not verbatim**:
+its rows were `<div onClick>`, keyboard-unreachable and invisible to assistive tech. They are now a
+real `role="radiogroup"` of `<button role="radio" aria-checked>`. Verified in the browser: 4 radios,
+first checked, all `BUTTON`. Touching code means not carrying its debt forward.
+
 ## 8. NEXT — the rest of the queue
 2. **The duplicate triage** over the 288 pre-existing name-matching pairs — `Teahupo'o` vs
    `Teahupoo` at **140 m** is the clearest single defect in the catalogue. Note the sim now

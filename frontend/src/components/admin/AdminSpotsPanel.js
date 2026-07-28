@@ -8,10 +8,12 @@ import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
+import { Dialog, DialogContent, DialogHeader, DialogTitle } from '../ui/dialog';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { AdminSpotsStats } from './AdminSpotsStats';
+import { AdminSpotDuplicates } from './AdminSpotDuplicates';
+import { AdminSpotsImportDialog } from './AdminSpotsImportDialog';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 /**
@@ -363,6 +365,9 @@ const AdminSpotsPanel = ({ userId }) => {
         loadError={loadError}
       />
 
+      {/* Duplicate review — live from the DB, so it also verifies a merge worked */}
+      <AdminSpotDuplicates />
+
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
         <Button aria-label="Upload"
@@ -383,93 +388,17 @@ const AdminSpotsPanel = ({ userId }) => {
         </Button>
       </div>
 
-      {/* Import Tier Selection Dialog */}
-
-      <Dialog open={showImportDialog} onOpenChange={setShowImportDialog}>
-        <DialogContent className="bg-card border border-border sm:max-w-md w-[95vw] sm:w-full rounded-xl">
-          <DialogHeader>
-            <DialogTitle className="text-foreground flex items-center gap-2">
-              <Upload className="w-5 h-5 text-green-400" />
-              Import Global Surf Spots
-
-            </DialogTitle>
-          </DialogHeader>
-          
-          <div className="modal-body px-4 sm:px-6 py-4 space-y-4">
-            <p className="text-muted-foreground text-sm">
-              Select which region tier to import surf spots from:
-
-            </p>
-            
-            <div className="space-y-2">
-              {[
-                { value: 0, label: 'All Curated Spots', desc: 'Import entire curated database (~70 spots)' },
-
-                { value: 1, label: 'Tier 1: East Coast USA', desc: 'Florida to Maine (~25 spots)' },
-                { value: 2, label: 'Tier 2: West Coast & Islands', desc: 'California, Hawaii, Puerto Rico (~15 spots)' },
-                { value: 3, label: 'Tier 3: Global', desc: 'Australia, Indonesia, Europe, etc. (~30 spots)' },
-              ].map((tier) => (
-                <div
-                  key={tier.value}
-                  onClick={() => setImportTier(tier.value)}
-                  className={`p-3 rounded-lg border cursor-pointer transition-all ${
-                    importTier === tier.value 
-                      ? 'border-green-500 bg-green-500/10' 
-                      : 'border-border bg-muted hover:border-input'
-                  }`}
-                >
-                  <div className="flex items-center gap-3">
-                    <div className={`flex-shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center ${
-                      importTier === tier.value ? 'border-green-500' : 'border-zinc-500'
-                    }`}>
-                      {importTier === tier.value && <div className="w-2 h-2 rounded-full bg-green-500" />}
-                    </div>
-                    <div>
-                      <p className="text-foreground font-medium text-sm sm:text-base">{tier.label}</p>
-                      <p className="text-xs text-muted-foreground">{tier.desc}</p>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
-            
-            <div className="flex items-start gap-2 p-3 bg-muted rounded-lg border border-border">
-              <input aria-label="Checkbox"
-                type="checkbox"
-                id="include-osm"
-                checked={includeOSM}
-                onChange={(e) => setIncludeOSM(e.target.checked)}
-                className="mt-0.5 w-4 h-4 rounded border-input flex-shrink-0"
-              />
-              <label htmlFor="include-osm" className="text-sm text-gray-300 leading-tight">
-                Also fetch from OSM Overpass API (slower, more spots)
-              </label>
-            </div>
-          </div>
-          
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setShowImportDialog(false)}
-              className="border-input text-gray-300 hover:text-foreground"
-            >
-              Cancel
-            </Button>
-            <Button aria-label="Loader2"
-              onClick={handleImport}
-              disabled={importLoading}
-              className="bg-green-600 hover:bg-green-700 text-white"
-            >
-              {importLoading ? (
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-              ) : (
-                <Upload className="w-4 h-4 mr-2" />
-              )}
-              Start Import
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      {/* Import tier picker — extracted to AdminSpotsImportDialog.js (LOC ratchet, 2026-07-28) */}
+      <AdminSpotsImportDialog
+        open={showImportDialog}
+        onOpenChange={setShowImportDialog}
+        importTier={importTier}
+        setImportTier={setImportTier}
+        includeOSM={includeOSM}
+        setIncludeOSM={setIncludeOSM}
+        onImport={handleImport}
+        importLoading={importLoading}
+      />
 
       {/* Search & Filter */}
       <Card className="bg-card border-border">

@@ -42,49 +42,17 @@ SPARQL = "https://query.wikidata.org/sparql"
 UA = {"User-Agent": "raw-surf-spot-gap-analysis/1.0", "Accept": "application/sparql-results+json"}
 NEAR_KM = 2.0            # a Wikidata break within this of one of ours is the SAME break
 CONFIRM_SHORE_KM = 2.0   # ETOPO must put the candidate this close to a real shoreline
-# Beyond NEAR_KM, a NAME match up to this distance is still the same break in a different place —
-# measured: the four false "missing" headline breaks sat 2.42-5.13 km from their catalogue row.
-SAME_BREAK_KM = 8.0
+# ── Name matching now lives in `services/spot_duplicates.py` ─────────────────────────────────
+# (SAME_BREAK_KM: beyond NEAR_KM, a NAME match within it is still the same break in a different
+# place — measured, the four false "missing" headline breaks sat 2.42-5.13 km from their row.)
+# It was here, so the only way to see the catalogue's duplicates was to run a script and read a
+# terminal — and the admin UI could not share the definition. Re-exported so every existing
+# importer (import_reviewed_spots, propose_spot_corrections, the tests) keeps working unchanged.
+from services.spot_duplicates import (  # noqa: E402,F401
+    SAME_BREAK_KM, normalise_name, names_match)
+
 NEIGHBOUR_DEG = 0.12     # ~13 km prefilter box, comfortably outside SAME_BREAK_KM
 
-
-def normalise_name(s):
-    """Lowercase alphanumeric tokens, minus decoration that differs between sources.
-
-    'Jaws (Peahi)' vs 'Jaws', 'Guincho Beach' vs 'Guincho', 'El Médano' vs 'El Medano'."""
-    import unicodedata
-    s = unicodedata.normalize("NFKD", s or "")
-    s = "".join(c for c in s if not unicodedata.combining(c)).lower()
-    # Apostrophes and the Hawaiian okina are INTERNAL to a word, not separators — splitting on them
-    # turns "Pe'ahi" into {pe, ahi}, which matches nothing and would drop every Hawaiian break
-    # (Pe'ahi, Ho'okipa, Ka'ena) out of the duplicate gate.
-    for ch in ("'", "‘", "’", "ʻ", "`"):
-        s = s.replace(ch, "")
-    # Non-discriminating tokens. Two names sharing ONLY these denote nothing in common.
-    # ⚠️ The articles/prepositions were added 2026-07-28 after a measured false positive: replaying
-    # the EEA import through the duplicate gate rejected `MADALENA DO MAR` as a duplicate of
-    # `Jardim do Mar` — two distinct Madeira villages — because `{do, mar}` is two shared tokens and
-    # `len(ta & tb) >= 2` fired. Iberian and French coastal names are largely built from these, and
-    # the queued FR/ES/UK expansion is 2333 such candidates, so this is a correctness prerequisite
-    # for it rather than a tidy-up.
-    # ★ Adding to this set makes the matcher STRICTER, which for the duplicate GATE means "import
-    # more". That is the safe direction here only because each addition is a word that cannot
-    # identify a break; never add a token that could BE a spot name.
-    drop = {"the", "beach", "point", "bay", "surf", "break", "spot", "praia", "playa", "plage",
-            # articles + prepositions: pt/es/fr/it
-            "do", "da", "dos", "das", "de", "del", "la", "el", "los", "las", "le", "les",
-            "du", "des", "di", "al",
-            # generic water nouns, the same category as "beach"
-            "mar", "sea", "ocean", "plaja", "strand"}
-    return {t for t in "".join(c if c.isalnum() else " " for c in s).split() if t and t not in drop}
-
-
-def names_match(a, b):
-    """True when two spot names plausibly denote the same break."""
-    ta, tb = normalise_name(a), normalise_name(b)
-    if not ta or not tb:
-        return False
-    return bool(ta & tb) and (ta <= tb or tb <= ta or len(ta & tb) >= 2)
 
 # No wdt:P279* subclass closure — the transitive walk times the public endpoint out (504), and
 # direct P31 on the two classes is what we actually want.

@@ -8,6 +8,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import select, func, and_, or_, text as sa_text
 from typing import Optional
 from datetime import datetime, timezone
+import asyncio
 import logging
 
 from database import get_db
@@ -195,6 +196,40 @@ async def admin_update_spot(
 # RE-EXPORTS - Seeding endpoints extracted to spot_seeding.py (v93 audit)
 # ============================================================
 from .spot_seeding import router as _seeding_router  # noqa: F401
+
+@router.get("/admin/spots/duplicates")
+async def get_spot_duplicates(
+    max_km: float = Query(8.0, ge=0.1, le=25.0),
+    admin: Profile = Depends(get_current_admin),
+    db: AsyncSession = Depends(get_db)
+):
+    """Name-matching spot pairs, tiered — the duplicate review surface.
+
+    ⚠️ READ-ONLY BY DESIGN. Discovery is broad, deletion is narrow: a loose name matcher pointed at
+    a destructive path would erase real breaks (`Lower`/`Upper Trestles`, `Ponce Inlet North/South
+    Jetty` are separate peaks). This shows the evidence; a human decides, and the merge goes through
+    the FK-aware path.
+
+    Computed LIVE from the database on every call rather than cached, so the answer cannot go stale
+    the way the spots dashboard did — and so it doubles as the verification that a merge worked.
+    """
+    from services.spot_duplicates import find_pairs, summarise
+
+    rows = (await db.execute(
+        select(SurfSpot.id, SurfSpot.name, SurfSpot.region, SurfSpot.latitude, SurfSpot.longitude,
+               SurfSpot.accuracy_flag, SurfSpot.is_verified_peak)
+        .where(SurfSpot.is_active.is_(True),
+               SurfSpot.latitude.isnot(None), SurfSpot.longitude.isnot(None))
+    )).all()
+    spots = [{"id": r.id, "name": r.name, "region": r.region,
+              "latitude": float(r.latitude), "longitude": float(r.longitude),
+              "accuracy_flag": r.accuracy_flag, "is_verified_peak": r.is_verified_peak}
+             for r in rows]
+    # ~1800 rows, latitude-sorted with an early break — measured well under a second on the box.
+    pairs = await asyncio.to_thread(find_pairs, spots, max_km)
+    return {"scanned_spots": len(spots), "max_km": max_km,
+            "counts": summarise(pairs), "pairs": pairs}
+
 
 @router.get("/admin/spots/stats")
 async def get_spot_stats(
