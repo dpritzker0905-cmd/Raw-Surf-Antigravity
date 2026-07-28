@@ -229,3 +229,109 @@ async def test_calibrate_spots_falls_back_to_the_spot_and_says_so(monkeypatch):
     rep = await bc.calibrate_spots(_R(), spots, "GFS", "2026-07-26T19:00:00Z")
     assert seen == [(34.9, -76.1)]                  # fell back to the spot
     assert rep["spots"][0]["resolved_at"] == "spot"  # ...and the row SAYS so
+
+
+# ── The residual ARCHIVE (2026-07-28) ─────────────────────────────────────────────────────────
+# `buoy_latest.json` is a single overwritten key, so exactly one snapshot has ever existed. The
+# blocker on a calibration curve is EVIDENCE, not method — these pin the accumulation.
+from services.weather_pipeline.buoy_calibration import (          # noqa: E402
+    archive_rows_from_report, merge_residual_archive, stratified_height_bias,
+    build_archive_summary, HEIGHT_BANDS)
+from datetime import datetime, timedelta, timezone                # noqa: E402
+
+
+def _report(rows):
+    return {"spots": [{"buoy_id": b, "buoy_time": t,
+                       "residual": {"buoy_wvht_m": o, "model_hs_m": m,
+                                    "height_err_m": round(m - o, 4)}}
+                      for b, t, o, m in rows]}
+
+
+def test_the_archive_keeps_one_row_per_buoy_not_per_spot():
+    """Measured 2026-07-28: 421 spot rows over 60 buoys, and 0 of 54 multi-spot buoys had a model
+    value that varied across its spots — so per-spot rows are pure replication. Archiving them
+    would weight Cape Canaveral (40 spots on one buoy) 40x."""
+    rows = _report([("41113", "2026-07-28T01:00:00+00:00", 0.3, 0.5438)] * 40
+                   + [("46232", "2026-07-28T00:56:00+00:00", 1.4, 1.0084)] * 2)
+    out = archive_rows_from_report(rows)
+    assert len(out) == 2
+    assert {r["buoy_id"] for r in out} == {"41113", "46232"}
+
+
+def test_a_model_zero_is_a_coverage_hole_and_is_not_archived():
+    """3 of 421 rows read model_hs_m == 0.0 against a real observation. Archiving that teaches the
+    curve the model under-predicts by the entire wave height."""
+    out = archive_rows_from_report(_report([("46267", "2026-07-28T01:00:00+00:00", 0.5, 0.0)]))
+    assert out == []
+
+
+def test_rerunning_within_the_same_buoy_hour_is_not_new_evidence():
+    """CI runs more often than NDBC reports (~hourly). The same observation seen twice must not
+    count twice, or the series inflates without gaining information."""
+    a = _report([("41113", "2026-07-28T01:00:00+00:00", 0.3, 0.54)])
+    merged = merge_residual_archive(archive_rows_from_report(a), archive_rows_from_report(a))
+    assert len(merged) == 1
+    later = _report([("41113", "2026-07-28T02:00:00+00:00", 0.4, 0.55)])
+    merged = merge_residual_archive(merged, archive_rows_from_report(later))
+    assert len(merged) == 2          # a NEW observation time is new evidence
+
+
+def test_the_archive_prunes_by_age_and_never_grows_without_bound():
+    now = datetime(2026, 7, 28, tzinfo=timezone.utc)
+    old = (now - timedelta(days=120)).isoformat()
+    fresh = (now - timedelta(days=1)).isoformat()
+    entries = [{"buoy_id": "A", "buoy_time": old, "buoy_wvht_m": 1.0, "height_err_m": 0.1},
+               {"buoy_id": "B", "buoy_time": fresh, "buoy_wvht_m": 1.0, "height_err_m": 0.1}]
+    kept = merge_residual_archive(entries, [], now=now)
+    assert [r["buoy_id"] for r in kept] == ["B"]
+    many = [{"buoy_id": f"B{i}", "buoy_time": fresh, "buoy_wvht_m": 1.0, "height_err_m": 0.1}
+            for i in range(50)]
+    assert len(merge_residual_archive(many, [], now=now, max_entries=10)) == 10
+
+
+def test_a_malformed_time_is_dropped_not_kept_unorderable():
+    entries = [{"buoy_id": "A", "buoy_time": "not-a-time", "buoy_wvht_m": 1.0, "height_err_m": 0.1}]
+    assert merge_residual_archive(entries, []) == []
+
+
+def test_stratification_reproduces_the_measured_compression():
+    """The 2026-07-28 per-buoy measurement: over-predicts small, under-predicts big. Stratified on
+    the OBSERVATION — bucketing by the model's own value is how a compressing model is made to
+    look unbiased in every bucket."""
+    entries = ([{"buoy_id": f"s{i}", "buoy_time": "2026-07-28T01:00:00+00:00",
+                 "buoy_wvht_m": 0.3, "height_err_m": 0.237} for i in range(7)]
+               + [{"buoy_id": f"b{i}", "buoy_time": "2026-07-28T01:00:00+00:00",
+                   "buoy_wvht_m": 3.0, "height_err_m": -0.808} for i in range(2)])
+    bands = {(b["band_lo_m"], b["band_hi_m"]): b for b in stratified_height_bias(entries)}
+    assert bands[(0.0, 0.5)]["bias_m"] == 0.237
+    assert bands[(2.5, 10.0)]["bias_m"] == -0.808
+    # The aggregate hides it entirely — that is why a single bias number is the wrong instrument.
+    allerr = [e["height_err_m"] for e in entries]
+    assert abs(sum(allerr) / len(allerr)) < 0.06
+
+
+def test_thin_bands_are_named_so_a_two_sample_band_is_never_fitted():
+    """A table with n=2 looks identical to one with n=2000 unless the thin bands are called out."""
+    entries = [{"buoy_id": "a", "buoy_time": "2026-07-28T01:00:00+00:00",
+                "buoy_wvht_m": 3.0, "height_err_m": -0.8}]
+    summary = build_archive_summary(entries)
+    assert "not_yet_fittable" in summary
+    assert "2.5-10.0m (n=1, 1 buoys)" in summary["not_yet_fittable"]
+    assert summary["n_buoys"] == 1 and summary["n_entries"] == 1
+
+
+def test_many_rows_from_few_buoys_is_still_not_fittable():
+    """★ THE independence trap: a week of hourly runs gives the top band ~336 rows but STILL the
+    same 2 stations. Row count alone would call that fittable and calibrate every big-wave spot on
+    the planet to two buoys."""
+    entries = [{"buoy_id": f"b{i % 2}", "buoy_time": f"2026-07-{(i % 27) + 1:02d}T{i % 24:02d}:00:00+00:00",
+                "buoy_wvht_m": 3.0, "height_err_m": -0.8} for i in range(300)]
+    band = [b for b in stratified_height_bias(entries) if b["band_lo_m"] == 2.5][0]
+    assert band["n"] >= 30 and band["n_buoys"] == 2
+    assert "2.5-10.0m" in build_archive_summary(entries)["not_yet_fittable"]
+
+
+def test_every_band_is_reported_even_when_empty():
+    """A missing band must be visible as n=0, not absent — an absent band reads as 'no problem'."""
+    assert len(stratified_height_bias([])) == len(HEIGHT_BANDS)
+    assert all(b["n"] == 0 for b in stratified_height_bias([]))

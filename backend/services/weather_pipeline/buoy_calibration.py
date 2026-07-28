@@ -16,7 +16,7 @@ additive + flag-gated (BUOY_CALIBRATION) — it never changes a served rating.
 import logging
 import math
 import os
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 logger = logging.getLogger(__name__)
@@ -296,16 +296,16 @@ def fetch_buoy_spots_via_rest(limit: int = 5000) -> list:
     return resp.json()
 
 
-def upload_calibration_l2(store, obj) -> None:
+def upload_calibration_l2(store, obj, key: str = None) -> None:
     """Persist the calibration report to Supabase Storage L2 (same REST upload path as the grid products)."""
     import json
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
-    store._upload_to_supabase(BUOY_CALIBRATION_L2_KEY, data)
+    store._upload_to_supabase(key or BUOY_CALIBRATION_L2_KEY, data)
 
 
-def load_calibration_l2() -> Optional[dict]:
-    """Read the calibration report back from L2 via a self-contained Storage REST GET (mirrors the upload).
-    Returns the parsed report or None (missing / not configured / error)."""
+def load_calibration_l2(l2_key: str = None):
+    """Read a calibration object back from L2 via a self-contained Storage REST GET (mirrors the upload).
+    Returns the parsed object or None (missing / not configured / error)."""
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
@@ -313,12 +313,161 @@ def load_calibration_l2() -> Optional[dict]:
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
-        url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{BUOY_CALIBRATION_L2_KEY}"
+        url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or BUOY_CALIBRATION_L2_KEY}"
         resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
         return resp.json() if resp.status_code == 200 else None
     except Exception as e:
         logger.debug(f"[buoy-calibration] L2 load failed: {e}")
         return None
+
+
+# ── THE RESIDUAL ARCHIVE — the evidence a calibration curve needs and did not have ────────────
+#
+# `buoy_latest.json` is a SINGLE KEY, overwritten on every CI run, so exactly one snapshot exists at
+# any moment. Measured 2026-07-28 against the live report: 421 `spots` rows, but only **60 distinct
+# buoys**, and `_one_residual_per_buoy` is right that the buoy is the unit — 0 of 54 multi-spot
+# buoys had a model value that varied across its spots, so the per-spot rows carry LITERALLY NO
+# extra information about model skill.
+#
+# Stratifying that single snapshot by observed size gives:
+#
+#     observed   per-spot rows        per BUOY (real evidence)
+#     0.0-0.5    n= 95  +0.221        n= 7  +0.237
+#     0.5-1.0    n=146  +0.011        n=18  +0.028
+#     1.0-1.5    n=109  -0.099        n=22  -0.178
+#     1.5-2.5    n= 59  -0.004        n=10  -0.086
+#     2.5-10     n=  9  -0.870        n= 2  -0.808
+#
+# ★ The COMPRESSION is real — it survives deduplication. ⚠️ But the top band is **2 buoys**, not 9,
+# and an aggregate bias near zero (-0.072) hides the whole spread. A monotonic quantile map CANNOT
+# be fitted from that, and fitting one on the per-spot rows would weight Cape Canaveral 40x and
+# calibrate the global model to Florida.
+#
+# So the blocker is EVIDENCE, not method. This archive accumulates one row per buoy per observation
+# time across runs, which is what turns a 59-point snapshot into a distribution worth fitting.
+# NOTHING here changes a rating — it only records. Kill: BUOY_RESIDUAL_ARCHIVE=0.
+BUOY_RESIDUAL_ARCHIVE_KEY = "calibration/buoy_residual_archive.json"
+RESIDUAL_ARCHIVE_MAX_AGE_DAYS = 90      # a season of swell, so the big-wave bands can actually fill
+# ⚠️ Measured 2026-07-28: 175 B/row, 59 buoys per run. The ENTRY CAP binds long before the age
+# limit — 20000 rows is ~14 days of hourly runs, not 90 — and this object is downloaded AND
+# re-uploaded on every CI run, so the cap is a bandwidth budget as much as a storage one.
+# 20000 rows ≈ 3.4 MB; 40000 was 6.7 MB re-uploaded hourly for no extra statistical power.
+RESIDUAL_ARCHIVE_MAX_ENTRIES = 20000
+
+# Bands are the ones the 2026-07-26 and 2026-07-28 measurements both used, so the series stays
+# comparable to what is already recorded in the handoffs.
+HEIGHT_BANDS = ((0.0, 0.5), (0.5, 1.0), (1.0, 1.5), (1.5, 2.5), (2.5, 10.0))
+
+# When a band may be fitted. Both must hold: rows for statistical power, DISTINCT BUOYS for
+# independence. The 2026-07-28 snapshot had 2 rows AND 2 buoys in the top band; a week of hourly
+# runs would give it ~336 rows but STILL 2 buoys, and fitting that would calibrate every big-wave
+# spot on the planet to two stations.
+MIN_ROWS_TO_FIT = 30
+MIN_BUOYS_TO_FIT = 10
+
+
+def archive_rows_from_report(report) -> list:
+    """PURE: the archivable rows of a calibration report — ONE per distinct buoy.
+
+    Keyed later by (buoy_id, buoy_time), so re-running CI more often than NDBC reports (~hourly)
+    cannot double-count the same observation as though it were new evidence."""
+    rows, seen = [], set()
+    for entry in (report or {}).get("spots") or []:
+        bid, res = entry.get("buoy_id"), entry.get("residual") or {}
+        if bid is None or bid in seen:
+            continue
+        # A model value of exactly 0.0 against a real observation is a COVERAGE HOLE, not skill —
+        # 3 of 421 in the 2026-07-28 snapshot. Archiving it would teach the curve that the model
+        # under-predicts by the whole wave height.
+        if res.get("model_hs_m") in (None, 0.0) or res.get("buoy_wvht_m") is None:
+            continue
+        seen.add(bid)
+        rows.append({"buoy_id": bid, "buoy_time": entry.get("buoy_time"),
+                     "buoy_wvht_m": res.get("buoy_wvht_m"), "model_hs_m": res.get("model_hs_m"),
+                     "buoy_dpd_s": res.get("buoy_dpd_s"), "model_tp_s": res.get("model_tp_s"),
+                     "height_err_m": res.get("height_err_m"),
+                     "period_err_s": res.get("period_err_s")})
+    return rows
+
+
+def merge_residual_archive(existing, incoming, now=None,
+                           max_age_days: int = RESIDUAL_ARCHIVE_MAX_AGE_DAYS,
+                           max_entries: int = RESIDUAL_ARCHIVE_MAX_ENTRIES) -> list:
+    """PURE: append `incoming`, drop repeats of the SAME (buoy_id, buoy_time), prune by age and cap.
+
+    Tolerant of malformed rows: anything whose buoy_time will not parse is dropped rather than
+    allowed to poison the series with an unorderable entry."""
+    now = now or datetime.now(timezone.utc)
+    cutoff = now - timedelta(days=max_age_days)
+    merged, seen = [], set()
+    for row in list(existing or []) + list(incoming or []):
+        bid, bt = row.get("buoy_id"), row.get("buoy_time")
+        key = (bid, bt)
+        if bid is None or key in seen:
+            continue
+        parsed = _parse_iso(bt)
+        if parsed is None or parsed < cutoff:
+            continue
+        seen.add(key)
+        merged.append(row)
+    merged.sort(key=lambda r: _parse_iso(r.get("buoy_time")) or cutoff)
+    return merged[-max_entries:]
+
+
+def stratified_height_bias(entries, bands=HEIGHT_BANDS) -> list:
+    """PURE: per-band n / bias / MAE over archived residuals, keyed on the OBSERVED height.
+
+    ★ Stratify on the OBSERVATION, never the model's own value — bucketing by the prediction is how
+    a compressing model is made to look unbiased in every bucket."""
+    out = []
+    for lo, hi in bands:
+        rows = [r for r in entries or []
+                if isinstance(r.get("buoy_wvht_m"), (int, float))
+                and isinstance(r.get("height_err_m"), (int, float))
+                and lo <= r["buoy_wvht_m"] < hi]
+        errs = [r["height_err_m"] for r in rows]
+        # ⚠️ `n` is ROWS, `n_buoys` is INDEPENDENCE. Hourly rows from one buoy through a single
+        # swell are strongly autocorrelated — 48 rows from 2 stations is not 48 observations. A
+        # band is only worth fitting when BOTH are healthy, so both are reported.
+        row = {"band_lo_m": lo, "band_hi_m": hi, "n": len(errs),
+               "n_buoys": len({r.get("buoy_id") for r in rows})}
+        if errs:
+            row["bias_m"] = round(sum(errs) / len(errs), 4)
+            row["mae_m"] = round(sum(abs(e) for e in errs) / len(errs), 4)
+        out.append(row)
+    return out
+
+
+def _parse_iso(value):
+    """Lenient ISO-8601 parse to an aware datetime, or None."""
+    if not value:
+        return None
+    try:
+        dt = datetime.fromisoformat(str(value).replace("Z", "+00:00"))
+        return dt if dt.tzinfo else dt.replace(tzinfo=timezone.utc)
+    except Exception:
+        return None
+
+
+def build_archive_summary(entries) -> dict:
+    """What the archive currently PROVES — including how far it still is from fittable."""
+    times = sorted(t for t in (_parse_iso(r.get("buoy_time")) for r in entries or []) if t)
+    bands = stratified_height_bias(entries)
+    thin = [f"{b['band_lo_m']}-{b['band_hi_m']}m (n={b['n']}, {b['n_buoys']} buoys)"
+            for b in bands if b["n"] < MIN_ROWS_TO_FIT or b["n_buoys"] < MIN_BUOYS_TO_FIT]
+    summary = {"n_entries": len(entries or []),
+               "n_buoys": len({r.get("buoy_id") for r in entries or []}),
+               "first_obs": times[0].isoformat() if times else None,
+               "last_obs": times[-1].isoformat() if times else None,
+               "stratified_height_bias": bands}
+    if thin:
+        # ⚠️ Say it out loud. A stratified table with n=2 in a band looks exactly like one with
+        # n=2000 unless the thin bands are named, and that is how a 2-sample band becomes a
+        # shipped correction.
+        summary["not_yet_fittable"] = (
+            f"bands under {MIN_ROWS_TO_FIT} rows or {MIN_BUOYS_TO_FIT} distinct buoys — do NOT fit "
+            f"a curve through these: " + ", ".join(thin))
+    return summary
 
 
 _cal_cache = {"obj": None, "ts": 0.0}
@@ -350,7 +499,21 @@ def run_buoy_calibration() -> tuple:
     valid_time = _top_of_hour_utc().strftime("%Y-%m-%dT%H:00:00Z")
     resolver = _make_point_resolver()
     report = asyncio.run(calibrate_spots(resolver, spots, model, valid_time))
-    upload_calibration_l2(ProductStore(), report)
+    store = ProductStore()
+    # Accumulate the residual series BEFORE uploading, so the report can carry what the archive now
+    # proves. ⚠️ Wrapped: the archive is an ENRICHMENT of an already-working loop, so a Storage
+    # hiccup here must never cost the calibration report itself.
+    if os.environ.get("BUOY_RESIDUAL_ARCHIVE", "1") != "0":
+        try:
+            existing = load_calibration_l2(BUOY_RESIDUAL_ARCHIVE_KEY) or []
+            merged = merge_residual_archive(existing, archive_rows_from_report(report))
+            upload_calibration_l2(store, merged, BUOY_RESIDUAL_ARCHIVE_KEY)
+            report["archive"] = build_archive_summary(merged)
+            logger.info("[buoy-calibration] residual archive: %d entries across %d buoys.",
+                        len(merged), report["archive"]["n_buoys"])
+        except Exception as e:
+            logger.warning("[buoy-calibration] residual archive skipped (%s); report unaffected.", e)
+    upload_calibration_l2(store, report)
     mae = report.get("summary", {}).get("height_mae_m")
     logger.info("[buoy-calibration] uploaded L2: %d spots, height MAE %.3f m.", len(spots), mae or -1)
     return len(spots), mae
