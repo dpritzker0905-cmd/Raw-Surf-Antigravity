@@ -566,3 +566,46 @@ crowding. It is still blocked by the questions this measurement cannot answer �
   clustering at zoom and search-result ranking are still unverified BY EYE.
 * **Whether an EEA bathing-water site is a surf spot a surfer would want.** Density is fine; the
   editorial question is untouched.
+
+---
+
+## 13. ✅ CLOSED — asset landed, corrections verified end to end
+
+**Asset: 1386 / 1820 (76.2%)**, up from 1073/1515 (70.8%). Zero illegal bearings.
+
+### It took three attempts, and both guards were right to block the first two
+1. **`0.0 <= normal < 360.0` failed.** First fix (`8dcacefa`) wrapped `atan2` output — real
+   (`degrees(atan2(-1e-17,1.0)) % 360.0 == 360.0`) but **not the instance that fired**.
+2. **It failed again, identically.** The true root is `round(359.97, 1) -> 360.0`: the build ROUNDS
+   the bearing for storage, AFTER the wrap. ★ **The invariant has to be the LAST operation applied.**
+3. **A run emitted 0 of 1820** (total ERDDAP failure). The gate passed it VACUOUSLY and the commit
+   step committed it — only a `git push` race kept an empty asset out of `dev`. `write_is_safe()`
+   now refuses empty, or below 80% of the asset on disk.
+
+### The 9 corrections, verified against the rebuilt geometry
+All 9 moved from misplaced (>3 km from shore) to correctly placed, **0.14–1.30 km**:
+
+| | shoreline | verdict |
+|---|---|---|
+| Playa de la Pared | 0.16 km | accepted |
+| Cobquecura | 0.14 | accepted |
+| Nazaré | 0.29 | accepted |
+| La Puntilla | 0.47 | accepted |
+| Pease Bay | 0.71 | accepted |
+| La Herradura | 0.72 | accepted |
+| Cabo Blanco | 0.73 | accepted |
+| Pacasmayo | 0.98 | accepted |
+| Maitencillo | 1.30 | ambiguous_coastline — placed correctly, coastline genuinely ambiguous |
+
+8 now ship a fitted ETOPO bearing; all 9 are unflagged (`accuracy_flag='offset_adjusted'` retains
+the provenance). Rollback remains `surf_spots_coord_backup_20260727c`.
+
+## 14. NEXT
+1. **Forecast calibration — the biggest untouched lever.** Every INPUT improved this session
+   (geometry 70.8→76.2%, 9 coordinates, 305 spots); the OUTPUT number is still uncalibrated, with a
+   measured monotonic compression (**+0.206 → −0.230**) that needs **quantile mapping, not a single
+   bias number**. See [[measurement-revival-and-two-accuracy-roots-2026-07-26]].
+2. **The 155 remaining misplaced spots** — 75 have GNS proposals (27 MEDIUM, 39 LOW); 89 are
+   surf-only names needing `refinements.py`.
+3. **FR/ES/UK (2333)** — crowding is measured and NOT a blocker (0 dedupe violations, closest import
+   2.06 km). The remaining question is editorial, plus a visual map check nobody has done.
