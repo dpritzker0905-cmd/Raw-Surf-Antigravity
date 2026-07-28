@@ -46,8 +46,29 @@ from collections import Counter
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# ── THE DEDUPE IS TWO-TIER, AND IT USED TO BE ONE ─────────────────────────────────────────────
+# `DEDUPE_KM` alone let 2 duplicates into production on 2026-07-27, measured in the sweep the next
+# day: `COXOS` vs `Coxos` **2.17 km** apart, and `CONSOLAÇÃO` vs `Consolação` **3.20 km**. Both sit
+# just outside a 2 km radius, so a distance-only gate could never have caught them.
+#
+# ★ THE REASON IS STRUCTURAL, NOT A TUNING MISS: an official gazetteer's coordinate for a break
+# routinely sits 2-3 km from a surf catalogue's (the gazetteer names a BEACH, the catalogue names a
+# PEAK). Distance can therefore never separate "a new spot near an existing one" from "the same
+# break, pinned differently" — only the NAME can.
+#
+# So a candidate is refused if EITHER holds:
+#   1. anything at all within DEDUPE_KM             — too close to be a distinct spot
+#   2. a NAME MATCH within SAME_BREAK_KM            — the same break, pinned somewhere else
+#
+# ⚠️ `names_match` is deliberately LOOSE (it keeps `Jaws (Peahi)` matching `Peahi`). That is CORRECT
+# here: this is the duplicate GATE, where a false reject costs one missing candidate and a false
+# accept costs a permanent split of reports, ratings and search across two rows that both look real.
+# A coordinate CORRECTION needs the strict matcher instead — different job, different threshold
+# (see propose_spot_corrections.py, and the `Jaws (Peahi)` regression that lesson came from).
 DEDUPE_KM = 2.0
 PAGE = 1000
+
+from scripts.find_missing_spots import SAME_BREAK_KM, names_match  # noqa: E402
 
 
 def haversine_km(lat1, lng1, lat2, lng2):
@@ -55,6 +76,24 @@ def haversine_km(lat1, lng1, lat2, lng2):
     dp, dl = math.radians(lat2 - lat1), math.radians(lng2 - lng1)
     a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
     return 2 * 6371.0 * math.asin(math.sqrt(a))
+
+
+def duplicate_of(name, lat, lng, live_pts):
+    """PURE: the live spot this candidate duplicates, and whether the NAME is what caught it.
+
+    Returns (clashing_name | None, matched_by_name). The prefilter box is sized for the wider
+    SAME_BREAK_KM radius — a 0.05 deg box would exclude the very 2-8 km band this gate exists to
+    cover, which is how a distance-only check quietly stayed distance-only."""
+    box = SAME_BREAK_KM / 111.0 + 0.01
+    for other, la, lo in live_pts:
+        if la is None or lo is None or abs(la - lat) > box or abs(lo - lng) > box * 1.2:
+            continue
+        km = haversine_km(lat, lng, la, lo)
+        if km <= DEDUPE_KM:
+            return other, False
+        if km <= SAME_BREAK_KM and names_match(name, other):
+            return other, True
+    return None, False
 
 
 def fetch_live_spots(base, key):
@@ -116,13 +155,13 @@ def main():
     live_pts = [(s.get("name") or "", s.get("latitude"), s.get("longitude"))
                 for s in live if s.get("latitude") is not None]
 
-    payload, skipped = [], 0
+    payload, skipped, skipped_by_name = [], 0, []
     for r in keep:
-        clash = next((n for n, la, lo in live_pts
-                      if abs(la - r["lat"]) < 0.05 and abs(lo - r["lng"]) < 0.06
-                      and haversine_km(r["lat"], r["lng"], la, lo) <= DEDUPE_KM), None)
+        clash, name_clash = duplicate_of(r["name"], r["lat"], r["lng"], live_pts)
         if clash:
             skipped += 1
+            if name_clash:
+                skipped_by_name.append((r["name"], clash))
             continue
         src = r.get("source") or "open-data"
         lic = r.get("licence") or ""
@@ -142,7 +181,14 @@ def main():
                             f"Machine-proposed from open government data and validated against "
                             f"ETOPO 2022 bathymetry; placement not yet human-verified."),
         })
-    print(f"{skipped} skipped as already within {DEDUPE_KM} km of a live spot")
+    print(f"{skipped} skipped as duplicates ({DEDUPE_KM} km proximity, or a name match within "
+          f"{SAME_BREAK_KM} km)")
+    if skipped_by_name:
+        # Name the ones DISTANCE ALONE would have let through — that is the whole point of the
+        # second tier, and a silent count would hide whether it ever fires.
+        print(f"  {len(skipped_by_name)} of those were caught by NAME beyond {DEDUPE_KM} km:")
+        for cand, existing in skipped_by_name[:15]:
+            print(f"    {cand!r} -> already have {existing!r}")
     if args.limit:
         payload = payload[:args.limit]
     print(f"{len(payload)} would be inserted")

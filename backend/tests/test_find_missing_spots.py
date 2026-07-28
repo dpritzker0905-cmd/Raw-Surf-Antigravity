@@ -68,8 +68,25 @@ def test_empty_and_none_names_do_not_match():
 
 def test_normalisation_strips_decoration_and_accents():
     assert normalise_name("Jaws (Pe'ahi)") == {"jaws", "peahi"}
-    assert normalise_name("El Médano") == {"el", "medano"}
+    # `el` is dropped as of 2026-07-28 — articles carry no identity. "El Médano"/"El Medano" still
+    # match on {medano}, which is the pair that assertion was protecting.
+    assert normalise_name("El Médano") == {"medano"}
     assert normalise_name("The Point") == set()          # pure decoration -> nothing to match on
+
+
+def test_shared_connectives_alone_are_not_a_match():
+    """MEASURED false positive: replaying the EEA import rejected `MADALENA DO MAR` as a duplicate
+    of `Jardim do Mar` — two distinct Madeira villages — on the shared tokens {do, mar}. Iberian
+    and French coastal names are largely built from these, and the queued FR/ES expansion is 2333
+    of them."""
+    for a, b in (("MADALENA DO MAR", "Jardim do Mar"),
+                 ("Foz do Douro", "Vila do Conde"),
+                 ("Playa de la Concha", "Playa de las Canteras"),
+                 ("Plage des Dunes", "Plage du Sillon")):
+        assert names_match(a, b) is False, (a, b)
+    # ...while the real duplicates these names could hide still match.
+    assert names_match("MADALENA DO MAR", "Madalena do Mar") is True
+    assert names_match("Praia do Norte", "NORTE (NAZARE)") is True   # now caught; was missed
 
 
 def test_the_four_real_false_positives_fall_in_the_discrepancy_band():

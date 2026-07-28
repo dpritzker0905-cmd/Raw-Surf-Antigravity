@@ -60,7 +60,22 @@ def normalise_name(s):
     # (Pe'ahi, Ho'okipa, Ka'ena) out of the duplicate gate.
     for ch in ("'", "‘", "’", "ʻ", "`"):
         s = s.replace(ch, "")
-    drop = {"the", "beach", "point", "bay", "surf", "break", "spot", "praia", "playa", "plage"}
+    # Non-discriminating tokens. Two names sharing ONLY these denote nothing in common.
+    # ⚠️ The articles/prepositions were added 2026-07-28 after a measured false positive: replaying
+    # the EEA import through the duplicate gate rejected `MADALENA DO MAR` as a duplicate of
+    # `Jardim do Mar` — two distinct Madeira villages — because `{do, mar}` is two shared tokens and
+    # `len(ta & tb) >= 2` fired. Iberian and French coastal names are largely built from these, and
+    # the queued FR/ES/UK expansion is 2333 such candidates, so this is a correctness prerequisite
+    # for it rather than a tidy-up.
+    # ★ Adding to this set makes the matcher STRICTER, which for the duplicate GATE means "import
+    # more". That is the safe direction here only because each addition is a word that cannot
+    # identify a break; never add a token that could BE a spot name.
+    drop = {"the", "beach", "point", "bay", "surf", "break", "spot", "praia", "playa", "plage",
+            # articles + prepositions: pt/es/fr/it
+            "do", "da", "dos", "das", "de", "del", "la", "el", "los", "las", "le", "les",
+            "du", "des", "di", "al",
+            # generic water nouns, the same category as "beach"
+            "mar", "sea", "ocean", "plaja", "strand"}
     return {t for t in "".join(c if c.isalnum() else " " for c in s).split() if t and t not in drop}
 
 
