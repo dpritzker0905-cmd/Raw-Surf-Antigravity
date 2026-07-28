@@ -209,7 +209,94 @@ snapshot has ever existed. `2ff07b84` adds a rolling per-buoy residual archive (
 clear the gate, gate the result behind `RATING_OBS_GATE`, and remember the report weight K is a
 **KALMAN GAIN — derived, not chosen**.
 
-## 7. NEXT — the rest of the queue
+## 7. ★★★ THE DUPLICATE ARC — the tool that makes them, and the 47 that exist (`c91e9530`+`da25f7c4`)
+
+### 7a. The importer could not tell a new spot from the same break pinned elsewhere
+The 2026-07-27 import introduced 2 duplicates (`COXOS`/`Coxos` **2.17 km**,
+`CONSOLAÇÃO`/`Consolação` **3.20 km**) — both just OUTSIDE the 2.0 km radius, so a distance-only
+gate could never catch them. ★ **Structural, not a tuning miss:** a gazetteer names a BEACH, the
+catalogue names a PEAK, so their coordinates routinely differ by 2-3 km. **Only the name can
+separate "new spot nearby" from "same break, pinned differently."**
+
+⚠️ **The prefilter box was part of the bug** — 0.05° (~5.5 km) excludes the very 2-8 km band the
+name tier exists to cover. A test now walks the full radius.
+
+★★ **THE REPLAY FOUND A FALSE POSITIVE AND THAT WAS THE REAL FINDING.** Replaying the actual
+305-row import: the first attempt rejected **1** row — `MADALENA DO MAR` → `Jardim do Mar`, **two
+distinct Madeira villages**, collided on `{do, mar}` ("of the", "sea") via `len(ta & tb) >= 2`.
+`normalise_name` now drops Romance articles/prepositions and generic water nouns. After that:
+
+| | rejected by name | of |
+|---|---|---|
+| the real import replay | **0** | 303 |
+| `COXOS` / `CONSOLAÇÃO` at their real separations | **both caught** | 2 |
+
+⇒ **catches every real failure, loses no legitimate candidate.** This was a prerequisite for the
+queued FR/ES/UK expansion, whose 2333 candidates are largely built from those connectives.
+⚠️ Blast radius checked on all 3 consumers: SAME/DIFFERENT pairs hold; `Nazaré` → `NORTE (NAZARE)`
+now matches (an improvement — cross-validated by two authorities); the STRICT corrector still
+rejects `Jaws (Peahi)` → `Peahi`. **Loose gate, strict corrector — unchanged.**
+
+### 7b. `dedup_surf_spots.py` structurally cannot see them
+It groups with **SQL equality on `SurfSpot.name`**, so only BYTE-IDENTICAL names in the same state.
+`Teahupo'o` vs `Teahupoo` (**142 m**) is invisible to it. New `triage_duplicate_spots.py`
+(**review artefact, NEVER writes**) over the live 1818:
+
+| tier | n | meaning |
+|---|---|---|
+| **IDENTICAL** | **47** | same name after normalisation — the merge candidates |
+| VARIANT | 122 | one name contains the other — **needs a human** |
+| WEAK | 26 | |
+| DISTINCT_PEAKS | 82 | positional difference — **must NOT be merged** |
+
+47 pairs → **43 clusters** (41 pairs + 2 triples) → **45 rows removed, 1818 → 1773**. Median
+separation **2.14 km**, which is why a proximity sweep never found them. Several
+(`El Cotillo`/`Cotillo`, `Playa de Famara`/`Famara`, `Los Lobos`/`Lobos`) surfaced only *because*
+of 7a's stopword fix.
+
+★★ **CALIBRATION REJECTED MY FIRST DRAFT.** I listed feature nouns (`main`, `peak`, `bowl(s)`,
+`reef`, `inlet`) as positional, which classified three **already-adjudicated duplicates** as
+distinct peaks. **A surf name's feature noun is decoration; only its POSITION separates two peaks.**
+Digits are positional by construction, so numbered street grids generalise unenumerated.
+
+### 7c. ✅ MERGED IN PRODUCTION (owner-approved) — 1818 → 1773
+
+★★ **THE FK LIST IN `dedup_surf_spots.py` IS WRONG, AND I CHECKED BEFORE TRUSTING IT.** Queried
+`information_schema` instead: the real set is **23 tables, not 22** — the script is missing
+**`surf_log_entries`** (the user's logged surf sessions, and the table `report_calibration.py`
+matches against). ⚠️⚠️ **8 of the 23 are `ON DELETE CASCADE`** (`surf_reports`, `surf_alerts`,
+`spot_verifications`, `surf_passport_checkins`, `photographer_requests`, `spot_of_the_day`,
+`spot_refinements`, `spot_seo_metadata`), so a table missing from the re-parenting list does not
+merely detach rows — **it deletes them**. Fix the script's list before anyone runs it.
+
+Measured before writing: **all 88 cluster rows had ZERO child rows across all 23 FK tables**, so no
+re-parenting was needed at all and the merge reduced to a plain delete.
+
+**Survivor rule (deterministic, applied in SQL):** human-verified peak → `offset_adjusted` →
+NOT (`low_accuracy` or flagged) → longer description → older `created_at` → id.
+⇒ all **4 verified peaks survived** (`Playa de Famara`, `Los Lobos`, `Lacanau Ocean`,
+`Vieux Boucau`), **`Nazaré [offset_adjusted]` survived** over `Nazaré Beach`, and **all 4
+`low_accuracy` rows were deleted, none kept**.
+
+| | before | after |
+|---|---|---|
+| total rows | 1821 | **1776** |
+| active | 1818 | **1773** |
+| verified peaks | 55 | **55** (unchanged) |
+| `offset_adjusted` | 11 | **11** (unchanged) |
+| IDENTICAL pairs remaining | 47 | **0** |
+
+⚠️ `Teahupoo - End of the Road` correctly SURVIVES as a VARIANT — it is a real separate break 1.6 km
+from `Teahupo'o`, not a spelling of it.
+
+### ROLLBACK
+```sql
+INSERT INTO surf_spots SELECT * FROM surf_spots_dupe_backup_20260728 b
+  WHERE NOT EXISTS (SELECT 1 FROM surf_spots s WHERE s.id = b.id);
+```
+Snapshot `surf_spots_dupe_backup_20260728` holds all **1821** pre-merge rows.
+
+## 8. NEXT — the rest of the queue
 2. **The duplicate triage** over the 288 pre-existing name-matching pairs — `Teahupo'o` vs
    `Teahupoo` at **140 m** is the clearest single defect in the catalogue. Note the sim now
    *surfaces* same-name duplicates instead of hiding them, which makes this cheaper to work.

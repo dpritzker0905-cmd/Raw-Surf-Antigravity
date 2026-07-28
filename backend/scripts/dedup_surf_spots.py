@@ -37,7 +37,26 @@ from models import SurfSpot
 
 # -- FK tables that reference surf_spots.id --
 # Each entry: (table_name, column_name)
+#
+# ⚠️⚠️ THIS LIST WAS INCOMPLETE AND THE OMISSION WAS DATA-LOSS SHAPED. Verified against
+# `information_schema` on 2026-07-28: the database has **23** foreign keys onto `surf_spots`, and
+# `surf_log_entries.spot_id` — the user's logged surf SESSIONS, and the table
+# `report_calibration.py` matches predictions against — was missing here. A survivor merge that
+# skips a table does not leave it alone: **8 of the 23 constraints are ON DELETE CASCADE**
+# (surf_reports, surf_alerts, spot_verifications, surf_passport_checkins, photographer_requests,
+# spot_of_the_day, spot_refinements, spot_seo_metadata), so an unlisted child row is DELETED with
+# its parent, not merely detached.
+#
+# ★ Re-verify with this query before trusting the list again — a migration can add a table and this
+#   constant will not notice:
+#     SELECT tc.table_name, kcu.column_name, rc.delete_rule
+#       FROM information_schema.table_constraints tc
+#       JOIN information_schema.key_column_usage kcu USING (constraint_name, table_schema)
+#       JOIN information_schema.constraint_column_usage ccu USING (constraint_name, table_schema)
+#       JOIN information_schema.referential_constraints rc USING (constraint_name)
+#      WHERE tc.constraint_type='FOREIGN KEY' AND ccu.table_name='surf_spots';
 FK_REFERENCES = [
+    ("surf_log_entries",         "spot_id"),
     ("profiles",                 "current_spot_id"),
     ("spot_refinements",         "spot_id"),
     ("spot_verifications",       "spot_id"),
