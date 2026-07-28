@@ -408,3 +408,70 @@ def test_shelf_kf_floor_kill_switch_restores_the_unbounded_form():
             _os.environ.pop("SURF_SHELF_KF_FLOOR", None)
         else:
             _os.environ["SURF_SHELF_KF_FLOOR"] = prior
+
+
+# ── SPECTRAL (partition-resolved) SURF ESTIMATE (2026-07-29) ────────────────────────────────────
+# The chain was handed the TOTAL field: one blended height, one blended period. Measured live at
+# Mavericks, 86% of the energy was 6.75 s chop arriving 83 deg off the 15.7 s groundswell, and all
+# of it was shoaled as though it were the swell (served 6.95 ft vs 3.88 ft from the swell alone).
+
+def _P(h, tp, d=270.0, kind="swell"):
+    return {"h": h, "tp": tp, "dir": d, "kind": kind}
+
+
+def test_partitioned_returns_unknown_so_the_caller_falls_back():
+    """No usable partition must NOT be silently reported as flat — the caller needs to fall through
+    to the total field."""
+    for bad in (None, [], [{}], [_P(0.0, 14.0)], [_P(1.0, 0.0)], [{"h": None, "tp": None}], ["junk"]):
+        h, regime = st.estimate_surf_partitioned(bad, 30.0)
+        assert h is None and regime == "unknown", bad
+
+
+def test_a_single_partition_equals_the_plain_transform():
+    """One train must reproduce `estimate_surf` exactly — the spectral path adds no bias of its own."""
+    for hs, tp in ((0.6, 15.0), (1.5, 12.0), (2.5, 18.0)):
+        solo, _ = st.estimate_surf_partitioned([_P(hs, tp)], 40.0, shelf_width_km=20.0)
+        direct, _ = st.estimate_surf(hs, tp, 40.0, shelf_width_km=20.0, swell_from_deg=270.0)
+        assert solo == pytest.approx(direct)
+
+
+def test_chop_is_no_longer_shoaled_as_though_it_were_groundswell():
+    """THE defect, with the REAL measured Mavericks partitions (2026-07-28)."""
+    swell, windsea = _P(0.626, 15.74, 245.7), _P(1.572, 6.75, 304.5, "windsea")
+    total_h, total_tp = 1.661, 10.86                      # what the chain is handed today
+    blended, _ = st.estimate_surf(total_h, total_tp, 40.0, shelf_width_km=20.0, swell_from_deg=245.7)
+    spectral, _ = st.estimate_surf_partitioned([swell, windsea], 40.0, shelf_width_km=20.0)
+    assert spectral < blended, f"spectral {spectral} did not reduce the blended {blended}"
+    # The chop is KEPT, not dropped — it must still exceed the swell train alone.
+    swell_only, _ = st.estimate_surf(0.626, 15.74, 40.0, shelf_width_km=20.0, swell_from_deg=245.7)
+    assert spectral > swell_only, "wind sea was discarded rather than transformed"
+
+
+def test_quadrature_is_energy_additive_not_height_additive():
+    a, b = _P(1.0, 14.0), _P(1.0, 14.0)
+    one, _ = st.estimate_surf_partitioned([a], 40.0)
+    two, _ = st.estimate_surf_partitioned([a, b], 40.0)
+    assert two == pytest.approx(one * math.sqrt(2.0), rel=1e-6)   # sqrt(2), never 2x
+    assert two < 2.0 * one
+
+
+def test_period_ordering_survives_the_recombination():
+    """Same total energy, different period split: the long-period sea must transform bigger."""
+    longer, _ = st.estimate_surf_partitioned([_P(1.0, 18.0), _P(1.0, 16.0)], 40.0, shelf_width_km=20.0)
+    shorter, _ = st.estimate_surf_partitioned([_P(1.0, 6.0), _P(1.0, 5.0)], 40.0, shelf_width_km=20.0)
+    assert longer > shorter
+
+
+def test_partitioned_respects_the_depth_limited_cap():
+    """Recombining in quadrature must not push the sum back above a cap each train respected."""
+    big = [_P(4.0, 18.0), _P(3.0, 16.0), _P(2.0, 14.0)]
+    h, regime = st.estimate_surf_partitioned(big, 40.0, shelf_width_km=5.0, break_depth_m=3.0)
+    cap = st.breaker_index(18.0, slope=(40.0 / 5000.0)) * 3.0
+    assert h == pytest.approx(cap) and regime == "breaking"
+
+
+def test_each_partition_gets_its_own_shore_normal_exposure():
+    """A shadowed dominant swell must be penalised by its OWN bearing, not a blended mean."""
+    head_on = st.estimate_surf_partitioned([_P(1.5, 15.0, 270.0)], 40.0, shore_normal_deg=270.0)[0]
+    behind = st.estimate_surf_partitioned([_P(1.5, 15.0, 90.0)], 40.0, shore_normal_deg=270.0)[0]
+    assert behind < head_on

@@ -128,13 +128,31 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
 
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
-                     geometry: Optional[SurfGeometry] = None):
+                     geometry: Optional[SurfGeometry] = None, partitions=None):
     """Breaking surf height (m) + regime at a coordinate, from offshore Hs/Tp/direction.
 
     The full production chain. Pass a pre-resolved ``geometry`` to avoid repeating the lookups when
-    simulating many scenarios at one spot. Returns ``(surf_height_m|None, regime)``."""
-    from services.weather_pipeline.surf_transform import estimate_surf
+    simulating many scenarios at one spot. Returns ``(surf_height_m|None, regime)``.
+
+    ``partitions`` (optional list of {h, tp, dir, kind}) makes the estimate SPECTRAL: each swell
+    train is transformed on its own period and bearing, then recombined in quadrature
+    (`estimate_surf_partitioned`). This is ONE composition, not a second forecast path — absent or
+    unusable partitions fall through to the total-field call below, byte-identical to before. Supply
+    them wherever the caller already has swell_1 / swell_2 / wind_waves; see the measured
+    contamination in `estimate_surf_partitioned`'s docstring."""
+    from services.weather_pipeline.surf_transform import estimate_surf, estimate_surf_partitioned
     g = geometry if geometry is not None else resolve_surf_geometry(lat, lng)
+    if partitions:
+        h, regime = estimate_surf_partitioned(
+            partitions, g.depth_m,
+            coastal=g.coastal,
+            shelf_width_km=g.shelf_width_km,
+            shore_normal_deg=g.shore_normal_deg,
+            magnet_factor=g.magnet_factor,
+            break_depth_m=g.break_depth_m,
+        )
+        if h is not None:
+            return h, regime
     return estimate_surf(
         Hs_m, Tp_s, g.depth_m,
         coastal=g.coastal,

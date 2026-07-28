@@ -383,6 +383,72 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     return (float(H), 'shelf') if H <= Hs_m else (float(H), 'shoaling')
 
 
+def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
+                              shore_normal_deg=None, magnet_factor: float = 1.0, break_depth_m=None):
+    """SPECTRAL surf estimate: transform EACH swell train on its own, then recombine energetically.
+
+    ``partitions`` is a list of {h, tp, dir, kind} (kind 'swell'|'windsea'; every key None-safe) —
+    the same shape `surf_rating` already accepts. Returns ``(surf_height_m, regime)``, or
+    ``(None, 'unknown')`` when no partition is usable so the caller can fall back to the total field.
+
+    WHY THIS EXISTS — measured live against production on 2026-07-28:
+
+        spot              total Hs / Tp   swell_1 Hs / Tp   windsea Hs / Tp   served -> swell-only
+        Ocean Beach SF     1.579 / 12.0     0.637 / 14.1      1.628 / 6.75     7.25 -> 3.53 ft
+        Mavericks          1.661 / 10.9     0.626 / 15.7      1.572 / 6.75     6.95 -> 3.88 ft
+
+    The chain is handed the TOTAL field — one blended height with one blended period — so at
+    Mavericks 86% of the energy was 6.75 s chop arriving 83 deg off the groundswell, and all of it
+    was shoaled as though it were the 15.7 s swell. Transforming the total is not the same operation
+    as transforming the parts: `estimate_surf` is strongly NON-LINEAR in period (Komar's Hb goes as
+    Tp^0.4 and the depth-limited cap as breaker_index(Tp)), so a long-period swell amplifies hard
+    while short chop barely shoals. Splitting them is what makes the difference recoverable.
+
+    Recombination is in QUADRATURE (sqrt of summed squares) because wave energy is additive while
+    height is not — the same h**2 weighting `surf_rating`'s partition factors already use.
+
+    ⚠️ NOT a swap to `swell_1`. Measured, the partitions do not always reconcile with the total
+    (at Hossegor `swell_1` = 0.664 m EXCEEDED the total Hs = 0.571 m, which quadrature forbids), and
+    wind sea is genuinely part of the surf on a windy day — dropping it would under-predict. Every
+    train is transformed and kept; only their PERIODS are now honoured separately.
+
+    ⚠️ Each partition carries its own direction, so each gets its own shore-normal exposure factor
+    inside `estimate_surf` — a shadowed dominant swell is penalised by exactly its energy share
+    rather than by a blended mean bearing."""
+    if not partitions:
+        return None, 'unknown'
+    energy = 0.0
+    regimes = []
+    used = 0
+    for p in partitions:
+        if not isinstance(p, dict):
+            continue
+        h, tp = p.get("h"), p.get("tp")
+        if h is None or tp is None or h <= 0 or tp <= 0:
+            continue
+        hp, regime = estimate_surf(h, tp, depth_m, coastal=coastal, shelf_width_km=shelf_width_km,
+                                   swell_from_deg=p.get("dir"), shore_normal_deg=shore_normal_deg,
+                                   magnet_factor=magnet_factor, break_depth_m=break_depth_m)
+        if hp is None or hp <= 0:
+            continue
+        energy += float(hp) * float(hp)
+        regimes.append(regime)
+        used += 1
+    if used == 0 or energy <= 0.0:
+        return None, 'unknown'
+    h_total = math.sqrt(energy)
+    # The combined sea is still bounded by what the local depth can hold — recombining in quadrature
+    # can otherwise push the sum back above a cap each individual train respected.
+    if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
+        tp_ref = max((p.get("tp") or 0.0) for p in partitions if isinstance(p, dict))
+        _slope = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
+        cap = breaker_index(tp_ref, slope=_slope) * float(break_depth_m)
+        if h_total >= cap:
+            return float(cap), 'breaking'
+    # Report the regime of the most energetic train that actually transformed.
+    return float(h_total), (regimes[0] if len(set(regimes)) == 1 else 'shoaling')
+
+
 def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):
     """In-place SURF-BAND transform of a marine grid for the Swell<->Surf heatmap toggle.
 
