@@ -1,5 +1,4 @@
 import sqlite3
-import math
 import logging
 import os
 from datetime import datetime
@@ -8,13 +7,14 @@ from fastmcp import FastMCP
 from utils.sqlite_helpers import get_sqlite_connection
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file came to rate a flat ocean
-# "Epic". Both imports are dependency-free (no FastAPI/route side effects).
-from services.weather_pipeline.surf_rating import (
-    rating_score, score_to_level, offshoreness, MS_TO_KT, oversize_gate, oversize_thresholds,
+# "Epic". The COMPOSITION that feeds it (geometry resolution, the exposure frame, which optional
+# factors are passed) now lives in `sim_rating`, next to the other two rating surfaces so a parity
+# test can enumerate all three — this file was at 789 of the 800-line ratchet. Re-exported below
+# because the suite and `_warm_hot_path` read these names off this module.
+from services.weather_pipeline.sim_rating import (      # noqa: F401  (re-exported)
+    _GEOMETRY_CACHE, _sim_flag, calculate_surf_rating, geometry_payload as _geometry_payload,
+    reference_size_for, shore_normal_for, spot_geometry,
 )
-from services.weather_pipeline.surf_transform import komar_breaker_height
-from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
-from services.conditions_labels import get_conditions_label
 # The app's own /api/weather/point, so every catalog spot has a real forecast instead of the three
 # hand-tuned ones. Imported at module scope: it pulls urllib/ssl, and a C extension loaded lazily
 # inside a tool is what deadlocked this server (see `_warm_hot_path`). Kill: SIM_LIVE_FORECAST=0.
@@ -45,8 +45,6 @@ mcp = FastMCP("WeatherSimulationSystem")
 # Both are now resolved through `surf_point`, the single chain `point_resolution` also calls, so the
 # sim tracks production automatically instead of re-diverging on the next physics change.
 # Kill: SIM_PRODUCTION_GEOMETRY=0 restores the pre-07-27 raw-Komar behaviour.
-def _sim_flag(name: str, default: str = "1") -> bool:
-    return os.environ.get(name, default) != "0"
 
 
 # 1. Catalog defaults for the three hand-tuned spots. These carry a BASELINE forecast (the
@@ -90,188 +88,6 @@ def resolve_spot(spot_name: str) -> Optional[Dict[str, Any]]:
     return sim_spots.resolve(spot_name).spot
 
 
-_GEOMETRY_CACHE: Dict[Any, Any] = {}
-
-
-def spot_geometry(spot: Dict[str, Any]):
-    """Resolved production geometry for a spot, or None when unavailable/disabled.
-
-    Cached per coordinate — the bathymetry lookups are pure and a what-if sweep hits one spot
-    repeatedly."""
-    if not _sim_flag("SIM_PRODUCTION_GEOMETRY"):
-        return None
-    lat, lng = spot.get("latitude"), spot.get("longitude")
-    if lat is None or lng is None:
-        return None
-    key = (round(float(lat), 6), round(float(lng), 6))
-    if key not in _GEOMETRY_CACHE:
-        try:
-            _GEOMETRY_CACHE[key] = resolve_surf_geometry(float(lat), float(lng))
-        except Exception as e:
-            logger.warning(f"geometry resolution failed for {spot.get('name')}: {e}")
-            _GEOMETRY_CACHE[key] = None
-    return _GEOMETRY_CACHE[key]
-
-
-def shore_normal_for(spot: Dict[str, Any]) -> Optional[float]:
-    """THE one seaward bearing for this spot — resolved bathymetry, else the catalog fallback.
-
-    Every consumer in this module (wind class, swell alignment, the delegated rating, the height
-    exposure factor) reads it from here. `2851a598` already fixed one two-reference-frame bug in
-    this file (wind class keyed off `optimal_wind_dir` while the score keyed off `orientation`);
-    `swell_alignment_pct` still had the same defect against `optimal_swell_dir` — it reported 100%
-    alignment for a Mavericks swell the engine was scoring at 42% — so both are gone and there is
-    one frame."""
-    geo = spot_geometry(spot)
-    if geo is not None and geo.shore_normal_deg is not None:
-        return float(geo.shore_normal_deg)
-    o = spot.get("orientation")
-    return float(o) if o is not None else None
-
-
-def reference_size_for(spot: Dict[str, Any]) -> Optional[float]:
-    """Local size reference, gated on the SAME flag production gates it on. Off (the default) means
-    the global 1.2 m curve — exactly what the app is serving today."""
-    if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
-        return None
-    return spot.get("reference_size_m")
-
-
-# 3. Core Physics and Weather Calculation Engine
-def calculate_surf_rating(
-    spot: Dict[str, Any],
-    swell_h: float,
-    swell_p: float,
-    swell_dir: float,
-    wind_spd: float,
-    wind_dir: float
-) -> Dict[str, Any]:
-    """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
-
-    Delegates BOTH the physics and its composition to production (`surf_point.estimate_surf_at` ->
-    `surf_transform.estimate_surf`, and `surf_rating.rating_score`), so the number this returns is
-    the number the app would show at that coordinate.
-    """
-    shore_normal = shore_normal_for(spot)
-    geo = spot_geometry(spot)
-
-    # 1. Nearshore breaking height — the FULL production chain, not just Komar.
-    # Raw `komar_breaker_height(Hs, Tp)` skips cross-shelf bottom friction, the swell-angle
-    # exposure factor, sub-grid magnets and the depth-limited breaking cap. Measured 2026-07-27
-    # that omission over-read the served height by a median 19.1% (max +39.2%).
-    regime = "estimate"
-    breaking_height = None
-    if geo is not None:
-        try:
-            breaking_height, regime = estimate_surf_at(
-                float(spot["latitude"]), float(spot["longitude"]),
-                swell_h, swell_p, swell_from_deg=swell_dir, geometry=geo)
-        except Exception as e:
-            logger.warning(f"estimate_surf_at failed for {spot.get('name')}: {e}")
-            breaking_height = None
-    if breaking_height is None:
-        # No geometry (kill switch, missing coords, open-ocean/unknown regime) -> the previous
-        # deep-water-only estimate. Never a crash, never a silent zero for a real swell.
-        breaking_height = komar_breaker_height(swell_h, swell_p)
-        if breaking_height is None:      # non-physical input (h<=0 or Tp<=0) -> flat
-            breaking_height, regime = 0.0, "calm"
-        elif geo is None:
-            regime = "deep_water_estimate"
-
-    # 2. Wind CLASS — derived from the SAME reference frame the delegated score uses, so the label
-    # persisted to condition_reports.wind_conditions cannot contradict the score. Thresholds are the
-    # exact equivalents of the old angular ones (wind_diff < 45 deg <=> offshoreness > cos45).
-    _off = offshoreness(wind_dir, shore_normal)
-    if wind_spd < 3.0:
-        wind_label = "Glassy"
-    elif _off is None:
-        wind_label = "Sideshore"          # unknown geometry -> the neutral class
-    elif _off > 0.7071:
-        wind_label = "Offshore"
-    elif _off < -0.7071:
-        wind_label = "Onshore"
-    else:
-        wind_label = "Sideshore"
-
-    # 3. Swell alignment — reported against the SAME shore normal (see shore_normal_for).
-    if shore_normal is None:
-        swell_alignment = 1.0             # unknown geometry fails OPEN, as the height factor does
-    else:
-        swell_diff = abs((swell_dir - shore_normal + 180) % 360 - 180)
-        swell_alignment = max(0.1, math.cos(math.radians(swell_diff)))
-
-    breaking_height_ft = round(breaking_height * 3.28084, 1)  # metres to feet
-
-    # 4. Final Wave Quality Rating (0 to 100) — DELEGATED to the production engine, whose
-    # multiplicative size_gate is 0 below the rideability floor, so flat is 0 by construction.
-    # `break_depth_m` is the oversize gate's spot-capacity signal: a big-wave spot must keep its
-    # ceiling (Mavericks reads 22.1 m => it can hold ~57 ft) rather than inherit the generic one.
-    _break_depth = geo.break_depth_m if geo is not None else None
-    quality_score = rating_score(
-        breaking_height,                      # nearshore BREAKING height, metres
-        swell_p,
-        wind_spd / MS_TO_KT,                  # engine wants m/s; sim inputs are knots
-        wind_from_deg=wind_dir,
-        shore_normal_deg=shore_normal,
-        swell_from_deg=swell_dir,
-        reference_size_m=reference_size_for(spot),
-        break_depth_m=_break_depth,
-    )
-    quality_label = score_to_level(quality_score)
-
-    # 4b. SIZE VERDICT — say out loud when the surf is past rideable, instead of leaving the caller
-    # to infer it from a number that merely got smaller. Before the oversize veto shipped
-    # (2026-07-29) the rating SATURATED: 4 / 12 / 25 / 35 ft all scored 97.3 "epic", so a closeout
-    # and a groomed head-high day were indistinguishable in this payload. The veto fixes the score;
-    # this field makes the REASON legible — a low score from 40 kt of onshore slop and a low score
-    # from 35 ft of unrideable closeout are different answers to "should I paddle out?".
-    _ref = reference_size_for(spot)
-    _og = oversize_gate(breaking_height, _ref, break_depth_m=_break_depth)
-    _over_start, _over_floor = oversize_thresholds(_ref, _break_depth)
-    if _og >= 1.0:
-        size_verdict = "within_range"
-    elif _og <= 0.35:
-        size_verdict = "too_big_to_ride"
-    else:
-        size_verdict = "at_the_upper_limit"
-
-    # 5. `conditions_label` is the app's SIZE ladder, not a quality verdict. Every other writer
-    # emits "Waist High"/"Chest High"/…, and SpotHubConditionsTab.js keys a colour map on those
-    # exact strings — an off-vocabulary value silently renders grey. The verdict travels in its own
-    # `quality_label` field instead of overloading this one.
-    return {
-        "breaking_height_ft": breaking_height_ft,
-        "surf_regime": regime,
-        "quality_rating": quality_score,
-        "quality_label": quality_label,
-        "size_verdict": size_verdict,
-        "rideable_ceiling_ft": round(_over_start * 3.28084, 1),
-        "conditions_label": get_conditions_label(breaking_height_ft),
-        "wind_class": wind_label,
-        "swell_alignment_pct": round(swell_alignment * 100, 0),
-        "shore_normal_deg": shore_normal,
-        "shore_normal_source": geo.shore_normal_src if geo is not None else "catalog_fallback",
-    }
-
-
-def _geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
-    """The resolved bathymetry for a spot — what makes the estimate spot-specific."""
-    geo = spot_geometry(spot)
-    if geo is None:
-        return {"resolved": False, "shore_normal_deg": shore_normal_for(spot),
-                "shore_normal_source": "catalog_fallback"}
-    return {
-        "resolved": True,
-        "shore_normal_deg": geo.shore_normal_deg,
-        "shore_normal_source": geo.shore_normal_src,
-        "shelf_depth_m": geo.depth_m,
-        "shelf_width_km": round(geo.shelf_width_km, 2) if geo.shelf_width_km else geo.shelf_width_km,
-        "break_depth_m": geo.break_depth_m,
-        "coastal": geo.coastal,
-        "nearshore": geo.nearshore,
-        "magnet_factor": geo.magnet_factor,
-    }
-
 
 def _baseline_with_source(spot: Dict[str, Any], valid_time: Optional[str] = None
                           ) -> Tuple[Optional[Dict[str, float]], str, Dict[str, Any]]:
@@ -314,6 +130,27 @@ def _baseline_with_source(spot: Dict[str, Any], valid_time: Optional[str] = None
 def _baseline_for(spot: Dict[str, Any]) -> Optional[Dict[str, float]]:
     """The spot's current baseline weather vector, or None when nothing has established one."""
     return _baseline_with_source(spot)[0]
+
+
+def _parse_valid_time(valid_time: str) -> Tuple[str, Optional[Dict[str, Any]]]:
+    """Normalise a requested hour to the top of the hour, or explain why it can't be.
+
+    Returns ``(hour, None)`` on success and ``("", {"error": ...})`` on a malformed value.
+
+    ⚠️ Validate BEFORE dialling. The hour is interpolated into a URL, and a malformed value would
+    spend the full timeout to come back empty — indistinguishable from "no data at this spot".
+    Shared by both tools that take an hour so they cannot disagree about what one means."""
+    hour = (valid_time or "").strip()
+    if not hour:
+        return "", None
+    try:
+        parsed = datetime.strptime(hour, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return "", {"error": f"valid_time must be ISO-8601 UTC like '2026-07-29T15:00:00Z', "
+                             f"got {valid_time!r}."}
+    # The products are HOURLY frames; a sub-hour request silently snaps, so snap it here and say
+    # what was actually asked for.
+    return parsed.replace(minute=0, second=0).strftime("%Y-%m-%dT%H:%M:%SZ"), None
 
 
 # 4. FastMCP Tools
@@ -390,18 +227,9 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
         valid_time: Optional ISO-8601 UTC hour to forecast, e.g. '2026-07-29T15:00:00Z'.
             Empty means the current hour. The app serves frames out to about 7 days ahead.
     """
-    # ⚠️ Validate before dialling. The hour is interpolated into a URL, and a malformed value would
-    # spend the full timeout to come back empty — indistinguishable from "no data at this spot".
-    hour = (valid_time or "").strip()
-    if hour:
-        try:
-            parsed = datetime.strptime(hour, "%Y-%m-%dT%H:%M:%SZ")
-        except ValueError:
-            return {"error": f"valid_time must be ISO-8601 UTC like '2026-07-29T15:00:00Z', "
-                             f"got {valid_time!r}."}
-        # The products are HOURLY frames; a sub-hour request silently snaps, so snap it here and
-        # say what was actually asked for.
-        hour = parsed.replace(minute=0, second=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+    hour, err = _parse_valid_time(valid_time)
+    if err:
+        return err
 
     found = sim_spots.resolve(spot_name)
     if found.candidates:
@@ -459,24 +287,36 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
 @mcp.tool
 def simulate_weather_change(
     spot_name: str,
-    wind_speed_knots: float,
-    wind_direction_deg: float,
-    swell_height_m: float,
-    swell_period_sec: float,
-    swell_direction_deg: float,
-    caller_role: str = "surfer"
+    wind_speed_knots: Optional[float] = None,
+    wind_direction_deg: Optional[float] = None,
+    swell_height_m: Optional[float] = None,
+    swell_period_sec: Optional[float] = None,
+    swell_direction_deg: Optional[float] = None,
+    caller_role: str = "surfer",
+    valid_time: str = "",
 ) -> Dict[str, Any]:
     """Simulates how changing weather and swell vectors will alter wave quality and surf height.
 
+    OMIT any input to hold the REAL forecast's value for it. That is what makes this a what-if
+    rather than a quiz: "what if the wind swung offshore at dawn on Thursday" is one wind field and
+    an hour, not five numbers the asker would have to look up and retype — and retyping four of them
+    by hand is how a "what-if" quietly becomes a different sea state than the one being asked about.
+    When a baseline is in hand the answer carries `baseline_delta`: what changed, and what it did to
+    the rating.
+
     Args:
         spot_name: The name of the spot to simulate.
-        wind_speed_knots: The simulated wind speed in knots (0.0 to 150.0).
-        wind_direction_deg: The simulated wind direction in degrees (0.0 to 360.0).
-        swell_height_m: The simulated ocean swell height in meters (0.0 to 50.0).
-        swell_period_sec: The simulated swell period in seconds (0.0 to 30.0).
-        swell_direction_deg: The simulated swell direction in degrees (0.0 to 360.0).
+        wind_speed_knots: Simulated wind speed in knots (0.0 to 150.0). Omit to keep the forecast's.
+        wind_direction_deg: Simulated wind direction in degrees (0.0 to 360.0). Omit to keep it.
+        swell_height_m: Simulated OFFSHORE swell height in metres (0.0 to 50.0). Omit to keep it.
+            ⚠️ This is the offshore significant wave height, the same quantity the model carries —
+            NOT the breaking height. The breaking height is what comes BACK, in `breaking_height_ft`.
+        swell_period_sec: Simulated swell period in seconds (0.0 to 30.0). Omit to keep it.
+        swell_direction_deg: Simulated swell direction in degrees (0.0 to 360.0). Omit to keep it.
         caller_role: The role of the calling user. Any role may run the WHAT-IF; only 'admin' may
             persist it to condition_reports and stage it as the spot's baseline.
+        valid_time: Optional ISO-8601 UTC hour to simulate, e.g. '2026-07-31T15:00:00Z'. Empty means
+            the current hour. The app serves frames out to about 7 days ahead.
     """
     # ⚠️ `caller_role` is an ordinary caller-supplied string, NOT authentication. This is a local
     # sandbox gate; it is not the app's auth pattern (that is the JWT get_current_user_id checks).
@@ -492,23 +332,12 @@ def simulate_weather_change(
     # `persisted: false`, and every write below stays exactly as gated as it was.
     may_mutate = caller_role == "admin"
 
-    # Verify parameter ranges to prevent database corruption and bad calculations
-    for label, value, lo, hi in (
-        ("wind speed", wind_speed_knots, 0.0, 150.0),
-        ("wind direction", wind_direction_deg, 0.0, 360.0),
-        ("swell height", swell_height_m, 0.0, 50.0),
-        ("swell period", swell_period_sec, 0.0, 30.0),
-        ("swell direction", swell_direction_deg, 0.0, 360.0),
-    ):
-        if not (lo <= value <= hi):
-            unit = {"wind speed": "knots", "wind direction": "degrees", "swell height": "meters",
-                    "swell period": "seconds", "swell direction": "degrees"}[label]
-            return {
-                "success": False,
-                "error": (f"Invalid {label}: {value} {unit}. "
-                          f"Must be between {lo} and {hi} {unit}.")
-            }
+    hour, err = _parse_valid_time(valid_time)
+    if err:
+        return {"success": False, **err}
 
+    # The spot must resolve BEFORE the inputs are checked: an omitted input is filled from that
+    # spot's forecast, so there is nothing to validate until we know which spot (and which hour).
     found = sim_spots.resolve(spot_name)
     if found.candidates:
         return {"success": False, **sim_spots.ambiguity_error(spot_name, found.candidates)}
@@ -517,6 +346,73 @@ def simulate_weather_change(
         return {"success": False,
                 "error": f"Spot '{spot_name}' not found in the catalog.",
                 "hint": "Call get_surf_spots(query=...) to search by name."}
+
+    requested = {
+        "wind_speed_knots": wind_speed_knots,
+        "wind_direction_deg": wind_direction_deg,
+        "swell_height_m": swell_height_m,
+        "swell_period_sec": swell_period_sec,
+        "swell_direction_deg": swell_direction_deg,
+    }
+    omitted = [k for k, v in requested.items() if v is None]
+
+    # ⚠️ FETCH ONLY WHEN THE ANSWER DEPENDS ON IT. With all five supplied and no hour named, this
+    # tool did zero network I/O and must keep doing zero — an unconditional fetch here is the
+    # regression `576dcbdd` fixed. Omitting an input, or naming an hour, is the caller opting IN to
+    # the forecast-anchored mode and accepting its cost; otherwise we only PEEK the cache, which is
+    # a hit whenever get_weather_forecast was already asked about this spot and hour.
+    if omitted or hour:
+        baseline, baseline_source, provenance = _baseline_with_source(spot, hour or None)
+    else:
+        peeked = sim_forecast.peek_live_forecast(
+            float(spot["latitude"]), float(spot["longitude"])) if spot.get("latitude") is not None else None
+        override = _SIM_OVERRIDES.get(spot.get("name", ""))
+        if override:
+            baseline, baseline_source, provenance = dict(override), "simulated_override", {}
+        elif peeked and peeked[0] is not None:
+            baseline, baseline_source, provenance = peeked[0], "live_forecast", peeked[1]
+        else:
+            baseline, baseline_source, provenance = None, "none", {}
+
+    if omitted and baseline is None:
+        # Say WHICH fields could not be filled and WHY, rather than failing with a bare null or —
+        # far worse — inventing a calm sea for them. An invented wind is exactly how a blown-out day
+        # reads clean.
+        return {
+            "success": False,
+            "error": (f"Cannot fill {', '.join(omitted)} from the forecast: "
+                      f"{provenance.get('reason', 'no forecast is available for this spot')}."),
+            "hint": "Supply every input explicitly to run a self-contained what-if.",
+            "spot": spot["name"],
+            "requested_valid_time": hour or "now",
+        }
+
+    resolved = {k: (baseline[k] if v is None else v) for k, v in requested.items()}
+
+    # Verify parameter ranges to prevent database corruption and bad calculations. Checked on the
+    # RESOLVED values — a forecast-filled field is as capable of being out of range as a typed one.
+    for label, key, lo, hi, unit in (
+        ("wind speed", "wind_speed_knots", 0.0, 150.0, "knots"),
+        ("wind direction", "wind_direction_deg", 0.0, 360.0, "degrees"),
+        ("swell height", "swell_height_m", 0.0, 50.0, "meters"),
+        ("swell period", "swell_period_sec", 0.0, 30.0, "seconds"),
+        ("swell direction", "swell_direction_deg", 0.0, 360.0, "degrees"),
+    ):
+        value = resolved[key]
+        if not (lo <= value <= hi):
+            return {
+                "success": False,
+                "error": (f"Invalid {label}: {value} {unit}. "
+                          f"Must be between {lo} and {hi} {unit}."),
+                **({"note": f"that value came from the forecast, not from the caller"}
+                   if key in omitted else {}),
+            }
+
+    wind_speed_knots = resolved["wind_speed_knots"]
+    wind_direction_deg = resolved["wind_direction_deg"]
+    swell_height_m = resolved["swell_height_m"]
+    swell_period_sec = resolved["swell_period_sec"]
+    swell_direction_deg = resolved["swell_direction_deg"]
 
     calc = calculate_surf_rating(
         spot,
@@ -570,10 +466,45 @@ def simulate_weather_change(
             "wind_direction_deg": wind_direction_deg,
         }
 
+    # ── WHAT THE CHANGE DID, not just what the result was ────────────────────────────────────
+    # A what-if that reports only its own absolute outcome makes the caller re-derive the answer to
+    # the question they actually asked. "12 ft, fair" does not say whether the swung wind HELPED.
+    # Computing the baseline's rating is pure arithmetic on a vector already in hand — no extra I/O
+    # — and `calculate_surf_rating` caches geometry per coordinate, so the second call reuses the
+    # first's bathymetry (CLAUDE.md: resolve geometry ONCE per coordinate and reuse it).
+    baseline_delta = None
+    if baseline is not None:
+        base_calc = calculate_surf_rating(
+            spot, baseline["swell_height_m"], baseline["swell_period_sec"],
+            baseline["swell_direction_deg"], baseline["wind_speed_knots"],
+            baseline["wind_direction_deg"])
+        changed = {k: {"from": round(float(baseline[k]), 2), "to": round(float(resolved[k]), 2)}
+                   for k in requested if abs(float(baseline[k]) - float(resolved[k])) > 1e-9}
+        baseline_delta = {
+            "baseline_source": baseline_source,
+            "held_from_forecast": omitted,
+            "changed": changed,
+            "breaking_height_ft": {"from": base_calc["breaking_height_ft"],
+                                   "to": calc["breaking_height_ft"],
+                                   "delta": round(calc["breaking_height_ft"]
+                                                  - base_calc["breaking_height_ft"], 1)},
+            "quality_rating": {"from": base_calc["quality_rating"], "to": calc["quality_rating"],
+                               "delta": round(calc["quality_rating"]
+                                              - base_calc["quality_rating"], 1)},
+            "quality_label": {"from": base_calc["quality_label"], "to": calc["quality_label"]},
+            "verdict": ("no change" if not changed else
+                        "better" if calc["quality_rating"] > base_calc["quality_rating"] else
+                        "worse" if calc["quality_rating"] < base_calc["quality_rating"] else
+                        "same rating"),
+        }
+        if baseline_source == "live_forecast" and provenance.get("valid_time"):
+            baseline_delta["valid_time"] = provenance["valid_time"]
+
     return {
         "success": True,
         "simulation_type": "weather_vector_override" if may_mutate else "what_if",
         "spot": spot["name"],
+        "requested_valid_time": hour or "now",
         "spot_source": found.identity_source,
         "persisted": may_mutate,
         "database_updated": db_updated,
@@ -581,6 +512,9 @@ def simulate_weather_change(
             "What-if only: nothing was written to condition_reports and no override was staged. "
             "Pass caller_role='admin' to persist this vector as the spot's baseline.")}),
         "geometry": _geometry_payload(spot),
+        # The RESOLVED vector — what was actually simulated. A forecast-filled field appears here
+        # exactly like a typed one, and `baseline_delta.held_from_forecast` names which were which,
+        # so the caller can always tell the two apart.
         "input_parameters": {
             "wind_speed_knots": wind_speed_knots,
             "wind_direction_deg": wind_direction_deg,
@@ -588,7 +522,8 @@ def simulate_weather_change(
             "swell_period_sec": swell_period_sec,
             "swell_direction_deg": swell_direction_deg
         },
-        "simulated_surf_output": calc
+        "simulated_surf_output": calc,
+        **({"baseline_delta": baseline_delta} if baseline_delta else {}),
     }
 
 

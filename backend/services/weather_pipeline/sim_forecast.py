@@ -187,6 +187,22 @@ def fetch_point(domain: str, layer: str, lat: float, lng: float,
         return None
 
 
+def peek_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
+                       ) -> Optional[Tuple[Optional[Dict[str, float]], Dict[str, Any]]]:
+    """The cached forecast for this coordinate/hour, or None. NEVER dials.
+
+    ★ Exists so a caller can enrich an answer with the real forecast when it is already in hand,
+    WITHOUT taking on a network dependency it did not previously have. `simulate_weather_change`
+    used to make zero requests; putting an unconditional fetch on that path is precisely the
+    regression `576dcbdd` fixed (measured 42.2 s of blocking, past where an MCP client reports a
+    TIMEOUT rather than an answer). A cache peek costs nothing and is a hit on the common flow,
+    because asking for the forecast and then asking a what-if about it share this key."""
+    if os.environ.get("SIM_LIVE_FORECAST", "1") == "0":
+        return None
+    key = (round(float(lat), 4), round(float(lng), 4), valid_time or current_valid_time())
+    return _FORECAST_CACHE.get(key)
+
+
 def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
                         ) -> Tuple[Optional[Dict[str, float]], Dict[str, Any]]:
     """The app's forecast at a coordinate, for `valid_time` or the current hour.
