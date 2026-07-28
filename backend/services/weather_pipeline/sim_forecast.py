@@ -43,6 +43,7 @@ import urllib.parse
 # C extension inside a worker thread is what deadlocked the sim MCP server's first tool call on
 # 2026-07-27 (see `weather_sim_mcp._warm_hot_path`). Imported HERE, never inside a function.
 import urllib.request
+from collections import OrderedDict
 from datetime import datetime, timezone
 from typing import Any, Dict, Optional, Tuple
 
@@ -83,19 +84,51 @@ def _mark_up() -> None:
 
 # Keyed by (lat, lng, valid_time), the valid_time being the top of the hour. A what-if sweep hits
 # one spot repeatedly and must not re-fetch.
-# ⚠️ This used to claim entries "expire on their own as the hour turns". THEY DO NOT — the KEY
-# changes, so a stale entry merely becomes unreachable and is never freed. A server sweeping the
-# 1818-spot catalogue hour after hour would grow this without bound. `_remember` prunes, which is
-# what makes the claim true.
-_FORECAST_CACHE: Dict[Any, Any] = {}
+# ⚠️ Entries do NOT expire on their own as the hour turns — the KEY changes, so a stale entry merely
+# becomes unreachable and is never freed. A server sweeping the 1818-spot catalogue hour after hour
+# would grow this without bound. `_remember` is what keeps that true.
+#
+# ★ IT USED TO KEEP EXACTLY ONE HOUR, dropping every other hour on each store. That bounded it, but
+# it made a TIME SERIES the one access pattern the cache actively defeats: each frame evicted the
+# previous one, so walking forward through hours re-fetched every step AND re-fetched all of them
+# again on a second pass. Measured 2026-07-30 at Mavericks, 16 frames at a 3-h step: 19.8 s cold,
+# and a second identical pass still cost 6.2 s having cached nothing reusable. `valid_time` is what
+# makes these tools a FORECAST rather than a nowcast, so the series is the point, not an edge case.
+#
+# Bounded FIFO instead: insertion-ordered, oldest evicted first (NOT an LRU — a read does not
+# refresh position; saying so because a comment in this repo once claimed LRU for a FIFO and cost a
+# session to disprove). Fetching a series forward in time therefore evicts the past hours first,
+# which is exactly the right order. ~1 KB an entry, so the default cap is well under a megabyte.
+_FORECAST_CACHE_MAX = int(os.environ.get("SIM_FORECAST_CACHE_MAX", "256"))
+# ⚠️ A TTL IS NOW LOAD-BEARING AND WAS NOT BEFORE. Wiping every other hour on each store gave
+# freshness by accident: nothing could outlive the hour it was fetched in. Holding many hours means
+# an entry for a FUTURE hour would otherwise survive the next ingest and serve a forecast from a
+# superseded model run — the provenance block would even stamp it with the old `run_time`, which is
+# worse than a miss because it looks authoritative. Core ingest is every 4 h; an hour is well inside
+# that and a forecast does not meaningfully move within one.
+_FORECAST_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_CACHE_TTL_S", "3600"))
+_FORECAST_CACHE: "OrderedDict[Any, Any]" = OrderedDict()
 
 
 def _remember(key: Any, out: Any) -> None:
-    """Store this hour's answer and drop every other hour's — see the warning above."""
-    valid_time = key[2]
-    for stale in [k for k in _FORECAST_CACHE if k[2] != valid_time]:
-        del _FORECAST_CACHE[stale]
-    _FORECAST_CACHE[key] = out
+    """Store an answer, stamped, and keep the cache bounded — see the warning above."""
+    _FORECAST_CACHE[key] = (time.monotonic(), out)
+    _FORECAST_CACHE.move_to_end(key)
+    while len(_FORECAST_CACHE) > max(1, _FORECAST_CACHE_MAX):
+        _FORECAST_CACHE.popitem(last=False)
+
+
+def _recall(key: Any):
+    """The cached answer for this key, or None when absent or expired. Drops what it expires, so a
+    coordinate that is asked about once and never again cannot pin an entry forever."""
+    hit = _FORECAST_CACHE.get(key)
+    if hit is None:
+        return None
+    stamped_at, out = hit
+    if time.monotonic() - stamped_at > _FORECAST_CACHE_TTL_S:
+        del _FORECAST_CACHE[key]
+        return None
+    return out
 
 
 # ── THE CATALOGUE, from the app rather than a local snapshot ─────────────────────────────────
@@ -200,7 +233,7 @@ def peek_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
     if os.environ.get("SIM_LIVE_FORECAST", "1") == "0":
         return None
     key = (round(float(lat), 4), round(float(lng), 4), valid_time or current_valid_time())
-    return _FORECAST_CACHE.get(key)
+    return _recall(key)
 
 
 def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
@@ -218,8 +251,9 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
         return None, {"reason": "disabled (SIM_LIVE_FORECAST=0)"}
     valid_time = valid_time or current_valid_time()
     key = (round(float(lat), 4), round(float(lng), 4), valid_time)
-    if key in _FORECAST_CACHE:
-        return _FORECAST_CACHE[key]
+    cached = _recall(key)
+    if cached is not None:
+        return cached
     if _is_down():
         # NOT cached: the app is down now, not wrong about this coordinate.
         return None, {"reason": "the app is not reachable right now", "valid_time": valid_time}

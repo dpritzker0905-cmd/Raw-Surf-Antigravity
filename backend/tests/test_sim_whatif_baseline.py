@@ -92,7 +92,7 @@ def test_a_cached_forecast_is_PEEKED_not_refetched(counted_fetch):
     spot = weather_sim_mcp.resolve_spot(SPOT)
     key = (round(float(spot["latitude"]), 4), round(float(spot["longitude"]), 4),
            sim_forecast.current_valid_time())
-    sim_forecast._FORECAST_CACHE[key] = (dict(BASE), {"model": "GFS", "valid_time": key[2]})
+    sim_forecast._remember(key, (dict(BASE), {"model": "GFS", "valid_time": key[2]}))
     out = SIM(SPOT, **FULL)
     assert counted_fetch == [], "a cache peek must never dial"
     assert out["baseline_delta"]["baseline_source"] == "live_forecast"

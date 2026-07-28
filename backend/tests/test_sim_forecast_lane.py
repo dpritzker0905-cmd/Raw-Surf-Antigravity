@@ -259,19 +259,53 @@ def test_a_failed_fetch_never_raises_out_of_the_tool(monkeypatch):
 
 
 def test_the_hourly_cache_does_not_grow_without_bound(monkeypatch):
-    """The comment claimed entries "expire on their own as the hour turns". They did not — the KEY
-    changed, so a stale entry became unreachable and was never freed."""
+    """Entries do NOT expire as the hour turns — the KEY changes, so a stale entry becomes
+    unreachable and is never freed. Something has to bound it.
+
+    ⚠️ THIS TEST USED TO ASSERT [2, 2, 2] — one hour retained, every other hour dropped on each
+    store. That bounded the cache, but it made a TIME SERIES the one access pattern the cache
+    actively defeats (measured: 16 frames re-fetched on every pass). The bound is now a CAP, so
+    many hours coexist; what must still hold is that the total never exceeds it."""
     _stub_points(monkeypatch)
-    hours = iter(["2026-07-28T01:00:00Z", "2026-07-28T02:00:00Z", "2026-07-28T03:00:00Z"])
+    monkeypatch.setattr(sim_forecast, "_FORECAST_CACHE_MAX", 4)
+    hours = ["2026-07-28T01:00:00Z", "2026-07-28T02:00:00Z", "2026-07-28T03:00:00Z"]
     seen = []
-    for _ in range(3):
-        hour = next(hours)
+    for hour in hours:
         monkeypatch.setattr(sim_forecast, "current_valid_time", lambda h=hour: h)
         sim_forecast.fetch_live_forecast(37.0, -122.0)
         sim_forecast.fetch_live_forecast(38.0, -123.0)
         seen.append(len(sim_forecast._FORECAST_CACHE))
-    # Two coordinates per hour, and the previous hour's entries are gone — not 2, 4, 6.
-    assert seen == [2, 2, 2], seen
+    assert seen == [2, 4, 4], seen                       # grows to the cap, then holds AT it
+    assert len(sim_forecast._FORECAST_CACHE) <= 4
+
+
+def test_the_cache_evicts_OLDEST_first_so_a_forward_scan_keeps_what_it_needs(monkeypatch):
+    """FIFO, not LRU. Walking a series forward in time evicts the past hours first, which is the
+    order a forecast scan wants — the hours already behind it are the ones it will not re-ask."""
+    _stub_points(monkeypatch)
+    monkeypatch.setattr(sim_forecast, "_FORECAST_CACHE_MAX", 3)
+    for i in range(1, 6):
+        hour = f"2026-07-28T0{i}:00:00Z"
+        sim_forecast.fetch_live_forecast(37.0, -122.0, hour)
+    held = sorted(k[2] for k in sim_forecast._FORECAST_CACHE)
+    assert held == ["2026-07-28T03:00:00Z", "2026-07-28T04:00:00Z", "2026-07-28T05:00:00Z"], held
+
+
+def test_an_entry_older_than_the_TTL_is_not_served(monkeypatch):
+    """A TTL is load-bearing NOW and was not before: wiping every other hour on each store gave
+    freshness by accident. Holding many hours, an entry for a FUTURE hour would otherwise outlive
+    the ingest that supersedes it and be served stamped with the OLD run_time — worse than a miss,
+    because it looks authoritative."""
+    _stub_points(monkeypatch)
+    hour = "2026-07-28T01:00:00Z"
+    first = sim_forecast.fetch_live_forecast(37.0, -122.0, hour)
+    assert first[0] is not None
+    key = (37.0, -122.0, hour)
+    assert sim_forecast._recall(key) is not None
+    stamped_at, out = sim_forecast._FORECAST_CACHE[key]
+    sim_forecast._FORECAST_CACHE[key] = (stamped_at - sim_forecast._FORECAST_CACHE_TTL_S - 1, out)
+    assert sim_forecast._recall(key) is None, "an expired entry must not be served"
+    assert key not in sim_forecast._FORECAST_CACHE, "expiring must also free it"
 
 
 # ── The time dimension: a forecast tool that could only answer "right now" ────────────────────
