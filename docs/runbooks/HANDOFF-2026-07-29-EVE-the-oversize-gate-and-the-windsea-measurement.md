@@ -251,7 +251,31 @@ deployment span, and querying outside it is a hard **HTTP 400**, not an empty re
    Snell" (anti-correlated) nor "ray-cast for the cheap 80%" (buys ~13%). It is a **directional
    transfer function `Kr = A_site · (1 − B·shadow)`**: the horizon term is computable globally today;
    the **site offset is the dominant unknown**. ⚠️ Still **signed** — one validated site focuses at 1.25.
-3. ★★★ **SWELL PARTITION** — §4. Now MEASURED live (+105% at Ocean Beach SF) and **re-scoped**: the
+2b. ✅ **CROSS-SHELF FRICTION — EVIDENCE FLOOR SHIPPED** (`dd1915bd`). Found by auditing my OWN
+   instrument: it omitted `shelf_dissipation`, which production applies FIRST (and in the default
+   Komar path `shoaling_coefficient` is never called at all). Re-measured, the Kr headline
+   **survives unchanged** — Kf is exactly 1.000 at all five CA sites because `shelf_depth_at`
+   returns 424–1210 m there. But establishing that exposed the term itself:
+   `shelf_depth_at` spans **p10 24 m → p90 2,389 m**, **47.2% of spots read >200 m** (friction
+   switched OFF), and the exponential is **unbounded below** at the other tail — **Salthill Beach
+   (Galway) retained 0.4% of its swell**, permanently flat. Floored at the docstring's own citation
+   (Ardhuin 2003 ~90% energy loss ⇒ height `sqrt(0.10)` = **0.316**). 44 spots (2.5%) change at
+   16 s, **every one an increase**. Kill: `SURF_SHELF_KF_FLOOR=0`.
+   ⛔ **STILL OPEN:** the friction term is *inert* at ~46% of the catalogue. That may be correct
+   (narrow deep shelves genuinely have little friction) but it is unverified — and the same
+   one-depth-two-jobs quantity is still feeding it.
+
+3. ★★★ **SWELL PARTITION — SCIENCE SHIPPED, DATA NOT WIRED** (`b9595de6`).
+   `estimate_surf_partitioned` transforms each train on its own period and bearing, then recombines
+   in **quadrature**. ⚠️ **NOT the `swell_1` swap the roadmap assumed**: the partitions do not always
+   reconcile (Hossegor `swell_1` 0.664 m **exceeded** total 0.571 m) and wind sea is genuinely part
+   of the surf. Keeping every train gives Mavericks −21%, Ocean Beach SF −17%, Bondi −41%,
+   Hossegor −0.5%, versus −38…−105% for a naive swap. Lives inside `surf_point.estimate_surf_at`
+   (ONE composition); absent partitions fall through byte-identically.
+   ⛔ **NOTHING SUPPLIES `partitions` YET** — 2 extra point resolutions per spot, to be costed
+   against PRECOMPUTE, never the live lane. That wiring is the remaining work here. §4 below.
+
+3b. §4. Now MEASURED live (+105% at Ocean Beach SF) and **re-scoped**: the
    rating half is already written and dark; the height half needs a reconciliation guard because the
    partitions can exceed the total; and the cost lands on precompute, not the live lane.
 4. ★★ **DEPTH-DEPENDENT HEIGHT** — the enabling change for tide/moon.
@@ -259,7 +283,18 @@ deployment span, and querying outside it is a hard **HTTP 400**, not an empty re
 6. ★★ **Shore normals** — 434 spots with none.
 7. ★★ **QUANTILE-MAP the offshore input** — still blocked on the residual archive.
 8. ★ **Delete or fix `SURF_V3_KOMAR=0`.**
-9. ★ **PERIOD FLOOR** — §5, confirmed at 2 s. Cheapest remaining item; the shape is already proven twice.
+9. ✅ **PERIOD FLOOR — SHIPPED** (`f76f8f36`). The third additive-floor veto. Inert at/above 7 s so
+   the Gulf / Mediterranean / Baltic / Great Lakes (5–8 s *is* their surf) are not punished; floors
+   at 3 s. 2 s now reads `poor` instead of `good`. Kill: `RATING_PERIOD_GATE=0`.
+   ★ This is where the 4,320-golden cross-language parity gate earned its keep — it failed loudly
+   (522 stale) exactly as designed. But its regeneration procedure said *"see the generator in the
+   2026-07-26 audit notes"*, so the grid had to be reverse-engineered from the JSON. Now one
+   command: **`python backend/scripts/gen_rating_parity_goldens.py`**. Run it after ANY engine change.
+11. **NEW** ⚠️ **USER-REPORTED (2026-07-28):** on **EURO / waves**, the long-range heatmap for
+   **Sat 2026-08-08** rendered blank while Fri 08-07 and Sun 08-09 were fine. A single-day hole
+   flanked by good days points at a per-frame gap or a horizon-tier step boundary, not a coverage
+   failure. Spawned as its own task; reproduce with direct backend queries before touching the
+   resolver (documented regression graveyard).
 10. **NEW** ★★ **Backfill `break_depth_m`** — 39.9% missing, and missing on precisely the big-wave
     spots that most need tier 2. Also worth bounding the absurd tail at the ASSET level (Teahupo'o
     273 m), which would let the oversize clamp be tightened.
