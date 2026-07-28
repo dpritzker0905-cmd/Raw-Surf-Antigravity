@@ -35,8 +35,12 @@ def _run_module_probe(code: str, env_extra=None):
     env = dict(os.environ)
     env["PYTHONPATH"] = BACKEND_DIR + os.pathsep + env.get("PYTHONPATH", "")
     env.update(env_extra or {})
+    # ⚠️ `stdin=DEVNULL` is REQUIRED, not tidiness. Without it subprocess duplicates the parent's
+    # stdin handle, which fails (`OSError: [WinError 6/50]` at subprocess.py's DuplicateHandle) on
+    # any runner whose pytest has no duplicable console stdin — measured 2026-07-28. The probe
+    # never reads stdin, so inheriting it bought nothing and cost the whole test.
     proc = subprocess.run([sys.executable, "-c", code], capture_output=True, text=True,
-                          cwd=BACKEND_DIR, env=env, timeout=180)
+                          cwd=BACKEND_DIR, env=env, timeout=180, stdin=subprocess.DEVNULL)
     assert proc.returncode == 0, f"probe failed: {proc.stderr[-2000:]}"
     return proc.stdout.strip().splitlines()[-1].strip()
 

@@ -2,7 +2,8 @@ import sqlite3
 import math
 import logging
 import os
-from typing import List, Dict, Any, Optional, Tuple
+from datetime import datetime
+from typing import Dict, Any, Optional, Tuple
 from fastmcp import FastMCP
 from utils.sqlite_helpers import get_sqlite_connection
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
@@ -16,6 +17,10 @@ from services.conditions_labels import get_conditions_label
 # hand-tuned ones. Imported at module scope: it pulls urllib/ssl, and a C extension loaded lazily
 # inside a tool is what deadlocked this server (see `_warm_hot_path`). Kill: SIM_LIVE_FORECAST=0.
 from services.weather_pipeline import sim_forecast
+# ONE identity per spot name. This module used to resolve names itself, hand-tuned table FIRST, so
+# `get_weather_forecast("Mavericks")` and `("mavericks")` answered about coordinates 637 m apart —
+# see `sim_spots` for the measurement and the precedence that replaced it.
+from services.weather_pipeline import sim_spots
 
 # Setup logger
 logger = logging.getLogger("weather_sim_mcp")
@@ -43,59 +48,11 @@ def _sim_flag(name: str, default: str = "1") -> bool:
 
 
 # 1. Catalog defaults for the three hand-tuned spots. These carry a BASELINE forecast (the
-# `base_*` fields), which the 1500+ database spots do not — see `get_weather_forecast`.
-MOCK_SPOTS = {
-    "Mavericks": {
-        "id": 1,
-        "name": "Mavericks",
-        "region": "California",
-        "latitude": 37.4952,
-        "longitude": -122.5028,
-        # Fallback seaward bearing, used ONLY when the bathymetry chain cannot resolve one (or
-        # SIM_PRODUCTION_GEOMETRY=0). It is NOT ground truth: measured against ETOPO 2022 15s this
-        # value is 44.9 deg off for Mavericks. The resolved normal wins wherever it exists.
-        "orientation": 270,
-        "base_swell_height": 3.5,
-        "base_swell_period": 16.0,
-        "base_swell_direction": 290.0,
-        "base_wind_speed": 12.0,
-        "base_wind_direction": 95.0,
-        # p80 good-day BREAKING height (m) — calibrates surf_rating.size_score to LOCAL expectation.
-        # Applied ONLY when RATING_LOCAL_SIZE=1, because that is the flag production gates it on
-        # (routes/weather.py:435, spot_ratings.py:344, grid_resolver_surf.py:80). Passing it
-        # unconditionally made the sim rate a spot on a curve the app does not currently use.
-        # Domain estimates pending real p80 climatology.
-        "reference_size_m": 4.0
-    },
-    "Montara State Beach": {
-        "id": 2,
-        "name": "Montara State Beach",
-        "region": "California",
-        "latitude": 37.5458,
-        "longitude": -122.5150,
-        "orientation": 280,
-        "base_swell_height": 1.5,
-        "base_swell_period": 12.0,
-        "base_swell_direction": 270.0,
-        "base_wind_speed": 8.0,
-        "base_wind_direction": 85.0,
-        "reference_size_m": 1.5
-    },
-    "Pacifica State Beach": {
-        "id": 3,
-        "name": "Pacifica State Beach",
-        "region": "California",
-        "latitude": 37.5956,
-        "longitude": -122.5034,
-        "orientation": 260,
-        "base_swell_height": 1.2,
-        "base_swell_period": 11.0,
-        "base_swell_direction": 275.0,
-        "base_wind_speed": 5.0,
-        "base_wind_direction": 90.0,
-        "reference_size_m": 1.2
-    }
-}
+# `base_*` fields), which the 1800+ database spots do not — see `get_weather_forecast`.
+# ⚠️ They no longer own IDENTITY: where the app's catalogue knows the name, its id/region/
+# coordinates win, and only the `base_*` baseline and `reference_size_m` are grafted on. Kept
+# exported under this name because the suite reads it.
+MOCK_SPOTS = sim_spots.CATALOG_DEFAULTS
 
 # Staged simulation state, keyed by spot name. Kept SEPARATE from MOCK_SPOTS (which used to be
 # mutated in place) so the catalog defaults stay a clean baseline and every forecast read can say
@@ -118,76 +75,17 @@ def get_db_connection() -> Optional[sqlite3.Connection]:
         return None
 
 
-def query_spots_from_db(name_query: Optional[str] = None,
-                        limit: Optional[int] = None) -> List[Dict[str, Any]]:
-    """Read the SURF SPOT CATALOG.
-
-    ★ This used to read `condition_reports`, which is the photographer conditions-upload table
-    (photographer_id / media_url / expires_at). It holds 0 rows in dev and is near-empty by nature,
-    so every call fell through to the three hardcoded catalog spots — the weather simulation system
-    could reach 3 of 1547 spots (0.2%) because it was looking in the wrong table. `surf_spots` is
-    the catalog, and it has 1547 active rows with coordinates.
-
-    Kill: SIM_SPOT_CATALOG=0 restores the pre-07-27 catalog-of-three behaviour.
-    """
-    if not _sim_flag("SIM_SPOT_CATALOG"):
-        return []
-    # The app's LIVE catalogue first — `dev.db` is a snapshot and it has drifted into wrong
-    # coordinates, not just missing rows (see `sim_forecast.fetch_catalog`). Filtering here rather
-    # than in the fetch keeps the fetch cacheable for the whole process.
-    live = sim_forecast.fetch_catalog()
-    if live:
-        rows = [s for s in live
-                if not name_query or name_query.lower() in (s["name"] or "").lower()]
-        rows.sort(key=lambda s: s["name"] or "")
-        return [dict(s) for s in (rows[:int(limit)] if limit else rows)]
-    conn = get_db_connection()
-    if not conn:
-        return []
-    try:
-        cursor = conn.cursor()
-        sql = ("SELECT id, name, region, latitude, longitude FROM surf_spots "
-               "WHERE is_active = 1 AND latitude IS NOT NULL AND longitude IS NOT NULL")
-        params: List[Any] = []
-        if name_query:
-            sql += " AND LOWER(name) LIKE ?"
-            params.append(f"%{name_query.lower()}%")
-        sql += " ORDER BY name"
-        if limit:
-            sql += " LIMIT ?"
-            params.append(int(limit))
-        rows = cursor.execute(sql, params).fetchall()
-        spots = []
-        for row in rows:
-            spots.append({
-                "id": row[0],
-                "name": row[1],
-                "region": row[2],
-                "latitude": float(row[3]),
-                "longitude": float(row[4]),
-            })
-        return spots
-    except Exception as e:
-        # Was a bare `except: return []`, which made a schema/SQL failure indistinguishable from
-        # "no rows" and silently fell back to mock data. Log it — a silent fallback is how the
-        # wrong-table bug above survived.
-        logger.warning(f"surf_spots query failed ({e}); falling back to the catalog defaults.")
-        return []
-    finally:
-        if conn:
-            conn.close()
+# The catalogue read and name resolution both live in `sim_spots` now — the identity rules got long
+# enough to deserve their own tests, and this file was 52 lines under the 800 ratchet.
+query_spots_from_db = sim_spots.query_spots
 
 
 def resolve_spot(spot_name: str) -> Optional[Dict[str, Any]]:
-    """Find a spot by name: hand-tuned catalog first (it carries a baseline forecast), then the
-    database. Returns None if neither knows the name."""
-    spot = MOCK_SPOTS.get(spot_name)
-    if spot:
-        return spot
-    matches = query_spots_from_db(name_query=spot_name, limit=25)
-    exact = [m for m in matches if m["name"].lower() == spot_name.lower()]
-    chosen = exact[0] if exact else (matches[0] if len(matches) == 1 else None)
-    return dict(chosen) if chosen else None
+    """The ONE spot a caller named, or None when the name is unknown OR ambiguous.
+
+    Tools should prefer `sim_spots.resolve`, which distinguishes those two cases — an ambiguous
+    name must not be reported as a missing one. Kept for callers that only need the happy path."""
+    return sim_spots.resolve(spot_name).spot
 
 
 _GEOMETRY_CACHE: Dict[Any, Any] = {}
@@ -351,21 +249,28 @@ def _geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
     }
 
 
-def _baseline_with_source(spot: Dict[str, Any]
+def _baseline_with_source(spot: Dict[str, Any], valid_time: Optional[str] = None
                           ) -> Tuple[Optional[Dict[str, float]], str, Dict[str, Any]]:
     """The spot's baseline weather vector with its provenance.
 
     Precedence: a staged simulation override, then the app's LIVE forecast, then the hand-tuned
     catalog defaults. The live forecast outranks those defaults deliberately — they are invented
     constants for three spots, and a real forecast at the same coordinate is strictly better. It
-    does NOT outrank an override, because an override is the caller's explicit what-if."""
+    does NOT outrank an override, because an override is the caller's explicit what-if.
+
+    ⚠️ An override is TIMELESS — it is "pretend the weather is this", with no hour attached. So it
+    still wins when a `valid_time` is requested, and the caller is TOLD, because a requested hour
+    that silently changed nothing would be the worse surprise."""
     override = _SIM_OVERRIDES.get(spot.get("name", ""))
     if override:
-        return dict(override), "simulated_override", {}
+        note = ({"note": f"a staged override is masking the requested hour {valid_time}; "
+                         f"clear_simulation_overrides() to see the real forecast"}
+                if valid_time else {})
+        return dict(override), "simulated_override", note
 
     lat, lng = spot.get("latitude"), spot.get("longitude")
     if lat is not None and lng is not None:
-        live, provenance = sim_forecast.fetch_live_forecast(float(lat), float(lng))
+        live, provenance = sim_forecast.fetch_live_forecast(float(lat), float(lng), valid_time)
         if live is not None:
             return live, "live_forecast", provenance
     else:
@@ -395,7 +300,8 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
 
     Args:
         query: Optional case-insensitive substring to filter spot names.
-        limit: Maximum spots to return (the catalog holds ~1547 active spots).
+        limit: Maximum spots to return (the catalog holds ~1818 active spots; the response
+            reports `total_matching` so a capped answer is never mistaken for the whole set).
     """
     # ⚠️ THE CAP IS A MEASURED BUDGET, NOT A ROUND NUMBER. Serialised size 2026-07-27:
     # 50 spots = 9.4 KB (~2.4k tokens) · 200 = 37.4 KB (~9.6k) · 500 = 93.5 KB (~24k). An MCP client
@@ -408,7 +314,7 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
     db_spots = query_spots_from_db(name_query=query or None, limit=min(requested, hard_cap))
     # Name the real source. `dev.db` has drifted into WRONG COORDINATES (Bethune Beach sits 7 km
     # from where production put it), so "which catalogue answered" is not a detail.
-    source = "live_catalog" if sim_forecast.fetch_catalog() else "surf_spots_snapshot"
+    source = sim_spots.catalog_source()
     if not db_spots:
         source = "catalog_defaults"
         db_spots = [
@@ -452,22 +358,44 @@ def get_surf_spots(query: str = "", limit: int = 50) -> Dict[str, Any]:
 
 
 @mcp.tool
-def get_weather_forecast(spot_name: str) -> Dict[str, Any]:
-    """Get the active weather, swell, and wind forecast for a specific surf spot.
+def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]:
+    """Get the weather, swell, and wind forecast for a surf spot, now or at a future hour.
 
     Args:
-        spot_name: The name of the spot (e.g., 'Mavericks', 'Pipeline').
+        spot_name: The name of the spot (e.g., 'Mavericks', 'Pipeline'), or its id.
+        valid_time: Optional ISO-8601 UTC hour to forecast, e.g. '2026-07-29T15:00:00Z'.
+            Empty means the current hour. The app serves frames out to about 7 days ahead.
     """
-    spot = resolve_spot(spot_name)
+    # ⚠️ Validate before dialling. The hour is interpolated into a URL, and a malformed value would
+    # spend the full timeout to come back empty — indistinguishable from "no data at this spot".
+    hour = (valid_time or "").strip()
+    if hour:
+        try:
+            parsed = datetime.strptime(hour, "%Y-%m-%dT%H:%M:%SZ")
+        except ValueError:
+            return {"error": f"valid_time must be ISO-8601 UTC like '2026-07-29T15:00:00Z', "
+                             f"got {valid_time!r}."}
+        # The products are HOURLY frames; a sub-hour request silently snaps, so snap it here and
+        # say what was actually asked for.
+        hour = parsed.replace(minute=0, second=0).strftime("%Y-%m-%dT%H:%M:%SZ")
+
+    found = sim_spots.resolve(spot_name)
+    if found.candidates:
+        return sim_spots.ambiguity_error(spot_name, found.candidates)
+    spot = found.spot
     if not spot:
         return {"error": f"Spot '{spot_name}' not found in the catalog.",
                 "hint": "Call get_surf_spots(query=...) to search by name."}
 
-    baseline, source, provenance = _baseline_with_source(spot)
+    baseline, source, provenance = _baseline_with_source(spot, hour or None)
     payload: Dict[str, Any] = {
         "spot": spot["name"],
         "region": spot.get("region"),
+        "requested_valid_time": hour or "now",
         "coordinates": {"lat": spot["latitude"], "lng": spot["longitude"]},
+        # WHICH catalogue this identity came from. `catalog_default` means the app did not know the
+        # name and a hand-tuned row answered — at ITS coordinates, which is worth seeing.
+        "spot_source": found.identity_source,
         "geometry": _geometry_payload(spot),
     }
     if baseline is None:
@@ -550,7 +478,10 @@ def simulate_weather_change(
                           f"Must be between {lo} and {hi} {unit}.")
             }
 
-    spot = resolve_spot(spot_name)
+    found = sim_spots.resolve(spot_name)
+    if found.candidates:
+        return {"success": False, **sim_spots.ambiguity_error(spot_name, found.candidates)}
+    spot = found.spot
     if not spot:
         return {"success": False,
                 "error": f"Spot '{spot_name}' not found in the catalog.",
@@ -611,6 +542,7 @@ def simulate_weather_change(
         "success": True,
         "simulation_type": "weather_vector_override",
         "spot": spot["name"],
+        "spot_source": found.identity_source,
         "database_updated": db_updated,
         "geometry": _geometry_payload(spot),
         "input_parameters": {
@@ -629,42 +561,105 @@ def clear_simulation_overrides(spot_name: str = "") -> Dict[str, Any]:
     """Drop staged simulation overrides so forecasts return to catalog defaults.
 
     Args:
-        spot_name: Clear just this spot; empty clears every staged override.
+        spot_name: Clear just this spot (name or id); empty clears every staged override.
     """
-    if spot_name:
-        removed = 1 if _SIM_OVERRIDES.pop(spot_name, None) else 0
-    else:
+    if not spot_name:
         removed = len(_SIM_OVERRIDES)
         _SIM_OVERRIDES.clear()
-    return {"success": True, "cleared": removed, "remaining": sorted(_SIM_OVERRIDES)}
+        return {"success": True, "cleared": removed, "remaining": sorted(_SIM_OVERRIDES)}
+
+    # ⚠️ THE KEY MUST BE RESOLVED THE SAME WAY `simulate_weather_change` STAGED IT. That stages
+    # under the RESOLVED name, so a literal pop missed whenever the caller's spelling differed from
+    # the catalogue's. Measured 2026-07-28: staging via `simulate_weather_change("mavericks")` then
+    # `clear_simulation_overrides("mavericks")` returned `success: true, cleared: 0` and left the
+    # override in place — and an override OUTRANKS the live forecast, so every later read of that
+    # spot silently returned the staged scenario. A no-op reported as success is worse than a miss.
+    keys = [spot_name]
+    resolved = sim_spots.resolve(spot_name).spot
+    if resolved and resolved["name"] not in keys:
+        keys.append(resolved["name"])
+    removed = sum(1 for k in keys if _SIM_OVERRIDES.pop(k, None) is not None)
+    out = {"success": True, "cleared": removed, "remaining": sorted(_SIM_OVERRIDES)}
+    if not removed:
+        # Say so explicitly rather than letting `success: true` imply something was cleared.
+        out["note"] = f"No staged override was held for '{spot_name}'."
+    return out
 
 
 # 5. FastMCP Resources
 
+# The reference spots the summary works through when nothing is staged. Resolved through the LIVE
+# catalogue like any other name, so they report the app's coordinates rather than the hand-tuned
+# ones — this resource used to iterate MOCK_SPOTS directly and therefore described `Mavericks` at a
+# point 637 m from production's, and `Pacifica State Beach`, which the catalogue does not carry.
+_SUMMARY_REFERENCE = ("Mavericks", "Montara State Beach", "Pacifica State Beach")
+
+# ⚠️ A SUMMARY LINE COSTS TWO HTTP REQUESTS. Each non-staged spot needs a marine and a wind sample
+# (0.5-1.1 s warm, up to SIM_FORECAST_TIMEOUT_S each cold), so this budget is a LATENCY bound, not a
+# display preference — the catalogue has 1818 spots and iterating it here would take hours. Staged
+# overrides are exempt: their vector is already in memory and costs no network at all.
+_SUMMARY_MAX = int(os.environ.get("SIM_SUMMARY_MAX", "3"))
+
+
+def _summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float],
+                  source: str) -> str:
+    calc = calculate_surf_rating(
+        spot, baseline["swell_height_m"], baseline["swell_period_sec"],
+        baseline["swell_direction_deg"], baseline["wind_speed_knots"],
+        baseline["wind_direction_deg"])
+    # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
+    # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the
+    # rest of the module works to keep apart. Size and verdict are now named separately.
+    return (f" - {label}: Breaking at {calc['breaking_height_ft']} ft "
+            f"({calc['conditions_label']}) | Quality: {calc['quality_rating']}/100 "
+            f"({calc['quality_label']}) | Wind: {round(baseline['wind_speed_knots'], 1)} kts "
+            f"{calc['wind_class']} | [{source}]")
+
+
 @mcp.resource("data://forecasts/summary")
 def get_forecasts_summary() -> str:
-    """A global textual summary of active surf conditions across all regions."""
-    lines = ["=== DAILY OCEAN CONDITIONS AND FORECAST SUMMARY ==="]
-    for s_name, spot in MOCK_SPOTS.items():
-        baseline = _baseline_for(spot)
+    """A textual summary of staged simulations and a sample of live surf conditions."""
+    live = sim_forecast.fetch_catalog()
+    total = len(live) if live else None
+    lines = ["=== DAILY OCEAN CONDITIONS AND FORECAST SUMMARY ===",
+             f"Catalogue: {total if total is not None else 'unavailable'} active spots "
+             f"({sim_spots.catalog_source()}). This is a SAMPLE — call "
+             f"get_weather_forecast(spot_name) for any spot."]
+
+    # 1. Everything staged. This is the sim's own state and the reason to read this resource at
+    #    all; it is also free, so it is never truncated by the latency budget.
+    staged = sorted(_SIM_OVERRIDES)
+    lines.append("")
+    lines.append(f"STAGED SIMULATION OVERRIDES ({len(staged)}):"
+                 if staged else "STAGED SIMULATION OVERRIDES: none")
+    for name in staged:
+        spot = sim_spots.resolve(name).spot or {"name": name}
+        if spot.get("latitude") is None:
+            continue
+        lines.append(_summary_line(name, spot, _SIM_OVERRIDES[name], "simulated_override"))
+
+    # 2. A bounded sample of real conditions, skipping anything already listed above.
+    lines.append("")
+    lines.append(f"REFERENCE SPOTS (up to {_SUMMARY_MAX}):")
+    shown = 0
+    for name in _SUMMARY_REFERENCE:
+        if shown >= _SUMMARY_MAX:
+            break
+        if name in _SIM_OVERRIDES:
+            continue
+        found = sim_spots.resolve(name)
+        if not found.spot:
+            continue
+        baseline, source, _ = _baseline_with_source(found.spot)
         if baseline is None:
             continue
-        calc = calculate_surf_rating(
-            spot,
-            baseline["swell_height_m"],
-            baseline["swell_period_sec"],
-            baseline["swell_direction_deg"],
-            baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"],
-        )
-        # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
-        # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the
-        # rest of the module works to keep apart. Size and verdict are now named separately.
-        lines.append(
-            f" - {s_name}: Breaking at {calc['breaking_height_ft']} ft ({calc['conditions_label']}) | "
-            f"Quality: {calc['quality_rating']}/100 ({calc['quality_label']}) | "
-            f"Wind: {baseline['wind_speed_knots']} kts {calc['wind_class']}"
-        )
+        label = found.spot["name"]
+        if found.identity_source == "catalog_default":
+            # Say it plainly: the app's catalogue does not carry this name, so the line describes
+            # a hand-tuned coordinate rather than a production spot.
+            label += " (not in the app catalogue)"
+        lines.append(_summary_line(label, found.spot, baseline, source))
+        shown += 1
     return "\n".join(lines)
 
 
@@ -673,7 +668,17 @@ def get_forecasts_summary() -> str:
 @mcp.prompt("surf_forecast_advisor")
 def get_surf_advisor_prompt(spot_name: str) -> str:
     """Prompt template that helps analyze surf and wind parameters to give strategic surf advice."""
-    spot = resolve_spot(spot_name) or MOCK_SPOTS["Mavericks"]
+    found = sim_spots.resolve(spot_name)
+    if found.candidates:
+        names = ", ".join(f"{c['name']} ({c['region']})" for c in found.candidates)
+        return (f"The name '{spot_name}' matches several spots in the catalogue: {names}. Ask the "
+                f"surfer which one they mean before advising — do not pick one.")
+    if not found.spot:
+        # Was `or MOCK_SPOTS["Mavericks"]`, which briefed the model about a Californian big-wave
+        # break whenever the requested name was unknown, without ever saying so.
+        return (f"No spot named '{spot_name}' is in the catalogue. Say so, and offer to search "
+                f"with get_surf_spots(query=...) — do not advise about a different spot.")
+    spot = found.spot
     normal = shore_normal_for(spot)
     # Both optimal directions are DERIVED from the one shore normal rather than stored separately.
     # The stored `optimal_wind_dir`/`optimal_swell_dir` fields disagreed with the bearing the engine
