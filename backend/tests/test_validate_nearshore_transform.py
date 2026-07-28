@@ -122,3 +122,68 @@ def test_the_instrument_can_actually_go_red():
     assert perfect[0][0] == pytest.approx(1.0)
     deficit = vnt.implied_kr_samples({"t": (0.75 * ks, 14.0, 260.0)}, {"t": (1.0, 14.0, 260.0)}, 17.0)
     assert deficit[0][0] == pytest.approx(0.75)
+
+
+# ── HORIZON BLOCKING ────────────────────────────────────────────────────────────────────────────
+# A tiny synthetic grid: land to the NORTH, open ocean to the SOUTH. meta says "0 == land".
+_META = {"nlat": 181, "nlon": 361, "lat0": -90.0, "lon0": -180.0, "dlat": 1.0, "dlon": 1.0}
+
+
+class _FakeGrid:
+    """grid[r, c] -> 0 (land) north of lat 1, 1000 m (ocean) south of it.
+
+    The boundary sits at a whole cell (1 deg = ~111 km) and well inside the 300 km ray range, so no
+    sub-ray lands on a rounding edge — an earlier boundary at lat 2.0 fell exactly on one and made
+    the fixture, not the code, non-deterministic."""
+
+    def __getitem__(self, rc):
+        r, _c = rc
+        return 0 if _META["lat0"] + r * _META["dlat"] >= 1.0 else 1000
+
+
+_GRID = _FakeGrid()
+
+
+def test_is_land_reads_the_zero_sentinel():
+    assert vnt.is_land(_GRID, _META, 40.0, 0.0) is True       # north -> land
+    assert vnt.is_land(_GRID, _META, -40.0, 0.0) is False     # south -> ocean
+    assert vnt.is_land(_GRID, _META, 0.0, 500.0) is False     # out of range must not raise
+
+
+def test_blocked_along_finds_land_only_in_the_blocked_bearing():
+    # Sitting on the equator: looking NORTH (0 deg) hits land, looking SOUTH (180 deg) does not.
+    assert vnt.blocked_along(_GRID, _META, 0.0, 0.0, 0.0) is True
+    assert vnt.blocked_along(_GRID, _META, 0.0, 0.0, 180.0) is False
+
+
+def test_shadow_fraction_spans_zero_to_one_and_is_monotone_through_the_boundary():
+    north = vnt.shadow_fraction(_GRID, _META, 0.0, 0.0, 0.0)
+    south = vnt.shadow_fraction(_GRID, _META, 0.0, 0.0, 180.0)
+    assert north == 1.0 and south == 0.0
+    east = vnt.shadow_fraction(_GRID, _META, 0.0, 0.0, 90.0)
+    assert 0.0 <= east <= 1.0
+    assert south <= east <= north
+
+
+def test_fit_shadow_model_recovers_a_planted_relationship():
+    """Kr = A*(1 - B*shadow) with A=0.9, B=0.2 planted on a site whose north is blocked."""
+    bins = {}
+    for d in range(0, 360, 45):
+        sf = vnt.shadow_fraction(_GRID, _META, 0.0, 0.0, float(d) + 7.5)
+        bins[str(d)] = 0.9 * (1.0 - 0.2 * sf)
+    fit = vnt.fit_shadow_model(bins, 0.0, 0.0, _GRID, _META)
+    assert fit["A"] == pytest.approx(0.9, abs=0.02)
+    assert fit["B"] == pytest.approx(0.2, abs=0.02)
+    assert fit["r"] == pytest.approx(-1.0, abs=0.02)          # perfect, and NEGATIVE
+
+
+def test_fit_shadow_model_reports_no_signal_when_shadow_is_constant():
+    """The honest failure mode: a site where every direction is equally open must not fabricate a
+    slope (155p1 in the real data is the weak-signal case)."""
+    bins = {str(d): 0.8 for d in range(0, 360, 45)}
+    fit = vnt.fit_shadow_model(bins, -40.0, 0.0, _GRID, _META)   # all-ocean site
+    assert fit["B"] == 0.0 and fit.get("note") == "shadow constant"
+
+
+def test_fit_shadow_model_needs_enough_bins():
+    assert vnt.fit_shadow_model({"0": 0.8, "90": 0.7}, 0.0, 0.0, _GRID, _META) is None

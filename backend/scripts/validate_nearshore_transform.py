@@ -61,6 +61,13 @@ import urllib.request
 
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
+# A Windows console defaults to cp1252, which cannot encode the arrows and box characters this
+# tool prints — and a crash on the FINAL summary line after a 20-minute fetch throws the run away.
+try:                                                    # pragma: no cover - console-dependent
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, ValueError):
+    pass
+
 from services.weather_pipeline.surf_transform import shoaling_coefficient, wavenumber  # noqa: E402
 
 THREDDS = "https://thredds.cdip.ucsd.edu/thredds"
@@ -266,6 +273,88 @@ def directional(pair, bin_deg=15, min_bin=150):
             "swing": round(meds[hi] / meds[lo], 3) if meds[lo] else None}
 
 
+# ── HORIZON BLOCKING ────────────────────────────────────────────────────────────────────────────
+# Tested against the measurements above: this reproduces the DIRECTIONAL SHAPE of Kr well at sites
+# with large obstructions (r = -0.87 to -0.90 at 153p1 / 215p1 / 103p1, including the full 1.75x
+# swing at the focusing site) and fails where the obstruction is small (155p1, r = +0.10 — the
+# Coronado Islands are ~2 km across and a 0.25 deg cell is ~28 km).
+#
+# ⚠️ FITTING Kr = A_site * (1 - B * shadow) over those sites gives A in 0.743..1.250 (median 0.852)
+# and B in -0.031..0.343 (median 0.135). THE SITE OFFSET `A` IS THE DOMINANT TERM AND THE HORIZON
+# CANNOT SUPPLY IT. A ray-cast alone therefore buys the directional ~13% (median), NOT the bulk of
+# the error — which is the opposite of what the roadmap assumed before this was measured.
+SHADOW_SPREAD_DEG = 25.0     # real swell arrives over a directional spread, not as a single ray
+SHADOW_SUBRAYS = 11
+SHADOW_START_KM = 15.0       # skip the buoy's own shoreline cell
+SHADOW_MAX_KM = 300.0
+SHADOW_STEP_KM = 10.0
+
+
+def _bathy_grid():
+    """(grid, meta) for the bundled 0.25 deg ETOPO depth asset. meta: '0 == land/no-depth'."""
+    import numpy as np
+    d = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                     "services", "weather_pipeline", "data")
+    return np.load(os.path.join(d, "etopo_depth_0p25.npy")), \
+        json.load(open(os.path.join(d, "etopo_depth_0p25.meta.json")))
+
+
+def is_land(grid, meta, lat, lng):
+    lng = ((lng + 180.0) % 360.0) - 180.0
+    r = int(round((lat - meta["lat0"]) / meta["dlat"]))
+    c = int(round((lng - meta["lon0"]) / meta["dlon"]))
+    if r < 0 or r >= meta["nlat"] or c < 0 or c >= meta["nlon"]:
+        return False
+    return int(grid[r, c]) == 0
+
+
+def blocked_along(grid, meta, lat, lng, bearing_deg,
+                  start_km=SHADOW_START_KM, max_km=SHADOW_MAX_KM, step_km=SHADOW_STEP_KM):
+    """Is land hit looking TOWARD `bearing_deg` — the direction the swell arrives FROM?"""
+    b = math.radians(bearing_deg)
+    coslat = max(0.15, math.cos(math.radians(lat)))
+    d = start_km
+    while d <= max_km:
+        la = lat + (d / 111.0) * math.cos(b)
+        lo = lng + (d / (111.0 * coslat)) * math.sin(b)
+        if abs(la) <= 90.0 and is_land(grid, meta, la, lo):
+            return True
+        d += step_km
+    return False
+
+
+def shadow_fraction(grid, meta, lat, lng, bearing_deg,
+                    spread_deg=SHADOW_SPREAD_DEG, n_sub=SHADOW_SUBRAYS, **kw):
+    """Fraction of a +/-spread directional window blocked by land. 0 = wide open, 1 = fully shadowed."""
+    hits = 0
+    for i in range(n_sub):
+        off = -spread_deg + 2.0 * spread_deg * i / (n_sub - 1)
+        if blocked_along(grid, meta, lat, lng, (bearing_deg + off) % 360.0, **kw):
+            hits += 1
+    return hits / n_sub
+
+
+def fit_shadow_model(bins, lat, lng, grid, meta):
+    """Least-squares fit of Kr ~ A * (1 - B * shadow) over a site's direction bins.
+    Returns {A, B, r, n} — A is the open-water offset, B the blocking sensitivity. Pure given a grid."""
+    pts = [(shadow_fraction(grid, meta, lat, lng, float(d) + 7.5), kr) for d, kr in bins.items()]
+    if len(pts) < 4:
+        return None
+    xs = [p[0] for p in pts]
+    ys = [p[1] for p in pts]
+    mx, my = statistics.mean(xs), statistics.mean(ys)
+    sxx = sum((a - mx) ** 2 for a in xs)
+    if sxx <= 0:
+        return {"A": round(my, 4), "B": 0.0, "r": None, "n": len(pts), "note": "shadow constant"}
+    sxy = sum((a - mx) * (b - my) for a, b in zip(xs, ys))
+    slope = sxy / sxx
+    icpt = my - slope * mx
+    syy = sum((b - my) ** 2 for b in ys)
+    r = sxy / math.sqrt(sxx * syy) if syy > 0 else None
+    return {"A": round(icpt, 4), "B": round(-slope / icpt, 4) if icpt else None,
+            "r": round(r, 4) if r is not None else None, "n": len(pts)}
+
+
 def _load_or_discover(out_dir, workers):
     path = os.path.join(out_dir, "cdip_pairs.json")
     if os.path.exists(path):
@@ -289,13 +378,15 @@ def main(argv=None):
     ap.add_argument("--discover", action="store_true", help="find offshore/nearshore buoy pairs")
     ap.add_argument("--measure", action="store_true", help="implied Kr per site")
     ap.add_argument("--directional", action="store_true", help="Kr binned by swell direction")
+    ap.add_argument("--shadow", action="store_true",
+                    help="fit Kr ~ A*(1 - B*shadow) — does horizon blocking explain the direction?")
     ap.add_argument("--out", default=os.path.join(os.path.dirname(os.path.abspath(__file__)),
                                                   "..", "..", ".nearshore-validation"))
     ap.add_argument("--workers", type=int, default=5)
     ap.add_argument("--limit", type=int, default=0, help="only the N closest pairs")
     a = ap.parse_args(argv)
-    if not (a.discover or a.measure or a.directional):
-        ap.error("choose --discover, --measure and/or --directional")
+    if not (a.discover or a.measure or a.directional or a.shadow):
+        ap.error("choose --discover, --measure, --directional and/or --shadow")
 
     out_dir = os.path.abspath(a.out)
     pairs = _load_or_discover(out_dir, a.workers)
@@ -343,6 +434,35 @@ def main(argv=None):
             sw = [r["swing"] for r in rows if r["swing"]]
             print(f"\n  median directional swing {statistics.median(sw):.2f}x across {len(sw)} sites")
         json.dump(rows, open(os.path.join(out_dir, "kr_directional.json"), "w"), indent=1)
+
+    if a.shadow:
+        print(f"\n{'=' * 92}\nDOES HORIZON BLOCKING EXPLAIN THE DIRECTION?  Kr ~ A * (1 - B * shadow)"
+              f"\n{'=' * 92}")
+        grid, meta = _bathy_grid()
+        by_near = {p["near"]: p for p in pairs}
+        rows = []
+        with cf.ThreadPoolExecutor(max_workers=a.workers) as ex:
+            for r in ex.map(directional, pairs):
+                if "error" in r:
+                    continue
+                p = by_near.get(r["near"])
+                fit = fit_shadow_model(r["bins"], p["near_lat"], p["near_lng"], grid, meta)
+                if fit:
+                    rows.append({**fit, "pair": r["pair"], "near": r["near"]})
+        print(f"\n{'site':<9} {'dirs':>5} {'A (open-water Kr)':>19} {'B (blocking gain)':>19} {'r':>8}")
+        for r in sorted(rows, key=lambda x: x["A"]):
+            rr = f"{r['r']:+.3f}" if r["r"] is not None else "   -  "
+            bb = f"{r['B']:.3f}" if r["B"] is not None else "   -  "
+            print(f"{r['near']:<9} {r['n']:5d} {r['A']:19.3f} {bb:>19} {rr:>8}")
+        if rows:
+            As = [r["A"] for r in rows]
+            Bs = [r["B"] for r in rows if r["B"] is not None]
+            print(f"\n  A (site offset)   min {min(As):.3f}  median {statistics.median(As):.3f}  "
+                  f"max {max(As):.3f}   <- NOT obtainable from the horizon")
+            print(f"  B (blocking gain) min {min(Bs):.3f}  median {statistics.median(Bs):.3f}  "
+                  f"max {max(Bs):.3f}   <- computable globally")
+            print("\n  => the SITE OFFSET dominates. A ray-cast alone buys the directional term only.")
+        json.dump(rows, open(os.path.join(out_dir, "kr_shadow_fit.json"), "w"), indent=1)
     return 0
 
 
