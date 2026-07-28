@@ -341,6 +341,64 @@ its rows were `<div onClick>`, keyboard-unreachable and invisible to assistive t
 real `role="radiogroup"` of `<button role="radio" aria-checked>`. Verified in the browser: 4 radios,
 first checked, all `BUTTON`. Touching code means not carrying its debt forward.
 
+## 7e. ★★★ THE SPOT HUB WAS SHOWING THE OFFSHORE WAVE HEIGHT AS THE SURF
+
+**Owner: "The spot hubs have a slow or nonworking open-meteo data and should be upgraded to our
+own."** They were right, and the defect is bigger than "slow".
+
+`services/weather_pipeline/spot_conditions.py` was a **SECOND forecast composition**. It sampled the
+marine grid directly (`sampler.sample_point`) and reported `point.speed` — the **OFFSHORE
+significant wave height** — as the spot's surf height, then labelled it with the size ladder. Every
+other surface runs that number through `surf_point` first to get the NEARSHORE BREAKING height.
+
+Measured live, same coordinate and hour:
+
+| spot | hub showed (offshore) | actual breaking | error |
+|---|---|---|---|
+| **Trestles** | 2.4 ft | **4.6 ft** | **+92.7%** |
+| Teahupo'o | 5.0 | 7.4 | +47.6% |
+| Cocoa Beach Pier | 1.8 | 2.6 | +41.7% |
+| Supertubos | 4.1 | 5.0 | +23.3% |
+| Mavericks | 5.7 | 6.0 | +5.8% |
+| Pipeline | 5.8 | 5.1 | −11.9% |
+| Jeffreys Bay | 10.3 | 8.3 | −18.7% |
+
+★★ **SIGNED BOTH WAYS** (shoaling amplifies, a wide shelf damps) ⇒ **no constant could correct it —
+only the geometry can.** Trestles reading "2.4 ft" for chest-high surf is the difference between
+going and not going. Same defect class as `cf2efb48`: delegating the FUNCTIONS but not the
+COMPOSITION. Also **3.8 s vs 0.5 s** for the point lane.
+
+**Fixed:** geometry resolved ONCE per coordinate and reused across all 11 frames (the correction is
+arithmetic, **no extra network I/O**), heights through `estimate_surf_at`, and the hub now carries
+the **same 0-100 rating the map glyphs use** — it previously showed a size with no quality, so a
+blown-out 6 ft and a groomed 6 ft rendered identically. Offshore is still reported alongside as
+`offshore_height_ft` so the two can never be silently conflated again.
+Kill: `SPOT_HUB_SURF_TRANSFORM=0`. ⚠️ `wave_height_min` is a PRESENTATION band (`max × 0.6`), not a
+second forecast — now named as such rather than reading like measured spread.
+
+★ **ONE FIX, SEVEN CALL SITES:** spot hub (`spot_details`), explore feed, the three `conditions.py`
+endpoints (the infoboxes), `alerts.py`, and **`scheduler/surf_alerts.py`** — which compares
+`wave_height_ft` against users' alert thresholds. **A "wake me over 4 ft" alert at Trestles could
+never fire**, because the field read 2.4 ft. That is fixed as a consequence.
+
+⛔ **LOCKED INTO CLAUDE.md** as a binding rule: *ONE FORECAST COMPOSITION* — never report marine
+`point.speed` as surf height; mirror `rate_one_spot`; no second forecast path per screen.
+
+## 7f. THE IMPORT SPOTS BUTTON WAS REMOVED — it was destructive, not merely redundant
+
+Owner: *"the import spots button seems redundant if it doesn't really work."* Measured, it is worse
+than that. It re-adds any of 358 hardcoded `CURATED_SPOTS` missing by an **EXACT (name, country)**
+match — a key that cannot see `Amado` is the same break as the surviving `Praia do Amado`.
+
+★ **Checked against the 45 rows merged that morning: pressing it would have RE-ADDED 5 of them** —
+`Amado`, `First Point Noosa`, `Lacanau`, `Vieux-Boucau`, and `Main Break Margaret River` (the
+`low_accuracy` row deliberately dropped in favour of `Margaret River Main Break`). **A button that
+silently undoes a catalogue merge is not a feature.**
+
+UI removed; the route now **fails closed with a 409** explaining why. Override for a deliberate,
+supervised run: `ALLOW_CURATED_IMPORT=1`. Real imports go through `import_reviewed_spots.py`
+(reviewed CSV, dry-run default, two-tier name+proximity dedupe against live production).
+
 ## 8. NEXT — the rest of the queue
 2. **The duplicate triage** over the 288 pre-existing name-matching pairs — `Teahupo'o` vs
    `Teahupoo` at **140 m** is the clearest single defect in the catalogue. Note the sim now

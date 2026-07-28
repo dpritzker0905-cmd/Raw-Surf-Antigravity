@@ -62,8 +62,25 @@ async def test_point_resolution_service_resolve_spot_conditions(monkeypatch):
     
     assert "current_conditions" in res
     assert "forecast" in res
-    assert res["current_conditions"]["wave_height_ft"] == round(1.5 * 3.28084, 1)
     assert len(res["forecast"]) == 10
+
+    # ⚠️ THIS ASSERTION USED TO PIN THE BUG. It required
+    #     wave_height_ft == round(1.5 * 3.28084, 1)   # 4.9 ft
+    # i.e. that the spot hub reports the raw OFFSHORE significant wave height as the surf height.
+    # Measured 2026-07-28, offshore vs nearshore BREAKING height at the same coordinate and hour
+    # diverges from -18.7% (Jeffreys Bay) to +92.7% (Trestles) — signed both ways, so the geometry
+    # has to be in the chain. The hub now runs the offshore Hs through `surf_point`, exactly as
+    # `spot_ratings.rate_one_spot` and the map glyphs do (CLAUDE.md: ONE FORECAST COMPOSITION).
+    cc = res["current_conditions"]
+    offshore_ft = round(1.5 * 3.28084, 1)
+    assert cc["offshore_height_ft"] == offshore_ft          # the raw input is still reported...
+    assert cc["wave_height_ft"] != offshore_ft              # ...and is NOT what the hub shows
+    # The shown height must equal the production chain's own answer for this input, to the foot.
+    from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
+    geo = resolve_surf_geometry(26.35, -80.08)
+    expected_m, _ = estimate_surf_at(26.35, -80.08, 1.5, 8.0, swell_from_deg=90.0, geometry=geo)
+    assert cc["wave_height_ft"] == round(expected_m * 3.28084, 1)
+    assert cc["surf_regime"]                                # and it says which regime produced it
 
 def test_endpoints_accept_model_param(monkeypatch):
     """Verify explore and details endpoints accept the model query parameter and default to GFS."""

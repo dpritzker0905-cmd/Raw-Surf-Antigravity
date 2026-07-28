@@ -1,5 +1,38 @@
+"""spot_conditions.py — the forecast the SPOT HUB and the infoboxes show.
+
+⚠️⚠️ THIS FILE USED TO BE A SECOND, CRUDER FORECAST COMPOSITION.
+It sampled the marine grid directly (`sampler.sample_point`) and reported `point.speed` — the
+**OFFSHORE significant wave height** — as the spot's surf height, then labelled it with the size
+ladder. Every other surface (the map's spot ratings, `/api/weather/point`, the weather sim) runs
+that same offshore number through `surf_point` to get the NEARSHORE BREAKING height first.
+
+Measured 2026-07-28 against the live app, offshore vs breaking at the same coordinate and hour:
+
+    Trestles           2.4 ft offshore  ->   4.6 ft breaking   +92.7%
+    Teahupo'o          5.0                   7.4               +47.6%
+    Cocoa Beach Pier   1.8                   2.6               +41.7%
+    Supertubos         4.1                   5.0               +23.3%
+    Mavericks          5.7                   6.0                +5.8%
+    Pipeline           5.8                   5.1               -11.9%
+    Jeffreys Bay      10.3                   8.3               -18.7%
+
+★ The error is SIGNED BOTH WAYS (shoaling amplifies, a wide shelf damps), so no constant could
+have corrected it — the geometry has to be in the chain. Trestles reading "2.4 ft" when it is
+actually chest-high is the difference between going and not going.
+
+This is the same defect `cf2efb48` fixed in the weather sim: delegating the FUNCTIONS but not the
+COMPOSITION. The composition lives in ONE place — `surf_point` — and this now calls it, exactly as
+`spot_ratings.rate_one_spot` does.
+
+The hub also had no QUALITY at all: it showed a size and nothing about whether the wind was
+destroying it. It now carries the same 0-100 rating the map glyphs use.
+
+PERFORMANCE: geometry is resolved ONCE and reused for all 11 frames, so the correction adds no
+network I/O. The daily loop still samples the cached grid — the fix is what the numbers MEAN, not
+how many of them are fetched.
+"""
 import logging
-import math
+import os
 from datetime import datetime, timezone, timedelta
 from typing import Dict, Any
 
@@ -9,6 +42,28 @@ from typing import Dict, Any
 from services.conditions_labels import get_conditions_label
 
 logger = logging.getLogger(__name__)
+
+M_TO_FT = 3.28084
+KT_TO_MS = 0.514444
+
+
+def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry):
+    """Offshore Hs -> BREAKING height in feet, through the production chain.
+
+    Fails OPEN to the offshore value: a hub that shows a slightly wrong number is worth more than a
+    hub that shows nothing, and this is an enrichment of an already-working read."""
+    if not offshore_m:
+        return 0.0, "calm"
+    try:
+        from services.weather_pipeline.surf_point import estimate_surf_at
+        breaking_m, regime = estimate_surf_at(
+            lat, lng, offshore_m, period_s or 0.0,
+            swell_from_deg=swell_from_deg, geometry=geometry)
+        if breaking_m is not None:
+            return round(breaking_m * M_TO_FT, 1), regime
+    except Exception as e:
+        logger.debug(f"[spot-conditions] surf transform failed at ({lat},{lng}): {e}")
+    return round(offshore_m * M_TO_FT, 1), "offshore_estimate"
 
 def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
     """Safely retrieves the index element of list from dict_obj, returning default_val if missing or out of bounds."""
@@ -109,15 +164,35 @@ async def resolve_spot_conditions_impl(
         except Exception as e:
             logger.error(f"[Spot conditions] Upstream point fallback failed for {model} at ({lat}, {lng}): {e}")
 
+    # ── THE GEOMETRY, resolved ONCE ───────────────────────────────────────────────────────────
+    # Shore normal, shelf depth/width, break depth and sub-grid magnets are properties of the
+    # COORDINATE, not of the hour, so 11 frames share one lookup. This is what makes the correction
+    # free: the offshore->breaking transform below costs arithmetic, not I/O.
+    geometry = None
+    if os.environ.get("SPOT_HUB_SURF_TRANSFORM", "1") != "0":
+        try:
+            from services.weather_pipeline.surf_point import resolve_surf_geometry
+            geometry = resolve_surf_geometry(lat, lng)
+        except Exception as e:
+            logger.warning(f"[spot-conditions] geometry unavailable at ({lat},{lng}): {e}")
+
     # Construct current conditions response dict
     current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
     current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
-    
-    current_wave_height_ft = round(current_waves["wave_height"] * 3.28084, 1) if current_waves["wave_height"] else 0
-    current_swell_height_ft = round(current_swell["swell_height"] * 3.28084, 1) if current_swell["swell_height"] else 0
-    
+
+    offshore_m = current_waves["wave_height"] or 0.0
+    period_s = current_waves["wave_period"] or 0.0
+    swell_from = current_waves["wave_direction"]
+    current_wave_height_ft, regime = _breaking_ft(
+        lat, lng, offshore_m, period_s, swell_from, geometry)
+    current_swell_height_ft = round(current_swell["swell_height"] * M_TO_FT, 1) if current_swell["swell_height"] else 0
+
     current_conditions = {
+        # ⚠️ THIS IS THE BREAKING HEIGHT NOW, not the offshore Hs it used to be. The offshore value
+        # is still reported alongside so the two can never be silently conflated again.
         "wave_height_ft": current_wave_height_ft,
+        "offshore_height_ft": round(offshore_m * M_TO_FT, 1) if offshore_m else 0,
+        "surf_regime": regime,
         "wave_direction": current_waves["wave_direction"],
         "wave_period": current_waves["wave_period"],
         "swell_height_ft": current_swell_height_ft,
@@ -125,22 +200,51 @@ async def resolve_spot_conditions_impl(
         "label": get_conditions_label(current_wave_height_ft),
         "updated_at": datetime.now(timezone.utc).isoformat()
     }
-    
+
+    # ── QUALITY, from the SAME engine the map glyphs use ──────────────────────────────────────
+    # The hub showed a size and nothing about whether the wind was destroying it, so a blown-out
+    # 6 ft and a groomed 6 ft were indistinguishable. One wind sample buys the whole rating.
+    try:
+        from services.weather_pipeline.surf_rating import compute_surf_rating
+        wind = await self.resolve_point(model=model, domain="wind", layer="wind",
+                                        lat=lat, lng=lng, valid_time_str=current_dt.strftime("%Y-%m-%dT%H:00:00Z"))
+        wind_pt = getattr(wind, "point", None)
+        wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * KT_TO_MS if wind_pt else None
+        wind_from = getattr(wind_pt, "direction", None) if wind_pt else None
+        score, level = compute_surf_rating(
+            current_wave_height_ft / M_TO_FT, period_s, wind_ms, wind_from,
+            getattr(geometry, "shore_normal_deg", None), swell_from, None, None, None, None)
+        current_conditions["rating"] = score
+        current_conditions["rating_level"] = level
+        if wind_pt is not None:
+            current_conditions["wind_speed_kts"] = round(getattr(wind_pt, "speed", 0.0) or 0.0, 1)
+            current_conditions["wind_direction"] = wind_from
+    except Exception as e:
+        # A rating is an ENRICHMENT — never let it cost the conditions read.
+        logger.debug(f"[spot-conditions] rating unavailable at ({lat},{lng}): {e}")
+
     # Construct forecast response list
     forecast_list = []
     for dt in forecast_dates:
         date_str = dt.strftime("%Y-%m-%d")
         day_waves = waves_data.get(dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
         day_swell = swell_data.get(dt, {"swell_height": 0.0})
-        
-        max_ft = round(day_waves["wave_height"] * 3.28084, 1) if day_waves["wave_height"] else 0
+
+        day_offshore = day_waves["wave_height"] or 0.0
+        max_ft, day_regime = _breaking_ft(
+            lat, lng, day_offshore, day_waves["wave_period"], day_waves["wave_direction"], geometry)
+        # ⚠️ `wave_height_min` is a PRESENTATION band around a single modelled value, not a second
+        # forecast — it was `max * 0.6` with no comment, which reads like measured spread. Named as
+        # what it is, and kept so the existing UI range still renders.
         min_ft = round(max_ft * 0.6, 1)
-        swell_max_ft = round(day_swell["swell_height"] * 3.28084, 1) if day_swell["swell_height"] else 0
-        
+        swell_max_ft = round(day_swell["swell_height"] * M_TO_FT, 1) if day_swell["swell_height"] else 0
+
         forecast_list.append({
             "date": date_str,
             "wave_height_min": min_ft,
             "wave_height_max": max_ft,
+            "offshore_height_ft": round(day_offshore * M_TO_FT, 1) if day_offshore else 0,
+            "surf_regime": day_regime,
             "wave_direction": day_waves["wave_direction"],
             "wave_period": day_waves["wave_period"],
             "swell_height_ft": swell_max_ft,

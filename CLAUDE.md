@@ -1,5 +1,22 @@
 ## Project Rules (binding)
 
+- **ONE FORECAST COMPOSITION (user mandate 2026-07-28):** every surface that shows surf height or
+  quality — spot hubs, infoboxes, map glyphs, the weather sim, alerts, notifications, any new
+  endpoint — must go through the SAME chain: `surf_point.resolve_surf_geometry` +
+  `estimate_surf_at` for the **nearshore BREAKING height**, then `surf_rating.compute_surf_rating`
+  for the 0-100 quality. `spot_ratings.rate_one_spot` is the reference implementation; mirror it,
+  never re-derive it.
+  ⚠️ **NEVER report marine `point.speed` as the surf height — that is the OFFSHORE significant wave
+  height.** Measured 2026-07-28, offshore vs breaking at the same coordinate and hour ranged from
+  **−18.7% (Jeffreys Bay) to +92.7% (Trestles)**, signed both ways, so no constant can correct it —
+  only the geometry can. The spot hub shipped the offshore number for months
+  (`spot_conditions.py`), showing "2.4 ft" for chest-high surf.
+  ★ A size without a quality is also incomplete: a blown-out 6 ft and a groomed 6 ft must not
+  render identically. Resolve geometry ONCE per coordinate and reuse it across forecast hours —
+  the correction is arithmetic, not I/O.
+  ⛔ Do not add a second forecast path "just for this screen". That is how the sim came to over-read
+  by 19% (`cf2efb48`) and how the hub came to be wrong by 93%.
+
 - **THREE THEMES, ALL DEVICES (user mandate 2026-07-12):** every UI surface — map controls,
   legends, scrubber, admin panels, overlays, anything rendered — must work in **light mode, dark
   mode, AND beach mode**, on **desktop AND mobile** (and other devices). Use `useTheme()` from

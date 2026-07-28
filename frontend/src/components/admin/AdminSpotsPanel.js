@@ -2,7 +2,7 @@ import React, { useState, useEffect, useRef, useCallback } from 'react';
 import apiClient from '../../lib/apiClient';
 import { Search, CheckCircle,
   Loader2, Trash2, MapPin,
-  Upload, Settings, RefreshCw
+  Settings, RefreshCw
 } from 'lucide-react';
 import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
@@ -13,7 +13,6 @@ import { toast } from 'sonner';
 import logger from '../../utils/logger';
 import { AdminSpotsStats } from './AdminSpotsStats';
 import { AdminSpotDuplicates } from './AdminSpotDuplicates';
-import { AdminSpotsImportDialog } from './AdminSpotsImportDialog';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 /**
@@ -37,7 +36,6 @@ const AdminSpotsPanel = ({ userId }) => {
   const [searchQuery, setSearchQuery] = useState('');
   const [filterCountry, setFilterCountry] = useState('');
   const [editingSpot, setEditingSpot] = useState(null);
-  const [importLoading, setImportLoading] = useState(false);
   
   // Precision Pin Map Modal state
   const [precisionPinOpen, setPrecisionPinOpen] = useState(false);
@@ -125,41 +123,6 @@ const AdminSpotsPanel = ({ userId }) => {
     return () => clearInterval(id);
   }, [refreshAll]);
 
-  // Import tier state
-
-  const [importTier, setImportTier] = useState(0);
-  const [showImportDialog, setShowImportDialog] = useState(false);
-  const [includeOSM, setIncludeOSM] = useState(false);
-
-  const handleImport = async () => {
-    setImportLoading(true);
-    try {
-      const response = await apiClient.post(
-        `/admin/spots/import?tier=${importTier}&include_osm=${includeOSM}`
-      );
-      const { total_imported: added = 0, skipped_existing: skipped = 0 } = response.data;
-      // A green "success" on zero rows is what made this button look broken. It imports from 358
-      // hardcoded CURATED_SPOTS and skips anything already present by (name, country) — and the
-      // catalogue already contains all of them, so a CORRECT run adds nothing. Say so plainly
-      // instead of reporting a win.
-      if (added > 0) {
-        toast.success(`Imported ${added} new spot${added === 1 ? '' : 's'}` +
-          (skipped ? ` (${skipped} already in the catalogue)` : ''));
-      } else {
-        toast.warning(
-          `Nothing to import — all ${skipped || 'curated'} spots are already in the catalogue.`,
-          { description: 'This button only adds the built-in curated list. It cannot add new spots.' }
-        );
-      }
-      setShowImportDialog(false);
-      refreshAll();
-    } catch (error) {
-      logger.error('Import failed:', error);
-      toast.error(error.response?.data?.detail || 'Import failed');
-    } finally {
-      setImportLoading(false);
-    }
-  };
 
   const handleUpdateSpot = async (spotId, updates) => {
     try {
@@ -369,15 +332,17 @@ const AdminSpotsPanel = ({ userId }) => {
       <AdminSpotDuplicates />
 
       {/* Actions */}
+      {/* ⛔ THE "Import Spots" BUTTON WAS REMOVED 2026-07-28, and not for being merely useless.
+          It imported 358 hardcoded CURATED_SPOTS, skipping anything already present by an EXACT
+          (name, country) match — so a correct run added zero, which is why it looked broken. The
+          measured reason it had to go is worse: that exact-match key cannot see that `Amado` is the
+          same break as `Praia do Amado`, so pressing it would have RE-ADDED 5 of the 45 duplicates
+          merged that morning (Amado, First Point Noosa, Lacanau, Vieux-Boucau, and
+          `Main Break Margaret River` — the misplaced row deliberately dropped in favour of
+          `Margaret River Main Break`). A button that silently undoes a catalogue merge is not a
+          feature. Real imports go through scripts/import_reviewed_spots.py: reviewed CSV,
+          dry-run by default, two-tier name+proximity dedupe against LIVE production. */}
       <div className="flex flex-wrap gap-2">
-        <Button aria-label="Upload"
-          onClick={() => setShowImportDialog(true)}
-          className="bg-green-600 hover:bg-green-700"
-        >
-          <Upload className="w-4 h-4 mr-2" />
-          Import Spots
-
-        </Button>
         <Button aria-label="Refresh"
           variant="outline"
           onClick={() => refreshAll()}
@@ -387,18 +352,6 @@ const AdminSpotsPanel = ({ userId }) => {
           Refresh
         </Button>
       </div>
-
-      {/* Import tier picker — extracted to AdminSpotsImportDialog.js (LOC ratchet, 2026-07-28) */}
-      <AdminSpotsImportDialog
-        open={showImportDialog}
-        onOpenChange={setShowImportDialog}
-        importTier={importTier}
-        setImportTier={setImportTier}
-        includeOSM={includeOSM}
-        setIncludeOSM={setIncludeOSM}
-        onImport={handleImport}
-        importLoading={importLoading}
-      />
 
       {/* Search & Filter */}
       <Card className="bg-card border-border">

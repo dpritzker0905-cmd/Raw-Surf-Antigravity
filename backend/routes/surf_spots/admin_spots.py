@@ -9,6 +9,7 @@ from sqlalchemy import select, func, and_, or_, text as sa_text
 from typing import Optional
 from datetime import datetime, timezone
 import asyncio
+import os
 import logging
 
 from database import get_db
@@ -310,7 +311,26 @@ async def trigger_spot_import(
     - Tier 2: West Coast, Hawaii, Puerto Rico  
     - Tier 3: Global (Australia, Indonesia, Europe, etc.)
     - include_osm: Also fetch from OSM Overpass API (slower)
+
+    ⛔ FAILS CLOSED as of 2026-07-28. Its admin button was removed, and not for being merely
+    useless. It re-adds any of 358 hardcoded CURATED_SPOTS missing by an EXACT (name, country)
+    match — a key that cannot see that `Amado` is the same break as `Praia do Amado`. MEASURED
+    against the 45 duplicate rows merged that morning: calling this would RE-ADD 5 of them
+    (Amado, First Point Noosa, Lacanau, Vieux-Boucau, and `Main Break Margaret River`, the
+    low_accuracy row deliberately dropped in favour of `Margaret River Main Break`). An endpoint
+    that silently undoes a catalogue merge must not be one click away.
+
+    Real imports go through `scripts/import_reviewed_spots.py`: reviewed CSV, dry-run by default,
+    and a two-tier name+proximity dedupe against LIVE production.
+    Override for a deliberate, supervised run: ALLOW_CURATED_IMPORT=1.
     """
+    if os.environ.get("ALLOW_CURATED_IMPORT", "0") != "1":
+        raise HTTPException(
+            status_code=409,
+            detail=("Curated import is disabled: its (name, country) dedupe cannot see "
+                    "normalisation-variant duplicates and would re-add rows removed by a merge. "
+                    "Use scripts/import_reviewed_spots.py, or set ALLOW_CURATED_IMPORT=1 to "
+                    "override deliberately."))
     from scripts.import_global_spots import import_curated_spots, import_osm_spots, CURATED_SPOTS
     
     # Filter curated spots by tier if specified
