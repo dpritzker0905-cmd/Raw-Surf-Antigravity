@@ -309,6 +309,43 @@ def oversize_gate(surf_h_m, reference_size_m=None, enabled=None, break_depth_m=N
     return _clamp(1.0 - (1.0 - OVERSIZE_FLOOR) * frac, OVERSIZE_FLOOR, 1.0)
 
 
+# ── NON-SURFABLE PERIOD VETO (2026-07-29) ───────────────────────────────────────────────────────
+# THE THIRD INSTANCE OF ONE DEFECT: an ADDITIVE term with a generous floor cannot veto anything.
+# `period_quality` floors at 0.40 and enters the composite as (0.60*wq + 0.40*pq), so light offshore
+# wind alone carries the score. Measured on this engine at 4 ft, clean light offshore:
+#     Tp = 2 s -> 76.0 "good"    3 s -> 76.0    4 s -> 76.0    6 s -> 76.0    8 s -> 81.3
+# A 2 s wave has a deep-water wavelength of ~6 m. That is ripples, and the engine called it good.
+# ★ Note that merely dropping period_quality's floor to 0.0 does NOT fix it — 0.60*wq still lands
+#   60 "fair_good". Only a MULTIPLICATIVE veto can express "there is no rideable wave here",
+#   exactly as `wind_gate` (blown out) and `oversize_gate` (closed out) already do.
+#
+# ⚠️ IT MUST NOT PUNISH SHORT-WINDSWELL COASTS. The Gulf of Mexico, the Mediterranean, the Baltic
+# and the Great Lakes surf 5-8 s windswell as their normal condition — that is real surf, not chop.
+# So the veto is fully inert at and above 7 s and only bites below it, reaching its floor at 3 s
+# where no board can catch anything. The user's pinned calibration anchors sit at 9 s and 11 s, so
+# this is PROVABLY inert for them.
+# ⚠️ The floor is not 0, for the same reason as oversize_gate: `rating_transform_grid` skips cells
+# scoring <= 0, so a zeroing veto would punch holes in the coastal band. Kill: RATING_PERIOD_GATE=0.
+PERIOD_GATE_FULL_S = 7.0     # at/above this the veto is inert — short windswell is still surf
+PERIOD_GATE_FLOOR_S = 3.0    # at/below this nothing is rideable
+PERIOD_GATE_FLOOR = 0.25     # never 0 (band-hole guard)
+
+
+def period_gate(tp_s, enabled=None):
+    """Multiplicative veto in [PERIOD_GATE_FLOOR, 1.0] for periods too short to carry a rideable
+    wave. 1.0 (inert) for unknown period and for anything at/above PERIOD_GATE_FULL_S."""
+    if enabled is None:
+        enabled = os.environ.get("RATING_PERIOD_GATE", "1") != "0"
+    if not enabled or tp_s is None or tp_s <= 0:
+        return 1.0                              # unknown period -> no opinion (never invent a veto)
+    if tp_s >= PERIOD_GATE_FULL_S:
+        return 1.0
+    if tp_s <= PERIOD_GATE_FLOOR_S:
+        return PERIOD_GATE_FLOOR
+    frac = (tp_s - PERIOD_GATE_FLOOR_S) / (PERIOD_GATE_FULL_S - PERIOD_GATE_FLOOR_S)
+    return _clamp(PERIOD_GATE_FLOOR + (1.0 - PERIOD_GATE_FLOOR) * frac, PERIOD_GATE_FLOOR, 1.0)
+
+
 def swell_exposure(swell_from_deg, shore_normal_deg):
     """Swell-ANGLE factor [0..1]: can this swell actually reach the coast, head-on or grazing? ``shore_normal_deg``
     points OUT TO SEA; a swell whose FROM-bearing aligns with it arrives head-on (best energy). Beyond ~90° off
@@ -479,7 +516,10 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     # `og` MULTIPLIES for the mirror-image reason: `size_score` saturates at 1.0 and has no descending
     # limb, so without it a 35 ft closeout scores exactly like a groomed 4 ft day (see oversize_gate).
     og = oversize_gate(surf_h_m, reference_size_m, break_depth_m=break_depth_m)
-    return round(100.0 * sg * ex * sc * tf * bt * wg * og * (W_WIND * wq + W_PERIOD * pq), 1)
+    # `pg` MULTIPLIES for the third time on the same reasoning: an additive period term with a 0.40
+    # floor let 2-second ripples score 76 "good" on light wind alone (see period_gate).
+    pg = period_gate(ptp if ptp is not None else tp_s)
+    return round(100.0 * sg * ex * sc * tf * bt * wg * og * pg * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):

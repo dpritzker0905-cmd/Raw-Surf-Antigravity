@@ -11,13 +11,13 @@
  * the real Python engine across height x period x wind speed x wind direction x swell direction x
  * {with, without} shore-normal.
  *
- * REGENERATE after any intentional change to either engine:
- *   cd backend && python - <<'PY'
- *   import json, os
- *   os.environ.pop('RATING_WIND_GATE', None)
- *   from services.weather_pipeline.surf_rating import rating_score, score_to_level
- *   ... (see the generator in the 2026-07-26 audit notes)
- *   PY
+ * REGENERATE after any intentional change to either engine — ONE command:
+ *
+ *   python backend/scripts/gen_rating_parity_goldens.py
+ *
+ * (That script replaced a procedure that used to say "see the generator in the 2026-07-26 audit
+ * notes". A regeneration step that lives in a chat log is not a step: when the period veto shipped
+ * 2026-07-29 the goldens went stale and the grid had to be reverse-engineered from the JSON.)
  */
 import { ratingScore, scoreToLevel } from '../components/map/surfRating';
 import goldens from './__parity_goldens.json';

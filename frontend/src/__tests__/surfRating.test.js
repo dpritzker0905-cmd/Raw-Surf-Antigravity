@@ -5,6 +5,7 @@ import {
   dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
   observationGate, OBS_CAP_UNCONFIRMED, OBS_CAP_GOOD,
   windGate, WIND_GATE_START_KT, WIND_GATE_ZERO_KT,
+  periodGate, PERIOD_GATE_FULL_S, PERIOD_GATE_FLOOR_S, PERIOD_GATE_FLOOR,
   oversizeGate, oversizeThresholds, OVERSIZE_FLOOR, OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M,
   OVERSIZE_GAMMA, OVERSIZE_MAX_BREAK_DEPTH_M, OVERSIZE_MIN_START_M,
 } from '../components/map/surfRating';
@@ -298,9 +299,12 @@ describe('windGate (JS mirror of surf_rating.wind_gate)', () => {
   });
 
   test('PARITY: exact backend goldens at 2.0 m head-on, dead onshore', () => {
-    // from services/weather_pipeline/surf_rating.py run this session
+    // from services/weather_pipeline/surf_rating.py, re-derived 2026-07-29.
+    // ⚠️ The tp=6 rows MOVED (17.5 -> 14.3, 11.0 -> 8.9) when the non-surfable-period veto shipped:
+    // period_gate is inert at/above 7 s, so 6 s now carries a 0.8125 factor. tp=12 and tp=16 are
+    // untouched, which is the check that the veto stayed in its lane.
     const golden = [
-      [6, 16, 17.5], [6, 25, 11.0], [6, 40, 0.0],
+      [6, 16, 14.3], [6, 25, 8.9], [6, 40, 0.0],
       [12, 16, 32.3], [12, 25, 20.2], [12, 40, 0.0],
       [16, 16, 39.7], [16, 25, 24.8], [16, 40, 0.0],
     ];
@@ -419,5 +423,75 @@ describe('oversizeGate (JS mirror of surf_rating.oversize_gate)', () => {
     expect(oversizeThresholds(null)).toEqual([8.0, 14.0]);
     expect(oversizeThresholds(0.7)).toEqual([0.7 * 3.5, 0.7 * 6.0]);
     expect(OVERSIZE_FLOOR).toBe(0.30);
+  });
+});
+
+// ── NON-SURFABLE PERIOD VETO (parity mirror of backend test_surf_rating.py, 2026-07-29) ──────────
+describe('periodGate (JS mirror of surf_rating.period_gate)', () => {
+  const CLEAN = [2.0, 90.0, 270.0, 270.0];   // wind m/s FROM land, head-on swell
+
+  test('inert where it must be, including unknown period', () => {
+    expect(periodGate(null)).toBe(1.0);
+    expect(periodGate(0)).toBe(1.0);
+    expect(periodGate(-3)).toBe(1.0);
+    for (const tp of [PERIOD_GATE_FULL_S, 8, 9, 11, 14, 20, 30]) expect(periodGate(tp)).toBe(1.0);
+  });
+
+  test('does not punish short-windswell coasts (Gulf / Med / Baltic / Great Lakes surf 5-8 s)', () => {
+    expect(periodGate(8.0)).toBe(1.0);
+    expect(periodGate(7.0)).toBe(1.0);
+    expect(periodGate(6.0)).toBeGreaterThan(0.75);
+    expect(periodGate(5.0)).toBeGreaterThan(0.55);
+  });
+
+  test('tapers monotonically and never zeroes', () => {
+    let prev = 1.0;
+    for (const tp of [7, 6, 5, 4, 3, 2, 0.5]) {
+      const g = periodGate(tp);
+      expect(g).toBeGreaterThan(0.0);
+      expect(g).toBeLessThanOrEqual(prev + 1e-12);
+      prev = g;
+    }
+    expect(periodGate(PERIOD_GATE_FLOOR_S)).toBeCloseTo(PERIOD_GATE_FLOOR, 9);
+    expect(PERIOD_GATE_FLOOR).toBeGreaterThan(0.0);
+  });
+
+  test('ripples no longer rate good, and real windswell is untouched', () => {
+    const at = (tp) => computeSurfRating(1.22, tp, ...CLEAN);
+    expect(['very_poor', 'poor']).toContain(at(2.0).level);
+    expect(['good', 'epic']).not.toContain(at(4.0).level);
+    expect(at(8.0).level).toBe('good');
+    expect(at(14.0).level).toBe('epic');
+    const vals = [2, 3, 4, 6, 8, 14].map((tp) => at(tp).score);
+    expect(vals).toEqual([...vals].sort((a, b) => a - b));
+    expect(Math.max(...vals) - Math.min(...vals)).toBeGreaterThan(60.0);
+  });
+
+  test('PARITY: backend goldens at 4 ft clean light offshore', () => {
+    // ⚠️ tp=4 lands on EXACTLY 33.25, where the two languages disagree by 0.1: Python's round()
+    // is banker's rounding (-> 33.2) and JS Math.round is half-up (-> 33.3). That divergence is
+    // PRE-EXISTING in the shared `round(x*10)/10` convention, not introduced here; a 0.1 shift
+    // cannot change the reported level except exactly on a 14-point bucket edge. Tolerance 0.15
+    // documents it instead of hiding it.
+    const at = (tp) => computeSurfRating(1.22, tp, ...CLEAN).score;
+    expect(at(2.0)).toBeCloseTo(19.0, 1);
+    expect(Math.abs(at(4.0) - 33.2)).toBeLessThanOrEqual(0.15);
+    expect(at(6.0)).toBeCloseTo(61.8, 1);
+    expect(at(8.0)).toBeCloseTo(81.3, 1);
+    expect(scoreToLevel(at(4.0))).toBe('poor_fair');   // the LEVEL is identical either way
+  });
+
+  test('kill switch restores the prior behaviour', () => {
+    window.__RAW_DISABLE_PERIOD_GATE__ = true;
+    expect(computeSurfRating(1.22, 2.0, ...CLEAN).score)
+      .toBe(computeSurfRating(1.22, 6.0, ...CLEAN).score);
+    delete window.__RAW_DISABLE_PERIOD_GATE__;
+    expect(computeSurfRating(1.22, 2.0, ...CLEAN).score)
+      .toBeLessThan(computeSurfRating(1.22, 6.0, ...CLEAN).score);
+  });
+
+  test('the pinned user calibration anchors are provably untouched', () => {
+    expect(periodGate(9.0)).toBe(1.0);
+    expect(periodGate(11.0)).toBe(1.0);
   });
 });

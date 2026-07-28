@@ -4,6 +4,7 @@ from services.weather_pipeline.surf_rating import (
     compute_surf_rating, rating_score, size_score, period_quality,
     wind_quality, offshoreness, swell_exposure, score_to_level, LEVELS,
     parse_best_tide, tide_fit, breaker_type_quality,
+    period_gate, PERIOD_GATE_FULL_S, PERIOD_GATE_FLOOR_S, PERIOD_GATE_FLOOR,
     oversize_gate, oversize_thresholds, OVERSIZE_FLOOR, OVERSIZE_ABS_START_M,
     OVERSIZE_ABS_FLOOR_M, OVERSIZE_GAMMA, OVERSIZE_MAX_BREAK_DEPTH_M, OVERSIZE_MIN_START_M,
 )
@@ -580,3 +581,82 @@ def test_break_depth_threads_through_the_public_composite():
     # Positional back-compat: the pre-existing 10-positional-arg form still means what it meant.
     assert compute_surf_rating(1.5, 14.0, 2.0, 90.0, 270.0, 270.0, None, None, None, None) == \
            compute_surf_rating(1.5, *clean)
+
+
+# ── NON-SURFABLE PERIOD VETO — the THIRD instance of the additive-floor defect ───────────────────
+
+def test_period_gate_is_inert_where_it_must_be():
+    assert period_gate(None) == 1.0                     # unknown period -> never invent a veto
+    assert period_gate(0.0) == 1.0
+    assert period_gate(-3.0) == 1.0
+    assert period_gate(PERIOD_GATE_FULL_S) == 1.0
+    for tp in (7.0, 8.0, 9.0, 11.0, 14.0, 20.0, 30.0):
+        assert period_gate(tp) == 1.0, tp
+    assert period_gate(2.0, enabled=False) == 1.0
+
+
+def test_period_gate_does_not_punish_short_windswell_coasts():
+    """The Gulf, the Mediterranean, the Baltic and the Great Lakes surf 5-8 s as their NORMAL
+    condition. That is real surf — the veto must be gentle there and only bite below it."""
+    assert period_gate(8.0) == 1.0
+    assert period_gate(7.0) == 1.0
+    assert period_gate(6.0) > 0.75                      # a nudge, not a veto
+    assert period_gate(5.0) > 0.55
+
+
+def test_period_gate_tapers_monotonically_and_never_zeroes():
+    prev = 1.0
+    for tp in (7.0, 6.0, 5.0, 4.0, 3.0, 2.0, 0.5):
+        g = period_gate(tp)
+        assert 0.0 < g <= prev + 1e-12, f"gate rose or hit zero at {tp}s"
+        prev = g
+    assert period_gate(PERIOD_GATE_FLOOR_S) == pytest.approx(PERIOD_GATE_FLOOR)
+    assert period_gate(0.1) == pytest.approx(PERIOD_GATE_FLOOR)
+    assert PERIOD_GATE_FLOOR > 0.0                      # band-hole guard
+
+
+def test_ripples_no_longer_rate_good():
+    """THE defect: at 4 ft with clean light offshore wind, EVERY period from 2 s to 6 s scored
+    76.0 'good' because 0.60*wind alone carried it."""
+    clean = (2.0, 90.0, 270.0, 270.0)                   # wind m/s FROM land, head-on swell
+    scores = {tp: compute_surf_rating(1.22, tp, *clean) for tp in (2.0, 3.0, 4.0, 6.0, 8.0, 14.0)}
+    assert scores[2.0][1] in ("very_poor", "poor"), scores[2.0]
+    assert scores[4.0][1] not in ("good", "epic"), scores[4.0]
+    assert scores[8.0][1] == "good"                      # real windswell is untouched
+    assert scores[14.0][1] == "epic"
+    vals = [scores[tp][0] for tp in (2.0, 3.0, 4.0, 6.0, 8.0, 14.0)]
+    assert vals == sorted(vals), f"score must rise with period: {vals}"
+    # 2 s and 3 s legitimately tie at the gate's floor; what must be gone is the old collapse where
+    # 2 / 3 / 4 / 6 s ALL read 76.0. Span the range instead of demanding six distinct values.
+    assert max(vals) - min(vals) > 60.0, f"periods still collapse: {vals}"
+    assert len(set(vals)) >= 5, f"too many periods share a score: {vals}"
+
+
+def test_zeroing_the_additive_period_term_would_NOT_have_fixed_it():
+    """Documents why this had to be multiplicative: with pq driven to its floor the wind term alone
+    still lands well above 'poor'. An additive term cannot express 'unrideable'."""
+    from services.weather_pipeline.surf_rating import W_WIND, W_PERIOD, period_quality
+    assert period_quality(2.0) == pytest.approx(0.40)
+    additive_best = 100.0 * (W_WIND * 1.0 + W_PERIOD * 0.0)     # even at pq == 0
+    assert additive_best >= 56.0, "the additive floor alone would still read 'fair' or better"
+
+
+def test_period_gate_kill_switch_restores_prior_behaviour():
+    clean = (2.0, 90.0, 270.0, 270.0)
+    prior = _os.environ.get("RATING_PERIOD_GATE")
+    try:
+        _os.environ["RATING_PERIOD_GATE"] = "0"
+        assert compute_surf_rating(1.22, 2.0, *clean)[0] == compute_surf_rating(1.22, 6.0, *clean)[0]
+        _os.environ["RATING_PERIOD_GATE"] = "1"
+        assert compute_surf_rating(1.22, 2.0, *clean)[0] < compute_surf_rating(1.22, 6.0, *clean)[0]
+    finally:
+        if prior is None:
+            _os.environ.pop("RATING_PERIOD_GATE", None)
+        else:
+            _os.environ["RATING_PERIOD_GATE"] = prior
+
+
+def test_period_gate_leaves_the_user_calibration_anchors_untouched():
+    """The 2026-07-12 acceptance spec sits at 9 s and 11 s — provably inert."""
+    for tp in (9.0, 11.0):
+        assert period_gate(tp) == 1.0

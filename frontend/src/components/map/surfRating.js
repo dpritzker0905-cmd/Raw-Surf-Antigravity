@@ -255,6 +255,28 @@ export function oversizeGate(h, referenceSizeM = null, breakDepthM = null) {
   return _clamp(1.0 - (1.0 - OVERSIZE_FLOOR) * ((h - start) / (floorH - start)), OVERSIZE_FLOOR, 1.0);
 }
 
+// ── NON-SURFABLE PERIOD VETO (mirror of surf_rating.period_gate, 2026-07-29) ──────────────────────
+// The THIRD instance of one defect: an ADDITIVE term with a floor cannot veto. periodQuality floors
+// at 0.40 inside (0.60*wq + 0.40*pq), so light offshore wind alone carried the score — measured at
+// 4 ft clean, EVERY period from 2 s to 6 s scored 76.0 "good". A 2 s wave is a ~6 m wavelength.
+// ⚠️ Must NOT punish short-windswell coasts (Gulf, Mediterranean, Baltic, Great Lakes surf 5-8 s as
+// normal): inert at/above 7 s, floors at 3 s. The pinned anchors are 9 s and 11 s => provably inert.
+// ⚠️ Floor is not 0 (band-hole guard). Kill: window.__RAW_DISABLE_PERIOD_GATE__.
+export const PERIOD_GATE_FULL_S = 7.0;
+export const PERIOD_GATE_FLOOR_S = 3.0;
+export const PERIOD_GATE_FLOOR = 0.25;
+
+export function periodGate(tp) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_PERIOD_GATE__) return 1.0;
+  } catch (e) { /* no window (tests/SSR) -> gate stays on */ }
+  if (tp == null || tp <= 0) return 1.0;              // unknown period -> never invent a veto
+  if (tp >= PERIOD_GATE_FULL_S) return 1.0;
+  if (tp <= PERIOD_GATE_FLOOR_S) return PERIOD_GATE_FLOOR;
+  const frac = (tp - PERIOD_GATE_FLOOR_S) / (PERIOD_GATE_FULL_S - PERIOD_GATE_FLOOR_S);
+  return _clamp(PERIOD_GATE_FLOOR + (1.0 - PERIOD_GATE_FLOOR) * frac, PERIOD_GATE_FLOOR, 1.0);
+}
+
 export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null, breakDepthM = null) {
   const sg = sizeScore(h, referenceSizeM);
   if (sg <= 0.0) return 0.0;
@@ -272,7 +294,10 @@ export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg =
   // `og` MULTIPLIES for the mirror-image reason: sizeScore saturates at 1.0 with no descending limb,
   // so without it a 35 ft closeout scores exactly like a groomed 4 ft day (see oversizeGate).
   const og = oversizeGate(h, referenceSizeM, breakDepthM);
-  return Math.round(100.0 * sg * ex * sc * tf * bt * wg * og * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  // `pg` MULTIPLIES for the third time on the same reasoning: an additive period term with a 0.40
+  // floor let 2-second ripples score 76 "good" on light wind alone (see periodGate).
+  const pg = periodGate(ptp != null ? ptp : tp);
+  return Math.round(100.0 * sg * ex * sc * tf * bt * wg * og * pg * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
