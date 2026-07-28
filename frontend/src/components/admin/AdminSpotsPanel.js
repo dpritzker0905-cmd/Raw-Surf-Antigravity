@@ -4,13 +4,14 @@ import { Search, CheckCircle,
   Loader2, Trash2, MapPin,
   Upload, Settings, RefreshCw
 } from 'lucide-react';
-import { Card, CardHeader, CardTitle, CardContent } from '../ui/card';
+import { Card, CardContent } from '../ui/card';
 import { Button } from '../ui/button';
 import { Input } from '../ui/input';
 import { Badge } from '../ui/badge';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '../ui/dialog';
 import { toast } from 'sonner';
 import logger from '../../utils/logger';
+import { AdminSpotsStats } from './AdminSpotsStats';
 import '../../utils/leafletLoader'; // sets window.L (see file for why this was needed)
 
 /**
@@ -22,6 +23,8 @@ const AdminSpotsPanel = ({ userId }) => {
   const [stats, setStats] = useState(null);
   const [spotTotal, setSpotTotal] = useState(0);
   const [lastRefreshed, setLastRefreshed] = useState(null);
+  // Set when a live read failed, so the tiles can show "—" instead of a fabricated 0.
+  const [loadError, setLoadError] = useState(null);
   // 'all' | 'flagged' | 'low_accuracy' | 'unverified' | 'verified' — the review state is the reason
   // to open this panel, so it needs to be filterable, not just countable. `flagged` is the UNION
   // and is now too coarse on its own: measured 2026-07-27 it holds 155 misplaced spots (fix the
@@ -43,12 +46,20 @@ const AdminSpotsPanel = ({ userId }) => {
   const pinMapInstanceRef = useRef(null);
   const pinMarkerRef = useRef(null);
 
+  // ⚠️ RETURNS whether it succeeded. This used to swallow the error and leave `stats` null, which
+  // renders as 0 through `stats?.total_spots || 0` — so a 401, a 500 or a dead backend produced a
+  // confident "0 spots / 0 countries" that is indistinguishable from an empty database. Measured
+  // 2026-07-28 against production: unauthenticated, /admin/spots/stats returns 401 and this panel
+  // showed all zeros stamped "Live · updated 9:50:10 PM".
   const fetchStats = useCallback(async () => {
     try {
       const response = await apiClient.get(`/admin/spots/stats`);
       setStats(response.data);
+      return true;
     } catch (error) {
       logger.error('Error fetching spot stats:', error);
+      setStats(null);
+      return false;
     }
   }, [userId]);
 
@@ -65,8 +76,10 @@ const AdminSpotsPanel = ({ userId }) => {
       const response = await apiClient.get(`/admin/spots/list?${params.toString()}`);
       setSpots(response.data.spots || []);
       setSpotTotal(response.data.total ?? (response.data.spots || []).length);
+      return true;
     } catch (error) {
       logger.error('Error fetching spots:', error);
+      return false;
     }
   }, [filterCountry, accuracyFilter]);
 
@@ -74,9 +87,23 @@ const AdminSpotsPanel = ({ userId }) => {
   // `handleUpdateSpot` used to refresh only the list — so editing a spot's accuracy left the
   // "Global Spot Database" counts showing the pre-edit numbers until a manual Refresh. Every
   // handler calls this instead of remembering to call both.
+  // ⚠️ The timestamp is only stamped when the data ACTUALLY ARRIVED. It used to be set
+  // unconditionally — both fetchers caught their own errors, so `Promise.all` always resolved and
+  // the panel asserted "Live · updated <now>" over data that had never loaded. That timestamp
+  // exists to make a stale panel distinguishable from a correct one, so certifying a failed load
+  // was worse than having no timestamp at all.
   const refreshAll = useCallback(async () => {
-    await Promise.all([fetchStats(), fetchSpots()]);
-    setLastRefreshed(new Date());
+    const [statsOk, spotsOk] = await Promise.all([fetchStats(), fetchSpots()]);
+    if (statsOk && spotsOk) {
+      setLoadError(null);
+      setLastRefreshed(new Date());
+    } else {
+      setLoadError(
+        statsOk || spotsOk
+          ? 'Part of the live spot data could not be loaded — some counts may be missing.'
+          : 'Live spot data could not be loaded. Check that you are signed in as an admin.'
+      );
+    }
   }, [fetchStats, fetchSpots]);
 
   useEffect(() => {
@@ -327,94 +354,14 @@ const AdminSpotsPanel = ({ userId }) => {
 
   return (
     <div className="space-y-4" data-testid="admin-spots-panel">
-      {/* Stats Overview */}
-      <Card className="bg-card border-border">
-        <CardHeader>
-          <CardTitle className="text-foreground flex items-center gap-2 flex-wrap">
-            <MapPin className="w-5 h-5 text-cyan-400" />
-            Global Spot Database
-            {/* Every number below is read live from production. Saying WHEN makes a stale panel
-                distinguishable from a correct one — the failure mode that hid 165 flagged spots. */}
-            <span className="text-xs font-normal text-muted-foreground ml-auto" aria-live="polite">
-              {lastRefreshed
-                ? `Live · updated ${lastRefreshed.toLocaleTimeString()}`
-                : 'Loading live data…'}
-            </span>
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-foreground">{stats?.total_spots || 0}</p>
-              <p className="text-xs text-muted-foreground">Total Spots</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-cyan-400">{stats?.by_country?.length || 0}</p>
-              <p className="text-xs text-muted-foreground">Countries</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-green-400">{stats?.by_tier?.tier_1 || 0}</p>
-              <p className="text-xs text-muted-foreground">Tier 1 (East Coast)</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-purple-400">{stats?.by_tier?.tier_3 || 0}</p>
-              <p className="text-xs text-muted-foreground">Tier 3 (Global)</p>
-            </div>
-          </div>
-
-          {/* ── Accuracy / review state ────────────────────────────────────────────────
-              These four numbers were absent, so nothing on this dashboard could change when
-              a spot's verification or placement state did: a 2026-07-27 correction moved 1256
-              spots out of is_verified_peak and flagged 158 as low_accuracy, and the panel
-              rendered identically before and after. "Verified" deliberately shows the count
-              with a REAL verified_by, not is_verified_peak — the bulk import scripts hardcoded
-              that flag True on every row they wrote, so it carried no accuracy information. */}
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mb-4">
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-foreground">{stats?.active_spots ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Active (shown on map)</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-amber-500">{stats?.flagged_for_review ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Flagged for review</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-red-500">{stats?.low_accuracy ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Low accuracy (misplaced)</p>
-            </div>
-            <div className="bg-muted rounded-lg p-3 text-center">
-              <p className="text-3xl font-bold text-emerald-500">{stats?.has_verifier ?? 0}</p>
-              <p className="text-xs text-muted-foreground">Verified by a human</p>
-            </div>
-          </div>
-
-          {/* Countries breakdown — real <button>s. These were Badges with onClick, i.e.
-              keyboard-unreachable and invisible to assistive tech (accessibility mandate). */}
-          <div className="flex flex-wrap gap-2">
-            {stats?.by_country?.slice(0, 10).map((item) => {
-              const isActive = filterCountry === item.country;
-              return (
-                <button
-                  key={item.country}
-                  type="button"
-                  onClick={() => setFilterCountry(isActive ? '' : item.country)}
-                  aria-pressed={isActive}
-                  aria-label={`Filter spots by ${item.country} (${item.count} spots)`}
-                  className="focus:outline-none focus-visible:ring-2 focus-visible:ring-cyan-500 rounded-full"
-                >
-                  <Badge
-                    className={`cursor-pointer ${isActive
-                      ? 'bg-cyan-500 text-white hover:bg-cyan-400'
-                      : 'bg-input text-muted-foreground hover:bg-muted'}`}
-                  >
-                    {item.country}: {item.count}
-                  </Badge>
-                </button>
-              );
-            })}
-          </div>
-        </CardContent>
-      </Card>
+      {/* Stats Overview — extracted to AdminSpotsStats.js (800-LOC ratchet, 2026-07-28) */}
+      <AdminSpotsStats
+        stats={stats}
+        lastRefreshed={lastRefreshed}
+        filterCountry={filterCountry}
+        onFilterCountry={setFilterCountry}
+        loadError={loadError}
+      />
 
       {/* Actions */}
       <div className="flex flex-wrap gap-2">
@@ -566,9 +513,12 @@ const AdminSpotsPanel = ({ userId }) => {
               <option value="verified">Verified by a human</option>
             </select>
           </div>
+          {/* Same rule as the tiles: a failed read must not read as "0 in the database". */}
           <p className="text-xs text-muted-foreground mb-2" aria-live="polite">
-            Showing {Math.min(filteredSpots.length, 50)} of {filteredSpots.length} matching
-            {' '}({spotTotal} in the database)
+            {loadError
+              ? 'Spot list unavailable — the live read failed.'
+              : <>Showing {Math.min(filteredSpots.length, 50)} of {filteredSpots.length} matching
+                 {' '}({spotTotal} in the database)</>}
           </p>
 
           {/* Spots List */}
