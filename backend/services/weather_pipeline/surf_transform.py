@@ -224,6 +224,28 @@ def komar_breaker_height(Hs_m, Tp_s):
 SHELF_FRICTION_CF = 0.40
 _CELL_KM = 27.75          # ~0.25 deg ≈ 27.75 km
 
+# ── THE EVIDENCE FLOOR (2026-07-29) ─────────────────────────────────────────────────────────────
+# `exp(-CF * cells * /sinh(kd))` is UNBOUNDED BELOW, and it is fed a `shelf_depth_at` that is a
+# ~139 km MEDIAN — the same one-depth-two-jobs quantity that made the breaking cap dead (2026-07-27).
+# Measured over the live catalogue (1,773 spots): that depth spans p10 24 m to p90 2,389 m, and
+# 47.2% of spots read deeper than 200 m, where kd > 8 switches this term OFF entirely. At the other
+# extreme it extrapolates far outside its own calibration envelope (the docstring's ~80-100 km /
+# ~25 m case, which the formula still reproduces exactly at Kf = 0.844):
+#     SALTHILL BEACH   shelf   1.0 m, width 194 km  ->  Kf 0.0039  = 0.4% of the wave survives
+#     Fort Myers/Naples/Sanibel (W Florida shelf)   ->  Kf 0.16-0.18 at 16 s
+# A spot retaining 0.4% of its swell reads FLAT forever — worse than a naive baseline, the same
+# category as the fabricated GFS zeros.
+#
+# THE BOUND IS THE DOCSTRING'S OWN CITATION. Ardhuin (2003) reports up to ~90% ENERGY loss on the
+# widest shelves; height goes as sqrt(energy), so 90% energy loss is a height retention of
+# sqrt(0.10) = 0.316. Below that the model is claiming more dissipation than the literature it cites
+# supports, on a depth sample it cannot trust. Floor it there.
+#
+# ⚠️ This can only ever RESTORE height, never remove more, so it cannot make a currently-good spot
+# worse; anything it raises is still bounded above by the depth-limited breaking cap. It binds on
+# 0.9% of spots at Tp 12 s and 2.5% at 16 s. Kill: SURF_SHELF_KF_FLOOR=0.
+SHELF_KF_FLOOR = 0.316    # = sqrt(1 - 0.90): the ~90% ENERGY-loss ceiling in Ardhuin (2003)
+
 
 def shelf_dissipation(Tp_s, depth_m, width_km):
     """Fraction of offshore swell HEIGHT that survives crossing the shelf, lost to bottom friction. ~1.0 over a
@@ -245,7 +267,11 @@ def shelf_dissipation(Tp_s, depth_m, width_km):
         return 1.0
     feel = 1.0 / math.sinh(kd)
     width_cells = width_km / _CELL_KM
-    return math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
+    kf = math.exp(-SHELF_FRICTION_CF * _shelf_cf_scale() * width_cells * feel)
+    # Never claim more dissipation than the cited literature supports (see SHELF_KF_FLOOR).
+    if os.environ.get("SURF_SHELF_KF_FLOOR", "1") != "0":
+        return max(kf, SHELF_KF_FLOOR)
+    return kf
 
 
 # ── SURF v3 (2026-07-17 nearshore-science audit vs same-day Surfline/forecaster ground truth) ──

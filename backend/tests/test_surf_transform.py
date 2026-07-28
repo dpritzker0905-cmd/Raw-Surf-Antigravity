@@ -340,3 +340,71 @@ def test_nonsense_break_depth_is_ignored():
     args = dict(Hs_m=2.0, Tp_s=12.0, depth_m=452.0, coastal=True, shelf_width_km=27.8)
     for bad in (0.0, -5.0):
         assert st.estimate_surf(break_depth_m=bad, **args) == st.estimate_surf(**args)
+
+
+# ── THE EVIDENCE FLOOR on cross-shelf friction (2026-07-29) ─────────────────────────────────────
+# exp(-CF*cells/sinh(kd)) is unbounded below and is fed a ~139 km MEDIAN shelf depth. Measured over
+# the live catalogue that depth spans 24 m (p10) to 2,389 m (p90); at the shallow tail the term
+# extrapolated far outside its calibration and left Salthill Beach retaining 0.4% of its swell —
+# permanently flat, worse than a naive baseline.
+
+def test_shelf_dissipation_never_claims_more_loss_than_the_cited_literature():
+    """Ardhuin (2003): up to ~90% ENERGY loss on the widest shelves. Height ~ sqrt(energy), so the
+    floor is sqrt(0.10) = 0.316 — the docstring's own citation, not a taste knob."""
+    assert st.SHELF_KF_FLOOR == pytest.approx(0.316)
+    # The real geometry that motivated this: 1 m 'shelf depth' over a 194 km window.
+    assert st.shelf_dissipation(16.0, 1.0, 194.0) == pytest.approx(st.SHELF_KF_FLOOR)
+    # And the wide-shallow West Florida shelf.
+    assert st.shelf_dissipation(16.0, 14.0, 260.7) == pytest.approx(st.SHELF_KF_FLOOR)
+    for tp in (6.0, 10.0, 14.0, 18.0, 22.0):
+        for d in (0.5, 1.0, 5.0, 14.0, 25.0):
+            for w in (50.0, 150.0, 280.0):
+                assert st.shelf_dissipation(tp, d, w) >= st.SHELF_KF_FLOOR - 1e-12
+
+
+def test_the_floor_only_ever_restores_height_never_removes_more():
+    """It must be incapable of making a currently-good spot worse."""
+    import os as _os
+    prior = _os.environ.get("SURF_SHELF_KF_FLOOR")
+    try:
+        for tp, d, w in ((9.0, 25.0, 90.0), (12.0, 40.0, 60.0), (16.0, 14.0, 260.7),
+                         (10.0, 5.0, 200.0), (14.0, 200.0, 30.0)):
+            _os.environ["SURF_SHELF_KF_FLOOR"] = "0"
+            unfloored = st.shelf_dissipation(tp, d, w)
+            _os.environ["SURF_SHELF_KF_FLOOR"] = "1"
+            floored = st.shelf_dissipation(tp, d, w)
+            assert floored >= unfloored - 1e-12, (tp, d, w, unfloored, floored)
+            assert floored <= 1.0
+    finally:
+        if prior is None:
+            _os.environ.pop("SURF_SHELF_KF_FLOOR", None)
+        else:
+            _os.environ["SURF_SHELF_KF_FLOOR"] = prior
+
+
+def test_the_floor_is_inert_inside_the_calibration_envelope():
+    """The documented case (~80-100 km wide, ~25 m deep, ~8-10 s) must be BYTE-IDENTICAL — the
+    formula still reproduces its stated ~0.85 there, and the floor must not touch it."""
+    assert st.shelf_dissipation(9.0, 25.0, 90.0) == pytest.approx(0.844, abs=0.005)
+    for tp, d, w in ((8.0, 25.0, 80.0), (9.0, 25.0, 90.0), (10.0, 25.0, 100.0),
+                     (12.0, 166.5, 23.0), (16.0, 600.0, 23.0)):
+        assert st.shelf_dissipation(tp, d, w) > st.SHELF_KF_FLOOR
+
+
+def test_shelf_kf_floor_kill_switch_restores_the_unbounded_form():
+    import math as _math
+    import os as _os
+    prior = _os.environ.get("SURF_SHELF_KF_FLOOR")
+    try:
+        _os.environ["SURF_SHELF_KF_FLOOR"] = "0"
+        raw = st.shelf_dissipation(16.0, 1.0, 194.0)
+        assert raw < 0.01                                   # the unbounded original: 0.4% survives
+        k = st.wavenumber(16.0, 1.0)
+        expected = _math.exp(-st.SHELF_FRICTION_CF * st._shelf_cf_scale()
+                             * (194.0 / st._CELL_KM) * (1.0 / _math.sinh(k * 1.0)))
+        assert raw == pytest.approx(expected)
+    finally:
+        if prior is None:
+            _os.environ.pop("SURF_SHELF_KF_FLOOR", None)
+        else:
+            _os.environ["SURF_SHELF_KF_FLOOR"] = prior
