@@ -383,31 +383,46 @@ def test_forecasts_summary_does_not_label_a_size_as_a_quality():
 
 
 def test_role_based_access_control():
-    """Verify that only admin callers can execute the mutating weather simulation override."""
-    # Unauthorized role should fail
-    res = weather_sim_mcp.simulate_weather_change(
-        spot_name="Mavericks",
-        wind_speed_knots=10.0,
-        wind_direction_deg=180.0,
-        swell_height_m=2.5,
-        swell_period_sec=12.0,
-        swell_direction_deg=270.0,
-        caller_role="surfer"
-    )
-    assert res["success"] is False
-    assert "Unauthorized" in res["error"]
+    """Only admin callers may MUTATE — but every caller may run the what-if.
 
-    # Missing role defaults to non-admin and should fail
-    res_default = weather_sim_mcp.simulate_weather_change(
-        spot_name="Mavericks",
-        wind_speed_knots=10.0,
-        wind_direction_deg=180.0,
-        swell_height_m=2.5,
-        swell_period_sec=12.0,
-        swell_direction_deg=270.0
-    )
-    assert res_default["success"] is False
-    assert "Unauthorized" in res_default["error"]
+    Retargeted 2026-07-29. The gate used to return Unauthorized before computing anything, which made
+    the tool's advertised purpose ("simulates how changing weather and swell vectors will alter wave
+    quality") unreachable without also writing `condition_reports` and staging an override that
+    outranks the live forecast. The invariant that actually matters is NO MUTATION, not "no answer" —
+    so that is what this now pins, in both directions."""
+    args = dict(spot_name="Mavericks", wind_speed_knots=10.0, wind_direction_deg=180.0,
+                swell_height_m=2.5, swell_period_sec=12.0, swell_direction_deg=270.0)
+    weather_sim_mcp._SIM_OVERRIDES.clear()
+
+    # Non-admin: a full answer, and PROVABLY no side effect.
+    res = weather_sim_mcp.simulate_weather_change(**args, caller_role="surfer")
+    assert res["success"] is True
+    assert res["persisted"] is False
+    assert res["database_updated"] is False
+    assert res["simulation_type"] == "what_if"
+    assert res["simulated_surf_output"]["breaking_height_ft"] > 0
+    assert weather_sim_mcp._SIM_OVERRIDES == {}, "a non-admin what-if staged an override"
+
+    # Missing role defaults to non-admin — same contract.
+    res_default = weather_sim_mcp.simulate_weather_change(**args)
+    assert res_default["success"] is True
+    assert res_default["persisted"] is False
+    assert weather_sim_mcp._SIM_OVERRIDES == {}, "a default-role what-if staged an override"
+
+    # Admin: identical physics, but now it persists and stages.
+    try:
+        res_admin = weather_sim_mcp.simulate_weather_change(**args, caller_role="admin")
+        assert res_admin["success"] is True
+        assert res_admin["persisted"] is True
+        assert res_admin["simulation_type"] == "weather_vector_override"
+        assert weather_sim_mcp._SIM_OVERRIDES, "an admin simulation staged nothing"
+        # The what-if and the persisted run must agree — one composition, not two.
+        assert (res_admin["simulated_surf_output"]["breaking_height_ft"]
+                == res["simulated_surf_output"]["breaking_height_ft"])
+        assert (res_admin["simulated_surf_output"]["quality_rating"]
+                == res["simulated_surf_output"]["quality_rating"])
+    finally:
+        weather_sim_mcp._SIM_OVERRIDES.clear()
 
     # Admin role should bypass security check (and fail or succeed based on other constraints)
     res_admin = weather_sim_mcp.simulate_weather_change(
@@ -582,3 +597,52 @@ def test_database_update_propagation():
 
 if __name__ == "__main__":
     pytest.main([__file__, "-v"])
+
+
+def test_size_verdict_names_the_reason_a_big_day_scores_low():
+    """Before the oversize veto (2026-07-29) the delegated rating SATURATED — 4 / 12 / 25 / 35 ft all
+    scored 97.3 'epic' — so this payload could not tell a groomed head-high day from a closeout. The
+    veto fixes the number; `size_verdict` names WHY, so a low score from onshore slop and a low score
+    from unrideable surf are distinguishable answers to "should I paddle out?"."""
+    args = dict(spot_name="Mavericks", wind_direction_deg=110.0, wind_speed_knots=5.0,
+                swell_period_sec=17.0, swell_direction_deg=225.0)
+
+    ordinary = weather_sim_mcp.simulate_weather_change(**args, swell_height_m=1.5)["simulated_surf_output"]
+    assert ordinary["size_verdict"] == "within_range"
+    assert ordinary["rideable_ceiling_ft"] > 0
+
+    giant = weather_sim_mcp.simulate_weather_change(**args, swell_height_m=20.0)["simulated_surf_output"]
+    assert giant["breaking_height_ft"] > ordinary["breaking_height_ft"]
+    # THE defect, pinned end to end through the sim: bigger must no longer mean equally epic.
+    assert giant["quality_rating"] < ordinary["quality_rating"]
+    assert giant["size_verdict"] != "within_range"
+
+    # ⚠️⚠️ ...but the ceiling is the SPOT'S OWN (owner, 2026-07-29: "big wave surf spots are for big
+    # wave surfers"). Mavericks' measured 22.1 m break depth earns it a ~45 ft ceiling, so a day that
+    # would close out a beach break must still read epic here. An earlier draft used one absolute
+    # ceiling and knocked Mavericks to "good" at 24.7 ft and "poor_fair" at 31 ft.
+    mavs_big = weather_sim_mcp.simulate_weather_change(**args, swell_height_m=6.0)["simulated_surf_output"]
+    assert mavs_big["breaking_height_ft"] > 20.0
+    assert mavs_big["size_verdict"] == "within_range", mavs_big
+    assert mavs_big["quality_label"] == "epic", mavs_big
+    assert mavs_big["rideable_ceiling_ft"] > 40.0
+
+    # The same swell at a spot with no bathymetric capacity falls back to the conservative ceiling.
+    shallow = weather_sim_mcp.simulate_weather_change(
+        spot_name="Pacifica State Beach", wind_direction_deg=110.0, wind_speed_knots=5.0,
+        swell_period_sec=17.0, swell_direction_deg=225.0, swell_height_m=6.0,
+    )["simulated_surf_output"]
+    assert shallow["rideable_ceiling_ft"] < mavs_big["rideable_ceiling_ft"]
+    weather_sim_mcp._SIM_OVERRIDES.clear()
+
+
+def test_size_verdict_vocabulary_is_closed():
+    """A caller (or a UI) keying off this field must not meet an unannounced value."""
+    allowed = {"within_range", "at_the_upper_limit", "too_big_to_ride"}
+    for h in (0.5, 1.0, 2.0, 4.0, 6.0, 9.0, 12.0, 20.0, 40.0):
+        out = weather_sim_mcp.simulate_weather_change(
+            spot_name="Mavericks", wind_speed_knots=5.0, wind_direction_deg=110.0,
+            swell_height_m=h, swell_period_sec=15.0, swell_direction_deg=225.0,
+        )["simulated_surf_output"]
+        assert out["size_verdict"] in allowed, f"{h} m -> {out['size_verdict']}"
+    weather_sim_mcp._SIM_OVERRIDES.clear()

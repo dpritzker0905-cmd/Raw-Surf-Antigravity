@@ -4,6 +4,8 @@ from services.weather_pipeline.surf_rating import (
     compute_surf_rating, rating_score, size_score, period_quality,
     wind_quality, offshoreness, swell_exposure, score_to_level, LEVELS,
     parse_best_tide, tide_fit, breaker_type_quality,
+    oversize_gate, oversize_thresholds, OVERSIZE_FLOOR, OVERSIZE_ABS_START_M,
+    OVERSIZE_ABS_FLOOR_M, OVERSIZE_GAMMA, OVERSIZE_MAX_BREAK_DEPTH_M, OVERSIZE_MIN_START_M,
 )
 
 
@@ -415,3 +417,166 @@ def test_wind_gate_kill_switch_restores_prior_behaviour():
             _os.environ.pop("RATING_WIND_GATE", None)
         else:
             _os.environ["RATING_WIND_GATE"] = prior
+
+
+# ── OVERSIZE VETO (2026-07-29) ───────────────────────────────────────────────────────────────────
+# The defect: size_score is monotonic and clamps at 1.0, so 4 / 6 / 12 / 25 / 35 / 100 ft ALL scored
+# 97.3 "epic" — a closeout rated identically to a groomed head-high day, at every spot.
+
+def test_oversize_gate_is_inert_where_it_must_be():
+    assert oversize_gate(None) == 1.0                       # no height -> no opinion
+    assert oversize_gate(0.0) == 1.0
+    assert oversize_gate(-1.0) == 1.0
+    assert oversize_gate(2.0) == 1.0                        # 6.6 ft: an ordinary good day
+    assert oversize_gate(7.9) == 1.0                        # just under the absolute taper
+    assert oversize_gate(OVERSIZE_ABS_START_M) == 1.0       # the taper STARTS here, it does not bite
+    assert oversize_gate(30.0, enabled=False) == 1.0        # explicit disable, no env read
+    # Spot-relative: below 3.5x the local reference it is inert no matter how big in absolute terms.
+    assert oversize_gate(8.0, reference_size_m=4.0) == 1.0   # 26 ft at Mavericks: still Mavericks
+
+
+def test_oversize_gate_tapers_monotonically_and_never_zeroes():
+    prev = 1.0
+    for h in (8.0, 8.5, 9.0, 10.0, 12.0, 14.0, 20.0, 40.0):
+        g = oversize_gate(h)
+        assert 0.0 < g <= prev, f"gate rose or hit zero at {h} m: {prev} -> {g}"
+        prev = g
+    assert oversize_gate(OVERSIZE_ABS_FLOOR_M) == pytest.approx(OVERSIZE_FLOOR)
+    # ⚠️ NEVER 0: rating_transform_grid skips cells scoring <= 0, so a zeroing veto would ERASE the
+    # coastal rating band from the map on the biggest swells of the year.
+    assert oversize_gate(1000.0) == pytest.approx(OVERSIZE_FLOOR)
+    assert OVERSIZE_FLOOR > 0.0
+
+
+def test_oversize_is_spot_relative():
+    """Surfline's principle: the same height is a closeout at a beach break and a good day at a
+    big-wave spot. 20 ft of surf at a 2.3 ft-good-day beach vs at Mavericks."""
+    h = 6.0                                                  # ~19.7 ft of breaking surf
+    assert oversize_gate(h, reference_size_m=0.7) == pytest.approx(OVERSIZE_FLOOR)   # Cocoa Beach: closed out
+    assert oversize_gate(h, reference_size_m=2.5) == 1.0                             # Pipeline: fine
+    assert oversize_gate(h, reference_size_m=4.0) == 1.0                             # Mavericks: fine
+    assert oversize_gate(h, reference_size_m=0.7) < oversize_gate(h, reference_size_m=4.0)
+    # Tier 2 (bathymetry) must separate them too, with NO climatology at all.
+    assert oversize_gate(h, break_depth_m=5.9) < 1.0     # Cocoa Beach reads 5.9 m
+    assert oversize_gate(h, break_depth_m=22.1) == 1.0   # Mavericks reads 22.1 m
+
+
+def test_a_closeout_no_longer_rates_like_a_groomed_head_high_day():
+    """THE reported defect, pinned. Clean offshore wind, head-on swell, 14 s."""
+    clean = (14.0, 2.0, 90.0, 270.0, 270.0)                  # tp, wind m/s FROM land, head-on swell
+    good = compute_surf_rating(1.22, *clean)                 # 4 ft — genuinely epic
+    huge = compute_surf_rating(10.8, *clean)                 # 35.5 ft — a closeout
+    assert good[1] == "epic"
+    assert huge[0] > 0.0                                     # still rendered on the band
+
+    # (a) KNOWING NOTHING about the spot, the claim is only that it is no longer epic. The absolute
+    # pair is deliberately late (26 ft) because real big-wave spots — Puerto Escondido-Zicatela,
+    # Todos Santos, Dungeons, Mullaghmore, Punta de Lobos, Cloudbreak — carry NO break depth, and
+    # crushing them would be a worse error than under-penalising an anonymous closeout.
+    assert huge[1] not in ("good", "epic")
+    assert huge[0] < good[0] - 25.0, f"35 ft barely moved: {huge} vs {good}"
+
+    # (b) KNOWING the spot, the verdict is decisive in BOTH directions from the same 35.5 ft.
+    at_cocoa = compute_surf_rating(10.8, *clean, break_depth_m=5.9)     # closes out ~15 ft
+    at_mavericks = compute_surf_rating(10.8, *clean, break_depth_m=22.1)
+    assert at_cocoa[0] < good[0] - 60.0 and at_cocoa[1] in ("very_poor", "poor", "poor_fair")
+    assert at_mavericks[1] == "epic", "Mavericks crushed on a 35 ft day"
+    assert at_mavericks[0] > at_cocoa[0] + 60.0
+
+
+def test_oversize_leaves_the_user_calibration_anchors_untouched():
+    """The 2026-07-12 acceptance spec lives at 2-4 ft; the veto must be PROVABLY inert there."""
+    for h, ref in ((0.75, 0.7), (1.05, 0.7), (0.75, 2.5), (0.75, None), (1.05, None)):
+        assert oversize_gate(h, reference_size_m=ref) == 1.0
+
+
+def test_oversize_kill_switch_restores_prior_behaviour():
+    clean = (14.0, 2.0, 90.0, 270.0, 270.0)
+    prior = _os.environ.get("RATING_OVERSIZE")
+    try:
+        _os.environ["RATING_OVERSIZE"] = "0"
+        # Byte-identical to the pre-fix engine: every size at/above saturation collapses to one score.
+        assert compute_surf_rating(1.22, *clean)[0] == compute_surf_rating(10.8, *clean)[0]
+        _os.environ["RATING_OVERSIZE"] = "1"
+        assert compute_surf_rating(1.22, *clean)[0] > compute_surf_rating(10.8, *clean)[0]
+    finally:
+        if prior is None:
+            _os.environ.pop("RATING_OVERSIZE", None)
+        else:
+            _os.environ["RATING_OVERSIZE"] = prior
+
+
+def test_oversize_does_not_disturb_the_live_catalogue_range():
+    """Measured 2026-07-28 against production /spot-ratings: 428 spots, 6 regions, max 3.73 m. The
+    absolute taper starts at 6.0 m, so it is inert across the entire observed live range."""
+    for h_cm in range(20, 500, 5):
+        assert oversize_gate(h_cm / 100.0) == 1.0
+
+
+# ── TIER 2: BATHYMETRIC CAPACITY — "big wave surf spots are for big wave surfers" (owner) ─────────
+
+def test_oversize_gamma_mirrors_the_transform():
+    """OVERSIZE_GAMMA is a COPY of surf_transform.GAMMA (surf_rating cannot import it at module
+    level — rating_transform_grid imports surf_transform lazily to avoid the cycle). Pin them so the
+    two constants cannot silently drift apart."""
+    from services.weather_pipeline.surf_transform import GAMMA
+    assert OVERSIZE_GAMMA == GAMMA
+
+
+def test_break_depth_gives_a_big_wave_spot_its_own_ceiling():
+    """THE owner's point, pinned with the REAL measured break depths (2026-07-29, ETOPO asset).
+    A single absolute ceiling knocked Mavericks out of 'epic' at 24.7 ft — the day it exists for."""
+    mavericks, cocoa = 22.1, 5.9                     # metres, measured
+    h = 7.5                                          # ~24.6 ft of breaking surf
+    assert oversize_gate(h, break_depth_m=mavericks) == 1.0, "Mavericks crushed at 24.6 ft"
+    assert oversize_gate(h, break_depth_m=cocoa) == pytest.approx(OVERSIZE_FLOOR)
+    # And the ordering must hold across the measured ladder, deepest = most capacity.
+    depths = [("Cocoa Beach", 5.9), ("Jeffreys", 9.0), ("Uluwatu", 9.5), ("Pipeline", 11.1),
+              ("Waimea", 11.9), ("Nazare-Norte", 21.0), ("Mavericks", 22.1), ("Jaws", 24.5)]
+    starts = [oversize_thresholds(None, d)[0] for _, d in depths]
+    assert starts == sorted(starts), f"capacity ladder not monotonic in depth: {list(zip(depths, starts))}"
+
+
+def test_absurd_break_depth_fails_open_instead_of_inventing_capacity():
+    """A 15 arc-second grid cannot resolve a reef pass: Teahupo'o samples the deep water outside it
+    and reads 273 m. Unbounded that is a 699 ft 'capacity'. The clamp must make it finite — and the
+    failure direction must be OPEN (a bad reading never crushes a spot)."""
+    start_teahupoo, _ = oversize_thresholds(None, 273.0)
+    start_clamped, _ = oversize_thresholds(None, OVERSIZE_MAX_BREAK_DEPTH_M)
+    assert start_teahupoo == start_clamped
+    assert start_teahupoo < 20.0                      # finite, not 213 m
+    for bad in (1e6, float("inf")):
+        s, f = oversize_thresholds(None, bad)
+        assert s == start_clamped and f > s
+
+
+def test_shallow_or_wrong_depth_cannot_crush_an_ordinary_day():
+    """The floor on the depth tier: a 1 m depth reading must not declare a 5 ft day 'too big'."""
+    for shallow in (0.3, 1.0, 2.0, 4.0):
+        start, _ = oversize_thresholds(None, shallow)
+        assert start >= OVERSIZE_MIN_START_M
+    assert oversize_gate(1.5, break_depth_m=0.5) == 1.0    # ~5 ft on a junk depth -> untouched
+    assert oversize_gate(1.5, break_depth_m=None) == 1.0
+
+
+def test_capacity_tier_order_climatology_beats_bathymetry_beats_absolute():
+    """Tier precedence, and that each falls through when absent."""
+    # Climatology present -> bathymetry ignored.
+    assert oversize_thresholds(0.7, 22.1) == (0.7 * 3.5, 0.7 * 6.0)
+    # No climatology -> bathymetry used.
+    assert oversize_thresholds(None, 22.1)[0] > OVERSIZE_ABS_START_M
+    # Neither -> the absolute pair.
+    assert oversize_thresholds(None, None) == (OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M)
+
+
+def test_break_depth_threads_through_the_public_composite():
+    """A wiring pin: the parameter must actually reach the gate from compute_surf_rating, and it is
+    appended LAST so every existing positional call site is unaffected."""
+    clean = (14.0, 2.0, 90.0, 270.0, 270.0)
+    deep = compute_surf_rating(7.5, *clean, break_depth_m=22.1)      # Mavericks
+    shallow = compute_surf_rating(7.5, *clean, break_depth_m=5.9)    # Cocoa Beach
+    assert deep[0] > shallow[0]
+    assert deep[1] == "epic" and shallow[1] not in ("good", "epic")
+    # Positional back-compat: the pre-existing 10-positional-arg form still means what it meant.
+    assert compute_surf_rating(1.5, 14.0, 2.0, 90.0, 270.0, 270.0, None, None, None, None) == \
+           compute_surf_rating(1.5, *clean)

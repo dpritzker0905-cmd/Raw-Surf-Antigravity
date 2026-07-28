@@ -110,8 +110,19 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             breaker_xi = iribarren(bed_slope_at(lat, lng), surf_h, period)
         except Exception as e:
             logger.debug(f"[spot-ratings] breaker-type resolve failed for {spot.get('id')}: {e}")
+    # Nearshore BREAK depth (not the shelf depth) — the oversize gate's tier-2 capacity signal, so a
+    # big-wave spot keeps its ceiling even before it has enough size climatology. Cached asset lookup,
+    # no I/O beyond the already-loaded ETOPO shore-normal asset; None simply falls through to the
+    # conservative absolute pair. Never let it break the rating.
+    break_depth = None
+    try:
+        from services.weather_pipeline.shore_normal_asset import break_depth_at
+        break_depth = break_depth_at(lat, lng)
+    except Exception as e:
+        logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
     score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from,
-                                       tide_norm, best_tide, breaker_xi, reference_size_m)
+                                       tide_norm, best_tide, breaker_xi, reference_size_m,
+                                       break_depth_m=break_depth)
     why = rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()

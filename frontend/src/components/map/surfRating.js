@@ -203,7 +203,59 @@ export function windGate(speedMs, windFromDeg = null, shoreNormalDeg = null) {
   return _clamp((zero - kt) / (zero - start), 0.0, 1.0);
 }
 
-export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
+// ── OVERSIZE VETO (mirror of surf_rating.oversize_gate, 2026-07-29) ───────────────────────────────
+// `sizeScore` is monotonic non-decreasing and clamps at 1.0 — no descending limb — so a 35 ft closeout
+// scored EXACTLY like a groomed 4 ft day (both 97.3 "epic"), at every spot. Surf quality vs size has an
+// optimum and then falls away: Stormsurf's published SRS notes most breaks close out once it is big
+// enough for Mavericks, and Surfline rates relative to each spot's potential (what `referenceSizeM`
+// already encodes). Thresholds are spot-relative when a reference is known, else a deliberately
+// generous absolute pair — 6 m is >2x the global live maximum measured 2026-07-28 (428 spots, max
+// 3.73 m), so this is inert on an ordinary day and bites only past the paddle limit.
+// ⚠️ The floor is NOT 0: a 0 score is skipped by the map's band transform, so a zeroing veto would
+// erase the coastal band on the biggest swells of the year. Kill: window.__RAW_DISABLE_OVERSIZE__.
+// ⚠️⚠️ BIG-WAVE SPOTS ARE FOR BIG-WAVE SURFERS (owner, 2026-07-29) — capacity is resolved in three
+// tiers, most-trusted first: (1) the spot's p80 size climatology, (2) its ETOPO break depth (a wave
+// cannot stand taller than gamma*depth; measured across all 1,773 spots this orders Cocoa Beach
+// 15.1 ft < Pipeline 28.4 < Mavericks 56.6 < Nazare 64.0), (3) a deliberately late absolute pair.
+// Tier 2's tail is junk — 39.9% of spots have no break depth and an unresolved reef pass reads
+// Teahupo'o at 273 m => 699 ft — so it is bounded at both ends and fails OPEN, never crushing a spot.
+export const OVERSIZE_START_MULT = 3.5;
+export const OVERSIZE_FLOOR_MULT = 6.0;
+export const OVERSIZE_ABS_START_M = 8.0;
+export const OVERSIZE_ABS_FLOOR_M = 14.0;
+export const OVERSIZE_FLOOR = 0.30;
+export const OVERSIZE_GAMMA = 0.78;              // mirrors surf_transform.GAMMA
+export const OVERSIZE_CAPACITY_MULT = 0.8;
+export const OVERSIZE_MAX_BREAK_DEPTH_M = 30.0;  // deeper than any real break => a bad depth sample
+export const OVERSIZE_MIN_START_M = 4.0;         // never claim "too big" below ~13 ft on depth alone
+const _OVERSIZE_TAPER_SPAN = OVERSIZE_FLOOR_MULT / OVERSIZE_START_MULT;
+
+/** (startM, floorM) — where the oversize taper begins and bottoms out; spot-aware when known. */
+export function oversizeThresholds(referenceSizeM = null, breakDepthM = null) {
+  if (referenceSizeM != null && referenceSizeM > HMIN_RIDEABLE_M) {
+    return [referenceSizeM * OVERSIZE_START_MULT, referenceSizeM * OVERSIZE_FLOOR_MULT];
+  }
+  if (breakDepthM != null && breakDepthM > 0) {
+    const depth = Math.min(breakDepthM, OVERSIZE_MAX_BREAK_DEPTH_M);
+    const start = Math.max(OVERSIZE_MIN_START_M, OVERSIZE_CAPACITY_MULT * OVERSIZE_GAMMA * depth);
+    return [start, start * _OVERSIZE_TAPER_SPAN];
+  }
+  return [OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M];
+}
+
+/** Multiplicative closeout veto [OVERSIZE_FLOOR..1]. 1.0 until the surf is past rideable; never 0. */
+export function oversizeGate(h, referenceSizeM = null, breakDepthM = null) {
+  try {
+    if (typeof window !== 'undefined' && window.__RAW_DISABLE_OVERSIZE__) return 1.0;
+  } catch (e) { /* no window (tests/SSR) -> gate stays on */ }
+  if (h == null || h <= 0) return 1.0;
+  const [start, floorH] = oversizeThresholds(referenceSizeM, breakDepthM);
+  if (h <= start) return 1.0;
+  if (h >= floorH) return OVERSIZE_FLOOR;
+  return _clamp(1.0 - (1.0 - OVERSIZE_FLOOR) * ((h - start) / (floorH - start)), OVERSIZE_FLOOR, 1.0);
+}
+
+export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null, breakDepthM = null) {
   const sg = sizeScore(h, referenceSizeM);
   if (sg <= 0.0) return 0.0;
   let ex = (partitions && partitions.length) ? effectiveSwellExposure(partitions, shoreNormalDeg) : null;
@@ -217,7 +269,10 @@ export function ratingScore(h, tp, speedMs, windFromDeg = null, shoreNormalDeg =
   const pq = periodQuality(ptp != null ? ptp : tp);
   // `wg` MULTIPLIES so a blown-out onshore day cannot be floored up by period (see windGate).
   const wg = windGate(speedMs, windFromDeg, shoreNormalDeg);
-  return Math.round(100.0 * sg * ex * sc * tf * bt * wg * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
+  // `og` MULTIPLIES for the mirror-image reason: sizeScore saturates at 1.0 with no descending limb,
+  // so without it a 35 ft closeout scores exactly like a groomed 4 ft day (see oversizeGate).
+  const og = oversizeGate(h, referenceSizeM, breakDepthM);
+  return Math.round(100.0 * sg * ex * sc * tf * bt * wg * og * (W_WIND * wq + W_PERIOD * pq) * 10) / 10;
 }
 
 const _BUCKETS = [[14, 'very_poor'], [28, 'poor'], [42, 'poor_fair'], [56, 'fair'], [70, 'fair_good'], [84, 'good']];
@@ -242,9 +297,9 @@ export function observationGate(score, confirm = null) {
 }
 
 /** -> { score: 0-100|null, level } where level in RATING_LEVELS (or 'unknown' if no surf height). */
-export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null) {
+export function computeSurfRating(surfHm, tpS, windSpeedMs, windFromDeg = null, shoreNormalDeg = null, swellFromDeg = null, tideNorm = null, bestTide = null, breakerXi = null, referenceSizeM = null, partitions = null, breakDepthM = null) {
   if (surfHm == null) return { score: null, level: 'unknown' };
-  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM, partitions);
+  const score = ratingScore(surfHm, tpS, windSpeedMs, windFromDeg, shoreNormalDeg, swellFromDeg, tideNorm, bestTide, breakerXi, referenceSizeM, partitions, breakDepthM);
   return { score, level: scoreToLevel(score) };
 }
 

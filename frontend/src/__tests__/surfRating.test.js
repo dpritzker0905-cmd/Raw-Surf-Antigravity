@@ -5,6 +5,8 @@ import {
   dominantSwellPeriod, effectiveSwellExposure, seaCleanliness,
   observationGate, OBS_CAP_UNCONFIRMED, OBS_CAP_GOOD,
   windGate, WIND_GATE_START_KT, WIND_GATE_ZERO_KT,
+  oversizeGate, oversizeThresholds, OVERSIZE_FLOOR, OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M,
+  OVERSIZE_GAMMA, OVERSIZE_MAX_BREAK_DEPTH_M, OVERSIZE_MIN_START_M,
 } from '../components/map/surfRating';
 
 // Parity mirror of backend tests/test_surf_rating.py — keep the two in sync.
@@ -317,5 +319,105 @@ describe('windGate (JS mirror of surf_rating.wind_gate)', () => {
   test('thresholds are the documented ones', () => {
     expect(WIND_GATE_START_KT).toBe(14.0);
     expect(WIND_GATE_ZERO_KT).toBe(40.0);
+  });
+});
+
+// ── OVERSIZE VETO (parity mirror of backend test_surf_rating.py, 2026-07-29) ──────────────────────
+// The defect: sizeScore is monotonic and clamps at 1.0, so 4 / 6 / 12 / 25 / 35 / 100 ft ALL scored
+// 97.3 "epic" — a closeout rated identically to a groomed head-high day, at every spot.
+describe('oversizeGate (JS mirror of surf_rating.oversize_gate)', () => {
+  const CLEAN = [14.0, 2.0, 90.0, 270.0, 270.0];   // tp, wind m/s FROM land, head-on swell
+
+  test('inert where it must be', () => {
+    expect(oversizeGate(null)).toBe(1.0);
+    expect(oversizeGate(0)).toBe(1.0);
+    expect(oversizeGate(-1)).toBe(1.0);
+    expect(oversizeGate(2.0)).toBe(1.0);                       // 6.6 ft: an ordinary good day
+    expect(oversizeGate(7.9)).toBe(1.0);                       // just under the absolute taper
+    expect(oversizeGate(OVERSIZE_ABS_START_M)).toBe(1.0);      // the taper starts here, does not bite
+    expect(oversizeGate(8.0, 4.0)).toBe(1.0);                  // 26 ft at Mavericks: still Mavericks
+  });
+
+  test('tapers monotonically and NEVER zeroes (a 0 un-renders the map band)', () => {
+    let prev = 1.0;
+    for (const h of [8.0, 8.5, 9.0, 10.0, 12.0, 14.0, 20.0, 40.0]) {
+      const g = oversizeGate(h);
+      expect(g).toBeGreaterThan(0.0);
+      expect(g).toBeLessThanOrEqual(prev);
+      prev = g;
+    }
+    expect(oversizeGate(OVERSIZE_ABS_FLOOR_M)).toBeCloseTo(OVERSIZE_FLOOR, 6);
+    expect(oversizeGate(1000.0)).toBeCloseTo(OVERSIZE_FLOOR, 6);
+    expect(OVERSIZE_FLOOR).toBeGreaterThan(0.0);
+  });
+
+  test('spot-relative: the same height is a closeout at a beach break, a good day at Mavericks', () => {
+    expect(oversizeGate(6.0, 0.7)).toBeCloseTo(OVERSIZE_FLOOR, 6);   // Cocoa Beach: closed out
+    expect(oversizeGate(6.0, 2.5)).toBe(1.0);                        // Pipeline: fine
+    expect(oversizeGate(6.0, 4.0)).toBe(1.0);                        // Mavericks: fine
+  });
+
+  test('a closeout no longer rates like a groomed head-high day', () => {
+    const good = computeSurfRating(1.22, ...CLEAN);   // 4 ft
+    const huge = computeSurfRating(10.8, ...CLEAN);   // 35.5 ft
+    expect(good.level).toBe('epic');
+    expect(huge.score).toBeGreaterThan(0.0);          // still rendered
+    // Knowing nothing about the spot: only that it is no longer epic (the absolute pair is
+    // deliberately late so unknown big-wave spots are not crushed).
+    expect(['good', 'epic']).not.toContain(huge.level);
+    expect(huge.score).toBeLessThan(good.score - 25.0);
+  });
+
+  // ⚠️⚠️ "Big wave surf spots are for big wave surfers" (owner, 2026-07-29). Real measured ETOPO
+  // break depths — the same fixtures the backend test uses.
+  test('bathymetric capacity gives a big-wave spot its own ceiling', () => {
+    const h = 7.5;                                     // ~24.6 ft of breaking surf
+    expect(oversizeGate(h, null, 22.1)).toBe(1.0);     // Mavericks: untouched
+    expect(oversizeGate(h, null, 5.9)).toBeCloseTo(OVERSIZE_FLOOR, 6);  // Cocoa Beach: closed out
+    const depths = [5.9, 9.0, 9.5, 11.1, 11.9, 21.0, 22.1, 24.5];
+    const starts = depths.map((d) => oversizeThresholds(null, d)[0]);
+    expect(starts).toEqual([...starts].sort((a, b) => a - b));
+  });
+
+  test('an absurd break depth fails OPEN instead of inventing capacity', () => {
+    // Teahupo'o samples the deep water outside an unresolved reef pass: 273 m => 699 ft unbounded.
+    const [teahupoo] = oversizeThresholds(null, 273.0);
+    const [clamped] = oversizeThresholds(null, OVERSIZE_MAX_BREAK_DEPTH_M);
+    expect(teahupoo).toBe(clamped);
+    expect(teahupoo).toBeLessThan(20.0);
+    expect(oversizeThresholds(null, Infinity)[0]).toBe(clamped);
+  });
+
+  test('a shallow or wrong depth cannot crush an ordinary day', () => {
+    for (const shallow of [0.3, 1.0, 2.0, 4.0]) {
+      expect(oversizeThresholds(null, shallow)[0]).toBeGreaterThanOrEqual(OVERSIZE_MIN_START_M);
+    }
+    expect(oversizeGate(1.5, null, 0.5)).toBe(1.0);
+  });
+
+  test('tier precedence: climatology beats bathymetry beats absolute', () => {
+    expect(oversizeThresholds(0.7, 22.1)).toEqual([0.7 * 3.5, 0.7 * 6.0]);
+    expect(oversizeThresholds(null, 22.1)[0]).toBeGreaterThan(OVERSIZE_ABS_START_M);
+    expect(oversizeThresholds(null, null)).toEqual([OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M]);
+    expect(OVERSIZE_GAMMA).toBe(0.78);
+  });
+
+  test('the pinned user calibration anchors are provably untouched', () => {
+    for (const [h, ref] of [[0.75, 0.7], [1.05, 0.7], [0.75, 2.5], [0.75, null], [1.05, null]]) {
+      expect(oversizeGate(h, ref)).toBe(1.0);
+    }
+  });
+
+  test('kill switch restores the prior behaviour', () => {
+    window.__RAW_DISABLE_OVERSIZE__ = true;
+    expect(computeSurfRating(1.22, ...CLEAN).score).toBe(computeSurfRating(10.8, ...CLEAN).score);
+    delete window.__RAW_DISABLE_OVERSIZE__;
+    expect(computeSurfRating(1.22, ...CLEAN).score).toBeGreaterThan(computeSurfRating(10.8, ...CLEAN).score);
+  });
+
+  test('thresholds are the documented ones and match the backend', () => {
+    expect(oversizeThresholds(null)).toEqual([8.0, 14.0]);
+    expect(oversizeThresholds(0.7)).toEqual([0.7 * 3.5, 0.7 * 6.0]);
+    expect(OVERSIZE_FLOOR).toBe(0.30);
   });
 });

@@ -9,7 +9,9 @@ from utils.sqlite_helpers import get_sqlite_connection
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file came to rate a flat ocean
 # "Epic". Both imports are dependency-free (no FastAPI/route side effects).
-from services.weather_pipeline.surf_rating import rating_score, score_to_level, offshoreness, MS_TO_KT
+from services.weather_pipeline.surf_rating import (
+    rating_score, score_to_level, offshoreness, MS_TO_KT, oversize_gate, oversize_thresholds,
+)
 from services.weather_pipeline.surf_transform import komar_breaker_height
 from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
 from services.conditions_labels import get_conditions_label
@@ -202,6 +204,9 @@ def calculate_surf_rating(
 
     # 4. Final Wave Quality Rating (0 to 100) — DELEGATED to the production engine, whose
     # multiplicative size_gate is 0 below the rideability floor, so flat is 0 by construction.
+    # `break_depth_m` is the oversize gate's spot-capacity signal: a big-wave spot must keep its
+    # ceiling (Mavericks reads 22.1 m => it can hold ~57 ft) rather than inherit the generic one.
+    _break_depth = geo.break_depth_m if geo is not None else None
     quality_score = rating_score(
         breaking_height,                      # nearshore BREAKING height, metres
         swell_p,
@@ -210,8 +215,25 @@ def calculate_surf_rating(
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
         reference_size_m=reference_size_for(spot),
+        break_depth_m=_break_depth,
     )
     quality_label = score_to_level(quality_score)
+
+    # 4b. SIZE VERDICT — say out loud when the surf is past rideable, instead of leaving the caller
+    # to infer it from a number that merely got smaller. Before the oversize veto shipped
+    # (2026-07-29) the rating SATURATED: 4 / 12 / 25 / 35 ft all scored 97.3 "epic", so a closeout
+    # and a groomed head-high day were indistinguishable in this payload. The veto fixes the score;
+    # this field makes the REASON legible — a low score from 40 kt of onshore slop and a low score
+    # from 35 ft of unrideable closeout are different answers to "should I paddle out?".
+    _ref = reference_size_for(spot)
+    _og = oversize_gate(breaking_height, _ref, break_depth_m=_break_depth)
+    _over_start, _over_floor = oversize_thresholds(_ref, _break_depth)
+    if _og >= 1.0:
+        size_verdict = "within_range"
+    elif _og <= 0.35:
+        size_verdict = "too_big_to_ride"
+    else:
+        size_verdict = "at_the_upper_limit"
 
     # 5. `conditions_label` is the app's SIZE ladder, not a quality verdict. Every other writer
     # emits "Waist High"/"Chest High"/…, and SpotHubConditionsTab.js keys a colour map on those
@@ -222,6 +244,8 @@ def calculate_surf_rating(
         "surf_regime": regime,
         "quality_rating": quality_score,
         "quality_label": quality_label,
+        "size_verdict": size_verdict,
+        "rideable_ceiling_ft": round(_over_start * 3.28084, 1),
         "conditions_label": get_conditions_label(breaking_height_ft),
         "wind_class": wind_label,
         "swell_alignment_pct": round(swell_alignment * 100, 0),
@@ -451,15 +475,22 @@ def simulate_weather_change(
         swell_height_m: The simulated ocean swell height in meters (0.0 to 50.0).
         swell_period_sec: The simulated swell period in seconds (0.0 to 30.0).
         swell_direction_deg: The simulated swell direction in degrees (0.0 to 360.0).
-        caller_role: The role of the calling user (must be 'admin' to mutate).
+        caller_role: The role of the calling user. Any role may run the WHAT-IF; only 'admin' may
+            persist it to condition_reports and stage it as the spot's baseline.
     """
     # ⚠️ `caller_role` is an ordinary caller-supplied string, NOT authentication. This is a local
     # sandbox gate; it is not the app's auth pattern (that is the JWT get_current_user_id checks).
-    if caller_role != "admin":
-        return {
-            "success": False,
-            "error": "Unauthorized: weather simulation overrides require admin role permissions."
-        }
+    #
+    # THE GATE GUARDS THE MUTATION, NOT THE ARITHMETIC (2026-07-29). It used to return Unauthorized
+    # before computing anything, which made the tool's own advertised purpose — "simulates how
+    # changing weather and swell vectors will alter wave quality and surf height" — unreachable
+    # without also writing to `condition_reports` (read by 4 backend routes + 6 frontend surfaces)
+    # and staging an override that OUTRANKS the live forecast on every later read of that spot.
+    # There was no way to ask a what-if question. The docstring already said "must be 'admin' to
+    # mutate"; the code was stricter than its own contract. Computing is pure — `calculate_surf_rating`
+    # touches no DB and no module state — so a non-admin now gets the full answer with
+    # `persisted: false`, and every write below stays exactly as gated as it was.
+    may_mutate = caller_role == "admin"
 
     # Verify parameter ranges to prevent database corruption and bad calculations
     for label, value, lo, hi in (
@@ -500,7 +531,7 @@ def simulate_weather_change(
     # write-only path for this server — nothing here reads those columns back; they are read by the
     # APP (condition_reports routes + 6 frontend surfaces), which is why conditions_label must stay
     # in the size vocabulary.
-    conn = get_db_connection()
+    conn = get_db_connection() if may_mutate else None
     db_updated = False
     if conn:
         try:
@@ -523,27 +554,32 @@ def simulate_weather_change(
             logger.error(f"Failed to persist simulated conditions for spot '{spot['name']}' to SQLite: {e}")
         finally:
             conn.close()
-    else:
+    elif may_mutate:
         logger.warning(f"SQLite connection unavailable. Could not persist simulated conditions for spot '{spot_name}'.")
 
     # Stage the vector as this spot's baseline for subsequent get_weather_forecast reads. Held in a
     # SEPARATE dict rather than mutated into MOCK_SPOTS, so the catalog defaults stay clean and the
     # forecast can report `baseline_source: simulated_override` instead of silently presenting a
     # staged scenario as the spot's normal conditions.
-    _SIM_OVERRIDES[spot["name"]] = {
-        "swell_height_m": swell_height_m,
-        "swell_period_sec": swell_period_sec,
-        "swell_direction_deg": swell_direction_deg,
-        "wind_speed_knots": wind_speed_knots,
-        "wind_direction_deg": wind_direction_deg,
-    }
+    if may_mutate:
+        _SIM_OVERRIDES[spot["name"]] = {
+            "swell_height_m": swell_height_m,
+            "swell_period_sec": swell_period_sec,
+            "swell_direction_deg": swell_direction_deg,
+            "wind_speed_knots": wind_speed_knots,
+            "wind_direction_deg": wind_direction_deg,
+        }
 
     return {
         "success": True,
-        "simulation_type": "weather_vector_override",
+        "simulation_type": "weather_vector_override" if may_mutate else "what_if",
         "spot": spot["name"],
         "spot_source": found.identity_source,
+        "persisted": may_mutate,
         "database_updated": db_updated,
+        **({} if may_mutate else {"note": (
+            "What-if only: nothing was written to condition_reports and no override was staged. "
+            "Pass caller_role='admin' to persist this vector as the spot's baseline.")}),
         "geometry": _geometry_payload(spot),
         "input_parameters": {
             "wind_speed_knots": wind_speed_knots,

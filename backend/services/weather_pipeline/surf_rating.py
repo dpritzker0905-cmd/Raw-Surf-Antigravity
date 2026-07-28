@@ -14,9 +14,12 @@ corrected 2026-07-26: it previously said "Pure ``math`` only"; the sibling surf_
 env flags the same way since v3. Pass `wind_gate(..., enabled=)` explicitly to keep a call site pure.)
 
 Model:
-    rating = size_gate(surf_height) * swell_exposure(angle) * sea_clean * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
+    rating = size_gate(surf_height) * swell_exposure(angle) * sea_clean * oversize_gate * (0.60 * wind_quality + 0.40 * period_quality)  -> 0..100
   - size_gate: there must be a rideable wave (0 when flat; saturates chest-high+). Bigger is NOT penalized
     here — a big CLEAN long-period wave is exactly what 'epic' means; wind + period grade it.
+  - oversize_gate: ...until it is too big to ride. size_gate has no descending limb, so this supplies one:
+    a separate multiplicative taper once the surf exceeds what the spot (or, with no local reference,
+    anywhere) can hold. Inert on any ordinary day; see the block comment above oversize_gate.
   - swell_exposure: the swell ANGLE must be able to reach this coast. Head-on (swell FROM the seaward
     shore-normal) = full; grazing/along-shore = reduced; from behind the coast = blocked (->0.1 floor). Uses
     the shore-normal when known, else neutral 1.0 (no penalty).
@@ -196,6 +199,116 @@ def wind_gate(wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, enabled=
     return _clamp((zero - kt) / (zero - start), 0.0, 1.0)
 
 
+# ── OVERSIZE VETO (2026-07-29) ──────────────────────────────────────────────────────────────────────
+# `size_score` is monotonic non-decreasing and CLAMPS AT 1.0, so it has no descending limb. Measured on
+# this engine (clean offshore wind, head-on swell, Tp 14 s, the LIVE reference_size_m=None path):
+#     2 ft -> 38.8   3 ft -> 67.8   4 ft -> 97.3 "epic"
+#     ... and 6 / 12 / 25 / 35 / 60 / 100 ft ALL -> 97.3 "epic", identically.
+# A 35 ft closeout was rated exactly like a groomed 4 ft day at all 1,773 spots. That is a SAFETY
+# defect, not just information loss.
+#
+# Surf quality vs size is NOT monotonic — it has an optimum and then a descending limb. Stormsurf's
+# published Swell Rating System states the principle directly: "Most unobstructed sandbar and reef
+# breaks become unrideable once the swell size is sufficient to start becoming rideable at Mavericks,
+# as they become closed-out." Surfline's rating is likewise RELATIVE to each spot's potential — the
+# same principle `reference_size_m` already encodes here.
+#
+# Shape: a separate MULTIPLICATIVE veto rather than a reshape of `size_score`, for the same reasons
+# `wind_gate` is one — it is independently kill-switchable, independently testable, and it leaves the
+# user's pinned calibration anchors (2026-07-12) provably untouched because it is inert at their sizes.
+#
+# THRESHOLDS, and why these numbers:
+#  * LOCAL (a reference exists): the spot's own capacity scales it. `size_score` already treats
+#    2.5x ref as "as good as it gets here", so the taper starts ABOVE that plateau at 3.5x and floors
+#    at 6x. Cocoa Beach (ref 0.7 m) tapers 8.0 -> 13.8 ft; Pipeline (ref 2.5 m) 28.7 -> 49.2 ft;
+#    Mavericks (ref 4.0 m, the REF_CLAMP_MAX_M ceiling) 46 -> 79 ft. A big-wave spot earns its ceiling.
+#  * ABSOLUTE (no reference — the LIVE default today): we cannot tell a 15 ft Pipeline day from a
+#    15 ft beach-break closeout, so the fail-safe is a deliberately GENEROUS ceiling that only fires
+#    where it is right for every spot. Measured against production /spot-ratings on 2026-07-28,
+#    428 spots across 6 regions: p50 1.28 m, p90 2.16 m, p99 2.71 m, MAX 3.73 m — nothing above 4 m.
+#    And through this repo's own transform, 6 m of breaking surf needs ~5 m of offshore Hs (a genuine
+#    storm swell). So 6 m is >2x the observed global extreme: inert on any ordinary day, biting only
+#    where ~20 ft+ of breaking surf is beyond the paddle limit essentially everywhere.
+#
+# ⚠️ THE FLOOR IS NOT ZERO, DELIBERATELY. `rating_transform_grid` skips any cell scoring <= 0
+# ("no rideable wave -> nothing to rate"), so a zeroing veto would ERASE the coastal rating band from
+# the map on exactly the biggest swells of the year. 0.30 takes a 97.3 "epic" down to ~29 "poor_fair":
+# still rendered, still honest that something big is happening, no longer calling it epic.
+#
+# ⚠️⚠️ BIG-WAVE SPOTS ARE FOR BIG-WAVE SURFERS — the ceiling MUST be spot-aware (owner, 2026-07-29).
+# A single absolute ceiling is right for the ~97% of the catalogue that is beach and reef breaks and
+# WRONG for exactly the spots people look at: an early draft of this gate knocked Mavericks from
+# "epic" to "good" at 24.7 ft and to "poor_fair" at 31 ft — the days that spot exists for.
+# So capacity is resolved in three tiers, most-trusted first (each falls through when unavailable):
+#
+#   1. `reference_size_m` — the spot's p80 good-day breaking height from `spot_size_climatology`.
+#      The intended instrument: objective, global, auto-calibrating for any spot added to the map.
+#   2. `break_depth_m` — the ETOPO nearshore depth already resolved on every point call. A wave
+#      cannot stand taller than gamma*depth, so the spot's own bathymetry bounds what it can hold.
+#      Measured over all 1,773 catalogue spots (2026-07-29) this ORDERS CORRECTLY:
+#         Cocoa Beach 15.1 ft < Jeffreys 23.0 < Trestles 23.8 < Uluwatu 24.3 < Pipeline 28.4
+#         < Waimea 30.5 < Nazare-Norte 53.7 < Mavericks 56.6 < Jaws 62.7 < Nazare 64.0
+#      ⚠️ BUT ITS TAIL IS JUNK — 39.9% of spots have no `break_depth_m` at all, and where the 15
+#      arc-second grid cannot resolve a reef pass it samples the deep water outside it: Teahupo'o
+#      reads 273 m deep => a 699 ft "capacity". Hence BOTH bounds below. Out-of-band readings are
+#      treated as no information (fail open), never as a licence to crush a spot.
+#   3. the absolute pair — used only when we know nothing about the spot.
+#
+# ⚠️ The absolute pair is deliberately LATE (26 ft) because tier 2 is missing on real big-wave spots
+# (Puerto Escondido-Zicatela, Todos Santos, Dungeons, Mullaghmore, Punta de Lobos and Cloudbreak all
+# lack `break_depth_m`). Where we cannot identify the spot, the fail-safe is to under-penalise: a
+# 35 ft unknown still drops epic -> fair_good, and 46 ft+ reaches the floor.
+OVERSIZE_START_MULT = 3.5      # x reference_size_m: taper begins (above size_score's 2.5x plateau)
+OVERSIZE_FLOOR_MULT = 6.0      # x reference_size_m: taper reaches the floor
+OVERSIZE_ABS_START_M = 8.0     # know nothing about the spot: ~26.2 ft of breaking surf
+OVERSIZE_ABS_FLOOR_M = 14.0    # know nothing about the spot: ~45.9 ft of breaking surf
+OVERSIZE_FLOOR = 0.30          # never 0 — see the band-erasure note above
+# Tier 2 constants. GAMMA mirrors surf_transform.GAMMA (the McCowan depth-limited breaking index);
+# test_oversize_gamma_mirrors_the_transform pins them together so the two cannot drift apart.
+OVERSIZE_GAMMA = 0.78
+OVERSIZE_CAPACITY_MULT = 0.8   # people stop riding BELOW the physical maximum the bathymetry allows
+OVERSIZE_MAX_BREAK_DEPTH_M = 30.0  # deeper than any real break (Nazare 25.0, Jaws 24.5, Mavericks 22.1)
+                                   # => the depth sample missed the reef; clamp rather than believe it
+OVERSIZE_MIN_START_M = 4.0     # never claim "too big" below ~13 ft on bathymetry alone — a shallow
+                               # (or simply wrong) depth reading must not crush an ordinary day
+_OVERSIZE_TAPER_SPAN = OVERSIZE_FLOOR_MULT / OVERSIZE_START_MULT   # keep every tier's taper shape equal
+
+
+def oversize_thresholds(reference_size_m=None, break_depth_m=None):
+    """(start_m, floor_m) — the breaking heights where the oversize taper begins and bottoms out.
+
+    Three tiers, most-trusted first: the spot's size climatology, else its bathymetric capacity,
+    else the conservative absolute pair. See the block comment above for why, and for the measured
+    evidence behind each bound."""
+    if reference_size_m is not None and reference_size_m > _HMIN_RIDEABLE_M:
+        return reference_size_m * OVERSIZE_START_MULT, reference_size_m * OVERSIZE_FLOOR_MULT
+    if break_depth_m is not None and break_depth_m > 0:
+        depth = min(float(break_depth_m), OVERSIZE_MAX_BREAK_DEPTH_M)
+        start = max(OVERSIZE_MIN_START_M, OVERSIZE_CAPACITY_MULT * OVERSIZE_GAMMA * depth)
+        return start, start * _OVERSIZE_TAPER_SPAN
+    return OVERSIZE_ABS_START_M, OVERSIZE_ABS_FLOOR_M
+
+
+def oversize_gate(surf_h_m, reference_size_m=None, enabled=None, break_depth_m=None):
+    """Multiplicative CLOSEOUT veto in [OVERSIZE_FLOOR, 1.0]. 1.0 (inert) until the surf exceeds what
+    the spot — or, with no local reference, anywhere — can hold.
+
+    Bigger is still better right up to the taper: this only ever removes score from surf that is past
+    the point of being rideable, and it never returns 0 (a 0 would un-render the map's rating band).
+    Kill: RATING_OVERSIZE=0, or pass `enabled=False` to keep a call site free of the environment read."""
+    if enabled is None:
+        enabled = os.environ.get("RATING_OVERSIZE", "1") != "0"
+    if not enabled or surf_h_m is None or surf_h_m <= 0:
+        return 1.0
+    start, floor_h = oversize_thresholds(reference_size_m, break_depth_m)
+    if surf_h_m <= start:
+        return 1.0
+    if surf_h_m >= floor_h:
+        return OVERSIZE_FLOOR
+    frac = (surf_h_m - start) / (floor_h - start)          # 0 at the taper start -> 1 at the floor
+    return _clamp(1.0 - (1.0 - OVERSIZE_FLOOR) * frac, OVERSIZE_FLOOR, 1.0)
+
+
 def swell_exposure(swell_from_deg, shore_normal_deg):
     """Swell-ANGLE factor [0..1]: can this swell actually reach the coast, head-on or grazing? ``shore_normal_deg``
     points OUT TO SEA; a swell whose FROM-bearing aligns with it arrives head-on (best energy). Beyond ~90° off
@@ -336,10 +449,11 @@ def breaker_type_quality(xi):
 
 
 def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                 tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None):
+                 tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None,
+                 break_depth_m=None):
     """Composite 0..100 surf-quality score:
-    size_gate * swell_exposure * sea_clean * tide_fit * breaker_type_quality * (0.60*wind + 0.40*period).
-    0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
+    size_gate * swell_exposure * sea_clean * tide_fit * breaker_type * wind_gate * oversize_gate *
+    (0.60*wind + 0.40*period). 0 when flat OR when the swell angle can't reach the coast. Each factor degrades gracefully to neutral when
     its geometry/inputs are unknown (no shore-normal -> speed-only wind + full exposure; no tide / no Iribarren
     -> neutral). ``reference_size_m`` calibrates the size gate to the spot's LOCAL good-day size (None ->
     global 1.2 m default, no change). ``partitions`` (list of {h, tp, dir, kind}) makes the composite
@@ -362,7 +476,10 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     pq = period_quality(ptp if ptp is not None else tp_s)
     # `wg` MULTIPLIES so a blown-out onshore day cannot be floored up by period (see wind_gate).
     wg = wind_gate(wind_speed_ms, wind_from_deg, shore_normal_deg)
-    return round(100.0 * sg * ex * sc * tf * bt * wg * (W_WIND * wq + W_PERIOD * pq), 1)
+    # `og` MULTIPLIES for the mirror-image reason: `size_score` saturates at 1.0 and has no descending
+    # limb, so without it a 35 ft closeout scores exactly like a groomed 4 ft day (see oversize_gate).
+    og = oversize_gate(surf_h_m, reference_size_m, break_depth_m=break_depth_m)
+    return round(100.0 * sg * ex * sc * tf * bt * wg * og * (W_WIND * wq + W_PERIOD * pq), 1)
 
 
 def score_to_level(score):
@@ -376,7 +493,8 @@ def score_to_level(score):
 
 
 def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None, swell_from_deg=None,
-                        tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None):
+                        tide_norm=None, best_tide=None, breaker_xi=None, reference_size_m=None, partitions=None,
+                        break_depth_m=None):
     """Return ``(score, level)`` — score 0-100 (None if surf height missing), level in LEVELS.
 
     surf_h_m: nearshore BREAKING height (from surf_transform). tp_s: peak/swell period. wind_speed_ms +
@@ -393,7 +511,7 @@ def compute_surf_rating(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore
     if surf_h_m is None:
         return None, "unknown"
     score = rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
-                         tide_norm, best_tide, breaker_xi, reference_size_m, partitions)
+                         tide_norm, best_tide, breaker_xi, reference_size_m, partitions, break_depth_m)
     return score, score_to_level(score)
 
 
@@ -475,6 +593,11 @@ def rating_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None, win
                 reference = reference_fn(lat, lng)
             except Exception:
                 reference = None
+        # ⚠️ `break_depth_m` is DELIBERATELY NOT PASSED HERE. `depth_fn` supplies the SHELF depth
+        # (p50 157-234 m), which is a different quantity from the nearshore break depth (p50 ~11 m) —
+        # feeding it to the oversize gate would compute a capacity from the wrong depth and read as a
+        # ~100 m ceiling, i.e. silently inert. The band therefore uses the climatology reference when
+        # one exists and the absolute pair otherwise. A heatmap cell is a zone, not a spot.
         score, level = compute_surf_rating(surf, period, wind_speed, wind_from, shore_normal, swell_from,
                                            reference_size_m=reference)
         if score is None or score <= 0:
