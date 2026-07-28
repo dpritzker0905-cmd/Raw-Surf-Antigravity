@@ -81,9 +81,21 @@ def _mark_up() -> None:
     global _down_until
     _down_until = 0.0
 
-# Keyed by (lat, lng, valid_time) — the valid_time is the top of the hour, so entries expire on
-# their own as the hour turns. A what-if sweep hits one spot repeatedly and must not re-fetch.
+# Keyed by (lat, lng, valid_time), the valid_time being the top of the hour. A what-if sweep hits
+# one spot repeatedly and must not re-fetch.
+# ⚠️ This used to claim entries "expire on their own as the hour turns". THEY DO NOT — the KEY
+# changes, so a stale entry merely becomes unreachable and is never freed. A server sweeping the
+# 1818-spot catalogue hour after hour would grow this without bound. `_remember` prunes, which is
+# what makes the claim true.
 _FORECAST_CACHE: Dict[Any, Any] = {}
+
+
+def _remember(key: Any, out: Any) -> None:
+    """Store this hour's answer and drop every other hour's — see the warning above."""
+    valid_time = key[2]
+    for stale in [k for k in _FORECAST_CACHE if k[2] != valid_time]:
+        del _FORECAST_CACHE[stale]
+    _FORECAST_CACHE[key] = out
 
 
 # ── THE CATALOGUE, from the app rather than a local snapshot ─────────────────────────────────
@@ -175,15 +187,20 @@ def fetch_point(domain: str, layer: str, lat: float, lng: float,
         return None
 
 
-def fetch_live_forecast(lat: float, lng: float
+def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
                         ) -> Tuple[Optional[Dict[str, float]], Dict[str, Any]]:
-    """The app's active forecast at a coordinate. Returns (baseline | None, provenance).
+    """The app's forecast at a coordinate, for `valid_time` or the current hour.
 
-    The provenance always explains itself — on failure it carries a `reason`, so a caller can say
-    WHY it has no forecast instead of returning a bare null."""
+    Returns (baseline | None, provenance). The provenance always explains itself — on failure it
+    carries a `reason`, so a caller can say WHY it has no forecast instead of returning a bare null.
+
+    ⚠️ `valid_time` is what makes this a FORECAST rather than a nowcast. Measured 2026-07-28, the
+    app serves authoritative frames out to at least +168 h at this coordinate, so "is tomorrow
+    morning better?" — the question a surfer actually asks — is answerable and was not being asked.
+    """
     if os.environ.get("SIM_LIVE_FORECAST", "1") == "0":
         return None, {"reason": "disabled (SIM_LIVE_FORECAST=0)"}
-    valid_time = current_valid_time()
+    valid_time = valid_time or current_valid_time()
     key = (round(float(lat), 4), round(float(lng), 4), valid_time)
     if key in _FORECAST_CACHE:
         return _FORECAST_CACHE[key]
@@ -217,5 +234,5 @@ def fetch_live_forecast(lat: float, lng: float
             "served_surf_height_m": marine.get("surf_height_m"),
             "url": BASE_URL,
         })
-    _FORECAST_CACHE[key] = out
+    _remember(key, out)
     return out
