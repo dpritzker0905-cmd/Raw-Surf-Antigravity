@@ -23,6 +23,10 @@ from services.weather_pipeline import sim_forecast
 # `get_weather_forecast("Mavericks")` and `("mavericks")` answered about coordinates 637 m apart —
 # see `sim_spots` for the measurement and the precedence that replaced it.
 from services.weather_pipeline import sim_spots
+# The horizon scan — "which hour", not just "this hour". Kept out of this file because it is the
+# scan LOGIC (frame budget, ranking, honest truncation) and this file has twice been blocked at the
+# 800-line ratchet; the tool below is the thin wrapper.
+from services.weather_pipeline import sim_window
 
 # Setup logger
 logger = logging.getLogger("weather_sim_mcp")
@@ -525,6 +529,47 @@ def simulate_weather_change(
         "simulated_surf_output": calc,
         **({"baseline_delta": baseline_delta} if baseline_delta else {}),
     }
+
+
+@mcp.tool
+def find_best_window(spot_name: str, hours_ahead: int = 48, step_hours: int = 3,
+                     top: int = 5) -> Dict[str, Any]:
+    """Scan the forecast horizon for the best hours to surf a spot, ranked by surf quality.
+
+    Answers WHICH hour, not just "how is it at this hour" — previously one tool call per frame with
+    the caller doing the ranking. Every hour is scored through the same chain a single-hour answer
+    uses, so a window's rating is the number the app would show at that spot and hour.
+
+    Args:
+        spot_name: The name of the spot (or its id).
+        hours_ahead: How far ahead to look, in hours (the app serves about 7 days).
+        step_hours: Spacing between sampled hours. 3 keeps a 2-day scan inside one frame budget.
+        top: How many ranked windows to return. The full sampled `series` is returned regardless.
+    """
+    found = sim_spots.resolve(spot_name)
+    if found.candidates:
+        return sim_spots.ambiguity_error(spot_name, found.candidates)
+    spot = found.spot
+    if not spot:
+        return {"error": f"Spot '{spot_name}' not found in the catalog.",
+                "hint": "Call get_surf_spots(query=...) to search by name."}
+
+    hours = sim_window.plan_hours(hours_ahead, step_hours)
+    out = sim_window.scan(spot, _baseline_with_source, hours, top=top)
+    summary = sim_window.summarize(out["best_windows"])
+    requested_frames = int(max(1, hours_ahead) // max(1, step_hours)) + 1
+    if requested_frames > len(hours):
+        # Say that the horizon was TRUNCATED. A ranked answer that quietly covered a third of the
+        # range asked for would still read as "the best window in the next N hours".
+        out["scanned"]["truncated"] = (
+            f"asked for {requested_frames} frames, scanned {len(hours)} "
+            f"(SIM_WINDOW_MAX_FRAMES={sim_window.MAX_FRAMES}, a latency budget — every uncached "
+            f"frame is two HTTP requests). Raise step_hours to cover the same span in fewer.")
+    return {"spot": spot["name"], "spot_source": found.identity_source,
+            "coordinates": {"lat": spot["latitude"], "lng": spot["longitude"]},
+            "geometry": _geometry_payload(spot),
+            **out,
+            **({"summary": summary} if summary else {})}
 
 
 @mcp.tool
