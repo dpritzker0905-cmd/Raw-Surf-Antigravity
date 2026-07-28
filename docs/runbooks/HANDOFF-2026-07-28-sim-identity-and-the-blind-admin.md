@@ -161,13 +161,55 @@ unlooked-at, carried over from the previous handoff.
 
 ---
 
-## 6. NEXT — the queue, unchanged at the top
+## 6. ★★★ FORECAST CALIBRATION — MEASURED, AND THE QUEUE'S PREMISE WAS WRONG (`2ff07b84`)
 
-1. ★★★ **FORECAST CALIBRATION** — still the biggest untouched lever, and now the only one left in
-   the sim's input chain. The loop is LIVE (`GET /api/weather/buoy-calibration`, 60 buoy-matched
-   spots, 421 pairs). ★★ Aggregate bias **+0.010 m is a TRAP**: stratified it runs **+0.229** at
-   0–0.5 m to **−0.794** above 2.5 m ⇒ **the model COMPRESSES. Fit a monotonic QUANTILE MAP, not a
-   bias term.** Gate behind `RATING_OBS_GATE`. ⚠️ n=10 in the worst band — hold it until more.
+I went at the #1 queue item and the first measurement stopped it: **the curve is blocked on
+EVIDENCE, not on method.**
+
+### ⚠️ "421 obs/model pairs" is not 421 observations
+The report carries 421 `spots` rows over **60 distinct buoys**, and **416 are replications of 55
+unique (buoy, obs, model) tuples** — Cape Canaveral's buoy contributes **40 identical rows**.
+★★ **0 of 54 multi-spot buoys had a model value that varied across its spots** (the model is
+resolved AT THE BUOY), so the per-spot rows carry **literally no extra information about skill**.
+
+★ **Production already knew.** `_one_residual_per_buoy` exists, its docstring says "a dense stretch
+of Florida coast would outvote all of Hawaii", `summary` reports **`height_n: 60`**, and the
+per-spot list is documented as being kept *for auditability*. **The previous session's stratified
+table bypassed a dedupe the code deliberately applies.**
+
+| observed | per-spot rows (as recorded) | **per BUOY (the real evidence)** |
+|---|---|---|
+| 0.0–0.5 | n= 95 **+0.221** | n= **7** +0.237 |
+| 0.5–1.0 | n=146 +0.011 | n=**18** +0.028 |
+| 1.0–1.5 | n=109 −0.099 | n=**22** −0.178 |
+| 1.5–2.5 | n= 59 −0.004 | n=**10** −0.086 |
+| 2.5–10 | n= 9 −0.870 | n= **2** −0.808 |
+
+★ **The COMPRESSION is REAL — it survives deduplication**, independently confirming 2026-07-26. ⚠️
+But the top band is **2 buoys**, and the aggregate (−0.072) hides the whole spread. **A quantile
+map cannot be fitted from this, and fitting on the per-spot rows would weight one Florida buoy 40×
+and calibrate the global model to Florida.**
+
+### Why nothing could ever accumulate
+`calibration/buoy_latest.json` is a **SINGLE KEY overwritten on every CI run** — exactly one
+snapshot has ever existed. `2ff07b84` adds a rolling per-buoy residual archive (the pattern
+`report_calibration.prediction_archive.json` already uses): append → dedupe on
+`(buoy_id, buoy_time)` → prune by age and cap. ⛔ **Nothing there changes a rating.**
+
+⚠️ Two measured design points, not preferences:
+* **Model Hs of exactly 0.0 against a real observation is a COVERAGE HOLE** (3 of 421), not skill.
+  Archiving it teaches the curve the model under-predicts by the entire wave height.
+* ★★ **`n` is rows; `n_buoys` is INDEPENDENCE.** A week of hourly runs gives the top band ~336 rows
+  but **still 2 stations**. Row count alone would call that fittable. The gate needs **both**
+  (30 rows AND 10 buoys) and the report NAMES every band that fails — today **all five do**.
+* The entry cap is a **bandwidth** budget: 175 B/row measured, and the object is downloaded *and*
+  re-uploaded every run, so 40000 rows was 6.7 MB hourly for no extra power. Now 20000.
+
+**⇒ NEXT on calibration: let it run and check `report["archive"]` in a week.** Fit only bands that
+clear the gate, gate the result behind `RATING_OBS_GATE`, and remember the report weight K is a
+**KALMAN GAIN — derived, not chosen**.
+
+## 7. NEXT — the rest of the queue
 2. **The duplicate triage** over the 288 pre-existing name-matching pairs — `Teahupo'o` vs
    `Teahupoo` at **140 m** is the clearest single defect in the catalogue. Note the sim now
    *surfaces* same-name duplicates instead of hiding them, which makes this cheaper to work.
