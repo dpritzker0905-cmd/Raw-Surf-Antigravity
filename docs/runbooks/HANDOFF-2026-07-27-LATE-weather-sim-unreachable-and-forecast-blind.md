@@ -537,3 +537,32 @@ DELETE FROM surf_spots WHERE description LIKE 'Imported from EEA Bathing Water D
 3. **Watch precompute load** — 20% more spots on infrastructure with a recorded 429/OOM history.
 4. The 469 flagged now mix two populations: **164 genuinely misplaced** and **305 unverified
    imports**. The admin filter should separate them before the Precision Queue is worked again.
+
+---
+
+## 12. ✅ THE "THEN MEASURE" HALF — the import did NOT crowd the curated breaks
+
+Measured against the live `/api/surf-spots` the app itself calls, Portugal (the densest case:
+37 curated + **249 imported** = 286):
+
+| | |
+|---|---|
+| **dedupe violations under 2 km** | **0** |
+| closest import to any curated break | **2.06 km** |
+| curated → nearest import | p10 2.37 · **p50 4.08** · p90 6.03 km |
+
+⚠️ **The first cut of this measurement looked alarming and was wrong** — 21 of 37 curated breaks have
+*a* neighbour within 2 km, which reads as crowding until you ask WHICH neighbour. Ericeira and
+São Lourenço both report a nearest of 0.696 km — **each other**. Molho Leste 0.68 km, Coxos 1.16 km:
+all curated-to-curated. **That density is real Portuguese geography and predates today entirely.**
+Separating "nearest neighbour" from "nearest IMPORT" is what turned a false alarm into a clean pass.
+
+⇒ **The 2.0 km dedupe held perfectly.** On this evidence the FR/ES/UK batch (2333) is not blocked by
+crowding. It is still blocked by the questions this measurement cannot answer — see below.
+
+### What this measurement does NOT cover
+* **The map was not visually inspected.** `/map` redirects to the landing page without auth on the
+  :3001 harness; the app itself renders clean with **zero console errors** at 1820 spots. Pin
+  clustering at zoom and search-result ranking are still unverified BY EYE.
+* **Whether an EEA bathing-water site is a surf spot a surfer would want.** Density is fine; the
+  editorial question is untouched.
