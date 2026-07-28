@@ -257,3 +257,58 @@ with `local_size_m` as the bar (≥1.5 m is 939), after someone looks at the Por
 ⚠️ **This machine's system CA store has an EXPIRED root**: Overpass fails `CERTIFICATE_VERIFY_FAILED`
 while other hosts succeed. Use `certifi`. **Never cache a failed fetch** — a cached transient 504 is
 indistinguishable from "this spot has no coastline".
+
+---
+
+## 9. ★★★ SECOND AUDIT: THE DUPLICATE SWEEP — and it caught my own import
+
+Triggered by a live observation, not a plan: a routine `get_surf_spots("Supertubos")` returned **two
+rows** — `Peniche - Supertubos` (39.379,−9.3146) and `Supertubos` (39.35,−9.3667), **5.5 km apart**.
+The import dedupe is 2.0 km, so it could never have seen that. Swept the whole catalogue.
+
+**Method:** every pair within 12 km whose names match under `find_missing_spots.names_match`.
+
+```
+1820 spots -> 302 name-matching pairs within 12 km
+   288 PRE-EXISTING  ·  14 touching a 2026-07-27 import
+```
+
+### 9a. My import introduced exactly 2 duplicates — measured, and now fixed
+Of 305 imports, **5 name-match an existing spot within 12 km**, and **2 are the SAME normalised
+name**:
+
+| | distance | why it slipped |
+|---|---|---|
+| `COXOS` vs `Coxos` | **2.17 km** | dedupe is 2.0 km and DISTANCE-ONLY |
+| `CONSOLAÇÃO` vs `Consolação` | **3.20 km** | same |
+
+Both **deactivated** (`is_active=false`, unflagged) — a duplicate is worse than a gap because it
+splits reports, ratings and search between two rows that both look real.
+Undo: `UPDATE surf_spots SET is_active=true WHERE id IN
+('513e9d8a-fa8d-42d7-9348-69291a53c019','e824565d-3d54-43b5-8caf-13b9121fd221');`
+⇒ **active 1820 → 1818, imports 305 → 303.** Duplicate rate 2/305 = **0.7%**.
+
+★ **THE DEFECT IN MY OWN TOOL:** `import_reviewed_spots.py` dedupes on DISTANCE ALONE. An official
+gazetteer's coordinate for the same break routinely sits 2–3 km from a surf catalogue's, so distance
+can never catch it. **The importer must also reject on a NAME match within a wider radius** —
+`find_missing_spots.SAME_BREAK_KM` is already 8.0 km and is the right constant. NOT YET IMPLEMENTED.
+
+### 9b. The bigger finding: 288 pre-existing pairs, and they predate everything
+Closest first — ⚠️ **these need human triage, they are NOT all duplicates**:
+
+| distance | pair | verdict |
+|---|---|---|
+| **0.14 km** | `Teahupo'o` \| `Teahupoo` | **unambiguous duplicate** — apostrophe variant |
+| 0.27 / 0.38 | `Trestles` \| `Lower Trestles` \| `Upper Trestles` | Lower/Upper are REAL separate peaks; bare `Trestles` is the dupe |
+| 0.35 | `Uluwatu` \| `Uluwatu - The Peak` | probable duplicate |
+| 0.37 | `Margaret River` \| `Main Break Margaret River` | probable duplicate |
+| 0.40 | `La Nord` \| `La Nord Hossegor` | probable duplicate |
+| 0.42 | `Ala Moana Beach` \| `Ala Moana Bowls` | probable duplicate |
+| 0.15–0.39 | `Ponce Inlet` N/S Jetty · `Sebastian Inlet` S Jetty · `Rockaway 90th/92nd` | **REAL distinct peaks — do not merge** |
+
+★ **`Teahupo'o` vs `Teahupoo` at 140 m is the clearest single defect in the catalogue** — and it is
+exactly the apostrophe-normalisation case `22f84245` fixed in the duplicate GATE but never applied
+retroactively to existing rows.
+
+⇒ **A duplicate triage pass over the 288 is now the highest-value accuracy work after calibration** —
+larger than the 155 misplaced spots, and cheaper per fix.
