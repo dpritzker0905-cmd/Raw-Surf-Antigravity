@@ -211,9 +211,24 @@ async def resolve_spot_conditions_impl(
         wind_pt = getattr(wind, "point", None)
         wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * KT_TO_MS if wind_pt else None
         wind_from = getattr(wind_pt, "direction", None) if wind_pt else None
+        # ⚠️ KEYWORDS, NOT POSITION. This call passed TEN positional arguments, which silently
+        # stopped at `reference_size_m` and left `break_depth_m` None — while `geometry.break_depth_m`
+        # was resolved twenty lines above and sitting in scope. The hub therefore opted out of the
+        # oversize gate's per-spot capacity tier that the map glyphs use, and the two surfaces graded
+        # the same spot differently. Measured 2026-07-29 at Tp 18 s, light wind, head-on:
+        #     Mavericks   45.9 ft   hub 27.3 "poor"      vs glyph 89.6 "epic"       (+62.3)
+        #     Trestles    32.8 ft   hub 69.8 "fair_good" vs glyph 27.3 "poor"       (-42.5)
+        #     Pipeline    32.8 ft   hub 69.8 "fair_good" vs glyph 51.4 "fair"       (-18.4)
+        # Signed BOTH ways — the hub was simultaneously crushing big-wave spots and calling
+        # closeouts good. Identical below the oversize regime, so ordinary days are unchanged.
+        # A positional call is how a new engine input silently fails to reach a surface; every
+        # optional factor is passed by NAME here so the next one cannot repeat it.
         score, level = compute_surf_rating(
-            current_wave_height_ft / M_TO_FT, period_s, wind_ms, wind_from,
-            getattr(geometry, "shore_normal_deg", None), swell_from, None, None, None, None)
+            current_wave_height_ft / M_TO_FT, period_s, wind_ms,
+            wind_from_deg=wind_from,
+            shore_normal_deg=getattr(geometry, "shore_normal_deg", None),
+            swell_from_deg=swell_from,
+            break_depth_m=getattr(geometry, "break_depth_m", None))
         current_conditions["rating"] = score
         current_conditions["rating_level"] = level
         if wind_pt is not None:
