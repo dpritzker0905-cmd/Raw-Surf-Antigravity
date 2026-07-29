@@ -25,6 +25,7 @@ import os
 from typing import Any, Dict, Optional
 
 from services.conditions_labels import get_conditions_label
+from services.weather_pipeline import sim_explain
 from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file's ancestor came to rate a
@@ -194,7 +195,24 @@ def calculate_surf_rating(
     # emits "Waist High"/"Chest High"/…, and SpotHubConditionsTab.js keys a colour map on those
     # exact strings — an off-vocabulary value silently renders grey. The verdict travels in its own
     # `quality_label` field instead of overloading this one.
-    return {
+    # 6. WHY that score. A product of nine factors has exactly one way to be low — some factor is
+    # low — but this payload could only ever report the finished number, so "why is my offshore-wind
+    # day only poor-to-fair?" needed a bespoke script against the engine internals to answer (it did,
+    # on 2026-07-29). `sim_explain` reads the SAME factors back from `surf_rating`'s own functions
+    # and CHECKS its reconstruction against `quality_score`, so it can never become a second opinion.
+    explanation = sim_explain.explain(
+        surf_h_m=breaking_height,
+        tp_s=swell_p,
+        wind_speed_knots=wind_spd,
+        wind_from_deg=wind_dir,
+        shore_normal_deg=shore_normal,
+        swell_from_deg=swell_dir,
+        reference_size_m=_ref,
+        break_depth_m=_break_depth,
+        engine_score=quality_score,
+    )
+
+    out = {
         "breaking_height_ft": breaking_height_ft,
         "surf_regime": regime,
         "quality_rating": quality_score,
@@ -207,6 +225,12 @@ def calculate_surf_rating(
         "shore_normal_deg": shore_normal,
         "shore_normal_source": geo.shore_normal_src if geo is not None else "catalog_fallback",
     }
+    if explanation:
+        out["why"] = explanation
+        summary = sim_explain.summarize(explanation)
+        if summary:
+            out["why_summary"] = summary
+    return out
 
 
 def geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
