@@ -20,6 +20,7 @@ import os
 from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional
 
+from services.weather_pipeline import sim_daylight
 from services.weather_pipeline.sim_rating import calculate_surf_rating
 
 # 24 frames x 2 requests = 48 worst-case round trips. At the measured 0.42 s per frame warm-server
@@ -65,7 +66,7 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"])
-        series.append({
+        row = {
             "valid_time": hour,
             "breaking_height_ft": calc["breaking_height_ft"],
             "quality_rating": calc["quality_rating"],
@@ -75,11 +76,26 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
             "wind_speed_knots": round(float(baseline["wind_speed_knots"]), 1),
             "swell_period_sec": round(float(baseline["swell_period_sec"]), 1),
             "size_verdict": calc["size_verdict"],
-        })
+        }
+        # ⚠️ ANNOTATION ONLY — `quality_rating` above is untouched by daylight. See sim_daylight's
+        # docstring: darkness is a property of the observer, not of the swell, and the sim's score
+        # must stay byte-identical to the one the map and the hub show for the same spot-hour.
+        row.update(sim_daylight.annotate(spot.get("latitude"), spot.get("longitude"), hour))
+        series.append(row)
 
-    # Rank by quality, then by SIZE as the tie-break — at a spot where several hours score the same
-    # (common: wind and period barely move over three hours) the bigger one is the better session.
-    best = sorted(series, key=lambda r: (-r["quality_rating"], -r["breaking_height_ft"]))[:max(1, top)]
+    # Rank SURFABLE light first, then quality, then SIZE as the tie-break — at a spot where several
+    # hours score the same (common: wind and period barely move over three hours) the bigger one is
+    # the better session.
+    #
+    # ★ Ranking, not filtering. Every scanned hour stays in `series` with its own `light`, because a
+    # dark hour is a real forecast a caller may legitimately want (a dawn session starts before
+    # first light; a night swell tells you what the morning inherits). What must not happen is a
+    # dark hour being PRESENTED as "the best time to surf" — measured 2026-07-29 at 9 of 17 spots.
+    # A frame whose light could not be determined sorts as surfable, i.e. exactly as it did before.
+    def _rank_key(r):
+        return (not r.get("surfable_light", True), -r["quality_rating"], -r["breaking_height_ft"])
+
+    best = sorted(series, key=_rank_key)[:max(1, top)]
 
     out: Dict[str, Any] = {
         "scanned": {
@@ -92,15 +108,30 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
         "best_windows": best,
         "series": series,
     }
+    notes: List[str] = []
+    if series and any("light" in r for r in series):
+        lit = [r for r in series if r.get("surfable_light", True)]
+        out["scanned"]["surfable_light_frames"] = len(lit)
+        if not lit:
+            # Polar night, or a horizon short enough to sit entirely inside one night. Ranking still
+            # happened on quality alone — say so rather than returning an empty or silently
+            # night-time list. Fails OPEN: an answer, labelled, beats no answer.
+            out["scanned"]["all_frames_dark"] = True
+            notes.append("Every hour in this range is in darkness, so the ranking is by quality "
+                         "alone — none of these windows is surfable in daylight.")
     if unresolved:
         # Name them. A scan that silently skipped half the horizon would rank the surviving hours
         # against each other and present that as "the best window in the next 48 h".
         out["scanned"]["unresolved_hours"] = unresolved
-        out["note"] = (f"{len(unresolved)} of {len(hours)} frames had no forecast and were "
-                       f"EXCLUDED from the ranking, not scored as flat.")
+        notes.append(f"{len(unresolved)} of {len(hours)} frames had no forecast and were "
+                     f"EXCLUDED from the ranking, not scored as flat.")
     if not series:
-        out["note"] = ("No frame in this range resolved a forecast, so there is nothing to rank. "
-                       "Check get_weather_forecast(spot_name) for the reason.")
+        # Overwrites rather than appends: with nothing ranked, the other notes describe an answer
+        # that does not exist.
+        notes = ["No frame in this range resolved a forecast, so there is nothing to rank. "
+                 "Check get_weather_forecast(spot_name) for the reason."]
+    if notes:
+        out["note"] = " ".join(notes)
     return out
 
 
@@ -110,6 +141,11 @@ def summarize(best: List[Dict[str, Any]]) -> Optional[str]:
     if not best:
         return None
     b = best[0]
+    # Name the light. When every hour in range is dark the ranking falls back to quality alone, and
+    # a summary that read like an ordinary recommendation would be the original defect all over
+    # again — one sentence deep instead of one field deep.
+    light = sim_daylight.describe(b.get("light"))
     return (f"Best in range: {b['valid_time']} — {b['breaking_height_ft']} ft "
             f"({b['conditions_label']}), quality {b['quality_rating']}/100 "
-            f"({b['quality_label']}), {b['wind_speed_knots']} kt {b['wind_class']}.")
+            f"({b['quality_label']}), {b['wind_speed_knots']} kt {b['wind_class']}"
+            f"{', ' + light if light else ''}.")
