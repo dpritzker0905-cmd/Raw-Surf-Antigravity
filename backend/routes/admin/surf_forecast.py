@@ -147,6 +147,63 @@ async def get_size_reference(
     }
 
 
+@router.get("/admin/surf-forecast/local-size-preview")
+async def local_size_preview(admin: Profile = Depends(get_current_admin),
+                             db: AsyncSession = Depends(get_db)):
+    """What WOULD happen if RATING_LOCAL_SIZE were flipped to 1 — measured, before flipping it.
+
+    WHY THIS EXISTS: `95c5f04a` (2026-07-11) landed local size calibration behind this flag and put
+    the rollout plan in its own commit message — "once climatology is sane (FL spots get small refs,
+    big-wave spots large), flip RATING_LOCAL_SIZE=1 and verify". Eighteen days later the blob is
+    218 KB and refreshing six times a day, and the flag is still 0, because answering "is it sane
+    yet?" needed a production credential and a bespoke script. Nobody ever did it.
+
+    ★ The A/B is free. `reference_size_m` enters the composite in exactly two multiplicative factors
+    (`size_score`, `oversize_gate`), so every already-rated spot-hour can be re-scored by an exact
+    ratio off its persisted breaking height. No weather is re-fetched: one blob read covers the
+    whole catalogue.
+
+    ⚠️ This reads and reports. It does not flip anything — that remains an env change + restart.
+    """
+    from services.weather_pipeline.local_size_preview import preview_impact, sanity_check
+    from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+    from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
+
+    clim = load_size_climatology_l2_cached()
+    if not clim:
+        raise HTTPException(status_code=503, detail="size climatology blob not present in L2")
+    obj = load_spot_ratings_l2_cached()
+    frames = (obj or {}).get("frames", [])
+    if not frames:
+        raise HTTPException(status_code=503, detail="no precomputed spot ratings to compare against")
+
+    # Break depth makes the oversize gate exact at big-wave spots. Offline (git geometry asset), so
+    # this stays a pure blob-read endpoint — but never fatal, the gate is inert well below capacity.
+    def _break_depth(lat, lng):
+        try:
+            from services.weather_pipeline.surf_point import resolve_surf_geometry
+            geo = resolve_surf_geometry(lat, lng)
+            return getattr(geo, "break_depth_m", None) if geo is not None else None
+        except Exception:
+            return None
+
+    rows = (await db.execute(select(SurfSpot.id, SurfSpot.latitude, SurfSpot.longitude))).all()
+    spots = [{"id": r[0], "latitude": r[1], "longitude": r[2]} for r in rows]
+
+    report = preview_impact(clim, frames, break_depth_fn=_break_depth)
+    report["sanity"] = sanity_check(clim, spots)
+    report["flag"] = {"name": "RATING_LOCAL_SIZE",
+                      "current": os.environ.get("RATING_LOCAL_SIZE", "0"),
+                      "flip_where": "Render env AND precompute.yml env (glyphs+band together)"}
+    # ⚠️ The aggregate cannot see an INVERTED climatology — a blob giving Florida 2.5 m and Pipeline
+    # 0.7 m produces a perfectly plausible spread. Only the named exemplars can, so the go/no-go
+    # follows the sanity verdict, never the deltas.
+    report["recommendation"] = (
+        "SAFE TO FLIP" if report["sanity"]["verdict"] == "SANE"
+        else "DO NOT FLIP — " + report["sanity"]["verdict"])
+    return report
+
+
 @router.get("/admin/surf-forecast/reports")
 async def get_recent_surf_reports(
     hours: int = 168, limit: int = 200,
