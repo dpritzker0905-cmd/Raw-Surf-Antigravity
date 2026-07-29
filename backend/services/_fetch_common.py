@@ -541,8 +541,17 @@ def fill_masked_waves_from_gfs(waves_points, gfs_points, height_key="wave_height
 
 def make_point_dict(lat: float, lon: float, provider: str, hourly_units: dict, hourly: dict) -> dict:
     """Open-Meteo-shaped point dict — the exact shape the normalizer consumes. ``provider`` is the
-    ``__provider`` provenance tag ('noaa'/'dwd'/...); the caller still saves with provider='open-meteo'
-    so the manifest stays byte-identical (true origin lives in source_dataset/upstream_*)."""
+    ``__provider`` provenance tag ('noaa'/'dwd'/'ecmwf'/...); the caller still saves with
+    provider='open-meteo' so the manifest stays byte-identical.
+
+    ⚠️ THIS DOCSTRING USED TO CLAIM "true origin lives in source_dataset/upstream_*" AND IT WAS NOT
+    TRUE. Measured 2026-07-30: `upstream_provider` merely echoed the dispatch `provider`, so EURO
+    marine waves reported `open-meteo` for both while the data came from ECMWF Open Data direct —
+    and `source_dataset` ('ecmwf_wam025') names the MODEL, which Open-Meteo also serves under that
+    exact name. Nothing recorded the fetch ROUTE, so the manifest could not answer "is EURO on
+    open-meteo?" at all. `__provider` was being dropped on the floor.
+    The normalizer now propagates this tag into `upstream_provider`, which finally makes the
+    sentence above true — keep stamping it."""
     return {
         "latitude": float(lat), "longitude": float(lon),
         "generationtime_ms": 0, "utc_offset_seconds": 0,

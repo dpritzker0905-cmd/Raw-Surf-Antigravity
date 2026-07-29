@@ -632,6 +632,34 @@ class WeatherNormalizer:
                 logger.error("[Normalizer] Security Violation: Refusing to set is_test_fixture=True in non-test environment.")
                 is_test_fixture = False
 
+        # ★★★ THE FETCH ROUTE, TAKEN FROM THE FETCHER THAT ACTUALLY MADE THE CALL.
+        #
+        # `provider` above is a DISPATCH KEY, not provenance: the branches select the source_dataset
+        # AND (for copernicus) the variable-name mapping, so every direct fetcher deliberately keeps
+        # `provider='open-meteo'` to reuse the Open-Meteo-shaped path. Their own docstrings say so —
+        # "Caller keeps provider='open-meteo' so the manifest stays byte-identical".
+        #
+        # The cost of that was measured on 2026-07-30: the manifest reported `provider=open-meteo`
+        # AND `upstream_provider=open-meteo` for EURO marine waves, so NOTHING recorded whether a
+        # product came from ECMWF Open Data direct or from Open-Meteo's `ecmwf_wam025` endpoint —
+        # the two routes produce byte-identical manifests. The owner asked "EURO should not be on
+        # open-meteo" and the honest answer was that the manifest COULD NOT SAY. A field that cannot
+        # distinguish the thing it is named for is worse than no field: it reads as an answer.
+        #
+        # The truth already existed and was being dropped. Every direct fetcher stamps `__provider`
+        # on its output points — `ecmwf` / `dwd` / `noaa` / `copernicus` — and nothing propagated it.
+        # `upstream_provider` is INFORMATIONAL ONLY (grepped: written in capabilities.py + here,
+        # branched on nowhere, backend or frontend), so it can carry the truth without touching the
+        # dispatch. `provider` and `source_dataset` stay byte-identical; only this field sharpens.
+        #
+        # ★ It is SELF-CORRECTING: a payload with no `__provider` really did come from Open-Meteo,
+        # so it keeps saying open-meteo. The field now says open-meteo only when that is true.
+        fetched_by = next(
+            (pt.get("__provider") for pt in raw_results
+             if isinstance(pt, dict) and pt.get("__provider")), None)
+        if fetched_by:
+            up_provider = str(fetched_by).lower()
+
         return NormalizedProduct(
             model=model.upper(),
             provider=provider.lower(),
