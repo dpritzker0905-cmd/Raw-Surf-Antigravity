@@ -94,11 +94,16 @@ SURFACES = {
             "reference_size_m": SUPPLIED,   # gated RATING_LOCAL_SIZE
             "break_depth_m": SUPPLIED,
             "partitions": (
-                "NOTHING supplies partitions yet, at any surface. `estimate_surf_partitioned` is "
-                "landed, tested and DARK by design; wiring costs 2 extra point resolutions per "
-                "spot and must be costed against PRECOMPUTE, never the live lane (three-incident "
-                "melt history). Measured contamination if left unwired: Ocean Beach SF +105.4%, "
-                "Mavericks +79.4%. Queue item #3."),
+                "THE HEIGHT HALF IS NOW WIRED, THE RATING HALF IS NOT. `point_resolution."
+                "_resolve_partitions` supplies partitions to `estimate_surf_at`, so `surf_height_m` "
+                "is spectral at every surface at once (flag SURF_PARTITIONS, default OFF — it is 4x "
+                "the point resolutions and the serve box has a three-incident melt history). What "
+                "no surface passes is `partitions` to the RATING, which would make "
+                "`dominant_swell_period`, `effective_swell_exposure` and `sea_cleanliness` "
+                "partition-aware instead of reading the blended field. Wire it where the height is "
+                "resolved so the two cannot disagree about the same sea state. Measured effect of "
+                "the height half, 16 spots live: median +0.6%, range -44.7%..+26.8%, signed both "
+                "ways, so no constant substitutes for it."),
         },
     },
     "spot_conditions (the spot HUB)": {

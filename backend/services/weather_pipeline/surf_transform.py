@@ -449,6 +449,61 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
     return float(h_total), (regimes[0] if len(set(regimes)) == 1 else 'shoaling')
 
 
+def reconcile_partitions(partitions, total_h_m, tolerance: float = 0.02):
+    """Rescale swell partitions so their energy sums to the TOTAL significant wave height.
+
+    Returns a NEW list (inputs untouched). Fails OPEN — no total, no usable partitions, or a
+    degenerate quadrature returns the input unchanged, so a reconciliation problem can never cost
+    the caller its estimate.
+
+    ★★ WHY THIS IS MANDATORY, not tidiness. The partitions do NOT reconcile with the total field,
+    and they miss in BOTH directions. Measured live against production, 16 spots, 2026-07-29:
+
+        |quadrature - total| / total      median 9.5%,  max 43.8% (Anchor Point)
+        partitions OVER the total (>2%)   10 of 16 spots
+        partitions UNDER the total (<-2%)  1 of 16 (Bondi Beach, -22.3%)
+
+    Sampled independently from separate grid products, interpolation is not energy-conserving, so
+    `sqrt(sum(Hs_i**2))` drifts from the `waves` layer's own Hs. Feeding the raw partitions to
+    `estimate_surf_partitioned` therefore INVENTS energy the model never reported: measured, the raw
+    partitioned height ran a median **+6.2%** above the total-field estimate, purely from the
+    overshoot. Normalising drops that to **+0.6%** while KEEPING the per-spot corrections that are
+    the point of the change (still -44.7%..+26.8%, signed both ways).
+
+    ★ The split of responsibility is the whole idea: the total Hs is the SCALE — the better-
+    constrained quantity, the one the app already serves everywhere and the one `buoy_calibration`
+    was built against — and the partitions are the SHAPE, i.e. how that energy is distributed across
+    periods and bearings. Honouring the periods separately must not quietly re-scale the sea state;
+    that would be an unvalidated change to a calibrated number, smuggled in behind a spectral fix.
+
+    ⚠️ Do NOT "fix" this by dropping to `swell_1` instead. Wind sea is genuinely part of the surf on
+    a windy day, and at Hossegor `swell_1` has measured EQUAL to the entire total — see
+    `estimate_surf_partitioned`.
+    """
+    if not partitions or total_h_m is None:
+        return partitions
+    try:
+        total = float(total_h_m)
+    except (TypeError, ValueError):
+        return partitions
+    if total <= 0:
+        return partitions
+    usable = [p for p in partitions
+              if isinstance(p, dict) and p.get("h") is not None and float(p["h"]) > 0]
+    if not usable:
+        return partitions
+    quad = math.sqrt(sum(float(p["h"]) ** 2 for p in usable))
+    if quad <= 0:
+        return partitions
+    k = total / quad
+    if abs(k - 1.0) <= tolerance:
+        # Already consistent; return unchanged so an in-tolerance sea state is byte-identical.
+        return partitions
+    return [dict(p, h=float(p["h"]) * k) if (isinstance(p, dict) and p.get("h") is not None
+                                             and float(p["h"]) > 0) else p
+            for p in partitions]
+
+
 def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):
     """In-place SURF-BAND transform of a marine grid for the Swell<->Surf heatmap toggle.
 

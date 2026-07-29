@@ -68,6 +68,57 @@ class PointResolutionService:
         lons = sorted(list(set(v.lng for v in grid.vectors)))
         return round(lons[1] - lons[0], 4) if len(lons) > 1 else 0.0
 
+    # The partition layers this model publishes alongside the total `waves` field, with the `kind`
+    # `surf_rating`'s partition-aware factors expect.
+    _PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
+
+    async def _resolve_partitions(self, model, layer, lat, lng, valid_time_str, total_h):
+        """The spectral partitions at this point, reconciled to the total — or None.
+
+        ⚠️⚠️ RE-ENTRANCY. This calls `_resolve_point_internal`, NOT `resolve_point`. The surf
+        transform lives in `resolve_point`, so going through the public method would make each
+        partition resolve its own partitions, recursively. Using the internal method is a
+        STRUCTURAL guard — recursion is not merely avoided, it is unreachable.
+
+        ⚠️ COST — this is why it is OFF by default. Three extra point resolutions per `waves`
+        point, i.e. 4x. Measured against production 2026-07-29 the extra layers answer in
+        0.17-0.77 s each (median ~0.4 s), and they are real ingested products the map already
+        renders as heatmap layers — so this samples cached grids rather than triggering upstream
+        fetches. But the serve box is 1-CPU with a THREE-INCIDENT melt history at 7.5-8.6 s/req
+        (see `routes/weather.py`'s live-ratings load shed), so 4x on the hot path is not a
+        decision to make from a docstring. Turn it on in the PRECOMPUTE first and measure.
+
+        ⛔ IF YOU ENABLE IT, ENABLE IT EVERYWHERE. `surf_height_m` from this lane is what the map
+        glyphs, the spot hub and the weather sim all display; a flag set in one environment and not
+        another makes the same spot two different heights depending on which lane answered.
+
+        Fails OPEN in every branch: any miss returns None and the caller falls through to the
+        total-field estimate, byte-identical to today.
+        """
+        if os.environ.get("SURF_PARTITIONS", "0") != "1":
+            return None
+        if (layer or "").lower() != "waves":      # only the TOTAL field has partitions to split
+            return None
+        parts = []
+        for part_layer, kind in self._PARTITION_LAYERS:
+            try:
+                # ⚠️ grid_product_id/grid_bbox are deliberately NOT forwarded: they identify the
+                # caller's WAVES product, and reusing them would sample the wrong grid.
+                r = await self._resolve_point_internal(
+                    model=model, domain="marine", layer=part_layer,
+                    lat=lat, lng=lng, valid_time_str=valid_time_str)
+                p = getattr(r, "point", None)
+                if p is None or not p.speed or not p.period or p.speed <= 0 or p.period <= 0:
+                    continue
+                parts.append({"h": float(p.speed), "tp": float(p.period),
+                              "dir": p.direction, "kind": kind})
+            except Exception as _pe:
+                logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
+        if not parts:
+            return None
+        from services.weather_pipeline.surf_transform import reconcile_partitions
+        return reconcile_partitions(parts, total_h)
+
     async def resolve_point(
         self,
         model: str,
@@ -130,8 +181,17 @@ class PointResolutionService:
                 # The frontend pairs the shore normal with the already-fetched wind point + surf
                 # height/period to compute the rating badge ([[surf_rating]]).
                 response.shore_normal_deg = _geo.shore_normal_deg
+                # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling
+                # one blended field. Resolved HERE, at the single injection point, because
+                # `surf_height_m` is produced here — computing it anywhere else would give the spot
+                # hub and the sim a different height from the map glyphs, which is the divergence
+                # CLAUDE.md's ONE FORECAST COMPOSITION rule exists to prevent. See
+                # `_resolve_partitions` for the cost and the re-entrancy guard.
+                _parts = await self._resolve_partitions(
+                    model, layer, lat, lng, valid_time_str, response.point.speed)
                 surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
-                                                swell_from_deg=response.point.direction, geometry=_geo)
+                                                swell_from_deg=response.point.direction, geometry=_geo,
+                                                partitions=_parts)
                 if _geo.magnet_name and surf is not None:
                     logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
                 response.surf_height_m = round(surf, 4) if surf is not None else None
