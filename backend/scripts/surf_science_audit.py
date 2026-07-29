@@ -83,7 +83,11 @@ SCIENCE_FLAGS = {
                                 "epic' anchor."),
     "RATING_OBS_GATE":    ("0", "Good/Epic require an observation (the published Surfline rule). "
                                 "⚠️ starved: ~14 usable observations exist in production."),
-    "RATING_TIDE":        ("0", "Tide-fit factor. ⚠️ only 1.0% of spots carry the best_tide prior."),
+    "RATING_TIDE":        ("0", "Tide state on every rated spot + tide_fit where a best_tide prior "
+                                "exists. ⚠️ measured 2026-07-29: 38 of 1,773 active spots (2.14%) "
+                                "carry that prior, so the FACTOR moves ~2% of spots -- but the tide "
+                                "STATE is attached to every rated spot, so a lane split changes the "
+                                "response SHAPE catalogue-wide, not just those 38."),
     "RATING_BREAKER_TYPE": ("0", "Iribarren breaker-type factor."),
     "SURF_PARTITIONS":    ("0", "Spectral: transform each swell train on its own period/bearing."),
     "SURF_HEIGHT_H110":   ("0", "Emit the PUBLISHED surf statistic (H1/10) instead of Hs. "
@@ -92,6 +96,7 @@ SCIENCE_FLAGS = {
     "SURF_TRANSFORM":     ("1", "The whole nearshore transform."),
 }
 
+CHECK_RENDER = False
 results = []
 
 
@@ -124,22 +129,86 @@ def _workflow_flag(flag):
     return out
 
 
+_render_cache = {}
+
+
+def _render_flags():
+    """Science flags actually set on the Render service, or None when unreadable.
+
+    ⚠️ OPT-IN (`--render`). This script's contract is zero-credential and zero-network so it can run
+    in CI and always answer the same way; reading Render breaks both, so it never happens by default.
+
+    ★ Worth the opt-in, because Render is the SERVE lane and its absence from git is exactly why a
+    split hid for 11 days: `RATING_TIDE` is '1' in both ingest workflows and UNSET on Render, so the
+    precomputed frames carry tide and the live path does not.
+    """
+    if "flags" in _render_cache:
+        return _render_cache["flags"]
+    _render_cache["flags"] = None
+    key = os.environ.get("RENDER_API_KEY", "")
+    service = os.environ.get("RENDER_SERVICE_ID", "srv-d7fhiu7lk1mc73debje0")
+    if not key:
+        env_path = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), ".env")
+        try:
+            with open(env_path, encoding="utf-8") as fh:
+                for line in fh:
+                    if line.startswith("RENDER_API_KEY="):
+                        key = line.split("=", 1)[1].strip().strip("'\"")
+                        break
+        except OSError:
+            pass
+    if not key:
+        return None
+    try:
+        import requests
+        resp = requests.get(f"https://api.render.com/v1/services/{service}/env-vars?limit=100",
+                            headers={"Authorization": f"Bearer {key}"}, timeout=15)
+        if resp.status_code != 200:
+            return None
+        rows = resp.json()
+        out = {}
+        for row in rows:
+            ev = row.get("envVar", row)
+            k = ev.get("key", "")
+            if k.startswith(("RATING_", "SURF_")):
+                out[k] = ev.get("value")
+        _render_cache["flags"] = out
+        return out
+    except Exception:
+        return None
+
+
 def audit_flags():
+    render = _render_flags() if CHECK_RENDER else None
     for flag, (default, why) in SCIENCE_FLAGS.items():
-        local = os.environ.get(flag, default)
         lanes = _workflow_flag(flag)
-        # Render's env is not in git and cannot be read here; say so rather than imply local == live.
-        where = f"{'ON ' if local != '0' else 'OFF'} (this shell; Render not readable)"
-        if lanes:
-            vals = sorted(set(lanes.values()))
-            lane_txt = ("ingest " + ("/".join(f"{v}" for v in vals))
-                        if len(vals) == 1 else
-                        "ingest SPLIT " + ", ".join(f"{k}={v}" for k, v in sorted(lanes.items())))
-            where += f" | {lane_txt}"
-            status = FAIL if len(vals) > 1 else INFO
+        lane_vals = sorted(set(lanes.values()))
+
+        # A flag has a value PER LANE. Reporting one number was how a live split hid for 11 days.
+        if CHECK_RENDER:
+            serve = (render or {}).get(flag, default if render is not None else None)
+            serve_txt = "unreadable" if serve is None else f"serve {serve}"
         else:
-            status = INFO
-        check(f"flag:{flag}", status, f"{where}  {why}",
+            serve = None
+            serve_txt = "serve not checked (--render)"
+
+        ingest_txt = ("ingest " + lane_vals[0] if len(lane_vals) == 1
+                      else "ingest SPLIT " + ", ".join(f"{k}={v}" for k, v in sorted(lanes.items()))
+                      if lane_vals else "ingest default")
+
+        # The comparison that matters: do the lanes that WRITE frames agree with the lane that SERVES
+        # them? Disagreement means two surfaces answer the same question differently.
+        status = INFO
+        note = ""
+        if len(lane_vals) > 1:
+            status = FAIL
+            note = "  <- the two ingest lanes disagree"
+        elif lane_vals and serve is not None and lane_vals[0] != serve:
+            status = FAIL
+            note = (f"  <- LANE SPLIT: ingest writes frames with {flag}={lane_vals[0]}, "
+                    f"the serve lane uses {serve}")
+
+        check(f"flag:{flag}", status, f"{ingest_txt} | {serve_txt}{note}  {why}",
               "backend/tests/test_flag_lane_parity.py" if lanes else "env")
 
 
@@ -253,7 +322,14 @@ def audit_ceilings():
 def main():
     ap = argparse.ArgumentParser()
     ap.add_argument("--json", action="store_true")
+    ap.add_argument("--render", action="store_true",
+                    help="also read the Render service's env vars (the SERVE lane) and report any "
+                         "lane split. Needs RENDER_API_KEY and network, so it is opt-in - without "
+                         "it this script stays credential-free and offline.")
     args = ap.parse_args()
+
+    global CHECK_RENDER
+    CHECK_RENDER = args.render
 
     audit_flags()
     audit_anchors()
