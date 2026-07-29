@@ -135,15 +135,40 @@ ones.
 
 ---
 
-## 6. ⇒ THE ORDER OF WORK
+## 6. ★★★ COVERAGE SAYS *SAFE*. STRUCTURE SAYS *CHEAP*. THEY ARE DIFFERENT AXES.
 
-1. **`WeatherEngine.js`** (1,116, 58.7%) — the next file where the method above applies as-is.
-2. **Characterisation tests** for the seven ⛔ files, worst-covered first (`MapWeatherControls.js`
-   at 0.0%, `WebGLMarineLayer.js` at 0.14%, `MapWebGL.js` at 0.71%).
+⚠️ **This section corrects an earlier version of this document**, which named `WeatherEngine.js` as
+the obvious next target purely because it is 58.7% covered. Checked structurally, it is **one
+1,094-line React hook** (`useWeatherEngine`, lines 22–1116) with no top-level seam at all — safe to
+touch, but nothing cheap to lift out. Splitting it means extracting sub-hooks, which moves closure
+capture and dependency arrays, not just lines.
+
+`WebGLWindEngine.js` reads like the marine engine's twin and is not: a 23-line constructor, ~126
+lines of pure exported helpers, then **nine `WebGLWindEngine.prototype.*` GPU methods** carrying the
+remaining ~885 lines. Lifting its pure block yields 1,095 → ~970 — still over the limit.
+
+⇒ **The cheap structural wins are now exhausted.** Both splits this session worked because those
+files contained a large, contiguous, pure, already-tested block. No file left on the list does.
+
+| axis | question it answers | what it rules out |
+|---|---|---|
+| **coverage** | if I move this, will a break be caught? | 7 files at <10% |
+| **structure** | is there a contiguous block to move at all? | the rest |
+
+A file needs BOTH. That is why the list stalls here rather than continuing at the same pace.
+
+### ⇒ THE ORDER OF WORK
+1. **Characterisation tests** for the seven ⛔ files, worst-covered first (`MapWeatherControls.js`
+   at 0.0%, `WebGLMarineLayer.js` at 0.14%, `MapWebGL.js` at 0.71%). This is now the *critical
+   path*, not a parallel nice-to-have — nothing else on this list proceeds safely without it.
+2. **`map/ARCHITECTURE.md`** — highest value ÷ risk in the whole audit, and it needs no test
+   coverage to be written. See the note below.
 3. **`WebGLMarineEngine.js` stage 2** — separate the pure predicates in the post-component block
-   from the `WebGLMarineEngine.prototype.*` GPU methods they are interleaved with.
+   from the `WebGLMarineEngine.prototype.*` GPU methods they are interleaved with. Surgical, but
+   the block is known and bounded.
 4. **`_washOpacityEff`** — its own forensic pass, not folded into a refactor.
-5. The two 100%-covered shader files, last, if at all (§4).
+5. **`WeatherEngine.js` / `WebGLWindEngine.js`** — real decomposition work, after (1).
+6. The two 100%-covered shader files, last, if at all (§4).
 
 ⚠️ **A directory reorg is NOT on this list on purpose.** `components/map/` is flat — 230 files,
 53,087 non-test lines, 24% of the frontend, zero subdirectories — and subdividing it would be the
