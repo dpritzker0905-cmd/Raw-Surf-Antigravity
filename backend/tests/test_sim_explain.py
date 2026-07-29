@@ -112,6 +112,11 @@ SPOT = {"name": "Sebastian Inlet", "latitude": 27.8608, "longitude": -80.4464,
 def test_the_sim_payload_carries_why_and_it_matches_quality_rating():
     calc = sim_rating.calculate_surf_rating(SPOT, 0.5, 7.9, 85.0, 3.9, 280.0)
     assert "why" in calc and "why_summary" in calc
+    # ⚠️ `explain()` catches broadly so it can never break the answer it annotates — which is the
+    # exact shape of `8ce65c95`, where a broad `except Exception` swallowed a NameError and left the
+    # surf transform silently OFF while every response still validated. Assert the ERROR PATH is not
+    # the one being exercised, or a typo inside explain() would ship as a quietly missing breakdown.
+    assert "error" not in calc["why"], f"explain() fell into its own except: {calc['why']}"
     assert calc["why"]["score"] == pytest.approx(calc["quality_rating"], abs=0.15)
     assert "warning" not in calc["why"], "the payload's own breakdown disagrees with its score"
 
