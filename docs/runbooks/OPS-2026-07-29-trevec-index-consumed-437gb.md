@@ -116,6 +116,33 @@ Anything past ~1 GB means versions are accumulating again. At the measured ~11 G
 that within hours of heavy use, so this is worth checking at the start of a session rather than
 after the disk fills.
 
+## ✅ The standing fix (2026-07-29)
+
+Three layers, because the preventive one turned out not to work:
+
+1. ⛔ **Lance dataset auto-cleanup — MEASURED NOT TO WORK against trevec.** `update_config` with
+   `lance.auto_cleanup.interval` + `older_than` bounds growth perfectly in isolation (16 overwrites:
+   **2 versions / 4.9 KB** with it, **17 / 40.1 KB** without). Installed on the live store at 15
+   versions, a real `trevec index` run then wrote 16–22 — seven commits, crossing `interval=5` — and
+   **every version from v1 survived**, including one far past the 30-minute threshold. Either the
+   bundled Lance predates the feature or the write path skips the check. `--install` is kept because
+   it is free and becomes the right fix the day trevec updates, but **nothing may depend on it.**
+
+   ★ Confirmed again, unambiguously, within the same hour: **15 → 22 → 42 versions and 143 → 333 MB
+   with the config installed and untouched**, purely from ordinary editing. No inference needed —
+   the store more than doubled through a policy that was supposed to hold it flat.
+2. ✅ **`scripts/trevec_index_gc.py --apply`** — reactive pruning via Lance's `cleanup_old_versions`,
+   which trevec never calls. Safe alongside a live writer: `delete_unverified` is never set, so
+   in-progress transactions are untouchable. ⚠️ Lance's OWN default `older_than` is **two weeks**,
+   which at ~11 GB/day permits ~154 GB before it removes anything — the defaults here are hours.
+3. ✅ **`scripts/install_trevec_gc_schedule.ps1`** — registers the GC hourly, logging to
+   `.trevec/gc.log`. A checked-in script rather than a hand-made task, because a task created once
+   by hand is invisible six months later and nobody can tell what it runs or whether it is still
+   right. Idempotent; `-Remove` unregisters.
+
+⛔ **The real fix is upstream** — `docs/research/UPSTREAM-trevec-index-has-no-retention.md` is a
+send-ready report with every measurement and five suggested fixes. Everything above is mitigation.
+
 ## Keeping it from returning
 
 - **Run one server, not two.** Check `Get-Process trevec` before starting a session; the duplicate
