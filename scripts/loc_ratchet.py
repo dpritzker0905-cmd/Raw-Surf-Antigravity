@@ -30,8 +30,21 @@ import sys
 
 DEFAULT_BASELINE = os.path.join('.github', 'loc-baseline.json')
 
-# Scopes mirror the historical CI checks exactly, so the baseline stays faithful
-# to what the gate would have caught. Keep these in sync with loc-check.yml.
+# Scopes mirror the historical CI checks, so the baseline stays faithful to what the gate would
+# have caught. Keep these in sync with loc-check.yml — BOTH the scanner's suffixes here AND that
+# workflow's `paths:` filter, or the gate is half-closed (see below).
+#
+# ⚠️ 2026-07-29: `frontend JS` was `.js` ONLY, and `frontend/src/admin/` is TypeScript — 21 files,
+# 4,733 lines, an entire language the ratchet could not see while printing "[OK] No new
+# violations." Nothing over the limit YET (the largest is WeatherDiagnostics.tsx at 511), so this
+# costs nothing today and closes the hole before it costs something. `.jsx` is included for the
+# same reason: not present today, silently ungoverned if it ever is.
+#
+# ★ A scanner blind to a language is the same defect shape as `48b923b3` (a 401 rendered as a
+# confident "0 spots") — the report is not wrong about what it looked at, it is wrong about having
+# looked. Ask what a green gate would look like if it were not running.
+_JS_FAMILY = ('.js', '.jsx', '.ts', '.tsx')
+
 SCOPES = (
     {
         'name': 'backend Python',
@@ -40,9 +53,9 @@ SCOPES = (
         'exclude': ('venv', '.venv', '__pycache__', 'node_modules', 'migrations_archive', '.git'),
     },
     {
-        'name': 'frontend JS',
+        'name': 'frontend JS/TS',
         'root': os.path.join('frontend', 'src'),
-        'suffixes': ('.js',),
+        'suffixes': _JS_FAMILY,
         'exclude': ('node_modules', '_deprecated', '.git'),
     },
 )

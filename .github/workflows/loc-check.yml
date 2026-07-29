@@ -16,7 +16,14 @@ on:
     branches: [dev]
     paths:
       - 'backend/**/*.py'
+      # ⚠️ MUST match loc_ratchet.SCOPES. Extending the scanner to .ts/.tsx without extending this
+      # filter would leave the gate half-closed: the job simply would not run on a TypeScript-only
+      # change, and a green checkmark would mean "not evaluated". That is the `paths:`-filter
+      # defect this workflow's own header already records once.
       - 'frontend/src/**/*.js'
+      - 'frontend/src/**/*.jsx'
+      - 'frontend/src/**/*.ts'
+      - 'frontend/src/**/*.tsx'
       - 'scripts/loc_ratchet.py'
       - '.github/loc-baseline.json'
       - '.github/workflows/loc-check.yml'
@@ -24,7 +31,14 @@ on:
     branches: [dev, main]
     paths:
       - 'backend/**/*.py'
+      # ⚠️ MUST match loc_ratchet.SCOPES. Extending the scanner to .ts/.tsx without extending this
+      # filter would leave the gate half-closed: the job simply would not run on a TypeScript-only
+      # change, and a green checkmark would mean "not evaluated". That is the `paths:`-filter
+      # defect this workflow's own header already records once.
       - 'frontend/src/**/*.js'
+      - 'frontend/src/**/*.jsx'
+      - 'frontend/src/**/*.ts'
+      - 'frontend/src/**/*.tsx'
       - 'scripts/loc_ratchet.py'
       - '.github/loc-baseline.json'
       - '.github/workflows/loc-check.yml'
