@@ -2,7 +2,7 @@
   "_comment": "Pre-existing 800-LOC violations, grandfathered by scripts/loc_ratchet.py. These files may only SHRINK. Nothing may be added by hand \u2014 run `python scripts/loc_ratchet.py --update-baseline` after splitting a file.",
   "max_lines": 800,
   "files": {
-    "frontend/src/components/map/WebGLMarineEngine.js": 3844,
+    "frontend/src/components/map/WebGLMarineEngine.js": 3207,
     "frontend/src/components/map/WebGLMarineLayer.js": 1221,
     "frontend/src/components/map/WeatherEngine.js": 1116,
     "frontend/src/components/map/MapWebGL.js": 1097,
