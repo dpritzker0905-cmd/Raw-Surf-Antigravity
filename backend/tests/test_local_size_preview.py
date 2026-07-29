@@ -166,6 +166,48 @@ def test_an_inverted_climatology_is_caught_by_the_exemplars_not_the_aggregate():
     assert correct["failures"] == 0
 
 
+# ── THE DEFECT THE FLIP ACTUALLY FIXES ──────────────────────────────────────────────────────────
+
+@pytest.mark.parametrize("tp", [7.0, 9.0, 12.0, 15.0])
+def test_CHARACTERISATION_the_global_curve_is_size_blind_above_4ft(tp):
+    """⛔ KNOWN DEFECT, pinned so it is visible and so the fix is provable.
+
+    `size_score` maps [0.2 m -> 1.2 m] onto [0 -> 1] and then FLATLINES. Real surf runs 0.2 m to
+    10 m+, so the entire useful range of the size factor is spent in the first four feet and every
+    wave above that scores identically until the oversize gate fires. Measured 2026-07-29 with
+    perfect wind and head-on swell: 4 / 6 / 8 / 10 / 12 ft are BYTE-IDENTICAL at every period.
+
+    ★★ This is the FOURTH instance of the saturation family. The first three were factors that could
+    not say NO (fixed by making them multiply: wind_gate, oversize_gate, period_gate). This is the
+    mirror — a factor that cannot say MORE — and the same root: a bounded factor pinned at its bound
+    carries no information.
+
+    When RATING_LOCAL_SIZE ships this test should be REPLACED, not deleted: it is the before-picture.
+    """
+    scores = {ft: compute_surf_rating(ft * 0.3048, tp, 2.0, 270.0, 90.0, 90.0)[0]
+              for ft in (4, 6, 8, 10, 12)}
+    assert len(set(scores.values())) == 1, (
+        f"the global size curve has started discriminating above 4 ft at Tp {tp} — if that was "
+        f"intentional, replace this characterisation test: {scores}")
+
+
+def test_a_local_reference_RESTORES_the_dynamic_range():
+    """★ The value of the flip, made provable. A spot-relative reference moves saturation from a
+    fixed 3.9 ft to 2.5x the spot's own good day, so size starts carrying information again across
+    the range that spot actually sees."""
+    from services.weather_pipeline.surf_rating import size_score
+    # Florida (p80 ~0.7 m): discriminates out to ~5.7 ft instead of stopping at 3.9.
+    fl = [size_score(ft * 0.3048, 0.7) for ft in (4, 5, 6)]
+    assert fl[0] < fl[1] < fl[2], f"FL reference should still be discriminating at 4-6 ft: {fl}"
+    # A big-wave coast (p80 ~2.5 m): still discriminating at 12 ft, where global is long since 1.0.
+    pipe = [size_score(ft * 0.3048, 2.5) for ft in (4, 8, 12)]
+    assert pipe[0] < pipe[1] < pipe[2], f"big-wave reference should discriminate to 12 ft: {pipe}"
+    assert all(p < 1.0 for p in pipe), "a 12 ft day must not saturate a 25 ft spot"
+    # And the global curve is flat across that same span — the contrast that justifies the flip.
+    glob = [size_score(ft * 0.3048, None) for ft in (4, 8, 12)]
+    assert len(set(glob)) == 1 and glob[0] == 1.0
+
+
 def test_no_data_is_reported_as_not_ready_never_as_sane():
     """A blob with no exemplar coverage must NOT read 'SANE' — that would greenlight a flip on
     nothing at all."""
