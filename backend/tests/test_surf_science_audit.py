@@ -30,9 +30,14 @@ def _run(*args, encoding=None):
     env = dict(os.environ)
     if encoding:
         env["PYTHONIOENCODING"] = encoding
+    # stdin=DEVNULL is load-bearing on Windows: under pytest's capture the inherited stdin is not
+    # always a duplicable handle, and subprocess raises `OSError [WinError 6/50]` before the child
+    # starts. Without it these tests pass or fail on how the session was launched rather than on
+    # anything about the audit — they were green when written and red an hour later, unchanged.
     return subprocess.run(
         [sys.executable, SCRIPT, *args],
-        capture_output=True, text=True, encoding="utf-8", errors="replace", env=env, timeout=300,
+        capture_output=True, text=True, encoding="utf-8", errors="replace",
+        stdin=subprocess.DEVNULL, env=env, timeout=300,
     )
 
 
