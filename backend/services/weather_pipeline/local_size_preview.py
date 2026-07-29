@@ -178,6 +178,46 @@ def preview_impact(clim: Optional[dict], frames: List[dict], *,
     }
 
 
+# ★ THE OWNER'S CALIBRATION ANCHORS, evaluated live. Solved 2026-07-29 with
+# `backend/scripts/calibration_solver.py`: R_FL in [0.65, 0.85] m satisfies all five Florida
+# anchors; the GLOBAL 1.2 m reference fails "4 ft is not epic" (it scores exactly 84.0, the first
+# value in the epic bucket). Reporting these next to the deltas turns "should I flip this flag?"
+# into "does flipping it make the owner's own stated targets green?", which is the actual question.
+# Feet are DISPLAYED surf height under clean conditions (light dead-offshore, head-on swell).
+OWNER_ANCHORS = [
+    ("FL 2-3 ft clean = fair",           2.5,  9.0, ("fair",)),
+    ("FL 3-4 ft clean = fair_good/good", 3.5,  9.0, ("fair_good", "good")),
+    ("FL 4 ft @ 9 s is NOT epic",        4.0,  9.0, ("fair", "fair_good", "good")),
+    ("FL 6-8 ft pumping = epic",         7.0, 11.0, ("epic",)),
+    ("FL 8-10 ft pumping = epic",        9.0, 12.0, ("epic",)),
+]
+_FT = 0.3048
+
+
+def anchor_report(reference_size_m: Optional[float]) -> Dict[str, Any]:
+    """Do the owner's stated calibration anchors pass at this size reference?
+
+    ⚠️ Clean-condition anchors: swell_from MUST equal the shore normal for head-on (passing the
+    opposite bearing floors `swell_exposure` at 0.10 and makes every number ~10x too small).
+    """
+    from services.weather_pipeline.surf_rating import compute_surf_rating
+    rows, passed = [], 0
+    for label, ft, tp, allowed in OWNER_ANCHORS:
+        try:
+            score, level = compute_surf_rating(ft * _FT, tp, 2.0, 270.0, 90.0, 90.0,
+                                               reference_size_m=reference_size_m)
+        except Exception as e:
+            rows.append({"anchor": label, "error": str(e)})
+            continue
+        ok = level in allowed
+        passed += 1 if ok else 0
+        rows.append({"anchor": label, "displayed_ft": ft, "period_s": tp,
+                     "score": score, "level": level,
+                     "owner_expects": list(allowed), "pass": ok})
+    return {"reference_size_m": reference_size_m, "anchors": rows,
+            "passed": passed, "total": len(OWNER_ANCHORS)}
+
+
 def sanity_check(clim: Optional[dict], spots_by_coord: Optional[List[dict]] = None,
                  *, reference_map_fn: Callable[[Optional[dict]], dict] = None) -> Dict[str, Any]:
     """The rollout plan's OWN acceptance criterion: "FL spots get small refs, big-wave spots large".

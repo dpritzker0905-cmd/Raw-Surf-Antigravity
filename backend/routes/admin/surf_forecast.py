@@ -165,7 +165,8 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
 
     ⚠️ This reads and reports. It does not flip anything — that remains an env change + restart.
     """
-    from services.weather_pipeline.local_size_preview import preview_impact, sanity_check
+    from services.weather_pipeline.local_size_preview import (
+        anchor_report, preview_impact, sanity_check)
     from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
     from services.weather_pipeline.spot_size_climatology import load_size_climatology_l2_cached
 
@@ -192,6 +193,12 @@ async def local_size_preview(admin: Profile = Depends(get_current_admin),
 
     report = preview_impact(clim, frames, break_depth_fn=_break_depth)
     report["sanity"] = sanity_check(clim, spots)
+    # ★ The question is not "what changes" but "does flipping it make the OWNER'S stated targets
+    # green?". Reported for the global reference (today) and a Florida-class local one, because the
+    # global reference is exactly what fails the "4 ft is not epic" anchor — at 84.0, the first
+    # value in the epic bucket. Solved in `backend/scripts/calibration_solver.py`.
+    report["owner_anchors"] = {"today_global": anchor_report(None),
+                               "with_local_reference": anchor_report(0.75)}
     report["flag"] = {"name": "RATING_LOCAL_SIZE",
                       "current": os.environ.get("RATING_LOCAL_SIZE", "0"),
                       "flip_where": "Render env AND precompute.yml env (glyphs+band together)"}
