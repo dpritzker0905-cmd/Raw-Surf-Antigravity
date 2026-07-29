@@ -210,12 +210,28 @@ def calculate_surf_rating(
 
 
 def geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
-    """The resolved bathymetry for a spot — what makes the estimate spot-specific."""
+    """The resolved bathymetry for a spot — what makes the estimate spot-specific.
+
+    ★ Carries the READINESS VERDICT, not just the raw fields. Listing `shore_normal_source:
+    "coarse"` next to a bearing quoted to a decimal place still leaves the caller to know that
+    "coarse" means median 22.3° off and a rating LEVEL that differs on 45.8% of evaluations. The
+    verdict says it outright, from the same grader every other surface now uses."""
     geo = spot_geometry(spot)
     if geo is None:
         return {"resolved": False, "shore_normal_deg": shore_normal_for(spot),
-                "shore_normal_source": "catalog_fallback"}
+                "shore_normal_source": "catalog_fallback",
+                "readiness": "blind", "readiness_note": (
+                    "No bathymetry could be resolved, so every swell direction scores the same.")}
+    _rd = {}
+    try:
+        from services.weather_pipeline.spot_geometry_readiness import assess_geometry, summarize
+        _a = assess_geometry(geo)
+        _rd = {"readiness": _a.get("verdict"), "readiness_missing": _a.get("missing") or None,
+               "readiness_note": summarize(_a)}
+    except Exception as e:                       # a diagnostic must never cost the payload
+        logger.debug(f"readiness assessment failed for {spot.get('name')}: {e}")
     return {
+        **_rd,
         "resolved": True,
         "shore_normal_deg": geo.shore_normal_deg,
         "shore_normal_source": geo.shore_normal_src,

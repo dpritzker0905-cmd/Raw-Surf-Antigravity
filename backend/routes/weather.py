@@ -325,6 +325,11 @@ class SpotRatingItem(BaseModel):
     # or a fresh user report (Surfline hybrid; the backend plays the forecaster). None fields when off.
     confirmed: Optional[str] = None      # None | 'good' | 'epic' — what unlocked this score's ceiling
     raw_score: Optional[float] = None    # the ungated model score (audit; score may be capped/nudged)
+    # full | degraded | blind — what the forecast RAN ON, which `confidence` above does not say.
+    # `confidence` grades the PIN (accuracy_flag / is_verified_peak); a perfectly-placed verified pin
+    # can still be scored against a coarse 0.25° bearing that is median 22.3° off, changing the
+    # LEVEL on 45.8% of evaluations. Optional so an older precomputed frame simply omits it.
+    geometry_readiness: Optional[str] = None
 
 
 class SpotRatingsResponse(BaseModel):

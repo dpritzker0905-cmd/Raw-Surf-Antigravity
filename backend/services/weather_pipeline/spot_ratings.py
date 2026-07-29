@@ -69,6 +69,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     Returns the rating dict — the SAME shape the endpoint serves and the precompute persists."""
     lat, lng = spot["latitude"], spot["longitude"]
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
+    geometry_readiness = None
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
@@ -77,6 +78,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             period = marine.point.period
             swell_from = marine.point.direction
             shore_normal = marine.shore_normal_deg
+            geometry_readiness = marine.geometry_readiness
     except Exception as e:
         logger.debug(f"[spot-ratings] marine resolve failed for {spot.get('id')}: {e}")
     try:
@@ -138,6 +140,12 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "period_s": round(period, 1) if period is not None else None,
         "tide": tide_state,
         "why": why,
+        # ★ GEOMETRY READINESS, carried from the point response (`point_resolution` stamps it where
+        # `surf_height_m` is produced). NOT the same thing as `confidence` above: that grades the
+        # PIN (accuracy_flag / is_verified_peak), this grades the INPUTS the forecast ran on. A
+        # correctly-placed, verified pin can still be scored on a coarse 0.25° bearing that is
+        # median 22.3° off — and until now nothing distinguished the two.
+        "geometry_readiness": geometry_readiness,
     }
 
 

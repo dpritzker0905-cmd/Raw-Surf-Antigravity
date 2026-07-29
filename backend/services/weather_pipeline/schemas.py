@@ -187,6 +187,19 @@ class NormalizedPointResponse(BaseModel):
     # ±0.75° coastal gate, which kept the row visible for markers well offshore. Display-only tag; the
     # estimate itself is computed the same either way.
     surf_nearshore: Optional[bool] = None
+    # ── PROVENANCE FOR THE SURF NUMBER ITSELF (2026-07-30) ──────────────────────────────────────
+    # `shore_normal_deg` above was served bare, and a bearing off the COARSE 0.25° grid is
+    # indistinguishable from a measured one — Bondi Beach served `111.54097591853844`, fourteen
+    # decimals of false precision on a bearing whose class is median 22.3° off, with the rating
+    # LEVEL differing on 45.8% of evaluations. `resolve_surf_geometry` already knows which it is and
+    # `spot_geometry_readiness.assess_geometry` already grades it; both were dropped here, so NO
+    # surface (point, glyphs, hub, sim) could say a spot was running on degraded inputs.
+    # Additive/Optional -> backward compatible; every consumer that ignores them is unaffected.
+    shore_normal_source: Optional[str] = None    # coarse | etopo | override:<name> | overlay | None
+    break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
+    geometry_readiness: Optional[str] = None     # full | degraded | blind
+    geometry_missing: Optional[List[str]] = None  # which inputs are absent, e.g. ["fine_shore_normal"]
+
 
 class ManifestProduct(BaseModel):
     model: str

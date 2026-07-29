@@ -27,6 +27,10 @@ logger = logging.getLogger(__name__)
 from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
     safe_index_get, build_wind_direct_point_response, build_scalar_direct_point_response
 )
+# The surf composition (geometry -> breaking height -> partitions -> readiness). Extracted
+# 2026-07-30 when this file hit 801 of the 800-line ratchet; it remains the SINGLE place
+# `surf_height_m` is produced.
+from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
 
 class PointResolutionService:
     """
@@ -151,58 +155,12 @@ class PointResolutionService:
         # Copernicus. Ingestion now saves truthful flags; the point response carries the product's
         # own provenance unmodified in every environment.
 
-        # ── Option-2 surf transform: augment a successful MARINE point with a bathymetry-derived surf
-        # height (additive — the offshore height/period in `point` are untouched). SINGLE injection point,
-        # so it covers every resolution path without touching their fetch/sample logic (the regression-safe
-        # pattern; the infobox 2-month history is all about fetch deps / flooding / unmount — none of which
-        # this touches). Pure in-process compute (bundled bathymetry), serve-only safe. Kill switch SURF_TRANSFORM=0.
-        if (
-            domain.lower() == "marine"
-            and layer.lower() in ("waves", "swell_1", "swell_2", "wind_waves")
-            and isinstance(response, NormalizedPointResponse)
-            and response.point is not None
-            and os.environ.get("SURF_TRANSFORM", "1") != "0"
-        ):
-            try:
-                # ── The geometry chain lives in surf_point.resolve_surf_geometry (extracted
-                # 2026-07-27), NOT here. It resolves, in production precedence: the shelf depth
-                # (cross-shelf friction — a wide shallow shelf like Florida yields surf MUCH smaller
-                # than the offshore swell), the GEOGRAPHY-only coastal gate (model-independent, so
-                # the surf row shows at the same points for GFS/EURO/ICON), the shelf width, the
-                # seaward shore normal (coarse bathymetry -> ETOPO 15s asset -> hand-audited
-                # override), the sub-grid magnet factor, and the ETOPO nearshore break depth.
-                #
-                # It was extracted because this block was the ONLY copy, so the weather-sim MCP had
-                # re-implemented it and drifted — measured 19.1% median / 39.2% max over-read against
-                # what this lane serves, on a shore normal 44.9 deg off. One function, every caller.
-                # Behaviour here is unchanged; test_surf_point_parity.py pins that.
-                from services.weather_pipeline.surf_point import resolve_surf_geometry, estimate_surf_at
-                _geo = resolve_surf_geometry(lat, lng)
-                # The frontend pairs the shore normal with the already-fetched wind point + surf
-                # height/period to compute the rating badge ([[surf_rating]]).
-                response.shore_normal_deg = _geo.shore_normal_deg
-                # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling
-                # one blended field. Resolved HERE, at the single injection point, because
-                # `surf_height_m` is produced here — computing it anywhere else would give the spot
-                # hub and the sim a different height from the map glyphs, which is the divergence
-                # CLAUDE.md's ONE FORECAST COMPOSITION rule exists to prevent. See
-                # `_resolve_partitions` for the cost and the re-entrancy guard.
-                _parts = await self._resolve_partitions(
-                    model, layer, lat, lng, valid_time_str, response.point.speed)
-                surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
-                                                swell_from_deg=response.point.direction, geometry=_geo,
-                                                partitions=_parts)
-                if _geo.magnet_name and surf is not None:
-                    logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
-                response.surf_height_m = round(surf, 4) if surf is not None else None
-                response.surf_regime = regime
-                response.shelf_depth_m = round(_geo.depth_m, 1) if _geo.depth_m is not None else None
-                # NEARSHORE display tag (see schemas.surf_nearshore): land within ~±0.25° — the
-                # frontend hides the Surf (est.) row for markers farther offshore than that.
-                response.surf_nearshore = _geo.nearshore
-            except Exception as _se:
-                logger.debug(f"[Surf Transform] skipped for ({lat},{lng}): {_se}")
-
+        # The surf augmentation (geometry -> breaking height -> spectral partitions -> readiness)
+        # lives in `point_surf_augment`; this file hit the 800-line ratchet. `_resolve_partitions`
+        # is passed in so the re-entrancy guard stays intact (it uses `_resolve_point_internal`,
+        # never this method, so a partition cannot resolve its own partitions).
+        response = await augment_with_surf(
+            response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions)
         return response
 
     async def _resolve_point_internal(
