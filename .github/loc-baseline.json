@@ -5,7 +5,6 @@
     "frontend/src/components/map/WebGLMarineEngine.js": 3844,
     "frontend/src/components/map/WebGLMarineLayer.js": 1221,
     "frontend/src/components/map/WeatherEngine.js": 1116,
-    "frontend/src/components/map/WebGLMarineMaskRenderer.js": 1098,
     "frontend/src/components/map/MapWebGL.js": 1097,
     "frontend/src/components/map/WebGLWindEngine.js": 1095,
     "frontend/src/components/map/WebGLWindShaders.js": 1029,
