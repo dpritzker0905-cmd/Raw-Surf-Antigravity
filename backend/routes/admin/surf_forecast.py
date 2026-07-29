@@ -36,7 +36,12 @@ _RATING_FLAGS = {
     "RATING_LOCAL_SIZE":           ("0", "Local (per-spot/per-cell) size calibration — flip glyphs+band together", "Render env AND precompute.yml env"),
     "RATING_SIZE_CLIMATOLOGY":     ("1", "Accumulate per-SPOT good-day size climatology (blob only)", "precompute.yml env"),
     "RATING_GRID_SIZE_CLIMATOLOGY": ("1", "Accumulate per-CELL (band) size climatology (blob only)", "pilots workflow env"),
-    "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings", "Render env"),
+    # ⚠️ "where to flip" is CHECKED — tests/test_flag_lane_parity.py fails if a workflow sets a flag
+    # to something other than its code default without this column naming that workflow. It said
+    # "Render env" while BOTH ingest lanes had already set it to '1' since 2026-07-18, so a reader of
+    # this table could not learn the precomputed frames' true state.
+    "RATING_TIDE":                 ("0", "Tide-fit factor in spot ratings",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml env"),
     "RATING_BREAKER_TYPE":         ("0", "Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
     "SURF_REGIONAL_PREFER":        ("1", "Surf regional-tile preference for the coastal band", "Render env"),

@@ -25,6 +25,7 @@ freshness or ingest health — that is `/admin/surf-forecast/status`.
 import argparse
 import json
 import os
+import re
 import sys
 
 # The report uses arrows, stars and box-drawing. A Windows console hands Python a cp1252 stdout,
@@ -100,10 +101,46 @@ def check(name, status, detail, source=""):
 
 # ── 1. FLAGS ────────────────────────────────────────────────────────────────────────────────────
 
+def _workflow_flag(flag):
+    """What the INGEST lanes set this flag to, from the workflow files. {} when they leave it alone.
+
+    ⚠️ Reporting only `os.environ` was actively misleading. This audit printed `RATING_TIDE OFF`
+    while BOTH ingest lanes had set it to '1' since 2026-07-18 — so every precomputed frame (which
+    is authoritative for glyphs) already had tide baked in, and the one command meant to say what is
+    true said the opposite. A flag has a value PER LANE, not one value.
+    """
+    root = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+    out = {}
+    for lane in ("forecast-ingest.yml", "precompute.yml"):
+        path = os.path.join(root, ".github", "workflows", lane)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            for line in fh:
+                m = re.match(rf"\s+{re.escape(flag)}:\s*'([^']*)'", line)
+                if m:
+                    out[lane] = m.group(1)
+                    break
+    return out
+
+
 def audit_flags():
     for flag, (default, why) in SCIENCE_FLAGS.items():
-        val = os.environ.get(flag, default)
-        check(f"flag:{flag}", INFO, f"{'ON ' if val != '0' else 'OFF'}  {why}", "env")
+        local = os.environ.get(flag, default)
+        lanes = _workflow_flag(flag)
+        # Render's env is not in git and cannot be read here; say so rather than imply local == live.
+        where = f"{'ON ' if local != '0' else 'OFF'} (this shell; Render not readable)"
+        if lanes:
+            vals = sorted(set(lanes.values()))
+            lane_txt = ("ingest " + ("/".join(f"{v}" for v in vals))
+                        if len(vals) == 1 else
+                        "ingest SPLIT " + ", ".join(f"{k}={v}" for k, v in sorted(lanes.items())))
+            where += f" | {lane_txt}"
+            status = FAIL if len(vals) > 1 else INFO
+        else:
+            status = INFO
+        check(f"flag:{flag}", status, f"{where}  {why}",
+              "backend/tests/test_flag_lane_parity.py" if lanes else "env")
 
 
 # ── 2. THE OWNER'S CALIBRATION ANCHORS ──────────────────────────────────────────────────────────
