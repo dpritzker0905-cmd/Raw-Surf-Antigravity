@@ -238,3 +238,68 @@ def test_a_missing_overlay_file_is_the_NORMAL_state_not_an_error():
     assert not os.path.exists(sna._OVERLAY)
     assert sna.shore_normal_at(33.3819, -117.5885) == (None, None)
     assert sna.break_depth_at(33.3819, -117.5885) is None
+
+
+# ── THE GATE IS ALL-OR-NOTHING; THE MEASUREMENTS ARE NOT ────────────────────────────────────────
+# Measured live 2026-07-30 at Bondi Beach: the gate REJECTED `ambiguous_coastline` (bearing spread
+# 48.0 deg) and the SAME fit produced `break_depth_m = 21.0` — for a spot that has no break depth at
+# all. `nearshore_depth_m` takes only the elevation grid and the coordinate; it never sees the
+# bearing fit, and it self-gates below _MIN_TRUSTWORTHY_DEPTH_M. break_depth is missing at 707 of
+# 1,773 spots (39.9%) — the largest single gap in the catalogue.
+
+@pytest.mark.parametrize("reason", ["ambiguous_coastline", "too_few_windows"])
+def test_a_BEARING_ONLY_rejection_still_publishes_the_depth(reason):
+    m, a = _fake_gate(ROW, ok=False, reason=reason)
+    out = R.resolve_one(PIPE, m, a)
+    assert out["status"] == "depth_only"
+    assert out["reason"] == reason
+    assert sna.break_depth_at(21.6654, -158.0521) == pytest.approx(11.1)
+    # ★ and the BEARING must NOT be published — that is the half the gate refused.
+    assert sna.shore_normal_at(21.6654, -158.0521) == (None, None)
+
+
+@pytest.mark.parametrize("reason", ["not_on_open_ocean_inland", "not_on_open_ocean_no_ocean",
+                                    "spot_misplaced", "spot_misplaced_at_sea"])
+def test_a_PLACEMENT_rejection_publishes_NOTHING(reason):
+    """The pin is in the wrong place, so the depth was measured somewhere meaningless too."""
+    m, a = _fake_gate(ROW, ok=False, reason=reason)
+    out = R.resolve_one(PIPE, m, a)
+    assert out["status"] == "rejected"
+    assert sna.break_depth_at(21.6654, -158.0521) is None
+    assert sna.shore_normal_at(21.6654, -158.0521) == (None, None)
+
+
+def test_no_shoreline_in_window_publishes_NOTHING():
+    """Excluded on purpose: no coastline was found at all, which makes a 'nearshore' depth as
+    doubtful as the bearing."""
+    m, a = _fake_gate(ROW, ok=False, reason="no_shoreline_in_window")
+    assert R.resolve_one(PIPE, m, a)["status"] == "rejected"
+    assert sna.break_depth_at(21.6654, -158.0521) is None
+
+
+def test_an_UNKNOWN_rejection_reason_publishes_NOTHING():
+    """ALLOW-list, not deny-list. A new PLACEMENT clause added to `accepted()` must not slip through
+    and publish a depth measured at a coordinate the gate just condemned."""
+    assert R.depth_is_publishable("some_new_placement_clause") is False
+    assert R.depth_is_publishable(None) is False
+    m, a = _fake_gate(ROW, ok=False, reason="some_new_placement_clause")
+    assert R.resolve_one(PIPE, m, a)["status"] == "rejected"
+    assert sna.break_depth_at(21.6654, -158.0521) is None
+
+
+def test_a_bearing_only_rejection_with_NO_depth_is_just_rejected():
+    m, a = _fake_gate(dict(ROW, break_depth_m=None), ok=False, reason="ambiguous_coastline")
+    assert R.resolve_one(PIPE, m, a)["status"] == "rejected"
+
+
+def test_a_depth_only_entry_leaves_the_COARSE_bearing_standing():
+    """THE SAFETY PROPERTY. `resolve_surf_geometry` only overwrites the coarse normal when the asset
+    returns a NON-None bearing, so a depth-only entry cannot blank a spot's bearing. That ordering
+    is load-bearing: a None normal disables the directional gate entirely and scores every swell
+    head-on — mean LEVEL error 4.12 vs 1.04 for a merely-coarse bearing."""
+    import inspect
+    from services.weather_pipeline import surf_point
+    src = inspect.getsource(surf_point.resolve_surf_geometry)
+    assert "if _fine is not None:" in src, \
+        "the asset now overwrites the coarse normal unconditionally — a depth-only entry would " \
+        "BLANK the bearing, which measurement says is far worse than a coarse one"

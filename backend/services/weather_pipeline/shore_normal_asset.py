@@ -115,7 +115,10 @@ def _load_overlay():
                 doc = json.load(fh)
             idx = {}
             for row in doc.get("entries", []):
-                lat, lng, normal, spread = float(row[0]), float(row[1]), float(row[2]), float(row[3])
+                lat, lng = float(row[0]), float(row[1])
+                # ⚠️ normal/spread may be None — a DEPTH-ONLY entry. See `add_overlay_entry`.
+                normal = float(row[2]) if row[2] is not None else None
+                spread = float(row[3]) if row[3] is not None else None
                 depth = float(row[4]) if len(row) > 4 and row[4] is not None else None
                 idx.setdefault(_bucket(lat, lng), []).append((lat, lng, normal, spread, depth))
             _overlay_index = idx
@@ -125,9 +128,23 @@ def _load_overlay():
     return _overlay_index
 
 
-def add_overlay_entry(lat: float, lng: float, normal: float, spread: float,
+def add_overlay_entry(lat: float, lng: float, normal: Optional[float], spread: Optional[float],
                       break_depth_m: Optional[float] = None) -> None:
     """Publish one resolved entry into the live overlay index.
+
+    ★★ `normal`/`spread` MAY BE None — a DEPTH-ONLY entry. The quality gate is all-or-nothing, but
+    the two measurements are not: `shore_normal_fit.nearshore_depth_m` takes only the elevation grid
+    and the coordinate — it never sees the bearing fit — and it already self-gates, returning None
+    below `_MIN_TRUSTWORTHY_DEPTH_M`. So an `ambiguous_coastline` rejection (a verdict on the
+    BEARING's angular spread) says nothing about the depth, and discarding the row threw away a
+    usable break depth. That matters: **break_depth is missing at 707 of 1,773 spots (39.9%)**, the
+    single largest gap in the catalogue, and it is what the oversize gate's capacity tier needs.
+
+    ⚠️ A depth-only entry is SAFE precisely because `surf_point.resolve_surf_geometry` only
+    overwrites the coarse bearing when the asset returns a NON-None one. So the spot keeps its
+    coarse normal and gains a real depth. That ordering is load-bearing: a `None` normal disables
+    the directional gate entirely and scores every swell head-on (mean LEVEL error 4.12 vs 1.04 for
+    a merely-coarse bearing). **A wrong bearing is bad; no bearing is far worse.**
 
     ⚠️ INVALIDATES THE MEMOISED LOOKUP, and that is not optional. `_nearest` is `lru_cache`d, so a
     spot asked about BEFORE its geometry was resolved has `None` cached against its coordinate —
@@ -146,7 +163,9 @@ def add_overlay_entry(lat: float, lng: float, normal: float, spread: float,
         if _overlay_index is None:
             _overlay_index = {}
         _overlay_index.setdefault(_bucket(float(lat), float(lng)), []).append(
-            (float(lat), float(lng), float(normal), float(spread),
+            (float(lat), float(lng),
+             None if normal is None else float(normal),
+             None if spread is None else float(spread),
              None if break_depth_m is None else float(break_depth_m)))
     _nearest.cache_clear()
 

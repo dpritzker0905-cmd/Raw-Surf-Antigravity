@@ -70,6 +70,44 @@ def _gate():
     return b.measure, b.accepted
 
 
+# ── WHAT EACH REJECTION ACTUALLY JUDGES ─────────────────────────────────────────────────────────
+# `accepted()` is all-or-nothing, but its clauses answer two different questions and only one of
+# them condemns the whole fit.
+#
+# PLACEMENT — "this coordinate is not a surf spot". The pin is in the wrong place, so BOTH the
+# bearing and the depth were measured somewhere meaningless. Publish nothing; the pin must move.
+#   not_on_open_ocean_inland · not_on_open_ocean_no_ocean · spot_misplaced · spot_misplaced_at_sea
+#
+# BEARING-ONLY — there IS a coastline in the window; the FIT across it just is not confident.
+# These are the only reasons that leave the depth measurement standing.
+# ⚠️ `no_shoreline_in_window` is deliberately EXCLUDED: no coastline was found at all, which makes
+# a "nearshore" depth at that coordinate as doubtful as the bearing.
+_BEARING_ONLY_REJECTIONS = frozenset({
+    "ambiguous_coastline",     # spread > MAX_SPREAD_DEG — the windows disagree
+    "too_few_windows",         # n_windows < MIN_WINDOWS — too little to be confident
+})
+# FIT QUALITY — a verdict on the BEARING only (angular spread, window count, no coastline in the
+# window). `shore_normal_fit.nearshore_depth_m` takes just the elevation grid and the coordinate —
+# it never sees the bearing fit — and it self-gates, returning None below _MIN_TRUSTWORTHY_DEPTH_M.
+# So a fit-quality rejection says nothing about the depth.
+#
+# ★ Measured live 2026-07-30, Bondi Beach: gate REJECTED `ambiguous_coastline` (spread 48.0 deg) —
+# and the same fit produced `break_depth_m = 21.0` for a spot that has NO break depth at all. The
+# all-or-nothing gate was discarding it. break_depth is missing at 707 of 1,773 spots (39.9%), the
+# largest single gap in the catalogue.
+
+
+def depth_is_publishable(reason: Optional[str]) -> bool:
+    """May a REJECTED fit still contribute its break depth? True for fit-quality rejections only.
+
+    ⚠️ Deliberately an ALLOW-list, not a deny-list of placement reasons. A NEW placement clause added
+    to `accepted()` would slip through a deny-list and publish a depth measured at a coordinate the
+    gate had just condemned. An unknown reason therefore returns False: the failure mode of being
+    too conservative is a missing depth (which is today's status quo), and the failure mode of being
+    too permissive is a wrong depth — and a wrong break depth CAPS A REAL BREAK OUT OF EXISTENCE."""
+    return str(reason) in _BEARING_ONLY_REJECTIONS if reason else False
+
+
 def needs_geometry(spot: Dict[str, Any]) -> bool:
     """Would a fit actually HELP this spot? Zero network, zero DB — safe anywhere.
 
@@ -93,6 +131,8 @@ def resolve_one(spot: Dict[str, Any], measure=None, accepted=None) -> Dict[str, 
 
     Returns {name, id, lat, lng, status, reason, normal, spread, break_depth_m}, where `status` is:
         published  — passed the gate and is now live in the overlay
+        depth_only — the BEARING was refused but the break depth was published (see
+                     `depth_is_publishable`); the spot keeps its coarse normal and gains a depth
         rejected   — the gate refused it; `reason` is the actionable part (placement vs fit)
         failed     — the fetch or the fit errored; retryable
         skipped    — already has full geometry
@@ -122,6 +162,16 @@ def resolve_one(spot: Dict[str, Any], measure=None, accepted=None) -> Dict[str, 
     out["normal"], out["spread"] = row.get("normal"), row.get("spread")
     out["break_depth_m"] = row.get("break_depth_m")
     if not ok:
+        # ★★ THE GATE IS ALL-OR-NOTHING; THE MEASUREMENTS ARE NOT. A bearing-only rejection still
+        # leaves a usable break depth (measured from the elevation grid, never from the fit, and
+        # self-gated). Publishing it costs the spot nothing — its coarse bearing is untouched
+        # because `resolve_surf_geometry` only overwrites the normal when the asset returns a
+        # non-None one — and it fills the catalogue's single largest gap.
+        if depth_is_publishable(reason) and row.get("break_depth_m") is not None:
+            shore_normal_asset.add_overlay_entry(
+                float(row["lat"]), float(row["lng"]), None, None, row["break_depth_m"])
+            out["status"], out["reason"] = "depth_only", reason
+            return out
         out["status"], out["reason"] = "rejected", reason
         return out
     if row.get("normal") is None or row.get("spread") is None:
@@ -153,7 +203,7 @@ def resolve_many(spots: Iterable[Dict[str, Any]], limit: Optional[int] = None,
     """
     cap = MAX_PER_RUN if limit is None else max(0, int(limit))
     results: List[Dict[str, Any]] = []
-    counts = {"published": 0, "rejected": 0, "failed": 0, "skipped": 0}
+    counts = {"published": 0, "depth_only": 0, "rejected": 0, "failed": 0, "skipped": 0}
     for spot in spots:
         if len(results) >= cap:
             break
