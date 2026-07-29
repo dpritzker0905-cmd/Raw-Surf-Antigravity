@@ -27,6 +27,43 @@ import json
 import os
 import sys
 
+# The report uses arrows, stars and box-drawing. A Windows console hands Python a cp1252 stdout,
+# which cannot encode any of them, so an unguarded print dies mid-report with a traceback — this
+# script did exactly that at its SECOND row. An audit that only runs on the author's terminal is
+# not an audit, so make output encoding-proof in two independent layers: ask for real UTF-8, and
+# transliterate if that is refused.
+_ASCII = {
+    "—": "--", "─": "-", "★": "*", "⚠": "!", "️": "",
+    "⇒": "=>", "→": "->", "≈": "~", "·": ".", "§": "S",
+    "✓": "y", "✗": "n", "×": "x", "≥": ">=", "≤": "<=",
+}
+
+
+class _EncodingProofStdout:
+    """Wraps stdout so a console that cannot represent a character degrades it instead of
+    aborting the run. Inert when the stream already speaks UTF-8."""
+
+    def __init__(self, stream):
+        self._stream = stream
+
+    def write(self, text):
+        try:
+            return self._stream.write(text)
+        except UnicodeEncodeError:
+            for uni, plain in _ASCII.items():
+                text = text.replace(uni, plain)
+            return self._stream.write(text.encode("ascii", "replace").decode("ascii"))
+
+    def __getattr__(self, name):
+        return getattr(self._stream, name)
+
+
+try:
+    sys.stdout.reconfigure(encoding="utf-8", errors="backslashreplace")
+except (AttributeError, OSError, ValueError, LookupError):
+    pass
+sys.stdout = _EncodingProofStdout(sys.stdout)
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 os.chdir(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
