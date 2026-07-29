@@ -71,6 +71,92 @@ def _load():
     return _index
 
 
+# ── THE OVERLAY: geometry resolved AFTER the committed asset was built ──────────────────────────
+#
+# ★★★ THE PROBLEM IT EXISTS FOR. Everything else in the chain already follows a new pin — spot
+# membership, the marine and wind points, the precompute (it reads the live spot list every run),
+# the hub (computed per request). Fine per-coordinate geometry does not: it lives ONLY in the
+# git-committed `shore_normals.json`, rebuilt by a `workflow_dispatch`-ONLY GitHub workflow whose
+# own header says "RE-RUN THIS whenever spots are added, moved, or re-placed". So the sync between
+# "a spot exists" and "the spot has geometry" was a human remembering to click a button.
+#
+# Measured cost of a fresh pin (1,360 spots x 8 swell directions = 10,880 evaluations):
+#     shore-normal error inherited from the coarse fallback   median 22.3 deg, p90 81.4, max 179.4
+#     spots off by more than 45 deg                           26.6%
+#     RATING LEVEL CHANGES                                    45.8% of evaluations, median 2 levels
+#     depth-limited breaking cap lost                          78.4% of spots
+# ★★ And virginity is the DEFAULT, not an edge case: 69.6% of catalogued spots have BOTH along-shore
+# neighbours outside the 1 km match radius, so pinning a second peak one beach down loses it.
+#
+# ⚠️ The overlay does NOT lower the bar. Entries are produced by `build_shore_normals.measure()` and
+# must pass the SAME `accepted()` gate as the committed build — see `resolve_spot_geometry.py`. It
+# is a delivery mechanism, not a second quality standard.
+#
+# ⚠️ It is a CACHE, not a source of record: an ephemeral filesystem loses it on redeploy and the
+# spot falls back to the coarse normal exactly as it does today. The committed asset remains the
+# durable store, and the overlay's job is to close the window between pinning a spot and the next
+# full build.
+_OVERLAY = os.environ.get("SHORE_NORMAL_OVERLAY_PATH",
+                          os.path.join(_DATA_DIR, "shore_normals_overlay.json"))
+_overlay_index = None
+_overlay_load_failed = False
+
+
+def _load_overlay():
+    """Build the overlay's spatial index once. Missing file is the NORMAL state, not an error."""
+    global _overlay_index, _overlay_load_failed
+    if _overlay_index is not None or _overlay_load_failed:
+        return _overlay_index
+    with _lock:
+        if _overlay_index is not None or _overlay_load_failed:
+            return _overlay_index
+        try:
+            with open(_OVERLAY) as fh:
+                doc = json.load(fh)
+            idx = {}
+            for row in doc.get("entries", []):
+                lat, lng, normal, spread = float(row[0]), float(row[1]), float(row[2]), float(row[3])
+                depth = float(row[4]) if len(row) > 4 and row[4] is not None else None
+                idx.setdefault(_bucket(lat, lng), []).append((lat, lng, normal, spread, depth))
+            _overlay_index = idx
+        except Exception:
+            _overlay_load_failed = True
+            return None
+    return _overlay_index
+
+
+def add_overlay_entry(lat: float, lng: float, normal: float, spread: float,
+                      break_depth_m: Optional[float] = None) -> None:
+    """Publish one resolved entry into the live overlay index.
+
+    ⚠️ INVALIDATES THE MEMOISED LOOKUP, and that is not optional. `_nearest` is `lru_cache`d, so a
+    spot asked about BEFORE its geometry was resolved has `None` cached against its coordinate —
+    without the clear, resolving it would change nothing until the process restarted, and the job
+    would report success while the spot stayed blind.
+
+    Callers are responsible for the quality gate; this does no judging (same contract as the
+    committed asset, whose entries are all gate-passed before they are written)."""
+    global _overlay_index
+    # ⚠️ LOAD BEFORE TAKING THE LOCK. `_load_overlay` acquires `_lock` itself and
+    # `threading.Lock` is NOT reentrant, so calling it from inside the lock deadlocks the process —
+    # which is exactly what the first version of this function did, and what the suite caught by
+    # hanging rather than failing.
+    _load_overlay()
+    with _lock:
+        if _overlay_index is None:
+            _overlay_index = {}
+        _overlay_index.setdefault(_bucket(float(lat), float(lng)), []).append(
+            (float(lat), float(lng), float(normal), float(spread),
+             None if break_depth_m is None else float(break_depth_m)))
+    _nearest.cache_clear()
+
+
+def overlay_entries() -> list:
+    """Every overlay entry as [lat, lng, normal, spread, depth] — for persisting the index."""
+    idx = _load_overlay() or {}
+    return [list(e) for bucket in idx.values() for e in bucket]
+
+
 def is_available() -> bool:
     """True if the asset loaded and holds at least one entry."""
     idx = _load()
@@ -94,35 +180,64 @@ def _haversine_km(lat1, lng1, lat2, lng2):
 # scans 9 spatial-hash buckets), and caching saves only 2.5 us of that. At the 200_000 those helpers
 # use, the cache would hold ~30 MB — a bad trade for microseconds on a 512 MB Render box with a
 # documented OOM history. 20_000 costs ~3 MB and still exceeds the real working set (1516 spots).
+def _scan(idx, lat: float, lng: float, max_km: float):
+    """Nearest entry to (lat, lng) within ``max_km`` in one index, or None."""
+    if not idx:
+        return None
+    b_lat, b_lng = _bucket(lat, lng)
+    best = best_km = None
+    for d_lat in (-1, 0, 1):                       # the 9 neighbouring buckets cover MATCH_RADIUS_KM
+        for d_lng in (-1, 0, 1):
+            for entry in idx.get((b_lat + d_lat, b_lng + d_lng), ()):  # noqa: B905
+                km = _haversine_km(lat, lng, entry[0], entry[1])
+                if km <= max_km and (best_km is None or km < best_km):
+                    best, best_km = entry, km
+    return best
+
+
 @lru_cache(maxsize=20_000)
+def _nearest(lat: float, lng: float, max_km: float = MATCH_RADIUS_KM):
+    """THE nearest-entry lookup. Both public accessors go through it, and that is the point.
+
+    ★★ `shore_normal_at` and `break_depth_at` used to carry SEPARATE copies of this search. The
+    2026-07-29 audit named that as a blocker for adding any new geometry source: wiring one copy and
+    not the other leaves the depth-limited breaking cap dead while the bearing looks fixed — a
+    half-resolved spot that reports as resolved. With one function there is nothing to wire twice.
+
+    PRECEDENCE — the committed asset ALWAYS wins, and the overlay only fills gaps:
+
+    ★★ This is what makes a runtime-resolved entry incapable of DISPLACING a correct neighbour, the
+    second blocker the audit found. Lookup is nearest-wins within 1 km, and adjacent named peaks are
+    legitimately close (Rincón has five breaks inside 3 km), so a newly-measured entry that happened
+    to sit nearer to some query point could otherwise take over from a gate-passed committed one.
+    Because the overlay is consulted ONLY when the committed asset returned nothing at all, that
+    cannot happen by construction rather than by tuning a radius. The cost is that a new pin within
+    1 km of a committed entry keeps using its neighbour's geometry — which is exactly the
+    "adjacent peaks share geometry" case this module's own header endorses.
+    """
+    if os.environ.get("SHORE_NORMAL_ASSET", "1") == "0":
+        return None
+    if lat is None or lng is None:
+        return None
+    lat, lng = float(lat), float(lng)
+    hit = _scan(_load(), lat, lng, max_km)
+    if hit is not None:
+        return hit
+    if os.environ.get("SHORE_NORMAL_OVERLAY", "1") == "0":
+        return None
+    return _scan(_load_overlay(), lat, lng, max_km)
+
+
 def shore_normal_at(lat: float, lng: float,
                     max_km: float = MATCH_RADIUS_KM) -> Tuple[Optional[float], Optional[float]]:
     """Nearest gate-passing shore normal within ``max_km``.
 
     Returns (bearing_deg, spread_deg), or (None, None) when there is no entry nearby, the asset is
     absent, or the kill switch is set. Never raises."""
-    if os.environ.get("SHORE_NORMAL_ASSET", "1") == "0":
-        return None, None
-    idx = _load()
-    if not idx:
-        return None, None
-    if lat is None or lng is None:
-        return None, None
-    b_lat, b_lng = _bucket(float(lat), float(lng))
-    best = None
-    best_km = None
-    for d_lat in (-1, 0, 1):                       # the 9 neighbouring buckets cover MATCH_RADIUS_KM
-        for d_lng in (-1, 0, 1):
-            for entry in idx.get((b_lat + d_lat, b_lng + d_lng), ()):  # noqa: B905
-                km = _haversine_km(float(lat), float(lng), entry[0], entry[1])
-                if km <= max_km and (best_km is None or km < best_km):
-                    best, best_km = entry, km
-    if best is None:
-        return None, None
-    return best[2], best[3]
+    best = _nearest(lat, lng, max_km)
+    return (None, None) if best is None else (best[2], best[3])
 
 
-@lru_cache(maxsize=20_000)
 def break_depth_at(lat: float, lng: float,
                    max_km: float = MATCH_RADIUS_KM) -> Optional[float]:
     """Nearshore water depth (m, positive down) at the nearest asset entry, or None.
@@ -130,29 +245,29 @@ def break_depth_at(lat: float, lng: float,
     This is the depth a wave BREAKS in, for `surf_transform`'s depth-limited cap — not the shelf
     depth that drives cross-shelf friction. See `shore_normal_fit.nearshore_depth_m` for why the two
     cannot be the same number. Same kill switch as the bearing: SHORE_NORMAL_ASSET=0."""
-    if os.environ.get("SHORE_NORMAL_ASSET", "1") == "0":
-        return None
-    idx = _load()
-    if not idx or lat is None or lng is None:
-        return None
-    b_lat, b_lng = _bucket(float(lat), float(lng))
-    best = None
-    best_km = None
-    for d_lat in (-1, 0, 1):
-        for d_lng in (-1, 0, 1):
-            for entry in idx.get((b_lat + d_lat, b_lng + d_lng), ()):  # noqa: B905
-                km = _haversine_km(float(lat), float(lng), entry[0], entry[1])
-                if km <= max_km and (best_km is None or km < best_km):
-                    best, best_km = entry, km
+    best = _nearest(lat, lng, max_km)
     return None if best is None else best[4]
+
+
+def source_at(lat: float, lng: float, max_km: float = MATCH_RADIUS_KM) -> Optional[str]:
+    """Which store answered for this coordinate: 'asset' | 'overlay' | None.
+
+    Diagnostic only — nothing in the rating chain branches on it. It exists because a spot silently
+    served by a runtime-resolved entry and one served by the committed build are operationally very
+    different things (the overlay can be lost on a redeploy), and `spot_geometry_readiness` should
+    be able to say which one a spot is living on."""
+    if _nearest(lat, lng, max_km) is None:
+        return None
+    return "asset" if _scan(_load(), float(lat), float(lng), max_km) is not None else "overlay"
 
 
 def _reset_for_tests():
     """Drop the cached index + memoised lookups so a test can point at a different asset."""
-    global _index, _meta, _load_failed
+    global _index, _meta, _load_failed, _overlay_index, _overlay_load_failed
     with _lock:
         _index = None
         _meta = None
         _load_failed = False
-    shore_normal_at.cache_clear()
-    break_depth_at.cache_clear()
+        _overlay_index = None
+        _overlay_load_failed = False
+    _nearest.cache_clear()

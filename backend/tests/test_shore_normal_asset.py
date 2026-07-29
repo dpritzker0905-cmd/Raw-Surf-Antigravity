@@ -81,10 +81,14 @@ def test_corrupt_asset_is_silent(tmp_path, monkeypatch):
 def test_kill_switch_disables_lookup(asset, monkeypatch):
     asset([[21.6654, -158.0521, 309.6, 5.2]])
     monkeypatch.setenv("SHORE_NORMAL_ASSET", "0")
-    sna.shore_normal_at.cache_clear()
+    # ⚠️ `_reset_for_tests`, not `shore_normal_at.cache_clear()`. The memo moved down to the single
+    # `_nearest` lookup both accessors now share (so a new geometry source cannot reach the bearing
+    # and miss the break depth), and reaching for the cache on a specific accessor breaks whenever
+    # that changes. The module's own reset is the stable way to say "forget everything".
+    sna._reset_for_tests()
     assert sna.shore_normal_at(21.6654, -158.0521) == (None, None)
     monkeypatch.setenv("SHORE_NORMAL_ASSET", "1")
-    sna.shore_normal_at.cache_clear()
+    sna._reset_for_tests()
     assert sna.shore_normal_at(21.6654, -158.0521)[0] == pytest.approx(309.6)
 
 
