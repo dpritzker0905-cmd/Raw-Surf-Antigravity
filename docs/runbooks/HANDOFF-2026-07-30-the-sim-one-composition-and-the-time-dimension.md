@@ -5,7 +5,7 @@
 
 Owner's brief: *"get the weather simulation system features of this app working well."*
 
-**Branch `dev`, tree clean. 16 commits unpushed** (`origin/dev..HEAD`). Backend **1,317 passed**
+**Branch `dev`, tree clean, EVERYTHING PUSHED** (`origin/dev` == HEAD). Backend **1,356 passed**
 (was 1,277), 2,928 skipped, LOC ratchet green. One pre-existing unrelated failure remains:
 `test_media_privacy_contracts.py::test_protected_grom_media_...`, confirmed still the same
 grom-media source assertion and untouched by this session.
@@ -16,6 +16,9 @@ grom-media source assertion and untouched by this session.
 | `49821439` | the next engine input must reach every surface, or the suite goes red |
 | `f70d2a4f` | the forecast cache held exactly one hour, so a time series re-fetched every frame |
 | `e370db06` | the sim could say how it is at an hour, never WHICH hour |
+| `812aec73` | **self-audit** — I quoted a worst-case tide point as the typical cost (71.5% -> 41.0%) |
+| `e637d6dc` | the spectral transform had no data path |
+| `a6280572` | **pinning a spot gave it no geometry until a human clicked a button** |
 
 ---
 
@@ -193,3 +196,75 @@ loop feeds back into the forecast**, so "sync up" in the model-correction sense 
    test asserting `[2, 2, 2]` was pinning the very behaviour that defeated the new feature.
 6. ★ **Extract to make room BEFORE the ratchet blocks you.** This file blocked two sessions at
    789/800; the split is what made three of this session's four commits possible.
+
+
+---
+
+## 5. ★★★ AFTER THE AUDIT — WHAT THE SECOND HALF OF THE SESSION SHIPPED
+
+The owner asked mid-session whether this was progress or spiralling, and for two audit reports. The
+honest answer was **progress, but drifted**: the sim delegates 100% to production, so its accuracy
+was never in the sim to improve. That reframing produced the rest of the work.
+
+### 5a. A correction to this document (`812aec73`)
+The flag-flip divergence numbers in §1 were each taken from ONE hand-picked point.
+`tide_norm=0.05` against a "mid tide" preference is near the worst case `tide_fit` can produce:
+**71.5% -> 41.0%** swept across the whole tidal cycle. The reference-size row was additionally
+SYNTHETIC — `load_size_climatology_l2_cached()` returns None, so no spot has a real size reference.
+★★ **A factor with a bounded range must be SWEPT before a number is taken off it.** I caught this
+only when asked to self-audit, which is the wrong trigger.
+
+★ A real finding fell out of the re-measurement: **`reference_size_m = 1.2` is NOT a no-op** despite
+1.2 m being the documented default — `size_score` switches CURVE SHAPE whenever any reference is
+supplied. `RATING_LOCAL_SIZE` therefore re-shapes the size gate for every spot with climatology,
+which makes a surface sitting the flag out diverge MORE, not less.
+
+### 5b. Partitions now have a data path (`e637d6dc`) — queue #2, closed
+`estimate_surf_partitioned` was landed and DARK since `b9595de6`. Wired at
+`point_resolution._resolve_partitions`, **the single injection point** where `surf_height_m` is
+produced — computing it anywhere else would give the hub and the sim a different height from the
+glyphs.
+
+⚠️⚠️ **Reconciliation is the GENERAL case, and the roadmap understated it.** The prior note recorded
+only "swell_1 exceeds the total at Hossegor". Measured over 16 spots: partitions miss the total by a
+**median 9.5%, max 43.8%**, OVER at 10 of 16 and UNDER at 1. Raw partitions therefore **invent
+energy** (+6.2% median). `reconcile_partitions`: **the total Hs is the SCALE, the partitions are the
+SHAPE.** Effect once reconciled: **median +0.6%, range −44.7%…+26.8%**, signed both ways.
+
+⚠️ `SURF_PARTITIONS=0` by default — 4x the point resolutions. **Enable everywhere or nowhere.**
+⛔ The RATING half is still dark (`dominant_swell_period`, `sea_cleanliness`).
+
+### 5c. A new pin now gets its own geometry (`a6280572`) — queue #1, the owner's original question
+All three audited blockers addressed **structurally rather than carefully**:
+1. **Event loop** — `resolve_many` is plain BLOCKING and a test asserts it is not a coroutine. It
+   ships as a script, deliberately NOT wired to the ingest workflow; `--dry-run` exists so cadence
+   is chosen from a measured backlog.
+2. **Displacement** — the overlay is consulted ONLY when the committed asset returns nothing, so a
+   new entry can never displace a gate-passed neighbour. By construction, not by tuning a radius.
+3. **Two sites** — `shore_normal_at` and `break_depth_at` now share ONE `_nearest`. There is nothing
+   left to wire twice.
+
+Same `measure()`/`accepted()` gate as the committed build — no lower bar. `needs_geometry` gates on
+readiness `actionable`, so ~22 s of ERDDAP is never spent on a pin that simply has to move.
+
+⚠️ **Two bugs the TESTS caught, not review:** `add_overlay_entry` called `_load_overlay()` while
+holding a non-reentrant lock and **deadlocked the process** on the first call (the suite HUNG rather
+than failed — that is what exposed it); and `resolve_many` had no injection point, so testing it
+meant dialling NOAA at ~22 s a spot.
+
+### 5d. The science now has a spine
+`memory/THE-SURF-FORECAST-SCIENCE-canonical-chain.md` — the one canonical description of how an
+offshore model number becomes a surf height and a 0-100 quality: every stage, every measured number,
+the five invariants, what a new pin inherits, and the known-missing physics so it is not mistaken
+for a bug. The memory index had also grown to 19.9 KB against a 24.4 KB read limit and was compacted
+to 17.0 KB by delegating the science detail to that spine — **an index that cannot be read is the
+same as no memory at all.**
+
+### ⛔ QUEUE AFTER THIS SESSION
+Closed: #1 (geometry on a new pin), #2 (partitions — height half). Still open: **#3 Kr directional
+transfer function** · **#4 depth-dependent height** (confirmed as the prerequisite for tide) ·
+**#5 shore normals, 434 spots** · #6 `SURF_V3_KOMAR=0` mislabelled · **#7 EURO waves blank day
+(USER-REPORTED, still untouched — it should outrank refactors)** · #8 friction inert at ~46% ·
+#9 tide times render in the viewer's timezone · #10 thread a spot id into the hub (spawned) ·
+#11 sim name resolution misses accents. **NEW #12: wire `partitions` into the RATING.**
+**NEW #13: decide the `SURF_PARTITIONS` rollout by measuring it in the precompute.**
