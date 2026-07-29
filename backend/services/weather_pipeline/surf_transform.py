@@ -22,6 +22,8 @@ Pure ``math`` only — no I/O, no network, no numpy dependency — so it runs in
 import math
 import os
 
+from services.weather_pipeline.surf_height_convention import to_surf_convention
+
 G = 9.81            # gravitational acceleration (m/s^2)
 GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / McCowan limit); used when the
                     # period is unknown and as the centre of the period-dependent breaker_index() below.
@@ -379,8 +381,16 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     if magnet_factor and magnet_factor != 1.0 and _v3("SURF_V3_MAGNETS"):
         H *= float(magnet_factor)                  # per-spot wave-magnet focusing (surf_magnets.py)
     if H >= cap:
+        # ⚠️ NOT converted below: `cap` is breaker_index(Tp)*depth, a γ·d INDIVIDUAL-WAVE criterion,
+        # i.e. already a maximum-wave statistic. See surf_height_convention.
         return float(cap), 'breaking'              # depth-limited on a shallow shelf cell
-    return (float(H), 'shelf') if H <= Hs_m else (float(H), 'shoaling')
+    _regime = 'shelf' if H <= Hs_m else 'shoaling'
+    # ★ THE STATISTIC. Everything above is a linear amplitude ratio on Hs, so H is a SIGNIFICANT
+    # breaking height — while `conditions_labels` maps it onto a FACE ladder and `size_score` grades
+    # it as if it were the published H1/10 surf standard. This is the single point where every
+    # caller (estimate_surf_at, estimate_surf_partitioned, rating_transform_grid) passes, so the
+    # convention cannot end up applied on one surface and not another. Default OFF, byte-identical.
+    return float(to_surf_convention(H, _regime)), _regime
 
 
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
