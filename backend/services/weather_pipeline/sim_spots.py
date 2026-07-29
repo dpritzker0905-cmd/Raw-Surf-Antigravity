@@ -42,6 +42,7 @@ CONTRACT
 """
 import logging
 import os
+import unicodedata
 from typing import Any, Dict, List, NamedTuple, Optional
 
 from utils.sqlite_helpers import get_sqlite_connection
@@ -132,15 +133,42 @@ _GRAFTED_KEYS = ("base_swell_height", "base_swell_period", "base_swell_direction
                  "base_wind_speed", "base_wind_direction", "reference_size_m")
 
 
+# Every apostrophe-like character a spot name is written with: ASCII, the Hawaiian ʻokina (U+02BB),
+# its modifier-letter twin, both curly quotes, backtick and acute accent. They are REMOVED rather
+# than unified, because the catalogue stores `Hookipa` while the correct Hawaiian spelling is
+# `Ho'okipa` — unifying them to one character still fails to match. Measured 2026-07-29 across all
+# 1,773 rows: removal and unification produce IDENTICAL collision counts (4 total, 1 newly
+# ambiguous), so removal is strictly better at no cost.
+_APOSTROPHES = "'ʻʼ‘’`´"
+
+
 def normalize_name(name: Optional[str]) -> str:
-    """Case- and whitespace-insensitive key for a spot name.
+    """Case-, whitespace-, accent- and apostrophe-insensitive key for a spot name.
 
     ⚠️ Deliberately NOT `find_missing_spots.names_match`. That matcher is the duplicate GATE and is
     intentionally loose (it keeps `Jaws (Peahi)` matching `Peahi`); a caller naming a spot wants
     the row they named, so this is strict. Same lesson as `af7d95c1`: the duplicate gate stays
     loose, an identity lookup stays strict — different jobs, different thresholds.
+
+    ★ Folding accents and apostrophes does NOT loosen that. It matches the same name written
+    differently, never two different names — `Nazaré` typed as `Nazare`, `Ho'okipa` stored as
+    `Hookipa`. 129 of 1,773 catalogue rows (7.3%) carry a character a caller has no easy way to
+    type: 96 with accents, 33 with apostrophes. Before this, `Nazare` and `Ho'okipa` both returned
+    "not found" for spots the catalogue holds, which is the catalogue reporting the opposite of
+    what it contains.
+
+    ⚠️ Measured before shipping, because folding CAN merge rows: across all 1,773 names total
+    collisions stay at 4, and exactly one name becomes newly ambiguous — `SÃO LOURENÇO` vs
+    `São Lourenço`, two active rows of the same name that differ only in Unicode composition form.
+    That is a duplicate the resolver SHOULD flag, and `resolve` already answers ambiguity with
+    candidates rather than a coin flip. NFKD is what catches it; casefold alone does not.
     """
-    return " ".join((name or "").split()).casefold()
+    text = " ".join((name or "").split())
+    text = unicodedata.normalize("NFKD", text)
+    text = "".join(c for c in text if not unicodedata.combining(c))
+    for mark in _APOSTROPHES:
+        text = text.replace(mark, "")
+    return text.casefold()
 
 
 def _default_for(name: Optional[str]) -> Optional[Dict[str, Any]]:
@@ -210,19 +238,21 @@ def _query_snapshot(name_query: Optional[str],
         return []
     try:
         cursor = conn.cursor()
+        # ⚠️ The name filter is applied in PYTHON, not in SQL. SQLite's LOWER()/LIKE are
+        # accent-blind to `normalize_name`'s folding, so `LIKE '%nazare%'` misses the row stored as
+        # `Nazaré` — this path would answer "not found" for a name the LIVE path resolves. One
+        # matcher, both paths: the alternative is the same name meaning two different things
+        # depending on whether the catalogue happened to be reachable.
         sql = ("SELECT id, name, region, latitude, longitude FROM surf_spots "
-               "WHERE is_active = 1 AND latitude IS NOT NULL AND longitude IS NOT NULL")
-        params: List[Any] = []
-        if name_query:
-            sql += " AND LOWER(name) LIKE ?"
-            params.append(f"%{name_query.lower()}%")
-        sql += " ORDER BY name"
-        if limit:
-            sql += " LIMIT ?"
-            params.append(int(limit))
-        return [{"id": r[0], "name": r[1], "region": r[2],
+               "WHERE is_active = 1 AND latitude IS NOT NULL AND longitude IS NOT NULL "
+               "ORDER BY name")
+        rows = [{"id": r[0], "name": r[1], "region": r[2],
                  "latitude": float(r[3]), "longitude": float(r[4])}
-                for r in cursor.execute(sql, params).fetchall()]
+                for r in cursor.execute(sql).fetchall()]
+        if name_query:
+            needle = normalize_name(name_query)
+            rows = [r for r in rows if needle in normalize_name(r["name"])]
+        return rows[:int(limit)] if limit else rows
     except Exception as e:
         # Was a bare `except: return []`, which made a schema/SQL failure indistinguishable from
         # "no rows" and silently fell back to mock data. Log it — a silent fallback is how the

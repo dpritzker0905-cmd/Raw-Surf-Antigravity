@@ -25,9 +25,17 @@ MAGNETS = [
 # with 325° it lands 3.9 ft ✓). Ground-truth seaward bearings for spots the bathymetry provably
 # gets wrong; same radius/lookup pattern as MAGNETS. Kill: SURF_V3_NORMAL_OVERRIDES=0 (checked at
 # the point_resolution call site — this module only supplies data).
+# ⚠️ These `name`s are COASTAL SEGMENT labels, not spot names, and they surface to callers as
+# `shore_normal_src = "override:<name>"`. They previously read `Pipeline / Backdoor` and
+# `Sunset Beach HI` — both of which look exactly like catalogue entries and neither of which
+# resolves, so a caller who saw the provenance and tried it got "not found" and concluded the
+# catalogue was missing a world-famous break. (It is not: `Pipeline` and `Backdoor` are separate
+# rows and both resolve.) A radius_km region covering several breaks cannot be named after one of
+# them. Only the `override` PREFIX is ever tested — no consumer reads the label — so it is free to
+# say what it actually is.
 SHORE_NORMAL_OVERRIDES = [
-    {"name": "Pipeline / Backdoor", "lat": 21.6654, "lng": -158.0521, "radius_km": 2.0, "shore_normal_deg": 325.0},
-    {"name": "Sunset Beach HI", "lat": 21.6780, "lng": -158.0410, "radius_km": 2.0, "shore_normal_deg": 335.0},
+    {"name": "North Shore Oahu (Pipeline/Backdoor reef)", "lat": 21.6654, "lng": -158.0521, "radius_km": 2.0, "shore_normal_deg": 325.0},
+    {"name": "North Shore Oahu (Sunset reef)", "lat": 21.6780, "lng": -158.0410, "radius_km": 2.0, "shore_normal_deg": 335.0},
 ]
 
 _EARTH_KM = 6371.0

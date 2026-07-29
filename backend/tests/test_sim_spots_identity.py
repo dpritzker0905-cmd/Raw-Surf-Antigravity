@@ -35,6 +35,20 @@ FAKE_CATALOG = [
      "region": "San Francisco", "latitude": 37.5958, "longitude": -122.532},
     {"id": "uuid-rockaway-000000000000000000000", "name": "Pacifica - Rockaway",
      "region": "San Mateo", "latitude": 37.608, "longitude": -122.498},
+    # Names a caller cannot easily type. 129 of the 1,773 live rows (7.3%) look like these:
+    # 96 carry an accent, 33 an apostrophe. Each shape below was measured against production.
+    {"id": "uuid-nazare-000000000000000000000000", "name": "Nazaré",
+     "region": "Leiria", "latitude": 39.6055, "longitude": -9.0855},
+    {"id": "uuid-hookipa-00000000000000000000000", "name": "Hookipa",
+     "region": "Maui", "latitude": 20.9339, "longitude": -156.3583},
+    {"id": "uuid-devils-pt-0000000000000000000000", "name": "Devil's Point",
+     "region": "Vanuatu", "latitude": -17.7658, "longitude": 168.2494},
+    # Two ACTIVE rows of the same name differing only in Unicode composition form. casefold alone
+    # does not merge them; NFKD does — so folding makes a real duplicate visible.
+    {"id": "uuid-lourenco-a-000000000000000000000", "name": "SÃO LOURENÇO",
+     "region": None, "latitude": 38.6667, "longitude": -9.3833},
+    {"id": "uuid-lourenco-b-000000000000000000000", "name": "São Lourenço",
+     "region": "Ericeira", "latitude": 38.9833, "longitude": -9.4167},
 ]
 
 
@@ -200,3 +214,73 @@ def test_the_advisor_prompt_does_not_brief_about_a_different_spot():
     assert "Mavericks" not in text
     ambiguous = weather_sim_mcp.get_surf_advisor_prompt("Miramar")
     assert "Leon" in ambiguous and "do not pick one" in ambiguous
+
+
+# ── Names a caller cannot easily type ─────────────────────────────────────────────────────────
+#
+# The sim reported "not found" for spots the catalogue holds, because `normalize_name` casefolded
+# but did not fold accents or apostrophes. A catalogue answering "no such spot" about a row it is
+# currently returning states the opposite of what it observed — the same defect shape as the admin
+# panel that rendered a 401 as "0 Total Spots".
+#
+# ⚠️ Two of the three names originally reported as broken (`Tofino`, `Taghazout`) are NOT resolver
+# bugs — they are genuinely absent from the catalogue, and `Tofino` is a different spot from the
+# `Tofinho` that is present. Pinned below so nobody "fixes" identity to make them appear.
+
+@pytest.mark.parametrize("typed,expected", [
+    ("Nazare", "Nazaré"),            # accent the caller cannot type
+    ("Nazaré", "Nazaré"),            # ...and the accented spelling still works
+    ("NAZARE", "Nazaré"),            # folding composes with the existing casefold
+    ("Ho'okipa", "Hookipa"),         # correct Hawaiian spelling, catalogue stores it bare
+    ("Hoʻokipa", "Hookipa"),         # the real ʻokina (U+02BB), not an ASCII apostrophe
+    ("Hookipa", "Hookipa"),
+    ("Devils Point", "Devil's Point"),
+    ("Devil's Point", "Devil's Point"),
+    ("Devil\u2019s Point", "Devil's Point"),   # curly apostrophe, what most editors produce
+])
+def test_a_name_resolves_however_the_caller_can_type_it(typed, expected):
+    resolution = sim_spots.resolve(typed)
+    assert resolution.spot is not None, (
+        f"{typed!r} returned not-found for a spot the catalogue carries as {expected!r}"
+    )
+    assert resolution.spot["name"] == expected
+
+
+@pytest.mark.parametrize("absent", ["Tofino", "Taghazout"])
+def test_a_spot_the_catalogue_does_not_carry_is_still_missing(absent):
+    """Folding must not invent a match. These were reported as resolution bugs; they are not —
+    the rows do not exist, and no identity rule should conjure them."""
+    resolution = sim_spots.resolve(absent)
+    assert resolution.spot is None
+    assert resolution.candidates == []
+
+
+def test_folding_exposes_a_duplicate_rather_than_picking_one():
+    """`SÃO LOURENÇO` and `São Lourenço` are two active rows of the same name that differ only in
+    Unicode composition form. Folding makes them collide — and the right answer to a collision is
+    both candidates, never a coin flip."""
+    resolution = sim_spots.resolve("Sao Lourenco")
+    assert resolution.spot is None
+    assert len(resolution.candidates) == 2
+    assert {c["id"] for c in resolution.candidates} == {
+        "uuid-lourenco-a-000000000000000000000", "uuid-lourenco-b-000000000000000000000"}
+
+
+def test_folding_does_not_merge_two_different_names():
+    """The guard on over-folding: an identity lookup stays strict about DIFFERENT names. Measured
+    across all 1,773 production rows, folding leaves total collisions unchanged at 4."""
+    assert sim_spots.normalize_name("Pacifica - Linda Mar") != \
+        sim_spots.normalize_name("Pacifica - Rockaway")
+    assert sim_spots.normalize_name("Nazaré") != sim_spots.normalize_name("Hookipa")
+
+
+def test_the_offline_snapshot_uses_the_same_matcher_as_the_live_catalogue(monkeypatch):
+    """The snapshot path filtered with SQL `LOWER(name) LIKE`, which is blind to the fold — so a
+    name resolved live and vanished offline. One matcher, both paths; otherwise a name means two
+    different things depending on whether the catalogue happened to be reachable."""
+    monkeypatch.setattr(sim_forecast, "fetch_catalog", lambda: [])
+    monkeypatch.setattr(sim_spots, "_query_snapshot",
+                        lambda q, limit: [r for r in FAKE_CATALOG
+                                          if not q or sim_spots.normalize_name(q)
+                                          in sim_spots.normalize_name(r["name"])][:limit or None])
+    assert sim_spots.resolve("Nazare").spot["name"] == "Nazaré"

@@ -49,7 +49,7 @@ def test_no_shore_normal_at_all_is_blind():
 def test_a_hand_audited_override_counts_as_full():
     """surf_magnets overrides are human ground truth and outrank the derived asset — they must not
     be reported as degraded just because the source string is not literally 'etopo'."""
-    a = assess_geometry(_geo(shore_normal_src="override:Pipeline / Backdoor"))
+    a = assess_geometry(_geo(shore_normal_src="override:North Shore Oahu (Pipeline/Backdoor reef)"))
     assert a["verdict"] == FULL and a["missing"] == []
 
 

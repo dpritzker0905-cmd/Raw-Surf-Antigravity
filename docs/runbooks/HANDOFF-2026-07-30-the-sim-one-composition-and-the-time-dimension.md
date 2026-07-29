@@ -167,9 +167,24 @@ Unchanged items carried from `START-HERE-2026-07-30` §3, with this session's ed
 9. ⚠️ Tide times render in the VIEWER's timezone, not the spot's.
 10. **NEW** ★★ **Thread a spot id into the hub** so it can use local size climatology — spawned,
     with the 59.1% measurement and all ~7 call sites listed.
-11. **NEW** ⚠️ Sim name resolution misses accents/spelling (`Nazaré`, `Tofino`, `Taghazout` return
-    not-found), and `Pipeline`'s `orientation_source` advertises `override:Pipeline / Backdoor` — a
-    name `get_weather_forecast` 404s on. Cosmetic but it makes the catalogue look thinner than it is.
+11. ~~**NEW** ⚠️ Sim name resolution misses accents/spelling~~ — **CLOSED 2026-07-29.** Both halves
+    shipped in `sim_spots.normalize_name` (the sibling module, not `weather_sim_mcp.py`).
+    ⚠️⚠️ **THE REPORT WAS WRONG ABOUT WHAT WAS BROKEN, IN BOTH DIRECTIONS — measure before fixing:**
+    - `Nazaré` **already resolved**; it is plain-ASCII **`Nazare`** that failed. The original note
+      almost certainly captured a cp1252 console mangling the accent on the way in, which is the
+      third time that terminal encoding has been mistaken for a code defect this week.
+    - `Tofino` and `Taghazout` are **NOT resolver bugs** — they are genuinely absent, and the
+      catalogue's `Tofinho` is a different spot in a different country. No identity rule should
+      conjure them; a test now pins that they stay missing.
+    - The real scope was **127 of 1,773 rows (7.2%)** unreachable by their natural spelling —
+      96 accented, 33 with apostrophes. After: **125 resolve, 2 ambiguous, 0 missing, 0 regressions.**
+    - The 2 ambiguous are `SÃO LOURENÇO` / `São Lourenço` — two **active duplicate rows** differing
+      only in Unicode composition form, which casefold could never merge and NFKD exposes. Folding
+      found a data defect; `resolve` correctly answers with candidates rather than a coin flip.
+    - `orientation_source` no longer advertises a name that 404s. All FOUR magnet/override labels
+      were unresolvable spot-looking names; the two that read as famous breaks are now
+      `North Shore Oahu (Pipeline/Backdoor reef)` / `(Sunset reef)`. A `radius_km` region covering
+      several breaks cannot be named after one of them.
 
 ### Carried over
 ⚠️ **`weather_sim_mcp.py` is 769/800 and the pre-commit hook now WARNS.** The composition and the
