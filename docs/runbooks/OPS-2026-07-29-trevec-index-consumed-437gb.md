@@ -1,7 +1,23 @@
 # The code index is 437 GB. The code it indexes is 0.46 GB.
 
-**Status: OPEN — needs an owner decision (destructive step, ~436 GB reclaimable).**
-**Measured 2026-07-29. The volume is at 7.6 MB free and still falling.**
+**Status: RESOLVED 2026-07-29 — 464 GB free, up from 0. Recurrence is NOT fixed; see the last section.**
+**Measured 2026-07-29 with the volume at 7.6 MB free and falling.**
+
+> ## ⚠️ STOP THE WRITER FIRST, THEN DELETE. The order is load-bearing.
+>
+> The store was deleted while both `trevec serve` processes were still running. Two things went
+> wrong, and neither is visible if you only watch free space:
+>
+> 1. **~26 GB of the reclaim did not land.** Windows keeps a deleted file's blocks allocated while
+>    any handle is open. Free space read 438 GB with the directory already gone; killing the
+>    surviving process released the remaining **26 GB** with no further deletion. A `du` of the
+>    directory and the free-space number disagree in exactly this window, and the directory lies.
+> 2. **The orphaned server escalated to saturating the machine.** PID 64240 averaged 0.76 of one
+>    core across its 17.6-hour life. Between two readings a few minutes apart *after* its store
+>    vanished it gained ~2,400 CPU-seconds — on 16 logical cores that is essentially all of them.
+>    Pulling the store out from under a live server puts it in a hot retry loop.
+>
+> It exited having consumed **47,980 CPU-seconds — 13.3 CPU-hours**.
 
 ## What happened
 
@@ -65,8 +81,13 @@ regenerable and 100% git-ignored** — verified: `git ls-files .trevec` returns 
 and `.trevec/.gitignore` is `*`. Nothing here is source; it is all derived from files already in git.
 
 ```bash
-Get-Process trevec -ErrorAction SilentlyContinue | Stop-Process -Force; Remove-Item -Recurse -Force C:\Users\dprit\Raw-Surf\.trevec\lance; & C:\Users\dprit\.trevec\bin\trevec.exe index --path C:\Users\dprit\Raw-Surf
+Get-Process trevec -ErrorAction SilentlyContinue | Stop-Process -Force; Remove-Item -Recurse -Force C:\Users\dprit\Raw-Surf\.trevec\lance; Push-Location C:\Users\dprit\Raw-Surf; & C:\Users\dprit\.trevec\bin\trevec.exe index -v .; Pop-Location
 ```
+
+⚠️ `index` takes the repo as a POSITIONAL argument — `trevec index .`, not `--path`. Only `serve`
+uses `--path`, and mixing them up fails with `unexpected argument '--path' found` *after* the
+delete has already happened, which is the worst possible moment to discover a typo. Keep
+`.trevec/models/` (128 MB of embedding weights); only `lance/` is the runaway.
 
 Reclaims **~437 GB**. Rebuild produces a ~13 MB index and costs minutes. MCP clients reconnect to a
 fresh `trevec serve` on next use.
