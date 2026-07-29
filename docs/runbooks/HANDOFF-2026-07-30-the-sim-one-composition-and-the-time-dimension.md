@@ -57,17 +57,34 @@ capacity). AST-extracting the actual rating call at each surface:
 | `breaker_xi` | ✅ `RATING_BREAKER_TYPE` | ❌ | ❌ |
 | `partitions` | ❌ | ❌ | ❌ (nobody, anywhere) |
 
-### The measured cost — 540 combinations, hub vs glyph on identical inputs
+### The measured cost — hub vs glyph on identical inputs, SWEPT over each factor's own range
 
 | | `|dScore|` median | max | **LEVEL differs** |
 |---|---|---|---|
 | all flags OFF (**production today**) | 0.0 | 0.0 | **0.0%** |
-| `RATING_LOCAL_SIZE=1` | 10.5 | 75.2 | **60.6%** |
-| `RATING_TIDE=1` | 17.4 | 34.7 | **71.5%** |
-| both | 23.6 | 82.5 | **78.5%** |
+| `RATING_LOCAL_SIZE=1` (ref 0.6–4.0 m) | 10.6 | 75.7 | **59.1%** |
+| `RATING_TIDE=1` (tide 0.0–1.0) | 5.8 | 40.9 | **41.0%** |
+| both | 15.4 | 84.1 | **70.1%** |
 
-⇒ **Nothing is wrong today, and one flag flip makes the hub disagree with the map on 6 of every 10
-spot-hours.** `test_rating_composition_parity.py` requires every surface to declare SUPPLIED or a
+⚠️⚠️ **THESE NUMBERS ARE CORRECTIONS — the first pass of this handoff was wrong.** It quoted ONE
+hand-picked point per flag: `tide_norm=0.05` against a "mid tide" preference is near the worst case
+`tide_fit` can produce and gave **71.5%**, against **41.0%** swept across the whole tidal cycle. ★ A
+factor with a bounded range must be SWEPT before a number is taken off it — the same lesson as
+"print a delta column", one level up.
+
+⚠️ The reference-size figure is **SYNTHETIC by necessity**: `load_size_climatology_l2_cached()`
+returns None, so no spot has a real size reference and the 0.6–4.0 m span is plausible, not
+observed. It bounds the shape of the risk; it does not measure it.
+
+★ **NEW, and it sharpens the case:** `reference_size_m = 1.2` is **not** a no-op even though 1.2 m
+is the documented default. `size_score` switches to a different CURVE SHAPE whenever any reference
+is supplied — *"the two branches are intentionally different shapes"*, its own docstring, absolute/
+legacy vs local-relative. So `RATING_LOCAL_SIZE` does not merely calibrate per spot; it re-shapes
+the size gate for **every** spot that has climatology, which makes a surface sitting the flag out
+diverge more, not less.
+
+⇒ **Nothing is wrong today, and one flag flip makes the hub disagree with the map on 4–6 of every
+10 spot-hours.** `test_rating_composition_parity.py` requires every surface to declare SUPPLIED or a
 waiver **naming the blocker and its measured cost**; add a factor to `rating_score` and the suite
 fails until all three declare. ✅ Verified it bites by re-enacting `9b808d05` and by appending an
 undeclared parameter.
@@ -146,7 +163,7 @@ Unchanged items carried from `START-HERE-2026-07-30` §3, with this session's ed
 8. ⚠️ Friction inert at ~46% of the catalogue.
 9. ⚠️ Tide times render in the VIEWER's timezone, not the spot's.
 10. **NEW** ★★ **Thread a spot id into the hub** so it can use local size climatology — spawned,
-    with the 60.6% measurement and all ~7 call sites listed.
+    with the 59.1% measurement and all ~7 call sites listed.
 11. **NEW** ⚠️ Sim name resolution misses accents/spelling (`Nazaré`, `Tofino`, `Taghazout` return
     not-found), and `Pipeline`'s `orientation_source` advertises `override:Pipeline / Backdoor` — a
     name `get_weather_forecast` 404s on. Cosmetic but it makes the catalogue look thinner than it is.
@@ -164,14 +181,15 @@ loop feeds back into the forecast**, so "sync up" in the model-correction sense 
 
 1. ★★ **A guard that cannot go red is decoration.** Both negative tests were run before trusting the
    registry — re-enact the original defect and watch it fail.
-2. ★★ **A waiver must carry a number.** "We didn't wire tide" is an excuse; "18 of 1,773 spots yield
-   a usable band, and flipping the flag diverges 71.5% of levels" is debt inventory that tells the
+2. ★★★ **A factor with a bounded range must be SWEPT before a number is taken off it.** This handoff's first pass quoted one hand-picked tide point and reported 71.5% where the honest sweep says 41.0% — I audited my own instrument only because I was asked whether I was spiralling, which is the wrong trigger. Sweep first.
+3. ★★ **A waiver must carry a number.** "We didn't wire tide" is an excuse; "18 of 1,773 spots yield
+   a usable band, and flipping the flag diverges 41.0% of levels" is debt inventory that tells the
    next person what to do.
-3. ★★ **Measure before assuming the thing you were asked to fix is broken.** The sim's score parity
+4. ★★ **Measure before assuming the thing you were asked to fix is broken.** The sim's score parity
    was green at 15/15; the work was therefore features and durability, not a rescue. The two hours
    that would have gone into "fixing" a correct engine went into the time dimension instead.
-4. ★ **A cache's eviction policy encodes an assumed access pattern.** One-hour retention was correct
+5. ★ **A cache's eviction policy encodes an assumed access pattern.** One-hour retention was correct
    for "sweep many spots at one hour" and exactly wrong for "sweep one spot across hours" — and the
    test asserting `[2, 2, 2]` was pinning the very behaviour that defeated the new feature.
-5. ★ **Extract to make room BEFORE the ratchet blocks you.** This file blocked two sessions at
+6. ★ **Extract to make room BEFORE the ratchet blocks you.** This file blocked two sessions at
    789/800; the split is what made three of this session's four commits possible.

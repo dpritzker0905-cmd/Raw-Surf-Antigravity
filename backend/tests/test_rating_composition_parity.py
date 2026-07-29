@@ -17,14 +17,29 @@ position on EVERY optional factor — supplied, or waived with a reason and its 
 whole point: the two incidents above were both "somebody added an input and one caller didn't get
 the memo", and neither a code review nor a green suite caught them.
 
-Measured 2026-07-30, 540 spot/size/period/wind combinations, hub vs glyph on identical inputs:
+Measured 2026-07-30, hub vs glyph on identical inputs across 6 spots x 6 sizes x 5 periods x 3
+winds, SWEPT over the gated factor's own range (tide 0.0-1.0; reference size 0.6-4.0 m):
 
     all flags OFF (production today)     |dScore| median  0.0   LEVEL differs   0.0%
-    RATING_LOCAL_SIZE=1                  |dScore| median 10.5   LEVEL differs  60.6%
-    RATING_TIDE=1                        |dScore| median 17.4   LEVEL differs  71.5%
-    both on                              |dScore| median 23.6   LEVEL differs  78.5%
+    RATING_LOCAL_SIZE=1                  |dScore| median 10.6   LEVEL differs  59.1%
+    RATING_TIDE=1                        |dScore| median  5.8   LEVEL differs  41.0%
+    both on                              |dScore| median 15.4   LEVEL differs  70.1%
 
-⇒ The surfaces agree EXACTLY today, and are ONE FLAG FLIP from disagreeing on 6 of every 10
+⚠️ THESE NUMBERS WERE CORRECTED. The first pass quoted ONE hand-picked point per flag and reported
+it as the cost: tide_norm=0.05 against a "mid tide" preference is near the worst case `tide_fit` can
+produce and gave 71.5%, against 41.0% swept across the whole tidal cycle. A factor with a bounded
+range must be swept before a number is taken off it.
+⚠️ The reference-size figure is SYNTHETIC by necessity: `load_size_climatology_l2_cached()` returns
+None — no spot has a real size reference yet — so the 0.6-4.0 m range is a plausible span, not
+observed data. It bounds the shape of the risk; it is not a measurement of it.
+
+★ And `reference_size_m=1.2` is NOT a no-op even though 1.2 m is the documented default: `size_score`
+switches to a different CURVE SHAPE whenever a reference is supplied ("the two branches are
+intentionally different shapes" — its own docstring, absolute/legacy vs local-relative). So
+RATING_LOCAL_SIZE does not merely calibrate per spot; it re-shapes the size gate for every spot
+that has climatology, which makes a surface sitting the flag out diverge more, not less.
+
+⇒ The surfaces agree EXACTLY today, and are ONE FLAG FLIP from disagreeing on 4-6 of every 10
 spot-hours. The waivers below are the inventory of that debt, with the number attached.
 """
 import ast
@@ -98,13 +113,15 @@ SURFACES = {
                 "lng, forecast_days)` never receives a spot id, and `spot_size_climatology."
                 "reference_map` is keyed by spot id — so the hub cannot look one up. Threading the "
                 "id through touches 7 call sites. COST IF RATING_LOCAL_SIZE FLIPS: level differs "
-                "from the map glyphs on 60.6% of evaluations, median 10.5 points, max 75.2."),
+                "from the map glyphs on 59.1% of evaluations, median 10.6 points, max 75.7 — swept "
+                "over a 0.6-4.0 m reference range, SYNTHETIC because no spot has real climatology "
+                "yet, so it bounds the shape of the risk rather than measuring it."),
             "tide_norm": (
                 "The hub does not load the spot row, so it has no `best_tide` prior, and "
                 "`tide_fit` is neutral without one. Measured 2026-07-30 in production: 38 of 1,773 "
                 "spots carry a best_tide at all and only 18 (1.0%) parse to a usable LEVEL band "
-                "('all tides'/'incoming' yield no band). COST IF RATING_TIDE FLIPS: 71.5% level "
-                "divergence at spots that DO have a band."),
+                "('all tides'/'incoming' yield no band). COST IF RATING_TIDE FLIPS, swept across the "
+                "whole tidal cycle: 41.0% level divergence at spots that DO have a band."),
             "best_tide": SeeAlso("tide_norm"),
             "breaker_xi": (
                 "Inert everywhere today: `bathymetry.bed_slope_at` returns None until the finer "
