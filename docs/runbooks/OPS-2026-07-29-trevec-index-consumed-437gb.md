@@ -92,6 +92,30 @@ delete has already happened, which is the worst possible moment to discover a ty
 Reclaims **~437 GB**. Rebuild produces a ~13 MB index and costs minutes. MCP clients reconnect to a
 fresh `trevec serve` on next use.
 
+## ✅ Verified steady state — the tripwire
+
+Rebuilt 2026-07-29 from the same repo, same content:
+
+| | before | after |
+|---|---|---|
+| `.trevec/lance` | **437.50 GB** | **55 MB** |
+| index versions | 52,023 | **1** |
+| free space | 0 bytes | **473 GB** |
+
+**7,950× smaller for the same index.** Rebuild cost 361 s wall (350 s of it embeddings) and the
+result is functional — a query for the forecast chain returned 17 functions across 4 files,
+including code committed the same morning, so the index is fresh rather than merely small.
+
+★ **`.trevec/lance` should be ~55 MB. That is the tripwire.** No ratio analysis needed next time:
+
+```bash
+du -sh C:/Users/dprit/Raw-Surf/.trevec/lance
+```
+
+Anything past ~1 GB means versions are accumulating again. At the measured ~11 GB/day it crosses
+that within hours of heavy use, so this is worth checking at the start of a session rather than
+after the disk fills.
+
 ## Keeping it from returning
 
 - **Run one server, not two.** Check `Get-Process trevec` before starting a session; the duplicate
