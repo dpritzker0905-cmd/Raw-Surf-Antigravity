@@ -267,11 +267,24 @@ def audit_height_statistic():
         check("height_statistic", OK,
               "emitting H1/10, the published surf standard", d["standard_reference"])
     else:
+        # ⛔ DO NOT "FIX" THIS ALONE. Two measured errors of opposite sign very nearly cancel, so the
+        # DISPLAYED height is currently within ~1% of correct even though both halves are wrong:
+        #   * the transform assumes no refraction. Measured Kr = 0.797 against CDIP instruments
+        #     (validate_nearshore_transform.py, 385,651 QC-good swell hours, 10 sites) => we
+        #     over-predict nearshore height by 1/0.797 = +25.5%.
+        #   * we emit Hs where the standard is H1/10 => we are 1 - 1/1.27 = -21.3% low.
+        #   * net displayed / correct = (1/0.797) / 1.27 = 0.988, i.e. -1.2%.
+        # Flipping SURF_HEIGHT_H110 by itself multiplies every height by 1.27 and lands +25.5% HIGH.
+        # Fixing Kr by itself lands -21.3% LOW. They ship together or not at all.
+        kr = 0.797
+        net = (1.0 / kr) / SHC.H110_OVER_HS
         check("height_statistic", OPEN,
-              "emitting Hs (mean of the highest THIRD) but labelling it on a FACE-height ladder and "
-              f"grading it as surf; the standard is H1/10 = {SHC.H110_OVER_HS}x Hs "
-              f"(~{100*(1-1/SHC.H110_OVER_HS):.0f}% under-read). Flip SURF_HEIGHT_H110 WITH a "
-              "re-solved size reference.", "docs/research/SURF-FORECASTING-SCIENCE.md §1")
+              f"emitting Hs, not the published H1/10 (x{SHC.H110_OVER_HS}). ⛔ BUT DO NOT FLIP IT "
+              f"ALONE: the transform also over-predicts by {100*(1/kr-1):.1f}% (measured Kr={kr} vs "
+              f"CDIP), so what we DISPLAY is {net:.3f}x correct ({100*(net-1):+.1f}%) -- accidentally "
+              f"right. SURF_HEIGHT_H110 alone = +{100*(1/kr-1):.1f}% too high; a Kr fix alone = "
+              f"{100*(1/SHC.H110_OVER_HS-1):.1f}% too low. Ship BOTH, with a re-solved size reference.",
+              "backend/scripts/validate_nearshore_transform.py + SURF-FORECASTING-SCIENCE.md §1")
     # The ladder itself should match the industry face scale — cheap, and it has been wrong before.
     expect = [(1.5, "Ankle High"), (2.5, "Knee High"), (3.5, "Waist High"), (4.5, "Chest High"),
               (5.5, "Head High"), (7.0, "Overhead"), (12.0, "Double Overhead")]

@@ -119,3 +119,31 @@ def test_the_conversion_is_at_the_single_shared_function():
     src = inspect.getsource(surf_transform.estimate_surf)
     assert "to_surf_convention" in src, (
         "the convention has moved out of estimate_surf — every caller must share it")
+
+
+# ── The coupling that makes this flag dangerous on its own ─────────────────────────────────────
+
+def test_h110_and_the_missing_refraction_nearly_cancel_so_neither_ships_alone():
+    """⛔ THE REGRESSION GUARD. Two measured errors of opposite sign hold the displayed height right.
+
+      * `validate_nearshore_transform.py` measured Kr = 0.797 against CDIP instruments (385,651
+        QC-good swell hours, 10 independent California sites). The transform assumes Kr = 1.0, so it
+        over-predicts nearshore height by 1/0.797 = +25.5%.
+      * We emit Hs where the published surf standard is H1/10 = 1.27 x Hs, so we are -21.3% low.
+      * Net displayed / correct = (1/0.797) / 1.27 = 0.988 -- within 1.2% of right, by accident.
+
+    Flipping SURF_HEIGHT_H110 by itself multiplies every displayed height by 1.27 and lands +25.5%
+    HIGH. Correcting Kr by itself lands -21.3% LOW. This test exists because the flag reads like a
+    free accuracy win in isolation, and it was queued as one.
+    """
+    KR_MEASURED = 0.797
+    over_prediction = 1.0 / KR_MEASURED
+    displayed_vs_correct = over_prediction / SHC.H110_OVER_HS
+
+    assert abs(displayed_vs_correct - 1.0) < 0.05, (
+        f"the cancellation no longer holds ({displayed_vs_correct:.3f}x). Re-derive the shipping "
+        f"order before touching either half."
+    )
+    # And each half alone is materially wrong, which is the point.
+    assert over_prediction > 1.20, "Kr correction alone would no longer matter"
+    assert (1.0 / SHC.H110_OVER_HS) < 0.85, "H1/10 alone would no longer matter"
