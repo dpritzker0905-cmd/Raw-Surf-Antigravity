@@ -10,6 +10,41 @@ from services.weather_pipeline.copernicus_validator import is_test_environment
 logger = logging.getLogger(__name__)
 
 
+def _icon_wind_native_horizon_h() -> float:
+    try:
+        return float(os.environ.get("ICON_WIND_NATIVE_HORIZON_H", "180"))
+    except ValueError:
+        return 180.0
+
+
+def icon_wind_overclaims_native_horizon(p, now_utc: datetime, horizon_h: float) -> bool:
+    """True when an ICON wind AUTHORITATIVE product claims a valid_time beyond what the model can
+    natively forecast FROM ITS OWN RUN (+6h slack for ingest-stamped run times). Guards the
+    original defect class — cyclic-fill leftovers mislabeled authoritative out to +336h — without
+    the two mistakes the old rule made (2026-07-30, the "blank day" family): a 120h horizon (the
+    open-meteo path's figure; the production DWD-direct path delivers real 3-hourly natives to
+    run+180h, so the FIRST restore after every ingest destroyed the last ~60h of real data) and a
+    wall-clock-relative cutoff (`now + 120h`), which made what survives depend on WHEN a box
+    restarted rather than on what the model produced. Net live state: natives ended near
+    now+120h while the estimated tail stayed anchored at the old run+181h — a 46h dead hole,
+    13 lattice slots with nothing within 3h: the user-visible "blank day". A product without a
+    run_time falls back to the wall-clock reference, the lenient direction."""
+    if not (
+        p.model.upper() == "ICON"
+        and p.domain.lower() == "wind"
+        and p.layer.lower() == "wind"
+        and not getattr(p, "is_estimated", False)
+    ):
+        return False
+    anchor = getattr(p, "run_time", None) or now_utc
+    if anchor.tzinfo is None:
+        anchor = anchor.replace(tzinfo=timezone.utc)
+    valid = p.valid_time_start
+    if valid.tzinfo is None:
+        valid = valid.replace(tzinfo=timezone.utc)
+    return valid > anchor + timedelta(hours=horizon_h + 6.0)
+
+
 def _apply_florida_region_defaults(product) -> None:
     """Backward-compat: tag Florida-bbox products as florida_east_coast / regional_tile."""
     is_florida = (
@@ -407,25 +442,31 @@ def _restore_from_supabase_inner(store) -> Tuple[int, List[str]]:
                 if not p.is_test_fixture
             ]
 
-        # Startup hygiene: Purge stale ICON wind AUTH products beyond native horizon.
-        # ICON wind native horizon is 120h. Any non-estimated product beyond that
-        # is a leftover from old ingestion runs and should not exist.
+        # Startup hygiene: purge ICON wind AUTH products that claim more forecast than the model
+        # can natively produce FROM THEIR OWN RUN. Guards against the original defect class:
+        # cyclic-fill leftovers mislabeled authoritative out to +336h. Two corrections baked in
+        # (2026-07-30, the "blank day" family): the horizon is 180h — the production DWD-direct
+        # path delivers real 3-hourly natives to run+180h (120h was the open-meteo path's figure,
+        # so this rule deleted the last 60h of real data every startup) — and the cutoff must be
+        # RUN-relative, never wall-clock-relative: `now + horizon` slid forward with every
+        # restart, trimming surviving natives deeper while the estimated tail stayed fixed, which
+        # opened a widening dead hole mid-timeline (measured live: 46h / 13 lattice slots with
+        # nothing within 3h — the user-visible "blank day"). A product without a run_time falls
+        # back to the wall-clock reference, which is the lenient direction (never deletes
+        # legitimately fetched data).
         now_utc = datetime.now(timezone.utc)
-        icon_native_cutoff = now_utc + timedelta(hours=120)
+        _icon_native_horizon_h = _icon_wind_native_horizon_h()
         pre_purge_count = len(manifest.products)
         manifest.products = [
             p for p in manifest.products
-            if not (
-                p.model.upper() == "ICON"
-                and p.domain.lower() == "wind"
-                and p.layer.lower() == "wind"
-                and not getattr(p, "is_estimated", False)
-                and p.valid_time_start > icon_native_cutoff
-            )
+            if not icon_wind_overclaims_native_horizon(p, now_utc, _icon_native_horizon_h)
         ]
         purged = pre_purge_count - len(manifest.products)
         if purged > 0:
-            logger.info(f"[Product Store] Startup hygiene: Purged {purged} stale ICON wind AUTH products beyond 120h horizon")
+            logger.info(
+                f"[Product Store] Startup hygiene: Purged {purged} ICON wind AUTH products claiming "
+                f"beyond run+{_icon_native_horizon_h:.0f}h native horizon"
+            )
         
         with open(store.manifest_path, "w") as f:
             f.write(manifest.model_dump_json(indent=2))
