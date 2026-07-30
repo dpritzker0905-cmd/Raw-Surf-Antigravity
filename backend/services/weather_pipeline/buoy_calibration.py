@@ -511,6 +511,14 @@ def run_buoy_calibration() -> tuple:
             report["archive"] = build_archive_summary(merged)
             logger.info("[buoy-calibration] residual archive: %d entries across %d buoys.",
                         len(merged), report["archive"]["n_buoys"])
+            # Permanent retention (2026-07-30 phase 5): the hot archive above is a ~14-day rolling
+            # window by bandwidth design; once a day its rows roll into append-only monthly
+            # segments that never prune. Every day not retained is unrecoverable. Never raises.
+            from services.weather_pipeline.buoy_residual_retention import maybe_roll_up_history
+            history_touched = maybe_roll_up_history(store, merged)
+            if history_touched:
+                report["archive"]["history_rolled_up"] = {
+                    m: v["after"] for m, v in history_touched.items()}
         except Exception as e:
             logger.warning("[buoy-calibration] residual archive skipped (%s); report unaffected.", e)
     upload_calibration_l2(store, report)
