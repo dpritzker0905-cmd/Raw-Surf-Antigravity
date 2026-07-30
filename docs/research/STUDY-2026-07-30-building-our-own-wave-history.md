@@ -167,6 +167,27 @@ does.
 
 ---
 
+## 8. ⚠️ VERIFIED ACCESS PATHS (2026-07-30 evening — every row probed with VALUE COUNTS, not
+timestamps; the first probe was fooled by an API returning 72 timestamps over 72 nulls)
+
+| path | verdict | measured |
+|---|---|---|
+| **Open-Meteo marine-api** | ✅ **usable NOW, from ~2022-08** | ONE call returns the full history per point: 35,016 hourly rows, 100% non-null, 2022-08-01→present (Mavericks p50 1.74 m / p90 2.90 / max 6.80). 1940–2020 = timestamps over all-nulls. |
+| Open-Meteo archive-api | ⛔ **no wave variables at all** | echoes unknown variables with `"undefined"` units and null arrays — a trap that looks like data. |
+| **ARCO-ERA5 (Google, anonymous)** | ⛔ for per-point series | store is live and CURRENT (1940→2026-07-24, updated daily) but chunked **[1 hour × whole globe]** — a per-point 85-y series = ~1.3M chunk reads (TB-scale). Fine for single-hour spot checks only. |
+| NOAA WW3 30-y hindcast | ❓ moved | the documented polar.ncep.noaa.gov path 404s; would need NCEI re-discovery + GRIB decode; 1979–2009 only. |
+| **CDS ERA5 (free registration)** | ✅ **the 80-year unblock** | server-side point extraction (timeseries endpoint) makes per-spot 1940→present cheap. Blocked only on a 5-minute user registration — no credentials exist anywhere yet (no `~/.cdsapirc`, no env, no `cdsapi` dep). |
+
+⇒ **The incremental plan:** build the per-spot climatology pipeline NOW on Open-Meteo marine
+(≈4 years × 1,773 spots, one paced call each), producing the SAME blob the engine reads — then
+extend the depth in place when CDS credentials exist. A 4-year percentile already replaces the
+**2-day** accumulating blob (≈700× more data) and kills cold-start for new pins.
+★ Composition mandate (owner, 2026-07-30): the reference must be produced through the SAME
+`resolve_surf_geometry` + `estimate_surf_at` chain the live height uses — transform each archived
+offshore sample per spot, THEN take the percentile of the transformed distribution (the transform
+is nonlinear in period, so percentile-then-transform is wrong) — so glyphs, hub, sim and markers
+all read one coherent quantity.
+
 ## Sources
 
 - [ERA5 hourly data on single levels, 1940→present](https://cds.climate.copernicus.eu/datasets/reanalysis-era5-single-levels) · [ECMWF ERA5 dataset page](https://www.ecmwf.int/en/forecasts/dataset/ecmwf-reanalysis-v5)

@@ -184,7 +184,11 @@ async def ingest_euro_marine_global_impl(scheduler) -> bool:
             # native provider='open-meteo' -> source_dataset='ecmwf_wam025', is_estimated=False.
             _basis = None if _use_ecmwf else _cop_basis
             _layer_gfs_ext = _ew_gfs_ext if _use_ecmwf else gfs_ext
-            # native 0-10d (both CMEMS and the ECMWF wave stream are 3-hourly -> step=1)
+            # native 0-10d, step=1 saves every entry. ⚠️ CADENCE (2026-07-30): CMEMS is 3-hourly
+            # throughout, but the ECMWF Open-Data wave stream is 3-hourly only to +144h and
+            # 6-HOURLY from +144h to +240h — so the `waves` lane leaves 12-16 empty 3h lattice
+            # slots per run in that band. lattice_fill.py interpolates them post-ingest; do not
+            # "fix" the step here (the entries simply don't exist upstream).
             c = await normalize_and_save_loop(
                 scheduler.normalizer, scheduler.store, _src,
                 model="EURO", provider=_prov, domain="marine", layer=layer,
