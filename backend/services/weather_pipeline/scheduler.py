@@ -510,3 +510,12 @@ class WeatherPipelineScheduler:
         from services.weather_pipeline.icon_marine_extension import ingest_icon_marine_extended_estimates_impl
         return await ingest_icon_marine_extended_estimates_impl(self)
 
+    async def ingest_lattice_inband_fill(self) -> bool:
+        """
+        Stage 6I.4: Interpolates the missing 3-hourly frames where a source's native cadence is
+        coarser than the scrub lattice (ECMWF open-data is 6-hourly past +144h — the "blank day"
+        family). Compute-only, store-fed. See lattice_fill.py.
+        """
+        from services.weather_pipeline.lattice_fill import fill_inband_lattice_gaps_impl
+        return await fill_inband_lattice_gaps_impl(self)
+

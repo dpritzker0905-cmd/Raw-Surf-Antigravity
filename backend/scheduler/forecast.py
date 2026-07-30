@@ -114,6 +114,14 @@ def ingest_marine_forecast_task():
                 # placed right after the EURO extension for the same timeout-safety reason.
                 # Kill switch ICON_MARINE_EXTEND=0.
                 ("ICON Marine Extended Estimates", weather_scheduler.ingest_icon_marine_extended_estimates),
+
+                # In-band lattice gap fill (2026-07-30, the user-reported "blank day" family):
+                # ECMWF open-data is 6-hourly past +144h while the scrubber walks 3-hourly, so
+                # every odd-3 slot in that band had NO product and served a substituted repeat.
+                # Interpolates the missing frames between their native brackets (≤6h). Runs AFTER
+                # the extension jobs so their output participates as brackets. Compute-only.
+                # Kill switch LATTICE_INBAND_FILL=0.
+                ("Lattice In-Band Gap Fill", weather_scheduler.ingest_lattice_inband_fill),
             ]
 
             pilot_jobs = [
