@@ -34,8 +34,36 @@ from pathlib import Path
 sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
 
 from services.weather_pipeline.spot_size_climatology import (  # noqa: E402
-    SCHEMA_VERSION, SIZE_CLIMATOLOGY_L2_KEY, hist_count, merge_samples, reference_from_hist,
+    INBOX_PREFIX, SCHEMA_VERSION, SIZE_CLIMATOLOGY_L2_KEY, hist_count, merge_samples,
+    reference_from_hist,
 )
+
+
+def pending_inbox_spot_ids(session, url, svc, marker_key: str, version: int) -> set:
+    """Spot ids already contributed by UNCONSUMED inbox batches at this marker version — the
+    resume filter must see them or a re-run double-contributes before the cron folds them in."""
+    out = set()
+    try:
+        resp = session.post(f"{url}/storage/v1/object/list/weather-products",
+                            headers={"Authorization": f"Bearer {svc}", "apikey": svc},
+                            json={"prefix": INBOX_PREFIX, "limit": 100}, timeout=30)
+        if resp.status_code != 200:
+            return out
+        for row in resp.json():
+            name = (row or {}).get("name", "")
+            if not name.endswith(".json"):
+                continue
+            g = session.get(f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{name}",
+                            headers={"Authorization": f"Bearer {svc}", "apikey": svc}, timeout=60)
+            if g.status_code != 200:
+                continue
+            batch = g.json()
+            for sid, rec in (batch.get("spots") or {}).items():
+                if isinstance(rec, dict) and (rec.get(marker_key) or {}).get("v") == version:
+                    out.add(str(sid))
+    except Exception:
+        pass
+    return out
 
 OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 HISTORY_START = "2022-08-01"          # measured coverage floor (values are null before ~2022)
@@ -174,9 +202,11 @@ def main():
         live_now = load_live_blob(session, url, svc) or {}
         done = {sid for sid, rec in (live_now.get("spots") or {}).items()
                 if isinstance(rec, dict) and (rec.get("backfill") or {}).get("v") == BACKFILL_VERSION}
+        done |= pending_inbox_spot_ids(session, url, svc, "backfill", BACKFILL_VERSION)
         before = len(spots)
         spots = [s for s in spots if str(s["id"]) not in done]
-        print(f"resume: {before - len(spots)} spots already backfilled, {len(spots)} remaining")
+        print(f"resume: {before - len(spots)} spots already contributed (blob or inbox), "
+              f"{len(spots)} remaining")
     print(f"spots in scope: {len(spots)}  (history {HISTORY_START}->today, stride {args.stride}h)")
 
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
@@ -214,63 +244,34 @@ def main():
     print(f"\nprocessed {len(results)} spots in {time.time()-t0:.0f}s; {no_geometry} without geometry")
 
     if not args.upload:
-        print("\nDRY RUN — nothing uploaded. Re-run with --upload to MERGE into the live blob, "
-              "then run scripts/local_size_gonogo.py for the owner-anchor go/no-go.")
+        print("\nDRY RUN — nothing uploaded. Re-run with --upload to contribute an INBOX batch, "
+              "then run scripts/local_size_gonogo.py after the next precompute folds it in.")
         return
     if not results:
         print("nothing to upload (no spots processed this run).")
         return
 
-    live = load_live_blob(session, url, svc) or {}
-    live_spots = dict(live.get("spots") or {})
-    merged_new, merged_into = 0, 0
-    for sid, rec in results.items():
-        existing = live_spots.get(sid) if isinstance(live_spots.get(sid), dict) else None
-        if existing and isinstance(existing.get("hist"), list):
-            # Merge counts bin-wise: the live rolling histogram keeps accumulating on top.
-            combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
-            live_spots[sid] = {"hist": combined, "n": hist_count(combined),
-                               "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
-                                            "to": end_date, "n": rec["n"]}}
-            merged_into += 1
-        else:
-            live_spots[sid] = {"hist": rec["hist"], "n": rec["n"],
-                               "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
-                                            "to": end_date, "n": rec["n"]}}
-            merged_new += 1
-    blob = {"schema_version": SCHEMA_VERSION,
-            "updated_at": datetime.now(timezone.utc).isoformat(),
-            "spots": live_spots}
-    upload_blob(session, url, svc, blob)
-    print(f"uploaded {SIZE_CLIMATOLOGY_L2_KEY}: {merged_new} new spot histograms, "
-          f"{merged_into} merged into existing.")
-
-    # VERIFY-AFTER-UPLOAD: the precompute cron also read-modify-writes this blob (single-writer
-    # assumption). If its write raced ours between our read and upload, our whole backfill is the
-    # side that vanishes. Check a sentinel and re-merge onto the CURRENT blob once if needed —
-    # `results` is still in memory, so the retry costs one download+upload, not a 2h re-run.
-    sentinel = next(iter(results))
-    after = load_live_blob(session, url, svc) or {}
-    if not ((after.get("spots") or {}).get(sentinel, {}) or {}).get("backfill"):
-        print("RACE DETECTED: backfill marker missing after upload (precompute wrote concurrently). "
-              "Re-merging onto the current blob...")
-        live_spots = dict((after.get("spots") or {}))
-        for sid, rec in results.items():
-            existing = live_spots.get(sid) if isinstance(live_spots.get(sid), dict) else None
-            if existing and isinstance(existing.get("hist"), list):
-                combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
-                live_spots[sid] = {"hist": combined, "n": hist_count(combined),
-                                   "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
-                                                "to": end_date, "n": rec["n"]}}
-            else:
-                live_spots[sid] = {"hist": rec["hist"], "n": rec["n"],
-                                   "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
-                                                "to": end_date, "n": rec["n"]}}
-        upload_blob(session, url, svc, {"schema_version": SCHEMA_VERSION,
-                                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                                        "spots": live_spots})
-        print("re-upload complete.")
-    print("Run scripts/local_size_gonogo.py next — the owner-anchor go/no-go stays the flip gate.")
+    # INBOX, not read-modify-write (2026-07-30, measured): a direct blob merge from here was
+    # erased within the hour despite a verify-after-upload race guard — the precompute is a
+    # concurrent writer and checking harder cannot make two writers safe. The precompute is THE
+    # single writer; this script drops a batch it folds in during its own cycle.
+    batch_id = f"om-v{BACKFILL_VERSION}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    spots_payload = {
+        sid: {"hist": rec["hist"], "n": rec["n"],
+              "backfill": {"source": "om_marine", "v": BACKFILL_VERSION,
+                           "from": HISTORY_START, "to": end_date, "n": rec["n"]}}
+        for sid, rec in results.items()
+    }
+    resp = session.post(
+        f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
+        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+                 "Content-Type": "application/json", "x-upsert": "true"},
+        data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
+                        separators=(",", ":")).encode("utf-8"), timeout=120)
+    if resp.status_code not in (200, 201):
+        raise SystemExit(f"inbox upload failed: HTTP {resp.status_code} {resp.text[:200]}")
+    print(f"inbox batch uploaded: {batch_id} ({len(spots_payload)} spots). The next precompute "
+          f"cycle folds it into the blob; run scripts/local_size_gonogo.py after that.")
 
 
 if __name__ == "__main__":

@@ -503,10 +503,30 @@ def run_spot_ratings_precompute() -> tuple:
     if os.environ.get("RATING_SIZE_CLIMATOLOGY", "1") == "1":
         try:
             from services.weather_pipeline.spot_size_climatology import (
-                load_size_climatology_l2, merge_frames_into_climatology, upload_size_climatology_l2)
-            clim = merge_frames_into_climatology(load_size_climatology_l2(), accepted_frames)
-            upload_size_climatology_l2(store, clim)
-            logger.info("[spot-ratings] size climatology updated: %d spots tracked.", len(clim.get("spots", {})))
+                load_size_climatology_l2, merge_frames_into_climatology,
+                merge_inbox_into_climatology, upload_size_climatology_l2, delete_inbox_key)
+            _existing = load_size_climatology_l2()
+            # ⚠️ SELF-ERASE GUARD (2026-07-30, measured): merging frames onto a None base REBUILDS
+            # the blob from scratch — one transient load failure used to silently reset the entire
+            # accumulated history (and erased a 152-spot backfill within the hour). One retry,
+            # then SKIP the cycle entirely: losing one run's ~16 samples/spot is nothing; losing
+            # the history is everything. This also means a genuinely-absent blob is never
+            # bootstrapped here — seed it once by hand (it exists in production since 07-28).
+            if _existing is None:
+                _existing = load_size_climatology_l2()
+            if _existing is None:
+                logger.warning("[spot-ratings] size climatology base unreadable — skipping "
+                               "accumulation this cycle (self-erase guard).")
+            else:
+                clim = merge_frames_into_climatology(_existing, accepted_frames)
+                # Fold any INBOX batches (workstation backfills, ERA5 campaigns) inside THIS
+                # single-writer cycle — the only safe way for other processes to contribute.
+                clim, _consumed = merge_inbox_into_climatology(clim)
+                upload_size_climatology_l2(store, clim)
+                for _k in _consumed:
+                    delete_inbox_key(_k)
+                logger.info("[spot-ratings] size climatology updated: %d spots tracked, "
+                            "%d inbox batches folded.", len(clim.get("spots", {})), len(_consumed))
         except Exception as _ce:
             logger.warning("[spot-ratings] size climatology accumulation skipped: %s", _ce)
     logger.info("[spot-ratings] precompute complete: %d spots, %d frames live (%s × hours %s, %d models fresh).",

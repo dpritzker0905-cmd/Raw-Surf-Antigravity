@@ -174,6 +174,107 @@ def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
             "spots": spots}
 
 
+# ── The INBOX — how any process other than the single writer contributes histograms ─────────────────
+#
+# MEASURED 2026-07-30: a workstation backfill read-modify-wrote this blob with a verify-after-upload
+# race guard, watched the guard fire and recover — and was erased anyway within the hour. Multi-
+# writer read-modify-write on one key cannot be made safe by checking harder. The contract is now:
+# THE PRECOMPUTE CRON IS THE ONLY WRITER of size_climatology.json. Everyone else drops a batch in
+# the inbox (`spot_ratings/climatology_inbox/<batch_id>.json`, shape {"batch_id", "spots": {sid:
+# {"hist": [...], ...markers}}}); the cron folds pending batches into the blob inside its own
+# single-writer cycle, records the batch_id, and deletes the consumed object. Fold-in is bin-wise
+# additive; non-hist keys on a batch's spot record (backfill/era5 markers) are carried onto the
+# blob record so resume filters keep working.
+INBOX_PREFIX = "spot_ratings/climatology_inbox/"
+_MERGED_BATCH_IDS_KEEP = 200
+
+
+def _l2_env():
+    base = os.environ.get("SUPABASE_URL", "").rstrip("/")
+    key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
+    return (base, key) if base and key else (None, None)
+
+
+def list_inbox_keys() -> list:
+    base, key = _l2_env()
+    if not base:
+        return []
+    try:
+        import requests
+        from services.weather_pipeline.store import WEATHER_BUCKET
+        resp = requests.post(
+            f"{base}/storage/v1/object/list/{WEATHER_BUCKET}",
+            headers={"Authorization": f"Bearer {key}", "apikey": key},
+            json={"prefix": INBOX_PREFIX, "limit": 100}, timeout=15)
+        if resp.status_code != 200:
+            return []
+        return [INBOX_PREFIX + row["name"] for row in resp.json()
+                if isinstance(row, dict) and row.get("name", "").endswith(".json")]
+    except Exception as e:
+        logger.debug(f"[size-climatology] inbox list failed: {e}")
+        return []
+
+
+def delete_inbox_key(l2_key: str) -> bool:
+    base, key = _l2_env()
+    if not base:
+        return False
+    try:
+        import requests
+        from services.weather_pipeline.store import WEATHER_BUCKET
+        resp = requests.delete(f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key}",
+                               headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=15)
+        return resp.status_code in (200, 204)
+    except Exception:
+        return False
+
+
+def merge_inbox_into_climatology(clim_obj: dict) -> tuple:
+    """Fold every pending inbox batch into the climatology object. Returns (clim_obj,
+    consumed_keys). Dedupe: a batch_id already in clim_obj['merged_batches'] is consumed (deleted)
+    without re-folding, so a failed delete cannot double-count a batch."""
+    merged_ids = list(clim_obj.get("merged_batches") or [])
+    consumed = []
+    for l2_key in list_inbox_keys():
+        batch = load_size_climatology_l2(l2_key)
+        if not isinstance(batch, dict) or not isinstance(batch.get("spots"), dict):
+            consumed.append(l2_key)          # malformed — consume so it cannot wedge the inbox
+            continue
+        bid = batch.get("batch_id") or l2_key
+        if bid in merged_ids:
+            consumed.append(l2_key)
+            continue
+        spots = clim_obj.setdefault("spots", {})
+        for sid, rec in batch["spots"].items():
+            if not isinstance(rec, dict) or not isinstance(rec.get("hist"), list):
+                continue
+            existing = spots.get(str(sid)) if isinstance(spots.get(str(sid)), dict) else {}
+            old_hist = existing.get("hist") if isinstance(existing.get("hist"), list) else empty_hist()
+            if len(old_hist) != N_BINS or len(rec["hist"]) != N_BINS:
+                continue
+            entry = dict(existing)
+            entry["hist"] = [a + b for a, b in zip(old_hist, rec["hist"])]
+            entry["n"] = hist_count(entry["hist"])
+            for k, v in rec.items():          # carry markers (backfill / era5 / ...)
+                if k not in ("hist", "n"):
+                    entry[k] = v
+            spots[str(sid)] = entry
+        merged_ids.append(bid)
+        consumed.append(l2_key)
+        logger.info("[size-climatology] inbox batch folded: %s (%d spots)", bid, len(batch["spots"]))
+    clim_obj["merged_batches"] = merged_ids[-_MERGED_BATCH_IDS_KEEP:]
+    return clim_obj, consumed
+
+
+def upload_inbox_batch(store, batch_id: str, spots: dict) -> str:
+    """For scripts: contribute histograms WITHOUT touching the blob. Returns the inbox key."""
+    l2_key = f"{INBOX_PREFIX}{batch_id}.json"
+    data = json.dumps({"batch_id": batch_id, "spots": spots},
+                      separators=(",", ":")).encode("utf-8")
+    store._upload_to_supabase(l2_key, data)
+    return l2_key
+
+
 # ── L2 persistence (mirrors spot_ratings load/upload) ───────────────────────────────────────────────
 def upload_size_climatology_l2(store, obj) -> None:
     data = json.dumps(obj, separators=(",", ":")).encode("utf-8")
@@ -194,7 +295,7 @@ def load_size_climatology_l2_cached(ttl: float = 600.0) -> Optional[dict]:
     return obj
 
 
-def load_size_climatology_l2() -> Optional[dict]:
+def load_size_climatology_l2(l2_key: str = None) -> Optional[dict]:
     base = os.environ.get("SUPABASE_URL", "").rstrip("/")
     key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or os.environ.get("SUPABASE_KEY", "")
     if not base or not key:
@@ -202,7 +303,7 @@ def load_size_climatology_l2() -> Optional[dict]:
     try:
         import requests
         from services.weather_pipeline.store import WEATHER_BUCKET
-        url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{SIZE_CLIMATOLOGY_L2_KEY}"
+        url = f"{base}/storage/v1/object/{WEATHER_BUCKET}/{l2_key or SIZE_CLIMATOLOGY_L2_KEY}"
         resp = requests.get(url, headers={"Authorization": f"Bearer {key}", "apikey": key}, timeout=10)
         if resp.status_code != 200:
             return None

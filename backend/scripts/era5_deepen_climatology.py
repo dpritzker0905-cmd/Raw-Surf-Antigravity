@@ -186,10 +186,12 @@ def main():
     if args.limit:
         spots = spots[:args.limit]
 
-    # resume: skip spots already deepened at this version
+    # resume: skip spots already deepened at this version (in the blob OR pending in the inbox)
+    from scripts.build_spot_size_climatology import pending_inbox_spot_ids
     live_now = load_live_blob(session, url, svc) or {}
     done = {sid for sid, rec in (live_now.get("spots") or {}).items()
             if isinstance(rec, dict) and (rec.get("era5") or {}).get("v") == ERA5_BACKFILL_VERSION}
+    done |= pending_inbox_spot_ids(session, url, svc, "era5", ERA5_BACKFILL_VERSION)
     spots = [s for s in spots if str(s["id"]) not in done]
     print(f"spots in scope after resume filter: {len(spots)}")
 
@@ -217,45 +219,27 @@ def main():
     if not args.upload or not results:
         print("DRY RUN or nothing to upload — done.")
         return
-    live = load_live_blob(session, url, svc) or {}
-    live_spots = dict(live.get("spots") or {})
-    for sid, rec in results.items():
-        existing = live_spots.get(sid) if isinstance(live_spots.get(sid), dict) else None
-        marker = {"v": ERA5_BACKFILL_VERSION, "from": TS_START, "to": end_date,
-                  "n": rec["n"], "tp_tm_ratio": rec["ratio"]}
-        if existing and isinstance(existing.get("hist"), list):
-            combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
-            entry = dict(existing)
-            entry.update({"hist": combined, "n": hist_count(combined), "era5": marker})
-            live_spots[sid] = entry
-        else:
-            live_spots[sid] = {"hist": rec["hist"], "n": rec["n"], "era5": marker}
-    blob = {"schema_version": SCHEMA_VERSION,
-            "updated_at": datetime.now(timezone.utc).isoformat(), "spots": live_spots}
-    upload_blob(session, url, svc, blob)
-    # verify-after-upload (the precompute cron read-modify-writes the same key; the race fired
-    # in production on the OM backfill's first run)
-    sentinel = next(iter(results))
-    after = load_live_blob(session, url, svc) or {}
-    if not ((after.get("spots") or {}).get(sentinel, {}) or {}).get("era5"):
-        print("RACE DETECTED — re-merging onto the current blob...")
-        live_spots = dict((after.get("spots") or {}))
-        for sid, rec in results.items():
-            existing = live_spots.get(sid) if isinstance(live_spots.get(sid), dict) else None
-            marker = {"v": ERA5_BACKFILL_VERSION, "from": TS_START, "to": end_date,
-                      "n": rec["n"], "tp_tm_ratio": rec["ratio"]}
-            if existing and isinstance(existing.get("hist"), list):
-                combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
-                entry = dict(existing)
-                entry.update({"hist": combined, "n": hist_count(combined), "era5": marker})
-                live_spots[sid] = entry
-            else:
-                live_spots[sid] = {"hist": rec["hist"], "n": rec["n"], "era5": marker}
-        upload_blob(session, url, svc, {"schema_version": SCHEMA_VERSION,
-                                        "updated_at": datetime.now(timezone.utc).isoformat(),
-                                        "spots": live_spots})
-        print("re-upload complete.")
-    print("uploaded. Run scripts/local_size_gonogo.py next.")
+    # INBOX, not read-modify-write (2026-07-30, measured): a direct blob merge was erased within
+    # the hour by the precompute's concurrent write. The precompute is THE single writer; this
+    # script drops a batch it folds in during its own cycle.
+    from services.weather_pipeline.spot_size_climatology import INBOX_PREFIX
+    batch_id = f"era5-v{ERA5_BACKFILL_VERSION}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
+    spots_payload = {
+        sid: {"hist": rec["hist"], "n": rec["n"],
+              "era5": {"v": ERA5_BACKFILL_VERSION, "from": TS_START, "to": end_date,
+                       "n": rec["n"], "tp_tm_ratio": rec["ratio"]}}
+        for sid, rec in results.items()
+    }
+    resp = session.post(
+        f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
+        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+                 "Content-Type": "application/json", "x-upsert": "true"},
+        data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
+                        separators=(",", ":")).encode("utf-8"), timeout=120)
+    if resp.status_code not in (200, 201):
+        raise SystemExit(f"inbox upload failed: HTTP {resp.status_code} {resp.text[:200]}")
+    print(f"inbox batch uploaded: {batch_id} ({len(spots_payload)} spots). The next precompute "
+          f"cycle folds it in; run scripts/local_size_gonogo.py after that.")
 
 
 if __name__ == "__main__":
