@@ -521,6 +521,18 @@ def run_buoy_calibration() -> tuple:
                     m: v["after"] for m, v in history_touched.items()}
         except Exception as e:
             logger.warning("[buoy-calibration] residual archive skipped (%s); report unaffected.", e)
+    # Forecast skill at LEAD TIME (2026-07-30): ledger the +24/48/72h forecasts being made NOW
+    # (ours + an Open-Meteo competitor lane) and score earlier ledgers against THIS run's fresh
+    # buoy truth — per-lead MAE is the "are we near the competition?" number, and a forecast not
+    # recorded when made can never be scored. Kill switch FORECAST_SKILL=0. Never raises.
+    if os.environ.get("FORECAST_SKILL", "1") != "0":
+        try:
+            from services.weather_pipeline.forecast_skill import run_skill_ledger
+            skill = asyncio.run(run_skill_ledger(store, resolver, spots, model, report))
+            if skill and skill.get("summary"):
+                report["forecast_skill"] = skill["summary"]
+        except Exception as e:
+            logger.warning("[buoy-calibration] forecast skill ledger skipped (%s); report unaffected.", e)
     upload_calibration_l2(store, report)
     mae = report.get("summary", {}).get("height_mae_m")
     logger.info("[buoy-calibration] uploaded L2: %d spots, height MAE %.3f m.", len(spots), mae or -1)
