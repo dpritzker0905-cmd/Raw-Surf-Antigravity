@@ -35,6 +35,11 @@ EPIC_T = 84.0
 CAP_UNCONFIRMED = GOOD_T - 0.1     # 69.9 -> tops out displaying fair_good (Surfline's model ceiling)
 CAP_GOOD = EPIC_T - 0.1            # 83.9 -> may display good, not epic
 AGREE_MODELS = 2                   # internal confirmation: >= 2 of the 3 models agree
+# Models are precomputed independently and land on DIFFERENT hours (measured: GFS 15/18, EURO+ICON
+# 13/16), so cross-model agreement is joined on the NEAREST frame within this window rather than an
+# exact valid_time. Set to the frame spacing (SPOT_RATINGS_PRECOMPUTE_HOURS='0,3'). See
+# apply_gate_to_frames for the measurement that forced it.
+CONFIRM_TIME_TOLERANCE_H = 3.0
 REPORT_FRESH_H = 12.0              # a beach observation speaks for about half a day
 REPORT_CONFIRM_GOOD_STARS = 4
 REPORT_CONFIRM_EPIC_STARS = 5
@@ -72,6 +77,23 @@ def internal_confirmation(scores_by_model):
     if sum(1 for v in vals if v >= GOOD_T) >= AGREE_MODELS:
         return "good"
     return None
+
+
+def _parse_time(value):
+    """An ISO timestamp as an aware datetime, or None. Used to join frames across models by time.
+
+    Returns None rather than raising: a frame with an unparseable valid_time must not take down a
+    precompute upload. It simply finds no cross-model peers and stays capped, which is the safe
+    direction for a gate whose whole job is to withhold the top two levels."""
+    if isinstance(value, datetime):
+        return value if value.tzinfo else value.replace(tzinfo=timezone.utc)
+    if not isinstance(value, str):
+        return None
+    try:
+        parsed = datetime.fromisoformat(value.replace("Z", "+00:00"))
+    except ValueError:
+        return None
+    return parsed if parsed.tzinfo else parsed.replace(tzinfo=timezone.utc)
 
 
 def _report_age_h(rep, now):
@@ -187,13 +209,42 @@ def apply_gate_to_frames(frames, reports_by_spot, now=None) -> int:
     def _raw_of(s):
         return s.get("raw_score") if s.get("raw_score") is not None else s.get("score")
 
-    # Cross-model index of UNGATED scores: (spot_id, valid_time) -> {model: raw score}
-    xmodel = {}
+    # Cross-model index of UNGATED scores, joined on the NEAREST valid_time per model rather than an
+    # exact match.
+    #
+    # ⚠️⚠️ THE EXACT JOIN WAS WRONG AND SILENTLY SEVERE. The models are precomputed independently and
+    # land on DIFFERENT hours — measured 2026-07-30 on the live blob: GFS at 15:00/18:00, EURO and
+    # ICON at 13:00/16:00. GFS therefore shared a valid_time with nobody, 50% of spot-hours had
+    # exactly one model available, and **59.9% of all good/epic scores were capped for want of a peer
+    # frame**. That is not the gate doing its job. Absence of a peer is not evidence of disagreement,
+    # and capping on it would have made the SAME spot in the SAME conditions read differently
+    # depending on which model the user had selected.
+    #
+    # Tolerance is the frame spacing (SPOT_RATINGS_PRECOMPUTE_HOURS is '0,3'), so each model is
+    # compared against its closest opinion and never against a frame further away than the ladder's
+    # own step. Measured: capping falls 59.9% -> 24.9%, and the +/-2h and +/-3h results differ by 6
+    # spot-hours, so this sits on a plateau rather than a knife edge. Swell height and period - what
+    # actually drives the score - are coherent over a couple of hours; the join is not.
+    by_spot = {}
     for fr in frames or []:
+        vt = _parse_time(fr.get("valid_time"))
         for s in fr.get("spots") or []:
-            if _raw_of(s) is None:
+            if _raw_of(s) is None or vt is None:
                 continue
-            xmodel.setdefault((s.get("spot_id"), fr.get("valid_time")), {})[fr.get("model")] = _raw_of(s)
+            by_spot.setdefault(s.get("spot_id"), []).append((fr.get("model"), vt, _raw_of(s)))
+
+    def _peers(spot_id, model, when):
+        """Nearest raw score from each OTHER model within the tolerance, as {model: score}."""
+        best = {}
+        for other, t, sc in by_spot.get(spot_id, ()):
+            if other == model or when is None:
+                continue
+            gap = abs((t - when).total_seconds())
+            if gap > CONFIRM_TIME_TOLERANCE_H * 3600 + 1:
+                continue
+            if other not in best or gap < best[other][0]:
+                best[other] = (gap, sc)
+        return {k: v[1] for k, v in best.items()}
 
     n_capped = 0
     for fr in frames or []:
@@ -202,8 +253,11 @@ def apply_gate_to_frames(frames, reports_by_spot, now=None) -> int:
             if raw is None:
                 continue
             reports = (reports_by_spot or {}).get(str(s.get("spot_id")))
+            # This model's own score counts toward the >= 2 agreement, alongside its nearest peers.
+            scores = dict(_peers(s.get("spot_id"), fr.get("model"), _parse_time(fr.get("valid_time"))))
+            scores[fr.get("model")] = raw
             confirm = combine_confirmations(
-                internal_confirmation(xmodel.get((s.get("spot_id"), fr.get("valid_time")))),
+                internal_confirmation(scores),
                 report_confirmation(reports, now),
             )
             nudged = float(raw) + report_nudge(raw, reports, now)
