@@ -66,11 +66,21 @@ _REF_SAT_MULT = 2.5
 def size_score(surf_h_m, reference_size_m=None):
     """Rideability gate [0,1] from breaking height, calibrated to the spot's LOCAL size expectation.
 
-    ``reference_size_m`` is the spot's own good-day breaking height (p80 climatology). The curve is
+    ``reference_size_m`` is the spot's own TYPICAL surfable day (median climatology). The curve is
     anchored, not saturated, at the reference: below the absolute ~0.2 m rideability floor the score is
     0 (unsurfable anywhere); it rises to _REF_ANCHOR_SCORE (0.6) at the reference and reaches 1.0 at
-    _REF_SAT_MULT (2.5×) the reference — a spot's ordinary good day rates mid-scale (fair-ish once wind/
-    period multiply in), and only a well-overhead-for-THIS-spot day maxes the size factor. When
+    _REF_SAT_MULT (2.5×) the reference — a spot's typical day rates mid-scale (fair-ish once wind/
+    period multiply in), and only a well-overhead-for-THIS-spot day maxes the size factor.
+
+    ★ TYPICAL, not "good day" (this said p80 until 2026-07-30, and the statistic was p80 to match).
+    The 2.5x multiplier is what forces it: if the reference were already a GOOD day, the top of the
+    scale would sit at 2.5x a good day — a once-in-years wave — and no spot could reach it. Anchored
+    at the median instead, 2.5x lands on a genuinely epic-for-this-spot day. Measured on the live
+    catalogue: Florida's median reference is 0.785 m, so the size factor maxes at 1.96 m = 6.4 ft,
+    which is exactly where the owner places epic for Florida ("we need pumping 6-8 ft"). At p80 the
+    same spot maxed at 7.8 ft and every anchor below it read a level too low.
+
+    When
     ``reference_size_m`` is None the LEGACY global absolute curve is used unchanged (linear to 1.0 at
     1.2 m) — the live default until RATING_LOCAL_SIZE ships. Note the two branches are intentionally
     different shapes: None = absolute/legacy, supplied = local-relative (user anchors 2026-07-12).
