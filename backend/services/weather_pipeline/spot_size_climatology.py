@@ -32,7 +32,26 @@ SCHEMA_VERSION = 1
 BIN_WIDTH_M = 0.2
 N_BINS = 25
 _HMIN_RIDEABLE_M = 0.2                 # mirror surf_rating._HMIN_RIDEABLE_M — samples <= this are excluded
-REF_PERCENTILE = 0.80                  # p80 of surfable-day heights = the spot's "good day" size
+# ⚠️ WAS 0.80 ("the spot's good day"). MEASURED WRONG against the owner's own acceptance anchors on
+# the live 1,821-entry blob, 2026-07-30. At p80 Florida's reference is 0.954 m and only 2 of the 5
+# owner anchors pass — WORSE than the 4/5 the global 1.2 m default manages, because a too-high
+# reference makes everything read small: clean 2-3 ft drops to poor_fair and PUMPING 6-8 ft falls out
+# of epic, which is the opposite of what the owner asked for.
+#
+#   pctl   FL ref   anchors        pctl   FL ref   anchors
+#   0.30    0.653     4/5          0.55    0.809     5/5
+#   0.40    0.735     5/5          0.60    0.833     5/5
+#   0.45    0.762     5/5          0.65    0.856     4/5
+#   0.50    0.785     5/5   <-     0.80    0.954     2/5   (the old value)
+#
+# p40-p60 is a PLATEAU, not a knife edge, so this is margin rather than a fit to five points. 0.50 is
+# its centre and the honest description of the quantity: the spot's TYPICAL surfable day, not a good
+# one. Big-wave spots stay big — Pipeline 1.56 m, Mavericks 1.81 m, Uluwatu 2.4 m — so the small-vs-
+# large shape the whole feature depends on is preserved.
+#
+# ★ Retroactive: the blob stores HISTOGRAMS and the reference is derived at read time, so this applies
+# to the existing 1,821 entries immediately. No re-accumulation, no waiting for ingest.
+REF_PERCENTILE = 0.50                  # median surfable-day height = the spot's typical day
 MIN_SAMPLES = 12                       # below this a spot has no reference yet (bootstrap → global default)
 REF_CLAMP_MIN_M = 0.4                  # a reference below chest-of-a-grom is nonsense; floor it
 REF_CLAMP_MAX_M = 4.0                  # and cap it (a spot whose good day is > ~13 ft is the ceiling)
@@ -69,17 +88,35 @@ def hist_count(hist) -> int:
 
 
 def percentile_from_hist(hist, p: float) -> Optional[float]:
-    """The p-quantile (0..1) breaking height from a histogram, using bin UPPER edges (conservative — the
-    'good day' is at least this big). None if the histogram is empty."""
+    """The p-quantile (0..1) breaking height from a histogram, INTERPOLATED inside the bin.
+
+    ⚠️ This used to return the bin's UPPER EDGE, described as "conservative". Measured against the
+    live 1,821-entry blob (2026-07-30) that choice cost two things at once:
+
+      * a systematic HIGH BIAS of up to a full bin, ~+0.13 m in practice. Sebastian Inlet read
+        1.20 m where its interpolated p80 is 1.053; New Smyrna read 1.00 where it is 0.855.
+      * QUANTISATION to multiples of BIN_WIDTH_M (0.2 m). The reference could only ever be
+        0.8 / 1.0 / 1.2 — and the reference window that satisfies the owner's calibration anchors
+        is [0.65, 0.85], itself only 0.2 m wide. A 0.2 m grid cannot be calibrated onto a 0.2 m
+        target: exactly one grid point falls inside it, so most spots could not land there at all.
+
+    Interpolating is also just the standard way to read a quantile off a histogram. Bin i spans
+    [i*W, (i+1)*W); the quantile sits a fraction of the way through whichever bin contains it.
+    """
     total = hist_count(hist)
     if total <= 0:
         return None
     target = p * total
     cum = 0
     for i, c in enumerate(hist):
+        if c <= 0:
+            continue
+        if cum + c >= target:
+            # Fraction of THIS bin's samples needed to reach the target.
+            frac = (target - cum) / c
+            frac = 0.0 if frac < 0.0 else (1.0 if frac > 1.0 else frac)
+            return round((i + frac) * BIN_WIDTH_M, 3)
         cum += c
-        if cum >= target:
-            return round((i + 1) * BIN_WIDTH_M, 3)   # upper edge of the bin the quantile falls in
     return round(N_BINS * BIN_WIDTH_M, 3)
 
 

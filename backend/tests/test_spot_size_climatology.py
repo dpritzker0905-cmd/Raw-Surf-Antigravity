@@ -17,8 +17,49 @@ def test_percentile_and_reference():
     h = sc.merge_samples(None, samples)
     p80 = sc.percentile_from_hist(h, 0.80)
     assert 1.5 <= p80 <= 1.9
+    # ⚠️ Assert the RELATIONSHIP, not a hardcoded 0.80. This test previously compared the reference
+    # against p80 directly, so it pinned the DEFAULT rather than the behaviour and went red the
+    # moment REF_PERCENTILE was corrected — the same shape as the guard that pinned a literal call
+    # spelling and sat red for 157 commits.
     ref = sc.reference_from_hist(h)
-    assert ref == min(sc.REF_CLAMP_MAX_M, max(sc.REF_CLAMP_MIN_M, p80))
+    at_default = sc.percentile_from_hist(h, sc.REF_PERCENTILE)
+    assert ref == min(sc.REF_CLAMP_MAX_M, max(sc.REF_CLAMP_MIN_M, at_default))
+
+
+def test_percentile_interpolates_instead_of_snapping_to_bin_edges():
+    """It returned the bin's UPPER EDGE, which biased every reference high by up to a full bin
+    (~+0.13 m measured on the live blob) and quantised it to multiples of 0.2 m. The owner's
+    acceptance window for a Florida reference is [0.65, 0.85] — 0.2 m wide — so a 0.2 m grid could
+    not be calibrated onto it at all: exactly one grid point falls inside."""
+    # Everything in the [0.8, 1.0) bin. The median sits INSIDE that bin, not at its top edge.
+    h = sc.merge_samples(None, [0.85, 0.87, 0.9, 0.93, 0.95] * 10)
+    med = sc.percentile_from_hist(h, 0.50)
+    assert 0.8 <= med < 1.0, f"median {med} escaped the bin its samples are in"
+    assert med % sc.BIN_WIDTH_M != 0, f"{med} snapped to a bin edge instead of interpolating"
+
+    # Monotone in p, and never outside the populated range.
+    vals = [sc.percentile_from_hist(h, p) for p in (0.1, 0.25, 0.5, 0.75, 0.9)]
+    assert vals == sorted(vals), f"percentile not monotone in p: {vals}"
+
+
+def test_ref_percentile_stays_in_the_measured_owner_anchor_plateau():
+    """★ The number itself is load-bearing and was measured, not chosen.
+
+    Against the live 1,821-entry blob (2026-07-30), Florida's reference and the owner's five
+    acceptance anchors move together:
+
+        p0.30 -> 0.653 m  4/5      p0.55 -> 0.809 m  5/5
+        p0.40 -> 0.735 m  5/5      p0.60 -> 0.833 m  5/5
+        p0.50 -> 0.785 m  5/5      p0.65 -> 0.856 m  4/5
+                                   p0.80 -> 0.954 m  2/5   <- the old default
+
+    At the old p80 the local reference was WORSE than the global 1.2 m default it replaces (2/5 vs
+    4/5): clean 2-3 ft read poor_fair and pumping 6-8 ft fell out of epic, the opposite of what the
+    owner asked for. p40-p60 is a plateau, so this is margin, not a fit to five points."""
+    assert 0.40 <= sc.REF_PERCENTILE <= 0.60, (
+        f"REF_PERCENTILE={sc.REF_PERCENTILE} is outside the measured 5/5 plateau [0.40, 0.60]; "
+        f"re-run backend/scripts/local_size_gonogo.py before changing it"
+    )
 
 
 def test_reference_none_until_min_samples():
