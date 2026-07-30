@@ -66,16 +66,23 @@ async def test_dwd_path_saves_natives_plus_extended_estimated_tail(monkeypatch):
     # Natives: authoritative (no estimation), hourly.
     assert native["estimated_after_index"] is None
     assert native["step"] == 1
-    # Tail: estimated from index 0, 3-hourly, loop-extrapolation basis.
+    # Tail: estimated from index 0, loop-extrapolation basis, pre-aligned to the 3h lattice and
+    # saved entry-by-entry (step=1 over 3-hourly entries). The old blind step=3 from the slice
+    # start produced native_max+1h/+4h/+7h — permanently off the scrub lattice (2026-07-30:
+    # all 52 live tail products sat at :13/:16/:19/:22, so every slot served a substituted
+    # neighbour forever).
     assert tail["estimated_after_index"] == 0
-    assert tail["step"] == 3
+    assert tail["step"] == 1
     assert tail["estimate_basis"]["type"] == "icon_loop_extrapolation"
 
-    # The tail slice starts STRICTLY AFTER the native max and reaches ~336h.
+    # The tail starts STRICTLY AFTER the native max, lands ON the 3-hourly UTC lattice within one
+    # lattice step, and reaches ~336h at 3-hourly cadence.
     native_max = _parse_om_time(_dwd_results(1)[0]["hourly"]["time"][-1])
-    tail_times = tail["results"][0]["hourly"]["time"]
-    assert _parse_om_time(tail_times[0]) > native_max
-    assert len(tail_times) >= (14 * 24 - NATIVE_HOURS) - 1  # ~156 hourly entries beyond the native max
+    tail_times = [_parse_om_time(t) for t in tail["results"][0]["hourly"]["time"]]
+    assert tail_times[0] > native_max
+    assert (tail_times[0] - native_max).total_seconds() <= 3 * 3600
+    assert all(t.minute == 0 and t.hour % 3 == 0 for t in tail_times)
+    assert len(tail_times) >= (14 * 24 - NATIVE_HOURS) // 3 - 1  # ~52 lattice entries beyond the native max
 
     sched.store.prune_superseded_products.assert_called_once()  # one prune covering both saves
 
@@ -109,3 +116,24 @@ def test_slice_hours_after_trims_strictly_after():
     assert len(sliced[0]["hourly"]["wind_speed_10m"]) == NATIVE_HOURS - 101
     # empty when nothing is after the cut
     assert _slice_hours_after(results, _parse_om_time(results[0]["hourly"]["time"][-1])) is None
+
+
+def test_slice_hours_after_lattice_alignment():
+    """align_step_h=3 keeps only entries ON the 3-hourly UTC lattice — re-enacts the off-lattice
+    defect: a native end at ..T14:00 used to yield a tail at 15:00 via +1h then blind step-3 from
+    wherever the slice began; with an end at ..T12:00 it yielded 13:00/16:00/19:00 forever."""
+    results = _dwd_results(1)
+    # Cut at an off-lattice hour (base+14h = 14:00 UTC since base is midnight-aligned)
+    cut = _parse_om_time(results[0]["hourly"]["time"][14])
+    sliced = _slice_hours_after(results, cut, align_step_h=3)
+    assert sliced is not None
+    times = [_parse_om_time(t) for t in sliced[0]["hourly"]["time"]]
+    assert times[0].hour == 15  # next lattice hour after 14:00, NOT 15:00-shifted-off-grid
+    assert all(t.minute == 0 and t.hour % 3 == 0 for t in times)
+    assert all(t > cut for t in times)
+    # spacing is exactly 3h — entry-by-entry save (step=1) preserves the lattice
+    assert all((b - a).total_seconds() == 3 * 3600 for a, b in zip(times, times[1:]))
+    # cut exactly ON the lattice: first kept entry is the NEXT lattice hour, not the cut itself
+    cut_on = _parse_om_time(results[0]["hourly"]["time"][12])
+    sliced_on = _slice_hours_after(results, cut_on, align_step_h=3)
+    assert _parse_om_time(sliced_on[0]["hourly"]["time"][0]) == cut_on + timedelta(hours=3)

@@ -25,16 +25,31 @@ def _parse_om_time(s):
         return None
 
 
-def _slice_hours_after(results, after_dt):
+def _slice_hours_after(results, after_dt, align_step_h=None):
     """Trim open-meteo-shaped point results to hourly entries STRICTLY AFTER after_dt (the extended
-    tail slice — mirror of the EURO marine gfs_ext slice in scheduler.py). Returns None when empty."""
+    tail slice — mirror of the EURO marine gfs_ext slice in scheduler.py). Returns None when empty.
+
+    align_step_h: additionally keep only entries ON the N-hourly UTC lattice (hour % N == 0,
+    minute 0). Without it the tail starts at native_max+1h and every product after steps from
+    THERE — a native end of ..T12:00 yields estimates at 13:00/16:00/19:00, so every 3-hourly
+    scrub slot serves a 1h-substituted neighbour forever (measured live 2026-07-30: all 52 ICON
+    wind tail products sat off-lattice)."""
     if not results or after_dt is None:
         return None
+
+    def _keep_time(t):
+        dt = _parse_om_time(t)
+        if not dt or dt <= after_dt:
+            return False
+        if align_step_h and (dt.minute != 0 or dt.hour % align_step_h != 0):
+            return False
+        return True
+
     sliced = []
     for pt in results:
         hourly = pt.get("hourly", {}) or {}
         times = hourly.get("time", []) or []
-        keep = [i for i, t in enumerate(times) if (_parse_om_time(t) and _parse_om_time(t) > after_dt)]
+        keep = [i for i, t in enumerate(times) if _keep_time(t)]
         if not keep:
             continue
         new_hourly = {k: ([arr[i] for i in keep] if (isinstance(arr, list) and len(arr) == len(times)) else arr)
@@ -569,7 +584,10 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                     break
             from services.weather_pipeline.viewport_helper import extend_icon_wind_to_14d
             extend_icon_wind_to_14d(results)  # mutates: day-looped hourly arrays out to 336h
-            ext_results = _slice_hours_after(results, native_max)
+            # align_step_h=3: tail entries snap to the 3-hourly UTC lattice (00/03/06...), so the
+            # slice below is already 3-hourly → save with step=1. The old blind step=3 from the
+            # slice start produced native_max+1h/+4h/+7h — permanently off the scrub lattice.
+            ext_results = _slice_hours_after(results, native_max, align_step_h=3)
             if ext_results:
                 native_h = None
                 try:
@@ -581,7 +599,7 @@ async def ingest_icon_wind_global_impl(scheduler) -> bool:
                     model="ICON", provider="open-meteo", domain="wind", layer="wind",
                     bbox=global_region, resolution=resolution, run_time=run_time,
                     region_id="global_coarse", coverage_mode="global_tile",
-                    is_test_env=env["is_test_env"], step=3,
+                    is_test_env=env["is_test_env"], step=1,  # entries are already lattice-aligned 3-hourly
                     log_prefix="[Pipeline Scheduler] ICON wind (14d loop-ext tail) global_coarse",
                     estimated_after_index=0,
                     estimate_basis={**icon_estimate_basis, "native_horizon_hours": native_h or 180},
