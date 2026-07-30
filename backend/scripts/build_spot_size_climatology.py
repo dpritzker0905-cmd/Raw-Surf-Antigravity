@@ -117,6 +117,8 @@ def main():
     ap.add_argument("--stride", type=int, default=DEFAULT_STRIDE_H, help="sample stride in hours")
     ap.add_argument("--upload", action="store_true", help="merge + upload the blob to L2")
     ap.add_argument("--dry-run", action="store_true", help="(default) fetch+transform+report only")
+    ap.add_argument("--no-resume", action="store_true",
+                    help="re-fetch spots even if already backfilled (default resumes)")
     args = ap.parse_args()
     if not (args.query or args.limit or args.all):
         ap.error("pick a scope: --query, --limit or --all")
@@ -131,18 +133,41 @@ def main():
         spots = [s for s in spots if any(n in (s.get("name") or "").lower() for n in needles)]
     if args.limit:
         spots = spots[:args.limit]
+
+    # RESUME (2026-07-30, learned on the first full run): the free tier's budget is WEIGHTED —
+    # a 4-year historical call counts as many calls, and the first run hit sustained 429 at spot
+    # 152 of 1,773. Spots whose blob record already carries this backfill's marker are skipped, so
+    # the catalogue completes across daily chunks. --no-resume re-fetches everything in scope.
+    if not args.no_resume:
+        live_now = load_live_blob(session, url, svc) or {}
+        done = {sid for sid, rec in (live_now.get("spots") or {}).items()
+                if isinstance(rec, dict) and (rec.get("backfill") or {}).get("from") == HISTORY_START}
+        before = len(spots)
+        spots = [s for s in spots if str(s["id"]) not in done]
+        print(f"resume: {before - len(spots)} spots already backfilled, {len(spots)} remaining")
     print(f"spots in scope: {len(spots)}  (history {HISTORY_START}->today, stride {args.stride}h)")
 
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     results, no_geometry = {}, 0
+    consecutive_429 = 0
     t0 = time.time()
     for i, s in enumerate(spots):
         sid, name = str(s["id"]), s.get("name") or "?"
         try:
             samples, n_off, geo_ok = breaking_samples_for_spot(
                 float(s["latitude"]), float(s["longitude"]), end_date, args.stride)
+            consecutive_429 = 0
         except Exception as e:
-            print(f"  [{i+1}/{len(spots)}] {name}: FETCH/TRANSFORM FAILED — {str(e)[:120]}")
+            msg = str(e)[:120]
+            print(f"  [{i+1}/{len(spots)}] {name}: FETCH/TRANSFORM FAILED — {msg}")
+            if "429" in msg:
+                consecutive_429 += 1
+                if consecutive_429 >= 5:
+                    # CIRCUIT BREAKER: the budget is exhausted — burning 1,600 more refused calls
+                    # helps nobody. Save what we have; the resume filter continues tomorrow.
+                    print(f"  BUDGET EXHAUSTED after {len(results)} spots — halting; "
+                          f"re-run tomorrow to resume where this left off.")
+                    break
             continue
         if not geo_ok:
             no_geometry += 1
@@ -159,6 +184,9 @@ def main():
     if not args.upload:
         print("\nDRY RUN — nothing uploaded. Re-run with --upload to MERGE into the live blob, "
               "then run scripts/local_size_gonogo.py for the owner-anchor go/no-go.")
+        return
+    if not results:
+        print("nothing to upload (no spots processed this run).")
         return
 
     live = load_live_blob(session, url, svc) or {}
