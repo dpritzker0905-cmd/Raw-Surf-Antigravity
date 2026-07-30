@@ -1,5 +1,9 @@
 # HANDOFF 2026-07-30 NIGHT — the blank day was self-inflicted, and the height error lives at the site
 
+> **PART 2 (late night) is at the bottom — read it too: the census PROOF landed, the CDS lane
+> opened, the climatology got a single-writer inbox after a measured erasure, and the skill
+> ledger + two nightly campaigns are live.**
+
 **Continues `HANDOFF-2026-07-30-real-data-for-every-glyph.md`.** Read
 [[standing-work-rules-user-mandate]] and the spine first.
 
@@ -127,3 +131,65 @@ flakes under parallel pytest load; passes alone.
 4. ★★ **Measure the current state before fixing the reported state.** The reported EURO blank day
    was not reproducible; measuring found the live ICON hole + the real blank-maker (the purge).
 5. ★ cp1252 consoles cannot print ✗/em-dash — scripts emit ASCII (third occurrence of this trap).
+
+---
+
+# PART 2 — LATE NIGHT: the proof, the 47-year lane, and the erasure that fixed the architecture
+
+Commits `f827ff65` `165c6597` `9a54ce03` `44020553` `297b9bd9` `d472a075` (+ research
+`7ab7ac04` `aca57830`), all pushed, CI green.
+
+## A. ✅ THE BLANK-DAY FIXES ARE LIVE-PROVEN (run 30570760864, first fixed-SHA cycle)
+Run log: NO "Startup hygiene: Purged" line (old code purged 144 products every startup) · ICON
+tail "beyond 2026-08-07 **00:00**" (on-lattice) · "**[Lattice Fill] 54 interpolated frames saved
+(54 candidates, 0 non-fillable wide holes)**". Census after: **every lane 0 dead / 0 off-lattice**;
+substituted 12+14+16+22+53 → 0 everywhere except EURO wind global_mid (2 remain — brackets arrived
+after the fill step; idempotent next cycle). `scripts/timeline_slot_census.py --fail-on-dead` is
+the permanent guard.
+
+## B. ✅ THE CDS/ERA5 LANE IS OPEN (user registered; `~/.cdsapirc` present)
+`reanalysis-era5-single-levels-timeseries`: a spot's FULL hourly history (1979→, 416,952 rows,
+100% finite) in ~32 s / 8 MB / one request — but its period is the MEAN (no peak variable). The
+GRIDDED dataset has `peak_wave_period` ⇒ **v3 composite** (`era5_deepen_climatology.py`): 47 y of
+(Hs,Tm,dir) × the spot's own hour-matched Tp/Tm from one tiny gridded year (⚠️ ERA5 WAVE fields
+are on the ~0.5° WAVE grid — a smaller area hits ZERO wave points and MARS fails; pad ±0.5°).
+**Validated: Sebastian Tp/Tm=1.242 ⇒ 47-y ref 1.152 m vs the independent 4-y OM lane's 1.145
+(0.6%).** The OM lane's `wave_period` is ALSO a mean — v2 (`9a54ce03`) selects the SWELL
+partition period (matches served peak 7.35-8.0 vs 7.35-8.38 at the shallow case; deep shelves are
+period-insensitive so the Mavericks 0.3% cross-val was blind to it).
+
+## C. ⚠️⚠️ THE ERASURE → ONE WRITER + INBOX (`d472a075`) — read before touching the blob
+The owner's proof audit found the 152-spot backfill GONE from the live blob within an hour of a
+verified upload (race guard fired AND recovered — still erased). Two writers read-modify-writing
+one key cannot be made safe by checking harder. Worse, latent: the precompute merges frames onto
+`load_size_climatology_l2()` — **a transient None rebuilt the ENTIRE blob from scratch**.
+Contract now: **the precompute cron is the ONLY writer**; scripts drop batches in
+`spot_ratings/climatology_inbox/` (folded in-cycle: bin-wise add, markers carried, dedup by
+batch_id, malformed consumed); resume filters ALSO see unconsumed inbox batches; a failed base
+load retries once then **SKIPS** (never rebuilds; a genuinely-absent blob is seeded by hand).
+
+## D. ✅ THE SKILL LEDGER (`297b9bd9`) — "are we near the competition?" becomes a number
+Every calibration run ledgers +24/48/72h forecasts at all ~60 mapped buoys (ours + an Open-Meteo
+lane, one batched call) → `calibration/skill/pending.json`; scores them against fresh NDBC truth
+when the target hour arrives → monthly `calibration/skill/scored-YYYY-MM.json` + a per-source×lead
+MAE table in the report (`forecast_skill`). Honesty pins: EARLIEST forecast per
+(source,buoy,target,lead-bucket) wins; join ≤1.5h; 0.0-model = coverage hole. First rows: the
+next calibration cycle after this push. Meaningful table: ~1-2 weeks. Surfline third lane:
+deferred (spot-id mapping + ToS).
+
+## E. AUTONOMOUS FROM TONIGHT (Windows scheduled tasks, Interactive-only — machine must be on)
+* **"RawSurf Climatology Backfill Resume"** daily 06:10 — OM 4-y lane, ~150 spots/day → inbox.
+* **"RawSurf ERA5 Climatology Campaign"** daily 21:30 — v3 47-y lane, `--limit 150`/night → inbox
+  (~12 nights). Both no-op when done. Logs: `%LOCALAPPDATA%\raw-surf-*.log`.
+* Retention roll-up: first fire on tomorrow's first <06 UTC calibration run
+  (`calibration/history/residuals-YYYY-MM.json`).
+
+## F. THE GATES TO STATE-OF-THE-ART (in order, each with its instrument)
+1. ~~Data integrity~~ ✅ proven (census).
+2. **Climatology full catalogue** (campaigns, autonomous) → `local_size_gonogo.py` GO vs the
+   owner anchors → flip `RATING_LOCAL_SIZE` (today 4 ft ≡ 12 ft — the biggest rating lever).
+3. **Skill verdict** (~2 weeks accumulation) → per-lead MAE vs the competitor lane on buoy truth.
+4. **Per-site height offsets** from retention depth (the 67.5% between-buoy component).
+5. **Shore normals** — top Jacobian lever (6.0-23.6 pts); geometry-in-DB awaits the owner.
+6. **Partitions into the RATING** (+ precompute cost) · then Kr+H1/10 together.
+7. **Expansion to 4,000+ spots** — ONLY after gate 3 says "near" (task #6; CC-BY sources, ODbL trap).
