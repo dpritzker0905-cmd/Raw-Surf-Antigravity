@@ -43,23 +43,48 @@ DEFAULT_STRIDE_H = 3                  # 3-hourly sampling: identical percentiles
 CALL_PACING_S = 0.25                  # ~240 calls/min, well under the free tier's 600/min
 
 
+BACKFILL_VERSION = 2   # v2: swell-first period selector (v1 fed the MEAN period — see below)
+
+
 def fetch_spot_history(lat: float, lng: float, end_date: str):
-    """One call: the spot's full hourly offshore history (wave_height, period, direction)."""
+    """One call: the spot's full hourly offshore history.
+
+    ⚠️ PERIOD SEMANTICS (v2, measured 2026-07-30): the API's `wave_period` is a MEAN-class period,
+    not the peak our live chain feeds the transform — at Sebastian Inlet it read 4.9 s against a
+    served peak of 7.9 s (windsea drags the mean down), and the transform is period-nonlinear
+    exactly at shallow spots like it. The SWELL partition period matched the served peak there
+    almost exactly (7.35-8.0 vs 7.35-8.38 s), so v2 selects swell-first. Deep-shelf spots
+    (Mavericks: Kf/Ks ≈ 1, cap never binds) are measured period-INSENSITIVE, so the selector
+    change is harmless where the swell label diverges from the served peak."""
     url = (f"{OM_MARINE}?latitude={lat}&longitude={lng}"
-           f"&hourly=wave_height,wave_period,wave_direction"
+           f"&hourly=wave_height,wave_period,swell_wave_height,swell_wave_period,"
+           f"swell_wave_direction,wind_wave_period"
            f"&start_date={HISTORY_START}&end_date={end_date}&timezone=UTC")
     req = urllib.request.Request(url, headers={"User-Agent": "raw-surf-climatology"})
     with urllib.request.urlopen(req, timeout=120) as r:
         d = json.load(r)
     h = d.get("hourly") or {}
-    return h.get("time") or [], h.get("wave_height") or [], h.get("wave_period") or [], h.get("wave_direction") or []
+    return (h.get("time") or [], h.get("wave_height") or [], h.get("wave_period") or [],
+            h.get("swell_wave_height") or [], h.get("swell_wave_period") or [],
+            h.get("swell_wave_direction") or [], h.get("wind_wave_period") or [])
+
+
+def _select_period_direction(mean_p, swell_h, swell_p, swell_d, wind_p):
+    """The surf-relevant (period, direction) for one hour: the SWELL train's when a swell exists
+    (>=0.15 m — the spectral peak rides it even when windsea height edges it out, measured), else
+    the windsea's period with no direction (neutral exposure), else the mean-period fallback."""
+    if swell_h is not None and swell_h >= 0.15 and swell_p and swell_p > 0:
+        return swell_p, swell_d
+    if wind_p and wind_p > 0:
+        return wind_p, None
+    return mean_p, None
 
 
 def breaking_samples_for_spot(lat: float, lng: float, end_date: str, stride_h: int):
     """The spot's TRANSFORMED breaking-height samples: geometry resolved ONCE, every archived
     offshore sample through the production chain. Returns (samples, n_offshore, geometry_ok)."""
     from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
-    times, hs, tp, dr = fetch_spot_history(lat, lng, end_date)
+    times, hs, mean_tp, sw_h, sw_p, sw_d, wn_p = fetch_spot_history(lat, lng, end_date)
     try:
         geo = resolve_surf_geometry(float(lat), float(lng))
     except Exception:
@@ -67,9 +92,16 @@ def breaking_samples_for_spot(lat: float, lng: float, end_date: str, stride_h: i
     samples, n_off = [], 0
     for i in range(0, len(times), max(1, stride_h)):
         h = hs[i] if i < len(hs) else None
-        p = tp[i] if i < len(tp) else None
-        d = dr[i] if i < len(dr) else None
-        if h is None or p is None or h <= 0 or p <= 0:
+        if h is None or h <= 0:
+            continue
+        p, d = _select_period_direction(
+            mean_tp[i] if i < len(mean_tp) else None,
+            sw_h[i] if i < len(sw_h) else None,
+            sw_p[i] if i < len(sw_p) else None,
+            sw_d[i] if i < len(sw_d) else None,
+            wn_p[i] if i < len(wn_p) else None,
+        )
+        if p is None or p <= 0:
             continue
         n_off += 1
         breaking = None
@@ -141,7 +173,7 @@ def main():
     if not args.no_resume:
         live_now = load_live_blob(session, url, svc) or {}
         done = {sid for sid, rec in (live_now.get("spots") or {}).items()
-                if isinstance(rec, dict) and (rec.get("backfill") or {}).get("from") == HISTORY_START}
+                if isinstance(rec, dict) and (rec.get("backfill") or {}).get("v") == BACKFILL_VERSION}
         before = len(spots)
         spots = [s for s in spots if str(s["id"]) not in done]
         print(f"resume: {before - len(spots)} spots already backfilled, {len(spots)} remaining")
@@ -198,12 +230,12 @@ def main():
             # Merge counts bin-wise: the live rolling histogram keeps accumulating on top.
             combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
             live_spots[sid] = {"hist": combined, "n": hist_count(combined),
-                               "backfill": {"source": "om_marine", "from": HISTORY_START,
+                               "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
                                             "to": end_date, "n": rec["n"]}}
             merged_into += 1
         else:
             live_spots[sid] = {"hist": rec["hist"], "n": rec["n"],
-                               "backfill": {"source": "om_marine", "from": HISTORY_START,
+                               "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
                                             "to": end_date, "n": rec["n"]}}
             merged_new += 1
     blob = {"schema_version": SCHEMA_VERSION,
@@ -228,11 +260,11 @@ def main():
             if existing and isinstance(existing.get("hist"), list):
                 combined = [a + b for a, b in zip(existing["hist"], rec["hist"])]
                 live_spots[sid] = {"hist": combined, "n": hist_count(combined),
-                                   "backfill": {"source": "om_marine", "from": HISTORY_START,
+                                   "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
                                                 "to": end_date, "n": rec["n"]}}
             else:
                 live_spots[sid] = {"hist": rec["hist"], "n": rec["n"],
-                                   "backfill": {"source": "om_marine", "from": HISTORY_START,
+                                   "backfill": {"source": "om_marine", "v": BACKFILL_VERSION, "from": HISTORY_START,
                                                 "to": end_date, "n": rec["n"]}}
         upload_blob(session, url, svc, {"schema_version": SCHEMA_VERSION,
                                         "updated_at": datetime.now(timezone.utc).isoformat(),
