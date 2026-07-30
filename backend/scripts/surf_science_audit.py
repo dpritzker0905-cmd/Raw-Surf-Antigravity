@@ -81,8 +81,12 @@ SCIENCE_FLAGS = {
     "RATING_LOCAL_SIZE":  ("0", "Grades size against the SPOT's own good day instead of a global "
                                 "1.2 m. Fixes 4ft==10ft saturation AND the owner's '4 ft is not "
                                 "epic' anchor."),
-    "RATING_OBS_GATE":    ("0", "Good/Epic require an observation (the published Surfline rule). "
-                                "⚠️ starved: ~14 usable observations exist in production."),
+    "RATING_OBS_GATE":    ("0", "Good/Epic require confirmation (the published Surfline rule: their "
+                                "model never assigns the top two levels). NOT starved -- the ~14 "
+                                "user reports are only ONE path; >=2 of GFS/EURO/ICON agreeing is "
+                                "the other and needs no reports. Measured 2026-07-30 on 10,638 live "
+                                "spot-hours: 274 capped (2.6%), 79% of good/epic survives, nothing "
+                                "at or below fair moves."),
     "RATING_TIDE":        ("0", "Tide state on every rated spot + tide_fit where a best_tide prior "
                                 "exists. ⚠️ measured 2026-07-29: 38 of 1,773 active spots (2.14%) "
                                 "carry that prior, so the FACTOR moves ~2% of spots -- but the tide "
