@@ -14,7 +14,7 @@ public data**, plus the method for turning it into accurate wave heights per spo
 | source | period | resolution | access | verified |
 |---|---|---|---|---|
 | **ERA5** (ECMWF reanalysis) | **1940 → present**, hourly | 0.5° waves / 0.25° atmos | free, Copernicus CDS API (netCDF/CSV); also Google Earth Engine | docs confirmed |
-| **NDBC buoys** | **1970 → present** | point, 10-min/hourly | free, per-station yearly `.txt.gz` + ERDDAP bulk CSV | ✅ `46012h1980.txt.gz` → **HTTP 200**; ERDDAP CSV returns rows |
+| **NDBC buoys** | **1970 → present** | point, 10-min/hourly | free, per-station yearly `.txt.gz` + ERDDAP bulk CSV | ✅ re-verified 2026-07-30 eve: `46001h1975` + `46012h1980` → **HTTP 200**; bulk CSV works on **coastwatch.pfeg.noaa.gov** (1981 hourly rows returned) — ⚠️ the polarwatch mirror 404s the datasetID |
 | **CDIP** (Scripps) | 1975 → present | point, directional spectra | free THREDDS/NetCDF, QC-flagged | ✅ already used by `validate_nearshore_transform.py` |
 | **WAVERYS** (CMEMS) | 1993 → present | 0.2° | free, Copernicus Marine | docs confirmed |
 | GFS / ICON / ECMWF-open | live only | 0.25°–0.5° | our current feeds | in production |
