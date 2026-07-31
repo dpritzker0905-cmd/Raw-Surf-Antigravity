@@ -6,7 +6,11 @@
 Continues `START-HERE-2026-08-01-the-direction-arc.md`, whose §1 (the waves arrow) and §4 queue are
 **untouched and still open** — this session was the *weather simulation* brief.
 
-Branch `dev`, `8ef6d8a0` → `75411144`, everything committed.
+Branch `dev`, `8ef6d8a0` → `a99a93b4`, everything committed, **NOT pushed** (`git push origin dev`).
+**Backend suite 1,647 passed / 0 failed** on a stable tree (1,601 before; +46 new). LOC ratchet clean
+(`weather_sim_mcp.py` 792 → 743).
+⚠️ The MCP server must be RESTARTED to expose `find_best_spot` — a running stdio server holds the
+tool list it booted with.
 
 | commit | what |
 |---|---|
