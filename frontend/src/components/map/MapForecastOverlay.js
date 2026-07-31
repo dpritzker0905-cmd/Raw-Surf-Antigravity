@@ -633,7 +633,11 @@ export const MapForecastOverlay = ({
 
       {/* Data cards */}
       <div className={`overflow-hidden transition-all duration-300 ${isCollapsed ? 'max-h-0 opacity-0' : 'max-h-[300px] opacity-100'}`}>
-        <div className="px-3 py-2 space-y-1.5 border-t border-transparent">
+        {/* role=list + listitem rows: without it the cards are anonymous divs and a screen reader
+            reads a run of bare numbers with no indication that 'Swell' and 'Surf' are different
+            quantities in the same units (2026-07-14 accessibility mandate). */}
+        <div role="list" aria-label="Forecast conditions at this point"
+             className="px-3 py-2 space-y-1.5 border-t border-transparent">
           {isLockedForecast ? (
             <div className={`text-[11px] font-bold ${textMuted} flex items-center gap-1.5 py-1`}>
               <Lock className="w-3.5 h-3.5 text-yellow-500" />
@@ -649,18 +653,29 @@ export const MapForecastOverlay = ({
               {cards.map((card, i) => {
                 const Icon = card.icon;
                 return (
-                  <div key={i} className="flex items-center gap-2">
+                  // ACCESSIBILITY (2026-07-14 mandate): each row is a listitem carrying its own
+                  // label+value as accessible text, so a screen reader hears "Surf, 2.1 feet
+                  // estimated" rather than an orphaned number. `ariaLabel` lets a card spell the
+                  // quantity out in full where the visible label is abbreviated for width — which
+                  // matters most here, since 'Swell' and 'Surf' are DIFFERENT QUANTITIES in the
+                  // same units and the distinction must survive being read aloud.
+                  <div key={i} role="listitem"
+                       aria-label={card.ariaLabel || `${card.label}: ${card.value}`}
+                       className="flex items-center gap-2">
                     <Icon
+                      aria-hidden="true"
                       className={`w-3.5 h-3.5 ${card.color} shrink-0 inline-block`}
                       style={(card.rotate !== undefined && card.rotate !== null) ? { transform: `rotate(${card.rotate}deg)`, transformOrigin: 'center' } : undefined}
                     />
-                    <span className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
+                    <span aria-hidden="true" className={`text-[10px] ${textMuted} w-12`}>{card.label}</span>
                     {card.badgeColor ? (
-                      <span className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
+                      // Rating is conveyed by COLOR + TEXT, never colour alone (mandate): the pill's
+                      // text is the level name, and the row's aria-label repeats it.
+                      <span aria-hidden="true" className="text-[11px] font-bold px-2 py-0.5 rounded-full" style={{ backgroundColor: card.badgeColor, color: '#fff' }}>{card.value}</span>
                     ) : (
                       // Provisional (grid-sampled) values render dimmed alongside their '…' text
                       // marker until the exact-point authority lands; works in all three themes.
-                      <span className={`text-xs font-bold ${textClass} transition-opacity duration-300${card.provisional ? ' opacity-60' : ''}`}>{card.value}</span>
+                      <span aria-hidden="true" className={`text-xs font-bold ${textClass} transition-opacity duration-300${card.provisional ? ' opacity-60' : ''}`}>{card.value}</span>
                     )}
                   </div>
                 );

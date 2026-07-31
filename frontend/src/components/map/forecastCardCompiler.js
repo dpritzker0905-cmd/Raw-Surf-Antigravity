@@ -240,7 +240,48 @@ export function compileForecastCards({
       }
     }
 
-    cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-blue-300', provisional: isProvisionalPaint });
+    // ── SURF FIRST, THEN SWELL (2026-07-31, owner decision on #17/#10) ────────────────────────
+    // The box used to lead with an unlabelled 'Height' card carrying the OFFSHORE significant wave
+    // height while the Rating badge beside it graded the NEARSHORE BREAKING height — two different
+    // quantities, same units, nothing marking the difference. That is how a reader compares our
+    // number against Windy and concludes we are wrong: Windy shows offshore too.
+    // Measured live 2026-07-31, offshore -> breaking at the same coordinate and hour:
+    //     shoaling  Sebastian 2.25x  Satellite 1.67  Cocoa 1.64  Trestles 1.57  Uluwatu 1.49
+    //               Hossegor 1.48  NewSmyrna 1.42  Mavericks 1.38  Ocean Beach 1.33
+    //     shelf     Bells 0.86  Jeffreys Bay 0.84  Pipeline 0.83
+    // SIGNED BOTH WAYS and the REGIME predicts the sign, so no constant can reconcile them — only
+    // showing both, each named, can. Surf leads because it is the quantity the Rating badge grades
+    // and the one a surfer rides; Swell is the sea that produces it.
+    const _surfCards = [];
+    {
+      const _surf = useExactPoint?.surf_height_m;
+      const _reg = useExactPoint?.surf_regime;
+      const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown';
+      // NEARSHORE GATE (2026-07-18, user mandate: "Estimated surf should only appear on a marker
+      // that is nearshore"): the backend tags land-within-~±0.25° (surf_nearshore). Strictly hide
+      // when the backend says false; null/undefined (older cached responses, deploy skew) keeps the
+      // legacy regime-only behavior so the row never vanishes from stale caches alone.
+      const _near = useExactPoint?.surf_nearshore;
+      if (_surf != null && _reg && !_hidden && _near !== false) {
+        const _surfFt = mToFt(_surf);
+        if (_surfFt != null) {
+          _surfCards.push({
+            icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300',
+            ariaLabel: `Breaking surf height, estimated ${_surfFt} feet`,
+          });
+        }
+      }
+    }
+    cards.push(..._surfCards);
+    // ⚠️ NAMED 'Swell', never 'Height'. An unqualified 'Height' reads as the answer, and this is the
+    // OFFSHORE significant wave height — the open-ocean sea, not what breaks at the bank. When the
+    // Surf row is suppressed (open_ocean / calm / unknown regime, or surf_nearshore false) this is
+    // the ONLY height in the box, so the label is the only thing keeping it honest.
+    cards.push({
+      icon: Waves, label: 'Swell', value: displayHeight, color: 'text-blue-300',
+      provisional: isProvisionalPaint,
+      ariaLabel: `Offshore swell height ${displayHeight}`,
+    });
     // Surf-quality RATING badge (very_poor..epic) — the headline "how good is it?": size + period + wind
     // (offshore/onshore via shore_normal). Same coastal-break geography gate as the Surf row; colored pill
     // by level (backend surf_rating.py is the source of truth, this shows the JS-mirror result).
@@ -255,27 +296,6 @@ export function compileForecastCards({
           color: 'text-emerald-300',
           badgeColor: RATING_COLOR[surfRating.level],
         });
-      }
-    }
-    // Option-2 bathymetry SURF transform (ESTIMATE): nearshore breaking height (cross-shelf bottom friction
-    // + shoaling + depth-limited breaking). Shown for any coastal break regime (shelf/shoaling/breaking);
-    // hidden for 'open_ocean' (no shore to break on) and calm/unknown. The coastal gate is geography-based,
-    // so this row shows consistently for GFS/EURO/ICON. A wide shallow shelf (Florida) reads SMALLER than the
-    // offshore Height; a steep coast ~the same. (est.) keeps it honestly distinct from the model value.
-    {
-      const _surf = useExactPoint?.surf_height_m;
-      const _reg = useExactPoint?.surf_regime;
-      const _hidden = _reg === 'open_ocean' || _reg === 'calm' || _reg === 'unknown';
-      // NEARSHORE GATE (2026-07-18, user mandate: "Estimated surf should only appear on a marker
-      // that is nearshore"): the backend tags land-within-~±0.25° (surf_nearshore). Strictly hide
-      // when the backend says false; null/undefined (older cached responses, deploy skew) keeps the
-      // legacy regime-only behavior so the row never vanishes from stale caches alone.
-      const _near = useExactPoint?.surf_nearshore;
-      if (_surf != null && _reg && !_hidden && _near !== false) {
-        const _surfFt = mToFt(_surf);
-        if (_surfFt != null) {
-          cards.push({ icon: Waves, label: 'Surf', value: `${_surfFt} ft (est.)`, color: 'text-emerald-300' });
-        }
       }
     }
     if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
