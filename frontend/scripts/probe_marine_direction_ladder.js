@@ -46,7 +46,14 @@ try {
   ({ chromium } = require(path.join(__dirname, '..', 'node_modules', '@playwright', 'test')));
 }
 
-const BASE = process.env.ML_BASE || 'http://localhost:3001';
+// ⚠️⚠️ PORT 3009 (`frontend-verify`), NOT 3001 (`frontend-live`) — DELIBERATE, and the same default
+// zoomlab.js uses. 3001 is the server the PREVIEW PANE displays; driving a Playwright ladder
+// against it means two browsers rendering the same WebGL app at once (~96 zoom jumps and dozens of
+// layer toggles here), which wedged the preview's renderer unrecoverably on 2026-07-31 —
+// javascript_tool timed out, navigate was refused, and the pane needed a full restart. The repo
+// ships a SEPARATE launch config for exactly this reason. One headless browser at a time, and
+// never on the pane's own port.
+const BASE = process.env.ML_BASE || 'http://localhost:3009';
 const LAT = Number(process.env.ML_LAT || 28.25);
 const LNG = Number(process.env.ML_LNG || -80.50);
 const MODELS = (process.env.ML_MODELS || 'GFS,EURO,ICON').split(',').map((s) => s.trim());
