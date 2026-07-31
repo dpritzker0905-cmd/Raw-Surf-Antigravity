@@ -79,7 +79,26 @@ read the socket states alongside it.
 banked), and a fresh run checkpoints every 10 spots so the next interruption costs ≤10 spots
 instead of everything. ⚠️ Destructive + the user's machine ⇒ **owner decision, not an agent's.**
 
-### #12 ✅ ROOT FOUND AND FIXED — AND HAWAII WAS THE SMALL END OF IT (`7da00ca8`, on `dev`)
+### #12 ✅✅ CONFIRMED FIXED IN PRODUCTION (`7da00ca8`) — VERIFIED BEFORE/AFTER, ATTRIBUTION SINGULAR
+
+    pilots run 74f58951   started 20:45:57Z   ended 22:57:58Z   success
+    22:11Z MID-RUN    uk_ireland / east_australia  450.1 h, 4 products, 0 covering  -> EXPIRED
+    23:32Z POST-RUN   uk_ireland / east_australia    1.8 h, covering                -> ok
+    census now: 137 lanes — 0 EXPIRED, 0 CRITICAL, 0 warn   (was 8 EXPIRED)
+
+★★ **ATTRIBUTION IS SINGULAR, not inferred:** `git merge-base --is-ancestor` proves `7da00ca8` IS in
+`74f58951` and the parallel session's multi-bbox `2b0e1466` is **NOT** (it landed after). Only one of
+the two candidates was in the SHA that ran.
+★ At 22:11Z — BEFORE the products landed — the real `get_pilot_regions` run against the live manifest
+PREDICTED `east_australia, uk_ireland`. That is exactly the pair that refreshed.
+⚠️⚠️ **MY "MERGE TO main" ADVICE WAS WRONG, TWICE.** `gh run list --workflow=forecast-ingest-pilots.yml
+--json headBranch` shows every run on **`branch=dev`**. The fix was live on push; no merge was needed.
+`origin/main` is **903 commits behind** — **"default branch" is not a synonym for "production" here.**
+⇒ standing rule 19: ask `gh` which branch a scheduled workflow runs; never assume.
+
+<details><summary>Original diagnosis (still accurate — kept as the forensic record)</summary>
+
+### #12 ROOT — AND HAWAII WAS THE SMALL END OF IT
 Swept run age per (model, domain, layer, region) across the live manifest, 2026-07-31 19:34Z, 12,147
 products. Hawaii had already rotated back to 5.0 h — which is what proved this is **starvation, not
 an outage**. What the sweep actually found:
@@ -142,6 +161,8 @@ the ingest rotation and give the census a run-age check.
 </details>
 
 ---
+
+</details>
 
 ## ★★★ P1 — THE ONE STRUCTURAL CLASS (highest leverage in the repo)
 
