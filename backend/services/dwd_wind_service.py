@@ -27,3 +27,34 @@ async def fetch_icon_wind_global_coarse(
         "dwd_icon_wind_fetcher.py", bbox, resolution, forecast_days,
         log_tag="DWD ICON-Wind", out_prefix="iconwind_global", **kwargs,
     )
+
+
+async def fetch_icon_wind_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 8,
+    timeout_s: int = 1800,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass: ONE ICON download pass samples EVERY region in `bboxes`
+    ({region_id: bbox}) — N regions for one region's download cost.
+
+    WHY: DWD publishes whole-globe files per (var, forecast hour) with NO spatial byte-range — the
+    same property that motivated the GWAM multi-bbox fix on 2026-07-13 (run 29249603524 budget
+    post-mortem). The wind lane was never ported, so it kept re-downloading identical U_10M/V_10M
+    files once per region and rationed the duplication with a clock rotation that left uk_ireland /
+    east_australia at 29.8 h. Mirrors fetch_icon_marine_regions.
+
+    Returns {region_id: [Open-Meteo-shaped points]} or None (caller falls back to the per-region
+    path). None in test env via the run_fetcher_subprocess short-circuit."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await run_fetcher_subprocess(
+        "dwd_icon_wind_fetcher.py", first, resolution, forecast_days,
+        log_tag="DWD ICON-Wind multi", out_prefix="iconwind_regions", timeout=int(timeout_s),
+        extra_payload={"bboxes": bboxes},
+    )
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None

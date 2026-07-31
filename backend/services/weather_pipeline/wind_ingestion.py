@@ -11,6 +11,10 @@ from services.weather_pipeline.scheduler_helpers import (
     get_pilot_regions,
     get_all_pilot_regions,
 )
+from services.weather_pipeline.wind_pilot_multi import (
+    multi_bbox_wind_pass,
+    save_wind_regional,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -71,26 +75,6 @@ _WIND_GLOBAL_FORECAST_DAYS = int(os.environ.get("WIND_GLOBAL_FORECAST_DAYS", "14
 _WIND_GLOBAL_BATCH_SIZE = int(os.environ.get("WIND_GLOBAL_BATCH_SIZE", "200"))
 
 
-async def _save_wind_regional(scheduler, env, run_time, model, region_id, region,
-                              results, save_step) -> int:
-    """Save `results` as a regional_tile wind product + prune superseded. Shared by the multi-bbox
-    and per-region pilot paths so the manifest shape is identical either way (mirrors
-    _save_marine_regional in marine_mid_res_ingestion)."""
-    resolution = float(region.get("resolution", 0.25))
-    count = await normalize_and_save_loop(
-        scheduler.normalizer, scheduler.store, results,
-        model=model, provider="open-meteo", domain="wind", layer="wind",
-        bbox=region, resolution=resolution, run_time=run_time,
-        region_id=region_id, coverage_mode="regional_tile",
-        is_test_env=env["is_test_env"], step=save_step,
-        log_prefix=f"[Pipeline Scheduler] {model} wind {region_id}"
-    )
-    logger.info(f"[Pipeline Scheduler] Ingested {count} {model} Wind grid files for region {region_id}.")
-    if count > 0:
-        scheduler.store.prune_superseded_products(model, "wind", "wind", region_id, run_time)
-    return count
-
-
 async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     """GFS wind pilot ingestion."""
     logger.info("[Pipeline Scheduler] Starting GFS Wind Ingestion job for all regions...")
@@ -107,41 +91,16 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     noaa_direct = os.environ.get("GFS_WIND_NOAA_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
 
-    # ══ MULTI-BBOX single-download-pass: ALL regions for ONE region's download cost ══
-    # THE ROTATION WAS RATIONING REDUNDANCY. NOAA's byte-range picks a GRIB *message*, not a region,
-    # and a message is the whole global 0.25° field — measured 2026-07-31 on the 12Z cycle, UGRD
-    # 591,525 B + VGRD 572,474 B per step, BYTE-IDENTICAL for a 609-point Hawaii box and a 2,009-point
-    # uk_ireland box. So a per-region pass re-downloaded the same 77.7 MB / 195 requests once per
-    # region, and WORLDWIDE_REGIONS_PER_CYCLE existed only to bound that duplication. Bounding it by
-    # rotation is what starved Hawaii's wind to a 75 h-old run behind a CURRENT valid_time (and GFS
-    # marine's uk_ireland to 447.6 h). Sampling every region from each decoded field removes the cost
-    # instead of scheduling it: every region refreshes EVERY fire, and adding regions is free.
-    # This is the 2026-07-13 GWAM precedent (ingest_icon_marine_pilot_impl) ported to the wind lanes —
-    # those multi-bbox marine lanes showed 0 stale regions in the same sweep that found all 14 here.
+    # ══ MULTI-BBOX single-download-pass — see wind_pilot_multi.multi_bbox_wind_pass for the measurement ══
     # Kill switch: WIND_PILOT_MULTI_BBOX=0 -> the per-region rotation path below.
     if noaa_direct and os.environ.get("WIND_PILOT_MULTI_BBOX", "1") != "0":
-        regions_all = get_all_pilot_regions()
-        multi = None
-        try:
-            from services.noaa_wind_service import fetch_gfs_wind_regions
-            multi = await fetch_gfs_wind_regions(regions_all, 0.25, forecast_days, timeout_s=1800)
-        except Exception as _me:
-            logger.error(f"[Pipeline Scheduler] GFS wind multi-region fetch errored: {_me}")
-        if multi:
-            logger.info(f"[Pipeline Scheduler] GFS wind multi-region OK: {len(multi)} regions in one pass.")
-            for region_id, results in multi.items():
-                region = regions_all.get(region_id)
-                if not region or not results:
-                    continue
-                # NOAA GFS wind is natively 3-hourly -> step=1 keeps every step.
-                total_saved += await _save_wind_regional(
-                    scheduler, env, run_time, "GFS", region_id, region, results, 1)
-                await scheduler._cleanup_and_pause(results, 0)
-            if total_saved > 0:
-                logger.info(f"[Pipeline Scheduler] GFS Wind Pilot (multi) done! Saved {total_saved} products.")
-                return True
-        logger.warning("[Pipeline Scheduler] GFS wind multi-region unavailable; "
-                       "falling back to the per-region rotation path.")
+        from services.noaa_wind_service import fetch_gfs_wind_regions
+        # NOAA GFS wind is natively 3-hourly -> step=1 keeps every step.
+        total_saved = await multi_bbox_wind_pass(
+            scheduler, env, run_time, "GFS", fetch_gfs_wind_regions, forecast_days, save_step=1)
+        if total_saved > 0:
+            logger.info(f"[Pipeline Scheduler] GFS Wind Pilot (multi) done! Saved {total_saved} products.")
+            return True
 
     # ══ FALLBACK: per-region (rotation-selected — starvation-prone, see above) ══
     for region_id, region in get_pilot_regions(scheduler.store, "GFS", "wind").items():
@@ -176,7 +135,7 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
 
         # NOAA GFS wind is natively 3-hourly (step=1 keeps every step); open-meteo is hourly (step=3 ->
         # 3-hourly products). Same 3-hourly product cadence either way.
-        total_saved += await _save_wind_regional(
+        total_saved += await save_wind_regional(
             scheduler, env, run_time, "GFS", region_id, region, results, 1 if from_noaa else 3)
         await scheduler._cleanup_and_pause(results)
 
@@ -675,6 +634,18 @@ async def ingest_icon_wind_pilot_impl(scheduler) -> bool:
     dwd_direct = os.environ.get("ICON_WIND_DWD_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
 
+    # ══ MULTI-BBOX single-download-pass — see wind_pilot_multi.multi_bbox_wind_pass. PORTED WITH GFS AND EURO
+    # DELIBERATELY: a GFS-only fix would make GFS current where ICON/EURO are 30 h stale, and the
+    # obs gate needs ≥2 models to agree — a self-inflicted disagreement. Kill: WIND_PILOT_MULTI_BBOX=0.
+    if dwd_direct and os.environ.get("WIND_PILOT_MULTI_BBOX", "1") != "0":
+        from services.dwd_wind_service import fetch_icon_wind_regions
+        # DWD ICON is natively 3-hourly -> step=1 keeps every step.
+        total_saved = await multi_bbox_wind_pass(
+            scheduler, env, run_time, "ICON", fetch_icon_wind_regions, forecast_days, save_step=1)
+        if total_saved > 0:
+            logger.info(f"[Pipeline Scheduler] ICON Wind Pilot (multi) done! Saved {total_saved} products.")
+            return True
+
     for region_id, region in get_pilot_regions(scheduler.store, "ICON", "wind").items():
         resolution = scheduler._get_resolution(region, env["is_render"])
         logger.info(f"[Pipeline Scheduler] Ingesting ICON Wind for region: {region_id}")
@@ -738,6 +709,18 @@ async def ingest_euro_wind_pilot_impl(scheduler) -> bool:
     # source_dataset='ecmwf_ifs'); open-meteo remains the fallback. Kill switch: EURO_WIND_ECMWF_DIRECT=0.
     ecmwf_direct = os.environ.get("EURO_WIND_ECMWF_DIRECT", "1") != "0"
     forecast_days = int(os.environ.get("WIND_PILOT_FORECAST_DAYS", "8"))
+
+    # ══ MULTI-BBOX single-download-pass — see wind_pilot_multi.multi_bbox_wind_pass. The ECMWF fetcher has honoured
+    # `bboxes` since 2026-07-13; only the WAVES lane was ever wired to it, so wind kept fetching per
+    # region. Capability built, left unconsumed. Kill: WIND_PILOT_MULTI_BBOX=0.
+    if ecmwf_direct and os.environ.get("WIND_PILOT_MULTI_BBOX", "1") != "0":
+        from services.ecmwf_wind_service import fetch_euro_wind_regions
+        # ECMWF IFS open data is 3-hourly to 144h -> step=1 keeps every step.
+        total_saved = await multi_bbox_wind_pass(
+            scheduler, env, run_time, "EURO", fetch_euro_wind_regions, forecast_days, save_step=1)
+        if total_saved > 0:
+            logger.info(f"[Pipeline Scheduler] EURO Wind Pilot (multi) done! Saved {total_saved} products.")
+            return True
 
     for region_id, region in get_pilot_regions(scheduler.store, "EURO", "wind").items():
         resolution = scheduler._get_resolution(region, env["is_render"])

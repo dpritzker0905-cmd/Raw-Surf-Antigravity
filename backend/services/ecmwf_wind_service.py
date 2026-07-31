@@ -28,3 +28,35 @@ async def fetch_euro_wind_global_coarse(
         log_tag="ECMWF EURO-Wind", out_prefix="ecmwfwind_global",
         extra_payload={"layer": "wind"}, **kwargs,
     )
+
+
+async def fetch_euro_wind_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 8,
+    timeout_s: int = 1800,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass: ONE ECMWF retrieve samples EVERY region in `bboxes`
+    ({region_id: bbox}) — N regions for one region's download cost (ECMWF ships a single whole-globe
+    multi-step file, so a per-region pass re-downloads identical bytes).
+
+    THE FETCHER ALREADY SUPPORTED THIS since 2026-07-13 — `ecmwf_opendata_fetcher.fetch_global_coarse`
+    honours `bboxes` for any layer — but only the WAVES lane was ever wired to it
+    (fetch_euro_marine_waves_regions). The wind lane kept fetching per region, so it stayed on the
+    clock rotation that left uk_ireland / east_australia at 29.3 h. The capability was built and left
+    unconsumed on this layer: attachment != consumption, at the service boundary this time.
+
+    Returns {region_id: [Open-Meteo-shaped points]} or None (caller falls back to the per-region
+    path). None in test env via the run_fetcher_subprocess short-circuit."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await run_fetcher_subprocess(
+        "ecmwf_opendata_fetcher.py", first, resolution, forecast_days,
+        log_tag="ECMWF EURO-Wind multi", out_prefix="ecmwfwind_regions", timeout=int(timeout_s),
+        extra_payload={"layer": "wind", "bboxes": bboxes},
+    )
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None
