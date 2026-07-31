@@ -162,7 +162,17 @@ async function readMaskCoverage(page) {
       } catch (e) { return null; }
     })();
     const span = (x) => (x && x.length === 4 ? { lng: x[2] - x[0], lat: x[3] - x[1] } : null);
-    const arr = b ? (Array.isArray(b) ? b : [b.w, b.s, b.e, b.n]) : null;
+    const fromBounds = b ? (Array.isArray(b) ? b : [b.w, b.s, b.e, b.n]) : null;
+    // ⚠️ MEASURED ON THE FIRST RUN, and it changes which field is authoritative:
+    // `overlayMask.bounds` is populated ONLY while the overlay is engaged (`on`), so on a pass
+    // where the mask is behaving it reads null and every derived comparison collapses to null —
+    // the instrument would go quiet exactly when it should be reporting "covered, fine".
+    // `maskId.mb` names the RESIDENT mask tile either way ("-84,24,-76,32"), which is the value
+    // the 2026-07-31 forensics actually quoted. Prefer it; fall back to bounds.
+    const mb = g.maskId && typeof g.maskId.mb === 'string'
+      ? g.maskId.mb.split(',').map(Number).filter((n) => Number.isFinite(n))
+      : null;
+    const arr = (mb && mb.length === 4) ? mb : fromBounds;
     return {
       reason: om ? om.reason : null,
       on: om ? !!om.on : null,
@@ -170,6 +180,7 @@ async function readMaskCoverage(page) {
       overlayCoversView: om ? om.overlayCoversView : null,
       baseCoversView: om ? om.baseCoversView : null,
       maskBounds: arr,
+      maskBoundsFrom: (mb && mb.length === 4) ? 'maskId.mb' : (fromBounds ? 'overlayMask.bounds' : null),
       maskSpan: span(arr),
       viewport: vb,
       // The comparison that names the defect in one number: a mask NARROWER than the view can
@@ -298,8 +309,13 @@ async function main() {
   // pass/fail would hide whichever is currently quiet.
   const maskRows = rows.filter((r) => r.mask && r.mask.reason != null);
   const shrunk = maskRows.filter((r) => r.mask.maskNarrowerThanView === true);
+  // ⚠️ `overlayCoversView === false` IS NOT A GAP WHEN THE OVERLAY IS OFF. Measured on the first
+  // run: all four rungs read `reason:"off", on:false, overlayCoversView:false, baseCoversView:true`
+  // — the base mask was covering perfectly and my first counter called every one of them a
+  // coverage gap. A flag about a resource that is not engaged says nothing about coverage, and an
+  // instrument that is always red gets ignored exactly like one that is always green.
   const gaps = maskRows.filter((r) => r.mask.reason === 'coverage_gap'
-    || r.mask.overlayCoversView === false);
+    || (r.mask.on === true && r.mask.overlayCoversView === false));
   log(`\n${'='.repeat(76)}\nMASK COVERAGE (the halo class)\n${'='.repeat(76)}`);
   log(`  rungs with a mask verdict: ${maskRows.length}`);
   log(`  MASK NARROWER THAN THE VIEWPORT: ${shrunk.length}`
