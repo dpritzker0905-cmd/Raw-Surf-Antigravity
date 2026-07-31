@@ -13,6 +13,15 @@ blank). This walks the live manifest and reports, per lane:
 (a 46h hole between purged natives and a stale tail) + 52 off-lattice tail products; EURO waves
 12-14 substituted slots per global tier and EURO wind 16 (the ECMWF 6-hourly cadence past +144h).
 
+⚠️ THIS IS NOT A FRESHNESS GUARD — it measures COVERAGE, and the two are independent. Every quantity
+here derives from `valid_time`; `run_time` is never read. A product built from a 3-day-old model run
+fills its slot perfectly and reports clean. It did: on 2026-07-31 this census was green while Hawaii's
+GFS wind served a 75.0 h-old run and GFS marine uk_ireland served a 447.5 h (18.6-day) one. The scope
+compounds it — GLOBAL_REGIONS below restricts every lane to global_coarse/global_mid, and the regional
+pilot tier where that defect lives is not in this instrument's universe at all.
+⇒ Run age is measured by `product_run_age_census.py` (all regions, per-tier thresholds). A green run
+  HERE says nothing about freshness; check both.
+
 Usage:
   python scripts/timeline_slot_census.py                 # against production
   python scripts/timeline_slot_census.py --base http://localhost:8000

@@ -103,30 +103,48 @@ def _fetch_message_bytes(requests, url, start, end):
 
 
 def fetch_global_coarse(payload):
-    """Return (points, steps_ok, steps_failed, times) for the coarse global wind grid via NOAA GFS."""
+    """Return (points_or_regions, steps_ok, steps_failed, times) for the coarse global wind grid via NOAA GFS.
+
+    MULTI-BBOX (2026-07-31, single-download-pass — the port of the 2026-07-13 GWAM fix to the wind
+    lanes). NOAA's byte-range selects a GRIB *message*, NOT a region: a message is the whole global
+    0.25° field, so the bbox never touches the wire. Measured live against the 20260731 12Z cycle —
+    UGRD 591,525 B + VGRD 572,474 B per step, BYTE-IDENTICAL for a 609-point Hawaii box and a
+    2,009-point uk_ireland box. Per-region passes therefore re-downloaded the same bytes N times:
+    77.7 MB / 195 requests per region at the 8-day pilot horizon, x4 regions x3 models = 932 MB and
+    2,340 requests per pilots fire, of which 11/12 were redundant.
+    That redundant cost is what the region ROTATION existed to ration — and the rotation is what
+    starved Hawaii's wind to a 75 h-old run and GFS marine's uk_ireland to 447.6 h. A payload
+    `bboxes: {region_id: bbox}` samples EVERY region from each decoded field in ONE pass, so the
+    rotation becomes unnecessary rather than better-scheduled. The legacy single-`bbox` path is
+    unchanged (plain list of points).
+    """
     import numpy as np
     import requests
     import pygrib
     import gc
 
-    bbox = payload["bbox"]
+    multi = payload.get("bboxes") or None            # {region_id: bbox} -> multi-region mode
+    regions = dict(multi) if multi else {"__single__": payload["bbox"]}
     resolution = float(payload.get("resolution", 10.0))
     forecast_days = int(payload.get("forecast_days", 14))
     max_f = min(int(forecast_days) * 24, 384)
 
-    lons = _coarse_axis(float(bbox["west"]), float(bbox["east"]), resolution)
-    lats = _coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
+    # rid -> (lats, lons). Axis order matches the single-bbox path exactly (lat outer, lon inner).
+    axes = {rid: (_coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
+                  _coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
+            for rid, bb in regions.items()}
     f_hours = list(range(0, max_f + 1, 3))
 
     cycle_dt, prefix = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
     if not prefix:
         sys.stderr.write("[noaa_gfs_wind_fetcher] no complete GFS atmos cycle found on AWS Open Data\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
-    n_pts = len(lats) * len(lons)
-    series = [{"wind_speed_10m": [], "wind_direction_10m": []} for _ in range(n_pts)]
-    idx_map = None
+    series_by = {rid: [{"wind_speed_10m": [], "wind_direction_10m": []}
+                       for _ in range(len(la) * len(lo))]
+                 for rid, (la, lo) in axes.items()}
+    idx_by = None    # rid -> [(r, c), ...] built together on the first decoded message
     times = []
     steps_ok = 0
     steps_failed = 0
@@ -148,42 +166,52 @@ def fetch_global_coarse(payload):
             if len(msgs) < 2:
                 raise RuntimeError(f"decoded {len(msgs)} msgs, expected 2")
 
-            if idx_map is None:
+            if idx_by is None:
+                # One nearest-neighbour map per region, built ONCE off the first decoded message.
+                # The global grid is identical for every step, so this is pure local indexing.
                 glats, glons = msgs[0].latlons()
                 lat1d = np.asarray(glats[:, 0], dtype=float)
                 lon1d = np.asarray(glons[0, :], dtype=float)
                 is_360 = bool(lon1d.max() > 180.0)
-                idx_map = []
-                for la in lats:
-                    r = int(np.abs(lat1d - la).argmin())
-                    for lo in lons:
-                        target = (lo % 360.0) if is_360 else lo
-                        c = int(np.abs(lon1d - target).argmin())
-                        idx_map.append((r, c))
+                idx_by = {}
+                for rid, (la_axis, lo_axis) in axes.items():
+                    rmap = []
+                    for la in la_axis:
+                        r = int(np.abs(lat1d - la).argmin())
+                        for lo in lo_axis:
+                            target = (lo % 360.0) if is_360 else lo
+                            c = int(np.abs(lon1d - target).argmin())
+                            rmap.append((r, c))
+                    idx_by[rid] = rmap
 
             u_arr = np.ma.filled(np.ma.asarray(msgs[0].values, dtype=float), np.nan)
             v_arr = np.ma.filled(np.ma.asarray(msgs[1].values, dtype=float), np.nan)
-            for pi, (r, c) in enumerate(idx_map):
-                u = u_arr[r, c]
-                v = v_arr[r, c]
-                if u == u and v == v:  # not NaN
-                    spd = math.sqrt(u * u + v * v)
-                    drc = (270.0 - math.degrees(math.atan2(v, u))) % 360.0  # meteorological "from"
-                    series[pi]["wind_speed_10m"].append(round(spd, 4))
-                    series[pi]["wind_direction_10m"].append(round(drc, 4))
-                else:
-                    series[pi]["wind_speed_10m"].append(None)
-                    series[pi]["wind_direction_10m"].append(None)
+            for rid, rmap in idx_by.items():
+                series = series_by[rid]
+                for pi, (r, c) in enumerate(rmap):
+                    u = u_arr[r, c]
+                    v = v_arr[r, c]
+                    if u == u and v == v:  # not NaN
+                        spd = math.sqrt(u * u + v * v)
+                        drc = (270.0 - math.degrees(math.atan2(v, u))) % 360.0  # meteorological "from"
+                        series[pi]["wind_speed_10m"].append(round(spd, 4))
+                        series[pi]["wind_direction_10m"].append(round(drc, 4))
+                    else:
+                        series[pi]["wind_speed_10m"].append(None)
+                        series[pi]["wind_direction_10m"].append(None)
             grbs.close()
 
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_ok += 1
         except Exception as e:
+            # Pad EVERY region, not just one: a failed step must leave all series time-aligned with
+            # `times`, or a region's hourly arrays silently desync from the timestamps they index.
             target_len = steps_ok + steps_failed + 1
-            for pi in range(n_pts):
-                for om in ("wind_speed_10m", "wind_direction_10m"):
-                    if len(series[pi][om]) < target_len:
-                        series[pi][om].append(None)
+            for series in series_by.values():
+                for pt in series:
+                    for om in ("wind_speed_10m", "wind_direction_10m"):
+                        if len(pt[om]) < target_len:
+                            pt[om].append(None)
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_failed += 1
             sys.stderr.write(f"[noaa_gfs_wind_fetcher] f{f:03d} failed: {type(e).__name__}: {e}\n")
@@ -195,27 +223,34 @@ def fetch_global_coarse(payload):
                 pass
             gc.collect()
 
-    if idx_map is None:
-        return [], 0, steps_failed, None
+    if idx_by is None:
+        return ({} if multi else []), 0, steps_failed, None
 
-    points = []
-    pi = 0
-    for la in lats:
-        for lo in lons:
-            points.append({
-                "latitude": float(la), "longitude": float(lo),
-                "generationtime_ms": 0, "utc_offset_seconds": 0,
-                "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                "__provider": "noaa",
-                "hourly_units": {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"},
-                "hourly": {
-                    "time": times,
-                    "wind_speed_10m": series[pi]["wind_speed_10m"],
-                    "wind_direction_10m": series[pi]["wind_direction_10m"],
-                },
-            })
-            pi += 1
-    return points, steps_ok, steps_failed, times
+    by_region = {}
+    for rid, (la_axis, lo_axis) in axes.items():
+        series = series_by[rid]
+        points = []
+        pi = 0
+        for la in la_axis:
+            for lo in lo_axis:
+                points.append({
+                    "latitude": float(la), "longitude": float(lo),
+                    "generationtime_ms": 0, "utc_offset_seconds": 0,
+                    "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
+                    "__provider": "noaa",
+                    "hourly_units": {"time": "iso8601", "wind_speed_10m": "m/s", "wind_direction_10m": "°"},
+                    "hourly": {
+                        "time": times,
+                        "wind_speed_10m": series[pi]["wind_speed_10m"],
+                        "wind_direction_10m": series[pi]["wind_direction_10m"],
+                    },
+                })
+                pi += 1
+        by_region[rid] = points
+
+    if multi:
+        return by_region, steps_ok, steps_failed, times
+    return by_region["__single__"], steps_ok, steps_failed, times
 
 
 def main():
@@ -233,20 +268,27 @@ def main():
     elapsed = time.time() - t0
 
     out_path = payload.get("output_path", "")
-    if out_path and points:
+    # Multi-region mode: `points` is {region_id: [points]} -> wrap in the keyed envelope the multi
+    # service fn unwraps; flatten for the summary stats. Single mode unchanged (plain list).
+    is_multi = isinstance(points, dict)
+    out_obj = {"__multi_region__": True, "regions": points} if is_multi else points
+    flat = [p for pts in points.values() for p in pts] if is_multi else points
+
+    if out_path and flat:
         with open(out_path, "w") as f:
-            json.dump(points, f)
+            json.dump(out_obj, f)
 
     nz = 0
     sample_max = None
-    if points:
-        sp = [v for p in points for v in p["hourly"].get("wind_speed_10m", []) if v is not None]
+    if flat:
+        sp = [v for p in flat for v in p["hourly"].get("wind_speed_10m", []) if v is not None]
         nz = sum(1 for v in sp if v and v > 0)
         sample_max = max(sp) if sp else None
-    print(f"SUMMARY: points={len(points)} steps_ok={ok} steps_failed={failed} "
+    regions_note = f" regions={len(points)}" if is_multi else ""
+    print(f"SUMMARY: points={len(flat)}{regions_note} steps_ok={ok} steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
           f"wind_speed_nonzero={nz} wind_speed_max_ms={sample_max} elapsed={elapsed:.1f}s "
-          f"wrote={'yes:'+out_path if (out_path and points) else 'no(standalone)'}")
+          f"wrote={'yes:'+out_path if (out_path and flat) else 'no(standalone)'}")
 
 
 if __name__ == "__main__":

@@ -28,6 +28,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 5
     steps:
+      - uses: actions/checkout@v4
+
       - name: Poll /api/health/data
         env:
           HEALTH_URL: ${{ vars.HEALTH_URL || 'https://raw-surf-antigravity.onrender.com/api/health/data' }}
@@ -85,3 +87,29 @@ jobs:
             echo "::warning::Data pipeline DEGRADED (warn) — a lane is lagging or a horizon is short. See alerts above."
           fi
           echo "Data pipeline healthy (status=$status)."
+
+      # REGIONAL RUN AGE (2026-07-31). /api/health/data is BLIND here by construction:
+      # data_health._is_global() filters to region_id.startswith('global'), and timeline_slot_census
+      # does the same — so every 0.25° pilot tile was unwatched. That blind spot let GFS marine for
+      # uk_ireland and east_australia reach a run age of 447.6 h (18.7 DAYS) while both instruments
+      # reported healthy, and it is what hid Hawaii's 75-hour-old wind run behind a current valid_time.
+      # Thresholds are per-TIER (global 4h cadence / flagship 8h / worldwide ~32h) because one fixed
+      # bound either cry-wolfs on the rotation or goes blind on the globals.
+      # Set repo Actions variable REGION_HEALTH_PAGING=0 to downgrade this to a warning annotation.
+      - name: Regional product run-age census
+        env:
+          BASE: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
+          PAGING: ${{ vars.REGION_HEALTH_PAGING || '1' }}
+        working-directory: backend
+        run: |
+          set -o pipefail
+          if [ "$PAGING" = "1" ]; then
+            python3 scripts/product_run_age_census.py --base "$BASE" --fail-on-stale || {
+              echo "::error::Regional lanes are CRITICALLY stale — a pilot region is being starved by the"\
+                   "ingest rotation, or its fetch is failing silently. See the census table above."
+              exit 1
+            }
+          else
+            python3 scripts/product_run_age_census.py --base "$BASE" || true
+            echo "::warning::Regional run-age census is in NON-PAGING mode (REGION_HEALTH_PAGING=0)."
+          fi

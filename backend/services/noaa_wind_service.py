@@ -27,3 +27,36 @@ async def fetch_gfs_wind_global_coarse(
         "noaa_gfs_wind_fetcher.py", bbox, resolution, forecast_days,
         log_tag="NOAA GFS-Wind", out_prefix="gfswind_global", **kwargs,
     )
+
+
+async def fetch_gfs_wind_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 8,
+    timeout_s: int = 1800,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass: ONE GFS wind download pass samples EVERY region in `bboxes`
+    ({region_id: bbox}) — N regions for one region's download cost.
+
+    WHY (measured live 2026-07-31, 20260731 12Z cycle): NOAA's byte-range selects a GRIB *message*,
+    not a region, and a message is the whole global 0.25° field — UGRD 591,525 B + VGRD 572,474 B per
+    step, byte-identical for a 609-point Hawaii box and a 2,009-point uk_ireland box. Per-region
+    passes re-downloaded those same bytes once per region (77.7 MB / 195 requests each at the 8-day
+    horizon). That redundancy is the entire reason the pilot lane rationed regions by ROTATION, and
+    the rotation is what let Hawaii's wind reach a 75 h-old run behind a current valid_time.
+    Mirrors fetch_icon_marine_regions (dwd_marine_service), the 2026-07-13 GWAM precedent.
+
+    Returns {region_id: [Open-Meteo-shaped points]} or None (caller falls back to the per-region
+    path). None in test env via the run_fetcher_subprocess short-circuit, same as every fetcher."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await run_fetcher_subprocess(
+        "noaa_gfs_wind_fetcher.py", first, resolution, forecast_days,
+        log_tag="NOAA GFS-Wind multi", out_prefix="gfswind_regions", timeout=int(timeout_s),
+        extra_payload={"bboxes": bboxes},
+    )
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None

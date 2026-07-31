@@ -13,6 +13,21 @@ from typing import Dict, List, Any, Optional
 
 logger = logging.getLogger(__name__)
 
+# Pilot-region SELECTION moved to pilot_regions.py 2026-07-31 (LOC gate). Re-exported by NAME — not
+# `import *` — so every existing `from ...scheduler_helpers import get_pilot_regions` keeps working
+# and this list stays an explicit, greppable record of the module's public surface.
+from services.weather_pipeline.pilot_regions import (      # noqa: E402,F401
+    REGIONAL_CONFIGS,
+    WORLDWIDE_COASTAL_REGIONS,
+    _select_rotating_regions,
+    last_run_by_region_for_lane,
+    select_stale_first_regions,
+    get_pilot_regions,
+    is_flagship_pilot_region,
+    flagship_pilot_days,
+    get_all_pilot_regions,
+)
+
 
 def get_env_flags() -> dict:
     """Returns environment detection flags used by all ingestion tasks."""
@@ -398,94 +413,6 @@ async def normalize_and_save_loop(
 
     return success_count
 
-
-REGIONAL_CONFIGS = {
-    "florida_east_coast": {
-        "west": -85.0,
-        "south": 24.0,
-        "east": -79.0,
-        "north": 31.0,
-        "resolution": 0.25
-    },
-    "us_west_coast_socal": {
-        "west": -125.0,
-        "south": 30.0,
-        "east": -115.0,
-        "north": 38.0,
-        "resolution": 0.25
-    }
-}
-
-# Worldwide coastal surf regions (0.25°), refreshed ROUND-ROBIN across cron cycles (see get_pilot_regions)
-# so worldwide coverage fits the fixed ~120min CI budget — ingesting every coast at 0.25° each cycle would
-# blow it (marine pilot is ~5-15min PER region). The flagship REGIONAL_CONFIGS (FL, SoCal) ingest EVERY
-# cycle (no regression); these rotate WORLDWIDE_REGIONS_PER_CYCLE at a time. Boxes hug the primary surf
-# coasts. This is the worldwide half of the coastal-resolution gap (was FL+SoCal only).
-WORLDWIDE_COASTAL_REGIONS = {
-    "hawaii":                    {"west": -161.0, "south": 18.0,  "east": -154.0, "north": 23.0,  "resolution": 0.25},
-    "iberia_west":               {"west": -11.0,  "south": 36.0,  "east": -6.0,   "north": 44.0,  "resolution": 0.25},
-    "uk_ireland":                {"west": -11.0,  "south": 49.0,  "east": 1.0,    "north": 59.0,  "resolution": 0.25},
-    "east_australia":            {"west": 150.0,  "south": -38.0, "east": 156.0,  "north": -25.0, "resolution": 0.25},
-    "indonesia":                 {"west": 98.0,   "south": -11.0, "east": 120.0,  "north": 2.0,   "resolution": 0.25},
-    "brazil_east":               {"west": -49.0,  "south": -27.0, "east": -34.0,  "north": -3.0,  "resolution": 0.25},
-    "south_africa":              {"west": 17.0,   "south": -35.0, "east": 28.0,   "north": -31.0, "resolution": 0.25},
-    "mexico_centralamerica_pac": {"west": -106.0, "south": 8.0,   "east": -84.0,  "north": 21.0,  "resolution": 0.25},
-}
-
-
-def _select_rotating_regions(flagship: dict, worldwide_items: list, per_cycle: int, cycle_index: int) -> dict:
-    """Flagship regions always + a rotating window of `per_cycle` worldwide regions (round-robin by cron
-    cycle). Pure/deterministic for testing. Over ceil(N/per_cycle) cycles every worldwide region is
-    refreshed, keeping per-cycle ingestion cost (and thus CI time) bounded."""
-    regions = dict(flagship)
-    n = len(worldwide_items)
-    if per_cycle > 0 and n > 0:
-        start = (cycle_index * per_cycle) % n
-        for i in range(min(per_cycle, n)):
-            rid, rcfg = worldwide_items[(start + i) % n]
-            regions[rid] = rcfg
-    return regions
-
-
-def get_pilot_regions() -> dict:
-    """Regions the marine + wind PILOTS ingest THIS cron cycle: the flagship REGIONAL_CONFIGS (always) plus
-    a rotating slice of WORLDWIDE_COASTAL_REGIONS so worldwide coastal 0.25° coverage is achieved within the
-    fixed CI budget. Env: WORLDWIDE_COASTAL=0 reverts to flagship-only; WORLDWIDE_REGIONS_PER_CYCLE (default
-    1) tunes how many worldwide regions per cycle (raise once CI headroom is confirmed). Test env returns
-    flagship-only so deterministic ingestion tests are unaffected."""
-    from services.weather_pipeline.copernicus_validator import is_test_environment
-    if os.environ.get("WORLDWIDE_COASTAL", "1") == "0" or is_test_environment():
-        return dict(REGIONAL_CONFIGS)
-    per_cycle = max(0, int(os.environ.get("WORLDWIDE_REGIONS_PER_CYCLE", "1")))
-    cycle_index = int(datetime.now(timezone.utc).timestamp() // (3 * 3600))
-    return _select_rotating_regions(REGIONAL_CONFIGS, list(WORLDWIDE_COASTAL_REGIONS.items()), per_cycle, cycle_index)
-
-
-def is_flagship_pilot_region(region_id: str) -> bool:
-    """A FLAGSHIP pilot region (REGIONAL_CONFIGS = FL / SoCal) ingests EVERY cron cycle, so it can
-    afford the full native forecast horizon; the rotating WORLDWIDE regions stay shorter to hold the
-    ~165-min CI budget. Used by the flagship-first horizon selection (2026-07-15)."""
-    return region_id in REGIONAL_CONFIGS
-
-
-def flagship_pilot_days(region_id: str, flagship_days: int, worldwide_days: int) -> int:
-    """Flagship-first forecast horizon (2026-07-15, the '14-day state-of-the-art fine pilots' arc):
-    the ever-present flagship coasts carry the long native horizon; the rotating worldwide regions
-    stay at the shorter budget horizon so the CI stays green. Pure — flagship_days if the region is a
-    flagship, else worldwide_days."""
-    return flagship_days if is_flagship_pilot_region(region_id) else worldwide_days
-
-
-def get_all_pilot_regions() -> dict:
-    """Flagship + ALL worldwide coastal regions — NO rotation (2026-07-13, multi-bbox arc): for the
-    single-download-pass fetchers (GWAM/ECMWF wave stream), extra regions cost only in-memory
-    sampling + product saves, not downloads, so EVERY region refreshes EVERY cycle instead of every
-    ~4 cycles. The rotation (get_pilot_regions) remains for per-region-download lanes (GFS/NOAA
-    byte-range, wind pilots). Same gates: WORLDWIDE_COASTAL=0 / test env -> flagship-only."""
-    from services.weather_pipeline.copernicus_validator import is_test_environment
-    if os.environ.get("WORLDWIDE_COASTAL", "1") == "0" or is_test_environment():
-        return dict(REGIONAL_CONFIGS)
-    return {**REGIONAL_CONFIGS, **WORLDWIDE_COASTAL_REGIONS}
 
 
 def find_nearest_manifest_product(

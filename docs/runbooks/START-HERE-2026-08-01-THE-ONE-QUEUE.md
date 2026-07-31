@@ -43,6 +43,51 @@ PowerShell pipe (`Out-File` buffers until exit and made progress invisible for 1
 ⚠️ CDS queueing makes this **~7× slower than the 32 s/spot the research predicted** — a planning
 input for #3: the 4,000-spot catalogue is *weeks* at this rate.
 
+### #12 ✅ ROOT FOUND AND FIXED — AND HAWAII WAS THE SMALL END OF IT (`e46e5c0d`, on `dev`)
+Swept run age per (model, domain, layer, region) across the live manifest, 2026-07-31 19:34Z, 12,147
+products. Hawaii had already rotated back to 5.0 h — which is what proved this is **starvation, not
+an outage**. What the sweep actually found:
+
+| lane | run age |
+|---|---|
+| **GFS marine waves/swell_1/swell_2/wind_waves · east_australia** | **447.6 h = 18.7 DAYS** (3 products) |
+| **GFS marine · uk_ireland** | **447.6 h** (**1** product) |
+| GFS/ICON/EURO wind · uk_ireland, east_australia | 27.4–28.0 h |
+| GFS marine · south_africa, mexico_centralamerica_pac | 21.9 h |
+
+Design intent: 12 h.
+
+⚠️ **THE SEVERITY IS ABSENCE, NOT STALE VALUES** (measured after first claiming otherwise). Every
+uk_ireland / east_australia GFS-marine product has `valid_time` pinned to **2026-07-20T18:00** —
+**0 of 4 and 0 of 12 cover the present** (`horizon_h` −266 h / −260 h). Last real ingest ≈ 07-13,
+8-day horizon expired 07-21 ⇒ **a ~10-day ONGOING hole with no GFS regional 0.25° marine tile at
+all**; the resolver falls through to the coarser global tier. ★★ The contrast that pins it:
+south_africa 22.3 h / **340** products / covering = degraded; uk_ireland 447.9 h / **4** products /
+covering nothing = absent. **Product COUNT is the tell.**
+
+**ROOT:** `get_pilot_regions()` indexed `timestamp // (3*3600)` — a **3-hour**
+wall-clock bucket — but its ONLY consumer is `forecast-ingest-pilots.yml` at `cron '45 3,11,19'`
+(**8 h**); `forecast-ingest.yml` runs `INGEST_PILOTS=skip`. 24 h is a common multiple, so
+`cycle_index % 4` takes only **3 of its 4 values daily** and one adjacent PAIR is never selected.
+Simulated over 30 days of the real cron: **exactly 2 of 8 regions get ZERO hits**, and which two
+depends only on **how many minutes into the job the lane runs** (+0 → hawaii+iberia; +180 →
+uk_ireland+east_australia, the live 447.6 h pair). Job duration drifts ⇒ the starved pair moves.
+⚠️⚠️ **The rotation test passed the whole time** — it feeds CONSECUTIVE cycle indices, which
+production never delivers. A correct round-robin over a counter it does not receive.
+⚠️⚠️ **Both freshness instruments were blind by construction:** `data_health._is_global()` and
+`timeline_slot_census.py:54` each skip regional products — and the slot census asks a *different
+question* (`valid_time` = COVERAGE). **An 18-day-old run covers every lattice slot perfectly.**
+That is exactly how Hawaii's 75-hour run hid behind a current `valid_time`.
+**Shipped:** stale-first selection (oldest-run region wins; **lane-scoped** — the whole-manifest
+aggregate reads 5 h fresh everywhere and would hide it), kill switch `PILOT_REGION_STALE_FIRST=0`,
+manifest-read failure falls back to the old rotation, + `scripts/product_run_age_census.py`
+(per-tier thresholds, `--fail-on-stale`, refuses to report on empty input) wired into
+`data-health-monitor.yml`.
+⛔ **NOT YET TRUE IN PRODUCTION** — this is on `dev`; scheduled workflows run from `main`. The 8
+CRITICAL lanes stay red until `main` has it and one pilots cycle runs. **Merging is the fix.**
+
+<details><summary>Original report (superseded — kept as the forensic record)</summary>
+
 ### #12 HAWAII'S WIND PRODUCT IS BUILT FROM A 75-HOUR-OLD MODEL RUN
 Measured 2026-07-31 17:00Z at the current top-of-hour:
 
@@ -58,6 +103,7 @@ veto. Marine at the same coordinate is current ⇒ wind-specific, not a region o
 **RUN AGE**. ⇒ sweep run-age per (domain, region) first — there may be more than Hawaii — then fix
 the ingest rotation and give the census a run-age check.
 *(A task chip was spawned for this: `task_98ed9f35`.)*
+</details>
 
 ---
 
@@ -198,6 +244,12 @@ rehydrate from the DB at serve-box boot.
 6. **Products carry `run_time` but no builder SHA** ⇒ "is my fix live?" is still unanswerable from
    the artifact for CODE (data provenance is now answerable — see #12's method).
 7. **A flag has a value PER LANE.** Read the served payload, not this process's env.
+8. **A scheduler test driven by `range(n)` proves nothing.** The pilot rotation test fed CONSECUTIVE
+   cycle indices for months while production fed it a counter that skips — 2 of 8 regions got zero
+   data and the test stayed green. **Drive schedulers from the REAL cron times.**
+9. **COVERAGE ≠ FRESHNESS.** `timeline_slot_census` reads `valid_time` and an 18-day-old model run
+   covers every lattice slot perfectly. Ask which question an instrument answers before trusting its
+   green. (Both freshness instruments also skip regional products *by construction* — see #12.)
 
 ---
 

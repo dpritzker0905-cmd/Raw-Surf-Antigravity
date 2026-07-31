@@ -94,7 +94,7 @@ class WeatherPipelineScheduler:
         # remains the fallback. Kill switch: GFS_MARINE_NOAA_DIRECT=0.
         noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
 
-        for region_id, region in get_pilot_regions().items():
+        for region_id, region in get_pilot_regions(self.store, "GFS", "marine").items():
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
 
