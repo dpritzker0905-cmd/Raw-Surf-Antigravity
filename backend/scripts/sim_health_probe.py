@@ -154,6 +154,13 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 "glyph_level": item["level"], "sim_level": calc["quality_label"],
                 "level_differs": item["level"] != calc["quality_label"],
                 "h_served_m": h_srv, "h_sim_m": round(h_sim, 4), "d_height_pct": dh,
+                "lat": spot.get("latitude"), "lng": spot.get("longitude"),
+                "spot_id": item.get("spot_id"),
+                # The serving lane capped a Good/Epic this sim reports ungated — a composition
+                # asymmetry, not a physics one. Read off the payload, never off a local env var:
+                # RATING_OBS_GATE has a value PER LANE.
+                "gate_capped": (item.get("raw_score") is not None
+                                and float(item["score"]) < float(item["raw_score"])),
                 "geometry": verdict, "baseline_source": source,
                 "partitions": len(baseline.get("partitions") or []), "seconds": round(dt, 2),
                 "confirmed": item.get("confirmed"), "raw_score": item.get("raw_score"),
@@ -170,6 +177,77 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                       f"geo={verdict:9s} {dt:4.1f}s"
                       f"{'  ⛔ LEVEL' if row['level_differs'] else ''}")
     return rows, skipped, unresolved, readiness
+
+
+def attribute(rows, model="GFS"):
+    """For each LEVEL difference, decide whether the COMPOSITION diverges or only the PROVENANCE.
+
+    ★ WHY THIS IS NOT OPTIONAL POLISH. A raw divergence count is unattributable, and the first
+    honest run proved it: 4 LEVEL differences, of which exactly 1 was real. The other 3 were the
+    precomputed frame having been built from an OLDER model run than the sim's live point call —
+    the same hour, a different forecast. The glyph payload carries no `run_time`, so nothing in it
+    can tell those apart. (Same class as products carrying no builder SHA: "is this the same
+    build?" is unanswerable from the artifact.)
+
+    THE DISCRIMINATOR: ask the endpoint for an hour far enough out that no precomputed frame exists
+    within the stale bound. It then computes LIVE, on the SAME products the sim's point call reads,
+    and the provenance difference disappears by construction. If the two still agree there, the
+    composition is sound and the gap was staleness; if they still differ, it is real.
+
+    ⚠️ A live compute is 7.5-8.6 s on the 1-CPU box and load-shed at 2 concurrent, so this runs ONLY
+    for spots that already diverged — never as a sweep. Verdicts:
+        `observation_gate`      the served payload capped a Good/Epic the sim reports ungated
+        `provenance_only`       same composition on the live path; the frame was from an older run
+        `composition`           the divergence survives a shared-provenance comparison — a real bug
+        `unattributed`          the live probe could not be run (shed, unreachable, no rated row)
+    """
+    from datetime import datetime, timedelta, timezone
+    from weather_sim_mcp import _baseline_with_source
+    from services.weather_pipeline import sim_spots
+    from services.weather_pipeline.sim_rating import calculate_surf_rating
+
+    # +42 h: past the precompute's own frame ladder, so the stale rung (±6 h) cannot catch it.
+    far = (datetime.now(timezone.utc) + timedelta(hours=42)).strftime("%Y-%m-%dT%H:00:00Z")
+    for r in [x for x in rows if x["level_differs"]]:
+        if r.get("gate_capped"):
+            r["attribution"] = "observation_gate"
+            continue
+        lat, lng = r.get("lat"), r.get("lng")
+        if lat is None or lng is None:
+            r["attribution"] = "unattributed"
+            continue
+        pad = 0.02
+        url = (f"{BASE}/api/weather/spot-ratings?bbox={lng-pad},{lat-pad},{lng+pad},{lat+pad}"
+               f"&valid_time={far}&model={model}&limit=10")
+        try:
+            live = _fetch(url, timeout=180)
+        except Exception as e:
+            r["attribution"], r["attribution_note"] = "unattributed", str(e)[:120]
+            continue
+        if live.get("source") != "live":
+            # It found a frame after all — the discriminator did not discriminate. Say so rather
+            # than reading a precomputed comparison as a live one.
+            r["attribution"] = "unattributed"
+            r["attribution_note"] = f"wanted a live compute, got {live.get('source')}"
+            continue
+        match = next((s for s in live.get("spots", [])
+                      if str(s.get("spot_id")) == str(r.get("spot_id")) and s.get("score") is not None),
+                     None)
+        spot = sim_spots.resolve(str(r.get("spot_id"))).spot if match else None
+        if not match or spot is None:
+            r["attribution"] = "unattributed"
+            continue
+        b, _src, _prov = _baseline_with_source(spot, far)
+        if b is None:
+            r["attribution"] = "unattributed"
+            continue
+        c = calculate_surf_rating(spot, b["swell_height_m"], b["swell_period_sec"],
+                                  b["swell_direction_deg"], b["wind_speed_knots"],
+                                  b["wind_direction_deg"], partitions=b.get("partitions"))
+        r["shared_provenance_delta"] = round(c["quality_rating"] - match["score"], 2)
+        r["attribution"] = ("provenance_only" if c["quality_label"] == match["level"]
+                            else "composition")
+    return rows
 
 
 def summarize(rows, skipped, unresolved, readiness):
@@ -203,6 +281,10 @@ def main():
     ap.add_argument("--max-score-delta", type=float, default=None,
                     help="also exit 1 if |dScore| exceeds this at any spot")
     ap.add_argument("--json", dest="as_json", action="store_true")
+    ap.add_argument("--attribute", action="store_true",
+                    help="for each LEVEL difference, re-compare on the LIVE path (shared model run) "
+                         "to separate a real COMPOSITION divergence from precompute staleness. One "
+                         "live compute per diverging spot only — 7-8 s each on the 1-CPU box.")
     ap.add_argument("--allow-unknown-hour", action="store_true",
                     help="measure even when the deploy cannot report `served_valid_time`. Every "
                          "affected row is labelled `hour_verified: false` and the summary says so "
@@ -214,6 +296,8 @@ def main():
     rows, skipped, unresolved, readiness = probe(
         regions, args.per_region, vt, args.model, verbose=not args.as_json,
         allow_unknown_hour=args.allow_unknown_hour)
+    if args.attribute and any(r["level_differs"] for r in rows):
+        attribute(rows, args.model)
     summary = summarize(rows, skipped, unresolved, readiness)
 
     if args.as_json:
@@ -235,6 +319,12 @@ def main():
             print(f"  worst     {w['spot']} ({w['region']}) glyph {w['glyph_score']} vs sim "
                   f"{w['sim_score']}  geo={w['geometry']}")
         print(f"  geometry  {readiness}")
+        for r in [x for x in rows if x["level_differs"]]:
+            note = f" ({r['attribution_note']})" if r.get("attribution_note") else ""
+            shared = (f", shared-provenance delta {r['shared_provenance_delta']:+g}"
+                      if r.get("shared_provenance_delta") is not None else "")
+            print(f"  ⛔ {r['spot']} ({r['region']}): {r['glyph_level']} vs {r['sim_level']} "
+                  f"— {r.get('attribution', 'not attributed; pass --attribute')}{shared}{note}")
         if summary["hour_unverified"]:
             print(f"  ⚠️ {summary['hour_unverified']} of {summary['n']} rows compared against a "
                   f"frame whose hour the deploy could not report — those numbers may include a "
@@ -250,9 +340,17 @@ def main():
             print("FAIL: nothing was comparable — an empty probe is not a green one.",
                   file=sys.stderr)
             return 1
-        if summary["level_differences"]:
-            print(f"FAIL: {summary['level_differences']} of {len(rows)} spots differ in LEVEL "
-                  f"between the sim and the served glyph.", file=sys.stderr)
+        # ★ Fail on COMPOSITION, not on provenance. When attribution ran, a divergence the shared-
+        # provenance re-check clears is the precompute holding an older model run — real, worth
+        # reporting, and not a reason to redden a composition guard. Unattributed still fails: an
+        # unexplained divergence is not a cleared one.
+        real = [r for r in rows if r["level_differs"]
+                and r.get("attribution") not in ("provenance_only",)]
+        if real:
+            print(f"FAIL: {len(real)} of {len(rows)} spots differ in LEVEL between the sim and the "
+                  f"served glyph: "
+                  + ", ".join(f"{r['spot']}={r.get('attribution', 'unattributed')}" for r in real),
+                  file=sys.stderr)
             return 1
         if args.max_score_delta is not None and summary["d_score"]["max"] > args.max_score_delta:
             print(f"FAIL: |dScore| max {summary['d_score']['max']} exceeds "
