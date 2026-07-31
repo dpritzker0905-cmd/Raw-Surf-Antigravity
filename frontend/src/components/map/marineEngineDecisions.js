@@ -660,8 +660,17 @@ export function resolveColdVeil(veil, opts, nowMs, win) {
   return { mult: k, veil };
 }
 
-export function resolveCoarseCrestControls(inVortexBand, win) {
-  if (!inVortexBand) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
+export function resolveCoarseCrestControls(inVortexBand, win, cellDeg) {
+  // `cellDeg` (2026-07-31) folds the FINE-GRID SEAM FLOOR in here rather than at the call site:
+  // WebGLMarineEngine.js is a grandfathered LOC file that may only SHRINK, and the composition
+  // belongs with the other pure crest policy anyway. See resolveFineSeamFloor for the derivation.
+  const seam = resolveFineSeamFloor(cellDeg, 0, win);
+  // Legacy shape preserved EXACTLY when no fine floor applies, so the pre-existing contract test
+  // (and every caller that object-matches) is untouched; the key appears only when it engages.
+  if (!inVortexBand) {
+    if (!(seam > 0)) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
+    return { dirCoherenceMin: seam, coarseNearestDir: 0.0, mode: 'fine_seam', fineSeamFloor: seam };
+  }
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true || w.__RAW_COARSE_CREST_MODE__ === 'off') {
     return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'killed' };

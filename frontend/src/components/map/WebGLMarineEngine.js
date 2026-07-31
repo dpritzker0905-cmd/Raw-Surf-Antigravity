@@ -53,7 +53,7 @@ import {
   isRegionalBounds, isCoarseGlobalGrid, clampTileToViewport, resolveTileBackoff, gridCellDeg,
   shouldRejectResolutionDowngrade, shouldKeepResidentOnNullEncode, isMagnifiedCoarseField,
   trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
-  resolveAnimValue, coarseBaseKey, resolveFineSeamFloor,
+  resolveAnimValue, coarseBaseKey,
 } from './marineEngineDecisions';
 
 export {
@@ -62,7 +62,6 @@ export {
   shouldRejectResolutionDowngrade, __resetRatingGraceForTests, shouldKeepResidentOnNullEncode,
   isMagnifiedCoarseField, trimDeadEdges, applySharpenOpacityEase, resolveColdVeil,
   resolveCoarseCrestControls, NATURAL_ANIM_DEFAULTS, resolveAnimValue, coarseBaseKey,
-  resolveFineSeamFloor,
 } from './marineEngineDecisions';
 
 // --- Engine Definition ---
@@ -788,34 +787,14 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     const _inVortexBand = (_magGate === null)
       ? (_residentCoarseGlobal && z > COARSE_CREST_BAND_MIN_ZOOM && z <= MARINE_ZOOMED_OUT_MAX_ZOOM)
       : _magGate;
-    const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null);
+    const _ccc = resolveCoarseCrestControls(_inVortexBand, typeof window !== 'undefined' ? window : null, _wgCellDeg);
     if (typeof window !== 'undefined' && window.__RAW_GPU__) {
       window.__RAW_GPU__.vortexGate = {
         cellDeg: _wgCellDeg, zoom: +z.toFixed(2), engaged: _inVortexBand, mode: _ccc.mode,
-        legacy: _magGate === null,
+        legacy: _magGate === null, fineSeamFloor: _ccc.fineSeamFloor || 0,
       };
     }
     let dirCoherenceMin = _ccc.dirCoherenceMin;
-    // FINE-GRID SEAM FLOOR (2026-07-31, the Canaveral "low pressure type wave center" report AGAIN,
-    // this time at z8.2). The 2026-07-13 magnification gate fixed the MID tier but `isMagnifiedCoarse
-    // Field` bails on `cellDeg < 1.0` BEFORE it looks at zoom, so a 0.25° REGIONAL tile can never
-    // engage the guard — the vortex simply moved to a tier the fix could not see.
-    // ★ A vortex is caused by DIRECTION DIVERGENCE, not by cell size: bilinear filtering rotates the
-    // heading smoothly between two disagreeing cells, so a tight discontinuity makes a SMALL swirl
-    // (which is exactly how the user described it) rather than no swirl. Measured on the live
-    // regional tile off the cape, GFS waves 2026-07-31T03Z — a windsea/swell regime boundary
-    // crossing the coast:
-    //     (28.25,-80.25)  16.4°  ->  (28.5,-80.25) 229.7°   delta 146.8°   |bilinear mid| 0.286
-    //     (28.50,-80.50)  84.7°  ->  (28.5,-80.25) 229.7°   delta 145.0°   |bilinear mid| 0.301
-    // 6 of 175 adjacent pairs (3.4%) exceed 90°, and every one of them falls BELOW the 0.7 floor
-    // already shipped for coarse grids — the existing instrument would catch them, it was just
-    // never allowed to look. The floor here is deliberately LOWER (0.5 ≈ cull past ~120°) so it
-    // only bites true regime seams and leaves ordinary coastal refraction, where neighbouring cells
-    // legitimately fan, completely alone. Kill: __RAW_DISABLE_FINE_SEAM_FLOOR__=true.
-    // Tune: __RAW_FINE_SEAM_FLOOR__=<0..1>. Echo: __RAW_GPU__.anim.fineSeamFloor.
-    const _fineSeamFloor = resolveFineSeamFloor(
-      _wgCellDeg, dirCoherenceMin, typeof window !== 'undefined' ? window : null);
-    if (_fineSeamFloor > dirCoherenceMin) dirCoherenceMin = _fineSeamFloor;
     // COARSE-GLOBAL CLOSE-ZOOM crest suppression (2026-07-04, "waves over Venice z7.67-22, fixes
     // itself on zoom-out"): above the vortex band the old logic re-ENABLED crests on a coarse
     // WORLD grid, assuming a single near-uniform cell — but the world grid's 1024x512 land mask
@@ -2035,9 +2014,6 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
           shoalActive: _hasBathTex,            // false → shoaling foam is inert (no bathymetry bound at this view)
           crestJitter: _crestDirJitter,
           dirCoherenceMin: +dirCoherenceMin.toFixed(3),  // applied close-zoom coherence floor (0 = off / far zoom)
-          // The fine-tier seam floor, separately visible so a live report can tell WHICH guard is
-          // acting: the coarse vortex gate or the 2026-07-31 regional seam floor.
-          fineSeamFloor: +_fineSeamFloor.toFixed(3),
           seamFadeFloor: _g('__RAW_SEAM_FADE_FLOOR_ALPHA__', 0.3), // alpha floor of the seam DIM (crests never vanish in incoherent zones)
           coarseNearestDir: coarseNearestDir,            // 1 = vortex-band nearest-cell direction sampling active
           coarseCrestMode: _ccc.mode,                    // 'nearest' | 'suppress' | 'killed' | 'off' (off = not in band)

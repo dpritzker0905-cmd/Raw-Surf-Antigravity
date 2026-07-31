@@ -22,7 +22,7 @@
  * ordinary coastal refraction alone — that is the property the last two tests pin.
  */
 import {
-  resolveFineSeamFloor, isMagnifiedCoarseField,
+  resolveFineSeamFloor, isMagnifiedCoarseField, resolveCoarseCrestControls,
   FINE_SEAM_FLOOR_DEFAULT, FINE_SEAM_MAX_CELL_DEG,
 } from './marineEngineDecisions';
 
@@ -84,5 +84,34 @@ describe('resolveFineSeamFloor — the tier the coarse vortex gate cannot reach'
   it('degrades safely on missing geometry', () => {
     expect(resolveFineSeamFloor(null, 0, {})).toBe(0);
     expect(resolveFineSeamFloor(undefined, 0, {})).toBe(0);
+  });
+});
+
+describe('resolveCoarseCrestControls composition (the engine calls only this)', () => {
+  // The floor is composed HERE rather than at the call site because WebGLMarineEngine.js is a
+  // grandfathered LOC file that may only shrink — the CI ratchet rejected the call-site version.
+  it('LEGACY SHAPE IS BYTE-IDENTICAL when no fine floor applies', () => {
+    // Pins the pre-existing contract test: out of band, coarse cell, no new key at all.
+    expect(resolveCoarseCrestControls(false, {}, 2.0))
+      .toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
+    expect(resolveCoarseCrestControls(false, {}, undefined))
+      .toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
+  });
+
+  it('a FINE tile out of the coarse band now gets the seam floor', () => {
+    expect(resolveCoarseCrestControls(false, {}, 0.25)).toEqual({
+      dirCoherenceMin: FINE_SEAM_FLOOR_DEFAULT, coarseNearestDir: 0.0,
+      mode: 'fine_seam', fineSeamFloor: FINE_SEAM_FLOOR_DEFAULT,
+    });
+  });
+
+  it('the coarse in-band path is unchanged by the fine tier', () => {
+    expect(resolveCoarseCrestControls(true, {}, 2.0))
+      .toEqual({ dirCoherenceMin: 0.7, coarseNearestDir: 1.0, mode: 'nearest' });
+  });
+
+  it('the kill switch restores the legacy shape on a fine tile', () => {
+    expect(resolveCoarseCrestControls(false, { __RAW_DISABLE_FINE_SEAM_FLOOR__: true }, 0.25))
+      .toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
   });
 });
