@@ -160,6 +160,27 @@ NOTHING; the resource you get depends on zoom HISTORY. ⚠️⚠️ Run ladders 
 
 ## P2 — COMPOSITION & CORRECTNESS
 
+### #13 ✅ CLOSED (`79e1001a`) — GATED EVERYWHERE, BUT NOT IN THE RANKING
+Owner decision 2026-07-31: **the hub and the sim answer "what will the app SHOW"** ⇒ both gate now.
+Measured live BEFORE the change, 999 spot-hours (4 regions x hours 0/24/72):
+
+    confirmed = None on 97.9% of served spots
+    gate BINDS 66/999 = 6.61%    +0h 2.40% -> +24h 7.51% -> +72h 9.91%
+    raw >= 70  66/999 = 6.61%    <-- IDENTICAL COUNT
+    largest single drop 24.0 pts, at +72h
+
+★★ **That identity is the safety argument:** every spot-hour that would read good-or-better is
+already capped on the map, so a surface that CANNOT find confirmation caps at 69.9 — exactly what
+the map shows. **A lookup miss lands on agreement**, which is why `confirmation_for` returns `None`
+on a miss and never falls back to something weaker.
+⭐⭐ **RANKING IS NOT DISPLAY.** `sim_compare` ranked on `-quality_rating`; gating that key would
+collapse 97.9% of spots into one **69.9 tie** and order them by *which happens to carry an
+observation* — in the one query where discrimination among GOOD spots IS the product. ⇒ **displays
+gated, ranks raw.** Third instance of this shape ⇒ **grep for `key=`/sort whenever you add a cap.**
+⚠️ **`sim_briefing.summary_line` has no hour in scope and stays UNGATED** — flagged, not faked.
+
+<details><summary>Original report (superseded)</summary>
+
 ### #13 THE OBSERVATION GATE RUNS AT 3 SURFACES AND NOT AT THE 2 A SURFER READS — owner decision
 | surface | gates? |
 |---|---|
@@ -172,10 +193,17 @@ Live: Moss Landing serves **83.9 `good`** (`raw_score` 95.9, `confirmed:'good'`)
 hub and sim should also gate** — i.e. whether the sim answers *"what will the app show"* or *"what
 does the model say"*.
 
-### #14 THE PARITY GUARD IS BLIND TO POST-`rating_score` STEPS
+</details>
+
+### #14 ✅ CLOSED (`79e1001a`) — POST-STEP REGISTRY + A NEGATIVE CONTROL
 `test_rating_composition_parity.py` AST-extracts each surface's `rating_score(...)` call, so a step
-applied AFTER that call (the obs gate) has no argument to declare and cannot be caught.
-★ A guard that inspects one shape cannot report a defect of another shape.
+applied AFTER that call (the obs gate) had no argument to declare — **every test in that file passed
+throughout the divergence.** ★ A guard that inspects one shape cannot report a defect of another.
+Added `POST_STEPS` over all four gating surfaces.
+★★ **AND IT WAS MADE TO FAIL ON PURPOSE:** pinned by a NEGATIVE CONTROL (`surf_rating` /
+`surf_transform` must return False), because a green guard is not evidence a guard works — without
+it the parametrized test stays green even if every surface drops the gate. **Add a negative control
+to any "every surface does X" test.**
 
 ### #1 GEOMETRY WIRING
 `geometry_reject_reason` backfill FIRST (`backfill_geometry_reject_reasons.py`, committed, **never
