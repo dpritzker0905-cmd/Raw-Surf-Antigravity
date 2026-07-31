@@ -461,6 +461,40 @@ export function isMagnifiedCoarseField(cellDeg, zoom, win) {
   return pxPerCell >= minPx;
 }
 
+// === FINE-GRID SEAM FLOOR (pure; exported for tests) ===
+// 2026-07-31, the Canaveral "low pressure type wave center" report at z8.2 — the SAME symptom the
+// 2026-07-13 magnification gate fixed, on a tier that gate cannot see. `isMagnifiedCoarseField`
+// returns false for `cellDeg < 1.0` before it ever considers zoom, so a 0.25° REGIONAL tile never
+// engages the vortex guard. But a vortex comes from DIRECTION DIVERGENCE, not cell size: bilinear
+// filtering rotates the heading smoothly between two disagreeing cells, so a tight discontinuity
+// yields a SMALL swirl rather than none.
+//
+// Measured on the live regional tile off the cape (GFS waves, 2026-07-31T03Z) — a windsea/swell
+// regime boundary crossing the coastline:
+//     (28.25,-80.25)  16.4° -> (28.5,-80.25) 229.7°   delta 146.8°   |bilinear mid| 0.286
+//     (28.50,-80.50)  84.7° -> (28.5,-80.25) 229.7°   delta 145.0°   |bilinear mid| 0.301
+// 6 of 175 adjacent pairs (3.4%) exceed 90°, every one below the 0.7 floor already shipped for
+// coarse grids. The instrument existed; it was never allowed to look at this tier.
+//
+// The floor is deliberately LOWER than the coarse one (0.5 ≈ cull past ~120°) so it bites true
+// regime seams only and leaves ordinary coastal refraction — where neighbouring cells legitimately
+// fan by 30-60° — untouched. Returns 0 (no floor) for coarse grids so the existing coarse path is
+// byte-identical. Kill: __RAW_DISABLE_FINE_SEAM_FLOOR__. Tune: __RAW_FINE_SEAM_FLOOR__.
+export const FINE_SEAM_MAX_CELL_DEG = 1.0;    // the exact boundary isMagnifiedCoarseField excludes
+export const FINE_SEAM_FLOOR_DEFAULT = 0.5;
+
+export function resolveFineSeamFloor(cellDeg, coarseFloor, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_FINE_SEAM_FLOOR__ === true) return 0;
+  // Only the tier the coarse guard structurally cannot reach. A coarse grid keeps its own floor.
+  if (cellDeg === null || cellDeg === undefined || !(cellDeg < FINE_SEAM_MAX_CELL_DEG)) return 0;
+  // Never LOWER an already-applied floor (the suppress path sets 2.0 and must win).
+  if (typeof coarseFloor === 'number' && coarseFloor >= 1.0) return 0;
+  const tuned = (typeof w.__RAW_FINE_SEAM_FLOOR__ === 'number') ? w.__RAW_FINE_SEAM_FLOOR__ : FINE_SEAM_FLOOR_DEFAULT;
+  if (!(tuned > 0)) return 0;
+  return Math.min(1.0, tuned);
+}
+
 // === DEAD-EDGE TRIM (pure; exported for tests) ===
 // 2026-07-18 "hard vertical line of no animations": the NOAA-direct ingest fencepost baked an
 // ALL-INVALID east column (and north row) into every regional tile (FL -79.0 col = 21/21
