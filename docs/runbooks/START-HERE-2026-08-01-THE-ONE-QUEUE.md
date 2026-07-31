@@ -12,7 +12,8 @@ was renumbered: **#1-#11 keep the IDs every memory file and handoff already cite
 `memory/THE-COVERAGE-CLASS-a-resource-smaller-than-the-view-2026-07-31.md` (the one structural
 shape behind four defects).
 
-Branch `dev` == `origin/dev` == `631d92d0`. Backend suite **1,647 passed / 0 failed**.
+Branch `dev` == `origin/dev` == `9b0339ca` (2026-07-31 late). Closed this arc: **#12** `7da00ca8` · **#18** `4246c56d` · **#13+#14** `79e1001a`.
+⚠️ A parallel session is live in this tree (marine multi-bbox) — **stage BY PATH**, never `git add -A` (standing rule 18; I pushed its mutation test to `origin/dev` once).
 
 ---
 
@@ -43,7 +44,7 @@ PowerShell pipe (`Out-File` buffers until exit and made progress invisible for 1
 ⚠️ CDS queueing makes this **~7× slower than the 32 s/spot the research predicted** — a planning
 input for #3: the 4,000-spot catalogue is *weeks* at this rate.
 
-### #12 ✅ ROOT FOUND AND FIXED — AND HAWAII WAS THE SMALL END OF IT (`e46e5c0d`, on `dev`)
+### #12 ✅ ROOT FOUND AND FIXED — AND HAWAII WAS THE SMALL END OF IT (`7da00ca8`, on `dev`)
 Swept run age per (model, domain, layer, region) across the live manifest, 2026-07-31 19:34Z, 12,147
 products. Hawaii had already rotated back to 5.0 h — which is what proved this is **starvation, not
 an outage**. What the sweep actually found:
