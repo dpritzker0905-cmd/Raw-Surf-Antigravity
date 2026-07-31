@@ -143,6 +143,7 @@ rehydrate from the DB at serve-box boot.
 
 ## P3 — PRODUCT GAPS (researched 2026-07-31; the workflow is STORM → SWELL → SPOT)
 
+* **#12 HAWAII WIND — 75-HOUR-OLD RUN — spawned task `task_98ed9f35`, see the P0 section above.**
 * **#9 NO PERIOD LAYER.** First-class at the market leader, absent here, and it is the single field
   that separates a rideable groundswell from chop at the same height. Surfers filter at **≥10 s**.
 * **#10 THE INFOBOX NEVER DECOMPOSES.** It shows one blended number; the individual trains
@@ -197,3 +198,26 @@ rehydrate from the DB at serve-box boot.
 6. **Products carry `run_time` but no builder SHA** ⇒ "is my fix live?" is still unanswerable from
    the artifact for CODE (data provenance is now answerable — see #12's method).
 7. **A flag has a value PER LANE.** Read the served payload, not this process's env.
+
+---
+
+## ➕ ADDED 2026-07-31 LATE (forensics in `HANDOFF-2026-07-31-LATE-the-infobox-quantity-and-five-false-positives.md`)
+
+* **#17 THE INFOBOX DISPLAYS A DIFFERENT QUANTITY THAN ITS OWN BADGE.**
+  `MapForecastOverlay.js:253` shows `useExactPoint.wave_height` (**OFFSHORE** Hs); `:405` grades the
+  badge from `useExactPoint.surf_height_m` (**BREAKING**). Measured at Cocoa: 1.28 ft displayed vs
+  2.05 ft breaking. It agrees with Windy because Windy shows offshore too. ⇒ label it as swell, or
+  show `surf_height_m`. **And** the same expression falls back to the RENDERED GRID sample when
+  `isExactPointAuthority` is false — the grid is coarse until `series_sharpen` lands, which is why a
+  layer toggle "fixes" it. ★ `isExactPointAuthority` is the Jacobian variable.
+* **#18 `partitions_represent` IS BLIND TO PERIOD — PREREQUISITE TO #7's FIX.** `T_total` exceeds
+  every partition's period at 5 of 6 FL sites; all of them clear the >0.5 height-quadrature test,
+  and the one physically consistent site passes identically. The onshore-flux ranking is first-order
+  in T (`c_g = gT/4π`), so ranking today's partitions ranks a decomposition missing a train.
+* **#19 SEBASTIAN INLET OVER-AMPLIFICATION (lead, unverified).** Largest breaking height from the
+  smallest offshore Hs, shortest Tp, deepest bar — ×2.19 vs Cocoa's ×1.60. Probe `magnet_factor`.
+* **#7 UPDATE:** partly a RATING-MODE artifact — rating-OFF commits a degenerate 5×5/1.6° grid
+  reading a uniform 27.9°; rating-ON pulls the 0.235° tile and reads ~89° (matches the point lane).
+  **Re-run every direction ladder in BOTH rating states.**
+* ✅ **Marine is NOT painting land** (0.000-0.030%, runs 0-2 px, real GPU) — after five false
+  positives. `probe_land_bleed.js` encodes all five.
