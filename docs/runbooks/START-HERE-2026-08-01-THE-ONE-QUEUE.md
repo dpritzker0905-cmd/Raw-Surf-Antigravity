@@ -284,6 +284,22 @@ rehydrate from the DB at serve-box boot.
 
 ## ➕ ADDED 2026-07-31 LATE (forensics in `HANDOFF-2026-07-31-LATE-the-infobox-quantity-and-five-false-positives.md`)
 
+* **#17 ✅ CLOSED (`5ae2d267`) — AND THE FRAMING BELOW WAS WRONG.** The box ALREADY pushed BOTH a
+  `Height` card (offshore) and a `Surf` card (breaking, "(est.)"), and the Surf row renders at
+  **12 of 12 real breaks** measured live. The actual defect was narrower: the offshore card was
+  labelled **`Height`** — unqualified — and rendered **FIRST**, so it read as *the* answer.
+  ⇒ renamed to **`Swell`**, and **`Surf` now leads** (domain standard; it is what the badge grades).
+  **No numeric change.** ★★ When two quantities share units, **the LABEL is the entire correctness
+  surface.** Measured offshore→breaking: `shoaling` **1.33–2.25× LARGER** (Sebastian 2.25, Cocoa
+  1.64) · `shelf` **0.83–0.86× SMALLER** (Pipeline 0.83) ⇒ ⭐**`surf_regime` PREDICTS THE SIGN.**
+  ⚠️ A code comment claimed FL reads *smaller*; it reads 1.42–2.25× **larger** — inverted on both
+  counts, now replaced with measurements. ✅ a11y: `role=list`/`listitem` + per-row `aria-label`.
+  ⚠️ **Not browser-verified** — port 3009 is held by a parallel session's dev server.
+  ⛔ **#10's train-level decomposition is NOT delivered** — `partitions` is None at every site
+  (SURF_PARTITIONS flag-off); it lands with the **#5 flip**.
+
+<details><summary>Original report (superseded)</summary>
+
 * **#17 THE INFOBOX DISPLAYS A DIFFERENT QUANTITY THAN ITS OWN BADGE.**
   `MapForecastOverlay.js:253` shows `useExactPoint.wave_height` (**OFFSHORE** Hs); `:405` grades the
   badge from `useExactPoint.surf_height_m` (**BREAKING**). Measured at Cocoa: 1.28 ft displayed vs
@@ -291,6 +307,8 @@ rehydrate from the DB at serve-box boot.
   show `surf_height_m`. **And** the same expression falls back to the RENDERED GRID sample when
   `isExactPointAuthority` is false — the grid is coarse until `series_sharpen` lands, which is why a
   layer toggle "fixes" it. ★ `isExactPointAuthority` is the Jacobian variable.
+</details>
+
 * **#18 ✅ FIXED (`4246c56d`) — AND THE REPORTED RATE WAS A BOOLEAN OVER NEAR-TIES.**
   The original claim ("`T_total` exceeds every partition at 5 of 6 FL sites") **did not reproduce**.
   Measured live 2026-07-31 20:00Z, GFS point lane, 36 samples (6 FL sites × hours 0/6/12/24/48/72):
