@@ -94,6 +94,71 @@ class WeatherPipelineScheduler:
         # remains the fallback. Kill switch: GFS_MARINE_NOAA_DIRECT=0.
         noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
 
+        from services.weather_pipeline.scheduler_helpers import (
+            flagship_pilot_days, get_all_pilot_regions)
+        from services.weather_pipeline.marine_mid_res_ingestion import _save_marine_regional
+
+        def _layers_for(region_id: str) -> list:
+            # Swell 2 is not requested for SoCal
+            return ["waves", "swell_1", "wind_waves"] if region_id == "us_west_coast_socal" \
+                else ["waves", "swell_1", "swell_2", "wind_waves"]
+
+        # ══ MULTI-BBOX single-download-pass: ALL regions for ONE region's download cost ══
+        # THE ROTATION WAS RATIONING REDUNDANCY. NOAA's byte-range selects a GRIB *message*, not a
+        # region, and a message is the whole global 0.25° field, so the bbox never touches the wire —
+        # measured 2026-07-31 on the 12Z cycle, byte-identical payloads for a 609-point and a
+        # 2,009-point box. Rationing that duplication by rotation left uk_ireland and east_australia
+        # on an 18.7-day-old run, and the SERVE path then degraded silently: uk_ireland fell through
+        # to the 2° global_mid tile, east_australia had no tile at all and answered
+        # `source: backend_direct_point` — a LIVE per-request upstream fetch on a box with three melt
+        # incidents. A missing tile does not merely coarsen; it moves cost onto the request path.
+        # Grouped BY HORIZON so the flagship-first contract (flagship 14d, worldwide short) survives
+        # exactly: one pass per distinct horizon, not one pass per region.
+        # Kill switch: MARINE_PILOT_MULTI_BBOX=0 -> the per-region rotation path below.
+        if noaa_direct and os.environ.get("MARINE_PILOT_MULTI_BBOX", "1") != "0":
+            regions_all = get_all_pilot_regions()
+            by_horizon = {}
+            for rid, rcfg in regions_all.items():
+                days = flagship_pilot_days(
+                    rid,
+                    int(os.environ.get("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")),
+                    int(os.environ.get("GFS_MARINE_FORECAST_DAYS", "8")),
+                )
+                by_horizon.setdefault(days, {})[rid] = rcfg
+
+            multi_saved = 0
+            for days, group in sorted(by_horizon.items()):
+                multi = None
+                try:
+                    from services.noaa_marine_service import fetch_gfs_marine_regions
+                    multi = await fetch_gfs_marine_regions(group, 0.25, days)
+                except Exception as _me:
+                    logger.error(f"[Pipeline Scheduler] GFS-Wave multi-region fetch errored "
+                                 f"({days}d, {len(group)} regions): {_me}")
+                if not multi:
+                    logger.warning(f"[Pipeline Scheduler] GFS-Wave multi-region unavailable for the "
+                                   f"{days}d horizon ({len(group)} regions).")
+                    continue
+                logger.info(f"[Pipeline Scheduler] GFS-Wave multi-region OK: {len(multi)} regions "
+                            f"in one {days}d pass.")
+                for region_id, results in multi.items():
+                    region = group.get(region_id)
+                    if not region or not results:
+                        continue
+                    # NOAA GFS-Wave is natively 3-hourly -> step=1 keeps every step.
+                    multi_saved += await _save_marine_regional(
+                        self, env, run_time, "GFS", _layers_for(region_id),
+                        region_id, region, results, 1, "GFS")
+                    await self._cleanup_and_pause(results, 0)
+
+            if multi_saved > 0:
+                logger.info(f"[Pipeline Scheduler] GFS Marine Pilot (multi) done! "
+                            f"Saved {multi_saved} products.")
+                return True
+            logger.warning("[Pipeline Scheduler] GFS-Wave multi-region yielded nothing; "
+                           "falling back to the per-region rotation path.")
+
+        # ══ FALLBACK: per-region (rotation-selected — starvation-prone, see above) ══
         for region_id, region in get_pilot_regions(self.store, "GFS", "marine").items():
             resolution = self._get_resolution(region, env["is_render"])
             logger.info(f"[Pipeline Scheduler] Ingesting GFS Marine for region: {region_id}")
@@ -139,26 +204,9 @@ class WeatherPipelineScheduler:
 
             # NOAA GFS-Wave is natively 3-hourly (step=1 keeps every step); open-meteo all_marine is hourly
             # (step=3 -> 3-hourly products). Same 3-hourly product cadence either way.
-            save_step = 1 if from_noaa else 3
-
-            # Swell 2 is not requested for SoCal
-            layers = ["waves", "swell_1", "wind_waves"] if region_id == "us_west_coast_socal" \
-                else ["waves", "swell_1", "swell_2", "wind_waves"]
-
-            for layer in layers:
-                count = await normalize_and_save_loop(
-                    self.normalizer, self.store, results,
-                    model="GFS", provider="open-meteo", domain="marine", layer=layer,
-                    bbox=region, resolution=resolution, run_time=run_time,
-                    region_id=region_id, coverage_mode="regional_tile",
-                    is_test_env=env["is_test_env"], step=save_step,
-                    log_prefix=f"[Pipeline Scheduler] GFS {layer} {region_id}"
-                )
-                logger.info(f"[Pipeline Scheduler] Ingested {count} GFS {layer} products for region {region_id}.")
-                total_saved += count
-                if count > 0:
-                    self.store.prune_superseded_products("GFS", "marine", layer, region_id, run_time)
-
+            total_saved += await _save_marine_regional(
+                self, env, run_time, "GFS", _layers_for(region_id),
+                region_id, region, results, 1 if from_noaa else 3, "GFS")
             await self._cleanup_and_pause(results)
 
         logger.info(f"[Pipeline Scheduler] GFS Marine Ingestion Job done! Saved {total_saved} total conformed product files.")

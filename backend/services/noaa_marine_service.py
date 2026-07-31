@@ -35,12 +35,18 @@ async def fetch_gfs_marine_global_coarse(
     bbox: dict,
     resolution: float = 10.0,
     forecast_days: int = 14,
-) -> Optional[List[dict]]:
+    bboxes: Optional[dict] = None,
+):
     """
     BACKGROUND-ONLY: fetch a coarse (resolution°) GLOBAL GFS-Wave grid direct from NOAA AWS Open Data
     (byte-range GRIB2 via noaa_gfs_wave_fetcher.py). Returns Open-Meteo-shaped point dicts for all 4 native
     layers (waves/swell_1/swell_2/wind_waves), or None on failure. Slow (~5-15 min, low CPU/mem) — scheduler
     ingestion ONLY, never a user request. GFS-Wave runs to 16 days; we serve up to forecast_days (cap 16).
+
+    ``bboxes`` ({region_id: bbox}) switches the fetcher to MULTI-REGION mode and the return becomes the
+    keyed envelope {"__multi_region__": True, "regions": {...}} — use fetch_gfs_marine_regions rather
+    than calling this with bboxes directly. Threaded through the SAME subprocess plumbing on purpose:
+    a second copy of the spawn/timeout/cleanup logic is how two paths drift apart.
 
     In a test environment returns None so the existing open-meteo mock path runs unchanged.
     """
@@ -63,6 +69,8 @@ async def fetch_gfs_marine_global_coarse(
         "forecast_days": int(forecast_days),
         "output_path": str(out),
     }
+    if bboxes:
+        payload["bboxes"] = dict(bboxes)
     script = os.path.join(os.path.dirname(__file__), "noaa_gfs_wave_fetcher.py")
 
     def _run():
@@ -96,3 +104,33 @@ async def fetch_gfs_marine_global_coarse(
                 out.unlink()
         except Exception:
             pass
+
+
+async def fetch_gfs_marine_regions(
+    bboxes: dict,
+    resolution: float = 0.25,
+    forecast_days: int = 3,
+) -> Optional[dict]:
+    """MULTI-BBOX single-download-pass: ONE GFS-Wave download pass samples EVERY region in `bboxes`
+    ({region_id: bbox}) — N regions for one region's download cost.
+
+    WHY (measured 2026-07-31): NOAA's byte-range selects a GRIB *message*, not a region, and a
+    message is the whole global 0.25° field — so the bbox never touches the wire and per-region
+    passes re-downloaded identical bytes. Rationing that duplication by ROTATION is what left
+    uk_ireland and east_australia on an 18.7-day-old run with no covering product, which the serve
+    path then answered by falling through to the 2° global_mid tile (uk_ireland) or by a LIVE
+    per-request upstream fetch (east_australia, `source: backend_direct_point`). The rotation was
+    converting a batch cost into per-request compute on a box with three melt incidents.
+    Mirrors fetch_icon_marine_regions / fetch_gfs_wind_regions.
+
+    Returns {region_id: [Open-Meteo-shaped points]} or None (caller falls back to the per-region
+    path). None in test env, same as the single-bbox fetcher."""
+    if not bboxes:
+        return None
+    first = next(iter(bboxes.values()))
+    data = await fetch_gfs_marine_global_coarse(
+        first, resolution, forecast_days, bboxes=dict(bboxes))
+    if isinstance(data, dict) and data.get("__multi_region__"):
+        regions = data.get("regions")
+        return regions if regions else None
+    return None

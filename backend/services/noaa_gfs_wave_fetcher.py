@@ -210,25 +210,43 @@ def _fetch_message_bytes(requests, url, start, end):
 
 
 def fetch_global_coarse(payload):
-    """Return (points, steps_ok, steps_failed, times) for the coarse global grid via NOAA GFS-Wave."""
+    """Return (points_or_regions, steps_ok, steps_failed, times) for the coarse global grid via NOAA GFS-Wave.
+
+    MULTI-BBOX (2026-07-31, single-download-pass — the same port applied to the wind lane, and the
+    2026-07-13 GWAM precedent before that). NOAA's byte-range selects a GRIB *message*, not a region:
+    a message is the whole global 0.25° field, so the bbox never touches the wire and a per-region
+    pass re-downloads identical bytes. That redundancy is what WORLDWIDE_REGIONS_PER_CYCLE rationed
+    by ROTATION, and the rotation is what left uk_ireland and east_australia on an 18.7-day-old run.
+    Measured consequence at the SERVE path (2026-07-31 20:19Z, /api/weather/point GFS marine waves):
+    uk_ireland fell through to gfs_marine_waves_global_mid — an 8x coarser grid under the height
+    chain — and east_australia had no tile at all, answering `source: backend_direct_point` with a
+    run_time stamped at request time, i.e. a LIVE per-request upstream fetch on the serve box (three
+    melt incidents in its history). A missing tile does not merely coarsen; it converts a batch cost
+    into per-request compute.
+    A payload `bboxes: {region_id: bbox}` samples EVERY region from each decoded field in ONE pass.
+    The legacy single-`bbox` path is unchanged (plain list of points).
+    """
     import numpy as np
     import requests
     import pygrib
     import gc
 
-    bbox = payload["bbox"]
+    multi = payload.get("bboxes") or None            # {region_id: bbox} -> multi-region mode
+    regions = dict(multi) if multi else {"__single__": payload["bbox"]}
     resolution = float(payload.get("resolution", 10.0))
     forecast_days = int(payload.get("forecast_days", 14))
     max_f = min(int(forecast_days) * 24, 384)
 
-    lons = _coarse_axis(float(bbox["west"]), float(bbox["east"]), resolution)
-    lats = _coarse_axis(float(bbox["south"]), float(bbox["north"]), resolution)
+    # rid -> (lats, lons). Axis order matches the single-bbox path exactly (lat outer, lon inner).
+    axes = {rid: (_coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
+                  _coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
+            for rid, bb in regions.items()}
     f_hours = list(range(0, max_f + 1, 3))  # 3-hourly (all multiples of 3 exist 0..384)
 
     cycle_dt, prefix = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
     if not prefix:
         sys.stderr.write("[noaa_gfs_wave_fetcher] no complete GFS-Wave cycle found on AWS Open Data\n")
-        return [], 0, 0, None
+        return ({} if multi else []), 0, 0, None
 
     tmp = Path(tempfile.gettempdir())
     # Env-constant switches, read once (also referenced by the per-step decode loop below).
@@ -243,12 +261,12 @@ def fetch_global_coarse(payload):
     export_part_conf = blockmean and os.environ.get("NOAA_PARTITION_DIR_CONFIDENCE", "1") != "0"
     # accumulator: point index -> {om_var -> [values per timestep]}; the confidence series is
     # initialized WITH the whitelisted variables so failed steps keep every series time-aligned.
-    n_pts = len(lats) * len(lons)
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
     if export_part_conf:
         series_keys = series_keys + list(PARTITION_DIR_CONFIDENCE_OM.values())
-    series = [{om: [] for om in series_keys} for _ in range(n_pts)]
-    idx_map = None  # (row, col) per coarse point, built from the first decoded grid
+    series_by = {rid: [{om: [] for om in series_keys} for _ in range(len(la) * len(lo))]
+                 for rid, (la, lo) in axes.items()}
+    idx_by = None  # rid -> [(row, col), ...] per coarse point, built from the first decoded grid
     times = []
     steps_ok = 0
     steps_failed = 0
@@ -270,19 +288,24 @@ def fetch_global_coarse(payload):
             if len(msgs) < len(OM_ORDER):
                 raise RuntimeError(f"decoded {len(msgs)} msgs, expected {len(OM_ORDER)}")
 
-            if idx_map is None:
+            if idx_by is None:
+                # One nearest-neighbour map per region, built ONCE off the first decoded message —
+                # the global grid is identical every step, so this is pure local indexing.
                 g0 = msgs[0]
                 glats, glons = g0.latlons()
                 lat1d = np.asarray(glats[:, 0], dtype=float)
                 lon1d = np.asarray(glons[0, :], dtype=float)
                 is_360 = bool(lon1d.max() > 180.0)
-                idx_map = []
-                for la in lats:
-                    r = int(np.abs(lat1d - la).argmin())
-                    for lo in lons:
-                        target = (lo % 360.0) if is_360 else lo
-                        c = int(np.abs(lon1d - target).argmin())
-                        idx_map.append((r, c))
+                idx_by = {}
+                for rid, (la_axis, lo_axis) in axes.items():
+                    rmap = []
+                    for la in la_axis:
+                        r = int(np.abs(lat1d - la).argmin())
+                        for lo in lo_axis:
+                            target = (lo % 360.0) if is_360 else lo
+                            c = int(np.abs(lon1d - target).argmin())
+                            rmap.append((r, c))
+                    idx_by[rid] = rmap
 
             # Decode every message up-front so DIRECTION vars can pair with their HEIGHT var (energy weight).
             arrs = {}
@@ -296,17 +319,21 @@ def fetch_global_coarse(payload):
             half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             _total_h = arrs.get("wave_height") if total_field else None
+            # The decode + the block-mean inputs above are per-STEP and region-independent; only the
+            # point iteration below is per-region. That asymmetry is the whole optimisation.
             for om in OM_ORDER:
                 arr = arrs[om]
                 if blockmean and om == "wave_direction":
                     # total-sea direction: coherence-gated blend of DIRPW-block-mean and partitions
-                    for pi, (r, c) in enumerate(idx_map):
-                        x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
-                        series[pi][om].append(round(float(x), 4) if x == x else None)
-                        if export_confidence:
-                            series[pi][DIR_CONFIDENCE_OM].append(
-                                round(float(conf), 4) if conf is not None else None
-                            )
+                    for rid, rmap in idx_by.items():
+                        series = series_by[rid]
+                        for pi, (r, c) in enumerate(rmap):
+                            x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
+                            series[pi][om].append(round(float(x), 4) if x == x else None)
+                            if export_confidence:
+                                series[pi][DIR_CONFIDENCE_OM].append(
+                                    round(float(conf), 4) if conf is not None else None
+                                )
                     continue
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                 is_height = scalar_blockmean and om in HEIGHT_VARS
@@ -314,32 +341,37 @@ def fetch_global_coarse(payload):
                 # A PARTITION direction also exports R x coverage, because energy weighting only
                 # ever sees subcells where the train exists — see PARTITION_DIR_CONFIDENCE_OM.
                 part_conf_key = PARTITION_DIR_CONFIDENCE_OM.get(om) if export_part_conf else None
-                for pi, (r, c) in enumerate(idx_map):
-                    if h_arr is not None and part_conf_key:
-                        x, _pconf = energy_mean_direction_block_partition_conf(
-                            arr, h_arr, r, c, half, True)
-                        series[pi][part_conf_key].append(
-                            round(float(_pconf), 4) if _pconf is not None else None)
-                    elif h_arr is not None:
-                        # global.0p25 grid → longitude always wraps
-                        x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
-                    elif is_height:
-                        x = energy_mean_height_block(arr, r, c, half, True)
-                    elif p_h_arr is not None:
-                        x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
-                    else:
-                        x = arr[r, c]
-                    series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN
+                for rid, rmap in idx_by.items():
+                    series = series_by[rid]
+                    for pi, (r, c) in enumerate(rmap):
+                        if h_arr is not None and part_conf_key:
+                            x, _pconf = energy_mean_direction_block_partition_conf(
+                                arr, h_arr, r, c, half, True)
+                            series[pi][part_conf_key].append(
+                                round(float(_pconf), 4) if _pconf is not None else None)
+                        elif h_arr is not None:
+                            # global.0p25 grid → longitude always wraps
+                            x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
+                        elif is_height:
+                            x = energy_mean_height_block(arr, r, c, half, True)
+                        elif p_h_arr is not None:
+                            x = energy_mean_scalar_block(arr, p_h_arr, r, c, half, True)
+                        else:
+                            x = arr[r, c]
+                        series[pi][om].append(round(float(x), 4) if x == x else None)  # x==x drops NaN
             grbs.close()
 
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_ok += 1
         except Exception as e:
-            # keep the time-axis aligned: append None for this timestep so all series stay equal length
-            for pi in range(n_pts):
-                for om in series_keys:
-                    if len(series[pi][om]) < steps_ok + steps_failed + 1:
-                        series[pi][om].append(None)
+            # keep the time-axis aligned: append None for this timestep so all series stay equal
+            # length — for EVERY region, or one region's arrays desync from `times` and every later
+            # value is attributed to the wrong timestamp (a silent time shift).
+            for series in series_by.values():
+                for pt in series:
+                    for om in series_keys:
+                        if len(pt[om]) < steps_ok + steps_failed + 1:
+                            pt[om].append(None)
             times.append((cycle_dt + timedelta(hours=f)).strftime("%Y-%m-%dT%H:%M:%SZ"))
             steps_failed += 1
             sys.stderr.write(f"[noaa_gfs_wave_fetcher] f{f:03d} failed: {type(e).__name__}: {e}\n")
@@ -351,29 +383,36 @@ def fetch_global_coarse(payload):
                 pass
             gc.collect()
 
-    if idx_map is None:
-        return [], 0, steps_failed, None
+    if idx_by is None:
+        return ({} if multi else []), 0, steps_failed, None
 
-    points = []
-    pi = 0
-    for la in lats:
-        for lo in lons:
-            hourly = {"time": times}
-            for om in series_keys:
-                hourly[om] = series[pi][om]
-            units = {"time": "iso8601", **OM_UNITS}
-            if export_confidence:
-                units[DIR_CONFIDENCE_OM] = "fraction"
-            points.append({
-                "latitude": float(la), "longitude": float(lo),
-                "generationtime_ms": 0, "utc_offset_seconds": 0,
-                "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
-                "__provider": "noaa",
-                "hourly_units": units,
-                "hourly": hourly,
-            })
-            pi += 1
-    return points, steps_ok, steps_failed, times
+    by_region = {}
+    for rid, (la_axis, lo_axis) in axes.items():
+        series = series_by[rid]
+        points = []
+        pi = 0
+        for la in la_axis:
+            for lo in lo_axis:
+                hourly = {"time": times}
+                for om in series_keys:
+                    hourly[om] = series[pi][om]
+                units = {"time": "iso8601", **OM_UNITS}
+                if export_confidence:
+                    units[DIR_CONFIDENCE_OM] = "fraction"
+                points.append({
+                    "latitude": float(la), "longitude": float(lo),
+                    "generationtime_ms": 0, "utc_offset_seconds": 0,
+                    "timezone": "GMT", "timezone_abbreviation": "GMT", "elevation": 0,
+                    "__provider": "noaa",
+                    "hourly_units": units,
+                    "hourly": hourly,
+                })
+                pi += 1
+        by_region[rid] = points
+
+    if multi:
+        return by_region, steps_ok, steps_failed, times
+    return by_region["__single__"], steps_ok, steps_failed, times
 
 
 def main():
@@ -391,20 +430,27 @@ def main():
     elapsed = time.time() - t0
 
     out_path = payload.get("output_path", "")
-    if out_path and points:
+    # Multi-region mode: `points` is {region_id: [points]} -> wrap in the keyed envelope the multi
+    # service fn unwraps; flatten for the summary stats. Single mode unchanged (plain list).
+    is_multi = isinstance(points, dict)
+    out_obj = {"__multi_region__": True, "regions": points} if is_multi else points
+    flat = [p for pts in points.values() for p in pts] if is_multi else points
+
+    if out_path and flat:
         with open(out_path, "w") as f:
-            json.dump(points, f)
+            json.dump(out_obj, f)
 
     nz = 0
     sample_max = None
-    if points:
-        wh = [v for p in points for v in p["hourly"].get("wave_height", []) if v is not None]
+    if flat:
+        wh = [v for p in flat for v in p["hourly"].get("wave_height", []) if v is not None]
         nz = sum(1 for v in wh if v and v > 0)
         sample_max = max(wh) if wh else None
-    print(f"SUMMARY: points={len(points)} steps_ok={ok} steps_failed={failed} "
+    regions_note = f" regions={len(points)}" if is_multi else ""
+    print(f"SUMMARY: points={len(flat)}{regions_note} steps_ok={ok} steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
           f"wave_height_nonzero={nz} wave_height_max={sample_max} elapsed={elapsed:.1f}s "
-          f"wrote={'yes:'+out_path if (out_path and points) else 'no(standalone)'}")
+          f"wrote={'yes:'+out_path if (out_path and flat) else 'no(standalone)'}")
 
 
 if __name__ == "__main__":
