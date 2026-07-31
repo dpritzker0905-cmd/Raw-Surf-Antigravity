@@ -1,7 +1,7 @@
 import sqlite3
 import logging
 import os
-from datetime import datetime
+from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
 from fastmcp import FastMCP
 from utils.sqlite_helpers import get_sqlite_connection
@@ -27,6 +27,13 @@ from services.weather_pipeline import sim_spots
 # scan LOGIC (frame budget, ranking, honest truncation) and this file has twice been blocked at the
 # 800-line ratchet; the tool below is the thin wrapper.
 from services.weather_pipeline import sim_window
+# The SPATIAL scan — "which spot", the other half of the same question. Same reason it lives
+# outside: the ranking rules (the geometry gate, the resolving-power margin) are the substance.
+from services.weather_pipeline import sim_compare
+# The prose surfaces (conditions summary resource + advisor prompt).
+from services.weather_pipeline import sim_briefing
+# The main-thread warm-up that keeps the stdio server from deadlocking on its first tool call.
+from services.weather_pipeline import sim_boot
 
 # Setup logger
 logger = logging.getLogger("weather_sim_mcp")
@@ -596,6 +603,76 @@ def find_best_window(spot_name: str, hours_ahead: int = 48, step_hours: int = 3,
 
 
 @mcp.tool
+def find_best_spot(near: str, radius_km: float = 50.0, valid_time: str = "",
+                   top: int = 5) -> Dict[str, Any]:
+    """Rank the surf spots around a place to answer WHICH SPOT to surf at a given hour.
+
+    `find_best_window` answers which HOUR at one spot; this answers which SPOT at one hour — the
+    question a surfer with several local breaks actually asks. Neighbouring breaks see the same
+    offshore sea and differ by their own shore normal and break depth, so this is where the
+    per-spot geometry decides the answer instead of sitting behind one number.
+
+    ⛔ A spot with NO resolved shore normal is ranked LAST whatever it scores: with no bearing the
+    rating scores every swell as head-on, which measured +8.5 points median (max +88.6) and changed
+    the level at 66.7% of spots. The error can only push a score UP, so a blind spot would otherwise
+    win the comparison it cannot be judged in. They stay in `series`, labelled.
+
+    Args:
+        near: A spot name (or id) to centre on, or a raw "lat,lng" coordinate.
+        radius_km: How far around that centre to look.
+        valid_time: Optional ISO-8601 UTC hour, e.g. '2026-07-31T15:00:00Z'. Empty means now.
+        top: How many ranked spots to return. The full `series` is returned regardless.
+    """
+    hour, bad = _parse_valid_time(valid_time)
+    if bad:
+        return bad
+
+    centre = sim_compare.parse_centre(near)
+    centre_label = ""
+    if centre is None:
+        found = sim_spots.resolve(near)
+        if found.candidates:
+            return sim_spots.ambiguity_error(near, found.candidates)
+        if not found.spot:
+            return {"error": f"'{near}' is neither a spot in the catalog nor a 'lat,lng' coordinate.",
+                    "hint": "Call get_surf_spots(query=...) to search by name."}
+        centre = (float(found.spot["latitude"]), float(found.spot["longitude"]))
+        centre_label = found.spot["name"]
+
+    radius = max(0.1, min(float(radius_km), sim_compare.MAX_RADIUS_KM))
+    # `_grafted` so a candidate that happens to be one of the hand-tuned names is rated identically
+    # to the same name asked for directly — identity from the catalogue, extras grafted on.
+    rows = [sim_spots._grafted(r) for r in sim_spots.query_spots()]
+    spots, total = sim_compare.nearby(rows, centre[0], centre[1], radius,
+                                      cap=sim_compare.MAX_SPOTS)
+    if not spots:
+        return {"error": f"No catalog spot lies within {radius:g} km of {centre_label or near}.",
+                "centre": {"lat": centre[0], "lng": centre[1]},
+                "hint": "Widen radius_km, or call get_surf_spots(query=...) to find a nearby name."}
+
+    # Daylight needs a concrete instant; the baseline lane keeps the caller's "" (see scan()).
+    light_hour = hour or datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:00:00Z")
+    out = sim_compare.scan(spots, _baseline_with_source, hour, top=top, light_hour=light_hour)
+    out["scanned"]["radius_km"] = round(radius, 2)
+    out["scanned"]["candidates_in_radius"] = total
+    if total > len(spots):
+        # Say that the candidate set was CUT, and name the radius at which it would be COMPLETE.
+        # "The best spot near you" over half the coast is the spatial twin of a silently-shortened
+        # horizon, and "narrow the radius" is only useful advice if it says by how much.
+        complete_km = spots[-1].get("distance_km")
+        out["scanned"]["truncated"] = (
+            f"{total} spots lie within {radius:g} km; the nearest {len(spots)} were scanned "
+            f"(SIM_COMPARE_MAX_SPOTS={sim_compare.MAX_SPOTS}, a latency budget — every uncached "
+            f"spot is two HTTP requests). This answer is COMPLETE out to {complete_km} km; pass "
+            f"radius_km={complete_km} for a set with nothing left out.")
+    summary = sim_compare.summarize(out["best_spots"], centre_label)
+    return {"centre": {"name": centre_label or None, "lat": centre[0], "lng": centre[1]},
+            "requested_valid_time": hour or "now",
+            **out,
+            **({"summary": summary} if summary else {})}
+
+
+@mcp.tool
 def clear_simulation_overrides(spot_name: str = "") -> Dict[str, Any]:
     """Drop staged simulation overrides so forecasts return to catalog defaults.
 
@@ -625,159 +702,32 @@ def clear_simulation_overrides(spot_name: str = "") -> Dict[str, Any]:
     return out
 
 
-# 5. FastMCP Resources
-
-# The reference spots the summary works through when nothing is staged. Resolved through the LIVE
-# catalogue like any other name, so they report the app's coordinates rather than the hand-tuned
-# ones — this resource used to iterate MOCK_SPOTS directly and therefore described `Mavericks` at a
-# point 637 m from production's, and `Pacifica State Beach`, which the catalogue does not carry.
-_SUMMARY_REFERENCE = ("Mavericks", "Montara State Beach", "Pacifica State Beach")
-
-# ⚠️ A SUMMARY LINE COSTS TWO HTTP REQUESTS. Each non-staged spot needs a marine and a wind sample
-# (0.5-1.1 s warm, up to SIM_FORECAST_TIMEOUT_S each cold), so this budget is a LATENCY bound, not a
-# display preference — the catalogue has 1818 spots and iterating it here would take hours. Staged
-# overrides are exempt: their vector is already in memory and costs no network at all.
-_SUMMARY_MAX = int(os.environ.get("SIM_SUMMARY_MAX", "3"))
-
-
-def _summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float],
-                  source: str) -> str:
-    calc = calculate_surf_rating(
-        spot, baseline["swell_height_m"], baseline["swell_period_sec"],
-        baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-        baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline))
-    # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
-    # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the
-    # rest of the module works to keep apart. Size and verdict are now named separately.
-    return (f" - {label}: Breaking at {calc['breaking_height_ft']} ft "
-            f"({calc['conditions_label']}) | Quality: {calc['quality_rating']}/100 "
-            f"({calc['quality_label']}) | Wind: {round(baseline['wind_speed_knots'], 1)} kts "
-            f"{calc['wind_class']} | [{source}]")
+# 5. FastMCP Resources and 6. Prompts — the BODIES live in `sim_briefing`, this file is the
+# transport binding. Both turn resolved state into English for a model to read, both have the same
+# failure mode (saying something confident about a spot the catalogue does not carry), and this file
+# has now been blocked at the 800-line ratchet three times. The names below stay exported here
+# because the suite reads them off this module.
+_SUMMARY_REFERENCE = sim_briefing.SUMMARY_REFERENCE
+_SUMMARY_MAX = sim_briefing.SUMMARY_MAX
+_summary_line = sim_briefing.summary_line
 
 
 @mcp.resource("data://forecasts/summary")
 def get_forecasts_summary() -> str:
     """A textual summary of staged simulations and a sample of live surf conditions."""
-    live = sim_forecast.fetch_catalog()
-    total = len(live) if live else None
-    lines = ["=== DAILY OCEAN CONDITIONS AND FORECAST SUMMARY ===",
-             f"Catalogue: {total if total is not None else 'unavailable'} active spots "
-             f"({sim_spots.catalog_source()}). This is a SAMPLE — call "
-             f"get_weather_forecast(spot_name) for any spot."]
+    return sim_briefing.forecasts_summary(_SIM_OVERRIDES, _baseline_with_source)
 
-    # 1. Everything staged. This is the sim's own state and the reason to read this resource at
-    #    all; it is also free, so it is never truncated by the latency budget.
-    staged = sorted(_SIM_OVERRIDES)
-    lines.append("")
-    lines.append(f"STAGED SIMULATION OVERRIDES ({len(staged)}):"
-                 if staged else "STAGED SIMULATION OVERRIDES: none")
-    for name in staged:
-        spot = sim_spots.resolve(name).spot or {"name": name}
-        if spot.get("latitude") is None:
-            continue
-        lines.append(_summary_line(name, spot, _SIM_OVERRIDES[name], "simulated_override"))
-
-    # 2. A bounded sample of real conditions, skipping anything already listed above.
-    lines.append("")
-    lines.append(f"REFERENCE SPOTS (up to {_SUMMARY_MAX}):")
-    shown = 0
-    for name in _SUMMARY_REFERENCE:
-        if shown >= _SUMMARY_MAX:
-            break
-        if name in _SIM_OVERRIDES:
-            continue
-        found = sim_spots.resolve(name)
-        if not found.spot:
-            continue
-        baseline, source, _ = _baseline_with_source(found.spot)
-        if baseline is None:
-            continue
-        label = found.spot["name"]
-        if found.identity_source == "catalog_default":
-            # Say it plainly: the app's catalogue does not carry this name, so the line describes
-            # a hand-tuned coordinate rather than a production spot.
-            label += " (not in the app catalogue)"
-        lines.append(_summary_line(label, found.spot, baseline, source))
-        shown += 1
-    return "\n".join(lines)
-
-
-# 6. FastMCP Prompts
 
 @mcp.prompt("surf_forecast_advisor")
 def get_surf_advisor_prompt(spot_name: str) -> str:
     """Prompt template that helps analyze surf and wind parameters to give strategic surf advice."""
-    found = sim_spots.resolve(spot_name)
-    if found.candidates:
-        names = ", ".join(f"{c['name']} ({c['region']})" for c in found.candidates)
-        return (f"The name '{spot_name}' matches several spots in the catalogue: {names}. Ask the "
-                f"surfer which one they mean before advising — do not pick one.")
-    if not found.spot:
-        # Was `or MOCK_SPOTS["Mavericks"]`, which briefed the model about a Californian big-wave
-        # break whenever the requested name was unknown, without ever saying so.
-        return (f"No spot named '{spot_name}' is in the catalogue. Say so, and offer to search "
-                f"with get_surf_spots(query=...) — do not advise about a different spot.")
-    spot = found.spot
-    normal = shore_normal_for(spot)
-    # Both optimal directions are DERIVED from the one shore normal rather than stored separately.
-    # The stored `optimal_wind_dir`/`optimal_swell_dir` fields disagreed with the bearing the engine
-    # actually scores against (by 20 deg at Montara, 64.9 deg at Mavericks), so this prompt used to
-    # brief the model on parameters the simulation was not using.
-    if normal is None:
-        return (f"You are a veteran surf forecaster advising a professional surfer about "
-                f"'{spot['name']}'. No shore orientation could be resolved for this spot, so treat "
-                f"swell-window and wind-direction reasoning as unconstrained and say so explicitly.")
-    return f"""You are a veteran surf forecaster and oceanographer advising a professional surfer.
+    return sim_briefing.advisor_prompt(spot_name)
 
-Here are the resolved parameters for the spot '{spot['name']}':
-- Shore normal (seaward bearing): {round(normal, 1)}°
-- Optimal swell direction: {round(normal, 1)}° (swell arriving head-on)
-- Optimal wind direction: {round((normal - 180) % 360, 1)}° (offshore — blowing out to sea)
-
-Analyze the current weather and swell forecast for this spot. Run a physical simulation calculating the wave break height and wind-swell vector alignment. Detail:
-1. Expected breaking wave height (ft) and swell-to-beach vector alignment percentage.
-2. The offshore/sideshore classification of the wind vector.
-3. Your strategic recommendation: Should they surf this spot today, wait for tide changes, or head to another spot in the region? Explain your reasoning with physical principles of bathymetry and wave shoaling.
-"""
-
-# 7. Main-thread warm-up — WITHOUT THIS THE SERVER DEADLOCKS ON ITS FIRST TOOL CALL
-#
-# Measured 2026-07-27 against the real stdio server: `get_surf_spots(query="Mavericks", limit=5)`
-# returned NOTHING for 480 s (the MCP client gives up at 1800 s), while the identical call
-# in-process took 0.02 s. faulthandler dumps of the live server — byte-identical at 25 s, 50 s and
-# 75 s — put the AnyIO worker thread inside `create_module`, loading numpy's `_multiarray_umath` C
-# extension, reached from `bathymetry.shelf_depth_at` where `import numpy` is a FUNCTION-level
-# import. Loading that DLL from a worker thread under the running stdio event loop never returns.
-#
-# What the measurements ruled OUT, so nobody re-tries them:
-#   * Not slowness — 3.7 s of CPU across 43 minutes of hanging.
-#   * Not fastmcp and not sync-vs-async dispatch — a minimal server with a trivial sync tool
-#     answers in 0.01 s on this same interpreter.
-#   * Not `get_surf_spots` — whichever tool is called FIRST is the one that hangs, and a second
-#     request unblocks the first (its response then arrives late, under the earlier id).
-#   * Not fixed by importing `bathymetry` — numpy is imported inside the function, not at that
-#     module's scope, so importing the module warms nothing.
-# Importing numpy on the MAIN thread first makes the identical call return in 0.02 s.
-#
-# One full rating is run rather than a bare `import numpy` so that EVERY lazy import on the tool
-# hot path — the bathymetry grid load, the ETOPO shore-normal asset, the magnet overrides,
-# `surf_transform.estimate_surf` — is resolved here too, on the main thread. Measured cost ~0.2 s.
-# Kill: SIM_EAGER_WARMUP=0.
-def _warm_hot_path() -> bool:
-    """Resolve the tool hot path's lazy imports on the MAIN thread. Never raises."""
-    if not _sim_flag("SIM_EAGER_WARMUP"):
-        return False
-    try:
-        import time as _time
-        _t0 = _time.time()
-        calculate_surf_rating(MOCK_SPOTS["Mavericks"], 3.5, 16.0, 290.0, 12.0, 95.0)
-        logger.info(f"hot path warmed on the main thread in {_time.time() - _t0:.2f}s")
-        return True
-    except Exception as e:
-        # A failed warm-up must never stop the server booting — it only forfeits the protection.
-        logger.warning(f"hot-path warm-up failed ({e}); the first tool call may block.")
-        return False
-
+# 7. Main-thread warm-up — WITHOUT THIS THE SERVER DEADLOCKS ON ITS FIRST TOOL CALL (a numpy C
+# extension loaded from an AnyIO worker thread under the running stdio loop never returns; the full
+# forensics live in `sim_boot`). ⚠️ THE CALL MUST STAY AT MODULE SCOPE HERE — that is what makes it
+# the main thread. Moving it inside a tool restores the deadlock. Name kept for the suite.
+_warm_hot_path = sim_boot.warm_hot_path
 
 _warm_hot_path()
 
