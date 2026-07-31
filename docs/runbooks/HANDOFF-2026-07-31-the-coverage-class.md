@@ -86,6 +86,31 @@ what is wrong is WHICH TRAIN it reports, not its size.
 floor and the swirl survived) · LOC ratchet restored (`6cb252e9`).
 ⛔ open: the halo (this doc) · the direction swap / task #7 · stale resident grid on layer switch
 (task #8) · no PERIOD layer (task #9) · infobox does not decompose (task #10).
-⏳ ERA5 climatology campaign still running (~10 h, ~120/150 spots by IO estimate); uploads ONE
-inbox batch at the end, so nothing lands until it exits. ⚠️ CDS queueing makes this ~7× slower than
-the 32 s/spot estimate — a real planning input for the 4,000-spot expansion.
+### ⏳ THE ERA5 CAMPAIGN — CHECK THIS FIRST, IT MAY HAVE DIED WITH THE SESSION
+Running at handoff: **pid 71096, started 22:49, ~19 h wall, 607 s CPU, 1,105 MB written ≈ 138 of
+150 spots** (IO estimate — the log is unreadable, see below). It uploads **ONE inbox batch at the
+very end**, so **nothing lands until it exits** and ~92 % complete is worth exactly as much as 0 %
+if it dies.
+
+⚠️⚠️ **IT IS A CHILD OF THE PREVIOUS SESSION'S SHELL AND MAY HAVE BEEN KILLED WITH IT.** First
+action for the next context:
+
+    Get-Process -Id 71096 -ErrorAction SilentlyContinue        # alive?
+    # if gone, confirm whether the batch landed before re-running:
+    cd backend; python scripts/era5_deepen_climatology.py --limit 150 --upload
+
+**Re-running is always safe** — the resume filter skips spots already deepened in the blob OR
+pending in the inbox, and it writes to the INBOX, never the blob (invariant 6). Nothing is lost;
+you only re-pay CDS queue time for the unfinished remainder.
+
+⚠️ **Run it with an APPEND REDIRECT, not a PowerShell pipe.** The scheduled task uses
+`cmd >> <log> 2>&1` and is readable live; this session piped through `Out-File`, which buffers
+until exit and made per-spot progress invisible for 19 hours (progress had to be inferred from
+process IO counters).
+
+⚠️ **CDS queueing makes this ~7× slower than the 32 s/spot the earlier research recorded** (~19 h
+for 150 spots vs a predicted ~80 min). The low CPU-to-wall ratio confirms it is waiting, not
+computing. ⇒ **a real planning input for the 4,000-spot expansion: at this rate the full catalogue
+is weeks, so that lane needs CDS batching or a different sourcing strategy before it scales.**
+⚠️ The scheduled task fires nightly at 21:30 and had `StopIfGoingOnBatteries=True` (fixed on both
+tasks) — a KILLED run reads as a MISSED one; check `LastTaskResult`, not just the log.
