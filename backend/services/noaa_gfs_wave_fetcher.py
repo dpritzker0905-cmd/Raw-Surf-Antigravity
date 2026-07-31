@@ -94,11 +94,13 @@ DIR_TO_HEIGHT = {
 try:
     from _fetch_common import (  # script-by-path
         energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+        energy_mean_direction_block_partition_conf,
         energy_mean_height_block, energy_mean_scalar_block,
     )
 except ImportError:
     from services._fetch_common import (  # package
         energy_mean_direction_block, energy_mean_direction_block_multi_conf,
+        energy_mean_direction_block_partition_conf,
         energy_mean_height_block, energy_mean_scalar_block,
     )
 
@@ -121,6 +123,21 @@ PERIOD_TO_HEIGHT = {
 # incoherent (the (20,-120)-class GFS-vs-ECMWF divergence blocks — no stable direction exists).
 # Extra series, never replaces a whitelisted variable. Kill switch NOAA_COARSE_DIR_CONFIDENCE=0.
 DIR_CONFIDENCE_OM = "wave_direction_confidence"
+
+# PER-PARTITION render confidence (2026-07-31). The total sea has carried a confidence since
+# §0B-a; the three PARTITIONS carried none, and they are the layers that need it most — a
+# partition is exact-0 wherever WW3 assigned that subcell's energy elsewhere, so a 2° block can
+# be 98 % empty of a train and still export a perfectly confident bearing for it (measured on the
+# served products: s_ocean swell_2 = 1 contributing subcell of 64, s_pacific swell_2 = 4 of 64,
+# n_pacific wind_waves = 1 of 64). conf = R x coverage, so it collapses to R on a full block and
+# to ~0 where the layer is claiming a train it does not have. The normalizer already picks up
+# "{direction_key}_confidence" GENERICALLY and the frontend already carries dir_confidence into
+# the texture encoder, so this only had to be produced. Kill: NOAA_PARTITION_DIR_CONFIDENCE=0.
+PARTITION_DIR_CONFIDENCE_OM = {
+    "wind_wave_direction": "wind_wave_direction_confidence",
+    "swell_wave_direction": "swell_wave_direction_confidence",
+    "secondary_swell_wave_direction": "secondary_swell_wave_direction_confidence",
+}
 
 # The TOTAL-SEA direction (om 'wave_direction') is synthesized from the three PARTITIONS instead of
 # block-averaging DIRPW: DIRPW is a PEAK direction and is BIMODAL in two-system water, so its block
@@ -222,10 +239,14 @@ def fetch_global_coarse(payload):
     # Kill switch NOAA_COARSE_DIR_TOTAL_FIELD=0 → partition-blend only (no DIRPW coherence tier).
     total_field = os.environ.get("NOAA_COARSE_DIR_TOTAL_FIELD", "1") != "0"
     export_confidence = blockmean and os.environ.get("NOAA_COARSE_DIR_CONFIDENCE", "1") != "0"
+    # Per-partition confidence (R x coverage) — see PARTITION_DIR_CONFIDENCE_OM.
+    export_part_conf = blockmean and os.environ.get("NOAA_PARTITION_DIR_CONFIDENCE", "1") != "0"
     # accumulator: point index -> {om_var -> [values per timestep]}; the confidence series is
     # initialized WITH the whitelisted variables so failed steps keep every series time-aligned.
     n_pts = len(lats) * len(lons)
     series_keys = OM_ORDER + ([DIR_CONFIDENCE_OM] if export_confidence else [])
+    if export_part_conf:
+        series_keys = series_keys + list(PARTITION_DIR_CONFIDENCE_OM.values())
     series = [{om: [] for om in series_keys} for _ in range(n_pts)]
     idx_map = None  # (row, col) per coarse point, built from the first decoded grid
     times = []
@@ -290,8 +311,16 @@ def fetch_global_coarse(payload):
                 h_arr = arrs.get(DIR_TO_HEIGHT[om]) if (blockmean and om in DIR_TO_HEIGHT) else None
                 is_height = scalar_blockmean and om in HEIGHT_VARS
                 p_h_arr = arrs.get(PERIOD_TO_HEIGHT[om]) if (scalar_blockmean and om in PERIOD_TO_HEIGHT) else None
+                # A PARTITION direction also exports R x coverage, because energy weighting only
+                # ever sees subcells where the train exists — see PARTITION_DIR_CONFIDENCE_OM.
+                part_conf_key = PARTITION_DIR_CONFIDENCE_OM.get(om) if export_part_conf else None
                 for pi, (r, c) in enumerate(idx_map):
-                    if h_arr is not None:
+                    if h_arr is not None and part_conf_key:
+                        x, _pconf = energy_mean_direction_block_partition_conf(
+                            arr, h_arr, r, c, half, True)
+                        series[pi][part_conf_key].append(
+                            round(float(_pconf), 4) if _pconf is not None else None)
+                    elif h_arr is not None:
                         # global.0p25 grid → longitude always wraps
                         x = energy_mean_direction_block(arr, h_arr, r, c, half, True)
                     elif is_height:

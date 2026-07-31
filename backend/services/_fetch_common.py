@@ -120,6 +120,60 @@ def energy_mean_direction_block(dir_arr, h_arr, r: int, c: int, half: int, wrap_
     return float(np.rad2deg(np.arctan2(s, co)) % 360.0)
 
 
+def energy_mean_direction_block_partition_conf(dir_arr, h_arr, r: int, c: int, half: int,
+                                               wrap_cols: bool):
+    """A PARTITION's block direction plus an honest confidence — ``(direction_deg, conf)``.
+
+    ⚠️⚠️ WHY A PARTITION NEEDS ITS OWN CONFIDENCE, DIFFERENT FROM THE TOTAL'S (2026-07-31, measured).
+    `energy_mean_direction_block` weights by energy and therefore only ever sees subcells where the
+    partition EXISTS (``h > 0``). A partition is exact-0 wherever WW3 classified that subcell's
+    energy to a different partition, so a block can be almost empty of a train and still yield a
+    perfectly confident bearing for it. Measured live on the served 2° products:
+
+        s_ocean    swell_2      1 of 64 subcells carried the train   -> R = 1.00
+        s_pacific  swell_2      4 of 64                              -> R = 1.00
+        n_pacific  wind_waves   1 of 64                              -> R = 1.00
+
+    Those cells paint ~200 km of ocean with a direction that exists in 2-6 % of it, and the
+    resultant length CANNOT catch it — R measures agreement AMONG CONTRIBUTORS, and a handful of
+    agreeing subcells agree perfectly. The honest signal is therefore
+
+        conf = R x coverage      coverage = (subcells with energy) / (finite subcells)
+
+    which collapses to R on a fully-populated block (the total-sea case, unchanged) and goes to ~0
+    exactly where the layer is claiming a train it does not have. Nothing is dropped here: the
+    direction is still returned, and the CONSUMER decides — the frontend already carries
+    `dir_confidence` per vector into the texture encoder.
+
+    ★ The HEIGHT half is already honest: `energy_mean_height_block` includes genuine 0.0 subcells,
+    so it reports a correctly small Hs. It was only the direction that spoke with false confidence.
+    Pure/NaN-safe. Unit-tested in backend/tests/test_partition_direction_coverage.py."""
+    nrows, ncols = dir_arr.shape
+    r0, r1 = max(0, r - half), min(nrows, r + half)
+    cols_idx = (np.arange(c - half, c + half) % ncols) if wrap_cols else np.arange(
+        max(0, c - half), min(ncols, c + half))
+    d = dir_arr[r0:r1][:, cols_idx]
+    h = h_arr[r0:r1][:, cols_idx]
+    finite = np.isfinite(d) & np.isfinite(h)
+    ok = finite & (h > 0.0)
+    n_finite = int(np.count_nonzero(finite))
+    if not ok.any():
+        x = dir_arr[r, c]
+        return (float(x) if x == x else float("nan")), 0.0
+    e = h[ok] ** 2
+    rad = np.deg2rad(d[ok])
+    s = float(np.sum(e * np.sin(rad)))
+    co = float(np.sum(e * np.cos(rad)))
+    tot_e = float(np.sum(e))
+    if (s == 0.0 and co == 0.0) or tot_e <= 0.0:
+        x = dir_arr[r, c]
+        return (float(x) if x == x else float("nan")), 0.0
+    resultant = float(np.hypot(s, co) / tot_e)          # R in [0,1]: agreement among contributors
+    coverage = (int(np.count_nonzero(ok)) / n_finite) if n_finite else 0.0
+    direction = float(np.rad2deg(np.arctan2(s, co)) % 360.0)
+    return direction, max(0.0, min(1.0, resultant * coverage))
+
+
 # Coherence ramp for the two-tier total-sea direction (see energy_mean_direction_block_multi):
 # below RAMP_LO the model's own total-direction field (DIRPW) is treated as incoherent (bimodal
 # flip-zone) and the partition blend is used alone; above RAMP_HI DIRPW is fully trusted; between,
