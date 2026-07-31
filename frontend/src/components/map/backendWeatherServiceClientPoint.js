@@ -555,7 +555,12 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // infobox rating permanently geometry-BLIND (offshoreness -> null -> speed-only wind ladder;
       // swellExposure -> neutral 1.0), so it disagreed with the geometry-aware backend glyph on the
       // same spot at the same instant. The backend has always served it (schemas.py:184).
-      shore_normal_deg: (json.shore_normal_deg ?? null)
+      shore_normal_deg: (json.shore_normal_deg ?? null),
+      // The reconciled swell/windsea trains the served surf_height_m ran on (SURF_PARTITIONS on;
+      // null otherwise). Same failure class as shore_normal_deg above: this whitelist is the only
+      // path point fields reach the infobox, so an unmapped field makes the badge grade a
+      // different sea than the glyph rated from the SAME response (2026-07-30 review).
+      partitions: (Array.isArray(json.partitions) && json.partitions.length ? json.partitions : null)
     };
 
     const details = {

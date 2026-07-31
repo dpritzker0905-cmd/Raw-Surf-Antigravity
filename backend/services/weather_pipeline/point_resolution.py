@@ -112,15 +112,31 @@ class PointResolutionService:
                     model=model, domain="marine", layer=part_layer,
                     lat=lat, lng=lng, valid_time_str=valid_time_str)
                 p = getattr(r, "point", None)
-                if p is None or not p.speed or not p.period or p.speed <= 0 or p.period <= 0:
+                # ⚠️ NaN passes `not x` AND `x <= 0` (both False) — the self-inequality checks are
+                # what actually reject it, exactly like the total's guard. A NaN train that slips
+                # through poisons the RATING half into score=NaN, which score_to_level maps to
+                # 'epic' (every `score < upper` is False). Direction NaN is nulled, not fatal:
+                # the exposure factors skip a dirless train.
+                if (p is None or not p.speed or not p.period
+                        or p.speed != p.speed or p.period != p.period
+                        or p.speed <= 0 or p.period <= 0):
                     continue
+                _dir = p.direction
+                if _dir is not None and _dir != _dir:
+                    _dir = None
                 parts.append({"h": float(p.speed), "tp": float(p.period),
-                              "dir": p.direction, "kind": kind})
+                              "dir": _dir, "kind": kind})
             except Exception as _pe:
                 logger.debug(f"[Surf partitions] {part_layer} at ({lat},{lng}) skipped: {_pe}")
         if not parts:
             return None
-        from services.weather_pipeline.surf_transform import reconcile_partitions
+        from services.weather_pipeline.surf_transform import (
+            partitions_represent, reconcile_partitions)
+        # The REPRESENT gate: if the surviving trains carry under half the total Hs in quadrature,
+        # the dominant train is missing and reconciling would inflate a minority train to carry all
+        # the energy at its own period — fall back to the total field instead.
+        if not partitions_represent(parts, total_h):
+            return None
         return reconcile_partitions(parts, total_h)
 
     async def resolve_point(

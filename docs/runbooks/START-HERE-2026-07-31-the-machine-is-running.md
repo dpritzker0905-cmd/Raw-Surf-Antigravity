@@ -45,19 +45,29 @@ logged in. A missed night just resumes the next one (all lanes are idempotent).
 * **ERA5/CDS lane open** (`~/.cdsapirc`) — 47y per spot in ~32 s; v3 composite = timeseries
   (Hs,Tm,dir) × per-spot Tp/Tm from one gridded year (wave grid is ~0.5° — pad areas ±0.5°).
 
-## 2. ⛔ THE NEXT BUILD — task #5: partitions into the RATING (+ #13 cost measurement)
+## 2. ✅ DONE 2026-07-30 (same night) — task #5: partitions into the RATING (+ #13 A/B)
 
-1. Supply `partitions` to `rating_score` at the REFERENCE first (`rate_one_spot`) — and convert
-   its 10-positional call to BY-NAME while there. `test_rating_composition_parity.py` goes RED
-   until hub + sim declare too; that is the design working.
-2. ⚠️ **RECONCILE FIRST**: raw partitions invent +6.2% energy (miss the total by median 9.5%);
-   `reconcile_partitions` = total Hs is the SCALE, partitions the SHAPE.
-3. Measure `SURF_PARTITIONS=1` cost in the PRECOMPUTE (~4× point resolutions) before any flip;
-   **enable everywhere or nowhere**. Then a swept A/B (score deltas + level-change %) via the
-   `surf_science_audit.py` harness pattern.
-4. Regenerate parity goldens after ANY engine change: `scripts/gen_rating_parity_goldens.py`.
+Shipped in one arc: the response CARRIES the reconciled trains its own height ran on
+(`response.partitions`, attached at the single injection point), and ALL THREE surfaces + the
+infobox badge grade that list (reference converted to BY-NAME; registry all SUPPLIED; the JS
+mirror already had the factors — only the whitelist + badge call were missing). Flag stays OFF.
 
-### Geometry wiring that remains (audit-corrected order)
+* **Swept A/B (`scripts/partitions_rating_ab.py`, 40 spots × 8 regions × 2 h, live data):
+  LEVEL moves on 50.0% of spot-hours** (14 up / 26 down — demotes chop-dominated seas, recovers
+  groundswell hidden under windsea). Score delta median −0.8 (p10 −15.0 / p90 +11.1); height
+  median +3.2% (−27.7…+50.2%); reconcile mismatch median 4.6%, max 111.8%; live-lane cost
+  +0.6 s median/point; precompute arithmetic 10,638 → 42,552 marine resolutions/cycle.
+  Baseline parity local-vs-served: 0.00% median. ⇒ **the flip is a product event: owner call,
+  3 lanes together** (flag now visible in `_RATING_FLAGS` + declared '0' in BOTH workflow envs).
+* **24-agent adversarial review: 15 confirmed (5 mutation-verified test gaps), all fixed same
+  night** — NaN self-inequality guards (NaN train → level 'epic'), `partitions_represent`
+  (lone-train inflation gate, shared by both suppliers), `_sane_partitions` (sim trust
+  boundary), composition-matched `baseline_delta` (+12.5 was 100% composition artifact),
+  komar-fallback drops trains, hub helper structurally fail-open.
+* Remaining before any flip: precompute wall-clock measured ON THE RUNNER; owner reviews the
+  50%-level-change A/B. Goldens untouched (engine byte-identical).
+
+### ⛔ THE NEXT BUILD — geometry wiring that remains (audit-corrected order)
 1. **`geometry_reject_reason` backfill FIRST** (413 never-resolved rows are mostly gate-REJECTED;
    a naive reconcile burns 413×22 s reproducing rejections 24/24).
 2. Reconcile job (new/moved only, cap ~5/cycle, decoupled cron, DB write via direct SQL — REST

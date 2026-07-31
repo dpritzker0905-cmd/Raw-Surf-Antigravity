@@ -96,13 +96,21 @@ def calculate_surf_rating(
     swell_p: float,
     swell_dir: float,
     wind_spd: float,
-    wind_dir: float
+    wind_dir: float,
+    partitions=None,
 ) -> Dict[str, Any]:
     """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
 
     Delegates BOTH the physics and its composition to production (`surf_point.estimate_surf_at` ->
     `surf_transform.estimate_surf`, and `surf_rating.rating_score`), so the number this returns is
     the number the app would show at that coordinate.
+
+    ``partitions`` (optional list of {h, tp, dir, kind}, already RECONCILED) makes both halves
+    spectral, exactly as the served point lane is when SURF_PARTITIONS is on. The sim's scenario
+    vocabulary is a single train, so partitions only arrive from the LIVE lane (the app's point
+    response carries the trains its own height ran on) — and a caller who overrides any swell field
+    must DROP them, because they describe the forecast sea, not the hypothetical one. None keeps
+    the total-field path, byte-identical to before.
     """
     shore_normal = shore_normal_for(spot)
     geo = spot_geometry(spot)
@@ -117,7 +125,8 @@ def calculate_surf_rating(
         try:
             breaking_height, regime = estimate_surf_at(
                 float(spot["latitude"]), float(spot["longitude"]),
-                swell_h, swell_p, swell_from_deg=swell_dir, geometry=geo)
+                swell_h, swell_p, swell_from_deg=swell_dir, geometry=geo,
+                partitions=partitions)
         except Exception as e:
             logger.warning(f"estimate_surf_at failed for {spot.get('name')}: {e}")
             breaking_height = None
@@ -129,6 +138,11 @@ def calculate_surf_rating(
             breaking_height, regime = 0.0, "calm"
         elif geo is None:
             regime = "deep_water_estimate"
+        # Invariant 6: the rating grades the SAME representation the height ran on. This height is
+        # BLENDED Komar (the trains never touched it), so the trains are dropped for the rating
+        # and the explanation too — otherwise one payload's height and quality would describe two
+        # different seas (review 2026-07-30, the SIM_PRODUCTION_GEOMETRY=0 branch).
+        partitions = None
 
     # 2. Wind CLASS — derived from the SAME reference frame the delegated score uses, so the label
     # persisted to condition_reports.wind_conditions cannot contradict the score. Thresholds are the
@@ -171,6 +185,7 @@ def calculate_surf_rating(
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
         reference_size_m=reference_size_for(spot),
+        partitions=partitions,
         break_depth_m=_break_depth,
     )
     quality_label = score_to_level(quality_score)
@@ -208,6 +223,7 @@ def calculate_surf_rating(
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
         reference_size_m=_ref,
+        partitions=partitions,
         break_depth_m=_break_depth,
         engine_score=quality_score,
     )

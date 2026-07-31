@@ -61,7 +61,7 @@ def enabled() -> bool:
 def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
             wind_from_deg: Optional[float] = None, shore_normal_deg: Optional[float] = None,
             swell_from_deg: Optional[float] = None, reference_size_m: Optional[float] = None,
-            break_depth_m: Optional[float] = None,
+            partitions=None, break_depth_m: Optional[float] = None,
             engine_score: Optional[float] = None) -> Dict[str, Any]:
     """Every factor behind a score, plus the one that limits it.
 
@@ -72,19 +72,27 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
         return {}
     try:
         wind_ms = float(wind_speed_knots) / MS_TO_KT
+        # The partition branches replicate `rating_score`'s own fallbacks EXACTLY — spectral
+        # exposure/cleanliness/dominant-period when trains are supplied, total-field otherwise. Any
+        # drift here is what `reconstruction_error` below exists to expose.
+        _ex = SR.effective_swell_exposure(partitions, shore_normal_deg) if partitions else None
+        if _ex is None:
+            _ex = SR.swell_exposure(swell_from_deg, shore_normal_deg)
+        _ptp = SR.dominant_swell_period(partitions) if partitions else None
+        _eff_tp = _ptp if _ptp is not None else tp_s
         f = {
             "size_gate": SR.size_score(surf_h_m, reference_size_m),
-            "swell_exposure": SR.swell_exposure(swell_from_deg, shore_normal_deg),
-            "sea_cleanliness": 1.0,          # partitions are not wired into the sim yet
+            "swell_exposure": _ex,
+            "sea_cleanliness": SR.sea_cleanliness(partitions) if partitions else 1.0,
             "tide_fit": SR.tide_fit(None, SR.parse_best_tide(None)),
             "breaker_type": SR.breaker_type_quality(None),
             "wind_gate": SR.wind_gate(wind_ms, wind_from_deg, shore_normal_deg),
             "oversize_gate": SR.oversize_gate(surf_h_m, reference_size_m,
                                               break_depth_m=break_depth_m),
-            "period_gate": SR.period_gate(tp_s),
+            "period_gate": SR.period_gate(_eff_tp),
         }
         wq = SR.wind_quality(wind_ms, wind_from_deg, shore_normal_deg)
-        pq = SR.period_quality(tp_s)
+        pq = SR.period_quality(_eff_tp)
         blend = SR.W_WIND * wq + SR.W_PERIOD * pq
 
         product = 100.0
@@ -123,6 +131,11 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
                        "shore_normal_deg": shore_normal_deg,
                        "reference_size_m": reference_size_m},
         }
+        if partitions:
+            # Say the rating graded the spectrum, and WHICH period it graded — the blended
+            # `period_sec` above is the sea's mean, not what period_gate/quality ran on.
+            out["inputs"]["swell_trains"] = len(partitions)
+            out["inputs"]["graded_period_sec"] = round(float(_eff_tp), 1)
         if engine_score is not None:
             # ⚠️ THE HONESTY CHECK. If this ever fires, the explanation is describing a different
             # composition than the one that produced the score, and saying so is the whole point.

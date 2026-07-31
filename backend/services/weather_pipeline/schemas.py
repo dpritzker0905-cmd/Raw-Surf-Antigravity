@@ -199,6 +199,15 @@ class NormalizedPointResponse(BaseModel):
     break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
     geometry_readiness: Optional[str] = None     # full | degraded | blind
     geometry_missing: Optional[List[str]] = None  # which inputs are absent, e.g. ["fine_shore_normal"]
+    # ── THE SPECTRAL PARTITIONS THE HEIGHT RAN ON (2026-07-30) ──────────────────────────────────
+    # [{h, tp, dir, kind}] (kind 'swell'|'windsea'), RECONCILED to the total Hs — attached at the
+    # same single injection point that produces `surf_height_m` (point_surf_augment), so the rating
+    # surfaces grade the SAME sea state the height was computed from instead of re-resolving their
+    # own. None whenever SURF_PARTITIONS is off (the default) or no usable train came back —
+    # consumers fall through to the total field, BEHAVIOUR-identical to before. (The wire is not
+    # byte-identical: like every Optional field above, the JSON gains a constant `"partitions":
+    # null` on flag-off responses — ~18 bytes, no in-repo consumer parses it strictly.)
+    partitions: Optional[List[Dict[str, Any]]] = None
 
 
 class ManifestProduct(BaseModel):

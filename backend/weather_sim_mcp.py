@@ -136,6 +136,11 @@ def _baseline_for(spot: Dict[str, Any]) -> Optional[Dict[str, float]]:
     return _baseline_with_source(spot)[0]
 
 
+# The trains-still-describe-the-sea rule (drop on any swell change, keep on wind-only) lives
+# beside the baseline producer in `sim_forecast` — this file is at the 800-line ratchet.
+_baseline_partitions = sim_forecast.baseline_partitions
+
+
 def _parse_valid_time(valid_time: str) -> Tuple[str, Optional[Dict[str, Any]]]:
     """Normalise a requested hour to the top of the hour, or explain why it can't be.
 
@@ -272,7 +277,7 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
     payload["wave_simulation"] = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-        baseline["wind_direction_deg"])
+        baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline))
 
     # PARITY: the app served its own breaking height for this coordinate. The sim computed one from
     # the offshore Hs through the production chain. Report both — a silent divergence here is the
@@ -418,13 +423,22 @@ def simulate_weather_change(
     swell_period_sec = resolved["swell_period_sec"]
     swell_direction_deg = resolved["swell_direction_deg"]
 
+    # DROPPED the moment any swell field differs from the baseline's — the forecast's trains
+    # do not describe a hypothetical sea (see _baseline_partitions). Wind-only what-ifs keep
+    # them: the swell already in the water is unchanged by a hypothesized wind. Computed ONCE and
+    # used for BOTH the what-if and the baseline_delta's base_calc below, so the delta is
+    # COMPOSITION-MATCHED: measured 2026-07-30, a +1 cm swell what-if against a windsea-dominated
+    # spectral baseline reported +12.5 "better" of which +12.5 was the dropped-trains composition
+    # switch and 0.0 was the caller's change.
+    _whatif_parts = _baseline_partitions(baseline, resolved)
     calc = calculate_surf_rating(
         spot,
         swell_height_m,
         swell_period_sec,
         swell_direction_deg,
         wind_speed_knots,
-        wind_direction_deg
+        wind_direction_deg,
+        partitions=_whatif_parts,
     )
 
     # Persist simulation changes to condition_reports in dev.db if present. NOTE this is a
@@ -478,10 +492,15 @@ def simulate_weather_change(
     # first's bathymetry (CLAUDE.md: resolve geometry ONCE per coordinate and reuse it).
     baseline_delta = None
     if baseline is not None:
+        # ⚠️ COMPOSITION-MATCHED: base_calc uses the SAME `_whatif_parts` the what-if used — NOT
+        # the baseline's own trains. When a swell what-if drops the trains, both sides of the
+        # delta drop them, so the delta measures the CALLER'S change and never the composition
+        # switch (which alone measured +12.5 quality on the Mavericks windsea fixture). The
+        # baseline's honest spectral rating still lives in get_weather_forecast.
         base_calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"])
+            baseline["wind_direction_deg"], partitions=_whatif_parts)
         changed = {k: {"from": round(float(baseline[k]), 2), "to": round(float(resolved[k]), 2)}
                    for k in requested if abs(float(baseline[k]) - float(resolved[k])) > 1e-9}
         baseline_delta = {
@@ -501,6 +520,10 @@ def simulate_weather_change(
                         "worse" if calc["quality_rating"] < base_calc["quality_rating"] else
                         "same rating"),
         }
+        if _whatif_parts is None and _baseline_partitions(baseline) is not None:
+            baseline_delta["composition"] = (
+                "total_field on BOTH sides: the what-if changed the swell, so the forecast's "
+                "trains were dropped from the delta to isolate the caller's change")
         if baseline_source == "live_forecast" and provenance.get("valid_time"):
             baseline_delta["valid_time"] = provenance["valid_time"]
 
@@ -622,7 +645,7 @@ def _summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float],
     calc = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-        baseline["wind_direction_deg"])
+        baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline))
     # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
     # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the
     # rest of the module works to keep apart. Size and verdict are now named separately.

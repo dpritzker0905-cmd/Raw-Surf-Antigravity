@@ -93,17 +93,12 @@ SURFACES = {
             "breaker_xi": SUPPLIED,         # gated RATING_BREAKER_TYPE
             "reference_size_m": SUPPLIED,   # gated RATING_LOCAL_SIZE
             "break_depth_m": SUPPLIED,
-            "partitions": (
-                "THE HEIGHT HALF IS NOW WIRED, THE RATING HALF IS NOT. `point_resolution."
-                "_resolve_partitions` supplies partitions to `estimate_surf_at`, so `surf_height_m` "
-                "is spectral at every surface at once (flag SURF_PARTITIONS, default OFF — it is 4x "
-                "the point resolutions and the serve box has a three-incident melt history). What "
-                "no surface passes is `partitions` to the RATING, which would make "
-                "`dominant_swell_period`, `effective_swell_exposure` and `sea_cleanliness` "
-                "partition-aware instead of reading the blended field. Wire it where the height is "
-                "resolved so the two cannot disagree about the same sea state. Measured effect of "
-                "the height half, 16 spots live: median +0.6%, range -44.7%..+26.8%, signed both "
-                "ways, so no constant substitutes for it."),
+            # Gated SURF_PARTITIONS (default OFF — 4x the point resolutions; the serve box has a
+            # three-incident melt history, so the flip needs the precompute cost measured first).
+            # The PLUMBING is unconditional: the response carries the reconciled trains its own
+            # `surf_height_m` ran on, and the rating grades that SAME list — one sea state per
+            # spot-hour, by construction. Flag off -> partitions None -> byte-identical to before.
+            "partitions": SUPPLIED,
         },
     },
     "spot_conditions (the spot HUB)": {
@@ -132,7 +127,11 @@ SURFACES = {
                 "Inert everywhere today: `bathymetry.bed_slope_at` returns None until the finer "
                 "slope asset is bundled, so `breaker_type_quality` is a neutral 1.0 at every "
                 "surface including the reference. Wire it WITH the asset, not before."),
-            "partitions": SeeAlso("partitions"),
+            # The hub's marine lane samples cached grids, not `resolve_point`, so it cannot read
+            # the response's trains — `_spectral_partitions` samples the SAME three layers from the
+            # same local cache and reconciles them, gated on the SAME flag. A partition miss never
+            # triggers the upstream fallback.
+            "partitions": SUPPLIED,
         },
     },
     "sim_rating (the weather SIM)": {
@@ -151,7 +150,11 @@ SURFACES = {
                 "usable tide band, the cost is not worth the coverage."),
             "best_tide": SeeAlso("tide_norm"),
             "breaker_xi": SeeAlso("breaker_xi"),
-            "partitions": SeeAlso("partitions"),
+            # The sim's scenario vocabulary is a single train, so partitions arrive only from the
+            # LIVE lane (the point response carries the trains the server's height ran on) and are
+            # DROPPED the moment a what-if changes any swell field (`_baseline_partitions`) — the
+            # forecast's trains do not describe a hypothetical sea. No fetches, no sim-side flag.
+            "partitions": SUPPLIED,
         },
     },
 }

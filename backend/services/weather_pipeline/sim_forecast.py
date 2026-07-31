@@ -220,6 +220,63 @@ def fetch_point(domain: str, layer: str, lat: float, lng: float,
         return None
 
 
+def _sane_partitions(raw):
+    """Network partitions validated + coerced to the engine's shape, or None.
+
+    The engine's partition guards (`h <= 0` in dominant_swell_period / effective_swell_exposure /
+    sea_cleanliness) assume NUMERIC h/tp and raise TypeError on a JSON string — fail-closed
+    per item here so a malformed train from a skewed server is dropped, never propagated. NaN is
+    rejected the same way (it passes both `not x` and `x <= 0`). An unknown `kind` degrades to
+    'swell' (the neutral reading: only 'windsea' is penalized)."""
+    if not isinstance(raw, list):
+        return None
+    out = []
+    for p in raw:
+        if not isinstance(p, dict):
+            continue
+        try:
+            h, tp = float(p.get("h")), float(p.get("tp"))
+        except (TypeError, ValueError):
+            continue
+        if h != h or tp != tp or h <= 0 or tp <= 0:
+            continue
+        d = p.get("dir")
+        try:
+            d = float(d) if d is not None else None
+        except (TypeError, ValueError):
+            d = None
+        if d is not None and d != d:
+            d = None
+        out.append({"h": h, "tp": tp, "dir": d,
+                    "kind": "windsea" if p.get("kind") == "windsea" else "swell"})
+    return out or None
+
+
+def baseline_partitions(baseline: Optional[Dict[str, Any]],
+                        resolved: Optional[Dict[str, Any]] = None):
+    """The baseline's swell trains — IF they still describe the sea being rated, else None.
+
+    Partitions describe the FORECAST sea (the live lane carries the trains the server's own height
+    ran on). A what-if that changes any swell field is rating a DIFFERENT sea, so they must be
+    dropped; a wind-only what-if keeps them, because the trains already in the water do not change
+    when the local wind is hypothesized differently. The test is VALUE equality, not
+    omitted-ness — a caller who types the forecast's own numbers back is still rating the
+    forecast sea. Lives HERE beside the baseline producer (weather_sim_mcp is at the 800-line
+    ratchet); the MCP module aliases it."""
+    parts = (baseline or {}).get("partitions")
+    if not parts:
+        return None
+    if resolved is None:
+        return parts
+    for k in ("swell_height_m", "swell_period_sec", "swell_direction_deg"):
+        try:
+            if abs(float(baseline[k]) - float(resolved[k])) > 1e-9:
+                return None
+        except (KeyError, TypeError, ValueError):
+            return None
+    return parts
+
+
 def peek_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
                        ) -> Optional[Tuple[Optional[Dict[str, float]], Dict[str, Any]]]:
     """The cached forecast for this coordinate/hour, or None. NEVER dials.
@@ -275,6 +332,17 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
             "wind_speed_knots": float(wp["speed"]),        # this endpoint reports knots
             "wind_direction_deg": float(wp.get("direction") or 0.0),
         }
+        # The reconciled swell/windsea trains the SERVER's own height ran on (response.partitions;
+        # present only when the serve side runs SURF_PARTITIONS=1). Carried so the sim grades the
+        # SAME sea state the app served — the sim itself adds no fetches and no flag of its own.
+        # Consumers iterate the fixed 5-key vocabulary above, so an extra key is additive.
+        # ⚠️ TRUST BOUNDARY: this is json.loads of a REMOTE deploy, so item shapes are validated
+        # and coerced HERE, at the one entry point — a version-skewed server sending h as a string
+        # would otherwise raise TypeError out of `rating_score` and cost the caller its whole
+        # tool answer (the engine's `h <= 0` guards are not str-safe).
+        _parts = _sane_partitions((marine or {}).get("partitions"))
+        if _parts:
+            baseline["partitions"] = _parts
         out = (baseline, {
             "model": MODEL,
             "valid_time": marine.get("valid_time") or valid_time,

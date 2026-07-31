@@ -514,6 +514,40 @@ def reconcile_partitions(partitions, total_h_m, tolerance: float = 0.02):
             for p in partitions]
 
 
+# The floor below which a partition set does not REPRESENT the sea: if the trains' raw quadrature
+# carries less than half the total Hs (i.e. under a quarter of the energy), the dominant train is
+# missing — reconciling the survivors would inflate a minority train to carry ALL the energy at its
+# own period, a sea state neither the blended field nor the true spectrum describes (review 2026-07-30:
+# a lone cached swell_1 of 0.84 m against a 1.73 m total would have been scaled 2.06x into a clean
+# 10.25 s sea that never existed). Well below every measured LEGITIMATE deviation (max under: Bondi
+# -22.3%; over deviations are unaffected), so it only rejects degenerate coverage.
+PARTITION_MIN_QUAD_FRAC = 0.5
+
+
+def partitions_represent(partitions, total_h_m, min_quad_frac: float = PARTITION_MIN_QUAD_FRAC):
+    """True when the trains plausibly describe the sea the total reports — the supply-side gate
+    BOTH forecast suppliers (`point_resolution._resolve_partitions`, the hub's
+    `_spectral_partitions`) apply BEFORE reconciling. One definition, two callers, so the two
+    lanes cannot drift on what counts as representative (the distributed-guards lesson).
+    Fails CLOSED on unusable input: garbage trains do not represent anything."""
+    if not partitions or total_h_m is None:
+        return False
+    try:
+        total = float(total_h_m)
+    except (TypeError, ValueError):
+        return False
+    if total != total or total <= 0:
+        return False
+    try:
+        quad = math.sqrt(sum(float(p["h"]) ** 2 for p in partitions
+                             if isinstance(p, dict) and p.get("h") is not None))
+    except (TypeError, ValueError):
+        return False
+    if quad != quad or quad <= 0:
+        return False
+    return quad / total >= min_quad_frac
+
+
 def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):
     """In-place SURF-BAND transform of a marine grid for the Swell<->Surf heatmap toggle.
 

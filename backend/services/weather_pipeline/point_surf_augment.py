@@ -73,6 +73,10 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
                                             partitions=_parts)
+            # The rating half reads the SAME reconciled trains the height ran on. Carried on the
+            # response so `rate_one_spot`, the hub and the sim's live lane cannot resolve a second,
+            # disagreeing sea state for the same point (None when the flag is off / nothing usable).
+            response.partitions = _parts
             if _geo.magnet_name and surf is not None:
                 logger.debug(f"[Surf v3] magnet '{_geo.magnet_name}' x{_geo.magnet_factor} at ({lat},{lng})")
             response.surf_height_m = round(surf, 4) if surf is not None else None

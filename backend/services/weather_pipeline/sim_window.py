@@ -62,10 +62,13 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
             unresolved.append(hour)
             continue
         sources.add(source)
+        # The scan rates the BASELINE sea itself (no what-if), so the trains it carried — the ones
+        # the server's own height ran on — always still describe it. Absent key -> None -> the
+        # total-field path, byte-identical to before.
         calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"])
+            baseline["wind_direction_deg"], partitions=baseline.get("partitions"))
         row = {
             "valid_time": hour,
             "breaking_height_ft": calc["breaking_height_ft"],

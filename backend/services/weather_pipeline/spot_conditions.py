@@ -47,23 +47,90 @@ M_TO_FT = 3.28084
 KT_TO_MS = 0.514444
 
 
-def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry):
+def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, partitions=None):
     """Offshore Hs -> BREAKING height in feet, through the production chain.
 
     Fails OPEN to the offshore value: a hub that shows a slightly wrong number is worth more than a
-    hub that shows nothing, and this is an enrichment of an already-working read."""
+    hub that shows nothing, and this is an enrichment of an already-working read. ``partitions``
+    (reconciled trains, or None) makes the estimate spectral exactly as `estimate_surf_at` does for
+    the point lane — None keeps the total-field transform, byte-identical to before."""
     if not offshore_m:
         return 0.0, "calm"
     try:
         from services.weather_pipeline.surf_point import estimate_surf_at
         breaking_m, regime = estimate_surf_at(
             lat, lng, offshore_m, period_s or 0.0,
-            swell_from_deg=swell_from_deg, geometry=geometry)
+            swell_from_deg=swell_from_deg, geometry=geometry, partitions=partitions)
         if breaking_m is not None:
             return round(breaking_m * M_TO_FT, 1), regime
     except Exception as e:
         logger.debug(f"[spot-conditions] surf transform failed at ({lat},{lng}): {e}")
     return round(offshore_m * M_TO_FT, 1), "offshore_estimate"
+
+
+# The same partition layers `point_resolution._resolve_partitions` splits, with the `kind`
+# `surf_rating`'s partition-aware factors expect.
+_PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
+
+
+async def _spectral_partitions(self, model, lat, lng, dt, total_h):
+    """The swell/windsea trains at this frame, RECONCILED to the total Hs — or None.
+
+    The hub's marine lane samples LOCALLY CACHED grids rather than `resolve_point`, so it cannot
+    read partitions off the point response the way `rate_one_spot` does; this samples the same
+    three layers from the same local cache. Gated on the SAME flag as the point lane
+    (SURF_PARTITIONS, default OFF — enable everywhere or nowhere: a flag set in one lane and not
+    another makes the same spot two different heights depending on which lane answered).
+
+    ⚠️ FAILS OPEN AND NEVER DIALS — STRUCTURALLY. The whole body sits under one umbrella except
+    so this helper CANNOT raise (its two call sites are deliberately bare; before this umbrella a
+    surf_transform import regression would have cost the caller the ENTIRE conditions read, where
+    pre-partitions the same breakage only degraded the height). A partition-layer cache miss
+    returns fewer trains or None — it must NOT set the caller's `cache_misses` flag, because that
+    flag triggers the upstream point fallback and a partition is an enrichment, never worth an
+    upstream fetch."""
+    if os.environ.get("SURF_PARTITIONS", "0") != "1":
+        return None
+    try:
+        if not total_h or total_h != total_h or total_h <= 0:
+            return None
+        parts = []
+        for layer, kind in _PARTITION_LAYERS:
+            try:
+                prod = await self.find_cached_grid_product(model, "marine", layer, lat, lng, dt)
+                if not prod:
+                    continue
+                res = self.sampler.sample_point(prod, lat, lng)
+                p = getattr(res, "point", None)
+                # h=0 AND Tp=0 together are a mask signature, not a calm sea — and ⚠️ NaN passes
+                # BOTH `not x` and `x <= 0`, so the self-inequality checks are what actually
+                # reject it (a NaN train poisons the rating into score=NaN -> level 'epic').
+                # Same guard as the point lane. A NaN direction is nulled, not fatal.
+                if (p is None or not p.speed or not p.period
+                        or p.speed != p.speed or p.period != p.period
+                        or p.speed <= 0 or p.period <= 0):
+                    continue
+                _dir = p.direction
+                if _dir is not None and _dir != _dir:
+                    _dir = None
+                parts.append({"h": float(p.speed), "tp": float(p.period),
+                              "dir": _dir, "kind": kind})
+            except Exception as e:
+                logger.debug(f"[spot-conditions] partition {layer} at ({lat},{lng}) skipped: {e}")
+        if not parts:
+            return None
+        from services.weather_pipeline.surf_transform import (
+            partitions_represent, reconcile_partitions)
+        # The REPRESENT gate (shared with the point lane): trains carrying under half the total Hs
+        # in quadrature mean the dominant train is missing from the local cache — reconciling the
+        # survivors would inflate a minority train to carry ALL the energy at its own period, a sea
+        # state neither the blend nor the spectrum describes. Total field instead.
+        if not partitions_represent(parts, total_h):
+            return None
+        return reconcile_partitions(parts, total_h)
+    except Exception as e:
+        logger.debug(f"[spot-conditions] partitions unavailable at ({lat},{lng}): {e}")
+        return None
 
 def safe_index_get(dict_obj: dict, key: str, index: int, default_val: Any = 0.0) -> Any:
     """Safely retrieves the index element of list from dict_obj, returning default_val if missing or out of bounds."""
@@ -183,8 +250,12 @@ async def resolve_spot_conditions_impl(
     offshore_m = current_waves["wave_height"] or 0.0
     period_s = current_waves["wave_period"] or 0.0
     swell_from = current_waves["wave_direction"]
+    # ONE sea state for this frame: the same reconciled trains feed the height transform AND the
+    # rating below, so the two cannot disagree about what is in the water (None when the flag is
+    # off — production today — or nothing usable is cached).
+    current_parts = await _spectral_partitions(self, model, lat, lng, current_dt, offshore_m)
     current_wave_height_ft, regime = _breaking_ft(
-        lat, lng, offshore_m, period_s, swell_from, geometry)
+        lat, lng, offshore_m, period_s, swell_from, geometry, partitions=current_parts)
     current_swell_height_ft = round(current_swell["swell_height"] * M_TO_FT, 1) if current_swell["swell_height"] else 0
 
     current_conditions = {
@@ -228,6 +299,7 @@ async def resolve_spot_conditions_impl(
             wind_from_deg=wind_from,
             shore_normal_deg=getattr(geometry, "shore_normal_deg", None),
             swell_from_deg=swell_from,
+            partitions=current_parts,
             break_depth_m=getattr(geometry, "break_depth_m", None))
         current_conditions["rating"] = score
         current_conditions["rating_level"] = level
@@ -246,8 +318,12 @@ async def resolve_spot_conditions_impl(
         day_swell = swell_data.get(dt, {"swell_height": 0.0})
 
         day_offshore = day_waves["wave_height"] or 0.0
+        # Spectral per frame for the same reason as the current frame: one payload must not mix a
+        # spectral "now" with total-field days. Local cache sampling only; None when the flag is off.
+        day_parts = await _spectral_partitions(self, model, lat, lng, dt, day_offshore)
         max_ft, day_regime = _breaking_ft(
-            lat, lng, day_offshore, day_waves["wave_period"], day_waves["wave_direction"], geometry)
+            lat, lng, day_offshore, day_waves["wave_period"], day_waves["wave_direction"], geometry,
+            partitions=day_parts)
         # ⚠️ `wave_height_min` is a PRESENTATION band around a single modelled value, not a second
         # forecast — it was `max * 0.6` with no comment, which reads like measured spread. Named as
         # what it is, and kept so the existing UI range still renders.

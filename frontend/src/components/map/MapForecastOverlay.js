@@ -408,7 +408,15 @@ export const MapForecastOverlay = ({
         windSpeed != null ? windSpeed / 1.943844 : null,
         windDir,
         useExactPoint?.shore_normal_deg,
-        useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null
+        useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null,
+        // tideNorm / bestTide / breakerXi / referenceSizeM: null = neutral, matching the hub's
+        // waived factors (test_rating_composition_parity.py is the registry).
+        null, null, null, null,
+        // The trains the served surf_height_m ran on (SURF_PARTITIONS on; null otherwise). Without
+        // this the badge grades the blended field while the glyph — computed by the backend from
+        // the SAME response family — grades the spectrum: a fair glyph under a good badge at the
+        // same spot-hour (2026-07-30 review). surfRating.js already implements the factors.
+        useExactPoint?.partitions ?? null
       )
     : null;
 

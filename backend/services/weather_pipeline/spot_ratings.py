@@ -70,6 +70,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     lat, lng = spot["latitude"], spot["longitude"]
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
     geometry_readiness = None
+    partitions = None
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
@@ -79,6 +80,10 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             swell_from = marine.point.direction
             shore_normal = marine.shore_normal_deg
             geometry_readiness = marine.geometry_readiness
+            # The reconciled trains `surf_height_m` was computed from (None unless SURF_PARTITIONS
+            # is on). Read off the response, NEVER re-resolved here — one sea state for the height
+            # and the rating, or the two can disagree about the same hour.
+            partitions = getattr(marine, "partitions", None)
     except Exception as e:
         logger.debug(f"[spot-ratings] marine resolve failed for {spot.get('id')}: {e}")
     try:
@@ -122,10 +127,28 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         break_depth = break_depth_at(lat, lng)
     except Exception as e:
         logger.debug(f"[spot-ratings] break-depth resolve failed for {spot.get('id')}: {e}")
-    score, level = compute_surf_rating(surf_h, period, wind_ms, wind_from, shore_normal, swell_from,
-                                       tide_norm, best_tide, breaker_xi, reference_size_m,
-                                       break_depth_m=break_depth)
-    why = rating_why(level, surf_h, period, wind_ms, wind_from, shore_normal)
+    # ⚠️ KEYWORDS, NOT POSITION — this is the REFERENCE implementation, and it was the last surface
+    # still calling positionally (invariant 2: ten positional args are exactly how `9b808d05`
+    # silently stopped one short of `break_depth_m` at the hub).
+    score, level = compute_surf_rating(
+        surf_h, period, wind_ms,
+        wind_from_deg=wind_from,
+        shore_normal_deg=shore_normal,
+        swell_from_deg=swell_from,
+        tide_norm=tide_norm,
+        best_tide=best_tide,
+        breaker_xi=breaker_xi,
+        reference_size_m=reference_size_m,
+        partitions=partitions,
+        break_depth_m=break_depth)
+    # The why-text must quote what the rating GRADED: with partitions the engine grades the
+    # dominant swell train's period, not the blended mean (a 16 s groundswell under 8 s windsea
+    # reads ~11 s blended). `period_s` in the payload stays the sea's blended period.
+    why_period = period
+    if partitions:
+        from services.weather_pipeline.surf_rating import dominant_swell_period
+        why_period = dominant_swell_period(partitions) or period
+    why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
     return {
