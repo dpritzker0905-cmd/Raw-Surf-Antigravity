@@ -44,6 +44,41 @@ PowerShell pipe (`Out-File` buffers until exit and made progress invisible for 1
 ⚠️ CDS queueing makes this **~7× slower than the 32 s/spot the research predicted** — a planning
 input for #3: the 4,000-spot catalogue is *weeks* at this rate.
 
+#### ✅ RE-MEASURED 2026-07-31 19:25-19:34 local — BOTH HALVES OF THE ABOVE ARE NOW WRONG
+
+**(a) The code fixes ALREADY LANDED** — `3ae53a5e` (2026-07-31 14:05 local): `CHECKPOINT_EVERY=10`
+(env `ERA5_CHECKPOINT_EVERY`) consumed at line ~297, and `_another_instance_pid()` called at line
+245 raising `SystemExit` unless `--force`. Both verified CONSUMED, not merely defined.
+
+**(b) The 21:30 collision CANNOT happen.** `Get-ScheduledTask 'RawSurf ERA5 Climatology Campaign'`
+reports **`State=Disabled`**. `NextRunTime` still displays `07/31 21:30` — a disabled task keeps a
+stale NextRunTime, which is exactly how this reads as armed when it is not. ⇒ **#15 is no longer
+time-critical.** Do not rush a kill on account of the clock.
+
+**(c) 71096 predates the fix and is now WEDGED — but the "not progressing" call at 13:57 was
+PREMATURE.** Cumulative counters tell a two-phase story:
+
+    13:57 (this entry)   cpu 610 s    write 1,105 MB
+    19:27 (re-measure)   cpu 738 s    write 1,204 MB     => +128 s, +99 MB — it DID resume
+
+So the 13:57 verdict sampled a stall and called it a hang — the recorded trap, *two samples of a
+blocked process look exactly like a HANG*. It resumed afterwards. But two fine-grained windows now
+show it has wedged for real:
+
+    240 s window   d_cpu 0.77 s   d_write 0 MB   d_read 0.45 MB   234,850 io_ops
+    151 s window   d_cpu 0.41 s   d_write 0 MB   d_read 0.22 MB
+    sockets: Bound=3  CloseWait=3  **ESTABLISHED=0**
+
+★ **The discriminator is CLOSE_WAIT + zero ESTABLISHED + ~978 io_ops/s of tiny reads.** A healthy
+CDS poll is ONE short request every 30-60 s and holds no half-closed sockets; this is a spin loop
+on sockets the server already closed. **Zero bytes written in 6.5 minutes** is the plain fact.
+⇒ Cumulative counters over hours cannot distinguish "slow" from "stopped" — measure a WINDOW, and
+read the socket states alongside it.
+
+**Recommendation:** kill 71096 and re-run under `3ae53a5e`. The 20.6 h is sunk either way (nothing
+banked), and a fresh run checkpoints every 10 spots so the next interruption costs ≤10 spots
+instead of everything. ⚠️ Destructive + the user's machine ⇒ **owner decision, not an agent's.**
+
 ### #12 ✅ ROOT FOUND AND FIXED — AND HAWAII WAS THE SMALL END OF IT (`7da00ca8`, on `dev`)
 Swept run age per (model, domain, layer, region) across the live manifest, 2026-07-31 19:34Z, 12,147
 products. Hawaii had already rotated back to 5.0 h — which is what proved this is **starvation, not
