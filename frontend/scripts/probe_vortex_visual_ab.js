@@ -89,10 +89,13 @@ async function runArm(label, disableFix) {
       const wg = e && e._waveData && e._waveData.waveGrid;
       const cellDeg = (wg && wg.cols > 1 && wg.bounds)
         ? +((wg.bounds.east - wg.bounds.west) / (wg.cols - 1)).toFixed(3) : null;
+      // fineSeamFloor lives on vortexGate (moved there 2026-07-31 so WebGLMarineEngine.js could
+      // stay at its LOC baseline — the ratchet forbids growth on a grandfathered file).
+      const vg = G.vortexGate || {};
       return {
         zoom: a.zoom, cellDeg, dims: wg ? [wg.cols, wg.rows] : null,
-        dirCoherenceMin: a.dirCoherenceMin, fineSeamFloor: a.fineSeamFloor,
-        vortexEngaged: (G.vortexGate || {}).engaged,
+        dirCoherenceMin: a.dirCoherenceMin, fineSeamFloor: vg.fineSeamFloor,
+        mode: vg.mode, vortexEngaged: vg.engaged,
       };
     });
     // BURST: consecutive frames so the motion (and any curl) is visible across them.

@@ -669,7 +669,14 @@ export function resolveCoarseCrestControls(inVortexBand, win, cellDeg) {
   // (and every caller that object-matches) is untouched; the key appears only when it engages.
   if (!inVortexBand) {
     if (!(seam > 0)) return { dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' };
-    return { dirCoherenceMin: seam, coarseNearestDir: 0.0, mode: 'fine_seam', fineSeamFloor: seam };
+    // ⚠️⚠️ NEAREST-CELL SAMPLING IS THE PRIMARY ANTI-VORTEX MECHANISM, THE FLOOR IS SECONDARY.
+    // The first fine-tier attempt (2026-07-31) shipped the floor alone with coarseNearestDir 0 and
+    // the user still saw the swirl "at a lot of zooms" — correctly, because the floor only CULLS
+    // particles inside the divergent strip while the surviving field is still bilinearly
+    // interpolated and therefore still rotates. The 2026-07-01 root analysis is explicit that
+    // uniform per-cell headings CANNOT swirl; that is what actually removes the vortex, and the
+    // floor then cleans up the seam strips between opposed cells. Both, or neither works.
+    return { dirCoherenceMin: seam, coarseNearestDir: 1.0, mode: 'fine_seam', fineSeamFloor: seam };
   }
   const w = win || (typeof window !== 'undefined' ? window : {});
   if (w.__RAW_DISABLE_COARSE_CREST_SUPPRESS__ === true || w.__RAW_COARSE_CREST_MODE__ === 'off') {

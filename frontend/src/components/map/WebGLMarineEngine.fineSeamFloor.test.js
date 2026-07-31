@@ -98,11 +98,23 @@ describe('resolveCoarseCrestControls composition (the engine calls only this)', 
       .toEqual({ dirCoherenceMin: 0.0, coarseNearestDir: 0.0, mode: 'off' });
   });
 
-  it('a FINE tile out of the coarse band now gets the seam floor', () => {
+  it('a FINE tile gets NEAREST-CELL SAMPLING as well as the floor', () => {
+    // ★ The regression that made the first attempt fail live: shipping the floor with
+    // coarseNearestDir 0 only CULLS particles inside the divergent strip — the surviving field is
+    // still bilinearly interpolated and still rotates, so the user still saw the swirl. Uniform
+    // per-cell headings are what actually make a vortex impossible (2026-07-01 root analysis).
     expect(resolveCoarseCrestControls(false, {}, 0.25)).toEqual({
-      dirCoherenceMin: FINE_SEAM_FLOOR_DEFAULT, coarseNearestDir: 0.0,
+      dirCoherenceMin: FINE_SEAM_FLOOR_DEFAULT, coarseNearestDir: 1.0,
       mode: 'fine_seam', fineSeamFloor: FINE_SEAM_FLOOR_DEFAULT,
     });
+  });
+
+  it('nearest-cell sampling is ON for every fine cell size that engages the floor', () => {
+    for (const cellDeg of [0.1, 0.25, 0.5, 0.9]) {
+      const r = resolveCoarseCrestControls(false, {}, cellDeg);
+      expect(r.coarseNearestDir).toBe(1.0);
+      expect(r.dirCoherenceMin).toBeGreaterThan(0);
+    }
   });
 
   it('the coarse in-band path is unchanged by the fine tier', () => {
