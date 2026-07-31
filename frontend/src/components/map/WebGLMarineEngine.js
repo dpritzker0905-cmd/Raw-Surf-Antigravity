@@ -51,7 +51,7 @@ import {
 import {
   latToMercatorY, heatmapZoomOpacity, resolveRatingBandFade, resolveRibbonTaper, boundsLonSpan,
   isRegionalBounds, isCoarseGlobalGrid, clampTileToViewport, resolveTileBackoff, gridCellDeg,
-  shouldRejectResolutionDowngrade, shouldKeepResidentOnNullEncode, isMagnifiedCoarseField,
+  shouldRejectResolutionDowngrade, shouldRejectMaskShrink, shouldKeepResidentOnNullEncode, isMagnifiedCoarseField,
   trimDeadEdges, applySharpenOpacityEase, resolveColdVeil, resolveCoarseCrestControls,
   resolveAnimValue, coarseBaseKey,
 } from './marineEngineDecisions';
@@ -2520,6 +2520,37 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
     const canvas = renderMaskToCanvas(geo, bounds, { maxWidth: 2048 });
     const applied = overlayBasemapWaterOnMask(canvas, bounds, mapInstance);
     if (!applied) return false;
+    // ── MASK NO-SHRINK (#11, the halo) ────────────────────────────────────────────────────────
+    // Refuse a candidate mask that SHRINKS while failing to cover the viewport, when the incumbent
+    // demonstrably DID cover it. Measured live 2026-07-31 one zoom step apart at the same
+    // coordinate: z8.18 held -94,12,-64,44 (30 deg, covers TRUE) and rendered clean; z8.03 replaced
+    // it with -83,26,-79,31 (4 deg, covers FALSE) and haloed. The viewport GREW while the mask
+    // shrank ~7x, and in REPLACE mode the small rectangle overrides the ocean flag while its padded
+    // ring floods.
+    // ★ MUST RUN BEFORE THE TEXTURE UPLOAD BELOW. Rejecting after texImage2D would leave the texture
+    //   updated and the bounds stale — a tex/bounds mismatch is strictly worse than the halo.
+    // The engine already computes this coverage test at render time (_overlayCoversViewport, :811);
+    // the same containment is applied here to the candidate and the incumbent. Kill:
+    // __RAW_DISABLE_MASK_NO_SHRINK__. Telemetry: window.__RAW_GPU__.maskShrinkRejected.
+    {
+      const _cov = (b) => (b && b.west <= view.west && b.east >= view.east
+        && b.south <= view.south && b.north >= view.north);
+      const _incumbent = this._overlayMaskBounds;
+      if (shouldRejectMaskShrink(_incumbent, bounds, view, {
+        candidateCoversViewport: _cov(bounds),
+        incumbentCoveredViewport: !!(this._overlayMaskTex && _cov(_incumbent)),
+        disabled: (typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_NO_SHRINK__ === true),
+      })) {
+        if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+          window.__RAW_GPU__.maskShrinkRejected = {
+            incumbent: _incumbent, candidate: bounds, view,
+            incumbentSpan: _incumbent ? _incumbent.east - _incumbent.west : null,
+            candidateSpan: bounds.east - bounds.west,
+          };
+        }
+        return false;   // keep the incumbent mask — it still covers the view
+      }
+    }
     // COAST SDF for the viewport-truth overlay (the band's min-combine mask). Opt-in; byte-identical off.
     this._overlayMaskHasSDF = writeCoastDistanceField(canvas);
     if (!this._overlayMaskTex) {

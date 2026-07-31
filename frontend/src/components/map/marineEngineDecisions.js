@@ -737,3 +737,48 @@ export function coarseBaseKey(waveGrid) {
   ].join('|');
 }
 
+
+// === MASK NO-SHRINK decision (pure; exported for tests) — THE HALO (#11) ===
+//
+// ★ THE SAME STRUCTURAL SHAPE AS shouldRejectResolutionDowngrade, ONE LANE OVER. That guard protects
+// the GRID lane: a resident regional grid is not displaced by a coarser one that covers less. The
+// MASK lane had no equivalent, so an overlay mask could SHRINK while the viewport GREW and still be
+// applied — in REPLACE mode, where its rectangle overrides the ocean flag and the padded ring outside
+// it floods. That is the halo.
+//
+// MEASURED LIVE 2026-07-31, one zoom step apart at the same coordinate:
+//
+//   z 8.18 clean  viewport lng -81.29..-79.21   mask -94,12,-64,44  (30x32 deg)  covers TRUE
+//   z 8.03 HALO   viewport lng -81.62..-78.79   mask -83,26,-79,31  ( 4x 5 deg)  covers FALSE
+//                 ^ viewport GREW                ^ mask SHRANK ~7x            reason 'coverage_gap'
+//
+// ⚠️ THE EXISTING DROP GUARD CANNOT SEE THIS. `_nonCoveringDrop` (WebGLMarineEngine) already reads
+// `_overlayCoversViewport === false` — the engine KNOWS the overlay does not cover — but it is gated
+// `z < 4.4`, and the halo band is z 6.74-8.03. The engine had the evidence and no action for it.
+// ★ The Jacobian variable here is the ACTION ON FAILURE, not a threshold: the coverage test already
+//   exists and is already correct; what was missing is what happens when it says false.
+//
+// WHY REJECT-THE-SHRINK RATHER THAN DROP-THE-OVERLAY. At close zoom the overlay is what CARVES the
+// coast (the mid-zoom min-combine, z>=9), so dropping it outright would trade the halo for the coast
+// bleed that REPLACE exists to prevent. Holding the INCUMBENT — which demonstrably covered — keeps a
+// correct carve on screen while the shrunken candidate is refused. Mirrors the grid lane exactly:
+// prefer the resource that still contains the view over the one that merely arrived later.
+//
+// FAIL-OPEN EVERYWHERE ELSE, for the same reason the grid guard does (a wrong ACCEPT costs one frame
+// and self-heals; a wrong REJECT is permanent): no incumbent, incumbent did not itself cover, the
+// candidate DOES cover, the candidate is not smaller, or zoom/bounds unknown -> always accept.
+export function shouldRejectMaskShrink(incumbent, candidate, viewportBounds, opts) {
+  const o = opts || {};
+  if (o.disabled) return false;
+  // The engine computes these; a missing verdict is UNKNOWN and must not reject.
+  if (o.candidateCoversViewport !== false) return false;   // candidate covers (or unknown) -> accept
+  if (o.incumbentCoveredViewport !== true) return false;   // nothing proven better to hold -> accept
+  if (!incumbent || !candidate || !viewportBounds) return false;
+  const inSpan = boundsLonSpan(incumbent);
+  const caSpan = boundsLonSpan(candidate);
+  if (!(inSpan > 0) || !(caSpan > 0)) return false;        // unknowable span -> accept
+  // Only a genuine SHRINK is refused. An equal-or-larger candidate that still fails to cover is a
+  // different defect (a pan away from the box) and must be allowed through so nothing strands.
+  if (!(caSpan < inSpan * (o.shrinkRatio || 1.0))) return false;
+  return true;
+}
