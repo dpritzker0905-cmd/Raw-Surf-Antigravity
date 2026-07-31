@@ -25,6 +25,17 @@ applied and seeded (DB-verified 1,360 rows).
 ⚠️ Both Windows tasks are **Interactive-only** — they run only if the machine was on and the user
 logged in. A missed night just resumes the next one (all lanes are idempotent).
 
+⚠️⚠️ **A KILLED RUN LOOKS EXACTLY LIKE A MISSED ONE — CHECK `LastTaskResult`, NOT JUST THE LOG.**
+Measured 2026-07-31: the ERA5 campaign's first-ever firing died after ONE download with
+`LastTaskResult = 3221225786` (`0xC000013A` = STATUS_CONTROL_C_EXIT) and a bare `^C` at the end of
+the log. Root: both tasks shipped with **`StopIfGoingOnBatteries = True`**, so a laptop dropping to
+battery terminates the job mid-run. ✅ Fixed on both tasks (`StopIfGoingOnBatteries` and
+`DisallowStartIfOnBatteries` now False) — re-apply if `install_*_schedule.ps1` is ever re-run,
+because the installer still creates them with the default settings.
+    Get-ScheduledTask -TaskName "<name>" | Get-ScheduledTaskInfo   # LastTaskResult 0 = clean
+Resuming is always safe: the campaign's resume filter skips spots already deepened in the blob OR
+pending in the inbox, and it writes to the INBOX (invariant 6), never the blob.
+
 ## 1. WHAT IS TRUE NOW (each item live-proven 2026-07-30, see the session memory for numbers)
 
 * **Blank-day family DEAD in production** — run 30570760864's own log: no purge line, on-lattice
