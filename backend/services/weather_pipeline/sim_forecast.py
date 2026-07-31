@@ -347,6 +347,12 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
             "model": MODEL,
             "valid_time": marine.get("valid_time") or valid_time,
             "run_time": marine.get("run_time"),
+            # ⚠️ WIND HAS ITS OWN RUN, always. The two domains are ingested by different jobs and
+            # shared a run at 0 of 4 spots measured 2026-07-31 (Mavericks 07:27 vs 08:10, Bells
+            # Beach 04:07 vs 14:44). Carrying only the marine one left half the score's inputs
+            # unattributable, which is exactly the gap that made a sim↔glyph divergence need a live
+            # re-compute to explain.
+            "wind_run_time": (wind or {}).get("run_time"),
             "product_id": marine.get("product_id"),
             "is_forecast_authoritative": marine.get("is_forecast_authoritative"),
             "served_surf_height_m": marine.get("surf_height_m"),

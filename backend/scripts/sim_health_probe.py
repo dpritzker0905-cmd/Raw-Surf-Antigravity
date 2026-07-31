@@ -156,6 +156,12 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 "h_served_m": h_srv, "h_sim_m": round(h_sim, 4), "d_height_pct": dh,
                 "lat": spot.get("latitude"), "lng": spot.get("longitude"),
                 "spot_id": item.get("spot_id"),
+                # WHICH FORECAST each side ran on. None on an older frame — `attribute()` then
+                # falls back to the live-compute discriminator.
+                "served_run_time": item.get("run_time"),
+                "served_wind_run_time": item.get("wind_run_time"),
+                "sim_run_time": (_prov or {}).get("run_time"),
+                "sim_wind_run_time": (_prov or {}).get("wind_run_time"),
                 # The serving lane capped a Good/Epic this sim reports ungated — a composition
                 # asymmetry, not a physics one. Read off the payload, never off a local env var:
                 # RATING_OBS_GATE has a value PER LANE.
@@ -212,6 +218,32 @@ def attribute(rows, model="GFS"):
         if r.get("gate_capped"):
             r["attribution"] = "observation_gate"
             continue
+
+        # ★ THE CHEAP DISCRIMINATOR FIRST. Once the payload names its own model run there is
+        # nothing to discover: if the glyph and the sim ran on different runs, the divergence is
+        # provenance and no live compute can add to that. Only when the payload cannot say (an
+        # older frame, pre-2026-07-31) do we spend 7.5-8.6 s of 1-CPU serve box to find out.
+        # ⚠️ BOTH domains. Marine and wind come from different ingest jobs and shared a run at 0 of
+        # 4 spots measured — comparing only the marine one would call a wind-run difference a
+        # composition bug.
+        served_runs = (r.get("served_run_time"), r.get("served_wind_run_time"))
+        sim_runs = (r.get("sim_run_time"), r.get("sim_wind_run_time"))
+        if any(served_runs) and any(sim_runs):
+            differing = [d for d, a, b in (("marine", served_runs[0], sim_runs[0]),
+                                           ("wind", served_runs[1], sim_runs[1]))
+                         if a and b and a != b]
+            if differing:
+                r["attribution"] = "provenance_only"
+                r["attribution_note"] = (f"{'/'.join(differing)} run differs: served "
+                                         f"{served_runs} vs sim {sim_runs}")
+                continue
+            if all(a and b for a, b in zip(served_runs, sim_runs)):
+                # Same runs in both domains: the inputs are identical, so a LEVEL difference can
+                # only be the composition. No live compute needed to say so.
+                r["attribution"] = "composition"
+                r["attribution_note"] = "identical marine and wind runs — inputs are the same"
+                continue
+
         lat, lng = r.get("lat"), r.get("lng")
         if lat is None or lng is None:
             r["attribution"] = "unattributed"

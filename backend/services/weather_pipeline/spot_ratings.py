@@ -74,10 +74,21 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
     geometry_readiness = None
     partitions = None
+    run_time = wind_run_time = None
     try:
         marine = await resolver.resolve_point(
             model=model, domain="marine", layer="waves", lat=lat, lng=lng, valid_time_str=valid_time)
         if isinstance(marine, NormalizedPointResponse) and marine.point is not None:
+            # ★ WHICH MODEL RUN THIS SCORE IS FROM. `valid_time` says which HOUR it describes and
+            # nothing about which FORECAST OF that hour — and the two are routinely far apart,
+            # because the point resolver serves REGIONAL products on independent ingest cadences.
+            # Measured live 2026-07-31 at one valid_time: Pipeline's marine run was 14:08Z while
+            # Sebastian Inlet's was 21:40Z THE PREVIOUS DAY — 17 h older, from
+            # `gfs_marine_waves_florida_east_coast` vs `gfs_marine_waves_hawaii`.
+            # Without this field a sim↔glyph disagreement could only be attributed by forcing a
+            # live re-compute (7.5-8.6 s on the 1-CPU box): 3 of the 4 LEVEL differences the health
+            # probe found on 2026-07-31 were exactly this, and proving it cost a live sweep.
+            run_time = _iso_z(marine.run_time)
             surf_h = marine.surf_height_m
             period = marine.point.period
             swell_from = marine.point.direction
@@ -93,6 +104,10 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         wind = await resolver.resolve_point(
             model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
         if isinstance(wind, NormalizedPointResponse) and wind.point is not None:
+            # ⚠️ ITS OWN RUN, always. Marine and wind are ingested by different jobs and shared a
+            # run at 0 of 4 spots measured 2026-07-31 (Mavericks 07:27 vs 08:10, Bells Beach 04:07
+            # vs 14:44). One `run_time` would describe only half the inputs to the score.
+            wind_run_time = _iso_z(wind.run_time)
             wind_ms = (wind.point.speed or 0.0) * SR.KT_TO_MS    # wind point speed is knots
             wind_from = wind.point.direction
     except Exception as e:
@@ -172,12 +187,91 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # correctly-placed, verified pin can still be scored on a coarse 0.25° bearing that is
         # median 22.3° off — and until now nothing distinguished the two.
         "geometry_readiness": geometry_readiness,
+        # WHICH FORECAST, not just which hour. Interned per frame before upload — see
+        # `intern_frame_runs`; a raw ISO pair on every spot costs +23% on an object every client
+        # downloads. The live path keeps them inline (nothing to intern, one request).
+        "run_time": run_time,
+        "wind_run_time": wind_run_time,
     }
 
 
 def _lng_in(lng, w, e) -> bool:
     """Longitude-in-bbox, antimeridian-aware (w>e means the bbox wraps the dateline)."""
     return (w <= lng <= e) if w <= e else (lng >= w or lng <= e)
+
+
+def _iso_z(dt) -> Optional[str]:
+    """A datetime as the same `...Z` string the point API serves, or None. Never raises."""
+    if dt is None:
+        return None
+    if isinstance(dt, str):
+        return dt
+    try:
+        if dt.tzinfo is None:
+            dt = dt.replace(tzinfo=timezone.utc)
+        return dt.astimezone(timezone.utc).isoformat().replace("+00:00", "Z")
+    except Exception:
+        return None
+
+
+# ── run provenance, INTERNED ─────────────────────────────────────────────────────────────────────
+# `run_time`/`wind_run_time` answer "which forecast", and they vary PER SPOT: the point resolver
+# serves regional products on independent ingest cadences, so within one (model, valid_time) frame
+# the marine run ranged over 17 hours across four spots when measured.
+#
+# ⚠️ BUT THEY ARE NOT PER-SPOT DATA — they are per-PRODUCT data, and a frame holds ~20 products for
+# ~900 spots. That object is fetched off the CDN by EVERY client on EVERY map load
+# (`spotRatingsCdn.js`: one download per 5-minute bucket serves every pan/zoom/model-switch/scrub),
+# so the encoding is a bandwidth decision, not a style one. Measured on a realistic 900-spot frame
+# with 20 distinct products:
+#
+#     baseline (no run fields)   259,882 bytes
+#     raw ISO pair per spot      338,201 bytes   +30.1%   (+87 bytes/spot)
+#     INTERNED                   268,800 bytes    +3.4%   (+10 bytes/spot)
+#
+# Across the object (3 models x 2 frames) that is +459 KB against +52 KB of client bandwidth for a
+# diagnostic field. So the frame carries the distinct pairs ONCE and each spot carries a small
+# integer into them; the endpoint expands it back on read, so the API stays legible and nothing
+# downstream has to know the encoding.
+def intern_frame_runs(frame: dict) -> dict:
+    """PURE-ish: move each spot's (run_time, wind_run_time) into `frame['runs']` + a `run` index.
+
+    Returns the same frame object with its spots rewritten. Idempotent: a frame that already has
+    `runs` is returned untouched, so a checkpoint re-upload cannot double-encode."""
+    if not isinstance(frame, dict) or frame.get("runs") is not None:
+        return frame
+    table, index = [], {}
+    spots = frame.get("spots") or []
+    for sp in spots:
+        pair = (sp.pop("run_time", None), sp.pop("wind_run_time", None))
+        if pair == (None, None):
+            continue                                  # nothing known — no index, expands to None
+        if pair not in index:
+            index[pair] = len(table)
+            table.append([pair[0], pair[1]])
+        sp["run"] = index[pair]
+    if table:
+        frame["runs"] = table
+    return frame
+
+
+def expand_frame_runs(spots: list, frame: dict) -> list:
+    """PURE: spots with `run_time`/`wind_run_time` restored from the frame's table.
+
+    ⚠️ COPIES rather than mutating. `select_precomputed` reads the PROCESS-WIDE cached L2 object
+    (`_l2_cache`), and writing into it would edit a shared blob every later request reads — the
+    one-writer rule this repo has already paid for once. A frame with no table is returned
+    untouched and unc opied, so old objects cost nothing."""
+    table = frame.get("runs") if isinstance(frame, dict) else None
+    if not table:
+        return spots
+    out = []
+    for sp in spots:
+        idx = sp.get("run")
+        pair = table[idx] if isinstance(idx, int) and 0 <= idx < len(table) else (None, None)
+        out.append({k: v for k, v in sp.items() if k != "run"}
+                   | {"run_time": pair[0], "wind_run_time": pair[1]})
+    return out
 
 
 def _parse_dt(s):
@@ -245,7 +339,9 @@ def select_precomputed(obj, bbox, model, valid_time, tolerance_s: float = SELECT
             continue
         if s <= lat <= n and _lng_in(lng, w, e):
             out.append(sp)
-    return out
+    # Restore the run provenance the frame interned. AFTER the bbox filter, so the copy is paid for
+    # the ~40 spots in view rather than the ~900 in the frame.
+    return expand_frame_runs(out, frame)
 
 
 def select_precomputed_laddered(obj, bbox, model, valid_time,
@@ -457,7 +553,8 @@ async def precompute_spot_ratings(resolver, spots, models, hour_offsets, base_dt
         for h in hour_offsets:
             vt = (base + timedelta(hours=h)).strftime("%Y-%m-%dT%H:00:00Z")
             rated = list(await asyncio.gather(*[_one(resolver, sp, model, vt) for sp in spots])) if spots else []
-            frames.append({"model": model, "valid_time": vt, "hour_offset": h, "spots": rated})
+            frames.append(intern_frame_runs(
+                {"model": model, "valid_time": vt, "hour_offset": h, "spots": rated}))
     return build_l2_object(frames)
 
 

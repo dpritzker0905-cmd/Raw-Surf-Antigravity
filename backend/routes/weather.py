@@ -330,6 +330,18 @@ class SpotRatingItem(BaseModel):
     # can still be scored against a coarse 0.25° bearing that is median 22.3° off, changing the
     # LEVEL on 45.8% of evaluations. Optional so an older precomputed frame simply omits it.
     geometry_readiness: Optional[str] = None
+    # WHICH MODEL RUN produced this score. `valid_time` says which HOUR the score describes and
+    # nothing about which FORECAST of that hour — and the gap is routinely large, because the point
+    # resolver serves REGIONAL products on independent ingest cadences. Measured live 2026-07-31 at
+    # ONE valid_time: Pipeline's marine run was 14:08Z, Sebastian Inlet's was 21:40Z the previous
+    # day — 17 h older. Without this, a disagreement between this rating and any other surface could
+    # only be attributed by forcing a live re-compute (7.5-8.6 s on the 1-CPU box).
+    # ⚠️ TWO fields because marine and wind are ingested by different jobs and shared a run at 0 of
+    # 4 spots measured — one would describe only half the inputs to the score.
+    # Optional so an older precomputed frame simply omits them (same contract as
+    # `geometry_readiness` above, and as `served_valid_time` on the response).
+    run_time: Optional[str] = None            # the marine run — it produced `surf_height_m`
+    wind_run_time: Optional[str] = None
 
 
 class SpotRatingsResponse(BaseModel):
