@@ -523,13 +523,46 @@ def reconcile_partitions(partitions, total_h_m, tolerance: float = 0.02):
 # -22.3%; over deviations are unaffected), so it only rejects degenerate coverage.
 PARTITION_MIN_QUAD_FRAC = 0.5
 
+# The PERIOD half of the same question. The height test above cannot see a missing LONG train:
+# a long-period swell carries little height but dominates energy FLUX (P ~ h^2 * T, c_g = gT/4pi),
+# so a decomposition can pass the quadrature gate while omitting the train that matters most to a
+# surfer — and to any flux-based ranking.
+#
+# The check: the total's period is a PEAK period, normally inherited from the dominant train, so
+# T_total must not exceed EVERY partition's period. It cannot, if the partitions cover the spectrum.
+#
+# ⚠️ THE THRESHOLD IS A RATIO, NOT `>` — and that distinction is the whole finding. Measured live
+# 2026-07-31, 36 samples (6 FL sites x forecast hours 0/6/12/24/48/72, GFS):
+#     ratio = T_total / max(partition T):  min 0.466  p25 0.672  MEDIAN 0.999  p75 1.000  max 1.330
+# The median pinned at ~1.000 is the HEALTHY case (peak period inherited from the dominant train),
+# so a boolean `T_total > max` reads ordinary ties as defects: 7 of 36 samples "exceeded", but their
+# ratios split at a natural GAP around 1.08 —
+#     1.0021, 1.0476, 1.0502   interpolation/rounding noise on a tie
+#     1.1161, 1.1308, 1.1711, 1.3298   physically real: a total peak period up to 33% longer than
+#                                      ANY partition, which the partitions cannot produce
+# 1.10 sits in that gap: it admits all three noise cases and rejects all four real ones. The earlier
+# report of this defect ("T_total exceeds every partition at 5 of 6 FL sites") was a boolean over
+# near-ties; the honest rate is ~19% of sample-hours, ~11% material.
+PARTITION_MAX_TP_RATIO = 1.10
 
-def partitions_represent(partitions, total_h_m, min_quad_frac: float = PARTITION_MIN_QUAD_FRAC):
+
+def partitions_represent(partitions, total_h_m, total_tp_s=None,
+                         min_quad_frac: float = PARTITION_MIN_QUAD_FRAC,
+                         max_tp_ratio: float = PARTITION_MAX_TP_RATIO):
     """True when the trains plausibly describe the sea the total reports — the supply-side gate
     BOTH forecast suppliers (`point_resolution._resolve_partitions`, the hub's
     `_spectral_partitions`) apply BEFORE reconciling. One definition, two callers, so the two
     lanes cannot drift on what counts as representative (the distributed-guards lesson).
-    Fails CLOSED on unusable input: garbage trains do not represent anything."""
+    Fails CLOSED on unusable input: garbage trains do not represent anything.
+
+    Two independent tests, because a decomposition can fail on either axis alone:
+      HEIGHT  the trains' quadrature carries at least `min_quad_frac` of the total Hs
+      PERIOD  the total's peak period is not `max_tp_ratio`x longer than every train's
+
+    `total_tp_s` is OPTIONAL and the period test is skipped when it is absent or unusable — a
+    caller that cannot supply a trustworthy total period gets exactly today's behaviour rather than
+    a verdict invented from a missing input.
+    """
     if not partitions or total_h_m is None:
         return False
     try:
@@ -545,7 +578,30 @@ def partitions_represent(partitions, total_h_m, min_quad_frac: float = PARTITION
         return False
     if quad != quad or quad <= 0:
         return False
-    return quad / total >= min_quad_frac
+    if quad / total < min_quad_frac:
+        return False
+
+    if total_tp_s is None:
+        return True
+    try:
+        t_total = float(total_tp_s)
+    except (TypeError, ValueError):
+        return True                      # unusable input -> skip the test, never invent a verdict
+    if t_total != t_total or t_total <= 0:
+        return True
+    tps = []
+    for p in partitions:
+        if not isinstance(p, dict):
+            continue
+        try:
+            tp = float(p.get("tp"))
+        except (TypeError, ValueError):
+            continue
+        if tp == tp and tp > 0:
+            tps.append(tp)
+    if not tps:
+        return True                      # no partition periods to compare against
+    return t_total / max(tps) <= max_tp_ratio
 
 
 def surf_transform_grid(vectors, depth_fn, coastal_fn=None, width_fn=None):

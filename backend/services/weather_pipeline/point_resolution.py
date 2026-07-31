@@ -76,7 +76,8 @@ class PointResolutionService:
     # `surf_rating`'s partition-aware factors expect.
     _PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
 
-    async def _resolve_partitions(self, model, layer, lat, lng, valid_time_str, total_h):
+    async def _resolve_partitions(self, model, layer, lat, lng, valid_time_str, total_h,
+                                  total_tp=None):
         """The spectral partitions at this point, reconciled to the total — or None.
 
         ⚠️⚠️ RE-ENTRANCY. This calls `_resolve_point_internal`, NOT `resolve_point`. The surf
@@ -143,7 +144,9 @@ class PointResolutionService:
         # The REPRESENT gate: if the surviving trains carry under half the total Hs in quadrature,
         # the dominant train is missing and reconciling would inflate a minority train to carry all
         # the energy at its own period — fall back to the total field instead.
-        if not partitions_represent(parts, total_h):
+        # total_tp closes the PERIOD half: a decomposition can carry the height and still omit
+        # the long train that dominates energy flux (P ~ h^2*T). See PARTITION_MAX_TP_RATIO.
+        if not partitions_represent(parts, total_h, total_tp):
             return None
         return reconcile_partitions(parts, total_h)
 

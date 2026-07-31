@@ -76,7 +76,7 @@ def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, parti
 _PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
 
 
-async def _spectral_partitions(self, model, lat, lng, dt, total_h):
+async def _spectral_partitions(self, model, lat, lng, dt, total_h, total_tp=None):
     """The swell/windsea trains at this frame, RECONCILED to the total Hs — or None.
 
     The hub's marine lane samples LOCALLY CACHED grids rather than `resolve_point`, so it cannot
@@ -133,7 +133,9 @@ async def _spectral_partitions(self, model, lat, lng, dt, total_h):
         # in quadrature mean the dominant train is missing from the local cache — reconciling the
         # survivors would inflate a minority train to carry ALL the energy at its own period, a sea
         # state neither the blend nor the spectrum describes. Total field instead.
-        if not partitions_represent(parts, total_h):
+        # total_tp closes the PERIOD half (PARTITION_MAX_TP_RATIO): the height test alone cannot
+        # see a MISSING LONG TRAIN, which is the one that dominates energy flux.
+        if not partitions_represent(parts, total_h, total_tp):
             return None
         return reconcile_partitions(parts, total_h)
     except Exception as e:
@@ -261,7 +263,8 @@ async def resolve_spot_conditions_impl(
     # ONE sea state for this frame: the same reconciled trains feed the height transform AND the
     # rating below, so the two cannot disagree about what is in the water (None when the flag is
     # off — production today — or nothing usable is cached).
-    current_parts = await _spectral_partitions(self, model, lat, lng, current_dt, offshore_m)
+    current_parts = await _spectral_partitions(self, model, lat, lng, current_dt, offshore_m,
+                                               period_s)
     current_wave_height_ft, regime = _breaking_ft(
         lat, lng, offshore_m, period_s, swell_from, geometry, partitions=current_parts)
     current_swell_height_ft = round(current_swell["swell_height"] * M_TO_FT, 1) if current_swell["swell_height"] else 0
@@ -328,7 +331,8 @@ async def resolve_spot_conditions_impl(
         day_offshore = day_waves["wave_height"] or 0.0
         # Spectral per frame for the same reason as the current frame: one payload must not mix a
         # spectral "now" with total-field days. Local cache sampling only; None when the flag is off.
-        day_parts = await _spectral_partitions(self, model, lat, lng, dt, day_offshore)
+        day_parts = await _spectral_partitions(self, model, lat, lng, dt, day_offshore,
+                                               day_waves["wave_period"] or None)
         max_ft, day_regime = _breaking_ft(
             lat, lng, day_offshore, day_waves["wave_period"], day_waves["wave_direction"], geometry,
             partitions=day_parts)

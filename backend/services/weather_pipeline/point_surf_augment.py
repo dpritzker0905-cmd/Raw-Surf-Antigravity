@@ -68,8 +68,22 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # hub and the sim a different height from the map glyphs, which is the divergence
             # CLAUDE.md's ONE FORECAST COMPOSITION rule exists to prevent. See
             # `_resolve_partitions` for the cost and the re-entrancy guard.
-            _parts = await resolve_partitions(
-                model, layer, lat, lng, valid_time_str, response.point.speed)
+            # ⚠️ ITS OWN try, and that is deliberate. The enclosing `except Exception` (below)
+            # covers the whole geometry chain, so ANY error raised here — including a mere
+            # signature mismatch, since `resolve_partitions` arrives as an injected callable and
+            # arity is not checked until call time — would silently disable `surf_height_m`
+            # ENTIRELY, not merely drop the partitions. That is the recorded landmine: a broad
+            # `except` once disabled the surf transform and nothing said so. Partitions are OPT-IN
+            # and fail-open by contract, so a failure here must cost only the spectral refinement.
+            try:
+                _parts = await resolve_partitions(
+                    model, layer, lat, lng, valid_time_str, response.point.speed,
+                    response.point.period)
+            except Exception as _pe:
+                logger.warning(
+                    f"[Surf v3] partition resolution failed at ({lat},{lng}); falling back to the "
+                    f"total field. surf_height_m is UNAFFECTED: {_pe!r}")
+                _parts = None
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
                                             partitions=_parts)

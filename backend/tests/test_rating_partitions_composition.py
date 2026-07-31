@@ -84,7 +84,11 @@ async def test_the_response_carries_the_trains_its_height_ran_on(monkeypatch):
     async def fake_marine(**kw):
         return _response("marine", "waves", MAVS_LAT, MAVS_LNG, MAVS_TOTAL, 10.9)
 
-    async def fake_parts(model, layer, lat, lng, valid_time_str, total_h):
+    async def fake_parts(model, layer, lat, lng, valid_time_str, total_h, total_tp=None):
+            # total_tp added 2026-07-31 (the PERIOD half of partitions_represent). This
+            # double's ARITY is load-bearing: resolve_partitions is injected as a callable,
+            # so a stale signature raises TypeError at call time -- which is exactly how
+            # this test caught the change.
         return recon
 
     monkeypatch.setattr(surf_point, "estimate_surf_at", recording_estimate)
