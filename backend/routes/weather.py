@@ -334,10 +334,32 @@ class SpotRatingItem(BaseModel):
 
 class SpotRatingsResponse(BaseModel):
     model: str
-    valid_time: str
+    valid_time: str                       # the hour ASKED FOR
     count: int                            # number of spots with a non-null score
-    source: str                           # "precomputed" | "live" | "disabled"
+    source: str                           # "precomputed" | "precomputed_stale" | "live" | "disabled"
+    # The hour the served frame ACTUALLY describes, and the signed gap. The stale ladder serves the
+    # nearest frame within 6 h and this response used to echo the requested hour regardless, so a
+    # rating from 09:00 was labelled 15:00 with only `source` hinting. The grid response has carried
+    # `served_valid_time` + `frame_offset_hours` since it had the same problem; this is the outlier.
+    # ★ A check whose two sides do not share a `valid_time` measures the clock, not the physics —
+    # the same artifact that had the obs gate capping 59.9% of good/epic on a cross-model mismatch.
+    # None on the live path (computed at the requested hour) and when disabled.
+    served_valid_time: Optional[str] = None
+    frame_offset_hours: Optional[float] = None
     spots: list[SpotRatingItem]
+
+
+def _offset_hours(requested: str, served: Optional[str]) -> Optional[float]:
+    """Signed hours from the requested hour to the one actually served. None when unknowable."""
+    if not served or not requested:
+        return None
+    from datetime import datetime as _dt
+    try:
+        r = _dt.strptime(requested, "%Y-%m-%dT%H:%M:%SZ")
+        s = _dt.strptime(served, "%Y-%m-%dT%H:%M:%SZ")
+    except ValueError:
+        return None
+    return round((s - r).total_seconds() / 3600.0, 2)
 
 
 # Live-path TTL cache: rating a viewport on the 1-CPU serve box is 7-22s, so a re-view (or another user) would
@@ -375,17 +397,24 @@ async def get_spot_ratings(
     # (7.5-8.6 s/req melts every DB lane — the 07-13 melt, three recurrences with three different triggers:
     # evicted run / GH cron drift / coverage hole). Bounded-stale glyphs beat a melted box; beyond the stale
     # bound live remains the truth path. Kill: SPOT_RATINGS_STALE_TOLERANCE_S=0.
-    pre, pre_source = None, "precomputed"
+    pre, pre_source, pre_served = None, "precomputed", None
     try:
         from services.weather_pipeline.spot_ratings import select_precomputed_laddered
-        pre, pre_source = select_precomputed_laddered(load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
+        pre, pre_source, pre_served = select_precomputed_laddered(
+            load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
     except Exception as _pe:
         logger.debug(f"[spot-ratings] precomputed read failed: {_pe}")
         pre = None
     if pre is not None:
         items = [SpotRatingItem(**sp) for sp in pre[:limit]]
         count = sum(1 for it in items if it.score is not None)
-        return SpotRatingsResponse(model=model, valid_time=valid_time, count=count, source=pre_source, spots=items)
+        # `valid_time` echoes what was ASKED FOR; `served_valid_time` is what the frame describes.
+        # The stale ladder can serve a frame up to 6 h away and only the label said so — so a client
+        # (or a parity check) had no way to tell a real disagreement from a time offset.
+        return SpotRatingsResponse(model=model, valid_time=valid_time, count=count,
+                                   source=pre_source, served_valid_time=pre_served,
+                                   frame_offset_hours=_offset_hours(valid_time, pre_served),
+                                   spots=items)
 
     # Live-path cache hit (a recent identical viewport already paid the 7-22s compute)?
     import time as _time

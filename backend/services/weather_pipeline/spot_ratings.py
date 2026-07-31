@@ -194,35 +194,48 @@ def _parse_dt(s):
 SELECT_TOLERANCE_S = 7200  # 2h — the frontend's getSharedValidTime needn't string-match the precomputed key
 
 
-def select_precomputed(obj, bbox, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S) -> Optional[list]:
-    """PURE: pick the frame for (model, valid_time) from a loaded L2 object and filter its spots to the bbox.
-    Matches valid_time EXACTLY first, else the NEAREST same-model frame within `tolerance_s` (the frontend's
-    getSharedValidTime needn't byte-match the precompute's key — only be the same forecast hour). Returns the
-    list of rating dicts (possibly empty when the frame matches but nothing's in view → DON'T fall back), or
-    None when no frame matches → the signal to fall back to LIVE compute. Tolerant of malformed input."""
+def pick_precomputed_frame(obj, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S):
+    """PURE: the frame for (model, valid_time), or None. Exact match first, else the NEAREST
+    same-model frame within `tolerance_s` (the frontend's getSharedValidTime needn't byte-match the
+    precompute's key — only be the same forecast hour).
+
+    ★ Extracted so the FRAME'S OWN `valid_time` can travel with the answer. The endpoint echoed the
+    REQUESTED hour whatever frame served it, so a frame up to the 6 h stale bound away was labelled
+    with an hour it does not describe — and any check comparing that rating against a forecast at
+    the requested hour would score a time offset as a composition divergence. That is exactly the
+    artifact that made the obs gate cap 59.9% of good/epic on a cross-model `valid_time` mismatch:
+    ★★ A CHECK WHOSE TWO SIDES DO NOT SHARE A `valid_time` IS MEASURING THE CLOCK, NOT THE PHYSICS."""
     if not obj or not isinstance(obj.get("frames"), list):
-        return None
-    try:
-        w, s, e, n = bbox
-    except Exception:
         return None
     model_frames = [f for f in obj["frames"] if f.get("model") == model]
     if not model_frames:
         return None
     frame = next((f for f in model_frames if f.get("valid_time") == valid_time), None)
-    if frame is None:
-        req = _parse_dt(valid_time)
-        if req is not None:
-            best, best_d = None, None
-            for f in model_frames:
-                ft = _parse_dt(f.get("valid_time"))
-                if ft is None:
-                    continue
-                d = abs((ft - req).total_seconds())
-                if best_d is None or d < best_d:
-                    best, best_d = f, d
-            if best is not None and best_d <= tolerance_s:
-                frame = best
+    if frame is not None:
+        return frame
+    req = _parse_dt(valid_time)
+    if req is None:
+        return None
+    best, best_d = None, None
+    for f in model_frames:
+        ft = _parse_dt(f.get("valid_time"))
+        if ft is None:
+            continue
+        d = abs((ft - req).total_seconds())
+        if best_d is None or d < best_d:
+            best, best_d = f, d
+    return best if (best is not None and best_d <= tolerance_s) else None
+
+
+def select_precomputed(obj, bbox, model, valid_time, tolerance_s: float = SELECT_TOLERANCE_S) -> Optional[list]:
+    """PURE: pick the frame for (model, valid_time) and filter its spots to the bbox. Returns the
+    list of rating dicts (possibly empty when the frame matches but nothing's in view → DON'T fall
+    back), or None when no frame matches → the signal to fall back to LIVE compute."""
+    try:
+        w, s, e, n = bbox
+    except Exception:
+        return None
+    frame = pick_precomputed_frame(obj, model, valid_time, tolerance_s)
     if frame is None:
         return None
     out = []
@@ -244,10 +257,16 @@ def select_precomputed_laddered(obj, bbox, model, valid_time,
     STALE (missed/drifted cron) we serve the nearest frame within the stale bound as
     'precomputed_stale' instead of falling off the live cliff. Beyond the bound live remains the
     truth path. stale_tolerance_s defaults from SPOT_RATINGS_STALE_TOLERANCE_S (21600 s = 6h; 0 kills).
-    Returns (spots_list_or_None, source_label)."""
+
+    Returns (spots_list_or_None, source_label, served_valid_time). ★ The THIRD value is the hour the
+    frame ACTUALLY describes, which is not always the hour that was asked for — see
+    `pick_precomputed_frame`. `source` says an answer may be stale; only this says by how much, and
+    without it a caller comparing this rating against a forecast at the requested hour is scoring
+    the clock rather than the physics."""
     sel = select_precomputed(obj, bbox, model, valid_time, tolerance_s=fresh_tolerance_s)
     if sel is not None:
-        return sel, "precomputed"
+        frame = pick_precomputed_frame(obj, model, valid_time, fresh_tolerance_s)
+        return sel, "precomputed", (frame or {}).get("valid_time")
     if stale_tolerance_s is None:
         try:
             stale_tolerance_s = float(os.environ.get("SPOT_RATINGS_STALE_TOLERANCE_S", "21600"))
@@ -256,8 +275,9 @@ def select_precomputed_laddered(obj, bbox, model, valid_time,
     if stale_tolerance_s > 0:
         sel = select_precomputed(obj, bbox, model, valid_time, tolerance_s=stale_tolerance_s)
         if sel is not None:
-            return sel, "precomputed_stale"
-    return None, "live"
+            frame = pick_precomputed_frame(obj, model, valid_time, stale_tolerance_s)
+            return sel, "precomputed_stale", (frame or {}).get("valid_time")
+    return None, "live", None
 
 
 def build_l2_object(frames) -> dict:

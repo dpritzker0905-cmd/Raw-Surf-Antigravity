@@ -108,35 +108,39 @@ def _ladder_frame():
 
 def test_ladder_fresh_frame_serves_precomputed():
     from services.weather_pipeline.spot_ratings import select_precomputed_laddered
-    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+    sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-28T21:40:00Z")
     assert src == "precomputed" and [s["spot_id"] for s in sel] == ["in"]
+    assert served == "2026-06-28T21:00:00Z", "the frame's OWN hour must travel with it"
 
 
 def test_ladder_stale_frame_serves_labeled_stale_not_live():
     # 5h from the only frame: fresh (±2h) misses, stale bound (6h default) catches it — the box
     # must NOT fall off the live cliff for a merely-stale lane (the 07-13 melt class).
     from services.weather_pipeline.spot_ratings import select_precomputed_laddered
-    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+    sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T02:00:00Z")
     assert src == "precomputed_stale" and [s["spot_id"] for s in sel] == ["in"]
+    # ★ 5 h from the hour that was ASKED FOR. Without this value the caller sees a rating stamped
+    # 02:00 that describes 21:00, and any parity check against it scores the clock, not the physics.
+    assert served == "2026-06-28T21:00:00Z" and served != "2026-06-29T02:00:00Z"
 
 
 def test_ladder_beyond_stale_bound_falls_to_live():
     # 8h out: beyond the 6h stale bound → (None, 'live') — live stays the truth path.
     from services.weather_pipeline.spot_ratings import select_precomputed_laddered
-    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+    sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T05:00:00Z")
-    assert sel is None and src == "live"
+    assert sel is None and src == "live" and served is None
 
 
 def test_ladder_stale_kill_switch(monkeypatch):
     # SPOT_RATINGS_STALE_TOLERANCE_S=0 disables the stale rung entirely (pre-ladder behavior).
     from services.weather_pipeline.spot_ratings import select_precomputed_laddered
     monkeypatch.setenv("SPOT_RATINGS_STALE_TOLERANCE_S", "0")
-    sel, src = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
+    sel, src, served = select_precomputed_laddered(_obj([_ladder_frame()]), (-82, 24, -79, 28), "GFS",
                                            "2026-06-29T02:00:00Z")
-    assert sel is None and src == "live"
+    assert sel is None and src == "live" and served is None
 
 
 # ── checkpoint merge-upload (melt round 4, 2026-07-13) ──

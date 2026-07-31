@@ -34,6 +34,9 @@ from services.weather_pipeline import sim_compare
 from services.weather_pipeline import sim_briefing
 # The main-thread warm-up that keeps the stdio server from deadlocking on its first tool call.
 from services.weather_pipeline import sim_boot
+# What the APP is actually showing, so the forecast tool can check its QUALITY against it and not
+# just its HEIGHT. Kill: SIM_OBSERVED=0.
+from services.weather_pipeline import sim_observed
 
 # Setup logger
 logger = logging.getLogger("weather_sim_mcp")
@@ -286,17 +289,15 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
         baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline))
 
-    # PARITY: the app served its own breaking height for this coordinate. The sim computed one from
-    # the offshore Hs through the production chain. Report both — a silent divergence here is the
-    # exact defect `cf2efb48` was written to end, and it is only visible if somebody prints it.
-    served = provenance.get("served_surf_height_m") if source == "live_forecast" else None
-    if served:
-        sim_m = payload["wave_simulation"]["breaking_height_ft"] / 3.28084
-        payload["parity"] = {
-            "served_surf_height_m": round(float(served), 4),
-            "sim_breaking_height_m": round(sim_m, 4),
-            "delta_pct": round((sim_m - float(served)) / float(served) * 100, 2),
-        }
+    # PARITY, both halves. The app serves its own breaking height AND its own quality for this
+    # coordinate; the sim computes both from the offshore vector through the production chain. A
+    # silent divergence in either is the defect `cf2efb48` was written to end, and it is only
+    # visible if somebody prints it. ⚠️ ONLY on this tool — it reports the REAL forecast, so "does
+    # this match the app?" has an answer; a what-if describes a sea the app never rated, and
+    # `simulate_weather_change`'s all-five path must stay at ZERO HTTP (`576dcbdd`).
+    parity = sim_observed.parity(payload["wave_simulation"], spot, provenance, source, hour)
+    if parity:
+        payload["parity"] = parity
     return payload
 
 
