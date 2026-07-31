@@ -385,9 +385,15 @@ class WeatherNormalizer:
                         if gust is not None:
                             gust = gust * 0.539957
                     elif speed_unit == "m/s":
-                        speed = speed * 1.943844
+                        # ⚠️ THE ENGINE'S constant, not a local copy — this is the round trip's other
+                        # half. Ingest stamps knots with it and `rating_score`'s callers convert
+                        # straight back with `SR.KT_TO_MS`, so if the two ever diverged the engine
+                        # would read a systematically scaled wind. (The km/h and mph rows above are
+                        # not in that loop; they are provider-unit rows only.)
+                        from services.weather_pipeline import surf_rating as SR
+                        speed = speed * SR.MS_TO_KT
                         if gust is not None:
-                            gust = gust * 1.943844
+                            gust = gust * SR.MS_TO_KT
                     elif speed_unit == "mph":
                         speed = speed * 0.868976
                         if gust is not None:

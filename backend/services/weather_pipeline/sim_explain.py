@@ -41,6 +41,11 @@ from services.weather_pipeline import surf_rating as SR
 # score, not this breakdown" warning fired on a CORRECT engine score. Read it live off `SR` so the
 # two can never drift again; at non-boundary speeds the error was 0.0, which is exactly why this
 # survived every test until a boundary speed was tried.
+# ★ AND THE SAME EXPRESSION, not just the same constant (2026-07-31). `kt / SR.MS_TO_KT` and
+# `kt * SR.KT_TO_MS` are equal to within one ulp, never bit-equal — and 9 of 6,001 swept speeds
+# landed on opposite sides of the score's own 1-decimal rounding because of it. Every surface that
+# feeds the engine knots now MULTIPLIES by `SR.KT_TO_MS`, so they are identical by construction
+# rather than by luck.
 
 # How the factors are described to a caller who does not know the engine's variable names.
 _MEANING = {
@@ -80,7 +85,7 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
     if not enabled():
         return {}
     try:
-        wind_ms = float(wind_speed_knots) / SR.MS_TO_KT
+        wind_ms = float(wind_speed_knots) * SR.KT_TO_MS
         # The partition branches replicate `rating_score`'s own fallbacks EXACTLY — spectral
         # exposure/cleanliness/dominant-period when trains are supplied, total-field otherwise. Any
         # drift here is what `reconstruction_error` below exists to expose.

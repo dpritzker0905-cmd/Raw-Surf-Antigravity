@@ -21,7 +21,10 @@ from services.weather_pipeline.surf_rating import compute_surf_rating
 
 logger = logging.getLogger(__name__)
 
-KT_TO_MS = 0.514444
+# ⚠️ NOT a local `KT_TO_MS = 0.514444`. That is 1/1.943844 truncated, and it made this surface and
+# the sim reach different verdicts at exactly 3.00 kt of wind (`surf_rating.KT_TO_MS`). Read the
+# engine's own constant as an ATTRIBUTE so the round trip stays exact.
+from services.weather_pipeline import surf_rating as SR
 # CDN lane (2026-07-14, queue #2, USER-APPROVED scoped-RLS design): this one object is anonymously
 # READABLE via a storage RLS policy pinned to exactly this key (migration
 # anon_read_spot_ratings_latest_only; bucket stays private, every sibling stays service-role-only).
@@ -50,7 +53,7 @@ def rating_why(level, surf_h_m, period_s, wind_ms, wind_from, shore_normal) -> O
     if period_s:
         parts.append(f"{period_s:.0f}s period")
     if wind_ms is not None:
-        kt = wind_ms * 1.943844
+        kt = wind_ms * SR.MS_TO_KT
         if wind_from is not None and shore_normal is not None:
             off = -math.cos(math.radians(wind_from - shore_normal))  # +1 offshore .. -1 onshore
             wd = "offshore" if off > 0.34 else ("onshore" if off < -0.34 else "cross-shore")
@@ -90,7 +93,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         wind = await resolver.resolve_point(
             model=model, domain="wind", layer="wind", lat=lat, lng=lng, valid_time_str=valid_time)
         if isinstance(wind, NormalizedPointResponse) and wind.point is not None:
-            wind_ms = (wind.point.speed or 0.0) * KT_TO_MS    # wind point speed is knots
+            wind_ms = (wind.point.speed or 0.0) * SR.KT_TO_MS    # wind point speed is knots
             wind_from = wind.point.direction
     except Exception as e:
         logger.debug(f"[spot-ratings] wind resolve failed for {spot.get('id')}: {e}")

@@ -34,7 +34,10 @@ if BACKEND_DIR not in sys.path:
 
 BASE = os.environ.get("RAW_SURF_BASE_URL", "https://raw-surf-antigravity.onrender.com")
 MODEL = "GFS"
-KT_TO_MS = 0.514444
+# The ENGINE's own constant, read as an attribute. An A/B instrument carrying its own
+# truncated inverse would be blind to exactly the boundary class it is meant to measure
+# (see `surf_rating.KT_TO_MS`).
+from services.weather_pipeline import surf_rating as SR
 PAUSE_S = 0.05
 LEVELS = ["very_poor", "poor", "poor_fair", "fair", "fair_good", "good", "epic"]
 
@@ -142,7 +145,7 @@ def main():
                 continue
             wind = fetch_point("wind", sp["lat"], sp["lng"], vt, domain="wind")
             wnd = (wind or {}).get("point") or {}
-            wind_ms = (wnd.get("speed") or 0.0) * KT_TO_MS
+            wind_ms = (wnd.get("speed") or 0.0) * SR.KT_TO_MS
             wind_from = wnd.get("direction")
 
             parts_raw = []

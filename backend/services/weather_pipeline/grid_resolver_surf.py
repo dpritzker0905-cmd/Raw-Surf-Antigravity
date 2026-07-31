@@ -195,7 +195,10 @@ async def _build_wind_sampler(store, manifest, model, target_dt):
                and getattr(v, "speed", None) is not None]
         if not vex:
             return None
-        KT_TO_MS = 0.514444
+        # ⚠️ NOT a local `KT_TO_MS = 0.514444` — see `surf_rating.KT_TO_MS`. The truncated inverse
+        # round-trips to 0.999998882736 and lands just below the knots it started from, which flips
+        # `wind_quality`'s STRICT `< 3.0` glassy branch at exactly 3.00 kt.
+        from services.weather_pipeline import surf_rating as SR
 
         def sampler(lat, lng):
             if lat is None or lng is None:
@@ -212,7 +215,7 @@ async def _build_wind_sampler(store, manifest, model, target_dt):
                     best_v = v
             if best_v is None:
                 return None
-            return (best_v.speed * KT_TO_MS, getattr(best_v, "direction", None))
+            return (best_v.speed * SR.KT_TO_MS, getattr(best_v, "direction", None))
 
         return sampler
     except Exception:

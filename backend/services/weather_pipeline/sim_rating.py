@@ -30,8 +30,12 @@ from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file's ancestor came to rate a
 # flat ocean "Epic".
+# ⚠️ The knots constants are read as ATTRIBUTES off `SR`, never from-imported: a from-import
+# snapshots the value at import time and re-opens exactly the divergence `surf_rating.KT_TO_MS`
+# closes. The functions below are stateless and safe to bind.
+from services.weather_pipeline import surf_rating as SR
 from services.weather_pipeline.surf_rating import (
-    MS_TO_KT, offshoreness, oversize_gate, oversize_thresholds, rating_score, score_to_level,
+    offshoreness, oversize_gate, oversize_thresholds, rating_score, score_to_level,
 )
 from services.weather_pipeline.surf_transform import komar_breaker_height
 
@@ -180,7 +184,7 @@ def calculate_surf_rating(
     quality_score = rating_score(
         breaking_height,                      # nearshore BREAKING height, metres
         swell_p,
-        wind_spd / MS_TO_KT,                  # engine wants m/s; sim inputs are knots
+        wind_spd * SR.KT_TO_MS,               # engine wants m/s; sim inputs are knots
         wind_from_deg=wind_dir,
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,

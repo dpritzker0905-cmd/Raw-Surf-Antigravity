@@ -36,9 +36,13 @@ for _flag in ("RATING_WIND_GATE", "RATING_OVERSIZE", "RATING_PERIOD_GATE", "RATI
               "RATING_TIDE", "RATING_BREAKER_TYPE", "RATING_OBS_GATE"):
     os.environ.pop(_flag, None)
 
+from services.weather_pipeline import surf_rating as SR  # noqa: E402
 from services.weather_pipeline.surf_rating import rating_score, score_to_level  # noqa: E402
 
-KT_TO_MS = 1.943844
+# ⚠️ This is MS_TO_KT, not KT_TO_MS — the name was backwards while the arithmetic below
+# (`kt / MS_TO_KT`) was right, which is how a duplicated unit constant hides. Read the
+# engine's own so the goldens cannot drift from it.
+MS_TO_KT = SR.MS_TO_KT
 OUT = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__)))),
                    "frontend", "src", "__tests__", "__parity_goldens.json")
 
@@ -59,7 +63,7 @@ def build():
                 for wd in WIND_DIRS:
                     for sn in SHORE_NORMALS:
                         for sd in SWELL_DIRS:
-                            s = rating_score(h, tp, kt / KT_TO_MS, wd, sn, sd)
+                            s = rating_score(h, tp, kt / MS_TO_KT, wd, sn, sd)
                             rows.append({"h": h, "tp": tp, "kt": kt, "wd": wd, "sd": sd,
                                          "sn": sn, "s": s, "l": score_to_level(s)})
     return rows

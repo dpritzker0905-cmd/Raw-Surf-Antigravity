@@ -23,8 +23,9 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from services.weather_pipeline import sim_explain, sim_rating          # noqa: E402
+from services.weather_pipeline import surf_rating as SR                # noqa: E402
 from services.weather_pipeline.surf_rating import (                    # noqa: E402
-    MS_TO_KT, rating_score, wind_quality,
+    rating_score, wind_quality,
 )
 
 # The measured FL east-coast case from 2026-08-03, Sebastian Inlet: 2.9 ft of 7.9 s wind swell,
@@ -37,7 +38,7 @@ def test_the_explanation_reconstructs_the_engine_score():
     """THE honesty property. Same inputs, same public factor functions, same product."""
     # The engine's OWN constant — not a literal. A hardcoded 1.94384 here is the very divergence
     # this file's boundary test below exists to catch, and it would hide it at the fixture level.
-    engine = rating_score(FL["surf_h_m"], FL["tp_s"], FL["wind_speed_knots"] / MS_TO_KT,
+    engine = rating_score(FL["surf_h_m"], FL["tp_s"], FL["wind_speed_knots"] * SR.KT_TO_MS,
                           wind_from_deg=FL["wind_from_deg"],
                           shore_normal_deg=FL["shore_normal_deg"],
                           swell_from_deg=FL["swell_from_deg"])
@@ -74,7 +75,7 @@ def test_the_reconstruction_is_EXACT_on_the_speed_only_wind_tier_boundaries(wind
     tolerance.
     """
     kwargs = dict(surf_h_m=1.2, tp_s=12.0, wind_speed_knots=wind_kt, shore_normal_deg=None)
-    engine = rating_score(kwargs["surf_h_m"], kwargs["tp_s"], wind_kt / MS_TO_KT,
+    engine = rating_score(kwargs["surf_h_m"], kwargs["tp_s"], wind_kt * SR.KT_TO_MS,
                           shore_normal_deg=None)
     exp = sim_explain.explain(engine_score=engine, **kwargs)
 
@@ -84,7 +85,7 @@ def test_the_reconstruction_is_EXACT_on_the_speed_only_wind_tier_boundaries(wind
     assert "warning" not in exp, "the honesty warning fired on a correct engine score"
     # The factor that actually moved: the breakdown must report the SAME wind tier the engine read.
     assert exp["blend"]["wind_quality"] == pytest.approx(
-        wind_quality(wind_kt / MS_TO_KT), abs=1e-9)
+        wind_quality(wind_kt * SR.KT_TO_MS), abs=1e-9)
 
 
 def test_the_limiter_is_the_factor_actually_holding_the_score_down():

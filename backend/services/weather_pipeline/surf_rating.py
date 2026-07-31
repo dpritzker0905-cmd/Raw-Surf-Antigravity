@@ -37,6 +37,23 @@ _BUCKETS = [(14, "very_poor"), (28, "poor"), (42, "poor_fair"), (56, "fair"),
             (70, "fair_good"), (84, "good")]
 
 MS_TO_KT = 1.943844
+# ★ THE ONE knots<->m/s pair, and the reason it is DERIVED rather than written out. Every caller
+# that feeds this engine holds wind in KNOTS (the wind product's own unit) and must hand it over in
+# m/s, so the value makes a round trip through both constants. Four modules each carried their own
+# `KT_TO_MS = 0.514444` — 1/1.943844 TRUNCATED — which round-trips to 0.999998882736 and therefore
+# lands just BELOW the knots it started from. Away from a comparison edge the error is 0.0 and every
+# test is green; ON one it is a full verdict. `wind_quality`'s glassy branch is a STRICT `< 3.0`, so
+# 3.00 kt read glassy on those paths (1.0) and not-glassy in the engine (0.85) — good 83.0 against
+# epic 92.0, the map and the sim disagreeing about the same spot-hour.
+#     Measured 2026-07-31 before the change: over 30,200 live wind cells (4 hours x 8 coasts) the
+#     truncated constant flipped the verdict at 0 of them — the served values carry 4 decimals
+#     (27,284 of 30,200) and the flip window is 3.4e-6 kt wide. So this is a LATENT trap, not a live
+#     regrade, and correcting it is inert. Deriving it keeps the round trip exact for any value of
+#     MS_TO_KT, which is a stronger invariant than "the number is right".
+# ⚠️ Callers should read `SR.KT_TO_MS` as an ATTRIBUTE (`from ... import surf_rating as SR`), never
+# `from surf_rating import KT_TO_MS` — a from-import snapshots at import time and re-opens exactly
+# the divergence this closes (the same landmine as `export {x} from './y'` in JS).
+KT_TO_MS = 1.0 / MS_TO_KT
 
 # Composite weights (wind dominates cleanliness; period grades power/organization).
 W_WIND = 0.60

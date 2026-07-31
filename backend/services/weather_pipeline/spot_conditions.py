@@ -44,7 +44,10 @@ from services.conditions_labels import get_conditions_label
 logger = logging.getLogger(__name__)
 
 M_TO_FT = 3.28084
-KT_TO_MS = 0.514444
+# ⚠️ NOT a local `KT_TO_MS = 0.514444` — see `surf_rating.KT_TO_MS`. The truncated inverse made this
+# surface disagree with the sim at exactly 3.00 kt of wind (good 83.0 against epic 92.0). Read the
+# engine's constant as an ATTRIBUTE so the knots -> m/s -> knots round trip is exact.
+from services.weather_pipeline import surf_rating as SR
 
 
 def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, partitions=None):
@@ -285,7 +288,7 @@ async def resolve_spot_conditions_impl(
         wind = await self.resolve_point(model=model, domain="wind", layer="wind",
                                         lat=lat, lng=lng, valid_time_str=current_dt.strftime("%Y-%m-%dT%H:00:00Z"))
         wind_pt = getattr(wind, "point", None)
-        wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * KT_TO_MS if wind_pt else None
+        wind_ms = (getattr(wind_pt, "speed", None) or 0.0) * SR.KT_TO_MS if wind_pt else None
         wind_from = getattr(wind_pt, "direction", None) if wind_pt else None
         # ⚠️ KEYWORDS, NOT POSITION. This call passed TEN positional arguments, which silently
         # stopped at `reference_size_m` and left `break_depth_m` None — while `geometry.break_depth_m`
