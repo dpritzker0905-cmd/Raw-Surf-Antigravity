@@ -120,7 +120,7 @@ async def ingest_gfs_wind_pilot_impl(scheduler) -> bool:
     # those multi-bbox marine lanes showed 0 stale regions in the same sweep that found all 14 here.
     # Kill switch: WIND_PILOT_MULTI_BBOX=0 -> the per-region rotation path below.
     if noaa_direct and os.environ.get("WIND_PILOT_MULTI_BBOX", "1") != "0":
-        regions_all = get_pilot_regions(scheduler.store, "GFS", "wind")
+        regions_all = get_all_pilot_regions()
         multi = None
         try:
             from services.noaa_wind_service import fetch_gfs_wind_regions
