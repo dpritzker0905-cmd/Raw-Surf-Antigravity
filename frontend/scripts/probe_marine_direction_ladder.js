@@ -128,6 +128,58 @@ async function readArrow(page, lat, lng) {
   }, [lat, lng]);
 }
 
+/**
+ * The LAND-MASK coverage verdict at this rung — the half of the ladder that was missing.
+ *
+ * ⚠️⚠️ WHY THIS BELONGS ON A *DIRECTION* LADDER. The halo and the direction swap are the SAME
+ * structural class (`memory/THE-COVERAGE-CLASS-a-resource-smaller-than-the-view-2026-07-31.md`): a
+ * resource is selected without a hard requirement that it CONTAIN the viewport, and degrades
+ * silently when it does not. Measured 2026-07-31 at the user's own rungs:
+ *
+ *     z 8.18  viewport -81.29..-79.21   mask -94,12,-64,44  reason "off"           covered
+ *     z 8.03  viewport -81.62..-78.79   mask -83,26,-79,31  reason "coverage_gap"  NOT covered
+ *                                       ^ THE MASK SHRANK AS THE VIEWPORT GREW
+ *
+ * No instrument recorded any of that: zoomlab measures coverage/pixels, the unit tests measure
+ * engine math, this ladder measured DIRECTION. So the class survived three sessions for want of
+ * ~20 lines. `overlayMask.reason` names the cause outright — one read replaces a session of
+ * speculation.
+ *
+ * ⚠️⚠️ AND THE CLASS IS PATH-DEPENDENT: the mask you get depends on the zoom HISTORY, not the zoom.
+ * A later pass at the same rung held a WIDER mask and reported "off". That is why `zoomPath` is
+ * recorded on every row — a rung without its path is not reproducible, and a settled screenshot
+ * proves nothing.
+ */
+async function readMaskCoverage(page) {
+  return page.evaluate(() => {
+    const g = window.__RAW_GPU__ || {};
+    const om = g.overlayMask || null;
+    const b = om && om.bounds;
+    const vb = (() => {
+      try {
+        const bb = window.map.getBounds();
+        return { w: bb.getWest(), s: bb.getSouth(), e: bb.getEast(), n: bb.getNorth() };
+      } catch (e) { return null; }
+    })();
+    const span = (x) => (x && x.length === 4 ? { lng: x[2] - x[0], lat: x[3] - x[1] } : null);
+    const arr = b ? (Array.isArray(b) ? b : [b.w, b.s, b.e, b.n]) : null;
+    return {
+      reason: om ? om.reason : null,
+      on: om ? !!om.on : null,
+      replace: om ? !!om.replace : null,
+      overlayCoversView: om ? om.overlayCoversView : null,
+      baseCoversView: om ? om.baseCoversView : null,
+      maskBounds: arr,
+      maskSpan: span(arr),
+      viewport: vb,
+      // The comparison that names the defect in one number: a mask NARROWER than the view can
+      // never clip its edges, so land paints coarse and the halo appears.
+      maskNarrowerThanView: (arr && vb) ? (arr[2] - arr[0]) < (vb.e - vb.w) : null,
+      maskId: g.maskId ? g.maskId.mb : null,
+    };
+  });
+}
+
 /** The MARKER's number: the point lane at the exact coordinate. Zoom-independent by construction. */
 async function readMarker(page, model, layer, lat, lng) {
   return page.evaluate(async ([m, ly, la, ln]) => {
@@ -176,6 +228,8 @@ async function main() {
   await sleep(4000);
 
   const rows = [];
+  // The zoom HISTORY this run has walked, in order. Attached to every row — see `zoomPath` below.
+  const zoomPath = [];
   for (const model of MODELS) {
     if (!(await clickByText(page, model))) { log(`  ! model button ${model} not found`); continue; }
     await sleep(1200);
@@ -202,7 +256,9 @@ async function main() {
           (zz) => Math.abs(window.map.getZoom() - zz) < 0.01, z, { timeout: 20000 },
         ).catch(() => {});
         await sleep(SETTLE_MS);
+        zoomPath.push(z);
         const arrow = await readArrow(page, LAT, LNG);
+        const mask = await readMaskCoverage(page);
         const delta = (arrow.ok && marker.ok) ? angDiff(arrow.dir, marker.dir) : null;
         const tier = arrow.ok && arrow.cols
           ? `${arrow.cols}x${arrow.rows}` : '-';
@@ -213,13 +269,22 @@ async function main() {
           delta, tier, cellOffsetDeg: arrow.cellOffsetDeg,
           dirConfidence: arrow.dirConfidence, signature: arrow.signature,
           reason: arrow.ok ? null : arrow.reason,
+          // ⚠️ THE PATH, not just the rung. This class is path-dependent — the same zoom reached by
+          // a different route holds a different mask — so a row without its history is not a
+          // reproduction, and re-running the ladder is not a re-test unless the path matches.
+          zoomPath: zoomPath.slice(),
+          mask,
         });
+        const maskFlag = mask.maskNarrowerThanView === true ? '  <== MASK NARROWER THAN VIEW' : '';
         const flag = (delta != null && delta > MAX_DELTA && z >= SURF_ZOOM) ? '  <== DISAGREES' : '';
         log(`    z=${String(z).padEnd(5)} arrow=${arrow.ok ? arrow.dir.toFixed(1).padStart(6) : '   -  '}`
           + `  marker=${marker.ok ? marker.dir.toFixed(1).padStart(6) : '   -  '}`
           + `  delta=${delta != null ? delta.toFixed(1).padStart(6) : '   -  '}`
           + `  grid=${tier.padEnd(9)}`
-          + `  R=${arrow.dirConfidence != null ? arrow.dirConfidence.toFixed(2) : ' -  '}${flag}`);
+          + `  R=${arrow.dirConfidence != null ? arrow.dirConfidence.toFixed(2) : ' -  '}`
+          + `  mask=${String(mask.reason || '-').padEnd(14)}`
+          + `${mask.maskSpan ? `${mask.maskSpan.lng.toFixed(1)}°` : '  -  '}`
+          + `${flag}${maskFlag}`);
       }
     }
   }
@@ -227,6 +292,48 @@ async function main() {
   // ── VERDICT ────────────────────────────────────────────────────────────────────────────────
   const surfRows = rows.filter((r) => r.zoom >= SURF_ZOOM && r.delta != null);
   const bad = surfRows.filter((r) => r.delta > MAX_DELTA);
+  // ── MASK COVERAGE (the halo class) ────────────────────────────────────────────────────────
+  // Reported SEPARATELY from the direction verdict on purpose: they are two symptoms of one shape,
+  // and a run that is green on direction can still be painting a halo. Folding them into one
+  // pass/fail would hide whichever is currently quiet.
+  const maskRows = rows.filter((r) => r.mask && r.mask.reason != null);
+  const shrunk = maskRows.filter((r) => r.mask.maskNarrowerThanView === true);
+  const gaps = maskRows.filter((r) => r.mask.reason === 'coverage_gap'
+    || r.mask.overlayCoversView === false);
+  log(`\n${'='.repeat(76)}\nMASK COVERAGE (the halo class)\n${'='.repeat(76)}`);
+  log(`  rungs with a mask verdict: ${maskRows.length}`);
+  log(`  MASK NARROWER THAN THE VIEWPORT: ${shrunk.length}`
+    + (maskRows.length ? ` (${(100 * shrunk.length / maskRows.length).toFixed(1)}%)` : ''));
+  log(`  reason=coverage_gap or overlayCoversView=false: ${gaps.length}`);
+  for (const r of shrunk.slice(0, 10)) {
+    const m = r.mask;
+    log(`    ${r.model}/${r.layer} z=${r.zoom}  mask=[${(m.maskBounds || []).join(',')}] `
+      + `(${m.maskSpan ? m.maskSpan.lng.toFixed(2) : '?'}°)  `
+      + `view=[${m.viewport ? `${m.viewport.w.toFixed(2)},${m.viewport.e.toFixed(2)}` : '?'}] `
+      + `(${m.viewport ? (m.viewport.e - m.viewport.w).toFixed(2) : '?'}°)  reason=${m.reason}`);
+    log(`      path: ${r.zoomPath.join(' -> ')}`);
+  }
+  // ★ THE SIGNATURE OF THE CLASS, stated as a comparison rather than a symptom: a mask that gets
+  // SMALLER as the viewport gets BIGGER. Widening the view must never narrow the mask.
+  const shrinkEvents = [];
+  for (let i = 1; i < maskRows.length; i += 1) {
+    const a = maskRows[i - 1]; const b = maskRows[i];
+    if (a.model !== b.model || a.layer !== b.layer) continue;
+    const av = a.mask.viewport; const bv = b.mask.viewport;
+    if (!av || !bv || !a.mask.maskSpan || !b.mask.maskSpan) continue;
+    if ((bv.e - bv.w) > (av.e - av.w) && b.mask.maskSpan.lng < a.mask.maskSpan.lng) {
+      shrinkEvents.push({ from: a, to: b });
+    }
+  }
+  log(`  ⛔ VIEWPORT GREW WHILE THE MASK SHRANK: ${shrinkEvents.length}`);
+  for (const ev of shrinkEvents.slice(0, 8)) {
+    log(`    ${ev.from.model}/${ev.from.layer}  z ${ev.from.zoom} -> ${ev.to.zoom}: `
+      + `mask ${ev.from.mask.maskSpan.lng.toFixed(2)}° -> ${ev.to.mask.maskSpan.lng.toFixed(2)}°, `
+      + `view ${(ev.from.mask.viewport.e - ev.from.mask.viewport.w).toFixed(2)}° -> `
+      + `${(ev.to.mask.viewport.e - ev.to.mask.viewport.w).toFixed(2)}°  `
+      + `(${ev.from.mask.reason} -> ${ev.to.mask.reason})`);
+  }
+
   log(`\n${'='.repeat(76)}\nVERDICT\n${'='.repeat(76)}`);
   log(`  rungs at surf zoom (>= ${SURF_ZOOM}) with a comparable pair: ${surfRows.length}`);
   log(`  DISAGREEING by > ${MAX_DELTA} deg: ${bad.length}`
