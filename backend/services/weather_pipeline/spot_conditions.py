@@ -312,6 +312,21 @@ async def resolve_spot_conditions_impl(
             swell_from_deg=swell_from,
             partitions=current_parts,
             break_depth_m=getattr(geometry, "break_depth_m", None))
+        # ── THE OBSERVATION GATE (#13, owner decision 2026-07-31) ─────────────────────────────
+        # The hub is a surface a surfer READS, so it must show what the app shows. Until now the
+        # gate ran at the three glyph surfaces and NOT here, so the same spot graded differently
+        # depending on which surface you looked at — measured live: Moss Landing served 83.9 'good'
+        # on the map while the ungated lanes said 95.9 'epic'.
+        # ⚠️ A POST-`rating_score` STEP — invisible to test_rating_composition_parity's AST guard,
+        # which inspects the rating CALL's arguments (#14). Its POST-step registry watches this.
+        from services.weather_pipeline.rating_confirmation import gate_single_model_surface
+        _gated, _glevel, _confirm, _raw = gate_single_model_surface(
+            score, lat, lng, current_dt)
+        if _gated is not None:
+            score, level = _gated, _glevel
+        # Raw stays auditable: the cap changes the DISPLAYED verdict, never the physics.
+        current_conditions["rating_raw"] = _raw
+        current_conditions["rating_confirmed"] = _confirm
         current_conditions["rating"] = score
         current_conditions["rating_level"] = level
         if wind_pt is not None:

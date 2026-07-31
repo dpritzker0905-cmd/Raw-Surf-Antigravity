@@ -285,3 +285,95 @@ def test_the_waived_gaps_are_real_and_not_theoretical():
         "trusting the number in this file's header.")
     assert changed_by_tide / total > 0.3, (
         "RATING_TIDE no longer moves the level — re-measure the waiver's cost.")
+
+
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+# POST-`rating_score` STEPS — the shape this file could not see (#14)
+# ═══════════════════════════════════════════════════════════════════════════════════════════════
+#
+# Everything above inspects the rating CALL and its ARGUMENTS. That is structurally blind to a step
+# applied AFTER the call returns: such a step has no argument to declare, so no amount of argument
+# checking can notice a surface skipping it. ★ A guard that inspects one shape cannot report a
+# defect of another shape.
+#
+# It cost a real divergence. The OBSERVATION GATE ran at the three glyph surfaces and NOT at the
+# spot hub or the weather sim, so the same spot graded differently depending on where you looked —
+# measured live: Moss Landing served 83.9 'good' on the map while the ungated lanes said 95.9
+# 'epic', with the heights agreeing to 0.59%. Every test in this file passed throughout.
+#
+# Owner decision 2026-07-31 (#13): the hub and the sim answer "what will the app SHOW", so they gate
+# too. This registry is what keeps the next post-step from repeating the asymmetry.
+
+POST_STEPS = {
+    # step name -> the symbol a surface must reference to be applying it
+    "observation_gate": ("observation_gate", "gate_single_model_surface", "_build_observation_gate"),
+}
+
+# Surfaces that must apply every post-step, and where the step lives for each.
+POST_STEP_SURFACES = {
+    "precompute -> glyph payload": ("services.weather_pipeline.rating_confirmation", None),
+    "map rating band":             ("services.weather_pipeline.grid_resolver_surf", None),
+    "spot hub":                    ("services.weather_pipeline.spot_conditions", None),
+    "weather sim":                 ("services.weather_pipeline.sim_rating", None),
+}
+
+
+def _references(module_path, symbols):
+    """True when the module's SOURCE references any of `symbols` — an AST/name scan, not an import
+    check, because the gate is reached through a function-local import at several surfaces."""
+    import importlib
+    mod = importlib.import_module(module_path)
+    src = inspect.getsource(mod)
+    tree = ast.parse(src)
+    names = set()
+    for node in ast.walk(tree):
+        if isinstance(node, ast.Name):
+            names.add(node.id)
+        elif isinstance(node, ast.Attribute):
+            names.add(node.attr)
+        elif isinstance(node, ast.alias):
+            names.add(node.asname or node.name.split(".")[-1])
+    return bool(names & set(symbols))
+
+
+@pytest.mark.parametrize("surface", sorted(POST_STEP_SURFACES))
+@pytest.mark.parametrize("step", sorted(POST_STEPS))
+def test_every_surface_applies_every_post_rating_step(surface, step):
+    """THE #14 GUARD. A step applied after `rating_score` returns has no argument to declare, so the
+    argument-based tests above cannot see it. This one checks the surface references the step at
+    all."""
+    module_path, _ = POST_STEP_SURFACES[surface]
+    assert _references(module_path, POST_STEPS[step]), (
+        f"{surface} ({module_path}) does not reference the post-rating step {step!r}. Every rating "
+        f"surface must apply every post-`rating_score` step, or the same spot grades differently "
+        f"depending on which surface a user happens to look at — which is exactly how the hub and "
+        f"the sim came to disagree with the map (#13). Expected one of: {POST_STEPS[step]}")
+
+
+def test_the_post_step_registry_is_not_silently_empty():
+    """A registry that drifts to empty would make the guard above vacuously green."""
+    assert POST_STEPS and POST_STEP_SURFACES
+    assert len(POST_STEP_SURFACES) >= 4, "all five rating surfaces must be listed"
+
+
+def test_the_single_model_gate_helper_exists_and_returns_the_raw_score_too():
+    """The cap changes the DISPLAYED verdict, never the physics — a surface that gates must still be
+    able to publish the ungated score, or the divergence becomes unauditable."""
+    from services.weather_pipeline.rating_confirmation import gate_single_model_surface
+    params = list(inspect.signature(gate_single_model_surface).parameters)
+    assert params[:4] == ["score", "lat", "lng", "valid_time"]
+    gated, level, confirm, raw = gate_single_model_surface(None, 0.0, 0.0, None)
+    assert (gated, level, confirm, raw) == (None, None, None, None)
+
+
+@pytest.mark.parametrize("innocent", [
+    "services.weather_pipeline.surf_rating",      # the engine itself never gates
+    "services.weather_pipeline.surf_transform",   # pure physics, no display verdict
+])
+def test_the_post_step_guard_can_actually_fail(innocent):
+    """NEGATIVE CONTROL. A guard proves nothing until you have watched it fail. `_references` must
+    return False for a module that genuinely does not apply the step — otherwise the parametrized
+    test above is vacuously green and would keep passing if every surface dropped the gate."""
+    assert not _references(innocent, POST_STEPS["observation_gate"]), (
+        f"{innocent} appears to reference the observation gate, so the post-step guard cannot "
+        f"distinguish a gating surface from a non-gating one. Pick a different control module.")

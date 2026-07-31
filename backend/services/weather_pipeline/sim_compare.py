@@ -146,7 +146,8 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
         calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"], partitions=baseline.get("partitions"))
+            baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
+            valid_time=valid_time)
         verdict, normal, normal_src = _readiness(spot)
         readiness_census[verdict] = readiness_census.get(verdict, 0) + 1
         row = {
@@ -156,6 +157,15 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
             "distance_km": spot.get("distance_km"),
             "breaking_height_ft": calc["breaking_height_ft"],
             "quality_rating": calc["quality_rating"],
+            # ⚠️ RANKING READS THE RAW SCORE, DISPLAY READS THE GATED ONE — and the two must not be
+            # swapped. The observation gate caps at 69.9 without confirmation, and confirmation is
+            # absent for 97.9% of served spots (measured live 2026-07-31, 999 spot-hours), so
+            # ranking on the GATED score would collapse every good spot into one 69.9 tie and then
+            # order them by which happens to carry an observation — not by which has the best surf.
+            # Same shape as the geometry-blind ranking inversion: a CAP that is safe for DISPLAY
+            # inverts meaning when it becomes a SORT KEY.
+            "quality_raw": calc.get("quality_raw"),
+            "quality_confirmed": calc.get("quality_confirmed"),
             "quality_label": calc["quality_label"],
             "conditions_label": calc["conditions_label"],
             "wind_class": calc["wind_class"],
@@ -195,7 +205,8 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
     def _rank_key(r):
         return (r.get("geometry_readiness") == "blind",
                 not r.get("surfable_light", True),
-                -r["quality_rating"],
+                -(r.get("quality_raw") if r.get("quality_raw") is not None
+                  else r["quality_rating"]),      # rank UNGATED — see quality_raw above
                 -r["breaking_height_ft"])
 
     ranked = sorted(series, key=_rank_key)

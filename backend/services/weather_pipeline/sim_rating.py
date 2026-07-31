@@ -102,6 +102,7 @@ def calculate_surf_rating(
     wind_spd: float,
     wind_dir: float,
     partitions=None,
+    valid_time=None,
 ) -> Dict[str, Any]:
     """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
 
@@ -194,6 +195,22 @@ def calculate_surf_rating(
     )
     quality_label = score_to_level(quality_score)
 
+    # ── THE OBSERVATION GATE (#13, owner decision 2026-07-31) ─────────────────────────────────
+    # The sim now answers "what will the app SHOW", not "what does the model say", so it caps the
+    # same way the glyph surfaces do. The UNGATED score stays on the payload (`quality_raw`) and
+    # `sim_observed.parity` still reports `matches_ungated_model_score`, so the diagnostic that
+    # found this asymmetry in the first place keeps working.
+    # ⚠️ Needs a `valid_time` to find the confirmation the precompute derived; without one there is
+    # nothing to join on, so the sim stays ungated rather than capping on an invented miss — a
+    # what-if with no hour is not a forecast the app would ever have shown.
+    quality_raw, quality_confirmed = round(float(quality_score), 1) if quality_score is not None else None, None
+    if valid_time is not None:
+        from services.weather_pipeline.rating_confirmation import gate_single_model_surface
+        _g, _l, quality_confirmed, quality_raw = gate_single_model_surface(
+            quality_score, spot.get("latitude"), spot.get("longitude"), valid_time)
+        if _g is not None:
+            quality_score, quality_label = _g, _l
+
     # 4b. SIZE VERDICT — say out loud when the surf is past rideable, instead of leaving the caller
     # to infer it from a number that merely got smaller. Before the oversize veto shipped
     # (2026-07-29) the rating SATURATED: 4 / 12 / 25 / 35 ft all scored 97.3 "epic", so a closeout
@@ -237,6 +254,11 @@ def calculate_surf_rating(
         "surf_regime": regime,
         "quality_rating": quality_score,
         "quality_label": quality_label,
+        # The ungated model score stays on the payload even when the gate capped the headline —
+        # the cap changes the DISPLAYED verdict, never the physics, and sim_observed.parity
+        # compares against this to report `matches_ungated_model_score`.
+        "quality_raw": quality_raw,
+        "quality_confirmed": quality_confirmed,
         "size_verdict": size_verdict,
         "rideable_ceiling_ft": round(_over_start * 3.28084, 1),
         "conditions_label": get_conditions_label(breaking_height_ft),

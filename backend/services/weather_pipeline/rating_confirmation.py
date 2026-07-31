@@ -23,6 +23,7 @@ Pure helpers (no I/O, unit-tested; JS mirror carries observation_gate for the fr
 + a thin REST fetch for the runner. Everything is inert until RATING_OBS_GATE=1 at the wiring sites.
 """
 import logging
+import math
 import os
 from datetime import datetime, timezone
 from typing import Optional
@@ -61,6 +62,92 @@ def observation_gate(score, confirm=None):
         return score
     cap = CAP_GOOD if confirm == "good" else CAP_UNCONFIRMED
     return round(min(float(score), cap), 1)
+
+
+def confirmation_for(lat, lng, valid_time, max_km: float = 2.0):
+    """Best-effort `confirmed` level for one spot+hour, read from the PRECOMPUTED L2 ratings object.
+
+    WHY IT READS RATHER THAN RECOMPUTES. `internal_confirmation` needs >= 2 of the 3 models' scores
+    for the same spot+hour. Computing those live is 3x the rating work on a 1-CPU serve box with a
+    three-incident melt history, so the single-model surfaces (spot hub, weather sim) read the
+    confirmation the precompute already derived instead of deriving it again.
+
+    ⚠️ RETURNS None ON EVERY MISS, AND THAT IS THE CORRECT FAILURE MODE — not a fallback that
+    weakens the gate. Measured live 2026-07-31 over 999 spot-hours (4 regions x 3 forecast hours),
+    the SERVING lane itself carries `confirmed=None` for 97.9% of spots, and capping-on-None is
+    exactly what the map glyphs already do. So a surface that cannot find confirmation lands on the
+    SAME verdict the map shows. Failing toward AGREEMENT is the whole point of gating here (#13):
+    the defect was the hub and sim disagreeing with the map, and a miss cannot re-open it.
+
+    Matched on POSITION, not spot_id: the sim and the hub can be asked about a coordinate that is
+    not a catalogued spot at all, and `_HAVERSINE_KM` within `max_km` is the same tolerance the
+    ratings lane uses to call two coordinates the same break.
+    """
+    try:
+        from services.weather_pipeline.spot_ratings import load_spot_ratings_l2_cached
+        obj = load_spot_ratings_l2_cached()
+        frames = (obj or {}).get("frames") or []
+        if not frames:
+            return None
+        target = _parse_time(valid_time) if not isinstance(valid_time, datetime) else valid_time
+        if target is None:
+            return None
+        if target.tzinfo is None:
+            target = target.replace(tzinfo=timezone.utc)
+        best_frame, best_gap = None, None
+        for fr in frames:
+            t = _parse_time(fr.get("valid_time"))
+            if t is None:
+                continue
+            gap = abs((t - target).total_seconds())
+            if gap > CONFIRM_TIME_TOLERANCE_H * 3600 + 1:
+                continue
+            if best_gap is None or gap < best_gap:
+                best_frame, best_gap = fr, gap
+        if best_frame is None:
+            return None
+        best, best_km = None, None
+        for s in best_frame.get("spots") or []:
+            slat, slng = s.get("latitude"), s.get("longitude")
+            if slat is None or slng is None:
+                continue
+            km = _haversine_km(float(lat), float(lng), float(slat), float(slng))
+            if km <= max_km and (best_km is None or km < best_km):
+                best, best_km = s, km
+        return (best or {}).get("confirmed")
+    except Exception as e:                       # a confirmation LOOKUP must never break a rating
+        logger.debug(f"[obs gate] confirmation lookup failed at ({lat},{lng}): {e!r}")
+        return None
+
+
+def _haversine_km(lat1, lon1, lat2, lon2):
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
+
+def gate_single_model_surface(score, lat, lng, valid_time):
+    """THE ONE ENTRY POINT for a surface that computes ONE model's rating and must display what the
+    app displays (#13, owner decision 2026-07-31: the hub and the sim answer "what will the app
+    show", not "what does the model say").
+
+    Returns (gated_score, level, confirmed, raw_score) so the caller can publish the capped verdict
+    AND keep the ungated one auditable — `observation_gate`'s contract is that the cap changes the
+    DISPLAYED verdict, never the underlying physics.
+
+    ⚠️ THIS IS A POST-`rating_score` STEP, which is precisely the shape
+    `test_rating_composition_parity.py` cannot see: that guard AST-extracts the rating CALL and
+    checks its arguments, so a step applied AFTER the call has no argument to declare (#14). The
+    POST-step registry in that file is what watches this one; add any future post-step there too.
+    """
+    from services.weather_pipeline.surf_rating import score_to_level
+    if score is None:
+        return None, None, None, None
+    confirm = confirmation_for(lat, lng, valid_time)
+    gated = observation_gate(score, confirm)
+    return gated, score_to_level(gated), confirm, round(float(score), 1)
 
 
 def combine_confirmations(a, b):
