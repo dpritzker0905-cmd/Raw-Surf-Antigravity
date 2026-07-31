@@ -111,6 +111,14 @@ class PointResolutionService:
                 r = await self._resolve_point_internal(
                     model=model, domain="marine", layer=part_layer,
                     lat=lat, lng=lng, valid_time_str=valid_time_str)
+                # ⛔ AUTHENTICITY: a ratio-derived train is the TOTAL field re-weighted (swell_2
+                # historically got the total's direction ROTATED +40°) — feeding it to the
+                # spectral factors double-counts the total under an invented bearing. Reconcile
+                # rescales energy and the represent gate checks coverage; neither can detect
+                # fabrication — only provenance can (2026-07-30, the phantom NE swell).
+                _basis = getattr(r, "estimate_basis", None)
+                if isinstance(_basis, dict) and _basis.get("method") == "wave_component_ratio_estimation":
+                    continue
                 p = getattr(r, "point", None)
                 # ⚠️ NaN passes `not x` AND `x <= 0` (both False) — the self-inequality checks are
                 # what actually reject it, exactly like the total's guard. A NaN train that slips

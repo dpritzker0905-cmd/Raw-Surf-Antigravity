@@ -295,31 +295,42 @@ class WeatherNormalizer:
             # resultant length as an extra series; absent everywhere else (stays None).
             conf_list = pt_hourly.get(f"{d_key}_confidence", []) if d_key else []
 
-            # Fallback estimation for missing marine component layers (e.g. ecmwf_wam025 swells)
+            # ⛔ RATIO FABRICATION, OFF BY DEFAULT (2026-07-30, user-reported live). This branch used
+            # to INVENT a partition wherever a point's payload lacked the real variables: swell_2 =
+            # 35% of the TOTAL height with the total direction ROTATED +40° — a train that does not
+            # exist. Measured live at (28,-80): upstream secondary swell was ZERO while the global
+            # tile served an invented 0.16 m FROM 20.5° "NE swell" and the regional tile, built an
+            # hour later from different inputs, an invented FROM 107.6° — the map and the infobox
+            # contradicting each other about a phantom. A missing train's honest answer is an
+            # ABSENT cell (is_valid=False, transparent on the map), not plausible-looking physics.
+            # MARINE_PARTITION_RATIO_FALLBACK=1 re-enables it for a coverage emergency; every
+            # fabricated point then stamps the product estimated (see is_layer_estimated below).
             if domain == "marine" and layer.lower() in ("swell_1", "swell_2", "wind_waves"):
                 wave_speed_list = pt_hourly.get("wave_height", [])
+                _ratio_fallback_on = os.environ.get("MARINE_PARTITION_RATIO_FALLBACK", "0") == "1"
                 if (not speed_list or all(v is None for v in speed_list)) and wave_speed_list and any(v is not None for v in wave_speed_list):
-                    has_estimated_points = True
-                    estimate_basis = {
-                        "type": "ecmwf_ifs_derived_fallback" if model.upper() == "EURO" else "gfs_derived_fallback",
-                        "method": "wave_component_ratio_estimation",
-                        "source_model": "ecmwf_wam025" if model.upper() == "EURO" else "ncep_gfswave025"
-                    }
-                    wave_dir_list = pt_hourly.get("wave_direction", [])
-                    wave_period_list = pt_hourly.get("wave_period", [])
-                    
-                    if layer.lower() == "swell_1":
-                        speed_list = [v * 0.85 if v is not None else None for v in wave_speed_list]
-                        dir_list = wave_dir_list
-                        period_list = [v * 0.9 if v is not None else None for v in wave_period_list]
-                    elif layer.lower() == "swell_2":
-                        speed_list = [v * 0.35 if v is not None else None for v in wave_speed_list]
-                        dir_list = [(v + 40.0) % 360.0 if v is not None else None for v in wave_dir_list]
-                        period_list = [v * 0.7 if v is not None else None for v in wave_period_list]
-                    elif layer.lower() == "wind_waves":
-                        speed_list = [v * 0.45 if v is not None else None for v in wave_speed_list]
-                        dir_list = wave_dir_list
-                        period_list = [v * 0.6 if v is not None else None for v in wave_period_list]
+                    if _ratio_fallback_on:
+                        has_estimated_points = True
+                        estimate_basis = {
+                            "type": "ecmwf_ifs_derived_fallback" if model.upper() == "EURO" else "gfs_derived_fallback",
+                            "method": "wave_component_ratio_estimation",
+                            "source_model": "ecmwf_wam025" if model.upper() == "EURO" else "ncep_gfswave025"
+                        }
+                        wave_dir_list = pt_hourly.get("wave_direction", [])
+                        wave_period_list = pt_hourly.get("wave_period", [])
+
+                        if layer.lower() == "swell_1":
+                            speed_list = [v * 0.85 if v is not None else None for v in wave_speed_list]
+                            dir_list = wave_dir_list
+                            period_list = [v * 0.9 if v is not None else None for v in wave_period_list]
+                        elif layer.lower() == "swell_2":
+                            speed_list = [v * 0.35 if v is not None else None for v in wave_speed_list]
+                            dir_list = [(v + 40.0) % 360.0 if v is not None else None for v in wave_dir_list]
+                            period_list = [v * 0.7 if v is not None else None for v in wave_period_list]
+                        elif layer.lower() == "wind_waves":
+                            speed_list = [v * 0.45 if v is not None else None for v in wave_speed_list]
+                            dir_list = wave_dir_list
+                            period_list = [v * 0.6 if v is not None else None for v in wave_period_list]
                 elif speed_list and any(v is not None for v in speed_list):
                     has_native_points = True
 
@@ -408,7 +419,12 @@ class WeatherNormalizer:
             
             grid_data[(lat, lng)] = vector
         
-        is_layer_estimated = has_estimated_points and not has_native_points
+        # ⚠️ ANY fabricated point makes the PRODUCT estimated. The old `and not has_native_points`
+        # let one native point launder a MIXED product: the served grid carried invented cells with
+        # `estimate_basis` attached while stamping `is_estimated=False, is_forecast_authoritative=
+        # True` — contradictory provenance measured live on gfs_marine_swell_2_global_mid
+        # (2026-07-30). A product that is partly invented is not authoritative anywhere.
+        is_layer_estimated = has_estimated_points
 
         # §5i deferred coherent stamp: apply only when partitions exist essentially everywhere waves
         # are — a mixed-availability product has an internal upstream edge; stamping would paint a

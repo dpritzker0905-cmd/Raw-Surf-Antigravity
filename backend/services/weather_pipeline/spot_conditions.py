@@ -100,6 +100,11 @@ async def _spectral_partitions(self, model, lat, lng, dt, total_h):
                 prod = await self.find_cached_grid_product(model, "marine", layer, lat, lng, dt)
                 if not prod:
                     continue
+                # ⛔ AUTHENTICITY (same guard as the point lane): a ratio-derived product is the
+                # TOTAL field re-weighted under an invented bearing — never a real train.
+                _basis = getattr(prod, "estimate_basis", None)
+                if isinstance(_basis, dict) and _basis.get("method") == "wave_component_ratio_estimation":
+                    continue
                 res = self.sampler.sample_point(prod, lat, lng)
                 p = getattr(res, "point", None)
                 # h=0 AND Tp=0 together are a mask signature, not a calm sea — and ⚠️ NaN passes
