@@ -23,7 +23,9 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 from services.weather_pipeline import sim_explain, sim_rating          # noqa: E402
-from services.weather_pipeline.surf_rating import rating_score         # noqa: E402
+from services.weather_pipeline.surf_rating import (                    # noqa: E402
+    MS_TO_KT, rating_score, wind_quality,
+)
 
 # The measured FL east-coast case from 2026-08-03, Sebastian Inlet: 2.9 ft of 7.9 s wind swell,
 # 4 kt offshore. Scored 53.6 "fair" — on the owner's own anchor (FL 2-3 ft clean = fair).
@@ -33,7 +35,9 @@ FL = dict(surf_h_m=0.884, tp_s=7.9, wind_speed_knots=3.9, wind_from_deg=280.0,
 
 def test_the_explanation_reconstructs_the_engine_score():
     """THE honesty property. Same inputs, same public factor functions, same product."""
-    engine = rating_score(FL["surf_h_m"], FL["tp_s"], FL["wind_speed_knots"] / 1.94384,
+    # The engine's OWN constant — not a literal. A hardcoded 1.94384 here is the very divergence
+    # this file's boundary test below exists to catch, and it would hide it at the fixture level.
+    engine = rating_score(FL["surf_h_m"], FL["tp_s"], FL["wind_speed_knots"] / MS_TO_KT,
                           wind_from_deg=FL["wind_from_deg"],
                           shore_normal_deg=FL["shore_normal_deg"],
                           swell_from_deg=FL["swell_from_deg"])
@@ -50,6 +54,37 @@ def test_a_drifted_reconstruction_WARNS_instead_of_lying():
     assert "warning" in exp
     assert "trust the engine" in exp["warning"]
     assert exp["reconstruction_error"] != 0
+
+
+@pytest.mark.parametrize("wind_kt", [6.0, 12.0, 20.0, 30.0])
+def test_the_reconstruction_is_EXACT_on_the_speed_only_wind_tier_boundaries(wind_kt):
+    """The knots constant must be the ENGINE's, and the boundaries are the only place it shows.
+
+    Regression for the 2026-07-30 measurement: `sim_explain` carried its own `MS_TO_KT = 1.94384`
+    against the engine's 1.943844. `sim_rating` converts the caller's knots with the ENGINE's
+    constant, so the engine's round-trip lands EXACTLY on `wind_quality`'s speed-only tier edges
+    (`<= 6.0 / 12.0 / 20.0 / 30.0 kt`, taken whenever `shore_normal_deg` is None). The short
+    constant round-tripped to 6.000012346695201 kt — strictly greater — so the breakdown read a
+    full tier low (0.65 vs 0.85), reconstructed 11-12 points under a CORRECT engine score, and
+    fired the "trust the engine's score, not this breakdown" warning at the reader.
+
+    ★ THE BOUNDARY IS THE INSTRUMENT. At 7.3 kt the error was 0.0 and every existing test passed —
+    a near-zero error away from the tier edge is exactly what let this survive. `abs(err) <= 0.15`
+    would ALSO pass here on a correct build; assert EXACT so a re-divergence cannot hide in the
+    tolerance.
+    """
+    kwargs = dict(surf_h_m=1.2, tp_s=12.0, wind_speed_knots=wind_kt, shore_normal_deg=None)
+    engine = rating_score(kwargs["surf_h_m"], kwargs["tp_s"], wind_kt / MS_TO_KT,
+                          shore_normal_deg=None)
+    exp = sim_explain.explain(engine_score=engine, **kwargs)
+
+    assert exp["reconstruction_error"] == 0.0, (
+        f"{wind_kt} kt: engine {engine} vs reconstruction {exp['score']} — the breakdown is "
+        f"describing a different composition than the score it annotates")
+    assert "warning" not in exp, "the honesty warning fired on a correct engine score"
+    # The factor that actually moved: the breakdown must report the SAME wind tier the engine read.
+    assert exp["blend"]["wind_quality"] == pytest.approx(
+        wind_quality(wind_kt / MS_TO_KT), abs=1e-9)
 
 
 def test_the_limiter_is_the_factor_actually_holding_the_score_down():

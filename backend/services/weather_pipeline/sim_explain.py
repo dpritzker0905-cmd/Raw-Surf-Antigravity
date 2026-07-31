@@ -31,7 +31,16 @@ from typing import Any, Dict, Optional
 
 from services.weather_pipeline import surf_rating as SR
 
-MS_TO_KT = 1.94384
+# ⚠️ NO LOCAL COPY OF THE KNOTS CONSTANT. This module held `MS_TO_KT = 1.94384` until 2026-07-30
+# while the engine uses 1.943844 — six digits vs seven. That looks like rounding and is not: the
+# engine's speed-only wind tiers are `<= 6.0 / 12.0 / 20.0 / 30.0 kt` EXACT boundaries, and
+# `sim_rating` converts the caller's knots with the ENGINE's constant, so the engine's round-trip
+# lands exactly ON them. Dividing by the shorter constant lands at 6.000012346695201 kt — strictly
+# greater — so `wind_quality` returned a full tier low (0.65 where the engine read 0.85), the
+# reconstruction came in 11-12 points under the engine's own score, and the "trust the engine's
+# score, not this breakdown" warning fired on a CORRECT engine score. Read it live off `SR` so the
+# two can never drift again; at non-boundary speeds the error was 0.0, which is exactly why this
+# survived every test until a boundary speed was tried.
 
 # How the factors are described to a caller who does not know the engine's variable names.
 _MEANING = {
@@ -71,7 +80,7 @@ def explain(*, surf_h_m: float, tp_s: float, wind_speed_knots: float,
     if not enabled():
         return {}
     try:
-        wind_ms = float(wind_speed_knots) / MS_TO_KT
+        wind_ms = float(wind_speed_knots) / SR.MS_TO_KT
         # The partition branches replicate `rating_score`'s own fallbacks EXACTLY — spectral
         # exposure/cleanliness/dominant-period when trains are supplied, total-field otherwise. Any
         # drift here is what `reconstruction_error` below exists to expose.
