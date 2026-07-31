@@ -262,10 +262,26 @@ rehydrate from the DB at serve-box boot.
   show `surf_height_m`. **And** the same expression falls back to the RENDERED GRID sample when
   `isExactPointAuthority` is false — the grid is coarse until `series_sharpen` lands, which is why a
   layer toggle "fixes" it. ★ `isExactPointAuthority` is the Jacobian variable.
-* **#18 `partitions_represent` IS BLIND TO PERIOD — PREREQUISITE TO #7's FIX.** `T_total` exceeds
-  every partition's period at 5 of 6 FL sites; all of them clear the >0.5 height-quadrature test,
-  and the one physically consistent site passes identically. The onshore-flux ranking is first-order
-  in T (`c_g = gT/4π`), so ranking today's partitions ranks a decomposition missing a train.
+* **#18 ✅ FIXED (`4246c56d`) — AND THE REPORTED RATE WAS A BOOLEAN OVER NEAR-TIES.**
+  The original claim ("`T_total` exceeds every partition at 5 of 6 FL sites") **did not reproduce**.
+  Measured live 2026-07-31 20:00Z, GFS point lane, 36 samples (6 FL sites × hours 0/6/12/24/48/72):
+
+      ratio = T_total / max(partition T):  min 0.466  p25 0.672  MEDIAN 0.999  p75 1.000  max 1.330
+      exceedances 7/36 = 19.4%   (not 5 of 6)
+
+  ★★ **The median pinned at ~1.000 IS the healthy case** — the total's peak period is normally
+  INHERITED from the dominant train — so a boolean `>` reads ordinary ties as defects. The seven
+  exceedances split at a **natural gap near 1.08**: `1.0021 / 1.0476 / 1.0502` = noise;
+  `1.1161 / 1.1308 / 1.1711 / 1.3298` = physically real (a peak up to **33% longer than ANY**
+  partition). `PARTITION_MAX_TP_RATIO = 1.10` lands in the gap and splits them cleanly; a test pins
+  it inside `[1.0502, 1.1161]`. ⇒ honest rate **~19% of sample-hours, ~11% material** — a
+  correctness improvement to the decomposition, **NOT the blocker this was recorded as.**
+  ⚠️ **It surfaced the recorded landmine:** adding the parameter broke a test double's arity, which
+  revealed `point_surf_augment`'s broad `except Exception` would have turned that TypeError into a
+  **silently disabled surf transform** (`resolve_partitions` is an INJECTED CALLABLE — arity is
+  unchecked until call time). The partition call now has its own narrow try; `surf_height_m` is
+  unaffected by any partition failure.
+  ⛔ **DARK until the #5 `SURF_PARTITIONS` flip.**
 * **#19 SEBASTIAN INLET OVER-AMPLIFICATION (lead, unverified).** Largest breaking height from the
   smallest offshore Hs, shortest Tp, deepest bar — ×2.19 vs Cocoa's ×1.60. Probe `magnet_factor`.
 * **#7 UPDATE:** partly a RATING-MODE artifact — rating-OFF commits a degenerate 5×5/1.6° grid
