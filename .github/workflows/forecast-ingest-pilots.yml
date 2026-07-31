@@ -61,13 +61,30 @@ jobs:
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # worldwide coastal marine rotation lives in the marine pilot
-          # GFS marine pilot horizon 8d → 3d (2026-07-13 audit of run 29265599972: the pilot took
-          # 48.5 min = 4 regions × ~11.5 min, cost ∝ forecast-hours (65 byte-range steps at 8d),
-          # NOT points — 672-pt FL and 5760-pt Brazil took the same time). 3d ≈ 25 steps ≈ ~5 min/
-          # region ≈ ~20 min total. Close-zoom fine tiles are a near-term need; far hours fall
-          # through to the mid/global tiers via the resolver ladder (same contract as the ICON/EURO
-          # pilots' 2d horizon). Pilot-lane-only: this env is set per-workflow.
-          GFS_MARINE_FORECAST_DAYS: '3'
+          # GFS marine pilot horizon: 8d → 3d (2026-07-13) → 5d (2026-08-01).
+          #
+          # The 3d cut was correct FOR ITS TIME: cost was ∝ forecast-hours × REGIONS, because each
+          # region did its own download pass (run 29265599972: 48.5 min = 4 regions × ~11.5 min;
+          # 672-pt FL and 5760-pt Brazil took the SAME time — the tell that the bbox never reached
+          # the wire). Multi-bbox (2026-07-31) removed the × REGIONS term: one pass per HORIZON
+          # GROUP now covers all 10 regions, and this lane's marine download fell 276 → 138 steps.
+          #
+          # 3d → 5d is that freed budget spent where measurement says it pays. Two measurements:
+          #   • What the coarse tier costs (scripts/tier_resolution_delta.py, 8 regions holding both
+          #     tiers): BREAKING height median 21.0%, max 41.7%, signed both ways. Systematic
+          #     geometry error — it does NOT shrink with lead the way forecast error grows.
+          #   • Forecast uncertainty at that lead, as inter-model spread with the TIER HELD CONSTANT
+          #     (all 3 models forced onto global_mid — mixing tiers inflated 72h by 68% and nearly
+          #     produced the opposite conclusion): 24h 24.1%, 72h 23.6%, 120h 36.0%.
+          # Ratio of uncertainty to resolution is 1.13-1.72x out to day 5 — COMPARABLE, so the
+          # refinement is real there, not swamped. Past ~day 5 it is unmeasured (ICON/EURO have no
+          # global_mid product beyond their native horizons), so the horizon stops at 5d rather
+          # than guessing. Do not raise further without re-running both instruments.
+          #
+          # Cost: download 138 → 154 steps (+12%, inside what multi-bbox freed); regional marine
+          # products 1,704 → 2,216 per fire (~+4% of the 12k-product manifest).
+          # Revert = set this back to '3'. Pilot-lane-only: this env is set per-workflow.
+          GFS_MARINE_FORECAST_DAYS: '5'
           SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
           SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
           COPERNICUSMARINE_SERVICE_USERNAME: ${{ secrets.COPERNICUSMARINE_SERVICE_USERNAME }}
