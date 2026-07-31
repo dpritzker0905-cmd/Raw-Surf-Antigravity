@@ -45,8 +45,32 @@ the frame ladder and beyond the ±6 h stale rung, so both sides read the same pr
                                         sim   40.4 40.9 40.6 40.3 40.2     delta 0.00 on every one
 
 ⛔ **The glyph payload carries no `run_time`.** This could only be settled by forcing a live compute.
-Same class as *products carry no builder SHA*. ⇒ **NEXT ACTION: stamp `run_time` into the
-precomputed spot-ratings frame** — then `--attribute` needs no live compute at all.
+Same class as *products carry no builder SHA*.
+
+### ✅ CLOSED `2e81bcf5` — and both obvious designs were wrong
+* **ONE field would describe half the score.** Marine and wind are ingested by different jobs and
+  shared a run at **0 of 4** spots measured (Mavericks 07:27 vs 08:10; Bells Beach 04:07 vs 14:44).
+  ⇒ `run_time` (marine) **and** `wind_run_time`.
+* **A FRAME-level field would be wrong.** Run time varies PER SPOT — the point resolver serves
+  regional products on independent cadences. At one valid_time: Pipeline **14:08Z**
+  (`gfs_marine_waves_hawaii`) vs Sebastian Inlet **21:40Z the previous day**
+  (`gfs_marine_waves_florida_east_coast`) — **17 h apart inside one frame.**
+* ★ **So it is INTERNED.** Run times are per-PRODUCT (~20 products for ~900 spots) and the L2 object
+  is fetched off the CDN by every client on every map load. Measured on a realistic frame:
+  raw ISO pair **+30.1%** (+87 B/spot) vs interned **+3.4%** (+10 B/spot) — **+459 KB against
+  +52 KB** across the object. Frame holds the distinct pairs, spots hold an index, the endpoint
+  expands on read. ⚠️ Expansion **copies** — `select_precomputed` reads the process-wide cached L2
+  object, and writing into it is the one-writer violation this repo has already paid for.
+* `sim_health_probe --attribute` now compares runs first and only falls back to the live
+  discriminator for older frames.
+
+### ⚠️ ADJACENT FINDING the field surfaced on its FIRST use — not fixed, spawned
+**Hawaii's wind product is built from a model run 75 HOURS OLD** (`gfs_wind_wind_hawaii`, run
+`2026-07-28T14:40Z`) while every other region is 3-9.5 h. Its `valid_time` is CURRENT, so nothing
+else flags it: **North Shore ratings have been scoring wind from a 3-day-old forecast**, and wind is
+0.60 of the quality blend with a multiplicative veto. ★ `timeline_slot_census.py --fail-on-dead`
+does not catch it — that guard checks `valid_time` COVERAGE, not RUN AGE. Marine at the same
+coordinate is current, so it is wind-specific, not a region outage.
 
 ★ Two honesty fixes fell out and both shipped:
 * `/api/weather/spot-ratings` now carries **`served_valid_time` + `frame_offset_hours`**. It echoed
