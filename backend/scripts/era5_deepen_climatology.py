@@ -24,6 +24,7 @@ Requires ~/.cdsapirc. RATING_LOCAL_SIZE stays OFF until scripts/local_size_gonog
 """
 import argparse
 import json
+import os
 import sys
 import time
 import zipfile
@@ -163,6 +164,71 @@ def era5_breaking_samples(lat, lng, end_date, client=None):
     return samples, n_off, geo is not None, ratio, ratio_n
 
 
+# ★ BANK THE WORK AS IT IS EARNED. This script used to upload ONE inbox batch after the whole run,
+# so nothing landed until it exited — and a campaign is HOURS long. Measured 2026-07-31: 150 spots
+# took 15+ h wall for 610 s of CPU, because CDS queueing makes each spot ~6 min of WAITING (~7x the
+# 32 s/spot the earlier research predicted). At that length "92% complete" was worth exactly 0%:
+# one Ctrl-C, one battery event, one closed shell and the entire campaign was gone.
+# The inbox is append-only and the resume filter already reads it (`pending_inbox_spot_ids`), so a
+# banked batch is skipped on the next run — checkpointing costs nothing and bounds the loss to the
+# last N spots. ⚠️ Keep N well under the resume filter's `limit: 100` batch listing.
+CHECKPOINT_EVERY = int(os.environ.get("ERA5_CHECKPOINT_EVERY", "10"))
+
+
+def _another_instance_pid():
+    """PID of another live run of THIS script, or None. Best-effort — never raises.
+
+    ⚠️⚠️ THE COLLISION THIS PREVENTS IS REAL AND WAS ABOUT TO HAPPEN. The nightly scheduled task
+    (`RawSurf ERA5 Climatology Campaign`, 21:30) fires whether or not a manual campaign is already
+    in flight. Because the running one has banked nothing yet, the scheduled run's resume filter
+    cannot see its spots — so it would re-fetch the SAME spots concurrently, double the CDS queue
+    load that is already the bottleneck, and race the same inbox prefix.
+    ★ A lock FILE would not have caught it: the run in flight predates this guard and holds no
+    lock. Scanning for the process itself is what makes the guard work on the very first night.
+    """
+    try:
+        import psutil
+    except Exception:
+        return None
+    me, here = os.getpid(), os.path.basename(__file__)
+    for proc in psutil.process_iter(["pid", "cmdline"]):
+        try:
+            if proc.info["pid"] == me:
+                continue
+            if any(here in str(part) for part in (proc.info["cmdline"] or ())):
+                return proc.info["pid"]
+        except Exception:                      # a process can exit mid-iteration
+            continue
+    return None
+
+
+def _upload_inbox_batch(session, url, svc, results, end_date, seq):
+    """Drop ONE inbox batch and return its id. Raises SystemExit on a failed upload.
+
+    INBOX, not read-modify-write (2026-07-30, measured): a direct blob merge was erased within the
+    hour by the precompute's concurrent write. The precompute is THE single writer; this script
+    drops a batch it folds in during its own cycle.
+    """
+    from services.weather_pipeline.spot_size_climatology import INBOX_PREFIX
+    stamp = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    batch_id = f"era5-v{ERA5_BACKFILL_VERSION}-{stamp}-{seq:03d}"
+    spots_payload = {
+        sid: {"hist": rec["hist"], "n": rec["n"],
+              "era5": {"v": ERA5_BACKFILL_VERSION, "from": TS_START, "to": end_date,
+                       "n": rec["n"], "tp_tm_ratio": rec["ratio"]}}
+        for sid, rec in results.items()
+    }
+    resp = session.post(
+        f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
+        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
+                 "Content-Type": "application/json", "x-upsert": "true"},
+        data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
+                        separators=(",", ":")).encode("utf-8"), timeout=120)
+    if resp.status_code not in (200, 201):
+        raise SystemExit(f"inbox upload failed: HTTP {resp.status_code} {resp.text[:200]}")
+    return batch_id
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--query", default="", help="comma-separated name substrings")
@@ -170,9 +236,19 @@ def main():
     ap.add_argument("--all", action="store_true")
     ap.add_argument("--upload", action="store_true", help="merge + upload to L2")
     ap.add_argument("--dry-run", action="store_true", help="(default)")
+    ap.add_argument("--force", action="store_true",
+                    help="run even if another campaign is already in flight (see _another_instance_pid)")
     args = ap.parse_args()
     if not (args.query or args.limit or args.all):
         ap.error("pick a scope: --query, --limit or --all")
+
+    other = _another_instance_pid()
+    if other and not args.force:
+        raise SystemExit(
+            f"another ERA5 campaign is already running (pid {other}). Two campaigns re-fetch the "
+            f"SAME spots — the resume filter cannot see work that has not been banked yet — and "
+            f"double the CDS queue load that is already this lane's bottleneck. Wait for it, or "
+            f"pass --force if you know the scopes are disjoint.")
 
     import requests
     from scripts.local_size_gonogo import _prod_credentials, _all_spots
@@ -198,6 +274,7 @@ def main():
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client = _cds()
     results = {}
+    banked, batches = 0, []
     t0 = time.time()
     for i, s in enumerate(spots):
         sid, name = str(s["id"]), s.get("name") or "?"
@@ -213,33 +290,34 @@ def main():
         results[sid] = {"hist": hist, "n": hist_count(hist), "ratio": round(ratio, 3)}
         print(f"  [{i+1}/{len(spots)}] {name}: offshore={n_off} surfable={hist_count(hist)} "
               f"Tp/Tm={ratio:.3f} (n={ratio_n}) reference={ref} m  [{time.time()-t1:.0f}s]"
-              f"{'' if geo_ok else '  (NO GEOMETRY)'}")
-    print(f"\nprocessed {len(results)} spots in {(time.time()-t0)/60:.1f} min")
+              f"{'' if geo_ok else '  (NO GEOMETRY)'}", flush=True)
 
-    if not args.upload or not results:
-        print("DRY RUN or nothing to upload — done.")
+        # ★ BANK IT NOW, not at the end. See CHECKPOINT_EVERY: a campaign runs for hours and used
+        # to lose everything if it did not reach the last spot.
+        if args.upload and len(results) >= CHECKPOINT_EVERY:
+            bid = _upload_inbox_batch(session, url, svc, results, end_date, len(batches) + 1)
+            banked += len(results)
+            batches.append(bid)
+            print(f"    ↳ banked {len(results)} spots as {bid} ({banked}/{len(spots)} safe)",
+                  flush=True)
+            results = {}
+
+    if args.upload and results:
+        bid = _upload_inbox_batch(session, url, svc, results, end_date, len(batches) + 1)
+        banked += len(results)
+        batches.append(bid)
+        print(f"    ↳ banked the final {len(results)} spots as {bid}", flush=True)
+
+    print(f"\nprocessed {banked if args.upload else len(results)} spots in "
+          f"{(time.time()-t0)/60:.1f} min")
+    if not args.upload:
+        print("DRY RUN — nothing uploaded.")
         return
-    # INBOX, not read-modify-write (2026-07-30, measured): a direct blob merge was erased within
-    # the hour by the precompute's concurrent write. The precompute is THE single writer; this
-    # script drops a batch it folds in during its own cycle.
-    from services.weather_pipeline.spot_size_climatology import INBOX_PREFIX
-    batch_id = f"era5-v{ERA5_BACKFILL_VERSION}-{datetime.now(timezone.utc).strftime('%Y%m%dT%H%M%SZ')}"
-    spots_payload = {
-        sid: {"hist": rec["hist"], "n": rec["n"],
-              "era5": {"v": ERA5_BACKFILL_VERSION, "from": TS_START, "to": end_date,
-                       "n": rec["n"], "tp_tm_ratio": rec["ratio"]}}
-        for sid, rec in results.items()
-    }
-    resp = session.post(
-        f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
-        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
-                 "Content-Type": "application/json", "x-upsert": "true"},
-        data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
-                        separators=(",", ":")).encode("utf-8"), timeout=120)
-    if resp.status_code not in (200, 201):
-        raise SystemExit(f"inbox upload failed: HTTP {resp.status_code} {resp.text[:200]}")
-    print(f"inbox batch uploaded: {batch_id} ({len(spots_payload)} spots). The next precompute "
-          f"cycle folds it in; run scripts/local_size_gonogo.py after that.")
+    if not batches:
+        print("nothing to upload — done.")
+        return
+    print(f"{len(batches)} inbox batch(es) uploaded, {banked} spots. The next precompute cycle "
+          f"folds them in; run scripts/local_size_gonogo.py after that.")
 
 
 if __name__ == "__main__":

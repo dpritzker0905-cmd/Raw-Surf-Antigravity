@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED AS A QUEUE by `START-HERE-2026-08-01-THE-ONE-QUEUE.md`** — that file is the
+> single entry point and merges this one's open items (IDs unchanged). **This document stays as
+> the FORENSIC RECORD**: open it for the measurements behind an item, not for what to do next.
+
 # HANDOFF 2026-07-31 — the COVERAGE class: the halo and the direction swap are one bug shape
 
 **Read with `START-HERE-2026-08-01-the-direction-arc.md` (the direction arc) and

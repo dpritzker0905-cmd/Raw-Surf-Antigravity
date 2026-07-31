@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED AS A QUEUE by `START-HERE-2026-08-01-THE-ONE-QUEUE.md`** — that file is the
+> single entry point and merges this one's open items (IDs unchanged). **This document stays as
+> the FORENSIC RECORD**: open it for the measurements behind an item, not for what to do next.
+
 # START HERE — 2026-08-01 · the marine DIRECTION arc, and what is still open
 
 **Read [[standing-work-rules-user-mandate]] FIRST — it gained a BIGGER-CONTEXT PROTOCOL on

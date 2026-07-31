@@ -1,3 +1,7 @@
+> ⚠️ **SUPERSEDED AS A QUEUE by `START-HERE-2026-08-01-THE-ONE-QUEUE.md`** — that file is the
+> single entry point and merges this one's open items (IDs unchanged). **This document stays as
+> the FORENSIC RECORD**: open it for the measurements behind an item, not for what to do next.
+
 # HANDOFF 2026-07-31 NIGHT — the sim gained a SPACE dimension, and its own parity check found the gate
 
 **Read [[standing-work-rules-user-mandate]] first (rules 9-13), then the spine
