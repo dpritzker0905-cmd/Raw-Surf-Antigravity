@@ -1,5 +1,13 @@
 import { compileForecastCards } from '../components/map/forecastCardCompiler';
 
+// ⚠ THE OFFSHORE CARD IS NAMED `Swell`, NOT `Height` (renamed 5ae2d267, 2026-07-31): the box used to
+// lead with an unnamed OFFSHORE height while the BREAKING height sat beside it, so the label WAS the
+// defect — `Surf` now leads and the offshore value is explicitly `Swell`. These assertions look up
+// the card by label, so they broke on the rename; the VALUES are unchanged (verified by probing the
+// compiler with these exact props before editing: "Loading..." / "4.9 ft" / provisional flags all
+// identical). Do not "fix" a failure here by reverting to 'Height' — two heights share units on this
+// card, and the label is the entire correctness surface.
+//
 // Locks the card contract that the MapForecastOverlay parity gate depends on:
 // when there is no authoritative source for the requested {model,layer,hour} during a
 // transient exact-point wait, the overlay nulls the marine height so the card shows
@@ -39,7 +47,7 @@ test('null marine height during exact-loading renders Loading…, not a stale va
     wavePeriod: null,
     waveDir: null,
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height).toBeDefined();
   expect(height.value).toBe('Loading...');
   // crucially, it is NOT a relabeled forecast value like "4.2 ft"
@@ -56,7 +64,7 @@ test('a non-null marine height renders the value (parity held / authoritative so
     wavePeriod: 8,
     waveDir: 90,
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height.value).toMatch(/ft/);
   expect(height.value).not.toBe('Loading...');
 });

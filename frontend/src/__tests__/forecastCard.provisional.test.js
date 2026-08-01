@@ -1,5 +1,10 @@
 import { compileForecastCards } from '../components/map/forecastCardCompiler';
 
+// ⚠ The offshore card is named `Swell`, NOT `Height` (renamed 5ae2d267, 2026-07-31 — `Surf` now leads
+// and the offshore value is explicitly named). These lookups are by label, so they broke on the
+// rename; every asserted VALUE and provisional flag is unchanged (probed before editing). See the
+// note in forecastCard.parity.test.js.
+//
 // Locks the TWO-PHASE PROVISIONAL MARKER contract (2026-07-05 item ③, predicate fixed 2026-07-17):
 // while the authoritative exact-point fetch is in flight for a user-selected marine point
 // (isExactPointAuthority && isExactPointLoading), useExactPoint is null (validity status gate), so
@@ -48,7 +53,7 @@ afterEach(() => {
 
 test('provisional first paint (authority + loading + grid value) carries the … marker and provisional flag', () => {
   const cards = compileForecastCards(provisionalWaves);
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   const period = cards.find((c) => c.label === 'Period');
   expect(height.value).toBe('3.9 ft…');
   expect(height.provisional).toBe(true);
@@ -76,7 +81,7 @@ test('authoritative phase (exact landed) renders unmarked values and no refining
     wavePeriod: 12.3,
     waveDir: 220,
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height.value).toBe('2.6 ft');
   expect(height.provisional).toBeFalsy();
   expect(cards.find((c) => c.label === 'Source')).toBeUndefined();
@@ -89,7 +94,7 @@ test('grid-only view (no exact authority, no fetch) stays unmarked', () => {
     isExactPointLoading: false,
     exactPointStatus: 'none',
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height.value).toBe('3.9 ft');
   expect(height.provisional).toBeFalsy();
 });
@@ -99,7 +104,7 @@ test('the OLD inverted predicate state (no authority, fetch loading) stays unmar
     ...provisionalWaves,
     isExactPointAuthority: false,
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height.value).toBe('3.9 ft');
   expect(height.provisional).toBeFalsy();
 });
@@ -107,7 +112,7 @@ test('the OLD inverted predicate state (no authority, fetch loading) stays unmar
 test('kill switch __RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__ restores unmarked provisional values', () => {
   window.__RAW_INFOBOX_PROVISIONAL_MARK_DISABLED__ = true;
   const cards = compileForecastCards(provisionalWaves);
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Swell');
   expect(height.value).toBe('3.9 ft');
   expect(height.provisional).toBeFalsy();
 });
@@ -120,6 +125,9 @@ test('swell_1 provisional first paint is marked like waves', () => {
     swell1Period: 11.0,
     swell1Dir: 190,
   });
+  // NB: still 'Height' — 5ae2d267 renamed the offshore card to 'Swell' on the `waves` layer ONLY.
+  // The swell_1 / wind_waves layers keep the generic 'Height' label (see the separate branch in
+  // forecastCardCompiler). Not a typo; do not "align" these without changing the compiler.
   const height = cards.find((c) => c.label === 'Height');
   expect(height.value).toBe('3 ft…');
   expect(height.provisional).toBe(true);
@@ -135,7 +143,7 @@ test('wind_waves provisional first paint is marked like waves', () => {
     windWavePeriod: 5.5,
     windWaveDir: 100,
   });
-  const height = cards.find((c) => c.label === 'Height');
+  const height = cards.find((c) => c.label === 'Height');   // 'Height' on wind_waves — see note above
   expect(height.value).toBe('2 ft…');
   expect(height.provisional).toBe(true);
 });
