@@ -146,10 +146,18 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             if baseline is None:
                 unresolved.append(f"{spot.get('name')} (no baseline, {source})")
                 continue
+            # ⚠️ `allow_reference_lookup=True` or this probe measures a DIFFERENT COMPOSITION than
+            # the one it is comparing against: the sim would grade the global 1.2 m curve while the
+            # served glyph grades against each spot's own good day, and the probe would report that
+            # as a parity divergence it created itself.
+            # ⛔ NOT `valid_time` — that is the observation gate's join key, and this probe compares
+            # `raw_score` deliberately so the gate is not part of the comparison. Conflating the two
+            # is the bug this parameter split exists to prevent.
             calc = calculate_surf_rating(
                 spot, baseline["swell_height_m"], baseline["swell_period_sec"],
                 baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-                baseline["wind_direction_deg"], partitions=baseline.get("partitions"))
+                baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
+                allow_reference_lookup=True)
             dt = time.time() - t0
 
             geo = geometry_payload(spot)

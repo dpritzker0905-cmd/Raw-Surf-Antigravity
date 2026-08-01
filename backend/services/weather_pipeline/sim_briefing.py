@@ -37,7 +37,8 @@ def summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float], s
     calc = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-        baseline["wind_direction_deg"], partitions=sim_forecast.baseline_partitions(baseline))
+        baseline["wind_direction_deg"], partitions=sim_forecast.baseline_partitions(baseline),
+        allow_reference_lookup=True)
     # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
     # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the rest
     # of the module works to keep apart. Size and verdict are now named separately.

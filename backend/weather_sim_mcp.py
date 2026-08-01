@@ -287,7 +287,12 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
     payload["wave_simulation"] = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-        baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline))
+        baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline),
+        # I/O already paid — this tool FETCHED the baseline it is rating, and it is the one
+        # surface that prints its own parity against the app. Without the lookup it would grade
+        # the global 1.2 m curve while the glyph grades locally, and the probe (which does look
+        # up) would read GREEN over it — a false green on the path a user actually reads.
+        allow_reference_lookup=True)
 
     # PARITY, both halves. The app serves its own breaking height AND its own quality for this
     # coordinate; the sim computes both from the offshore vector through the production chain. A
@@ -508,7 +513,11 @@ def simulate_weather_change(
         base_calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"], partitions=_whatif_parts)
+            baseline["wind_direction_deg"], partitions=_whatif_parts,
+            # Reached ONLY when `baseline is not None`, i.e. the caller omitted an input or named
+            # an hour and has already paid for the fetch. The zero-network what-if never gets
+            # here, so the invariant is untouched.
+            allow_reference_lookup=True)
         changed = {k: {"from": round(float(baseline[k]), 2), "to": round(float(resolved[k]), 2)}
                    for k in requested if abs(float(baseline[k]) - float(resolved[k])) > 1e-9}
         baseline_delta = {

@@ -85,12 +85,52 @@ def shore_normal_for(spot: Dict[str, Any]) -> Optional[float]:
     return float(o) if o is not None else None
 
 
-def reference_size_for(spot: Dict[str, Any]) -> Optional[float]:
+def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False) -> Optional[float]:
     """Local size reference, gated on the SAME flag production gates it on. Off (the default) means
-    the global 1.2 m curve — exactly what the app is serving today."""
+    the global 1.2 m curve — exactly what the app served before `3263031c`.
+
+    ⛔ THE DICT ALONE WAS NEVER ENOUGH, AND THAT IS WHY THE SIM DIVERGED. This read only
+    `spot["reference_size_m"]`, and `sim_spots` carries that key for THREE hand-tuned mock spots
+    (4.0 / 1.5 / 1.2). The ~1,773 real catalogue spots have none, so the moment RATING_LOCAL_SIZE
+    flipped the sim went on grading against the global 1.2 m curve while the glyph graded against
+    each spot's own good day. Measured by the parity monitor within minutes of the flip (run
+    30683570880): sim HIGH by a median +22.2 points, 5 of 6 spots differing in LEVEL.
+    ★★ The flag was never the missing thing — the DATA was. A flag and its data are two lanes.
+
+    ⚠️⚠️ THE PERMISSION IS ITS OWN PARAMETER, AND REUSING `valid_time` FOR IT WAS A BUG I SHIPPED
+    AND REVERTED WITHIN THE HOUR. The lookup dials on a cold cache, so it must be gated by the
+    ZERO-NETWORK INVARIANT (`simulate_weather_change` with all five inputs and no hour does zero
+    HTTP — the `576dcbdd` regression was 42.2 s of blocking, past where an MCP client reports a
+    TIMEOUT). Keying that on `valid_time is not None` looked economical and broke two things:
+      * `get_weather_forecast` HAS an hour and never passed it, so the sim's primary user-facing
+        forecast tool would have stayed on the global curve while the parity probe — which does
+        pass it — read GREEN. A false green on the one path a user actually reads.
+      * making `sim_window` pass `valid_time` to obtain a reference ALSO switched on the
+        observation gate, which caps at 69.9 and flattens the ranking it decides. That is exactly
+        the "gating a RANK key inverts its meaning" defect `79e1001a` fixed for `sim_compare`, and
+        it changed which hour won (`test_sim_daylight` caught it: 09:00 -> 06:00).
+    ★★ `valid_time` is the observation gate's JOIN KEY. An I/O budget is a different concept, and
+    one parameter serving two concepts couples them wherever only one is wanted.
+
+    ★ ONE DERIVATION. `reference_for_spot` IS `reference_map(load_size_climatology_l2_cached())` —
+    the same two symbols `spot_ratings` composes for the glyph and `spot_conditions` for the hub —
+    memoised against the loaded object. Re-deriving it here would be the THIRD copy of a number
+    CLAUDE.md says to mirror, never re-derive. Gating stays with the caller by that helper's own
+    contract; this function is the caller.
+    """
     if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
         return None
-    return spot.get("reference_size_m")
+    ref = spot.get("reference_size_m")
+    if ref is not None:
+        return ref                      # hand-tuned default, or already grafted upstream
+    if not allow_lookup:
+        return None                     # zero-network path — see the invariant note above
+    try:
+        from services.weather_pipeline.spot_size_climatology import reference_for_spot
+        return reference_for_spot(spot.get("id") or spot.get("spot_id"))
+    except Exception:
+        # Fail open to the global curve: a lookup miss must never break the rating it decorates.
+        return None
 
 
 # 3. Core Physics and Weather Calculation Engine
@@ -103,6 +143,7 @@ def calculate_surf_rating(
     wind_dir: float,
     partitions=None,
     valid_time=None,
+    allow_reference_lookup: bool = False,
 ) -> Dict[str, Any]:
     """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
 
@@ -189,7 +230,7 @@ def calculate_surf_rating(
         wind_from_deg=wind_dir,
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
-        reference_size_m=reference_size_for(spot),
+        reference_size_m=reference_size_for(spot, allow_reference_lookup),
         partitions=partitions,
         break_depth_m=_break_depth,
     )
@@ -217,7 +258,7 @@ def calculate_surf_rating(
     # and a groomed head-high day were indistinguishable in this payload. The veto fixes the score;
     # this field makes the REASON legible — a low score from 40 kt of onshore slop and a low score
     # from 35 ft of unrideable closeout are different answers to "should I paddle out?".
-    _ref = reference_size_for(spot)
+    _ref = reference_size_for(spot, allow_reference_lookup)
     _og = oversize_gate(breaking_height, _ref, break_depth_m=_break_depth)
     _over_start, _over_floor = oversize_thresholds(_ref, _break_depth)
     if _og >= 1.0:

@@ -65,10 +65,20 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
         # The scan rates the BASELINE sea itself (no what-if), so the trains it carried — the ones
         # the server's own height ran on — always still describe it. Absent key -> None -> the
         # total-field path, byte-identical to before.
+        # ⚠️ `allow_reference_lookup=True` AND DELIBERATELY NO `valid_time`. This scan has already
+        # fetched a baseline for `hour`, so the I/O is paid and the local size reference must be
+        # resolved — otherwise every row grades on the global 1.2 m curve while the map glyph for
+        # the same spot-hour grades on the spot's own good day.
+        # ⛔ But passing `valid_time` here would ALSO switch on the observation gate, which caps at
+        # 69.9 and would flatten the very quality ranking this scan exists to produce — the "gating
+        # a RANK key inverts its meaning" defect `79e1001a` fixed for sim_compare. Measured when
+        # this was briefly wired that way: the winning hour moved 09:00 -> 06:00
+        # (test_sim_daylight). The two concerns are separate parameters for exactly this reason.
         calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
-            baseline["wind_direction_deg"], partitions=baseline.get("partitions"))
+            baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
+            allow_reference_lookup=True)
         row = {
             "valid_time": hour,
             "breaking_height_ft": calc["breaking_height_ft"],

@@ -147,7 +147,7 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-            valid_time=valid_time)
+            valid_time=valid_time, allow_reference_lookup=True)
         verdict, normal, normal_src = _readiness(spot)
         readiness_census[verdict] = readiness_census.get(verdict, 0) + 1
         row = {
