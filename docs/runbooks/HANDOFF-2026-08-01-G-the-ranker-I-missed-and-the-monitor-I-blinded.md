@@ -150,21 +150,35 @@ exactly that.
    `reference_size_m: null` / delta +22.7. **After the restart no config change is needed.**
    Acceptance: `reference_size_m ≈ 1.93`, `parity.quality.delta ≈ −1.4`. ⚠️ `null` with a small
    delta is still **not** a pass.
-2. ⛔ **E#1 — the per-CELL vs per-SPOT reference gap.** The dominant remaining accuracy term (median
-   21.3%, max 52.5%). **It needs a route decision, not an edit:**
-   * **(a) a `spot_id` query param on `/api/weather/point`** — recommended. The infobox and the sim
-     both already know the spot; cost is one memoised dict lookup, and the serve process **already**
-     loads the per-spot blob (`spot_conditions.py:288` calls `reference_for_spot`). Cross-stack.
-   * **(b) a backend coordinate→spot proximity match** (the `confirmation_for` pattern) — no frontend
-     change, but a **second blocking L2 read on the hottest endpoint**.
-   * **(c) add `reference_size_m` to the precomputed spot-ratings frame record** — the sim already
-     fetches that object for parity, and `sim_compare` fetches a whole bbox in one call. Makes the
-     glyph payload self-describing. Costs bytes on an object every client downloads.
-   ⚠️ Whichever route: the fix is **conditional** — spot reference AT a catalogued spot, cell
-   reference elsewhere. The comment at `point_surf_augment.py:74-85` is **correct away from
-   catalogued spots**; engage with it rather than deleting it.
-3. **`-D` §4c is actionable** — `reference_for_spot` is on `origin/dev`, so the duplicate
-   `_REF_MAP_MEMO` in `sim_rating.reference_size_for` can be collapsed onto it.
+2. ✅ **E#1 CLOSED (`ead3c666`) — and the route I recommended was NOT the one that shipped.**
+   ★★ **The Jacobian variable is WHICH KEY the reference is looked up by** — coordinate vs spot
+   identity. Percentile, clamps and formula were already shared, so nothing else had to move: the
+   per-spot blob now carries `lat`/`lng` (re-used from frames `rate_one_spot` already emits) and
+   answers `reference_for_coordinate(lat, lng)` within the same 2 km tolerance `confirmation_for`
+   uses on this endpoint's sibling lane.
+   ⛔ **Route (a), the one I recommended, was rejected twice over**: it makes the served number
+   depend on a caller-supplied key the endpoint cannot validate, and threading it needs
+   `point_resolution.py`, which the concurrent session still holds uncommitted.
+   ⛔⛔ **And a route that looked free was killed by this repo's own lesson.** "Peek the resident L2
+   caches, upgrade only when both happen to be warm" costs no I/O — and makes the same coordinate
+   return 1.86 or 1.931 depending on what else warmed the process. **A served number varying with
+   cache residency, degrading silently: a new instance of THE COVERAGE CLASS.** Killed before it
+   was built.
+   ★ **Ships INERT**: every miss (no blob, no coordinates yet, nothing within 2 km, too little
+   climatology) falls through to the CELL value — the behaviour the lane shipped with — so it
+   landed before the precompute had written a single coordinate. ⚠️ **The `or` is load-bearing**: a
+   spot miss must reach the cell value, never None, or the badge drops to the GLOBAL curve.
+   ⏳ **ACCEPTANCE, still owed**: after deploy AND one precompute cycle writes coordinates,
+   `/api/weather/point` at Mavericks must serve `reference_size_m ≈ 1.86`, not 1.931.
+3. ✅ **`-D` §4c CLOSED (`c2b59ce4`)** — one memo, three lanes (sim 1.9 / point 1.9 / hub 1.9).
+   ⭐ **Deleting the dead memo was the load-bearing half**: three test files reset
+   `sim_rating._REF_MAP_MEMO`, so leaving the name declared-but-unread would have left all three
+   clearing a variable nothing reads — the `776cb129` defect exactly.
+3b. ⚠️⚠️ **AND MY OWN E#1 GUARD RAN NOWHERE (`5466147e`).** `tests/test_point_*.py` was never in the
+   CI glob — three files, two long-standing. The gate reported **"49 files / 707 passed", BYTE-
+   IDENTICAL** to the run before a 12-test guard landed. ★★★ **Caught by comparing COUNTS, not by a
+   red — a guard that runs nowhere is indistinguishable from one that passes.** Now 52 files / 726
+   passed, floor 52/720. ⇒ **after adding any guard, diff the gate's collected count.**
 4. **`-D` §4e — the named-exemplars lane** for the probe, with the corrected rationale from `-F` §4.4
    (build it for **known values**, not sensitivity — top-N-by-score is biased *toward* reference
    sensitivity, 41.0 vs 8.7).
