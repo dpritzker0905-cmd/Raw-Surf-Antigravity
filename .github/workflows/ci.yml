@@ -243,8 +243,17 @@ jobs:
         working-directory: backend
         run: |
           set -o pipefail
+          # ⚠️ `tests/test_point_*.py` WAS MISSING FROM THIS GLOB UNTIL 2026-08-01, and three files
+          # were affected — two of them long-standing. The point lane is where `surf_height_m` and
+          # the local size reference are PRODUCED (`point_surf_augment` is the single injection
+          # point), so its guards belong in a composition suite by any reading.
+          # ★ CAUGHT BY COMPARING COUNTS, NOT BY A RED. A new 12-test guard landed and the gate
+          # still reported "49 files / 707 passed" — byte-identical to the run before it. A guard
+          # that runs nowhere is indistinguishable from a guard that passes, which is this repo's
+          # recurring coverage class; the only reliable detector is asserting what RAN.
           FILES=$(ls tests/test_sim_*.py tests/test_rating_*.py tests/test_surf_*.py \
-                     tests/test_spot_*.py tests/test_geometry_*.py tests/test_provenance_*.py \
+                     tests/test_spot_*.py tests/test_point_*.py \
+                     tests/test_geometry_*.py tests/test_provenance_*.py \
                      tests/test_observation_gate_*.py tests/test_run_provenance.py \
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
                      tests/test_forecast_skill.py tests/test_product_run_age_census.py \
