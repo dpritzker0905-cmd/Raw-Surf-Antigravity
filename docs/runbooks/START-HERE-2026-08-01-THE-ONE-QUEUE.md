@@ -59,6 +59,31 @@ them against the repo until now. First run over **263 sources / 626 cited SHAs**
 ★ **The headline is reassuring — 619/626 of what the ledger claims shipped, shipped.** The value is
 in the remainder.
 
+### #25 ⬇⬇ DOWNGRADED 2026-08-01 — MEASURED, AND ITS SYMPTOM HAD MOVED (`ade26017`)
+Its own commit message said *"verify live (re-probe ICON Gulf/Antarctica coverage)… then merge"*.
+That was never done. Doing it inverts the ranking. Live at the 10° coarse tier, counting a cell
+as a HOLE only when it is invalid in one model and **VALID IN BOTH OTHERS** (land is land for
+every model, so a coastline or ice edge cannot be miscounted):
+
+        layer         EURO holes    ICON holes    GFS holes
+        waves              0             0            3
+        swell_1           76             0            2
+        wind_waves       107             0            1
+
+#25 wires `build_regular_nn_valid` into `dwd_gwam_fetcher` (ICON) and `noaa_gfs_wave_fetcher`
+(GFS) — **exactly the two models that now measure clean.** Porting it would repair ~3 cells.
+The live defect is **EURO's Copernicus CMEMS partition layers**, an upstream #25 does not touch.
+⚠️⚠️ **The entry below inferred "not re-fixed another way" from `build_regular_nn_valid` being
+ABSENT.** A later fix (`coarse_gulf_fill`, 2026-07-23) already covered the Gulf half at serve
+time. ⇒ **ABSENCE OF *THE* FIX IS NOT ABSENCE OF *A* FIX** — check the SYMPTOM, not the symbol.
+✅ **The live half is FIXED**: the serve-time fill gated on `layer != "waves"`, which was the
+whole difference between 0 and 107 holes on the same model at the same tier (**the Jacobian is
+the LAYER, not the model**), now covers all four marine layers with a same-layer donor and a
+`coarse_fill` provenance stamp. ⛔ #25 itself stays open as the more general INGEST shape, but
+**it is no longer the highest user-visible item** — it fixes models that measure clean today.
+
+<details><summary>Original entry (superseded — kept as the forensic record)</summary>
+
 ### #25 ⛔⛔ OPEN, LIVE 35 DAYS — a marine fix that never merged (`1a1134ec`)
 `fix(weather): coastal/polar marine no-data holes — nearest-valid-ocean coarse sampling`
 (2026-06-27) lives **only** on `prep/icon-coverage-valid-nn`, 1 commit, never merged.
@@ -72,6 +97,8 @@ more aggressively. ⚠️ It does **not** cherry-pick cleanly (conflicts in `dwd
 (`backend/tests/test_fetch_common.py`).
 ★ The other not-on-dev hit, `c3907570`, is the **already-documented** case — its re-land `a63962e9`
 IS on dev. The audit re-detecting a known true positive is what makes the one new hit credible.
+
+</details>
 
 ### #26 ⛔ OPEN — 12 DOCUMENTED LEVERS THAT DO NOTHING ⇒ EVERY A/B THROUGH THEM IS VOID
 Cited in the ledger, **zero reads anywhere in `*.py` / `*.js` / `*.yml`** (each re-checked by exact
