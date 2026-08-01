@@ -227,7 +227,8 @@ jobs:
                      tests/test_observation_gate_*.py tests/test_run_provenance.py \
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
                      tests/test_forecast_skill.py tests/test_product_run_age_census.py \
-                     tests/test_validate_nearshore_transform.py 2>/dev/null \
+                     tests/test_validate_nearshore_transform.py \
+                     tests/test_calibration_census.py 2>/dev/null \
                  | sort -u \
                  | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
@@ -243,10 +244,12 @@ jobs:
           import sys, xml.etree.ElementTree as ET
           # Floors are shrink-only. Raise them when guards are added; lowering one is a deliberate
           # act that should appear in a diff, which is the entire point of a ratchet.
-          # Measured 2026-08-01 on the fastmcp-free set: 38 modules, 545 passed, 64 skipped.
+          # Measured 2026-08-01 on the fastmcp-free set: 39 modules, 569 passed locally / ~563 in
+          # CI (the six probe guards in test_run_provenance importorskip on fastmcp, which is
+          # installable locally and not here). Floor sits below the CI figure, not the local one.
           # MIN_FILES is the exact module count so that ANY drop — a glob that stops matching, an
           # exclusion pattern that widens by accident — is red rather than quietly narrower.
-          MIN_FILES, MIN_PASSED = 38, 530
+          MIN_FILES, MIN_PASSED = 39, 550
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:

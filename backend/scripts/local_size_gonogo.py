@@ -80,9 +80,24 @@ def _prod_credentials(session):
     ⚠️ `backend/.env` points at the DEV project, which has no spot_ratings objects at all -- reading
     it instead of Render is how "the climatology blob is absent" got believed twice.
     """
+    # ★ CI PATH FIRST. GitHub Actions already holds SUPABASE_URL + SUPABASE_SERVICE_ROLE_KEY as
+    # repo secrets (six workflows use them), and the Render lookup exists only to DISCOVER those
+    # two values. Preferring them when present is what lets this whole go/no-go run as a scheduled
+    # routine instead of by hand on a laptop that happens to have a Render key -- which is the same
+    # "the verification needed a credential nobody had, so it never happened" root this script was
+    # written to remove, one level up.
+    # ⚠️ RATING_LOCAL_SIZE cannot be read on this path (it lives in the Render service env, not
+    # Supabase), so the serve-lane line reports 'unknown' rather than guessing '0' -- an unknown
+    # printed as a default is how a flag gets believed to be off while it is on.
+    env_url = (os.environ.get("SUPABASE_URL") or "").rstrip("/")
+    env_key = os.environ.get("SUPABASE_SERVICE_ROLE_KEY") or ""
+    if env_url and env_key:
+        _SECRETS.append(env_key)
+        return env_url, env_key, {"RATING_LOCAL_SIZE": "(unknown -- not readable from Supabase env)"}
     key = _render_api_key()
     if not key:
-        raise SystemExit("no RENDER_API_KEY (env or backend/.env) -- cannot reach production")
+        raise SystemExit("no SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY and no RENDER_API_KEY "
+                         "(env or backend/.env) -- cannot reach production")
     _SECRETS.append(key)
     resp = session.get(f"https://api.render.com/v1/services/{RENDER_SERVICE}/env-vars?limit=100",
                        headers={"Authorization": f"Bearer {key}"}, timeout=30)

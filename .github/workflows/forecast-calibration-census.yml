@@ -1,0 +1,135 @@
+# Forecast Calibration Census (2026-08-01) — is what we SERVE still graded against a sane yardstick?
+#
+# WHY THIS EXISTS
+# ---------------
+# `3263031c` flipped RATING_LOCAL_SIZE in all three lanes, so `spot_size_climatology` stopped being
+# an accumulating side-blob and became the reference every surf rating is graded against: the size
+# gate now saturates at each spot's own good-day breaking height instead of a global 1.2 m. The blob
+# refreshes ~6x/day off live frames and NOTHING WATCHED IT. Two standing risks were created the hour
+# that flag flipped, and this census is the answer to both.
+#
+# ★ A calibration input that silently drifts is worse than one that is silently absent. Absent fails
+#   open to the global curve — the previous, known behaviour. Drifted keeps producing confident
+#   numbers against a moved yardstick, and every downstream check still passes because they all read
+#   the same moved yardstick.
+#
+# WHAT IT ASKS, AND WHY THESE ARE THREE QUESTIONS AND NOT ONE
+#   1. IS IT SHAPED RIGHT?  local_size_gonogo.py — the named exemplars (Florida small, Pipeline and
+#      Mavericks large) plus the owner's calibration anchors. An INVERTED blob produces a large,
+#      symmetric, entirely plausible delta distribution, so only exemplars with expected DIRECTIONS
+#      can catch it. This is the check that had never run on a schedule because it needed a
+#      credential nobody had to hand.
+#   2. HAS IT MOVED?  climatology_drift_census.py — PSI against a committed baseline, PLUS per-spot
+#      drift. ⚠️⚠️ Both, because PSI IS BLIND TO A PERMUTATION: mutation-verified 2026-08-01, a full
+#      shuffle of references across spots reads PSI 0.0000 while 70.9% of spots individually moved.
+#      A single-signal drift monitor would have passed an inverted blob.
+#   3. IS WHAT WE SERVE BUILT FROM A FRESH RUN?  served_freshness_census.py — the run age of the
+#      products actually behind each served spot-hour. `product_run_age_census.py` already asks "are
+#      the products fresh NOW?" every 30 min and is right to; it cannot see a frame ASSEMBLED from a
+#      stale product and then served for hours. Measured 2026-08-01T04:00Z: Kommetjie served a
+#      rating whose marine run was ~2 DAYS old while that census reported 137 lanes, 0 warn.
+#
+# ⚠️ THE TRANSIENT IS THE WHOLE POINT. By 13:14Z the same blob read max 6.2 h and 100% under 12 h —
+#    the staleness had healed and left no trace. A transient nothing samples is indistinguishable
+#    from one that never happened, which is why this is a scheduled census with a retained artifact
+#    series rather than a script someone runs after a complaint.
+#
+# ⚠️ Scheduled workflows fire from the DEFAULT branch only — that is `dev` here, not `main`.
+name: Forecast Calibration Census
+
+on:
+  schedule:
+    # 4x/day at :35 past 02/08/14/20 UTC. The climatology is rebuilt by the precompute lane (frames
+    # stamped {03,07,11,15,19,23}:00Z), so these land between rebuilds rather than mid-write. Drift
+    # is a slow property — this is a heartbeat, not a sampling rate — but freshness is not, which is
+    # why the cadence is 6-hourly rather than daily.
+    - cron: '35 2,8,14,20 * * *'
+  workflow_dispatch: {}
+
+permissions:
+  contents: read
+
+concurrency:
+  group: forecast-calibration-census
+  cancel-in-progress: true
+
+jobs:
+  census:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    env:
+      # Read-only access to the private `weather-products` bucket. Six workflows already use these,
+      # so no new secret is introduced. Both scripts SKIP (exit 0) when they are absent rather than
+      # failing: a missing credential is an operator condition, not a calibration finding, and a
+      # gate that means two different things gets muted.
+      SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+      SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      # No fastmcp here — nothing in this census imports weather_sim_mcp. See
+      # backend/requirements-dev.txt for why that package cannot be installed against the pinned
+      # httpx/starlette at all.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      # ── 1. IS IT SHAPED RIGHT? ───────────────────────────────────────────────────────────────
+      # Exemplars + owner anchors + the full-catalogue product A/B. Reported, never paging: the A/B
+      # magnitude is expected to be large now that the flag is ON (it forecasts the flip from the
+      # persisted score and cannot tell that the score already carries the local reference), so
+      # gating on it would be gating on a number that no longer means what its name suggests.
+      # The EXEMPLARS are the signal to read here.
+      - name: "1. Climatology shape — exemplars + owner anchors"
+        id: shape
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python3 scripts/local_size_gonogo.py 2>&1 | tee gonogo.txt | tail -40
+          if grep -q "VERDICT: SANE" gonogo.txt; then
+            echo "exemplars: SANE"
+          else
+            echo "::error::The size climatology FAILED its named exemplars — a small-wave coast is"\
+                 "no longer coming out with a small reference, or a big-wave coast with a large one."\
+                 "Every rating is graded against this. Do not wait for a user report."
+            exit 1
+          fi
+
+      # ── 2. HAS IT MOVED? ─────────────────────────────────────────────────────────────────────
+      - name: "2. Climatology drift — PSI + per-spot"
+        if: always()
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python3 scripts/climatology_drift_census.py --fail-on-drift --json > drift.json || DRIFT=$?
+          python3 scripts/climatology_drift_census.py --fail-on-drift 2>&1 | tail -12
+          exit ${DRIFT:-0}
+
+      # ── 3. IS WHAT WE SERVE FRESH? ───────────────────────────────────────────────────────────
+      - name: "3. Served freshness — run age behind each served spot-hour"
+        if: always()
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python3 scripts/served_freshness_census.py --json > freshness.json || FRESH=$?
+          python3 scripts/served_freshness_census.py --fail-on-stale 2>&1 | tail -14
+          exit ${FRESH:-0}
+
+      # The series is the deliverable, not the pass/fail bit: drift is only visible ACROSS runs, and
+      # a staleness transient that heals in hours leaves no other trace.
+      - name: Upload census record
+        if: always()
+        uses: actions/upload-artifact@v6
+        with:
+          name: calibration-census-${{ github.run_id }}
+          path: |
+            backend/drift.json
+            backend/freshness.json
+            backend/gonogo.txt
+          retention-days: 90
+          if-no-files-found: warn
