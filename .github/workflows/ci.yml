@@ -322,7 +322,15 @@ jobs:
           # tests) after the count stayed byte-identical across a commit that added a 12-test guard.
           # From the gate's own run on origin/dev @ 5466147e: "collected 792 tests across 52 files
           # -> 726 passed, 66 skipped, 0 failed".
-          MIN_FILES, MIN_PASSED = 52, 720
+          # ⬆⬆ 52→96 / 720→1090. The biggest jump this ratchet has had, and it is COVERAGE:
+          # 45 composition test files were never in the glob at all — including
+          # test_coarse_gulf_fill.py, test_fetch_common.py and test_partition_fabrication_gate.py.
+          # A suite named 'composition guards' was not running the composition guards.
+          # From the gate's own run on origin/dev @ e079200c: "collected 1162 tests across
+          # 96 files -> 1096 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never
+          # from a checkout (6c4ab178: a floor set from a shared tree holding another session's
+          # untracked file was unmeetable by anything that ships).
+          MIN_FILES, MIN_PASSED = 96, 1090
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
