@@ -31,9 +31,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 150
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -61,7 +61,7 @@ jobs:
       # spot sits from the nearest shoreline, which is the actionable input to the spot editor.
       - name: Upload the spot placement review
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: shore-normal-build-review
           path: backend/shore_normal_build_review.csv

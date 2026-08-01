@@ -43,9 +43,9 @@ jobs:
     # keeps 40 min under the 240-min cron interval (shared-group serialization stays safe).
     timeout-minutes: 200
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip

@@ -45,9 +45,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 180
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
@@ -110,7 +110,7 @@ jobs:
       # must never be thrown away by a later step. The shore-normal build lost a full run that way.
       - name: Upload the reviewed candidates
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: spot-candidates-reviewed
           path: |

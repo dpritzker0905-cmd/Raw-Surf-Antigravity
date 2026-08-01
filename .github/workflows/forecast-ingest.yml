@@ -39,9 +39,9 @@ jobs:
                           # back to the 37×17 global-coarse (the worldwide clamp / "no heatmap" bug). Still
                           # < the 240-min (4h) cron interval (concurrency group prevents overlap).
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v5
 
-      - uses: actions/setup-python@v5
+      - uses: actions/setup-python@v6
         with:
           python-version: '3.11'
           cache: pip
