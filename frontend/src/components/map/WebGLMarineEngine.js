@@ -1342,6 +1342,13 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     // premultiplied blend). The base is a WORLD grid, so when a viewport-truth overlay exists it
     // REPLACES the base's 39 km mask inside its bounds — the floored wash is then land-clipped at
     // meter truth wherever truth has been painted.
+    // FUNCTION-SCOPED ON PURPOSE (2026-07-31): the TINY-TILE VIVIDNESS PARITY block ~370 lines below
+    // reads this to fade the regional passes toward the wash's DRAWN opacity. It was originally a
+    // `let` inside the `if (blendEngaged)` block below (626c905f) and the tiny-tile reader arrived
+    // five days later (4da586aa) reaching for a binding that had already gone out of scope — a live
+    // ReferenceError, not dead code (the reader's own gate is `blendEngaged`, the same condition that
+    // fills this in). Keep it out here; do NOT re-narrow it into the block.
+    let _washOpacityEff = 0;
     if (blendEngaged) {
       // Same degraded-drop as the main pass: a false-land overlay must not clip the wash either.
       const baseOverlay = (this._overlayMaskTex && this._overlayMaskBounds && !_degradedDrop)
@@ -1381,7 +1388,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       // halo damp for exactly this window (same 0.35 quiet, same z≥4.4 texel-visibility bound);
       // full wash returns the moment crisp truth covers. Kill: __RAW_DISABLE_ISLAND_HALO_DAMP__.
       // Telemetry: __RAW_GPU__.washNoTruthDamp.
-      let _washOpacityEff = baseWashOpacity;
+      _washOpacityEff = baseWashOpacity;
       // _washSole exemption (band-sole ∪ bridge-sole): same rationale as the halo damp above —
       // when this wash is the SOLE visible field, a 0.35 damp reads as a cleared heatmap.
       // MOTION-HOLD on the truth verdict too (the nt0↔nt1 mid-gesture flap — see the halo site).
@@ -1807,15 +1814,17 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (this.heatmapVAO) {
       gl.bindVertexArray(this.heatmapVAO);
     } else {
-      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      const heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
       gl.bindBuffer(gl.ARRAY_BUFFER, this.gridUVBuffer);
       gl.enableVertexAttribArray(heatUVLoc);
       gl.vertexAttribPointer(heatUVLoc, 2, gl.FLOAT, false, 0, 0);
       gl.bindBuffer(gl.ELEMENT_ARRAY_BUFFER, this.gridIndexBuffer);
     }
 
-    var worldOffsets = _needWrap ? [0.0, -360.0, 360.0] : [0.0];
-    for (var wi = 0; wi < worldOffsets.length; wi++) {
+    // DEGREES here; the particle pass below uses its own mercator-unit offsets [0, ∓1]. Both were
+    // function-scoped `var worldOffsets` until 2026-07-31 — same name, same scope, different UNITS.
+    const worldOffsets = _needWrap ? [0.0, -360.0, 360.0] : [0.0];
+    for (let wi = 0; wi < worldOffsets.length; wi++) {
       gl.uniform1f(heatLngOffsetLoc, worldOffsets[wi]);
       gl.drawElements(gl.TRIANGLES, this.numGridIndices, gl.UNSIGNED_SHORT, 0);
       if (typeof window !== 'undefined' && window.__RAW_GPU__) {
@@ -1826,7 +1835,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
     if (this.heatmapVAO) {
       gl.bindVertexArray(null);
     } else {
-      var heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
+      const heatUVLoc = gl.getAttribLocation(this.heatmapProgram, 'a_grid_uv');
       if (heatUVLoc !== -1) gl.disableVertexAttribArray(heatUVLoc);
     }
 
@@ -2094,8 +2103,9 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
 
       // v5.3: gl.TRIANGLES quad ribbons (6 verts per particle)
       var numQuadVerts = this._numQuadVertices || this.particleRes * this.particleRes * 6;
-      var worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
-      for (var wi = 0; wi < worldOffsets.length; wi++) {
+      // MERCATOR UNITS here (the heatmap pass above uses DEGREES) — see the note at that site.
+      const worldOffsets = _needWrap ? [0.0, -1.0, 1.0] : [0.0];
+      for (let wi = 0; wi < worldOffsets.length; wi++) {
         gl.uniform1f(mercOffsetLoc, worldOffsets[wi]);
         gl.drawArrays(gl.TRIANGLES, 0, numQuadVerts);
         if (typeof window !== 'undefined' && window.__RAW_GPU__) {
@@ -2106,7 +2116,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
       if (this.drawVAO) {
         gl.bindVertexArray(null);
       } else {
-        var idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
+        const idLoc = gl.getAttribLocation(this.drawProgram, 'a_vertex_id');
         if (idLoc !== -1) gl.disableVertexAttribArray(idLoc);
       }
 
@@ -2249,7 +2259,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         if (this.advectVAO) {
           gl.bindVertexArray(null);
         } else {
-          var advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
+          const advPosLoc = gl.getAttribLocation(this.advectProgram, 'a_pos');
           if (advPosLoc !== -1) gl.disableVertexAttribArray(advPosLoc);
         }
 
@@ -2266,7 +2276,7 @@ WebGLMarineEngine.prototype.renderHeatmapAndParticles = function(gl, matrix, scr
         try {
           gl.bindFramebuffer(gl.FRAMEBUFFER, this.advFBO);
           gl.framebufferTexture2D(gl.FRAMEBUFFER, gl.COLOR_ATTACHMENT0, gl.TEXTURE_2D, null, 0);
-        } catch (e) {}
+        } catch (e) { /* teardown detach: a lost or already-torn context is the expected failure, nothing to recover */ }
       }
       restoreWebGLState(gl, webglState);
     }
@@ -2663,7 +2673,7 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
     }
     return { lng, lat, base, overlay, effective, src, effB };
   });
-  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) {}
+  try { gl.bindFramebuffer(gl.FRAMEBUFFER, prevFbo); gl.deleteFramebuffer(fbo); } catch (e) { /* probe cleanup only — the sampled result is already captured in `res` */ }
   return res;
 };
 
@@ -2843,7 +2853,7 @@ WebGLMarineEngine.prototype._freeCoarseBase = function(gl, obj) {
         if ((m.__rsRefs || 1) > 1) { m.__rsRefs -= 1; }
         else { safeDeleteTexture(gl, m, this); }
       }
-    } catch (e) {}
+    } catch (e) { /* best-effort free: never let a teardown throw escape and strand the rest of the LRU */ }
   };
   if (obj) { freeOne(obj); return; }
   const seen = new Set();
