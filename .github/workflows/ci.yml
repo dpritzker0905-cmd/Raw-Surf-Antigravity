@@ -222,9 +222,14 @@ jobs:
       # itself with a module-level `pytest.importorskip("fastmcp")`, so it is a COUNTED SKIP here
       # instead of an invisible omission. An excluded file and a passing file look identical in a
       # summary line; a skip is printed, and it returns by itself the day the pin is fixed.
-      # ★ MEASURED, not assumed: a module-level importorskip emits ONE testcase with
-      # `classname=''`, which `files.discard('')` below drops — so it adds to `skipped` and NOT to
-      # the module count. The floor is therefore unaffected by this move in either direction.
+      # ⚠️ AND A CORRECTION, kept because the mistake is the instructive part. I first measured a
+      # module-level importorskip in a BARE scratch directory: it emitted one testcase with
+      # `classname=''`, which `files.discard('')` drops, so I recorded "adds to skipped, NOT to the
+      # module count". THIS RUN SAYS OTHERWISE — 40 → 42 files, i.e. the skipped module DID count.
+      # Inside the real `tests/` package (with its conftest) pytest emits the dotted module name.
+      # ★ A measurement taken outside the configuration that actually runs is an adjacent question,
+      # not a cheaper version of the same one. Harmless here only because the count moved UP and
+      # this ratchet is shrink-only.
       - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
         working-directory: backend
         run: |
@@ -272,7 +277,16 @@ jobs:
           # files or symbols is contaminated by another agent's uncommitted work.
           # These numbers are CI's own reading on origin/dev @ 50e441bd: 631 collected, 40 files,
           # 561 passed, 70 skipped. Floor sits just below that.
-          MIN_FILES, MIN_PASSED = 40, 555
+          # ⬆ RAISED 40→42 / 555→580 on 2026-08-01, closing the 2-slack HANDOFF-2026-08-01-D §4f
+          # recorded. ★ THE NUMBERS COME FROM THE GATE'S OWN RUN ON origin/dev @ 5f19ac7d
+          # ("collected 660 tests across 42 files -> 588 passed, 72 skipped, 0 failed"), NOT from a
+          # local count — the recorded failure `6c4ab178` was a floor calibrated on a shared working
+          # tree that held a concurrent session's UNTRACKED test file, making the gate unmeetable by
+          # anything that ships. In a shared tree, any measurement that enumerates files is
+          # contaminated; read the gate, not the checkout.
+          # +2 files: tests/test_sim_served_reference.py (new) and
+          # tests/test_sim_whatif_size_curve_and_io_budget.py (left the exclusion list above).
+          MIN_FILES, MIN_PASSED = 42, 580
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
