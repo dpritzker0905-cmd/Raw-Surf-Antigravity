@@ -96,7 +96,8 @@ def _top_of_hour_utc():
 def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unknown_hour=False):
     from weather_sim_mcp import _baseline_with_source
     from services.weather_pipeline import sim_spots
-    from services.weather_pipeline.sim_rating import calculate_surf_rating, geometry_payload
+    from services.weather_pipeline.sim_rating import (
+        calculate_surf_rating, geometry_payload, reference_size_for)
 
     rows, skipped, unresolved = [], [], []
     readiness = {}
@@ -163,6 +164,14 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             geo = geometry_payload(spot)
             verdict = geo.get("readiness") or ("resolved" if geo.get("resolved") else "blind")
             readiness[verdict] = readiness.get(verdict, 0) + 1
+            # ⚠️⚠️ DID THE SIM ACTUALLY GET THE REFERENCE IT CLAIMS TO GRADE AGAINST? With
+            # RATING_LOCAL_SIZE=1 but no Supabase credentials the climatology loader returns None,
+            # `reference_for_spot` returns None, and the sim silently grades the GLOBAL 1.2 m curve
+            # while the served glyph grades locally. That is not a parity finding — it is this
+            # probe measuring a composition it built itself. Counted here so the summary can refuse
+            # to report a number rather than publish a divergence it manufactured.
+            if reference_size_for(spot, True) is not None:
+                readiness["_refs_resolved"] = readiness.get("_refs_resolved", 0) + 1
 
             h_sim = calc["breaking_height_ft"] / 3.28084
             h_srv = item.get("surf_height_m")
@@ -391,6 +400,22 @@ def main():
         if not rows:
             print("FAIL: nothing was comparable — an empty probe is not a green one.",
                   file=sys.stderr)
+            return 1
+        # ⛔⛔ REFUSE TO REPORT A DIVERGENCE THIS PROBE MANUFACTURED. With RATING_LOCAL_SIZE=1 the
+        # sim grades against each spot's own good day, but the reference comes from the size
+        # climatology in a PRIVATE bucket. Without SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY the
+        # loader returns None and the sim silently falls back to the GLOBAL 1.2 m curve — so every
+        # spot "diverges" from a glyph that graded locally. Measured on run 30703622084: 8 of 9
+        # differing, |dScore| median 10.7, signed BOTH ways (California +31.1, Florida -10.3)
+        # because the two coasts sit on opposite sides of the curve crossover.
+        # ★ An instrument that cannot obtain the inputs of the thing it audits must say NOT
+        # MEASURED, never publish the gap as a finding about the system.
+        if os.environ.get("RATING_LOCAL_SIZE", "0") == "1" and not readiness.get("_refs_resolved"):
+            print("FAIL: RATING_LOCAL_SIZE=1 but NOT ONE spot resolved a local size reference — "
+                  "the sim graded the global 1.2 m curve while the served glyph graded locally. "
+                  "This is an INSTRUMENT failure (missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY, "
+                  "or an empty climatology), NOT a composition finding. No parity number is "
+                  "reported.", file=sys.stderr)
             return 1
         # ★ Fail on COMPOSITION, not on provenance. When attribution ran, a divergence the shared-
         # provenance re-check clears is the precompute holding an older model run — real, worth

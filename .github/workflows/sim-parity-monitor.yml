@@ -119,6 +119,21 @@ jobs:
           SURF_PARTITIONS: '0'
           RATING_OBS_GATE: '1'
           RATING_LOCAL_SIZE: '1'
+          # ⚠️⚠️ THE FLAG WITHOUT THE DATA IS A FLAG THAT CHANGES NOTHING. RATING_LOCAL_SIZE=1 tells
+          # the sim to grade against each spot's own good day; the reference itself comes from the
+          # size-climatology blob in the PRIVATE `weather-products` bucket, and
+          # `spot_size_climatology._l2_env()` reads exactly these two names. Without them the loader
+          # returns None, `reference_for_spot` returns None, and the sim silently falls back to the
+          # global 1.2 m curve while the served glyph grades locally.
+          # Measured on run 30703622084, which had the flags and NOT these: 8 of 9 spots differing,
+          # |dScore| median 10.7 — and signed BOTH ways, which is the tell. California read HIGH
+          # (+31.1: a big local reference lost) while Florida read LOW (-10.3: a small one lost),
+          # because the two coasts sit on opposite sides of the local/global curve crossover.
+          # ★ The same run was GREEN on my machine, whose shell happened to export these. That is
+          # the "works on my machine" class the requirements-dev finding was about, one layer up:
+          # a credential in the operator's environment is not a credential in the lane.
+          SUPABASE_URL: ${{ secrets.SUPABASE_URL }}
+          SUPABASE_SERVICE_ROLE_KEY: ${{ secrets.SUPABASE_SERVICE_ROLE_KEY }}
         run: |
           set -o pipefail
           ARGS="--json --attribute --fail-on-divergence --per-region ${PER_REGION}"
