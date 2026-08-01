@@ -149,6 +149,50 @@ def reference_map(clim_obj: Optional[dict], **kw) -> dict:
     return out
 
 
+# The resolved map, memoised against the IDENTITY of the climatology object it was built from.
+# NOT a second TTL: `load_size_climatology_l2_cached` returns the same object for the life of its
+# own cache, so this invalidates exactly when that loader refreshes and can never be staler than it.
+_ref_map_memo = {"cell": (None, {})}
+
+
+def reference_for_spot(spot_id) -> Optional[float]:
+    """THE ONE-SPOT ACCESSOR: this spot's `reference_size_m`, or None.
+
+    ★ WHY THIS EXISTS. The batch lanes (`spot_ratings.build_precomputed_frames`, the live glyph
+    fallback in `routes/weather.py`) rate MANY spots per pass, so they build the whole
+    `reference_map` once and index it. A per-spot surface — the spot hub — has no such pass to hang
+    the map on, and the two obvious workarounds are both wrong:
+
+      * rebuild `reference_map` per spot: a ~1,800-entry percentile sweep per hub call, and the
+        explore lane fans out one hub call PER SPOT IN VIEW. Pure CPU on a serve box with a
+        three-incident melt history.
+      * read the climatology some other way: a THIRD derivation of the same number, free to drift
+        from the two that already exist. CLAUDE.md: mirror the reference, never re-derive it.
+
+    So the composition stays in ONE place. This is literally `reference_map(
+    load_size_climatology_l2_cached())` — the same two symbols `spot_ratings` composes — with the
+    map cached against the loaded object rather than rebuilt per lookup.
+
+    ⚠️ NOT GATED HERE. `RATING_LOCAL_SIZE` is the CALLER's gate at every existing lane, and it must
+    stay there: the flag has a value PER LANE, and a gate buried in a shared helper would silently
+    flip every lane at once the day one of them set it. Callers gate; this only looks up.
+
+    Returns None for an unknown spot, a spot without enough climatology, or no blob at all — every
+    one of which means "use the global curve", which is the pre-flip behaviour."""
+    if spot_id is None:
+        return None
+    clim = load_size_climatology_l2_cached()
+    if not clim:
+        return None
+    src, mapping = _ref_map_memo["cell"]
+    if src is not clim:
+        mapping = reference_map(clim)
+        # ONE tuple assignment: a concurrent reader sees either the whole old pair or the whole new
+        # one, never a new source paired with a stale map.
+        _ref_map_memo["cell"] = (clim, mapping)
+    return mapping.get(str(spot_id))
+
+
 def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
     """Fold the breaking heights from a precompute run's frames ([{spots:[{spot_id, surf_height_m}...]}]) into
     the rolling per-spot histograms. Returns the updated climatology object (schema-versioned)."""
