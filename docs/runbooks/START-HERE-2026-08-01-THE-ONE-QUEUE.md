@@ -43,6 +43,20 @@ Branch `dev` == `origin/dev` == `663c7cfc` (2026-08-01 early). Closed this arc: 
 > BOTH directions (`b6ce6b08`).
 > ⛔ **An agent CANNOT restart the MCP server** — it is a child of `claude.exe`; the owner must
 > restart Claude Code.
+> ### ➕ 2026-08-01 LATE — `HANDOFF-2026-08-01-H-the-marine-pipeline-audit-and-the-plan.md`
+> ⛔⛔ **READ `memory/THE-MARINE-PIPELINE-AND-ENGINE-how-it-actually-works-2026-08-01.md` BEFORE
+> TOUCHING ANY MARINE LAYER, FETCHER OR SHADER.** Four confident wrong claims in one session,
+> all from *one grep + a generalisation*: `provider:"open-meteo"` is a **DISPATCH KEY — you ARE
+> on direct NOAA/DWD/ECMWF GRIB**; **ECMWF WAM has NO partitions on any path** (so EURO = ECMWF
+> total + CMEMS partitions, owner-ruled to stay); the GPU texture packs **B=height/10 and
+> A=period/20 — BOTH saturate inside real surf** — with the constants **1 encode ↔ 5 decode
+> across 3 files**; and the rating lane is **3-model**, so EURO's split feeds the obs gate.
+> ★ `-H` carries the plan: **(1a) period+energy in the INFOBOX (free) → (1b) heatmap display
+> mode (fix the ceilings FIRST) → (2) per-site refraction offsets → (3) onshore-energy arrow →
+> (4) SURF_PARTITIONS precompute-first (costs 4×) → (5) label hygiene.**
+> ⚠️ **#7 is DORMANT, NOT FIXED** — the ~216° tier flip does not reproduce today (|Δdir| 1.3-15.9°)
+> only because seas are swell-dominated; the mechanism is intact.
+
 ⚠️ A parallel session is live in this tree (marine multi-bbox) — **stage BY PATH**, never `git add -A` (standing rule 18; I pushed its mutation test to `origin/dev` once).
 
 ---
