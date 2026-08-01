@@ -257,7 +257,15 @@ jobs:
           # quiet tree, not from a moving one.
           # MIN_FILES is the exact module count so that ANY drop — a glob that stops matching, an
           # exclusion pattern that widens by accident — is red rather than quietly narrower.
-          MIN_FILES, MIN_PASSED = 41, 565
+          # ⚠⚠ MEASURE THE FLOOR ON origin/dev, NEVER ON A SHARED WORKING TREE. This read 41/565
+          # because my local checkout contained tests/test_spot_hub_local_size_reference.py — a
+          # CONCURRENT SESSION'S UNTRACKED FILE. origin/dev has 40 files, so the gate could not
+          # be met by anything that ships. Third instance of that class in one session (see also
+          # the reference_for_spot ImportError): in a shared tree, ANY measurement that enumerates
+          # files or symbols is contaminated by another agent's uncommitted work.
+          # These numbers are CI's own reading on origin/dev @ 50e441bd: 631 collected, 40 files,
+          # 561 passed, 70 skipped. Floor sits just below that.
+          MIN_FILES, MIN_PASSED = 40, 555
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
