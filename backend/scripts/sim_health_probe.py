@@ -411,11 +411,35 @@ def main():
         # ★ An instrument that cannot obtain the inputs of the thing it audits must say NOT
         # MEASURED, never publish the gap as a finding about the system.
         if os.environ.get("RATING_LOCAL_SIZE", "0") == "1" and not readiness.get("_refs_resolved"):
-            print("FAIL: RATING_LOCAL_SIZE=1 but NOT ONE spot resolved a local size reference — "
-                  "the sim graded the global 1.2 m curve while the served glyph graded locally. "
-                  "This is an INSTRUMENT failure (missing SUPABASE_URL / SUPABASE_SERVICE_ROLE_KEY, "
-                  "or an empty climatology), NOT a composition finding. No parity number is "
-                  "reported.", file=sys.stderr)
+            # ★ DIAGNOSE, DO NOT MERELY DECLARE. "Instrument failure" names a class; the operator
+            # needs the member. `load_size_climatology_l2` swallows every cause — missing env,
+            # non-200, timeout, parse error — into a single None at debug level, so the only way to
+            # tell them apart is to re-ask the questions separately and print the answers.
+            diag = []
+            diag.append(f"SUPABASE_URL set: {bool(os.environ.get('SUPABASE_URL'))}")
+            diag.append(f"SUPABASE_SERVICE_ROLE_KEY set: "
+                        f"{bool(os.environ.get('SUPABASE_SERVICE_ROLE_KEY') or os.environ.get('SUPABASE_KEY'))}")
+            try:
+                from services.weather_pipeline.spot_size_climatology import (
+                    load_size_climatology_l2_cached, reference_map)
+                clim = load_size_climatology_l2_cached()
+                diag.append(f"climatology loaded: {clim is not None}")
+                if clim is not None:
+                    refs = reference_map(clim) or {}
+                    diag.append(f"entries: {len(clim.get('spots') or {})}, references: {len(refs)}")
+                    sample = [r for r in rows[:3]]
+                    for r in sample:
+                        sid = r.get("spot_id")
+                        diag.append(f"  probe spot {r.get('spot')!r} id={sid!r} "
+                                    f"-> ref {refs.get(str(sid)) if sid else None}")
+            except Exception as e:
+                diag.append(f"climatology probe raised: {type(e).__name__}: {e}")
+            print("FAIL: RATING_LOCAL_SIZE=1 but NOT ONE spot resolved a local size "
+                  "reference - the sim graded the global 1.2 m curve while the served glyph "
+                  "graded locally. This is an INSTRUMENT failure, NOT a composition finding. "
+                  "No parity number is reported.", file=sys.stderr)
+            for line in diag:
+                print(f"  {line}", file=sys.stderr)
             return 1
         # ★ Fail on COMPOSITION, not on provenance. When attribution ran, a divergence the shared-
         # provenance re-check clears is the precompute holding an older model run — real, worth
