@@ -193,12 +193,14 @@ jobs:
         with:
           python-version: '3.11'
 
-      # requirements.txt carries no test deps, but tests/conftest.py imports pytest_asyncio and
-      # pyproject sets asyncio_mode="auto" — so they are installed explicitly and pinned to the
-      # versions the 2026-08-01 measurement was taken with.
+      # requirements.txt is what Render installs and carries no test deps at all. requirements-dev
+      # is the declared test set — pytest/pytest-asyncio (conftest imports pytest_asyncio, pyproject
+      # sets asyncio_mode="auto") plus fastmcp and aiosqlite, both imported at module level by
+      # production modules on the SQLite/test lane. Their absence is what failed this job's first
+      # cloud run: six guard modules could not even be collected.
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install -q -r requirements.txt "pytest==9.0.3" "pytest-asyncio==1.3.0"
+        run: pip install -q -r requirements-dev.txt
 
       - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
         working-directory: backend

@@ -69,9 +69,14 @@ jobs:
         with:
           python-version: '3.11'
 
+      # ⚠️ The probe imports `weather_sim_mcp` for `_baseline_with_source`, and that module imports
+      # fastmcp at module level — which is NOT in requirements.txt. The first cloud run died on
+      # exactly this: ModuleNotFoundError, no JSON written, and the verdict step then announced a
+      # composition divergence over a measurement that never happened. requirements-dev.txt is the
+      # declared test/dev set; it includes requirements.txt via -r.
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install -q -r requirements.txt
+        run: pip install -q -r requirements-dev.txt
 
       # The probe re-runs the sim at the hour the serve box actually SERVED (`served_valid_time`),
       # never the hour that was asked for, so both sides always describe the same moment.
@@ -104,13 +109,23 @@ jobs:
       # Renders the machine output as a human verdict in the run summary. Kept separate from the
       # probe step so a green parity still publishes its numbers: the VALUE of this job is the
       # trend (|dScore| and geometry readiness over time), not the pass/fail bit.
+      # ⚠️ hashFiles() is TRUE for a 0-byte file — it tests existence, not content. The first cloud
+      # run wrote an empty parity.json (the probe died on a missing import) and this step then
+      # crashed on JSONDecodeError, burying the real cause under a second traceback. The parse is
+      # guarded here so the run reports the ONE thing that actually went wrong.
       - name: Render verdict
         if: always() && hashFiles('backend/parity.json') != ''
         working-directory: backend
         run: |
           python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
           import json
-          d = json.load(open('parity.json'))
+          try:
+              d = json.load(open('parity.json'))
+          except Exception as e:
+              print(f"## Sim parity — ⚠️ NOT MEASURED\n\nThe probe wrote no parseable result "
+                    f"(`{e}`). See the probe step's stderr above for the cause. This is a broken "
+                    f"instrument, **not** a parity finding.")
+              raise SystemExit(0)
           s, rows = d['summary'], d['rows']
           n, diffs = s['n'], s['level_differences']
           print(f"## Sim parity — {'⛔ DIVERGED' if diffs else '✅ agrees'}")
@@ -152,8 +167,21 @@ jobs:
         env:
           CODE: ${{ steps.probe.outputs.code }}
           PAGING: ${{ vars.SIM_PARITY_PAGING || '1' }}
+        working-directory: backend
         run: |
           if [ "$CODE" = "0" ]; then echo "Sim agrees with the served glyph."; exit 0; fi
+          # ★ A NON-ZERO PROBE IS NOT AUTOMATICALLY A DIVERGENCE. The first cloud run exited 1 on a
+          # missing import and this step announced "the sim and the map disagree on LEVEL" — a
+          # confident claim about the physics when nothing had been measured at all. An instrument
+          # that misreports WHY it is red teaches people to distrust it, and then the real
+          # divergence gets waved off too. Parseable JSON is the discriminator: the probe only
+          # writes it after it has actually compared something.
+          if ! python3 -c "import json;json.load(open('parity.json'))" 2>/dev/null; then
+            echo "::error::Sim parity was NOT MEASURED — the probe failed before producing a"\
+                 "result (missing dependency, unreachable serve box, or a crash). This is an"\
+                 "instrument failure, NOT a composition finding. See the probe step's stderr."
+            exit 1
+          fi
           if [ "$PAGING" = "1" ]; then
             echo "::error::The weather sim and the map disagree on LEVEL for the same spot-hour —"\
                  "two different answers to 'should I paddle out?'. This is a ONE FORECAST"\
