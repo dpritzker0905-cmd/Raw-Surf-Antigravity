@@ -129,8 +129,28 @@ CATALOG_DEFAULTS: Dict[str, Dict[str, Any]] = {
 # (and 44.9 deg wrong at Mavericks even there), so it has no claim to being the live row's
 # fallback. Where ETOPO cannot resolve a normal, the honest answer is None — which
 # `calculate_surf_rating` already handles by failing open and saying so.
+#
+# ⚠️⚠️ `reference_size_m` IS ABSENT FOR THE SAME REASON, AND IT COST A LEVEL AT MAVERICKS.
+# It was grafted here until 2026-08-01. `reference_size_for` returns an explicit
+# `spot["reference_size_m"]` BEFORE it consults the climatology, so a hand-tuned constant on a LIVE
+# row silently outranked the per-spot climatology the glyph grades against — and the graft applies
+# to whatever live row shares the name. Measured at Mavericks (live row, id 264de2b4) on the served
+# sea of 2026-08-01T13:00Z, with RATING_LOCAL_SIZE=1:
+#
+#     grafted 4.0 m  -> 12.0 very_poor    <- what the sim would have said
+#     climatology    -> 27.3 poor         == the SERVED glyph, exactly
+#     global curve   -> 45.3 fair
+#
+# ⇒ the graft did not merely differ, it broke ONE FORECAST COMPOSITION for the three names that
+# carry one (Mavericks 4.0, Montara 1.5, Pacifica 1.2) — the sim grading a constant while every
+# other surface graded the spot's own good day. ★ Removing it keeps the sim in step with the glyph
+# in ALL cases, which is the point: climatology present -> both use it; absent -> both fall to the
+# global curve. The hand-tuned value still applies on the OFFLINE `catalog_default` path, where
+# `resolve()` returns `dict(default)` whole — there is no live row to disagree with and no id to
+# look up. ★ Same shape as `orientation`: a constant measured for a NAME has no claim over a live
+# row's own measurement.
 _GRAFTED_KEYS = ("base_swell_height", "base_swell_period", "base_swell_direction",
-                 "base_wind_speed", "base_wind_direction", "reference_size_m")
+                 "base_wind_speed", "base_wind_direction")
 
 
 # Every apostrophe-like character a spot name is written with: ASCII, the Hawaiian ʻokina (U+02BB),

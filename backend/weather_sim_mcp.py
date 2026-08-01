@@ -396,6 +396,30 @@ def simulate_weather_change(
         else:
             baseline, baseline_source, provenance = None, "none", {}
 
+    # ⚠️⚠️ THE I/O BUDGET IS THE CALLER'S OPT-IN — **NOT** "do we have a baseline".
+    # `allow_reference_lookup` was keyed on `baseline is not None`, described as "the caller has
+    # already paid for the fetch". That is false on two of the three branches above: a PEEKED cache
+    # hit and a staged `_SIM_OVERRIDES` entry both yield a baseline having paid NOTHING. Measured
+    # 2026-08-01 by spying on `load_size_climatology_l2` (the function that actually performs HTTP,
+    # with its 600 s TTL left intact — stubbing the cached wrapper inflates the count):
+    #
+    #     all five inputs, no hour, COLD forecast cache -> 0 HTTP dials   invariant holds
+    #     all five inputs, no hour, WARM forecast cache -> 2 HTTP dials   invariant VIOLATED
+    #
+    # The warm case is the COMMON one on a long-lived server, and it is exactly the flow
+    # `test_a_cached_forecast_is_PEEKED_not_refetched` calls "what makes the delta free". It was no
+    # longer free. ★ 3rd instance of *a code comment's framing of WHEN a path fires is not
+    # evidence* — the comment named one branch and there were three.
+    #
+    # ★★ AND IT MUST BE THE SAME VALUE ON BOTH SIDES OF THE DELTA. `calc` omitted the flag while
+    # `base_calc` passed True, so the what-if graded on the GLOBAL curve and the baseline it is
+    # compared against graded on the LOCAL one: measured at Mavericks with a 1.9 m reference,
+    # what-if 48.0 vs baseline 31.1, a reported "+16.9 better" contaminated by a size-curve switch
+    # the caller never asked for. That is the identical defect the `_whatif_parts` comment below
+    # documents for partitions (+12.5 of which +12.5 was the composition switch) — one variable,
+    # used by both calls, is what keeps a delta measuring the CALLER'S change.
+    _reference_lookup_ok = bool(omitted or hour)
+
     if omitted and baseline is None:
         # Say WHICH fields could not be filled and WHY, rather than failing with a bare null or —
         # far worse — inventing a calm sea for them. An invented wind is exactly how a blown-out day
@@ -452,6 +476,9 @@ def simulate_weather_change(
         wind_speed_knots,
         wind_direction_deg,
         partitions=_whatif_parts,
+        # SAME permission as `base_calc` below — both sides of `baseline_delta` must grade on the
+        # same size curve, and the zero-network what-if must reach neither.
+        allow_reference_lookup=_reference_lookup_ok,
     )
 
     # Persist simulation changes to condition_reports in dev.db if present. NOTE this is a
@@ -514,10 +541,9 @@ def simulate_weather_change(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=_whatif_parts,
-            # Reached ONLY when `baseline is not None`, i.e. the caller omitted an input or named
-            # an hour and has already paid for the fetch. The zero-network what-if never gets
-            # here, so the invariant is untouched.
-            allow_reference_lookup=True)
+            # ⚠️ NOT `True`. `baseline is not None` is ALSO satisfied by a peeked cache hit and by
+            # a staged override, neither of which paid for a fetch — see `_reference_lookup_ok`.
+            allow_reference_lookup=_reference_lookup_ok)
         changed = {k: {"from": round(float(baseline[k]), 2), "to": round(float(resolved[k]), 2)}
                    for k in requested if abs(float(baseline[k]) - float(resolved[k])) > 1e-9}
         baseline_delta = {

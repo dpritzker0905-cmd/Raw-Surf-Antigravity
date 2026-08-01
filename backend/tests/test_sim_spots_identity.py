@@ -87,10 +87,17 @@ def test_the_baseline_is_grafted_but_the_location_is_not():
     """The hand-tuned rows still contribute what no catalogue row has — and nothing else."""
     spot = sim_spots.resolve("Mavericks").spot
     assert spot["base_swell_height"] == 3.5           # grafted
-    assert spot["reference_size_m"] == 4.0            # grafted
     assert spot["latitude"] == 37.4915                # NOT grafted
     # `orientation` is a bearing measured for a DIFFERENT coordinate, and 44.9 deg wrong there.
     assert "orientation" not in spot
+    # ⚠️ `reference_size_m` USED TO BE GRAFTED (== 4.0) and stopped on 2026-08-01. It is the same
+    # case as `orientation`, and this test's own docstring is the argument: a live row DOES now
+    # have a reference — its climatology, the one every other surface grades against — so the
+    # hand-tuned constant is no longer "what no catalogue row has". Grafting it made
+    # `reference_size_for` return 4.0 before it ever consulted the blob, which at Mavericks scored
+    # 12.0 `very_poor` against the served glyph's 27.3 `poor`.
+    # See tests/test_sim_graft_does_not_override_climatology.py.
+    assert "reference_size_m" not in spot
 
 
 def test_a_name_the_catalogue_does_not_carry_falls_back_and_says_so():
