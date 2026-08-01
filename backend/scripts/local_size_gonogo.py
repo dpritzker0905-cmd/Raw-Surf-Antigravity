@@ -152,6 +152,14 @@ def main():
 
         clim = _get_json(session, f"{url}/storage/v1/object/{BUCKET}/{CLIMATOLOGY_KEY}", svc,
                          "climatology blob")
+        # ⚠️ RATINGS_KEY was declared at the top of this file from the first commit and READ BY
+        # NOTHING — so the go/no-go answered "is the blob sane?" and never "what does the flip do to
+        # the product?", even though local_size_preview.preview_impact computes exactly that and is
+        # EXACT (reference_size_m enters only two multiplicative factors, so the A/B is a ratio on
+        # the persisted score and costs one blob read). A dead constant is not a neutral leftover
+        # here: it named the missing half of the decision and made it look answered.
+        served = _get_json(session, f"{url}/storage/v1/object/{BUCKET}/{RATINGS_KEY}", svc,
+                           "served ratings blob")
         spots = _all_spots(session, url, svc)
 
     from services.weather_pipeline.local_size_preview import anchor_report, sanity_check
@@ -218,6 +226,49 @@ def main():
         row = "".join(f"{(f'{c:.2f}' if c else '-'):>15}" for c in cells)
         mark = " <-" if anchors == 5 else ""
         print(f"  {pctl:.2f}  {row}   {anchors}/5{mark}")
+
+    # ── THE PRODUCT IMPACT — a sane blob is not the same question as a safe flip ─────────────────
+    # ★★ The exemplars and the anchors say the REFERENCE is right. They say nothing about how many
+    # spot-hours change LEVEL when the flag flips, and LEVEL is what a surfer reads. The recorded
+    # precedent is the partitions A/B, where a change that looked defensible moved 50% of spot-hours
+    # and was therefore a product event needing its own decision, not a config edit.
+    # ⚠️ The direction matters more than the magnitude: local calibration is a REDISTRIBUTION whose
+    # curves cross at 2.83 ft, so a healthy result is DOWNGRADES at the top (the saturation this
+    # exists to stop) and small moves below. Mass upgrades would mean the blob is inverted.
+    from services.weather_pipeline.local_size_preview import preview_impact
+    frames = (served.get("frames") if isinstance(served, dict) else None) or \
+             (served if isinstance(served, list) else None) or \
+             ([served] if isinstance(served, dict) and served.get("spots") else [])
+    print()
+    print("=" * 92)
+    print(f"PRODUCT IMPACT -- A/B over the served ratings ({len(frames)} frame(s))")
+    print("=" * 92)
+    imp = preview_impact(clim, frames)
+    r, i = imp["readiness"], imp["impact"]
+    print(f"  coverage   {r['spots_with_reference']}/{r['spots_rated']} rated spots have a "
+          f"reference ({r['coverage_pct']}%)")
+    print(f"  compared   {i['spot_hours_compared']} spot-hours  "
+          f"(indeterminate {i['indeterminate']})")
+    print(f"  LEVEL      unchanged {i['level_unchanged']}  up {i['level_up']}  "
+          f"down {i['level_down']}  => {i['level_change_pct']}% CHANGE")
+    print(f"  delta      p10 {i['delta_p10']}  median {i['delta_median']}  p90 {i['delta_p90']}  "
+          f"(min {i['delta_min']}, max {i['delta_max']})")
+    if imp.get("level_flow"):
+        print("  flow       " + ", ".join(f"{k} x{v}" for k, v in
+                                          list(imp["level_flow"].items())[:8]))
+    def _mover(row, arrow):
+        # Keys are name/score_now/score_after/level_now/level_after — NOT spot/score/level. A first
+        # pass guessed the latter and printed "None -> None" for every row, which reads as missing
+        # data rather than a wrong field name. ★ An instrument that renders None on a healthy blob
+        # is indistinguishable from the blob being empty.
+        print(f"    {arrow} {row.get('name') or row.get('spot_id')}: "
+              f"{row.get('level_now')} -> {row.get('level_after')}  "
+              f"({row.get('score_now')} -> {row.get('score_after')}, "
+              f"h={row.get('surf_height_m')} m, ref={row.get('reference_m')} m)")
+    for row in (imp.get("biggest_downgrades") or [])[:4]:
+        _mover(row, "v")
+    for row in (imp.get("biggest_upgrades") or [])[:4]:
+        _mover(row, "^")
 
     print()
     if report["verdict"] == "SANE":
