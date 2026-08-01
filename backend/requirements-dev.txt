@@ -1,44 +1,45 @@
-# Test/dev dependency OVERLAY — 2026-08-01.
+# Test dependency OVERLAY — 2026-08-01.
 #
-# ⚠️⚠️ INSTALL THIS *AFTER* requirements.txt, NOT INSTEAD OF IT, AND NOT VIA `-r requirements.txt`.
+# ⚠️ INSTALL AFTER requirements.txt, not instead of it:
 #     pip install -r requirements.txt
 #     pip install -r requirements-dev.txt
-# The two-step order is load-bearing (see the httpx note below) — a single resolution over both
-# files is ResolutionImpossible, which is exactly how the first cloud run of the parity monitor
-# died.
 #
 # WHY THIS FILE DID NOT EXIST UNTIL NOW: no pytest ran in GitHub Actions at all, so nothing ever
-# had to declare what the suite needs. The backend suite was runnable only on a machine where
-# these had been installed by hand at some point — a state indistinguishable from "the tests pass"
-# right up until someone checks out the repo clean, which is what a CI runner does every time.
+# had to declare what the suite needs. The backend suite was runnable only on a machine where these
+# had been installed by hand at some point — a state indistinguishable from "the tests pass" right
+# up until someone checks out the repo clean, which is what a CI runner does every time.
 #
-# Discovered by wiring the composition guard suite to CI and reading the collection errors:
-#   fastmcp    weather_sim_mcp.py and services/weather_pipeline/sim_boot.py import it at module
-#              level; four guard modules could not be collected without it.
-#   aiosqlite  backend/database.py and services/weather_pipeline/spot_ratings.py import it — the
-#              SQLite lane tests and local dev run on. Production serves Postgres via asyncpg,
-#              which is why requirements.txt never needed it and why its absence stayed invisible.
+#   pytest / pytest-asyncio  tests/conftest.py imports pytest_asyncio; pyproject sets
+#                            asyncio_mode = "auto".
+#   aiosqlite                backend/database.py and services/weather_pipeline/spot_ratings.py
+#                            import it — the SQLite lane tests and local dev run on. Production
+#                            serves Postgres via asyncpg, which is why requirements.txt never
+#                            needed it and why its absence stayed invisible.
 #
-# ★★ THE httpx DIVERGENCE IS DELIBERATE AND IS THE WHOLE REASON THIS IS AN OVERLAY.
-# requirements.txt pins httpx==0.27.2. EVERY published fastmcp release — checked back to 2.2.10,
-# and 2.3.4 / 2.6.1 / 2.8.1 / 2.10.6 / 2.11.3 / 3.3.1 all agree — requires httpx>=0.28.1. There is
-# therefore NO fastmcp version installable alongside the declared production pins, so no amount of
-# version-chasing fixes this; the local machines where the sim tests "passed" simply had a drifted
-# httpx that no longer matched requirements.txt.
-# The test lane consequently runs a NEWER httpx than production. That is a real fidelity gap and it
-# is named here rather than hidden: the composition guards exercise offline rating/geometry logic
-# and do not touch the HTTP client, so the risk is bounded — but anything added here that DOES
-# exercise httpx behaviour is not testing what production runs.
-# ⇒ The durable fix is upstream: either raise httpx in requirements.txt (it is a transitive
-#   dependency of supabase/openai and wants review), or stop importing fastmcp at module level in
-#   weather_sim_mcp.py so the sim's pure logic is importable without an MCP server framework.
+# ⛔⛔ fastmcp IS DELIBERATELY NOT HERE, AND MUST NOT BE ADDED.
+# `weather_sim_mcp.py` and `services/weather_pipeline/sim_boot.py` import it, so six test modules
+# need it — but fastmcp's dependency tree is fundamentally NEWER than this app's pinned stack and
+# installing it into the test environment breaks the app itself. Measured in CI, 2026-08-01:
 #
-# Pinned to the versions the 2026-08-01 baseline was measured with (44 modules, 737 collected,
-# 673 passed, 64 skipped, 0 failed).
+#   * every published fastmcp — 3.3.1, 2.11.3, 2.10.6, 2.8.1, 2.6.1, 2.3.4, 2.2.10 — requires
+#     httpx>=0.28.1, while requirements.txt pins httpx==0.27.2. No version satisfies both, so this
+#     is not a version-selection problem that a better pin can solve.
+#   * forcing it in anyway ALSO lifts starlette, and `routes/social/__init__.py` then dies with
+#     `TypeError: Router.__init__() got an unexpected keyword argument 'on_startup'` — so
+#     test_spot_ratings.py and test_surf_spots_live_security.py stop importing. Adding fastmcp
+#     costs two modules to gain six, and silently changes the stack under everything else.
+#
+# ⇒ The composition guard suite in ci.yml EXCLUDES the six fastmcp-dependent modules BY NAME and
+#   says so in its floors. The parity monitor installs fastmcp separately because the probe imports
+#   weather_sim_mcp and never imports routes/, so the newer stack is harmless there.
+# ⇒ The durable fix is upstream and is a real decision, not a chore: either raise httpx/starlette
+#   in requirements.txt (both transitive via supabase/openai/fastapi — wants review), or stop
+#   importing fastmcp at module level in weather_sim_mcp.py so the sim's pure logic is importable
+#   without an MCP server framework. The second is the smaller change and the better shape.
+#
+# Pinned to the versions the 2026-08-01 baseline was measured with (38 modules, 545 passed,
+# 64 skipped, 0 failed).
 
 pytest==9.0.3
 pytest-asyncio==1.3.0
 aiosqlite==0.22.1
-
-# Pulls httpx>=0.28.1 over the production pin — see the note above before changing this.
-fastmcp==3.3.1

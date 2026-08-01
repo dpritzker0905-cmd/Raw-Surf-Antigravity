@@ -74,13 +74,20 @@ jobs:
       # exactly this: ModuleNotFoundError, no JSON written, and the verdict step then announced a
       # composition divergence over a measurement that never happened. requirements-dev.txt is the
       # declared test/dev set; it includes requirements.txt via -r.
-      # ⚠️ TWO STEPS, NOT ONE — requirements.txt pins httpx==0.27.2 and fastmcp needs >=0.28.1, so
-      # a single resolution over both is ResolutionImpossible. See backend/requirements-dev.txt.
+      # ⚠️ TWO STEPS, NOT ONE, and fastmcp is installed HERE rather than via requirements-dev.txt.
+      # The probe imports weather_sim_mcp for `_baseline_with_source`, and that module imports
+      # fastmcp at module level — so this job needs it. requirements.txt pins httpx==0.27.2 while
+      # every fastmcp release requires >=0.28.1, so resolving them together is ResolutionImpossible
+      # (that is how this monitor's second cloud run died); installing second lets it lift httpx.
+      # ★ That lift is safe HERE and not in the CI guard suite: forcing fastmcp in also raises
+      # starlette, which breaks `routes/social` — and this probe never imports routes/. Same
+      # package, opposite verdict, because the two jobs import different halves of the app.
+      # See backend/requirements-dev.txt for the upstream fix.
       - name: Install backend dependencies
         working-directory: backend
         run: |
           pip install -q -r requirements.txt
-          pip install -q -r requirements-dev.txt
+          pip install -q "fastmcp==3.3.1"
 
       # The probe re-runs the sim at the hour the serve box actually SERVED (`served_valid_time`),
       # never the hour that was asked for, so both sides always describe the same moment.
