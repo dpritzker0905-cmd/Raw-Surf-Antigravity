@@ -103,78 +103,44 @@ numbers are identical *by construction* and averaging over them would dilute the
 
 ## 2b. THE SIM'S CORE INVARIANTS RAN NOWHERE (`edd45b58` · `052326ec` · `5a2b851d`)
 
-
 fastmcp is install-incompatible with the pinned stack, and because `weather_sim_mcp.py` imported it
-
 **at module scope**, `ci.yml` dropped SIX modules from the guard suite by name. Among them
-
 **`test_sim_whatif_baseline` — the ZERO-NETWORK invariant**, whose regression (`576dcbdd`) was 42.2 s
-
 of blocking, past where an MCP client reports a timeout — plus `test_sim_forecast_lane` and
-
 `test_sim_spots_identity`. ⇒ **the sim's core invariants were verified only on a laptop.** That is
-
 the same fact as "the repo had no `requirements-dev.txt`": undeclared, unrun, and indistinguishable
-
 from passing.
 
-
 `services/weather_pipeline/sim_mcp_shim.py` stands in for the four fastmcp names this app uses, so
-
 the logic IMPORTS without the framework. Own module because `weather_sim_mcp.py` sits at 789/800 —
-
 that file changes by exactly one import line.
-
 ⛔ **`run()` REFUSES.** A silent stand-in is worse than an ImportError: the server would start,
-
 register nothing, and answer no tools while looking healthy. Registration is **identity, never a
-
 wrapper**, so both environments exercise the same objects.
 
-
 ```
-
 40 files / 555 passed   ->   49 files / 707 passed     (the gate's own run, 052326ec)
-
 exclusion list: 6 modules -> 2  (the two that genuinely need a live server)
-
 ```
-
 
 ### ★★ AND IT PROVED fastmcp WAS ONLY HALF THE REASON
-
 The moment `test_sim_whatif_baseline` ran in Actions it went **red**: two tests named **"Pipeline"**,
-
 which is not in `CATALOG_DEFAULTS` (Mavericks / Montara / Pacifica only). With `SIM_LIVE_CATALOG=0`
-
 it resolved from **a developer's local `dev.db`** — gitignored, so absent on any runner.
-
 ⇒ **a test that names a spot must name one the OFFLINE catalogue carries**, or it asserts something
-
 about the machine it happens to run on. The unfillable-baseline precondition is now CONSTRUCTED
-
 (drop the `base_*` keys) rather than borrowed from a machine.
 
-
 ### ⚠️⚠️ I MADE THE SAME MISTAKE TWICE IN ONE DAY
-
 I verified the shim by blocking `import fastmcp` at interpreter level and called that "the
-
 configuration that actually runs" — **in my own tree, which has `dev.db`**. I reproduced ONE of the
-
 two laptop↔runner differences and treated it as both. That is the junitxml error again, inside the
-
 very commit whose message boasts about avoiding it.
-
 ★★★ **The fix is a habit: verify in a CLEAN `git worktree` (no `dev.db`) WITH fastmcp blocked —
-
 both differences at once.** Doing so predicted `49 files / 707 passed`, and the gate then reported
-
 exactly that.
 
-
 ---
-
 
 ## 3. ⛔ OPEN — RANKED
 
