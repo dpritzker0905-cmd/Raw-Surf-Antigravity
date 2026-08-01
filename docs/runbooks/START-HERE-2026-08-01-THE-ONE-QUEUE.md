@@ -89,6 +89,28 @@ around it. (A) is a phantom: a control that never existed, which means any past 
 ⚠️ Cross-check: [[surf-regional-prefer-threshold-stack-2026-07-30]] discusses `min_viewport_frac` as
 dormant — consistent with `184a5d99` having pulled the whole intersect-prefer serve.
 
+### #28 ⛔ OPEN — 4 BUTTONS WITH NO ACCESSIBLE NAME, AND ONE OF THEM ONLY BREAKS ON MOBILE
+Measured live in the running app 2026-08-01 (65 buttons on `/map`, 4 nameless — no text, no
+`aria-label`, no `aria-labelledby`, no `title`). Owner confirmed it is a miss.
+
+| button | what it is | why it is nameless |
+|---|---|---|
+| sidebar **Create** | `lucide-plus` + `<span class="hidden xl:inline">Create</span>` | ⭐ **the label is BREAKPOINT-GATED** — named on desktop, **nameless below `xl` (<1280 px)**, and there is no `aria-label` to fall back on |
+| map **camera** | `lucide-camera`, `absolute right-4 z-[1000]` | icon-only, no label at any width |
+| map **users** | `lucide-users` (yellow) | icon-only, no label at any width |
+| map **layers** | `lucide-layers` | icon-only, no label at any width |
+
+⭐⭐ **THE `Create` ONE IS THE INTERESTING CLASS:** the accessible name is supplied by a span that
+Tailwind hides at small widths, so the control is named on desktop and **anonymous on phones** —
+the exact intersection of the ACCESSIBILITY mandate and "ALL DEVICES". **A desktop-only audit
+reports it PASSING.** ⇒ when a label lives in a `hidden …:inline` span, the button needs its own
+`aria-label`; the visible text is a convenience, not the accessible name.
+Fix: `aria-label` on all four (and `aria-pressed` where they toggle).
+⚠️ **My first pass mis-flagged this.** I read `read_page` and reported the *layer toggles*
+(`Waves`/`Swell`/…) as unnamed — they are fine, their text spans name them; that was tree
+serialization, not the DOM. The real miss was 4 other buttons. **`read_page`'s tree is not the
+accessibility name computation — check the DOM before filing an a11y finding.**
+
 ### #27 5 SHAs THAT RESOLVE TO NOTHING
 `a107b7db4f12`, `a2c4e8f91b03` (both `admin-panel-jacobian-audit-2026-07-12.md` — 12 chars,
 well-formed, and nonexistent) · `61b0ff2c` · `3918988e` · `9294a7c`. Low severity, but a citation
@@ -256,7 +278,46 @@ the ingest rotation and give the census a run-age check.
 
 Four open defects are this one shape. Fixing the shape is worth more than fixing any of them.
 
-### #11 ✅ CLOSED (`7551d511`) — the no-shrink guard SHIPPED. Verified on `dev` 2026-08-01.
+### #11 ⛔ OPEN — ROOT ATTRIBUTED 2026-08-01, LIVE IN THE BROWSER. The guard reads the WRONG LANE.
+The guard is INERT (A/B, `50c74e33`) and the missing precondition is now **measured, not inferred**.
+Live at z8.18 on the reported coast, with read-only telemetry (`__RAW_GPU__.maskCommit`):
+
+    exit:             "reached_guard"     <- NOT starved by the hysteresis return (hypothesis DIED)
+    hasIncumbentTex:  true
+    incumbentCovered: false
+    incumbentSpan:    null                <- the incumbent BOUNDS are null while the TEXTURE exists
+    candidateCovers:  true   candidateSpan 2.436   viewSpan 1.218
+
+Engine state confirms it: `_overlayMaskTex: true`, **`_overlayMaskBounds: null`**,
+`_overlayMaskTruthBox: null`, while `_cachedMaskBounds` holds a real `{-83,26,-79,30}`.
+
+**ROOT — `WebGLMarineEngine.js:2354`, the STALE-OVERLAY CLEAR (2026-07-04, the "bright rectangle
+block" fix):**
+
+    if (mapInstance.getZoom() < 12 && this._overlayMaskBounds) {
+      this._overlayMaskBounds = null;  this._overlayMaskTruthBox = null;
+    }
+
+⇒ **below z12 the overlay bounds are deliberately nulled and the texture is kept.** The guard's
+precondition (`incumbentCovered`, which needs non-null incumbent bounds) can therefore NEVER hold
+below z12 — and the reported halo band is **6.74–8.03, entirely below 12.** The guard is
+structurally incapable of firing anywhere in the band it was written for.
+
+⭐ **THE JACOBIAN VARIABLE IS WHICH LANE THE GUARD READS — not a threshold, not the hysteresis.**
+It reads the OVERLAY lane (nulled <z12); the thing that actually paints and haloes is the CACHED
+mask lane, whose bounds are live and match the rendered `maskId.mb`.
+⛔ **Do NOT "fix" this by removing the 2354 clear** — that clear is itself a proven fix for the
+Punat z12.5→z9.44 bright-rectangle block, and the comment records that clearing the bounds ALONE is
+what removed it. The fix must give the guard a source of incumbent bounds that survives the clear
+(read `_cachedMaskBounds`/`maskId.mb`, or track the guard's incumbent separately) — **not** restore
+overlay bounds below z12.
+★ 4th instance of [[a-guard-keyed-on-a-proxy-is-blind-by-tier-2026-07-31]] — the guard was keyed on
+a field an unrelated earlier fix nulls by tier. ⇒ **before trusting any guard, print what it READS
+at the reported conditions.** Reading the code said "shipped, called, tested"; the state said null.
+
+<details><summary>Superseded: "#11 ✅ CLOSED — the no-shrink guard SHIPPED"</summary>
+
+### #11 (was) ✅ CLOSED (`7551d511`) — the no-shrink guard SHIPPED. Verified on `dev` 2026-08-01.
 `shouldRejectMaskShrink` (`marineEngineDecisions.js:770`) is **called** at
 `WebGLMarineEngine.js:2549` — deliberately **BEFORE** the `texImage2D` upload, because rejecting
 after it would leave the texture updated and the bounds stale (a tex/bounds mismatch is strictly
@@ -266,6 +327,9 @@ negative control ("flipping ONLY the coverage verdict flips the decision, nothin
 `git merge-base --is-ancestor 7551d511 dev` ✓ — it is on the branch that ships (rule 10a).
 ⚠️ **Not yet confirmed on the user's screen at the reported 6.74–8.03 band** — the guard is proven
 in unit space and by the measurement below, not by a live pass. That is the only thing still owed.
+★ That caveat was the whole story: the live pass showed the guard cannot fire at all. Kept as a
+record of how confident "shipped, called, tested, on dev" reads while the guard is inert.
+</details>
 
 <details><summary>Original entry (superseded — kept as the forensic record)</summary>
 

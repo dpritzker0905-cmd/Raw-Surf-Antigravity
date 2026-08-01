@@ -2518,6 +2518,22 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
         prevTruth.west <= view.west && prevTruth.east >= view.east &&
         prevTruth.south <= view.south && prevTruth.north >= view.north &&
         (prev.east - prev.west) <= Math.max(viewSpan, 0.001) * 5) {
+      // #11 FORENSICS (read-only, 2026-08-01): the no-shrink guard below never fires in production
+      // (proven INERT by kill-switch A/B, `50c74e33`). Its precondition is a COVERING incumbent —
+      // and THIS skip also requires the previous box to contain the viewport. Since the padded
+      // `prev` always contains `prevTruth`, every hysteresis skip is also a case where the guard's
+      // precondition would have held. Recording the exit lets us prove whether the guard is starved
+      // by this earlier `return` rather than by its own condition. Pure telemetry, no behaviour.
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.maskCommit = {
+          exit: 'hysteresis_skip',
+          prevSpan: +(prev.east - prev.west).toFixed(3),
+          viewSpan: +viewSpan.toFixed(3),
+          ratio: +((prev.east - prev.west) / Math.max(viewSpan, 0.001)).toFixed(2),
+          prevCoversView: prev.west <= view.west && prev.east >= view.east
+            && prev.south <= view.south && prev.north >= view.north,
+        };
+      }
       return false; // still fresh — no repaint, no upload
     }
   } catch (e) { return false; }
@@ -2546,6 +2562,21 @@ WebGLMarineEngine.prototype.refreshViewportOverlayMask = function(gl, mapInstanc
       const _cov = (b) => (b && b.west <= view.west && b.east >= view.east
         && b.south <= view.south && b.north >= view.north);
       const _incumbent = this._overlayMaskBounds;
+      // #11 FORENSICS (read-only): record the guard's ACTUAL inputs every time it is reached, so
+      // "it never fires" can be attributed to a specific false precondition rather than inferred.
+      // `reached_guard` appearing at all proves the earlier returns did not starve it; the flags
+      // then say which half of "incumbent covered AND candidate does not" failed.
+      if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+        window.__RAW_GPU__.maskCommit = {
+          exit: 'reached_guard',
+          hasIncumbentTex: !!this._overlayMaskTex,
+          incumbentCovered: !!(this._overlayMaskTex && _cov(_incumbent)),
+          candidateCovers: _cov(bounds),
+          incumbentSpan: _incumbent ? +(_incumbent.east - _incumbent.west).toFixed(3) : null,
+          candidateSpan: +(bounds.east - bounds.west).toFixed(3),
+          viewSpan: +(view.east - view.west).toFixed(3),
+        };
+      }
       if (shouldRejectMaskShrink(_incumbent, bounds, view, {
         candidateCoversViewport: _cov(bounds),
         incumbentCoveredViewport: !!(this._overlayMaskTex && _cov(_incumbent)),
