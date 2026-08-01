@@ -84,6 +84,11 @@
     "lint:ci": "node scripts/check_eslint.js",
     "lint:baseline": "node scripts/check_eslint.js --write-baseline"
   },
+  "jest": {
+    "moduleNameMapper": {
+      "^react-map-gl/maplibre$": "<rootDir>/src/testMocks/reactMapGlMaplibre.js"
+    }
+  },
   "browserslist": {
     "production": [
       ">0.2%",

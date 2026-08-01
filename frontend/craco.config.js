@@ -85,6 +85,20 @@ module.exports = {
       // react-map-gl v8 ships `react-map-gl/maplibre` via package `exports`, which CRA's jest
       // resolver predates — map components were untestable in jsdom (2026-07-14 a11y goldens).
       // Route it to a minimal stub; no prior test imported the real module (it never resolved).
+      //
+      // ⚠️ THE SOURCE OF TRUTH IS `package.json` → `jest.moduleNameMapper`, NOT this block.
+      // This mapping lived ONLY here until 2026-08-01, and it therefore ran NOWHERE that matters:
+      // `npm test` goes through craco and read it, but BOTH CI lanes in .github/workflows/ci.yml
+      // (`lint-and-build` line 35 and the marine guard job line 135) invoke `npx react-scripts test`
+      // DIRECTLY, which never loads craco.config.js. Same tree, same two suites, measured:
+      //   npx craco test         → 2 passed, 15 tests
+      //   npx react-scripts test → 2 failed, 0 tests  ("Cannot find module 'react-map-gl/maplibre'")
+      // The fix was correct and complete; it was simply invisible to the lane that gates deploys.
+      // `moduleNameMapper` is on CRA 5's supported-override allowlist
+      // (react-scripts/scripts/utils/createJestConfig.js), so package.json now feeds BOTH lanes.
+      // The assignment below is a redundant no-op kept only because it is identical to the
+      // package.json value — if you change the stub path, change it THERE; a divergent value here
+      // silently wins under craco and loses under CI, which is the original bug wearing a new hat.
       jestConfig.moduleNameMapper = {
         ...jestConfig.moduleNameMapper,
         '^react-map-gl/maplibre$': '<rootDir>/src/testMocks/reactMapGlMaplibre.js',

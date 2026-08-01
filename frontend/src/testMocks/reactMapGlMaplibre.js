@@ -1,5 +1,6 @@
 /**
- * Jest stub for `react-map-gl/maplibre` (wired via moduleNameMapper in craco.config.js).
+ * Jest stub for `react-map-gl/maplibre` (wired via moduleNameMapper in package.json — that is the
+ * lane CI reads; craco.config.js carries a redundant copy. See the note in craco.config.js).
  * v8 exposes that path through package `exports`, which CRA's jest resolver cannot walk, so map
  * components could never render in jsdom tests. Minimal passthroughs: children render, nothing
  * touches WebGL/maplibre. Extend with more named exports as component tests need them.
