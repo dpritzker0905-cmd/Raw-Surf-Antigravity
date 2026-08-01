@@ -102,6 +102,23 @@ jobs:
           RAW_SURF_BASE_URL: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
           REGIONS: ${{ github.event.inputs.regions }}
           PER_REGION: ${{ github.event.inputs.per_region || '6' }}
+          # ⚠️⚠️ THESE MIRROR THE INGEST LANES AND ARE NOT OPTIONAL. The probe runs the SIM in this
+          # runner and compares it against what the serve box PRECOMPUTED. Science flags are read
+          # per-process from the environment (sim_rating.py:91 for local size), so a flag set in the
+          # ingest lanes and unset here makes the two sides grade with DIFFERENT COMPOSITIONS and the
+          # monitor pages a divergence that is entirely its own. That is the exact failure the
+          # probe's own docstring names — "a serve-box flag that is set on Render and unset in the
+          # ingest lane" — and it would have fired the moment RATING_LOCAL_SIZE flipped on
+          # 2026-08-01: the runner would have graded on the global 1.2 m reference while production
+          # served the local one, a median -4.9 and up to -58.1 point gap.
+          # ★ RATING_OBS_GATE is mirrored for completeness only — the probe learns the gate is ON by
+          # OBSERVING `raw_score` beside `score`, never by reading its own env, which is why it
+          # stayed green while these were unset. Do not rely on that for the others.
+          # tests/test_flag_lane_parity.py fails if this block drifts from the ingest lanes.
+          RATING_TIDE: '1'
+          SURF_PARTITIONS: '0'
+          RATING_OBS_GATE: '1'
+          RATING_LOCAL_SIZE: '1'
         run: |
           set -o pipefail
           ARGS="--json --attribute --fail-on-divergence --per-region ${PER_REGION}"

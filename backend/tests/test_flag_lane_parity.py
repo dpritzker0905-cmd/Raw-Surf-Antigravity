@@ -150,3 +150,38 @@ def test_local_size_is_present_in_both_lanes_so_the_rollout_is_atomic():
         )
     values = {ALL_LANE_FLAGS[lane]["RATING_LOCAL_SIZE"] for lane in INGEST_LANES}
     assert len(values) == 1, f"the lanes disagree on RATING_LOCAL_SIZE: {values}"
+
+
+# ── THE PARITY MONITOR IS A THIRD LANE, AND IT MEASURES RATHER THAN WRITES ──────────────────────
+# sim-parity-monitor.yml runs the SIM in a GitHub runner and compares it to what the serve box
+# PRECOMPUTED. Science flags are read per-process from the environment (sim_rating.py:91 for local
+# size), so a flag set in the ingest lanes and unset in the monitor makes the two sides grade with
+# DIFFERENT COMPOSITIONS — and the monitor then reports a divergence that is entirely its own.
+#
+# ★★ THIS IS WORSE THAN AN ORDINARY DRIFT. A wrong ingest flag produces wrong ratings, which is
+# visible. A wrong MONITOR flag produces a false alarm on correct ratings, which teaches everyone to
+# ignore the alarm — and the next real divergence is waved off with it.
+#
+# Caught on 2026-08-01 the same hour RATING_LOCAL_SIZE flipped: the monitor set NONE of the four
+# science flags the ingest lanes set, so its sim would have graded on the global 1.2 m reference
+# while production served the local one — a median -4.9 and up to -58.1 point gap, paging every run.
+MONITOR_LANE = "sim-parity-monitor.yml"
+
+
+def test_the_parity_monitor_grades_with_the_same_composition_it_measures():
+    monitor = _workflow_flags(MONITOR_LANE)
+    assert monitor, (
+        f"{MONITOR_LANE} declares no science flags at all; it would grade the sim with code "
+        f"defaults while production serves the ingest lanes' composition"
+    )
+    ingest = ALL_LANE_FLAGS[INGEST_LANES[0]]
+    drift = []
+    for flag, value in sorted(ingest.items()):
+        if not flag.startswith(("RATING_", "SURF_")):
+            continue
+        if monitor.get(flag) != value:
+            drift.append(f"{flag}: ingest={value!r} vs monitor={monitor.get(flag)!r}")
+    assert not drift, (
+        "the sim parity monitor would grade with a different composition than production serves, "
+        "so it would page on its own configuration:\n  " + "\n  ".join(drift)
+    )
