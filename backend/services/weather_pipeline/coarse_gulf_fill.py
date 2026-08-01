@@ -15,6 +15,22 @@ product (post-normalizer) DOES carry the valid Gulf (probe: GFS coarse Gulf wave
 the only data that works is the served product — read at serve time. Cheap: the GFS coarse product is
 a small resident (629 cells) and the store LRU-caches it.
 
+⬆ WIDENED 2026-08-01 BEYOND `waves`, AND THE MODULE NAME IS NOW TOO NARROW. It fills `waves`,
+`swell_1`, `swell_2` and `wind_waves`, and most of what it repairs is POLAR, not an enclosed sea
+(25 of 76 `swell_1` holes and 42 of 107 `wind_waves` holes sit at lat <= -60). The names
+(`coarse_gulf_fill`, `fill_coarse_enclosed_sea_from_gfs_served`, `_load_gfs_coarse_waves`) are kept
+deliberately: a rename's blast radius is a recorded wound here — **grep the OLD NAME** — and a stale
+name with an accurate docstring is cheaper than a rename that misses a call site.
+
+★ RELATIONSHIP TO QUEUE ITEM #25 (`1a1134ec`, "coastal/polar marine no-data holes", never merged,
+35 days old). #25 fixes the same SYMPTOM at INGEST via `build_regular_nn_valid`, wired into
+`dwd_gwam_fetcher` (ICON/GWAM) and `noaa_gfs_wave_fetcher` (GFS-Wave). Measured 2026-08-01, those
+are the two models that no longer exhibit it: **ICON has ZERO holes on all three layers and GFS has
+1-3**, while the live defect is **EURO's Copernicus CMEMS partition layers** — an upstream #25 does
+not touch. ⇒ porting #25 would repair ~3 cells. **Its symptom moved; the queue's ranking of it
+rests on models that measure clean.** The ingest fix remains the more general shape and is still
+worth porting on its own merits, but not as a fix for what users see today.
+
 Kill switch: MARINE_COARSE_GULF_FILL=0.
 """
 import asyncio
@@ -23,9 +39,31 @@ import os
 
 logger = logging.getLogger(__name__)
 
-# Only the 10° coarse global tier of the enclosed-sea-masking models, height layer only. GFS is the
-# donor (never a recipient); swells/wind_waves ride the same fill via the total's validity flag.
+# Only the 10° coarse global tier of the enclosed-sea-masking models. GFS is the donor, never a
+# recipient.
+#
+# ⛔⛔ THE LAYER LIST WAS `("waves",)` UNTIL 2026-08-01, AND THE COMMENT HERE CLAIMED
+# "swells/wind_waves ride the same fill via the total's validity flag". THAT WAS MEASURED FALSE.
+# Live at the 10° tier, counting only cells INVALID in EURO but VALID in BOTH GFS and ICON (so a
+# genuine land/ice cell cannot be counted — land is land for every model):
+#
+#     layer         EURO holes    ICON holes    GFS holes
+#     waves              0             0            3
+#     swell_1           76             0            2
+#     wind_waves       107             0            1
+#
+# ★★★ ONE CONDITION — `layer != "waves"` → return unchanged — was the entire difference between 0
+# and 107 holes on the SAME model at the SAME tier. The Jacobian variable is the LAYER, not the
+# model. ⚠️ 4th instance in this repo of a code comment asserting the opposite of reality.
+#
+# ★ WHY EURO AND NOT ICON: the layers come from DIFFERENT UPSTREAMS. EURO `waves` is ECMWF WAM via
+# open-meteo; EURO `swell_1`/`wind_waves` are Copernicus CMEMS
+# (`cmems_mod_glo_wav_anfc_0.083deg`, vars VHM0_SW1 / VHM0_WW), which masks far more aggressively.
+# ⚠️ These are REAL CMEMS partitions, NOT the fabricated ECMWF partitions that were gated off in
+# `81c7bcb5` — checked by provenance before treating the holes as a defect, because "EURO swell is
+# fiction" would have made this a false positive.
 _RECIPIENT_MODELS = ("EURO", "ICON")
+_FILLABLE_LAYERS = ("waves", "swell_1", "swell_2", "wind_waves")
 _MAX_FILL_DIST_DEG = 8.0   # half a 10° cell + slop: only fill a hole that has a GFS ocean cell near it
 
 
@@ -41,7 +79,10 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
     try:
         if os.environ.get("MARINE_COARSE_GULF_FILL", "1") == "0":
             return product
-        if not product or (domain or "").lower() != "marine" or (layer or "").lower() != "waves":
+        if not product or (domain or "").lower() != "marine":
+            return product
+        layer_l = (layer or "").lower()
+        if layer_l not in _FILLABLE_LAYERS:
             return product
         if (model or "").upper() not in _RECIPIENT_MODELS:
             return product
@@ -59,7 +100,13 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
 
         # Load the SERVED GFS global-coarse waves product at this product's valid_time.
         vt = getattr(product, "valid_time", None) or getattr(product, "served_valid_time", None)
-        gfs = await asyncio.to_thread(_load_gfs_coarse_waves, store, vt)
+        # ⛔ THE DONOR MUST BE THE SAME LAYER. Filling a `swell_1` hole from a `waves` donor would
+        # substitute the TOTAL significant height for a single train's height — two different
+        # quantities in the same units, which is exactly the class `5ae2d267` closed at the infobox
+        # ("when two quantities share units the LABEL is the entire correctness surface"). Measured:
+        # GFS carries 506/629 valid `swell_1` and 541/629 valid `wind_waves` cells at this tier, so
+        # a same-layer donor genuinely exists and no substitution across quantities is needed.
+        gfs = await asyncio.to_thread(_load_gfs_coarse_waves, store, vt, layer_l)
         if not gfs or not getattr(gfs, "grid", None) or not gfs.grid.vectors:
             return product
         gvalid = [g for g in gfs.grid.vectors if not _is_masked(g)]
@@ -97,8 +144,25 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
             filled += 1
 
         if filled:
+            # ★★ PROVENANCE — A SUBSTITUTED CELL USED TO BE INDISTINGUISHABLE FROM A NATIVE ONE.
+            # The fill sets `is_valid = True` and copies GFS values onto a EURO/ICON vector, so the
+            # served product claimed to be EURO at cells whose numbers came from GFS, and NOTHING
+            # downstream could tell. In a repo where **every recurring defect is PROVENANCE or
+            # COMPOSITION, never physics**, widening this fill without saying so would have widened
+            # a silent lie from 0 cells to 183.
+            # ⚠️ PRODUCT-LEVEL, NOT PER-VECTOR, deliberately: `2e81bcf5` measured a raw per-item
+            # provenance stamp at **+30.1%** on an object every client downloads and interned it for
+            # exactly this reason. This answers "did this product receive substituted data, which
+            # layer, from whom, and how much" in O(1) bytes; a per-cell flag can follow if a
+            # consumer ever needs to know WHICH cells.
+            try:
+                product.coarse_fill = {"donor_model": "GFS", "layer": layer_l,
+                                       "cells_filled": filled, "cells_masked": len(masked),
+                                       "cells_total": len(grid.vectors)}
+            except Exception:
+                pass          # a pydantic model that forbids extras must not break the route
             logger.info(
-                f"[Coarse Gulf Fill] {model} coarse waves: filled {filled} masked enclosed-sea cells "
+                f"[Coarse Fill] {model} coarse {layer_l}: filled {filled} masked cells "
                 f"from served GFS coarse (of {len(masked)} masked / {len(grid.vectors)} total)."
             )
         return product
@@ -107,8 +171,13 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
         return product
 
 
-def _load_gfs_coarse_waves(store, valid_time):
-    """Find + load the GFS global-coarse marine `waves` product nearest `valid_time` from the manifest."""
+def _load_gfs_coarse_waves(store, valid_time, layer="waves"):
+    """Find + load the GFS global-coarse marine product for `layer` nearest `valid_time`.
+
+    ⚠️ `layer` is a PARAMETER, not a constant, since 2026-08-01: the donor must carry the SAME
+    quantity as the recipient. It defaults to `waves` so the pre-existing call shape is
+    unchanged, and the name keeps `_waves` only because renaming a symbol has blast radius
+    this repo has been bitten by (grep the OLD NAME)."""
     try:
         manifest = store.get_manifest()
         items = getattr(manifest, "products", None) or []
@@ -131,7 +200,7 @@ def _load_gfs_coarse_waves(store, valid_time):
     best, bestdiff = None, None
     for p in items:
         if (getattr(p, "model", "").upper() != "GFS" or getattr(p, "domain", "").lower() != "marine"
-                or getattr(p, "layer", "").lower() != "waves"):
+                or getattr(p, "layer", "").lower() != layer):
             continue
         if getattr(p, "region_id", None) != "global_coarse":
             continue
