@@ -120,6 +120,27 @@ jobs:
           python3 scripts/served_freshness_census.py --fail-on-stale 2>&1 | tail -14
           exit ${FRESH:-0}
 
+      # ── 4. DOES THE POINT LANE SERVE THE PER-SPOT REFERENCE? (E#1 acceptance) ────────────
+      # `ead3c666` made the per-spot climatology answerable BY COORDINATE so `/api/weather/point`
+      # stops serving the per-CELL value where the glyph beside it uses the per-SPOT one (measured
+      # a median 21.3% apart, max 52.5%, -11.4..+9.6 points on the badge).
+      # ★ A STANDING GUARD, NOT A ONE-SHOT: the acceptance is an INVARIANT — "the coordinate lane
+      # and the spot lane agree at a catalogued spot" must keep being true — so it belongs on a
+      # cadence rather than in a checklist somebody ticks once.
+      # ⚠️ It lands here because the coordinate keys are written by the PRECOMPUTE
+      # (cron '45 3-23/4'), and this census runs at :35 past 02/08/14/20 — after a rebuild and
+      # past the endpoint's 600 s climatology TTL.
+      # ⚠️⚠️ REPORTED, NOT PAGING (no --fail-on-mismatch). The keys appear only after the next
+      # precompute cycle, so a red here on the first runs would be measuring the CLOCK. The script
+      # voids itself by name in that state; promote to --fail-on-mismatch once a run has printed
+      # PASS, and it becomes a real regression gate.
+      - name: "4. Point lane serves the per-SPOT reference (E#1)"
+        if: always()
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python3 scripts/verify_point_spot_reference.py 2>&1 | tee e1_acceptance.txt | tail -24
+
       # The series is the deliverable, not the pass/fail bit: drift is only visible ACROSS runs, and
       # a staleness transient that heals in hours leaves no other trace.
       - name: Upload census record
@@ -131,5 +152,6 @@ jobs:
             backend/drift.json
             backend/freshness.json
             backend/gonogo.txt
+            backend/e1_acceptance.txt
           retention-days: 90
           if-no-files-found: warn
