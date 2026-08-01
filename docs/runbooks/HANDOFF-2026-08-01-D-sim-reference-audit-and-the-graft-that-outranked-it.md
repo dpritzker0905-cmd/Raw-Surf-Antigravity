@@ -175,7 +175,23 @@ Harmless while the blob loads; a blocking 10 s dial per call when it does not. I
 defect was **invisible to the instrument**. Consider a "named exemplars" lane alongside the
 viewports — the same lesson as *only the EXEMPLARS could validate the flip*.
 
-### 4f. HOUSEKEEPING
+### 4f. RAISE THE COMPOSITION-GUARD FLOOR AFTER PUSHING — MY FILES WIDENED IT BY 2
+Both new test files match the guard suite's `tests/test_sim_*.py` glob, so they join
+`backend-sim-composition-guards`. Counted from **git, not the working tree** (the contamination trap
+`6c4ab178` had just documented):
+
+    matching the glob at HEAD                     46
+    of the 6 name-exclusions, actually matching    4   (test_weather_sim_mcp* match no glob at all)
+    => effective guard files at HEAD              42       vs  MIN_FILES = 40
+
+The floor is **shrink-only, so it still passes** — but `ci.yml:258` says MIN_FILES is meant to be
+the *exact* module count so any drop is caught, and it is now 2 slack. ⇒ raise to **42** (and
+MIN_PASSED accordingly).
+⚠️⚠️ **DO NOT re-measure it locally.** `6c4ab178` was caused by exactly that: a floor of 41/565 set
+from a working tree holding a concurrent session's untracked file, unmeetable by anything that
+ships. **Push first, then read the numbers out of the gate's own run output.**
+
+### 4g. HOUSEKEEPING
 * **`weather_sim_mcp.py` is at 778 / 800 LOC** — the hook warns. The next addition needs an
   extraction first.
 * **A STALE WORKTREE pollutes repo-wide greps:**
