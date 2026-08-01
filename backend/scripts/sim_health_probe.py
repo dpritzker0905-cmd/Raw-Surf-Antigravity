@@ -95,7 +95,7 @@ def _top_of_hour_utc():
 
 def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unknown_hour=False):
     from weather_sim_mcp import _baseline_with_source
-    from services.weather_pipeline import sim_spots
+    from services.weather_pipeline import sim_forecast, sim_spots
     from services.weather_pipeline.sim_rating import (
         calculate_surf_rating, geometry_payload, reference_size_for)
 
@@ -159,6 +159,29 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
                 baseline["swell_direction_deg"], baseline["wind_speed_knots"],
                 baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
                 allow_reference_lookup=True)
+            # ⛔⛔ AND THE COMPOSITION THE TOOLS ACTUALLY PRODUCE, WHICH IS NO LONGER THIS ONE.
+            # Since `5f19ac7d` every sim TOOL grades on the size curve the app SERVED — read off the
+            # point response — while the call above deliberately resolves the per-SPOT reference
+            # through the flag+blob lookup. Those are different numbers: the endpoint sends the
+            # per-CELL reference, measured a median 21.3% (max 52.5%) from the per-spot one.
+            # ⇒ WITHOUT THIS SECOND CALL THE MONITOR IS A FALSE GREEN ON THE PATH USERS READ: it
+            # would compare per-SPOT sim against per-SPOT glyph, read ~0, and stay green while
+            # `get_weather_forecast` was up to ~18 points out. That is precisely the hazard recorded
+            # against `valid_time`-as-permission, one layer over — and this time I created it.
+            # ★ TWO NUMBERS, TWO QUESTIONS (rule 14 — put the discriminator IN the instrument):
+            #     d_score         "is the sim's COMPOSITION correct?"   <- what this gate fails on
+            #     d_score_served  "is what the USER GETS correct?"      <- reported, attributed
+            # A large `d_score_served` beside a small `d_score` is the cell-vs-spot gap (queue E#1),
+            # NOT a composition break, and the summary says so by name instead of leaving the reader
+            # to guess. Gating on the composition keeps this monitor's original meaning and stops it
+            # paging daily on a known, documented, open item.
+            served_ref = sim_forecast.served_reference(_prov)
+            calc_served = calculate_surf_rating(
+                spot, baseline["swell_height_m"], baseline["swell_period_sec"],
+                baseline["swell_direction_deg"], baseline["wind_speed_knots"],
+                baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
+                allow_reference_lookup=True,
+                served_reference_size_m=served_ref) if served_ref is not None else calc
             dt = time.time() - t0
 
             geo = geometry_payload(spot)
@@ -180,6 +203,14 @@ def probe(regions, per_region, valid_time, model="GFS", verbose=True, allow_unkn
             row = {
                 "region": name, "spot": item.get("name"), "hour": hour,
                 "glyph_score": item["score"], "sim_score": calc["quality_rating"], "d_score": ds,
+                # THE PRODUCT NUMBER: what a user comparing the sim tool against the map would see.
+                # `reference_lane` names WHICH curve produced it, so a null is legible as "the app
+                # sent no reference here" rather than read as agreement.
+                "sim_score_served": calc_served["quality_rating"],
+                "d_score_served": round(calc_served["quality_rating"] - item["score"], 3),
+                "served_level_differs": item["level"] != calc_served["quality_label"],
+                "reference_lane": "served_cell" if served_ref is not None else "lookup_spot",
+                "served_reference_size_m": served_ref,
                 "glyph_level": item["level"], "sim_level": calc["quality_label"],
                 "level_differs": item["level"] != calc["quality_label"],
                 "h_served_m": h_srv, "h_sim_m": round(h_sim, 4), "d_height_pct": dh,
@@ -327,6 +358,19 @@ def summarize(rows, skipped, unresolved, readiness):
                                    "max": round(dh[-1], 3)}
         out["seconds"] = {"median": round(statistics.median(lat), 2), "max": round(lat[-1], 2)}
         out["worst"] = sorted(rows, key=lambda r: -abs(r["d_score"]))[0]
+        # THE PRODUCT SERIES, kept beside the composition one so the artifact can answer both
+        # questions later. `served_lane` counts how many rows the app actually sent a reference for
+        # — a summary that averaged over rows with no served reference would silently dilute the
+        # gap with rows that could not exhibit it.
+        served = [r for r in rows if r.get("reference_lane") == "served_cell"]
+        if served:
+            dss = sorted(abs(r["d_score_served"]) for r in served)
+            out["d_score_served"] = {
+                "median": round(statistics.median(dss), 3),
+                "p90": round(dss[int(0.9 * (len(dss) - 1))], 3), "max": round(dss[-1], 3),
+                "n": len(served), "level_differences": sum(1 for r in served
+                                                           if r["served_level_differs"])}
+        out["served_lane"] = {"served_cell": len(served), "lookup_spot": len(rows) - len(served)}
     return out
 
 
@@ -374,7 +418,40 @@ def main():
               f"{'  ⛔' if summary['level_differences'] else '  ✅'}")
         if rows:
             print(f"  |dScore|  median {summary['d_score']['median']}  p90 "
-                  f"{summary['d_score']['p90']}  max {summary['d_score']['max']}")
+                  f"{summary['d_score']['p90']}  max {summary['d_score']['max']}"
+                  f"   <- COMPOSITION (this is what the gate fails on)")
+            # ★ THE PRODUCT NUMBER, PRINTED WHETHER OR NOT IT IS GATED. The gate answers "is the
+            # composition correct"; a user comparing the sim tool against the map is looking at
+            # this one. Printing only the gated number is how a monitor stays green over an error
+            # its own artifact contains.
+            if "d_score_served" in summary:
+                dss = summary["d_score_served"]
+                readiness_refs = summary.get("geometry", {}).get("_refs_resolved", 0)
+                print(f"  |dScore| served-curve  median {dss['median']}  p90 {dss['p90']}  "
+                      f"max {dss['max']}  (n={dss['n']}, LEVEL differs {dss['level_differences']})"
+                      f"   <- WHAT THE TOOLS ACTUALLY RETURN")
+                if dss["max"] > summary["d_score"]["max"] + 1.0:
+                    print(f"     ATTRIBUTED: the tools diverge MORE than the composition does "
+                          f"({dss['max']} vs {summary['d_score']['max']}). That gap is the "
+                          f"per-CELL vs per-SPOT size reference — queue item E#1, a known open "
+                          f"item — NOT a composition break. The gate below is unaffected.")
+                elif summary["d_score"]["max"] > dss["max"] + 1.0:
+                    # ★ THE SYMMETRIC CASE, AND IT IS THE MORE COMMON ONE OFF-CI. The composition
+                    # arm needs RATING_LOCAL_SIZE=1 *and* Supabase credentials; without either,
+                    # `reference_size_for` returns None and that arm silently grades the global
+                    # 1.2 m curve — a divergence the PROBE manufactured, which is exactly what
+                    # `1fbd5e4e` caught the monitor publishing as a physics finding. The served arm
+                    # needs nothing but a reachable app, so when the two disagree THIS WAY the
+                    # instrument is the thing that is misconfigured, not the sim.
+                    print(f"     ATTRIBUTED: the COMPOSITION arm diverges more than the tools do "
+                          f"({summary['d_score']['max']} vs {dss['max']}), and "
+                          f"{readiness_refs} of {summary['n']} rows resolved a lookup reference. "
+                          f"That points at THIS PROBE's own reference lookup (RATING_LOCAL_SIZE + "
+                          f"SUPABASE_*), not at the sim — the tools are within {dss['max']}.")
+            if summary.get("served_lane", {}).get("lookup_spot"):
+                print(f"  ⚠️ {summary['served_lane']['lookup_spot']} of {summary['n']} rows had NO "
+                      f"served reference, so their two numbers are the SAME number by "
+                      f"construction — they cannot exhibit the gap either way.")
             if "d_height_pct" in summary:
                 print(f"  |dHeight| median {summary['d_height_pct']['median']}%  p90 "
                       f"{summary['d_height_pct']['p90']}%  max {summary['d_height_pct']['max']}%")
