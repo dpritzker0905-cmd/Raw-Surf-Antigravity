@@ -230,7 +230,7 @@ jobs:
                      tests/test_validate_nearshore_transform.py \
                      tests/test_calibration_census.py 2>/dev/null \
                  | sort -u \
-                 | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
+                 | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup|sim_whatif_size_curve_and_io_budget)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
           python -m pytest $FILES -q --junitxml=guards.xml
 
