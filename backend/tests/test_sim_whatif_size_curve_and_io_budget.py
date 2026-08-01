@@ -58,13 +58,18 @@ def _env(monkeypatch):
     hist = SSC.empty_hist()
     hist[9] = 40
     blob = {"schema_version": SSC.SCHEMA_VERSION, "spots": {MAV_ID: {"hist": hist}}}
-    # ⚠️ ASSERTED, not `hasattr`-guarded. This reset first targeted
-    # `spot_size_climatology._ref_map_memo` — a name that lives only in a concurrent session's
-    # UNCOMMITTED tree — so on committed code it cleared nothing and said nothing. The memo is
-    # `sim_rating._REF_MAP_MEMO` (`50e441bd`), and it is keyed on object IDENTITY.
-    assert hasattr(sim_rating, "_REF_MAP_MEMO"), (
+    # ⚠️ ASSERTED, not `hasattr`-guarded — and this reset has now pointed at BOTH memos in turn,
+    # which is the whole lesson. It first targeted `spot_size_climatology._ref_map_memo` when that
+    # name lived only in a concurrent session's UNCOMMITTED tree, so it cleared nothing and said
+    # nothing; it was repointed at `sim_rating._REF_MAP_MEMO` (`50e441bd`); and that memo has since
+    # been DELETED, because `reference_size_for` now delegates to `reference_for_spot` and two
+    # caches over one composition can disagree about which blob snapshot they describe.
+    # ⇒ the target is `SSC._ref_map_memo` again, and the `assert` is what makes the next move loud
+    # instead of silent. **A cleanup guarded by `hasattr` degrades into a no-op the moment the thing
+    # moves** — and this one has moved twice.
+    assert hasattr(SSC, "_ref_map_memo"), (
         "the reference-map memo moved; this reset is no longer clearing anything")
-    sim_rating._REF_MAP_MEMO = (None, {})
+    SSC._ref_map_memo["cell"] = (None, {})
     monkeypatch.setattr(SSC, "load_size_climatology_l2_cached", lambda *a, **kw: blob)
     yield
     sim_forecast._CATALOG_CACHE.clear()

@@ -48,8 +48,15 @@ def _sim_flag(name: str, default: str = "1") -> bool:
 
 _GEOMETRY_CACHE: Dict[Any, Any] = {}
 
-# (climatology object, {spot_id: reference_m}) -- see reference_size_for.
-_REF_MAP_MEMO = (None, {})
+# ⛔ `_REF_MAP_MEMO` WAS DELETED HERE, DELIBERATELY, AND ITS ABSENCE IS LOAD-BEARING.
+# `reference_size_for` now delegates to `spot_size_climatology.reference_for_spot`, whose own
+# `_ref_map_memo` is the single cache over that composition. Leaving this one declared-but-unread
+# would be strictly worse than deleting it: THREE test files reset it to isolate themselves, so a
+# dead name would leave them clearing a variable nothing reads — passing while guarding nothing,
+# which is the exact defect `776cb129` fixed (a `hasattr`-guarded cleanup that had silently become
+# a no-op the moment the memo moved). Deleting it makes those `assert hasattr(...)` guards FAIL
+# loudly instead, which is how the three resets got pointed at the real memo.
+# ⇒ if this ever needs to come back, move the resets with it.
 
 
 def spot_geometry(spot: Dict[str, Any]):
@@ -148,8 +155,7 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False,
     if sid is None:
         return None
     try:
-        from services.weather_pipeline.spot_size_climatology import (
-            load_size_climatology_l2_cached, reference_map)
+        from services.weather_pipeline.spot_size_climatology import reference_for_spot
     except ImportError:
         # NOT swallowed with the data misses below. A missing SYMBOL is a wiring/deploy fault,
         # not an absent reference, and conflating them is how this fix first shipped broken:
@@ -157,20 +163,17 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False,
         # session's UNCOMMITTED working tree. Every local test passed while the deployed lane
         # raised ImportError into a fail-open `except Exception` and graded the global curve
         # in silence. Diagnosed only because the probe printed WHICH question failed.
+        # ★ That helper IS committed now (`origin/dev`), which is what makes the line above safe —
+        # and `git show origin/dev:<file>` is how to confirm it before trusting an import again.
         raise
-    clim = load_size_climatology_l2_cached()
-    if not clim:
-        return None                     # no blob -> global curve, the pre-flip behaviour
-    # Memoised against the LOADED OBJECT, not a TTL: `reference_map` is a ~1,800-entry
-    # percentile sweep and this runs once per spot per rated hour. ONE tuple assignment, so a
-    # concurrent reader sees either the whole old pair or the whole new one, never a new
-    # source paired with a stale map. Same composition `spot_ratings` performs for the glyph.
-    global _REF_MAP_MEMO
-    src, mapping = _REF_MAP_MEMO
-    if src is not clim:
-        mapping = reference_map(clim) or {}
-        _REF_MAP_MEMO = (clim, mapping)
-    return mapping.get(str(sid))
+    # ⛔ THIS USED TO INLINE `reference_map(load_size_climatology_l2_cached())` behind its OWN
+    # `_REF_MAP_MEMO`, because `reference_for_spot` existed only in a concurrent session's
+    # uncommitted tree when this was written (`50e441bd`). That left TWO memos over ONE
+    # composition — two caches that can disagree about which blob snapshot they describe, which is
+    # the same "both sides must share a composition" hazard `f504d52b` closed for `baseline_delta`.
+    # It is collapsed now that the helper is on the branch that ships (HANDOFF-2026-08-01-D §4c).
+    # ★ The helper's own docstring is the argument: mirror the reference, never re-derive it.
+    return reference_for_spot(sid)
 
 
 # 3. Core Physics and Weather Calculation Engine

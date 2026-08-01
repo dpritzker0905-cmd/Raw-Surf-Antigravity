@@ -58,15 +58,19 @@ def offline_catalog(monkeypatch):
 def _reset_reference_memo():
     """Clear the resolved-map memo between installs.
 
-    ⚠️ THIS RESET WAS DEAD WHEN FIRST WRITTEN. It targeted `spot_size_climatology._ref_map_memo`
-    behind a `hasattr` guard — a name that exists only in a concurrent session's UNCOMMITTED tree,
-    so against committed code it cleared nothing and reported no problem. The memo actually lives
-    at `sim_rating._REF_MAP_MEMO` (`50e441bd`). ★ A cleanup guarded by `hasattr` degrades into a
-    silent no-op the moment the thing moves, so this ASSERTS instead: if the memo is renamed again
-    the tests fail loudly rather than quietly sharing state."""
-    assert hasattr(sim_rating, "_REF_MAP_MEMO"), (
+    ⚠️ THIS RESET WAS DEAD WHEN FIRST WRITTEN, and it has since chased the memo TWICE — which is
+    the entire reason it asserts. It targeted `spot_size_climatology._ref_map_memo` behind a
+    `hasattr` guard while that name existed only in a concurrent session's UNCOMMITTED tree, so
+    against committed code it cleared nothing and reported no problem. It was repointed at
+    `sim_rating._REF_MAP_MEMO` (`50e441bd`). That memo is now DELETED: `reference_size_for`
+    delegates to `reference_for_spot`, and two caches over one composition can disagree about which
+    blob snapshot they describe. So the target is `SSC._ref_map_memo` once more.
+    ★ **A cleanup guarded by `hasattr` degrades into a silent no-op the moment the thing moves.**
+    This ASSERTS instead, which is what turned the last move into a loud failure rather than tests
+    quietly sharing state."""
+    assert hasattr(SSC, "_ref_map_memo"), (
         "the reference-map memo moved; this reset is no longer clearing anything")
-    sim_rating._REF_MAP_MEMO = (None, {})
+    SSC._ref_map_memo["cell"] = (None, {})
 
 
 def _needle(spot_id, bin_index=9, n=40):

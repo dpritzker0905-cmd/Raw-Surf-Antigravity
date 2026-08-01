@@ -202,7 +202,7 @@ def test_reading_a_served_reference_dials_nothing(monkeypatch):
     assert dials == [], "a served reference must short-circuit the climatology loader entirely"
 
     # THE CONTROL THAT PROVES THE SPY WORKS: with nothing served, the same call DOES dial.
-    sim_rating._REF_MAP_MEMO = (None, {})
+    SSC._ref_map_memo["cell"] = (None, {})
     sim_rating.reference_size_for(MAVERICKS, allow_lookup=True, served=None)
     assert dials, "the spy never fired => this test could not have detected a dial"
 
