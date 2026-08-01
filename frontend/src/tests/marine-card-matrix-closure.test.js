@@ -36,7 +36,7 @@
 import fs from 'fs';
 import path from 'path';
 import { compileForecastCards } from '../components/map/forecastCardCompiler';
-import { isLayerSupportedByModel } from '../components/map/marineControllerUtils';
+import { isLayerSupportedByModel, MARINE_EXACT_CAPABILITIES } from '../components/map/marineControllerUtils';
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'marine-card-matrix.fixture.json');
 const MATRIX = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
@@ -260,8 +260,6 @@ describe('1a-0 · INVARIANT: a fabricated train is identifiable in the data', ()
   test('the capability map still records the estimate as a WORD, not a boolean', () => {
     // `!!'estimated'` is true, so the box takes the normal render path. The string is the only
     // place the estimate is named; 1a-1 stops it being thrown away.
-    // eslint-disable-next-line global-require
-    const { MARINE_EXACT_CAPABILITIES } = require('../components/map/marineControllerUtils');
     expect(MARINE_EXACT_CAPABILITIES.ICON.swell_2).toBe('estimated');
     expect(isLayerSupportedByModel('ICON', 'swell_2')).toBe(true);
   });
