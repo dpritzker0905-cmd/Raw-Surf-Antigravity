@@ -218,6 +218,13 @@ jobs:
       # ⚠️ The exclusion is a grep, NOT pytest's --ignore: --ignore is silently overridden for paths
       # passed explicitly on the command line, which is how a first attempt at this "excluded" four
       # modules that in fact still collected and still ran.
+      # ⬇ 2026-08-01: test_sim_whatif_size_curve_and_io_budget.py LEFT this list — it now guards
+      # itself with a module-level `pytest.importorskip("fastmcp")`, so it is a COUNTED SKIP here
+      # instead of an invisible omission. An excluded file and a passing file look identical in a
+      # summary line; a skip is printed, and it returns by itself the day the pin is fixed.
+      # ★ MEASURED, not assumed: a module-level importorskip emits ONE testcase with
+      # `classname=''`, which `files.discard('')` below drops — so it adds to `skipped` and NOT to
+      # the module count. The floor is therefore unaffected by this move in either direction.
       - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
         working-directory: backend
         run: |
@@ -230,7 +237,7 @@ jobs:
                      tests/test_validate_nearshore_transform.py \
                      tests/test_calibration_census.py 2>/dev/null \
                  | sort -u \
-                 | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup|sim_whatif_size_curve_and_io_budget)\.py$')
+                 | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
           python -m pytest $FILES -q --junitxml=guards.xml
 

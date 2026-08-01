@@ -88,7 +88,8 @@ def shore_normal_for(spot: Dict[str, Any]) -> Optional[float]:
     return float(o) if o is not None else None
 
 
-def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False) -> Optional[float]:
+def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False,
+                       served: Optional[float] = None) -> Optional[float]:
     """Local size reference, gated on the SAME flag production gates it on. Off (the default) means
     the global 1.2 m curve — exactly what the app served before `3263031c`.
 
@@ -121,6 +122,21 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False) -> Opti
     CLAUDE.md says to mirror, never re-derive. Gating stays with the caller by that helper's own
     contract; this function is the caller.
     """
+    # ★★★ THE SERVED REFERENCE OUTRANKS EVERYTHING BELOW, INCLUDING THE FLAG. `served` is the value
+    # the APP ITSELF used at this coordinate, read off the response this sim already fetched for the
+    # sea — so it is an OBSERVATION of production's size curve, where `RATING_LOCAL_SIZE` below is
+    # only this process's ASSUMPTION about it. The two disagreed live on the owner's own machine
+    # (MCP config carries no env at all): Mavericks sim 54.6 `fair` vs served 31.9 `poor_fair`,
+    # +22.7 and a LEVEL apart, with the code entirely correct. Gating an observation behind the
+    # assumption it corrects would keep exactly that divergence.
+    # ★ It also outranks the hand-tuned `spot["reference_size_m"]` on the same principle `f504d52b`
+    # established when a grafted 4.0 outranked the climatology: **a constant measured for a NAME has
+    # no claim over a live row's own measurement** — and a served value is the strongest such
+    # measurement available, being the number the app actually graded with.
+    # ⚠️ No I/O: the caller reads it from provenance already in hand, so the zero-network invariant
+    # is untouched — this branch STRENGTHENS it by answering before the blob lookup is considered.
+    if served is not None:
+        return served
     if os.environ.get("RATING_LOCAL_SIZE", "0") != "1":
         return None
     ref = spot.get("reference_size_m")
@@ -168,6 +184,7 @@ def calculate_surf_rating(
     partitions=None,
     valid_time=None,
     allow_reference_lookup: bool = False,
+    served_reference_size_m: Optional[float] = None,
 ) -> Dict[str, Any]:
     """Breaking wave height and 0-100 surf quality for a spot under a given weather vector.
 
@@ -181,6 +198,14 @@ def calculate_surf_rating(
     response carries the trains its own height ran on) — and a caller who overrides any swell field
     must DROP them, because they describe the forecast sea, not the hypothetical one. None keeps
     the total-field path, byte-identical to before.
+
+    ``served_reference_size_m`` is the local size reference THE APP USED at this coordinate, carried
+    on the same live response as the sea (`sim_forecast.served_reference`). It outranks the local
+    `RATING_LOCAL_SIZE` flag because it is an OBSERVATION of production's curve rather than an
+    assumption about it — see `reference_size_for`. None -> the existing flag+blob path, unchanged.
+    Unlike ``partitions`` it survives a what-if override: the reference is the spot's own yardstick,
+    a property of the PLACE, not of the hypothesised sea, so hypothesising a swell must not silently
+    re-scale the curve that swell is graded against.
     """
     shore_normal = shore_normal_for(spot)
     geo = spot_geometry(spot)
@@ -254,7 +279,8 @@ def calculate_surf_rating(
         wind_from_deg=wind_dir,
         shore_normal_deg=shore_normal,
         swell_from_deg=swell_dir,
-        reference_size_m=reference_size_for(spot, allow_reference_lookup),
+        reference_size_m=reference_size_for(spot, allow_reference_lookup,
+                                            served=served_reference_size_m),
         partitions=partitions,
         break_depth_m=_break_depth,
     )
@@ -282,7 +308,10 @@ def calculate_surf_rating(
     # and a groomed head-high day were indistinguishable in this payload. The veto fixes the score;
     # this field makes the REASON legible — a low score from 40 kt of onshore slop and a low score
     # from 35 ft of unrideable closeout are different answers to "should I paddle out?".
-    _ref = reference_size_for(spot, allow_reference_lookup)
+    # ⚠️ THE SAME REFERENCE THE SCORE USED, or this payload reports a size verdict and a quality
+    # graded on two different curves — the `baseline_delta` defect `f504d52b` closed, inside one
+    # answer instead of across two.
+    _ref = reference_size_for(spot, allow_reference_lookup, served=served_reference_size_m)
     _og = oversize_gate(breaking_height, _ref, break_depth_m=_break_depth)
     _over_start, _over_floor = oversize_thresholds(_ref, _break_depth)
     if _og >= 1.0:

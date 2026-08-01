@@ -292,7 +292,10 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
         # surface that prints its own parity against the app. Without the lookup it would grade
         # the global 1.2 m curve while the glyph grades locally, and the probe (which does look
         # up) would read GREEN over it — a false green on the path a user actually reads.
-        allow_reference_lookup=True)
+        allow_reference_lookup=True,
+        # ...and the curve the APP used, off that same response. The lookup above still needs
+        # RATING_LOCAL_SIZE in THIS process; this needs nothing but a reachable app.
+        served_reference_size_m=sim_forecast.served_reference(provenance))
 
     # PARITY, both halves. The app serves its own breaking height AND its own quality for this
     # coordinate; the sim computes both from the offshore vector through the production chain. A
@@ -419,6 +422,12 @@ def simulate_weather_change(
     # documents for partitions (+12.5 of which +12.5 was the composition switch) — one variable,
     # used by both calls, is what keeps a delta measuring the CALLER'S change.
     _reference_lookup_ok = bool(omitted or hour)
+    # ONE VARIABLE, BOTH CALLS — for the same reason as the line above. The served reference is a
+    # property of the PLACE, so it is identical for the what-if and its baseline; binding it once
+    # makes that structural rather than a coincidence two call sites have to keep agreeing on.
+    # Empty on the override branch (a staged sea is not a forecast the app served) -> None -> the
+    # flag+blob path, unchanged.
+    _served_ref = sim_forecast.served_reference(provenance)
 
     if omitted and baseline is None:
         # Say WHICH fields could not be filled and WHY, rather than failing with a bare null or —
@@ -479,6 +488,7 @@ def simulate_weather_change(
         # SAME permission as `base_calc` below — both sides of `baseline_delta` must grade on the
         # same size curve, and the zero-network what-if must reach neither.
         allow_reference_lookup=_reference_lookup_ok,
+        served_reference_size_m=_served_ref,
     )
 
     # Persist simulation changes to condition_reports in dev.db if present. NOTE this is a
@@ -543,7 +553,8 @@ def simulate_weather_change(
             baseline["wind_direction_deg"], partitions=_whatif_parts,
             # ⚠️ NOT `True`. `baseline is not None` is ALSO satisfied by a peeked cache hit and by
             # a staged override, neither of which paid for a fetch — see `_reference_lookup_ok`.
-            allow_reference_lookup=_reference_lookup_ok)
+            allow_reference_lookup=_reference_lookup_ok,
+            served_reference_size_m=_served_ref)
         changed = {k: {"from": round(float(baseline[k]), 2), "to": round(float(resolved[k]), 2)}
                    for k in requested if abs(float(baseline[k]) - float(resolved[k])) > 1e-9}
         baseline_delta = {

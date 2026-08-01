@@ -27,9 +27,18 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-import weather_sim_mcp
-from services.weather_pipeline import sim_forecast, sim_rating, sim_spots
-from services.weather_pipeline import spot_size_climatology as SSC
+# ⚠️ A COUNTED SKIP, NOT A NAMED EXCLUSION (the `test_run_provenance.py` pattern). This module
+# imports `weather_sim_mcp`, which imports fastmcp — INSTALL-INCOMPATIBLE with the app's pinned
+# httpx/starlette, so `ci.yml` used to drop it from the guard suite by name. An excluded file and a
+# passing file look IDENTICAL in a summary line; a skip is counted, printed, and comes back by
+# itself the day the upstream pin is fixed. It must precede the import: a module that raises on
+# import makes pytest exit 2 and collect NOTHING — a collection error is not local.
+pytest.importorskip(
+    "fastmcp", reason="fastmcp is not installable against this app's pinned httpx/starlette")
+
+import weather_sim_mcp  # noqa: E402  (must follow the skip guard above)
+from services.weather_pipeline import sim_forecast, sim_rating, sim_spots  # noqa: E402
+from services.weather_pipeline import spot_size_climatology as SSC  # noqa: E402
 
 SIM = getattr(weather_sim_mcp.simulate_weather_change, "fn",
               weather_sim_mcp.simulate_weather_change)
@@ -108,13 +117,50 @@ def test_a_warm_cache_whatif_does_not_dial_the_climatology(dials):
         f"`baseline is not None` is not the same fact as 'the caller paid for a fetch'.")
 
 
-def test_NEGATIVE_CONTROL_opting_in_does_reach_the_lookup(dials):
+def _forecast_without_a_served_reference(monkeypatch):
+    """Stub the live lane to a baseline whose provenance carries NO `served_reference_size_m`.
+
+    ⚠️⚠️ THIS STUB IS LOAD-BEARING, AND ITS ABSENCE SILENTLY EMPTIED THE CONTROL BELOW. Unstubbed,
+    the opt-in path performs a REAL fetch against production, and since 2026-08-01 that response
+    carries the app's own `reference_size_m` (Mavericks 1.931 measured live) — which
+    `reference_size_for` answers from BEFORE the blob is ever consulted. So the negative control
+    stopped observing a dial, not because the spy broke but because there was legitimately nothing
+    left to dial. ★ A control that depends on a REMOTE server's payload is not a control; it is a
+    second system under test. Provenance without the key is a real production state anyway (an
+    older deploy, RATING_LOCAL_SIZE off upstream, or no climatology at that cell), and it is
+    exactly the state in which the blob lookup must still be the source.
+    """
+    monkeypatch.setattr(sim_forecast, "fetch_live_forecast",
+                        lambda lat, lng, valid_time=None: (
+                            dict(BASE), {"model": "GFS", "valid_time": "2026-08-01T15:00:00Z"}))
+
+
+def test_NEGATIVE_CONTROL_opting_in_does_reach_the_lookup(dials, monkeypatch):
     """The test above must be able to observe a dial at all. Omit an input -> the caller opts in."""
+    _forecast_without_a_served_reference(monkeypatch)
     out = SIM("Mavericks", wind_direction_deg=45.0, swell_height_m=3.5,
               swell_period_sec=16.0, swell_direction_deg=290.0)   # wind_speed omitted
     assert out["success"] is True
     assert dials, ("no dial on the opt-in path either — the spy is not wired to anything, so the "
                    "zero-dial assertion above proves nothing")
+
+
+def test_a_SERVED_reference_removes_the_dial_even_on_the_opt_in_path(dials, monkeypatch):
+    """★ THE I/O BUDGET GOT STRICTLY BETTER, and this pins it rather than leaving it to be
+    rediscovered as a broken control. When the app itself sends the reference on the response the
+    sim already fetched, there is nothing to look up: the blocking 10 s climatology dial disappears
+    from a path that previously HAD to make it. Same opt-in call as the control above — the ONLY
+    difference is one key in provenance."""
+    monkeypatch.setattr(sim_forecast, "fetch_live_forecast",
+                        lambda lat, lng, valid_time=None: (
+                            dict(BASE), {"model": "GFS", "valid_time": "2026-08-01T15:00:00Z",
+                                         "served_reference_size_m": 1.931}))
+    out = SIM("Mavericks", wind_direction_deg=45.0, swell_height_m=3.5,
+              swell_period_sec=16.0, swell_direction_deg=290.0)
+    assert out["success"] is True
+    assert _ref_of(out) == pytest.approx(1.931), "the served reference did not reach the rating"
+    assert dials == [], (
+        f"a served reference must short-circuit the climatology loader; dialled {len(dials)}x")
 
 
 # ── THE SIZE CURVE ──────────────────────────────────────────────────────────────────────────────

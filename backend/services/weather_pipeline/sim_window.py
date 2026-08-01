@@ -21,6 +21,10 @@ from datetime import datetime, timedelta, timezone
 from typing import Any, Callable, Dict, List, Optional
 
 from services.weather_pipeline import sim_daylight
+# `served_reference` only READS the provenance dict `baseline_at` already returns — it performs no
+# I/O, so importing it here does not give this module the network dependency the injected
+# `baseline_at` exists to keep out. (`sim_forecast` imports no sibling sim module: no cycle.)
+from services.weather_pipeline import sim_forecast
 from services.weather_pipeline.sim_rating import calculate_surf_rating
 
 # 24 frames x 2 requests = 48 worst-case round trips. At the measured 0.42 s per frame warm-server
@@ -74,11 +78,15 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
         # a RANK key inverts its meaning" defect `79e1001a` fixed for sim_compare. Measured when
         # this was briefly wired that way: the winning hour moved 09:00 -> 06:00
         # (test_sim_daylight). The two concerns are separate parameters for exactly this reason.
+        # ★ PER HOUR, from THAT hour's provenance. The reference is a property of the place, so it
+        # is stable across the scan in practice — but reading it per row means a frame the app could
+        # not answer for cannot silently lend its curve to a neighbouring hour.
         calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-            allow_reference_lookup=True)
+            allow_reference_lookup=True,
+            served_reference_size_m=sim_forecast.served_reference(provenance))
         row = {
             "valid_time": hour,
             "breaking_height_ft": calc["breaking_height_ft"],

@@ -34,6 +34,7 @@ CONTRACT
 """
 import json
 import logging
+import math
 import os
 import threading
 import time
@@ -252,6 +253,61 @@ def _sane_partitions(raw):
     return out or None
 
 
+def _sane_reference(raw) -> Optional[float]:
+    """A remote `reference_size_m` validated at the trust boundary, or None.
+
+    ⚠️ NaN IS THE DANGEROUS INPUT, NOT A NEGATIVE ONE. `surf_rating.size_score` guards with
+    `reference_size_m is None or reference_size_m <= _HMIN_RIDEABLE_M`, and **NaN passes BOTH** —
+    it is not None and every comparison against it is False — so it flows into `ref` and the whole
+    score comes back NaN, which `score_to_level` reads as the TOP bucket ('epic'). A blown-out day
+    would render as the best surf of the year. That is the recorded partitions landmine, one field
+    over. A JSON string is the other shape: it raises TypeError out of the comparison and would
+    cost the caller its entire tool answer.
+    ⇒ coerce and range-check HERE, at the one entry point, exactly as `_sane_partitions` does
+    (which likewise `float()`s its inputs, so a numeric string COERCES rather than being refused —
+    the danger was a string reaching the engine, and coercion is what prevents it).
+
+    ⚠️ `math.isfinite`, NOT `v != v`. My first version tested self-inequality alone and **the guard
+    for this let `inf` straight through** — `inf != inf` is False and `inf <= 0` is False, so it
+    passes both, and its failure mode is the MIRROR of NaN's: it drives `size_score` to 0.0, so
+    every sea reads flat instead of epic. Caught by its own test before shipping.
+    """
+    try:
+        v = float(raw)
+    except (TypeError, ValueError):
+        return None
+    if not math.isfinite(v) or v <= 0.0:
+        return None
+    # Non-physical upper bound, deliberately far above the climatology's own [0.4, 4.0] clamp so it
+    # can never second-guess a legitimate reference — 20 m is a 65 ft TYPICAL day. This only catches
+    # garbage from a skewed server, where the effect would be to make every real swell read flat.
+    if v > 20.0:
+        return None
+    return v
+
+
+def served_reference(provenance: Optional[Dict[str, Any]]) -> Optional[float]:
+    """The size reference THE APP ITSELF USED at this coordinate, off the response the sim already
+    fetched — or None when the app sent none.
+
+    ★★★ THIS IS WHY IT EXISTS: the sim used to learn which size curve production was on by reading
+    `RATING_LOCAL_SIZE` **out of its own process env**, a variable with no causal connection to
+    production whatsoever. Measured live 2026-08-01 on the owner's own MCP server, whose config
+    carries no env at all: Mavericks sim **54.6 `fair`** vs served **31.9 `poor_fair`** — delta
+    **+22.7 with a LEVEL difference** — for a reason that had nothing to do with the code.
+    ⇒ the recorded trap, verbatim: *a flag has a value PER LANE; read the SERVED PAYLOAD, not this
+    process's env.* A served reference is production's own answer to the question the flag asks,
+    OBSERVED rather than assumed, and it arrives on the same response, same run, same coordinate as
+    the sea it grades — so the sim MIRRORS the composition instead of re-deriving it (CLAUDE.md).
+
+    ⚠️ None is NOT "production is on the global curve" and must never suppress the local lookup.
+    It is ambiguous between that and "this coordinate has no climatology", and in the second case
+    the glyph still grades on the spot's own blob. Both readings agree on the same action: fall
+    through to the caller's existing flag+blob path, which is the pre-2026-08-01 behaviour exactly.
+    """
+    return _sane_reference((provenance or {}).get("served_reference_size_m"))
+
+
 def baseline_partitions(baseline: Optional[Dict[str, Any]],
                         resolved: Optional[Dict[str, Any]] = None):
     """The baseline's swell trains — IF they still describe the sea being rated, else None.
@@ -356,6 +412,13 @@ def fetch_live_forecast(lat: float, lng: float, valid_time: Optional[str] = None
             "product_id": marine.get("product_id"),
             "is_forecast_authoritative": marine.get("is_forecast_authoritative"),
             "served_surf_height_m": marine.get("surf_height_m"),
+            # WHICH SIZE CURVE THE APP GRADED THIS COORDINATE ON — the other half of parity, and
+            # the one the sim was guessing. It sits beside `served_surf_height_m` because it is the
+            # same kind of fact: not the sea, but what the app DID with it. Absent (older deploy,
+            # RATING_LOCAL_SIZE off, or no climatology here) -> None -> the caller's existing path.
+            # Validated at this boundary for the reason the partitions block states: this is
+            # json.loads of a REMOTE deploy. See `_sane_reference` — NaN is the shape that hurts.
+            "served_reference_size_m": _sane_reference(marine.get("reference_size_m")),
             "url": BASE_URL,
         })
     _remember(key, out)
