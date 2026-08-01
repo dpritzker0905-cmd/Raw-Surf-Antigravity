@@ -25,7 +25,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import weather_sim_mcp
-from services.weather_pipeline import sim_forecast
+from services.weather_pipeline import sim_forecast, sim_spots
 
 SIM = getattr(weather_sim_mcp.simulate_weather_change, "fn",
               weather_sim_mcp.simulate_weather_change)
@@ -177,12 +177,32 @@ def test_naming_an_hour_fetches_even_when_every_input_is_supplied(counted_fetch)
 
 
 # ── HONESTY WHEN THERE IS NO FORECAST ───────────────────────────────────────────────────────────
+#
+# ⚠️⚠️ THESE TWO NAME A SPOT THAT EXISTS OFFLINE, AND THAT IS LOAD-BEARING. They used to say
+# "Pipeline", which is NOT in `CATALOG_DEFAULTS` (only Mavericks / Montara / Pacifica are) — the
+# autouse fixture sets SIM_LIVE_CATALOG=0, so resolution fell through to the sqlite `surf_spots`
+# table, i.e. to a DEVELOPER'S LOCAL `dev.db`. That file is gitignored, so on a clean checkout the
+# name did not resolve and both tests failed with "Spot 'Pipeline' not found in the catalog."
+# ★ THIS IS WHY THE MODULE WAS UNRUNNABLE IN CI — and fastmcp was only HALF the reason. When the
+# shim removed the import barrier the module ran for the first time and immediately went red on the
+# other half. ⇒ **a test that names a spot must name one the offline catalogue carries**, or it is
+# asserting something about the machine it happens to run on.
 
 def test_an_unfillable_omission_names_the_fields_and_the_reason(monkeypatch):
     """Never invent a value for a missing field. An invented wind is exactly how a blown-out day
-    reads clean."""
+    reads clean.
+
+    ⚠️ THE UNFILLABLE STATE IS NOW CONSTRUCTED, NOT BORROWED FROM A SPOT THAT HAPPENS TO LACK
+    DEFAULTS. `_baseline_with_source` falls back to the hand-tuned `base_swell_*` keys, and all
+    three offline rows carry them — so no name reachable on a clean checkout is unfillable. The old
+    "Pipeline" only worked because it resolved from a developer's local `dev.db` (a real row, no
+    hand-tuned weather) and therefore hit `if "base_swell_height" not in spot`. Dropping that key
+    states the precondition the test is actually about instead of inheriting it from a machine."""
     monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
-    out = SIM("Pipeline", wind_speed_knots=4.0)
+    monkeypatch.setitem(sim_spots.CATALOG_DEFAULTS, "Mavericks",
+                        {k: v for k, v in sim_spots.CATALOG_DEFAULTS["Mavericks"].items()
+                         if not k.startswith("base_")})
+    out = SIM("Mavericks", wind_speed_knots=4.0)
     assert out["success"] is False
     assert "swell_height_m" in out["error"] and "swell_period_sec" in out["error"]
     assert "hint" in out
@@ -192,7 +212,7 @@ def test_an_unfillable_omission_names_the_fields_and_the_reason(monkeypatch):
 def test_with_no_forecast_a_fully_specified_whatif_still_works(monkeypatch):
     """The self-contained what-if must not become dependent on an app that may be unreachable."""
     monkeypatch.setenv("SIM_LIVE_FORECAST", "0")
-    out = SIM("Pipeline", **FULL)
+    out = SIM("Mavericks", **FULL)
     assert out["success"] is True
     assert out["simulated_surf_output"]["breaking_height_ft"] > 0
     assert "baseline_delta" not in out, "no baseline in hand -> no delta claimed"
