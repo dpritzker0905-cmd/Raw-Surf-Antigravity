@@ -20,6 +20,7 @@ Pure helpers (unit-tested, no I/O) + a thin L2 runner (flag-gated on the CI runn
 """
 import json
 import logging
+import math
 import os
 from typing import Optional
 
@@ -155,7 +156,7 @@ def reference_map(clim_obj: Optional[dict], **kw) -> dict:
 _ref_map_memo = {"cell": (None, {})}
 
 
-def reference_for_spot(spot_id) -> Optional[float]:
+def reference_for_spot(spot_id, clim_obj: Optional[dict] = None) -> Optional[float]:
     """THE ONE-SPOT ACCESSOR: this spot's `reference_size_m`, or None.
 
     ★ WHY THIS EXISTS. The batch lanes (`spot_ratings.build_precomputed_frames`, the live glyph
@@ -177,11 +178,18 @@ def reference_for_spot(spot_id) -> Optional[float]:
     stay there: the flag has a value PER LANE, and a gate buried in a shared helper would silently
     flip every lane at once the day one of them set it. Callers gate; this only looks up.
 
+    ``clim_obj`` lets a caller that ALREADY HOLDS the object resolve against THAT one instead of
+    re-entering the loader. ⚠️ It is not an optimisation — it is a correctness requirement for
+    `reference_for_coordinate`, which builds its coordinate index from a blob and must read the
+    reference from the SAME blob. Re-entering the loader there could hand back a REFRESHED object
+    between the two steps, so the index and the value would describe different snapshots: the
+    "both sides of a comparison must share a composition" defect (`f504d52b`) in one function.
+
     Returns None for an unknown spot, a spot without enough climatology, or no blob at all — every
     one of which means "use the global curve", which is the pre-flip behaviour."""
     if spot_id is None:
         return None
-    clim = load_size_climatology_l2_cached()
+    clim = clim_obj if clim_obj is not None else load_size_climatology_l2_cached()
     if not clim:
         return None
     src, mapping = _ref_map_memo["cell"]
@@ -193,6 +201,85 @@ def reference_for_spot(spot_id) -> Optional[float]:
     return mapping.get(str(spot_id))
 
 
+def _haversine_km(lat1, lon1, lat2, lon2) -> float:
+    r = 6371.0
+    p1, p2 = math.radians(lat1), math.radians(lat2)
+    dp, dl = math.radians(lat2 - lat1), math.radians(lon2 - lon1)
+    a = math.sin(dp / 2) ** 2 + math.cos(p1) * math.cos(p2) * math.sin(dl / 2) ** 2
+    return 2 * r * math.asin(min(1.0, math.sqrt(a)))
+
+
+# Coordinate index, memoised against the IDENTITY of the climatology object it was built from —
+# the same contract as `_ref_map_memo`, so it invalidates exactly when the loader refreshes.
+_coord_index_memo: dict = {"cell": (None, [])}
+
+
+def reference_for_coordinate(lat: float, lng: float, max_km: float = 2.0,
+                             clim_obj: Optional[dict] = None) -> Optional[float]:
+    """THE COORDINATE ACCESSOR: the per-SPOT reference for a coordinate that IS a catalogued spot.
+
+    ★★ WHY THIS EXISTS — queue item E#1. `/api/weather/point` is keyed by a COORDINATE and carries
+    no spot identity, so it served the per-CELL reference (`grid_size_climatology.reference_for`)
+    while the glyph for the same break used the per-SPOT one. Measured live 2026-08-01 by fitting
+    the reference that reproduces each served score: the cell value sits a **median 21.3% (max
+    52.5%, 4 of 10 over 25%)** from the spot value, which independently reproduced the 25.8%/53.0%
+    measured in HANDOFF-2026-08-01-E. That gap is what remained after the sim began reading the
+    served curve, and it moves the infobox badge by −11.4 to +9.6 points.
+
+    ⛔ THE ALTERNATIVES WERE WORSE, AND ONE WAS A TRAP.
+      * A `spot_id` QUERY PARAM would make the served number depend on a caller-supplied key the
+        endpoint cannot validate, and threading it needs `point_resolution.py`.
+      * PEEKING the resident L2 caches (upgrade only when both happen to be warm) looked free and
+        is the recorded COVERAGE CLASS: the same coordinate would return 1.86 or 1.931 depending on
+        what else had warmed the process — **a served number that varies with cache residency,
+        degrading silently.** Rejected before building.
+    A coordinate index is DETERMINISTIC: the blob either holds a spot within `max_km` or it does
+    not, and the answer does not depend on process history.
+
+    ⚠️ `max_km` 2.0 is not a new constant — it is the tolerance `rating_confirmation.confirmation_for`
+    already uses to call two coordinates the same break, on this same endpoint's sibling lane.
+
+    Returns None for: no blob, no coordinates in the blob (records written before this key existed),
+    nothing within `max_km`, or a matched spot with too little climatology. **Every one of those
+    means "use the cell reference", which is the pre-2026-08-01 behaviour exactly** — so this ships
+    inert and activates when the next precompute cycle writes coordinates.
+
+    ⚠️ NOT GATED on RATING_LOCAL_SIZE. Like `reference_for_spot`, the flag is the CALLER's gate at
+    every lane; a gate buried in a shared helper would flip every lane at once.
+    """
+    if lat is None or lng is None:
+        return None
+    clim = clim_obj if clim_obj is not None else load_size_climatology_l2_cached()
+    if not clim or not isinstance(clim.get("spots"), dict):
+        return None
+    src, index = _coord_index_memo["cell"]
+    if src is not clim:
+        index = [(rec["lat"], rec["lng"], sid)
+                 for sid, rec in clim["spots"].items()
+                 if isinstance(rec, dict) and rec.get("lat") is not None
+                 and rec.get("lng") is not None]
+        _coord_index_memo["cell"] = (clim, index)
+    if not index:
+        return None
+    # ⚠️ A cheap bounding-box reject BEFORE haversine. At 2 km the latitude window is ~0.018 deg, so
+    # this discards ~all of ~1,800 entries with two comparisons each; the trig then runs on a
+    # handful. The endpoint is hot enough that a full haversine sweep per request would be felt.
+    dlat = max_km / 111.0
+    best_sid, best_km = None, None
+    for rlat, rlng, sid in index:
+        if abs(rlat - lat) > dlat:
+            continue
+        km = _haversine_km(lat, lng, rlat, rlng)
+        if km <= max_km and (best_km is None or km < best_km):
+            best_sid, best_km = sid, km
+    if best_sid is None:
+        return None
+    # ⚠️ THE SAME `clim` THE INDEX WAS BUILT FROM, never a fresh loader call. Re-entering the loader
+    # here could return a REFRESHED object, leaving the index and the value on different snapshots —
+    # and in tests it ignored the injected blob entirely, which is how this was caught.
+    return reference_for_spot(best_sid, clim_obj=clim)
+
+
 def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
     """Fold the breaking heights from a precompute run's frames ([{spots:[{spot_id, surf_height_m}...]}]) into
     the rolling per-spot histograms. Returns the updated climatology object (schema-versioned)."""
@@ -200,7 +287,15 @@ def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
     if clim_obj and isinstance(clim_obj.get("spots"), dict):
         spots = dict(clim_obj["spots"])
     # Gather per-spot samples across all frames of this run.
-    by_spot = {}
+    # ★ AND THE COORDINATE, because a spot_id-only blob cannot answer the question the POINT
+    # endpoint asks. `/api/weather/point` is keyed by a COORDINATE and has no spot identity, so it
+    # served the per-CELL reference from `grid_size_climatology` while the glyph used the per-SPOT
+    # one from here — measured a median 21.3% apart (max 52.5%), which is the whole of queue item
+    # E#1. Carrying lat/lng makes this blob answerable BY COORDINATE (`reference_for_coordinate`),
+    # so the coordinate-keyed lane can reach the same number the spot-keyed lane uses.
+    # ⚠️ The frames already carry it — `spot_ratings.rate_one_spot` emits `latitude`/`longitude` on
+    # every record — so this is a re-use, not a new derivation, and costs one dict read per spot.
+    by_spot, coords = {}, {}
     for fr in frames or []:
         for s in (fr.get("spots") or []):
             sid = s.get("spot_id")
@@ -208,10 +303,21 @@ def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
             if sid is None or h is None:
                 continue
             by_spot.setdefault(str(sid), []).append(h)
+            la, ln = s.get("latitude"), s.get("longitude")
+            if la is not None and ln is not None:
+                coords[str(sid)] = (la, ln)
     for sid, samples in by_spot.items():
         rec = spots.get(sid) if isinstance(spots.get(sid), dict) else {}
+        prev = rec                                   # keep the OLD coordinate if this run has none
         rec = {"hist": merge_samples(rec.get("hist"), samples)}
         rec["n"] = hist_count(rec["hist"])
+        # ⚠️ This function REBUILDS the record rather than mutating it, so anything not copied here
+        # is dropped every cycle. The coordinate must therefore survive explicitly — and fall back
+        # to the previous value, or a run whose frames happen to omit lat/lng would silently strip
+        # coordinates the blob already had and quietly disable the coordinate lane.
+        latlng = coords.get(sid) or (prev.get("lat"), prev.get("lng"))
+        if latlng[0] is not None and latlng[1] is not None:
+            rec["lat"], rec["lng"] = latlng
         spots[sid] = rec
     from datetime import datetime, timezone
     return {"schema_version": SCHEMA_VERSION, "updated_at": datetime.now(timezone.utc).isoformat(),

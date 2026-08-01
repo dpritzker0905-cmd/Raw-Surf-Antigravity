@@ -71,24 +71,40 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # `surf_height_m` ENTIRELY rather than merely drop the reference. Fail-open by
             # contract — no reference means the global curve, which is exactly the pre-flip
             # behaviour and never a wrong NUMBER, only a less local one.
-            # ★ THE CELL BLOB, NOT THE SPOT BLOB, AND THAT IS THE POINT. This endpoint is keyed by a
-            # COORDINATE, so it takes the same per-cell reference `grid_resolver_surf` gives the
-            # BAND at that coordinate — the surface rendered right behind the infobox. The two
-            # blobs are built to agree: grid_size_climatology.reference_for is documented as "same
-            # percentile, min-samples, and clamps as the per-spot reference (imported helpers) —
-            # band and glyph saturate identically where they overlap". Reaching for the per-SPOT
-            # blob here would need a spot_id this endpoint does not have, and inventing a
-            # coordinate->spot match would be a second forecast path for one screen.
-            # ⚠️ spot_size_climatology has NO `reference_for` — only `reference_map(clim)` keyed by
-            # spot_id. A first pass imported it anyway; the ImportError would have been swallowed by
-            # this very except, leaving the badge silently on the global curve with the fix
-            # apparently shipped. Fail-open hides its own failure — verify the symbol exists.
+            # ★ THE CELL BLOB IS THE FALLBACK, NOT THE ANSWER — CORRECTED 2026-08-01 (queue E#1).
+            # This endpoint is keyed by a COORDINATE, so it took the per-cell reference
+            # `grid_resolver_surf` gives the BAND at that coordinate. The justification was a
+            # docstring — grid_size_climatology.reference_for says "band and glyph saturate
+            # identically where they overlap" — and that sentence is about the FORMULA (same
+            # percentile, min-samples, clamps), NOT the VALUES. It was never measured. When it was,
+            # a 0.25 deg cell aggregates many spots and the two disagree:
+            #     |cell - spot| reference: median 21.3%, max 52.5%, 4 of 10 over 25%
+            #     score impact at the badge: -11.4 to +9.6 points, LEVEL differs at 2 of 6
+            # ⇒ AT A CATALOGUED SPOT THE PER-SPOT REFERENCE WINS, because that is the number the
+            # glyph rendered beside this box graded with, and the two must be ONE composition.
+            # Away from a catalogued spot the cell value is still right — there is no glyph there to
+            # disagree with — so the fallback is kept, not replaced.
+            # ⚠️ NOT a "second forecast path for one screen" (the old comment's objection): it is
+            # the SAME per-spot reference the glyph and hub already use, reached by the SAME 2 km
+            # proximity tolerance `rating_confirmation.confirmation_for` uses on this very lane.
+            # ⚠️ spot_size_climatology has NO `reference_for` — only `reference_map(clim)` /
+            # `reference_for_spot(id)` / `reference_for_coordinate(lat,lng)`. A first pass imported
+            # the wrong name anyway; the ImportError would have been swallowed by this very except,
+            # leaving the badge silently on the global curve with the fix apparently shipped.
+            # Fail-open hides its own failure — verify the symbol exists.
             if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
                 try:
                     from services.weather_pipeline.grid_size_climatology import (
                         load_grid_size_climatology_l2_cached, reference_for)
-                    response.reference_size_m = reference_for(
-                        load_grid_size_climatology_l2_cached(), lat, lng)
+                    from services.weather_pipeline.spot_size_climatology import (
+                        reference_for_coordinate)
+                    # Spot first; None (no blob, no coordinates yet, nothing within 2 km, or too
+                    # little climatology) falls through to the cell value, which is the behaviour
+                    # this lane shipped with. That is why this can land BEFORE the precompute has
+                    # written coordinates into the blob: inert until the data arrives.
+                    response.reference_size_m = (
+                        reference_for_coordinate(lat, lng)
+                        or reference_for(load_grid_size_climatology_l2_cached(), lat, lng))
                 except Exception as _ref_err:
                     logger.debug(f"[point-surf] local size reference unavailable: {_ref_err}")
             # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling
