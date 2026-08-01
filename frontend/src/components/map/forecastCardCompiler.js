@@ -91,6 +91,27 @@ export function compileForecastCards({
   const isProvisionalPaint = !provisionalMarkOff && isExactPointAuthority && isExactPointLoading;
   const _prov = isProvisionalPaint ? '…' : '';
 
+  // ── IS THIS NUMBER A MEASUREMENT OR A SYNTHESIS? (1a-1, 2026-08-01) ───────────────────────────
+  // `isEst` was a hardcoded `false`, declared FOUR separate times inside the four marine blocks,
+  // so all twelve `(est.)` branches below were dead code. It was set false by 4117cfc9 (2026-06-08)
+  // "Delete frontend estimators and visual fallbacks" — correct at the time. Then 81f2ec23
+  // (06-17) and 328a1862 (06-24) RE-INTRODUCED a frontend estimator, 9 and 16 days later, and
+  // never restored the marker.
+  // ⇒ MEASURED LIVE 2026-08-01: selecting ICON + swell_2 renders `Height | Period | Dir` under an
+  //   ICON model chip, at all 7 sites probed, while the numbers are a 60/40 GFS/EURO blend.
+  //   ICON/GWAM has no second swell at all; the backend answers `unsupported` and the CLIENT
+  //   synthesizes it (backendWeatherServiceClientPoint.js:250).
+  // The response has carried the truth the whole time — `is_estimated: true`, `provider:
+  // 'estimated'`, `estimate_basis.type` — and the render layer read none of them.
+  // THREE producers set it, all ICON, all genuinely estimates, so reading the flag is right for
+  // all three rather than special-casing swell_2:
+  //   icon_extended_estimate       persistence + GFS trend, hours 168-240
+  //   icon_extended_blend          weighted GFS/EURO, hours >240
+  //   icon_swell_2_gfs_euro_blend  60/40 GFS/EURO, ALL hours (ICON has no swell_2)
+  // ★ ONE EXPRESSION, ONE PLACE. Four copies of a constant is how the knots constant reached seven
+  // and diverged; the four block-local declarations are deliberately gone.
+  const isEst = useExactPoint?.is_estimated === true;
+
   if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
     const hasSnow = snowfall != null && snowfall > 0;
     const hasRain = precip != null && precip > 0 && (!hasSnow || (temp != null && temp > 2));
@@ -224,7 +245,6 @@ export function compileForecastCards({
       displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
     } else {
-      const isEst = false;
       const hFt = mToFt(waveHeight);
       const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
       // Provisional first paint: mark with the shared trailing ellipsis (reads "still refining")
@@ -235,7 +255,7 @@ export function compileForecastCards({
         displayPeak = `${useExactPoint.wave_peak_period.toFixed(1)}s`;
       }
       if (waveDir != null) {
-        displayDir = `${Math.round(waveDir)}${isEst ? '° (est.)' : ''}${_prov}`;
+        displayDir = `${Math.round(waveDir)}${isEst ? ' (est.)' : ''}${_prov}`;
         displayCompass = degToCompass(waveDir);
       }
     }
@@ -319,7 +339,9 @@ export function compileForecastCards({
   if (activeLayer === 'swell_1') {
     if (!swell1Supported) {
       const modelLabel1 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
-      cards.push({ icon: Waves, label: 'Swell', value: 'N/A', color: 'text-cyan-400' });
+      // Same name as the data path below — the no-data card and the data card describe the SAME
+      // quantity, and two names for one quantity is the defect this arc is closing.
+      cards.push({ icon: Waves, label: 'Primary Swell', value: 'N/A', color: 'text-cyan-400' });
       cards.push({ icon: Waves, label: modelLabel1, value: 'No data', color: 'text-gray-400' });
     } else {
       let displayHeight = '--';
@@ -359,7 +381,6 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
-        const isEst = false;
         const swell1LowEnergy = swell1Height == null || swell1Height < 0.05;
         const hFt = mToFt(swell1Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
@@ -370,7 +391,7 @@ export function compileForecastCards({
             displayPeak = `${useExactPoint.swell_wave_peak_period.toFixed(1)}s`;
           }
           if (swell1Dir != null) {
-            displayDir = `${Math.round(swell1Dir)}${isEst ? '° (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(swell1Dir)}${isEst ? ' (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(swell1Dir);
           }
         } else {
@@ -384,7 +405,18 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-cyan-400', provisional: isProvisionalPaint });
+      // #22 — 'Height' unqualified reads as THE answer, exactly the ambiguity #17 removed from the
+      // `waves` layer and left standing on the other three. But naming this one plain 'Swell'
+      // (which is what the layer picker calls it) would REBUILD #17 one level down: on `waves`,
+      // 'Swell' is the TOTAL offshore significant height; here it is the PRIMARY TRAIN only.
+      // Measured at Cocoa 2026-08-01 — waves 1.6 ft vs swell_1 0.9 ft — two numbers a layer switch
+      // apart that would carry the same word. TOTAL vs TRAIN is the distinction the label has to
+      // survive, so the train is named as a train.
+      cards.push({
+        icon: Waves, label: 'Primary Swell', value: displayHeight, color: 'text-cyan-400',
+        provisional: isProvisionalPaint,
+        ariaLabel: `Primary swell train height ${displayHeight}`,
+      });
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
@@ -411,7 +443,7 @@ export function compileForecastCards({
   if (activeLayer === 'swell_2') {
     if (swell2ModelUnavailable) {
       const modelLabel2 = activeModel === 'EURO' ? 'ECMWF' : activeModel;
-      cards.push({ icon: Waves, label: 'Swell 2', value: 'N/A', color: 'text-purple-400' });
+      cards.push({ icon: Waves, label: 'Secondary Swell', value: 'N/A', color: 'text-purple-400' });
       cards.push({ icon: Waves, label: modelLabel2, value: 'No data', color: 'text-gray-400' });
     } else {
       let displayHeight = '--';
@@ -454,7 +486,6 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
-        const isEst = false;
         const swell2LowEnergy = swell2Height == null || swell2Height < 0.10;
         const hFt = mToFt(swell2Height);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
@@ -462,7 +493,7 @@ export function compileForecastCards({
         if (!swell2LowEnergy) {
           if (swell2Period != null && swell2Period > 0) displayPeriod = `${swell2Period.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (swell2Dir != null) {
-            displayDir = `${Math.round(swell2Dir)}${isEst ? '° (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(swell2Dir)}${isEst ? ' (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(swell2Dir);
           }
         } else {
@@ -476,7 +507,14 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Waves, label: 'Height', value: displayHeight, color: 'text-purple-400', provisional: isProvisionalPaint });
+      // #22, and the layer where it matters most: on ICON this train does not exist upstream at
+      // all and the value is a 60/40 GFS/EURO synthesis (see `isEst` above). Naming it as a train
+      // is half the honesty; the `(est.)` marker is the other half.
+      cards.push({
+        icon: Waves, label: 'Secondary Swell', value: displayHeight, color: 'text-purple-400',
+        provisional: isProvisionalPaint,
+        ariaLabel: `Secondary swell train height ${displayHeight}`,
+      });
       if (showStatus) {
         cards.push({ icon: Waves, label: 'Status', value: showStatus, color: statusColor });
       } else {
@@ -539,7 +577,6 @@ export function compileForecastCards({
         displayPeriod = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
         displayDir = activeModel === 'EURO' ? 'No Copernicus coverage' : 'No Coverage';
       } else {
-        const isEst = false;
         const windWaveLowEnergy = windWaveHeight == null || windWaveHeight < 0.05;
         const hFt = mToFt(windWaveHeight);
         const isStale = isExactPointAuthority && exactPointStatus === 'exact_stale_available';
@@ -547,7 +584,7 @@ export function compileForecastCards({
         if (!windWaveLowEnergy) {
           if (windWavePeriod != null && windWavePeriod > 0) displayPeriod = `${windWavePeriod.toFixed(1)}s${isEst ? ' (est.)' : ''}${_prov}`;
           if (windWaveDir != null) {
-            displayDir = `${Math.round(windWaveDir)}${isEst ? '° (est.)' : ''}${_prov}`;
+            displayDir = `${Math.round(windWaveDir)}${isEst ? ' (est.)' : ''}${_prov}`;
             displayCompass = degToCompass(windWaveDir);
           }
         } else {
@@ -561,7 +598,13 @@ export function compileForecastCards({
         }
       }
 
-      cards.push({ icon: Wind, label: 'Height', value: displayHeight, color: 'text-emerald-400', provisional: isProvisionalPaint });
+      // #22. 'Wind Waves' matches the layer picker and collides with nothing — windsea is locally
+      // generated chop, never confusable with the total or with a swell train.
+      cards.push({
+        icon: Wind, label: 'Wind Waves', value: displayHeight, color: 'text-emerald-400',
+        provisional: isProvisionalPaint,
+        ariaLabel: `Wind wave (windsea) height ${displayHeight}`,
+      });
       if (showStatus) {
         cards.push({ icon: Wind, label: 'Status', value: showStatus, color: statusColor });
       } else {

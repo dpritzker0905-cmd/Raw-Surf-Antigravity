@@ -49,6 +49,10 @@ const PARTITIONS = { GFS: ['swell_1', 'swell_2', 'wind_waves'], ICON: ['swell_1'
 
 const CLOSURE_TOL = 0.10;      // same-tier measured 0.94-1.03; +/-10% catches a real regression
 const SAME_TIER_FLOOR = 8;     // anti-vacuity: the fixture yields 10 same-tier pairs today
+// Every label under which a HEIGHT is shown. Keep in step with forecastCardCompiler's pushes AND
+// with MapForecastOverlayDiag's height lookup — that diagnostic was keyed on one string and went
+// silently blind on the `waves` layer the day #17 renamed it.
+const HEIGHT_LABELS = ['Swell', 'Primary Swell', 'Secondary Swell', 'Wind Waves'];
 
 const M_TO_FT = 3.28084;
 const mToFt = (m) => (m == null ? null : Math.round(m * M_TO_FT * 10) / 10);
@@ -204,7 +208,23 @@ describe('1a-0 · INVARIANT: the card contract, per model x layer', () => {
     for (const c of contract) {
       const key = { waves: 'wave_height', swell_1: 'swell_wave_height', swell_2: 'secondary_swell_wave_height', wind_waves: 'wind_wave_height' }[c.layer];
       if (c.ep[key] == null) continue;
-      expect(c.labels.some((l) => ['Swell', 'Height', 'Swell 2', 'Wind Waves'].includes(l))).toBe(true);
+      expect(c.labels.some((l) => HEIGHT_LABELS.includes(l))).toBe(true);
+    }
+  });
+
+  test('#22 — no layer ships a bare "Height", on any model', () => {
+    // Nine of the twelve cells did until 1a-1 (swell_1 / swell_2 / wind_waves x GFS/ICON/EURO).
+    for (const c of contract) expect(c.labels).not.toContain('Height');
+  });
+
+  test('the label distinguishes the TOTAL from a TRAIN — the #17 defect, one level down', () => {
+    // `waves` carries the TOTAL offshore significant height and is named 'Swell'. If a partition
+    // layer were also named plain 'Swell' (which is what the layer picker calls swell_1), a layer
+    // switch would show two different numbers under one word — measured at Cocoa 2026-08-01,
+    // 1.6 ft total vs 0.9 ft primary train. That is exactly the ambiguity #17 removed.
+    for (const c of contract) {
+      if (c.layer === 'waves') expect(c.labels).toContain('Swell');
+      else expect(c.labels).not.toContain('Swell');
     }
   });
 
@@ -255,6 +275,35 @@ describe('1a-0 · INVARIANT: a fabricated train is identifiable in the data', ()
       expect(c.payload.status).toBe('unsupported');
       expect(c.payload.point.interpolation_method).toBe('unsupported');
     }
+  });
+
+  test('1a-1 — a synthesized train is MARKED (est.), and a measured one is not', () => {
+    // THE JACOBIAN of this arc. The label says WHICH TRAIN; only this marker says WHETHER THE
+    // NUMBER IS REAL. Before 1a-1, ICON+swell_2 rendered identically to GFS's genuinely-measured
+    // swell_2 — same labels, same shape, under an ICON model chip — at all 7 sites.
+    const blend = {
+      secondary_swell_wave_height: 0.42, secondary_swell_wave_period: 9.1,
+      secondary_swell_wave_direction: 187, is_estimated: true,
+      estimate_basis: { type: 'icon_swell_2_gfs_euro_blend', gfs_weight: 0.6, euro_weight: 0.4 },
+    };
+    const estimated = cardsFor(blend, 'ICON', 'swell_2');
+    const height = estimated.find((c) => c.label === 'Secondary Swell');
+    expect(height.value).toMatch(/\(est\.\)/);
+    expect(estimated.find((c) => c.label === 'Period').value).toMatch(/\(est\.\)/);
+
+    // NEGATIVE CONTROL: the same numbers WITHOUT the flag must carry no marker, or the marker
+    // means nothing. A badge that is always on is not a badge.
+    const measured = cardsFor({ ...blend, is_estimated: false }, 'GFS', 'swell_2');
+    expect(measured.find((c) => c.label === 'Secondary Swell').value).not.toMatch(/\(est\.\)/);
+    expect(measured.find((c) => c.label === 'Period').value).not.toMatch(/\(est\.\)/);
+  });
+
+  test('the marker covers all THREE estimate producers, not just swell_2', () => {
+    // icon_extended_estimate (168-240 h) and icon_extended_blend (>240 h) set the same flag on the
+    // `waves` layer. Special-casing swell_2 would have left those two silently unmarked.
+    const ext = { wave_height: 1.1, wave_period: 12.0, wave_direction: 200, is_estimated: true,
+                  estimate_basis: { type: 'icon_extended_estimate' } };
+    expect(cardsFor(ext, 'ICON', 'waves').find((c) => c.label === 'Swell').value).toMatch(/\(est\.\)/);
   });
 
   test('the capability map still records the estimate as a WORD, not a boolean', () => {

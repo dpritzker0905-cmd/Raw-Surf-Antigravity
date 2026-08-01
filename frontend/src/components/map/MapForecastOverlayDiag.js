@@ -202,7 +202,14 @@ export function logForensicAudit({
     console.log(`Coords: ${pointLat.toFixed(4)}, ${pointLng.toFixed(4)} | Status: ${effectiveExactPointStatus}`);
     if (effectiveExactPointStatus === 'exact_success' && effectiveExactPoint) {
       console.table({
-        height: { displayedValue: cards.find(c => c.label === 'Height')?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
+        // ⚠️ THIS LOOKUP WAS KEYED ON ONE LABEL AND HAS BEEN BLIND SINCE 5ae2d267 (#17), which
+        // renamed the `waves` height card to 'Swell' — every forensic audit on that layer has
+        // printed `displayedValue: undefined` ever since. 1a-1 renames the other three
+        // ('Primary Swell' / 'Secondary Swell' / 'Wind Waves'), which would have blinded all four.
+        // ★ A DIAGNOSTIC KEYED ON A DISPLAY STRING BREAKS SILENTLY WHEN THE DISPLAY CHANGES — the
+        // recurring "my own fix blinded the instrument" class. Match the SET of height labels, and
+        // keep this list in step with the pushes in forecastCardCompiler.js.
+        height: { displayedValue: cards.find(c => ['Swell', 'Primary Swell', 'Secondary Swell', 'Wind Waves', 'Height'].includes(c.label))?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
         period: { displayedValue: cards.find(c => c.label === 'Period')?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' },
         direction: { displayedValue: cards.find(c => c.label === 'Dir' || c.label === degToCompass(waveDir || swell1Dir || swell2Dir || windWaveDir))?.value, isAuthoritative: isExactPointAuthority, source: 'exact_point_api' }
       });

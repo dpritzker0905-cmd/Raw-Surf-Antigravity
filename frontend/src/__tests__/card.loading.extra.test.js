@@ -37,8 +37,10 @@ describe('Info box card loading tests', () => {
       swell1Dir: null,
     });
 
-    // 2. finds the card whose `.label === 'Status'` OR `.label === 'Height'`
-    const heightOrStatusCard = cards.find((c) => c.label === 'Status' || c.label === 'Height');
+    // 2. finds the card whose `.label === 'Status'` OR is the layer's height card
+    //    ('Height' -> 'Primary Swell' on swell_1, 1a-1: TOTAL vs TRAIN is what the label must
+    //    survive, and 'Height' unqualified survived neither.)
+    const heightOrStatusCard = cards.find((c) => c.label === 'Status' || c.label === 'Primary Swell');
     expect(heightOrStatusCard).toBeDefined();
 
     // 3. asserts that card's `.value` is a loading/placeholder string (e.g. contains `'Loading'`) and does NOT contain `'ft'`.

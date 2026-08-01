@@ -125,10 +125,10 @@ test('swell_1 provisional first paint is marked like waves', () => {
     swell1Period: 11.0,
     swell1Dir: 190,
   });
-  // NB: still 'Height' — 5ae2d267 renamed the offshore card to 'Swell' on the `waves` layer ONLY.
-  // The swell_1 / wind_waves layers keep the generic 'Height' label (see the separate branch in
-  // forecastCardCompiler). Not a typo; do not "align" these without changing the compiler.
-  const height = cards.find((c) => c.label === 'Height');
+  // 1a-1 (2026-08-01) finished what 5ae2d267/#17 started on the `waves` layer alone: the three
+  // partition layers no longer carry a bare 'Height'. swell_1 is 'Primary Swell' — NOT plain
+  // 'Swell', which is the TOTAL on the waves layer (Cocoa: 1.6 ft total vs 0.9 ft primary train).
+  const height = cards.find((c) => c.label === 'Primary Swell');
   expect(height.value).toBe('3 ft…');
   expect(height.provisional).toBe(true);
   const period = cards.find((c) => c.label === 'Period');
@@ -143,7 +143,7 @@ test('wind_waves provisional first paint is marked like waves', () => {
     windWavePeriod: 5.5,
     windWaveDir: 100,
   });
-  const height = cards.find((c) => c.label === 'Height');   // 'Height' on wind_waves — see note above
+  const height = cards.find((c) => c.label === 'Wind Waves');   // was bare 'Height' — see note above
   expect(height.value).toBe('2 ft…');
   expect(height.provisional).toBe(true);
 });
