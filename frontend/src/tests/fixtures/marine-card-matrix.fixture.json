@@ -1,0 +1,2302 @@
+{
+ "_README": "LIVE CAPTURE from https://raw-surf-antigravity.onrender.com/api/weather/point, 3 models x 4 layers x 7 sites = 84 cells. NOT synthetic. Regenerate with backend/scripts/capture_marine_card_matrix.py when the contract changes.",
+ "valid_time": "2026-08-01T20:00:00Z",
+ "captured_utc": "2026-08-01T20:14:12.549165+00:00",
+ "source": "https://raw-surf-antigravity.onrender.com",
+ "census": {
+  "cells_requested": 84,
+  "cells_returned": 84
+ },
+ "cells": {
+  "Cocoa Beach|GFS|waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.5841,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.499,
+     "direction": 138.48,
+     "period": 4.57,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Cocoa Beach|GFS|swell_1": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.4656,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.2759,
+     "direction": 91.26,
+     "period": 8.85,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Cocoa Beach|GFS|swell_2": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.0651,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.0521,
+     "direction": 16.96,
+     "period": 4.04,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Cocoa Beach|GFS|wind_waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.3713,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4165,
+     "direction": 160.07,
+     "period": 2.94,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Cocoa Beach|ICON|waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.6688,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4636,
+     "direction": 111.19,
+     "period": 6.64,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Cocoa Beach|ICON|swell_1": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.6475,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4406,
+     "direction": 111.2,
+     "period": 6.92,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Cocoa Beach|ICON|swell_2": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Cocoa Beach|ICON|wind_waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.0878,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.1322,
+     "direction": 195.04,
+     "period": 1.63,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Cocoa Beach|EURO|waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 0.6467,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4283,
+     "direction": 123.79,
+     "period": 9.48,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Cocoa Beach|EURO|swell_1": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.8192,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.6239,
+     "direction": 128.09,
+     "period": 6.89,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Cocoa Beach|EURO|swell_2": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.3298,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.2884,
+     "direction": 172.47,
+     "period": 6.7,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Cocoa Beach|EURO|wind_waves": {
+   "site": "Cocoa Beach",
+   "lat": 28.36,
+   "lng": -80.6,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.2475,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 99.5,
+    "reference_size_m": 0.432,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4703,
+     "direction": 207.76,
+     "period": 1.72,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Trestles|GFS|waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.2455,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.7235,
+     "direction": 191.05,
+     "period": 12.95,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Trestles|GFS|swell_1": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.9068,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4863,
+     "direction": 191.17,
+     "period": 12.95,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Trestles|GFS|swell_2": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "open-meteo",
+    "source_dataset": null,
+    "surf_height_m": 0.6858,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.42,
+     "direction": 187.0,
+     "period": 9.0,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Trestles|GFS|wind_waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.1678,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.15,
+     "direction": 242.68,
+     "period": 1.88,
+     "interpolation_method": "nearest_ocean_coarse_masked"
+    }
+   }
+  },
+  "Trestles|ICON|waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.9276,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.3429,
+     "direction": 229.99,
+     "period": 9.88,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Trestles|ICON|swell_1": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.9256,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.3405,
+     "direction": 229.99,
+     "period": 9.89,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Trestles|ICON|swell_2": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Trestles|ICON|wind_waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.086,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.0736,
+     "direction": 235.43,
+     "period": 1.41,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Trestles|EURO|waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 1.7489,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.1484,
+     "direction": 215.32,
+     "period": 10.51,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Trestles|EURO|swell_1": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "gfs_estimated_fallback",
+    "source_dataset": null,
+    "surf_height_m": 1.0024,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": true,
+    "estimate_basis": {
+     "type": "ecmwf_ifs_derived_fallback",
+     "method": "wave_component_ratio_estimation",
+     "source_model": "ecmwf_wam025"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.54,
+     "direction": 196.0,
+     "period": 12.95,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Trestles|EURO|swell_2": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "gfs_estimated_fallback",
+    "source_dataset": null,
+    "surf_height_m": 0.6858,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": true,
+    "estimate_basis": {
+     "type": "ecmwf_ifs_derived_fallback",
+     "method": "wave_component_ratio_estimation",
+     "source_model": "ecmwf_wam025"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.42,
+     "direction": 187.0,
+     "period": 9.0,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Trestles|EURO|wind_waves": {
+   "site": "Trestles",
+   "lat": 33.383,
+   "lng": -117.593,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.4917,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 220.9,
+    "reference_size_m": 2.173,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.9452,
+     "direction": 342.69,
+     "period": 2.37,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Pipeline|GFS|waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.5708,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.2469,
+     "direction": 75.31,
+     "period": 7.65,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|GFS|swell_1": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.4743,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3986,
+     "direction": 118.33,
+     "period": 13.51,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|GFS|swell_2": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.3182,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.2674,
+     "direction": 169.11,
+     "period": 12.87,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|GFS|wind_waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.5217,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.1636,
+     "direction": 69.35,
+     "period": 7.62,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|ICON|waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 2.0139,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.9807,
+     "direction": 89.6,
+     "period": 8.09,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|ICON|swell_1": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.2363,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.4482,
+     "direction": 103.93,
+     "period": 10.12,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|ICON|swell_2": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Pipeline|ICON|wind_waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.625,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.5314,
+     "direction": 79.59,
+     "period": 6.56,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|EURO|waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 2.0148,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.9304,
+     "direction": 75.16,
+     "period": 8.38,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Pipeline|EURO|swell_1": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.9533,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.2794,
+     "direction": 98.51,
+     "period": 6.77,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|EURO|swell_2": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.6559,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.6907,
+     "direction": 82.99,
+     "period": 9.12,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Pipeline|EURO|wind_waves": {
+   "site": "Pipeline",
+   "lat": 21.665,
+   "lng": -158.053,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.7912,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 325.0,
+    "reference_size_m": 2.195,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.3235,
+     "direction": 70.38,
+     "period": 3.97,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|GFS|waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.476,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.5897,
+     "direction": 297.53,
+     "period": 8.21,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|GFS|swell_1": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.0072,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.7945,
+     "direction": 279.74,
+     "period": 8.81,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|GFS|swell_2": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.6754,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3701,
+     "direction": 192.76,
+     "period": 12.92,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|GFS|wind_waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 1.419,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.5857,
+     "direction": 300.21,
+     "period": 7.97,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|ICON|waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.4849,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.4239,
+     "direction": 284.68,
+     "period": 7.9,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|ICON|swell_1": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 1.4538,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.368,
+     "direction": 284.67,
+     "period": 8.12,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|ICON|swell_2": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Mavericks|ICON|wind_waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.2539,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3343,
+     "direction": 306.78,
+     "period": 2.87,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|EURO|waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 1.8941,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.228,
+     "direction": 297.03,
+     "period": 7.7,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Mavericks|EURO|swell_1": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.4077,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3527,
+     "direction": 234.51,
+     "period": 2.95,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|EURO|swell_2": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.4716,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3717,
+     "direction": 225.56,
+     "period": 3.77,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Mavericks|EURO|wind_waves": {
+   "site": "Mavericks",
+   "lat": 37.4956,
+   "lng": -122.5017,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.579,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 225.1,
+    "reference_size_m": 1.931,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.3339,
+     "direction": 340.66,
+     "period": 1.79,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Jeffreys Bay|GFS|waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 2.4125,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 2.0273,
+     "direction": 110.45,
+     "period": 7.51,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|GFS|swell_1": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.6239,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.5746,
+     "direction": 210.79,
+     "period": 12.19,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|GFS|swell_2": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.5213,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.467,
+     "direction": 238.03,
+     "period": 11.63,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|GFS|wind_waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 2.2517,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.9509,
+     "direction": 94.49,
+     "period": 7.0,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|ICON|waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 2.2106,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.8299,
+     "direction": 106.83,
+     "period": 7.4,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|ICON|swell_1": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 2.1242,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.7127,
+     "direction": 106.75,
+     "period": 7.65,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|ICON|swell_2": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Jeffreys Bay|ICON|wind_waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.3117,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.3164,
+     "direction": 82.93,
+     "period": 2.03,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|EURO|waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_regional_tile",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 1.8582,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.4418,
+     "direction": 119.91,
+     "period": 7.91,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "Jeffreys Bay|EURO|swell_1": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 1.0067,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 1.1046,
+     "direction": 137.68,
+     "period": 3.27,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Jeffreys Bay|EURO|swell_2": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.448,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.6627,
+     "direction": 237.48,
+     "period": 3.82,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Jeffreys Bay|EURO|wind_waves": {
+   "site": "Jeffreys Bay",
+   "lat": -34.049,
+   "lng": 24.928,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "copernicus",
+    "source_dataset": null,
+    "surf_height_m": 0.3145,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 107.6,
+    "reference_size_m": 2.859,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.33,
+     "direction": 73.1,
+     "period": 2.09,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Hossegor|GFS|waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "open-meteo",
+    "source_dataset": null,
+    "surf_height_m": 1.0764,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.8,
+     "direction": 311.0,
+     "period": 7.45,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Hossegor|GFS|swell_1": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "open-meteo",
+    "source_dataset": null,
+    "surf_height_m": 0.9796,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.76,
+     "direction": 322.0,
+     "period": 7.4,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Hossegor|GFS|swell_2": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "open-meteo",
+    "source_dataset": null,
+    "surf_height_m": 0.5464,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.28,
+     "direction": 280.0,
+     "period": 9.65,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Hossegor|GFS|wind_waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.8081,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.7849,
+     "direction": 337.7,
+     "period": 5.5,
+     "interpolation_method": "nearest_ocean_fallback"
+    }
+   }
+  },
+  "Hossegor|ICON|waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.6481,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.5654,
+     "direction": 325.41,
+     "period": 4.99,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Hossegor|ICON|swell_1": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.5663,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4528,
+     "direction": 327.31,
+     "period": 5.71,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Hossegor|ICON|swell_2": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "Hossegor|ICON|wind_waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.2056,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.2735,
+     "direction": 29.51,
+     "period": 3.2,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Hossegor|EURO|waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "coarse_gap_direct_point",
+    "upstream_provider": "gfs_estimated_fallback",
+    "source_dataset": null,
+    "surf_height_m": 0.8461,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": true,
+    "estimate_basis": {
+     "type": "gfs_derived_fallback",
+     "method": "wave_component_ratio_estimation",
+     "source_model": "ncep_gfswave025"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.7,
+     "direction": 318.0,
+     "period": 5.75,
+     "interpolation_method": "direct_point_api"
+    }
+   }
+  },
+  "Hossegor|EURO|swell_1": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.1845,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.1773,
+     "direction": 314.88,
+     "period": 1.92,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Hossegor|EURO|swell_2": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.1423,
+    "surf_regime": "shoaling",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.0912,
+     "direction": 297.25,
+     "period": 3.28,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "Hossegor|EURO|wind_waves": {
+   "site": "Hossegor",
+   "lat": 43.664,
+   "lng": -1.443,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": 0.0493,
+    "surf_regime": "shelf",
+    "surf_nearshore": true,
+    "shore_normal_deg": 279.8,
+    "reference_size_m": 0.947,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.0544,
+     "direction": 334.76,
+     "period": 1.0,
+     "interpolation_method": "bilinear"
+    }
+   }
+  },
+  "KANSAS-LAND|GFS|waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "GFS",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.0,
+    "surf_regime": "calm",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": {
+     "unavailable_reason": "No valid ocean corners exist in grid bounding box"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unavailable"
+    }
+   }
+  },
+  "KANSAS-LAND|GFS|swell_1": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "GFS",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.0,
+    "surf_regime": "calm",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": {
+     "unavailable_reason": "No valid ocean corners exist in grid bounding box"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unavailable"
+    }
+   }
+  },
+  "KANSAS-LAND|GFS|swell_2": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "GFS",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.0,
+    "surf_regime": "calm",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": {
+     "unavailable_reason": "No valid ocean corners exist in grid bounding box"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unavailable"
+    }
+   }
+  },
+  "KANSAS-LAND|GFS|wind_waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "GFS",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "noaa",
+    "source_dataset": "ncep_gfswave025",
+    "surf_height_m": 0.0,
+    "surf_regime": "calm",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": {
+     "unavailable_reason": "No valid ocean corners exist in grid bounding box"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unavailable"
+    }
+   }
+  },
+  "KANSAS-LAND|ICON|waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "ICON",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.8187,
+    "surf_regime": "open_ocean",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.8187,
+     "direction": 164.21,
+     "period": 4.73,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "KANSAS-LAND|ICON|swell_1": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "ICON",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.6589,
+    "surf_regime": "open_ocean",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.6589,
+     "direction": 164.02,
+     "period": 5.3,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "KANSAS-LAND|ICON|swell_2": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "ICON",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": null,
+    "upstream_provider": null,
+    "source_dataset": null,
+    "surf_height_m": null,
+    "surf_regime": null,
+    "surf_nearshore": null,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": "unsupported",
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unsupported"
+    }
+   }
+  },
+  "KANSAS-LAND|ICON|wind_waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "ICON",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "dwd",
+    "source_dataset": "dwd_gwam",
+    "surf_height_m": 0.4325,
+    "surf_regime": "open_ocean",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.4325,
+     "direction": 194.64,
+     "period": 2.97,
+     "interpolation_method": "bilinear_ocean_masked"
+    }
+   }
+  },
+  "KANSAS-LAND|EURO|waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "EURO",
+   "layer": "waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "ecmwf",
+    "source_dataset": "ecmwf_wam025",
+    "surf_height_m": 0.0,
+    "surf_regime": "calm",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": {
+     "unavailable_reason": "No valid ocean corners exist in grid bounding box"
+    },
+    "status": null,
+    "point": {
+     "speed": 0.0,
+     "direction": 0.0,
+     "period": 0.0,
+     "interpolation_method": "unavailable"
+    }
+   }
+  },
+  "KANSAS-LAND|EURO|swell_1": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "EURO",
+   "layer": "swell_1",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": null,
+    "surf_regime": "unknown",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.39,
+     "direction": 257.39,
+     "period": 0.0,
+     "interpolation_method": "nearest_ocean_fallback"
+    }
+   }
+  },
+  "KANSAS-LAND|EURO|swell_2": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "EURO",
+   "layer": "swell_2",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": null,
+    "surf_regime": "unknown",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.1782,
+     "direction": 236.47,
+     "period": 0.0,
+     "interpolation_method": "nearest_ocean_fallback"
+    }
+   }
+  },
+  "KANSAS-LAND|EURO|wind_waves": {
+   "site": "KANSAS-LAND",
+   "lat": 38.5,
+   "lng": -98.0,
+   "model": "EURO",
+   "layer": "wind_waves",
+   "payload": {
+    "coverage_status": "inside_global_coarse",
+    "upstream_provider": "copernicus",
+    "source_dataset": "cmems_mod_glo_wav_anfc_0.083deg_PT3H-i",
+    "surf_height_m": null,
+    "surf_regime": "unknown",
+    "surf_nearshore": false,
+    "shore_normal_deg": null,
+    "reference_size_m": null,
+    "partitions": null,
+    "is_estimated": false,
+    "estimate_basis": null,
+    "status": null,
+    "point": {
+     "speed": 0.5548,
+     "direction": 235.49,
+     "period": 0.0,
+     "interpolation_method": "nearest_ocean_fallback"
+    }
+   }
+  }
+ }
+}

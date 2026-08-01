@@ -95,6 +95,81 @@ jobs:
         run: node scripts/check_eslint.js
         # NO continue-on-error, deliberately. `no-undef` in a render path is not advisory.
 
+  # ⛔⛔ WHY THIS JOB EXISTS AT ALL — the frontend suite CANNOT FAIL CI.
+  # `lint-and-build`'s test step carries `continue-on-error: true  # Don't block deploys on test
+  # failures yet`, so all 1596 tests across 177 suites run, print, and have their result DISCARDED.
+  # Two suites have been failing to even resolve (`react-map-gl/maplibre` from MapWebGL.js and
+  # MapMarkerLayers.js) on every run, in CI and locally, byte-identically — and nothing went red.
+  # ★★★ THIRD OCCURRENCE OF THIS CLASS in this repo (after `tests/test_point_*.py` missing from the
+  # composition glob, and the sim's invariants running only on a laptop). A guard that runs
+  # nowhere is indistinguishable from a guard that passes. This job is the narrow, CAN-FAIL lane
+  # for the marine composition guards specifically; widening `continue-on-error` off wholesale
+  # would merge red on those two pre-existing resolve failures, and a gate born red gets disabled.
+  frontend-marine-composition-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Use Node.js 18.20.2
+        uses: actions/setup-node@v5
+        with:
+          node-version: '18.20.2'   # matches frontend/.node-version
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # The infobox composes four marine layers whose TIER is chosen independently per layer, and
+      # energy flux goes as H^2*T, so a height error is SQUARED. Measured live 2026-08-01: closure
+      # separates perfectly on the tier (same-tier <=3%, mixed-tier up to 41%) and the mixed-tier
+      # rate predicts the error rate monotonically across all three models (ICON 0%, GFS 21%,
+      # EURO 59%). These guards pin that conditional before any Energy card is built on top of it.
+      - name: "🌊 Marine card-matrix composition guards (closure · card contract · provenance)"
+        working-directory: frontend
+        run: |
+          set -o pipefail
+          CI=true npx react-scripts test --watchAll=false \
+            --testPathPattern="marine-card-matrix-closure|forecast-card-swell-vs-surf" \
+            --json --outputFile=guard-results.json
+        # NO continue-on-error. That is the entire point of this job.
+
+      # Shrink-only ratchet on COVERAGE, run even when jest already failed, so a glob that stops
+      # matching is reported rather than hidden behind the first red test. `--passWithNoTests` is
+      # NOT passed above precisely so an empty match is a failure — but a pattern that matches ONE
+      # of the two files would still be "green", which is what this step exists to catch.
+      - name: "🔍 Assert the guards actually ran"
+        if: always()
+        working-directory: frontend
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          const path = require('path');
+          // Floors are shrink-only. Raise them when guards are added; lowering one is a deliberate
+          // act that should appear in a diff. Measured 2026-08-01 on a quiet tree at this SHA:
+          //   marine-card-matrix-closure.test.js   14 tests
+          //   forecast-card-swell-vs-surf.test.js  19 tests
+          //   => 2 suites / 33 tests. MIN_SUITES is EXACT so any drop is red, not quietly narrower.
+          const MIN_SUITES = 2, MIN_TESTS = 33;
+          let r;
+          try { r = JSON.parse(fs.readFileSync('guard-results.json', 'utf8')); }
+          catch (e) { console.error('✗ no guard-results.json — jest never wrote a result'); process.exit(1); }
+          // path.basename, NOT a regex — a `[\\/]` character class does not survive intact through
+          // the YAML block scalar + heredoc layers (verified: it arrived as `[\/]`), and a mangled
+          // escape in a step that is supposed to PROVE coverage is the wrong place to be clever.
+          const files = r.testResults.map((t) => path.basename(t.name)).sort();
+          console.log(`suites ${r.numPassedTestSuites}/${r.numTotalTestSuites}  tests ${r.numPassedTests}/${r.numTotalTests}  failed ${r.numFailedTests}`);
+          files.forEach((f) => console.log(`  guard: ${f}`));
+          let bad = false;
+          if (r.numTotalTestSuites < MIN_SUITES) { console.error(`✗ suites ${r.numTotalTestSuites} < floor ${MIN_SUITES}`); bad = true; }
+          if (r.numPassedTests < MIN_TESTS) { console.error(`✗ passed ${r.numPassedTests} < floor ${MIN_TESTS}`); bad = true; }
+          if (r.numFailedTests > 0) { console.error(`✗ ${r.numFailedTests} failed`); bad = true; }
+          process.exit(bad ? 1 : 0);
+          JS
+
   backend-lint:
     runs-on: ubuntu-latest
 

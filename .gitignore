@@ -332,3 +332,6 @@ backend/shore_normal_build_review.csv
 backend/missing_spots_wikidata.csv
 backend/spot_placement_proposals.csv
 .nearshore-validation/
+
+# Jest guard-run result written by ci.yml frontend-marine-composition-guards (and local runs)
+frontend/guard-results.json
