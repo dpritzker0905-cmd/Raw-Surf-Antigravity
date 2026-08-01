@@ -335,3 +335,4 @@ backend/spot_placement_proposals.csv
 
 # Jest guard-run result written by ci.yml frontend-marine-composition-guards (and local runs)
 frontend/guard-results.json
+frontend/suite-results.json

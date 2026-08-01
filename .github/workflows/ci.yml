@@ -30,10 +30,60 @@ jobs:
         working-directory: frontend
         run: npm ci
 
+      # ⛔ `continue-on-error: true  # Don't block deploys on test failures yet` LIVED HERE until
+      # 2026-08-01. Its stated blocker is recorded in the frontend-marine-composition-guards
+      # comment below: "widening continue-on-error off wholesale would merge red on those two
+      # pre-existing resolve failures, and a gate born red gets disabled." Those two suites
+      # (spotGeofenceZoomFloor, MapMarkerLayers.a11y) could not RESOLVE `react-map-gl/maplibre`;
+      # fixed in 8856f24d by mapping it in package.json — the lane THIS step reads, which
+      # craco.config.js is not. That precondition is now satisfied, measured on a clean worktree
+      # at that SHA: FOUR consecutive runs, byte-identical, 178/178 suites, 1640/1640 tests,
+      # exit 0 every time. The gate is not born red, so it is allowed to block.
       - name: Run tests
         working-directory: frontend
-        run: CI=true npx react-scripts test --watchAll=false --passWithNoTests
-        continue-on-error: true  # Don't block deploys on test failures yet
+        run: |
+          CI=true npx react-scripts test --watchAll=false --passWithNoTests \
+            --json --outputFile=suite-results.json
+
+      # A red test now blocks. Necessary, but NOT sufficient: what hid the two resolve failures for
+      # months was never a red — it was a result nobody read. The twin of that failure is a suite
+      # that quietly stops being DISCOVERED. Change a testMatch glob and 178 suites become 40, all
+      # passing, exit 0, green. That exact shape has bitten this repo four times now
+      # (`tests/test_point_*.py` absent from the composition glob; the sim invariants running only
+      # on a laptop; a "composition guard suite" running 53 of 408 files; and this step). So this
+      # asserts the COUNT, not the colour, and runs even when jest already failed so a coverage
+      # collapse is reported instead of hiding behind the first red test.
+      - name: "🔍 Assert the frontend suite actually ran"
+        if: always()
+        working-directory: frontend
+        run: |
+          node - <<'JS'
+          const fs = require('fs');
+          // Shrink-only floors. Measured 2026-08-01 on a clean worktree at 8856f24d, four
+          // consecutive runs, all identical: 178 suites / 1640 tests / 0 failed. Re-measured at
+          // 7930b727 after marineCommitGate landed: 179 suites / 1645 tests / 0 failed — i.e. the
+          // tree moved by +1 suite DURING the change that added this gate, which is the argument
+          // for a floor with headroom rather than an exact equality that a normal day breaks.
+          // ⚠️ Those numbers are WINDOWS-measured and this job runs ubuntu-latest, which could not
+          // be executed locally. The floors are therefore set deliberately BELOW the measurement
+          // (-2 suites, -40 tests) so the gate cannot be born red on first-run platform variance —
+          // which is exactly how the previous gate died. Every historical instance of this defect
+          // class was a COLLAPSE (1596 -> 0 effective, 408 -> 53 files), so the margin still
+          // catches all of them.
+          // ★ RATCHET ME: the first green ubuntu run prints the true counts on the line below.
+          //   Raise these to that exact number and the margin disappears. Measured from the run,
+          //   never incremented by hand.
+          const MIN_SUITES = 176, MIN_TESTS = 1600;
+          let r;
+          try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
+          catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
+          console.log(`suites ${r.numPassedTestSuites}/${r.numTotalTestSuites}  tests ${r.numPassedTests}/${r.numTotalTests}  failed ${r.numFailedTests}`);
+          let bad = false;
+          if (r.numTotalTestSuites < MIN_SUITES) { console.error(`✗ suites ${r.numTotalTestSuites} < floor ${MIN_SUITES} — the suite NARROWED`); bad = true; }
+          if (r.numPassedTests < MIN_TESTS) { console.error(`✗ passed ${r.numPassedTests} < floor ${MIN_TESTS} — coverage SHRANK`); bad = true; }
+          if (r.numFailedTests > 0) { console.error(`✗ ${r.numFailedTests} failed`); bad = true; }
+          process.exit(bad ? 1 : 0);
+          JS
 
       - name: Build frontend
         working-directory: frontend
