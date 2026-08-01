@@ -55,6 +55,20 @@ def offline_catalog(monkeypatch):
     monkeypatch.setattr(sim_spots, "query_spots", lambda **kw: [])
 
 
+def _reset_reference_memo():
+    """Clear the resolved-map memo between installs.
+
+    ⚠️ THIS RESET WAS DEAD WHEN FIRST WRITTEN. It targeted `spot_size_climatology._ref_map_memo`
+    behind a `hasattr` guard — a name that exists only in a concurrent session's UNCOMMITTED tree,
+    so against committed code it cleared nothing and reported no problem. The memo actually lives
+    at `sim_rating._REF_MAP_MEMO` (`50e441bd`). ★ A cleanup guarded by `hasattr` degrades into a
+    silent no-op the moment the thing moves, so this ASSERTS instead: if the memo is renamed again
+    the tests fail loudly rather than quietly sharing state."""
+    assert hasattr(sim_rating, "_REF_MAP_MEMO"), (
+        "the reference-map memo moved; this reset is no longer clearing anything")
+    sim_rating._REF_MAP_MEMO = (None, {})
+
+
 def _needle(spot_id, bin_index=9, n=40):
     """A climatology blob that DOES contain this spot. ★ The expected value is computed with the
     real `reference_from_hist`, never hardcoded — a hardcoded expectation would still pass if the
@@ -70,8 +84,7 @@ def climatology(monkeypatch):
     """Install (or withhold) a blob. Returns a setter so each test states its own needle."""
     def _install(present=True, spot_id=MAV_ID):
         blob, expected = _needle(spot_id)
-        if hasattr(SSC, "_ref_map_memo"):     # memoised on object IDENTITY — clear between installs
-            SSC._ref_map_memo["cell"] = (None, {})
+        _reset_reference_memo()               # memoised on object IDENTITY — clear between installs
         monkeypatch.setattr(SSC, "load_size_climatology_l2_cached",
                             lambda *a, **kw: (blob if present else None))
         return expected

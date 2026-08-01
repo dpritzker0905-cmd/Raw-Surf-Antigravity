@@ -28,7 +28,7 @@ if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
 import weather_sim_mcp
-from services.weather_pipeline import sim_forecast, sim_spots
+from services.weather_pipeline import sim_forecast, sim_rating, sim_spots
 from services.weather_pipeline import spot_size_climatology as SSC
 
 SIM = getattr(weather_sim_mcp.simulate_weather_change, "fn",
@@ -53,8 +53,13 @@ def _env(monkeypatch):
     hist = SSC.empty_hist()
     hist[9] = 40
     blob = {"schema_version": SSC.SCHEMA_VERSION, "spots": {MAV_ID: {"hist": hist}}}
-    if hasattr(SSC, "_ref_map_memo"):
-        SSC._ref_map_memo["cell"] = (None, {})
+    # ⚠️ ASSERTED, not `hasattr`-guarded. This reset first targeted
+    # `spot_size_climatology._ref_map_memo` — a name that lives only in a concurrent session's
+    # UNCOMMITTED tree — so on committed code it cleared nothing and said nothing. The memo is
+    # `sim_rating._REF_MAP_MEMO` (`50e441bd`), and it is keyed on object IDENTITY.
+    assert hasattr(sim_rating, "_REF_MAP_MEMO"), (
+        "the reference-map memo moved; this reset is no longer clearing anything")
+    sim_rating._REF_MAP_MEMO = (None, {})
     monkeypatch.setattr(SSC, "load_size_climatology_l2_cached", lambda *a, **kw: blob)
     yield
     sim_forecast._CATALOG_CACHE.clear()
