@@ -3,7 +3,7 @@ import logging
 import os
 from datetime import datetime, timezone
 from typing import Dict, Any, Optional, Tuple
-from fastmcp import FastMCP
+from services.weather_pipeline.sim_mcp_shim import FastMCP   # real fastmcp, else an import-only stand-in
 from utils.sqlite_helpers import get_sqlite_connection
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file came to rate a flat ocean

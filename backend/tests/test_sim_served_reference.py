@@ -208,12 +208,9 @@ def test_reading_a_served_reference_dials_nothing(monkeypatch):
 
 
 # ── 6. THE WHAT-IF: BOTH SIDES OF THE DELTA SHARE ONE REFERENCE ───────────────────────────────
-# ⚠️ Needs `weather_sim_mcp`, which imports fastmcp — INSTALL-INCOMPATIBLE with the pinned httpx.
-# `importorskip` makes this a COUNTED SKIP in the guard suite rather than an absent test (the
-# `test_run_provenance.py` pattern); an excluded file and a passing one look identical in a summary.
+# ✅ Runs in CI: `weather_sim_mcp` imports through `sim_mcp_shim` even without fastmcp.
 
 def test_the_whatif_binds_the_served_reference_once_for_both_calls():
-    pytest.importorskip("fastmcp")
     import inspect
 
     import weather_sim_mcp

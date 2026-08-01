@@ -27,16 +27,12 @@ backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if backend_dir not in sys.path:
     sys.path.insert(0, backend_dir)
 
-# ⚠️ A COUNTED SKIP, NOT A NAMED EXCLUSION (the `test_run_provenance.py` pattern). This module
-# imports `weather_sim_mcp`, which imports fastmcp — INSTALL-INCOMPATIBLE with the app's pinned
-# httpx/starlette, so `ci.yml` used to drop it from the guard suite by name. An excluded file and a
-# passing file look IDENTICAL in a summary line; a skip is counted, printed, and comes back by
-# itself the day the upstream pin is fixed. It must precede the import: a module that raises on
-# import makes pytest exit 2 and collect NOTHING — a collection error is not local.
-pytest.importorskip(
-    "fastmcp", reason="fastmcp is not installable against this app's pinned httpx/starlette")
-
-import weather_sim_mcp  # noqa: E402  (must follow the skip guard above)
+# ✅ NEITHER EXCLUDED NOR SKIPPED ANY MORE. This module imports `weather_sim_mcp`, which now
+# reaches FastMCP through `sim_mcp_shim` — a stand-in when the framework is absent — so these
+# guards RUN in CI. That matters more here than anywhere: this file holds the ZERO-NETWORK
+# invariant, whose regression (`576dcbdd`) was 42.2 s of blocking, past where an MCP client
+# reports a timeout. It was verified only on laptops for as long as it was excluded.
+import weather_sim_mcp  # noqa: E402  (follows the sys.path setup above)
 from services.weather_pipeline import sim_forecast, sim_rating, sim_spots  # noqa: E402
 from services.weather_pipeline import spot_size_climatology as SSC  # noqa: E402
 

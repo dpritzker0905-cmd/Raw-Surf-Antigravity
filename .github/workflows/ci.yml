@@ -208,13 +208,22 @@ jobs:
           pip install -q -r requirements.txt
           pip install -q -r requirements-dev.txt
 
-      # ⛔ SIX MODULES ARE EXCLUDED BY NAME because they import fastmcp (via weather_sim_mcp.py or
-      # sim_boot.py), and fastmcp cannot be installed into this app's pinned stack — every release
-      # needs httpx>=0.28.1 against a pinned 0.27.2, and forcing it lifts starlette until
-      # routes/social dies on `Router.__init__() got an unexpected keyword argument 'on_startup'`.
-      # Adding it costs two modules to gain six. The exclusion is NAMED here rather than achieved
-      # by quietly narrowing a glob, and the file floor below is set to the excluded-set size so
-      # the drop cannot grow silently. requirements-dev.txt carries the upstream fix.
+      # ✅ 2026-08-01 — THE EXCLUSION LIST WENT FROM SIX MODULES TO TWO. fastmcp still cannot be
+      # installed into this app's pinned stack (every release needs httpx>=0.28.1 against a pinned
+      # 0.27.2, and forcing it lifts starlette until routes/social dies on `Router.__init__() got an
+      # unexpected keyword argument 'on_startup'`) — but that is no longer a reason to skip the
+      # sim's guards. `services/weather_pipeline/sim_mcp_shim.py` stands in for the four fastmcp
+      # names this app uses, so `weather_sim_mcp` IMPORTS without the framework and REFUSES to
+      # `run()` under the stand-in.
+      # ⭐ THIS WAS NOT COSMETIC. The four modules it frees include the sim's most load-bearing
+      # guards — `test_sim_whatif_baseline` (the ZERO-NETWORK invariant, whose regression `576dcbdd`
+      # was 42.2 s of blocking past an MCP client's timeout), `test_sim_forecast_lane` and
+      # `test_sim_spots_identity` — all of which had been verified ONLY on a laptop. A guard that
+      # runs nowhere will be broken by the first person who does not run it by hand.
+      # ⛔ THE TWO THAT REMAIN genuinely need a live server (they exercise startup/dispatch, not
+      # composition), so a stand-in cannot answer for them. The exclusion is NAMED here rather than
+      # achieved by quietly narrowing a glob, and `tests/test_sim_mcp_shim.py` asserts this list no
+      # longer contains what the shim freed — an exclusion outliving its reason is invisible.
       # ⚠️ The exclusion is a grep, NOT pytest's --ignore: --ignore is silently overridden for paths
       # passed explicitly on the command line, which is how a first attempt at this "excluded" four
       # modules that in fact still collected and still ran.
@@ -242,7 +251,7 @@ jobs:
                      tests/test_validate_nearshore_transform.py \
                      tests/test_calibration_census.py 2>/dev/null \
                  | sort -u \
-                 | grep -vE 'test_(sim_forecast_lane|sim_spots_identity|sim_whatif_baseline|rating_partitions_composition|weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
+                 | grep -vE 'test_(weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
           python -m pytest $FILES -q --junitxml=guards.xml
 

@@ -176,8 +176,11 @@ def _probe_or_skip():
     imported inside a fixture. A skip is counted, visible in the run summary, and disappears the
     moment the upstream fix lands.
     """
-    pytest.importorskip(
-        "fastmcp", reason="fastmcp is not installable against this app's pinned httpx/starlette")
+    # ✅ NO LONGER SKIPPED. `weather_sim_mcp` imports through `sim_mcp_shim`, which stands in
+    # for FastMCP when the framework is absent, so the probe imports with or without it and
+    # these six guards RUN IN CI instead of being counted as skips. The skip was the right
+    # call while importing the probe required a server framework; it is now dead weight, and
+    # a permanent skip is a guard nobody notices has stopped guarding.
     import scripts.sim_health_probe as probe
     return probe
 
