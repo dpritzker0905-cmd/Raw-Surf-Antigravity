@@ -161,11 +161,32 @@ def _row(**over):
     return r
 
 
+def _probe_or_skip():
+    """`scripts.sim_health_probe` imports `weather_sim_mcp`, which imports fastmcp at MODULE level.
+
+    fastmcp cannot be installed alongside this app's pinned stack — every published release needs
+    httpx>=0.28.1 against a pinned 0.27.2, and forcing it in lifts starlette until
+    `routes/social` dies on `Router.__init__() got an unexpected keyword argument 'on_startup'`
+    (measured in CI 2026-08-01; see backend/requirements-dev.txt). So the CI guard suite runs
+    without it, while every dev machine has it and runs these for real.
+
+    ★ DECLARED AS A SKIP, NOT LEFT TO FAIL. The six tests below are the probe's own attribution
+    guards and they are worth keeping; but a gate that ships six permanent reds teaches people to
+    stop reading it, and the module-level exclusion the guard suite uses cannot see a dependency
+    imported inside a fixture. A skip is counted, visible in the run summary, and disappears the
+    moment the upstream fix lands.
+    """
+    pytest.importorskip(
+        "fastmcp", reason="fastmcp is not installable against this app's pinned httpx/starlette")
+    import scripts.sim_health_probe as probe
+    return probe
+
+
 @pytest.fixture
 def no_network(monkeypatch):
     """⛔ A live compute is 7.5-8.6 s on the 1-CPU serve box, load-shed at 2 concurrent. Avoiding it
     when the payload already answers is the entire point of the run_time field."""
-    import scripts.sim_health_probe as probe
+    probe = _probe_or_skip()
 
     def boom(*a, **k):
         raise AssertionError("attribute() dialled the live path when run_time already answered")
@@ -207,7 +228,7 @@ def test_a_row_that_agrees_is_never_attributed_at_all(no_network):
 def test_an_OLD_frame_with_no_run_time_falls_back_to_the_live_discriminator(monkeypatch):
     """The fallback must survive: objects written before this field are served for up to 6 h by the
     stale ladder, and much longer if the cron is wedged."""
-    import scripts.sim_health_probe as probe
+    probe = _probe_or_skip()
     called = {"n": 0}
 
     def fake_fetch(url, timeout=None):
