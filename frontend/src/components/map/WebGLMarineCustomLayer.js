@@ -55,8 +55,24 @@ export function marineViewportBounds(map) {
   } catch (e) { return null; }
 }
 
+// ERROR-BURST DECAY predicate (2026-07-31). Pure so the semantics are testable without a GL context:
+// the render error counter must measure a BURST (errors close together, i.e. a genuinely broken
+// frame loop) and NOT a lifetime total. Marine had no decay at all until now, so three throwing
+// frames hours apart still tripped the permanent disable — see createCustomLayer.
+// `windowMs` mirrors WebGLWindLayer's v3.15 10 s recovery.
+export function shouldResetErrorBurst(errorCount, lastErrorTime, now, windowMs = 10000) {
+  return errorCount > 0 && (now - lastErrorTime) > windowMs;
+}
+
 export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onErrorRef, themeRef, landGeoJSONRef, landGeoJSONFailedRef, activeLayersRef, timeOffsetHoursRef, safeUploadRef, activeModelRef) {
   let errorCount = 0;
+  // ERROR-COUNT DECAY (2026-07-31): mirrors WebGLWindLayer's v3.15 recovery, which marine never had.
+  // Without it `errorCount` accumulates for the LIFE OF THE LAYER, so three throwing frames spread
+  // across an entire session — hours apart, from unrelated transient causes — still trip the
+  // permanent disable below. That is how a latent ReferenceError (`_washOpacityEff`, fixed same day)
+  // turned into "the heatmap vanished and never came back" with only a console.warn. A THROW here is
+  // a hidden off switch; the counter must measure a BURST, not a lifetime total.
+  let lastErrorTime = 0;
   return {
     id: LAYER_ID,
     type: 'custom',
@@ -132,6 +148,11 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         this._renderLogged = true;
         console.log("[WebGLMarineLayer] render called! activeRef:", activeRef.current, "errorCount:", errorCount, "matrixType:", typeof _matrix, "matrixLen:", _matrix?.length);
       }
+      // Recovery: clear the burst counter after 10 s with no error (same window as wind).
+      if (shouldResetErrorBurst(errorCount, lastErrorTime, Date.now())) {
+        errorCount = 0;
+      }
+
       if (!activeRef.current || errorCount > 3) {
         if (this._wasActive) {
           // TRANSITION HOLD (2026-07-06): a model/layer switch blinks activeRef false for a
@@ -306,6 +327,7 @@ export function createCustomLayer(engine, activeRef, mapRef, dataRef, glRef, onE
         map.triggerRepaint();
       } catch (e) {
         errorCount++;
+        lastErrorTime = Date.now();
         if (errorCount <= 3) {
           console.warn(`[WebGLMarine] Render error (${errorCount}/3):`, e.message);
         }
