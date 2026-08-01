@@ -90,7 +90,29 @@ what is wrong is WHICH TRAIN it reports, not its size.
 floor and the swirl survived) · LOC ratchet restored (`6cb252e9`).
 ⛔ open: the halo (this doc) · the direction swap / task #7 · stale resident grid on layer switch
 (task #8) · no PERIOD layer (task #9) · infobox does not decompose (task #10).
-### ⏳ THE ERA5 CAMPAIGN — CHECK THIS FIRST, IT MAY HAVE DIED WITH THE SESSION
+### ⛔⛔ THE ERA5 CAMPAIGN DIED AT 148/150 AND **ALL 19 HOURS OF WORK WERE LOST**
+**OUTCOME (final):** it reached `[148/150] Muroto`, was downloading spot 149, and exited **255**
+(killed — no traceback, no script-level `FAILED —` line). **Nothing was written.**
+
+★★★ **THE DESIGN DEFECT, AND IT WILL BURN THE NEXT RUN TOO: the script accumulates every result in
+MEMORY and uploads ONE inbox batch AFTER the loop.** Dying at 99 % is therefore identical to dying
+at 0 % — the resume filter reads the blob and the inbox, both untouched, so a re-run starts from
+scratch and re-pays the entire ~19 h of CDS queue time.
+
+⇒ **FIX THIS BEFORE RE-RUNNING** (`backend/scripts/era5_deepen_climatology.py`):
+* **Checkpoint incrementally** — upload an inbox batch every N spots (say 10), or append each
+  spot's result to a local JSON as it completes and upload the accumulated file. The inbox is
+  designed for many small batches; the precompute folds all of them (invariant 6 is unaffected).
+* Then the resume filter does what it was written to do, and a kill costs ≤ N spots.
+★ **The general rule this is an instance of: a long job whose only durable write is at the END has
+no resume, only a restart.** The resume filter existed and was correct — it just had nothing to
+read, because nothing was ever persisted mid-flight.
+
+⚠️ **Run it with an APPEND REDIRECT, not a PowerShell pipe** (see below) — the 19 h of progress was
+invisible until the process exited, which is how a nearly-complete run looked identical to a stalled
+one for hours.
+
+### ⏳ ORIGINAL NOTE (kept for the commands; the outcome above supersedes the status)
 Running at handoff: **pid 71096, started 22:49, ~19 h wall, 607 s CPU, 1,105 MB written ≈ 138 of
 150 spots** (IO estimate — the log is unreadable, see below). It uploads **ONE inbox batch at the
 very end**, so **nothing lands until it exits** and ~92 % complete is worth exactly as much as 0 %
