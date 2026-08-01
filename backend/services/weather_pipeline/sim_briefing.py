@@ -17,7 +17,7 @@ display preference — the catalogue has 1,800+ spots and iterating it here woul
 """
 import logging
 import os
-from typing import Any, Callable, Dict
+from typing import Any, Callable, Dict, Optional
 
 from services.weather_pipeline import sim_forecast, sim_spots
 from services.weather_pipeline.sim_rating import calculate_surf_rating, shore_normal_for
@@ -33,12 +33,20 @@ SUMMARY_REFERENCE = ("Mavericks", "Montara State Beach", "Pacifica State Beach")
 SUMMARY_MAX = int(os.environ.get("SIM_SUMMARY_MAX", "3"))
 
 
-def summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float], source: str) -> str:
+def summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float], source: str,
+                 provenance: Optional[Dict[str, Any]] = None) -> str:
+    # `provenance` carries the size curve the app graded this coordinate on (`5f19ac7d`). Optional
+    # and defaulting to None so an existing 4-arg caller keeps working, but every in-repo caller
+    # passes it: a briefing that quotes a different curve from the forecast tool is the same
+    # two-compositions-one-answer split that made find_best_spot rank on the global curve.
+    # ⚠️ A staged override has no provenance -> None -> the flag+blob path, which is right: an
+    # invented sea was never served, so there is no served curve to mirror.
     calc = calculate_surf_rating(
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
         baseline["wind_direction_deg"], partitions=sim_forecast.baseline_partitions(baseline),
-        allow_reference_lookup=True)
+        allow_reference_lookup=True,
+        served_reference_size_m=sim_forecast.served_reference(provenance))
     # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
     # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the rest
     # of the module works to keep apart. Size and verdict are now named separately.
@@ -86,7 +94,7 @@ def forecasts_summary(overrides: Dict[str, Dict[str, float]],
         found = sim_spots.resolve(name)
         if not found.spot:
             continue
-        baseline, source, _ = baseline_with_source(found.spot)
+        baseline, source, prov = baseline_with_source(found.spot)
         if baseline is None:
             continue
         label = found.spot["name"]
@@ -94,7 +102,7 @@ def forecasts_summary(overrides: Dict[str, Dict[str, float]],
             # Say it plainly: the app's catalogue does not carry this name, so the line describes a
             # hand-tuned coordinate rather than a production spot.
             label += " (not in the app catalogue)"
-        lines.append(summary_line(label, found.spot, baseline, source))
+        lines.append(summary_line(label, found.spot, baseline, source, prov))
         shown += 1
     return "\n".join(lines)
 

@@ -42,6 +42,9 @@ import os
 from typing import Any, Callable, Dict, List, Optional, Tuple
 
 from services.weather_pipeline import sim_daylight
+# `served_reference` only READS the provenance dict `baseline_at` already returns and performs no
+# I/O, so it does not give this module the network dependency the injected `baseline_at` keeps out.
+from services.weather_pipeline import sim_forecast
 from services.weather_pipeline.sim_rating import calculate_surf_rating, spot_geometry
 from services.weather_pipeline.spot_geometry_readiness import assess_geometry
 
@@ -138,16 +141,32 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
     readiness_census = {"full": 0, "degraded": 0, "blind": 0}
 
     for spot in spots:
-        baseline, source, _prov = baseline_at(spot, valid_time)
+        baseline, source, prov = baseline_at(spot, valid_time)
         if baseline is None:
             unresolved.append(spot.get("name") or str(spot.get("id")))
             continue
         sources.add(source)
+        # ⛔⛔ THE SERVED SIZE CURVE IS NOT OPTIONAL ON A RANKING SURFACE. `5f19ac7d` gave the
+        # single-spot tools the curve the app actually graded with (read off the response already
+        # fetched); leaving this one on the global curve made `find_best_spot` RANK by one
+        # composition while `get_weather_forecast` DISPLAYED another — two tools contradicting each
+        # other about the same break. Measured live over 4 regions x 8 neighbouring spots:
+        # THE WINNER CHANGED IN 3 OF 4 (Cocoa, Trestles, Kommetjie), rank displacement up to 14.
+        # ⭐⭐ AND THE OBVIOUS INTUITION IS WRONG — "neighbours share a reference, so the curve
+        # cannot reorder them". Cocoa's eight spots have an IDENTICAL 0.43 m reference and the
+        # order still moved by 14; Trestles' are identical at 2.17 and moved by 8. `size_score` is
+        # non-linear in the spot's OWN breaking height, so switching from the global absolute curve
+        # (saturating at 1.2 m) to the local relative one (anchored at ref, saturating at 2.5x ref)
+        # moves every spot by a DIFFERENT amount even under a shared reference. A uniform input to
+        # a non-linear function is not a uniform output.
+        # ★ Same lane discipline as the raw/gated split below: what orders the list and what the
+        # app shows must be ONE composition.
         calc = calculate_surf_rating(
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-            valid_time=valid_time, allow_reference_lookup=True)
+            valid_time=valid_time, allow_reference_lookup=True,
+            served_reference_size_m=sim_forecast.served_reference(prov))
         verdict, normal, normal_src = _readiness(spot)
         readiness_census[verdict] = readiness_census.get(verdict, 0) + 1
         row = {
