@@ -228,7 +228,18 @@ async function main() {
     args: ['--enable-unsafe-swiftshader', '--disable-background-timer-throttling',
       '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows'],
   });
-  const context = await browser.newContext({ viewport: { width: 1280, height: 800 } });
+  const context = await browser.newContext({
+    viewport: { width: Number(process.env.ML_VIEW_W || 1280), height: Number(process.env.ML_VIEW_H || 800) } });
+  // KILL-SWITCH INJECTION, so a guard can be A/B'd through this ladder instead of by reading code.
+  // "the mask did not shrink" is NOT attributable to a guard until the SAME path shrinks with the
+  // guard OFF — a stable value can have any number of causes. Set e.g.
+  //   ML_WINDOW_FLAGS='{"__RAW_DISABLE_MASK_NO_SHRINK__":true}'
+  // Applied before ANY page script runs, which is what the engine's boot-time reads require.
+  if (process.env.ML_WINDOW_FLAGS) {
+    const _flags = JSON.parse(process.env.ML_WINDOW_FLAGS);
+    await context.addInitScript((f) => { Object.assign(window, f); }, _flags);
+    log(`  window flags injected: ${JSON.stringify(_flags)}`);
+  }
   const page = await context.newPage();
   page.on('pageerror', (e) => log('  [pageerror] ' + e.message.slice(0, 120)));
 
