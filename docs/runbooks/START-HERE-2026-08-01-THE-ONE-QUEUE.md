@@ -184,6 +184,28 @@ in unit space and by the measurement below, not by a live pass. That is the only
 
 <details><summary>Original entry (superseded — kept as the forensic record)</summary>
 
+### #11 ⚠️ STILL OPEN — a guard SHIPPED (`7551d511`) BUT THE A/B PROVES IT IS INERT
+Reproduced the PRECONDITION 2026-08-01 via `probe_marine_direction_ladder.js` by starting the path
+zoomed OUT (`4,6,7.5,8.18,8.03,8.18,8.03`) so the world grid 181x82 is resident on the way in and
+`_rawWideTrigger` fires ⇒ **REPLACE engaged, `reason=coverage_gap` at 4 rungs.** Then the SAME path
+with `__RAW_DISABLE_MASK_NO_SHRINK__=true`:
+
+    rung     guard ON             guard OFF
+    z8.18    coverage_gap 3.1°    coverage_gap 3.1°
+    z8.03    coverage_gap 3.1°    coverage_gap 3.1°   (x2 traversals)
+    shrink detected: 0            shrink detected: 0      <-- IDENTICAL
+
+⛔ **The mask holding at 3.1° is NOT caused by the guard — it holds anyway.**
+⭐ **REACHABILITY, exact:** at 1280px/z8.18 the viewport spans ~3.44° while the mask is 3.1°, so the
+mask NEVER covers ⇒ `incumbentCoveredViewport` is always false ⇒ the guard fails open every time, as
+designed. It fires ONLY when a **COVERING** incumbent is displaced by a shrunken non-covering one.
+The recorded halo had a **30° COVERING** mask (−94,12,−64,44); **no path reproduced that state.**
+⇒ **NEXT:** find what produces a wide COVERING overlay mask at surf zoom (that is the missing
+precondition), then re-run this A/B. Until then the guard is harmless but unproven.
+⚠️ A clean ladder run whose `mask=off` means the precondition never occurred is **not** evidence.
+
+<details><summary>Original report</summary>
+
 ### #11 THE HALO — the mask shrank as the viewport grew
 | zoom | viewport lng | mask bounds | engine verdict |
 |---|---|---|---|
@@ -197,6 +219,8 @@ in unit space and by the measurement below, not by a live pass. That is the only
 incumbent while the viewport grows; if none covers, refuse rather than paint coarse.*
 ★ The engine ALREADY computes `_overlayCoversViewport` (:811) — **the Jacobian variable is the
 ACTION ON FAILURE, not a threshold.**
+</details>
+
 </details>
 
 ### #8 STALE RESIDENT GRID ON LAYER SWITCH
