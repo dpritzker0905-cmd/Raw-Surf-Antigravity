@@ -310,7 +310,11 @@ jobs:
           # ⚠️ The floor sits just below the observed figure, so the concurrent session's
           # `test_spot_hub_local_size_reference.py` will RAISE it again when they commit — a floor
           # is shrink-only and must never be pinned to a total another change in flight is moving.
-          MIN_FILES, MIN_PASSED = 49, 700
+          # ⬆ 49→52 / 700→720: `tests/test_point_*.py` joined the glob above (three files, 19
+          # tests) after the count stayed byte-identical across a commit that added a 12-test guard.
+          # From the gate's own run on origin/dev @ 5466147e: "collected 792 tests across 52 files
+          # -> 726 passed, 66 skipped, 0 failed".
+          MIN_FILES, MIN_PASSED = 52, 720
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
