@@ -286,16 +286,22 @@ jobs:
           # files or symbols is contaminated by another agent's uncommitted work.
           # These numbers are CI's own reading on origin/dev @ 50e441bd: 631 collected, 40 files,
           # 561 passed, 70 skipped. Floor sits just below that.
-          # ⬆ RAISED 40→42 / 555→580 on 2026-08-01, closing the 2-slack HANDOFF-2026-08-01-D §4f
-          # recorded. ★ THE NUMBERS COME FROM THE GATE'S OWN RUN ON origin/dev @ 5f19ac7d
-          # ("collected 660 tests across 42 files -> 588 passed, 72 skipped, 0 failed"), NOT from a
-          # local count — the recorded failure `6c4ab178` was a floor calibrated on a shared working
-          # tree that held a concurrent session's UNTRACKED test file, making the gate unmeetable by
-          # anything that ships. In a shared tree, any measurement that enumerates files is
-          # contaminated; read the gate, not the checkout.
-          # +2 files: tests/test_sim_served_reference.py (new) and
-          # tests/test_sim_whatif_size_curve_and_io_budget.py (left the exclusion list above).
-          MIN_FILES, MIN_PASSED = 42, 580
+          # ⬆⬆ RAISED 42→49 / 580→700 on 2026-08-01 — the biggest single jump this gate has had, and
+          # it is COVERAGE, not new tests: `sim_mcp_shim` let four previously-EXCLUDED modules run,
+          # and three `importorskip` guards became real passes. The sim's zero-network invariant,
+          # live-forecast lane and spot-identity guards now execute in the cloud for the first time.
+          #     40 files / 555 passed   (before this session)
+          #     42 / 580                (test_sim_served_reference + the un-skipped I/O budget)
+          #     49 / 700                (the shim frees the excluded four, + the call-site registry)
+          # ★ THE NUMBERS COME FROM THE GATE'S OWN RUN ON origin/dev @ 052326ec — "collected 773
+          # tests across 49 files -> 707 passed, 66 skipped, 0 failed" — NOT from a local count.
+          # `6c4ab178` was a floor calibrated on a shared working tree holding a concurrent
+          # session's UNTRACKED test file, which made the gate unmeetable by anything that ships.
+          # In a shared tree, any measurement that enumerates files is contaminated: read the gate.
+          # ⚠️ The floor sits just below the observed figure, so the concurrent session's
+          # `test_spot_hub_local_size_reference.py` will RAISE it again when they commit — a floor
+          # is shrink-only and must never be pinned to a total another change in flight is moving.
+          MIN_FILES, MIN_PASSED = 49, 700
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
