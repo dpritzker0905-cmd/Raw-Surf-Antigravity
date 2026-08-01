@@ -17,6 +17,61 @@ Branch `dev` == `origin/dev` == `663c7cfc` (2026-08-01 early). Closed this arc: 
 
 ---
 
+## ⭐ LEDGER AUDIT — run `node scripts/ledger_audit.js` (new 2026-08-01)
+
+The queue and the memory files are hand-maintained and treated as authoritative; nothing checked
+them against the repo until now. First run over **263 sources / 626 cited SHAs**:
+
+    [1] SHA RESOLVES      621 / 626
+    [2] ANCESTOR OF dev   619        <- the dangerous number
+    [4] flags cited in the ledger with ZERO reads in code: 12
+
+★ **The headline is reassuring — 619/626 of what the ledger claims shipped, shipped.** The value is
+in the remainder.
+
+### #25 ⛔⛔ OPEN, LIVE 35 DAYS — a marine fix that never merged (`1a1134ec`)
+`fix(weather): coastal/polar marine no-data holes — nearest-valid-ocean coarse sampling`
+(2026-06-27) lives **only** on `prep/icon-coverage-valid-nn`, 1 commit, never merged.
+**Verified live, not inferred:** `build_regular_nn_valid` is ABSENT from dev, and dev's
+`build_regular_nn` (`backend/services/_fetch_common.py:441`) has **no mask/valid-ocean awareness** —
+so the defect was not re-fixed another way. Symptom per its own message: a coarse 10° cell whose
+single geometric-nearest 0.25° point lands on masked land/ice renders as a **no-data hole** — the
+Gulf-of-Mexico coast cell (~30N/90W) and the Antarctic ice edge; worst on ICON/GWAM, which masks
+more aggressively. ⚠️ It does **not** cherry-pick cleanly (conflicts in `dwd_gwam_fetcher.py` and
+`noaa_gfs_wave_fetcher.py` after 35 days of drift) ⇒ needs a real port, and it ships its own test
+(`backend/tests/test_fetch_common.py`).
+★ The other not-on-dev hit, `c3907570`, is the **already-documented** case — its re-land `a63962e9`
+IS on dev. The audit re-detecting a known true positive is what makes the one new hit credible.
+
+### #26 ⛔ OPEN — 12 DOCUMENTED LEVERS THAT DO NOTHING ⇒ EVERY A/B THROUGH THEM IS VOID
+Cited in the ledger, **zero reads anywhere in `*.py` / `*.js` / `*.yml`** (each re-checked by exact
+name, so these are not regex artifacts):
+
+    __RAW_ENABLE_PARTICLE_CARRY__   __RAW_TUNER_BANDS__     __RAW_TUNER_VALUES__
+    __RAW_RADAR_FLAT_OPACITY__      __RAW_RATING_STATIC_BAND__
+    __RAW_DISABLE_MIDGESTURE_COMMIT__
+    MARINE_WIDE_BASE_RES   MARINE_CONJOINED   MARINE_BG_FILL
+    MARINE_INTERSECT_MIN_FRAC   MARINE_INTERSECT_PREFER   RATING_PARTITION_AWARE
+
+⚠️⚠️ **This is the worst kind of stale entry.** Toggling a lever that nothing reads produces "no
+difference", which reads as *evidence of no effect* when it is really *evidence of no instrument* —
+the recorded trap in [[marine-cover-frac-one-lever-two-defaults]] ("an A/B via the lever CANNOT
+reproduce it"). ⇒ **Before quoting any A/B, grep the flag and confirm a read.** Fix = delete the
+dead names from the ledger, or restore the read if the feature is meant to exist.
+
+### #27 5 SHAs THAT RESOLVE TO NOTHING
+`a107b7db4f12`, `a2c4e8f91b03` (both `admin-panel-jacobian-audit-2026-07-12.md` — 12 chars,
+well-formed, and nonexistent) · `61b0ff2c` · `3918988e` · `9294a7c`. Low severity, but a citation
+pointing at nothing cannot be re-verified by anyone later.
+
+⚠️⚠️ **THE AUDIT'S OWN CHECK [3] IS WEAKER THAN IT LOOKS.** It reports a symbol DEFINED-AND-CALLED.
+It reported `shouldRejectMaskShrink` as "ok (1 call site)" on the same day the kill-switch A/B
+proved that guard **INERT** (`50c74e33`). **A call site is static; efficacy is dynamic.** Read a
+green [3] as "not obviously dead code", never as "it works" — only an A/B through the guard's own
+kill switch answers that.
+
+---
+
 ## ⛔ P0 — OPS, TIME-CRITICAL TODAY
 
 ### #15 THE ERA5 CAMPAIGN IS STUCK, AND A SECOND ONE FIRES AT 21:30
