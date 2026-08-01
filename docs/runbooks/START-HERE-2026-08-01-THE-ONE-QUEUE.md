@@ -220,6 +220,25 @@ the ladder → (d) ingest cycle → (e) confirm on the user's screen before clai
 ⚠️ `WAVES_ANIM_DOMINANT_SWELL` is a repo variable absent from `_RATING_FLAGS` ⇒ invisible to the
 lane-parity guard. Register it.
 
+#### (a) THE LOSS IS LOCALIZED — 2026-08-01, next step is one live measurement
+`normalizer.py`: `swell_active_count` (:356) counts every wave-active cell; `swell_avail_count`
+(:358) increments only `if sw_h is not None or s2_h is not None`, where
+`sw_h = s1_h_list[time_idx] if time_idx < len(s1_h_list) else None` and
+`s1_h_list = pt_hourly.get("swell_wave_height", [])` (:348).
+⇒ **EXACTLY TWO mechanisms can drop a cell into active-but-not-available**, and they are
+distinguishable by one measurement:
+  1. **KEY ABSENT** — `.get(..., [])` yields `[]`, so `time_idx < 0` is false and EVERY hour of that
+     cell reads None. A cell-shaped loss; would show as whole cells at 0.
+  2. **ARRAY SHORTER THAN THE TOTAL** — partitions cover fewer forecast hours than `wave_height`, so
+     only the TAIL hours read None. An hour-shaped loss; would show availability falling with
+     `time_idx`.
+★ `pt_hourly` is **read** here, not built (`pt.get("hourly", {})` :285) ⇒ **the loss is upstream of
+the normalizer**, consistent with upstream measuring 39/39 and 480/480 = 1.0000 directly.
+⇒ **NEXT: for one stamped product, log `len(s1_h_list)` vs `len(speed_list)` and the missing-key
+count per cell.** Mechanism 1 vs 2 have different fixes (fetch/merge drops the variable, vs a
+horizon mismatch between the partition and total requests) — **do not write a fix before that log
+says which.** ⛔ Still: do NOT lower the `availFrac >= 0.95` gate.
+
 ### #16 ✅ CLOSED — BUILT (`2cf57d28`) **AND RUN** (`d3685a37`). Do not rebuild it.
 `readMaskCoverage()` in `probe_marine_direction_ladder.js` logs `overlayMask.reason` + `maskId.mb` +
 viewport bounds, and `zoomPath` is attached to **every** row. ⚠️ This entry read "build it FIRST"
