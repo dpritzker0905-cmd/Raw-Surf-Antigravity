@@ -31,6 +31,18 @@ Branch `dev` == `origin/dev` == `663c7cfc` (2026-08-01 early). Closed this arc: 
 > (mean effect 41.0 vs 8.7), not away. Build the exemplars lane for **known values**, not sensitivity.
 > ⚠️ **The owner's MCP server must RESTART** to pick the fix up — it still serves `reference_size_m:
 > null` and delta +22.7.
+> ➕ **`-G` (`b6ce6b08`)**: verifying `-F` found two defects IN `-F`. I threaded four call
+> sites and **missed `sim_compare` — the RANKER** ⇒ `find_best_spot` ranked on the global curve
+> while the forecast tool displayed the local one: **the WINNER CHANGED IN 3 OF 4 REGIONS**
+> (`a1b320f3`). ★★★**Refutes the obvious intuition** — Cocoa's 8 neighbours share an IDENTICAL
+> 0.43 m reference and still reordered by 14, because `size_score` is non-linear in each spot's
+> own height. **A uniform input to a non-linear function is not a uniform output.** Guard now
+> ENUMERATES the call sites (+ a tree-walk coverage test — a registry is a *claim* of
+> completeness). ⚠️⚠️ And the fix **blinded the parity monitor** (it kept the per-SPOT lookup ⇒
+> green over an ~18-pt tool error) ⇒ **two numbers, two questions**, naming which failed in
+> BOTH directions (`b6ce6b08`).
+> ⛔ **An agent CANNOT restart the MCP server** — it is a child of `claude.exe`; the owner must
+> restart Claude Code.
 ⚠️ A parallel session is live in this tree (marine multi-bbox) — **stage BY PATH**, never `git add -A` (standing rule 18; I pushed its mutation test to `origin/dev` once).
 
 ---
