@@ -22,7 +22,35 @@ opposite directions and the halves only make sense together:
   `_overlayMaskBounds` below z12 and KEEPS the texture**. The guard needs non-null incumbent bounds,
   and the halo band is **6.74–8.03 — entirely below 12.** *Cause found.*
 
-⭐ **THE JACOBIAN VARIABLE IS WHICH LANE THE GUARD READS** — not a threshold, not the hysteresis.
+### ⭐⭐ SUPERSEDED AGAIN, SAME NIGHT — `883c0588` FOUND THE REAL ROOT
+
+The "wrong lane" diagnosis above was itself incomplete. Walking 8.18→8.03 live shows **no mask
+commit runs at all** on that path (`maskCommit: null`) ⇒ the guard is never even reached, and any
+fix to it changes nothing. **The mask never shrank — THE VIEWPORT OUTGREW A STATIC MASK.**
+
+    rung1 z8.18   view 2.16    _cachedMaskBounds 2.363
+    rung2 z8.03   view 2.386   _cachedMaskBounds 2.363    SHRANK: false
+    _lastMaskRepatchReason "hysteresis_covered"  |  renderer baseCoversView false / coverage_gap
+
+**ROOT — two predicates on the SAME viewport disagree:**
+
+    rp.box       -81.4430408 … -79.0569592   span 2.386  -> hysteresis COVERS = true
+    _cachedMask  -81.5501    … -79.1873      span 2.363  -> renderer   COVERS = false
+    gap: east +0.1304, ONE EDGE ONLY
+
+`rp.box` is the viewport we **REQUESTED**; `_cachedMaskBounds` is what the texture **DELIVERED**,
+snapped smaller. **The repaint skip is granted on INTENT and the delivery is never re-checked**, so
+`hysteresis_covered` latches while the renderer haloes the uncovered edge.
+⇒ Textbook coverage class, one level deeper than anyone had looked: *chosen with no requirement that
+it CONTAIN what it covers, degrading silently.*
+★ **Three successive root claims died to measurement in one night — mine (a shrink guard), the
+lane-blindness one, and finally this.** Each was killed by instrumenting the FAILING INSTANCE first.
+⚠️ My `7551d511` guard is therefore not merely inert, it was solving **a defect that does not exist**
+(nothing shrinks). Leave it (harmless, fails open, A/B-proven byte-identical) or remove it, but do
+not "improve" it.
+
+⭐ **THE ORIGINAL JACOBIAN NOTE (kept — it was right about lanes, wrong about the mechanism):**
+**THE JACOBIAN VARIABLE IS WHICH LANE THE GUARD READS** — not a threshold, not the hysteresis.
 It reads the OVERLAY lane (nulled <z12); the lane that actually paints and haloes is the **CACHED**
 mask, whose bounds are live and match the rendered `maskId.mb`.
 ⛔ **Do NOT fix by removing the :2354 clear** — that clear is itself a proven fix (its own comment
@@ -129,6 +157,14 @@ Starting **zoomed OUT** is what makes the world grid (181x82) resident on the wa
 5. **#9 period layer** — the state-of-the-art gap; a feature build, not a fix.
 
 ## OPS
+
+* **Census at 2026-08-01 02:13Z: 137 lanes — 0 EXPIRED, 0 CRITICAL, 6 warn, 131 ok.** The 6 are all
+  `global_coarse` at 8.2-8.3 h against an 8 h warn / 12 h critical bound (core cron is 4-hourly), all
+  still COVERING with ~320 h horizon. Two missed cycles, not a defect — but if it persists past 12 h
+  it becomes CRITICAL and the monitor will page.
+* **MEMORY.md compacted 2026-08-01:** 22.1 KB -> 15.9 KB, under the 17 KB threshold, by moving the
+  2026-07-12→30 index sections verbatim into `ARCHIVE-link-index-2026-07-12-to-30.md`. **Every link
+  preserved and verified to resolve.** 264 memory files; the INDEX is the bottleneck, not the files.
 
 * **ERA5**: pid 71096 exited on its own after 21.5 h having banked **nothing** (all-or-nothing,
   pre-`3ae53a5e`). Task is `Ready`; runs now checkpoint every 10 spots.
