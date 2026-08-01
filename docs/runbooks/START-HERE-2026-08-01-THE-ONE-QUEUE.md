@@ -13,6 +13,24 @@ was renumbered: **#1-#11 keep the IDs every memory file and handoff already cite
 shape behind four defects).
 
 Branch `dev` == `origin/dev` == `663c7cfc` (2026-08-01 early). Closed this arc: **#12** `7da00ca8` · **#18** `4246c56d` · **#13+#14** `79e1001a` · **#20+#21** `dd6fd934`/`974bf284`.
+
+> ### ➕ 2026-08-01 LATE — `HANDOFF-2026-08-01-F-the-sim-reads-the-served-curve.md` (dev @ `0f7e0118`)
+> ✅ **The sim no longer asks its own env which size curve production is on** (`5f19ac7d`): it reads
+> `reference_size_m` off the `/api/weather/point` response it already fetches. Live A/B, 12 spots:
+> |Δ| vs served median **9.9 → 5.1**, max **47.2 → 18.8**, LEVEL differs **9/12 → 6/12**. This is the
+> queue's own trap #7 (*a flag has a value PER LANE — read the served payload*) applied to the size
+> reference, and it makes **D §4a's config fix optional rather than required**.
+> ⛔ **NOT closure.** The residual is ATTRIBUTED: the app's per-CELL reference sits a median **21.3%**
+> from the value that reproduces its own per-SPOT score, independently reproducing `-E` §3's 25.8%
+> ⇒ **`-E` open #1 is the dominant remaining term**, and it needs a route decision (a new `spot_id`
+> query param vs a second blocking L2 read — `/api/weather/point` has no spot identifier).
+> ✅ Also closed: `-E` #2 (that test file is a COUNTED SKIP now, not an invisible exclusion) ·
+> `-D` §4f (floor raised 40/555 → **42/580** from the gate's own run, `0f7e0118`) · `-E` #3 (the
+> Calibration Census **has** now fired on `schedule`, run `30706418460`).
+> ⚠️ **`-D` §4e's RATIONALE is refuted:** top-N-by-score is biased **TOWARD** reference sensitivity
+> (mean effect 41.0 vs 8.7), not away. Build the exemplars lane for **known values**, not sensitivity.
+> ⚠️ **The owner's MCP server must RESTART** to pick the fix up — it still serves `reference_size_m:
+> null` and delta +22.7.
 ⚠️ A parallel session is live in this tree (marine multi-bbox) — **stage BY PATH**, never `git add -A` (standing rule 18; I pushed its mutation test to `origin/dev` once).
 
 ---
