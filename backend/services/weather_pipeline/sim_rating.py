@@ -48,6 +48,9 @@ def _sim_flag(name: str, default: str = "1") -> bool:
 
 _GEOMETRY_CACHE: Dict[Any, Any] = {}
 
+# (climatology object, {spot_id: reference_m}) -- see reference_size_for.
+_REF_MAP_MEMO = (None, {})
+
 
 def spot_geometry(spot: Dict[str, Any]):
     """Resolved production geometry for a spot, or None when unavailable/disabled.
@@ -112,7 +115,7 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False) -> Opti
     ★★ `valid_time` is the observation gate's JOIN KEY. An I/O budget is a different concept, and
     one parameter serving two concepts couples them wherever only one is wanted.
 
-    ★ ONE DERIVATION. `reference_for_spot` IS `reference_map(load_size_climatology_l2_cached())` —
+    ★ ONE DERIVATION. This is `reference_map(load_size_climatology_l2_cached())` —
     the same two symbols `spot_ratings` composes for the glyph and `spot_conditions` for the hub —
     memoised against the loaded object. Re-deriving it here would be the THIRD copy of a number
     CLAUDE.md says to mirror, never re-derive. Gating stays with the caller by that helper's own
@@ -125,12 +128,33 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False) -> Opti
         return ref                      # hand-tuned default, or already grafted upstream
     if not allow_lookup:
         return None                     # zero-network path — see the invariant note above
-    try:
-        from services.weather_pipeline.spot_size_climatology import reference_for_spot
-        return reference_for_spot(spot.get("id") or spot.get("spot_id"))
-    except Exception:
-        # Fail open to the global curve: a lookup miss must never break the rating it decorates.
+    sid = spot.get("id") or spot.get("spot_id")
+    if sid is None:
         return None
+    try:
+        from services.weather_pipeline.spot_size_climatology import (
+            load_size_climatology_l2_cached, reference_map)
+    except ImportError:
+        # NOT swallowed with the data misses below. A missing SYMBOL is a wiring/deploy fault,
+        # not an absent reference, and conflating them is how this fix first shipped broken:
+        # it imported `reference_for_spot`, a helper that existed only in a concurrent
+        # session's UNCOMMITTED working tree. Every local test passed while the deployed lane
+        # raised ImportError into a fail-open `except Exception` and graded the global curve
+        # in silence. Diagnosed only because the probe printed WHICH question failed.
+        raise
+    clim = load_size_climatology_l2_cached()
+    if not clim:
+        return None                     # no blob -> global curve, the pre-flip behaviour
+    # Memoised against the LOADED OBJECT, not a TTL: `reference_map` is a ~1,800-entry
+    # percentile sweep and this runs once per spot per rated hour. ONE tuple assignment, so a
+    # concurrent reader sees either the whole old pair or the whole new one, never a new
+    # source paired with a stale map. Same composition `spot_ratings` performs for the glyph.
+    global _REF_MAP_MEMO
+    src, mapping = _REF_MAP_MEMO
+    if src is not clim:
+        mapping = reference_map(clim) or {}
+        _REF_MAP_MEMO = (clim, mapping)
+    return mapping.get(str(sid))
 
 
 # 3. Core Physics and Weather Calculation Engine

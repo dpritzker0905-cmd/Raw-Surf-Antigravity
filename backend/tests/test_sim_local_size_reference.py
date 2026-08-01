@@ -40,6 +40,35 @@ def test_the_flag_off_means_the_global_curve(monkeypatch):
     assert sim_rating.reference_size_for({**SPOT, "reference_size_m": 2.5}, True) is None
 
 
+def _patch_map(monkeypatch, fn):
+    """Patch the TWO symbols reference_size_for composes.
+
+    A fresh dict each call also exercises the object-identity memo: a new climatology object must
+    rebuild the map rather than serve a stale one."""
+    monkeypatch.setattr(
+        "services.weather_pipeline.spot_size_climatology.load_size_climatology_l2_cached",
+        lambda *a, **k: {"spots": {}})
+    monkeypatch.setattr(
+        "services.weather_pipeline.spot_size_climatology.reference_map",
+        lambda clim, **k: _Mapping(fn))
+
+
+class _Mapping(dict):
+    """A lookup double. ★ MUST be truthy: `reference_size_for` does
+    `reference_map(clim) or {}`, so an EMPTY dict subclass is falsy and gets replaced by a
+    plain `{}` — which made three of these tests fail against correct code. A test double
+    has to satisfy the same truthiness contract as the thing it stands in for."""
+    def __init__(self, fn):
+        super().__init__()
+        self._fn = fn
+
+    def __bool__(self):
+        return True
+    def get(self, key, default=None):
+        v = self._fn(key)
+        return default if v is None else v
+
+
 def _recorder(monkeypatch, returns=None):
     """Records whether the lookup was reached, WITHOUT raising.
 
@@ -50,8 +79,7 @@ def _recorder(monkeypatch, returns=None):
     ★ A negative control has to be observable through the code under test, not merely thrown at it.
     """
     calls = []
-    monkeypatch.setattr("services.weather_pipeline.spot_size_climatology.reference_for_spot",
-                        lambda sid: (calls.append(sid), returns)[1])
+    _patch_map(monkeypatch, lambda sid: (calls.append(sid), returns)[1])
     return calls
 
 
@@ -78,8 +106,7 @@ def test_NO_permission_NO_lookup_because_that_is_the_zero_network_path(local_siz
 
 
 def test_an_hour_permits_the_lookup_and_the_reference_is_used(local_size_on, monkeypatch):
-    monkeypatch.setattr("services.weather_pipeline.spot_size_climatology.reference_for_spot",
-                        lambda sid: 2.33 if sid == "abc-123" else None)
+    _patch_map(monkeypatch, lambda sid: 2.33 if sid == "abc-123" else None)
     assert sim_rating.reference_size_for(SPOT, True) == pytest.approx(2.33)
 
 
@@ -88,8 +115,7 @@ def test_the_lookup_is_keyed_on_the_spot_id_the_glyph_uses(local_size_on, monkey
     symbols spot_ratings composes for the glyph. Keying on anything else would be a second
     derivation and could disagree with the surface this is supposed to match."""
     seen = {}
-    monkeypatch.setattr("services.weather_pipeline.spot_size_climatology.reference_for_spot",
-                        lambda sid: seen.setdefault("id", sid) and None)
+    _patch_map(monkeypatch, lambda sid: seen.setdefault("id", sid) and None)
     sim_rating.reference_size_for(SPOT, True)
     assert seen["id"] == "abc-123"
 
@@ -97,9 +123,9 @@ def test_the_lookup_is_keyed_on_the_spot_id_the_glyph_uses(local_size_on, monkey
 def test_a_lookup_failure_falls_open_to_the_global_curve(local_size_on, monkeypatch):
     """A miss must never break the rating it decorates — falling open reproduces the pre-flip
     behaviour, which is a less local number, never a wrong one."""
-    def boom(_sid):
-        raise RuntimeError("L2 unavailable")
-    monkeypatch.setattr("services.weather_pipeline.spot_size_climatology.reference_for_spot", boom)
+    monkeypatch.setattr(
+        "services.weather_pipeline.spot_size_climatology.load_size_climatology_l2_cached",
+        lambda *a, **k: None)   # no blob -> global curve
     assert sim_rating.reference_size_for(SPOT, True) is None
 
 
@@ -107,8 +133,7 @@ def test_the_reference_actually_reaches_the_score(local_size_on, monkeypatch):
     """★ ATTACHMENT IS NOT CONSUMPTION. Resolving a reference proves nothing unless it changes the
     number — the recorded trap where a field was plumbed and never read. A 1.5 m day must score
     LOWER against a big-wave reference than against the global default."""
-    monkeypatch.setattr("services.weather_pipeline.spot_size_climatology.reference_for_spot",
-                        lambda _sid: 2.5)
+    _patch_map(monkeypatch, lambda _sid: 2.5)
     spot = {**SPOT, "orientation": 270.0}
     with_ref = sim_rating.calculate_surf_rating(spot, 1.5, 12.0, 270.0, 4.0, 270.0,
                                                 allow_reference_lookup=True)

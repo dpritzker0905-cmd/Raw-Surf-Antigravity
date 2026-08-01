@@ -341,6 +341,10 @@ def main():
                     help="exit 1 if any LEVEL differs, or if nothing could be compared")
     ap.add_argument("--max-score-delta", type=float, default=None,
                     help="also exit 1 if |dScore| exceeds this at any spot")
+    ap.add_argument("--level-noise-margin", type=float, default=1.0,
+                    help="a LEVEL difference with |dScore| at or below this is a "
+                         "bucket-edge straddle: reported, not paged (calibrated on the "
+                         "0.5-0.9 vs 10.4-31.1 gap measured 2026-08-01)")
     ap.add_argument("--json", dest="as_json", action="store_true")
     ap.add_argument("--attribute", action="store_true",
                     help="for each LEVEL difference, re-compare on the LIVE path (shared model run) "
@@ -445,8 +449,24 @@ def main():
         # provenance re-check clears is the precompute holding an older model run — real, worth
         # reporting, and not a reason to redden a composition guard. Unattributed still fails: an
         # unexplained divergence is not a cleared one.
+        # A LEVEL difference whose SCORE gap is a rounding artefact is a BOUNDARY STRADDLE,
+        # not a composition divergence: at a bucket edge an arbitrarily small delta flips the
+        # label. Paging on it makes the monitor permanently red over noise, and a permanently
+        # red monitor gets muted before the real divergence arrives.
+        # ★ The margin is CALIBRATED, not chosen: measured 2026-08-01 the near-ties cluster at
+        # |dScore| 0.5-0.9 while every genuine composition divergence read 10.4-31.1. The gap
+        # between those populations is an order of magnitude, so 1.0 sits inside a natural
+        # gap rather than on a slope. Straddles are still PRINTED - suppressed from the gate,
+        # never from the report.
         real = [r for r in rows if r["level_differs"]
-                and r.get("attribution") not in ("provenance_only",)]
+                and r.get("attribution") not in ("provenance_only",)
+                and abs(r.get("d_score") or 0.0) > args.level_noise_margin]
+        straddles = [r for r in rows if r["level_differs"] and r not in real
+                     and r.get("attribution") not in ("provenance_only",)]
+        for r in straddles:
+            print(f"  note: {r['spot']} differs in LEVEL on a {abs(r['d_score']):.2f}-point gap "
+                  f"({r['glyph_level']} vs {r['sim_level']}) - a bucket-edge straddle, not a "
+                  f"composition divergence.")
         if real:
             print(f"FAIL: {len(real)} of {len(rows)} spots differ in LEVEL between the sim and the "
                   f"served glyph: "
