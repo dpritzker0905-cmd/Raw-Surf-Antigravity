@@ -56,8 +56,38 @@ name, so these are not regex artifacts):
 ⚠️⚠️ **This is the worst kind of stale entry.** Toggling a lever that nothing reads produces "no
 difference", which reads as *evidence of no effect* when it is really *evidence of no instrument* —
 the recorded trap in [[marine-cover-frac-one-lever-two-defaults]] ("an A/B via the lever CANNOT
-reproduce it"). ⇒ **Before quoting any A/B, grep the flag and confirm a read.** Fix = delete the
-dead names from the ledger, or restore the read if the feature is meant to exist.
+reproduce it"). ⇒ **Before quoting any A/B, grep the flag and confirm a read.**
+
+#### ✅ CLASSIFIED 2026-08-01 — `git log -S<flag> -- '*.py' '*.js'`, and the answer is not uniform
+⚠️ Run the pickaxe **against CODE PATHS ONLY**. Unscoped, every flag came back "recently touched" —
+by the queue file naming them, i.e. the instrument measuring the document it was auditing.
+
+**(A) NEVER EXISTED IN CODE (3) — the ledger names a lever that was never built. Delete outright:**
+`__RAW_TUNER_BANDS__` · `__RAW_DISABLE_MIDGESTURE_COMMIT__` · `RATING_PARTITION_AWARE`
+⚠️ `RATING_PARTITION_AWARE` matters most: partitions-into-the-rating is an ACTIVE arc (#5), and the
+ledger offers a control for it that has never been readable. Confirm the real flag name before any
+partition A/B.
+
+**(B) EXISTED, THEN REMOVED (9) — each has exactly 2 code commits, add then remove. THREE were
+removed by REVERTS, so the ledger documents levers for features that were PULLED:**
+
+| flag | removed by |
+|---|---|
+| `MARINE_INTERSECT_MIN_FRAC` · `MARINE_INTERSECT_PREFER` | `184a5d99` **revert** — "pull the intersect-prefer serve" |
+| `MARINE_WIDE_BASE_RES` | `d2b2576f` **revert** — "3° light global base" |
+| `__RAW_RADAR_FLAT_OPACITY__` | `0cddc489` **revert** — radar global advection |
+| `__RAW_ENABLE_PARTICLE_CARRY__` | `046ba1d3` — became DEFAULT-ON, flag retired |
+| `__RAW_TUNER_VALUES__` | `386ab799` — the Natural look was baked in |
+| `__RAW_RATING_STATIC_BAND__` | `cdd90c7e` |
+| `MARINE_CONJOINED` | `470866ac` |
+| `MARINE_BG_FILL` | `54e5b0ec` |
+
+★★ **The two classes need OPPOSITE handling.** (B) is honest history — the lever is gone because the
+feature is gone; the ledger entry just needs a "REMOVED BY \<sha\>" stamp so nobody plans an A/B
+around it. (A) is a phantom: a control that never existed, which means any past claim resting on
+"we toggled it" is unfounded. ⇒ **When a memory file names a lever, cite the sha that ADDED it.**
+⚠️ Cross-check: [[surf-regional-prefer-threshold-stack-2026-07-30]] discusses `min_viewport_frac` as
+dormant — consistent with `184a5d99` having pulled the whole intersect-prefer serve.
 
 ### #27 5 SHAs THAT RESOLVE TO NOTHING
 `a107b7db4f12`, `a2c4e8f91b03` (both `admin-panel-jacobian-audit-2026-07-12.md` — 12 chars,
