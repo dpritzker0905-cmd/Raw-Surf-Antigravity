@@ -253,6 +253,14 @@ jobs:
           # recurring coverage class; the only reliable detector is asserting what RAN.
           FILES=$(ls tests/test_sim_*.py tests/test_rating_*.py tests/test_surf_*.py \
                      tests/test_spot_*.py tests/test_point_*.py \
+                     tests/test_coarse_*.py tests/test_marine_*.py tests/test_grid_*.py \
+                     tests/test_weather_*.py tests/test_wind_*.py tests/test_partition_*.py \
+                     tests/test_noaa_*.py tests/test_ecmwf_euro.py tests/test_fetch_common.py \
+                     tests/test_climatology_inbox.py tests/test_flag_lane_parity.py \
+                     tests/test_owner_calibration_anchors.py tests/test_parity_unification.py \
+                     tests/test_local_size_preview.py tests/test_enclosed_sea_height_survival.py \
+                     tests/test_gfs_fill_masked_waves.py tests/test_dominant_swell_anim.py \
+                     tests/test_frame_honesty.py tests/test_data_health.py \
                      tests/test_geometry_*.py tests/test_provenance_*.py \
                      tests/test_observation_gate_*.py tests/test_run_provenance.py \
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
