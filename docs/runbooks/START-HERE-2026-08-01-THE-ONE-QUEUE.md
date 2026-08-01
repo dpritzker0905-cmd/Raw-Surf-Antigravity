@@ -278,6 +278,48 @@ the ingest rotation and give the census a run-age check.
 
 Four open defects are this one shape. Fixing the shape is worth more than fixing any of them.
 
+### #11 ⛔ OPEN — SECOND, DEEPER ROOT MEASURED. Fix landed but **NOT YET A/B-PROVEN LIVE.**
+
+⚠️⚠️ **The "guard reads the wrong lane" attribution below is TRUE BUT NOT THE OPERATIVE CAUSE.**
+Walking the 8.18→8.03 path live showed the no-shrink guard is not merely blind — **on that path no
+mask commit runs at all** (`maskCommit: null`), so the guard is never reached and *any* fix to it
+would have changed nothing. The mask did not shrink; **the VIEWPORT OUTGREW A STATIC MASK.**
+
+    rung1 z8.18   view span 2.16    _cachedMaskBounds span 2.363
+    rung2 z8.03   view span 2.386   _cachedMaskBounds span 2.363  (UNCHANGED — SHRANK: false)
+    _lastMaskRepatchReason: "hysteresis_covered"      renderer: baseCoversView false, coverage_gap
+    gap: east +0.1304  (west/north/south all fine — ONE edge)
+
+**ROOT (measured, both predicates on the SAME viewport):**
+
+    rp.box       -81.4430408 … -79.0569592   span 2.386   -> hysteresis: COVERS  = true
+    _cachedMask  -81.5501    … -79.1873      span 2.363   -> renderer:   COVERS  = false   DISAGREE
+
+`rp.box` is the viewport we **REQUESTED** to paint (`:2424` stores `{...curView}` — ⚠️ the comment
+above it claiming a *"padded 40%"* box describes the painter, **not what is stored**; 3rd instance
+of a comment asserting the opposite of the state). `_cachedMaskBounds` is what the texture
+**DELIVERED**, snapped smaller. ⇒ **the skip is granted on INTENT and the delivery is never
+re-checked** — so `hysteresis_covered` latches while the renderer haloes the uncovered edge.
+⭐⭐ Textbook [[THE-COVERAGE-CLASS-a-resource-smaller-than-the-view-2026-07-31]]: chosen with no
+requirement that it CONTAIN what it covers, degrading **silently**.
+
+**FIX (`resolveDeliveredCoverage`, pure + 10 tests incl. a negative control):** the hysteresis skip
+now also requires the DELIVERED box to contain the view. **BOUNDED to one forced repaint per
+(gridKey, view)** — an unbounded refuse would repaint every 700 ms throttle tick, and a churn is a
+worse bug than the halo. Unknown delivery is never "short" (may only ADD repaints in the
+proven-bad case). Kill: `__RAW_DISABLE_MASK_DELIVERED_COVER__`. Telemetry: `__RAW_GPU__.maskDelivered`.
+
+⛔⛔ **STILL OWED: THE LIVE A/B.** The failing precondition **did not recur on demand** across four
+reproduction attempts (fresh load gave a 5° mask; a forced refetch gave 2.888° — both COVER). The
+telemetry correctly reports `deliveredShort:false` in those states, i.e. **the A/B VOIDS itself
+rather than claiming a pass** (rule 16). ⇒ **Do not mark #11 closed on the unit tests.**
+★ REPRODUCTION RECIPE to finish it: the state needs (a) a mask painted for a TIGHTER viewport, then
+(b) a zoom-out of **< 0.75** so `_zoomStable` holds and the hysteresis is even consulted, with
+(c) the delivered pad smaller than the viewport growth. Watch `__RAW_GPU__.maskDelivered.deliveredShort`
+flip to true, then A/B `__RAW_DISABLE_MASK_DELIVERED_COVER__` and confirm `baseCoversView` recovers.
+
+<details><summary>First attribution (true, but not the operative cause on the walked path)</summary>
+
 ### #11 ⛔ OPEN — ROOT ATTRIBUTED 2026-08-01, LIVE IN THE BROWSER. The guard reads the WRONG LANE.
 The guard is INERT (A/B, `50c74e33`) and the missing precondition is now **measured, not inferred**.
 Live at z8.18 on the reported coast, with read-only telemetry (`__RAW_GPU__.maskCommit`):
@@ -314,6 +356,7 @@ overlay bounds below z12.
 ★ 4th instance of [[a-guard-keyed-on-a-proxy-is-blind-by-tier-2026-07-31]] — the guard was keyed on
 a field an unrelated earlier fix nulls by tier. ⇒ **before trusting any guard, print what it READS
 at the reported conditions.** Reading the code said "shipped, called, tested"; the state said null.
+</details>
 
 <details><summary>Superseded: "#11 ✅ CLOSED — the no-shrink guard SHIPPED"</summary>
 

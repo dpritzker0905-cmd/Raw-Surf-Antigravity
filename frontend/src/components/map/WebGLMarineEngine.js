@@ -2382,7 +2382,39 @@ WebGLMarineEngine.prototype.refreshMaskWithBasemapWater = function(gl, mapInstan
   const _zoomStable = _zoomRebuildOff || typeof rp?.z !== 'number' || Math.abs(_curZoom - rp.z) < 0.75;
   // A DEGRADED previous paint (parent-vulnerable source-query fallback) never earns the
   // hysteresis skip — the next refresh repaints with finest-tile truth (grey-rect self-heal).
+  // ── DELIVERED-COVERAGE CHECK (#11 root, measured live 2026-08-01) ──────────────────────────────
+  // `rp.box` is the viewport we REQUESTED to paint (:2424 stores `{...curView}` — note the comment
+  // above claiming a 40% pad describes the PAINTER, not what is stored). The texture actually ends
+  // up at `_cachedMaskBounds`, which is snapped SMALLER. Measured at z8.03 on the reported coast:
+  //
+  //     view          -81.443 … -79.057   span 2.386
+  //     rp.box        -81.443 … -79.057   span 2.386  -> hysteresis: COVERED  (skip granted)
+  //     _cachedMask   -81.550 … -79.187   span 2.363  -> renderer:   coverage_gap, east short 0.13
+  //
+  // So the skip was granted on INTENT while the renderer simultaneously reported it could not cover
+  // and haloed that edge, and `_lastMaskRepatchReason` read `hysteresis_covered` forever. The
+  // coverage class exactly: a resource chosen with no requirement that it CONTAIN what it covers,
+  // degrading silently. ⇒ test the DELIVERY, not the request.
+  //
+  // BOUNDED ON PURPOSE: at most ONE forced repaint per (gridKey, view). If a painter simply cannot
+  // satisfy this viewport, the second pass degrades to today's behaviour instead of repainting on
+  // every 700 ms throttle tick — a halo is better than a churn. Kill: __RAW_DISABLE_MASK_DELIVERED_COVER__.
+  // Telemetry: __RAW_GPU__.maskDelivered.
+  const _delivOff = typeof window !== 'undefined' && window.__RAW_DISABLE_MASK_DELIVERED_COVER__ === true;
+  const _cmb = this._cachedMaskBounds;
+  const _dv = resolveDeliveredCoverage(_cmb, curView, gridKey, this._maskDeliveredForcedFor, _delivOff);
+  const _delivShort = _dv.deliveredShort;
+  const _forceRepaint = _dv.forceRepaint;
+  if (_forceRepaint) this._maskDeliveredForcedFor = _dv.forceKey;
+  if (typeof window !== 'undefined' && window.__RAW_GPU__) {
+    window.__RAW_GPU__.maskDelivered = {
+      deliveredShort: _delivShort, forcedRepaint: _forceRepaint, alreadyForced: _delivShort && !_forceRepaint,
+      eastGap: (_cmb && curView) ? +(curView.east - _cmb.east).toFixed(4) : null,
+      westGap: (_cmb && curView) ? +(_cmb.west - curView.west).toFixed(4) : null,
+    };
+  }
   if (curView && rp && !rp.degraded && _zoomStable && rp.gridKey === gridKey && rp.box &&
+      !_forceRepaint &&
       rp.box.west <= curView.west && rp.box.east >= curView.east &&
       rp.box.south <= curView.south && rp.box.north >= curView.north) {
     // Base patch still covers the view — only the deep-zoom overlay may need work.
@@ -2719,6 +2751,31 @@ WebGLMarineEngine.prototype.probeMaskGPU = function(points, glIn) {
 //     bridges (paint WebGLMarineCustomLayer.js:229 + data bridgeToCoarseGlobalIfHeld) need a held base → a null
 //     base fell through to the ~700ms "clear"/clearBuffers on the next zoom-out (deterministically reproduced).
 //   legacy (!atomic) → caller already freed prev before the encode, so just adopt encoded (or null).
+// DELIVERED-COVERAGE decision (#11 root, 2026-08-01). Pure so it is testable without a GL context.
+//
+// The base-mask hysteresis skips a repaint when the box it RECORDED (`rp.box`, a copy of the
+// viewport it set out to paint) still contains the current view. But the texture that actually
+// lands is `_cachedMaskBounds`, which can be snapped SMALLER. Measured live at z8.03: rp.box span
+// 2.386 contained the view while the delivered mask (2.363) missed the east edge by 0.13°, so the
+// skip was granted on INTENT while the renderer reported `coverage_gap` and haloed that edge.
+//
+// `deliveredShort` is the honest verdict; `forceRepaint` is the ACTION ON FAILURE, and it is
+// deliberately BOUNDED — once per (gridKey, view). If a painter simply cannot satisfy a viewport,
+// the second pass falls back to the old behaviour instead of repainting on every throttle tick:
+// a halo is better than a churn, and an unbounded "refuse" would be a worse bug than the one fixed.
+export function resolveDeliveredCoverage(cachedBounds, curView, gridKey, lastForcedFor, disabled) {
+  const k = (v) => (typeof v === 'number' ? v.toFixed(4) : 'x');
+  const forceKey = curView
+    ? `${gridKey}|${k(curView.west)},${k(curView.south)},${k(curView.east)},${k(curView.north)}`
+    : `${gridKey}|`;
+  // Unknown delivery is NOT treated as short: this may only ADD repaints in the proven-bad case,
+  // never remove a skip the old code granted on information we do not have.
+  const deliveredShort = !disabled && !!cachedBounds && !!curView && !(
+    cachedBounds.west <= curView.west && cachedBounds.east >= curView.east
+    && cachedBounds.south <= curView.south && cachedBounds.north >= curView.north);
+  return { deliveredShort, forceKey, forceRepaint: deliveredShort && lastForcedFor !== forceKey };
+}
+
 export function resolveCoarseBaseSwap(prev, encoded, atomic) {
   const valid = !!(encoded && encoded.u_waveTexture);
   if (!atomic) return { next: valid ? encoded : null, toFree: null };
