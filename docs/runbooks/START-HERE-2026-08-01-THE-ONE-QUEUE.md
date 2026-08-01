@@ -12,7 +12,7 @@ was renumbered: **#1-#11 keep the IDs every memory file and handoff already cite
 `memory/THE-COVERAGE-CLASS-a-resource-smaller-than-the-view-2026-07-31.md` (the one structural
 shape behind four defects).
 
-Branch `dev` == `origin/dev` == `9b0339ca` (2026-07-31 late). Closed this arc: **#12** `7da00ca8` · **#18** `4246c56d` · **#13+#14** `79e1001a`.
+Branch `dev` == `origin/dev` == `663c7cfc` (2026-08-01 early). Closed this arc: **#12** `7da00ca8` · **#18** `4246c56d` · **#13+#14** `79e1001a` · **#20+#21** `dd6fd934`/`974bf284`.
 ⚠️ A parallel session is live in this tree (marine multi-bbox) — **stage BY PATH**, never `git add -A` (standing rule 18; I pushed its mutation test to `origin/dev` once).
 
 ---
@@ -171,6 +171,19 @@ the ingest rotation and give the census a run-age check.
 
 Four open defects are this one shape. Fixing the shape is worth more than fixing any of them.
 
+### #11 ✅ CLOSED (`7551d511`) — the no-shrink guard SHIPPED. Verified on `dev` 2026-08-01.
+`shouldRejectMaskShrink` (`marineEngineDecisions.js:770`) is **called** at
+`WebGLMarineEngine.js:2549` — deliberately **BEFORE** the `texImage2D` upload, because rejecting
+after it would leave the texture updated and the bounds stale (a tex/bounds mismatch is strictly
+worse than the halo). Kill `__RAW_DISABLE_MASK_NO_SHRINK__`; telemetry
+`__RAW_GPU__.maskShrinkRejected`; 15 tests in `src/tests/mask-no-shrink-halo.test.js` incl. a
+negative control ("flipping ONLY the coverage verdict flips the decision, nothing else").
+`git merge-base --is-ancestor 7551d511 dev` ✓ — it is on the branch that ships (rule 10a).
+⚠️ **Not yet confirmed on the user's screen at the reported 6.74–8.03 band** — the guard is proven
+in unit space and by the measurement below, not by a live pass. That is the only thing still owed.
+
+<details><summary>Original entry (superseded — kept as the forensic record)</summary>
+
 ### #11 THE HALO — the mask shrank as the viewport grew
 | zoom | viewport lng | mask bounds | engine verdict |
 |---|---|---|---|
@@ -184,6 +197,7 @@ Four open defects are this one shape. Fixing the shape is worth more than fixing
 incumbent while the viewport grows; if none covers, refuse rather than paint coarse.*
 ★ The engine ALREADY computes `_overlayCoversViewport` (:811) — **the Jacobian variable is the
 ACTION ON FAILURE, not a threshold.**
+</details>
 
 ### #8 STALE RESIDENT GRID ON LAYER SWITCH
 Same shape: a world grid "covers" everything, so nothing forces a refetch. Client-side retention,
@@ -206,12 +220,20 @@ the ladder → (d) ingest cycle → (e) confirm on the user's screen before clai
 ⚠️ `WAVES_ANIM_DOMINANT_SWELL` is a repo variable absent from `_RATING_FLAGS` ⇒ invisible to the
 lane-parity guard. Register it.
 
-### #16 THE INSTRUMENT THAT WOULD HAVE CAUGHT ALL OF THIS — build it FIRST
+### #16 ✅ CLOSED — BUILT (`2cf57d28`) **AND RUN** (`d3685a37`). Do not rebuild it.
+`readMaskCoverage()` in `probe_marine_direction_ladder.js` logs `overlayMask.reason` + `maskId.mb` +
+viewport bounds, and `zoomPath` is attached to **every** row. ⚠️ This entry read "build it FIRST"
+long after it was built — **check whether an instrument exists before writing one** (2026-08-01).
+★ Running it found two defects *in the ladder* before it caught the class — rule 17.
+
+<details><summary>Original entry (superseded)</summary>
+
 **No instrument logs mask coverage.** ~20 lines on `probe_marine_direction_ladder.js`: walk a zoom
 PATH and log `overlayMask.reason` + `maskId.mb` + viewport bounds at every rung.
 ⚠️⚠️ **This class is PATH-DEPENDENT** — a settled screenshot or a single-rung ladder proves
 NOTHING; the resource you get depends on zoom HISTORY. ⚠️⚠️ Run ladders on **port 3009**
 (`frontend-verify`), NEVER 3001 — 3001 is the preview pane and a headless ladder wedged it.
+</details>
 
 ---
 
@@ -335,6 +357,18 @@ rehydrate from the DB at serve-box boot.
 9. **COVERAGE ≠ FRESHNESS.** `timeline_slot_census` reads `valid_time` and an 18-day-old model run
    covers every lattice slot perfectly. Ask which question an instrument answers before trusting its
    green. (Both freshness instruments also skip regional products *by construction* — see #12.)
+10. **A SWALLOWED THROW IS A FEATURE THAT SILENTLY TURNS ITSELF OFF.** The marine layer disables
+    itself after 3 caught render errors and says so only in a `console.warn` (#21). ⇒ for any
+    "it stopped rendering / it cleared" report, look for an exception FIRST. Same shape as the broad
+    `except` that disabled the surf transform.
+11. **THE FILES ARE CRLF — anchor every source mutation on `\r?\n`, and assert EACH replacement.**
+    A `\n`-anchored mutation matched nothing, so a negative control reported "defect not detected"
+    and the guard looked green while watching nothing (#20). A single `!== src` is not proof the
+    mutation applied. (3rd Windows file-layer false green; cf. the `/tmp` mutation python could not
+    see, and `Out-File` buffering.)
+12. **A LINT/TYPE MESSAGE NAMES A SHAPE, NOT A DEFECT.** Two sessions independently promoted 4
+    `no-dupe-keys` to "a real provenance bug" without checking whether the duplicates *evaluate*
+    differently or whether anything *reads* the object. They did not, and nothing did (#24).
 
 ---
 
@@ -392,3 +426,67 @@ rehydrate from the DB at serve-box boot.
   **Re-run every direction ladder in BOTH rating states.**
 * ✅ **Marine is NOT painting land** (0.000-0.030%, runs 0-2 px, real GPU) — after five false
   positives. `probe_land_bleed.js` encodes all five.
+
+---
+
+## ➕ ADDED 2026-08-01 (the lint arm caught a live crash; forensics in `memory/marine-render-throw-is-a-silent-kill-switch-2026-07-31.md`)
+
+* **#20 ✅ CLOSED (`dd6fd934`) — A LIVE `ReferenceError` HAD BEEN IN THE HEATMAP RENDER FOR 12 DAYS.**
+  `_washOpacityEff` was declared `let` INSIDE the `if (blendEngaged)` wash block (`626c905f`, 07-14)
+  and read **366 lines below it** by the tiny-tile parity block (`4da586aa`, 07-19). Babel:
+  `binding resolvable? false`. ⭐ **NOT dead code and NOT rare** — the reader's own gate is
+  `blendEngaged`, *the same condition that fills the value in*, which is exactly what makes it read
+  as safe. Reachability is `blendEngaged && heatmapOpacity>0 && tile covers <45% of viewport AREA`;
+  the comment calls that "hemispheric zoom", but `WebGLMarineCustomLayer.js:239` only zeroes opacity
+  inside `if (shouldReject)`, and when the viewport is NOT zoomed out `shouldReject` is merely
+  `overlapWidth <= 0` ⇒ **ordinary panning toward a tile edge.** The 07-19 feature had never run once.
+  ⚠️ **a code comment's framing of WHEN a path fires is not evidence** (2nd instance, cf. #17).
+  Guard: `WebGLMarineEngine.scopeIntegrity.test.js` (AST scope over the whole file, pinned by a
+  negative control). ⚠️ The control's FIRST version passed while broken — the engine file is **CRLF**
+  and the mutation was anchored on `...;\n`. **The instrument lied before the code did.**
+
+* **#21 ✅ CLOSED (`974bf284`) — A THROW IN THE MARINE RENDER IS A HIDDEN OFF SWITCH.**
+  `WebGLMarineCustomLayer`'s `errorCount` **never reset**: at 3 it fires `onErrorRef()` ("disabling
+  GPU marine particles") and `errorCount > 3` then early-returns forever. So **three unrelated
+  transient throws, hours apart, permanently killed the layer** — trace is one `console.warn`, so the
+  symptom is *"the heatmap cleared"*, never a stack trace. ★★ It was an **ASYMMETRY**: `WebGLWindLayer`
+  has had this exact 10 s decay since v3.15 (line 102). ⇒ **when one surface has a self-heal, grep its
+  sibling before assuming the behaviour is intended.**
+  ⭐⭐ **TRIAGE RULE: for ANY "the marine heatmap cleared/vanished" report, check for an exception
+  BEFORE chasing opacity / mask / coverage logic.** This class is invisible to the test suite (nothing
+  executes the ~1900-line render fn) and invisible in production (the catch swallows it).
+
+* **#22 ⛔ OPEN — #17 IS ONLY HALF CLOSED: `swell_1` AND `wind_waves` STILL SHOW AN UNNAMED OFFSHORE
+  HEIGHT.** `5ae2d267` renamed the offshore card `Height`→`Swell` on the **`waves` layer ONLY**; the
+  other two layers still emit the generic `Height` from a separate `forecastCardCompiler` branch
+  (line ~387). That is the same defect #17 closed — *"when two quantities share units the LABEL is the
+  entire correctness surface"* — still live on two of three marine layers. Small fix, needs the owner's
+  call on wording (`Swell` on a swell layer is redundant; maybe `Swell (offshore)` / keep `Height`).
+  ★ Found because a blanket rename broke two PASSING tests — the layer-scoped rename is not global.
+
+* **#23 ✅ CLOSED (`8e981d96`) — `5ae2d267` LEFT 7 TESTS RED AND NOBODY NOTICED.** Two suites looked
+  up `cards.find(c => c.label === 'Height')`. The commit shipped its own new test and left the older
+  ones behind. ⚠️ **Probed the compiler with the exact failing props BEFORE editing** (rule 9): every
+  asserted VALUE and provisional flag was unchanged ⇒ a pure label repair, no regression underneath.
+
+* **#24 ✅ CLOSED (`663c7cfc`) — AND "REAL PROVENANCE BUG" WAS WRONG, MEASURED.** 4 `no-dupe-keys`
+  (`validTime`, `timeOffsetHours`, both backend clients). **TWO sessions independently graded these as
+  a provenance defect FROM THE LINT MESSAGE ALONE.** Jacobian: `timeOffsetHours` is `hourOffset` in
+  both copies (byte-identical ⇒ **sensitivity 0**); the surviving `validTime` is `validTimeStr` — the
+  same `getSharedValidTime()` call hoisted to the top *and* the exact string used to build the request
+  URL — while the dead copy was an inline re-call that CAN drift (it reads `Date.now()` rounded to the
+  hour **and** the cached manifest). ⇒ last-key-wins already kept the right value, in a **diagnostics
+  sink, not a data path**; leverage ≈ 0. Removed only because correctness rested on source **ORDER**.
+  ★★ **A duplicate key is a SHAPE, not a finding** — ask whether the copies *evaluate* differently and
+  whether anything downstream *reads* the object, before spending a task on it.
+
+* ⚠️ **A PARALLEL SESSION LANDED THE ESLINT CI ARM** (`ci.yml` + `frontend/scripts/check_eslint.js`,
+  **uncommitted in the tree as of `663c7cfc`** — stage BY PATH, rule 18). Run **`npm run lint:ci`**,
+  never bare `npx eslint src/` (158 pre-existing errors ⇒ exits 1 on debt nobody introduced).
+  ⭐⭐ **Its first run found a 5th coverage-class instance:** the config globbed `*.{ts,tsx}` but wired
+  no TS parser, so **all 21 `.ts`/`.tsx` files under `src/admin/` failed to PARSE and were NEVER
+  LINTED** — `no-undef` could never fire there. ★★★ **A file that cannot be parsed is a file where no
+  rule runs; a config glob is a CLAIM of coverage, not coverage** ⇒ when adding any gate, measure
+  **files successfully analysed**, never just the finding count (0 findings and 0 parsed look identical
+  in a summary line). ⚠️ Baseline now carries **4 slack `no-dupe-keys`** (shrink-only ⇒ still green);
+  re-record with `--write-baseline` when convenient.
