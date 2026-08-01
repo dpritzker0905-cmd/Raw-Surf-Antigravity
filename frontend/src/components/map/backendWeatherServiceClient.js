@@ -612,9 +612,13 @@ export async function fetchBackendMarineGrid(bounds, hourOffset, signal, snapped
       rows: result.grid.rows,
       vectorCount: vectors ? vectors.length : 0,
       nonzeroCount: result.grid.nonzeroCount,
-      timeOffsetHours: hourOffset,
+      // NOTE (2026-07-31): `validTime` and `timeOffsetHours` were each declared TWICE in this
+      // literal; the later pair below silently won. Removed the dead ones — a no-op, but the
+      // correctness was resting on source ORDER. Keep `validTime: validTimeStr` (the value actually
+      // used to build the request URL) rather than re-calling getSharedValidTime here: that function
+      // reads Date.now() rounded to the hour AND the cached manifest, so a re-call after the fetch
+      // can drift from what was requested — and this object is a diagnostic describing the request.
       requestedValidTime: getSharedValidTime(hourOffset, layer, model),
-      validTime: getSharedValidTime(hourOffset, layer, model),
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,

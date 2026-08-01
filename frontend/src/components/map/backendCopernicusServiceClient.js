@@ -426,9 +426,9 @@ export async function fetchBackendCopernicusGrid(bounds, hourOffset, signal, sna
       rows: result.grid.rows,
       vectorCount: vectors ? vectors.length : 0,
       nonzeroCount: result.grid.nonzeroCount,
-      timeOffsetHours: hourOffset,
+      // NOTE (2026-07-31): `validTime`/`timeOffsetHours` were declared TWICE here; the later pair
+      // below silently won. Dead ones removed — see the matching note in backendWeatherServiceClient.
       requestedValidTime: getSharedValidTime(hourOffset, layer, 'EURO'),
-      validTime: getSharedValidTime(hourOffset, layer, 'EURO'),
       firstVectorLatLng: firstVector,
       lastVectorLatLng: lastVector,
       productId: json.product_id,
