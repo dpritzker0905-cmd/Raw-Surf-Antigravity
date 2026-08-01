@@ -1,0 +1,163 @@
+# Sim Parity Monitor (2026-08-01) — does the weather sim still agree with the app it mirrors?
+#
+# WHY THIS EXISTS
+# ---------------
+# CLAUDE.md's first invariant is ONE FORECAST COMPOSITION: `sim_rating.calculate_surf_rating` must
+# return the number the map glyph shows for the same spot and hour. Two things guard it, and until
+# now only one of them ran anywhere:
+#
+#   * `tests/test_rating_composition_parity.py` pins it STRUCTURALLY — every surface declares a
+#     position on every optional engine input. Runs in CI (see ci.yml `backend-sim-guards`).
+#   * `scripts/sim_health_probe.py` pins it in the DATA — a different geometry resolution, a stale
+#     cache, a provider change, or a serve-box flag set on Render and unset in the ingest lane.
+#     THIS had no cloud home. It had been run by hand twice (2026-07-30, 2026-07-31) and the
+#     instrument thrown away both times before it was committed; committed, it still ran nowhere.
+#
+# ★ A structural guard cannot see a divergence that lives in the data, and a test cannot see a
+#   flag that is only set in production. That is the gap this workflow closes.
+#
+# WHAT THIS CATCHES THAT CI CANNOT
+#   RATING_OBS_GATE has a value PER LANE ('1' on Render, unset locally) — a lane-split like that is
+#   invisible to every test and only shows up when you ask the deployed box and the sim the same
+#   question. The same class hid a 75-hour-old Hawaii wind run behind a current `valid_time`.
+#
+# WHY SCHEDULE AND NOT PUSH
+#   A parity divergence is DEPLOY-caused, not weather-caused. But on a push the sim here runs from
+#   the checked-out SHA while Render still serves the previous one, so a push-triggered comparison
+#   measures the deploy lag and calls it a composition bug — the exact "instrument lied first"
+#   class this repo keeps hitting. Composition regressions are caught pre-deploy by the sim guards
+#   in ci.yml; this job asks the question only once the deploy has long settled.
+#   ⚠️ Scheduled workflows fire from the DEFAULT branch only — that is `dev` here (verified
+#   2026-08-01: `defaultBranchRef` = dev; the ingest cron's own manifest is stamped from dev).
+#   A copy of this file living only on a feature branch will never run.
+name: Sim Parity Monitor
+
+on:
+  schedule:
+    # 4x/day at :20 past 05/11/17/23 UTC. `precompute.yml` runs at :45 past 3,7,11,15,19,23 and
+    # stamps frames {03,07,11,15,19,23}:00Z served with a ±2h tolerance, so these slots always land
+    # on a settled, freshly-written frame rather than mid-write. Parity is a structural property —
+    # it does not change hour to hour — so 4x/day is a heartbeat, not a sampling rate.
+    - cron: '20 5,11,17,23 * * *'
+  workflow_dispatch:
+    inputs:
+      regions:
+        description: 'comma-separated regions (default: all 8)'
+        required: false
+        default: ''
+      per_region:
+        description: 'spots per region'
+        required: false
+        default: '6'
+
+permissions:
+  contents: read
+
+concurrency:
+  group: sim-parity-monitor
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      # The probe re-runs the sim at the hour the serve box actually SERVED (`served_valid_time`),
+      # never the hour that was asked for, so both sides always describe the same moment.
+      # ★★ A check whose two sides do not share a `valid_time` is measuring the clock, not the
+      # physics. --attribute re-compares each LEVEL difference on the live path so a divergence
+      # explained by the precompute holding an older model run (`provenance_only`) is reported but
+      # does not redden a COMPOSITION guard.
+      - name: Sim ↔ glyph parity probe
+        id: probe
+        working-directory: backend
+        env:
+          RAW_SURF_BASE_URL: ${{ vars.HEALTH_BASE || 'https://raw-surf-antigravity.onrender.com' }}
+          REGIONS: ${{ github.event.inputs.regions }}
+          PER_REGION: ${{ github.event.inputs.per_region || '6' }}
+        run: |
+          set -o pipefail
+          ARGS="--json --attribute --fail-on-divergence --per-region ${PER_REGION}"
+          if [ -n "$REGIONS" ]; then ARGS="$ARGS --regions $REGIONS"; fi
+          echo "python3 scripts/sim_health_probe.py $ARGS"
+          set +e
+          python3 scripts/sim_health_probe.py $ARGS > parity.json 2> parity.err
+          echo "code=$?" >> "$GITHUB_OUTPUT"
+          set -e
+          cat parity.err || true
+          # An empty/unparseable body means the probe died before writing — surface that as its own
+          # failure rather than letting the render step report "0 rows" as if it had measured.
+          python3 -c "import json;json.load(open('parity.json'))" 2>/dev/null \
+            || { echo "::error::Probe produced no parseable JSON — see parity.err above."; exit 1; }
+
+      # Renders the machine output as a human verdict in the run summary. Kept separate from the
+      # probe step so a green parity still publishes its numbers: the VALUE of this job is the
+      # trend (|dScore| and geometry readiness over time), not the pass/fail bit.
+      - name: Render verdict
+        if: always() && hashFiles('backend/parity.json') != ''
+        working-directory: backend
+        run: |
+          python3 - <<'PY' >> "$GITHUB_STEP_SUMMARY"
+          import json
+          d = json.load(open('parity.json'))
+          s, rows = d['summary'], d['rows']
+          n, diffs = s['n'], s['level_differences']
+          print(f"## Sim parity — {'⛔ DIVERGED' if diffs else '✅ agrees'}")
+          print(f"* asked `{d['valid_time']}` · model `{d['model']}` · **N={n}** spots")
+          if n:
+              ds = s['d_score']
+              print(f"* **LEVEL differences: {diffs}**")
+              print(f"* |dScore| median {ds['median']} · p90 {ds['p90']} · max {ds['max']}")
+              if 'd_height_pct' in s:
+                  dh = s['d_height_pct']
+                  print(f"* |dHeight| median {dh['median']}% · p90 {dh['p90']}% · max {dh['max']}%")
+              print(f"* geometry readiness: `{s['geometry']}`")
+          for r in [x for x in rows if x['level_differs']]:
+              print(f"  * ⛔ `{r['spot']}` ({r['region']}): {r['glyph_level']} vs {r['sim_level']}"
+                    f" — {r.get('attribution', 'unattributed')}")
+          if s.get('hour_unverified'):
+              print(f"* ⚠️ {s['hour_unverified']}/{n} rows compared against a frame whose hour the "
+                    f"deploy could not report.")
+          PY
+
+      # Append-only history. The pass/fail bit answers "is it broken now"; the artifact series
+      # answers "did last week's geometry change move the sim closer to the product or further" —
+      # and a divergence not recorded when it happened can never be scored later, the same contract
+      # the buoy-residual and forecast-skill archives already keep.
+      - name: Upload parity record
+        if: always() && hashFiles('backend/parity.json') != ''
+        uses: actions/upload-artifact@v6
+        with:
+          name: sim-parity-${{ github.run_id }}
+          path: backend/parity.json
+          retention-days: 90
+
+      # Kill switch, same idiom as REGION_HEALTH_PAGING on the data-health monitor: set the repo
+      # Actions variable SIM_PARITY_PAGING=0 to downgrade a divergence to a warning annotation.
+      # ★ A permanent red gets switched off and then nobody is watching at all — an explicit,
+      # discoverable downgrade is what keeps the instrument alive through a known-bad window.
+      - name: Verdict
+        if: always()
+        env:
+          CODE: ${{ steps.probe.outputs.code }}
+          PAGING: ${{ vars.SIM_PARITY_PAGING || '1' }}
+        run: |
+          if [ "$CODE" = "0" ]; then echo "Sim agrees with the served glyph."; exit 0; fi
+          if [ "$PAGING" = "1" ]; then
+            echo "::error::The weather sim and the map disagree on LEVEL for the same spot-hour —"\
+                 "two different answers to 'should I paddle out?'. This is a ONE FORECAST"\
+                 "COMPOSITION violation unless attribution says provenance_only. See the summary."
+            exit 1
+          fi
+          echo "::warning::Sim parity DIVERGED but paging is off (SIM_PARITY_PAGING=0)."

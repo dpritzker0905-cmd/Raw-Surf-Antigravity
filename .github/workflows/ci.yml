@@ -168,3 +168,96 @@ jobs:
       - name: "🔐 BOLA route guard (no new bare-user_id routes)"
         working-directory: backend
         run: python scripts/check_bola_routes.py
+
+  # 2026-08-01 — ONE FORECAST COMPOSITION guard suite. Until now NO pytest ran in GitHub Actions at
+  # all: the only pytest in the entire workflow directory was two shore-normal asset tests inside
+  # build-shore-normals.yml, which is workflow_dispatch-only. So every composition guard this repo
+  # has written — the structural parity AST check, the observation-gate surfaces, run provenance,
+  # geometry readiness, the sim's own contract — was green only when someone ran it by hand.
+  # Measured before wiring (2026-08-01): 44 files, 673 passed, 64 skipped, 0 failed, ~2 min.
+  #
+  # ★ THE ASSERTION IS ON WHAT RAN, NOT ON THE EXIT CODE. The wider backend suite skips more than
+  # half its tests (four of the files matched here are live-server integration tests that no-op
+  # without REACT_APP_BACKEND_URL), and a green exit over a suite that collected nothing is exactly
+  # the coverage-class failure that let the ESLint config glob ts/tsx with no parser and report
+  # clean over 21 files it never read. So this job fails if the globs stop matching files or if the
+  # passing count collapses — measure FILES PARSED, not finding count.
+  backend-sim-composition-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+
+      # requirements.txt carries no test deps, but tests/conftest.py imports pytest_asyncio and
+      # pyproject sets asyncio_mode="auto" — so they are installed explicitly and pinned to the
+      # versions the 2026-08-01 measurement was taken with.
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt "pytest==9.0.3" "pytest-asyncio==1.3.0"
+
+      - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python -m pytest \
+            tests/test_sim_*.py tests/test_rating_*.py tests/test_surf_*.py tests/test_spot_*.py \
+            tests/test_geometry_*.py tests/test_provenance_*.py tests/test_observation_gate_*.py \
+            tests/test_run_provenance.py tests/test_resolve_spot_geometry.py \
+            tests/test_weather_sim_mcp.py tests/test_weather_sim_mcp_server_startup.py \
+            tests/test_simulation.py tests/test_forecast_skill.py \
+            tests/test_product_run_age_census.py tests/test_validate_nearshore_transform.py \
+            -q --junitxml=guards.xml
+
+      # Shrink-only ratchet on COVERAGE, run even when pytest already failed so a collapse in what
+      # was collected is reported rather than hidden behind the first red test.
+      - name: "🔍 Assert the guards actually ran"
+        if: always()
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          # Floors are shrink-only. Raise them when guards are added; lowering one is a deliberate
+          # act that should appear in a diff, which is the entire point of a ratchet.
+          MIN_FILES, MIN_PASSED = 44, 650   # measured 673 passed / 44 files on 2026-08-01
+          try:
+              root = ET.parse('guards.xml').getroot()
+          except Exception as e:
+              print(f"::error::No parseable guards.xml — the suite did not run at all ({e}).")
+              sys.exit(1)
+          suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+          tests = sum(int(s.get('tests', 0)) for s in suites)
+          fails = sum(int(s.get('failures', 0)) for s in suites)
+          errs = sum(int(s.get('errors', 0)) for s in suites)
+          skips = sum(int(s.get('skipped', 0)) for s in suites)
+          # ⚠️ pytest 9's junitxml emits NO `file` attribute — verified 2026-08-01, 0 of 737
+          # testcases carried one — so the module is derived from `classname`, which is
+          # `tests.test_foo` for function tests and `tests.test_foo.TestBar` for class-based ones.
+          # Taking the first two segments counts MODULES and reproduces the 44 globbed files
+          # exactly; counting `classname` whole reads 57 and drifts upward with every test class
+          # added, which would make this floor measure test STYLE rather than coverage.
+          files = {'.'.join((tc.get('classname') or '').split('.')[:2])
+                   for s in suites for tc in s.iter('testcase')}
+          files.discard('')
+          passed = tests - fails - errs - skips
+          print(f"collected {tests} tests across {len(files)} files -> "
+                f"{passed} passed, {skips} skipped, {fails} failed, {errs} errors")
+          bad = []
+          if fails or errs:
+              bad.append(f"{fails} failed / {errs} errored")
+          if len(files) < MIN_FILES:
+              bad.append(f"only {len(files)} files collected, floor is {MIN_FILES} — a glob stopped "
+                         f"matching, so guards silently went unrun")
+          if passed < MIN_PASSED:
+              bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "
+                         f"or mass-skipped")
+          if bad:
+              for b in bad:
+                  print(f"::error::Composition guard suite: {b}")
+              sys.exit(1)
+          print("Composition guards ran in full and are green.")
+          PY

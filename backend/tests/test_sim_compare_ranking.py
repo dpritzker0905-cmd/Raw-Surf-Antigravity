@@ -257,14 +257,43 @@ def test_every_row_carries_its_limiting_factor_so_the_ranking_says_WHY():
 
 def test_the_score_is_the_one_the_rest_of_the_app_would_show(monkeypatch):
     """ONE FORECAST COMPOSITION: the compared score must be `calculate_surf_rating`'s, not a second
-    opinion computed for this screen."""
+    opinion computed for this screen.
+
+    ⚠️ BOTH SIDES MUST SHARE `valid_time`, and that is not cosmetic. `79e1001a` made the sim apply
+    the observation gate — but ONLY when it has an hour to join confirmation on, so
+    `calculate_surf_rating` defaults to `valid_time=None` and returns the UNGATED score. `scan`
+    passes the hour. Comparing the two without threading the hour through therefore measured the
+    gate condition rather than the composition, and read 69.9 (capped) vs 96.0 (uncapped) as if the
+    sim had computed a second opinion. ★★ A check whose two sides do not share a condition is
+    measuring the condition, not the thing — the same shape as the `valid_time` trap
+    `scripts/sim_health_probe.py` exists to avoid.
+    """
     sea = _sea()
     out = sim_compare.scan([FULL_SPOT], _baseline({"Full Geometry Reef": sea}), HOUR, top=1)
     direct = sim_rating.calculate_surf_rating(
         FULL_SPOT, sea["swell_height_m"], sea["swell_period_sec"], sea["swell_direction_deg"],
-        sea["wind_speed_knots"], sea["wind_direction_deg"])
+        sea["wind_speed_knots"], sea["wind_direction_deg"], valid_time=HOUR)
     assert out["best_spots"][0]["quality_rating"] == direct["quality_rating"]
     assert out["best_spots"][0]["breaking_height_ft"] == direct["breaking_height_ft"]
+
+
+def test_display_is_gated_but_the_rank_key_stays_raw(monkeypatch):
+    """`79e1001a`'s second half, which no test in this file pinned: sim_compare DISPLAYS the gated
+    score and RANKS on the raw one. Gating a sort key collapses 97.9% of served spots into a single
+    69.9 tie and then orders them by which happens to carry an observation — measured live over 999
+    spot-hours — so the cap must reach `quality_rating` and never the rank.
+
+    Asserted with REAL values, not just equality: with no confirmation available the gate binds
+    here, so `quality_raw` is strictly greater than `quality_rating`. A pair that were both None
+    would satisfy an equality check while pinning nothing.
+    """
+    sea = _sea()
+    row = sim_compare.scan([FULL_SPOT], _baseline({"Full Geometry Reef": sea}), HOUR,
+                           top=1)["best_spots"][0]
+    assert row["quality_raw"] is not None, "the ungated score must be published for ranking"
+    assert row["quality_raw"] > row["quality_rating"], (
+        "the gate must BIND in this fixture, otherwise this test passes without exercising it")
+    assert row["quality_rating"] <= 69.9
 
 
 def test_the_summary_names_the_spot_and_how_far_away_it_is():

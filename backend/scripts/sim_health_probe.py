@@ -54,6 +54,18 @@ BACKEND_DIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 if BACKEND_DIR not in sys.path:
     sys.path.insert(0, BACKEND_DIR)
 
+# A Windows console defaults to cp1252, which cannot encode the check/cross marks the summary
+# prints. Measured 2026-08-01: the probe completed a clean 6/6 parity run and then died with
+# UnicodeEncodeError on the FIRST summary line — so every row was measured, the verdict was
+# never printed, and `--fail-on-divergence` returned the traceback's exit 1 no matter how green
+# the parity was. ★ An instrument whose exit code is 1 on success is worse than no instrument:
+# wired to a gate it is a permanent red, and a permanent red gets switched off.
+# Same idiom as validate_nearshore_transform.py:67, which documents the same failure mode.
+try:                                                    # pragma: no cover - console-dependent
+    sys.stdout.reconfigure(encoding="utf-8", errors="replace")
+except (AttributeError, OSError, ValueError, LookupError):
+    pass
+
 BASE = os.environ.get("RAW_SURF_BASE_URL", "https://raw-surf-antigravity.onrender.com")
 
 # Viewports, not spot names. ★ Names drift (a catalogue rename silently empties a hardcoded list and
