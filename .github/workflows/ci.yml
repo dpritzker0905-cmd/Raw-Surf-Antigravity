@@ -198,9 +198,15 @@ jobs:
       # sets asyncio_mode="auto") plus fastmcp and aiosqlite, both imported at module level by
       # production modules on the SQLite/test lane. Their absence is what failed this job's first
       # cloud run: six guard modules could not even be collected.
+      # ⚠️ TWO STEPS, NOT ONE. requirements.txt pins httpx==0.27.2 and every fastmcp release
+      # requires httpx>=0.28.1, so resolving both files together is ResolutionImpossible — that is
+      # how this job's second cloud run died. Installing the overlay second lets it lift httpx for
+      # the test lane only. See backend/requirements-dev.txt for why that divergence is accepted.
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install -q -r requirements-dev.txt
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
 
       - name: "🌊 Composition guard suite (sim ↔ rating ↔ geometry ↔ provenance)"
         working-directory: backend

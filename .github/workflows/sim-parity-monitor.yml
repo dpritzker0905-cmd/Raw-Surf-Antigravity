@@ -74,9 +74,13 @@ jobs:
       # exactly this: ModuleNotFoundError, no JSON written, and the verdict step then announced a
       # composition divergence over a measurement that never happened. requirements-dev.txt is the
       # declared test/dev set; it includes requirements.txt via -r.
+      # ⚠️ TWO STEPS, NOT ONE — requirements.txt pins httpx==0.27.2 and fastmcp needs >=0.28.1, so
+      # a single resolution over both is ResolutionImpossible. See backend/requirements-dev.txt.
       - name: Install backend dependencies
         working-directory: backend
-        run: pip install -q -r requirements-dev.txt
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
 
       # The probe re-runs the sim at the hour the serve box actually SERVED (`served_valid_time`),
       # never the hour that was asked for, so both sides always describe the same moment.
