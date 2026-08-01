@@ -1,5 +1,6 @@
 import { Wind, Waves, CloudRain, Snowflake, ArrowUp, Droplets, Gauge, Thermometer, Cloud, Eye } from 'lucide-react';
 import { RATING_LABEL, RATING_COLOR } from './surfRating';
+import { energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from './surfEnergy';
 
 export const STATUS_RENDERS = {
   ready: { color: 'text-emerald-400', text: 'Heatmap Ready (CMEMS)' },
@@ -111,6 +112,32 @@ export function compileForecastCards({
   // ★ ONE EXPRESSION, ONE PLACE. Four copies of a constant is how the knots constant reached seven
   // and diverged; the four block-local declarations are deliberately gone.
   const isEst = useExactPoint?.is_estimated === true;
+
+  // ── ENERGY (1a-2, 2026-08-01) ────────────────────────────────────────────────────────────────
+  // Height alone is the wrong headline — a 1.2 m at 6 s and a 1.2 m at 16 s are not the same sea,
+  // and energy flux (P ~ H^2*T) is the domain standard for saying so. See surfEnergy.js for why
+  // this is kW/m and not the "kJ" every competitor prints.
+  // ⚠️ OWN-LAYER ONLY, DELIBERATELY. Each marine layer's TIER is chosen independently, so summing
+  // partition energies into a total — which is how Surfline builds its number — composes readings
+  // from different footprints: measured 2026-08-01, sum/total energy ratios ran 0.14 to 1.94 with
+  // 44% of EURO samples off by more than 2x. An own-layer figure composes nothing and is exactly
+  // as trustworthy as the Height and Period already shown beside it. The summed, shore-relative
+  // version is queued (1a-3) BEHIND the tier fix, not in front of it.
+  const _coarseTier = isCoarseTier(useExactPoint?.coverage_status);
+  const _energyCard = (h, p, color) => {
+    const kwm = energyFluxKwM(h, p);
+    if (kwm == null) return null;
+    const band = energyBand(kwm);
+    return {
+      icon: Waves,
+      label: 'Energy',
+      value: `${formatEnergy(kwm, { coarse: _coarseTier })}${isEst ? ' (est.)' : ''}${_prov}`,
+      color,
+      provisional: isProvisionalPaint,
+      ariaLabel: `Wave energy flux ${Math.round(kwm)} kilowatts per metre, ${band.label}`
+        + ` — ${band.hint}${_coarseTier ? ', approximate: coarse resolution' : ''}`,
+    };
+  };
 
   if (activeLayer === 'rain' || activeLayer === 'radar' || activeLayer === 'precipitation') {
     const hasSnow = snowfall != null && snowfall > 0;
@@ -320,6 +347,7 @@ export function compileForecastCards({
     }
     if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
       cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-blue-200', provisional: isProvisionalPaint });
+      { const _e = _energyCard(waveHeight, wavePeriod, 'text-blue-200'); if (_e) cards.push(_e); }
     }
     if (displayPeak) {
       cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-blue-100' });
@@ -422,6 +450,7 @@ export function compileForecastCards({
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-cyan-300', provisional: isProvisionalPaint });
+          { const _e = _energyCard(swell1Height, swell1Period, 'text-cyan-300'); if (_e) cards.push(_e); }
         }
         if (displayPeak) {
           cards.push({ icon: Waves, label: 'Peak', value: displayPeak, color: 'text-cyan-200' });
@@ -520,6 +549,7 @@ export function compileForecastCards({
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Waves, label: 'Period', value: displayPeriod, color: 'text-purple-300', provisional: isProvisionalPaint });
+          { const _e = _energyCard(swell2Height, swell2Period, 'text-purple-300'); if (_e) cards.push(_e); }
         }
         if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({
@@ -610,6 +640,7 @@ export function compileForecastCards({
       } else {
         if (displayPeriod !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({ icon: Wind, label: 'Period', value: displayPeriod, color: 'text-emerald-300', provisional: isProvisionalPaint });
+          { const _e = _energyCard(windWaveHeight, windWavePeriod, 'text-emerald-300'); if (_e) cards.push(_e); }
         }
         if (displayDir !== '--' || isExactPointLoading || isExactPointTimeout || isExactPointError || isNoCoverage) {
           cards.push({

@@ -37,6 +37,7 @@ import fs from 'fs';
 import path from 'path';
 import { compileForecastCards } from '../components/map/forecastCardCompiler';
 import { isLayerSupportedByModel, MARINE_EXACT_CAPABILITIES } from '../components/map/marineControllerUtils';
+import { ENERGY_COEF, energyFluxKwM, energyBand, formatEnergy, isCoarseTier } from '../components/map/surfEnergy';
 
 const FIXTURE = path.join(__dirname, 'fixtures', 'marine-card-matrix.fixture.json');
 const MATRIX = JSON.parse(fs.readFileSync(FIXTURE, 'utf8'));
@@ -82,6 +83,7 @@ function toExactPoint(site, model, layer) {
     surf_nearshore: s.payload.surf_nearshore, shore_normal_deg: s.payload.shore_normal_deg,
     reference_size_m: s.payload.reference_size_m, partitions: s.payload.partitions,
     is_estimated: s.payload.is_estimated, estimate_basis: s.payload.estimate_basis,
+    coverage_status: s.payload.coverage_status,
   };
 }
 
@@ -263,6 +265,132 @@ describe('1a-0 · INVARIANT: the card contract, per model x layer', () => {
     });
     expect(periodless.length).toBeGreaterThan(0);              // anti-vacuity: it exists in-fixture
     for (const c of periodless) expect(c.model).toBe('EURO');
+  });
+});
+
+describe('1a-2 · INVARIANT: Energy is the textbook quantity, in the unit it is computed in', () => {
+  test('the coefficient is DERIVED, and a hand-checkable case holds', () => {
+    // rho*g^2/(64*pi)/1000 with rho=1025, g=9.81. Anyone can check 1 m @ 10 s on paper.
+    expect(ENERGY_COEF).toBeCloseTo(0.4906, 4);
+    expect(energyFluxKwM(1, 10)).toBeCloseTo(4.906, 2);
+    expect(energyFluxKwM(2, 14)).toBeCloseTo(27.5, 1);
+  });
+
+  test('height dominates period — doubling H is 4x, doubling T is 2x', () => {
+    // The property that makes this worth showing at all: two seas of equal height are not equal.
+    const base = energyFluxKwM(1, 10);
+    expect(energyFluxKwM(2, 10) / base).toBeCloseTo(4, 5);
+    expect(energyFluxKwM(1, 20) / base).toBeCloseTo(2, 5);
+  });
+
+  test('null in, null out — a missing period is never a confident zero', () => {
+    // The recurring failure here is a zeroed field rendering as a real reading (EURO's
+    // nearest_ocean_fallback serves period 0.0 with a real height).
+    for (const [h, p] of [[null, 10], [1, null], [1, 0], [0, 10], [-1, 10]]) {
+      expect(energyFluxKwM(h, p)).toBeNull();
+    }
+  });
+
+  test('the bands match the named-exemplar ladder they were calibrated on', () => {
+    const at = (h, t) => energyBand(energyFluxKwM(h, t)).label;
+    expect(at(0.3, 6)).toBe('Weak');        //   0.3 kW/m  ankle
+    expect(at(0.8, 9)).toBe('Weak');        //   2.8       waist
+    expect(at(1.2, 11)).toBe('Moderate');   //   7.8       chest
+    expect(at(1.8, 13)).toBe('Powerful');   //  20.7       head
+    expect(at(4.0, 16)).toBe('Heavy');      // 125.6       double overhead
+    expect(at(8.0, 18)).toBe('Heavy');      // 565.2       Mavericks
+  });
+
+  test('COARSEN, DON\'T HIDE — a coarse tier loses a figure and gains a ~, never the card', () => {
+    // Suppressing on coarse tier would blank this on 59% of EURO reads. The band survives the
+    // measured footprint error (up to 41% in height, squared here); a 3rd significant figure does not.
+    const precise = formatEnergy(energyFluxKwM(1.8, 13), { coarse: false });
+    const coarse = formatEnergy(energyFluxKwM(1.8, 13), { coarse: true });
+    expect(precise).toBe('20.7 kW/m · Powerful');
+    expect(coarse).toBe('~21 kW/m · Powerful');
+    expect(coarse).not.toBeNull();                       // the card is NEVER suppressed
+    expect(energyBand(energyFluxKwM(1.8, 13)).label).toBe('Powerful');  // same band either way
+  });
+
+  test('precision follows MAGNITUDE — no three-figure claims on a small day', () => {
+    // Caught by reading the real output: a flat significant-figures rule printed `0.0538 kW/m`,
+    // three figures on a number whose entire band is 0-3 kW/m. Below 1, the honest statement is
+    // that there is nothing in it.
+    expect(formatEnergy(energyFluxKwM(0.5, 4.6))).toBe('<1 kW/m · Weak');       // 0.56
+    expect(formatEnergy(energyFluxKwM(0.15, 5))).toBe('<1 kW/m · Weak');        // 0.055
+    expect(formatEnergy(energyFluxKwM(0.5, 4.6), { coarse: true })).toBe('<1 kW/m · Weak');
+    expect(formatEnergy(energyFluxKwM(4, 16))).toBe('126 kW/m · Heavy');        // >=100 integer
+    expect(formatEnergy(energyFluxKwM(4, 16), { coarse: true })).toBe('~130 kW/m · Heavy');
+  });
+
+  test('the tier classes collapse to two — which is what stops the marker flickering', () => {
+    // 6 of the 7 adjacent-hour tier flips measured were between the two COARSE statuses; under
+    // this collapse they are not flips at all.
+    expect(isCoarseTier('inside_regional_tile')).toBe(false);
+    expect(isCoarseTier('inside_global_coarse')).toBe(true);
+    expect(isCoarseTier('coarse_gap_direct_point')).toBe(true);
+    expect(isCoarseTier(null)).toBe(false);              // unknown tier => do not claim coarse
+  });
+});
+
+describe('1a-2 · the Energy card, compiled on every layer', () => {
+  test('every marine layer emits Energy when it has a height AND a period', () => {
+    const contract = [];
+    for (const site of sites) {
+      for (const model of MODELS) {
+        for (const layer of LAYERS) {
+          const ep = toExactPoint(site, model, layer);
+          if (!ep) continue;
+          const hKey = { waves: 'wave_height', swell_1: 'swell_wave_height', swell_2: 'secondary_swell_wave_height', wind_waves: 'wind_wave_height' }[layer];
+          const pKey = { waves: 'wave_period', swell_1: 'swell_wave_period', swell_2: 'secondary_swell_wave_period', wind_waves: 'wind_wave_period' }[layer];
+          const labels = cardsFor(ep, model, layer).map((c) => c.label);
+          contract.push({ model, layer, hasInputs: ep[hKey] > 0 && ep[pKey] > 0, labels });
+        }
+      }
+    }
+    // ANTI-VACUITY: Energy must actually be reachable on all four layers, or this asserts nothing.
+    for (const l of LAYERS) {
+      expect(contract.some((c) => c.layer === l && c.labels.includes('Energy'))).toBe(true);
+    }
+    // Energy rides WITH Period — same gate, no separate suppression rule to drift out of step.
+    for (const c of contract) {
+      if (c.labels.includes('Period') && c.hasInputs) expect(c.labels).toContain('Energy');
+      if (!c.labels.includes('Period')) expect(c.labels).not.toContain('Energy');
+    }
+  });
+
+  test('ANTI-VACUITY: the live fixture spans more than one band', () => {
+    // Every unit test above uses synthetic heights. If the captured sea were uniformly tiny, the
+    // band logic would be exercised only by numbers I chose, and "all cells Weak" would look
+    // identical to "the bands never fire". Pipeline reads ~19 kW/m in this fixture, so it does not.
+    const bands = new Set();
+    for (const site of sites) {
+      for (const model of MODELS) {
+        for (const layer of LAYERS) {
+          const s = served(site, model, layer);
+          if (!s) continue;
+          const b = energyBand(energyFluxKwM(s.h, s.p));
+          if (b) bands.add(b.label);
+        }
+      }
+    }
+    expect(bands.size).toBeGreaterThanOrEqual(2);
+    expect(bands.has('Weak')).toBe(true);
+  });
+
+  test('a coarse-tier cell is marked approximate; a regional one is not', () => {
+    const base = { wave_height: 1.8, wave_period: 13, wave_direction: 200 };
+    const regional = cardsFor({ ...base, coverage_status: 'inside_regional_tile' }, 'GFS', 'waves');
+    const coarse = cardsFor({ ...base, coverage_status: 'inside_global_coarse' }, 'GFS', 'waves');
+    expect(regional.find((c) => c.label === 'Energy').value).toBe('20.7 kW/m · Powerful');
+    expect(coarse.find((c) => c.label === 'Energy').value).toBe('~21 kW/m · Powerful');
+  });
+
+  test('a synthesized train\'s Energy is marked (est.) too', () => {
+    const blend = { secondary_swell_wave_height: 0.42, secondary_swell_wave_period: 9.1,
+                    secondary_swell_wave_direction: 187, is_estimated: true };
+    const e = cardsFor(blend, 'ICON', 'swell_2').find((c) => c.label === 'Energy');
+    expect(e.value).toMatch(/\(est\.\)/);
   });
 });
 

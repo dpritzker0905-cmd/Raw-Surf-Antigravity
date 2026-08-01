@@ -566,7 +566,20 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // grades a DIFFERENT CURVE from the glyph rated off the same response — measured at a median
       // 4.9 and up to 58.1 points across 47.6% of spot-hours. Exactly the failure class the two
       // comments above describe, now for the third field in a row.
-      reference_size_m: (json.reference_size_m ?? null)
+      reference_size_m: (json.reference_size_m ?? null),
+      // Which TIER served this layer — `inside_regional_tile` / `inside_global_coarse` /
+      // `coarse_gap_direct_point`. Needed because each marine layer's tier is chosen
+      // INDEPENDENTLY, and a coarse-tier reading is a 10-degree block average, not a reading at
+      // the break. Measured 2026-08-01: mixed-tier is 21% of GFS sites and 59% of EURO's, and the
+      // resulting height error reaches 41% — SQUARED once it becomes an energy figure. The Energy
+      // card coarsens its precision on this rather than pretending to three significant figures.
+      // ⚠️ FOURTH FIELD IN A ROW to be missing from this whitelist, after shore_normal_deg,
+      // partitions and reference_size_m — each comment above says the same thing, because this
+      // list is the ONLY path a point field reaches the infobox. When adding a field to the
+      // backend response, add it HERE in the same change or the render layer never sees it.
+      // NB `coverage_scope` and `resolution` are NOT usable substitutes: both live on the
+      // diagnostics object, and both measured null in all 84 cells of the card-matrix capture.
+      coverage_status: (json.coverage_status ?? null)
     };
 
     const details = {

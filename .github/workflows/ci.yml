@@ -150,12 +150,14 @@ jobs:
           const path = require('path');
           // Floors are shrink-only. Raise them when guards are added; lowering one is a deliberate
           // act that should appear in a diff. Measured 2026-08-01 on a quiet tree at this SHA:
-          //   marine-card-matrix-closure.test.js   18 tests   (14 at 1a-0, +4 at 1a-1)
+          //   marine-card-matrix-closure.test.js   29 tests   (14 at 1a-0, +4 at 1a-1, +11 at 1a-2)
           //   forecast-card-swell-vs-surf.test.js  19 tests
-          //   => 2 suites / 37 tests. MIN_SUITES is EXACT so any drop is red, not quietly narrower.
-          // ⬆ RAISED 33 -> 37 by 1a-1, which added the #22 bare-'Height' ban, the TOTAL-vs-TRAIN
-          // label invariant, and the (est.) disclosure pair. Measured from the run, not incremented.
-          const MIN_SUITES = 2, MIN_TESTS = 37;
+          //   => 2 suites / 48 tests. MIN_SUITES is EXACT so any drop is red, not quietly narrower.
+          // ⬆ 33 -> 37 (1a-1: the #22 bare-'Height' ban, TOTAL-vs-TRAIN, the (est.) disclosure pair)
+          // ⬆ 37 -> 48 (1a-2: the derived energy coefficient, the band ladder, coarsen-don't-hide,
+          //             magnitude-based precision, and the live-fixture band-span anti-vacuity)
+          // Measured from the run each time, never incremented by hand.
+          const MIN_SUITES = 2, MIN_TESTS = 48;
           let r;
           try { r = JSON.parse(fs.readFileSync('guard-results.json', 'utf8')); }
           catch (e) { console.error('✗ no guard-results.json — jest never wrote a result'); process.exit(1); }
