@@ -45,6 +45,56 @@ jobs:
       - name: Build success
         run: echo "✅ Frontend build verified successfully"
 
+  # 2026-07-31 Frontend ESLint gate — the control that was simply absent.
+  #
+  # No workflow in this directory ran ESLint at all. The job above is NAMED `lint-and-build` and
+  # contains no lint step. That absence is the systemic reason a `no-undef` ReferenceError lived
+  # 12 days in the WebGL marine render path: `_washOpacityEff` in
+  # frontend/src/components/map/WebGLMarineEngine.js was referenced ~370 lines outside the block
+  # that declared it (introduced 4da586aa 2026-07-19 against a declaration from 626c905f
+  # 2026-07-14). Nothing was looking.
+  #
+  # That bug class fails SILENTLY. WebGLMarineCustomLayer.js wraps engine.render() in a try/catch
+  # whose `errorCount` is a closure variable that is never reset, and it hard-disables the layer
+  # once the count passes 3. Three throwing frames turn the GPU marine layer off for the rest of
+  # the session behind a single console.warn — the symptom reaches the user as "the heatmap
+  # cleared", never as a stack trace.
+  #
+  # ⚠ TRIGGERS — DO NOT ADD A `paths:` FILTER, here or at the workflow level. This job inherits
+  # the workflow `on:` above (push→dev, PR→dev/main), which is unfiltered on purpose. A
+  # `paths:`-filtered job is SKIPPED rather than failed when nothing matches, and a skipped
+  # required check reports GREEN — the 2026-07-28 finding where a docs-only change sailed through
+  # a `paths:`-gated job with a green tick. An unfiltered job costs a couple of runner-minutes;
+  # a green tick that means "did not run" costs a production defect.
+  frontend-lint:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Use Node.js 18.20.2
+        uses: actions/setup-node@v4
+        with:
+          node-version: '18.20.2'   # matches frontend/.node-version
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      # Two gates in one script (frontend/scripts/check_eslint.js):
+      #   1. ALWAYS_ZERO — no-undef and 18 other never-a-style-opinion rules, plus fatal parse
+      #      errors. Zero tolerance; these can never be absorbed into the baseline, so
+      #      regenerating it cannot launder a real defect into a green build.
+      #   2. RATCHET — the frontend's 158 pre-existing errors / 150 warnings are recorded in
+      #      frontend/scripts/eslint_baseline.json and are shrink-only. Gating those at zero
+      #      today would mean merging red, and a gate born red gets switched off.
+      - name: "🔍 ESLint gate (never-zero rules + shrink-only debt ratchet)"
+        working-directory: frontend
+        run: node scripts/check_eslint.js
+        # NO continue-on-error, deliberately. `no-undef` in a render path is not advisory.
+
   backend-lint:
     runs-on: ubuntu-latest
 

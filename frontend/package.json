@@ -80,7 +80,9 @@
     "build": "NODE_OPTIONS=--openssl-legacy-provider craco build",
     "test": "craco test",
     "lint": "eslint src",
-    "lint:fix": "eslint src --fix"
+    "lint:fix": "eslint src --fix",
+    "lint:ci": "node scripts/check_eslint.js",
+    "lint:baseline": "node scripts/check_eslint.js --write-baseline"
   },
   "browserslist": {
     "production": [

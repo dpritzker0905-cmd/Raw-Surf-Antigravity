@@ -1,0 +1,15 @@
+{
+  "_comment": "Pre-existing frontend lint debt. SHRINK-ONLY — counts may fall, never rise. Regenerate with `node scripts/check_eslint.js --write-baseline` after genuinely reducing debt. Rules in ALWAYS_ZERO (see check_eslint.js) can never appear here.",
+  "_filesLinted": 997,
+  "errors": {
+    "no-redeclare": 77,
+    "no-empty": 74,
+    "no-constant-binary-expression": 1,
+    "no-constant-condition": 1,
+    "no-useless-escape": 1
+  },
+  "warnings": {
+    "unused-imports/no-unused-imports": 128,
+    "(unused eslint-disable directive)": 22
+  }
+}

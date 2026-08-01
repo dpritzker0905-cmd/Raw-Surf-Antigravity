@@ -2,7 +2,9 @@ const js = require("@eslint/js");
 const pluginReact = require("eslint-plugin-react");
 const pluginReactHooks = require("eslint-plugin-react-hooks");
 const pluginJsxA11y = require("eslint-plugin-jsx-a11y");
+const pluginImport = require("eslint-plugin-import");
 const unusedImports = require("eslint-plugin-unused-imports");
+const tsParser = require("@typescript-eslint/parser");
 const globals = require("globals");
 
 module.exports = [
@@ -13,6 +15,10 @@ module.exports = [
       react: pluginReact,
       "react-hooks": pluginReactHooks,
       "jsx-a11y": pluginJsxA11y,
+      // Registered so that the `/* eslint-disable import/... */` directives already present in the
+      // tree resolve. An unregistered plugin turns every such directive into a hard
+      // "Definition for rule ... was not found" ERROR, which is noise, not a finding.
+      import: pluginImport,
       "unused-imports": unusedImports,
     },
     languageOptions: {
@@ -75,6 +81,31 @@ module.exports = [
       "jsx-a11y/no-static-element-interactions": "off",
       "jsx-a11y/scope": "error",
       "jsx-a11y/tabindex-no-positive": "error",
+    },
+  },
+  {
+    // TYPESCRIPT — the 21 files under src/admin are .ts/.tsx. The `files` glob above always
+    // CLAIMED to cover them, but no TS parser was wired in, so espree died on the first
+    // `interface` keyword and every one of them failed with a fatal parse error. A file that
+    // cannot be parsed is a file that is NOT LINTED: no-undef can never fire there. That is a
+    // silent coverage hole, not a config nit — it is the same shape as the bug this gate exists
+    // to catch. @typescript-eslint/parser was already a devDependency; it was just never used.
+    files: ["src/**/*.{ts,tsx}"],
+    languageOptions: {
+      parser: tsParser,
+      parserOptions: {
+        ecmaVersion: 2022,
+        sourceType: "module",
+        ecmaFeatures: { jsx: true },
+      },
+      globals: {
+        // TYPE-SPACE ONLY. `NodeJS` is the ambient namespace from @types/node, referenced as
+        // `useRef<NodeJS.Timeout>`. Base `no-undef` reads value space only and cannot see TS
+        // types, so it reports the namespace as undefined. Declaring the one namespace keeps
+        // `no-undef` ARMED on these files — the alternative (switching the rule off for .ts/.tsx,
+        // as typescript-eslint suggests) would hand back the exact protection this gate adds.
+        NodeJS: "readonly",
+      },
     },
   },
   {
