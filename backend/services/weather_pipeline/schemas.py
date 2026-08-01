@@ -198,6 +198,19 @@ class NormalizedPointResponse(BaseModel):
     shore_normal_source: Optional[str] = None    # coarse | etopo | override:<name> | overlay | None
     break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
     geometry_readiness: Optional[str] = None     # full | degraded | blind
+    # ── THE LOCAL SIZE REFERENCE (2026-08-01, the RATING_LOCAL_SIZE flip `3263031c`) ─────────────
+    # The frontend computes the infobox rating badge itself (see point_surf_augment: "the frontend
+    # pairs the shore normal with the already-fetched wind point + surf height/period"), and it was
+    # passing `referenceSizeM = null` — a DECLARED waiver, which test_rating_composition_parity
+    # accepts as a position. That waiver was harmless only while the backend also graded on the
+    # global 1.2 m curve. The moment RATING_LOCAL_SIZE flipped, the glyph began grading against each
+    # spot's own good day while the badge kept the global curve — a median 4.9 and up to 58.1 point
+    # split between two surfaces showing the same spot-hour.
+    # ★★ A WAIVER IS NOT A CONSTANT. It is only as correct as the flag it silently shadows, and a
+    # structural parity guard cannot see that: "declares null" stays a valid declaration while the
+    # thing null MEANS changes underneath it. Served so the badge can grade the same composition.
+    # None when RATING_LOCAL_SIZE is off or the spot has no climatology => global curve, unchanged.
+    reference_size_m: Optional[float] = None     # spot's local good-day breaking height (m)
     geometry_missing: Optional[List[str]] = None  # which inputs are absent, e.g. ["fine_shore_normal"]
     # ── THE SPECTRAL PARTITIONS THE HEIGHT RAN ON (2026-07-30) ──────────────────────────────────
     # [{h, tp, dir, kind}] (kind 'swell'|'windsea'), RECONCILED to the total Hs — attached at the

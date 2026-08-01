@@ -62,6 +62,35 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # The frontend pairs the shore normal with the already-fetched wind point + surf
             # height/period to compute the rating badge ([[surf_rating]]).
             response.shore_normal_deg = _geo.shore_normal_deg
+            # ...and, since 2026-08-01, the LOCAL SIZE REFERENCE it must grade against. Without it
+            # the badge keeps the global 1.2 m curve while the glyph uses the spot's own good day —
+            # the ONE FORECAST COMPOSITION split that flipping RATING_LOCAL_SIZE would otherwise
+            # have opened on a surface the frontend renders beside the glyph.
+            # ⚠️ Its own try, for the recorded reason the partitions block has one: this whole
+            # geometry chain sits under a broad `except`, so an error here would silently disable
+            # `surf_height_m` ENTIRELY rather than merely drop the reference. Fail-open by
+            # contract — no reference means the global curve, which is exactly the pre-flip
+            # behaviour and never a wrong NUMBER, only a less local one.
+            # ★ THE CELL BLOB, NOT THE SPOT BLOB, AND THAT IS THE POINT. This endpoint is keyed by a
+            # COORDINATE, so it takes the same per-cell reference `grid_resolver_surf` gives the
+            # BAND at that coordinate — the surface rendered right behind the infobox. The two
+            # blobs are built to agree: grid_size_climatology.reference_for is documented as "same
+            # percentile, min-samples, and clamps as the per-spot reference (imported helpers) —
+            # band and glyph saturate identically where they overlap". Reaching for the per-SPOT
+            # blob here would need a spot_id this endpoint does not have, and inventing a
+            # coordinate->spot match would be a second forecast path for one screen.
+            # ⚠️ spot_size_climatology has NO `reference_for` — only `reference_map(clim)` keyed by
+            # spot_id. A first pass imported it anyway; the ImportError would have been swallowed by
+            # this very except, leaving the badge silently on the global curve with the fix
+            # apparently shipped. Fail-open hides its own failure — verify the symbol exists.
+            if os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+                try:
+                    from services.weather_pipeline.grid_size_climatology import (
+                        load_grid_size_climatology_l2_cached, reference_for)
+                    response.reference_size_m = reference_for(
+                        load_grid_size_climatology_l2_cached(), lat, lng)
+                except Exception as _ref_err:
+                    logger.debug(f"[point-surf] local size reference unavailable: {_ref_err}")
             # SPECTRAL (opt-in): transform each swell train on its own period instead of shoaling
             # one blended field. Resolved HERE, at the single injection point, because
             # `surf_height_m` is produced here — computing it anywhere else would give the spot

@@ -560,7 +560,13 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // null otherwise). Same failure class as shore_normal_deg above: this whitelist is the only
       // path point fields reach the infobox, so an unmapped field makes the badge grade a
       // different sea than the glyph rated from the SAME response (2026-07-30 review).
-      partitions: (Array.isArray(json.partitions) && json.partitions.length ? json.partitions : null)
+      partitions: (Array.isArray(json.partitions) && json.partitions.length ? json.partitions : null),
+      // Local size reference (RATING_LOCAL_SIZE flipped 2026-08-01). The size gate now saturates at
+      // the spot's own good day rather than the global 1.2 m, so a badge that does not receive this
+      // grades a DIFFERENT CURVE from the glyph rated off the same response — measured at a median
+      // 4.9 and up to 58.1 points across 47.6% of spot-hours. Exactly the failure class the two
+      // comments above describe, now for the third field in a row.
+      reference_size_m: (json.reference_size_m ?? null)
     };
 
     const details = {

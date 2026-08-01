@@ -409,9 +409,19 @@ export const MapForecastOverlay = ({
         windDir,
         useExactPoint?.shore_normal_deg,
         useExactPoint?.swell_wave_direction ?? useExactPoint?.wave_direction ?? null,
-        // tideNorm / bestTide / breakerXi / referenceSizeM: null = neutral, matching the hub's
-        // waived factors (test_rating_composition_parity.py is the registry).
-        null, null, null, null,
+        // tideNorm / bestTide / breakerXi: null = neutral, matching the hub's waived factors
+        // (test_rating_composition_parity.py is the registry).
+        null, null, null,
+        // referenceSizeM WAS ALSO null, and that stopped being neutral on 2026-08-01. Waiving it
+        // graded this badge on the global 1.2 m curve while RATING_LOCAL_SIZE made the glyph and
+        // the band grade against the spot's own good day — measured at a median 4.9 and up to 58.1
+        // points, on 47.6% of spot-hours, between two surfaces showing the same spot-hour.
+        // ★★ A WAIVER IS NOT A CONSTANT: it is only as neutral as the flag it silently shadows, and
+        // the structural parity guard cannot see that — "declares null" stays a valid declaration
+        // while the thing null MEANS changes underneath it.
+        // The backend serves the per-CELL reference here (same blob the band uses at this
+        // coordinate); null keeps the legacy global curve, so this is safe before it deploys.
+        useExactPoint?.reference_size_m ?? null,
         // The trains the served surf_height_m ran on (SURF_PARTITIONS on; null otherwise). Without
         // this the badge grades the blended field while the glyph — computed by the backend from
         // the SAME response family — grades the spectrum: a fair glyph under a good badge at the

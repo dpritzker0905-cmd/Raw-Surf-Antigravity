@@ -659,7 +659,12 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       shelf_depth_m: (json.shelf_depth_m ?? null),
       // Same geometry field the GFS/ICON builder carries — without it the EURO infobox rating
       // evaluates the speed-only wind branch and a neutral swell exposure.
-      shore_normal_deg: (json.shore_normal_deg ?? null)
+      shore_normal_deg: (json.shore_normal_deg ?? null),
+      // Local size reference (RATING_LOCAL_SIZE, 2026-08-01) — carried for the same reason and on
+      // the same contract as the GFS/ICON builder. EURO users see the same infobox; a field mapped
+      // on one client path and not another is a divergence that only some of the audience sees,
+      // which is harder to notice than one everybody sees.
+      reference_size_m: (json.reference_size_m ?? null)
     };
 
     const details = {

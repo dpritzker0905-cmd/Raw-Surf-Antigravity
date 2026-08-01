@@ -453,7 +453,14 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     shelf_depth_m: cachedResponse.shelf_depth_m ?? null,
     surf_nearshore: cachedResponse.surf_nearshore ?? null,
     // Seaward bearing — required for the infobox rating to grade wind direction and swell angle.
-    shore_normal_deg: cachedResponse.shore_normal_deg ?? null
+    shore_normal_deg: cachedResponse.shore_normal_deg ?? null,
+    // Local size reference (RATING_LOCAL_SIZE, 2026-08-01) — the spot's own good-day breaking
+    // height. Without it the badge grades on the global 1.2 m curve while the glyph and the band
+    // grade locally. THIRD whitelist of three (with backendWeatherServiceClientPoint and
+    // backendCopernicusServiceClient): a field added to one and not the others is dropped on
+    // whichever client path the user happens to be on — the exact way shore_normal_deg was
+    // permanently undefined until 2026-07-26.
+    reference_size_m: cachedResponse.reference_size_m ?? null
   };
 }
 
