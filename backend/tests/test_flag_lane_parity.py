@@ -84,6 +84,18 @@ LANE_EXCEPTIONS: dict = {
     # precompute.yml ingests no marine at all, so the flag has nothing to mean there. Absence is the
     # right value, not a drift. ⚠️ If precompute ever gains a marine ingest, DELETE this entry.
     "MARINE_INGEST_ALL": "ingest-only: precompute.yml runs no marine ingest, so the flag is inert there",
+    # ★ Same shape, MEASURED not assumed (audit v5 F8). Import-graph walk from each lane's own
+    # entrypoint: `scripts/precompute_ci.py` reaches NO ecmwf module across 57 files, while
+    # `scripts/ingest_forecast_ci.py` — shared by forecast-ingest.yml AND forecast-ingest-pilots.yml
+    # — reaches `services.ecmwf_wave_service` via `euro_marine_coarse_ingestion` and
+    # `marine_mid_res_ingestion` across 81. precompute cannot fetch a period band whatever this flag
+    # says, so declaring it there was an inert entry of exactly the recorded
+    # `WORLDWIDE_REGIONS_PER_CYCLE` kind: a lever documented in a lane that never reads it.
+    # ⚠️ I declared it there first, reasoning "the wave service spawns the fetcher as a subprocess,
+    # so both lanes can reach it". True of the SERVICE, false of the LANE. Walk the graph.
+    "ECMWF_PERIOD_BANDS": "ingest-only: precompute_ci.py imports no ecmwf module (57 files walked), "
+                          "so the flag is unreadable there; forecast-ingest.yml and "
+                          "forecast-ingest-pilots.yml both carry it",
 }
 
 
@@ -266,8 +278,16 @@ def test_the_pilot_lane_does_not_contradict_the_ingest_lanes():
     drift = []
     for lane in INGEST_LANES:
         other = ALL_LANE_FLAGS[lane]
+        # ⚠️ `LANE_EXCEPTIONS` is deliberately NOT consulted here, and that is a 2026-08-02 fix to a
+        # defect I introduced the same hour. Every entry in it excuses an ABSENCE — "precompute runs
+        # no marine ingest, so the flag is inert there". This loop iterates the INTERSECTION, so
+        # both lanes have supplied a value and a difference between them is always real drift.
+        # Consulting the exception here made the two meanings one: adding `ECMWF_PERIOD_BANDS` to
+        # excuse its absence from precompute silently excused DRIFT between the core and pilot
+        # lanes too, and setting pilots to '1' against the core's '0' left this suite at 13 passed.
+        # An exception scoped wider than the fact it documents is a hole, not a waiver.
         for flag in sorted(set(PILOT_FLAGS) & set(other)):
-            if flag in LANE_EXCEPTIONS or not flag.startswith(DRIFT_PREFIXES):
+            if not flag.startswith(DRIFT_PREFIXES):
                 continue
             if PILOT_FLAGS[flag] != other[flag]:
                 drift.append(f"{flag}: {PILOT_LANE}={PILOT_FLAGS[flag]!r} vs {lane}={other[flag]!r}")

@@ -60,6 +60,7 @@ jobs:
           RENDER: 'true'
           FORECAST_JOB_STAGGER_SEC: '0'
           INGEST_PILOTS: 'only'             # pilots only — the core cycle owns the globals
+          ECMWF_PERIOD_BANDS: '0'           # DECLARED AT DEFAULT (2026-08-02, audit v5 F8). This lane shares `scripts/ingest_forecast_ci.py` with forecast-ingest.yml and REACHES the ECMWF fetcher (via euro_marine_coarse_ingestion -> ecmwf_wave_service, and marine_mid_res_ingestion for the 0.25 deg regional tiles), so it must carry the same value. Flipped in the core lane only, the global coarse EURO field would carry period bands while every regional tile did not — THE SAME COAST WOULD DECOMPOSE ITS SEA DIFFERENTLY BY ZOOM LEVEL. ⚠️ Verified by import-graph walk, not assumed: precompute.yml reaches NO ecmwf module (57 files walked) and correctly does NOT declare this; this lane reaches it (81 files walked) and does.
           WORLDWIDE_REGIONS_PER_CYCLE: '2'  # worldwide coastal marine rotation lives in the marine pilot
           # GFS marine pilot horizon: 8d → 3d (2026-07-13) → 5d (2026-08-01).
           #
