@@ -58,6 +58,46 @@ def mps_to_mph(mps: float) -> float:
     return round(mps * 2.237, 1)
 
 
+def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg):
+    """Offshore Hs -> BREAKING height in feet, through the production chain.
+
+    ⚠️⚠️ THIS MODULE SERVED THE OFFSHORE NUMBER AS THE SURF, AND THAT IS THE DEFECT CLAUDE.md WAS
+    WRITTEN TO PREVENT. `/api/surf-conditions` fetched open-meteo marine directly and put
+    `wave_height` — the OFFSHORE significant wave height — into `wave_height_ft`, never calling
+    `resolve_surf_geometry` + `estimate_surf_at`. That is a FOURTH forecast path, and it auto-fills
+    the session form in the post composer, so a surfer's own report was stamped with it.
+
+    Measured 2026-08-01 at 1.8 m / 13 s across this module's own 29 SPOT_COORDINATES, offshore vs
+    breaking at the same coordinate — SIGNED BOTH WAYS, which is why no constant can correct it:
+
+        pipeline    5.9 ft offshore ->  9.0 ft breaking   -34.1%   (deep water, shoaling)
+        teahupoo    5.9 ft          ->  9.0 ft            -34.1%
+        jeffreys    5.9 ft          ->  8.5 ft            -30.2%
+        galveston   5.9 ft          ->  4.6 ft            +29.7%   (166 km shelf, 16 m — friction)
+        myrtle      5.9 ft          ->  4.9 ft            +21.5%
+
+    24 of 29 read LOW (steep/deep coasts jack up), 5 read HIGH (wide shallow shelves bleed energy).
+
+    ★ MIRRORS `spot_conditions._breaking_ft` (`902f47a9`, the same fix at the spot hub) rather than
+    re-deriving it — CLAUDE.md: mirror the reference, never re-derive. Same signature shape, same
+    fail-open contract, same `(value, source)` provenance tuple.
+
+    Fails OPEN to the offshore value: an endpoint that shows a slightly wrong number is worth more
+    than one that shows nothing, and this is an enrichment of an already-working read. No I/O — the
+    transform is arithmetic over the bundled bathymetry."""
+    if not offshore_m:
+        return 0.0, "calm"
+    try:
+        from services.weather_pipeline.surf_point import estimate_surf_at
+        breaking_m, regime = estimate_surf_at(
+            lat, lng, offshore_m, period_s or 0.0, swell_from_deg=swell_from_deg)
+        if breaking_m is not None:
+            return round(breaking_m * 3.28084, 1), regime
+    except Exception as e:
+        logger.debug(f"[surf-conditions] surf transform failed at ({lat},{lng}): {e}")
+    return round(offshore_m * 3.28084, 1), "offshore_estimate"
+
+
 def degrees_to_direction(degrees: float) -> str:
     """Convert wind/wave direction in degrees to compass direction"""
     directions = ["N", "NE", "E", "SE", "S", "SW", "W", "NW"]
@@ -272,8 +312,17 @@ async def get_surf_conditions(
             }
             
             if wave_height_m is not None:
-                result["wave_height_ft"] = meters_to_feet(wave_height_m)
-            
+                # ★ THE LABEL IS THE CORRECTNESS SURFACE. Surfline's own vocabulary splits
+                # "swell" (offshore) from "surf" (breaking); ours must too, because the two share
+                # units and nothing else distinguishes them. `wave_height_ft` is what the post
+                # composer auto-fills as the surf the user rode, so it must be the BREAKING height;
+                # the offshore number is kept beside it, named, rather than deleted.
+                breaking_ft, regime = _breaking_ft(
+                    latitude, longitude, wave_height_m, wave_period, wave_direction)
+                result["wave_height_ft"] = breaking_ft          # BREAKING — what a surfer rides
+                result["swell_height_ft"] = meters_to_feet(wave_height_m)   # OFFSHORE — what the model reports
+                result["surf_regime"] = regime                  # provenance: 'offshore_estimate' == the transform failed open
+
             if wave_period is not None:
                 result["wave_period_sec"] = int(wave_period)
             
