@@ -550,8 +550,43 @@ read as *shipped*. **The bands reach nothing.** This is the repo's own dominant 
 shipped with its last link missing, and a guard that cannot see the link is missing* — landing on the
 flagship feature of the day.
 
-**Do:** wire the hook, then re-run the ON-path guard against a **product-shaped** response rather than
-a fixture, and assert the number of composed partitions changes. Until then M4 is **not** done.
+#### ⛔⛔ RE-EXECUTED 2026-08-02 LATE — IT IS NOT A HOOK. THE CARRIER IS MISSING, IN THREE PLACES.
+
+The handoff records the remaining work as *"`point_resolution.py`'s point sampler must populate
+`point.wave_bands` from the `wave_band_h1012…` series the fetcher emits"* — i.e. one wiring line.
+I went to write it and traced the data first. That is not what is missing [M, all at HEAD]:
+
+```
+1. ecmwf_opendata_fetcher.py:276,282   WRITES wave_band_<bp> into a per-point `hourly`      ✅
+2. normalizer.py                        band references:                                  **0**
+3. schemas.py GridVector                band FIELDS: none (5 'band' hits, all comments)   **0**
+4. ecmwf_wave_service consumers          euro_marine_coarse_ingestion.py
+                                         marine_mid_res_ingestion.py   ← INGESTION ONLY
+5. production writers of `wave_bands`                                              **NONE**
+```
+
+Read together: the bands are emitted only by the ECMWF open-data fetcher, whose **sole** consumers
+are the two ingestion lanes, which normalise points into a **grid** — and the normaliser drops the
+band series while `GridVector` has nowhere to put them. Meanwhile the EURO *point* path does not use
+that fetcher at all: `point_resolution.py:467` calls `fetch_euro_marine` (**CMEMS**) requesting
+exactly `["wave_height", "wave_direction", "wave_period"]`. **So `raw_point["hourly"]` on the point
+path can never contain a `wave_band_*` key, and the proposed hook would read a field that is
+structurally absent** — a fix that runs nowhere, this repo's #1 recorded failure mode.
+
+**I wrote the extractor (`period_bands.bands_at_index`), then reverted it**, because landing a pure
+function with no possible caller is the same defect one layer up. The tree is unchanged.
+
+**M4's real remaining work is a CARRIER DECISION with a cost, not a hook. Three options, none free:**
+
+| option | what it costs | who decides |
+|---|---|---|
+| Route the EURO **point** path to ECMWF open-data instead of CMEMS | changes the provider behind a served number — a **product event**, and CMEMS is the reconciled-partition source `point_surf_augment` calls authoritative | owner |
+| Carry bands **through the grid** — a `GridVector` field + normaliser support | +6 optional floats on **every vector**; measured context: one null field across 15,023 vectors is +270 KB raw / **+3.9 KB gzipped** | cheap on the wire, but it is a schema change on the hottest payload |
+| A **side-channel** band lookup keyed by coordinate | a second resolution per point — the 4× cost `SURF_PARTITIONS` is off for | measure first |
+
+**Until one is chosen, M4 is blocked on a decision, not on code**, and `bands_to_partitions` /
+`bands_represent` remain unreachable outside their own tests. The ON-path guard should be re-run
+against a **product-shaped** response, never the current hand-built fixture, once a carrier exists.
 
 ### 7.2 ★ The served QUALITY is flat in size — 4/6/8/10/12 ft all score exactly 92.0 `epic`
 
