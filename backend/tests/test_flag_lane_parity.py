@@ -56,7 +56,13 @@ INGEST_LANES = ("forecast-ingest.yml", "precompute.yml")
 #   registry (`_RATING_FLAGS`) documents science flags, and the parity monitor must grade with the
 #   same COMPOSITION production serves — it does not run a precompute, so it has no business
 #   declaring SPOT_RATINGS_PRECOMPUTE_*.
-DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_")
+# ★ `SHORE_NORMAL_` added 2026-08-02. Every switch governing the shore normal — the #1 Jacobian
+#   variable, worth 7.4 rating points at the median coarse error and 28.1 at +45° — was invisible
+#   to this guard, because none of them starts with any of the four prefixes above and none was
+#   declared in a lane at all. Same shape as the nine undeclared science switches in `62691c88`:
+#   a flag the drift guard cannot see can hold a different value in each lane, and the same spot
+#   then faces two different directions depending on which lane wrote the frame.
+DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_")
 COMPOSITION_PREFIXES = ("RATING_", "SURF_")
 
 # Flags whose value legitimately differs between the two lanes, with the reason. Empty by default:
@@ -82,6 +88,19 @@ def _load_registry():
     raise AssertionError(f"_RATING_FLAGS not found in {REGISTRY_SRC}")
 
 
+# ★★ DERIVED FROM `DRIFT_PREFIXES`, NOT A SECOND COPY OF IT — and that is the whole point.
+# This regex used to hardcode its own list `(RATING_|SURF_|MARINE_|SPOT_RATINGS_)`. Adding
+# `SHORE_NORMAL_` to `DRIFT_PREFIXES` on 2026-08-02 therefore changed NOTHING: the comparator knew
+# five prefixes while the collector still gathered four, so the new flag was compared against a set
+# it was never collected into. Proven by mutation — drifting `SHORE_NORMAL_BEARING_RADIUS_KM` to
+# '1.0' in ONE lane left this suite at 13 passed.
+#
+# That is the SAME SHAPE as the defect `0f7076a6` fixed (collected 8, compared 4), arriving from the
+# opposite direction, and it is the repo's recorded "a duplicated constant only diverges on a
+# boundary" class: two lists agree until someone edits one. There is now one list.
+_COLLECT_RE = r"\s+((?:" + "|".join(DRIFT_PREFIXES) + r")[A-Z0-9_]+):\s*'([^']*)'"
+
+
 def _workflow_flags(filename):
     """Science flags a workflow sets, as {FLAG: 'value'}. Regex, because that is how a human greps
     these files and the comments in them are longer than the YAML."""
@@ -91,7 +110,7 @@ def _workflow_flags(filename):
     out = {}
     with open(path, encoding="utf-8") as fh:
         for line in fh:
-            m = re.match(r"\s+((?:RATING_|SURF_|MARINE_|SPOT_RATINGS_)[A-Z0-9_]+):\s*'([^']*)'", line)
+            m = re.match(_COLLECT_RE, line)
             if m:
                 out[m.group(1)] = m.group(2)
     return out

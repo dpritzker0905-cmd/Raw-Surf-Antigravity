@@ -15,8 +15,14 @@ CONTRACT
   * Lookup is nearest-within-radius. Adjacent named peaks are legitimately close (Rincón has five
     breaks inside 3 km, and four pairs in the catalog sit under 50 m apart), so nearest wins rather
     than first-match.
+  * ★ THE RADIUS IS PER QUANTITY, not per module: the shore normal borrows out to
+    `BEARING_RADIUS_KM` (3 km) and the break depth only to `MATCH_RADIUS_KM` (1 km). Both go
+    through the SAME search — see `_nearest` for why there must never be two copies of it — but
+    with different defaults, because a coastline's orientation and one peak's bottom depth do not
+    have the same spatial correlation length. The measurement is at the constants.
 
-Kill switch: SHORE_NORMAL_ASSET=0 -> lookups return (None, None) without touching the file.
+Kill switches: SHORE_NORMAL_ASSET=0 -> lookups return (None, None) without touching the file.
+               SHORE_NORMAL_BEARING_RADIUS_KM=1.0 -> restores the pre-2026-08-02 single radius.
 """
 import json
 import math
@@ -28,10 +34,53 @@ from typing import Optional, Tuple
 _DATA_DIR = os.path.join(os.path.dirname(os.path.abspath(__file__)), "data")
 _ASSET = os.path.join(_DATA_DIR, "shore_normals.json")
 
-# Entries are keyed at each spot's own coordinate. A click a few hundred metres away is the same
-# break and should share its geometry; a kilometre out we stop guessing. Deliberately tighter than
-# the hand-verified overrides' 2 km radius — those are human ground truth, these are derived.
+# ── TWO RADII, BECAUSE THESE ARE TWO DIFFERENT KINDS OF QUANTITY ────────────────────────────────
+#
+# ★★★ Until 2026-08-02 a single 1.0 km radius served BOTH accessors, because `_nearest` returns ONE
+# tuple and `shore_normal_at` reads element 2 while `break_depth_at` reads element 4. The comment
+# here used to say "a kilometre out we stop guessing" — a stated intuition that was never measured.
+# It was measured. Hold-out over all 1,386 gate-passed entries (borrow the nearest OTHER entry,
+# grade against the held-out one):
+#
+#     borrowed at 3 km      shore normal            break depth
+#     p50 error             4.3 deg                 25.7% relative
+#     bad tail              >45 deg at 0.6%         >2x off at 7.6%
+#     at 1 km                                       9.1% relative  <- correctly calibrated
+#
+# A coastline's ORIENTATION is smooth over kilometres. The depth a wave BREAKS in is a property of
+# one peak's bottom — a reef and a sandbar 2 km apart are unrelated. So the one constant was
+# calibrated for the DEPTH and starved the BEARING, which is the #1 Jacobian variable (7.4 rating
+# points at the median coarse error, 28.1 at +45 deg). 779 of 1,587 catalogue spots were falling
+# back to the 0.25 deg grid — a bearing decided from a 194.6 km window — and 229 of those have a
+# gate-passed entry between 1 and 3 km away.
+#
+# ⚠️ THE HOLD-OUT ABOVE IS SELF-CONSISTENCY, and `scripts/validate_shore_normals_osm.py` exists
+# because a fit graded against another fit cannot detect a systematically wrong bearing. Graded
+# against OSM coastline winding — land-on-left, sharing nothing with ETOPO — over 113 of the
+# affected spots:
+#
+#                       p50      p90     mean    >45deg   >90deg
+#     COARSE (before)   38.7     112.9   49.2     43.4%    16.8%
+#     BORROWED (after)  12.6      86.8   31.7     21.2%     9.7%      borrowed better 73.5%
+#
+# ★ The RANKING held under the independent instrument; the MAGNITUDE did not. Quote 12.6, never 4.3
+# — the ETOPO hold-out flatters itself. And 30 of the 113 got WORSE: borrowing is not free, it is
+# better on the median and in both tails.
+# ★ By distance: 1-2 km wins 71% (31.3 -> 15.2), 2-3 km wins 76% (44.0 -> 10.7). The far band is
+# the BETTER one, so there is no case for a tighter cap.
+#
+# ⚠️ Widening is INERT for spots that already had an entry: lookup is nearest-wins, so a larger
+# radius can only ADD candidates that are farther than any incumbent. Measured over the live
+# catalogue: 0 of the 808 already-covered spots change which entry answers them.
+
+# The DEPTH radius. Measured-correct — do not widen it. Deliberately tighter than the hand-verified
+# overrides' 2 km radius: those are human ground truth, these are derived.
 MATCH_RADIUS_KM = 1.0
+
+# The BEARING radius. Kill: SHORE_NORMAL_BEARING_RADIUS_KM=1.0 restores the single-radius behaviour
+# exactly. Declared at its default in every lane so `test_flag_lane_parity` can see it — a flag with
+# a different value per lane makes the same spot two different beaches.
+BEARING_RADIUS_KM = 3.0
 _BUCKET_DEG = 0.1                # spatial hash cell (~11 km) so lookup never scans all entries
 _EARTH_KM = 6371.0
 
@@ -199,14 +248,36 @@ def _haversine_km(lat1, lng1, lat2, lng2):
 # scans 9 spatial-hash buckets), and caching saves only 2.5 us of that. At the 200_000 those helpers
 # use, the cache would hold ~30 MB — a bad trade for microseconds on a 512 MB Render box with a
 # documented OOM history. 20_000 costs ~3 MB and still exceeds the real working set (1516 spots).
+def _bucket_span(lat: float, max_km: float):
+    """How many 0.1° buckets must be walked in each axis to be SURE of covering ``max_km``.
+
+    ★ DERIVED, NOT HARDCODED, and that is load-bearing. This used to be a fixed ±1, with the
+    comment "the 9 neighbouring buckets cover MATCH_RADIUS_KM" — true at 1.0 km. One bucket of
+    LONGITUDE shrinks with latitude: 5.6 km at 60°, 3.8 km at 70°, 2.9 km at 75°. So ±1 covered
+    the old 1 km radius out to ~84°, but covers a 3 km radius only to ~73°. Widening the radius
+    with the span still hardcoded would have silently narrowed the correct band, and a far-north
+    spot would drop back to the coarse bearing INVISIBLY — the exact defect being fixed,
+    reappearing where nobody looks.
+
+    Latent today (the asset reaches 68.27°, the catalogue 58.62°, 0 spots above 66°) — derived
+    anyway because the failure mode is silence, and because the next radius change should not have
+    to rediscover this. The cos() is floored so a coordinate at the pole yields a bounded span
+    rather than a division by zero."""
+    lat_span = math.ceil(max_km / (_BUCKET_DEG * 111.19))
+    km_per_lng_bucket = _BUCKET_DEG * 111.32 * max(math.cos(math.radians(lat)), 1e-3)
+    lng_span = math.ceil(max_km / km_per_lng_bucket)
+    return max(1, lat_span), max(1, min(lng_span, 180))
+
+
 def _scan(idx, lat: float, lng: float, max_km: float):
     """Nearest entry to (lat, lng) within ``max_km`` in one index, or None."""
     if not idx:
         return None
     b_lat, b_lng = _bucket(lat, lng)
+    lat_span, lng_span = _bucket_span(lat, max_km)
     best = best_km = None
-    for d_lat in (-1, 0, 1):                       # the 9 neighbouring buckets cover MATCH_RADIUS_KM
-        for d_lng in (-1, 0, 1):
+    for d_lat in range(-lat_span, lat_span + 1):
+        for d_lng in range(-lng_span, lng_span + 1):
             for entry in idx.get((b_lat + d_lat, b_lng + d_lng), ()):  # noqa: B905
                 km = _haversine_km(lat, lng, entry[0], entry[1])
                 if km <= max_km and (best_km is None or km < best_km):
@@ -247,13 +318,27 @@ def _nearest(lat: float, lng: float, max_km: float = MATCH_RADIUS_KM):
     return _scan(_load_overlay(), lat, lng, max_km)
 
 
+def _bearing_radius_km() -> float:
+    """The bearing radius, resolved PER CALL so a lane can override it without a code change.
+
+    Read at call time rather than import time for the same reason every other switch here is: a
+    module-level read freezes whatever the environment happened to be when the process started, and
+    this repo's recorded scar is a flag that had a different value in each lane. A malformed value
+    falls back to the constant rather than raising — nothing in this module may make a rating worse
+    than it is today."""
+    try:
+        return float(os.environ.get("SHORE_NORMAL_BEARING_RADIUS_KM", BEARING_RADIUS_KM))
+    except (TypeError, ValueError):
+        return BEARING_RADIUS_KM
+
+
 def shore_normal_at(lat: float, lng: float,
-                    max_km: float = MATCH_RADIUS_KM) -> Tuple[Optional[float], Optional[float]]:
-    """Nearest gate-passing shore normal within ``max_km``.
+                    max_km: Optional[float] = None) -> Tuple[Optional[float], Optional[float]]:
+    """Nearest gate-passing shore normal within ``max_km`` (default: the BEARING radius, 3 km).
 
     Returns (bearing_deg, spread_deg), or (None, None) when there is no entry nearby, the asset is
     absent, or the kill switch is set. Never raises."""
-    best = _nearest(lat, lng, max_km)
+    best = _nearest(lat, lng, _bearing_radius_km() if max_km is None else max_km)
     return (None, None) if best is None else (best[2], best[3])
 
 
@@ -263,21 +348,35 @@ def break_depth_at(lat: float, lng: float,
 
     This is the depth a wave BREAKS in, for `surf_transform`'s depth-limited cap — not the shelf
     depth that drives cross-shelf friction. See `shore_normal_fit.nearshore_depth_m` for why the two
-    cannot be the same number. Same kill switch as the bearing: SHORE_NORMAL_ASSET=0."""
+    cannot be the same number. Same kill switch as the bearing: SHORE_NORMAL_ASSET=0.
+
+    ⛔ DO NOT "align" this with `BEARING_RADIUS_KM`. The 1 km here is not an oversight left behind
+    when the bearing was widened — it is the measured answer for THIS quantity (p50 9.1% relative
+    error at 1 km, 25.7% at 3 km, and 7.6% of borrows off by more than 2x). A depth borrowed too
+    shallow caps the breaking height at a number the spot never sees, and `surf_transform`'s
+    shallow end is the UNGUARDED one. Widening both was the obvious version of this fix and it is
+    the wrong one."""
     best = _nearest(lat, lng, max_km)
     return None if best is None else best[4]
 
 
-def source_at(lat: float, lng: float, max_km: float = MATCH_RADIUS_KM) -> Optional[str]:
+def source_at(lat: float, lng: float, max_km: Optional[float] = None) -> Optional[str]:
     """Which store answered for this coordinate: 'asset' | 'overlay' | None.
 
     Diagnostic only — nothing in the rating chain branches on it. It exists because a spot silently
     served by a runtime-resolved entry and one served by the committed build are operationally very
     different things (the overlay can be lost on a redeploy), and `spot_geometry_readiness` should
-    be able to say which one a spot is living on."""
-    if _nearest(lat, lng, max_km) is None:
+    be able to say which one a spot is living on.
+
+    ⚠️ SINCE THE RADII SPLIT, ONE ANSWER CAN NO LONGER DESCRIBE BOTH QUANTITIES. A spot may take its
+    bearing from the committed asset 2 km away and its depth from an overlay entry at its own
+    coordinate — that combination is the split's whole purpose, not an anomaly. This defaults to the
+    BEARING radius because that is the quantity readiness reporting is about; pass
+    ``max_km=MATCH_RADIUS_KM`` to ask the same question about the depth."""
+    radius = _bearing_radius_km() if max_km is None else max_km
+    if _nearest(lat, lng, radius) is None:
         return None
-    return "asset" if _scan(_load(), float(lat), float(lng), max_km) is not None else "overlay"
+    return "asset" if _scan(_load(), float(lat), float(lng), radius) is not None else "overlay"
 
 
 def _reset_for_tests():

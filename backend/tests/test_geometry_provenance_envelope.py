@@ -38,7 +38,14 @@ from services.weather_pipeline.surf_point import resolve_surf_geometry
 # Real coordinates, measured verdicts (2026-07-30).
 FULL = [("Mavericks", 37.4915, -122.5083), ("Lower Trestles", 33.3819, -117.5885),
         ("Montauk", 41.0370, -71.8980)]
-DEGRADED = [("Bondi Beach", -33.8900, 151.2780), ("Chicama", -7.7110, -79.5000)]
+# ⚠️ FIXTURES REFRESHED 2026-08-02, and the reason is a finding, not churn. Bondi and Chicama used
+# to sit here because both were rejected by the fit gate (`ambiguous_coastline`) and fell back to
+# the coarse 0.25° bearing. Once `shore_normal_at` was given its own 3 km radius they both BORROW a
+# gate-passed neighbour's bearing and now report `shore_normal_src="etopo"`, so they no longer
+# demonstrate a missing fine normal. Their verdict is still `degraded` — on `break_depth`, which
+# correctly did NOT widen. See `test_a_borrowed_bearing_does_not_borrow_a_depth` below.
+# These two are >15 km from any gate-passed entry, so an asset rebuild will not quietly flip them.
+DEGRADED = [("Makapuu", 21.3103, -157.6608), ("Old Orchard Beach", 43.5151, -70.3776)]
 
 
 def test_the_point_schema_carries_the_whole_envelope():
@@ -88,13 +95,37 @@ def test_the_verdict_distinguishes_spots_the_old_payload_could_not():
 
 def test_the_sim_geometry_payload_carries_the_verdict_and_plain_english():
     from services.weather_pipeline.sim_rating import geometry_payload
-    out = geometry_payload({"name": "Bondi Beach", "latitude": -33.89, "longitude": 151.278})
+    out = geometry_payload({"name": "Makapuu", "latitude": 21.3103, "longitude": -157.6608})
     assert out["readiness"] == "degraded"
     assert "fine_shore_normal" in (out.get("readiness_missing") or [])
     assert "coarse" in (out.get("readiness_note") or "").lower(), \
         "the note must say what degraded MEANS, not just that it is degraded"
     # the raw fields must survive alongside it
     assert out["shore_normal_deg"] is not None and out["shore_normal_source"] == "coarse"
+
+
+@pytest.mark.parametrize("name,lat,lng", [("Bondi Beach", -33.8900, 151.2780),
+                                          ("Chicama", -7.7110, -79.5000)])
+def test_a_borrowed_bearing_does_not_borrow_a_depth(name, lat, lng):
+    """★ THE HALF-RESOLVED STATE, pinned on the two spots that first exhibited it.
+
+    Both were REJECTED by the fit gate (`ambiguous_coastline` — Bondi re-fitted to spread 48.0° and
+    was refused a second time), so neither has an entry at its own coordinate. Both now take a
+    bearing from a gate-passed neighbour within 3 km, because a coastline's orientation is smooth
+    over that distance (hold-out p50 4.3°, and 7.4° even in the most-ambiguous quartile).
+
+    Neither may take a DEPTH from that neighbour: borrowed at 3 km the break depth is p50 25.7% off
+    with 7.6% wrong by more than 2x, and a depth borrowed too shallow caps the breaking height at a
+    number the spot never sees. So the correct end state is exactly this — bearing resolved, depth
+    still missing, and the readiness envelope SAYING SO rather than reporting the spot as resolved.
+
+    This is the guard that would catch someone "tidying" the two radii back into one constant."""
+    g = resolve_surf_geometry(lat, lng)
+    a = assess_geometry(g)
+    assert g.shore_normal_src == "etopo", f"{name} lost its borrowed bearing ({g.shore_normal_src})"
+    assert g.break_depth_m is None, f"{name} borrowed a depth it must not have"
+    assert a["verdict"] == "degraded", f"{name} must not report as fully resolved"
+    assert a["missing"] == ["break_depth"]
 
 
 def test_unresolvable_geometry_reports_BLIND_rather_than_silently_omitting():
