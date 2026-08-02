@@ -256,6 +256,41 @@ export function prewarmGlobalMarineGrid(model, hourOffset, bounds, activeLayer) 
     const vh = Math.abs(bounds.north - bounds.south);
     if (vw > 15 || vh > 15) return;
     const m = model || 'GFS';
+
+    // ── THE SERIES HALF (audit v6 §5.1, 2026-08-02) ───────────────────────────────────────────
+    // A zoom-out consults TWO independent caches and this function warmed only one of them. The
+    // block below warms `/api/weather/grid` into `_cacheMarineResult`; the multi-hour `grid_series`
+    // page the same gesture ALSO needs lives in `_seriesCache` (marineGridSeries.js) and nothing
+    // warmed it along the zoom axis — prewarm exists for TIME (adjacent pages), MODEL and LAYER,
+    // never for VIEWPORT, while `pageKey` contains the viewport.
+    //
+    // MEASURED LIVE, and this is why the fix is here rather than in the debounce: on the FIRST
+    // zoom-out of a cold session `__MARINE_CACHE_DIAG__` read `{hit: 4}` with ZERO containment
+    // misses — the grid prewarm had already WON its race — beside a 2,972 KB / 10,129 ms
+    // grid_series. A perfectly warm grid cache next to a 9.6 s gesture can only mean the gesture
+    // waits on the other cache. (z9->z4 cold: 1 fetch, 2,449 KB, 8,658 ms. The SECOND zoom-out: 0.)
+    //
+    // ★ ONE request, not 48: `currentPageOnly=true` suppresses the adjacent-page fan-out, the same
+    //   flag and the same reason as the sibling-layer prewarm above.
+    // ★ ONE warm serves every coast: `viewportKey` collapses any span > 15° to a single 'global'
+    //   key, so this is location-independent (proven live — a global view over Portugal hit the
+    //   series warmed over Florida) and it is the SAME entry the second zoom-out already hits.
+    // ★ It cannot clamp close zoom: `getMarineSeriesFrame` refuses a global-width entry on the
+    //   exact-key path for a regional viewport, and its containment fallback prefers the SMALLEST
+    //   containing bbox — global is last-resort only. Pinned by the ordering test in
+    //   marineGridSeries.globalPrewarm.test.js.
+    // ★ Deliberately placed BEFORE the grid cache-warm early-return below: the two caches are
+    //   independent, so a warm GRID must not skip a cold SERIES — that conflation is the bug.
+    // Kill: window.__RAW_DISABLE_GLOBAL_SERIES_PREWARM__ = true
+    if (typeof window === 'undefined' || window.__RAW_DISABLE_GLOBAL_SERIES_PREWARM__ !== true) {
+      try {
+        // No abort signal, matching the grid warm: a background best-effort warm must survive the
+        // pan/zoom that would otherwise cancel it. ensureMarineSeries is idempotent, TTL'd, deduped
+        // and capped at 2 concurrent, so a repeated moveend is cheap.
+        ensureMarineSeries(m, activeLayer, _GLOBAL_BOUNDS, hourOffset, undefined, true);
+      } catch (e) { /* best-effort: a warm must never break the gesture that triggered it */ }
+    }
+
     const key = `${m}_${hourOffset}_${activeLayer}_GLOBALGRID`;
     if (_globalGridPrewarmInFlight.has(key)) return;
     // Already have the global-coarse cached (from a prior zoom-out or prewarm)? Nothing to FETCH —
