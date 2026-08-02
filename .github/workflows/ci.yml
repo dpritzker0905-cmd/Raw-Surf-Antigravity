@@ -617,7 +617,15 @@ jobs:
           # gate would have stayed green if both of them stopped being collected. Audit v5 F4.
           # From the gate's OWN run on origin/dev @ ff94cb7d: "collected 504 tests across 65 files
           # -> 504 passed, 0 skipped, 0 failed, 0 errors".
-          MIN_FILES, MIN_PASSED = 65, 498
+          # ⬆ 65→67 / 498→509. NOT new tests — COVERAGE. Widening the selector to the
+          # `from services import <mod>` form adopted two files that were running nowhere:
+          # `test_ecmwf_period_bands_decode.py` (5 tests, orphaned the moment it was added) and
+          # `test_icon_wind_multi_bbox_fetch.py` (6 tests, orphaned outright — its docstring warns a
+          # mis-association would "produce plausible wind at the wrong place, which no smoke test
+          # would notice"). 504→515 reconciles to exactly those 11.
+          # From the gate's OWN run on origin/dev @ 03d7841b: "collected 515 tests across 67 files
+          # -> 515 passed, 0 skipped, 0 failed, 0 errors".
+          MIN_FILES, MIN_PASSED = 67, 509
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
