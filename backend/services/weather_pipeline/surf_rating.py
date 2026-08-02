@@ -546,12 +546,36 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     # `pg` MULTIPLIES for the third time on the same reasoning: an additive period term with a 0.40
     # floor let 2-second ripples score 76 "good" on light wind alone (see period_gate).
     pg = period_gate(ptp if ptp is not None else tp_s)
-    return round(100.0 * sg * ex * sc * tf * bt * wg * og * pg * (W_WIND * wq + W_PERIOD * pq), 1)
+    score = 100.0 * sg * ex * sc * tf * bt * wg * og * pg * (W_WIND * wq + W_PERIOD * pq)
+    # ⛔⛔ NaN MUST NOT REACH THE BUCKETS, AND THE FAILURE DIRECTION IS WHY.
+    # `score_to_level` maps by `score < upper`, and NaN is never `<` anything, so a NaN score falls
+    # past all six buckets into the open-ended top one and renders **'epic'** — the maximum possible
+    # error on a 0-100 scale, produced by an ABSENT input. Measured 2026-08-01 at HEAD, TWO input
+    # paths reached it: `surf_h_m=NaN` and `tp_s=NaN` (the period route survives `size_score`, then
+    # poisons `period_quality`). `+inf`/`-inf` do NOT leak — they are bounded by the gates — so a
+    # positivity or self-inequality check is the wrong guard here; only `isfinite` catches both
+    # shapes, and the two shapes fail in OPPOSITE directions.
+    # ★ THE INVARIANT LIVES WHERE EVERY PATH PASSES, not in the callers. Today `estimate_surf`'s
+    # `Hs_m != Hs_m` guard and the sim's validator both hold, so this is latent — but that is
+    # exactly the distributed-guard shape the 2026-07-19 wind lesson says leaks, and a NEW caller
+    # is how it comes back. None is the established sentinel: `compute_surf_rating` already returns
+    # (None, 'unknown') and `score_to_level(None)` is 'unknown'.
+    if not math.isfinite(score):
+        return None
+    return round(score, 1)
 
 
 def score_to_level(score):
-    """Map a 0-100 score to one of the 7 levels (very_poor..epic). None -> 'unknown'."""
+    """Map a 0-100 score to one of the 7 levels (very_poor..epic). None/NaN -> 'unknown'."""
     if score is None:
+        return "unknown"
+    # TERMINAL guard, deliberately redundant with `rating_score`'s. The bucket loop below is
+    # `score < upper`, which NaN fails for every bucket and therefore falls through to the
+    # open-ended 'epic'. This function is the LAST thing every rating surface calls — the map band,
+    # the hub, the sim, the live route and the precompute all end here — so it is the one place a
+    # non-finite value can be stopped no matter which producer let it through. Cheap, and it makes
+    # the worst failure direction unreachable rather than merely unlikely.
+    if score != score or score in (float("inf"), float("-inf")):
         return "unknown"
     for upper, name in _BUCKETS:
         if score < upper:
