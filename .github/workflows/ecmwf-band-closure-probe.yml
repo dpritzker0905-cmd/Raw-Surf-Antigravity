@@ -1,0 +1,107 @@
+# ECMWF PERIOD-BAND CLOSURE PROBE — the gate on M4 (spectral decomposition).
+#
+# WHY THIS WORKFLOW EXISTS AT ALL
+# ------------------------------
+# `scripts/ecmwf_band_closure_probe.py` answers one question — does sqrt(sum(band^2))/swh stay at
+# or below ~1 against real ECMWF data? — and NOTHING about the period-band ingest is safe to build
+# until it does. But the probe cannot run on the machine where the work is being done: ECMWF packs
+# these fields with CCSDS/AEC (GRIB2 template 5.42), which needs ecCodes built with libaec. The
+# `pygrib` manylinux wheel in `backend/requirements.txt` bundles exactly that, and it is already
+# installed by `forecast-ingest.yml` with a plain `pip install` and no apt step.
+#
+# ⇒ THE DECODER ALREADY LIVES IN CI. The probe was never blocked on a missing capability, only on
+# nobody running it where the capability is. That is what this job fixes, and it is why it is a
+# tiny dispatch-only workflow rather than another line in an ingest lane: it answers a question
+# once, it must not run on a schedule, and it costs one cycle's worth of byte-range reads.
+#
+# READING THE RESULT — green means ONE thing and only one thing:
+#   BANDS_CLOSE         exit 0   GREEN. The residual reconstruction is sound; proceed to extend
+#                                LAYER_PARAMS["waves"] and wire `bands_to_partitions`, behind a flag
+#                                at '0' in every lane, with an A/B census before any flip.
+#   BANDS_EXCEED_TOTAL  exit 1   RED, and it is a real ANSWER, not a broken job. STOP: the residual
+#                                would fabricate energy. Rethink `period_bands` before any ingest.
+#   VOID                exit 2   RED. The probe could not measure (no pygrib, no network, no ocean
+#                                samples, or a cycle whose index lacks the bands) and REFUSED to
+#                                report a verdict. Fix the instrument and re-run.
+#
+# Both non-zero paths are red on purpose. A gate whose green is ambiguous is not a gate — and this
+# repo's recorded worst failure is an instrument that reports success having tested nothing.
+name: ECMWF band-closure probe
+
+on:
+  workflow_dispatch:
+    inputs:
+      step:
+        description: 'Forecast step in hours to sample (default 0 = analysis)'
+        required: false
+        default: '0'
+      max_samples:
+        description: 'Max ocean points to sample (default 20000)'
+        required: false
+        default: '20000'
+
+permissions:
+  contents: read
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+          cache: pip
+
+      - name: Install dependencies
+        # Same one-liner the ingest lane uses — the pygrib manylinux wheel bundles ecCodes with
+        # libaec, which is the whole reason this runs here and not on a dev box.
+        run: pip install -r backend/requirements.txt
+
+      - name: Confirm the DECODER is actually present before probing anything
+        # ★ A known-present control. Without it a missing/li­baec-less pygrib would surface as a
+        # VOID that reads like "ECMWF changed something", sending the next reader down the wrong
+        # trail entirely.
+        run: |
+          python - <<'PY'
+          import sys
+          try:
+              import pygrib, numpy
+          except Exception as e:
+              print(f"::error::pygrib/numpy unavailable in CI — the probe cannot decode: {e}")
+              sys.exit(1)
+          print(f"pygrib {getattr(pygrib, '__version__', '?')} present; the decoder half can run.")
+          PY
+
+      - name: Run the closure probe
+        id: probe
+        working-directory: backend
+        run: |
+          set -o pipefail
+          set +e
+          python scripts/ecmwf_band_closure_probe.py \
+            --step "${{ inputs.step }}" --max-samples "${{ inputs.max_samples }}" \
+            2>&1 | tee /tmp/probe.txt
+          echo "rc=${PIPESTATUS[0]}" >> "$GITHUB_OUTPUT"
+
+      - name: Report the verdict
+        if: always()
+        run: |
+          RC="${{ steps.probe.outputs.rc }}"
+          {
+            echo "## ECMWF band-closure probe"
+            echo
+            echo '```json'
+            cat /tmp/probe.txt 2>/dev/null || echo '(no output)'
+            echo '```'
+          } >> "$GITHUB_STEP_SUMMARY"
+          case "$RC" in
+            0) echo "::notice::BANDS_CLOSE — M4 is unblocked. Extend LAYER_PARAMS[\"waves\"], wire bands_to_partitions behind a flag at '0' in ALL lanes, A/B before the flip." ;;
+            1) echo "::error::BANDS_EXCEED_TOTAL — STOP. The residual would fabricate energy; rethink period_bands before any ingest." ;;
+            2) echo "::error::VOID — the probe could not measure and refused to answer. Fix the instrument, do not interpret this as a result." ;;
+            *) echo "::error::probe exited $RC — unrecognised state, treat as VOID." ;;
+          esac
+          exit "$RC"
