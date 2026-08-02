@@ -476,7 +476,15 @@ jobs:
           # still moving makes the gate unmeetable by anything that ships (`6c4ab178`).
           # From the gate's OWN run on origin/dev @ 7ff69cbc: "collected 1251 tests across 103
           # files -> 1185 passed, 66 skipped, 0 failed, 0 errors".
-          MIN_FILES, MIN_PASSED = 103, 1179
+          # ⬆ 103→107 / 1179→1210 (2026-08-02, end of session). Four files joined this lane during
+          # the day — `test_partition_band_composition`, `test_marine_ensemble_cost_probe`,
+          # `test_surf_transform_docstring_truth`, plus a concurrent session's — and the floor was
+          # left behind each time, so by the end four files could have stopped being collected with
+          # the gate still green. That is the exact hole audit v5 F4 was about, re-opened by the
+          # work that closed it.
+          # From the gate's OWN run on origin/dev @ 904f50cf: "collected 1282 tests across 107 files
+          # -> 1216 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never a checkout.
+          MIN_FILES, MIN_PASSED = 107, 1210
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
