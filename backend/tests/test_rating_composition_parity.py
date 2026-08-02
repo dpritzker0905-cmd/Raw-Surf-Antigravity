@@ -39,16 +39,8 @@ intentionally different shapes" — its own docstring, absolute/legacy vs local-
 RATING_LOCAL_SIZE does not merely calibrate per spot; it re-shapes the size gate for every spot
 that has climatology, which makes a surface sitting the flag out diverge more, not less.
 
-⇒ The surfaces agreed EXACTLY while every gated factor was off, and were ONE FLAG FLIP from
-disagreeing on 4-6 of every 10 spot-hours. The waivers below are the inventory of that debt, with
-the number attached.
-
-★ THE FLIP HAPPENED. `3263031c` (2026-08-01) set RATING_LOCAL_SIZE=1 in all three lanes, which
-turned the `reference_size_m` row of that inventory from a priced risk into a live divergence — the
-glyphs began grading against each spot's own good day while the hub kept the global 1.2 m curve.
-That row is now SUPPLIED at the hub (the blocker was the `spot_id` interface, not a decision; see
-its entry). The remaining waivers are still gated OFF, so the "all flags OFF" agreement test below
-keeps its meaning: it pins the compositions equal on the paths where nothing is gated on.
+⇒ The surfaces agree EXACTLY today, and are ONE FLAG FLIP from disagreeing on 4-6 of every 10
+spot-hours. The waivers below are the inventory of that debt, with the number attached.
 """
 import ast
 import inspect
@@ -116,20 +108,14 @@ SURFACES = {
             "shore_normal_deg": SUPPLIED,
             "swell_from_deg": SUPPLIED,
             "break_depth_m": SUPPLIED,      # `9b808d05`
-            # CLOSED 2026-08-01. The waiver here read "BLOCKED ON AN INTERFACE, not on a decision":
-            # `resolve_spot_conditions(model, lat, lng, forecast_days)` never received a spot id and
-            # `spot_size_climatology.reference_map` is keyed by one, so the hub could not look a
-            # reference up. That interface now carries an optional `spot_id` through all 7 call
-            # sites, and the hub resolves the reference with the SAME gate (RATING_LOCAL_SIZE) and
-            # the SAME loader the reference implementation uses — `reference_for_spot` is literally
-            # `reference_map(load_size_climatology_l2_cached())`, memoised, so there is no third
-            # derivation of the number to drift.
-            # ⚠️ IT WAS NOT LATENT ANY MORE WHEN IT WAS FIXED. `3263031c` flipped RATING_LOCAL_SIZE
-            # to 1 in all three lanes, which is exactly the flip this waiver priced at "level differs
-            # on 59.1% of evaluations, median 10.6 points" (re-measured 2026-07-30 across 540
-            # spot/size/period/wind combinations: median 10.5, p95 56.2, max 75.2, level differs
-            # 60.6%). A caller with no id still passes None → the global curve → pre-flip behaviour.
-            "reference_size_m": SUPPLIED,   # gated RATING_LOCAL_SIZE
+            "reference_size_m": (
+                "BLOCKED ON AN INTERFACE, not on a decision. `resolve_spot_conditions(model, lat, "
+                "lng, forecast_days)` never receives a spot id, and `spot_size_climatology."
+                "reference_map` is keyed by spot id — so the hub cannot look one up. Threading the "
+                "id through touches 7 call sites. COST IF RATING_LOCAL_SIZE FLIPS: level differs "
+                "from the map glyphs on 59.1% of evaluations, median 10.6 points, max 75.7 — swept "
+                "over a 0.6-4.0 m reference range, SYNTHETIC because no spot has real climatology "
+                "yet, so it bounds the shape of the risk rather than measuring it."),
             "tide_norm": (
                 "The hub does not load the spot row, so it has no `best_tide` prior, and "
                 "`tide_fit` is neutral without one. Measured 2026-07-30 in production: 38 of 1,773 "
