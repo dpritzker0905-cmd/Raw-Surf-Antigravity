@@ -459,7 +459,16 @@ jobs:
           # 96 files -> 1096 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never
           # from a checkout (6c4ab178: a floor set from a shared tree holding another session's
           # untracked file was unmeetable by anything that ships).
-          MIN_FILES, MIN_PASSED = 96, 1090
+          # ⬆ 96→102 / 1090→1172 on 2026-08-02. NOT new coverage — the ratchet simply had not been
+          # moved since `e079200c` while six more composition files accumulated. Audit v5 F4 found
+          # both gates sitting below their live counts, which means files could stop running with
+          # the gate still green: the exact silence this ratchet exists to break.
+          # From the gate's OWN run on origin/dev @ ff94cb7d: "collected 1244 tests across 102
+          # files -> 1178 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never from a
+          # checkout — a clean worktree at the same sha read 104 files / 1204 passed here, because
+          # a local run is not this job's environment (`test_weather_sim_mcp` needs a `dev.db` that
+          # CI does not have). Two different numbers, and only one of them is the gate's.
+          MIN_FILES, MIN_PASSED = 102, 1172
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -582,7 +591,13 @@ jobs:
           # 0 skipped, 0 failed. MIN_FILES is EXACT so any drop (an import that stops matching, a file
           # renamed out of the selector) is red rather than quietly narrower; MIN_PASSED sits just
           # below so a mass-skip is caught without pinning to a total that normal churn moves.
-          MIN_FILES, MIN_PASSED = 63, 480
+          # ⬆ 63→65 / 480→498 on 2026-08-02. The two files are today's own
+          # (`test_shore_normal_borrow_radius.py`, `test_ecmwf_period_bands_ingest.py`) — `a9bd6e35`
+          # wrote the new count into its commit message and left the floor at 63, so for a day the
+          # gate would have stayed green if both of them stopped being collected. Audit v5 F4.
+          # From the gate's OWN run on origin/dev @ ff94cb7d: "collected 504 tests across 65 files
+          # -> 504 passed, 0 skipped, 0 failed, 0 errors".
+          MIN_FILES, MIN_PASSED = 65, 498
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:

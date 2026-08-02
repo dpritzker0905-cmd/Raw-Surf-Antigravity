@@ -270,7 +270,13 @@ def _bucket_span(lat: float, max_km: float):
 
 
 def _scan(idx, lat: float, lng: float, max_km: float):
-    """Nearest entry to (lat, lng) within ``max_km`` in one index, or None."""
+    """Nearest entry to (lat, lng) within ``max_km`` in one index as ``(entry, km)``, or None.
+
+    ★ THE DISTANCE IS RETURNED, not discarded, and that is the whole point of the 2026-08-02
+    change. It was computed here and thrown away, which is why a bearing taken from 2.9 km could
+    reach `resolve_surf_geometry` labelled `etopo` — identical to one measured at the spot's own
+    coordinate — and grade `full` with nothing missing. The information needed to tell those apart
+    always existed at this line; it simply never left the function."""
     if not idx:
         return None
     b_lat, b_lng = _bucket(lat, lng)
@@ -282,7 +288,7 @@ def _scan(idx, lat: float, lng: float, max_km: float):
                 km = _haversine_km(lat, lng, entry[0], entry[1])
                 if km <= max_km and (best_km is None or km < best_km):
                     best, best_km = entry, km
-    return best
+    return None if best is None else (best, best_km)
 
 
 @lru_cache(maxsize=20_000)
@@ -338,8 +344,8 @@ def shore_normal_at(lat: float, lng: float,
 
     Returns (bearing_deg, spread_deg), or (None, None) when there is no entry nearby, the asset is
     absent, or the kill switch is set. Never raises."""
-    best = _nearest(lat, lng, _bearing_radius_km() if max_km is None else max_km)
-    return (None, None) if best is None else (best[2], best[3])
+    hit = _nearest(lat, lng, _bearing_radius_km() if max_km is None else max_km)
+    return (None, None) if hit is None else (hit[0][2], hit[0][3])
 
 
 def break_depth_at(lat: float, lng: float,
@@ -356,8 +362,27 @@ def break_depth_at(lat: float, lng: float,
     shallow caps the breaking height at a number the spot never sees, and `surf_transform`'s
     shallow end is the UNGUARDED one. Widening both was the obvious version of this fix and it is
     the wrong one."""
-    best = _nearest(lat, lng, max_km)
-    return None if best is None else best[4]
+    hit = _nearest(lat, lng, max_km)
+    return None if hit is None else hit[0][4]
+
+
+def match_km_at(lat: float, lng: float, max_km: Optional[float] = None) -> Optional[float]:
+    """How far away the entry that answered the BEARING lookup actually is, in km. None on a miss.
+
+    ★★ THIS IS THE PROVENANCE THE 3 km BORROW RADIUS MADE NECESSARY. Once a bearing may come from
+    up to 3 km away, "the asset answered" stops being one fact and becomes two: measured AT this
+    coordinate, or inferred from a neighbour. Without the distance those are indistinguishable —
+    and they were, from 2026-08-02 until this function existed: a bearing borrowed from 2.9 km
+    reported `shore_normal_src="etopo"` and graded `full` with nothing missing, exactly like one
+    fitted at the spot itself. `scripts/seed_geometry_columns.py` writes a DB row only where the
+    source is "etopo", so it would have frozen borrowed bearings into the database as measured
+    geometry.
+
+    ⚠️ Goes through the SAME `_nearest` as the bearing, at the SAME radius, so the answer always
+    describes the entry the caller actually got. A second search here could disagree with the first
+    — the precise failure `_nearest`'s docstring was written to prevent."""
+    hit = _nearest(lat, lng, _bearing_radius_km() if max_km is None else max_km)
+    return None if hit is None else hit[1]
 
 
 def source_at(lat: float, lng: float, max_km: Optional[float] = None) -> Optional[str]:

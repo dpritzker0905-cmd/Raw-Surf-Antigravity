@@ -47,11 +47,19 @@ class SurfGeometry(NamedTuple):
     shelf_width_km: float
     coastal: bool
     shore_normal_deg: Optional[float]  # seaward bearing, best available source
-    shore_normal_src: str              # 'coarse' | 'etopo' | 'override:<name>' | 'none'
+    # ★ 'etopo' means MEASURED AT THIS COORDINATE (within MATCH_RADIUS_KM, the documented
+    #   "same break" distance). 'etopo:borrowed' means inferred from a gate-passed NEIGHBOUR out to
+    #   BEARING_RADIUS_KM. Those were one label until 2026-08-02 and the difference is real: OSM-
+    #   graded, a borrowed bearing is p50 12.6 deg off versus the coarse fallback's 38.7 — good, but
+    #   not the same claim as a fit at the spot itself.
+    shore_normal_src: str              # 'coarse'|'etopo'|'etopo:borrowed'|'override:<name>'|'none'
     magnet_factor: float
     magnet_name: Optional[str]
     break_depth_m: Optional[float]     # ETOPO nearshore depth — the BREAKING CAP only
     nearshore: Optional[bool]          # land within ~1 cell (display gate)
+    # How far the entry that supplied the bearing actually sits, in km. None unless the asset (or
+    # overlay) answered. Trailing + defaulted so no existing construction site has to change.
+    shore_normal_match_km: Optional[float] = None
 
 
 def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
@@ -68,7 +76,7 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
     width = shelf_width_km(lat, lng) or 0.0
 
     # ── Shore normal, weakest source first; each stronger source overwrites. ──
-    normal, src = None, "none"
+    normal, src, match_km = None, "none", None
     try:
         normal = shore_normal_at(lat, lng)
         if normal is not None:
@@ -81,11 +89,22 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
     # facing ~325-335. Only gate-passing spots are in the asset, so a hit is already trustworthy and
     # a miss correctly leaves the coarse value in place. Kill: SHORE_NORMAL_ASSET=0.
     try:
-        from services.weather_pipeline.shore_normal_asset import shore_normal_at as _asset_normal_at
+        from services.weather_pipeline.shore_normal_asset import (
+            MATCH_RADIUS_KM as _SAME_BREAK_KM, match_km_at as _asset_match_km,
+            shore_normal_at as _asset_normal_at)
         _fine, _spread = _asset_normal_at(lat, lng)
         if _fine is not None:
-            normal, src = _fine, "etopo"
-            logger.debug(f"[Surf] ETOPO shore normal {_fine} deg (spread {_spread} deg) at ({lat},{lng})")
+            # ★ MEASURED HERE, OR BORROWED FROM A NEIGHBOUR? Since the bearing may now come from up
+            # to BEARING_RADIUS_KM away, "the asset answered" is two different facts and the
+            # readiness envelope exists precisely to tell them apart. The threshold is
+            # MATCH_RADIUS_KM because that is this module's own documented "same break" distance —
+            # inside it a click is the same peak sharing its geometry, beyond it we are inferring
+            # from the coast next door.
+            match_km = _asset_match_km(lat, lng)
+            borrowed = match_km is not None and match_km > _SAME_BREAK_KM
+            normal, src = _fine, ("etopo:borrowed" if borrowed else "etopo")
+            logger.debug(f"[Surf] ETOPO shore normal {_fine} deg (spread {_spread} deg, "
+                         f"{'borrowed ' if borrowed else ''}{match_km} km) at ({lat},{lng})")
     except Exception:
         pass
 
@@ -124,7 +143,11 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
     return SurfGeometry(depth_m=depth, shelf_width_km=width, coastal=coastal,
                         shore_normal_deg=normal, shore_normal_src=src,
                         magnet_factor=magnet, magnet_name=magnet_name,
-                        break_depth_m=break_depth, nearshore=nearshore)
+                        break_depth_m=break_depth, nearshore=nearshore,
+                        # None unless the ASSET supplied the bearing — a coarse or overridden
+                        # bearing has no match distance, and saying "0 km" would claim a precision
+                        # that does not exist.
+                        shore_normal_match_km=(match_km if src.startswith("etopo") else None))
 
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,

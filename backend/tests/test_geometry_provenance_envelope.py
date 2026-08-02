@@ -122,10 +122,47 @@ def test_a_borrowed_bearing_does_not_borrow_a_depth(name, lat, lng):
     This is the guard that would catch someone "tidying" the two radii back into one constant."""
     g = resolve_surf_geometry(lat, lng)
     a = assess_geometry(g)
-    assert g.shore_normal_src == "etopo", f"{name} lost its borrowed bearing ({g.shore_normal_src})"
+    assert g.shore_normal_src == "etopo:borrowed", \
+        f"{name} lost its borrowed bearing, or stopped declaring it ({g.shore_normal_src})"
+    assert g.shore_normal_match_km is not None and g.shore_normal_match_km > 1.0, \
+        f"{name} claims a borrowed bearing but carries no distance to prove it"
     assert g.break_depth_m is None, f"{name} borrowed a depth it must not have"
     assert a["verdict"] == "degraded", f"{name} must not report as fully resolved"
-    assert a["missing"] == ["break_depth"]
+    assert a["missing"] == ["borrowed_shore_normal", "break_depth"]
+
+
+def test_a_borrowed_bearing_is_DISTINGUISHABLE_from_a_measured_one():
+    """★★ THE PROVENANCE DEFECT, pinned. Shipped 2026-08-02 and caught by audit v5 the same day.
+
+    Giving the shore normal a 3 km borrow radius made "the asset answered" two different facts —
+    fitted AT this coordinate, or inferred from the coast next door — and for a few hours both
+    reported `shore_normal_src="etopo"` and graded `full` with `missing: []`. 231 of 231 borrowed
+    spots shared a (verdict, missing) cell with measured spots: the envelope discriminated for
+    ZERO of them, while `scripts/seed_geometry_columns.py` writes a DB row on exactly that string
+    and would have frozen borrowed bearings in as measured geometry.
+
+    The distance was computed in `_scan` the whole time and thrown away. This test fails the moment
+    the two collapse back into one label."""
+    measured = resolve_surf_geometry(37.4915, -122.5083)      # Mavericks — entry at its own coord
+    borrowed = resolve_surf_geometry(-33.8900, 151.2780)      # Bondi — gate-REJECTED, borrows
+
+    assert measured.shore_normal_src == "etopo"
+    assert borrowed.shore_normal_src == "etopo:borrowed"
+    assert measured.shore_normal_src != borrowed.shore_normal_src, \
+        "a borrowed bearing and a measured one carry the SAME label — the defect is back"
+
+    assert measured.shore_normal_match_km == 0.0
+    assert borrowed.shore_normal_match_km > 1.0
+
+    # And the grading must differ too — a label nothing acts on is not provenance.
+    am, ab = assess_geometry(measured), assess_geometry(borrowed)
+    assert (am["verdict"], am["missing"]) != (ab["verdict"], ab["missing"]), \
+        "the readiness envelope grades borrowed and measured identically"
+    assert "borrowed_shore_normal" in ab["missing"]
+    assert "borrowed_shore_normal" not in am["missing"]
+    # ...and it must NOT be mistaken for the coarse fallback, which is 3x worse.
+    assert "fine_shore_normal" not in ab["missing"], \
+        "a borrowed bearing is being reported as if it were the 0.25 deg grid"
 
 
 def test_unresolvable_geometry_reports_BLIND_rather_than_silently_omitting():

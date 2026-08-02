@@ -56,6 +56,14 @@ _IMPACT = {
     "break_depth": "the depth-limited breaking cap cannot bind, and the oversize gate loses its "
                    "per-spot capacity tier",
     "coastal": "not classified as coastal — the transform returns open-ocean swell, not surf",
+    # ★ ADDED 2026-08-02 with the 3 km borrow radius. Before it existed, a bearing inferred from a
+    # neighbour up to 3 km away was reported as `etopo` and graded FULL with nothing missing —
+    # indistinguishable from one fitted at the spot's own coordinate. It is NOT the same claim, and
+    # it is also not the coarse fallback: OSM-graded, borrowed is p50 12.6 deg off where coarse is
+    # 38.7. So it earns its own state rather than being folded into either neighbour.
+    "borrowed_shore_normal": "the bearing is fitted, but at a NEIGHBOURING coordinate up to 3 km "
+                             "away, not at this spot — OSM-graded p50 12.6 deg off (vs 38.7 for the "
+                             "coarse grid). A dedicated fit here would still improve it",
 }
 
 
@@ -73,6 +81,11 @@ def assess_geometry(geometry) -> dict:
     missing = []
     if normal is None:
         missing.append("shore_normal")
+    elif src == "etopo:borrowed":
+        # NOT `fine_shore_normal` — that string means "you are on the 0.25 deg grid", and saying it
+        # here would understate a bearing that is three times closer than the coarse one. NOT
+        # silence either: the spot has no fit of its own, which is exactly what the envelope is for.
+        missing.append("borrowed_shore_normal")
     elif src not in ("etopo",) and not str(src).startswith("override"):
         missing.append("fine_shore_normal")
     if break_depth is None:
@@ -98,7 +111,8 @@ def assess_geometry(geometry) -> dict:
         "coastal": coastal,
         # A coarse-or-absent normal is what a background re-fit can actually repair. A spot that is
         # simply not coastal is a placement problem and re-fitting will not help it.
-        "actionable": bool({"shore_normal", "fine_shore_normal", "break_depth"} & set(missing)),
+        "actionable": bool({"shore_normal", "fine_shore_normal", "borrowed_shore_normal",
+                            "break_depth"} & set(missing)),
     }
 
 
