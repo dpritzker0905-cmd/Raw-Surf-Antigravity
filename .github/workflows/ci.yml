@@ -73,7 +73,7 @@ jobs:
           // ★ RATCHET ME: the first green ubuntu run prints the true counts on the line below.
           //   Raise these to that exact number and the margin disappears. Measured from the run,
           //   never incremented by hand.
-          const MIN_SUITES = 176, MIN_TESTS = 1600;
+          const MIN_SUITES = 180, MIN_TESTS = 1621;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }
