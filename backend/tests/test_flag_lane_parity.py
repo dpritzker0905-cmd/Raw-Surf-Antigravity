@@ -356,8 +356,49 @@ _RATING_SURFACES = (
     "services/weather_pipeline/surf_rating.py",
     "services/weather_pipeline/surf_transform.py",
     "routes/weather.py",
+    # ⬆ ADDED 2026-08-02 (audit v5 F5/F10). These three resolve or convert the numbers the surfaces
+    # above rate, and every switch in them was invisible to this scan purely because the FILE was
+    # not listed. Measured before the change: the scan saw 17 science flags while 35 were read
+    # across the chain — blind to more than it could see. What these three add is not obscure:
+    #   surf_point.py             SURF_V3_NORMAL_OVERRIDES — the kill switch for human ground truth
+    #   shore_normal_asset.py     the #1 Jacobian variable's own switches
+    #   surf_height_convention.py SURF_HEIGHT_H110 — the recorded "+25.5% too high" landmine
+    # ⚠️ `ecmwf_opendata_fetcher.py` is deliberately NOT here. It reads six ECMWF_* knobs, but it is
+    # an INGEST fetcher, not a rating surface; pulling it in would demand that operational knobs be
+    # declared in a SCIENCE registry, which is a different contract. Scope by role, not by grep hit.
+    "services/weather_pipeline/surf_point.py",
+    "services/weather_pipeline/shore_normal_asset.py",
+    "services/weather_pipeline/surf_height_convention.py",
 )
-_SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_")
+_SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_", "SHORE_NORMAL_")
+
+# ★ THE SECOND ESCAPE ROUTE. `surf_transform._v3(flag)` is `os.environ.get(flag, "1") != "0"` — the
+# name arrives as a VARIABLE, so a scan matching only `os.environ.get("LITERAL")` cannot see it.
+# Four physics switches sat inside a file this scan ALREADY walked and were invisible anyway:
+# SURF_V3_EXPOSURE, SURF_V3_KOMAR, SURF_V3_MAGNETS, SURF_V3_SHELF_RECAL. A guard keyed on a syntax
+# rather than on a fact is blind to every wrapper anyone writes.
+_ENV_READ_PATTERNS = (
+    r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
+    r'_v3\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']',
+)
+
+
+def _science_flags_read_by_surfaces():
+    """{FLAG: {file, ...}} for every science switch a rating surface reads, by ANY known form."""
+    import re
+    pats = [re.compile(p) for p in _ENV_READ_PATTERNS]
+    read = {}
+    for rel in _RATING_SURFACES:
+        path = os.path.join(REPO, "backend", rel)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            src = fh.read()
+        for pat in pats:
+            for m in pat.finditer(src):
+                if m.group(1).startswith(_SCIENCE_PREFIXES):
+                    read.setdefault(m.group(1), set()).add(os.path.basename(rel))
+    return read
 # NAMED exemptions with reasons — not a silencer. Each entry states why the registry is the wrong
 # home for that flag, so removing an exemption is a deliberate act visible in a diff.
 _REGISTRY_EXEMPT = {
@@ -366,24 +407,30 @@ _REGISTRY_EXEMPT = {
     # them would force widening that contract for every flag. They belong with the physics.
     "SURF_SHELF_CF_SCALE": "calibration scalar (default '0.25'), not a boolean switch",
     "SURF_V3_JACK_MAX": "calibration scalar (default '2.0'), not a boolean switch",
+    # A FILESYSTEM PATH, not a science switch. It relocates the overlay file for tests; it cannot
+    # change a number. The registry's "where to flip" column would have nothing true to say about
+    # it, and an operator scanning that panel during an incident should not meet it.
+    # ⚠️ Its SIBLING `SHORE_NORMAL_OVERLAY` — which does gate behaviour — IS declared. The two names
+    # are one character apart, so the reason for the split is written here rather than assumed.
+    "SHORE_NORMAL_OVERLAY_PATH": "filesystem path for test relocation, not a behaviour switch",
 }
 
 
 def test_every_science_switch_a_rating_surface_reads_is_declared_in_the_registry():
     """An undeclared switch is invisible to the admin panel AND to every guard in this file — so it
     can be flipped in one lane and drift with nothing to catch it."""
-    import re
-    pat = re.compile(r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']')
-    read = {}
-    for rel in _RATING_SURFACES:
-        path = os.path.join(REPO, "backend", rel)
-        if not os.path.exists(path):
-            continue
-        with open(path, encoding="utf-8") as fh:
-            for m in pat.finditer(fh.read()):
-                if m.group(1).startswith(_SCIENCE_PREFIXES):
-                    read.setdefault(m.group(1), set()).add(os.path.basename(rel))
-    assert read, "found no science flags at all — the scan broke, which would pass vacuously"
+    read = _science_flags_read_by_surfaces()
+    # ★ A COVERAGE FLOOR, not just "read is non-empty". Once every switch is declared, this test
+    # passes whether the scan sees 27 flags or 3 — so NARROWING it (dropping a file from
+    # `_RATING_SURFACES`, or a pattern from `_ENV_READ_PATTERNS`) becomes undetectable, and the
+    # next undeclared switch lands in a blind spot with the suite green. That is exactly how the
+    # scan came to see 17 of 35. Shrink-only, same contract as `ci.yml`'s MIN_FILES: raise it when
+    # coverage genuinely grows, never lower it to make a red go away.
+    # Measured on origin/dev @ 2026-08-02 after closing both escape routes: 27.
+    assert len(read) >= 27, (
+        f"the scan now sees only {len(read)} science flags, down from a measured 27 — a file or an "
+        f"env-read pattern has been dropped, so switches are once again invisible to this guard.\n"
+        f"  visible: {sorted(read)}")
     missing = {f: sorted(s) for f, s in read.items()
                if f not in REGISTRY and f not in _REGISTRY_EXEMPT}
     assert not missing, (
@@ -398,14 +445,9 @@ def test_every_science_switch_a_rating_surface_reads_is_declared_in_the_registry
 def test_no_exemption_outlives_the_flag_it_excuses():
     """A stale exemption is a silencer. If the flag is gone, or has since been declared, the
     exemption must go with it — otherwise the list slowly becomes a place to hide new flags."""
-    import re
-    pat = re.compile(r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']')
-    read = set()
-    for rel in _RATING_SURFACES:
-        path = os.path.join(REPO, "backend", rel)
-        if os.path.exists(path):
-            with open(path, encoding="utf-8") as fh:
-                read |= set(pat.findall(fh.read()))
+    # ONE reader, shared with the test above. Two copies of a scan is how the first version came to
+    # see 17 flags of 35 — and how the two would have drifted the moment either grew a pattern.
+    read = set(_science_flags_read_by_surfaces())
     for flag in _REGISTRY_EXEMPT:
         assert flag in read, f"exemption for {flag} outlived the flag; delete it"
         assert flag not in REGISTRY, f"{flag} is now declared — delete its exemption"

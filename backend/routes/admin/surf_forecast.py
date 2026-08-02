@@ -78,6 +78,32 @@ _RATING_FLAGS = {
                                          "the committed asset was built. Off = a newly-pinned spot "
                                          "keeps the coarse bearing until the next asset build",
                                     "Render env"),
+    # ★★★ SIX SWITCHES THAT ESCAPED THIS REGISTRY BY TWO DIFFERENT ROUTES (audit v5 F5/F10,
+    # declared 2026-08-02). The guard that is supposed to catch an undeclared science switch was
+    # seeing 17 of the 35 read across the chain — blind to more than it could see:
+    #   * BY FILE SCOPE — `_RATING_SURFACES` is a hardcoded list of files, and `surf_point.py`,
+    #     `shore_normal_asset.py` and `surf_height_convention.py` were not on it.
+    #   * BY INDIRECTION — `surf_transform._v3(flag)` reads the env through a VARIABLE, so a scan
+    #     matching `os.environ.get("LITERAL")` could not see four switches inside a file it was
+    #     already walking.
+    # ⚠️ SURF_HEIGHT_H110 is the one to read twice. The repo's own record: flipping it ALONE makes
+    # the served height +25.5% too high, because it and the Kr assumption are two errors that
+    # currently cancel. BOTH OR NEITHER.
+    "SURF_HEIGHT_H110":            ("0", "Report H1/10 (the surfer's 'wave face') instead of Hs. "
+                                         "⚠️ NEVER FLIP ALONE — +25.5% too high on its own; it "
+                                         "cancels against the missing refraction Kr", "Render env"),
+    "SURF_V3_NORMAL_OVERRIDES":    ("1", "Hand-audited per-spot shore normals — HUMAN GROUND TRUTH, "
+                                         "outranks the derived ETOPO asset. Off = those spots fall "
+                                         "back to the fit", "Render env"),
+    "SURF_V3_EXPOSURE":            ("1", "Directional exposure factor: how much of the swell is "
+                                         "AIMED at this coast. Off = every swell scores head-on "
+                                         "(-30.0% of height at 75 deg off-normal is un-applied)",
+                                    "Render env"),
+    "SURF_V3_KOMAR":               ("1", "Komar breaker-height relation for the nearshore transform",
+                                    "Render env"),
+    "SURF_V3_MAGNETS":             ("1", "Sub-grid inlet/jetty focusing factor", "Render env"),
+    "SURF_V3_SHELF_RECAL":         ("1", "Shelf-friction recalibration; off restores the "
+                                         "pre-calibration cf scale", "Render env"),
     "RATING_OBS_GATE":             ("0", "Good/Epic observation gate + user-report weigh-in (Surfline hybrid)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ THIS COLUMN WAS WRONG AND THE ERROR WAS DORMANT. It named 2 places ("Render env AND
