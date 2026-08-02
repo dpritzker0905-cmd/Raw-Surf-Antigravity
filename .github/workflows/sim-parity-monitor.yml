@@ -119,6 +119,14 @@ jobs:
           SURF_PARTITIONS: '0'
           RATING_OBS_GATE: '1'
           RATING_LOCAL_SIZE: '1'
+          # ★ Added 2026-08-02 in the same change that gave the shore normal its own 3 km borrow
+          # radius, because THE MEASURING LANE IS THE ONE THAT MUST NOT BE WRONG. Left unset, this
+          # probe would resolve geometry at the old 1 km radius while both ingest lanes wrote
+          # ratings at 3 km, and then report a mismatch on all 231 spots that gained a fine bearing
+          # — paging every run about ratings that are CORRECT, which is exactly how an alarm gets
+          # ignored. Same failure the block above documents for RATING_LOCAL_SIZE (-4.9 median,
+          # -58.1 worst). Kill in lockstep with the ingest lanes and Render, never alone.
+          SHORE_NORMAL_BEARING_RADIUS_KM: '3.0'
           # ⚠️⚠️ THE FLAG WITHOUT THE DATA IS A FLAG THAT CHANGES NOTHING. RATING_LOCAL_SIZE=1 tells
           # the sim to grade against each spot's own good day; the reference itself comes from the
           # size-climatology blob in the PRIVATE `weather-products` bucket, and
