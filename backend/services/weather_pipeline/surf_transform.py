@@ -11,7 +11,25 @@ WHY THIS IS THE RIGHT FIRST CUT:
     breaks. So a broad SHALLOW shelf caps even a big offshore swell to small surf (why Florida's east coast
     is much smaller than the offshore swell), while a STEEP shelf lets more energy through (much of the US
     West Coast). That depth-limited cap is the dominant physical effect, captured here.
-  - Refraction (Kr, needs a per-point shore-normal) and bottom friction are deliberate PHASE-2 refinements.
+  - Bottom friction: IMPLEMENTED (`shelf_dissipation`, on by default) — a wide shallow shelf bleeds
+    real energy, Kf ~0.32 at Tp 16 s over a 200 km / 15 m shelf and ~0.95 over a narrow deep one.
+  - Directional exposure: IMPLEMENTED (`_height_exposure_factor`, applied to H inside
+    `estimate_surf` since 2026-07-17) — how much of the swell is AIMED at this coast. Measured
+    through the live function: 0° off-normal 0.0%, 45° -11.9%, 75° -30.0%, 90° -40.5% of height.
+
+⛔⛔ WHAT REMAINS IS *REFRACTION*, AND IT IS NOT THE SAME QUANTITY AS EXPOSURE. Kr is the BENDING of
+wave rays over depth contours, which focuses energy onto headlands and defocuses it into bays. The
+exposure factor above is the GEOMETRIC AIM of the incoming train — a cosine of misalignment. Both
+depend on the shore normal, and that is exactly why they are easy to conflate.
+★★ Until 2026-08-02 this paragraph listed BOTH refraction and bottom friction as unbuilt phase-2
+work — both halves false, and the shore normal had been threaded through this module the whole
+time. An implementer trusting it would fit Kr against a chain they believed was direction-blind and
+DOUBLE-COUNT direction by up to 40.5%. Any Kr work must A/B against the range this chain already
+produces (~0.595 to 1.0), never against 1.0.
+`tests/test_surf_transform_docstring_truth.py` fails if this paragraph drifts from the code again.
+⚠️ That guard is a substring check, so it cannot distinguish a live claim from a quotation — which
+is why the old sentence is described here rather than reproduced. A guard strong enough to be worth
+having will occasionally constrain how you write; say it in different words, do not weaken it.
 
 This is an ESTIMATE from BULK parameters (we have Hs/Tp/dir, not the full directional spectrum), so callers
 MUST tag it is_estimated and present it as "surf", never as authoritative model output.
