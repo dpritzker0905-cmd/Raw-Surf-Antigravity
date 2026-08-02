@@ -125,7 +125,13 @@ const symbolRows = SYMBOLS.map((sym) => {
 });
 
 // ---- 4: kill switches / flags cited in the ledger ---------------------------
-const flagRe = /`?(__RAW_[A-Z0-9_]+__|[A-Z][A-Z0-9_]{5,})`?/g;
+// ⚠️ The first alternative used to be `__RAW_[A-Z0-9_]+__`, which special-cased ONE dunder family.
+// A name like `__MARINE_BG_FILL__` therefore missed it, fell through to the generic branch — which
+// cannot match a leading `_` — and was reported as `MARINE_BG_FILL__`: a name that exists nowhere
+// in the repo or the docs. Check [4] listed two such phantoms among its 14, and an audit that
+// reports names which do not exist teaches its reader to skim the section. Generalised to any
+// dunder-wrapped flag, so `__RAW_*__` and `__MARINE_*__` are both captured whole.
+const flagRe = /`?(__[A-Z][A-Z0-9_]*__|[A-Z][A-Z0-9_]{5,})`?/g;
 const KNOWN_NOISE = new Set(['README', 'START', 'HANDOFF', 'MEMORY', 'CLOSED', 'CRITICAL', 'WARNING']);
 const flags = new Map();
 for (const s of sources) {
@@ -140,7 +146,15 @@ for (const s of sources) {
 }
 const flagRows = [...flags.keys()].map((f) => ({
   flag: f,
-  reads: (git(['grep', '-l', f, '--', '*.py', '*.js', '*.yml']) || '').split('\n').filter(Boolean).length,
+  // ⚠️⚠️ THE AUDITOR MUST EXCLUDE ITSELF, and this file is a `*.js`. Writing `__MARINE_BG_FILL__`
+  // into a COMMENT here — while fixing the extractor above — gave that flag a "read in code" and
+  // silently dropped a genuinely dead lever from check [4]. Caught only because the reported count
+  // moved 14 -> 11 when the fix should have changed two NAMES and no COUNT.
+  // ★ This is the trap this script's own header names: "unscoped, every flag came back recently
+  // touched — by the queue file naming them, i.e. the instrument measuring the document it was
+  // auditing". An audit that reads itself will always find its subject alive.
+  reads: (git(['grep', '-l', f, '--', '*.py', '*.js', '*.yml', ':!scripts/ledger_audit.js'])
+    || '').split('\n').filter(Boolean).length,
   srcs: [...flags.get(f)],
 })).filter((r) => r.reads === 0);
 
