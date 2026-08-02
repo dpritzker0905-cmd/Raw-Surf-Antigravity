@@ -556,6 +556,18 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       // swellExposure -> neutral 1.0), so it disagreed with the geometry-aware backend glyph on the
       // same spot at the same instant. The backend has always served it (schemas.py:184).
       shore_normal_deg: (json.shore_normal_deg ?? null),
+      // ── THE GEOMETRY PROVENANCE ENVELOPE (backend schemas.py; added here 2026-08-02) ──
+      // `shore_normal_deg` above is the bearing. These three say what it is STANDING ON, and
+      // without them a spot running on a borrowed or coarse bearing renders IDENTICALLY to one
+      // fitted at its own coordinate — the exact defect `spot_geometry_readiness` was built to end,
+      // reappearing at the render boundary. Backend-measured 2026-08-02: 391 of 1,773 live spots
+      // are on the coarse 0.25 deg grid and 91 more are on a bearing borrowed from up to 3 km away.
+      // ⚠️ FIFTH, SIXTH AND SEVENTH fields to be missing from this whitelist, after
+      // shore_normal_deg, partitions, reference_size_m and coverage_status. Add to ALL THREE
+      // mappers in the same change — `pointFieldWhitelistParity.test.js` now fails if you do not.
+      shore_normal_source: (json.shore_normal_source ?? null),
+      break_depth_m: (json.break_depth_m ?? null),
+      geometry_readiness: (json.geometry_readiness ?? null),
       // The reconciled swell/windsea trains the served surf_height_m ran on (SURF_PARTITIONS on;
       // null otherwise). Same failure class as shore_normal_deg above: this whitelist is the only
       // path point fields reach the infobox, so an unmapped field makes the badge grade a

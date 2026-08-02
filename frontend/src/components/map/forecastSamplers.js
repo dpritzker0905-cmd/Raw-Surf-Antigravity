@@ -454,6 +454,18 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     surf_nearshore: cachedResponse.surf_nearshore ?? null,
     // Seaward bearing — required for the infobox rating to grade wind direction and swell angle.
     shore_normal_deg: cachedResponse.shore_normal_deg ?? null,
+    // ── THE GEOMETRY PROVENANCE ENVELOPE (backend schemas.py; added here 2026-08-02) ──
+    // `shore_normal_deg` above is the bearing; these say what it is STANDING ON. Without them a
+    // borrowed or coarse bearing renders identically to one fitted at the spot's own coordinate.
+    // ⚠️ Add to ALL THREE mappers in the same change — see pointFieldWhitelistParity.test.js.
+    shore_normal_source: cachedResponse.shore_normal_source ?? null,
+    break_depth_m: cachedResponse.break_depth_m ?? null,
+    geometry_readiness: cachedResponse.geometry_readiness ?? null,
+    // The tier this layer was served at. Mapped by backendWeatherServiceClientPoint since 2026-08-01
+    // and NOT here — so on the cached path the Energy card could not coarsen its precision. The
+    // comment that introduced it called itself "FOURTH FIELD IN A ROW"; it was then added to one
+    // whitelist of three.
+    coverage_status: cachedResponse.coverage_status ?? null,
     // Local size reference (RATING_LOCAL_SIZE, 2026-08-01) — the spot's own good-day breaking
     // height. Without it the badge grades on the global 1.2 m curve while the glyph and the band
     // grade locally. THIRD whitelist of three (with backendWeatherServiceClientPoint and
