@@ -484,7 +484,7 @@ jobs:
           # work that closed it.
           # From the gate's OWN run on origin/dev @ 904f50cf: "collected 1282 tests across 107 files
           # -> 1216 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never a checkout.
-          MIN_FILES, MIN_PASSED = 107, 1210
+          MIN_FILES, MIN_PASSED = 108, 1221
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -633,7 +633,7 @@ jobs:
           # would notice"). 504→515 reconciles to exactly those 11.
           # From the gate's OWN run on origin/dev @ 03d7841b: "collected 515 tests across 67 files
           # -> 515 passed, 0 skipped, 0 failed, 0 errors".
-          MIN_FILES, MIN_PASSED = 67, 509
+          MIN_FILES, MIN_PASSED = 67, 519
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
