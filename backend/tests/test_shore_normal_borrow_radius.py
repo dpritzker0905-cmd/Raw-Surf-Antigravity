@@ -18,7 +18,8 @@ grade against the held-out one):
 
 At 1 km the depth is fine (p50 9.1%). So the one constant was calibrated for the DEPTH and starved
 the BEARING — which is the #1 Jacobian variable (7.4 rating points at the median coarse error,
-28.1 at +45 deg). 779 of 1,587 catalogue spots fell back to the 0.25 deg grid; 229 of them have a
+28.1 at +45 deg). Live (n=1773, `sim_forecast.fetch_catalog()`): 391 catalogue spots fall back to
+the 0.25 deg grid and 91 of them have a
 gate-passed entry between 1 and 3 km away.
 
 ⚠️ THE ETOPO HOLD-OUT ABOVE IS SELF-CONSISTENCY, and `scripts/validate_shore_normals_osm.py`'s

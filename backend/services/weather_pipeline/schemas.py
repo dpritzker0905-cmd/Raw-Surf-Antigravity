@@ -195,7 +195,15 @@ class NormalizedPointResponse(BaseModel):
     # `spot_geometry_readiness.assess_geometry` already grades it; both were dropped here, so NO
     # surface (point, glyphs, hub, sim) could say a spot was running on degraded inputs.
     # Additive/Optional -> backward compatible; every consumer that ignores them is unaffected.
-    shore_normal_source: Optional[str] = None    # coarse | etopo | override:<name> | overlay | None
+    # coarse | etopo | etopo:borrowed | override:<name> | none        (sim adds: catalog_fallback)
+    # ★ `etopo` means FITTED AT THIS COORDINATE; `etopo:borrowed` means taken from a gate-passed
+    #   neighbour up to BEARING_RADIUS_KM away. Split 2026-08-02 — before it, the two were one
+    #   string and 91 live spots claimed a measurement they did not have.
+    # ⚠️ `overlay` was listed here and is NOT a value of this field. It belongs to
+    #   `shore_normal_asset.source_at()`, which answers a DIFFERENT question — which STORE replied
+    #   (asset|overlay) — and merging the two vocabularies into one documented range is how a
+    #   consumer comes to switch on a string that never arrives.
+    shore_normal_source: Optional[str] = None
     break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
     geometry_readiness: Optional[str] = None     # full | degraded | blind
     # ── THE LOCAL SIZE REFERENCE (2026-08-01, the RATING_LOCAL_SIZE flip `3263031c`) ─────────────

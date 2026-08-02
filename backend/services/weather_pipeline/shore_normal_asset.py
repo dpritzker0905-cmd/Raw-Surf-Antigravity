@@ -50,9 +50,14 @@ _ASSET = os.path.join(_DATA_DIR, "shore_normals.json")
 # A coastline's ORIENTATION is smooth over kilometres. The depth a wave BREAKS in is a property of
 # one peak's bottom — a reef and a sandbar 2 km apart are unrelated. So the one constant was
 # calibrated for the DEPTH and starved the BEARING, which is the #1 Jacobian variable (7.4 rating
-# points at the median coarse error, 28.1 at +45 deg). 779 of 1,587 catalogue spots were falling
-# back to the 0.25 deg grid — a bearing decided from a 194.6 km window — and 229 of those have a
-# gate-passed entry between 1 and 3 km away.
+# points at the median coarse error, 28.1 at +45 deg). Measured against the LIVE catalogue
+# (`sim_forecast.fetch_catalog()`, n=1773): 391 spots were falling back to the 0.25 deg grid — a
+# bearing decided from a 194.6 km window — and 91 of those have a gate-passed entry between 1 and
+# 3 km away. Coarse share 22.1% -> 17.1%.
+# ⚠️ CORRECTED 2026-08-02 (audit v5 F2). These first read "779 of 1,587 ... 229", taken from
+# `backend/dev.db` — stale since 2026-07-12, and drifting p90 3.470 km from production, i.e.
+# FURTHER THAN THE 3 km EFFECT BEING MEASURED. It over-counted 2.5x. Never size geometry work off
+# dev.db; the app's own catalogue endpoint was available the whole time.
 #
 # ⚠️ THE HOLD-OUT ABOVE IS SELF-CONSISTENCY, and `scripts/validate_shore_normals_osm.py` exists
 # because a fit graded against another fit cannot detect a systematically wrong bearing. Graded
@@ -303,9 +308,13 @@ def _nearest(lat: float, lng: float, max_km: float = MATCH_RADIUS_KM):
     PRECEDENCE — the committed asset ALWAYS wins, and the overlay only fills gaps:
 
     ★★ This is what makes a runtime-resolved entry incapable of DISPLACING a correct neighbour, the
-    second blocker the audit found. Lookup is nearest-wins within 1 km, and adjacent named peaks are
-    legitimately close (Rincón has five breaks inside 3 km), so a newly-measured entry that happened
-    to sit nearer to some query point could otherwise take over from a gate-passed committed one.
+    second blocker the audit found. Lookup is nearest-wins within the radius the CALLER asked for —
+    `BEARING_RADIUS_KM` for the bearing, `MATCH_RADIUS_KM` for the depth, and this paragraph must
+    not name a single figure: until 2026-08-02 it cited the depth radius alone, and was left
+    stating the precedence argument against a distance the module no longer uses for bearings. Adjacent
+    named peaks are legitimately close (Rincón has five breaks inside 3 km), so a newly-measured
+    entry that happened to sit nearer to some query point could otherwise take over from a
+    gate-passed committed one.
     Because the overlay is consulted ONLY when the committed asset returned nothing at all, that
     cannot happen by construction rather than by tuning a radius. The cost is that a new pin within
     1 km of a committed entry keeps using its neighbour's geometry — which is exactly the

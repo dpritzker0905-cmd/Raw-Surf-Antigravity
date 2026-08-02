@@ -195,3 +195,133 @@ def test_the_glyph_row_declares_readiness_separately_from_confidence():
     assert "geometry_readiness" in rsrc, "the glyph row stopped carrying readiness"
     assert "marine.geometry_readiness" in rsrc, \
         "readiness must come FROM the point response, not be recomputed — one grader, one answer"
+
+
+# ── THE VOCABULARY GUARDS ───────────────────────────────────────────────────────────────────────
+# `shore_normal_src` gained a value on 2026-08-02 (`etopo:borrowed`) and the places that DOCUMENT
+# the vocabulary were not updated with it. That is the same defect the readiness envelope exists to
+# prevent, one level up: a field whose declared range no longer matches what it can hold.
+_SCHEMAS = os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+                        "services", "weather_pipeline", "schemas.py")
+
+
+def _schema_vocabulary_block() -> str:
+    """The documented range of `shore_normal_source`: its declaration line PLUS the comment block
+    directly above it.
+
+    ⚠️ TWO of my own versions of this helper were wrong, and both failures are worth keeping:
+      1. It read ONLY the field line. Moving the vocabulary into a comment block above the field —
+         where it belongs once it needs three sentences — left the guard inspecting a line that no
+         longer held the answer, so it reported the FIX as the defect.
+      2. It then read the WHOLE comment block, which includes prose EXPLAINING that `overlay` is
+         not a value of this field. A substring guard cannot tell an explanation from a claim, so
+         the note documenting the correction tripped the guard checking for it.
+    ⇒ It returns the DECLARATION — the pipe-separated range — and nothing else. A guard on a
+    documented range must read the range, not the discussion around it."""
+    lines = open(_SCHEMAS, encoding="utf-8").read().splitlines()
+    idx = next(i for i, l in enumerate(lines) if l.strip().startswith("shore_normal_source"))
+    for i in range(idx - 1, max(idx - 15, -1), -1):
+        stripped = lines[i].strip()
+        if not stripped.startswith("#"):
+            break
+        body = stripped.lstrip("#").strip()
+        if body.count("|") >= 2:          # the range line: `a | b | c`
+            return body
+    raise AssertionError(
+        "no pipe-separated vocabulary line found above `shore_normal_source` in schemas.py — the "
+        "field's documented range has been deleted, which is worse than it being wrong")
+
+
+def _emitted_src_values():
+    """Every literal `resolve_surf_geometry` can assign to `src`, extracted by AST.
+
+    DERIVED, never listed — a hand-maintained list here would be a second copy of the fact and
+    would rot exactly as the schema comment did."""
+    import ast
+    import inspect
+    from services.weather_pipeline import surf_point
+    tree = ast.parse(inspect.getsource(surf_point.resolve_surf_geometry))
+    out = set()
+
+    def _lits(node):
+        if isinstance(node, ast.Constant) and isinstance(node.value, str):
+            out.add(node.value)
+        elif isinstance(node, ast.JoinedStr):          # f"override:{name}" -> the literal prefix
+            for v in node.values:
+                if isinstance(v, ast.Constant) and isinstance(v.value, str) and v.value:
+                    out.add(v.value)
+        elif isinstance(node, ast.IfExp):              # ("etopo:borrowed" if borrowed else "etopo")
+            _lits(node.body)
+            _lits(node.orelse)
+
+    for n in ast.walk(tree):
+        targets = []
+        if isinstance(n, ast.Assign):
+            targets, value = n.targets, n.value
+        elif isinstance(n, ast.AnnAssign) and n.value is not None:
+            targets, value = [n.target], n.value
+        else:
+            continue
+        names = []
+        for t in targets:
+            if isinstance(t, ast.Name):
+                names.append(t.id)
+            elif isinstance(t, ast.Tuple):
+                names += [e.id for e in t.elts if isinstance(e, ast.Name)]
+        if "src" not in names:
+            continue
+        if isinstance(value, ast.Tuple):
+            for i, name in enumerate(names):
+                if name == "src" and i < len(value.elts):
+                    _lits(value.elts[i])
+        else:
+            _lits(value)
+    return out
+
+
+def test_the_ast_extractor_actually_finds_the_known_values():
+    """POSITIVE CONTROL. An extractor returning an empty set would make every guard below pass
+    vacuously — the failure mode this repo has recorded seven times."""
+    vals = _emitted_src_values()
+    for known in ("none", "coarse", "etopo", "etopo:borrowed", "override:"):
+        assert known in vals, f"the AST extractor missed {known!r}; it found {sorted(vals)}"
+
+
+def test_the_schema_documents_every_source_value_the_resolver_can_emit():
+    """★ `schemas.py`'s `shore_normal_source` comment is the only place a consumer can learn the
+    range of that field. `etopo:borrowed` was added to the resolver and not to the comment, so a
+    reader matching on the documented set would silently mis-handle 91 live spots."""
+    doc = _schema_vocabulary_block()
+    missing = [v for v in sorted(_emitted_src_values())
+               if v not in ("none",) and v.rstrip(":") not in doc and v not in doc]
+    assert not missing, (
+        f"schemas.py documents shore_normal_source as {doc.split('#')[-1].strip()!r} but the "
+        f"resolver can also emit {missing} — a field whose declared range is smaller than its "
+        f"actual one is exactly what the readiness envelope exists to prevent")
+
+
+def test_the_schema_does_not_document_a_value_nothing_emits():
+    """⚠️ `overlay` is `shore_normal_asset.source_at()`'s vocabulary — WHICH STORE answered
+    (asset|overlay) — not a provenance label. Listing it beside `coarse`/`etopo` merges two
+    different questions into one field's documented range, which is the repo's recorded
+    'two quantities sharing a name' class."""
+    doc = _schema_vocabulary_block()
+    emitted = _emitted_src_values()
+    assert "overlay" not in emitted, "resolve_surf_geometry now emits 'overlay' — update this guard"
+    assert "overlay" not in doc, (
+        "schemas.py lists 'overlay' as a shore_normal_source value, but that is source_at()'s "
+        "store label — WHICH STORE replied — and no code path ever assigns it here")
+
+
+def test_the_nearest_docstring_does_not_state_a_radius_the_constants_contradict():
+    """★ `_nearest`'s docstring explains the asset-before-overlay precedence in terms of a radius.
+    The bearing radius became 3 km on 2026-08-02 and the prose still said 1 km, so the paragraph
+    justified the design with a number the module no longer uses."""
+    from services.weather_pipeline import shore_normal_asset as sna
+    doc = sna._nearest.__doc__ or ""
+    assert doc, "_nearest lost its docstring"
+    stale = [f"{n} km" for n in ("1", "1.0")
+             if f"within {n} km" in doc and sna.BEARING_RADIUS_KM != float(n)]
+    assert not stale, (
+        f"_nearest's docstring says 'within {stale[0]}' while BEARING_RADIUS_KM is "
+        f"{sna.BEARING_RADIUS_KM} — the precedence argument is stated against the wrong radius")
