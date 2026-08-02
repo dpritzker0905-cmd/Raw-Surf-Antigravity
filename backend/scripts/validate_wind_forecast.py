@@ -37,8 +37,9 @@ sys.path.insert(0, os.path.join(os.path.dirname(os.path.abspath(__file__)), ".."
 from services.weather_pipeline.buoy_calibration import (          # noqa: E402
     WIND_OBS_MAX_AGE_MIN, compare_wind_to_model, parse_latest_obs_wind,
 )
+from services.weather_pipeline import surf_rating as SR          # noqa: E402  ATTRIBUTE read
 from services.weather_pipeline.surf_rating import (               # noqa: E402
-    MS_TO_KT, rating_score, score_to_level,
+    rating_score, score_to_level,
 )
 
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
@@ -120,7 +121,7 @@ def main():
             except Exception:
                 h = tp = None
             if h and tp:
-                sf = rating_score(float(h), float(tp), float(fkt) / MS_TO_KT)      # forecast wind
+                sf = rating_score(float(h), float(tp), float(fkt) / SR.MS_TO_KT)      # forecast wind
                 so = rating_score(float(h), float(tp), st["wspd_ms"])              # observed wind
                 lf, lo = score_to_level(sf), score_to_level(so)
                 lvl_total[m] += 1

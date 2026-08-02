@@ -119,7 +119,10 @@ def parse_ndbc_wind(text: str, now: Optional[datetime] = None,
     """
     if not text:
         return None
-    from services.weather_pipeline.surf_rating import MS_TO_KT   # the ONE knots<->m/s expression
+    # ATTRIBUTE read, never `from … import MS_TO_KT` — a from-import binds the value at import time,
+    # so a later correction to the engine's constant would silently not reach here. Pinned by
+    # tests/test_wind_unit_constant_parity.py::test_no_module_FROM_IMPORTS_the_knots_constants.
+    from services.weather_pipeline import surf_rating as SR
     now = now or datetime.now(timezone.utc)
     limit = WIND_OBS_MAX_AGE_MIN if max_age_min is None else max_age_min
     for line in text.splitlines():
@@ -144,7 +147,7 @@ def parse_ndbc_wind(text: str, now: Optional[datetime] = None,
             "time": ts.isoformat(),
             "wdir_deg": wdir,
             "wspd_ms": wspd,
-            "wspd_kt": round(wspd * MS_TO_KT, 2),
+            "wspd_kt": round(wspd * SR.MS_TO_KT, 2),
             "gust_ms": _num(parts[_COL["GST"]]),
             "age_min": round(age_min, 1),
         }
@@ -169,7 +172,9 @@ def parse_latest_obs_wind(text: str, now: Optional[datetime] = None,
 
     Age-gated and FAILS CLOSED, same rule as `parse_ndbc_wind`.
     """
-    from services.weather_pipeline.surf_rating import MS_TO_KT   # the ONE knots<->m/s expression
+    from services.weather_pipeline import surf_rating as SR   # ATTRIBUTE read: the ONE knots<->m/s
+    # expression, and never a from-import — that binds the value at import time so a later
+    # correction to the engine's constant would silently not reach here (test_wind_unit_constant_parity).
     now = now or datetime.now(timezone.utc)
     limit = WIND_OBS_MAX_AGE_MIN if max_age_min is None else max_age_min
     out = []
@@ -192,7 +197,7 @@ def parse_latest_obs_wind(text: str, now: Optional[datetime] = None,
             continue
         out.append({"id": p[0], "lat": lat, "lon": lon, "time": ts.isoformat(),
                     "wdir_deg": wdir, "wspd_ms": wspd,
-                    "wspd_kt": round(wspd * MS_TO_KT, 2), "age_min": round(age_min, 1)})
+                    "wspd_kt": round(wspd * SR.MS_TO_KT, 2), "age_min": round(age_min, 1)})
     return out
 
 
