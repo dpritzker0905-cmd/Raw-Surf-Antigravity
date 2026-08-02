@@ -468,7 +468,15 @@ jobs:
           # checkout — a clean worktree at the same sha read 104 files / 1204 passed here, because
           # a local run is not this job's environment (`test_weather_sim_mcp` needs a `dev.db` that
           # CI does not have). Two different numbers, and only one of them is the gate's.
-          MIN_FILES, MIN_PASSED = 102, 1172
+          # ⬆ 102→103 / 1172→1179 the same day: `a74f66a6` (a concurrent session's ingest-deadline
+          # fix) landed between the reading above and this one, adding a file. Pinned to it because
+          # it is COMMITTED, not in flight — the distinction this comment block keeps making. The
+          # same session still holds `test_spot_hub_local_size_reference.py` UNTRACKED, and that one
+          # must NOT be chased: a floor is shrink-only and pinning it to work another change is
+          # still moving makes the gate unmeetable by anything that ships (`6c4ab178`).
+          # From the gate's OWN run on origin/dev @ 7ff69cbc: "collected 1251 tests across 103
+          # files -> 1185 passed, 66 skipped, 0 failed, 0 errors".
+          MIN_FILES, MIN_PASSED = 103, 1179
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
