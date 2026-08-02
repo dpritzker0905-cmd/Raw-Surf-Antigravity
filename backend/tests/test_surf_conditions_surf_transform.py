@@ -114,6 +114,17 @@ def test_this_module_routes_through_the_canonical_chain_and_owns_no_second_trans
         assert banned not in src, f"{banned} re-implemented here; mirror the chain, never re-derive"
 
 
+def test_the_provenance_travels_to_every_surface_that_forwards_the_height():
+    """`get_full_conditions` re-shapes the payload by hand. Forwarding the height without the
+    regime would leave that surface unable to say whether the transform RAN or failed open —
+    a number that cannot say what it is. Asserts on source because the merge is a literal dict."""
+    import services.surf_conditions as sc
+    src = open(sc.__file__, encoding="utf-8").read()
+    merge = src.split("# Merge results", 1)[1][:900]
+    for key in ('"wave_height_ft"', '"swell_height_ft"', '"surf_regime"'):
+        assert key in merge, f"get_full_conditions drops {key}; provenance must travel with the number"
+
+
 def test_the_offshore_value_is_preserved_under_its_own_name():
     """`swell_height_ft` keeps the model's offshore number. Deleting it would lose information;
     leaving it in `wave_height_ft` was the defect. Surfline splits swell/surf; so do we."""

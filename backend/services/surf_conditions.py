@@ -470,7 +470,13 @@ async def get_full_conditions(
     
     # Merge results
     result = {
-        "wave_height_ft": surf.get("wave_height_ft"),
+        "wave_height_ft": surf.get("wave_height_ft"),          # BREAKING (see _breaking_ft)
+        # ⚠️ THE PROVENANCE TRAVELS WITH THE NUMBER OR IT IS NOT PROVENANCE. `get_surf_conditions`
+        # stamps the offshore value and the regime beside the breaking height; forwarding only the
+        # height here would leave this surface unable to say whether the transform ran or failed
+        # open — the same "a number that cannot say what it is" class the fix above closed.
+        "swell_height_ft": surf.get("swell_height_ft"),        # OFFSHORE, named
+        "surf_regime": surf.get("surf_regime"),                # 'offshore_estimate' == failed open
         "wave_period_sec": surf.get("wave_period_sec"),
         "wave_direction": surf.get("wave_direction"),
         "wave_direction_degrees": surf.get("wave_direction_degrees"),  # Keep raw degrees for visualization
