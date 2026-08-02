@@ -63,7 +63,18 @@ INGEST_LANES = ("forecast-ingest.yml", "precompute.yml")
 #   a flag the drift guard cannot see can hold a different value in each lane, and the same spot
 #   then faces two different directions depending on which lane wrote the frame.
 DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_")
-COMPOSITION_PREFIXES = ("RATING_", "SURF_")
+# ★ `SHORE_NORMAL_` added to COMPOSITION on 2026-08-02 (audit v5 F1), and the distinction is the
+#   whole point: it was already in DRIFT, so the two INGEST lanes were compared — but the parity
+#   MONITOR's comparator narrows to COMPOSITION, so `SHORE_NORMAL_BEARING_RADIUS_KM` was collected
+#   from `sim-parity-monitor.yml` and then silently skipped. Deleting that line outright left this
+#   suite at 13 passed. A bearing radius decides WHICH WAY A BEACH FACES for the rating, so by this
+#   file's own definition — "COMPOSITION scope = this flag changes how a number is computed" — it
+#   belongs here. ⚠️ Adding a prefix here also binds it to the REGISTRY contract below, which is
+#   correct and is why both shore-normal kill switches had to be registered in the same change.
+# ⚠️ `ECMWF_` is deliberately NOT here. `ECMWF_PERIOD_BANDS` gates a FETCH, not an arithmetic step,
+#   and the monitor fetches nothing — it grades what was served. Revisit the moment the composition
+#   half is wired, because from then on the flag DOES change a computed number.
+COMPOSITION_PREFIXES = ("RATING_", "SURF_", "SHORE_NORMAL_")
 
 # Flags whose value legitimately differs between the two lanes, with the reason. Empty by default:
 # an entry here is a documented exception, not a place to silence a real drift.
@@ -124,7 +135,25 @@ def test_registry_parses_and_is_not_empty():
     assert len(REGISTRY) >= 10, f"registry looks truncated: {sorted(REGISTRY)}"
     for name, entry in REGISTRY.items():
         assert len(entry) == 3, f"{name} should be (default, description, where_to_flip)"
-        assert entry[0] in ("0", "1"), f"{name} default should be '0' or '1', got {entry[0]!r}"
+        # ⚠️ RELAXED 2026-08-02 from `in ("0", "1")`. That assertion encoded an assumption — every
+        # science switch is a boolean — which held until `SHORE_NORMAL_BEARING_RADIUS_KM` (a
+        # RADIUS in km, default '3.0'). The choice was to keep the tighter assertion and leave the
+        # #1 Jacobian variable's switch OUT of the operator's only view of Render, or to admit
+        # non-boolean switches. Excluding it is the worse failure: an unregistered kill switch is
+        # one an operator cannot find mid-incident.
+        # ★ The guard is NOT weakened to "anything goes" — a default must still be a value the
+        # process could actually read from an environment variable, i.e. a non-empty string that
+        # parses as a bool-like or a number. A `None`, a `True`, or an empty default would mean the
+        # registry is documenting something env parsing cannot produce.
+        assert isinstance(entry[0], str) and entry[0] != "", \
+            f"{name} default must be a non-empty string (env values are strings), got {entry[0]!r}"
+        if entry[0] not in ("0", "1"):
+            try:
+                float(entry[0])
+            except ValueError:
+                raise AssertionError(
+                    f"{name} default {entry[0]!r} is neither a boolean '0'/'1' nor numeric — a "
+                    f"registry entry must describe a value the environment can actually supply")
         assert entry[2], f"{name} has no 'where to flip' guidance"
 
 

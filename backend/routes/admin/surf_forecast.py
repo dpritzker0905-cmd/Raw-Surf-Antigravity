@@ -59,6 +59,25 @@ _RATING_FLAGS = {
     "SURF_V3_SLOPE_GAMMA":         ("1", "Slope-aware breaker index (Weggel); off = the flat 0.78 "
                                          "centre that under-capped plunging reef breaks", "Render env"),
     "MARINE_MID_RES_RATING":       ("1", "Rate the mid-res (2°) tier so overview zooms keep a band", "Render env"),
+    # ★★★ THE SHORE NORMAL — the #1 Jacobian variable (7.4 rating points at the median coarse
+    # error, 28.1 at +45°) — and until 2026-08-02 not one of its switches was visible here. This
+    # panel is the ONLY instrument that can read Render, which is the one lane no test can open, so
+    # a kill switch missing from this dict is a kill switch an operator cannot find during an
+    # incident. Same class as SPOT_HUB_SURF_TRANSFORM above (audit v5 F5).
+    "SHORE_NORMAL_BEARING_RADIUS_KM": ("3.0", "How far the shore normal may borrow a gate-passed "
+                                              "neighbour's bearing. NOT a boolean — set '1.0' to "
+                                              "restore the pre-2026-08-02 single radius. The BREAK "
+                                              "DEPTH deliberately stays at 1 km (different spatial "
+                                              "correlation length); do not 'align' the two",
+                                    "Render env AND forecast-ingest.yml AND precompute.yml AND "
+                                    "sim-parity-monitor.yml env"),
+    "SHORE_NORMAL_ASSET":          ("1", "The whole ETOPO per-spot shore-normal + break-depth asset. "
+                                         "Off = every spot falls back to the 0.25° grid's bearing, "
+                                         "decided from a 194.6 km window", "Render env"),
+    "SHORE_NORMAL_OVERLAY":        ("1", "The runtime overlay that carries geometry resolved AFTER "
+                                         "the committed asset was built. Off = a newly-pinned spot "
+                                         "keeps the coarse bearing until the next asset build",
+                                    "Render env"),
     "RATING_OBS_GATE":             ("0", "Good/Epic observation gate + user-report weigh-in (Surfline hybrid)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
     # ⚠️ THIS COLUMN WAS WRONG AND THE ERROR WAS DORMANT. It named 2 places ("Render env AND
