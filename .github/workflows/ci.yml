@@ -497,3 +497,120 @@ jobs:
               sys.exit(1)
           print("Composition guards ran in full and are green.")
           PY
+
+  # 2026-08-01 — THE FORECAST-CHAIN LANE. The composition suite above is deliberately SCOPED to
+  # composition, and that scoping quietly left most of the backend's forecast tests running nowhere.
+  # Measured at HEAD: 411 tracked test files, 102 matched by that suite's glob, so 309 are CI-ORPHANS
+  # — they exist, they are green, and no push executes them. CI runs pytest in exactly two places:
+  # the job above, and build-shore-normals.yml, which is workflow_dispatch-only.
+  #
+  # ⭐ THE STANDOUT: `test_shore_normal.py`, `test_shore_normal_asset.py` and `test_shore_normal_fit.py`
+  # cover the HIGHEST-LEVERAGE input in the whole forecast (a coarse bearing is median 24.7 deg off and
+  # the rating LEVEL differs at 58.1% of spots) — and they ran ONLY inside the manual asset-build
+  # workflow. The #1 Jacobian variable's own tests were dispatch-gated.
+  #
+  # Adoption cost was MEASURED before this job was written, not assumed: all 63 files pass, 486 tests,
+  # 0 failures — and they pass in the CONFIGURATION THAT ACTUALLY RUNS (clean worktree, no `dev.db`,
+  # `fastmcp` import blocked), which is the check that catches a test asserting something about the
+  # machine it runs on. Local 486 / CI-config 486, so none of them depends on either.
+  #
+  # ⚠️ A SEPARATE JOB, NOT AN ADDITION TO THE ONE ABOVE. That job measures ~9 min against a 20-minute
+  # timeout; +6:48 would leave under 5 minutes of headroom on a runner that is not always fast. In
+  # parallel it costs no wall-clock at all.
+  #
+  # ★ THE FILE SET IS DERIVED, NOT LISTED. It is "tracked test files that import the forecast chain,
+  # minus everything the composition glob already takes". A hardcoded list is how the composition glob
+  # came to miss 45 of its own files, and how `tests/test_point_*.py` sat outside it for months.
+  backend-forecast-chain-guards:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.11'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+
+      - name: "🌊 Forecast-chain guards (bathymetry · shore normal · EURO · calibration · manifest)"
+        working-directory: backend
+        run: |
+          set -o pipefail
+          python - > /tmp/chain_files.txt <<'PY'
+          import fnmatch, os, re, subprocess
+          # The composition suite's own glob, verbatim — anything it already runs is excluded here so
+          # the two jobs never double-count and the floors stay independent.
+          COMPOSITION = ["tests/test_sim_*.py","tests/test_rating_*.py","tests/test_surf_*.py",
+          "tests/test_spot_*.py","tests/test_point_*.py","tests/test_coarse_*.py","tests/test_marine_*.py",
+          "tests/test_grid_*.py","tests/test_weather_*.py","tests/test_wind_*.py","tests/test_partition_*.py",
+          "tests/test_noaa_*.py","tests/test_ecmwf_euro.py","tests/test_fetch_common.py",
+          "tests/test_climatology_inbox.py","tests/test_flag_lane_parity.py",
+          "tests/test_owner_calibration_anchors.py","tests/test_parity_unification.py",
+          "tests/test_local_size_preview.py","tests/test_enclosed_sea_height_survival.py",
+          "tests/test_gfs_fill_masked_waves.py","tests/test_dominant_swell_anim.py",
+          "tests/test_frame_honesty.py","tests/test_data_health.py","tests/test_geometry_*.py",
+          "tests/test_provenance_*.py","tests/test_observation_gate_*.py","tests/test_run_provenance.py",
+          "tests/test_resolve_spot_geometry.py","tests/test_simulation.py","tests/test_forecast_skill.py",
+          "tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
+          "tests/test_calibration_census.py"]
+          tracked = [f for f in subprocess.run(["git","ls-files","tests/"], capture_output=True,
+                     text=True).stdout.split()
+                     if f.endswith(".py") and os.path.basename(f).startswith("test_")]
+          taken = {f for f in tracked for p in COMPOSITION if fnmatch.fnmatch(f, p)}
+          IMPORTS = re.compile(r'(?:from|import)\s+(services\.weather_pipeline[\w.]*'
+                               r'|services\.\w*fetcher\w*|services\._fetch_common|services\.\w*_service)')
+          out = [f for f in sorted(set(tracked) - taken)
+                 if IMPORTS.search(open(f, encoding="utf-8", errors="ignore").read())]
+          print("\n".join(out))
+          PY
+          FILES=$(tr '\n' ' ' < /tmp/chain_files.txt)
+          echo "$FILES" | tr ' ' '\n' | sed '/^$/d' | sed 's/^/  chain: /'
+          python -m pytest $FILES -q --junitxml=chain.xml
+
+      - name: "🔍 Assert the forecast-chain guards actually ran"
+        if: always()
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import sys, xml.etree.ElementTree as ET
+          # Measured 2026-08-01 in a clean worktree with no dev.db and fastmcp blocked — the
+          # configuration this job actually runs in, never a developer checkout: 63 files, 486 passed,
+          # 0 skipped, 0 failed. MIN_FILES is EXACT so any drop (an import that stops matching, a file
+          # renamed out of the selector) is red rather than quietly narrower; MIN_PASSED sits just
+          # below so a mass-skip is caught without pinning to a total that normal churn moves.
+          MIN_FILES, MIN_PASSED = 63, 480
+          try:
+              root = ET.parse('chain.xml').getroot()
+          except Exception as e:
+              print(f"::error::No parseable chain.xml — the forecast-chain suite did not run ({e}).")
+              sys.exit(1)
+          suites = [root] if root.tag == 'testsuite' else root.findall('testsuite')
+          tests = sum(int(s.get('tests', 0)) for s in suites)
+          fails = sum(int(s.get('failures', 0)) for s in suites)
+          errs = sum(int(s.get('errors', 0)) for s in suites)
+          skips = sum(int(s.get('skipped', 0)) for s in suites)
+          files = {'.'.join((tc.get('classname') or '').split('.')[:2])
+                   for s in suites for tc in s.iter('testcase')}
+          files.discard('')
+          passed = tests - fails - errs - skips
+          print(f"collected {tests} tests across {len(files)} files -> "
+                f"{passed} passed, {skips} skipped, {fails} failed, {errs} errors")
+          bad = []
+          if fails or errs:
+              bad.append(f"{fails} failed / {errs} errored")
+          if len(files) < MIN_FILES:
+              bad.append(f"only {len(files)} files collected, floor is {MIN_FILES} — the import "
+                         f"selector stopped matching, so guards silently went unrun")
+          if passed < MIN_PASSED:
+              bad.append(f"only {passed} tests passed, floor is {MIN_PASSED} — guards were deleted "
+                         f"or mass-skipped")
+          if bad:
+              for b in bad:
+                  print(f"::error::Forecast-chain guards: {b}")
+              sys.exit(1)
+          print("Forecast-chain guards ran in full and are green.")
+          PY
