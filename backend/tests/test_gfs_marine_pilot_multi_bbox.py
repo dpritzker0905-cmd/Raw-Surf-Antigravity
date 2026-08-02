@@ -42,6 +42,18 @@ def _wave_like_points(om_provider, region, resolution=0.25):
     return pts
 
 
+@pytest.fixture(autouse=True)
+def _production_mid_horizon(monkeypatch):
+    """The 2 deg global_mid tile folds into this pilot's pass (2026-08-02), and WHICH pass it joins
+    is decided by horizon — `by_horizon` groups one download per distinct forecast length.
+
+    Under tests GFS_MID_RES_FORECAST_DAYS defaults to 2 days, so global_mid would form its own group
+    and these tests would never see the production arrangement (mid 14 d == flagship 14 d, one shared
+    pass). Pin production's horizons so the grouping under test is the grouping that ships."""
+    monkeypatch.setenv("GFS_MID_RES_FORECAST_DAYS", "14")
+    monkeypatch.setenv("GFS_MARINE_FLAGSHIP_FORECAST_DAYS", "14")
+
+
 @pytest.mark.asyncio
 async def test_one_pass_per_horizon_not_one_per_region(tmp_path, monkeypatch):
     """THE FIX. In the test env only the flagship regions are in play and they share one horizon, so
@@ -57,7 +69,7 @@ async def test_one_pass_per_horizon_not_one_per_region(tmp_path, monkeypatch):
 
     calls = []
 
-    async def fake_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         calls.append((forecast_days, set(bboxes)))
         return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
                 for rid, bb in bboxes.items()}
@@ -66,7 +78,9 @@ async def test_one_pass_per_horizon_not_one_per_region(tmp_path, monkeypatch):
 
     assert await scheduler.ingest_gfs_marine_pilot() is True
     assert len(calls) == 1, f"{len(calls)} passes for one horizon -- must be one"
-    assert calls[0][1] == set(REGIONAL_CONFIGS)
+    # global_mid rides ALONG, it does not add a pass. That is the whole 2026-08-02 saving: before the
+    # fold it downloaded this same f000-f336 set again in its own job, ~26 min later.
+    assert calls[0][1] == set(REGIONAL_CONFIGS) | {"global_mid"}
 
     products = temp_store.get_manifest().products
     for region_id in REGIONAL_CONFIGS:
@@ -102,7 +116,7 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
 
     calls = []
 
-    async def fake_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         calls.append((forecast_days, set(bboxes)))
         return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
                 for rid, bb in bboxes.items()}
@@ -112,7 +126,8 @@ async def test_flagship_and_worldwide_horizons_stay_separate(tmp_path, monkeypat
     assert await scheduler.ingest_gfs_marine_pilot() is True
     by_days = {d: regs for d, regs in calls}
     assert set(by_days) == {3, 14}, f"horizons seen: {sorted(by_days)} -- expected exactly 3d and 14d"
-    assert by_days[14] == set(REGIONAL_CONFIGS), "flagship horizon must carry exactly the flagship regions"
+    assert by_days[14] == set(REGIONAL_CONFIGS) | {"global_mid"}, (
+        "flagship horizon must carry the flagship regions plus the folded global_mid tile")
     assert by_days[3] == set(WORLDWIDE_COASTAL_REGIONS), "worldwide horizon must carry all 8 worldwide regions"
 
     saved = {p.region_id for p in temp_store.get_manifest().products
@@ -132,7 +147,7 @@ async def test_socal_still_omits_swell_2(tmp_path, monkeypatch):
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
 
-    async def fake_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
                 for rid, bb in bboxes.items()}
 
@@ -158,7 +173,7 @@ async def test_every_region_shares_one_run_time(tmp_path, monkeypatch):
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
 
-    async def fake_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
                 for rid, bb in bboxes.items()}
 
@@ -182,7 +197,7 @@ async def test_falls_back_to_per_region_when_the_multi_pass_yields_nothing(tmp_p
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
 
-    async def no_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def no_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         return None
 
     async def per_region(bbox, resolution=10.0, forecast_days=14, bboxes=None):
@@ -209,7 +224,7 @@ async def test_a_raising_multi_fetch_does_not_kill_the_job(tmp_path, monkeypatch
     scheduler = WeatherPipelineScheduler(store=temp_store)
     monkeypatch.setenv("NODE_ENV", "test")
 
-    async def boom(bboxes, resolution=0.25, forecast_days=3):
+    async def boom(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         raise RuntimeError("AWS Open Data 503")
 
     async def per_region(bbox, resolution=10.0, forecast_days=14, bboxes=None):
@@ -219,6 +234,78 @@ async def test_a_raising_multi_fetch_does_not_kill_the_job(tmp_path, monkeypatch
     monkeypatch.setattr(noaa_marine, "fetch_gfs_marine_global_coarse", per_region)
 
     assert await scheduler.ingest_gfs_marine_pilot() is True
+
+
+@pytest.mark.asyncio
+async def test_folded_global_mid_is_requested_at_its_own_resolution(tmp_path, monkeypatch):
+    """The fold's whole premise: ONE download, TWO output resolutions. global_mid must be asked for
+    at 2 deg while the flagship regions stay at 0.25 deg — and the flagship regions must be ABSENT
+    from the map, so they keep the scalar and their tiles do not silently change grid."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    from services.weather_pipeline.scheduler_helpers import REGIONAL_CONFIGS
+    import services.noaa_marine_service as noaa_marine
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+
+    seen = {}
+
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
+        seen["scalar"] = resolution
+        seen["map"] = dict(resolutions or {})
+        return {rid: _wave_like_points(scheduler.om_provider, bb, 5.0)
+                for rid, bb in bboxes.items()}
+
+    monkeypatch.setattr(noaa_marine, "fetch_gfs_marine_regions", fake_multi)
+    assert await scheduler.ingest_gfs_marine_pilot() is True
+
+    assert seen["scalar"] == 0.25, "the pass default must stay the flagship 0.25 deg"
+    assert seen["map"] == {"global_mid": 2.0}, (
+        f"expected ONLY global_mid to override its resolution, got {seen['map']} — listing a "
+        f"flagship region here would re-grid tiles that must stay byte-identical")
+
+    mid = [p for p in temp_store.get_manifest().products
+           if p.model == "GFS" and p.domain == "marine" and p.region_id == "global_mid"]
+    assert mid, "the folded pass saved no global_mid products"
+    assert {p.coverage_mode for p in mid} == {"global_tile"}, (
+        "global_mid must be saved as a global_tile — a regional_tile would not be served by "
+        "grid_resolver's Step 3.6 clip, so the z6-7 tier would silently vanish")
+    assert {p.layer for p in mid} == {"waves", "swell_1", "swell_2", "wind_waves"}
+    for p in mid:
+        assert p.resolution == 2.0, f"global_mid saved at {p.resolution} deg, expected 2.0"
+
+
+@pytest.mark.asyncio
+async def test_a_failed_shared_pass_still_produces_global_mid(tmp_path, monkeypatch):
+    """⛔ THE FOLD MAY ONLY SAVE TIME, NEVER LOSE THE TILE. Before the fold, global_mid had its own
+    job with its own fetch; after it, an empty shared pass would leave no one to write the tile at
+    all. The standalone impl must run as a fallback — worst case that is exactly the two downloads
+    we had before, which is the correct thing to trade for never losing the tier."""
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+    from services.weather_pipeline.store import ProductStore
+    import services.noaa_marine_service as noaa_marine
+
+    temp_store = ProductStore(cache_dir=tmp_path)
+    scheduler = WeatherPipelineScheduler(store=temp_store)
+    monkeypatch.setenv("NODE_ENV", "test")
+
+    async def no_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
+        return None
+
+    async def per_region(bbox, resolution=10.0, forecast_days=14, bboxes=None, resolutions=None):
+        return _wave_like_points(scheduler.om_provider, bbox, 5.0)
+
+    monkeypatch.setattr(noaa_marine, "fetch_gfs_marine_regions", no_multi)
+    monkeypatch.setattr(noaa_marine, "fetch_gfs_marine_global_coarse", per_region)
+
+    await scheduler.ingest_gfs_marine_pilot()
+
+    mid = [p for p in temp_store.get_manifest().products
+           if p.model == "GFS" and p.domain == "marine" and p.region_id == "global_mid"]
+    assert mid, "the shared pass failed and nothing fell back — the mid tier would go stale"
+    assert {p.coverage_mode for p in mid} == {"global_tile"}
 
 
 @pytest.mark.asyncio
@@ -235,7 +322,7 @@ async def test_kill_switch_restores_the_per_region_path(tmp_path, monkeypatch):
 
     called = []
 
-    async def fake_multi(bboxes, resolution=0.25, forecast_days=3):
+    async def fake_multi(bboxes, resolution=0.25, forecast_days=3, resolutions=None):
         called.append(1)
         return {}
 

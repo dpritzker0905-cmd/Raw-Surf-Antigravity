@@ -96,7 +96,9 @@ class WeatherPipelineScheduler:
 
         from services.weather_pipeline.scheduler_helpers import (
             flagship_pilot_days, get_all_pilot_regions)
-        from services.weather_pipeline.marine_mid_res_ingestion import _save_marine_regional
+        from services.weather_pipeline.marine_mid_res_ingestion import (
+            _GLOBAL_REGION, _save_marine_regional, gfs_mid_folds_into_pilot,
+            gfs_mid_forecast_days, gfs_mid_resolution, save_gfs_marine_global_mid)
 
         def _layers_for(region_id: str) -> list:
             # Swell 2 is not requested for SoCal
@@ -126,12 +128,33 @@ class WeatherPipelineScheduler:
                 )
                 by_horizon.setdefault(days, {})[rid] = rcfg
 
+            # ══ FOLD THE 2° global_mid TILE INTO THIS SAME PASS (2026-08-02) ══
+            # global_mid used to run as its own job and download the IDENTICAL f000-f336 set that
+            # this pass already pulls — measured in run 30748383857: the mid job 12:43-13:13 and the
+            # flagship 14d pass 14:05-14:31 fetched the same ~790 MB, 26 min apart, in one run. The
+            # bbox never touches the wire (a byte-range selects a whole-globe GRIB *message*), so the
+            # ONLY thing that kept them apart was one resolution per pass — now lifted.
+            # ★ It joins BY HORIZON, not unconditionally: `by_horizon` already groups a pass per
+            # distinct forecast length, so global_mid rides the flagship group only while both are
+            # 14 d. Let those horizons diverge and it forms its OWN group — same cost as before, and
+            # the mid tile's horizon is never silently changed to the flagship's.
+            fold_mid = gfs_mid_folds_into_pilot()
+            mid_res = gfs_mid_resolution()
+            mid_days = gfs_mid_forecast_days(env["is_test_env"])
+            if fold_mid:
+                by_horizon.setdefault(mid_days, {})["global_mid"] = dict(_GLOBAL_REGION)
+
+            mid_saved = 0
             multi_saved = 0
             for days, group in sorted(by_horizon.items()):
+                # ONLY global_mid departs from this pass's 0.25° default. Every other region is left
+                # off the map so it keeps the scalar — their payloads, and their tiles, stay
+                # byte-identical to before the fold.
+                res_map = {"global_mid": mid_res} if "global_mid" in group else None
                 multi = None
                 try:
                     from services.noaa_marine_service import fetch_gfs_marine_regions
-                    multi = await fetch_gfs_marine_regions(group, 0.25, days)
+                    multi = await fetch_gfs_marine_regions(group, 0.25, days, resolutions=res_map)
                 except Exception as _me:
                     logger.error(f"[Pipeline Scheduler] GFS-Wave multi-region fetch errored "
                                  f"({days}d, {len(group)} regions): {_me}")
@@ -146,11 +169,33 @@ class WeatherPipelineScheduler:
                     if not region or not results:
                         continue
                     # NOAA GFS-Wave is natively 3-hourly -> step=1 keeps every step.
-                    multi_saved += await _save_marine_regional(
-                        self, env, run_time, "GFS", _layers_for(region_id),
-                        region_id, region, results, 1, "GFS")
+                    if region_id == "global_mid":
+                        # global_tile coverage, 4 layers, prune + grid size climatology — the SAME
+                        # save the standalone job runs, not a regional_tile lookalike.
+                        mid_saved += await save_gfs_marine_global_mid(
+                            self, env, run_time, results, mid_res, 1)
+                    else:
+                        multi_saved += await _save_marine_regional(
+                            self, env, run_time, "GFS", _layers_for(region_id),
+                            region_id, region, results, 1, "GFS")
                     await self._cleanup_and_pause(results, 0)
 
+            # ⛔ THE FOLD MAY ONLY SAVE TIME — IT MAY NEVER LOSE THE TILE. The shared pass can come
+            # back empty (upstream hiccup, a cycle still publishing, the soft deadline refusing a
+            # stub), and unlike the old arrangement there is no separate job left to cover for it.
+            # So fall back to the standalone impl, which brings its own fetch AND its open-meteo
+            # fallback. Worst case that is exactly today's two downloads; best case it never runs.
+            if fold_mid and mid_saved == 0:
+                logger.warning("[Pipeline Scheduler] global_mid produced nothing from the shared "
+                               "pass; running the standalone mid job as a fallback.")
+                from services.weather_pipeline.marine_mid_res_ingestion import (
+                    ingest_gfs_marine_global_mid_impl)
+                try:
+                    await ingest_gfs_marine_global_mid_impl(self)
+                except Exception as _fe:
+                    logger.error(f"[Pipeline Scheduler] standalone global_mid fallback failed: {_fe}")
+            # `mid_saved` is deliberately NOT folded into `multi_saved`: a healthy mid tile must not
+            # mask a REGIONAL failure and skip the per-region rotation fallback below.
             if multi_saved > 0:
                 logger.info(f"[Pipeline Scheduler] GFS Marine Pilot (multi) done! "
                             f"Saved {multi_saved} products.")

@@ -37,46 +37,48 @@ logger = logging.getLogger(__name__)
 _GLOBAL_REGION = {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0}
 
 
-async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
-    """MID-RES global GFS/NOAA waves — same NOAA-direct GFS-Wave path as the coarse sibling, only a finer
-    resolution (GFS_MID_RES, default 2°). Kill switch: GFS_MARINE_MID_RES_INGEST=0 (registration site)."""
-    logger.info("[Pipeline Scheduler] Starting GFS Marine Global MID-RES Ingestion job...")
-    env = get_env_flags()
-    run_time = datetime.now(timezone.utc)
+def gfs_mid_resolution() -> float:
+    """The global_mid output grid, in degrees. Read from ONE place because the fold makes it a
+    per-region resolution inside someone else's fetch, not just this job's own argument."""
+    return float(os.environ.get("GFS_MID_RES", "2.0"))
+
+
+def gfs_mid_forecast_days(is_test_env: bool) -> int:
+    """14 d MIRRORS ingest_gfs_marine_global's horizon — the forecast timeline must not change
+    resolution mid-scrub, and the EURO extended-estimates machinery anchors on these targets. It is
+    also what decides WHICH horizon group the fold joins, so it must not be re-derived by eye."""
+    return int(os.environ.get("GFS_MID_RES_FORECAST_DAYS", "2" if is_test_env else "14"))
+
+
+def gfs_mid_folds_into_pilot() -> bool:
+    """Does the 2° global_mid tile ride the flagship pilot's multi-bbox pass instead of running its
+    own job and re-downloading the identical f000-f336 set?
+
+    ONE expression, imported by BOTH the registration site (scheduler/forecast.py, which must then
+    NOT register the standalone job) and the pilot itself. Two copies of a predicate is exactly how
+    a job ends up registered twice or nowhere — the duplicated-constant class, which only ever
+    diverges on the boundary where someone flips one switch.
+
+    Every clause is a PRECONDITION for the fold to be possible at all: with no NOAA-direct path and
+    no multi-bbox pass there is no shared download to ride. Kill switch GFS_MARINE_MID_FOLD=0
+    restores the standalone job."""
+    return (os.environ.get("GFS_MARINE_MID_RES_INGEST", "1") != "0"
+            and os.environ.get("GFS_MARINE_MID_FOLD", "1") != "0"
+            and os.environ.get("MARINE_PILOT_MULTI_BBOX", "1") != "0"
+            and os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0")
+
+
+async def save_gfs_marine_global_mid(scheduler, env, run_time, results, resolution,
+                                     save_step) -> int:
+    """Save a GFS-Wave point set as the global_mid tile: 4 layers, global_tile coverage, per-layer
+    prune, then the grid size climatology accumulation.
+
+    EXTRACTED 2026-08-02 so the identical save runs whether the points came from this job's own
+    fetch or from the flagship pilot's shared multi-bbox pass — one download, two consumers. A
+    second copy of a save loop is how two paths drift apart (the same reasoning that keeps the
+    multi-region spawn plumbing threaded through ONE subprocess helper). Caller owns
+    `_cleanup_and_pause`, because the pilot already does it per region."""
     total_saved = 0
-    resolution = float(os.environ.get("GFS_MID_RES", "2.0"))
-    # 14 days (was 10) MIRRORS ingest_gfs_marine_global's horizon (GFS_GLOBAL_FORECAST_DAYS=14): the
-    # forecast timeline must not change resolution mid-scrub. This also FEEDS the blend mirror — the
-    # frontend's ICON >168h and ICON swell_2 blends recursively fetch GFS component grids (which now
-    # resolve to this mid product at z6-7), and the EURO extended-estimates machinery uses GFS
-    # global_mid targets to build the EURO mid 240→336h estimated extension.
-    forecast_days = int(os.environ.get("GFS_MID_RES_FORECAST_DAYS", "2" if env["is_test_env"] else "14"))
-
-    noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
-    results = None
-    from_noaa = False
-    if noaa_direct:
-        try:
-            from services.noaa_marine_service import fetch_gfs_marine_global_coarse
-            results = await fetch_gfs_marine_global_coarse(_GLOBAL_REGION, resolution, forecast_days)
-            if results:
-                from_noaa = True
-                logger.info(f"[Pipeline Scheduler] GFS-Wave mid-res NOAA-direct OK: {len(results)} points.")
-        except Exception as _ne:
-            logger.error(f"[Pipeline Scheduler] GFS-Wave mid-res NOAA-direct fetch errored: {_ne}")
-
-    if not results:
-        results = await scheduler._fetch_or_mock(
-            "GFS", "marine", "all_marine", _GLOBAL_REGION, resolution, forecast_days,
-            env["is_test_env"],
-            lambda: generate_mock_marine_results(scheduler.om_provider, _GLOBAL_REGION, resolution),
-            "global_mid"
-        )
-    if not results:
-        logger.error("[Pipeline Scheduler] GFS marine global_mid fetch failed. Skipping.")
-        return False
-
-    save_step = 1 if from_noaa else 3
     for layer in ["waves", "swell_1", "swell_2", "wind_waves"]:
         count = await normalize_and_save_loop(
             scheduler.normalizer, scheduler.store, results,
@@ -112,6 +114,49 @@ async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
                         len(clim.get("cells", {})))
         except Exception as _gce:
             logger.warning(f"[Pipeline Scheduler] grid size climatology accumulation skipped: {_gce}")
+    return total_saved
+
+
+async def ingest_gfs_marine_global_mid_impl(scheduler) -> bool:
+    """MID-RES global GFS/NOAA waves — same NOAA-direct GFS-Wave path as the coarse sibling, only a finer
+    resolution (GFS_MID_RES, default 2°). Kill switch: GFS_MARINE_MID_RES_INGEST=0 (registration site)."""
+    logger.info("[Pipeline Scheduler] Starting GFS Marine Global MID-RES Ingestion job...")
+    env = get_env_flags()
+    run_time = datetime.now(timezone.utc)
+    resolution = gfs_mid_resolution()
+    # 14 days (was 10) MIRRORS ingest_gfs_marine_global's horizon (GFS_GLOBAL_FORECAST_DAYS=14): the
+    # forecast timeline must not change resolution mid-scrub. This also FEEDS the blend mirror — the
+    # frontend's ICON >168h and ICON swell_2 blends recursively fetch GFS component grids (which now
+    # resolve to this mid product at z6-7), and the EURO extended-estimates machinery uses GFS
+    # global_mid targets to build the EURO mid 240→336h estimated extension.
+    forecast_days = gfs_mid_forecast_days(env["is_test_env"])
+
+    noaa_direct = os.environ.get("GFS_MARINE_NOAA_DIRECT", "1") != "0"
+    results = None
+    from_noaa = False
+    if noaa_direct:
+        try:
+            from services.noaa_marine_service import fetch_gfs_marine_global_coarse
+            results = await fetch_gfs_marine_global_coarse(_GLOBAL_REGION, resolution, forecast_days)
+            if results:
+                from_noaa = True
+                logger.info(f"[Pipeline Scheduler] GFS-Wave mid-res NOAA-direct OK: {len(results)} points.")
+        except Exception as _ne:
+            logger.error(f"[Pipeline Scheduler] GFS-Wave mid-res NOAA-direct fetch errored: {_ne}")
+
+    if not results:
+        results = await scheduler._fetch_or_mock(
+            "GFS", "marine", "all_marine", _GLOBAL_REGION, resolution, forecast_days,
+            env["is_test_env"],
+            lambda: generate_mock_marine_results(scheduler.om_provider, _GLOBAL_REGION, resolution),
+            "global_mid"
+        )
+    if not results:
+        logger.error("[Pipeline Scheduler] GFS marine global_mid fetch failed. Skipping.")
+        return False
+
+    total_saved = await save_gfs_marine_global_mid(
+        scheduler, env, run_time, results, resolution, 1 if from_noaa else 3)
 
     await scheduler._cleanup_and_pause(results, 0)
     return total_saved > 0

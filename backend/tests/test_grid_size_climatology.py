@@ -139,10 +139,35 @@ def test_apply_surf_overlay_threads_reference_under_flag():
 
 
 def test_gfs_mid_ingest_wires_grid_climatology():
-    """The GFS global_mid ingest folds hour-0 breaking heights into the grid blob (gated, never fatal)."""
+    """The GFS global_mid save folds hour-0 breaking heights into the grid blob (gated, never fatal).
+
+    ⬇ 2026-08-02: the wiring moved from ingest_gfs_marine_global_mid_impl into the extracted
+    save_gfs_marine_global_mid, because global_mid now has TWO producers — its own job and the
+    flagship pilot's shared multi-bbox pass. Asserting only the old function would have gone green
+    off a source string while the folded path quietly stopped accumulating."""
     import inspect
-    from services.weather_pipeline.marine_mid_res_ingestion import ingest_gfs_marine_global_mid_impl
-    src = inspect.getsource(ingest_gfs_marine_global_mid_impl)
+    from services.weather_pipeline.marine_mid_res_ingestion import save_gfs_marine_global_mid
+    src = inspect.getsource(save_gfs_marine_global_mid)
     assert "RATING_GRID_SIZE_CLIMATOLOGY" in src
     assert "accumulate_points_into_grid_climatology" in src
     assert "upload_grid_size_climatology_l2" in src
+
+
+def test_both_global_mid_producers_route_through_the_same_save():
+    """BOTH paths that can produce global_mid must call the ONE save that carries the climatology,
+    the global_tile coverage mode and the per-layer prune. The fold's tempting shortcut is to let
+    the pilot store global_mid with _save_marine_regional like every other region in the group —
+    which would silently downgrade it to a regional_tile AND stop the climatology updating, with no
+    test red and no log line."""
+    import inspect
+    from services.weather_pipeline.marine_mid_res_ingestion import ingest_gfs_marine_global_mid_impl
+    from services.weather_pipeline.scheduler import WeatherPipelineScheduler
+
+    standalone = inspect.getsource(ingest_gfs_marine_global_mid_impl)
+    assert "save_gfs_marine_global_mid" in standalone, "the standalone job stopped using the shared save"
+
+    pilot = inspect.getsource(WeatherPipelineScheduler.ingest_gfs_marine_pilot)
+    assert "save_gfs_marine_global_mid" in pilot, "the folded path stopped using the shared save"
+    assert 'region_id == "global_mid"' in pilot, (
+        "the pilot must special-case global_mid; falling through to _save_marine_regional would "
+        "write it as a regional_tile")

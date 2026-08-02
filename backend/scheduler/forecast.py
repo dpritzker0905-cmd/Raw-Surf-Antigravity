@@ -124,6 +124,12 @@ def ingest_marine_forecast_task():
                 ("Lattice In-Band Gap Fill", weather_scheduler.ingest_lattice_inband_fill),
             ]
 
+            # Imported rather than re-spelled: the fold predicate has FOUR clauses and is also read
+            # inside ingest_gfs_marine_pilot. Two copies would diverge the first time one switch is
+            # flipped, and the failure mode is silent — the mid job registered here AND folded there
+            # (two downloads, the thing being fixed), or neither (no mid tile at all).
+            from services.weather_pipeline.marine_mid_res_ingestion import gfs_mid_folds_into_pilot
+
             pilot_jobs = [
                 # Marine MID-RES globals (z6-7 quality tier, 2026-07-05): ~2° globals served CLIPPED by
                 # grid_resolver's Step 3.6 — kills the <1-cell coarse lattice + flat color at zoom-out.
@@ -139,8 +145,16 @@ def ingest_marine_forecast_task():
                 # budget caution kept it OFF — which left EURO with ZERO global_mid products = no
                 # EURO rating band ("band only on GFS"). CMEMS stays as its fallback path
                 # (EURO_MARINE_MID_ECMWF=0 forces it). Kills: {GFS,ICON,EURO}_MARINE_MID_RES_INGEST=0.
+                # ⬇ 2026-08-02: NOT registered when it folds into "GFS Marine Pilot" below. The two
+                # jobs were downloading the IDENTICAL f000-f336 whole-globe set in the same run
+                # (~790 MB, ~26 min, measured run 30748383857) because a byte-range selects a GRIB
+                # *message*, not a region — the bbox never touches the wire. The pilot now samples
+                # the 2° global tile from the pass it was already making. If that shared pass yields
+                # nothing, the pilot re-runs THIS impl as a fallback, so the tile cannot be lost.
+                # Kill: GFS_MARINE_MID_FOLD=0 puts the standalone job back here.
                 *([("GFS Marine Global Mid", weather_scheduler.ingest_gfs_marine_global_mid)]
-                  if os.environ.get("GFS_MARINE_MID_RES_INGEST", "1") != "0" else []),
+                  if (os.environ.get("GFS_MARINE_MID_RES_INGEST", "1") != "0"
+                      and not gfs_mid_folds_into_pilot()) else []),
                 *([("ICON Marine Global Mid", weather_scheduler.ingest_icon_marine_global_mid)]
                   if os.environ.get("ICON_MARINE_MID_RES_INGEST", "1") != "0" else []),
                 *([("EURO Marine Global Mid", weather_scheduler.ingest_euro_marine_global_mid)]

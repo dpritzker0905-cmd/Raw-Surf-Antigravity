@@ -237,10 +237,28 @@ def fetch_global_coarse(payload):
     forecast_days = int(payload.get("forecast_days", 14))
     max_f = min(int(forecast_days) * 24, 384)
 
+    # ── PER-REGION RESOLUTION (2026-08-02) ───────────────────────────────────────────────────────
+    # A download pass is already region-independent: NOAA's byte-range selects a GRIB *message*, and
+    # a message is the whole global 0.25° field, so the bbox never touches the wire (2b0e1466). But
+    # the pass still forced ONE output resolution on every bbox — which is why the 2° global_mid tile
+    # could not ride along with the 0.25° flagship tiles and instead re-downloaded the identical
+    # f000-f336 set: ~790 MB and ~26 min, twice per pilots cycle (measured, run 30748383857).
+    # `resolutions` ({region_id: degrees}) lifts that, defaulting to the scalar for any region it
+    # omits — so a payload WITHOUT the key is byte-identical to before, and the single-bbox path
+    # never carries one at all.
+    # Kill switch NOAA_MULTI_RES=0 -> ignore the map, one resolution for every bbox, exactly as before.
+    _res_map = payload.get("resolutions") or {}
+    if os.environ.get("NOAA_MULTI_RES", "1") == "0":
+        _res_map = {}
+    res_by = {rid: float(_res_map.get(rid, resolution)) for rid in regions}
+
     # rid -> (lats, lons). Axis order matches the single-bbox path exactly (lat outer, lon inner).
-    axes = {rid: (_coarse_axis(float(bb["south"]), float(bb["north"]), resolution),
-                  _coarse_axis(float(bb["west"]), float(bb["east"]), resolution))
+    axes = {rid: (_coarse_axis(float(bb["south"]), float(bb["north"]), res_by[rid]),
+                  _coarse_axis(float(bb["west"]), float(bb["east"]), res_by[rid]))
             for rid, bb in regions.items()}
+    # Block half-width per region, against the FIXED 0.25° source grid (10° block -> half = 20).
+    # Loop-invariant, so computed ONCE here instead of per forecast hour as the single `half` was.
+    half_by = {rid: max(1, int(round(res_by[rid] / 0.25 / 2.0))) for rid in regions}
     f_hours = list(range(0, max_f + 1, 3))  # 3-hourly (all multiples of 3 exist 0..384)
 
     cycle_dt, prefix = _pick_cycle(requests, datetime.now(timezone.utc), max_f)
@@ -339,17 +357,19 @@ def fetch_global_coarse(payload):
             # total_field default ON (third pass, 2026-07-02): in tri-modal water the partition vectors
             # cancel and the blend lands on a minority system (Baja block 20,-120 read TO≈257 while DIRPW
             # says TO≈6) — the coherence-gated DIRPW tier in the _conf helper fixes exactly that.
-            half = max(1, int(round(resolution / 0.25 / 2.0)))  # 10° blocks on the 0.25° grid → half = 20
             _partition_pairs = [(arrs[d], arrs[h]) for d, h in TOTAL_SEA_PARTITIONS]
             _total_h = arrs.get("wave_height") if total_field else None
             # The decode + the block-mean inputs above are per-STEP and region-independent; only the
-            # point iteration below is per-region. That asymmetry is the whole optimisation.
+            # point iteration below is per-region. That asymmetry is the whole optimisation, and it
+            # is why the BLOCK WIDTH (`half`) can differ per region for free — it is read inside the
+            # per-region loops, never in the shared decode.
             for om in OM_ORDER:
                 arr = arrs[om]
                 if blockmean and om == "wave_direction":
                     # total-sea direction: coherence-gated blend of DIRPW-block-mean and partitions
                     for rid, rmap in idx_by.items():
                         series = series_by[rid]
+                        half = half_by[rid]
                         for pi, (r, c) in enumerate(rmap):
                             x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
                             series[pi][om].append(round(float(x), 4) if x == x else None)
@@ -366,6 +386,7 @@ def fetch_global_coarse(payload):
                 part_conf_key = PARTITION_DIR_CONFIDENCE_OM.get(om) if export_part_conf else None
                 for rid, rmap in idx_by.items():
                     series = series_by[rid]
+                    half = half_by[rid]
                     for pi, (r, c) in enumerate(rmap):
                         if h_arr is not None and part_conf_key:
                             x, _pconf = energy_mean_direction_block_partition_conf(

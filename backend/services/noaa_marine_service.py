@@ -36,6 +36,7 @@ async def fetch_gfs_marine_global_coarse(
     resolution: float = 10.0,
     forecast_days: int = 14,
     bboxes: Optional[dict] = None,
+    resolutions: Optional[dict] = None,
 ):
     """
     BACKGROUND-ONLY: fetch a coarse (resolution°) GLOBAL GFS-Wave grid direct from NOAA AWS Open Data
@@ -71,6 +72,10 @@ async def fetch_gfs_marine_global_coarse(
     }
     if bboxes:
         payload["bboxes"] = dict(bboxes)
+    # Only emitted when a caller actually mixes resolutions, so every existing payload stays
+    # byte-identical and the fetcher's scalar default keeps governing.
+    if resolutions:
+        payload["resolutions"] = {k: float(v) for k, v in resolutions.items()}
     script = os.path.join(os.path.dirname(__file__), "noaa_gfs_wave_fetcher.py")
 
     # HARD ceiling — a BACKSTOP, not the primary control. The fetcher's own NOAA_FETCH_BUDGET_S
@@ -129,6 +134,7 @@ async def fetch_gfs_marine_regions(
     bboxes: dict,
     resolution: float = 0.25,
     forecast_days: int = 3,
+    resolutions: Optional[dict] = None,
 ) -> Optional[dict]:
     """MULTI-BBOX single-download-pass: ONE GFS-Wave download pass samples EVERY region in `bboxes`
     ({region_id: bbox}) — N regions for one region's download cost.
@@ -142,13 +148,18 @@ async def fetch_gfs_marine_regions(
     converting a batch cost into per-request compute on a box with three melt incidents.
     Mirrors fetch_icon_marine_regions / fetch_gfs_wind_regions.
 
+    `resolutions` ({region_id: degrees}) lets ONE pass emit tiles at DIFFERENT resolutions —
+    unlisted regions keep the scalar `resolution`. That is what allows the 2° global_mid tile to ride
+    the 0.25° flagship pass instead of re-downloading the identical f000-f336 set (~790 MB, ~26 min
+    per pilots cycle). Omit it and every payload is byte-identical to before.
+
     Returns {region_id: [Open-Meteo-shaped points]} or None (caller falls back to the per-region
     path). None in test env, same as the single-bbox fetcher."""
     if not bboxes:
         return None
     first = next(iter(bboxes.values()))
     data = await fetch_gfs_marine_global_coarse(
-        first, resolution, forecast_days, bboxes=dict(bboxes))
+        first, resolution, forecast_days, bboxes=dict(bboxes), resolutions=resolutions)
     if isinstance(data, dict) and data.get("__multi_region__"):
         regions = data.get("regions")
         return regions if regions else None

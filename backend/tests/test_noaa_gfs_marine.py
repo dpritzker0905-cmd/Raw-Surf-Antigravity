@@ -124,7 +124,14 @@ async def test_gfs_marine_pilot_noaa_direct_regional(tmp_path, monkeypatch):
     success = await scheduler.ingest_gfs_marine_pilot()
     assert success is True
     # NOAA primary taken for BOTH pilot regions (not the open-meteo fallback).
-    assert len(called_regions) == len(REGIONAL_CONFIGS)
+    # ⬇ 2026-08-02: the folded global_mid tile brings its OWN full-globe fetch whenever the shared
+    # multi-bbox pass is unavailable — as it is here, because this fake predates that signature. Count
+    # only the REGIONAL bboxes, which is what this test is about.
+    from services.weather_pipeline.marine_mid_res_ingestion import _GLOBAL_REGION
+    _global_we = (round(_GLOBAL_REGION["west"], 2), round(_GLOBAL_REGION["east"], 2))
+    regional_calls = [we for we in called_regions if we != _global_we]
+    assert len(regional_calls) == len(REGIONAL_CONFIGS), (
+        f"expected one NOAA fetch per pilot region, got {regional_calls}")
 
     products = temp_store.get_manifest().products
     for region_id in REGIONAL_CONFIGS:

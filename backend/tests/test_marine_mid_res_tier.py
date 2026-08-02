@@ -34,6 +34,47 @@ def test_mid_jobs_run_in_pilots_lane():
             f"{fn} must live in pilot_jobs (the pilots workflow budget), not core_jobs (165-min timeout)"
 
 
+def test_registration_skips_the_standalone_mid_job_when_it_folds_into_the_pilot():
+    """⛔ THE FAILURE THIS STOPS IS THE ONE BEING FIXED. If the registration site keeps scheduling
+    "GFS Marine Global Mid" while the pilot ALSO folds global_mid into its pass, the run downloads
+    the identical f000-f336 set twice again — exactly the ~790 MB / ~26 min waste measured in run
+    30748383857 — and nothing goes red, because both jobs succeed."""
+    import inspect
+    from scheduler import forecast
+    src = inspect.getsource(forecast.ingest_marine_forecast_task)
+    assert "gfs_mid_folds_into_pilot" in src, (
+        "the standalone mid job is registered unconditionally — it must be skipped when folded")
+    reg = src.index("ingest_gfs_marine_global_mid")
+    guard = src.index("not gfs_mid_folds_into_pilot()")
+    assert abs(guard - reg) < 400, "the fold guard must gate the mid job's own registration"
+
+
+def test_fold_predicate_requires_every_precondition():
+    """The fold needs a shared pass to ride. Each switch below removes one, and any of them must send
+    global_mid back to its own job — a predicate that ignored, say, MARINE_PILOT_MULTI_BBOX would
+    unregister the standalone job while the pilot never folded, and the mid tier would go stale with
+    nothing failing."""
+    import os
+    from services.weather_pipeline.marine_mid_res_ingestion import gfs_mid_folds_into_pilot
+
+    saved = {k: os.environ.get(k) for k in
+             ("GFS_MARINE_MID_RES_INGEST", "GFS_MARINE_MID_FOLD",
+              "MARINE_PILOT_MULTI_BBOX", "GFS_MARINE_NOAA_DIRECT")}
+    try:
+        for k in saved:
+            os.environ.pop(k, None)
+        assert gfs_mid_folds_into_pilot() is True, "defaults must fold"
+        for k in saved:
+            os.environ[k] = "0"
+            assert gfs_mid_folds_into_pilot() is False, f"{k}=0 must disable the fold"
+            os.environ.pop(k, None)
+    finally:
+        for k, v in saved.items():
+            os.environ.pop(k, None)
+            if v is not None:
+                os.environ[k] = v
+
+
 def test_extended_estimates_covers_global_mid_region():
     """The EURO 240→336h estimated extension must MIRROR onto the mid tier: the region-parameterized
     extended-estimates machinery has to iterate region 'global_mid' (a per-layer no-op until EURO mid
