@@ -578,8 +578,20 @@ jobs:
                      text=True).stdout.split()
                      if f.endswith(".py") and os.path.basename(f).startswith("test_")]
           taken = {f for f in tracked for p in COMPOSITION if fnmatch.fnmatch(f, p)}
-          IMPORTS = re.compile(r'(?:from|import)\s+(services\.weather_pipeline[\w.]*'
-                               r'|services\.\w*fetcher\w*|services\._fetch_common|services\.\w*_service)')
+          # ⚠️ THE SELECTOR WAS BLIND TO AN IMPORT FORM, not to a module (2026-08-02). It only ever
+          # matched `services.<mod>` — the DOTTED form — so a test written
+          # `from services import dwd_icon_wind_fetcher` was invisible and ran in NO lane. Measured:
+          # 3 tracked files import that way; 2 are genuinely forecast-chain
+          # (`test_icon_wind_multi_bbox_fetch.py`, whose own docstring says a mis-association would
+          # "produce plausible wind at the wrong place, which no smoke test would notice", and
+          # `test_ecmwf_period_bands_decode.py`), and `test_private_media.py` is media and stays out
+          # BY MODULE NAME rather than by accident.
+          # ★ The module pattern is now written ONCE and used by both forms. Two copies is how the
+          # composition glob came to miss 45 of its own files, and how a sibling test file was
+          # adopted only because it happened to also import `services.weather_pipeline`.
+          _CHAIN_MOD = r'(?:weather_pipeline[\w.]*|\w*fetcher\w*|_fetch_common|\w*_service)'
+          IMPORTS = re.compile(r'(?:from|import)\s+services\.' + _CHAIN_MOD
+                               + r'|from\s+services\s+import\s+' + _CHAIN_MOD)
           out = [f for f in sorted(set(tracked) - taken)
                  if IMPORTS.search(open(f, encoding="utf-8", errors="ignore").read())]
           print("\n".join(out))
