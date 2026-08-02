@@ -219,7 +219,21 @@ def audit_flags():
 # ── 2. THE OWNER'S CALIBRATION ANCHORS ──────────────────────────────────────────────────────────
 
 def audit_anchors():
-    live_ref = None if os.environ.get("RATING_LOCAL_SIZE", "0") == "0" else 0.75
+    # ⚠️⚠️ THIS READ ITS OWN PROCESS ENV, AND THAT IS THE DEFECT `_workflow_flag` WAS WRITTEN FOR.
+    # `RATING_LOCAL_SIZE` is PRODUCTION's rollout lever — its authority lives in forecast-ingest.yml,
+    # precompute.yml and Render env, and it has been '1' in all three since `3263031c`. Defaulting to
+    # "0" here meant a bare run reported TWO FAILS (owner_anchors 4/5, dynamic_range "4/6/8/10/12 ft
+    # ALL score 84.0") that PRODUCTION DOES NOT HAVE, and its own remedy line told the reader to
+    # "flip RATING_LOCAL_SIZE" — a flag already flipped. Measured 2026-08-01: bare -> 2 FAIL, exit 1;
+    # with the lanes' actual value -> 2 PASS, exit 0.
+    # ★ The file already had the answer: `_workflow_flag` exists precisely because "reporting only
+    # os.environ was actively misleading" for RATING_TIDE. Same trap, one function away, unapplied.
+    # Local env still WINS when explicitly set, so a what-if run (`RATING_LOCAL_SIZE=0 ...`) can still
+    # ask "what would the global curve look like" — the lanes are the DEFAULT, not an override.
+    _lanes = _workflow_flag("RATING_LOCAL_SIZE")
+    _lane_on = bool(_lanes) and all(v == "1" for v in _lanes.values())
+    _local_size = os.environ.get("RATING_LOCAL_SIZE", "1" if _lane_on else "0")
+    live_ref = None if _local_size == "0" else 0.75
     rep = anchor_report(live_ref)
     label = "global 1.2 m" if live_ref is None else f"local {live_ref} m"
     status = OK if rep["passed"] == rep["total"] else FAIL
@@ -243,7 +257,12 @@ def audit_anchors():
 # ── 3. DYNAMIC RANGE — does size still carry information above the reference? ────────────────────
 
 def audit_dynamic_range():
-    ref = None if os.environ.get("RATING_LOCAL_SIZE", "0") == "0" else 0.75
+    # Same lane-default resolution as audit_anchors — see the block there. TWO call sites read this
+    # flag from their own env; fixing one and not the other would have left the audit reporting a
+    # PASS and a FAIL about the SAME curve, which is worse than reporting two FAILs.
+    _lanes = _workflow_flag("RATING_LOCAL_SIZE")
+    _lane_on = bool(_lanes) and all(v == "1" for v in _lanes.values())
+    ref = None if os.environ.get("RATING_LOCAL_SIZE", "1" if _lane_on else "0") == "0" else 0.75
     scores = {ft: SR.compute_surf_rating(ft * FT, 9.0, 2.0, 270.0, 90.0, 90.0,
                                          reference_size_m=ref)[0]
               for ft in (4, 6, 8, 10, 12)}
