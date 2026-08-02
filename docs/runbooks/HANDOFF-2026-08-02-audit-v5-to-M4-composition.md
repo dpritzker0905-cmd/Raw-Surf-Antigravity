@@ -111,10 +111,13 @@ Then: flip `ECMWF_PERIOD_BANDS` to `'1'` in **forecast-ingest.yml AND forecast-i
 
 **Immediate:**
 1. **The one M4 hook** (§4) the moment `point_resolution.py` frees.
-2. **Ratchet the composition floor** — three files were added to that lane today
-   (`test_partition_band_composition`, `test_marine_ensemble_cost_probe`,
-   `test_surf_transform_docstring_truth`) against a floor of 103. **Read it off the GATE, never a
-   checkout** — a clean worktree at the same sha read 104/1204 where the gate read 102/1178.
+2. ✅ **DONE `8d714c23`** — composition floor ratcheted 103 → **107 / 1210**, from the gate's own run
+   on `origin/dev @ 904f50cf` ("1282 tests across 107 files -> 1216 passed"). Four files had
+   accumulated below it. **Read it off the GATE, never a checkout** — a clean worktree at the same
+   sha read 104/1204 where the gate read 102/1178.
+   ★ Fourth ratchet of the day (chain 63→65→67, composition 96→102→103→107). **A ratchet not raised
+   in the same change that grows the count silently becomes slack, and slack in a coverage gate is
+   indistinguishable from coverage.**
 3. **Set `SHORE_NORMAL_BEARING_RADIUS_KM` in Render** — it runs 3.0 by code default either way, but
    an undeclared Render means a future rollback to `1.0` in the three git lanes leaves it at 3.0.
 
