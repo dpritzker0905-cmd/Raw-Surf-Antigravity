@@ -62,7 +62,8 @@ async def check_surf_alerts_task():
                 try:
                     # Fetch current conditions using PointResolutionService
                     conditions_data = await point_resolution_service.resolve_spot_conditions(
-                        model="GFS", lat=spot.latitude, lng=spot.longitude, forecast_days=1
+                        model="GFS", lat=spot.latitude, lng=spot.longitude, forecast_days=1,
+                        spot_id=spot_id
                     )
                     
                     if not conditions_data or "current_conditions" not in conditions_data:

@@ -87,7 +87,8 @@ async def get_spot_details(
     # Fetch real-time conditions and forecast using unified service
     try:
         conditions_data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=api_forecast_days,
+            spot_id=spot.id
         )
         if conditions_data:
             spot_data["current_conditions"] = conditions_data.get("current_conditions")

@@ -56,7 +56,8 @@ async def get_batch_conditions(
         if spot:
             try:
                 data = await point_resolution_service.resolve_spot_conditions(
-                    model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=1
+                    model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=1,
+                    spot_id=spot_id
                 )
                 if data and "current_conditions" in data:
                     current = data["current_conditions"]
@@ -88,7 +89,7 @@ async def get_spot_conditions(
     
     try:
         data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=2
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=2, spot_id=spot_id
         )
         if data and "current_conditions" in data:
             current = data["current_conditions"]
@@ -151,7 +152,8 @@ async def get_spot_forecast(
     
     try:
         data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=min(days, 10)
+            model=model, lat=spot.latitude, lng=spot.longitude, forecast_days=min(days, 10),
+            spot_id=spot_id
         )
         if data and "forecast" in data:
             forecast = data["forecast"][:days]

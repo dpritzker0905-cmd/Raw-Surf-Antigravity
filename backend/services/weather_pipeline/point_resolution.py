@@ -756,12 +756,20 @@ class PointResolutionService:
         model: str,
         lat: float,
         lng: float,
-        forecast_days: int = 11
+        forecast_days: int = 11,
+        spot_id: Any = None
     ) -> Dict[str, Any]:
         """
         Unifies conditions retrieval for a spot, checking local dynamic/manifest
         caches first, and falling back to a single upstream point query on miss.
+
+        `spot_id` is OPTIONAL and changes nothing about the forecast itself — it lets the rating
+        grade the height against the SPOT'S OWN good day (`spot_size_climatology`, gated
+        RATING_LOCAL_SIZE) instead of the global curve, which is what the map glyphs do. Omit it and
+        the hub keeps the global curve, i.e. the behaviour before that flag existed. Every caller
+        that has an id should pass it, or the hub and the glyphs grade the same spot differently.
         """
         from services.weather_pipeline.spot_conditions import resolve_spot_conditions_impl
-        return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days)
+        return await resolve_spot_conditions_impl(self, model, lat, lng, forecast_days,
+                                                  spot_id=spot_id)
 

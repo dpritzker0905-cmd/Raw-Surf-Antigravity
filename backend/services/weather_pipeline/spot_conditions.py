@@ -154,11 +154,16 @@ async def resolve_spot_conditions_impl(
     model: str,
     lat: float,
     lng: float,
-    forecast_days: int = 11
+    forecast_days: int = 11,
+    spot_id: Any = None
 ) -> Dict[str, Any]:
     """
     Unifies conditions retrieval for a spot, checking local dynamic/manifest
     caches first, and falling back to a single upstream point query on miss.
+
+    ``spot_id`` is OPTIONAL and affects only the rating's LOCAL SIZE REFERENCE (see below). It is a
+    coordinate-keyed function otherwise; every caller that has an id should pass it, and a caller
+    that genuinely has none gets exactly the previous behaviour.
     """
     # Round current conditions target time to nearest 3 hours
     now_dt = datetime.now(timezone.utc)
@@ -253,6 +258,37 @@ async def resolve_spot_conditions_impl(
         except Exception as e:
             logger.warning(f"[spot-conditions] geometry unavailable at ({lat},{lng}): {e}")
 
+    # ── THE LOCAL SIZE REFERENCE, resolved ONCE (same reason as the geometry) ─────────────────
+    # `size_score` grades this hour's height against the SPOT'S OWN good day rather than a global
+    # 1.2 m curve. Like the geometry it is a property of the SPOT, not of the hour.
+    #
+    # ⚠️ THIS WAS THE LAST FACTOR THE HUB SAT OUT, and it was the same defect class as `9b808d05`:
+    # the reference implementation passed it and the hub did not, so the two surfaces were one flag
+    # flip from grading the same spot differently. Measured 2026-07-30, hub vs glyph on identical
+    # inputs over 540 spot/size/period/wind combinations:
+    #     RATING_LOCAL_SIZE=0 (production before the flip)  |dScore| median  0.0   LEVEL differs  0.0%
+    #     RATING_LOCAL_SIZE=1                               |dScore| median 10.5   LEVEL differs 60.6%
+    # Latent, not live — until `3263031c` flipped the flag in all three lanes, at which point the
+    # hub would have kept the GLOBAL curve while every glyph moved to the local one. ★ And a
+    # reference is not a mere calibration: `size_score` switches to a different CURVE SHAPE the
+    # moment one is supplied, so a surface sitting the flip out diverges MORE, not less.
+    #
+    # ⛔ NOT re-derived: `reference_for_spot` IS `reference_map(load_size_climatology_l2_cached())`,
+    # the same two symbols `spot_ratings` composes, with the map cached against the loaded blob so a
+    # per-spot lane doesn't rebuild ~1,800 percentiles per call. One composition, three lanes.
+    # ★ The GATE lives here, at the caller, exactly as it does in `spot_ratings` and `routes/weather`
+    # — a flag has a value PER LANE, and burying it in the shared helper would flip all of them at
+    # once. Fails open to None (= the global curve = the pre-flip behaviour), and its own try because
+    # the rating block below is a broad `except`: a blob-read failure must cost the LOCAL curve, not
+    # the whole rating.
+    reference_size_m = None
+    if spot_id is not None and os.environ.get("RATING_LOCAL_SIZE", "0") == "1":
+        try:
+            from services.weather_pipeline.spot_size_climatology import reference_for_spot
+            reference_size_m = reference_for_spot(spot_id)
+        except Exception as e:
+            logger.debug(f"[spot-conditions] size reference unavailable for {spot_id}: {e}")
+
     # Construct current conditions response dict
     current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
     current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
@@ -310,6 +346,7 @@ async def resolve_spot_conditions_impl(
             wind_from_deg=wind_from,
             shore_normal_deg=getattr(geometry, "shore_normal_deg", None),
             swell_from_deg=swell_from,
+            reference_size_m=reference_size_m,
             partitions=current_parts,
             break_depth_m=getattr(geometry, "break_depth_m", None))
         # ── THE OBSERVATION GATE (#13, owner decision 2026-07-31) ─────────────────────────────

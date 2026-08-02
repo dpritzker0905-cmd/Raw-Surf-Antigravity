@@ -46,12 +46,21 @@ _surf_spots_response_cache: Dict[str, Dict[str, Any]] = {}
 SURF_SPOTS_CACHE_TTL = 300  # 5 minutes
 
 
-def _get_cache_key(lat: float, lng: float, forecast_days: int, model: str = "GFS") -> str:
-    """Generate cache key for a location + forecast days + model combo"""
+def _get_cache_key(lat: float, lng: float, forecast_days: int, model: str = "GFS",
+                   spot_id: Any = None) -> str:
+    """Generate cache key for a location + forecast days + model (+ spot) combo.
+
+    ⚠️ `spot_id` IS PART OF THE KEY, and has to be. The conditions payload now carries a RATING
+    graded against the spot's own size climatology (`spot_size_climatology`, gated
+    RATING_LOCAL_SIZE), and this key rounds coordinates to 2 dp — ~1.1 km — to group nearby
+    lookups. Two catalogued peaks inside one rounded cell (a point and the beach break beside it)
+    have DIFFERENT references and therefore different scores, so a coordinate-only key would serve
+    whichever spot asked first to both. The rounding is still what it was for the marine sample;
+    the id is what keeps the rating attributable to the spot it describes."""
     # Round to 2 decimal places to group nearby coordinates
     lat_rounded = round(lat, 2)
     lng_rounded = round(lng, 2)
-    return f"{lat_rounded}_{lng_rounded}_{forecast_days}_{model.upper()}"
+    return f"{lat_rounded}_{lng_rounded}_{forecast_days}_{model.upper()}_{spot_id}"
 
 
 def _get_cached_conditions(cache_key: str) -> Optional[Dict]:
@@ -77,24 +86,28 @@ def _set_cached_conditions(cache_key: str, data: Dict):
             del _conditions_cache[k]
 
 
-async def fetch_marine_conditions(lat: float, lng: float, forecast_days: int, model: str = "GFS") -> Optional[Dict]:
+async def fetch_marine_conditions(lat: float, lng: float, forecast_days: int, model: str = "GFS",
+                                  spot_id: Any = None) -> Optional[Dict]:
     """
     Fetch marine conditions using PointResolutionService with L1 caching.
     Returns conformed conditions dict or None on error.
+
+    `spot_id` is optional and only reaches the rating's local size reference — see
+    `PointResolutionService.resolve_spot_conditions`. It is part of the cache key, not just the call.
     """
-    cache_key = _get_cache_key(lat, lng, forecast_days, model)
-    
+    cache_key = _get_cache_key(lat, lng, forecast_days, model, spot_id)
+
     # Check cache first
     cached = _get_cached_conditions(cache_key)
     if cached:
         logger.debug(f"[Cache HIT] Conditions for {lat},{lng} ({model})")
         return cached
-    
+
     logger.debug(f"[Cache MISS] Fetching conditions for {lat},{lng} ({model})")
-    
+
     try:
         data = await point_resolution_service.resolve_spot_conditions(
-            model=model, lat=lat, lng=lng, forecast_days=forecast_days
+            model=model, lat=lat, lng=lng, forecast_days=forecast_days, spot_id=spot_id
         )
         if data:
             _set_cached_conditions(cache_key, data)
@@ -455,7 +468,8 @@ async def get_surf_spots_with_conditions(
     # ============ PARALLEL FETCH: Conditions for all spots at once ============
     async def fetch_spot_conditions(spot):
         """Fetch conditions for a single spot using cached helper"""
-        data = await fetch_marine_conditions(spot.latitude, spot.longitude, api_forecast_days, model)
+        data = await fetch_marine_conditions(spot.latitude, spot.longitude, api_forecast_days, model,
+                                             spot_id=spot.id)
         return (spot.id, data)
     
     # Fetch all conditions in parallel

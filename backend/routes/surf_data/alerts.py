@@ -292,7 +292,8 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
         
         try:
             data = await point_resolution_service.resolve_spot_conditions(
-                model="GFS", lat=alert.spot.latitude, lng=alert.spot.longitude, forecast_days=1
+                model="GFS", lat=alert.spot.latitude, lng=alert.spot.longitude, forecast_days=1,
+                spot_id=alert.spot.id
             )
             if data and "current_conditions" in data:
                 current = data["current_conditions"]
