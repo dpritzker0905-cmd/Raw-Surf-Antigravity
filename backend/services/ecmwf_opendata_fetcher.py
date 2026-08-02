@@ -52,6 +52,48 @@ LAYER_PARAMS = {"wind": ["10u", "10v"], "pressure": ["msl"], "waves": ["swh", "m
 # Wave params live in their own stream ("wave"; the client maps 06/18 cycles to scwv itself).
 LAYER_STREAM = {"wind": "oper", "pressure": "oper", "waves": "wave"}
 
+# ── ECMWF PERIOD BANDS (M4 ingest half) ─────────────────────────────────────────────────────────
+#
+# Six significant heights BY PERIOD BAND, free on the stream this module already talks to:
+# h1012 = "significant wave height of all waves with periods 10-12 s", up to 25-30 s. EURO is the
+# one model that publishes NO spectral partitions on any path, so these bands are the only way it
+# can describe its own sea — and `estimate_surf` is strongly non-linear in period (Komar's Hb goes
+# as Tp^0.4), which is exactly the variable the bands are indexed by.
+#
+# ⛔ GATED ON A MEASUREMENT, NOT A HYPOTHESIS. Fetching six extra global fields is not free, and the
+# residual wind-sea reconstruction in `period_bands` is only sound if the bands stay within the
+# total. Probed against the live 20260802/00z cycle over 20,494 ocean cells
+# (`.github/workflows/ecmwf-band-closure-probe.yml`):
+#     sqrt(sum(band^2))/swh   p50 0.5549   p90 0.8008   p99 0.9929   max 1.0012   exceed 0.0%
+# ⇒ BANDS_CLOSE. The median sitting near 0.55 is EXPECTED — the bands cover >=10 s only, so the
+# remainder is wind sea, not a deficit; and the upper tail converging on exactly 1.0 is the
+# signature of a real decomposition (swell-dominated cells where the bands ARE the whole sea).
+#
+# ⚠️ DEFAULT OFF, and the flag gates the FETCH, not just the emit — six extra global fields per
+# cycle on a 1-CPU box with a documented melt history is the binding constraint, per the recorded
+# `SURF_PARTITIONS costs 4x` lesson. With the flag off this module is byte-identical to before.
+WAVE_PERIOD_BAND_PARAMS = ["h1012", "h1214", "h1417", "h1721", "h2125", "h2530"]
+
+
+def period_bands_enabled():
+    """Whether to fetch + emit the six period bands. Read PER CALL, never at import.
+
+    A module-level read freezes whatever the environment was when the process started, and this
+    repo's recorded scar is a flag holding a different value in each lane. Kill: unset or '0'."""
+    return os.environ.get("ECMWF_PERIOD_BANDS", "0") == "1"
+
+
+def layer_params(layer):
+    """Params to request for `layer`, including the period bands when they are switched on.
+
+    ★ `LAYER_PARAMS` itself is left UNMUTATED on purpose — `test_ecmwf_euro.py` pins its wave list
+    to the base four, and that guard should keep passing. The bands are an addition at request
+    time, not a redefinition of the baseline."""
+    base = LAYER_PARAMS[layer]
+    if layer == "waves" and period_bands_enabled():
+        return list(base) + list(WAVE_PERIOD_BAND_PARAMS)
+    return base
+
 
 def _step_list(max_hours):
     """ECMWF oper IFS open-data steps: 3-hourly to 144, 6-hourly to 240. Capped at max_hours."""
@@ -77,7 +119,7 @@ def fetch_global_coarse(payload):
     if layer not in LAYER_PARAMS:
         sys.stderr.write(f"[ecmwf_opendata_fetcher] unknown layer '{layer}'\n")
         return ({} if multi else []), 0, 0, None
-    params = LAYER_PARAMS[layer]
+    params = layer_params(layer)
     max_hours = min(forecast_days * 24, 240)
     # WAVE HEIGHT BLOCK-MEAN (enclosed-sea dropout fix, 2026-07-22): the coarse wave height was
     # POINT-SAMPLED at the cell centre (arr[r,c]); a 10° cell whose centre lands on a masked native cell
@@ -126,9 +168,14 @@ def fetch_global_coarse(payload):
     # field (~8MB) + the tiny sampled lists. Sampled lists are in idx-map order = points order (pi).
     want_u = ("10u", "u10"); want_v = ("10v", "v10"); want_p = ("msl", "prmsl", "mslp")
     want_h = ("swh",); want_pk = ("pp1d",); want_mp = ("mwp",); want_d = ("mwd",)
-    want_wave = want_h + want_pk + want_mp + want_d
+    # Period bands are their own kinds, keyed by the ECMWF param name VERBATIM ('h1012'...). That
+    # naming is deliberate: `period_bands.bands_to_partitions` keys on exactly these strings, so
+    # producer and consumer share one vocabulary and there is no translation layer to drift.
+    want_bands = tuple(WAVE_PERIOD_BAND_PARAMS) if period_bands_enabled() else ()
+    want_wave = want_h + want_pk + want_mp + want_d + want_bands
     # per-region, per-kind {vt: vals}
-    by = {rid: {"u": {}, "v": {}, "p": {}, "h": {}, "pk": {}, "mp": {}, "d": {}} for rid in regions}
+    by = {rid: {k: {} for k in ("u", "v", "p", "h", "pk", "mp", "d") + want_bands}
+          for rid in regions}
     idx_by = None    # rid -> [(r, c), ...]
     try:
         grbs = pygrib.open(str(target))
@@ -148,7 +195,8 @@ def fetch_global_coarse(payload):
                           for rid, (lats, lons) in axes.items()}
             arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
             vt = m.validDate
-            kind = ("u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
+            kind = (sn if sn in want_bands else
+                    "u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
             for rid, im in idx_by.items():
                 if kind == "h" and scalar_blockmean:
@@ -212,9 +260,27 @@ def fetch_global_coarse(payload):
                     if pv != pv and mp_vals is not None:  # peak missing -> mean
                         pv = mp_vals[pi]
                     per[pi].append(sanitize_period_s(pv))
+            # PERIOD BANDS: one series per band, named with the ECMWF param verbatim so the
+            # consumer's dict is a direct build. Absent when the flag is off -> the emitted payload
+            # is byte-identical to before, which is what makes this shippable inert.
+            bands = {}
+            for bp in want_bands:
+                vals = [[] for _ in range(n_pts)]
+                for vt in times_dt:
+                    b_vals = b[bp].get(vt)
+                    for pi in range(n_pts):
+                        # sanitize_height_m turns the land mask's NaN into None, same as `swh`.
+                        vals[pi].append(sanitize_height_m(b_vals[pi]) if b_vals is not None else None)
+                bands[bp] = vals
             units = {"time": "iso8601", "wave_height": "m", "wave_period": "s", "wave_direction": "°"}
-            hourly_of = lambda pi: {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
-                                    "wave_direction": drc[pi]}
+            units.update({f"wave_band_{bp}": "m" for bp in want_bands})
+
+            def hourly_of(pi, _bands=bands):
+                out = {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
+                       "wave_direction": drc[pi]}
+                for bp, series in _bands.items():
+                    out[f"wave_band_{bp}"] = series[pi]
+                return out
         else:
             ser = [[] for _ in range(n_pts)]
             for vt in times_dt:

@@ -62,7 +62,7 @@ INGEST_LANES = ("forecast-ingest.yml", "precompute.yml")
 #   declared in a lane at all. Same shape as the nine undeclared science switches in `62691c88`:
 #   a flag the drift guard cannot see can hold a different value in each lane, and the same spot
 #   then faces two different directions depending on which lane wrote the frame.
-DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_")
+DRIFT_PREFIXES = ("RATING_", "SURF_", "MARINE_", "SPOT_RATINGS_", "SHORE_NORMAL_", "ECMWF_")
 COMPOSITION_PREFIXES = ("RATING_", "SURF_")
 
 # Flags whose value legitimately differs between the two lanes, with the reason. Empty by default:
