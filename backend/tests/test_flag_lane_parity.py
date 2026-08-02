@@ -269,6 +269,80 @@ _LANE_FILES = {
 GUARDED_LANES = set(INGEST_LANES) | {MONITOR_LANE, PILOT_LANE}
 
 
+# ── EVERY SCIENCE SWITCH A RATING SURFACE READS MUST BE DECLARED ────────────────────────────────
+# Measured 2026-08-01: the rating surfaces read 17 RATING_/SURF_/SPOT_HUB_ flags and NINE were
+# absent from `_RATING_FLAGS` — including all THREE multiplicative vetoes (`RATING_WIND_GATE`,
+# `RATING_OVERSIZE`, `RATING_PERIOD_GATE`), each of which exists to close a measured defect, and
+# `SPOT_HUB_SURF_TRANSFORM`, a SECOND kill switch for the same transform that `SURF_TRANSFORM`
+# gates. An operator pulling the documented switch left the hub transforming.
+#
+# ★ DERIVED, NOT LISTED — the same shape as the lane test below. The flag set is READ OUT OF THE
+# SOURCE, so a new switch added to any rating surface fails this test until it is declared. A
+# hardcoded list would go stale exactly the way the registry did.
+_RATING_SURFACES = (
+    "services/weather_pipeline/spot_ratings.py",
+    "services/weather_pipeline/spot_conditions.py",
+    "services/weather_pipeline/sim_rating.py",
+    "services/weather_pipeline/grid_resolver_surf.py",
+    "services/weather_pipeline/point_surf_augment.py",
+    "services/weather_pipeline/surf_rating.py",
+    "services/weather_pipeline/surf_transform.py",
+    "routes/weather.py",
+)
+_SCIENCE_PREFIXES = ("RATING_", "SURF_", "SPOT_HUB_")
+# NAMED exemptions with reasons — not a silencer. Each entry states why the registry is the wrong
+# home for that flag, so removing an exemption is a deliberate act visible in a diff.
+_REGISTRY_EXEMPT = {
+    # The registry's own contract is a boolean default (`test_registry_parses_and_is_not_empty`
+    # asserts entry[0] in ("0","1")). These two are CALIBRATION SCALARS, not switches; declaring
+    # them would force widening that contract for every flag. They belong with the physics.
+    "SURF_SHELF_CF_SCALE": "calibration scalar (default '0.25'), not a boolean switch",
+    "SURF_V3_JACK_MAX": "calibration scalar (default '2.0'), not a boolean switch",
+}
+
+
+def test_every_science_switch_a_rating_surface_reads_is_declared_in_the_registry():
+    """An undeclared switch is invisible to the admin panel AND to every guard in this file — so it
+    can be flipped in one lane and drift with nothing to catch it."""
+    import re
+    pat = re.compile(r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']')
+    read = {}
+    for rel in _RATING_SURFACES:
+        path = os.path.join(REPO, "backend", rel)
+        if not os.path.exists(path):
+            continue
+        with open(path, encoding="utf-8") as fh:
+            for m in pat.finditer(fh.read()):
+                if m.group(1).startswith(_SCIENCE_PREFIXES):
+                    read.setdefault(m.group(1), set()).add(os.path.basename(rel))
+    assert read, "found no science flags at all — the scan broke, which would pass vacuously"
+    missing = {f: sorted(s) for f, s in read.items()
+               if f not in REGISTRY and f not in _REGISTRY_EXEMPT}
+    assert not missing, (
+        "a rating surface reads a science switch that _RATING_FLAGS does not declare, so it is "
+        "invisible to the admin panel and to every lane guard here:\n  "
+        + "\n  ".join(f"{f} (read by {', '.join(w)})" for f, w in sorted(missing.items()))
+        + "\n\nDeclare it in routes/admin/surf_forecast.py, or add a NAMED exemption with the "
+          "reason it does not belong there."
+    )
+
+
+def test_no_exemption_outlives_the_flag_it_excuses():
+    """A stale exemption is a silencer. If the flag is gone, or has since been declared, the
+    exemption must go with it — otherwise the list slowly becomes a place to hide new flags."""
+    import re
+    pat = re.compile(r'os\.environ\.get\(\s*["\']([A-Z][A-Z0-9_]{3,})["\']')
+    read = set()
+    for rel in _RATING_SURFACES:
+        path = os.path.join(REPO, "backend", rel)
+        if os.path.exists(path):
+            with open(path, encoding="utf-8") as fh:
+                read |= set(pat.findall(fh.read()))
+    for flag in _REGISTRY_EXEMPT:
+        assert flag in read, f"exemption for {flag} outlived the flag; delete it"
+        assert flag not in REGISTRY, f"{flag} is now declared — delete its exemption"
+
+
 def test_every_workflow_lane_the_registry_names_is_a_lane_this_suite_reads():
     """A flag whose documented flip target is an unguarded workflow can drift with nothing to catch
     it — and the operator was following the registry's own instruction when they flipped it."""

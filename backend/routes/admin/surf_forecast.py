@@ -31,6 +31,33 @@ router = APIRouter()
 _RATING_FLAGS = {
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
+    # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band
+    # (grid_resolver_surf.py:30) and the point lane (point_surf_augment.py:45) — but the spot hub
+    # gates on a SECOND, differently-named switch, and it was absent from this registry, so an
+    # operator pulling the documented switch during an incident would leave the hub transforming
+    # while the other two surfaces stopped. One transform, one switch is the goal; until the two
+    # names are unified the second one must at least be VISIBLE here.
+    "SPOT_HUB_SURF_TRANSFORM":     ("1", "Spot hub's offshore->breaking transform (SEPARATE switch "
+                                         "from SURF_TRANSFORM — pulling that one does NOT stop the hub)",
+                                    "Render env"),
+    # ★★★ THE THREE MULTIPLICATIVE VETOES. Each exists because an ADDITIVE term with a floor cannot
+    # veto, and each was added to close a MEASURED defect. Setting any of them to 0 re-opens that
+    # exact defect, and none was declared here — invisible to this panel and to the lane-parity guard.
+    "RATING_WIND_GATE":            ("1", "Blown-out onshore veto — without it a blown-out day is "
+                                         "floored back up by a long period", "Render env"),
+    "RATING_OVERSIZE":             ("1", "Closeout veto — without it 4 / 12 / 35 / 100 ft ALL scored "
+                                         "97.3 'epic' (size_score has no descending limb)", "Render env"),
+    "RATING_PERIOD_GATE":          ("1", "Short-period veto — without it Tp 2 / 3 / 4 / 6 s ALL scored "
+                                         "76.0 'good' (period_quality floors at 0.40)", "Render env"),
+    # Nearshore transform switches. Boolean, and each reverts a measured correction.
+    "SURF_BREAK_DEPTH":            ("1", "Use the ETOPO nearshore break depth for the depth-limited "
+                                         "cap; off = the shelf median, which bound on 0 of 395 spots",
+                                    "Render env"),
+    "SURF_SHELF_KF_FLOOR":         ("1", "Floor bottom friction at Ardhuin's cited ~90% energy-loss "
+                                         "ceiling; off = unbounded, which kept 0.4% of a wave at "
+                                         "Salthill", "Render env"),
+    "SURF_V3_SLOPE_GAMMA":         ("1", "Slope-aware breaker index (Weggel); off = the flat 0.78 "
+                                         "centre that under-capped plunging reef breaks", "Render env"),
     "MARINE_MID_RES_RATING":       ("1", "Rate the mid-res (2°) tier so overview zooms keep a band", "Render env"),
     "RATING_OBS_GATE":             ("0", "Good/Epic observation gate + user-report weigh-in (Surfline hybrid)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
