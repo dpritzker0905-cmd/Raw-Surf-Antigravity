@@ -129,6 +129,34 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
                     f"[Surf v3] partition resolution failed at ({lat},{lng}); falling back to the "
                     f"total field. surf_height_m is UNAFFECTED: {_pe!r}")
                 _parts = None
+            # ── M4: ECMWF PERIOD BANDS AS A SECOND, CHEAPER SOURCE (2026-08-02) ──────────────
+            # ⚠️ ONLY when the resolver above produced nothing. That lane is the reconciled CMEMS
+            # split and is AUTHORITATIVE; two partition sources feeding one sea state is the ONE
+            # FORECAST COMPOSITION rule broken, so this can never displace it — it fills the gap
+            # where `SURF_PARTITIONS` is off (its default) or the extra layers did not answer.
+            # ★ COST IS WHY THIS EXISTS. `_resolve_partitions` samples three MORE layers per point
+            # (4x, 0.17-0.77 s each) — the reason it is off by default on a 1-CPU box with a
+            # three-incident melt history. The bands arrive in the SAME wave product as the total,
+            # so this costs ZERO extra point resolutions for the same spectral benefit.
+            # ⚠️ Its own try, for the reason the block above documents: a failure here must cost
+            # the spectral refinement and NOTHING else. `surf_height_m` is unaffected either way.
+            if not _parts:
+                try:
+                    _bands = getattr(response.point, "wave_bands", None)
+                    if _bands:
+                        from services.weather_pipeline.period_bands import bands_to_partitions
+                        _bp, _bdiag = bands_to_partitions(
+                            _bands, total_h_m=response.point.speed,
+                            mean_dir_deg=response.point.direction,
+                            mean_period_s=response.point.period)
+                        if _bp:
+                            _parts = _bp
+                            logger.debug(f"[Surf v3] {len(_bp)} partitions from ECMWF period bands "
+                                         f"at ({lat},{lng}); diag={_bdiag}")
+                except Exception as _be:
+                    logger.warning(
+                        f"[Surf v3] period-band composition failed at ({lat},{lng}); falling back "
+                        f"to the total field. surf_height_m is UNAFFECTED: {_be!r}")
             surf, regime = estimate_surf_at(lat, lng, response.point.speed, response.point.period,
                                             swell_from_deg=response.point.direction, geometry=_geo,
                                             partitions=_parts)

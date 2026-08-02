@@ -119,6 +119,17 @@ class NormalizedPointDetail(BaseModel):
     gust: Optional[float] = None
     value: Optional[float] = None
     interpolation_method: str
+    # ── ECMWF PERIOD BANDS (M4, 2026-08-02) ────────────────────────────────────────────────────
+    # {'h1012': 1.2, 'h1214': 0.8, ...} — significant height per >=10 s period band, keyed by the
+    # ECMWF param name VERBATIM so producer and consumer share one vocabulary
+    # (`ecmwf_opendata_fetcher.WAVE_PERIOD_BAND_PARAMS` -> `period_bands.bands_to_partitions`).
+    # ★ WHY THIS IS ON THE POINT AND NOT A SEPARATE LAYER. `_resolve_partitions` splits the sea by
+    # sampling THREE more layers per point — 4x cost, which is why SURF_PARTITIONS is off by
+    # default on a 1-CPU box. The bands ride in the SAME wave product as the total, so composing
+    # from them costs ZERO extra point resolutions.
+    # None unless ECMWF_PERIOD_BANDS is on AND the sampler populated it; every other path is
+    # unaffected, which is what keeps this additive.
+    wave_bands: Optional[Dict[str, float]] = None
 
 class NormalizedPointResponse(BaseModel):
     model: str
