@@ -28,7 +28,27 @@ FT_PER_M = 3.28084
 
 # NDBC realtime2 column order (after the two leading '#header' lines). Values of 'MM' = missing.
 #   #YY MM DD hh mm WDIR WSPD GST WVHT DPD APD MWD PRES ATMP WTMP DEWP VIS PTDY TIDE
-_COL = {"WVHT": 8, "DPD": 9, "APD": 10, "MWD": 11, "WTMP": 14}
+_COL = {"WDIR": 5, "WSPD": 6, "GST": 7, "WVHT": 8, "DPD": 9, "APD": 10, "MWD": 11, "WTMP": 14}
+
+# WIND OBSERVATIONS (2026-08-02). WDIR/WSPD were named in the header comment above and absent from
+# this map for the life of the file, so the anemometer reading — the single highest-sensitivity input
+# to the rating (wind is 0.60 of the quality blend AND a multiplicative veto) — was parsed out of a
+# file we already download, and discarded.
+#
+# ⚠️ WIND NEEDS ITS OWN ROW SELECTOR AND ITS OWN FRESHNESS GATE. It cannot reuse
+# `parse_ndbc_realtime`'s, and that is measured, not assumed (10 live stations, 2026-08-02 21:5xZ):
+#   * 41009 / 44013 / 41008 — the newest WIND row is 20 min NEWER than the newest WAVE row, because
+#     the anemometer reports every 10 min and the wave sensor every 30. A wave-gated selector serves
+#     wind that is needlessly stale.
+#   * 46006 — reports wind and NO waves on any row. `parse_ndbc_realtime` returns None for it, so a
+#     wind-only station is invisible today. There are many of these.
+#   * 44025 — ⭐ the one that sets the design: its newest wind row is 2026-07-14 while its waves are
+#     CURRENT. **Staleness is PER-SENSOR, not per-station**, so "the newest row that has wind" would
+#     have served a 19-DAY-OLD wind as if it were live. Hence the age gate below, and hence it FAILS
+#     CLOSED (returns None) rather than returning a stale reading with a timestamp nobody reads.
+# This is the repo's recorded "one <selector> serving two quantities" class — cf. MATCH_RADIUS_KM
+# governing both the shore normal and the break depth.
+WIND_OBS_MAX_AGE_MIN = float(os.environ.get("BUOY_WIND_OBS_MAX_AGE_MIN", "90"))
 
 
 def _num(tok) -> Optional[float]:
@@ -76,6 +96,126 @@ def parse_ndbc_realtime(text: str) -> Optional[dict]:
             "wtmp_c": _num(parts[_COL["WTMP"]]),
         }
     return None
+
+
+def parse_ndbc_wind(text: str, now: Optional[datetime] = None,
+                    max_age_min: Optional[float] = None) -> Optional[dict]:
+    """PURE: parse the most-recent *wind* observation from an NDBC realtime2 payload.
+
+    Deliberately NOT a branch of `parse_ndbc_realtime`: that function returns the newest row carrying
+    a WAVE height, and wind and waves are independent sensors reporting on independent cadences and
+    failing independently (see the measurements beside `WIND_OBS_MAX_AGE_MIN`). Scanning for wind on
+    its own terms is what lets a wind-only station be seen at all.
+
+    Returns {time, wdir_deg, wspd_ms, wspd_kt, gust_ms, age_min} for the newest row where BOTH WDIR
+    and WSPD are present, or None when there is no such row, its timestamp is unparseable, or it is
+    older than `max_age_min`.
+
+    FAILS CLOSED on age. Serving a stale anemometer reading is strictly worse than serving none: the
+    caller can fall back to the model forecast, but it cannot detect that a number it was handed is
+    19 days old. `wspd_ms` is the NATIVE NDBC unit and is also what `surf_rating.rating_score` wants,
+    so the primary value needs no conversion at all; `wspd_kt` is derived from the ONE shared
+    constant rather than a local literal (this repo has carried seven copies of that constant).
+    """
+    if not text:
+        return None
+    from services.weather_pipeline.surf_rating import MS_TO_KT   # the ONE knots<->m/s expression
+    now = now or datetime.now(timezone.utc)
+    limit = WIND_OBS_MAX_AGE_MIN if max_age_min is None else max_age_min
+    for line in text.splitlines():
+        if not line or line.startswith("#"):
+            continue
+        parts = line.split()
+        if len(parts) <= _COL["GST"]:
+            continue
+        wdir = _num(parts[_COL["WDIR"]])
+        wspd = _num(parts[_COL["WSPD"]])
+        if wdir is None or wspd is None:
+            continue                       # need BOTH — a bearing without a speed rates nothing
+        try:
+            yr, mo, dy, hr, mn = (int(parts[i]) for i in range(5))
+            ts = datetime(yr, mo, dy, hr, mn, tzinfo=timezone.utc)
+        except (ValueError, IndexError):
+            continue                       # an unorderable row cannot be age-gated → skip it
+        age_min = (now - ts).total_seconds() / 60.0
+        if limit is not None and age_min > limit:
+            return None                    # newest wind is stale → refuse, do not serve it
+        return {
+            "time": ts.isoformat(),
+            "wdir_deg": wdir,
+            "wspd_ms": wspd,
+            "wspd_kt": round(wspd * MS_TO_KT, 2),
+            "gust_ms": _num(parts[_COL["GST"]]),
+            "age_min": round(age_min, 1),
+        }
+    return None
+
+
+def parse_latest_obs_wind(text: str, now: Optional[datetime] = None,
+                          max_age_min: Optional[float] = None) -> list:
+    """PURE: every station in NDBC's one-shot `latest_obs.txt` currently reporting BOTH a wind
+    direction and a speed, fresh enough to use.
+
+    -> [{id, lat, lon, time, wdir_deg, wspd_ms, wspd_kt, age_min}] (empty list, never None).
+
+    One fetch covers ~890 stations worldwide, which is what makes continuous wind-skill scoring
+    cheap. Columns: `#STN LAT LON YYYY MM DD hh mm WDIR WSPD GST WVHT ...` — note this is a DIFFERENT
+    layout from realtime2 (station id and coordinates come first), so it gets its own parser rather
+    than a shared one keyed on a column map that would silently mis-read.
+
+    ⚠️ Lives here and not in `scripts/validate_wind_forecast.py` deliberately: this repo's own audit
+    found that a test importing a script matches NO CI lane selector, so pure logic parked in a
+    script is unguardable. `services/weather_pipeline/*` is in the forecast-chain lane.
+
+    Age-gated and FAILS CLOSED, same rule as `parse_ndbc_wind`.
+    """
+    from services.weather_pipeline.surf_rating import MS_TO_KT   # the ONE knots<->m/s expression
+    now = now or datetime.now(timezone.utc)
+    limit = WIND_OBS_MAX_AGE_MIN if max_age_min is None else max_age_min
+    out = []
+    for line in (text or "").splitlines():
+        if not line or line.startswith("#"):
+            continue
+        p = line.split()
+        if len(p) < 11:
+            continue
+        lat, lon = _num(p[1]), _num(p[2])
+        wdir, wspd = _num(p[8]), _num(p[9])
+        if lat is None or lon is None or wdir is None or wspd is None:
+            continue
+        try:
+            ts = datetime(int(p[3]), int(p[4]), int(p[5]), int(p[6]), int(p[7]), tzinfo=timezone.utc)
+        except (ValueError, IndexError):
+            continue
+        age_min = (now - ts).total_seconds() / 60.0
+        if limit is not None and age_min > limit:
+            continue
+        out.append({"id": p[0], "lat": lat, "lon": lon, "time": ts.isoformat(),
+                    "wdir_deg": wdir, "wspd_ms": wspd,
+                    "wspd_kt": round(wspd * MS_TO_KT, 2), "age_min": round(age_min, 1)})
+    return out
+
+
+def compare_wind_to_model(obs: dict, model_wind_kt, model_wind_from_deg=None) -> Optional[dict]:
+    """PURE: residuals (model − buoy) for wind. Returns None without a usable observation.
+
+    `model_wind_kt` is in KNOTS because that is the unit the wind product serves (`point.speed` is
+    already knots — the recorded trap is feeding it to `rating_score`, which wants m/s). Direction
+    error is the ANGULAR difference, so 350° vs 10° reads 20 and not 340.
+    """
+    if not obs or obs.get("wspd_kt") is None:
+        return None
+    out = {"buoy_wspd_kt": obs["wspd_kt"], "model_wspd_kt": model_wind_kt,
+           "buoy_wdir_deg": obs.get("wdir_deg"), "model_wdir_deg": model_wind_from_deg,
+           "obs_age_min": obs.get("age_min"),
+           "wspd_err_kt": None, "abs_wspd_err_kt": None, "wdir_err_deg": None}
+    if model_wind_kt is not None:
+        out["wspd_err_kt"] = round(model_wind_kt - obs["wspd_kt"], 2)
+        out["abs_wspd_err_kt"] = round(abs(model_wind_kt - obs["wspd_kt"]), 2)
+    if model_wind_from_deg is not None and obs.get("wdir_deg") is not None:
+        d = abs(float(model_wind_from_deg) - float(obs["wdir_deg"])) % 360.0
+        out["wdir_err_deg"] = round(d if d <= 180.0 else 360.0 - d, 1)
+    return out
 
 
 def compare_obs_to_model(obs: dict, model_hs_m, model_tp_s) -> Optional[dict]:

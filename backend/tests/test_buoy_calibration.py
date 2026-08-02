@@ -2,6 +2,8 @@
 Unit tests for services/weather_pipeline/buoy_calibration.py — NDBC parse + model-vs-buoy residual metrics.
 Pure helpers tested directly; the async fetch/loop with injected mocks (no network, no DB).
 """
+from datetime import datetime, timezone
+
 import pytest
 
 from services.weather_pipeline import buoy_calibration as bc
@@ -18,6 +20,124 @@ NDBC_NO_WAVES = """#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  
 #yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
 2026 06 28 18 50 110  5.0  6.0    MM    MM    MM  MM 1015.0  25.0  24.0  20.0   MM   MM   MM
 """
+
+
+# ---------------------------------------------------------------------------------------------
+# WIND OBSERVATIONS — the three real shapes that forced a SEPARATE selector + an age gate.
+# Every fixture below is modelled on a live station measured 2026-08-02 21:5xZ, named in each test.
+# ---------------------------------------------------------------------------------------------
+
+# 41009 / 44013 / 41008: the anemometer reports every 10 min, the wave sensor every 30, so the
+# NEWEST row carries wind with the wave columns still 'MM'.
+NDBC_WIND_NEWER_THAN_WAVES = """#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE
+#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
+2026 06 28 18 50 200 10.0 13.0    MM    MM    MM  MM 1015.0  25.0  24.0  20.0   MM   MM   MM
+2026 06 28 18 20 190  8.0 10.0   0.8   3.0   3.6 162 1015.0  25.0  24.0  20.0   MM   MM   MM
+"""
+
+# 44025: waves CURRENT, wind 19 days stale. Staleness is PER-SENSOR — the newest rows carry 'MM'
+# wind and the only row with an anemometer reading is ancient.
+NDBC_STALE_WIND_FRESH_WAVES = """#YY  MM DD hh mm WDIR WSPD GST  WVHT   DPD   APD MWD   PRES  ATMP  WTMP  DEWP  VIS PTDY  TIDE
+#yr  mo dy hr mn degT m/s  m/s     m   sec   sec degT   hPa  degC  degC  degC  nmi  hPa    ft
+2026 06 28 18 50   MM   MM   MM   1.4   9.0   5.5 100 1015.0  25.0  24.0  20.0   MM   MM   MM
+2026 06 09 10 40 300 12.0 15.0   1.1   8.0   5.4  95 1015.0  25.0  24.0  20.0   MM   MM   MM
+"""
+
+_NOW = datetime(2026, 6, 28, 19, 0, tzinfo=timezone.utc)   # 10 min after the newest fixture row
+
+
+def test_wind_is_read_from_the_newest_row_even_when_that_row_has_no_waves():
+    """41009's shape. The wave-gated selector would return the 18:20 row's wind, 30 min stale."""
+    w = bc.parse_ndbc_wind(NDBC_WIND_NEWER_THAN_WAVES, now=_NOW)
+    assert w is not None
+    assert w["wdir_deg"] == 200.0 and w["wspd_ms"] == 10.0 and w["gust_ms"] == 13.0
+    assert w["time"] == "2026-06-28T18:50:00+00:00"
+    # DISCRIMINATING CONTROL: the wave parser lands on the OLDER row from the same payload, which is
+    # exactly why wind cannot reuse it.
+    assert bc.parse_ndbc_realtime(NDBC_WIND_NEWER_THAN_WAVES)["time"] == "2026-06-28T18:20:00+00:00"
+
+
+def test_a_wind_only_station_is_visible_to_the_wind_parser_and_invisible_to_the_wave_parser():
+    """46006's shape: wind on every row, waves on none. The pair IS the finding."""
+    assert bc.parse_ndbc_realtime(NDBC_NO_WAVES) is None          # known-FAILING control
+    w = bc.parse_ndbc_wind(NDBC_NO_WAVES, now=_NOW)               # known-PASSING control
+    assert w is not None and w["wspd_ms"] == 5.0 and w["wdir_deg"] == 110.0
+
+
+def test_stale_wind_beside_fresh_waves_is_REFUSED_not_served():
+    """44025's shape, and the reason the age gate exists.
+
+    A caller can fall back to the model forecast; it cannot detect that a number it was handed is
+    19 days old. So this must fail CLOSED.
+    """
+    assert bc.parse_ndbc_wind(NDBC_STALE_WIND_FRESH_WAVES, now=_NOW) is None
+    # NEGATIVE CONTROL — without this the assertion above is satisfied by a parser that always
+    # returns None. Widen the gate past the row's age and the SAME payload must yield the reading.
+    w = bc.parse_ndbc_wind(NDBC_STALE_WIND_FRESH_WAVES, now=_NOW, max_age_min=60 * 24 * 30)
+    assert w is not None and w["wspd_ms"] == 12.0
+    assert w["age_min"] > 60 * 24 * 18          # ~19 days, and it SAYS so
+    # ...and the wave sensor on that same station is perfectly healthy.
+    assert bc.parse_ndbc_realtime(NDBC_STALE_WIND_FRESH_WAVES)["wvht_m"] == 1.4
+
+
+def test_wind_needs_BOTH_direction_and_speed_and_tolerates_junk():
+    assert bc.parse_ndbc_wind("", now=_NOW) is None
+    assert bc.parse_ndbc_wind("#only headers\n#second", now=_NOW) is None
+    only_dir = NDBC_WIND_NEWER_THAN_WAVES.replace("200 10.0 13.0", "200   MM   MM")
+    assert only_dir != NDBC_WIND_NEWER_THAN_WAVES        # assert the fixture mutation LANDED
+    w = bc.parse_ndbc_wind(only_dir, now=_NOW)
+    assert w is not None and w["time"] == "2026-06-28T18:20:00+00:00"   # fell through to the full row
+
+
+def test_wspd_kt_comes_from_the_ONE_shared_constant_not_a_local_literal():
+    from services.weather_pipeline.surf_rating import MS_TO_KT
+    w = bc.parse_ndbc_wind(NDBC_WIND_NEWER_THAN_WAVES, now=_NOW)
+    assert w["wspd_kt"] == round(w["wspd_ms"] * MS_TO_KT, 2)
+    assert w["wspd_kt"] == 19.44        # 10 m/s, the value the audit quoted for buoy 41009
+
+
+# NDBC latest_obs.txt — a DIFFERENT layout from realtime2 (station id + coords come first).
+# Row 1 fresh with wind; row 2 fresh but wind 'MM'; row 3 has wind but is 19 days stale (44025's shape).
+LATEST_OBS = """#STN       LAT      LON  YYYY MM DD hh mm WDIR WSPD   GST WVHT  DPD APD MWD   PRES  PTDY  ATMP  WTMP  DEWP  VIS   TIDE
+#text      deg      deg   yr mo day hr mn degT  m/s   m/s   m   sec sec degT   hPa   hPa  degC  degC  degC  nmi     ft
+41009     28.508  -80.185 2026 06 28 18 50  200 10.0    MM   MM   MM  MM  MM     MM    MM  27.8  25.8    MM   MM     MM
+46999     36.000 -122.000 2026 06 28 18 50   MM   MM    MM  1.4  9.0 5.5 100     MM    MM  15.0  14.0    MM   MM     MM
+44025     40.251  -73.164 2026 06 09 10 40  300 12.0    MM  1.1  8.0 5.4  95     MM    MM  20.0  19.0    MM   MM     MM
+"""
+
+
+def test_latest_obs_wind_keeps_only_fresh_stations_that_report_BOTH_fields():
+    got = bc.parse_latest_obs_wind(LATEST_OBS, now=_NOW)
+    assert [s["id"] for s in got] == ["41009"]          # 46999 has no wind; 44025 is 19 days stale
+    s = got[0]
+    assert s["wdir_deg"] == 200.0 and s["wspd_ms"] == 10.0
+    assert (s["lat"], s["lon"]) == (28.508, -80.185)    # coords come from THIS layout, not realtime2
+    assert s["wspd_kt"] == 19.44
+    # NEGATIVE CONTROL — without it, "only 41009" is satisfied by a parser that drops everything.
+    # Widen the gate and the stale station must reappear, still reporting its true age.
+    wide = bc.parse_latest_obs_wind(LATEST_OBS, now=_NOW, max_age_min=60 * 24 * 30)
+    assert [s["id"] for s in wide] == ["41009", "44025"]
+    assert wide[1]["age_min"] > 60 * 24 * 18
+
+
+def test_latest_obs_wind_returns_a_LIST_never_None_and_survives_junk():
+    for bad in ("", "#only headers", "not a table at all\n", "1 2 3\n"):
+        got = bc.parse_latest_obs_wind(bad, now=_NOW)
+        assert got == [], bad          # a caller iterating the result must never hit None
+
+
+def test_compare_wind_to_model_is_signed_and_direction_error_is_ANGULAR():
+    obs = bc.parse_ndbc_wind(NDBC_WIND_NEWER_THAN_WAVES, now=_NOW)   # 19.44 kt from 200 deg
+    r = bc.compare_wind_to_model(obs, 10.04, 186.0)                  # ICON's live reading that hour
+    assert r["wspd_err_kt"] == -9.4 and r["abs_wspd_err_kt"] == 9.4  # the model UNDER-reads
+    assert r["wdir_err_deg"] == 14.0
+    # the wrap case: 350 vs 200 is 150, never 210
+    assert bc.compare_wind_to_model(obs, 10.0, 350.0)["wdir_err_deg"] == 150.0
+    # 350 vs 10 must read 20, not 340 — the classic angular bug
+    across = dict(obs, wdir_deg=350.0)
+    assert bc.compare_wind_to_model(across, 10.0, 10.0)["wdir_err_deg"] == 20.0
+    assert bc.compare_wind_to_model(None, 10.0) is None
+    assert bc.compare_wind_to_model(obs, None)["wspd_err_kt"] is None
 
 
 def test_parse_ndbc_realtime_takes_newest_wave_row():
