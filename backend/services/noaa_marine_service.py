@@ -73,16 +73,32 @@ async def fetch_gfs_marine_global_coarse(
         payload["bboxes"] = dict(bboxes)
     script = os.path.join(os.path.dirname(__file__), "noaa_gfs_wave_fetcher.py")
 
+    # HARD ceiling — a BACKSTOP, not the primary control. The fetcher's own NOAA_FETCH_BUDGET_S
+    # (default 2400 s) stops it first and returns the hours already in hand; this kill only fires if
+    # that soft deadline is disabled or the process wedges beneath it. Deliberately ABOVE the soft
+    # budget so a slow-but-working run is never killed mid-serialization.
+    # Raised from a hardcoded 1800 s on 2026-08-02: upstream throughput roughly halved (8.8 ->
+    # ~14-17 s/step) and the global_mid 14-day pass — the heaviest fetch in the system — began
+    # hitting the wall EVERY cycle, discarding ~30 min of downloaded GRIB and stranding the lane at
+    # 19.8 h stale while every other GFS-marine job in the same run succeeded. Sized against the
+    # pilots lane's 200-min budget (worst case ~154 min). Tune with NOAA_FETCH_TIMEOUT_S.
+    hard_timeout_s = float(os.environ.get("NOAA_FETCH_TIMEOUT_S", "2700"))
+
     def _run():
         return subprocess.run(
             [sys.executable, "-OO", script, json.dumps(payload)],
-            capture_output=True, text=True, timeout=1800,  # 30 min ceiling
+            capture_output=True, text=True, timeout=hard_timeout_s,
         )
 
     try:
         result = await asyncio.get_event_loop().run_in_executor(None, _run)
         if result.stdout and result.stdout.strip():
             logger.info(f"[NOAA GFS-Wave] {result.stdout.strip().splitlines()[-1]}")
+        # Surface stderr on SUCCESS too: the soft-deadline truncation and the coverage-floor refusal
+        # both report there, and a degraded success that logs nothing is how a silent horizon cut
+        # would ship unnoticed. Tail-capped; per-step failures share this channel.
+        if result.returncode == 0 and result.stderr and result.stderr.strip():
+            logger.warning(f"[NOAA GFS-Wave] fetcher stderr: {result.stderr.strip()[-600:]}")
         if result.returncode != 0:
             logger.error(f"[NOAA GFS-Wave] fetcher failed (exit {result.returncode}): {result.stderr.strip()[-600:]}")
             return None
@@ -93,7 +109,10 @@ async def fetch_gfs_marine_global_coarse(
             data = json.load(f)
         return data if data else None
     except subprocess.TimeoutExpired:
-        logger.error("[NOAA GFS-Wave] fetcher subprocess timed out (>1800s)")
+        # Reaching HERE means the soft deadline did not fire (disabled, or the process wedged inside
+        # a single step) — everything fetched is lost. Say which wall was hit, not a stale literal.
+        logger.error(f"[NOAA GFS-Wave] fetcher subprocess timed out (>{hard_timeout_s:.0f}s hard "
+                     f"ceiling; NOAA_FETCH_BUDGET_S should have salvaged a partial result first)")
         return None
     except Exception as e:
         logger.error(f"[NOAA GFS-Wave] error: {e}")

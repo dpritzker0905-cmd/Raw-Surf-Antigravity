@@ -271,7 +271,30 @@ def fetch_global_coarse(payload):
     steps_ok = 0
     steps_failed = 0
 
+    # ── SOFT DEADLINE (2026-08-02) ───────────────────────────────────────────────────────────────
+    # This file runs as a subprocess under a HARD kill (noaa_marine_service). A hard kill is
+    # ALL-OR-NOTHING, and on 2026-08-02 that cost the whole lane: the global_mid 14-day pass ran the
+    # full 30-min ceiling, was killed, and every downloaded step was discarded — GFS marine
+    # global_mid went stale (19.8 h and climbing) while EVERY other GFS-marine job in the same run
+    # succeeded. Nothing was broken upstream or here; upstream had merely SLOWED (~8.8 s/step on
+    # 08-01 -> ~14-17 s/step on 08-02) and the ceiling had no headroom left. The per-step `except`
+    # below ALREADY degrades gracefully, so the only thing that made a slow run catastrophic was that
+    # the deadline lived OUTSIDE the process where it could only kill, never salvage.
+    # Hours are fetched ASCENDING, so a truncation drops the FAR hours and keeps the near-term surf —
+    # the half users actually read. Kill switch NOAA_FETCH_BUDGET_S=0 -> legacy all-or-nothing.
+    budget_s = float(os.environ.get("NOAA_FETCH_BUDGET_S", "2400"))
+    t_start = time.time()
+    truncated_at = None
+
     for f in f_hours:
+        # Checked BEFORE any append, so `times` and every series stay equal-length — the same
+        # alignment invariant the except-branch below maintains. Never START a step we can't finish.
+        if budget_s > 0 and (time.time() - t_start) >= budget_s:
+            truncated_at = f
+            sys.stderr.write(
+                f"[noaa_gfs_wave_fetcher] soft deadline {budget_s:.0f}s reached at f{f:03d} — "
+                f"returning {steps_ok} completed steps instead of discarding them\n")
+            break
         url = f"{prefix}f{f:03d}.grib2"
         out = tmp / f"gfswave_{uuid.uuid4().hex}.grib2"
         try:
@@ -386,6 +409,27 @@ def fetch_global_coarse(payload):
     if idx_by is None:
         return ({} if multi else []), 0, steps_failed, None
 
+    # ── MINIMUM COVERAGE FLOOR ───────────────────────────────────────────────────────────────────
+    # A truncated batch still PRUNES the previous run: prune_superseded_products is keyed on run_time
+    # and GFS carries no estimated tail to shield it (copernicus_validator's "plain newest-run" rule),
+    # so a stub would REPLACE a healthy 14-day product and SHRINK the served horizon — trading a
+    # freshness problem for a coverage one. Below the floor, return nothing instead: the older,
+    # longer product keeps serving, which beats overwriting it with a stump. Same discipline as
+    # product_run_age_census's "REFUSING TO REPORT" — an instrument that cannot do its job says so.
+    # Floor SCALES with what was actually asked for and caps at the absolute bar, so salvage stays
+    # possible at every horizon: capping at `max_f` itself would set a 2-day request's floor to the
+    # whole 2 days, refusing every partial on principle and quietly disabling this path for the
+    # short passes. Half the request, or 120 h, whichever is SMALLER -> 14 d judged at 120 h (the
+    # bar that matters for global_mid), a 5 d pilot pass at 60 h, a 2 d quick pass at 24 h.
+    if truncated_at is not None:
+        floor_h = min(float(os.environ.get("NOAA_FETCH_MIN_HOURS", "120")), float(max_f) * 0.5)
+        covered_h = (len(times) - 1) * 3 if times else 0
+        if covered_h < floor_h:
+            sys.stderr.write(
+                f"[noaa_gfs_wave_fetcher] REFUSING partial result: covered {covered_h}h < floor "
+                f"{floor_h:.0f}h — keeping the previous run rather than pruning it to a stub\n")
+            return ({} if multi else []), steps_ok, steps_failed, None
+
     by_region = {}
     for rid, (la_axis, lo_axis) in axes.items():
         series = series_by[rid]
@@ -447,8 +491,14 @@ def main():
         nz = sum(1 for v in wh if v and v > 0)
         sample_max = max(wh) if wh else None
     regions_note = f" regions={len(points)}" if is_multi else ""
+    # A truncated run is a DEGRADED success, not a clean one. The service logs this SUMMARY line on
+    # exit 0, so say it HERE — otherwise a short horizon reads as a healthy fetch and the soft
+    # deadline becomes invisible exactly when someone needs to know it fired.
+    want_steps = min(int(payload.get("forecast_days", 14)) * 24, 384) // 3 + 1
+    truncated = "yes" if (times is not None and len(times) < want_steps) else "no"
     print(f"SUMMARY: points={len(flat)}{regions_note} steps_ok={ok} steps_failed={failed} "
           f"timesteps={len(times) if times else 0} forecast_end={times[-1] if times else '?'} "
+          f"truncated={truncated} "
           f"wave_height_nonzero={nz} wave_height_max={sample_max} elapsed={elapsed:.1f}s "
           f"wrote={'yes:'+out_path if (out_path and flat) else 'no(standalone)'}")
 
