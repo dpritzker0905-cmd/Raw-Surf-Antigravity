@@ -96,3 +96,62 @@ cannot be attributed, and the recorded `SURF_HEIGHT_H110` landmine (**"NEVER fli
 too high — BOTH OR NEITHER"**) is the same shape.
 
 ⚠️ Before touching any of it: `surf_rating.py` is at **760 LOC against an 800 ceiling**.
+
+---
+
+## §6 THE EXPOSURE FLOOR — a suspect REMOVED, and two instruments that could not answer
+
+Lever 3 of §5 said the 0.10 `swell_exposure` floor (15.5% of served spots, pinned exactly) was
+"not yet established" as right or wrong. It is now **partly established, and the news is good.**
+
+### The physics is correct where it can be checked independently
+
+Fetched shore normals and swell bearings for four floor-pinned spots (`/api/weather/point`):
+
+| spot | shore normal (seaward) | swell FROM | off-normal | geometry |
+|---|---|---|---|---|
+| Backdoor (Oahu N shore) | 325.0° | 65.2° | **100.2°** | full |
+| Laniakea (Oahu N shore) | 315.2° | 63.5° | **108.3°** | full |
+| Anchor Point (Morocco) | 212.0° | 344.0° | **132.0°** | full |
+| Cayucos Pier (California) | 191.0° | 302.4° | **111.4°** | full |
+
+Backdoor and Laniakea are **correct and the floor is right**: an **ENE (65°) trade swell physically
+cannot reach a NW-facing (325°) shore**, and this is August — south-swell season, when Oahu's North
+Shore is flat. The model is describing reality, not failing.
+
+### An objective seaward test — all four normals PASS
+
+Point-in-polygon against `ne_50m_land.json` (1,421 polygons), sampling 10/20/30 km along the normal
+and along its reverse. **A seaward normal must find ocean ahead and land behind.**
+
+| spot | seaward ocean | reverse land | verdict |
+|---|---|---|---|
+| Backdoor · Laniakea · Anchor Point · Cayucos Pier | 3/3 each | 3/3 each | **OK** |
+
+⇒ **"The exposure floor is caused by backwards shore normals" is REMOVED as a suspect.**
+⚠️ **Necessary, not sufficient.** This rules out a *reversed* normal; it cannot rule out one that is
+off by tens of degrees while still pointing at open water. That case needs a coastline-tangent fit,
+not a land test.
+
+### ⛔ TWO INSTRUMENTS FAILED FIRST, AND THE CONTROL CAUGHT BOTH
+
+1. **`/api/weather/point` at ±8 km** returned marine data on *both* sides of every spot — it snaps to
+   the nearest ocean cell rather than returning null on land. Cannot discriminate. Void.
+2. **`bathymetry.depth_at()`** reported **382 m for INLAND Oahu**. Its own docstring says it "prefers
+   the nearest OCEAN cell within a small window when the exact cell is land" — a bathymetry lookup
+   with a land fallback, not a land mask. It scored **Backdoor — the known-correct control —
+   as BACKWARDS**, and would have produced the headline "3 of 4 shore normals are reversed."
+
+★★★ **THE KNOWN-GOOD CONTROL IS WHAT SAVED THIS.** Without Backdoor in the set, a confidently wrong,
+high-impact claim about the dominant geometry term would have shipped. Both failures are the same
+shape as the day's others: *an instrument that answers when it cannot know.* The third instrument was
+only trusted **after** five land/sea controls passed.
+
+### What this does to the levers
+
+**Lever 3 is de-prioritised.** The floor is legitimate on the cases that can be checked, and no
+evidence of a reversed-normal population survives. Remaining exposure work needs a *magnitude* test
+(is the bearing accurate?), not a *sign* test — and that is a different, larger instrument.
+
+⇒ **Lever 2 (`_REF_ANCHOR_SCORE`) is now the cheapest remaining test**, and `size_gate` is the
+dominant limiter at **46.5%**, so it is also the one with the most reach.
