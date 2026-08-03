@@ -288,6 +288,12 @@ def get_weather_forecast(spot_name: str, valid_time: str = "") -> Dict[str, Any]
         spot, baseline["swell_height_m"], baseline["swell_period_sec"],
         baseline["swell_direction_deg"], baseline["wind_speed_knots"],
         baseline["wind_direction_deg"], partitions=_baseline_partitions(baseline),
+        # ⛔⛔ ARMS THE OBSERVATION GATE, which `calculate_surf_rating` applies only when
+        # `valid_time is not None`. Omitted until 2026-08-03: the hour was parsed and used for the
+        # BASELINE two lines up, then dropped here, so this tool published Nai Harn as 70.5 `good`
+        # while the app served 66.4 `fair_good` — #13's asymmetry, re-opened by a None default.
+        # Guarded by GATE_ARG_CALLERS in tests/test_rating_composition_parity.py.
+        valid_time=hour or None,
         # I/O already paid — this tool FETCHED the baseline it is rating, and it is the one
         # surface that prints its own parity against the app. Without the lookup it would grade
         # the global 1.2 m curve while the glyph grades locally, and the probe (which does look

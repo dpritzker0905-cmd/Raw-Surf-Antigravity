@@ -25,6 +25,7 @@ Requires ~/.cdsapirc. RATING_LOCAL_SIZE stays OFF until scripts/local_size_gonog
 import argparse
 import json
 import os
+import re
 import sys
 import time
 import zipfile
@@ -303,6 +304,27 @@ def main():
     from scripts.build_spot_size_climatology import load_live_blob, upload_blob
     session = requests.Session()
     url, svc, _env = _prod_credentials(session)
+
+    # ⛔⛔ NAME THE TARGET BEFORE SPENDING 38 HOURS ON IT (2026-08-03).
+    # `_prod_credentials` is called "prod" but returns whatever `os.environ` holds, checking the
+    # process env BEFORE falling back to discovering the real values from Render. `backend/.env`
+    # points at the DEV project — so anyone who sources it (or a CI job with dev secrets) silently
+    # retargets this campaign, and the only symptom is that production's climatology never changes.
+    # The blob is written through an append-only inbox, so a wrong target fails SILENTLY and looks
+    # exactly like success. Print the ref always; refuse only when uploading.
+    _ref = re.search(r"https://([a-z0-9]+)\.supabase\.co", url or "")
+    _ref = _ref.group(1) if _ref else "UNKNOWN"
+    _want = os.environ.get("ERA5_EXPECT_PROJECT_REF", "jnfbxcvcbtndtsvscppt")
+    print(f"upload target: supabase project ref = {_ref}"
+          f"{'' if _ref == _want else f'   ⛔ EXPECTED {_want}'}")
+    if args.upload and _ref != _want:
+        raise SystemExit(
+            f"REFUSING TO UPLOAD: resolved project ref '{_ref}' is not the expected production ref "
+            f"'{_want}'. A campaign is ~38 h of CDS queueing and the inbox write would succeed "
+            f"against the wrong project, which is indistinguishable from success. Unset "
+            f"SUPABASE_URL/SUPABASE_SERVICE_ROLE_KEY so the Render lookup runs, or set "
+            f"ERA5_EXPECT_PROJECT_REF if you genuinely mean to target '{_ref}'.")
+
     spots = _all_spots(session, url, svc)
     if args.query:
         needles = [q.strip().lower() for q in args.query.split(",") if q.strip()]

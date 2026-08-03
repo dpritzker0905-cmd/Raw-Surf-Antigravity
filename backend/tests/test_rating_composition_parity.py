@@ -51,6 +51,7 @@ its entry). The remaining waivers are still gated OFF, so the "all flags OFF" ag
 keeps its meaning: it pins the compositions equal on the paths where nothing is gated on.
 """
 import ast
+from pathlib import Path
 import inspect
 
 import pytest
@@ -329,15 +330,82 @@ POST_STEP_SURFACES = {
     "map rating band":             ("services.weather_pipeline.grid_resolver_surf", None),
     "spot hub":                    ("services.weather_pipeline.spot_conditions", None),
     "weather sim":                 ("services.weather_pipeline.sim_rating", None),
+    # ⚠️ THE FIFTH SURFACE — `weather_sim_mcp.get_weather_forecast` — IS DELIBERATELY NOT HERE, and
+    # the reason is the finding of 2026-08-03. It DELEGATES the gate to `sim_rating` rather than
+    # referencing it, so "does this module name the symbol?" is the wrong question and adding it
+    # here fails for the wrong reason. What it must do instead is ARM the conditional step by
+    # passing `valid_time` — guarded by GATE_ARG_CALLERS below. Two registries because there are
+    # genuinely two failure modes: a surface that never applies a step, and a caller that leaves a
+    # conditional step un-armed.
 }
+
+# ⛔⛔ REFERENCING A STEP IS NOT APPLYING IT — the hole this registry had on 2026-08-03.
+# `sim_rating` referenced `gate_single_model_surface` (so the guard above was GREEN) but calls it
+# only `if valid_time is not None`, and `weather_sim_mcp.get_weather_forecast` parsed the hour, used
+# it for the BASELINE, and never threaded it into `calculate_surf_rating`. The gate was therefore
+# INERT on the one surface that reports the real forecast: measured live, Nai Harn read
+# **70.5 `good`** on the sim while the app served **66.4 `fair_good`**, `quality_confirmed=null`.
+# The sim was the only surface in the product that could say "good", and only because it skipped
+# the cap every glyph applies — the exact asymmetry owner-decision #13 closed, silently re-opened.
+# ★ THE CLASS: an optional argument with a None default does not fail; it DISABLES the feature that
+#   depends on it. So a step behind `if <arg> is not None` needs its CALLERS guarded, not just the
+#   module that owns the step.
+GATE_ARG_CALLERS = {
+    # file -> (function that must pass it, callee, keyword that arms the post-step)
+    "weather_sim_mcp.py": ("get_weather_forecast", "calculate_surf_rating", "valid_time"),
+}
+
+
+def _call_kwargs_in_function(module_path, func_name, callee):
+    """Every keyword name passed to `callee` from inside `func_name`. Source-only, no import."""
+    tree = ast.parse(_source_of(module_path))
+    for fn in ast.walk(tree):
+        if not isinstance(fn, (ast.FunctionDef, ast.AsyncFunctionDef)) or fn.name != func_name:
+            continue
+        for node in ast.walk(fn):
+            if not isinstance(node, ast.Call):
+                continue
+            f = node.func
+            name = f.attr if isinstance(f, ast.Attribute) else getattr(f, "id", None)
+            if name == callee:
+                return {kw.arg for kw in node.keywords if kw.arg}
+    return None
+
+
+@pytest.mark.parametrize("path", sorted(GATE_ARG_CALLERS))
+def test_the_caller_arms_the_post_step_it_depends_on(path):
+    """A conditional post-step is only applied if its CALLER supplies the condition."""
+    func, callee, kw = GATE_ARG_CALLERS[path]
+    kwargs = _call_kwargs_in_function(path, func, callee)
+    assert kwargs is not None, f"{path}:{func} no longer calls {callee} — update GATE_ARG_CALLERS."
+    assert kw in kwargs, (
+        f"{path}:{func} calls {callee}() WITHOUT `{kw}=`. {callee} applies the observation gate "
+        f"only when `{kw}` is not None, so omitting it silently skips the cap every glyph surface "
+        f"applies, and this surface reports `good` for spots the map shows as `fair_good`. "
+        f"Measured 2026-08-03 before the fix: Nai Harn 70.5 `good` here vs 66.4 `fair_good` served.")
+
+
+def _source_of(module_path):
+    """The module's SOURCE, WITHOUT IMPORTING IT.
+
+    ⛔⛔ WHY THIS EXISTS (2026-08-03). `_references` used `importlib.import_module`, so a surface
+    could only be guarded if CI could import it — and `weather_sim_mcp.py` imports fastmcp at module
+    level, which is INSTALL-INCOMPATIBLE with this app's pinned stack (every published fastmcp needs
+    httpx>=0.28.1 against our pinned 0.27.2). So the MCP surface was simply left out of the registry,
+    the assertion below said "all five" while listing FOUR, and **the one surface that dropped the
+    gate was the one this guard structurally could not reach.** Reading the file by path covers it
+    with no import at all.
+    """
+    if module_path.endswith(".py"):
+        return (Path(__file__).resolve().parents[1] / module_path).read_text(encoding="utf-8")
+    import importlib
+    return inspect.getsource(importlib.import_module(module_path))
 
 
 def _references(module_path, symbols):
     """True when the module's SOURCE references any of `symbols` — an AST/name scan, not an import
     check, because the gate is reached through a function-local import at several surfaces."""
-    import importlib
-    mod = importlib.import_module(module_path)
-    src = inspect.getsource(mod)
+    src = _source_of(module_path)
     tree = ast.parse(src)
     names = set()
     for node in ast.walk(tree):
@@ -367,7 +435,8 @@ def test_every_surface_applies_every_post_rating_step(surface, step):
 def test_the_post_step_registry_is_not_silently_empty():
     """A registry that drifts to empty would make the guard above vacuously green."""
     assert POST_STEPS and POST_STEP_SURFACES
-    assert len(POST_STEP_SURFACES) >= 4, "all five rating surfaces must be listed"
+    assert len(POST_STEP_SURFACES) >= 4, "the four APPLYING rating surfaces must be listed"
+    assert GATE_ARG_CALLERS, "the caller-arms-the-step registry must not drift to empty"
 
 
 def test_the_single_model_gate_helper_exists_and_returns_the_raw_score_too():
