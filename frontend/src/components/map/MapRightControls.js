@@ -75,7 +75,10 @@ export var MapRightControls = ({
       </div>
 
       {/* Featured photographers toggle */}
+      {/* ⚠️ ICON-ONLY ⇒ THE `aria-label` IS THE ONLY ACCESSIBLE NAME. A lucide glyph contributes no
+          text, so without this the control is anonymous to a screen reader at every width. */}
       <Button
+        aria-label="Featured photographers"
         aria-expanded={showFeaturedPanel}
         onClick={onToggleFeatured}
         className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFeaturedPanel ? 'ring-2 ring-yellow-400' : ''}`}
@@ -86,6 +89,7 @@ export var MapRightControls = ({
 
       {/* Friends on map toggle */}
       <Button
+        aria-label="Friends on map"
         aria-expanded={showFriendsOnMap}
         onClick={onToggleFriends}
         className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 ${showFriendsOnMap ? 'ring-2 ring-yellow-400' : ''}`}
@@ -96,6 +100,7 @@ export var MapRightControls = ({
 
       {/* Mobile Weather Layers Toggle */}
       <Button
+        aria-label="Weather layers"
         aria-expanded={showWeatherControls}
         onClick={onToggleWeatherControls}
         className={`bg-zinc-800/90 backdrop-blur-sm hover:bg-zinc-700 text-white rounded-full w-12 h-12 p-0 md:hidden ${showWeatherControls ? 'ring-2 ring-cyan-400' : ''}`}

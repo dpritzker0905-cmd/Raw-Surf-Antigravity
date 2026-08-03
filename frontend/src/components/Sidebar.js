@@ -278,8 +278,15 @@ export const Sidebar = () => {
           // Create button - special handling, navigates to /create
           if (item.isCreateButton) {
             return (
+              // ⭐⭐ THE `aria-label` IS LOAD-BEARING BELOW xl. The visible label lives in a
+              // `hidden xl:inline` span, so without this the button is named on a desktop and
+              // ANONYMOUS ON EVERY PHONE — and a desktop-only audit reports it PASSING. When a
+              // label sits in a breakpoint-hidden span, the control needs its own accessible name;
+              // the visible text is a convenience. Pinned by `map/controls.a11y.test.js` ARM 2,
+              // which reads the SOURCE because jsdom applies no CSS and cannot see this.
               <button
                 key="create"
+                aria-label="Create"
                 onClick={() => navigate('/create')}
                 className={`w-full flex items-center ${isHovered ? 'justify-start' : 'justify-center xl:justify-start'} gap-2 px-3 py-2 rounded-lg mb-0.5 transition-all text-sm ${textSecondaryClass} ${hoverBgClass} hover:${textPrimaryClass}`}
                 data-testid="nav-create"
