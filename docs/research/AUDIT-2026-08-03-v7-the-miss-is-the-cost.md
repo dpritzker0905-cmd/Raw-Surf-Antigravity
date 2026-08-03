@@ -47,8 +47,27 @@ The client asks for a 48-hour series of marine grids. The backend either
   an INFLATED box**, returning **13–43 MB in 18–35 s**, with `bounds` **visibly wider than the
   request**.
 
-**The served `bounds` field is the tell, and it is already in every payload.** Bounds == request →
-cheap. Bounds ⊋ request → catastrophic. Nobody was reading it.
+⛔ **CORRECTION, SAME DAY.** This section originally claimed *"the served `bounds` field is the tell,
+and it is already in every payload — bounds == request ⇒ cheap, wider ⇒ catastrophic."* **That claim
+is FALSE and was shipped as a `coverage` field before being falsified by its own live control**
+(`scripts/verify_v7_deploy.py` check A2, within the hour). Two measurements kill it:
+
+- The backend **SNAPS** every request to the product grid (`get_snapped_bbox`, 1° for GFS), so served
+  bounds never equal a raw request. The field stamped `miss` on **everything**, including the hits it
+  existed to identify.
+- Widening it to an inflation *ratio* fails too. Measured live: a 1° request → served 2×1° = **2.00×**
+  (a HIT); a 9.8° request → served 16×12° = **1.63×** (a HIT); the 80° case → served 102×84° =
+  **1.28×** (a MISS). **The MISS inflated LESS than the HITs.**
+
+The original rule was generalised from a handful of samples that happened to agree — the same shape
+as the recorded *"4 wrong claims from ONE grep + a generalisation."* The `coverage` field and its
+tests were removed the day they shipped; `vectors_total` / `decimated_stride` are unaffected because
+they are **measured, not inferred**. The real signal exists but not in that layer:
+`viewport_helper.py:427` sets `is_dynamic_viewport_product = True` on exactly the fallback path, and
+threading it out is the correct fix — **still OPEN**.
+
+**What remains true, and is the actual headline:** the MISS path costs 10–30× the HIT path, is
+multiplied by 48 frames and 3 pages, and was bounded by nothing.
 
 ### The measurement [M]
 
@@ -387,3 +406,61 @@ a two-sided test that fails today.
   applies at all), so `NETLIFY_PROXY_WINDOW_S = 26.0` does **not** govern this path. What the
   measurement did establish is worse and is a finding, not a limit — see §3b.
 - No frontend regression suite was executed. Every frontend claim is [C]/[L].
+
+---
+
+## §9 OPEN — THE HEATMAP LOSES ITS COLOURS ON ZOOM, THEN RECOVERS ON ZOOM-OUT
+
+Owner report, 2026-08-03, with console log (bundle `6da4c16e`, i.e. **after** the antimeridian fix):
+*"zoom issues for the heatmap showing the proper colors then not, then showing them again on zoom
+out. It happened before."* Recorded here with the evidence; **deliberately not fixed in this pass** —
+the marine mask/retain code is the repo's regression graveyard and this needs eyes on the map.
+
+### The prime suspect, named by the log itself
+
+```
+[WebGLMarineEngine] No-downgrade: kept resident 30×19 (waves h0);   rejected 181×82 at zoom 4.0
+[WebGLMarineEngine] No-downgrade: kept resident 27×13 (waves h126); rejected 23×16  at zoom 6.0
+[WebGLMarineEngine] No-downgrade self-heal: stashed 23×16 grid accepted at zoom 5.5
+[WebGLMarineEngine] No-downgrade: kept resident 17×8  (waves h126); rejected 24×18  at zoom 7.1
+```
+
+**Four rejections and one self-heal in a single session.** The `181×82` rejected at zoom 4.0 is the
+world grid (`spanLng 360`); the `30×19` retained instead is a *regional* product. Per-degree the
+resident is denser, so a density-only rule keeps it — **but it covers a fraction of the screen, so
+everything outside its extent has no data and therefore no colour.** That is the reported symptom,
+and the log carries the consequence directly:
+
+```
+[Marine] Render backstop: engine empty + idle ≥3s — re-driving.
+         sharpen={found:true, covers:true, fw:2.7, willSharpen:true} series={loads:13, hits:12, misses:30}
+```
+
+⇒ **This is THE COVERAGE CLASS again** (`a resource smaller than the view`, the shape behind seven
+prior defects): the no-downgrade guard ranks candidates by **density alone, with no requirement that
+the winner CONTAIN the viewport.** Density and coverage are different questions and only one is being
+asked. The "self-heal" line is the system noticing after the fact.
+
+### Two aggravating facts in the same log
+
+- **The land mask rebuilt ~12× in one session, alternating 4096×2048 ↔ 2048×1024.** The encoder's own
+  comment already names this: *"the 4096↔2048 rebuild alternation is a named suspect in the land-halo
+  report."* Cache key is exact float equality on all four bounds edges
+  (`WebGLMarineTextureEncoder.js:580-586`), so any zoom step invalidates it. Cost per rebuild:
+  8.4 Mpx raster + coast SDF + a 33.5 MB upload, on the main thread.
+- **FPS 16 → 7 → 13** (`WebGLGuardrail`), plus `'requestAnimationFrame' handler took 374ms` and
+  `'change' handler took 369ms`. A frame that misses its budget during a zoom is indistinguishable,
+  to the eye, from a frame with no data.
+
+### What would settle it — the instrument, not a guess
+
+The no-downgrade decision must log, at rejection time, **the viewport span and the candidate's
+coverage fraction of it**, not just `cols×rows`. Today the line prints dimensions with no extent, so
+a reader cannot tell a correct rejection (finer regional beats coarse global at close zoom) from the
+defect (small regional retained while the screen is global). One field per side turns this from a
+guess into a fact — and it is the same fix shape as `vectors_total`: **publish the quantity the
+decision is actually made on.**
+
+⚠️ Note for whoever takes it: the bboxes in this log are all legal (`-81.98…`, `-78.08…`) — no
+`|lng| > 180`. That is consistent with the antimeridian fix being live, but it is **not proof**: this
+session did not perform the rapid world zoom-out that produced the original `-199.3617`.

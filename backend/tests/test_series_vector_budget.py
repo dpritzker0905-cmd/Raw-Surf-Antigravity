@@ -15,7 +15,6 @@ import pytest
 from services.weather_pipeline.series_vector_budget import (
     DEFAULT_VECTOR_BUDGET,
     apply_vector_budget,
-    stamp_coverage,
 )
 
 
@@ -111,21 +110,10 @@ def test_no_frames_is_a_noop():
     assert apply_vector_budget(resp) == resp
 
 
-# ── coverage stamping: the tell that was always in the payload ────────────────────────────────
-def test_coverage_hit_when_served_bounds_equal_the_request():
-    resp = _resp(25, 12, 4, bounds={"west": -86.8623, "south": 25.9723,
-                                    "east": -77.0946, "north": 30.8398})
-    out = stamp_coverage(resp, "-86.8623,25.9723,-77.0946,30.8398")
-    assert out["coverage"] == "hit"
-
-
-def test_coverage_miss_when_served_bounds_are_inflated():
-    """The live span-80 case: requested [-125,0,-45,60], served [-136,-12,-34,72]."""
-    resp = _resp(52, 43, 4, bounds={"west": -136.0, "south": -12.0, "east": -34.0, "north": 72.0})
-    out = stamp_coverage(resp, "-125,0,-45,60")
-    assert out["coverage"] == "miss"
-
-
-def test_coverage_absent_rather_than_wrong_on_an_unparseable_bbox():
-    resp = _resp(25, 12, 2)
-    assert "coverage" not in stamp_coverage(resp, "not-a-bbox")
+# ⛔ THE COVERAGE-STAMP TESTS WERE DELETED WITH THE FUNCTION (2026-08-03, same day it shipped).
+# They passed because they asserted the same false premise the code did: that served bounds equal
+# the request on a hit. The backend SNAPS every bbox to the product grid, so they never do, and the
+# live control in scripts/verify_v7_deploy.py caught it within the hour. See the block in
+# series_vector_budget.py for the measurements that killed it — including the one that matters:
+# the true MISS inflated LESS than the true HITs, so bounds cannot discriminate at all.
+# A test written from the same assumption as the code cannot falsify the code.

@@ -286,8 +286,8 @@ async def build_grid_series(resolve_grid, viewport_service, model: str, domain: 
         request=request, surf=surf,
     )
     try:
-        from services.weather_pipeline.series_vector_budget import apply_vector_budget, stamp_coverage
-        return stamp_coverage(apply_vector_budget(resp), bbox)
+        from services.weather_pipeline.series_vector_budget import apply_vector_budget
+        return apply_vector_budget(resp)
     except Exception:
         logger.exception("[series-budget] bounding failed; serving the unbounded response")
         return resp

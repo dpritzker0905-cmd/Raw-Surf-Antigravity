@@ -148,33 +148,25 @@ def apply_vector_budget(resp: dict) -> dict:
     return resp
 
 
-def stamp_coverage(resp: dict, requested_bbox: str) -> dict:
-    """Stamp `coverage`: 'hit' when the served bounds equal the request, 'miss' when they are wider.
-
-    THE TELL WAS ALWAYS IN THE PAYLOAD AND NOBODY READ IT. Measured live: served bounds == request
-    means a precomputed product covered the viewport and was clipped (1.3-3.2 MB, 2-4 s); served
-    bounds wider than the request means selection MISSED and the fallback built a dynamic grid at
-    native resolution over an inflated box (13-43 MB, 18-35 s). Same endpoint, same contract, 30x
-    the cost, and no way for a caller -- or an audit -- to tell them apart.
-    """
-    if not isinstance(resp, dict):
-        return resp
-    b = resp.get("bounds")
-    try:
-        rw, rs, re_, rn = [float(x) for x in (requested_bbox or "").split(",")]
-    except (TypeError, ValueError):
-        return resp
-    try:
-        if isinstance(b, dict):
-            sw, ss, se, sn = (float(b["west"]), float(b["south"]), float(b["east"]), float(b["north"]))
-        elif isinstance(b, (list, tuple)) and len(b) == 4:
-            sw, ss, se, sn = [float(x) for x in b]
-        else:
-            return resp
-    except (TypeError, ValueError, KeyError):
-        return resp
-    tol = 1e-6
-    exact = (abs(sw - rw) <= tol and abs(ss - rs) <= tol
-             and abs(se - re_) <= tol and abs(sn - rn) <= tol)
-    resp["coverage"] = "hit" if exact else "miss"
-    return resp
+# ⛔ `stamp_coverage` LIVED HERE AND WAS REMOVED THE SAME DAY IT SHIPPED (2026-08-03).
+#
+# It stamped `coverage: hit|miss` by testing whether the SERVED bounds equalled the REQUESTED bbox,
+# on the claim that "served bounds == request => a product was clipped; wider => the dynamic
+# fallback ran". THAT CLAIM IS FALSE, and its own control caught it within the hour:
+#
+#   * The backend SNAPS every request to the product grid (`get_snapped_bbox`, 1 deg for GFS, 2 deg
+#     otherwise), so served bounds NEVER equal a raw request and the field said "miss" for
+#     everything — including the genuine hits it existed to distinguish.
+#   * Widening it to an inflation RATIO does not rescue it either. Measured live the same day:
+#         1 deg request  -> served 2x1 deg    = 2.00x in longitude   (a HIT)
+#         9.8 deg request-> served 16x12 deg  = 1.63x                (a HIT)
+#         80 deg request -> served 102x84 deg = 1.28x                (a MISS)
+#     THE MISS INFLATED LESS THAN THE HITS. Bounds cannot discriminate; the original rule was
+#     generalised from a handful of samples that happened to agree.
+#
+# ★ The REAL signal exists but is not in this layer: `viewport_helper` sets
+#   `is_dynamic_viewport_product = True` on exactly the fallback path (`:427`). Threading that flag
+#   out through the resolver into each frame is the correct fix and is deliberately NOT done here —
+#   a diagnostic that answers when it cannot know is worse than none, which is the whole reason this
+#   function is a comment instead of code.
+# ★ `vectors_total` / `decimated_stride` below are unaffected: they are MEASURED, not inferred.
