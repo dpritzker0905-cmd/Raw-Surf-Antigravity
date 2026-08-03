@@ -175,6 +175,46 @@ def era5_breaking_samples(lat, lng, end_date, client=None):
 CHECKPOINT_EVERY = int(os.environ.get("ERA5_CHECKPOINT_EVERY", "10"))
 
 
+def _is_this_script(proc_name, cmdline) -> bool:
+    """True only for a PYTHON process running THIS script as an argv element.
+
+    ⛔⛔ THE SUBSTRING TEST THAT BROKE THE CAMPAIGN (measured 2026-08-03). The original guard asked
+    `any(basename in part for part in cmdline)` over EVERY process. A shell that launches this
+    script necessarily carries the script's name in its OWN command line, so
+    `bash -c "python scripts/era5_deepen_climatology.py --all --upload"` matched itself, the guard
+    reported "another ERA5 campaign is already running (pid <the launching shell>)", and the run
+    aborted before its first fetch. Every wrapper launch — `bash -c`, the nightly scheduled task,
+    CI — self-aborted, which is why the campaign was never established at scale. The guard did not
+    fail to run; it ran and blocked the only thing it was protecting.
+
+    Two conditions, both required, each killing one false positive:
+      * the process must be a PYTHON INTERPRETER — kills the launching shell; and
+      * the name must sit in python's SCRIPT SLOT — the first non-flag argument — which kills
+        `python -c "<blob that mentions the script>"`.
+
+    ⚠️ THE SCRIPT SLOT IS THE RULE, AND STRING SHAPE IS NOT. Testing `part.endswith(basename)` or
+    `os.path.basename(part) == basename` over every argv element looks equivalent and is not:
+    `posixpath.basename` splits a CODE BLOB on '/' just as happily as a path, so
+    `python -c "# audit scripts/era5_deepen_climatology.py"` satisfies BOTH. That variant was
+    written here, passed its own unit test (whose blob happened not to end on the name), and was
+    caught only by a mutation harness. `-c`/`-m` mean there is no script file at all — return
+    early rather than inspecting the payload.
+    """
+    if "python" not in (proc_name or "").lower():
+        return False
+    here = os.path.basename(__file__)
+    args = [str(p) for p in (cmdline or ()) if p is not None][1:]   # drop the interpreter itself
+    i = 0
+    while i < len(args) and args[i].startswith("-"):
+        if args[i] in ("-c", "-m"):             # inline code / module: no script path follows
+            return False
+        i += 1
+    if i >= len(args):                          # a bare REPL, no script
+        return False
+    slot = args[i]
+    return os.path.basename(slot) == here or slot.endswith(here)
+
+
 def _another_instance_pid():
     """PID of another live run of THIS script, or None. Best-effort — never raises.
 
@@ -185,17 +225,25 @@ def _another_instance_pid():
     load that is already the bottleneck, and race the same inbox prefix.
     ★ A lock FILE would not have caught it: the run in flight predates this guard and holds no
     lock. Scanning for the process itself is what makes the guard work on the very first night.
+    ★ Self and ANCESTORS are excluded: the launching shell (and its shell, under CI) is not a
+      competing campaign, it is this one. See `_is_this_script` for the substring bug this replaced.
     """
     try:
         import psutil
     except Exception:
         return None
-    me, here = os.getpid(), os.path.basename(__file__)
-    for proc in psutil.process_iter(["pid", "cmdline"]):
+    me = os.getpid()
+    kin = {me}
+    try:                                       # the whole ancestor chain, not just the parent
+        for anc in psutil.Process(me).parents():
+            kin.add(anc.pid)
+    except Exception:
+        kin.add(os.getppid())
+    for proc in psutil.process_iter(["pid", "name", "cmdline"]):
         try:
-            if proc.info["pid"] == me:
+            if proc.info["pid"] in kin:
                 continue
-            if any(here in str(part) for part in (proc.info["cmdline"] or ())):
+            if _is_this_script(proc.info["name"], proc.info["cmdline"]):
                 return proc.info["pid"]
         except Exception:                      # a process can exit mid-iteration
             continue

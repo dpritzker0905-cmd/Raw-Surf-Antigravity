@@ -43,3 +43,20 @@
 pytest==9.0.3
 pytest-asyncio==1.3.0
 aiosqlite==0.22.1
+
+# ── CAMPAIGN / OFFLINE TOOLING (not production, not the test suite) ─────────────────────────────
+# ⛔ DELIBERATELY NOT IN requirements.txt. The serve box is a 1-CPU / 2 GiB instance that has been
+# OOM-killed at 1,579 MB, and it never runs a climatology campaign — the campaign is an operator
+# lane driven from a workstation (the scheduled task `RawSurf ERA5 Climatology Campaign`, 21:30).
+# Shipping an unused SDK into the production image costs memory on the box least able to spare it.
+#
+#   cdsapi   backend/scripts/era5_deepen_climatology.py — the ERA5 lane that deepens per-spot size
+#            climatology from ~2 days of our own forecasts (a CIRCULAR reference: the model
+#            normalised by its own recent output) to 47 years of reanalysis, 1979→present.
+#            ⚠️ ALSO REQUIRES A CREDENTIAL pip CANNOT SUPPLY: a CDS API token at `~/.cdsapirc`
+#            (https://cds.climate.copernicus.eu/ → profile → API key). That is a DIFFERENT service
+#            from COPERNICUSMARINE_* in backend/.env; having one says nothing about the other, and
+#            that confusion is why this lane was twice reported as "not wired in" while complete.
+#            ⚠️ xarray / netCDF4 / h5netcdf are already in requirements.txt (the EURO marine lane
+#            uses them in production); only the CDS client is exclusive to this campaign.
+cdsapi>=0.7.0
