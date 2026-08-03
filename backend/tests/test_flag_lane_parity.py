@@ -471,3 +471,106 @@ def test_every_workflow_lane_the_registry_names_is_a_lane_this_suite_reads():
         + "\n\nFix by adding the lane to INGEST_LANES/GUARDED_LANES (and comparing it), or by "
           "correcting the registry's 'where to flip' if that lane is no longer the right target."
     )
+
+
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# THE COMPOSITION FILE LIST IS DUPLICATED ACROSS TWO LANES, AND ONLY ONE OF THEM SELECTS
+# ══════════════════════════════════════════════════════════════════════════════════════════════
+# ci.yml:383   FILES=$(ls tests/test_sim_*.py ...)          the composition lane's ACTUAL SELECTOR
+# ci.yml:~500  COMPOSITION = ["tests/test_sim_*.py", ...]   the CHAIN lane's EXCLUSION list, so the
+#                                                           chain does not re-run composition's files
+#
+# They must describe the same set, and nothing checked that. On 2026-08-02 two orphaned forecast
+# guards were adopted by editing only the Python literal — which told the chain lane to keep
+# excluding files the composition lane had never heard of. The count did not move, the ratchet went
+# red, and the fix was a second edit to the `ls` glob.
+#
+# ★ The failure mode is worse than a wrong number. A pattern present in the EXCLUSION list and absent
+# from the SELECTOR produces a file that runs in NEITHER lane — silently, with every gate green. That
+# is this repo's most-recorded defect class, and here it is a data structure that invites it.
+# Recorded sibling: a duplicated constant only diverges on a boundary (seven copies of the knots pair).
+
+_CI_YML = os.path.join(WORKFLOWS, "ci.yml")
+# Deliberate, documented, and NOT a defect: these need a `dev.db` GitHub Actions does not have
+# (ci.yml's own note at the composition ratchet). They are named here so the exclusion stays VISIBLE
+# and cannot quietly grow — anything else dropping out of both lanes fails this test.
+_COMPOSITION_EXEMPT = {"test_weather_sim_mcp.py", "test_weather_sim_mcp_server_startup.py"}
+
+
+def _composition_selector_patterns(text):
+    """The `ls` glob the composition lane actually runs, plus its grep -vE exclusion."""
+    m = re.search(r"FILES=\$\(ls\s+(.*?)\s+2>/dev/null", text, re.S)
+    assert m, "ci.yml's composition `ls` glob no longer parses — the guard is blind, fix the regex"
+    pats = [t for t in m.group(1).split() if t.startswith("tests/")]
+    ex = re.search(r"grep -vE '([^']+)'", text)
+    return pats, (ex.group(1) if ex else None)
+
+
+def _chain_exclusion_patterns(text):
+    """The COMPOSITION literal the chain lane subtracts from its own candidate set."""
+    m = re.search(r"COMPOSITION = \[(.*?)\]\n", text, re.S)
+    assert m, "ci.yml's COMPOSITION literal no longer parses — the guard is blind, fix the regex"
+    return re.findall(r'"([^"]+)"', m.group(1))
+
+
+def _resolve(patterns):
+    import glob as _glob
+    base = os.path.join(REPO, "backend")
+    out = set()
+    for p in patterns:
+        out |= {os.path.basename(f) for f in _glob.glob(os.path.join(base, p))}
+    return out
+
+
+def test_the_two_composition_file_lists_resolve_to_the_same_set():
+    text = open(_CI_YML, encoding="utf-8").read()
+    sel_pats, excl = _composition_selector_patterns(text)
+    chain_pats = _chain_exclusion_patterns(text)
+
+    selected = _resolve(sel_pats)
+    if excl:
+        rx = re.compile(excl)
+        selected = {f for f in selected if not rx.search(f)}
+    excluded_from_chain = _resolve(chain_pats)
+
+    # Setup assertion: a guard over empty sets proves nothing.
+    assert len(selected) > 50 and len(excluded_from_chain) > 50, (
+        f"resolved too few files (selector {len(selected)}, chain {len(excluded_from_chain)}) — "
+        "the patterns did not match, so this test would pass vacuously")
+
+    runs_nowhere = (excluded_from_chain - selected) - _COMPOSITION_EXEMPT
+    assert runs_nowhere == set(), (
+        "these test files are EXCLUDED from the chain lane and NOT SELECTED by the composition lane, "
+        "so they run in NEITHER and every gate stays green:\n  " + "\n  ".join(sorted(runs_nowhere))
+        + "\n\nFix by adding them to ci.yml's composition `ls` glob (the SELECTOR at :383), not only "
+          "to the COMPOSITION literal — editing the literal alone is what caused this.")
+
+    twice = selected - excluded_from_chain
+    assert twice == set(), (
+        "these files are selected by the composition lane but NOT excluded from the chain lane, so "
+        "both lanes run them and the two ratchets double-count:\n  " + "\n  ".join(sorted(twice)))
+
+
+def test_the_composition_list_guard_can_actually_FAIL():
+    """NEGATIVE CONTROL, both directions — without it the test above passes on a broken parser.
+
+    The two real mutations are simulated on the parsed sets rather than on disk: a pattern added to
+    the chain literal only (the 2026-08-02 mistake), and one added to the selector only.
+    """
+    text = open(_CI_YML, encoding="utf-8").read()
+    sel_pats, excl = _composition_selector_patterns(text)
+    chain_pats = _chain_exclusion_patterns(text)
+    rx = re.compile(excl) if excl else None
+    selected = {f for f in _resolve(sel_pats) if not (rx and rx.search(f))}
+    chain = _resolve(chain_pats)
+    assert selected and chain                                  # setup landed
+
+    # (a) the real mistake: adopted into the chain literal only -> the file runs NOWHERE
+    victim = sorted(selected)[0]
+    broken_chain = chain | {"test_a_file_the_selector_never_sees.py"}
+    assert (broken_chain - selected) - _COMPOSITION_EXEMPT, "the runs-nowhere check cannot fail — it is decoration"
+
+    # (b) the inverse: selected but not excluded -> BOTH lanes run it, ratchets double-count
+    broken_sel = selected | {"test_a_file_the_chain_still_runs.py"}
+    assert broken_sel - chain, "the run-twice check cannot fail — it is decoration"
+    assert victim in selected                                  # the fixture is real, not invented
