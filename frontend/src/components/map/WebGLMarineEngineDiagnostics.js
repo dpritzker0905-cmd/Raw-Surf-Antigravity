@@ -154,8 +154,31 @@ export function populateCrestDiagnostics(engine, gl, waveBounds, z) {
     const activeLayer = waveGrid.__componentLayer || 'waves';
     const hourOffset = waveGrid.hourOffset || 0;
 
-    const uploadSig = waveGrid.productId || `${sourceModel}_${activeLayer}_${hourOffset}_${waveGrid.timestamp || waveGrid.grid?.timestamp || Date.now()}`;
-    if (engine._lastUploadedSig !== uploadSig) {
+    // ⛔ A DEDUP KEY THAT FALLS BACK TO `Date.now()` CANNOT DEDUP. This line read
+    //     ... || `${model}_${layer}_${hour}_${waveGrid.timestamp || waveGrid.grid?.timestamp || Date.now()}`
+    // and `populateCrestDiagnostics` is called from INSIDE the per-frame render loop
+    // (WebGLMarineEngine.js:2143, right after the draw-call block). When `productId` is null AND
+    // neither timestamp is present, the key contained the CURRENT TIME, so it differed on every
+    // frame, the guard below always passed, and the O(N) stats loop + a telemetry emit ran once per
+    // rendered frame on unchanged data.
+    //
+    // MEASURED LIVE 2026-08-03 on the owner's reproduction (GFS/waves/h129, productId: null —
+    // confirmed in the served payload): `__WEATHER_TELEMETRY__.logs` held 500 of 500 entries of
+    // type `texture_generated`, EVERY ONE the identical payload `143v / 99nz / max 1.8901 / h129`,
+    // with 18 consecutive samples 31.4 ms apart (≈30 fps) during active interaction. The ring is
+    // capped at 500, so this one event evicted every other telemetry event within ~17 s.
+    // ★ THE DIAGNOSTIC WAS BLINDING THE DIAGNOSTICS — which is a large part of why the nine ring
+    //   buffers this app ships had never yielded a finding.
+    //
+    // The replacement keys on CONTENT IDENTITY: dimensions + vector count + hour + layer + model.
+    // Identical data ⇒ identical key ⇒ the guard holds. A genuinely new grid changes at least one.
+    // No clock, so it cannot self-invalidate. Kill: __RAW_DISABLE_CREST_DIAG_DEDUP__ = true.
+    const _vecLen = (waveGrid.vectors || []).length;
+    const uploadSig = waveGrid.productId
+      || `${sourceModel}_${activeLayer}_${hourOffset}_${waveGrid.cols}x${waveGrid.rows}_${_vecLen}`
+         + `_${waveGrid.timestamp || waveGrid.grid?.timestamp || ''}`;
+    const _dedupOff = typeof window !== 'undefined' && window.__RAW_DISABLE_CREST_DIAG_DEDUP__ === true;
+    if (_dedupOff || engine._lastUploadedSig !== uploadSig) {
       engine._lastUploadedSig = uploadSig;
 
       let nonzeroCount = 0;
