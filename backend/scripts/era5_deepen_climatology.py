@@ -130,18 +130,65 @@ def fetch_tp_tm_ratio(client, lat, lng):
             pass
 
 
+# ⛔⛔ ERA5's WAVE GRID IS ~0.5 deg AND A SURF SPOT IS ON THE COAST (measured 2026-08-03).
+# The timeseries lane samples the spot's EXACT coordinate, and at many spots that cell is land: every
+# value comes back masked, `isfinite` rejects all of them, and the spot yields `offshore=0`. Measured
+# on the first campaign spot — `Nosara - Playa Guiones: offshore=0 surfable=0 reference=None` after
+# 311 s — and independently by `directional_exposure_probe` at BOTH Raglan spots ("0 usable samples"),
+# while Arugam Bay and Hossegor returned 139,016 samples each from the same code. So it is the
+# COORDINATE, not the lane.
+# ★ Nudging SEAWARD is not a workaround, it is more correct: the production chain wants an OFFSHORE
+#   Hs which it then transforms through the spot's geometry. Sampling inside the surf zone of a 0.5 deg
+#   cell is neither the offshore sea state nor the breaking one.
+# ⚠️ Costs an EXTRA ~47-year fetch only for spots that fail, so spots that already work are unchanged
+#   and pay nothing. Offsets are in degrees along the seaward shore normal, widening until wet.
+OFFSHORE_NUDGE_DEG = (0.0, 0.35, 0.7, 1.0)
+
+
+def _seaward(lat, lng, geo, deg):
+    """`deg` degrees along the seaward shore normal. Falls back to due-west when the normal is
+    unknown — arbitrary but harmless, since a nudge is only attempted after the exact point failed."""
+    import math
+    if deg <= 0:
+        return lat, lng
+    normal = None
+    for attr in ("shore_normal_deg", "shore_normal", "normal_deg"):
+        v = getattr(geo, attr, None) if not isinstance(geo, dict) else (geo or {}).get(attr)
+        if v is not None:
+            try:
+                normal = float(v)
+                break
+            except Exception:
+                continue
+    if normal is None:
+        normal = 270.0
+    r = math.radians(normal)
+    dlat = deg * math.cos(r)
+    dlng = deg * math.sin(r) / max(0.2, math.cos(math.radians(lat)))
+    return round(lat + dlat, 4), round(((lng + dlng + 180) % 360) - 180, 4)
+
+
 def era5_breaking_samples(lat, lng, end_date, client=None):
     """The spot's ~47-year TRANSFORMED breaking-height distribution. Returns
     (samples, n_offshore, geometry_ok, tp_tm_ratio, ratio_n)."""
     import numpy as np
     from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
     client = client or _cds()
-    swh, mwp, mwd = fetch_timeseries(client, lat, lng, end_date)
-    ratio, ratio_n = fetch_tp_tm_ratio(client, lat, lng)
     try:
         geo = resolve_surf_geometry(float(lat), float(lng))
     except Exception:
         geo = None
+    # Try the spot itself, then step seaward until the cell is actually water.
+    swh = mwp = mwd = None
+    for deg in OFFSHORE_NUDGE_DEG:
+        slat, slng = _seaward(lat, lng, geo, deg)
+        swh, mwp, mwd = fetch_timeseries(client, slat, slng, end_date)
+        if int(np.isfinite(np.asarray(swh, dtype=float)).sum()) > 0:
+            if deg:
+                print(f"      (nudged {deg} deg seaward to {slat},{slng} — the spot's own cell is dry "
+                      f"in ERA5's ~0.5 deg wave grid)", flush=True)
+            break
+    ratio, ratio_n = fetch_tp_tm_ratio(client, lat, lng)
     samples, n_off = [], 0
     for i in range(0, len(swh), STRIDE_H):
         h, p, d = float(swh[i]), float(mwp[i]), float(mwd[i])
@@ -357,6 +404,16 @@ def main():
             continue
         hist = merge_samples(None, samples)
         ref = reference_from_hist(hist)
+        # ⛔⛔ NEVER BANK AN EMPTY SPOT. A record is stamped `era5.v == ERA5_BACKFILL_VERSION`, and the
+        # resume filter treats any such stamp as DONE — so banking `n=0` marks the spot permanently
+        # complete and a LATER, CORRECTED campaign would skip it. That converts a transient fetch
+        # problem into a permanent hole in the blob, and the failure is invisible because the upload
+        # succeeds. Measured 2026-08-03: the first campaign spot returned `offshore=0` and would have
+        # been banked exactly this way. Skipping leaves the spot unstamped, so a re-run retries it.
+        if hist_count(hist) <= 0:
+            print(f"  [{i+1}/{len(spots)}] {name}: NO SAMPLES (offshore={n_off}) — NOT banked, so a "
+                  f"re-run retries it  [{time.time()-t1:.0f}s]", flush=True)
+            continue
         results[sid] = {"hist": hist, "n": hist_count(hist), "ratio": round(ratio, 3)}
         print(f"  [{i+1}/{len(spots)}] {name}: offshore={n_off} surfable={hist_count(hist)} "
               f"Tp/Tm={ratio:.3f} (n={ratio_n}) reference={ref} m  [{time.time()-t1:.0f}s]"
