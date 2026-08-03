@@ -202,3 +202,58 @@ None of this required a new instrument. All four numbers were already being coll
 session, by code already shipped. ⇒ **The standing gap is a CONSUMER: nothing reads these rings, so
 nothing turns them into a finding.** That is the same shape as `bounds` being "the tell that was
 always in the payload" — except here the instruments are right and unread, rather than wrong.
+
+---
+
+# FINAL FORENSIC PASS (2026-08-03, build `6da4c16e`)
+
+## §10 ⛔ THE ARBITER IS NOT THE FIX — `arb_shadow_diverge: 0`
+
+The arbiter has been shadowing the guard chain for this entire session. **It logged ZERO
+divergences.** Every decision the guard chain made, the arbiter would have made identically.
+
+⇒ **Flipping `__RAW_MARINE_ARBITER__` would change nothing about this defect.** The queue item
+"A/B the arbiter against the thrash" is **struck**: the A/B has effectively already run, in shadow,
+and the answer is "no difference." The thrash is not an arbitration disagreement — **both deciders
+agree, and the agreed decision is what produces the churn.**
+
+⚠️ This does NOT mean the arbiter is safe to adopt. Its header's warning still stands (a 89/89 soak
+once hid 166 divergences), and 0 divergences on one trajectory is weak evidence for a swap. It means
+only that adopting it is **not a fix for this**, so it should be decided on its own merits.
+
+## §11 THE TELEMETRY RING WAS 99% ONE EVENT — now quantified exactly
+
+| ring | composition |
+|---|---|
+| `__WEATHER_TELEMETRY__.logs` (cap 500) | `texture_generated` **495** · `FPS_drop_detected` **5** |
+| `__RAW_FORENSIC__.events` (230, not saturated) | `snap` 107 · `commit` 32 · **`flavor_fastpath_miss` 31** · `mask_rebuild` 20 · `flavor_cache_fastpath` 18 · `inflight_skip` 9 · `commit_short_circuit` 5 · **`reject_downgrade` 3** · `selfheal_accept` 1 · `encode_dup` 2 |
+
+**99% of the telemetry ring was one event.** Five `FPS_drop_detected` are the only other survivors —
+every `tile_loaded`, `cache_miss`, `render_failed`, `model_switch` was evicted. Fixed in `52b27146`.
+
+★ The **forensic** ring is healthy and rich, and it is the one to build a reader against.
+
+## §12 CORRECTION — the no-downgrade guard fired 3 times, not "never"
+
+§3 said the guard *"never fired during this gesture"*, from `rejected`/`blocked` being null on all 41
+ladder rows. The forensic ring shows **`reject_downgrade: 3`** and **`selfheal_accept: 1`**.
+The ladder samples **state** every 250 ms; the ring records **events**. A 250 ms sampler misses a
+transient that clears between ticks.
+
+**Corrected claim:** the guard fired on **3 of 32 commits (9%)** — rare, not absent, and far too few
+to explain 34 detaches. The attribution in §3 (it is not the driver) stands; the wording "never" was
+wrong. ⇒ **Sample state for levels, read the event ring for occurrences. Never infer "never" from a
+sampler.**
+
+## §13 TWO NEW FINDINGS, unexamined
+
+1. **`flavor_fastpath_miss` 31 vs `flavor_cache_fastpath` 18 — a 63% MISS RATE on the flavor cache.**
+   Nothing has ever looked at this. A cache missing two times in three is either mis-keyed or
+   correctly reflecting genuine churn; the ring cannot yet distinguish them.
+2. **`mask_rebuild` 20, alternating `2048x1024` ↔ `4096x2048`** — the exact alternation the encoder's
+   own comment names as *"a named suspect in the land-halo report."* Three consecutive rebuilds went
+   2048 → 2048 → **4096** in 2.4 s. Each 4096×2048 rebuild is 8.4 Mpx raster + coast SDF + a 33.5 MB
+   upload on the main thread.
+
+`droppedFrameCounter` **248** and `frameTimeHistogram [25869, 1271, 182, 36, 30]` ⇒ **5.5% of frames
+in the slow buckets**, with 39 live textures / 44.9 MB GPU.
