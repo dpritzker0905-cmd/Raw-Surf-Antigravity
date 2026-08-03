@@ -225,12 +225,40 @@ var _pluginRegistry = new Map();
  * Must be called AFTER engine init phase.
  * @param {LayerPlugin} layer
  */
+// Counts silent, expected re-bootstraps (same id, same definition). Kept as a COUNTER rather
+// than a log line: `counts` survives ring eviction, a log does not — the lesson from
+// __MARINE_CHURN__. Read via window.__LAYER_REGISTRY_DIAG__.
+let _reregisterCount = 0;
+
 export function registerLayerPlugin(layer) {
   if (!layer?.id) {
     throw new Error('[LayerRegistry] Invalid plugin: missing id');
   }
-  if (_pluginRegistry.has(layer.id)) {
-    console.warn(`[LayerRegistry] Plugin already registered: ${layer.id}`);
+  const existing = _pluginRegistry.get(layer.id);
+  if (existing) {
+    // ⛔⛔ RE-REGISTERING AN IDENTICAL DEFINITION IS A NO-OP, NOT AN ERROR (2026-08-03).
+    // `bootstrapCoreLayers` is documented "called once after engine init" but runs on EVERY init,
+    // and the engine re-inits on model switches and pans. Measured live on the dev map: 9
+    // engine_init / 12 engine_dispose off ~4 model clicks and 2 pans emitted **48 identical
+    // console.warns in 2 ms**, and every one was captured into `__WEATHER_TELEMETRY__` as a
+    // `model_warning`. The ring reader's C1 check FAILED on it: `model_warning` was 73.8% of the
+    // ring, and past 50% every OTHER type in a FIFO ring with no per-type quota is an undercount.
+    // So this warning was not just noise — it was DESTROYING the telemetry it shared a ring with.
+    // Second instance of that class; the first was a per-frame emit (fixed `52b27146`).
+    // ★ THE GUARD'S REAL PURPOSE IS PRESERVED: warn on a genuine CONFLICT — two DIFFERENT plugins
+    //   claiming one id, which is a bug — and stay silent when the same static definition is simply
+    //   re-bootstrapped, which is expected. Muting it outright would have thrown the guard away.
+    const conflict = existing.type !== layer.type
+      || existing.dataSource !== layer.dataSource
+      || existing.renderMode !== layer.renderMode;
+    if (conflict) {
+      console.warn(`[LayerRegistry] Plugin id CONFLICT: ${layer.id} is already registered with a `
+        + `different definition (type ${existing.type}/${layer.type}, `
+        + `source ${existing.dataSource}/${layer.dataSource}, `
+        + `render ${existing.renderMode}/${layer.renderMode}) — keeping the first.`);
+    } else {
+      _reregisterCount += 1;   // observable without being loud; see __LAYER_REGISTRY_DIAG__
+    }
     return;
   }
   _pluginRegistry.set(layer.id, layer);
@@ -388,3 +416,12 @@ MODEL_METADATA_CACHE['ncep_gfswave025'] = { variables: DEFAULT_MARINE_VARS, vali
 MODEL_METADATA_CACHE['dwd_gwam'] = { variables: DWD_GWAM_VARS, validTimes: defaultTimesIconWav, referenceTime };
 MODEL_METADATA_CACHE['ecmwf_wam025'] = { variables: LIMITED_MARINE_VARS, validTimes: defaultTimesEuro, referenceTime };
 
+// Observable without being loud: how many identical re-bootstraps happened, and how many
+// distinct plugins are live. A silent no-op that nobody can count is how a churn bug hides.
+if (typeof window !== 'undefined') {
+  window.__LAYER_REGISTRY_DIAG__ = {
+    get reregisterCount() { return _reregisterCount; },
+    get pluginCount() { return _pluginRegistry.size; },
+    get ids() { return Array.from(_pluginRegistry.keys()); },
+  };
+}
