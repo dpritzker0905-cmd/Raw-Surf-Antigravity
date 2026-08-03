@@ -342,6 +342,18 @@ class SpotRatingItem(BaseModel):
     # `geometry_readiness` above, and as `served_valid_time` on the response).
     run_time: Optional[str] = None            # the marine run — it produced `surf_height_m`
     wind_run_time: Optional[str] = None
+    # WHICH OF THE NINE FACTORS REMOVED THE MOST. The score is a product of nine terms in [0,1] and
+    # this payload published only the score plus `why` (height/period/wind — three INPUTS, not
+    # factors), so the live ceiling of 68.8 with zero 'good' could not be ATTRIBUTED.
+    # ⛔ DECLARED HERE BECAUSE PYDANTIC DROPS UNDECLARED KEYS. `rate_one_spot` returned `limiter` from
+    # 6da4c16e, the code deployed correctly (health reported the SHA), and the field was absent from
+    # every response for hours — silently stripped at this boundary. That is the SAME defect as
+    # `e8b38e42` ("the geometry provenance envelope was served and dropped at the render boundary"),
+    # and the guards that shipped with it tested `rating_factors` while nothing tested THE WIRE.
+    # ⇒ A FIELD IS NOT SHIPPED UNTIL A TEST ASSERTS IT SURVIVES SERIALISATION.
+    # Optional so an older precomputed frame simply omits them, same contract as the fields above.
+    limiter: Optional[str] = None             # e.g. 'size_gate' | 'swell_exposure' | 'wind_period_blend'
+    limiter_f: Optional[float] = None         # that factor's value in [0,1] — how much it removed
 
 
 class SpotRatingsResponse(BaseModel):

@@ -102,14 +102,63 @@ try:
 except Exception as e:
     log(FAIL, "D1 frontend", f"{type(e).__name__}: {e}")
 
+# ⛔ FEATURE DETECTION WAS THE WRONG TOOL AND IT GAVE A WRONG ANSWER TWICE ON 2026-08-03.
+# D2 detected `vectors_total` (from 1f5a796f) and reported "backend deployed" — which says nothing
+# about any later commit. Then, when `limiter` was absent, the natural reading was "Render has not
+# picked it up", and that was ALSO wrong: /api/health carries the deployed SHA and it was the newest
+# commit. The field was being dropped by a Pydantic response model instead.
+# ⇒ ASK THE SERVER WHAT IT IS RUNNING. Feature detection answers "does this behaviour exist", which
+#   is a different question from "which code is live", and conflating them cost two wrong calls.
 try:
-    j, _b, _s = series(LEGAL_REGIONAL_BBOX, hours="0", timeout=90)
-    backend_ok = "vectors_total" in j
-    log(PASS if backend_ok else SKIP, "D2 backend deployed",
-        "`vectors_total` present — the budget code is live" if backend_ok
-        else f"`vectors_total` ABSENT — Render has not picked up {SHA_BACKEND} yet. Re-run later.")
+    body, _ = get(f"{API}/health", timeout=60)
+    hv = (json.loads(body.decode("utf-8")) or {}).get("version") or ""
+    m2 = re.search(r"([0-9a-f]{40}|[0-9a-f]{7,12})$", hv)
+    deployed_sha = m2.group(1) if m2 else None
+    if not deployed_sha:
+        log(FAIL, "D2 backend deployed", f"/api/health version carries no SHA: {hv!r}")
+    else:
+        anc = is_ancestor(SHA_BACKEND, deployed_sha)
+        backend_ok = anc is True
+        log(PASS if backend_ok else FAIL, "D2 backend deployed",
+            f"health version={hv}; {SHA_BACKEND} is "
+            f"{'an ancestor — the code IS live' if anc else 'NOT an ancestor'}")
 except Exception as e:
     log(FAIL, "D2 backend", f"{type(e).__name__}: {e}")
+
+# D2b — the LIMITER code, feature-detected on its OWN commit.
+# ⛔ THIS GATE WAS WRONG UNTIL 2026-08-03. It feature-detected `vectors_total` (shipped in 1f5a796f)
+# and reported "backend deployed" — which is true of the OLDER commit and says NOTHING about
+# 6da4c16e. Measured that day: `vectors_total` present, `limiter` absent, i.e. the box was running
+# 1f5a796f only. A reader would have seen "backend deployed" beside an empty histogram and
+# concluded the ratings have no limiters. ONE FEATURE PER COMMIT, or the gate answers a different
+# question than the one asked.
+#
+# ★ AND IT NO LONGER WAITS ON THE CRON. `rate_one_spot` runs on the LIVE path too
+# (routes/weather.py:498), and the route falls through to live whenever no precomputed frame covers
+# the requested hour (measured: valid_time +8h returns source="live"). So the limiter — and the
+# histogram that depends on it — is readable the moment the code deploys, hours before the
+# precompute rebuilds. D3 below is now only about the PRECOMPUTED blob.
+LIVE_VT = time.strftime("%Y-%m-%dT%H:00:00Z", time.gmtime(time.time() + 8 * 3600))
+limiter_live = False
+try:
+    body, _ = get(f"{API}/weather/spot-ratings?bbox=-88,24,-76,32&valid_time={LIVE_VT}&limit=40",
+                  timeout=120)
+    sr = json.loads(body.decode("utf-8"))
+    spots = sr.get("spots") or []
+    src = sr.get("source")
+    if src != "live":
+        log(SKIP, "D2b limiter code deployed",
+            f"asked for {LIVE_VT} but got source={src} — the precompute covers it, so this cannot "
+            "isolate the live path. Widen the offset and re-run.")
+    else:
+        limiter_live = bool(spots) and "limiter" in spots[0]
+        log(PASS if limiter_live else FAIL, "D2b limiter code deployed",
+            f"source=live, n={len(spots)}; `limiter` "
+            + ("present" if limiter_live else
+               "ABSENT while D2 says the code IS deployed => the field is being DROPPED between the "
+               "producer and the wire (Pydantic response model), not missing from the build"))
+except Exception as e:
+    log(FAIL, "D2b limiter", f"{type(e).__name__}: {e}")
 
 try:
     body, _ = get(f"{API}/weather/spot-ratings?bbox=-180,-80,180,85"
@@ -118,9 +167,9 @@ try:
     spots = sr.get("spots") or []
     precompute_ok = bool(spots) and "limiter" in spots[0]
     log(PASS if precompute_ok else SKIP, "D3 precompute rebuilt",
-        "`limiter` present on served spots" if precompute_ok
-        else f"`limiter` ABSENT (source={sr.get('source')}) — the L2 blob predates the deploy. "
-             "The cron must run once AFTER it; this is HOURS, not minutes.")
+        "`limiter` present on the PRECOMPUTED path" if precompute_ok
+        else f"`limiter` absent on the precomputed path (source={sr.get('source')}) — the L2 blob "
+             "predates the deploy. Not a blocker: D2b/C1 read the LIVE path instead.")
 except Exception as e:
     log(FAIL, "D3 precompute", f"{type(e).__name__}: {e}")
 
@@ -160,14 +209,17 @@ else:
 
 # ══ CHECK C — the limiter histogram: the payoff ═══════════════════════════════════════════════
 print("\n=== C. THE LIMITER HISTOGRAM (needs D3) — this chooses the next month of work ===")
-if not precompute_ok:
+if not (limiter_live or precompute_ok):
     log(SKIP, "C1 limiter histogram",
-        "precompute has not rebuilt — refusing to report a distribution that does not exist yet")
+        "the limiter code is not deployed on either path — refusing to report a distribution that "
+        "does not exist yet")
 else:
     try:
-        body, _ = get(f"{API}/weather/spot-ratings?bbox=-180,-80,180,85"
-                      f"&valid_time={time.strftime('%Y-%m-%dT%H:00:00Z', time.gmtime())}&limit=200",
-                      timeout=90)
+        # Prefer whichever path actually carries the limiter; live needs no cron.
+        _vt = LIVE_VT if limiter_live else time.strftime('%Y-%m-%dT%H:00:00Z', time.gmtime())
+        _bbox = "-88,24,-76,32" if limiter_live else "-180,-80,180,85"
+        body, _ = get(f"{API}/weather/spot-ratings?bbox={_bbox}&valid_time={_vt}&limit=200",
+                      timeout=180)
         spots = json.loads(body.decode("utf-8"))["spots"]
         hist, scores = {}, []
         for s in spots:
