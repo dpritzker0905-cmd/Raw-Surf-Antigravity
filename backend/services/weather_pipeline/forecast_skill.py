@@ -21,6 +21,7 @@ never at risk). Rows are ~120 B; pending is capped, scored history is monthly-se
 """
 import json
 import logging
+import math
 import os
 import urllib.request
 from datetime import datetime, timedelta, timezone
@@ -209,8 +210,94 @@ def score_pending(pending, report, now: Optional[datetime] = None):
     return still, scored
 
 
+# ⭐⭐⭐ THE MEASUREMENT GATES EVERY ACCURACY DECISION (MASTER AUDIT 1.0 §8.1, 2026-08-03).
+# The ledger reported BIAS and MAE and nothing else. That pair cannot answer the question the
+# archive was built to settle: reading it for the first time gave ours MAE 0.304 vs Open-Meteo's
+# 0.199 at ~ZERO BIAS ON BOTH SIDES — so the gap is SCATTER, and a scatter gap is invisible to the
+# two numbers being reported. Every accuracy lever in the queue (Kr, the quantile map, H110, the
+# default-model flip) is a constant chosen against a target this summary could not measure.
+#
+# These are the metrics operational wave centres verify on (Bidlot et al.; ECMWF/NOAA wave
+# verification), and each answers a DIFFERENT failure:
+#   rmse_m      penalises large misses — with bias ~0 this is the scatter, in metres
+#   si          DE-BIASED scatter index = rms(err - bias) / mean(obs). The normalised standard;
+#               it is the number that stays comparable across buoys of different sea state
+#   corr        does the forecast move WITH the sea at all, or is it flat?
+#   sym_slope   sqrt(sum f^2 / sum o^2) — amplitude ratio treating both axes symmetrically.
+#               >1 over-reads, <1 under-reads. Unlike bias this survives a symmetric error.
+#
+# ★ THE REFUSAL (rule: a check that cannot tell "not sampled" from "broken" must REFUSE). Every
+#   shape metric is None below `MIN_N_FOR_SHAPE` or on a degenerate denominator, never 0.0 — an
+#   r of 1.0 from n=2 and an SI of 0.0 from mean_obs=0 are both indistinguishable from excellence.
+# ★ `n` KEEPS ITS OLD MEANING (rows carrying `err_m`) so the existing archive stays one series;
+#   `n_paired` is the count that the new metrics were actually computed over. When a row carries
+#   `err_m` but not both sides, those two numbers differ — and that difference is the instrument
+#   telling you it was starved rather than quietly averaging fewer points.
+MIN_N_FOR_SHAPE = 10
+
+# Bands chosen by what they mean to a surfer, not by equal counts: flat / small / rideable / big.
+# ⚠️ CANONICAL HERE, imported by `scripts/model_skill_census.py`. A duplicated constant diverges
+# only on a boundary, and this repo has already paid for seven copies of one (`e6d4b5b9`).
+OBS_BANDS = ((0.0, 0.5, "flat <0.5m"), (0.5, 1.5, "small 0.5-1.5m"),
+             (1.5, 3.0, "rideable 1.5-3m"), (3.0, 99.0, "big >3m"))
+
+
+def obs_band(obs_m) -> Optional[str]:
+    """The surfer-meaningful band an observation falls in, or None if it is not a number."""
+    if not isinstance(obs_m, (int, float)):
+        return None
+    for lo, hi, label in OBS_BANDS:
+        if lo <= obs_m < hi:
+            return label
+    return None
+
+
+def verification_metrics(pairs) -> Optional[dict]:
+    """Operational wave-verification metrics over (forecast_m, observed_m) pairs, or None if empty.
+
+    Shape metrics (si/corr/sym_slope) are None rather than a number whenever they would be
+    unstable or undefined — see MIN_N_FOR_SHAPE above for why that matters more than coverage."""
+    fo = [(f, o) for f, o in (pairs or [])
+          if isinstance(f, (int, float)) and isinstance(o, (int, float))]
+    n = len(fo)
+    if n == 0:
+        return None
+    fs = [f for f, _ in fo]
+    obs = [o for _, o in fo]
+    errs = [f - o for f, o in fo]
+    mean_f, mean_o = sum(fs) / n, sum(obs) / n
+    bias = mean_f - mean_o
+    out = {
+        "n_paired": n,
+        "mean_obs_m": round(mean_o, 4), "mean_fc_m": round(mean_f, 4),
+        "bias_m": round(bias, 4),
+        "mae_m": round(sum(abs(e) for e in errs) / n, 4),
+        "rmse_m": round(math.sqrt(sum(e * e for e in errs) / n), 4),
+        "si": None, "corr": None, "sym_slope": None,
+    }
+    if n < MIN_N_FOR_SHAPE:
+        return out
+    if mean_o > 0:
+        scatter = math.sqrt(sum((e - bias) ** 2 for e in errs) / n)
+        out["si"] = round(scatter / mean_o, 4)
+    df = [f - mean_f for f in fs]
+    do = [o - mean_o for o in obs]
+    den = math.sqrt(sum(x * x for x in df) * sum(y * y for y in do))
+    if den > 0:
+        out["corr"] = round(sum(x * y for x, y in zip(df, do)) / den, 4)
+    sum_oo = sum(o * o for o in obs)
+    if sum_oo > 0:
+        out["sym_slope"] = round(math.sqrt(sum(f * f for f in fs) / sum_oo), 4)
+    return out
+
+
 def skill_summary(scored_rows) -> List[dict]:
-    """Per source x lead-bucket: n, n_buoys, bias, MAE — the 'are we near?' table."""
+    """Per source x lead-bucket: n, n_buoys, bias, MAE — plus RMSE / scatter index / correlation /
+    symmetric slope, and the same metrics per observed-height band.
+
+    ⚠️ A single MAE hides the SHAPE. Measured at 60 buoys, GFS's error was concentrated on FLAT
+    seas (0.616 vs EURO's 0.263) — over-reading a calm day is the app inventing surf, and it is the
+    error a surfer notices most while contributing least to the average."""
     groups: Dict[tuple, List[dict]] = {}
     for r in scored_rows or []:
         if not isinstance(r.get("err_m"), (int, float)):
@@ -219,10 +306,26 @@ def skill_summary(scored_rows) -> List[dict]:
     out = []
     for (source, bucket), rows in sorted(groups.items()):
         errs = [r["err_m"] for r in rows]
-        out.append({"source": source, "lead_h": bucket * 24, "n": len(errs),
-                    "n_buoys": len({r.get("buoy_id") for r in rows}),
-                    "bias_m": round(sum(errs) / len(errs), 4),
-                    "mae_m": round(sum(abs(e) for e in errs) / len(errs), 4)})
+        row = {"source": source, "lead_h": bucket * 24, "n": len(errs),
+               "n_buoys": len({r.get("buoy_id") for r in rows}),
+               "bias_m": round(sum(errs) / len(errs), 4),
+               "mae_m": round(sum(abs(e) for e in errs) / len(errs), 4)}
+        pairs = [(r.get("hs_m"), r.get("obs_hs_m")) for r in rows]
+        metrics = verification_metrics(pairs)
+        if metrics:
+            # `bias_m`/`mae_m` above are computed from `err_m` and stay authoritative; the paired
+            # recomputation only ADDS fields, so a row missing one side cannot change the series.
+            row.update({k: v for k, v in metrics.items() if k not in ("bias_m", "mae_m")})
+            bands = {}
+            for lo, hi, label in OBS_BANDS:
+                sub = [(r.get("hs_m"), r.get("obs_hs_m")) for r in rows
+                       if obs_band(r.get("obs_hs_m")) == label]
+                m = verification_metrics(sub)
+                if m:
+                    bands[label] = m
+            if bands:
+                row["by_obs_band"] = bands
+        out.append(row)
     return out
 
 

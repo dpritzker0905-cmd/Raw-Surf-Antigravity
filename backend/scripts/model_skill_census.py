@@ -61,13 +61,17 @@ import urllib.request
 from collections import defaultdict
 from concurrent.futures import ThreadPoolExecutor
 from datetime import datetime, timezone
+from pathlib import Path
 
 BASE = "https://raw-surf-antigravity.onrender.com"
 LATEST_OBS = "https://www.ndbc.noaa.gov/data/latest_obs/latest_obs.txt"
 MODELS = ("GFS", "ICON", "EURO")
 # Bands chosen by what they mean to a surfer, not by equal counts: flat / small / rideable / big.
-BANDS = ((0.0, 0.5, "flat <0.5m"), (0.5, 1.5, "small 0.5-1.5m"),
-         (1.5, 3.0, "rideable 1.5-3m"), (3.0, 99.0, "big >3m"))
+# ⚠️ IMPORTED, NOT REDEFINED (2026-08-03). `forecast_skill.OBS_BANDS` is canonical because the
+# skill ledger now bands the same way — two copies of a band table diverge only on a boundary, and
+# a census that disagrees with the ledger about what "flat" means is worse than no census.
+sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+from services.weather_pipeline.forecast_skill import OBS_BANDS as BANDS  # noqa: E402
 
 
 def _fetch(url, timeout=90):
