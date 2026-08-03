@@ -39,6 +39,47 @@ OM_MARINE = "https://marine-api.open-meteo.com/v1/marine"
 SOURCE_OURS = "raw_surf"
 SOURCE_OM = "open_meteo_marine"
 
+# ⭐⭐⭐ SCORE EVERY MODEL WE COULD SERVE, NOT JUST THE ONE WE DO (2026-08-03).
+# The ledger scored only `BUOY_CALIBRATION_MODEL` (default GFS) — which is also `/spot-ratings`'
+# default — against Open-Meteo's best-match blend. Reading the archive for the first time, PAIRED on
+# (buoy, target hour, lead) over 3,852 cells: ours MAE 0.304 m vs theirs 0.199 m, we win 35-43% of
+# cells, at 42 of 59 buoys, with ~zero bias on BOTH sides. Scatter, not an offset a constant fixes.
+# ★ Then the obvious question nobody had asked: is that a RAW-SURF gap or a GFS gap? Measured live
+#   at 60 buoys, one hour, same coordinates and valid_time, 100% paired
+#   (`scripts/model_skill_census.py`):
+#       GFS  MAE 0.388   ICON MAE 0.324   EURO MAE 0.223   (EURO closest at 29 of 60 buoys)
+#   and EURO wins EVERY observed-height band, worst for GFS on flat water (0.616 vs 0.263 — over-
+#   reading a calm day is the app inventing surf). EURO lands on Open-Meteo's own number, which is
+#   what you would expect if both are ECMWF.
+# ⇒ The default-model decision is worth far more than any rating-constant tuning, and it must NOT be
+#   made on one hour. This makes the ledger accumulate per-model skill continuously so the decision
+#   is evidence, not a snapshot.
+# ⚠️ COST, priced as a multiple (rule 21): each extra model is one more `calibrate_spots` per lead,
+#   so the default here is 3x the ledger's resolve work. It runs in the CALIBRATION lane (GitHub
+#   Actions: forecast-ingest.yml / precompute.yml), NOT on the 1-CPU serve box with the melt history.
+#   Kill with FORECAST_SKILL_COMPARE_MODELS='' (empty restores the exact previous behaviour).
+# ⚠️ ADDITIVE ON PURPOSE: the primary model keeps the bare `raw_surf` source so the existing archive
+#   stays one continuous series. Comparison models get `raw_surf:MODEL`, so nothing already scored
+#   changes meaning — a source rename would have silently split the history at today's date.
+COMPARE_MODELS_DEFAULT = "ICON,EURO"
+
+
+def compare_models(primary: str) -> List[str]:
+    """Extra models to ledger beside `primary`, from FORECAST_SKILL_COMPARE_MODELS. Never includes
+    the primary (that would double-count it under two source names)."""
+    raw = os.environ.get("FORECAST_SKILL_COMPARE_MODELS", COMPARE_MODELS_DEFAULT)
+    out = []
+    for m in (raw or "").split(","):
+        m = m.strip().upper()
+        if m and m != (primary or "").strip().upper() and m not in out:
+            out.append(m)
+    return out
+
+
+def source_for(model: str, primary: str) -> str:
+    """`raw_surf` for the model we actually serve, `raw_surf:MODEL` for a comparison lane."""
+    return SOURCE_OURS if (model or "").upper() == (primary or "").upper() else f"{SOURCE_OURS}:{model.upper()}"
+
 
 def _parse_iso(v):
     if not v:
@@ -59,10 +100,14 @@ def dedupe_key(row) -> tuple:
             _lead_bucket(row.get("lead_h") or 0))
 
 
-def rows_from_calibration_report(report, target_time: str, lead_h: float) -> List[dict]:
+def rows_from_calibration_report(report, target_time: str, lead_h: float,
+                                 source: str = SOURCE_OURS) -> List[dict]:
     """Our model's forecast rows for one target hour, from a calibrate_spots report resolved AT
     that hour. One row per distinct buoy; buoy obs fields in the report are ignored (they are
-    today's sea, not the target's)."""
+    today's sea, not the target's).
+
+    ``source`` defaults to `raw_surf` so every existing caller is byte-identical; a comparison lane
+    passes `raw_surf:MODEL` (see `source_for`)."""
     rows, seen = [], set()
     for entry in (report or {}).get("spots") or []:
         bid = entry.get("buoy_id")
@@ -71,7 +116,7 @@ def rows_from_calibration_report(report, target_time: str, lead_h: float) -> Lis
         if bid is None or bid in seen or hs in (None, 0.0):
             continue
         seen.add(bid)
-        rows.append({"source": SOURCE_OURS, "buoy_id": bid, "target_time": target_time,
+        rows.append({"source": source, "buoy_id": bid, "target_time": target_time,
                      "lead_h": round(lead_h, 1), "hs_m": hs, "tp_s": res.get("model_tp_s")})
     return rows
 
@@ -192,13 +237,17 @@ async def run_skill_ledger(store, resolver, spots, model: str, report,
     )
     now = now or datetime.now(timezone.utc)
     incoming: List[dict] = []
-    for lead in LEADS_H:
-        target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
-        try:
-            lead_report = await calibrate_spots(resolver, spots, model, target)
-            incoming.extend(rows_from_calibration_report(lead_report, target, lead))
-        except Exception as e:
-            logger.warning("[forecast-skill] lead +%dh resolve failed (%s)", lead, e)
+    # The served model first, then any comparison models — each is an INDEPENDENT source, so one
+    # model failing a lead never removes another's row. See COMPARE_MODELS_DEFAULT for the cost.
+    for mdl in [model] + compare_models(model):
+        src = source_for(mdl, model)
+        for lead in LEADS_H:
+            target = (now + timedelta(hours=lead)).strftime("%Y-%m-%dT%H:00:00Z")
+            try:
+                lead_report = await calibrate_spots(resolver, spots, mdl, target)
+                incoming.extend(rows_from_calibration_report(lead_report, target, lead, source=src))
+            except Exception as e:
+                logger.warning("[forecast-skill] %s lead +%dh resolve failed (%s)", src, lead, e)
     try:
         coords = await fetch_ndbc_station_coords()
         buoys = {}
