@@ -340,6 +340,21 @@ named like the reason, and it is measurably not the reason.
 
 ## §7 THE QUEUE — ordered, each with its instrument and its kill switch
 
+> **STATUS 2026-08-03: items 1–4 SHIPPED in `1f5a796f`.** Measured on the **real captured 40 MB
+> production payload**, not a fixture: **256,608 → 64,800 vectors**, **46.1 → 11.7 MB JSON**,
+> **316.5 → 80.0 MB of live Python**, `coverage` correctly stamped `miss`; the real world-view HIT
+> is untouched and stamped `hit`. Invariant `len(vectors) == cols*rows` asserted on all 48 frames.
+> Verified by mutation, not by colour: 4/4 backend and 4/4 frontend mutations caught, both harnesses
+> restoring in a `finally` and re-grepping after. **Two of my own guards survived their mutation
+> first** — the crossing test reached the ≥340° escape hatch instead of `bboxContains`, and a second
+> draft still did not discriminate (`-178.5 >= -179.2` is true). `bboxContains` is now exported and
+> guarded directly. Full frontend suite **183 suites / 1688 tests / 0 failed**.
+>
+> **NOT yet verified live** — the fix is committed, not deployed. The proof that closes this is the
+> west-edge sweep of §2a re-run against a deployed build: the `−180.5` row must join the 1.3 MB
+> cohort, and no emitted bbox may carry `|lng| > 180`.
+
+
 | # | action | instrument that proves it | kill switch |
 |---|---|---|---|
 | **1** | **Normalise longitude at the request boundary.** One exported helper used by `marineGridSeries.js:399` **and** `windGridSeries.js:172`. Emit `west,east ∈ [−180,180)`; when `e−w ≥ 360` emit the canonical world box. | Assert **no emitted bbox has \|lng\| > 180** across a scripted z9→z2 zoom-out; and re-run the west-edge sweep — the −180.5 row must join the 1.3 MB cohort. | `__RAW_DISABLE_BBOX_NORM__` |

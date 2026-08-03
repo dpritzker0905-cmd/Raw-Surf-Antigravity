@@ -29,6 +29,13 @@ router = APIRouter()
 
 # flag -> (default, what it controls, where to flip)
 _RATING_FLAGS = {
+    # EXPLANATION, not physics: publishes `limiter`/`limiter_f` on each spot rating — which of the
+    # nine multiplicative factors removed the most. Pulling it changes no score, only the ability to
+    # say WHY. Declared in the same commit that added it: an undeclared switch is invisible to the
+    # admin panel and to every lane guard, and a flag missing from the MEASURING lane is worse than
+    # one missing from a writing lane (2026-08-02 lesson).
+    "RATING_LIMITER":              ("1", "Publish the binding factor (`limiter`) on spot ratings — "
+                                         "explanation only, never changes a score", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
     # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band

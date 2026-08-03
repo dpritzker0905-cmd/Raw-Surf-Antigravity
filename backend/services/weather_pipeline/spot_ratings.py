@@ -159,6 +159,38 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         reference_size_m=reference_size_m,
         partitions=partitions,
         break_depth_m=break_depth)
+    # ★ WHICH FACTOR COST THE MOST (2026-08-03). The score is a product of NINE terms in [0,1] and
+    # the payload published only the score and a `why` naming height/period/wind — three INPUTS, not
+    # factors. Measured that day on the served catalogue (n=199 reconstructed): holding every UNSEEN
+    # factor at its BEST gives a strict UPPER BOUND, and the bound exceeded the served score by a
+    # MEDIAN OF 31.4 POINTS (max 85.2). 44 spots had an upper bound >= 70 yet served < 70 — they
+    # would read 'good' but something invisible removed it. Playa Manzanillo: 1.34 m @ 13 s, 4 kt
+    # OFFSHORE, upper bound 94.7, served 21.1. Nobody could say why, including the owner.
+    # `limiter` is argmin(factors) — in a product the smallest term removed the most — so the
+    # payload now names its own binding constraint. Deliberately two fields, not nine: the full
+    # decomposition would cost ~33% on an object every client downloads (cf. the run_time interning
+    # note below), and the question is always "what held it back", not "list everything".
+    # Recomputed rather than threaded out of compute_surf_rating above so the REFERENCE call stays
+    # byte-identical to the mandated chain; it is pure arithmetic on already-resolved inputs (no
+    # I/O), and test_rating_factors.py pins that the two agree.
+    _lim = _lim_f = None
+    if os.environ.get("RATING_LIMITER", "1") != "0":
+        try:
+            from services.weather_pipeline.surf_rating import rating_factors
+            _f = rating_factors(
+                surf_h, period, wind_ms,
+                wind_from_deg=wind_from,
+                shore_normal_deg=shore_normal,
+                swell_from_deg=swell_from,
+                tide_norm=tide_norm,
+                best_tide=best_tide,
+                breaker_xi=breaker_xi,
+                reference_size_m=reference_size_m,
+                partitions=partitions,
+                break_depth_m=break_depth)
+            _lim, _lim_f = _f["limiter"], _f["limiter_value"]
+        except Exception as e:  # an explanation must never break the rating it explains
+            logger.debug(f"[spot-ratings] limiter failed for {spot.get('id')}: {e}")
     # The why-text must quote what the rating GRADED: with partitions the engine grades the
     # dominant swell train's period, not the blended mean (a 16 s groundswell under 8 s windsea
     # reads ~11 s blended). `period_s` in the payload stays the sea's blended period.
@@ -181,6 +213,9 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         "period_s": round(period, 1) if period is not None else None,
         "tide": tide_state,
         "why": why,
+        # The binding constraint: which of the nine factors removed the most. See the block above.
+        "limiter": _lim,
+        "limiter_f": _lim_f,
         # ★ GEOMETRY READINESS, carried from the point response (`point_resolution` stamps it where
         # `surf_height_m` is produced). NOT the same thing as `confidence` above: that grades the
         # PIN (accuracy_flag / is_verified_peak), this grades the INPUTS the forecast ran on. A

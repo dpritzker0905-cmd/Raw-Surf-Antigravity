@@ -524,14 +524,50 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     PARTITION-AWARE: period_quality grades the dominant swell train (not the blended mean), exposure is
     energy-weighted per swell train, and a windsea-dominated sea is penalized (sea_cleanliness). None/
     degenerate -> total-field behavior, byte-identical to before."""
+    f = rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg, shore_normal_deg, swell_from_deg,
+                       tide_norm, best_tide, breaker_xi, reference_size_m, partitions, break_depth_m)
+    return f["score"]
+
+
+# The nine terms of the composite, in multiplication order. `wind_period_blend` is the additive
+# (0.60*wind + 0.40*period) tail — it multiplies the product like the rest, so it belongs here.
+FACTOR_NAMES = ("size_gate", "swell_exposure", "sea_clean", "tide_fit", "breaker_type",
+                "wind_gate", "oversize_gate", "period_gate", "wind_period_blend")
+
+
+def rating_factors(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal_deg=None,
+                   swell_from_deg=None, tide_norm=None, best_tide=None, breaker_xi=None,
+                   reference_size_m=None, partitions=None, break_depth_m=None):
+    """THE composition, decomposed. Returns {score, factors, limiter, limiter_value}.
+
+    WHY THIS EXISTS (2026-08-03). The served rating is a product of NINE terms each in [0,1], and
+    the payload published only the score plus a `why` string naming height, period and wind. Those
+    are three INPUTS, not the factors — so when the live catalogue topped out at 68.8 with zero
+    'good', the ceiling could not be attributed. Measured that day on the real served numbers: Irita
+    (2.908 m, 14.6 s, 6 kt OFFSHORE) scored 64.2, while the same conditions with ideal geometry
+    score 96.2 — and **three different single inputs reproduce 64.2 equally well**: a local
+    reference of ~2.3 m, a swell ~50 deg off shore-normal, or a tide at either extreme. The `why`
+    string names the three things that were GOOD and hides the one that was BAD, which is why the
+    rating reads as broken to anyone looking at it. A count is not an attribution.
+
+    ★ ONE COMPOSITION, NOT TWO. `rating_score` CALLS this — it does not re-derive the product. A
+      parallel decomposition that drifts from the thing it describes is exactly the second-path
+      defect CLAUDE.md forbids, and `test_rating_factors.py` pins `prod(factors)*100 == score`.
+    ★ `limiter` is argmin(factors): in a product, the smallest term is the one that removed the most.
+      That single name is the attribution the payload was missing.
+
+    Pure: no I/O, no env reads. Callers decide what to publish.
+    """
     sg = size_score(surf_h_m, reference_size_m)
     if sg <= 0.0:
-        return 0.0
+        return {"score": 0.0, "factors": {"size_gate": 0.0}, "limiter": "size_gate",
+                "limiter_value": 0.0}
     ex = effective_swell_exposure(partitions, shore_normal_deg) if partitions else None
     if ex is None:
         ex = swell_exposure(swell_from_deg, shore_normal_deg)
     if ex <= 0.0:
-        return 0.0
+        return {"score": 0.0, "factors": {"size_gate": sg, "swell_exposure": 0.0},
+                "limiter": "swell_exposure", "limiter_value": 0.0}
     sc = sea_cleanliness(partitions) if partitions else 1.0
     tf = tide_fit(tide_norm, parse_best_tide(best_tide))
     bt = breaker_type_quality(breaker_xi)
@@ -546,7 +582,8 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     # `pg` MULTIPLIES for the third time on the same reasoning: an additive period term with a 0.40
     # floor let 2-second ripples score 76 "good" on light wind alone (see period_gate).
     pg = period_gate(ptp if ptp is not None else tp_s)
-    score = 100.0 * sg * ex * sc * tf * bt * wg * og * pg * (W_WIND * wq + W_PERIOD * pq)
+    blend = W_WIND * wq + W_PERIOD * pq
+    score = 100.0 * sg * ex * sc * tf * bt * wg * og * pg * blend
     # ⛔⛔ NaN MUST NOT REACH THE BUCKETS, AND THE FAILURE DIRECTION IS WHY.
     # `score_to_level` maps by `score < upper`, and NaN is never `<` anything, so a NaN score falls
     # past all six buckets into the open-ended top one and renders **'epic'** — the maximum possible
@@ -561,8 +598,11 @@ def rating_score(surf_h_m, tp_s, wind_speed_ms, wind_from_deg=None, shore_normal
     # is how it comes back. None is the established sentinel: `compute_surf_rating` already returns
     # (None, 'unknown') and `score_to_level(None)` is 'unknown'.
     if not math.isfinite(score):
-        return None
-    return round(score, 1)
+        return {"score": None, "factors": {}, "limiter": None, "limiter_value": None}
+    factors = dict(zip(FACTOR_NAMES, (sg, ex, sc, tf, bt, wg, og, pg, blend)))
+    limiter = min(factors, key=factors.get)
+    return {"score": round(score, 1), "factors": factors,
+            "limiter": limiter, "limiter_value": round(factors[limiter], 4)}
 
 
 def score_to_level(score):
