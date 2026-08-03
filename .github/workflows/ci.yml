@@ -395,7 +395,7 @@ jobs:
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
                      tests/test_forecast_skill.py tests/test_product_run_age_census.py \
                      tests/test_validate_nearshore_transform.py \
-                     tests/test_calibration_census.py 2>/dev/null \
+                     tests/test_calibration_census.py                      tests/test_sweep_orphaned_l2.py tests/test_map_spots_to_ndbc_buoys.py 2>/dev/null \
                  | sort -u \
                  | grep -vE 'test_(weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
