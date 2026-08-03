@@ -325,6 +325,30 @@ def _upload_inbox_batch(session, url, svc, results, end_date, seq):
     return batch_id
 
 
+def select_scope(spots, query="", limit=0, done=frozenset()):
+    """The spots THIS run will fetch, plus how many still need work. Pure; no network.
+
+    ⭐⭐⭐ `--limit` MUST BE APPLIED AFTER THE RESUME FILTER, NEVER BEFORE (MASTER AUDIT 1.0 §3).
+    `_all_spots` pages `order=id`, so the order is stable. Applying the slice first means
+    `--limit 150` selects the first 150 spots BY ID and then drops the ones already deepened — so
+    once those 150 are banked the nightly task resolves to an empty batch and **never advances to
+    spot 151**. The job keeps succeeding, keeps reporting "0 spots in scope", and the campaign is
+    permanently frozen at the head of the catalogue. Ordered the other way round, `--limit` means
+    "the next 150 spots that still need work", which is the only reading that lets an incremental
+    task finish a 1,773-spot catalogue.
+    ⚠️ `--query` stays BEFORE the resume filter: it is a scope selector (which spots am I asking
+    about), not a batch size (how many will I do tonight). Only `--limit` moves.
+
+    Returns (batch, n_remaining). `n_remaining` is reported so a capped run says what it left —
+    a silent cap and a finished catalogue print the same line otherwise.
+    """
+    if query:
+        needles = [q.strip().lower() for q in query.split(",") if q.strip()]
+        spots = [s for s in spots if any(n in (s.get("name") or "").lower() for n in needles)]
+    remaining = [s for s in spots if str(s.get("id")) not in done]
+    return (remaining[:limit] if limit else remaining), len(remaining)
+
+
 def main():
     ap = argparse.ArgumentParser(description=__doc__.splitlines()[0])
     ap.add_argument("--query", default="", help="comma-separated name substrings")
@@ -373,11 +397,6 @@ def main():
             f"ERA5_EXPECT_PROJECT_REF if you genuinely mean to target '{_ref}'.")
 
     spots = _all_spots(session, url, svc)
-    if args.query:
-        needles = [q.strip().lower() for q in args.query.split(",") if q.strip()]
-        spots = [s for s in spots if any(n in (s.get("name") or "").lower() for n in needles)]
-    if args.limit:
-        spots = spots[:args.limit]
 
     # resume: skip spots already deepened at this version (in the blob OR pending in the inbox)
     from scripts.build_spot_size_climatology import pending_inbox_spot_ids
@@ -385,8 +404,13 @@ def main():
     done = {sid for sid, rec in (live_now.get("spots") or {}).items()
             if isinstance(rec, dict) and (rec.get("era5") or {}).get("v") == ERA5_BACKFILL_VERSION}
     done |= pending_inbox_spot_ids(session, url, svc, "era5", ERA5_BACKFILL_VERSION)
-    spots = [s for s in spots if str(s["id"]) not in done]
-    print(f"spots in scope after resume filter: {len(spots)}")
+    # ⭐ THE SLICE HAPPENS INSIDE, AFTER THE RESUME FILTER — see `select_scope` for why the other
+    #   order freezes a nightly `--limit` run at the head of the catalogue forever.
+    spots, n_remaining = select_scope(spots, args.query, args.limit, done)
+    print(f"spots in scope after resume filter: {len(spots)}"
+          + (f"  (of {n_remaining} still needing work; --limit {args.limit} caps THIS run — "
+             f"{n_remaining - len(spots)} deferred to the next)"
+             if args.limit and n_remaining > len(spots) else ""))
 
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client = _cds()
