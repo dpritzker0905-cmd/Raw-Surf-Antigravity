@@ -285,3 +285,39 @@ is exactly the guess-fix pattern this repo has been burned by.
 
 **⇒ OPEN QUESTION FOR THE OWNER: where should the offshore penalty begin?** The measured options are
 above; the anchors pass either way.
+
+---
+
+## §10 ⛔ LEVER 4 IS STRUCK — the primary source does not support moving the knee
+
+§9 proposed shifting the offshore penalty knee from 4 kt to ~8–12 kt, citing surf-media guidance.
+**Checked against the peer-reviewed source the engine already cites, and the proposal does not
+survive.**
+
+Scarfe, Elwany, Mead & Black, *The Science of Surfing Waves and Surfing Breaks — A Review*
+(escholarship `qt6h72j1fz`, text extracted 2026-08-03). The paper contains **six** uses of "wind";
+these are the only substantive ones, quoted verbatim:
+
+> *"Offshore winds increase breaking intensity, and onshore or cross-shore winds lower it."*
+> *"The perfect wind conditions for surfing are light offshore."*
+> *"Strong offshore winds make waves hard to catch."*
+
+**The literature gives the SHAPE and no threshold**: peak at *light* offshore, decline once *strong*.
+It never names a speed.
+
+⇒ **The engine already implements exactly that shape.** `wind_quality` returns 1.0 for offshore up to
+4 kt and declines monotonically thereafter (0.909 at 8 kt, 0.636 at 20 kt, 0.409 at 30 kt).
+
+⛔ **AND MY §9 FRAMING WAS WRONG.** I wrote that the 4 kt knee "sits inside the band every source
+calls perfect". Re-reading my own citation: the practitioner sources put the ideal at **5–10 km/h =
+2.7–5.4 kt**. **4 kt is the TOP of that band, not inside it.** The 17–22 kt figure marks where
+offshore becomes actively *bad*, not where it stops being ideal — and the engine is at 0.636 there,
+which is a degradation, not a veto. Both ends are consistent with the source.
+
+**⇒ NO CHANGE. The offshore curve is defensible against the primary literature and against the
+practitioner guidance, and there is no research basis for moving the knee.** Lever 4 joins levers 2
+and 3 as closed.
+
+★ The owner's domain statement — *"winds have to be offshore, and not too strong of offshore"* — is
+**correct and already encoded**. Verifying it cost one PDF extraction and removed a change that would
+have inflated every offshore day by up to a full level on no evidence.
