@@ -6,9 +6,14 @@
  *  - JOG: 1:1 px→hours while dragging (one detent per forecast hour; day boundaries heavier).
  *  - SHUTTLE: a flick coasts with friction, velocity CAPPED at ~6 hours/sec — fast enough to
  *    cross 14 days in ~8 s, slow enough that every day boundary registers.
- *  - SETTLE-GATED COMMITS: the map commits on detent settle (plus one leading commit at gesture
- *    start so it begins responding immediately). Intermediate hours are display-only — the same
- *    churn contract as the old slider's 11 Hz decimation, but tighter (see wheelCommitPlan).
+ *  - DETENT COMMITS AT 11 Hz (2026-08-02, was settle-gated): the map commits as the drag crosses
+ *    each detent, throttled to WHEEL_DRAG_COMMIT_MS — the old slider's own 11 Hz decimation rate,
+ *    reusing its `__RAW_SCRUB_COMMIT_THROTTLE_MS__` lever. Previously intermediate hours were
+ *    display-only, which measured as ZERO commits during a drag: the map held the hour the gesture
+ *    STARTED on and first moved 200 ms (settle) to ~1.1 s (coast) after release. See
+ *    wheelDragCommitDue for why this is throttled rather than copied from the radar path.
+ *    (The prior text here cited a `wheelCommitPlan` document that has never existed in this repo —
+ *    grep returns one hit, this comment. Removed rather than left as a citation pointing at nothing.)
  *  - Radar mode: per-frame commits during the jog (a radar tick is a cheap CDN tile swap — the
  *    existing full-rate contract, cb074b8b), wider tick pitch, no day labels.
  *  - Accessibility: role="slider" + keyboard (arrows ±1, PgUp/PgDn ±day, Home=now), visible
@@ -56,6 +61,43 @@ export function wheelReleaseVelocity(vel, msSinceLastMove, win) {
   return v * Math.pow(FRICTION_PER_SEC, dt / 1000);
 }
 
+export const WHEEL_DRAG_COMMIT_MS = 90;   // 11 Hz — cb074b8b's own measured-safe drag-commit rate
+
+/**
+ * May a NON-RADAR drag commit right now? (pure; exported for tests)
+ *
+ * ⚠️ WHAT THIS CHANGES. Radar already commits on every detent crossing during the drag
+ * ("a tick is a cheap CDN tile swap"). The forecast path committed NOTHING during a drag — the only
+ * in-drag commit is onPointerDown's leading one, which carries the hour the gesture STARTED on. So
+ * the map showed a stale hour for the whole gesture and first moved 200 ms (settle) to ~1.1 s (coast)
+ * AFTER the finger lifted, with the keyboard path proving 0 ms is achievable in the same component.
+ *
+ * ⚠️ WHY IT IS THROTTLED AND NOT COPIED FROM RADAR. `onCommit` runs `onTimeChange`, the render-driving
+ * prop the whole marine pipeline hangs off — committing at full drag rate is exactly the churn
+ * `cb074b8b` (drag decimation) and `5355e65e` (stop marineWindData churning per tick) were written to
+ * stop. 90 ms/11 Hz is not a new number: it is that commit's own constant, and its lever
+ * `__RAW_SCRUB_COMMIT_THROTTLE_MS__` currently reaches only the classic `<input>` scrubber behind
+ * `__RAW_CLASSIC_SCRUBBER__`, i.e. it is dead on the default path. This revives it rather than
+ * inventing a second knob.
+ *
+ * ★ Bounded by construction: `commit()` already returns early when the settle target has not changed,
+ * so the ceiling is one commit per detent per 90 ms — at the 6 h/s velocity cap, ~6/s.
+ *
+ * Kill: window.__RAW_DISABLE_WHEEL_DRAG_COMMIT__ = true restores the commit-nothing-during-drag path.
+ */
+export function wheelDragCommitDue(nowMs, lastCommitMs, win) {
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_WHEEL_DRAG_COMMIT__ === true) return false;
+  const tuned = w.__RAW_SCRUB_COMMIT_THROTTLE_MS__;
+  const ms = (typeof tuned === 'number' && Number.isFinite(tuned) && tuned >= 0)
+    ? tuned : WHEEL_DRAG_COMMIT_MS;
+  const last = Number(lastCommitMs);
+  if (!Number.isFinite(last)) return true;          // nothing committed yet -> the first one is due
+  const now = Number(nowMs);
+  if (!Number.isFinite(now)) return false;          // no clock reading -> change nothing
+  return (now - last) >= ms;
+}
+
 /** Classic-slider escape hatch (pure; exported for tests). */
 export function shouldUseClassicScrubber(win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -90,7 +132,8 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
   const boxRef = useRef(null);
   const canvasRef = useRef(null);
   const s = useRef({ hour: value || 0, vel: 0, dragging: false, coasting: false,
-                     lastX: 0, lastT: 0, raf: null, lastCommitted: null }).current;
+                     lastX: 0, lastT: 0, raf: null, lastCommitted: null,
+                     lastDragCommitT: null }).current;
   const reduced = typeof window !== 'undefined' && window.matchMedia
     && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
 
@@ -180,7 +223,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
   }, [reduced, settle, setHour, s]);
 
   const onPointerDown = useCallback((e) => {
-    s.dragging = true; s.vel = 0;
+    s.dragging = true; s.vel = 0; s.lastDragCommitT = null;
     s.lastX = e.clientX; s.lastT = performance.now();
     if (s.raf) cancelAnimationFrame(s.raf);
     s.coasting = false;
@@ -198,10 +241,12 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     s.lastX = e.clientX; s.lastT = t;
     const before = wheelSettleTarget(s.hour, max);
     setHour(s.hour - dh, { preview: true });
-    // Radar keeps its full-rate contract: a tick is a cheap CDN tile swap.
-    if (isRadar) {
-      const after = wheelSettleTarget(s.hour, max);
-      if (after !== before) commit(after);
+    const after = wheelSettleTarget(s.hour, max);
+    if (after !== before) {
+      // Radar keeps its full-rate contract: a tick is a cheap CDN tile swap.
+      if (isRadar) commit(after);
+      // Forecast commits are the render-driving prop, so they cross detents at 11 Hz, not full rate.
+      else if (wheelDragCommitDue(t, s.lastDragCommitT)) { s.lastDragCommitT = t; commit(after); }
     }
   }, [pitch, max, isRadar, setHour, commit, s]);
 

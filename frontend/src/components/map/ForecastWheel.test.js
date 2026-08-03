@@ -5,6 +5,8 @@ import {
   wheelPitchPx,
   WHEEL_MAX_VEL_HPS,
   wheelReleaseVelocity,
+  wheelDragCommitDue,
+  WHEEL_DRAG_COMMIT_MS,
 } from './ForecastWheel';
 
 // The Forecast Wheel's pure decision helpers (user-approved prototype d50c0923). The gesture/
@@ -103,6 +105,65 @@ describe('ForecastWheel — pure helpers', () => {
     const wrongField = src.replace('performance.now() - s.lastT', 'performance.now() - s.lastX');
     expect(wrongField).not.toBe(src);              // assert the mutation landed
     expect(USES_LAST_T.test(wrongField)).toBe(false);
+  });
+
+  // ── DETENT COMMITS DURING THE DRAG (2026-08-02) ─────────────────────────────────────────────
+  // The forecast path committed NOTHING during a drag; the map held the hour the gesture started on
+  // and first moved 200 ms (settle) to ~1.1 s (coast) AFTER release. Radar already commits per
+  // detent. This throttles the forecast path to the SAME 11 Hz the old slider used, because
+  // `onCommit` runs `onTimeChange` — the render-driving prop `cb074b8b`/`5355e65e` fought.
+  it('a drag commits once the throttle window has elapsed, and not before', () => {
+    expect(wheelDragCommitDue(1000, null, {})).toBe(true);        // first crossing of the drag
+    expect(wheelDragCommitDue(1000, 1000, {})).toBe(false);       // same instant
+    expect(wheelDragCommitDue(1089, 1000, {})).toBe(false);       // 89 ms — inside the window
+    expect(wheelDragCommitDue(1090, 1000, {})).toBe(true);        // 90 ms — due
+    expect(wheelDragCommitDue(5000, 1000, {})).toBe(true);
+  });
+
+  it('is bounded at 11 Hz — the rate cb074b8b measured as safe, not a new number', () => {
+    expect(WHEEL_DRAG_COMMIT_MS).toBe(90);
+    expect(1000 / WHEEL_DRAG_COMMIT_MS).toBeCloseTo(11.1, 1);
+  });
+
+  it('revives the dead __RAW_SCRUB_COMMIT_THROTTLE_MS__ lever instead of adding a second knob', () => {
+    // That lever currently reaches only the classic <input> scrubber, behind __RAW_CLASSIC_SCRUBBER__.
+    expect(wheelDragCommitDue(1040, 1000, { __RAW_SCRUB_COMMIT_THROTTLE_MS__: 30 })).toBe(true);
+    expect(wheelDragCommitDue(1020, 1000, { __RAW_SCRUB_COMMIT_THROTTLE_MS__: 30 })).toBe(false);
+    expect(wheelDragCommitDue(1001, 1000, { __RAW_SCRUB_COMMIT_THROTTLE_MS__: 0 })).toBe(true);  // 0 = per-frame
+    // a non-number must NOT silently disable the throttle — it falls back to the default
+    expect(wheelDragCommitDue(1050, 1000, { __RAW_SCRUB_COMMIT_THROTTLE_MS__: 'fast' })).toBe(false);
+    expect(wheelDragCommitDue(1050, 1000, { __RAW_SCRUB_COMMIT_THROTTLE_MS__: -5 })).toBe(false);
+  });
+
+  it('kill switch: __RAW_DISABLE_WHEEL_DRAG_COMMIT__ restores commit-nothing-during-drag', () => {
+    expect(wheelDragCommitDue(9999, null, { __RAW_DISABLE_WHEEL_DRAG_COMMIT__: true })).toBe(false);
+    // opt-OUT: only the literal true, matching every other switch in this file
+    expect(wheelDragCommitDue(9999, null, { __RAW_DISABLE_WHEEL_DRAG_COMMIT__: 'yes' })).toBe(true);
+  });
+
+  it('refuses to invent a decision without a clock reading', () => {
+    expect(wheelDragCommitDue(NaN, 1000, {})).toBe(false);
+    expect(wheelDragCommitDue(undefined, 1000, {})).toBe(false);
+  });
+
+  it('the drag commit is WIRED into onPointerMove, non-radar only, and reset per gesture', () => {
+    const fs = require('fs');
+    const path = require('path');
+    const src = fs.readFileSync(path.join(__dirname, 'ForecastWheel.js'), 'utf8');
+    const WIRED = /else if \(wheelDragCommitDue\(t, s\.lastDragCommitT\)\)/;
+    const RADAR_FIRST = /if \(isRadar\) commit\(after\);/;
+    const RESET = /s\.lastDragCommitT = null;/;
+    expect(WIRED.test(src)).toBe(true);
+    expect(RADAR_FIRST.test(src)).toBe(true);   // radar keeps its full-rate contract, untouched
+    expect(RESET.test(src)).toBe(true);         // a new gesture must not inherit the previous stamp
+
+    // NEGATIVE CONTROLS — each mutation the pure tests above cannot see must fail HERE.
+    const unwired = src.replace(WIRED, 'else if (true)');
+    expect(unwired).not.toBe(src);
+    expect(WIRED.test(unwired)).toBe(false);
+    const noReset = src.replace(/s\.lastDragCommitT = null;/, '');
+    expect(noReset).not.toBe(src);
+    expect(RESET.test(noReset)).toBe(false);
   });
 
   it('settle target snaps to the nearest detent INSIDE the track', () => {
