@@ -26,10 +26,17 @@ THE REFUSAL
 -----------
 Voids rather than answers when the three models cannot be compared like-for-like:
   * any model returning zero spots, or `source == "disabled"`;
-  * the models' `served_valid_time` differing — a spread measured across different hours measures
-    the CLOCK, not the physics. This repo has already shipped one gate defect of exactly that shape
-    (the exact-valid_time join that capped 59.9% of good/epic for want of a peer frame), so the check
-    is mandatory, not optional.
+  * the models' served frames spanning MORE THAN `CONFIRM_TIME_TOLERANCE_H` (3.0 h) — past that a
+    spread measures the CLOCK, not the physics.
+    ⚠️ THIS CHECK WAS ORIGINALLY WRONG IN THE STRICT DIRECTION and it is worth remembering why.
+    It demanded an EXACT `served_valid_time` match, which is stricter than the rule it measures:
+    `apply_gate_to_frames` joins each model on its NEAREST frame within 3 h, precisely because the
+    models are precomputed independently and land on different hours (GFS 15/18, EURO+ICON 13/16).
+    An instrument stricter than its subject can only UNDER-count agreement — and this one produced
+    the headline `CONFIRMABLE = 0`. Re-measured under the correct join the count held, but a number
+    that survives a method fix by luck is not evidence that the method was sound.
+    (This repo also shipped the mirror-image defect in production once: an exact-valid_time join
+    that capped 59.9% of good/epic for want of a peer frame. Same class, opposite side.)
   * fewer than `--min-common` spots present in all three payloads.
 
 USAGE
@@ -48,6 +55,8 @@ from datetime import datetime, timedelta, timezone
 DEFAULT_BASE = "https://raw-surf-antigravity.onrender.com"
 MODELS = ("GFS", "ICON", "EURO")
 GOOD_T, EPIC_T, AGREE_MODELS = 70.0, 84.0, 2
+# Mirrors rating_confirmation.CONFIRM_TIME_TOLERANCE_H — the join production actually performs.
+CONFIRM_TIME_TOLERANCE_H = 3.0
 
 
 def _pct(v: list[float], q: float) -> float:
@@ -80,10 +89,24 @@ def census(payloads: dict[str, dict], min_common: int) -> dict:
         if not (p.get("spots") or []):
             raise RuntimeError(f"VOID: {m} returned zero spots.")
         served[m] = p.get("served_valid_time")
-    if len(set(served.values())) != 1:
+    # ⚠️ MIRROR PRODUCTION'S JOIN, DO NOT OUT-STRICT IT (fixed 2026-08-03, rule 24).
+    # This demanded `len(set(served.values())) == 1` — an EXACT frame match — and voided whenever
+    # the models straddled two frames. But `rating_confirmation.apply_gate_to_frames` joins each
+    # model on its NEAREST frame within CONFIRM_TIME_TOLERANCE_H = 3.0, precisely because the models
+    # are precomputed independently and land on different hours (GFS 15/18, EURO+ICON 13/16). An
+    # instrument stricter than the rule it measures can only UNDER-count agreement, and this one
+    # produced the headline "CONFIRMABLE = 0" — measured under a condition production never applies.
+    # The count survived re-measurement under the correct join, but that was luck, not method.
+    stamps = sorted(s for s in served.values() if s)
+    if not stamps:
+        raise RuntimeError(f"VOID: no served_valid_time on any model response — {served}.")
+    parsed = [datetime.fromisoformat(s.replace("Z", "+00:00")) for s in stamps]
+    span_h = (max(parsed) - min(parsed)).total_seconds() / 3600.0
+    if span_h > CONFIRM_TIME_TOLERANCE_H:
         raise RuntimeError(
-            f"VOID: the models did not serve the same hour — {served}. A spread measured across "
-            f"different hours measures the CLOCK, not the physics.")
+            f"VOID: served frames span {span_h:.1f} h across models ({served}), beyond the "
+            f"production join tolerance of {CONFIRM_TIME_TOLERANCE_H} h. Past that a spread "
+            f"measures the CLOCK, not the physics.")
 
     # `raw_score` is the UNGATED score, which is what internal_confirmation actually reads. Using the
     # gated `score` would compare post-cap values and understate every spread at the top.
@@ -131,7 +154,9 @@ def census(payloads: dict[str, dict], min_common: int) -> dict:
     per_model = {m: _stats([e["m"][m] for e in common.values()]) for m in MODELS}
 
     return {
-        "served_valid_time": next(iter(served.values())),
+        "served_valid_time": stamps[-1],
+        "served_frames_by_model": served,
+        "frame_span_h": round(span_h, 2),
         "n_common_spots": len(common),
         "per_model_raw_score": per_model,
         "spread_max_minus_min": _stats(spreads),
