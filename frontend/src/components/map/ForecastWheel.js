@@ -25,6 +25,37 @@ export const WHEEL_MAX_VEL_HPS = 6;      // shuttle coast cap, hours/second (use
 const FRICTION_PER_SEC = 0.06;           // strong friction: velocity decays to 6% per second
 const SETTLE_EPS = 0.01;
 
+/**
+ * The velocity a release should actually coast on (pure; exported for tests).
+ *
+ * ⚠️ THE DEFECT THIS CLOSES. `s.vel` is written ONLY inside `onPointerMove`. If the finger stops
+ * moving, no pointermove fires, so `s.vel` keeps whatever it held at the last motion sample — however
+ * long ago — and `onPointerUp` branched on that fossil with no elapsed-time check. Park the wheel on
+ * the hour you want, pause to read it, release: the wheel coasts off a velocity from before the pause
+ * and lands somewhere else. That corrupts the VALUE the user is looking at, not merely the timing.
+ *
+ * The decay reuses `coast()`'s OWN `FRICTION_PER_SEC` rather than inventing a threshold, so a pause is
+ * physically identical to having coasted through it — continuous, with no new constant to calibrate
+ * and no cliff to sit on. Derived, against the 1.2 h/s coast gate and the 6 h/s cap:
+ *
+ *     pause  50 ms -> 5.21 h/s  COAST      (a real flick: the finger leaves in well under 100 ms)
+ *     pause 100 ms -> 4.53      COAST
+ *     pause 300 ms -> 2.58      COAST
+ *     pause 500 ms -> 1.47      COAST      (still a flick, barely — the curve has no edge to snag on)
+ *     pause   1 s  -> 0.36      settle     (a deliberate pause can no longer throw the wheel)
+ *     pause   2 s  -> 0.02      settle
+ *
+ * Kill: window.__RAW_DISABLE_WHEEL_RELEASE_DECAY__ = true restores the fossil-velocity behaviour.
+ */
+export function wheelReleaseVelocity(vel, msSinceLastMove, win) {
+  const v = Number(vel) || 0;
+  const w = win || (typeof window !== 'undefined' ? window : {});
+  if (w.__RAW_DISABLE_WHEEL_RELEASE_DECAY__ === true) return v;
+  const dt = Number(msSinceLastMove);
+  if (!Number.isFinite(dt) || dt <= 0) return v;   // no elapsed reading -> change nothing
+  return v * Math.pow(FRICTION_PER_SEC, dt / 1000);
+}
+
 /** Classic-slider escape hatch (pure; exported for tests). */
 export function shouldUseClassicScrubber(win) {
   const w = win || (typeof window !== 'undefined' ? window : {});
@@ -177,6 +208,9 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
   const onPointerUp = useCallback(() => {
     if (!s.dragging) return;
     s.dragging = false;
+    // Decay the sampled velocity across the gap since the last MOVE, not the last event: a finger
+    // that stopped moving has no velocity, however recently it was lifted. See wheelReleaseVelocity.
+    s.vel = wheelReleaseVelocity(s.vel, performance.now() - s.lastT);
     if (Math.abs(s.vel) > 1.2 && !isRadar) coast(); else settle();
   }, [coast, settle, isRadar, s]);
 
