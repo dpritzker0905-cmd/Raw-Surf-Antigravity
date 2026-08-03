@@ -155,3 +155,71 @@ evidence of a reversed-normal population survives. Remaining exposure work needs
 
 ⇒ **Lever 2 (`_REF_ANCHOR_SCORE`) is now the cheapest remaining test**, and `size_gate` is the
 dominant limiter at **46.5%**, so it is also the one with the most reach.
+
+---
+
+## §7 LEVER 2 IS EXHAUSTED — measured against the owner's own constraint suite, before any change
+
+`test_owner_calibration_anchors.py` already encodes the owner's constraints as a two-sided test:
+`4 ft @ 9 s must NOT be epic` **and** `7 ft @ 11 s MUST be epic`. It is the A/B harness, and it was
+already green. So lever 2 could be swept without writing anything.
+
+### The permitted range is 0.05 wide
+
+| `_REF_ANCHOR_SCORE` | owner anchor suite |
+|---|---|
+| **0.60** (shipped) | **10/10 OK** |
+| **0.65** | **10/10 OK** |
+| 0.70 | **BREAKS 2** — `FL 4 ft @ 9 s is NOT epic`, and the small-end pair |
+| 0.75 · 0.80 | same two breaks |
+
+Above 0.65 the 4 ft Florida day reads `epic` again — **the owner's original 2026-07-29 complaint.**
+
+### And the 0.05 that IS permitted changes no level at all
+
+Florida, reference 0.75 m, perfect wind and exposure:
+
+| anchor case | 0.60 | 0.65 | Δ |
+|---|---|---|---|
+| FL 2–3 ft @ 9 s | 50.8 `fair` | 54.9 `fair` | +4.1 |
+| FL 3–4 ft @ 9 s | 59.9 `fair_good` | 62.9 `fair_good` | +3.0 |
+| FL 4 ft @ 9 s | 64.4 `fair_good` | 66.9 `fair_good` | +2.5 |
+| FL 6–8 ft @ 11 s | 89.3 `epic` | 89.3 `epic` | **+0.0** |
+| FL 8–10 ft @ 12 s | 87.9 `epic` | 87.9 `epic` | **+0.0** |
+
+**Not one case crosses a level boundary.** The big days do not move *at all*, because at 7 ft against
+a 0.75 m reference the size term is already saturated (h/ref = 2.84 > `_REF_SAT_MULT` 2.5) — the
+anchor only has authority below saturation.
+
+Secondary effects: typical-day ceiling 60 → 65; `good` needs 1.38× → **1.21×** typical; `epic`
+1.90× → 1.81×.
+
+⇒ **LEVER 2 IS EXHAUSTED.** It is permitted at 0.65, moves nothing across a level in the owner's own
+anchors, and every point it would add above 70 on the live set is **removed again by
+`CAP_UNCONFIRMED = 69.9`**. Shipping it would be motion, not progress. **No code changed.**
+
+## §8 THE JACOBIAN RE-RANKS — and my own strike is about to become wrong
+
+With lever 3 removed (§6) and lever 2 exhausted (§7), two things remain, and they compose:
+
+**1. The conjunction (lever 1).** Nine multiplicative terms, all of which must be ≈1.0 simultaneously.
+This is the structural answer and the highest-risk change; every term encodes a historical outage.
+
+**2. ⚠️ THE OBSERVATION GATE — which I struck TWICE today as "inert", and which becomes THE binding
+constraint the moment anything lifts scores.** `CAP_UNCONFIRMED = 69.9` caps any spot whose
+`confirmed` is None. Measured this session: **`confirmed` was `None` on 200 of 200 spots**, and the
+one spot whose raw score cleared `good` (Liwa-Liwa, 72.6) was capped straight back to 69.9.
+
+> The strike was correct *at the time* — with scores below 70 the cap could not bind. But it is a
+> statement about the current distribution, **not about the mechanism.** Lift the distribution by any
+> means and the gate is waiting at 69.9 for ~100% of spots.
+
+⇒ **THE NEXT MEASUREMENT IS WHY `confirmed` IS NEVER SET.** `internal_confirmation` needs ≥2 of 3
+models agreeing within `CONFIRM_TIME_TOLERANCE_H = 3.0`, and the recorded landmine is that **the
+models do not share a `valid_time`** (measured: GFS 15/18, EURO+ICON 13/16). If confirmation can
+never fire, `CAP_UNCONFIRMED` is an absolute ceiling at 69.9 **regardless of every other lever**, and
+no amount of calibration or physics can make the product say `good`.
+
+★ That is now the highest-Jacobian open question in the rating, and it is a *reachability* question —
+the same shape as the recorded `break_depth` tier-2 lesson: **check reachability BEFORE tuning any
+constant behind it.**
