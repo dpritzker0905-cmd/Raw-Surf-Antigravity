@@ -276,6 +276,30 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
 
 ## §8 WHAT TO DO NEXT — Jacobian order
 
+0. ⛔⛔ **REFUTED 2026-08-03 LATE — DO NOT START HERE.** Both limbs of this item were measured and
+   neither holds. See `3c89bd2f` / `eac605d0`.
+   * **The proposed discriminator cannot discriminate.** "Flag any two spots sharing an identical
+     normal" flags 786 of 1,773 spots (44.3%) — and a 200-shuffle permutation control returns
+     **786 every single time, p = 1.000**. The count depends only on the MULTISET of normals, never
+     on which coordinate holds them; 1,755 values in ~3,600 bins at 0.1° is the birthday paradox.
+     The widest "collision" is two spots **19,563 km apart** both reading 60.7°.
+   * **The Bali smoking gun is a different mechanism AND has no consequence.** Neither spot is
+     coarse: Bingin is `etopo` (a fit 271 m away), Padang Padang `etopo:borrowed` at 1.15 km — the
+     2026-08-02 borrow radius working as specified. Graded against OSM coastline winding (with
+     controls at Hossegor 6.1° and Sebastian 9.6°), the Bukit faces **~327–348°, not the ~232° this
+     section asserts**, and served error is 6.9–13.6° at 4 of 5 spots. Feeding the OSM-measured
+     normal to the production `swell_exposure` against the same 211.8° swell changes exposure by
+     **0.000** at Padang Padang, Bingin, Impossibles and Balangan — all still floored.
+   * **Generalised to the population:** the median floored spot sits **37° past** the Δθ=90 cutoff,
+     so a bearing correction of the achievable size (OSM-graded p50 ~12.6°) un-floors **21.9%**.
+   ⇒ The floor is the **cosine model's half-plane**, not the bearing. Geometry work remains worth
+   doing for height/`geometry_readiness`, but it is **not** the lever on "the product cannot say
+   good", and **item 1 below is the real #1** — which is where this report originally had it.
+   ★ The failure mode is the one §0 names: a real code fact (two spots do share 316.5°) wrapped in
+   a consequence nobody had measured.
+
+<details><summary>Original item 0 (superseded — kept as the forensic record)</summary>
+
 0. ⭐⭐⭐ **FIX THE SHORE NORMALS — §2c changed the priority order.** Two different Bali breaks share
    one bearing (316.5 deg for BOTH Padang Padang and Bingin) because a coarse cell serves both, and
    **7.8% of ALL served spots are floored at EVERY hour across 48 h** with a 5-day max-score median of
@@ -285,23 +309,43 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
    ⇒ First step is a DISCRIMINATOR, not a fix: for the 49 permanently-floored spots, compare the
    resolved normal against the coastline bearing and flag any two spots sharing an identical normal.
    Identical normals at distinct coordinates is a mechanical, cheap test.
-1. **Fix the measurement before any accuracy work.** Add RMSE / scatter index / symmetric slope to
-   the skill report and stratify the buoy set by depth and exposure. Everything in §3's accuracy
-   group is unfalsifiable until this exists. *(The per-model ledger `a2302102` already accumulates
-   ICON+EURO; the provider split is the next field to carry.)*
+
+</details>
+
+1. ✅ **PARTLY DONE (`69f7b148`) — Fix the measurement before any accuracy work.** RMSE, de-biased
+   scatter index, correlation, symmetric slope and observed-height bands are now in `skill_summary`,
+   with shape metrics REFUSING (None, never 0.0) below n=10 or on a degenerate denominator, and
+   `n_paired` reported beside the legacy `n` so a starved metric is visible rather than silently
+   averaged. ⛔ **STILL OWED: depth/exposure stratification of the buoy set** —
+   `fetch_ndbc_station_coords` returns lat/lng only, so that needs a buoy-metadata source this
+   module does not have. Everything in §3's accuracy group stays unfalsifiable until it exists.
 2. **Route EURO `waves` to CMEMS — but horizon-aware, and A/B it.** 3.2× better where it applies;
    costs a shorter native tail (blend seam moves earlier) and ~9× cells on a 2 GiB box.
-3. **`--limit` after the resume filter** (one line) so the nightly ERA5 task advances.
-4. **Make `coarse_fill` provenance real** — declare it on the model AND past the `response_model`
-   filter, and rebuild its guard against the real type instead of `SimpleNamespace`.
-5. **A per-type quota on the telemetry ring.** Three instances of one emitter erasing all others.
-6. **The sim: expose model choice** and stop hard-pinning GFS.
+3. ✅ **DONE (`d56604b8`) — `--limit` after the resume filter**, extracted into a pure
+   `select_scope()` and pinned by a guard that walks 1,773 spots in batches of 150 and requires it
+   to REACH THE END. `--query` deliberately stays BEFORE the filter (scope selector, not batch
+   size), and `n_remaining` is now reported so a capped run cannot look like a finished catalogue.
+4. ✅ **DONE (`2331fec1`) — `coarse_fill` provenance is real.** Field declared, round-trip past
+   `response_model` guarded, and the swallow made LOUD. The guard is rebuilt on `NormalizedProduct`
+   and pinned by mutation: undeclaring the field reddens the 3 new tests while all 14
+   `SimpleNamespace` tests stay green — a direct reproduction of the 11-day live defect.
+5. ✅ **DONE (`18273a03`) — the ring quota**, fixed at the EVICTION POLICY rather than the emitter:
+   drop the oldest entry of the most-resident type, so a rare event survives an unbounded flood.
+   No tuning constant, degenerates to plain FIFO on a single-type ring, plus monotonic `counts`
+   that survive eviction. The kill switch doubles as the negative control.
+6. **The sim: expose model choice** and stop hard-pinning GFS. ⚠️ Two traps found while scoping:
+   `fetch_live_forecast`'s cache key (`sim_forecast.py:348`) carries **no model**, so a naive
+   parameter cross-serves; and the last multi-call-site threading here missed `sim_compare` — the
+   RANKER — and changed the winner in 3 of 4 regions. Enumerate the call sites with a coverage test.
 7. **Geometry**: 40.6% degraded is a prerequisite for any nearshore modelling, not a parallel track.
+   ⚠️ But per (0) it is **not** the lever on the exposure floor — do not re-motivate it that way.
 
 ⛔ **Do not** tune `swell_exposure`'s floor, flip the default model, or unpick `H110`/`Kr` until (1)
-exists. Each is a constant chosen against an unverifiable target. ⭐ Note that (0) is NOT a constant —
-it is a wrong INPUT, which is why it jumps the queue: fixing a bearing needs no skill score to
-justify, only a coastline.
+is complete. Each is a constant chosen against a target that is still only half measurable.
+⚠️ The original note here — *"(0) is NOT a constant, it is a wrong INPUT, which is why it jumps the
+queue"* — was the reasoning that promoted item 0, and it was sound in form. What it lacked was the
+measurement: the input turned out to be roughly right, and correcting it to independently-measured
+truth changes the served exposure by 0.000. **A wrong input still needs its consequence measured.**
 
 ---
 
