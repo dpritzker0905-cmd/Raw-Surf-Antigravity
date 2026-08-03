@@ -108,3 +108,33 @@ def test_florida_vs_hawaii_science_end_to_end():
     hi_score, hi_level = compute_surf_rating(*args, reference_size_m=hi_ref)
     assert fl_score > hi_score                                # same swell rates HIGHER in FL
     assert LEVELS.index(fl_level) > LEVELS.index(hi_level)    # and a better category
+
+def test_provenance_markers_survive_the_merge_rebuild():
+    """A campaign RESUME MARKER must outlive a precompute cycle.
+
+    `merge_frames_into_climatology` REBUILDS each record (`rec = {"hist": ...}`), so anything not
+    copied forward is dropped. That hazard was identified in the code and fixed for lat/lng ALONE,
+    leaving `era5` and `backfill` — the deepening campaign's resume markers — stripped on every
+    merge. The precompute merges frames BEFORE folding the inbox back in (spot_ratings.py:699 then
+    :702), so a freshly banked marker survived only to the next cycle (cron '45 3-23/4', ~4 h).
+    ★ The HISTOGRAM was never lost — RESUMABILITY was. An ~85 h campaign re-fetched spots it already
+      held on every restart, and the `NEVER BANK AN EMPTY SPOT` guard reasons entirely from "the
+      stamp means DONE".
+    The CONTROL (a spot absent from this run) is what proves the strip came from the merge itself.
+    """
+    from services.weather_pipeline.spot_size_climatology import merge_frames_into_climatology
+    blob = {"spots": {
+        "in-run": {"hist": {}, "n": 0, "lat": 1.0, "lng": 2.0,
+                   "era5": {"v": 3, "n": 139016}, "backfill": {"v": 2}},
+        "untouched": {"hist": {}, "n": 0, "lat": 3.0, "lng": 4.0, "era5": {"v": 3}},
+    }}
+    frames = [{"spots": [{"spot_id": "in-run", "surf_height_m": 1.2,
+                          "latitude": 1.0, "longitude": 2.0}]}]
+    out = merge_frames_into_climatology(blob, frames)
+    merged = out["spots"]["in-run"]
+    assert merged.get("era5", {}).get("v") == 3, "era5 resume marker stripped by the rebuild"
+    assert merged.get("backfill", {}).get("v") == 2, "backfill marker stripped by the rebuild"
+    assert merged["lat"] == 1.0 and merged["lng"] == 2.0, "coordinate regression"
+    # CONTROL: untouched spots kept their marker even BEFORE the fix, so this alone proves nothing —
+    # it is here so a future change that drops them everywhere cannot pass on the assertion above.
+    assert out["spots"]["untouched"].get("era5", {}).get("v") == 3

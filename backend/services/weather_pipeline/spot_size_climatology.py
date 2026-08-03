@@ -318,6 +318,22 @@ def merge_frames_into_climatology(clim_obj: Optional[dict], frames) -> dict:
         latlng = coords.get(sid) or (prev.get("lat"), prev.get("lng"))
         if latlng[0] is not None and latlng[1] is not None:
             rec["lat"], rec["lng"] = latlng
+        # ⛔⛔ THE PROVENANCE MARKERS MUST SURVIVE THE REBUILD TOO (2026-08-03).
+        # The comment above identified this exact class and the fix was applied to lat/lng ALONE, so
+        # `era5` and `backfill` were still dropped on every merge. Those are RESUME MARKERS: the
+        # deepening campaign's filter is `rec["era5"]["v"] == ERA5_BACKFILL_VERSION`, and the
+        # precompute merges frames (this function) BEFORE folding the inbox back in
+        # (spot_ratings.py:699 then :702), so a freshly banked marker survived only until the next
+        # precompute cycle — cron '45 3-23/4', i.e. about four hours.
+        # ★ THE HISTOGRAM DATA WAS NEVER LOST (it merges into `hist`); RESUMABILITY was. A campaign
+        #   measured at ~85 h therefore re-fetched spots it already held on every restart, and the
+        #   `NEVER BANK AN EMPTY SPOT` guard — which reasons entirely from "the stamp means DONE" —
+        #   was resting on a stamp with a four-hour half-life.
+        # Copy forward every non-derived key rather than naming era5/backfill: the next marker
+        # someone adds must not have to rediscover this.
+        for key, val in (prev or {}).items():
+            if key not in rec and key not in ("hist", "n", "lat", "lng"):
+                rec[key] = val
         spots[sid] = rec
     from datetime import datetime, timezone
     return {"schema_version": SCHEMA_VERSION, "updated_at": datetime.now(timezone.utc).isoformat(),
