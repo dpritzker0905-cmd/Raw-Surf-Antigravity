@@ -15,12 +15,13 @@ rings, and exercised all six sim MCP tools against production.
 | | surveys claimed | after adversarial check |
 |---|---|---|
 | critical | **17** | **0** |
-| high | **40** | **1** |
-| medium | — | 15 |
+| high | **40** | **3** |
+| medium | — | 19 |
 | low | — | 13 |
 | **refuted outright** | — | **5** |
 
-**134 raw findings. 34 verified. 29 stood, 5 fell, and almost every survivor was DOWNGRADED.**
+**134 raw findings. 40 verified (52 agents, 4.57 M tokens, 1,239 tool uses). 35 stood at HIGH
+confidence, 5 fell, and almost every survivor was DOWNGRADED.**
 
 ⭐ This is the most important line in the report. A fan-out of capable readers produced 17
 "criticals"; **not one survived an adversarial pass**. The failure mode was consistent: a real code
@@ -83,7 +84,9 @@ registry + a source-by-path reader so fastmcp modules are guardable at all.
 
 ---
 
-## §2 THE ONE SURVIVING HIGH — data is modified and the provenance is silently dropped
+## §2 THE THREE SURVIVING HIGHS
+
+### 2a. Data is modified and the provenance is silently dropped
 
 `fill_coarse_enclosed_sea_from_gfs_served` fills Gulf/enclosed-sea holes from GFS (verified by
 execution: `is_valid` False→True, `speed` 0.0→2.5 = the donor's). It then stamps
@@ -101,6 +104,53 @@ Two things the verifier added that the reporter missed:
 
 **Why it matters:** served values are silently substituted from another model with nothing in the
 payload to say so — the exact PROVENANCE class this repo names as its recurring root.
+
+### 2b. ⭐⭐⭐ ONE TRANSIENT TIMEOUT SILENTLY CHANGES WHICH SPOT THE SIM RECOMMENDS
+
+`sim_forecast.py:218-221` calls `_mark_down()` on **any** exception including an 8 s timeout, and
+`_mark_down` sets a **60 s PROCESS-WIDE cooldown** (:77-79). `fetch_live_forecast` then early-returns
+None for **every later spot** with the reason *"the app is not reachable right now"* — and
+`sim_compare.py:144-146` **binds that reason and discards it**, reporting only *"N of M spots had no
+forecast and were EXCLUDED from the ranking"*. The reason is computed and dropped at the boundary —
+the same class as `limiter` and `coarse_fill`. Misattribution is **unconditional, 100% of the time.**
+
+* Reproduced BY INJECTION: one forced timeout on the 6th spot took a scan from 2/12 to **0/12**.
+* Reproduced WITHOUT injection: a control run had **8 spots short-circuit after one real timeout**.
+* Not a coverage gap: all 24 endpoints for the 12 candidates return HTTP 200 at a 20 s timeout.
+
+⭐ **THE WINNER-CHANGE IS STRUCTURAL, NOT COINCIDENTAL.** The breaker drops the **TAIL of a
+nearest-first list**, and at Jeffreys Bay the two FARTHEST candidates (Seal Point 19.5 km / 17.2 and
+Bruce's Beauties 20.91 km / 16.0) are ranks **1 and 2 by quality**. **Any trip in positions 1..10
+necessarily changes the recommended spot.** "Which spot should I surf" can silently return the wrong
+answer, and the payload blames the spots rather than the breaker.
+
+### 2c. ⭐⭐⭐ THE `swell_exposure` FLOOR IS (PARTLY) WRONG SHORE NORMALS — and `geometry_readiness` CANNOT SEE IT
+
+Re-measured at **n=5,545** (12 viewports x 3 models x 2 valid times, both `precomputed` and `live`
+paths, 5.7x my own n): `swell_exposure` limits **31.7%** of served spots, **54.6%** of those sit at
+exactly 0.10 = **17.3% of ALL served spots** (I reported ~18% — confirmed). 0.10 is the lowest floor
+of any bounded factor (OVERSIZE 0.30, PERIOD_GATE 0.25, WIND_GATE 0.25, SEA_CLEAN 0.60).
+
+Two NON-CDS discriminators — run in ~40 minutes — produced more attribution than the CDS probe I had
+been waiting on:
+
+1. **THE FLOORED POPULATION IS BIMODAL, not one phenomenon** (n=628 spots x 13 hours to +48 h):
+   **32.5% are floored at EVERY observed hour**; 23.2% are transient (<20% of hours — the model
+   working correctly on off-direction hours, exactly what my Arugam probe found).
+   ⇒ **49 spots = 7.8% of ALL served spots are PERMANENTLY floored across 48 h**, with a 5-day
+   max-score median of **4.5/100** against 40.1 for the population.
+2. **THE SMOKING GUN — a shared coarse cell gives two different breaks one bearing.** At Bali's
+   Bukit peninsula (unambiguously SW-facing), `resolve_surf_geometry` returns **316.5 deg for BOTH
+   Padang Padang AND Bingin** — identical, i.e. one coarse cell serving two spots — and 293.8 deg for
+   Uluwatu. Against the live **211.8 deg / 14 s SW groundswell**, exposure floors to **0.100 / 0.225**
+   where a correct ~232 deg normal yields **0.945**.
+
+⛔⛔ **AND THE PRIOR STRIKE OF THE GEOMETRY EXPLANATION WAS UNSOUND — INCLUDING MINE.** AUDIT-E §2
+struck "degraded geometry" using `geometry_readiness`, which is a **PROVENANCE proxy: it reports how
+the normal was OBTAINED, and cannot detect a wrong-but-CONFIDENT one.** Padang Padang and Bingin are
+`full`. My own 19.0% vs 18.1% full-vs-degraded comparison used the same blind proxy and reached the
+same unsound conclusion.
+⇒ **This is the strongest lead in the report for "the product cannot say good".**
 
 ---
 
@@ -226,6 +276,15 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
 
 ## §8 WHAT TO DO NEXT — Jacobian order
 
+0. ⭐⭐⭐ **FIX THE SHORE NORMALS — §2c changed the priority order.** Two different Bali breaks share
+   one bearing (316.5 deg for BOTH Padang Padang and Bingin) because a coarse cell serves both, and
+   **7.8% of ALL served spots are floored at EVERY hour across 48 h** with a 5-day max-score median of
+   4.5/100. This is the strongest available lead on "the product cannot say good", it needs no CDS
+   and no campaign, and it was invisible to every prior pass because `geometry_readiness` reports how
+   a normal was OBTAINED, not whether it is RIGHT.
+   ⇒ First step is a DISCRIMINATOR, not a fix: for the 49 permanently-floored spots, compare the
+   resolved normal against the coastline bearing and flag any two spots sharing an identical normal.
+   Identical normals at distinct coordinates is a mechanical, cheap test.
 1. **Fix the measurement before any accuracy work.** Add RMSE / scatter index / symmetric slope to
    the skill report and stratify the buoy set by depth and exposure. Everything in §3's accuracy
    group is unfalsifiable until this exists. *(The per-model ledger `a2302102` already accumulates
@@ -240,4 +299,21 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
 7. **Geometry**: 40.6% degraded is a prerequisite for any nearshore modelling, not a parallel track.
 
 ⛔ **Do not** tune `swell_exposure`'s floor, flip the default model, or unpick `H110`/`Kr` until (1)
-exists. Each is a constant chosen against an unverifiable target.
+exists. Each is a constant chosen against an unverifiable target. ⭐ Note that (0) is NOT a constant —
+it is a wrong INPUT, which is why it jumps the queue: fixing a bearing needs no skill score to
+justify, only a coastline.
+
+---
+
+## §9 WHAT THIS AUDIT GOT WRONG ABOUT ITSELF
+
+* 17 "criticals" -> 0 survived. The verify phase paid for itself many times over.
+* 4 of 5 refutations were **absence-is-a-claim** — asserting a thing does not exist after one grep.
+* One verifier caught a reporter quoting a commit SUBJECT while its BODY said the opposite, and
+  another caught a workflow comment that was stale but whose OPERATIONAL claim was still true.
+* I retracted my own antimeridian finding (two viewports returned byte-identical `nonzero`/`maxH` —
+  one cached grid, not two fetches) and downgraded my own FPS/texture findings (hidden-tab rAF).
+* **AUDIT-E §2's geometry strike — my own — was unsound**, because it tested a proxy that cannot see
+  the defect. §2c is the correction.
+★ The through-line: every correction came from a CONTROL, a REPLICATE, or a MUTATION. None came from
+re-reading the code more carefully.
