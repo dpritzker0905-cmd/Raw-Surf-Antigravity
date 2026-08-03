@@ -77,6 +77,31 @@ _ASSET = os.path.join(_DATA_DIR, "shore_normals.json")
 # ⚠️ Widening is INERT for spots that already had an entry: lookup is nearest-wins, so a larger
 # radius can only ADD candidates that are farther than any incumbent. Measured over the live
 # catalogue: 0 of the 808 already-covered spots change which entry answers them.
+#
+# ⚠️⚠️ RE-MEASURED 2026-08-03 ON THE SERVED POPULATION, AND THE BORROW IS ~2x WORSE THAN THE 12.6
+# ABOVE. The numbers above grade the spots that NEWLY GAINED a borrow. Grading what
+# `resolve_surf_geometry` ACTUALLY SERVES — 140 spots stratified by source, same OSM instrument
+# (`scripts/served_shore_normal_review.py` -> `validate_shore_normals_osm.py`):
+#
+#     served source      n    median   p75    p90    <=30deg   >90deg
+#     etopo             55      8.7   27.6   152.8    76.4%    12.7%
+#     etopo:borrowed    46     29.0   76.2   115.4    52.2%    17.4%
+#     coarse            37     34.8   79.0   151.3    37.8%    18.9%
+#     ALL              140     19.6   61.9   137.6    58.6%    15.7%
+#
+# ★★★ THE PRECEDENCE ORDER IS VALIDATED BY AN INDEPENDENT INSTRUMENT: etopo < borrowed < coarse,
+#   and the asset beats the coarse grid on 81% of `etopo` spots (8.7 vs 47.1) and 67% of borrowed
+#   (24.4 vs 51.4). The chain is right. But QUOTE 29.0 FOR A BORROWED BEARING, not 12.6 — by
+#   distance, 1-2 km reads 24.4 and 2-3 km reads 29.0, against the 15.2 / 10.7 claimed above.
+# ⚠️ AND A HEAVY TAIL EXISTS IN EVERY SOURCE INCLUDING `etopo`: p90 152.8, with 12.7% over 90 deg
+#   and seven of the ten worst being `etopo` at match_km 0.00 — a fit AT the spot, maximum
+#   confidence, 150-173 deg wrong. That is the Outer Banks signature this instrument was built for.
+# ⛔ UNATTRIBUTED, DELIBERATELY: those worst cases are disproportionately BARRIER ISLANDS (Fire
+#   Island, Indian Rocks, Fuseta, Terra Estreita), and a barrier is exactly the case
+#   `validate_shore_normals_osm.py` documents as ITS OWN failure mode — the nearest coastline
+#   stretch can be the LAGOON shore, which reverses the truth column. A ~170 deg error is a SIGN
+#   flip and could be either side lying. ⇒ next step is a discriminator (does the spot have two
+#   shores within ~1-2 km?), NOT a fix.
 
 # The DEPTH radius. Measured-correct — do not widen it. Deliberately tighter than the hand-verified
 # overrides' 2 km radius: those are human ground truth, these are derived.
