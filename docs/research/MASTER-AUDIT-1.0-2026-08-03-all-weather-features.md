@@ -290,11 +290,21 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
      section asserts**, and served error is 6.9–13.6° at 4 of 5 spots. Feeding the OSM-measured
      normal to the production `swell_exposure` against the same 211.8° swell changes exposure by
      **0.000** at Padang Padang, Bingin, Impossibles and Balangan — all still floored.
-   * **Generalised to the population:** the median floored spot sits **37° past** the Δθ=90 cutoff,
-     so a bearing correction of the achievable size (OSM-graded p50 ~12.6°) un-floors **21.9%**.
-   ⇒ The floor is the **cosine model's half-plane**, not the bearing. Geometry work remains worth
-   doing for height/`geometry_readiness`, but it is **not** the lever on "the product cannot say
-   good", and **item 1 below is the real #1** — which is where this report originally had it.
+   * **Generalised to the population:** the median floored spot sits **37° past** the Δθ=90 cutoff.
+     ⚠️ **CORRECTED (`e675ae84`):** I first priced the achievable correction at the asset
+     docstring's 12.6° and reported 21.9% reachable. Grading the **served** bearing at n=140 gives
+     a median error of **19.6°** (etopo 8.7 · borrowed 29.0 · coarse 34.8), and at the 25° band the
+     same floor-margin distribution reads **43.8%**. **Geometry is roughly twice the lever I
+     credited it with.** I took an uncertainty from a docstring instead of measuring it.
+   ⇒ The floor is **still dominated by the cosine half-plane** — the median floored spot is beyond
+   any plausible correction, and at the Bukit the OSM-correct normal moves exposure by 0.000 — but
+   geometry is a **real and material secondary lever**, not the negligible one this bullet first
+   implied. **Item 1 below remains the #1**, because none of it is falsifiable without the skill
+   score; the shore-normal work is now a credible #2 rather than a struck lead.
+   ★ And the n=140 grade **validated the precedence chain** (etopo < borrowed < coarse) and showed
+   the asset beating the coarse grid 81% / 67% — so the geometry pipeline is sound in ORDER; the
+   open question is its **tail** (15.7% over 90°, unattributed: barrier-island lagoon shores can
+   reverse the OSM truth column too).
    ★ The failure mode is the one §0 names: a real code fact (two spots do share 316.5°) wrapped in
    a consequence nobody had measured.
 
