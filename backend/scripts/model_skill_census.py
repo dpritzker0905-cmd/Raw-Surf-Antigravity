@@ -131,8 +131,10 @@ def census(sample, valid_time, workers=6):
         res = list(ex.map(one, jobs))
 
     by, prov = defaultdict(dict), defaultdict(set)
+    served = defaultdict(dict)          # (buoy, model) -> the provider that actually answered
     for sid, model, hs, up in res:
         by[sid][model] = hs
+        served[sid][model] = up
         if up:
             prov[model].add(up)
 
@@ -150,11 +152,31 @@ def census(sample, valid_time, workers=6):
     errs = {m: [] for m in MODELS}
     banded = {m: defaultdict(list) for m in MODELS}
     wins = {m: 0 for m in MODELS}
+    # ⭐⭐ STRATIFY BY THE PROVIDER THAT ACTUALLY ANSWERED (2026-08-03).
+    # A model label is not a data source. `euro_fallback_census.py` measured that `EURO` serves
+    # genuine ECMWF at only ~83-86% of coordinates and `gfs_estimated_fallback` at the rest — and
+    # that fallback is NOT GFS's value (0 of 11 matched; PACT2 0.4796 -> 0.2, Memories Beach
+    # 1.3879 -> 0.84). So a pooled "EURO MAE" mixes ECMWF with a THIRD, never-scored estimator, and
+    # the headline 0.223 was contaminated in an unknown direction. Splitting is the difference
+    # between "EURO is better" and "ECMWF is better, and the hole is unmeasured".
+    # ⚠️⚠️ AND MAE IS NOT COMPARABLE ACROSS DIFFERENT SITE POPULATIONS. Each provider answers at a
+    # DIFFERENT set of coordinates — the ECMWF fallback fires precisely where ECMWF has no data,
+    # which skews toward sheltered, low-energy sites where ANY estimator scores well in absolute
+    # metres. Measured 2026-08-03: `EURO/gfs_estimated_fallback` posted MAE 0.092 — the best of every
+    # stratum — which reads as "the fallback is excellent" and may only mean "the fallback fires on
+    # small seas". The ONLY honest comparison is GFS's error ON THE SAME SITES, which the paired
+    # design already has in hand. `gfs_mae_same_sites` is that control; without it this table
+    # ranks site difficulty, not model skill.
+    by_prov = defaultdict(list)
+    by_prov_gfs = defaultdict(list)
     for sid, v in paired.items():
         o = obs[sid]
         for m in MODELS:
             e = v[m] - o
             errs[m].append(e)
+            by_prov[(m, served[sid].get(m) or "unknown")].append(e)
+            if m != "GFS":
+                by_prov_gfs[(m, served[sid].get(m) or "unknown")].append(v["GFS"] - o)
             for lo, hi, label in BANDS:
                 if lo <= o < hi:
                     banded[m][label].append(e)
@@ -172,6 +194,18 @@ def census(sample, valid_time, workers=6):
         "by_obs_band": {label: {m: {"n": len(banded[m][label]), "mae_m": _mae(banded[m][label]),
                                     "bias_m": _bias(banded[m][label])} for m in MODELS}
                         for _, _, label in BANDS},
+        # THE UNPOOLED TRUTH: a model label is not a data source.
+        "by_model_and_provider": {
+            f"{m}/{p}": {
+                "n": len(v), "mae_m": _mae(v), "bias_m": _bias(v),
+                # THE CONTROL: GFS scored on EXACTLY these coordinates. Without it a stratum's MAE
+                # ranks how easy its sites are, not how good its model is.
+                "gfs_mae_same_sites": _mae(by_prov_gfs.get((m, p), [])) if m != "GFS" else None,
+                "beats_gfs_here": (
+                    None if m == "GFS" or not by_prov_gfs.get((m, p))
+                    else _mae(v) < _mae(by_prov_gfs[(m, p)])),
+            }
+            for (m, p), v in sorted(by_prov.items())},
         "best_model": min(MODELS, key=lambda m: _mae(errs[m]) if _mae(errs[m]) is not None else 9e9),
     }
 
