@@ -97,7 +97,7 @@ exists, and so do eight others.** The live page carries ~60 diagnostic globals, 
 ring buffers recording precisely the quantities this investigation was missing. **Nobody had read
 them.** That reframes the whole answer: the gap is not instrumentation, it is *consumption*.
 
-## §6 THE ENCODE RUNS ~30 TIMES A SECOND ON BYTE-IDENTICAL INPUT
+## §6 ⛔ CORRECTED — IT IS NOT THE ENCODE. IT IS A PER-FRAME DIAGNOSTIC.
 
 `__WEATHER_TELEMETRY__.logs` holds 500 entries. **Every single one is `texture_generated`**, and
 every one carries the identical payload:
@@ -107,12 +107,39 @@ vectorCount 143 | nonzeroCount 99 | maxHeight 1.8901 | hourOffset 129     x500
 ```
 
 Eighteen consecutive samples are **31.4 ms apart** — frame cadence, with `fps: 30` stamped on each.
-The marine texture is re-encoded **every frame** from unchanged data. The ring is saturated: 500 of
-500 slots consumed by one payload being encoded over and over.
+The ring is saturated: 500 of 500 slots consumed by one payload.
 
-⛔ **`__RAW_GPU__.encodeDupCount` — the counter that exists to catch exactly this — reads `2`.**
-Two, against 500. A duplicate-encode detector that sees **0.4%** of the duplicates is the recorded
-*"instrument reports success having tested nothing"* class, in counter form.
+⛔⛔ **THIS SECTION ORIGINALLY CLAIMED "the marine texture is re-encoded every frame" AND THAT
+`encodeDupCount: 2` WAS A BLIND COUNTER SEEING 0.4% OF THE DUPLICATES. BOTH ARE FALSE.** Traced
+2026-08-03: `texture_generated` is emitted from `WeatherTelemetry.js:330`, whose only caller is
+`WebGLMarineEngineDiagnostics.js:183` — inside **`populateCrestDiagnostics`**, which
+`WebGLMarineEngine.js:2143` calls from the per-frame render loop. It is **not**
+`encodeMarineTexture`. The encode dedup at `WebGLMarineTextureEncoder.js:98` works correctly and
+`encodeDupCount: 2` was the honest count. **I accused a working instrument of being broken because
+I assumed one event name meant another function.**
+
+★ **AN EVENT NAME IS NOT A CALL SITE. Grep the emitter before attributing cost to a function.**
+
+**THE REAL DEFECT, and it is better.** The expensive half of `populateCrestDiagnostics` — an O(N)
+loop over every vector plus the telemetry emit — is guarded by
+`engine._lastUploadedSig !== uploadSig`, and that key was:
+
+```js
+waveGrid.productId || `${model}_${layer}_${hour}_${ts || ts2 || Date.now()}`
+```
+
+**A dedup key that falls back to `Date.now()` cannot dedup.** With `productId: null` (confirmed in
+the live payload) and no timestamps, the key held the current time, differed every frame, and the
+guard always passed.
+
+★★ **THE DIAGNOSTIC WAS BLINDING THE DIAGNOSTICS.** The ring is capped at 500, so this one event
+evicted every other telemetry event within ~17 s — `tile_loaded`, `cache_miss`, `render_failed`,
+`model_switch`, all gone. That is a large part of why the nine ring buffers this app ships had never
+yielded a finding: **the most useful ring is 100% saturated by a per-frame emit.**
+
+✅ **FIXED `52b27146`** — the key now uses content identity (dims + vector count + hour + layer +
+model), no clock. Guards assert the NUMBER OF EMITS (1 across 60 frames, was 60); 3/3 mutations
+caught. Kill: `__RAW_DISABLE_CREST_DIAG_DEDUP__`.
 
 Supporting numbers, same capture:
 
