@@ -31,8 +31,11 @@ swell_exposure(swell_from, normal) = clamp(0.10 + 0.90 * max(0, cos Δθ))
 
 Every bearing **≥90° off the normal returns the floor — an entire half-plane.** The floor was
 recorded in the ledger as a *rare protective clamp*; it is the **operating point** for a quarter of
-the product. This is a **straight-beach model**, and what it cannot express is the point/headland
-break working on **wrapped, refracted** swell — which is most of the world's best surf.
+the product. Those two sentences are measured and stand.
+
+⚠️ **HYPOTHESIS, NOT FINDING (and it did not survive):** that this is a *straight-beach model* whose
+blind spot is the point/headland break working on wrapped, refracted swell. It reads well and the
+first spot tested against 47 years refuted it — see below. **Do not carry it forward as a cause.**
 
 **Named exemplars, all offshore wind, all scoring `very_poor`:**
 
@@ -45,14 +48,41 @@ break working on **wrapped, refracted** swell — which is most of the world's b
 
 **The failing-instance measurement (rule 9, done BEFORE proposing any fix).** At Arugam the live
 marine point is **226° @ 9.75 s** (swell_1 204° @ 9.87 s) against an east-facing normal ⇒ Δθ≈126°
-⇒ floor, reproducing the engine exactly. **That swell IS Arugam's season** — May–September, SW
-Southern-Ocean swell wrapping Sri Lanka's southern tip into the east-coast points. The engine floors
-the spot on its defining condition.
+⇒ floor, reproducing the engine exactly.
 
-⛔ **NO CONSTANT WAS TUNED, and none should be.** The ledger's own rule holds: the fix is not a
-softer floor (that would inflate genuinely blocked coasts by the same 10×). The principled fix is an
-**empirical per-spot directional exposure learned from the 47-year record** — which is exactly what
-§2 unblocks.
+### ⛔⛔ AND THEN THE 47-YEAR RECORD REFUTED MY EXPLANATION OF IT
+
+I claimed that 226° swell *is* Arugam's May–September season — SW swell wrapping Sri Lanka's
+southern tip — so the engine was flooring the spot on its defining condition.
+**`scripts/directional_exposure_probe.py`, 139,016 samples / 47.6 years, says no:**
+
+| | Arugam Bay (subject) | Hossegor (control, open W-facing beach) |
+|---|---|---|
+| shore normal | 100.1° | 279.7° |
+| floored, ALL samples | 16.8% | 0.3% |
+| **floored, TOP DECILE of breaking height** | **0.7%** | **0.0%** |
+| median Δθ of top decile | 25.5° | 21.4° |
+| top-decile bearing bins | **60°, 90°, 150°** | 300°, 270° |
+
+**Arugam's biggest surf arrives from the EAST, essentially head-on.** The cosine handles it and
+floors 0.7% of its best decile. The control behaves as expected, so the probe discriminates rather
+than flattering the hypothesis. **226° is an anomalous direction there, and 3.9 may be CORRECT.**
+
+★ I reasoned from **one hour** of served payload plus a plausible physical story — rule 22 failing
+in the same session that sharpened rule 22. A named exemplar makes a hypothesis vivid, not true.
+
+**SURVIVES:** the 48/200 count · median 3.8 vs 21.1 · 35 of 48 on `full` geometry · the half-plane
+shape of the function · `CONFIRMABLE = 0`. **NOW OPEN:** the *attribution* of that 24%.
+⇒ **THE DISCRIMINATOR, ~78 s per spot: run the probe over a sample of the 48 floored spots and read
+`floored_top_decile_frac`.** Best decile floored ⇒ the exposure model is broken there. Best decile
+clear ⇒ that spot was simply having an off-direction hour.
+
+⛔ **NO CONSTANT WAS TUNED, and none should be** — least of all now.
+
+⭐ **A composition question raised en route:** Arugam's payload reports **"~5.1 ft surf" AND
+exposure 0.10** simultaneously. The height comes from `estimate_surf_at` on the offshore Hs; the
+veto comes from `swell_exposure`. **Two halves of one composition disagreeing about whether swell
+reaches the spot** — the repo's recurring PROVENANCE/COMPOSITION class, not physics.
 
 ## §2 THE ERA5 LANE — it was never a credential problem, and it now RUNS
 
@@ -134,9 +164,9 @@ sweep reported "1174 spot-hours" that were **587 spots at one hour wearing a tem
    reports **what fraction of the BIGGEST decile of waves arrives from bearings the engine floors**.
    It ships with a **control spot** (an open beach whose exposure the cosine should get right) so it
    can come back *"the model is fine here"* — a probe that cannot exonerate is not evidence.
-   ⚠️ **STATUS: written; its first run was still in flight at handoff time** (CDS queueing, ~70 s
-   per spot fetch plus two 139k-sample transforms). **Do not reason from it until you have watched
-   it execute** — running the last two new instruments found defects *in the instruments*.
+   ✅ **RUN AND VALIDATED** (139,016 samples/spot, ~47.6 y; control behaved correctly). Its first
+   execution **refuted the hypothesis it was built to confirm** — see §1. That is the instrument
+   working: the last three new instruments all changed a conclusion on their first honest run.
 2. **Run the campaign** — `era5_deepen_climatology.py --all --upload`, ~38 h, writes production L2
    and moves the size reference for every spot. **Operator decision**; gated by
    `scripts/local_size_gonogo.py` and the owner anchor suite.
