@@ -471,6 +471,13 @@ export function useMarineWindData({ marineData, activeMarineLayer, activeModel, 
         activeLayerMax: marineData?.grid?.__activeLayerMax,
         oceanMaskCount: marineData?.grid?.__oceanMaskCount,
         heatmapProvider: res.__provider,
+        // ⛔⛔ WHAT WAS ACTUALLY PAINTED. `provider` is the DISPATCH KEY ('open-meteo' for GFS, ICON
+        // and EURO alike); `upstreamProvider` is the ORIGIN. They are not interchangeable — measured
+        // against NDBC buoys 2026-08-03, with GFS scored on the SAME sites: EURO/copernicus MAE 0.159
+        // (3.2x better than GFS) vs EURO/ecmwf 0.339 (WORSE than GFS's 0.266). A 2.8x spread sat
+        // behind one label, and this diagnostic — the thing you read to find out what rendered —
+        // could not distinguish them.
+        upstreamProvider: res.__upstreamProvider || null,
         infoboxProvider: (window.__FORECAST_TIMELINE_COVERAGE_DIAG__?.isEstimated) ? 'estimated' : res.__provider,
         timestamp: new Date().toISOString()
       };

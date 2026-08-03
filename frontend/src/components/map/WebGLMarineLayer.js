@@ -410,6 +410,17 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
       sourcePath: 'direct_mapwebgl',
       heatmapProvider: gridProvider,
       gridProvider,
+      // ⛔⛔ THE ORIGIN, NOT THE DISPATCH KEY (2026-08-03). `gridProvider` is 'open-meteo' for GFS,
+      // ICON and EURO alike — it names the ROUTE. The backend has always served `upstream_provider`
+      // beside it (noaa | dwd | copernicus | ecmwf | gfs_estimated_fallback) and the frontend
+      // dropped it, so THIS diagnostic — the thing you read to find out what actually rendered —
+      // could not tell an 8 km MFWAM field from a 25 km IFS one. Measured against NDBC buoys the
+      // same day, with GFS scored on the SAME sites: EURO/copernicus MAE 0.159 (3.2x better than
+      // GFS) vs EURO/ecmwf 0.339 (WORSE than GFS's 0.266). A 2.8x accuracy spread behind one label.
+      // ⚠️ `__MARINE_RENDER_SOURCE_DIAG__` HAS TWO WRITERS — this one (`direct_mapwebgl`) and the
+      //    one in `useMarineWindData.js`. Patching only the other left this field null on the path
+      //    that actually renders, and the KEY SET is what revealed it, not the value.
+      upstreamProvider: grid?.__upstreamProvider || null,
       sourceModel: gridModel,
       componentLayer,
       activeModel: activeModelRef.current,

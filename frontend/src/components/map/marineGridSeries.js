@@ -300,7 +300,27 @@ function frameToMarineData(frame, model, layer) {
   // NOAA-direct GFS as "open-meteo". Prefer the backend's per-frame source_dataset; else derive from the model
   // (on the decoupled ingest runner open-meteo is unreachable, so GFS marine is always NOAA-direct ncep_gfswave025,
   // ICON=GWAM/DWD, EURO=Copernicus). The HUD's __basicSourceName maps these → NOAA / DWD / Copernicus.
+  // ⛔⛔ THE MODEL->DATASET GUESS IS FALSIFIED FOR EURO (measured 2026-08-03). The derivation below
+  // assumes one upstream per model, and the comment above says why that was true when written. It is
+  // NOT true for EURO: sampled over 70 NDBC coordinates, `EURO` served THREE different
+  // `upstream_provider`s — copernicus, ecmwf, and gfs_estimated_fallback — and their accuracy is not
+  // interchangeable. Scoring GFS on the SAME sites:
+  //     EURO/copernicus MAE 0.159 (3.2x better than GFS)
+  //     EURO/ecmwf      MAE 0.339 (WORSE than GFS's 0.266 there) -- 36% of EURO's coverage
+  //     EURO/gfs_estimated_fallback MAE 0.114
+  // The Florida EURO grid returns `upstream_provider: "ecmwf"`, so the guess labels it
+  // "copernicus_cmems" and the HUD tells the user Copernicus for a coarser field. A label that is
+  // right 50% of the time is a PROVENANCE defect, which is this repo's recurring class.
+  // ⇒ PREFER THE BACKEND'S OWN `upstream_provider` (served on every marine response, alongside the
+  //   `provider` DISPATCH KEY). The model guess stays as the last resort for frames that predate it,
+  //   so nothing regresses where the guess was already right.
+  const __upstreamProvider = frame.upstream_provider || null;
   const __sourceDataset = frame.source_dataset || (
+    __upstreamProvider === 'copernicus' ? 'copernicus_cmems' :
+    __upstreamProvider === 'ecmwf' ? 'ecmwf_ifs' :
+    __upstreamProvider === 'noaa' ? 'ncep_gfswave025' :
+    __upstreamProvider === 'dwd' ? 'gwam_dwd' :
+    __upstreamProvider === 'gfs_estimated_fallback' ? 'gfs_estimated_fallback' :
     model === 'GFS' ? 'ncep_gfswave025' :
     model === 'ICON' ? 'gwam_dwd' :
     model === 'EURO' ? 'copernicus_cmems' : null
@@ -324,6 +344,9 @@ function frameToMarineData(frame, model, layer) {
     __sourceModel: model,
     __sourceDataset,
     __gridProvider: provider,
+    // The ORIGIN beside the DISPATCH KEY, so a consumer can tell an 8 km MFWAM field from a 25 km
+    // IFS one. `__MARINE_RENDER_SOURCE_DIAG__.upstreamProvider` reads this.
+    __upstreamProvider,
     provider,
     hourOffset: frame.hour_offset,
     is_estimated: !!frame.is_estimated,

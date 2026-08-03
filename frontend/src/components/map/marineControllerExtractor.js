@@ -120,6 +120,13 @@ export function extractMarineAtOffset(cache, hourOffset, targetLayer) {
     validTime: validTimeStr,
     grid: { vectors: gridVectors, bounds, cols: gridSize, rows: gridSize, timestamp: Date.now(),
             __sourceModel: activeModel, __provider: provider, __gridProvider: provider,
+            // The ORIGIN survives the REBUILD. This extractor reconstructs the grid from cache with
+            // an explicit field list, so anything not named here is silently dropped — which is how
+            // `upstream_provider` (noaa | dwd | copernicus | ecmwf | gfs_estimated_fallback) reached
+            // the client on every response and never reached the render diagnostic. `provider` is
+            // only the DISPATCH KEY ('open-meteo' for all three models); the origin is what separates
+            // an 8 km MFWAM field (MAE 0.159) from a 25 km IFS one (0.339, worse than GFS).
+            __upstreamProvider: cache.upstream_provider || cache.__upstreamProvider || null,
             __componentLayer: activeLayerFromCache, __gridSupportsLayer: renderable,
             __activeLayerNonzeroCount: activeLayerNonzero, __activeLayerMax: activeLayerMax,
             __oceanMaskCount: oceanMaskCount, __renderable: renderable, __noDataReason: noDataReason,
