@@ -336,3 +336,12 @@ backend/spot_placement_proposals.csv
 # Jest guard-run result written by ci.yml frontend-marine-composition-guards (and local runs)
 frontend/guard-results.json
 frontend/suite-results.json
+
+# The shore-normal runtime OVERLAY is a CACHE, not a source of truth (audit v6 / 2026-08-02).
+# `shore_normal_asset.py:154` writes it at runtime; the COMMITTED asset (`shore_normals.json`) is the
+# durable store and always wins in `_nearest`. Tracking a cache means git and the fitter become two
+# writers of one blob — the invariant this repo already fought — and an ephemeral filesystem loses it
+# either way. Left UNTRACKED but un-ignored it did real harm: it silently inflated local test counts
+# (hit 2026-08-02) and this repo has twice swept a concurrent session's untracked file into a commit.
+# Durability belongs in the DB geometry columns + rehydrate at boot (queue #1), not in git.
+backend/services/weather_pipeline/data/shore_normals_overlay.json
