@@ -160,6 +160,22 @@ around it. (A) is a phantom: a control that never existed, which means any past 
 ⚠️ Cross-check: [[surf-regional-prefer-threshold-stack-2026-07-30]] discusses `min_viewport_frac` as
 dormant — consistent with `184a5d99` having pulled the whole intersect-prefer serve.
 
+### #28 ✅ CLOSED (`f8d52ace`) — 4 BUTTONS NAMED, AND THE GUARD NEEDED TWO ARMS
+`aria-label` on all four (the three map toggles already carried `aria-expanded`). The guard is
+`frontend/src/components/map/controls.a11y.test.js`, and its shape is the finding:
+⛔⛔ **A RENDERED-NAME TEST IS STRUCTURALLY BLIND TO THE `Create` CASE.** jsdom applies no Tailwind
+CSS, so the `hidden xl:inline` span is always in the DOM and `getByRole('button', {name:'Create'})`
+PASSES while the button is nameless on every phone. ⇒ **ARM 2 reads the SOURCE**: no button may
+derive its only name from a breakpoint-gated span. Ships a negative control (the exact `Create`
+markup must trip it; adding `aria-label` must clear it) so the check keys on the FIX, not the shape.
+⚠️ **The scanner's first version was WRONG and the code was RIGHT** — looking for `aria-label` alone
+it flagged `sidebar-active-session`, which carries a full `title`, and `title` DOES compute an
+accessible name. Now accepts `aria-label | aria-labelledby | title`.
+⚠️ Not browser-verified (authenticated map view + another session holds the dev server); the
+rendered arm exercises the real component and asserts the real DOM attribute.
+
+<details><summary>Original entry (superseded — kept as the forensic record)</summary>
+
 ### #28 ⛔ OPEN — 4 BUTTONS WITH NO ACCESSIBLE NAME, AND ONE OF THEM ONLY BREAKS ON MOBILE
 Measured live in the running app 2026-08-01 (65 buttons on `/map`, 4 nameless — no text, no
 `aria-label`, no `aria-labelledby`, no `title`). Owner confirmed it is a miss.
@@ -181,6 +197,8 @@ Fix: `aria-label` on all four (and `aria-pressed` where they toggle).
 (`Waves`/`Swell`/…) as unnamed — they are fine, their text spans name them; that was tree
 serialization, not the DOM. The real miss was 4 other buttons. **`read_page`'s tree is not the
 accessibility name computation — check the DOM before filing an a11y finding.**
+
+</details>
 
 ### #27 5 SHAs THAT RESOLVE TO NOTHING
 `a107b7db4f12`, `a2c4e8f91b03` (both `admin-panel-jacobian-audit-2026-07-12.md` — 12 chars,
@@ -762,13 +780,21 @@ rehydrate from the DB at serve-box boot.
   BEFORE chasing opacity / mask / coverage logic.** This class is invisible to the test suite (nothing
   executes the ~1900-line render fn) and invisible in production (the catch swallows it).
 
-* **#22 ⛔ OPEN — #17 IS ONLY HALF CLOSED: `swell_1` AND `wind_waves` STILL SHOW AN UNNAMED OFFSHORE
-  HEIGHT.** `5ae2d267` renamed the offshore card `Height`→`Swell` on the **`waves` layer ONLY**; the
-  other two layers still emit the generic `Height` from a separate `forecastCardCompiler` branch
-  (line ~387). That is the same defect #17 closed — *"when two quantities share units the LABEL is the
-  entire correctness surface"* — still live on two of three marine layers. Small fix, needs the owner's
-  call on wording (`Swell` on a swell layer is redundant; maybe `Swell (offshore)` / keep `Height`).
-  ★ Found because a blanket rename broke two PASSING tests — the layer-scoped rename is not global.
+* **#22 ✅ CLOSED — AND THIS ENTRY WAS STALE FOR TWO DAYS.** Fixed by `0a00766f` (2026-08-01,
+  *"nine bare 'Height' cards, and a fabricated train that rendered like a measurement"*),
+  `git merge-base --is-ancestor 0a00766f dev` ✓. Verified in source 2026-08-03: the four height
+  cards read **`Swell`** (waves, total offshore) · **`Primary Swell`** (swell_1) · **`Secondary
+  Swell`** (swell_2) · **`Wind Waves`** (wind_waves), each with an `ariaLabel`.
+  ⭐ The fix was BROADER than this entry described — nine cards, not the two named here.
+  ⭐⭐ And the wording question this entry left "for the owner" was already answered, better than
+  the options it offered: plain `Swell` on the swell layer was REJECTED in the code's own comment
+  because it would rebuild #17 one level down — on `waves`, `Swell` is the TOTAL offshore height;
+  on `swell_1` it is the PRIMARY TRAIN. Measured at Cocoa: waves 1.6 ft vs swell_1 0.9 ft, two
+  numbers one layer-switch apart that would have carried the same word. **TOTAL vs TRAIN is the
+  distinction the label had to survive.**
+  ⚠️⚠️ **I ALMOST REBUILT THIS.** The entry said ⛔ OPEN and the code said otherwise. Same trap as
+  #16 (*"build it FIRST"* long after it was built) and *"ABSENCE OF THE FIX IS NOT ABSENCE OF A
+  FIX"* — ⇒ **grep the symptom before starting any queue item, not just before closing one.**
 
 * **#23 ✅ CLOSED (`8e981d96`) — `5ae2d267` LEFT 7 TESTS RED AND NOBODY NOTICED.** Two suites looked
   up `cards.find(c => c.label === 'Height')`. The commit shipped its own new test and left the older
