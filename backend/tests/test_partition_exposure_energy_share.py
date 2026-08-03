@@ -120,6 +120,55 @@ def test_the_pre_existing_refusals_still_hold():
     assert effective_swell_exposure(None, 270.0) is None
 
 
+def test_the_gate_is_REACHABLE_through_the_real_upstream_chain():
+    """⭐⭐⭐ A GUARD THAT CANNOT REACH THE DEFECTIVE SURFACE IS NOT A GUARD.
+
+    Every other test here hands `effective_swell_exposure` a partitions list directly. Production
+    builds one in `point_resolution._resolve_partitions` and puts it through TWO upstream steps
+    first, either of which could make this gate inert:
+
+      1. `_PARTITION_LAYERS` — if the windsea train were not collected, `total_e` would equal the
+         swell energy, the share would always be 1.0, and the gate could NEVER fire. It is
+         collected: ("swell_1","swell"), ("swell_2","swell"), ("wind_waves","windsea").
+      2. `partitions_represent` then `reconcile_partitions` — if the represent gate already
+         rejected this shape, the gate would be redundant; if reconcile changed the energy ratio,
+         the share it measures would not be the share production sees.
+
+    Asserted here on the Shelly Bay numbers: represent PASSES (so it does NOT already catch this),
+    reconcile leaves the ratio INVARIANT (it applies a common scale), and the gate still fires.
+    The two gates ask different questions — `partitions_represent`: "do the trains describe the
+    sea?" (yes, swell+windsea IS the sea); this gate: "do the SWELL trains alone describe it?" (no,
+    5.9%). Complementary, not overlapping.
+    """
+    import math
+    from services.weather_pipeline.point_resolution import PointResolutionService
+    from services.weather_pipeline.surf_transform import (
+        partitions_represent, reconcile_partitions)
+
+    # 1. the windsea train is actually collected by the live builder
+    kinds = {kind for _layer, kind in PointResolutionService._PARTITION_LAYERS}
+    assert "windsea" in kinds, (
+        "production stopped collecting a windsea train — the energy-share gate is now INERT, "
+        "because total_e would equal the swell energy and the share would always be 1.0")
+
+    parts = _parts(1.0, 245.9, 4.0, dir_windsea=136.2)
+    total_h = math.sqrt(1.0 + 16.0)
+
+    # 2. the upstream represent gate does NOT already reject this shape
+    assert partitions_represent(parts, total_h, 5.5) is True, (
+        "partitions_represent now rejects this case, so the energy-share gate is redundant here — "
+        "re-derive whether it is still needed before trusting either")
+
+    # 3. reconcile applies a common scale, so the ENERGY RATIO it measures survives
+    rec = reconcile_partitions(parts, total_h)
+    e_swell = sum(p["h"] ** 2 for p in rec if p.get("kind") != "windsea")
+    e_all = sum(p["h"] ** 2 for p in rec)
+    assert abs(e_swell / e_all - 1.0 / 17.0) < 1e-6, "reconcile changed the energy ratio"
+
+    # 4. and the gate still fires on what production would actually hand it
+    assert effective_swell_exposure(rec, 135.0) is None
+
+
 def test_dominant_swell_period_is_DELIBERATELY_NOT_GATED_the_same_way():
     """⛔ DO NOT APPLY THE ENERGY-SHARE GATE TO `dominant_swell_period`. I hypothesised the same
     class here — it also picks a SWELL train with no share requirement, so a marginal swell should
