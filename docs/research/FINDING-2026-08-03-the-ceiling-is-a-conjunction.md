@@ -223,3 +223,65 @@ no amount of calibration or physics can make the product say `good`.
 ★ That is now the highest-Jacobian open question in the rating, and it is a *reachability* question —
 the same shape as the recorded `break_depth` tier-2 lesson: **check reachability BEFORE tuning any
 constant behind it.**
+
+---
+
+## §9 A FOURTH LEVER, RESEARCH-BACKED: the offshore tolerance starts too early
+
+Owner input 2026-08-03: *"for conditions to be epic, winds also have to be offshore, and not too
+strong of offshore wind."* **Researched rather than taken on faith**, and the engine already
+implements the direction half correctly — but the *magnitude* half is mis-shaped.
+
+### What the sources say
+
+Consistent across surf-forecasting guidance: **light offshore ~5–10 km/h (≈3–5 kt) is ideal**;
+offshore only becomes a problem **above ~20–25 mph (≈17–22 kt)**, where it chops the face, blows
+spray, makes paddling hard, and **masks true size** (the wave holds up and is bigger than it looks).
+
+### What the engine does — measured on the owner's own epic anchor (FL 7 ft @ 11 s, ref 0.75 m)
+
+| offshore kt | `wind_quality` | score | level |
+|---|---|---|---|
+| 0–4 | 1.000 | 89.3 | `epic` |
+| 6 | 0.955 | 86.6 | `epic` |
+| **8** | 0.909 | **83.9** | **falls out of `epic`** |
+| 12 | 0.818 | 78.4 | `good` |
+| 15 | 0.750 | 74.3 | `good` |
+| 20 | 0.636 | 67.5 | `fair_good` |
+
+**The engine requires near-glassy (< 6 kt) for `epic`.** A classic 8–15 kt morning offshore — the
+wind most surfers would call ideal — is penalised **9–25%**. The penalty knee sits at **4 kt**
+(`sf = 1 − max(0, spd − 4)/(tol×2)`), i.e. it begins inside the band every source calls perfect.
+
+★ The DIRECTION grading is right and should not be touched: the onshore control degrades far faster
+(6 kt → 67.8, 12 kt → 35.3, 20 kt → 24.9). The defect is only in how fast **offshore** decays.
+
+### A/B of a research-shaped knee (experiment only — NOT shipped)
+
+`knee_kt = 4 + 8·offshoreness` (onshore keeps its 4 kt knee; dead offshore plateaus to 12 kt):
+
+| offshore kt | before | after |
+|---|---|---|
+| 8 | 83.9 `good` | 89.3 `epic` |
+| 12 | 78.4 `good` | 89.3 `epic` |
+| 15 | 74.3 `good` | 85.2 `epic` |
+| 20 | 67.5 `fair_good` | 78.4 `good` |
+| 25 | 60.7 `fair_good` | 71.6 `good` |
+
+- **Onshore output byte-identical** — verified, so the change is provably offshore-only.
+- **Owner anchor suite: still 10/10.**
+- Breaks exactly one guard, `test_wind_direction_penalty_ramps_with_speed`, on the line
+  `# Offshore byte-identical at every speed` — a **characterisation** test pinning that the
+  2026-07-12 fix was onshore-only, not a physical scar. Changing offshore deliberately would
+  legitimately require updating it.
+
+### ⚠️ NOT SHIPPED — the shape is a product decision, and my knee is probably too generous
+
+A 12 kt knee makes 12 kt offshore score **identical to glassy**, and the sources call 3–5 kt *ideal*,
+not 12. It also leaves 25 kt reading `good`, where the research says trouble starts at 17–22 kt. A
+faithful curve plateaus nearer **8–10 kt** and reaches full effect by **~25 kt**. That is a
+calibration judgement with owner authority, and picking it unilaterally at the end of a long session
+is exactly the guess-fix pattern this repo has been burned by.
+
+**⇒ OPEN QUESTION FOR THE OWNER: where should the offshore penalty begin?** The measured options are
+above; the anchors pass either way.
