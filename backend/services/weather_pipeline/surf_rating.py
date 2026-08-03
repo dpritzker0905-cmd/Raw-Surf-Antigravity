@@ -417,26 +417,52 @@ def dominant_swell_period(partitions):
     return best_tp
 
 
+# ⭐⭐⭐ THE SWELL PARTITIONS MUST ACTUALLY BE THE SEA BEFORE THEY MAY SPEAK FOR IT (2026-08-03).
+# This function's only guard used to be `den <= 0 -> None`, so on a windsea-dominated day it
+# answered "can the swell reach this coast" from whatever slice was left — with full confidence.
+# Measured live at 49 served spots, the divergence from the shipped total-field path is ENTIRELY
+# concentrated where the swells are marginal: median |d exposure| 0.235 at <10% energy share vs
+# 0.028 in the >60% CONTROL band. Worst case Shelly Bay — a HEAD-ON sea (exposure 1.000) vetoed to
+# 0.100 by a swell carrying 6% of the energy.
+# ★ 0.50 is PRINCIPLED, not fitted: a swell-only statement may speak for the sea only when the
+#   swells are the MAJORITY of it. Deliberately inside the clean band rather than on the measured
+#   0.30 break — n=49 at one hour is no basis for a tight constant, and refusing is one-sided:
+#   `rating_factors` already falls back to the total-field value, i.e. to TODAY'S served behaviour.
+# ⚠️ PRE-FLIP GATE for queue #5. SURF_PARTITIONS is OFF, so this does not run in production today.
+# ⇒ FULL EVIDENCE, both control bands and the before/after A/B: tests/test_partition_exposure_energy_share.py
+# Kill switch: RATING_MIN_SWELL_ENERGY_SHARE=0 restores the pre-2026-08-03 behaviour exactly.
+MIN_SWELL_ENERGY_SHARE = float(os.environ.get("RATING_MIN_SWELL_ENERGY_SHARE", "0.50"))
+
+
 def effective_swell_exposure(partitions, shore_normal_deg):
     """Energy-weighted swell exposure over the SWELL partitions (wind waves excluded):
     Σ(h_p² · swell_exposure(dir_p)) / Σ(h_p²). A well-angled secondary swell lifts exposure; a shadowed
     dominant swell is penalized by exactly its energy share. None when the geometry or every partition is
-    unusable (caller falls back to the total-field exposure)."""
+    unusable, OR when the swell partitions carry less than ``MIN_SWELL_ENERGY_SHARE`` of the total wave
+    energy — in every case the caller falls back to the total-field exposure."""
     if shore_normal_deg is None:
         return None                      # geometry unknown -> total-field path is already neutral 1.0
     num = 0.0
     den = 0.0
+    total_e = 0.0
     for p in partitions or []:
-        if not isinstance(p, dict) or p.get("kind") == "windsea":
+        if not isinstance(p, dict):
             continue
         h = p.get("h")
-        d = p.get("dir")
-        if h is None or d is None or h <= 0:
+        if h is None or h <= 0:
             continue
         e = h * h
-        num += e * swell_exposure(d, shore_normal_deg)
+        total_e += e                     # EVERY train, windsea included — this is the whole sea
+        if p.get("kind") == "windsea":
+            continue
+        if p.get("dir") is None:
+            continue
+        num += e * swell_exposure(p["dir"], shore_normal_deg)
         den += e
     if den <= 0.0:
+        return None
+    # ⛔ REFUSE rather than answer from a marginal slice. See the block above for the measurement.
+    if total_e > 0.0 and (den / total_e) < MIN_SWELL_ENERGY_SHARE:
         return None
     return _clamp(num / den, 0.0, 1.0)
 

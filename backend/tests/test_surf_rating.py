@@ -297,13 +297,26 @@ def test_effective_swell_exposure_energy_weighted():
     from services.weather_pipeline.surf_rating import effective_swell_exposure
     # Dominant swell FROM 90 arrives from BEHIND a west-facing coast (shore-normal 270) -> 0.1 floor;
     # a smaller secondary FROM 270 is head-on -> 1.0. Energy weights: 4:1.
+    # ⚠️ WINDSEA IS h=0.5 HERE, AND THE HEIGHT IS LOAD-BEARING (2026-08-03). It used to be h=3.0,
+    # which makes the two swell trains only 5/14 = 36% of the sea — and `effective_swell_exposure`
+    # now REFUSES below MIN_SWELL_ENERGY_SHARE, because a swell-only statement may not speak for a
+    # sea it is a minority of (measured: at <10% share the partition path diverged from the served
+    # total-field path by a median 0.235, max 0.900). This case exists to pin the ENERGY-WEIGHTING
+    # ARITHMETIC across swell trains, so the windsea is kept small enough not to trip that gate;
+    # the gate itself is pinned from both sides in `test_partition_exposure_energy_share.py`.
     parts = [{"h": 2.0, "tp": 14.0, "dir": 90.0, "kind": "swell"},
              {"h": 1.0, "tp": 10.0, "dir": 270.0, "kind": "swell"},
-             {"h": 3.0, "tp": 5.0, "dir": 200.0, "kind": "windsea"}]   # windsea excluded from exposure
+             {"h": 0.5, "tp": 5.0, "dir": 200.0, "kind": "windsea"}]   # windsea excluded from exposure
     ex = effective_swell_exposure(parts, 270.0)
     assert abs(ex - (4 * 0.1 + 1 * 1.0) / 5.0) < 1e-9        # 0.28
     assert effective_swell_exposure(parts, None) is None      # geometry unknown -> caller neutral
     assert effective_swell_exposure([{"h": 1.0, "tp": 9.0, "kind": "swell"}], 270.0) is None  # no dir
+
+    # ...and the SAME swell pair under a dominant windsea now refuses rather than answering from 36%
+    # of the energy. Asserted HERE, at the original site, so the change is visible to whoever reads
+    # this contract next instead of only living in the new file.
+    swamped = parts[:2] + [{"h": 3.0, "tp": 5.0, "dir": 200.0, "kind": "windsea"}]
+    assert effective_swell_exposure(swamped, 270.0) is None
 
 
 def test_sea_cleanliness_fraction_and_floor():
