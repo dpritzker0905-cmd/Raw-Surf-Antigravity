@@ -484,7 +484,7 @@ jobs:
           # work that closed it.
           # From the gate's OWN run on origin/dev @ 904f50cf: "collected 1282 tests across 107 files
           # -> 1216 passed, 66 skipped, 0 failed, 0 errors". Read from the gate, never a checkout.
-          MIN_FILES, MIN_PASSED = 108, 1221
+          MIN_FILES, MIN_PASSED = 110, 1221
           try:
               root = ET.parse('guards.xml').getroot()
           except Exception as e:
@@ -581,7 +581,17 @@ jobs:
           "tests/test_provenance_*.py","tests/test_observation_gate_*.py","tests/test_run_provenance.py",
           "tests/test_resolve_spot_geometry.py","tests/test_simulation.py","tests/test_forecast_skill.py",
           "tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
-          "tests/test_calibration_census.py"]
+          "tests/test_calibration_census.py",
+          # ADOPTED 2026-08-02 (audit v6 §12.2). Both matched NO lane selector and ran NOWHERE — they
+          # import from `scripts.`, which the chain lane's `services.<mod>` regex cannot see, and no
+          # composition pattern covered their names.
+          #   test_sweep_orphaned_l2.py      5 tests over `is_orphan`, the predicate
+          #     `l2-orphan-sweep.yml:46` runs as `sweep_orphaned_l2.py --delete --yes` against
+          #     PRODUCTION L2 storage. An unguarded DELETION predicate was the most dangerous
+          #     orphan of the 245 enumerated.
+          #   test_map_spots_to_ndbc_buoys.py 9 tests over NDBC WVHT-in-metres parsing and the
+          #     nearest-buoy haversine — the observation side of the obs gate.
+          "tests/test_sweep_orphaned_l2.py","tests/test_map_spots_to_ndbc_buoys.py"]
           tracked = [f for f in subprocess.run(["git","ls-files","tests/"], capture_output=True,
                      text=True).stdout.split()
                      if f.endswith(".py") and os.path.basename(f).startswith("test_")]
