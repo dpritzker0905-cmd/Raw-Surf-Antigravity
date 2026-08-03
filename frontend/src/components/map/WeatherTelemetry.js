@@ -10,6 +10,17 @@ class WeatherTelemetryEngine {
   constructor() {
     this.MAX_LOGS = 500;
     this.logs = [];
+    // ★★★ MONOTONIC PER-TYPE TOTALS — NEVER DECREMENTED ON EVICTION (2026-08-03).
+    // The ring had no per-type counter of any kind, so when one emitter saturated it every other
+    // event type vanished WITH NO RESIDUAL COUNT: unrecoverable, not merely truncated. Measured
+    // three times — `texture_generated` 495/500, `model_warning` 73.8%, `FPS_drop_detected` 86.4%
+    // of 434 — and each time the fix was to quieten that one emitter, which just promotes the
+    // next-loudest. `counts` is the TRUE total; `logs` is only a sample of it.
+    // ⚠️ Quote `counts[type]`, never `logs.filter(...).length` — the sibling rings
+    // (`__MARINE_CHURN__`, `__MARINE_CACHE_DIAG__`) have had exactly this split for months.
+    this.counts = Object.create(null);
+    this.ringCounts = Object.create(null);   // how many of each type are CURRENTLY resident
+    this.evictedByType = Object.create(null);
     this.listeners = new Set();
     this.activeModel = 'GFS';
     this.activeLayers = [];
@@ -171,6 +182,85 @@ class WeatherTelemetryEngine {
     };
   }
 
+  /**
+   * ⭐⭐⭐ PROPORTIONAL-FAIR EVICTION — evict the oldest entry of whichever type currently occupies
+   * the MOST slots, not the globally oldest entry.
+   *
+   * A plain FIFO ring's usefulness is bounded by its LOUDEST WRITER, not by its cap: one per-frame
+   * emitter clears every other type within seconds. This repo has now hit that three times and
+   * quietened the offending emitter each time, which only promotes the next-loudest — the shape is
+   * the eviction policy, not any one emitter.
+   *
+   * THE GUARANTEE: while a type holds fewer slots than the dominant type, its entries are never
+   * chosen for eviction. A single `render_failed` therefore survives an unbounded flood of
+   * `FPS_drop_detected`, which is precisely the case that kept being lost.
+   *
+   * ★ NO TUNING CONSTANT, and it degenerates correctly: with only one type resident the dominant
+   *   type IS that type, so this is byte-for-byte the old `logs.pop()`. Nothing is wasted when the
+   *   ring is legitimately dominated by one kind of event.
+   *
+   * Kill switch: `window.__RAW_TELEMETRY_NO_QUOTA__ = true` restores plain FIFO for a live A/B.
+   */
+  _evictOne() {
+    if (typeof window !== 'undefined' && window.__RAW_TELEMETRY_NO_QUOTA__) {
+      const dropped = this.logs.pop();
+      if (dropped) {
+        this.ringCounts[dropped.type] = Math.max(0, (this.ringCounts[dropped.type] || 1) - 1);
+        this.evictedByType[dropped.type] = (this.evictedByType[dropped.type] || 0) + 1;
+      }
+      return;
+    }
+    let dominant = null;
+    let most = -1;
+    for (const type in this.ringCounts) {
+      if (this.ringCounts[type] > most) {
+        most = this.ringCounts[type];
+        dominant = type;
+      }
+    }
+    // The ring is newest-first (unshift/pop), so scan from the END to find the OLDEST entry of the
+    // dominant type. A global pop() is the fallback only if the bookkeeping ever disagrees with the
+    // ring — an eviction that silently does nothing would grow the buffer without bound.
+    let idx = -1;
+    for (let i = this.logs.length - 1; i >= 0; i--) {
+      if (this.logs[i].type === dominant) { idx = i; break; }
+    }
+    if (idx === -1) idx = this.logs.length - 1;
+    const dropped = this.logs.splice(idx, 1)[0];
+    if (dropped) {
+      this.ringCounts[dropped.type] = Math.max(0, (this.ringCounts[dropped.type] || 1) - 1);
+      this.evictedByType[dropped.type] = (this.evictedByType[dropped.type] || 0) + 1;
+    }
+  }
+
+  /**
+   * The type histogram, and whether this ring can be trusted right now.
+   *
+   * ⚠️ READ THIS BEFORE QUOTING ANY COUNT OFF THE RING. `total` is the monotonic truth; `resident`
+   * is what survived. When `saturated` is true, any number derived from `logs` is a SAMPLE — and a
+   * sample of a saturated ring looks exactly like a true total in a summary line.
+   */
+  ringHealth() {
+    const types = Object.keys(this.counts);
+    const total = types.reduce((a, t) => a + this.counts[t], 0);
+    const resident = this.logs.length;
+    let loudest = null;
+    for (const t of types) {
+      if (!loudest || this.counts[t] > this.counts[loudest]) loudest = t;
+    }
+    return {
+      total,
+      resident,
+      saturated: resident >= this.MAX_LOGS,
+      distinctTypes: types.length,
+      loudest,
+      loudestShare: total > 0 && loudest ? this.counts[loudest] / total : 0,
+      counts: { ...this.counts },
+      residentCounts: { ...this.ringCounts },
+      evictedByType: { ...this.evictedByType }
+    };
+  }
+
   // Event dispatching system
   emit(eventType, payload = {}) {
     const timestamp = Date.now();
@@ -190,9 +280,11 @@ class WeatherTelemetryEngine {
     };
 
     // Keep within circular buffer
+    this.counts[eventType] = (this.counts[eventType] || 0) + 1;
     this.logs.unshift(event);
+    this.ringCounts[eventType] = (this.ringCounts[eventType] || 0) + 1;
     if (this.logs.length > this.MAX_LOGS) {
-      this.logs.pop();
+      this._evictOne();
     }
 
     // Trigger listeners
@@ -435,6 +527,9 @@ class WeatherTelemetryEngine {
       topology: this.topologyMap,
       recentFailures: [...this.failureKnowledgebase],
       recentEvents: this.logs.slice(0, 50),
+      // ★ Ship the histogram WITH the sample. A report carrying `recentEvents` and no saturation
+      //   flag cannot tell a reader whether the other types are absent or merely evicted.
+      ringHealth: this.ringHealth(),
       // Granular status overlays from global states
       heatmapStatus: typeof window !== 'undefined' ? window.__MARINE_HEATMAP_STATUS__ : null,
       coverageStatus: typeof window !== 'undefined' ? window.__MARINE_COVERAGE_STATUS__ : null,
