@@ -73,7 +73,17 @@ class NormalizedProduct(BaseModel):
     source_dataset: Optional[str] = None
     upstream_provider: Optional[str] = None
     upstream_model: Optional[str] = None
-    
+    # ★★★ SUBSTITUTED-DATA PROVENANCE (declared 2026-08-03; MASTER AUDIT 1.0 §2a).
+    # `coarse_gulf_fill` copies GFS values onto a EURO/ICON vector and flips `is_valid` True, then
+    # stamps this. It had been writing to an UNDECLARED attribute since 2026-07-23: pydantic raises
+    # `ValueError: "NormalizedProduct" object has no field "coarse_fill"`, the write site swallowed
+    # it, and `"coarse_fill" in model_dump_json()` was False on every served product — the fill was
+    # real and the provenance was not. Declaring it here is necessary but NOT sufficient on its own:
+    # `/grid` sets `response_model=NormalizedProduct`, so an undeclared field is filtered out at the
+    # route even when the assignment succeeds. TWO barriers; this clears both.
+    # None = nothing was substituted. See `test_coarse_fill_layers.py` §3 for the round-trip guard.
+    coarse_fill: Optional[Dict[str, Any]] = None
+
     # Region metadata fields for Stage 6H
     region_id: Optional[str] = None
     coverage_mode: Optional[str] = None

@@ -137,8 +137,94 @@ def test_a_filled_product_SAYS_it_was_filled():
 def test_an_UNFILLED_product_makes_no_provenance_claim():
     """A marker that is always present says nothing. Absence must mean 'nothing was substituted'."""
     store = _Store(DONORS)
-    out = _run(_product([_vec(0.0, 0.0, 1.4)]), "EURO", "swell_1", store, DONORS)
-    assert not hasattr(out, "coarse_fill"), "claimed a fill on a product with no masked cells"
+    out = _run(_real_product([_vec_real(0.0, 0.0, 1.4)]), "EURO", "swell_1", store, DONORS)
+    assert out.coarse_fill is None, "claimed a fill on a product with no masked cells"
+
+
+# ── 3b. THE SAME PROVENANCE, AGAINST THE TYPE THAT ACTUALLY SHIPS ────────────────────────────
+#
+# ⛔⛔ EVERY TEST ABOVE BUILDS ITS PRODUCT WITH `types.SimpleNamespace`, WHICH ACCEPTS ANY ATTRIBUTE
+# ASSIGNMENT. The production type is `NormalizedProduct`, a pydantic BaseModel with no `coarse_fill`
+# field and no `extra="allow"` — so `product.coarse_fill = {...}` raised `ValueError` on every real
+# product, the write site swallowed it, and `"coarse_fill" in model_dump_json()` was False.
+# **The provenance guard was green for eleven days and had never once touched the type that raises.**
+# (MASTER AUDIT 1.0 §2a.) A harness that cannot express the defect is not a guard.
+#
+# ★ These tests are their own negative control: undeclare `NormalizedProduct.coarse_fill` and they
+#   fail, because the stamp is read back off the real object rather than off a namespace that
+#   invents attributes on demand.
+
+def _vec_real(lat, lng, speed=1.0, valid=True):
+    """A REAL GridVector. `speed` is non-Optional here, so a masked cell is `is_valid=False` —
+    which is exactly what `_is_masked` keys on first."""
+    from services.weather_pipeline.schemas import GridVector
+    return GridVector(lat=lat, lng=lng, speed=(speed if valid else 0.0),
+                      direction=270.0, u=1.0, v=0.0, period=9.0, is_valid=valid)
+
+
+def _real_product(vectors, valid_time="2026-08-01T18:00:00Z"):
+    """A REAL NormalizedProduct — the type `/grid` declares as its `response_model`."""
+    from services.weather_pipeline.schemas import (
+        CoverageBounds, NormalizedGrid, NormalizedProduct)
+    bounds = CoverageBounds(west=-180.0, south=-80.0, east=180.0, north=85.0)
+    return NormalizedProduct(
+        model="EURO", provider="copernicus", domain="marine", layer="swell_1",
+        run_time=valid_time, valid_time=valid_time,
+        is_forecast_authoritative=True, is_estimated=False, coverage=bounds,
+        grid=NormalizedGrid(bounds=bounds, cols=len(vectors), rows=1, vectors=vectors),
+        value_kind="wave_height", value_unit="m", display_unit_hint="ft",
+        source_variables=["VHM0_SW1"], freshness_sec=0)
+
+
+def test_provenance_lands_on_the_REAL_type_and_reaches_the_JSON():
+    """The whole point: the stamp must survive on `NormalizedProduct`, not just on a namespace."""
+    from services.weather_pipeline.schemas import NormalizedProduct
+    store = _Store(DONORS)
+    prod = _real_product([_vec_real(-70.0, -50.0, valid=False),
+                          _vec_real(30.0, -90.0, valid=False), _vec_real(0.0, 0.0, 1.4)])
+    assert isinstance(prod, NormalizedProduct), "harness regressed to a namespace"
+
+    out = _run(prod, "EURO", "swell_1", store, DONORS)
+
+    # ★ ASSERT THE SETUP HAPPENED. Without this, a fill that silently did nothing would leave
+    #   `coarse_fill is None` and read as "no substitution" rather than "the guard tested nothing".
+    assert sum(1 for v in out.grid.vectors if v.is_valid) == 3, "the fill did not run"
+    cf = out.coarse_fill
+    assert cf is not None, "the stamp did not land on NormalizedProduct"
+    assert cf["donor_model"] == "GFS" and cf["layer"] == "swell_1"
+    assert cf["cells_filled"] == 2 and cf["cells_masked"] == 2 and cf["cells_total"] == 3
+    assert "coarse_fill" in out.model_dump_json(), "declared but not serialized"
+
+
+def test_provenance_survives_the_response_model_filter():
+    """⭐ THE SECOND BARRIER. `/grid` declares `response_model=NormalizedProduct`, and FastAPI
+    re-validates the returned object through that model — so a field that is assignable but
+    undeclared is dropped at the route even when the assignment succeeds. Declaring the field is
+    necessary AND sufficient only if it also survives this round-trip; that is what is asserted."""
+    from services.weather_pipeline.schemas import NormalizedProduct
+    store = _Store(DONORS)
+    out = _run(_real_product([_vec_real(30.0, -90.0, valid=False), _vec_real(0.0, 0.0, 1.4)]),
+               "EURO", "swell_1", store, DONORS)
+    assert out.coarse_fill is not None, "nothing to filter — setup failed"
+
+    filtered = NormalizedProduct.model_validate(out.model_dump())
+    assert filtered.coarse_fill is not None, "response_model filtered the provenance away"
+    assert filtered.coarse_fill["cells_filled"] == 1
+
+
+def test_the_grid_route_still_declares_the_model_this_guard_pins():
+    """The two tests above are only about `/grid` because `/grid` serves this product. Read that
+    from the LIVE router, never from a grep: if the route is repointed at another response model,
+    the barrier moves and these guards would silently stop covering the shipped path."""
+    from routes.weather import router
+    from services.weather_pipeline.schemas import NormalizedProduct
+    # Match on the SUFFIX: the router carries a `/weather` prefix, so the live path is
+    # `/weather/grid`. (Asserting the bare `/grid` I remembered is how this test failed its own
+    # first run — the router was right and the guard was written from recall.)
+    grid = [r for r in router.routes if getattr(r, "path", "").endswith("/grid")]
+    assert grid, "no /grid route found — this guard is watching nothing"
+    assert any(getattr(r, "response_model", None) is NormalizedProduct for r in grid), (
+        "/grid no longer returns NormalizedProduct; re-point the provenance guard at the new model")
 
 
 # ── 4. THE GUARDS THAT MUST STILL BIND ───────────────────────────────────────────────────────

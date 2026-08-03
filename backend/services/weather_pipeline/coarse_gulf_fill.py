@@ -155,12 +155,26 @@ async def fill_coarse_enclosed_sea_from_gfs_served(product, store, model, domain
             # exactly this reason. This answers "did this product receive substituted data, which
             # layer, from whom, and how much" in O(1) bytes; a per-cell flag can follow if a
             # consumer ever needs to know WHICH cells.
+            # ⛔⛔ THIS `except` USED TO BE A BARE `pass`, AND IT SWALLOWED EVERY WRITE.
+            # `NormalizedProduct` declared no `coarse_fill`, so pydantic raised `ValueError` on
+            # every single assignment from 2026-07-23 until the field was declared (2026-08-03).
+            # The fill ran, the values were substituted, and `"coarse_fill" in model_dump_json()`
+            # was False on 100% of served products. A silent swallow made a TOTAL failure
+            # indistinguishable from "nothing was filled" — the exact PROVENANCE class this repo
+            # names as its recurring root, hiding inside the fix written to cure it.
+            # The route still must not break over a best-effort stamp, so the catch stays — but it
+            # is now LOUD. A provenance write that fails is a defect, not a no-op.
             try:
                 product.coarse_fill = {"donor_model": "GFS", "layer": layer_l,
                                        "cells_filled": filled, "cells_masked": len(masked),
                                        "cells_total": len(grid.vectors)}
-            except Exception:
-                pass          # a pydantic model that forbids extras must not break the route
+            except Exception as e:
+                logger.error(
+                    f"[Coarse Fill] PROVENANCE LOST: substituted {filled} {layer_l} cells into "
+                    f"{model} from GFS but could not stamp `coarse_fill` on "
+                    f"{type(product).__name__} ({type(e).__name__}: {e}). The served product now "
+                    f"claims to be {model} at cells whose numbers came from GFS."
+                )
             logger.info(
                 f"[Coarse Fill] {model} coarse {layer_l}: filled {filled} masked cells "
                 f"from served GFS coarse (of {len(masked)} masked / {len(grid.vectors)} total)."
