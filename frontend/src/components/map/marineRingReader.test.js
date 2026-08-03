@@ -120,8 +120,11 @@ describe('C4 poisoned identity key', () => {
     expect(passes(checkIdentityKey({ name: 'uploadSig', key: 'GFS_waves_129_11x13_143_' }))).toBe(true);
   });
 
-  test('a missing key FAILS rather than passing silently', () => {
-    expect(fails(checkIdentityKey({ name: 'sig', key: null }))).toBe(true);
+  test('REFUSAL: an absent key SKIPS — it is "not sampled yet", not "broken"', () => {
+    // A fresh page has no uploadSignature. Accusing there would make the reader cry wolf on every
+    // load, which is how a monitor gets muted. A key that is PRESENT and poisoned still fails above.
+    expect(skips(checkIdentityKey({ name: 'sig', key: null }))).toBe(true);
+    expect(skips(checkIdentityKey({ name: 'sig', key: undefined }))).toBe(true);
   });
 });
 
@@ -226,5 +229,84 @@ describe('captureRings', () => {
     const snap = captureRings({ __MARINE_CHURN__: { counts: { detach: 999 }, log: [{ kind: 'detach' }] } });
     const churn = snap.rings.find((r) => r.name === 'churn');
     expect(churn.counts.detach).toBe(999);      // counts survives eviction; log.length does not
+  });
+});
+
+// ── the tick: the reader must be CALLED, and must not become the disease ──────────────────────
+describe('ringReaderTick — a consumer that runs, quietly', () => {
+  let warns;
+  const mkWin = (over = {}) => ({
+    __WEATHER_TELEMETRY__: { logs: [] }, __RAW_FORENSIC__: { events: [] },
+    __RAW_GPU__: {}, __WEBGL_MARINE_UPLOAD_DIAG__: {}, ...over,
+  });
+  // A window whose telemetry ring is the 2026-08-03 saturated shape (495 of one type).
+  const sickWin = () => mkWin({
+    __WEATHER_TELEMETRY__: { logs: Array.from({ length: 500 }, (_, i) =>
+      ({ type: i < 495 ? 'texture_generated' : 'FPS_drop_detected' })) },
+  });
+  beforeEach(() => {
+    warns = [];
+    jest.spyOn(console, 'warn').mockImplementation((...a) => warns.push(a));
+    jest.resetModules();
+  });
+  afterEach(() => { console.warn.mockRestore(); });
+
+  test('SILENT on a healthy window — the healthy state emits nothing', () => {
+    const { ringReaderTick } = require('./marineRingReader');
+    ringReaderTick(mkWin());
+    expect(warns.length).toBe(0);
+  });
+
+  test('WARNS once on a saturated ring, and does NOT repeat within the rate limit', () => {
+    const { ringReaderTick } = require('./marineRingReader');
+    const w = sickWin();
+    ringReaderTick(w);
+    expect(warns.length).toBe(1);
+    expect(String(warns[0][0])).toMatch(/RingReader/);
+    ringReaderTick(w); ringReaderTick(w); ringReaderTick(w);
+    expect(warns.length).toBe(1);           // THE NUMBER: a reader must not flood what it measures
+  });
+
+  test('the kill switch silences it entirely', () => {
+    const { ringReaderTick } = require('./marineRingReader');
+    const w = sickWin(); w.__RAW_DISABLE_RING_READER__ = true;
+    expect(ringReaderTick(w)).toBeNull();
+    expect(warns.length).toBe(0);
+  });
+
+  test('it NEVER writes to a ring — reading must not perturb what it reads', () => {
+    const { ringReaderTick } = require('./marineRingReader');
+    const w = sickWin();
+    const before = JSON.stringify({ t: w.__WEATHER_TELEMETRY__.logs.length,
+                                    f: w.__RAW_FORENSIC__.events.length, g: w.__RAW_GPU__ });
+    ringReaderTick(w);
+    expect(JSON.stringify({ t: w.__WEATHER_TELEMETRY__.logs.length,
+                            f: w.__RAW_FORENSIC__.events.length, g: w.__RAW_GPU__ })).toBe(before);
+  });
+
+  test('a thrown reader is swallowed — it must never break the map', () => {
+    const { ringReaderTick } = require('./marineRingReader');
+    const hostile = { get __WEATHER_TELEMETRY__() { throw new Error('boom'); } };
+    expect(() => ringReaderTick(hostile)).not.toThrow();
+  });
+
+  test('the rate limit gates BEFORE walking any ring — cost, not just noise', () => {
+    // The claim in the source is "gates on the CLOCK BEFORE walking any ring, so it is safe from any
+    // path". A warn-count assertion cannot see that: removing the early gate leaves the inner gate
+    // holding, so the log stays quiet while every call still walks ~750 entries. This counts ACCESSES
+    // to the ring instead, which is the only thing that can tell the two apart.
+    const { ringReaderTick } = require('./marineRingReader');
+    let reads = 0;
+    const logs = Array.from({ length: 500 }, (_, i) =>
+      ({ type: i < 495 ? 'texture_generated' : 'FPS_drop_detected' }));
+    const w = {
+      get __WEATHER_TELEMETRY__() { reads += 1; return { logs }; },
+      __RAW_FORENSIC__: { events: [] }, __RAW_GPU__: {}, __WEBGL_MARINE_UPLOAD_DIAG__: {},
+    };
+    ringReaderTick(w);
+    const afterFirst = reads;
+    expect(afterFirst).toBeGreaterThan(0);        // assert the setup: the first tick really did read
+    ringReaderTick(w); ringReaderTick(w); ringReaderTick(w);
+    expect(reads).toBe(afterFirst);               // THE NUMBER: no further ring walks inside the gap
   });
 });

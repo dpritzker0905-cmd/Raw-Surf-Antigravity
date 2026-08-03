@@ -76,7 +76,7 @@ jobs:
           // 2026-08-03 (audit v7): +1 suite / +14 tests (marineGridSeries.antimeridian.test.js).
           // Raised BY THE DELTA, not reset to today's absolute Windows figure — that preserves the
           // deliberate ubuntu margin above rather than silently spending it.
-          const MIN_SUITES = 185, MIN_TESTS = 1680;
+          const MIN_SUITES = 185, MIN_TESTS = 1686;
           let r;
           try { r = JSON.parse(fs.readFileSync('suite-results.json', 'utf8')); }
           catch (e) { console.error('✗ no suite-results.json — jest never wrote a result'); process.exit(1); }

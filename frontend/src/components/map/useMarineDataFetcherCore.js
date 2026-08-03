@@ -7,6 +7,12 @@ import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
+// THE CONSUMER. Imported for its side effect: registers __RAW_RING_REPORT__() / __RAW_RING_TICK__()
+// on window, so the rings this app has always written finally have a reader. It shipped in
+// 96dc9165 with ZERO call sites — a consumer nobody calls is the exact disease it was built to
+// cure. `ringReaderTick` is rate-limited to once a minute and gates on the CLOCK BEFORE walking
+// any ring, so it is safe from any path; it logs only on FAILURE and never writes to a ring.
+import { ringReaderTick } from './marineRingReader';
 import {
   DISPLAY_EURO_WAVES_MAX_HOURS,
   DISPLAY_EURO_COMPONENT_MAX_HOURS,
@@ -313,6 +319,12 @@ export function useMarineDataFetcherCore({
           });
           return;
         }
+        // THE READER'S CALL SITE. Placed on the marine fetch path — frequent enough that a real
+        // session exercises it, and the tick itself gates on a 60 s clock BEFORE walking any ring,
+        // so the cost here is one comparison. It logs only when a check FAILS and only when the
+        // failing set changes, because the defect it detects is a ring drowned by a loud writer and
+        // a noisy reader would recreate exactly that.
+        try { ringReaderTick(typeof window !== 'undefined' ? window : null); } catch (e) { /* never fatal */ }
         const activeSource = locks.activeSource || 'unknown';
         const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');
         if (isHighPriority(activeSource) && !isHighPriority(source)) {

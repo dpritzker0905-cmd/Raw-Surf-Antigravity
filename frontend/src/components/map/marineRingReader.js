@@ -187,8 +187,14 @@ const NULLISH_RE = /(^|[^a-z])(null|undefined|NaN)([^a-z]|$)/i;
 /** C4 — an identity / dedup / cache key that cannot repeat. */
 export function checkIdentityKey(entry) {
   const { name, key } = entry || {};
+  // REFUSAL, not failure. An absent key means the diag object has not been populated yet (a fresh
+  // page), which is indistinguishable HERE from a key that is genuinely undefined in production —
+  // and a check that cannot tell those apart must not accuse. C2 already treats absence this way
+  // ("silence is not disagreement"); C4 was inconsistent, and the healthy-window guard caught it.
+  // A present-but-poisoned key (a clock, or the literal text null/undefined/NaN) is unambiguous and
+  // still FAILS below.
   if (key === undefined || key === null) {
-    return v(`C4 key:${name}`, FAIL, 'the key itself is null/undefined — it can never match', { key });
+    return v(`C4 key:${name}`, SKIP, 'no key sampled yet — refusing to judge an absent value', { key });
   }
   const s = String(key);
   const clockSeg = clockSegment(s);
@@ -312,4 +318,50 @@ export function reportRings(win) {
   const snap = captureRings(win);
   if (!snap) return { version: RING_READER_VERSION, verdicts: [], summary: { pass: 0, fail: 0, skip: 0, failures: [], disabled: true } };
   return readRings(snap);
+}
+
+// ── SELF-INSTALL (2026-08-03) ─────────────────────────────────────────────────────────────────
+// The whole point of this module is that a consumer nobody calls is the disease it was built to
+// cure. It shipped in 96dc9165 with ZERO call sites — the same shape as the arbiter that reproduces
+// the guard chain on 3000/3000 fixtures and decides nothing. So it registers itself on import,
+// exactly like `__RAW_FORENSIC__` (marineForensics.js:103).
+//
+// ⚠️ IT MUST NOT BECOME THE DISEASE. The defect this module exists to detect is a ring saturated by
+// one loud writer, so the reader:
+//   • logs NOTHING on pass — silence is the healthy state;
+//   • logs at most once per REPORT_MIN_GAP_MS, and only when the failing set CHANGES;
+//   • never writes to any ring (it reads; `recordMarineEvent` is deliberately not imported).
+// Kill: window.__RAW_DISABLE_RING_READER__ = true  (also makes captureRings return null).
+export const REPORT_MIN_GAP_MS = 60_000;
+let _lastReportAt = 0;
+let _lastFailKey = '';
+
+/** Run the checks and console.warn ONLY when something fails and the failing set has changed. */
+export function ringReaderTick(win) {
+  const w = win || (typeof window !== 'undefined' ? window : null);
+  if (!w || w.__RAW_DISABLE_RING_READER__ === true) return null;
+  // ⚠️ THE GAP CHECK COMES BEFORE THE CAPTURE, NOT AFTER. `captureRings` walks ~750 ring entries;
+  // gating only the console.warn would still pay that on every call and make this unsafe to invoke
+  // from a hot path. Checking the clock first makes the common case a single comparison, so the
+  // caller never has to know how expensive the reader is.
+  const now = Date.now();
+  if (now - _lastReportAt < REPORT_MIN_GAP_MS && _lastFailKey !== '') return null;
+  let rep;
+  try { rep = reportRings(w); } catch (e) { return null; }   // a reader must never break the map
+  const failures = (rep.summary && rep.summary.failures) || [];
+  if (!failures.length) { _lastFailKey = ''; return rep; }
+  const key = failures.join('|');
+  if (key === _lastFailKey && now - _lastReportAt < REPORT_MIN_GAP_MS) return rep;
+  _lastFailKey = key; _lastReportAt = now;
+  try {
+    // eslint-disable-next-line no-console
+    console.warn(`[RingReader] ${failures.length} check(s) FAILED — run __RAW_RING_REPORT__() for detail`,
+      rep.verdicts.filter((v) => v.verdict === 'fail').map((v) => `${v.check}: ${v.detail}`));
+  } catch (e) { /* console is not load-bearing */ }
+  return rep;
+}
+
+if (typeof window !== 'undefined') {
+  window.__RAW_RING_REPORT__ = () => reportRings(window);
+  window.__RAW_RING_TICK__ = () => ringReaderTick(window);
 }
