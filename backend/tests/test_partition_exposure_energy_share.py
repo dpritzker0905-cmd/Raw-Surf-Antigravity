@@ -120,6 +120,42 @@ def test_the_pre_existing_refusals_still_hold():
     assert effective_swell_exposure(None, 270.0) is None
 
 
+def test_dominant_swell_period_is_DELIBERATELY_NOT_GATED_the_same_way():
+    """⛔ DO NOT APPLY THE ENERGY-SHARE GATE TO `dominant_swell_period`. I hypothesised the same
+    class here — it also picks a SWELL train with no share requirement, so a marginal swell should
+    inflate the period the way one vetoed the exposure — and THE MEASUREMENT REFUSED THE HYPOTHESIS.
+
+    Same 49 spots, same live fetch, partition period vs the total-field period:
+
+        swell share    n    median |dTp|   max |dTp|   median |d period_quality|   max
+        < 10%         11       0.46 s       4.65 s            0.031               0.309
+        10-30%         8       1.62 s       4.90 s            0.103               0.327
+        30-60%        11       0.20 s       1.50 s            0.000               0.100
+        > 60% CONTROL 19       0.07 s      *6.08 s*           0.005              *0.405*
+
+    ★★★ THE CONTROL DOES NOT SEPARATE. The LARGEST period difference and the largest quality
+    difference both land in the swell-DOMINATED band — which is precisely the behaviour the
+    docstring exists to deliver ("a 16 s groundswell hiding under an 8 s windsea reads ~11 s
+    blended; this recovers the 16 s"). A gate keyed on energy share would suppress the intended
+    feature where it works best and would be fitting to noise where it does not.
+
+    ★ AND THE JACOBIAN IS SMALL where the hypothesis had any support: at <10% share the median
+    period_quality effect is 0.031, on a factor that is 0.40 of one of nine terms — against the
+    exposure defect's 0.900 swing on a term that floors at 0.10. Sensitivity x uncertainty says
+    this is not worth a gate.
+
+    This test pins the ungated behaviour so a later symmetric "fix" has to argue with the numbers.
+    """
+    from services.weather_pipeline.surf_rating import dominant_swell_period
+    # Haulover Inlet, measured: swell carries 3% of the energy and still sets the period.
+    parts = _parts(1.0, 245.9, 5.7)          # energies 1 vs ~32 => ~3% swell share
+    assert dominant_swell_period(parts) == 14.0, (
+        "the period recovery was gated; the measurement in this docstring says do not")
+    # and the exposure on the SAME trains still refuses — the two factors are treated differently
+    # ON PURPOSE, and that asymmetry is the finding.
+    assert effective_swell_exposure(parts, 135.0) is None
+
+
 def test_a_refusal_lands_the_EXPOSURE_TERM_on_todays_production_value():
     """⭐ THE SAFETY ARGUMENT, asserted rather than claimed: `rating_factors` falls back to the
     total-field exposure when the partition path returns None, so the EXPOSURE FACTOR reproduces
