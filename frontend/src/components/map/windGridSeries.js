@@ -18,6 +18,10 @@
 
 import { API_BASE } from '../../lib/apiClient';
 import { buildTruthTag } from './weatherTruthTracker';
+// ONE expression, not a second copy (audit v7 §2a): wind carried the IDENTICAL split as marine —
+// viewportKey normalises longitude at :97, the URL below sent the raw bounds. A duplicated rule
+// only diverges on a boundary, and this one's boundary is the antimeridian.
+import { normalizeRequestBbox } from './marineGridSeries';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();
@@ -167,9 +171,10 @@ async function loadSeriesPage(model, bounds, page, signal) {
 
   const hours = buildPageHours(page);
   if (hours.length === 0) return;
+  const reqBox = normalizeRequestBbox(bounds);
   const url = `${API_BASE}/weather/grid_series?model=${encodeURIComponent(model || 'GFS')}`
     + `&domain=wind&layer=wind`
-    + `&bbox=${bounds.west.toFixed(4)},${bounds.south.toFixed(4)},${bounds.east.toFixed(4)},${bounds.north.toFixed(4)}`
+    + `&bbox=${reqBox.west.toFixed(4)},${reqBox.south.toFixed(4)},${reqBox.east.toFixed(4)},${reqBox.north.toFixed(4)}`
     + `&hours=${hours.join(',')}`;
 
   const localController = new AbortController();

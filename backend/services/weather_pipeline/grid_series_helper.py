@@ -272,7 +272,28 @@ async def _build_openmeteo_marine_series(viewport_service, model: str, layer: st
     }
 
 
-async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+async def build_grid_series(resolve_grid, viewport_service, model: str, domain: str, layer: str,
+                            bbox: str, hours: str, request=None, surf: bool = False) -> dict:
+    """Public entry point: build the series, then BOUND it (audit v7 §3).
+
+    A thin wrapper, deliberately. This module has THREE assembly points -- the EURO fast path, the
+    Open-Meteo fast path, and the generic per-hour loop -- and a budget applied at one of them is
+    the "guard ran nowhere" class this codebase has now hit seven times. Every path returns through
+    here, so the invariant lives here and cannot be routed around by a future fourth path.
+    """
+    resp = await _build_grid_series_impl(
+        resolve_grid, viewport_service, model, domain, layer, bbox, hours,
+        request=request, surf=surf,
+    )
+    try:
+        from services.weather_pipeline.series_vector_budget import apply_vector_budget, stamp_coverage
+        return stamp_coverage(apply_vector_budget(resp), bbox)
+    except Exception:
+        logger.exception("[series-budget] bounding failed; serving the unbounded response")
+        return resp
+
+
+async def _build_grid_series_impl(resolve_grid, viewport_service, model: str, domain: str, layer: str, bbox: str, hours: str, request=None, surf: bool = False) -> dict:
     """
     resolve_grid: the SAME async resolver /grid uses (routes.weather.get_grid). Called once
     per requested hour with its valid_time so every frame matches exactly what the live
