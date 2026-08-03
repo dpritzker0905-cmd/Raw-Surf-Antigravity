@@ -87,3 +87,91 @@ indistinguishable in this trace; muting the losers would freeze whichever happen
 **Reproduction:** GFS / waves / hour 128, Florida–Gulf, zoom 5.9 → 9.5 → 7.5, ~20 s.
 **Raw trace:** `window.__LADDER__.rows` (re-installable; see the installer in this session's
 transcript). **Not yet fixed — this is the forensic record only.**
+
+---
+
+# ADDENDUM — read the instruments that already exist
+
+After writing §5 ("stamp each commit with its origin") I discovered **that instrument already
+exists, and so do eight others.** The live page carries ~60 diagnostic globals, several of them
+ring buffers recording precisely the quantities this investigation was missing. **Nobody had read
+them.** That reframes the whole answer: the gap is not instrumentation, it is *consumption*.
+
+## §6 THE ENCODE RUNS ~30 TIMES A SECOND ON BYTE-IDENTICAL INPUT
+
+`__WEATHER_TELEMETRY__.logs` holds 500 entries. **Every single one is `texture_generated`**, and
+every one carries the identical payload:
+
+```
+vectorCount 143 | nonzeroCount 99 | maxHeight 1.8901 | hourOffset 129     x500
+```
+
+Eighteen consecutive samples are **31.4 ms apart** — frame cadence, with `fps: 30` stamped on each.
+The marine texture is re-encoded **every frame** from unchanged data. The ring is saturated: 500 of
+500 slots consumed by one payload being encoded over and over.
+
+⛔ **`__RAW_GPU__.encodeDupCount` — the counter that exists to catch exactly this — reads `2`.**
+Two, against 500. A duplicate-encode detector that sees **0.4%** of the duplicates is the recorded
+*"instrument reports success having tested nothing"* class, in counter form.
+
+Supporting numbers, same capture:
+
+| | |
+|---|---|
+| `droppedFrameCounter` | **130** |
+| `frameTimeHistogram` | `[12135, 750, 104, 16, 10]` → **6.8% of frames in the slow buckets** |
+| `textureUploadCount` / `textureCount` | 131 / 39 live, `gpuMemoryEstimate` **44.9 MB** |
+| `__RAW_MASK_REPATCH_LOG__` | **23** rebuilds, `reason: "data_commit"` |
+| **`reactRerenderCounter`** | **0** |
+
+★ **`reactRerenderCounter: 0` kills the React avenue outright.** This is not a re-render storm, so
+`react-scan` would have found nothing — that whole line of investigation is closed by one number
+that was already being collected.
+
+## §7 THE CHURN ATTRIBUTION — which committer, measured
+
+`__MARINE_CHURN__.log` records `site` and `to` on every detach. Over the reproduction:
+
+| committer → reason | detaches |
+|---|---|
+| `updateMarineGrid_preStart` → **`clamp_resharpen`** | **19** |
+| `updateMarineGrid_preStart` → `moveend` | 11 |
+| `updateMarineGrid_preStart` → `timeline_scrub` | 2 |
+| `updateMarineGrid_preStart` → `moveend_panmoved_pending` | 1 |
+| `updateMarineGrid_preStart` → `series_upgrade_panmoved_pending` | 1 |
+| | **34 detaches total** |
+
+**`clamp_resharpen` is the dominant churner — 19 of 34 (56%).** `__MARINE_PIPELINE_TRUTH__` shows
+`data_committed: 15` against `duplicate_commit_skipped: 5`, so a dedup exists and catches a quarter.
+
+## §8 THE ARBITER ALREADY EXISTS AND IS NOT THE LIVE PATH
+
+`marineCommitArbiter.js` — a priority-ordered rule list with `coverageFrac` built in, reproducing the
+guard chain on **3000/3000 enumerated fixtures**. Its own header states the situation:
+
+> *wired at the single decision point (`decideMarineCommit` in WebGLMarineEngine.js) and reachable
+> behind `__RAW_MARINE_ARBITER__`; the shipped DEFAULT is still the guard chain. In guard mode this
+> module also runs in SHADOW, ring-logging divergences as `arb_shadow_diverge`.*
+
+Confirmed live: **`window.__RAW_MARINE_ARBITER__` is `undefined`** — the guard chain is deciding and
+the arbiter is shadowing. **It has never been A/B'd against this defect.** The kill switch, the
+shadow log and the differential suite are all already built.
+
+⚠️ Its header also carries the warning that matters more than the opportunity: *"Every guard nuance
+this list once omitted turned out to encode a historical outage… Live shadow agreement is NOT
+sufficient evidence: a live trajectory only walks the common path, which is how a 89/89 soak hid 166
+divergences."* So flipping the flag is a **measurement**, not a fix, and must be run as an A/B on the
+recorded reproduction — not adopted on a green soak.
+
+## §9 THE ORDERED CONCLUSION
+
+1. **The encode is not memoized** — 500 identical encodes, and the dup counter is blind. This is the
+   cheapest, largest, lowest-risk win and it is independent of every arbitration question.
+2. **`clamp_resharpen` causes 56% of detaches** — that is the committer to examine, named by data.
+3. **The arbiter is built, tested, shadowed and unflipped** — the A/B is available today.
+4. **React is not involved** (`reactRerenderCounter: 0`).
+
+None of this required a new instrument. All four numbers were already being collected on every
+session, by code already shipped. ⇒ **The standing gap is a CONSUMER: nothing reads these rings, so
+nothing turns them into a finding.** That is the same shape as `bounds` being "the tell that was
+always in the payload" — except here the instruments are right and unread, rather than wrong.
