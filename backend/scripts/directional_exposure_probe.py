@@ -141,10 +141,59 @@ def probe(lat, lng, label, end_date, min_samples, client=None):
     }
 
 
+def run_batch(spots, control, min_samples, out_path):
+    """Probe many spots, WRITING AFTER EACH ONE.
+
+    ★ BANK AS YOU EARN. Each spot is two CDS requests (~78 s, and CDS queueing has been measured at
+    ~6 min/spot when congested), so a 12-spot batch is a long job. A run that writes only at the end
+    is worth 0% at 92% complete — the same lesson `era5_deepen_climatology` already learned the hard
+    way. Partial output is a real answer here: the question is a RATE across spots, and 7 spots
+    answer it less precisely but not less honestly.
+    """
+    from scripts.era5_deepen_climatology import _cds
+    client = _cds()
+    end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
+    out = {"control": None, "spots": []}
+
+    if control:
+        try:
+            out["control"] = probe(control["lat"], control["lng"], control["name"],
+                                   end_date, min_samples, client)
+            c = out["control"]
+            print(f"CONTROL {c['label']}: floored_top_decile={c['floored_top_decile_frac']:.1%} "
+                  f"(expect ~0% — if this is high the probe is broken, not the model)", flush=True)
+        except RuntimeError as e:
+            out["control"] = {"void": str(e)}
+            print(f"CONTROL VOID: {e}", flush=True)
+
+    for i, s in enumerate(spots):
+        try:
+            r = probe(s["lat"], s["lng"], s["name"], end_date, min_samples, client)
+        except RuntimeError as e:
+            r = {"label": s["name"], "void": str(e)}
+            print(f"  [{i+1}/{len(spots)}] {s['name']}: VOID — {str(e)[:90]}", flush=True)
+        else:
+            r["served_score"] = s.get("served_score")
+            r["readiness"] = s.get("readiness")
+            verdict = ("MODEL LOOKS WRONG HERE" if r["floored_top_decile_frac"] >= 0.5
+                       else "off-direction hour" if r["floored_top_decile_frac"] < 0.15
+                       else "MIXED")
+            print(f"  [{i+1}/{len(spots)}] {s['name'][:30]:30s} served={s.get('served_score')} "
+                  f"floored_all={r['floored_all_frac']:>6.1%} "
+                  f"TOP_DECILE={r['floored_top_decile_frac']:>6.1%}  {verdict}", flush=True)
+        out["spots"].append(r)
+        if out_path:                                   # write after EVERY spot
+            with open(out_path, "w", encoding="utf-8") as fh:
+                json.dump(out, fh, indent=2)
+    return out
+
+
 def main() -> int:
     ap = argparse.ArgumentParser()
-    ap.add_argument("--lat", type=float, required=True)
-    ap.add_argument("--lng", type=float, required=True)
+    ap.add_argument("--spots-file", default=None,
+                    help="JSON list of {name,lat,lng,...} — batch mode; writes after each spot")
+    ap.add_argument("--lat", type=float)
+    ap.add_argument("--lng", type=float)
     ap.add_argument("--name", default="subject")
     ap.add_argument("--control-lat", type=float, default=None)
     ap.add_argument("--control-lng", type=float, default=None)
@@ -153,6 +202,27 @@ def main() -> int:
     ap.add_argument("--json", default=None)
     a = ap.parse_args()
 
+    if a.spots_file:
+        spots = json.load(open(a.spots_file, encoding="utf-8"))
+        control = ({"lat": a.control_lat, "lng": a.control_lng, "name": a.control_name}
+                   if a.control_lat is not None and a.control_lng is not None else None)
+        res = run_batch(spots, control, a.min_samples, a.json)
+        done = [r for r in res["spots"] if "void" not in r]
+        if not done:
+            print("VOID: every spot voided.", file=sys.stderr)
+            return 2
+        broken = [r for r in done if r["floored_top_decile_frac"] >= 0.5]
+        clear = [r for r in done if r["floored_top_decile_frac"] < 0.15]
+        print(f"\nVERDICT over {len(done)} floored spots, each against its own ~47-year record:")
+        print(f"  best decile MOSTLY floored (model looks wrong there): {len(broken)} "
+              f"({len(broken)/len(done):.0%})")
+        print(f"  best decile CLEAR (today was just an off-direction hour): {len(clear)} "
+              f"({len(clear)/len(done):.0%})")
+        print(f"  mixed: {len(done)-len(broken)-len(clear)}")
+        return 0
+
+    if a.lat is None or a.lng is None:
+        ap.error("give --lat/--lng, or --spots-file for batch mode")
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     out = {}
     from scripts.era5_deepen_climatology import _cds
