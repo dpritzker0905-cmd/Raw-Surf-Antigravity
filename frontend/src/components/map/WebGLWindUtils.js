@@ -240,6 +240,37 @@ export function initParticleTexture(gl, resolution) {
   return createTexture(gl, gl.NEAREST, data, resolution, resolution);
 }
 
+/**
+ * Dimensions of every texture this module's accounting knows about, so a DELETE can subtract
+ * exactly what the matching CREATE added. A WeakMap rather than an expando keeps WebGLTexture
+ * objects untouched and lets the entry disappear with the texture.
+ */
+const TEX_DIMS = new WeakMap();
+
+/** Record a texture's size at creation. Called by whoever allocates; safe to call more than once. */
+export function noteTextureCreated(tex, width, height) {
+  if (!tex) return;
+  TEX_DIMS.set(tex, { w: width || 0, h: height || 0 });
+}
+
+/**
+ * MEASURED 2026-08-04, live on the map: `__RAW_GPU__.textureCount` rose **+2.63 per zoom gesture,
+ * linearly, with no plateau** over 32 gestures (11 -> 95), and `gpuMemoryEstimate` with it
+ * (+0.88 MB/gesture). That looked exactly like a GPU leak.
+ *
+ * ⭐⭐ IT WAS NOT A LEAK — IT WAS THE ACCOUNTING. This function deletes the GL object correctly, so
+ * no memory is actually lost; it simply never decremented the counters, and there are **18 call
+ * sites against 2 manual decrement sites**. The textures were freed and the telemetry never heard.
+ *
+ * ⛔ WHY THAT IS STILL WORTH FIXING, AND ARGUABLY WORSE THAN A SMALL LEAK: this is the telemetry the
+ * OOM forensics read. Drifting upward forever, it cannot distinguish a healthy session from a real
+ * leak — so the next genuine one is invisible. This file already carries a comment about the same
+ * class ("every rebuild leaked +31.5MB into the estimate, poisoning the very telemetry the OOM
+ * forensics rely on"), fixed once at ONE site in 2026-07-05. It recurred because the fix was applied
+ * where the bug was, not where the invariant belongs.
+ * ⇒ The accounting now lives in the ONE function every deletion passes through, which is the only
+ *   arrangement that cannot drift again.
+ */
 export function safeDeleteTexture(gl, tex, engine) {
   if (!tex || !gl) return;
   if (engine) {
@@ -249,4 +280,16 @@ export function safeDeleteTexture(gl, tex, engine) {
     }
   }
   gl.deleteTexture(tex);
+  // Account for it HERE, once, for every caller. Guarded so a texture this module never saw
+  // created (or a double delete) cannot drive the counters negative — an under-count would hide a
+  // real leak just as effectively as the over-count did.
+  if (typeof window !== 'undefined' && window.__RAW_GPU__ && TEX_DIMS.has(tex)) {
+    const { w, h } = TEX_DIMS.get(tex);
+    TEX_DIMS.delete(tex);
+    const g = window.__RAW_GPU__;
+    if (typeof g.textureCount === 'number') g.textureCount = Math.max(0, g.textureCount - 1);
+    if (typeof g.gpuMemoryEstimate === 'number') {
+      g.gpuMemoryEstimate = Math.max(0, g.gpuMemoryEstimate - (w * h * 4));
+    }
+  }
 }
