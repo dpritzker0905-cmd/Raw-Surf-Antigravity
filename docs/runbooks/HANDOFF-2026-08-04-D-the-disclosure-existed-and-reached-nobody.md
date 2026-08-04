@@ -80,6 +80,23 @@ Worst instances — biggest height served while the quality chain says the swell
 
 ⇒ **Not the degraded-geometry story.** These are full-geometry spots.
 
+### ✅ REPLICATED on a different lane AND a different frame
+
+The 15.4% was one lane at one hour, and this repo has been burned by exactly that (an n=1 frame
+generalised into an impossibility, 08-04 AM). Re-ran on **ICON at 23:00Z**:
+
+| | GFS 22:00Z | ICON 23:00Z |
+|---|---|---|
+| distinct spots | 1005 | 1005 |
+| at the exposure floor | 15.4% | **21.0%** |
+| carrying `directional_conflict` | 0 / 1005 | **0 / 1005** |
+| carrying `model_agreement` | 1005 / 1005 | **1005 / 1005** |
+
+The absence replicates **exactly**; the floor rate is **15–21%**, so "~1 spot in 5" is the honest
+characterisation and 15.4% alone was the low end. ICON also surfaced a worse instance than any in
+the GFS frame: **Raglan – Indicators, 8.0 ft served `very_poor` on FULL geometry** (and Mount
+Maunganui 8.5 ft, degraded).
+
 ### The infobox, independently
 
 `/point` at Cayucos Pier (35.442, −120.915), the spot the census flagged:
