@@ -298,6 +298,94 @@ def _another_instance_pid():
     return None
 
 
+# ── LIVENESS: a supervisor heals a DEAD job, not a WEDGED one ───────────────────────────────────
+# MEASURED 2026-08-04: the campaign sat 49 minutes ALIVE on 10.3 s of CPU (0.35%), blocked inside
+# cdsapi on `502 ... attempt 1 of 500` with no further output — and because the scheduled task is
+# `MultipleInstances: IgnoreNew`, every hourly trigger was SILENTLY SKIPPED. cdsapi retries
+# 500 x 120 s, so ONE CDS blip can hide ~16.7 h while the process looks perfectly healthy.
+#
+# ⭐ CPU CANNOT DISCRIMINATE. A wedged run accrues ~0 CPU — but so does a legitimate CDS queue wait,
+# which is the NORMAL case here. The only signal that separates them is PROGRESS, so the campaign
+# records when it last finished a spot and the guard reads that.
+#
+# ⚠️ THE THRESHOLD IS SET FROM THE MEASURED DISTRIBUTION, NOT A GUESS. Per-spot wall time over
+# n=51 completed spots: p50 299 s (5 min) / p90 1280 s (21 min) / p95 1968 s (33 min) /
+# **MAX 3149 s (52.5 min)**. 120 minutes is ~2.3x the observed maximum.
+# ★ THE ASYMMETRY THAT SETS IT. A false kill costs up to CHECKPOINT_EVERY-1 unbanked spots (~1.4 h)
+#   AND RECURS FOREVER if the threshold sits inside the real distribution; a missed wedge costs up
+#   to 16.7 h but is occasional. Unbounded recurring harm beats occasional bounded harm, so the
+#   threshold sits well ABOVE the tail. It still cuts a worst-case wedge ~8x.
+STALL_MINUTES = float(os.environ.get("ERA5_STALL_MINUTES", "120"))
+
+
+def _progress_path():
+    return Path.home() / ".raw-surf-era5-progress.json"
+
+
+def _mark_progress(i, total, name):
+    """Record that a spot just completed. Best-effort: a telemetry write must never kill a campaign."""
+    try:
+        _progress_path().write_text(json.dumps({
+            "pid": os.getpid(),
+            "ts": datetime.now(timezone.utc).isoformat(),
+            "i": i, "total": total, "spot": str(name)[:80],
+        }), encoding="utf-8")
+    except Exception as e:                       # noqa: BLE001
+        print(f"  (progress marker write failed, continuing: {e!r})", flush=True)
+
+
+def _stalled_minutes(pid):
+    """Minutes since the run owning `pid` last completed a spot, or None when that is UNKNOWABLE.
+
+    ⛔⛔ RETURNS None — NEVER A LARGE NUMBER — WHEN THERE IS NO EVIDENCE. Absence of a progress file,
+    a file written by a DIFFERENT pid, or an unparseable timestamp all mean "cannot tell", and the
+    caller must then leave the other run alone. Treating absence as staleness would kill a healthy
+    campaign that predates this feature, which is precisely the failure this guard exists to avoid
+    committing itself.
+    """
+    try:
+        raw = json.loads(_progress_path().read_text(encoding="utf-8"))
+        if int(raw.get("pid", -1)) != int(pid):
+            return None                          # the marker describes some other run
+        ts = datetime.fromisoformat(str(raw["ts"]))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return max(0.0, (datetime.now(timezone.utc) - ts).total_seconds() / 60.0)
+    except Exception:                            # noqa: BLE001 - missing/corrupt = unknowable
+        return None
+
+
+def _reap_if_wedged(pid, stall_minutes=None):
+    """Kill `pid` only when its OWN progress marker proves it has stalled. Returns True if killed."""
+    limit = STALL_MINUTES if stall_minutes is None else stall_minutes
+    idle = _stalled_minutes(pid)
+    if idle is None or idle < limit:
+        return False
+    try:
+        import psutil
+        psutil.Process(pid).kill()
+        print(f"  reaped wedged campaign pid {pid}: no spot completed for {idle:.0f} min "
+              f"(limit {limit:.0f}); a hung run blocks every retry because the task is "
+              f"MultipleInstances:IgnoreNew.", flush=True)
+        return True
+    except Exception as e:                       # noqa: BLE001
+        print(f"  could not reap pid {pid} ({e!r}); leaving it alone.", flush=True)
+        return False
+
+
+def peer_to_respect(other):
+    """The pid this run must stand down for, or None if it may proceed.
+
+    Extracted so the DECISION is testable end to end rather than asserted about by reading source:
+    a guard that is merely *referenced* by the caller has been green in this repo while unable to
+    reach the surface it guarded. `main` is one line -- `other = peer_to_respect(other)` -- so
+    exercising this function exercises what actually runs.
+    """
+    if other and _reap_if_wedged(other):
+        return None
+    return other
+
+
 def _upload_inbox_batch(session, url, svc, results, end_date, seq):
     """Drop ONE inbox batch and return its id. Raises SystemExit on a failed upload.
 
@@ -393,7 +481,10 @@ def main():
     if not (args.query or args.limit or args.all):
         ap.error("pick a scope: --query, --limit or --all")
 
-    other = _another_instance_pid()
+    # A live peer is only a reason to stand down if it is actually MAKING PROGRESS. `peer_to_respect`
+    # reaps it ONLY when its own progress marker proves a stall, and respects it whenever that is
+    # unknowable — so an unmarked healthy run is still left alone.
+    other = peer_to_respect(_another_instance_pid())
     if other and not args.force:
         raise SystemExit(
             f"another ERA5 campaign is already running (pid {other}). Two campaigns re-fetch the "
@@ -484,6 +575,8 @@ def main():
         print(f"  {_ts()} [{i+1}/{len(spots)}] {name}: offshore={n_off} "
               f"surfable={hist_count(hist)} Tp/Tm={ratio:.3f} (n={ratio_n}) reference={ref} m  "
               f"[{time.time()-t1:.0f}s]{'' if geo_ok else '  (NO GEOMETRY)'}", flush=True)
+        # The ONLY signal that separates "wedged" from "queued at CDS" -- see _stalled_minutes.
+        _mark_progress(i + 1, len(spots), name)
 
         # ★ BANK IT NOW, not at the end. See CHECKPOINT_EVERY: a campaign runs for hours and used
         # to lose everything if it did not reach the last spot.
