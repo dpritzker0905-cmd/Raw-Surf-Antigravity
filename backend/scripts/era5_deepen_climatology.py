@@ -448,6 +448,17 @@ def main():
     results = {}
     banked, batches = 0, []
     t0 = time.time()
+
+    def _ts():
+        """UTC wall clock for every progress line. A campaign that runs for DAYS is diagnosed from
+        this log, and a per-spot elapsed time cannot show either a STALL or the MOMENT OF DEATH.
+        Measured 2026-08-04: reconstructing when a run died took file mtimes and arithmetic across
+        37 elapsed-time values, because not one line carried a clock -- and the answer (8 h 20 min
+        of silence) was the single most expensive fact of the day. ASCII only: this log is written
+        through `cmd` redirection on a cp1252 console, which already mangles non-ASCII glyphs
+        elsewhere in it."""
+        return datetime.now(timezone.utc).strftime("%H:%M:%SZ")
+
     for i, s in enumerate(spots):
         sid, name = str(s["id"]), s.get("name") or "?"
         t1 = time.time()
@@ -455,7 +466,7 @@ def main():
             samples, n_off, geo_ok, ratio, ratio_n = era5_breaking_samples(
                 float(s["latitude"]), float(s["longitude"]), end_date, client=client)
         except Exception as e:
-            print(f"  [{i+1}/{len(spots)}] {name}: FAILED — {str(e)[:140]}")
+            print(f"  {_ts()} [{i+1}/{len(spots)}] {name}: FAILED - {str(e)[:140]}", flush=True)
             continue
         hist = merge_samples(None, samples)
         ref = reference_from_hist(hist)
@@ -466,13 +477,13 @@ def main():
         # succeeds. Measured 2026-08-03: the first campaign spot returned `offshore=0` and would have
         # been banked exactly this way. Skipping leaves the spot unstamped, so a re-run retries it.
         if hist_count(hist) <= 0:
-            print(f"  [{i+1}/{len(spots)}] {name}: NO SAMPLES (offshore={n_off}) — NOT banked, so a "
-                  f"re-run retries it  [{time.time()-t1:.0f}s]", flush=True)
+            print(f"  {_ts()} [{i+1}/{len(spots)}] {name}: NO SAMPLES (offshore={n_off}) - NOT "
+                  f"banked, so a re-run retries it  [{time.time()-t1:.0f}s]", flush=True)
             continue
         results[sid] = {"hist": hist, "n": hist_count(hist), "ratio": round(ratio, 3)}
-        print(f"  [{i+1}/{len(spots)}] {name}: offshore={n_off} surfable={hist_count(hist)} "
-              f"Tp/Tm={ratio:.3f} (n={ratio_n}) reference={ref} m  [{time.time()-t1:.0f}s]"
-              f"{'' if geo_ok else '  (NO GEOMETRY)'}", flush=True)
+        print(f"  {_ts()} [{i+1}/{len(spots)}] {name}: offshore={n_off} "
+              f"surfable={hist_count(hist)} Tp/Tm={ratio:.3f} (n={ratio_n}) reference={ref} m  "
+              f"[{time.time()-t1:.0f}s]{'' if geo_ok else '  (NO GEOMETRY)'}", flush=True)
 
         # ★ BANK IT NOW, not at the end. See CHECKPOINT_EVERY: a campaign runs for hours and used
         # to lose everything if it did not reach the last spot.
@@ -480,15 +491,18 @@ def main():
             bid = _upload_inbox_batch(session, url, svc, results, end_date, len(batches) + 1)
             banked += len(results)
             batches.append(bid)
-            print(f"    ↳ banked {len(results)} spots as {bid} ({banked}/{len(spots)} safe)",
-                  flush=True)
+            # ASCII only: this is the CHECKPOINT line -- the one a reader looks for first when a
+            # multi-day run has died -- and it is written through `cmd` redirection on a cp1252
+            # console that already mangles non-ASCII elsewhere in this same log.
+            print(f"    {_ts()} -> banked {len(results)} spots as {bid} "
+                  f"({banked}/{len(spots)} safe)", flush=True)
             results = {}
 
     if args.upload and results:
         bid = _upload_inbox_batch(session, url, svc, results, end_date, len(batches) + 1)
         banked += len(results)
         batches.append(bid)
-        print(f"    ↳ banked the final {len(results)} spots as {bid}", flush=True)
+        print(f"    {_ts()} -> banked the final {len(results)} spots as {bid}", flush=True)
 
     print(f"\nprocessed {banked if args.upload else len(results)} spots in "
           f"{(time.time()-t0)/60:.1f} min")

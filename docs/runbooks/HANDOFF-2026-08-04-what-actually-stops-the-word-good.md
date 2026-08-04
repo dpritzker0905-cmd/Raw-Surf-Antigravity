@@ -7,8 +7,24 @@ survives into a recommendation without a number and a control beside it.
 
 ## §0 THE ANSWER, IN ONE LINE
 
+> ⛔⛔ **CORRECTED 2026-08-04 (later the same day, `scripts/served_good_spotcheck.py`). THE
+> UNCONDITIONAL HEADLINE BELOW IS REFUTED: THE PRODUCT DOES SAY "good".** At the 13:00-15:00Z frames
+> production served `level: "good"` with `confirmed: "good"` at real spots — **Rock Island 71.0,
+> Cloud 9 - Inside 72.0** — read directly off the served objects, not reconstructed. So
+> `P(display >= good)` is **~0.2 % (2 of 979), not 0**.
+>
+> What survives is the CONDITIONAL claim, which is sound arithmetic: **while `confirmed is None`,
+> `min(raw, 69.9) < 70.0`, so that spot cannot read good.** What was wrong was generalising a
+> single frame (01:00Z, n=600, which genuinely had zero) into an arithmetic impossibility. **Rule 22
+> in a document written the same day: the supply of `confirmed` is RARE, not ZERO, and rarity has a
+> distribution while impossibility does not.**
+>
+> ⚠️ The 08-04 01:00Z numbers below are RETAINED because they were correctly measured — but they are
+> a property of THAT HOUR. Quote them with the frame or do not quote them.
+
 > **The product cannot say "good" because it caps itself 0.1 points below "good" and nothing
 > anywhere supplies the key that lifts the cap.**
+> *(unconditional form: REFUTED above; conditional form: stands)*
 
     GOOD_T          = 70.0     a score >= this displays "good"
     CAP_UNCONFIRMED = 69.9     applied whenever `confirmed is None`
@@ -98,6 +114,14 @@ Two further points from the same source:
 ## §3 WHAT IS NEXT IN THE QUEUE, AND WHY — JACOBIAN ORDER
 
 Leverage = sensitivity × uncertainty × reachability. Every row measured today.
+
+> ⛔ **RE-RANKED 2026-08-04 (later, `scripts/exposure_flip_census.py`, n=979). THE GATE IS A
+> SYMPTOM, NOT THE ROOT.** What the cap withholds is dominated by spots with EXTREME cross-model
+> spread, and that extremity is manufactured by the `swell_exposure` cliff: 12.0 % of spots have the
+> exposure floor engaged in SOME lanes and not others, and every one of the 8 widest-spread spots in
+> the population is such a flip (max spread **85.0**; no non-flip spot exceeds 55.4). Fixing the
+> confirmation statistic without fixing the cliff just changes which unstable number gets displayed.
+> ⇒ See `HANDOFF-2026-08-04-B-the-exposure-cliff-is-what-the-gate-is-hiding.md`.
 
 ### 1. ⭐⭐⭐ THE GATE — the only single change that can move the product from "never" to "sometimes"
 **Sensitivity:** turns `P(display >= good) = 0` into `P = 1.3 %` at today's physics, and unlocks the
