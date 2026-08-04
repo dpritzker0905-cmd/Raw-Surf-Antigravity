@@ -107,6 +107,16 @@ payload to say so — the exact PROVENANCE class this repo names as its recurrin
 
 ### 2b. ⭐⭐⭐ ONE TRANSIENT TIMEOUT SILENTLY CHANGES WHICH SPOT THE SIM RECOMMENDS
 
+⚠️⚠️ **THE "60 s" IN THIS SECTION IS WRONG BY 60× — CORRECTED 2026-08-03 (`77f66211`).** The
+failure was also **memoized for the full 3,600 s positive cache TTL**, so the absence outlived the
+breaker by an hour per `(lat, lng, valid_time)` key, and this section's implied self-healing ("the
+breaker cools down") never happened. ⭐⭐ Worse, the compound: inside a two-leg forecast the
+**failing** leg calls `_mark_down()` and the **healthy** leg then calls `_mark_up()` — so the
+breaker reads **UP** while the cache holds the absence. *Health says up, the answer says missing.*
+That is why this went unnoticed. Fixed: negative entries now carry their own short TTL tied to the
+cooldown. Full re-derivation in `AUDIT-OF-THE-AUDIT-2026-08-03-codex-weather-sim-review.md` §3c–3d.
+Everything below about the WINNER CHANGE still stands — only the duration was understated.
+
 `sim_forecast.py:218-221` calls `_mark_down()` on **any** exception including an 8 s timeout, and
 `_mark_down` sets a **60 s PROCESS-WIDE cooldown** (:77-79). `fetch_live_forecast` then early-returns
 None for **every later spot** with the reason *"the app is not reachable right now"* — and
