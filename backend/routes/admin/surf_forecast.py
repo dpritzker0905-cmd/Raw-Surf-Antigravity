@@ -135,6 +135,15 @@ _RATING_FLAGS = {
     # heights — the exact RATING_TIDE-class trap. 4x the marine point resolutions when on.
     "SURF_PARTITIONS":             ("0", "Spectral swell trains in the height AND the rating (all surfaces)",
                                     "Render env AND forecast-ingest.yml AND precompute.yml env"),
+    # ⚠️ ONLY BITES WHEN `SURF_PARTITIONS` IS ON — it gates the partition-aware exposure, which is
+    # dark while that flag is off. Declared anyway, in the commit that added it: the lane-parity
+    # guard caught this one MISSING and it was right to, because an undeclared switch is invisible
+    # to this panel and to every lane check. Setting it to 0 restores the pre-2026-08-03 behaviour
+    # where a swell carrying 6% of the sea could veto a head-on sea 10x (see `surf_rating.py`).
+    "RATING_MIN_SWELL_ENERGY_SHARE": ("0.50", "Minimum share of TOTAL wave energy the swell trains "
+                                              "must carry before the partition-aware exposure may "
+                                              "speak for the sea (0 = pre-fix behaviour)",
+                                      "Render env"),
     "RATING_BREAKER_TYPE":         ("0", "Iribarren breaker-type factor in spot ratings", "Render env"),
     "SPOT_RATINGS_V2":             ("1", "Spot-ratings endpoint (glyphs) master switch", "Render env"),
     "SURF_REGIONAL_PREFER":        ("1", "Surf regional-tile preference for the coastal band", "Render env"),
