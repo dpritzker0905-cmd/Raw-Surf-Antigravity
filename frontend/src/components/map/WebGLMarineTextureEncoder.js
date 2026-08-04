@@ -71,9 +71,8 @@ export function createTexture(gl, filter, data, width, height) {
     window.__RAW_GPU__.textureUploadCount++;
     window.__RAW_GPU__.gpuMemoryEstimate += width * height * 4;
   }
-  // Record the size so `safeDeleteTexture` can subtract exactly what this added. Without it the
-  // delete side knows the texture is going but not how big it was — which is how the estimate
-  // drifted in the first place (a hardcoded 1024x512 against tiers up to 4096x2048).
+  // Record the size so `safeDeleteTexture` subtracts exactly what this added — the 07-05 drift was
+  // a hardcoded 1024x512 subtracted against tiers up to 4096x2048.
   noteTextureCreated(tex, width, height);
   return tex;
 }
@@ -487,11 +486,9 @@ export function encodeMarineTexture(gl, waveGrid, landGeoJSON, engine, opts) {
     } else {
       if (!standalone && engine) {
         if (engine._residentWaveTex) {
-          // ⚠️ NO MANUAL DECREMENT HERE ANY MORE (2026-08-04). `safeDeleteTexture` now does the
-          // accounting for every caller, using each texture's RECORDED dimensions — so the three
-          // deletes below subtract 3 x (w*h*4) by themselves, which is exactly what the old
-          // hardcoded `* 12` meant. Leaving both would double-count and drive the counters to zero,
-          // hiding a real leak as surely as the old over-count did.
+          // ⚠️ NO MANUAL DECREMENT (2026-08-04): `safeDeleteTexture` now accounts for every caller
+          // from each texture's RECORDED dims, so these three subtract 3 x (w*h*4) themselves —
+          // exactly the old `* 12`. Both would double-count, hiding a leak as the over-count did.
           safeDeleteTexture(gl, engine._residentWaveTex, engine);
           safeDeleteTexture(gl, engine._residentChlTex, engine);
           safeDeleteTexture(gl, engine._residentBathTex, engine);
