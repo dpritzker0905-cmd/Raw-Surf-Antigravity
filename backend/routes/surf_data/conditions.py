@@ -15,6 +15,8 @@ from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
 from services.weather_pipeline.providers.open_meteo_provider import OpenMeteoProvider
 from services.conditions_labels import get_conditions_label
+from services.weather_pipeline.spot_conditions import hourly_breaking_forecast
+from services.weather_pipeline.surf_point import resolve_surf_geometry
 
 point_sampler = PointSampler()
 open_meteo_provider = OpenMeteoProvider()
@@ -97,17 +99,19 @@ async def get_spot_conditions(
             raw_point = await point_resolution_service.provider.fetch_point(
                 model=model, domain="marine", layer="waves", lat=spot.latitude, lng=spot.longitude, forecast_days=1
             )
-            forecast = []
-            if raw_point and "hourly" in raw_point and "time" in raw_point["hourly"]:
-                times = raw_point["hourly"]["time"]
-                heights = raw_point["hourly"]["wave_height"]
-                for i, (time_str, height) in enumerate(zip(times[:6], heights[:6])):
-                    height_ft = height * 3.28084 if height else 0
-                    forecast.append({
-                        "time": time_str,
-                        "wave_height_ft": round(height_ft, 1),
-                        "label": get_conditions_label(height_ft)
-                    })
+            # ⛔⛔ THIS LOOP USED TO BE `height * 3.28084`, i.e. the OFFSHORE significant wave height
+            # served under `wave_height_ft` — THE SAME FIELD NAME `current` uses for the BREAKING
+            # height, in the same payload, with a human label applied to it. Measured live
+            # 2026-08-03: Sebastian Inlet current 2.90 ft vs forecast[0] 1.10 ft (0.38x, "Knee High"
+            # vs "Ankle High"); Mavericks 4.80 vs 5.20 (1.08x, "Chest High" vs "Head High"). Signed
+            # BOTH ways, so no constant could reconcile them — only the geometry, which is the
+            # binding ONE FORECAST COMPOSITION rule. The composition now lives in
+            # `spot_conditions.hourly_breaking_forecast`, beside the `_breaking_ft` that `current`
+            # already used, so this route MIRRORS the one chain rather than being a second path.
+            # ⚠️ Geometry is resolved ONCE here and reused across all hours — arithmetic, not I/O.
+            geometry = resolve_surf_geometry(spot.latitude, spot.longitude)
+            forecast = hourly_breaking_forecast(
+                spot.latitude, spot.longitude, (raw_point or {}).get("hourly"), geometry, limit=6)
             
             return {
                 "spot_id": spot_id,

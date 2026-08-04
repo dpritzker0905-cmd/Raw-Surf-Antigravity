@@ -71,6 +71,49 @@ def _breaking_ft(lat, lng, offshore_m, period_s, swell_from_deg, geometry, parti
     return round(offshore_m * M_TO_FT, 1), "offshore_estimate"
 
 
+def hourly_breaking_forecast(lat, lng, hourly, geometry, limit: int = 6):
+    """The hourly forecast rows for `/api/conditions/{spot_id}`, through the SAME composition the
+    `current` frame uses. Lives HERE, beside `_breaking_ft`, so the route mirrors the one chain
+    instead of re-deriving a second one (CLAUDE.md: no second forecast path per screen).
+
+    ⛔ THE DEFECT THIS REPLACES: the route did `height * 3.28084`, serving the OFFSHORE significant
+    height under `wave_height_ft` — the same field name `current` uses for the BREAKING height, in
+    the same payload. Measured live: Sebastian Inlet 2.90 ft vs 1.10 ft (0.38x, "Knee High" vs
+    "Ankle High"), Mavericks 4.80 vs 5.20 (1.08x, "Chest High" vs "Head High"). Signed BOTH ways,
+    so no constant could reconcile them — only the geometry.
+
+    ⚠️ `geometry` is a PARAMETER, resolved ONCE by the caller and reused across every hour: the
+    correction is arithmetic, not I/O. Re-resolving per hour is the regression this signature
+    exists to prevent.
+    ⛔ A MISSING height yields `wave_height_ft=None` + `status="no_data"`, never 0. The old
+    `if height else 0` made "not sampled" and "flat" identical — and then LABELLED it. A genuine
+    0.0 still reports flat (regime "calm"), which is the control that keeps this from over-refusing.
+    """
+    h = hourly or {}
+    times = h.get("time") or []
+    heights = h.get("wave_height") or []
+    periods = h.get("wave_period") or []
+    directions = h.get("wave_direction") or []
+    rows = []
+    for i, t in enumerate(times[:limit]):
+        offshore_m = heights[i] if i < len(heights) else None
+        if offshore_m is None:
+            rows.append({"time": t, "wave_height_ft": None, "offshore_height_ft": None,
+                         "surf_regime": None, "label": None, "status": "no_data"})
+            continue
+        ft, regime = _breaking_ft(
+            lat, lng, offshore_m,
+            periods[i] if i < len(periods) else None,
+            directions[i] if i < len(directions) else None,
+            geometry)
+        rows.append({"time": t, "wave_height_ft": ft,
+                     # ★ the number this endpoint used to serve as `wave_height_ft`, kept under its
+                     #   TRUE name so nothing is lost and the two can never be confused again.
+                     "offshore_height_ft": round(offshore_m * M_TO_FT, 1),
+                     "surf_regime": regime, "label": get_conditions_label(ft), "status": None})
+    return rows
+
+
 # The same partition layers `point_resolution._resolve_partitions` splits, with the `kind`
 # `surf_rating`'s partition-aware factors expect.
 _PARTITION_LAYERS = (("swell_1", "swell"), ("swell_2", "swell"), ("wind_waves", "windsea"))
