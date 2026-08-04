@@ -31,6 +31,7 @@ from services.weather_pipeline.point_direct_fallbacks import (  # noqa: E402
 # 2026-07-30 when this file hit 801 of the 800-line ratchet; it remains the SINGLE place
 # `surf_height_m` is produced.
 from services.weather_pipeline.point_surf_augment import augment_with_surf  # noqa: E402
+from services.weather_pipeline import wave_physics  # noqa: E402
 
 class PointResolutionService:
     """
@@ -188,6 +189,14 @@ class PointResolutionService:
         # never this method, so a partition cannot resolve its own partitions).
         response = await augment_with_surf(
             response, model, domain, layer, lat, lng, valid_time_str, self._resolve_partitions)
+
+        # ⭐ THE PHYSICS VALIDITY STAMP GOES HERE AND NOWHERE ELSE. `NormalizedPointDetail` is built
+        # at 14 sites across 5 modules, so there is no chokepoint down there — but EVERY consumer
+        # that matters (the ratings precompute, the spot hub, buoy calibration, and /api/weather/
+        # point) calls THIS method, and it has exactly one return. A check placed on the direct-point
+        # path instead would not have reached the defect at all: every impossible pair measured on
+        # 2026-08-04 arrived via `source: grid_file`. See wave_physics for the measurement.
+        response = wave_physics.stamp_point_validity(response, domain, layer)
         return response
 
     async def _resolve_point_internal(
