@@ -13,6 +13,46 @@ from services.weather_pipeline.normalizer import WeatherNormalizer
 
 client = TestClient(app)
 
+
+def _marine_parity_vectors():
+    """The 2x2 marine grid the parity test samples. Corners stay DISTINCT so bilinear
+    interpolation is actually exercised.
+
+    ⚠️ THESE MUST DESCRIBE A SEA THAT CAN EXIST. This fixture carried 10-40 m at 6-8 s until
+    2026-08-04 — deep-water steepness H/(1.56 T^2) of 0.178 to 0.401, up to 2.8x the 1/7 breaking
+    limit — so the test asserted `is_forecast_authoritative is True` about a sea state no ocean can
+    hold. `wave_physics.stamp_point_validity` now marks such a point non-authoritative, and THIS
+    TEST WAS THAT GUARD'S FIRST CATCH.
+    ★ The subject here is grid<->point PARITY, which holds for any values, so the placeholders were
+      made physical rather than the guard weakened. `test_marine_parity_fixture_is_physically_
+      possible` pins that, so the numbers cannot drift back and silently disarm the guard.
+    """
+    return [
+        GridVector(lat=24.0, lng=-85.0, speed=1.0, direction=90.0, u=-1.0, v=0.0, period=10.0),
+        GridVector(lat=24.0, lng=-79.0, speed=2.0, direction=90.0, u=-2.0, v=0.0, period=10.0),
+        GridVector(lat=31.0, lng=-85.0, speed=3.0, direction=90.0, u=-3.0, v=0.0, period=14.0),
+        GridVector(lat=31.0, lng=-79.0, speed=4.0, direction=90.0, u=-4.0, v=0.0, period=14.0),
+    ]
+
+
+def test_marine_parity_fixture_is_physically_possible():
+    """A fixture that cannot occur will silently disarm any physics guard downstream of it.
+
+    Asserts on the SAME objects the parity test consumes — not a copy — so the two cannot drift.
+    Also checks the corners stay distinct, or the parity test would pass on a constant field and
+    prove nothing about interpolation."""
+    from services.weather_pipeline.wave_physics import is_physically_impossible, steepness
+
+    vs = _marine_parity_vectors()
+    for v in vs:
+        s = steepness(v.speed, v.period)
+        assert s is not None, "setup: every fixture vector must carry a height and a period"
+        assert not is_physically_impossible(v.speed, v.period), (
+            f"fixture vector {v.speed} m at {v.period} s has steepness {s:.3f}, above the breaking "
+            f"limit — it cannot occur, and asserting authority about it is meaningless")
+    assert len({v.speed for v in vs}) == len(vs), "corners must differ or interpolation is untested"
+
+
 def test_api_endpoints_manifest_and_parity(tmp_path, monkeypatch):
     """
     Test API grid and point endpoints integration and prove they
@@ -29,13 +69,7 @@ def test_api_endpoints_manifest_and_parity(tmp_path, monkeypatch):
     bounds = CoverageBounds(west=-85.0, south=24.0, east=-79.0, north=31.0)
     valid_dt = datetime.fromisoformat("2026-06-01T21:00:00+00:00")
     
-    # Simple 2x2 grid for Florida bbox
-    vectors = [
-        GridVector(lat=24.0, lng=-85.0, speed=10.0, direction=90.0, u=-10.0, v=0.0, period=6.0),
-        GridVector(lat=24.0, lng=-79.0, speed=20.0, direction=90.0, u=-20.0, v=0.0, period=6.0),
-        GridVector(lat=31.0, lng=-85.0, speed=30.0, direction=90.0, u=-30.0, v=0.0, period=8.0),
-        GridVector(lat=31.0, lng=-79.0, speed=40.0, direction=90.0, u=-40.0, v=0.0, period=8.0),
-    ]
+    vectors = _marine_parity_vectors()
 
     grid = NormalizedGrid(bounds=bounds, cols=2, rows=2, vectors=vectors)
     product = NormalizedProduct(

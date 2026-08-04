@@ -73,24 +73,24 @@ test('SETUP CONTROL: the fixture really is the live shape that broke it', () => 
 
 test('a genuinely NEW grid still emits — the guard must not become a mute', () => {
   const engine = mkEngine(mkGrid());
-  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   expect(emits.length).toBe(1);
 
   // hour advanced: different content, must re-emit
   engine._waveData.waveGrid = mkGrid({ hourOffset: 132 });
-  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   expect(emits.length).toBe(2);
 
   // different vector count at the same hour: must re-emit
   const g3 = mkGrid({ hourOffset: 132 });
   g3.vectors = g3.vectors.slice(0, 100);
   engine._waveData.waveGrid = g3;
-  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   expect(emits.length).toBe(3);
 
   // different layer: must re-emit
   engine._waveData.waveGrid = mkGrid({ __componentLayer: 'swell_1' });
-  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+  try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   expect(emits.length).toBe(4);
 });
 
@@ -100,8 +100,8 @@ test('the key carries no clock — two calls a second apart on identical data st
   try {
     let t = 1_000_000;
     Date.now = () => (t += 1000);        // force the clock to move between calls
-    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
-    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
+    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   } finally {
     Date.now = realNow;                  // restore in a finally — a harness must not leak state
   }
@@ -112,7 +112,7 @@ test('the kill switch restores the old always-emit behaviour', () => {
   window.__RAW_DISABLE_CREST_DIAG_DEDUP__ = true;
   const engine = mkEngine(mkGrid());
   for (let i = 0; i < 5; i++) {
-    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) {}
+    try { populateCrestDiagnostics(engine, GL, BOUNDS, 8.3); } catch (e) { /* the harness has no real GL context, so the render path may throw; only the EMIT COUNT is under test */ }
   }
   expect(emits.length).toBe(5);
 });

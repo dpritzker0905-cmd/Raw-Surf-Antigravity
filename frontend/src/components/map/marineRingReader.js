@@ -354,7 +354,6 @@ export function ringReaderTick(win) {
   if (key === _lastFailKey && now - _lastReportAt < REPORT_MIN_GAP_MS) return rep;
   _lastFailKey = key; _lastReportAt = now;
   try {
-    // eslint-disable-next-line no-console
     console.warn(`[RingReader] ${failures.length} check(s) FAILED — run __RAW_RING_REPORT__() for detail`,
       rep.verdicts.filter((v) => v.verdict === 'fail').map((v) => `${v.check}: ${v.detail}`));
   } catch (e) { /* console is not load-bearing */ }
