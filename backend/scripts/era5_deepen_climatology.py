@@ -533,8 +533,15 @@ def main():
     # Six deaths on 2026-08-04, all STATUS_CONTROL_C_EXIT, all from sharing the interactive
     # session's console with whatever else runs on this machine. See install_interrupt_shield.
     if install_interrupt_shield():
-        print("interrupt shield ON (stdout is not a terminal): an unrelated Ctrl-C in this "
-              "session will no longer kill this run. Stop it with Stop-ScheduledTask.", flush=True)
+        # ⚠️ DO NOT say "Stop-ScheduledTask" here. MEASURED 2026-08-04: it does NOT stop this run.
+        # The task action is `cmd /c ... && python ...`, so the scheduler stops the wrapping `cmd`
+        # and ORPHANS this python process — verified live, pid survived the stop and kept banking.
+        # The reliable stops are a direct kill (which is TerminateProcess, not a signal, so the
+        # shield cannot block it) and the liveness reaper, which kills this pid the same way.
+        print(f"interrupt shield ON (stdout is not a terminal): an unrelated Ctrl-C in this "
+              f"session will no longer kill this run. To stop it, kill THIS pid ({os.getpid()}) — "
+              f"Stop-ScheduledTask only stops the wrapping cmd and orphans this process.",
+              flush=True)
 
     # A live peer is only a reason to stand down if it is actually MAKING PROGRESS. `peer_to_respect`
     # reaps it ONLY when its own progress marker proves a stall, and respects it whenever that is
