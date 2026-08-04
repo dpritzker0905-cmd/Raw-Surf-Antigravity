@@ -311,6 +311,19 @@ fixing emitters one at a time just promotes the next-loudest. **The ring needs a
    geometry is a **real and material secondary lever**, not the negligible one this bullet first
    implied. **Item 1 below remains the #1**, because none of it is falsifiable without the skill
    score; the shore-normal work is now a credible #2 rather than a struck lead.
+   ⭐⭐⭐ **AND THE SCIENCE CLOSES THE OTHER HALF (`2d17dc41`).** A real sea is a directional
+   spectrum `cos²ˢ(φ/2)` (s≈70 swell, s≈10 windsea), not the single ray both our directional
+   factors assume. Onshore energy flux by exact quadrature — with a control that converges on the
+   engine's own `cos(Δθ)` as s→∞ — gives **0.013 (swell) vs 0.106 (windsea) at Δθ=100°** against a
+   flat 0.100. So the floor is **too GENEROUS for swell**, and the "37° past the cutoff" spots are
+   **correctly floored** (flux 0.0000 at 127°). **The exposure floor is not what stops the product
+   saying "good" — that question is now genuinely open again.**
+   ⭐⭐ Separately: the two directional reductions **disagree with each other by 3.5×** in energy
+   (`_height_exposure_factor` floors at 0.595 ⇒ implied E 0.354, vs quality's 0.10), converging only
+   at head-on — so it bites exactly the off-angle spots.
+   ⛔⛔ **AND THE A/B HARNESS IS BLIND TO ALL OF IT.** Every owner anchor sets
+   `SWELL_FROM == SHORE_NORMAL`; a 47% height cut at the floor moves all five by **exactly 0.0**.
+   Nothing tuned — these are deep-water lower bounds and ultra-refraction pushes the other way.
    ★ And the n=140 grade **validated the precedence chain** (etopo < borrowed < coarse) and showed
    the asset beating the coarse grid 81% / 67% — so the geometry pipeline is sound in ORDER; the
    open question is its **tail** (15.7% over 90°, unattributed: barrier-island lagoon shores can
