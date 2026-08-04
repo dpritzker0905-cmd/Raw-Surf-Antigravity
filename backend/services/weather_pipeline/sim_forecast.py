@@ -108,12 +108,34 @@ _FORECAST_CACHE_MAX = int(os.environ.get("SIM_FORECAST_CACHE_MAX", "256"))
 # worse than a miss because it looks authoritative. Core ingest is every 4 h; an hour is well inside
 # that and a forecast does not meaningfully move within one.
 _FORECAST_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_CACHE_TTL_S", "3600"))
+
+# ⛔⛔ A FAILURE IS NOT AN ANSWER, AND IT MUST NOT LIVE AS LONG AS ONE (2026-08-03).
+# `fetch_live_forecast` builds `(None, {"reason": ...})` when a leg is missing and memoizes it like
+# any other result. `(None, reason)` is a perfectly good cached object, so ONE transient timeout
+# removed a spot/hour for the FULL 3600 s positive TTL — 60x the DOWN_COOLDOWN_S breaker that caused
+# it. MASTER AUDIT 1.0 §2b priced that blast radius as a 60 s window and offered "the breaker cools
+# down" as the reason it self-heals; with the failure cached it does not, and that remedy was wrong
+# by 60x. (§2b measured the consequence: the breaker drops the TAIL of a nearest-first candidate
+# list, and at Jeffreys Bay the two FARTHEST candidates are ranks 1 and 2 by quality.)
+# ⭐⭐ AND THE BREAKER CANNOT BE TRUSTED AS THE BACKSTOP: inside a two-leg forecast the FAILING leg
+# calls `_mark_down()` and the HEALTHY leg then calls `_mark_up()`, so the lane reads UP while the
+# cache holds the absence — health says up, the answer says missing. That is why this is a short
+# NEGATIVE TTL rather than "never cache a failure": the cache is still what stops a 12-spot scan
+# re-paying an 8 s timeout twelve times, and the breaker is not a reliable substitute for it.
+# Kill: SIM_FORECAST_NEG_TTL_S=3600 restores the pre-2026-08-03 behaviour exactly.
+NEGATIVE_CACHE_TTL_S = float(os.environ.get("SIM_FORECAST_NEG_TTL_S", str(DOWN_COOLDOWN_S)))
 _FORECAST_CACHE: "OrderedDict[Any, Any]" = OrderedDict()
 
 
+def _is_negative(out: Any) -> bool:
+    """A cached `(baseline, provenance)` whose baseline leg is absent — i.e. a recorded failure."""
+    return isinstance(out, tuple) and len(out) == 2 and out[0] is None
+
+
 def _remember(key: Any, out: Any) -> None:
-    """Store an answer, stamped, and keep the cache bounded — see the warning above."""
-    _FORECAST_CACHE[key] = (time.monotonic(), out)
+    """Store an answer, stamped with the TTL its KIND earns — see the warning above."""
+    ttl = NEGATIVE_CACHE_TTL_S if _is_negative(out) else _FORECAST_CACHE_TTL_S
+    _FORECAST_CACHE[key] = (time.monotonic(), out, ttl)
     _FORECAST_CACHE.move_to_end(key)
     while len(_FORECAST_CACHE) > max(1, _FORECAST_CACHE_MAX):
         _FORECAST_CACHE.popitem(last=False)
@@ -121,12 +143,16 @@ def _remember(key: Any, out: Any) -> None:
 
 def _recall(key: Any):
     """The cached answer for this key, or None when absent or expired. Drops what it expires, so a
-    coordinate that is asked about once and never again cannot pin an entry forever."""
+    coordinate that is asked about once and never again cannot pin an entry forever.
+
+    ⚠️ The TTL is stored PER ENTRY rather than read from the module constant at recall time, so an
+    entry is judged by the policy in force when it was written — an operator raising
+    SIM_FORECAST_NEG_TTL_S mid-incident cannot retroactively extend absences already banked."""
     hit = _FORECAST_CACHE.get(key)
     if hit is None:
         return None
-    stamped_at, out = hit
-    if time.monotonic() - stamped_at > _FORECAST_CACHE_TTL_S:
+    stamped_at, out, ttl = hit
+    if time.monotonic() - stamped_at > ttl:
         del _FORECAST_CACHE[key]
         return None
     return out

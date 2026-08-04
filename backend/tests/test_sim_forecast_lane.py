@@ -302,8 +302,14 @@ def test_an_entry_older_than_the_TTL_is_not_served(monkeypatch):
     assert first[0] is not None
     key = (37.0, -122.0, hour)
     assert sim_forecast._recall(key) is not None
-    stamped_at, out = sim_forecast._FORECAST_CACHE[key]
-    sim_forecast._FORECAST_CACHE[key] = (stamped_at - sim_forecast._FORECAST_CACHE_TTL_S - 1, out)
+    # ⚠️ Entries carry their OWN ttl since 2026-08-03: a FAILURE is capped at the breaker cooldown
+    # while a success keeps the full hour, so the stamp is (when, value, ttl). This test still
+    # asserts the POSITIVE path — and reads the stored ttl back rather than assuming the constant,
+    # so it stays honest if the policy changes again.
+    stamped_at, out, ttl = sim_forecast._FORECAST_CACHE[key]
+    assert ttl == sim_forecast._FORECAST_CACHE_TTL_S, (
+        "a SUCCESS was stamped with the negative ttl — the short TTL must apply to failures only")
+    sim_forecast._FORECAST_CACHE[key] = (stamped_at - ttl - 1, out, ttl)
     assert sim_forecast._recall(key) is None, "an expired entry must not be served"
     assert key not in sim_forecast._FORECAST_CACHE, "expiring must also free it"
 
