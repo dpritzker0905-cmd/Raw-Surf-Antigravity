@@ -159,9 +159,19 @@ same unsound conclusion.
 Grouped by leverage. Full evidence in `scratchpad/survey_digest.md` (254 KB) and `verdicts.md`.
 
 **Correctness / composition**
-* `/api/conditions/{spot_id}` serves **offshore Hs** under `wave_height_ft`, bypassing
-  `resolve_surf_geometry` — the binding ONE-COMPOSITION rule. *(downgraded from critical: verifier
-  scoped which callers actually read it)*
+* ✅ **FIXED (`bc304e44`)** — `/api/conditions/{spot_id}` served **offshore Hs** under
+  `wave_height_ft`, bypassing `resolve_surf_geometry`. ⭐ **The verifier's downgrade understated it:
+  the offending field sat in the SAME PAYLOAD as a correctly-composed `current.wave_height_ft`,
+  under the IDENTICAL NAME.** Measured live before the fix — Sebastian Inlet 2.90 ft vs 1.10 ft
+  (0.38×, *"Knee High"* vs *"Ankle High"*), Trestles 3.20 vs 2.20, Mavericks 4.80 vs 5.20 (1.08×,
+  *"Chest High"* vs *"Head High"*) — **signed both ways, so the payload contradicted itself in
+  words.** A correct producer already existed (`resolve_spot_conditions`) and the route discarded
+  it, which is the mandate's literal prohibition on a second forecast path per screen. Also fixed:
+  `if height else 0` made *not sampled* indistinguishable from *flat*, then labelled it.
+  ⚠️ **Separate defect found while measuring, NOT folded in:** the route calls
+  `provider.fetch_point` directly rather than the resolution chain, and that call returns literal
+  **0.0 for every hour at Pipeline and Jeffreys Bay** while `current` reads 3.9 ft and 6.8 ft at the
+  same coordinates. **Wrong SOURCE, not just wrong quantity** — needs its own measurement.
 * The **map rating band** computes breaking height without the directional exposure factor the point
   lane applies.
 * The **ECMWF period-band partition path is unreachable**: `wave_bands` is READ but never WRITTEN.
