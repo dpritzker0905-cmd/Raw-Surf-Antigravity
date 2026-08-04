@@ -201,6 +201,31 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
+    # ⛔⛔ THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL (MASTER-AUDIT-2.0 §2). "How much of
+    # this swell reaches this break" is computed TWICE from the SAME bearing: the quality chain's
+    # `swell_exposure` floors at 0.100, the height chain's `_height_exposure_factor` at 0.595. In
+    # ENERGY terms that is 0.100 vs 0.595^2 = 0.354 — a 3.54x contradiction inside ONE payload, and
+    # it saturates for every Δθ >= 90° because past there BOTH factors are flat on their floors.
+    # Measured live 2026-08-04 on n=1005 served spots: 15.4% sit on the exposure floor (a LOWER
+    # bound — `limiter` is an argmin, so a spot floored on exposure but limited by something lower
+    # is invisible to that count). Fafa Island served 6.2 ft "very_poor" on FULL geometry.
+    # ⚠️ THIS DISCLOSES, IT DOES NOT CORRECT. The height is the likelier overestimate (spectral flux
+    # at Δθ=100° is 0.013, so 0.354 is ~27x generous), but it is currently right BY CANCELLATION
+    # against a second error — flipping this floor alone moves every head-on spot too. The
+    # reconciliation is gated on the ERA5 record; until then the honest move is to SAY SO rather
+    # than serve a contradiction silently, which is what `dd972351` did for the sim payload.
+    # ⇒ THIS IS THAT SAME DISCLOSURE, ON THE SURFACE USERS ACTUALLY READ. It shipped to `sim_rating`
+    # only, and the sim is an MCP tool — the map glyphs, which every user sees, carried nothing.
+    # ABSENT UNLESS IT BINDS (>= 1.5x, i.e. Δθ >= 75.73°), mirroring `model_agreement` and
+    # `display_adjustment`: a caveat on every spot is a caveat nobody reads.
+    # Kill: RATING_DIRECTIONAL_CONFLICT=0.
+    _conflict = None
+    if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
+        try:
+            from services.weather_pipeline import wave_physics
+            _conflict = wave_physics.directional_conflict(swell_from, shore_normal)
+        except Exception as e:  # a caveat must never break the rating it qualifies
+            logger.debug(f"[spot-ratings] directional conflict failed for {spot.get('id')}: {e}")
     return {
         "spot_id": str(spot["id"]),
         "name": spot.get("name"),
@@ -216,6 +241,8 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # The binding constraint: which of the nine factors removed the most. See the block above.
         "limiter": _lim,
         "limiter_f": _lim_f,
+        # The size/quality contradiction, or ABSENT when there is nothing to say. See block above.
+        "directional_conflict": _conflict,
         # ★ GEOMETRY READINESS, carried from the point response (`point_resolution` stamps it where
         # `surf_height_m` is produced). NOT the same thing as `confidence` above: that grades the
         # PIN (accuracy_flag / is_verified_peak), this grades the INPUTS the forecast ran on. A

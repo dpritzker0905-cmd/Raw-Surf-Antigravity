@@ -364,6 +364,18 @@ class SpotRatingItem(BaseModel):
     # Optional so an older precomputed frame simply omits them, same contract as the fields above.
     limiter: Optional[str] = None             # e.g. 'size_gate' | 'swell_exposure' | 'wind_period_blend'
     limiter_f: Optional[float] = None         # that factor's value in [0,1] — how much it removed
+    # THE SIZE AND THE QUALITY DISAGREE ABOUT THE SAME SWELL. `swell_exposure` (quality) floors at
+    # 0.100 while `_height_exposure_factor` (height) floors at 0.595 — 0.354 in energy, a 3.54x
+    # contradiction from ONE bearing, saturating for every Δθ >= 90°. Measured 2026-08-04 on n=1005
+    # served spots: >= 15.4% bind, and 0 of 1005 carried this caveat while its sibling
+    # `model_agreement` carried on 1005/1005 — one disclosure from this arc landed, this one did not.
+    # ⚠️ DISCLOSES, DOES NOT CORRECT: the height is the likelier overestimate but is right by
+    # cancellation until the ERA5 reconciliation lands. ABSENT unless it binds (Δθ >= 75.73°).
+    # ⛔ DECLARED HERE BECAUSE PYDANTIC DROPS UNDECLARED KEYS — the same boundary that silently
+    # stripped `limiter` for hours while health reported the correct SHA. See that note above:
+    # A FIELD IS NOT SHIPPED UNTIL A TEST ASSERTS IT SURVIVES SERIALISATION
+    # (`test_directional_conflict_reaches_the_wire.py` asserts exactly that, through this model).
+    directional_conflict: Optional[dict] = None
 
 
 class SpotRatingsResponse(BaseModel):

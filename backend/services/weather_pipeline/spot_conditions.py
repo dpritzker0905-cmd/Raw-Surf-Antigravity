@@ -409,6 +409,23 @@ async def resolve_spot_conditions_impl(
         current_conditions["rating_confirmed"] = _confirm
         current_conditions["rating"] = score
         current_conditions["rating_level"] = level
+        # ── WHEN THE SIZE AND THE QUALITY DISAGREE, SAY SO (MASTER-AUDIT-2.0 §2) ──────────────
+        # The hub shows a breaking height AND this score, and off-angle they are computed from the
+        # same bearing with floors 5.95x apart (quality `swell_exposure` -> 0.100, height
+        # `_height_exposure_factor` -> 0.595; 0.354 vs 0.100 in energy = 3.54x). Measured live
+        # 2026-08-04: >=15.4% of 1005 served spots bind, and Fafa Island read 6.2 ft "very_poor"
+        # on FULL geometry with nothing said.
+        # ⚠️ The hub is a surface a surfer READS — the same argument that moved the observation
+        # gate here. It shipped to `sim_rating` only, and the sim is an MCP tool.
+        # Diagnostic only; nothing branches on it. Absent unless it binds. Kill:
+        # RATING_DIRECTIONAL_CONFLICT=0.
+        if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
+            try:
+                from services.weather_pipeline import wave_physics
+                current_conditions["directional_conflict"] = wave_physics.directional_conflict(
+                    swell_from, getattr(geometry, "shore_normal_deg", None))
+            except Exception as _dc:
+                logger.debug(f"[spot-hub] directional conflict unavailable at ({lat},{lng}): {_dc!r}")
         if wind_pt is not None:
             current_conditions["wind_speed_kts"] = round(getattr(wind_pt, "speed", 0.0) or 0.0, 1)
             current_conditions["wind_direction"] = wind_from

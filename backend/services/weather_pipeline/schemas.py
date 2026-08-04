@@ -227,6 +227,24 @@ class NormalizedPointResponse(BaseModel):
     shore_normal_source: Optional[str] = None
     break_depth_m: Optional[float] = None        # nearshore breaking depth; None => the size cap cannot bind
     geometry_readiness: Optional[str] = None     # full | degraded | blind
+    # ── THE SIZE AND THE QUALITY DISAGREE ABOUT THIS SWELL (MASTER-AUDIT-2.0 §2) ────────────────
+    # "How much of this swell reaches this break" is reduced TWICE from the SAME bearing, with
+    # floors 5.95x apart: quality `swell_exposure` -> 0.100, height `_height_exposure_factor` ->
+    # 0.595. Height scales as sqrt(energy), so the energy the HEIGHT chain implies at the floor is
+    # 0.354 against the QUALITY chain's 0.100 — a 3.54x contradiction inside ONE object, saturating
+    # for every dtheta >= 90 deg because past there BOTH factors are flat.
+    # ⚠️ DISCLOSES, DOES NOT CORRECT. The height is the likelier overestimate (spectral flux at
+    # dtheta=100 deg is 0.013, making 0.354 ~27x generous) but is currently right BY CANCELLATION
+    # against a second error, so the reconciliation is gated on the ERA5 record. Until then the
+    # honest move is to say so rather than serve a contradiction silently.
+    # ★ STAMPED HERE because `surf_height_m` is produced here and nowhere else — the caveat is ABOUT
+    #   that number, so computing it anywhere else risks describing a height nobody served. Same
+    #   reasoning as `geometry_readiness` above.
+    # ⭐ IT MATTERS ON THIS RESPONSE SPECIFICALLY: the frontend computes the infobox rating badge
+    #   ITSELF from these fields (see the local-size note below), so without this it would have to
+    #   re-derive the contradiction client-side — or, as today, never show it at all.
+    # ABSENT (None) unless it binds at dtheta >= 75.73 deg. A caveat on every point is noise.
+    directional_conflict: Optional[dict] = None
     # ── THE LOCAL SIZE REFERENCE (2026-08-01, the RATING_LOCAL_SIZE flip `3263031c`) ─────────────
     # The frontend computes the infobox rating badge itself (see point_surf_augment: "the frontend
     # pairs the shore normal with the already-fetched wind point + surf height/period"), and it was

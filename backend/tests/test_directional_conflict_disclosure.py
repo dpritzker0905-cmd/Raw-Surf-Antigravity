@@ -130,3 +130,94 @@ def test_the_sim_payload_is_SILENT_when_the_swell_is_head_on():
     out, _n = _sim(0.0)
     assert "directional_conflict" not in out
     assert out["swell_alignment_pct"] == 100
+
+
+# ── ⭐⭐ REACHABILITY, PART 2: the surfaces a USER reads ─────────────────────────────────────────
+#
+# The tests above prove the SIM discloses. The sim is an MCP tool. Measured live 2026-08-04 across
+# n=1005 served spots on `/spot-ratings`: `directional_conflict` present on 0, while its sibling
+# `model_agreement` (shipped in the same arc) was present on 1005/1005 — so one disclosure reached
+# the wire and this one did not. >= 15.4% of those spots sat on the exposure floor, where the two
+# chains disagree by the full 3.54x. Fafa Island served 6.2 ft "very_poor" on FULL geometry.
+# CLAUDE.md's ONE FORECAST COMPOSITION mandate names the surfaces: spot hubs, infoboxes, map glyphs,
+# the weather sim. All four must say the same thing about the same hour.
+
+def _point_kwargs():
+    """The REQUIRED fields of `NormalizedPointResponse`, so these tests fail for the reason they
+    claim to test and not for a missing unrelated field."""
+    from services.weather_pipeline.schemas import NormalizedPointDetail
+    return dict(model="GFS", provider="open-meteo", domain="marine", layer="waves",
+                run_time="2026-08-04T18:00:00Z", valid_time="2026-08-04T22:00:00Z",
+                is_forecast_authoritative=True, is_estimated=False,
+                point=NormalizedPointDetail(requested_lat=35.442, requested_lng=-120.915,
+                                            sampled_lat=35.442, sampled_lng=-120.915,
+                                            interpolation_method="nearest",
+                                            speed=1.23, direction=300.55, period=9.09),
+                value_kind="wave", value_unit="m", display_unit_hint="ft",
+                source_variables=["wave_height"], freshness_sec=3600)
+
+
+def test_the_point_response_boundary_does_not_drop_the_conflict():
+    """`/point` declares `response_model=NormalizedPointResponse` and Pydantic DROPS undeclared
+    keys — the same boundary that silently stripped `limiter` for hours while health reported the
+    correct SHA. `point_surf_augment` is where `surf_height_m` is produced, so this is the response
+    the caveat rides on; if the model does not declare it, the stamp is inert."""
+    from services.weather_pipeline.schemas import NormalizedPointResponse
+
+    block = _at(130.0)
+    assert block is not None, "SETUP BROKEN: 130 deg must bind, or this asserts nothing"
+
+    resp = NormalizedPointResponse(**_point_kwargs(), directional_conflict=block)
+    dumped = resp.model_dump()
+    assert dumped.get("directional_conflict") is not None, (
+        "dropped at the /point response boundary — declare it on NormalizedPointResponse")
+    assert dumped["directional_conflict"]["energy_disagreement"] == pytest.approx(3.54, abs=0.01)
+
+
+def test_a_point_response_without_the_conflict_still_validates():
+    """ABSENT IS THE COMMON CASE (~85% of points). Required would 500 the endpoint head-on."""
+    from services.weather_pipeline.schemas import NormalizedPointResponse
+
+    resp = NormalizedPointResponse(**_point_kwargs())
+    assert resp.directional_conflict is None
+
+
+# The production surfaces that show a height AND a quality, and must therefore disclose when the
+# two disagree. Written out explicitly rather than discovered: a list derived from "files that call
+# the function" would agree with the code by construction and could never report a missing surface.
+DISCLOSING_SURFACES = [
+    ("services/weather_pipeline/spot_ratings.py", "map glyphs (/spot-ratings)"),
+    ("services/weather_pipeline/point_surf_augment.py", "infobox (/point) — where the height is born"),
+    ("services/weather_pipeline/spot_conditions.py", "spot hub"),
+    ("services/weather_pipeline/sim_rating.py", "the weather sim"),
+]
+
+
+@pytest.mark.parametrize("relpath,surface", DISCLOSING_SURFACES)
+def test_every_surface_that_shows_both_numbers_discloses_the_conflict(relpath, surface):
+    """⚠️ THIS IS A REFERENCE CHECK, AND REFERENCE CHECKS ARE WEAK EVIDENCE — this repo has shipped a
+    guard that was green because it checked a REFERENCE and could not reach the defective surface.
+    It is here for the ONE thing a behavioural test cannot do: notice a surface that was never
+    wired at all. The behavioural proof lives in the boundary tests above and in
+    `test_spot_rating_wire_contract.py`; this only asserts nobody was FORGOTTEN.
+    """
+    path = os.path.join(backend_dir, relpath)
+    assert os.path.exists(path), f"SETUP BROKEN: {relpath} moved — re-derive this list"
+    src = open(path, encoding="utf-8").read()
+    assert "directional_conflict" in src, (
+        f"{surface} shows a breaking height and a quality score computed from the SAME swell "
+        f"bearing with floors 5.95x apart, and says nothing when they disagree. CLAUDE.md's ONE "
+        f"FORECAST COMPOSITION mandate requires every such surface to agree."
+    )
+
+
+def test_the_surface_list_is_not_vacuous__THE_CONTROL():
+    """If the list were empty or the paths wrong, the parametrised test would pass having checked
+    nothing. Pin the count, and pin that a file WITHOUT the disclosure is detectable."""
+    assert len(DISCLOSING_SURFACES) >= 4, "surfaces went missing from the list"
+    control = os.path.join(backend_dir, "services/weather_pipeline/surf_transform.py")
+    assert os.path.exists(control), "SETUP BROKEN: control file moved"
+    assert "directional_conflict" not in open(control, encoding="utf-8").read(), (
+        "the control file now mentions the field, so 'the string is present' no longer "
+        "discriminates — pick a different control"
+    )

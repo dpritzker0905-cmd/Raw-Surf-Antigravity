@@ -21,8 +21,26 @@
  * happens to be on".
  *
  * ⇒ A per-field regression pin cannot catch this class; it only ever catches the field someone
- * thought to pin. This test compares the three field SETS, so the next omission fails on the day it
- * is written rather than on the day someone notices the infobox disagreeing with the glyph.
+ * thought to pin.
+ *
+ * ⚠️ CORRECTED 2026-08-04. The line above used to continue "This test compares the three field
+ * SETS, so the next omission fails on the day it is written" — and it did not. Every assertion here
+ * was a per-field pin against a hand-written list of four, i.e. exactly the thing the sentence above
+ * calls insufficient. `directional_conflict` was added to all three mappers that day and this file
+ * would have passed had it been added to only one.
+ *
+ * WHY FULL SET-EQUALITY IS NOT THE FIX (measured 2026-08-04, and it is why the pins exist):
+ *     union 44 fields · 31 of them (70%) are NOT in all three
+ * The three mappers legitimately differ — `forecastSamplers` carries requestedLat/snappedLat/
+ * activeLayer that no wire mapper has, `backendCopernicusServiceClient` carries stale/staleReason.
+ * Asserting set-equality would fail on 31 fields on day one and be switched off by the second
+ * reader, which is the failure this file exists to prevent.
+ *
+ * ⭐ WHAT DISCRIMINATES: the defect's signature is a field in EXACTLY TWO of the three — somebody
+ * added it and missed one. A field in exactly ONE is usually genuinely path-specific. So the ratchet
+ * below pins the twelve 2-of-3 fields that exist TODAY as a measured baseline and fails on the
+ * THIRTEENTH. It does not adjudicate the existing twelve — several may be real drops, and each needs
+ * its own measurement (see the handoff); it guarantees the next one cannot be added silently.
  */
 import fs from 'fs';
 import path from 'path';
@@ -99,5 +117,70 @@ describe('point field whitelist parity', () => {
       .filter(([, file]) => !mapsField(file, 'coverage_status'))
       .map(([name]) => name);
     expect(gaps).toEqual([]);
+  });
+
+  test('directional_conflict reaches every mapper', () => {
+    // The size and the quality disagree about the SAME swell by up to 3.54x past 75.73 deg
+    // off-normal (backend wave_physics.directional_conflict). Measured 2026-08-04 on n=1005 served
+    // spots: >=15.4% bind, and the infobox computes its rating badge from THESE fields — so a
+    // mapper that drops this prints a height and a score that contradict each other, silently, on
+    // whichever client path the user happens to be on.
+    const gaps = Object.entries(MAPPERS)
+      .filter(([, file]) => !mapsField(file, 'directional_conflict'))
+      .map(([name]) => name);
+    expect(gaps).toEqual([]);
+  });
+
+  // ── ⭐ THE RATCHET: the next 2-of-3 field fails on the day it is written ──────────────────────
+
+  /** Every field a mapper assigns straight off the response, read from source. */
+  function mappedFields(file) {
+    const src = fs.readFileSync(path.join(DIR, file), 'utf8');
+    const re = /^\s*([A-Za-z_][A-Za-z0-9_]*)\s*:.*(?:json|cachedResponse)\.([A-Za-z_][A-Za-z0-9_]*)\b/gm;
+    const out = new Set();
+    let m;
+    while ((m = re.exec(src)) !== null) if (m[1] === m[2]) out.add(m[1]);
+    return out;
+  }
+
+  // MEASURED 2026-08-04, not chosen. Each is mapped by exactly two of the three mappers. Pinned as
+  // a baseline so the list can only SHRINK; a new entry means somebody added a field and missed a
+  // mapper. ⛔ Do not add to this list to make a build pass — that is the whole defect.
+  const KNOWN_TWO_OF_THREE = [
+    'cache_key', 'coordinate_count', 'coverage_scope', 'is_dynamic_viewport_product',
+    'is_forecast_authoritative', 'is_test_fixture', 'requested_bbox', 'resolution',
+    'served_bbox', 'source', 'surf_nearshore', 'valid_time',
+  ].sort();
+
+  test('no NEW field is mapped by exactly two of the three mappers', () => {
+    const sets = Object.fromEntries(
+      Object.entries(MAPPERS).map(([name, file]) => [name, mappedFields(file)]));
+
+    // SETUP ASSERTION: a regex that matched nothing would make this pass vacuously — the failure
+    // mode this file already names. Pin that each mapper yields a plausible number of fields.
+    for (const [name, s] of Object.entries(sets))
+      expect(`${name}:${s.size >= 15}`).toBe(`${name}:true`);
+
+    const names = Object.keys(sets);
+    const union = new Set(names.flatMap((n) => [...sets[n]]));
+    const twoOfThree = [...union]
+      .filter((f) => names.filter((n) => sets[n].has(f)).length === 2).sort();
+
+    const added = twoOfThree.filter((f) => !KNOWN_TWO_OF_THREE.includes(f));
+    expect(added).toEqual([]);   // a NEW field added to two mappers and not the third
+  });
+
+  test('the ratchet would notice a 2-of-3 field__THE_CONTROL', () => {
+    // Without this, the assertion above could pass because `twoOfThree` is always empty.
+    expect(KNOWN_TWO_OF_THREE.length).toBeGreaterThan(0);
+    // and the baseline must describe reality, or it is a list of names nobody measured
+    const sets = Object.fromEntries(
+      Object.entries(MAPPERS).map(([name, file]) => [name, mappedFields(file)]));
+    const names = Object.keys(sets);
+    const stillTwo = KNOWN_TWO_OF_THREE
+      .filter((f) => names.filter((n) => sets[n].has(f)).length === 2);
+    // Shrinking is good (someone fixed one) — but it must not be EMPTY, which would mean the
+    // detector stopped seeing anything and the test above is now vacuous.
+    expect(stillTwo.length).toBeGreaterThan(0);
   });
 });

@@ -681,6 +681,13 @@ export async function fetchBackendExactCopernicusPoint(lat, lng, hourOffset, sig
       shore_normal_source: (json.shore_normal_source ?? null),
       break_depth_m: (json.break_depth_m ?? null),
       geometry_readiness: (json.geometry_readiness ?? null),
+      // EIGHTH. The size and the quality disagree about the SAME swell: the height chain's
+      // exposure floor is 0.595 (0.354 of the energy) and the quality chain's is 0.100 — 3.54x,
+      // saturating past 75.73 deg off-normal. Measured 2026-08-04 on n=1005 served spots: >=15.4%
+      // bind. The infobox computes its rating badge HERE, from these fields, so without this the
+      // client cannot say that the height it is printing and the score beside it disagree.
+      // Absent (null) unless it binds — a caveat on every point is noise.
+      directional_conflict: (json.directional_conflict ?? null),
       // See backendWeatherServiceClientPoint: the tier a layer was served at, needed because each
       // marine layer's tier is chosen INDEPENDENTLY and a coarse-tier reading is a 10-degree block
       // average, not a reading at the break. Absent here until 2026-08-02.

@@ -568,6 +568,14 @@ export async function fetchBackendExactPoint(lat, lng, hourOffset, signal, layer
       shore_normal_source: (json.shore_normal_source ?? null),
       break_depth_m: (json.break_depth_m ?? null),
       geometry_readiness: (json.geometry_readiness ?? null),
+      // EIGHTH. `shore_normal_deg` above is the bearing and the readiness fields say what it stands
+      // on; this says the two numbers DERIVED from it disagree. The height chain's exposure floor is
+      // 0.595 (0.354 of the energy), the quality chain's is 0.100 — 3.54x, saturating past 75.73 deg
+      // off-normal. Measured 2026-08-04 on n=1005 served spots: >=15.4% bind, and Fafa Island read
+      // 6.2 ft "very_poor" on FULL geometry. This whitelist is the only path a point field reaches
+      // the infobox, and the badge is computed HERE from exactly these fields.
+      // Absent (null) unless it binds. Backend: schemas.NormalizedPointResponse.
+      directional_conflict: (json.directional_conflict ?? null),
       // The reconciled swell/windsea trains the served surf_height_m ran on (SURF_PARTITIONS on;
       // null otherwise). Same failure class as shore_normal_deg above: this whitelist is the only
       // path point fields reach the infobox, so an unmapped field makes the badge grade a

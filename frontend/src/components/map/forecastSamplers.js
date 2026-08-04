@@ -461,6 +461,11 @@ export function selectExactPointHour(cachedResponse, hourOffset) {
     shore_normal_source: cachedResponse.shore_normal_source ?? null,
     break_depth_m: cachedResponse.break_depth_m ?? null,
     geometry_readiness: cachedResponse.geometry_readiness ?? null,
+    // EIGHTH — and mapped here in the SAME change, which `coverage_status` below was not (it went
+    // into two whitelists of three and was silently dropped on the cached path). The size and the
+    // quality disagree about the same swell by up to 3.54x past 75.73 deg off-normal; >=15.4% of
+    // n=1005 served spots bind. Absent (null) unless it binds.
+    directional_conflict: cachedResponse.directional_conflict ?? null,
     // The tier this layer was served at. Mapped by backendWeatherServiceClientPoint since 2026-08-01
     // and NOT here — so on the cached path the Energy card could not coarsen its precision. The
     // comment that introduced it called itself "FOURTH FIELD IN A ROW"; it was then added to one

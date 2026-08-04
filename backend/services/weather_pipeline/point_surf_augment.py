@@ -178,6 +178,22 @@ async def augment_with_surf(response, model, domain, layer, lat, lng, valid_time
             # Diagnostic only — nothing in the rating chain branches on it. Never fatal.
             response.shore_normal_source = _geo.shore_normal_src
             response.break_depth_m = _geo.break_depth_m
+            # ── AND SAY WHEN THAT NUMBER CONTRADICTS ITS OWN QUALITY SCORE ────────────────────
+            # The height just computed used `_height_exposure_factor` (floor 0.595 => 0.354 of the
+            # energy); the quality chain will use `swell_exposure` (floor 0.100) on the SAME
+            # bearing. Off-angle those disagree by up to 3.54x, and the payload said nothing.
+            # Stamped at the height's own birthplace so the caveat can never describe a different
+            # number than the one served. Absent unless it binds (dtheta >= 75.73 deg).
+            # ⚠️ Diagnostic only — NOTHING in the rating chain branches on it, exactly like
+            # `geometry_readiness`. A caveat that changes the physics is not a caveat.
+            # Kill: RATING_DIRECTIONAL_CONFLICT=0.
+            if os.environ.get("RATING_DIRECTIONAL_CONFLICT", "1") != "0":
+                try:
+                    from services.weather_pipeline import wave_physics
+                    response.directional_conflict = wave_physics.directional_conflict(
+                        response.point.direction, _geo.shore_normal_deg)
+                except Exception as _dc:
+                    logger.debug(f"[Surf v3] directional conflict unavailable at ({lat},{lng}): {_dc!r}")
             try:
                 from services.weather_pipeline.spot_geometry_readiness import assess_geometry
                 _rd = assess_geometry(_geo)
