@@ -47,6 +47,24 @@ def plan_hours(hours_ahead: int, step_hours: int, now: Optional[datetime] = None
     return [(base + timedelta(hours=step * i)).strftime("%Y-%m-%dT%H:%M:%SZ") for i in range(n)]
 
 
+def _rank_key(r: Dict[str, Any]):
+    """⭐ RANK ON THE PHYSICS, PRESENT THE DISPLAY.
+
+    `quality_raw` is the UNGATED score; `quality_rating` is what the app shows. Gating a rank key is
+    what inverts a ranking (`79e1001a`) — and since the unconfirmed cap ties every good hour at
+    69.9, reading the gated value here would make the best hours indistinguishable from each other.
+    Falling back to `quality_rating` keeps a row that carries no raw score ordered exactly as before.
+
+    Module-level rather than a closure so the contract is testable in isolation: the previous
+    version was invisible to any guard, which is how it published the ungated score under the
+    display name for as long as it did.
+    """
+    raw = r.get("quality_raw")
+    return (not r.get("surfable_light", True),
+            -float(raw if raw is not None else r["quality_rating"]),
+            -r["breaking_height_ft"])
+
+
 def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any],
          hours: List[str], top: int = 5) -> Dict[str, Any]:
     """Rate `spot` at each hour and rank the results.
@@ -73,11 +91,18 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
         # fetched a baseline for `hour`, so the I/O is paid and the local size reference must be
         # resolved — otherwise every row grades on the global 1.2 m curve while the map glyph for
         # the same spot-hour grades on the spot's own good day.
-        # ⛔ But passing `valid_time` here would ALSO switch on the observation gate, which caps at
-        # 69.9 and would flatten the very quality ranking this scan exists to produce — the "gating
-        # a RANK key inverts its meaning" defect `79e1001a` fixed for sim_compare. Measured when
-        # this was briefly wired that way: the winning hour moved 09:00 -> 06:00
-        # (test_sim_daylight). The two concerns are separate parameters for exactly this reason.
+        # ⛔ Passing `valid_time` ALSO switches on the observation gate, which caps at 69.9 and
+        # would flatten the very quality ranking this scan exists to produce — the "gating a RANK
+        # key inverts its meaning" defect `79e1001a` fixed for sim_compare. Measured when this was
+        # briefly wired that way: the winning hour moved 09:00 -> 06:00 (test_sim_daylight).
+        # ⭐⭐ THAT REASONING WAS RIGHT ABOUT RANKING AND WRONG ABOUT PRESENTATION (2026-08-03,
+        # external deep audit finding 2). Omitting `valid_time` protected the rank key by making the
+        # published `quality_rating` the UNGATED score — the same field name the app-parity surfaces
+        # use for the CAPPED one — so a window could announce `97.3 epic` for an hour the app shows
+        # as `69.9 fair_good`. Ranking and presentation are different questions and the scan now
+        # answers BOTH: gate for display, rank on `quality_raw`, exactly as `sim_compare` does.
+        # ⚠️ The gate costs a `confirmation_for` lookup, which reads the precomputed ratings through
+        # `load_spot_ratings_l2_cached` — a cached read, not per-hour I/O.
         # ★ PER HOUR, from THAT hour's provenance. The reference is a property of the place, so it
         # is stable across the scan in practice — but reading it per row means a frame the app could
         # not answer for cannot silently lend its curve to a neighbouring hour.
@@ -85,12 +110,15 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
+            valid_time=hour,
             allow_reference_lookup=True,
             served_reference_size_m=sim_forecast.served_reference(provenance))
         row = {
             "valid_time": hour,
             "breaking_height_ft": calc["breaking_height_ft"],
-            "quality_rating": calc["quality_rating"],
+            "quality_rating": calc["quality_rating"],      # DISPLAY — what the app shows
+            "quality_raw": calc.get("quality_raw"),        # RANKING — the physics, sorted on below
+            "quality_confirmed": calc.get("quality_confirmed"),
             "quality_label": calc["quality_label"],
             "conditions_label": calc["conditions_label"],
             "wind_class": calc["wind_class"],
@@ -113,9 +141,6 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
     # first light; a night swell tells you what the morning inherits). What must not happen is a
     # dark hour being PRESENTED as "the best time to surf" — measured 2026-07-29 at 9 of 17 spots.
     # A frame whose light could not be determined sorts as surfable, i.e. exactly as it did before.
-    def _rank_key(r):
-        return (not r.get("surfable_light", True), -r["quality_rating"], -r["breaking_height_ft"])
-
     best = sorted(series, key=_rank_key)[:max(1, top)]
 
     out: Dict[str, Any] = {

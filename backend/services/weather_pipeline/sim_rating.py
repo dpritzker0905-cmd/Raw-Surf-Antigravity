@@ -177,6 +177,20 @@ def reference_size_for(spot: Dict[str, Any], allow_lookup: bool = False,
 
 
 # 3. Core Physics and Weather Calculation Engine
+# ⭐⭐⭐ THE TWO SCORE COORDINATES, NAMED ONCE (2026-08-03, external deep audit findings 1-3).
+# The observation gate (#13, `79e1001a`) created two legitimate truths for one spot-hour, and
+# `quality_rating` was an unqualified name for BOTH — `sim_window` published the ungated score under
+# it while this module and `sim_compare` published the gated one. Three sibling tools of one MCP
+# server, one field name, two quantities. Third instance of that class in a day (`0a00766f` the
+# infobox's bare `Height`; `bc304e44` the conditions route's `wave_height_ft`).
+# ⇒ Every sim surface returning a score must publish BOTH and say which is which. Ranking,
+#   explanation, app-parity and confidence are not interchangeable once a cap exists.
+SCORE_COORDINATES = {
+    "quality_rating": "display",   # capped by confirmation — matches what the app SHOWS
+    "quality_raw": "ranking",      # the physical nine-factor score — rank and EXPLAIN on this
+}
+
+
 def calculate_surf_rating(
     spot: Dict[str, Any],
     swell_h: float,
@@ -343,7 +357,17 @@ def calculate_surf_rating(
         reference_size_m=_ref,
         partitions=partitions,
         break_depth_m=_break_depth,
-        engine_score=quality_score,
+        # ⛔⛔ RECONCILE AGAINST THE PHYSICS, NOT THE DISPLAY. This used to pass `quality_score`,
+        # which the observation gate has already capped — so on every gated hour `sim_explain`
+        # compared a nine-factor product against a clipped number, reported a 27.4-point
+        # `reconstruction_error`, and warned "the factor list is missing something the engine
+        # applies — trust the engine's score, not this breakdown". A FALSE alarm: the missing step
+        # was the gate, and the factor list was correct all along.
+        # ⭐ It was also not rare. The gate binds iff raw > 69.9 — iff the hour reads GOOD OR
+        # BETTER — and `confirmed` is None on 97.9% of served spots, so the contradiction fired on
+        # essentially every query about a genuinely good hour. The raw->display step is published
+        # as `display_adjustment` below instead of leaking out as a defect report.
+        engine_score=quality_raw,
     )
 
     out = {
@@ -364,6 +388,20 @@ def calculate_surf_rating(
         "shore_normal_deg": shore_normal,
         "shore_normal_source": geo.shore_normal_src if geo is not None else "catalog_fallback",
     }
+    # ★ NAME THE RAW->DISPLAY STEP, and reconcile it numerically. A cap that is applied silently
+    #   turns the explanation into a liar; a cap that says so is just a second, honest fact.
+    #   ABSENT when the gate did not bind — a field that is always present says nothing.
+    if quality_raw is not None and quality_score is not None and quality_score < quality_raw - 0.05:
+        out["display_adjustment"] = {
+            "reason": "observation_unconfirmed_cap" if quality_confirmed is None
+            else f"observation_{quality_confirmed}_cap",
+            "from": quality_raw,
+            "to": quality_score,
+            "confirmed": quality_confirmed,
+            "means": ("the physics scores this hour higher than the app will DISPLAY, because no "
+                      "nearby observation confirms it — `quality_raw` is the forecast, "
+                      "`quality_rating` is what the map shows"),
+        }
     if explanation:
         out["why"] = explanation
         summary = sim_explain.summarize(explanation)

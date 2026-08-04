@@ -60,6 +60,29 @@ MAX_RADIUS_KM = float(os.environ.get("SIM_COMPARE_MAX_RADIUS_KM", "300"))
 # on a 1.2-point margin would be false precision dressed as a recommendation.
 RESOLVING_POWER_PTS = 6.0
 
+
+def _ranking_score(row) -> float:
+    """The RANKING coordinate for one row — ungated physics, display as the legacy fallback.
+    One definition so the sort key and the margin cannot drift apart (see `_ranking_margin`)."""
+    raw = row.get("quality_raw")
+    return float(raw if raw is not None else row["quality_rating"])
+
+
+def _ranking_margin(ranked) -> float:
+    """Top-two separation IN THE COORDINATE THE RANKER SORTED ON.
+
+    ⛔⛔ THIS USED TO READ `quality_rating` — the GATED display score — while `_rank_key` sorted on
+    `quality_raw`. Above the cap `d(display)/d(raw) = 0` exactly, so the margin was measured in
+    precisely the space where the separation had been destroyed. Measured: A raw 97.3 and B raw
+    71.0 both cap to 69.9, so the tool ranked A first on a 26.3-point lead and then told the user
+    "they are not distinguishable by this forecast — treat them as equal".
+    ⭐ Winner selection and the confidence in that winner must be the same dependent variable.
+    ⚠️ It fires only when a top-two spot also carries a `degraded` bearing — 38-40% of served spots,
+    so common rather than exotic, but it does bound the blast radius."""
+    if len(ranked) < 2:
+        return 0.0
+    return _ranking_score(ranked[0]) - _ranking_score(ranked[1])
+
 EARTH_R_KM = 6371.0088
 
 
@@ -224,8 +247,7 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
     def _rank_key(r):
         return (r.get("geometry_readiness") == "blind",
                 not r.get("surfable_light", True),
-                -(r.get("quality_raw") if r.get("quality_raw") is not None
-                  else r["quality_rating"]),      # rank UNGATED — see quality_raw above
+                -_ranking_score(r),              # rank UNGATED — see quality_raw above
                 -r["breaking_height_ft"])
 
     ranked = sorted(series, key=_rank_key)
@@ -254,7 +276,7 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
             f"compared against the rest. Named in `series` with geometry_readiness 'blind'.")
 
     if len(ranked) >= 2 and ranked[0].get("geometry_readiness") != "blind":
-        margin = ranked[0]["quality_rating"] - ranked[1]["quality_rating"]
+        margin = _ranking_margin(ranked)
         coarse = [r for r in ranked[:2] if r.get("geometry_readiness") == "degraded"]
         if margin < RESOLVING_POWER_PTS and coarse:
             # False precision is the failure mode a ranking invites. Say when the top two are inside
