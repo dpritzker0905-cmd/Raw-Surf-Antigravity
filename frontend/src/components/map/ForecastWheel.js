@@ -117,6 +117,24 @@ export function wheelSettleTarget(hour, max) {
   return Math.max(0, Math.min(max, Math.round(hour)));
 }
 
+/**
+ * What a screen reader SAYS for the current detent — the human half of `aria-valuenow`.
+ *
+ * ⭐ ONE SOURCE OF TRUTH ON PURPOSE. This text used to be built inline inside the imperative
+ * `setAria()` while the JSX declared `aria-valuenow` and NOT `aria-valuetext`. Two owners, and only
+ * one of them ran on mount: `setAria` is called from the drag/keyboard handlers and from the
+ * follow-external-value effect, which is guarded by `wheelSettleTarget(s.hour, max) !== value` —
+ * false at mount, so it is skipped. Measured live 2026-08-04: `aria-valuenow="0"` with
+ * `aria-valuetext=""`, i.e. a screen reader announced a bare number with no unit until the user
+ * interacted. The information existed in the code and never reached the person who needed it, at
+ * exactly the moment they needed it.
+ */
+export function wheelValueText(hour, isRadar) {
+  if (isRadar) return `frame ${hour + 1}`;
+  if (hour === 0) return 'Now';
+  return hour === 1 ? '+1 hour' : `+${hour} hours`;
+}
+
 /** Tick pitch in CSS px: forecast hours are dense; radar frames spread to stay readable. */
 export function wheelPitchPx(isRadar, max) {
   return isRadar ? 28 : 14;
@@ -176,7 +194,7 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
     if (!box) return;
     const h = wheelSettleTarget(s.hour, max);
     box.setAttribute('aria-valuenow', h);
-    box.setAttribute('aria-valuetext', isRadar ? `frame ${h + 1}` : (h === 0 ? 'Now' : `+${h} hours`));
+    box.setAttribute('aria-valuetext', wheelValueText(h, isRadar));
   }, [max, isRadar, s]);
 
   const commit = useCallback((h) => {
@@ -314,6 +332,10 @@ const ForecastWheel = ({ isRadar, max, value, theme, onPreview, onCommit, onScru
       aria-valuemin={0}
       aria-valuemax={max}
       aria-valuenow={wheelSettleTarget(s.hour, max)}
+      // Declared here as well as in `setAria`, so it is correct FROM FIRST PAINT rather than only
+      // after the user drives the wheel. React owns neither attribute exclusively — `setAria` still
+      // updates both mid-gesture without a re-render — but both now read the same function.
+      aria-valuetext={wheelValueText(wheelSettleTarget(s.hour, max), isRadar)}
       onPointerDown={onPointerDown}
       onPointerMove={onPointerMove}
       onPointerUp={onPointerUp}
