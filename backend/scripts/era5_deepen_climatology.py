@@ -314,15 +314,46 @@ def _upload_inbox_batch(session, url, svc, results, end_date, seq):
                        "n": rec["n"], "tp_tm_ratio": rec["ratio"]}}
         for sid, rec in results.items()
     }
-    resp = session.post(
-        f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json",
-        headers={"Authorization": f"Bearer {svc}", "apikey": svc,
-                 "Content-Type": "application/json", "x-upsert": "true"},
-        data=json.dumps({"batch_id": batch_id, "spots": spots_payload},
-                        separators=(",", ":")).encode("utf-8"), timeout=120)
-    if resp.status_code not in (200, 201):
+    # ⛔⛔ A DEAD CONNECTION IS NOT A REJECTION (measured 2026-08-03: the campaign died here).
+    # The `raise SystemExit` below is deliberate and stays — an HTTP 4xx/5xx is the server REFUSING
+    # the batch, and failing loudly beats silently losing work. But a transport error is different in
+    # kind, and it is the one that actually happened:
+    #     requests.exceptions.ConnectionError: ('Connection aborted.',
+    #       ConnectionResetError(10054, 'An existing connection was forcibly closed by the remote host'))
+    # It propagated unhandled and KILLED the run at spot ~110 of 1,773, taking the unbanked tail of
+    # the current batch with it.
+    # ★ THE POINT: this script's whole design is "BANK THE WORK AS IT IS EARNED" precisely so a
+    #   multi-day job survives interruption — and the checkpoint itself was the one unprotected step.
+    #   Over ~5 days of HTTPS a TCP reset is the MOST LIKELY event, not an edge case, so the
+    #   checkpoint must be the most robust call in the file rather than the least.
+    payload = json.dumps({"batch_id": batch_id, "spots": spots_payload},
+                         separators=(",", ":")).encode("utf-8")
+    target = f"{url}/storage/v1/object/weather-products/{INBOX_PREFIX}{batch_id}.json"
+    headers = {"Authorization": f"Bearer {svc}", "apikey": svc,
+               "Content-Type": "application/json", "x-upsert": "true"}
+    last_transport_err = None
+    for attempt in range(5):                       # ~1+2+4+8 s of backoff, then give up loudly
+        try:
+            resp = session.post(target, headers=headers, data=payload, timeout=120)
+        except Exception as e:                     # transport only — requests raises these, not HTTP
+            last_transport_err = e
+            wait = 2 ** attempt
+            # ASCII ONLY, DELIBERATELY. The first version of this line carried a non-ASCII glyph and
+            # raised UnicodeEncodeError on a cp1252 stdout — so the retry written to survive a
+            # transient error would itself have killed the run on the FIRST retry, which is strictly
+            # worse than no retry at all. A FAILURE PATH MUST BE THE MOST ROBUST CODE IN THE FILE,
+            # and it is the one path that never runs in testing unless you force it.
+            print(f"    [retry {attempt + 1}/5] inbox upload transport error "
+                  f"({type(e).__name__}); waiting {wait}s. The batch is still in memory.",
+                  flush=True)
+            time.sleep(wait)
+            continue
+        if resp.status_code in (200, 201):
+            return batch_id
+        # A real REJECTION: fail loudly, unchanged behaviour.
         raise SystemExit(f"inbox upload failed: HTTP {resp.status_code} {resp.text[:200]}")
-    return batch_id
+    raise SystemExit(f"inbox upload failed after 5 attempts, last transport error: "
+                     f"{type(last_transport_err).__name__}: {last_transport_err}")
 
 
 def select_scope(spots, query="", limit=0, done=frozenset()):
