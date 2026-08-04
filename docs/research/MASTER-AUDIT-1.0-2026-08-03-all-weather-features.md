@@ -1,6 +1,53 @@
 # MASTER AUDIT REPORT 1.0 — all weather features
 **2026-08-03** · backend · frontend · database · live API · deployed site · the sim · ERA5 lane · CI
 
+> ## ⛔ REVISION 1.1 — READ THIS BEFORE THE BODY. THREE OF THIS REPORT'S OWN CONCLUSIONS WERE OVERTURNED.
+>
+> Work after this report was written (partly by concurrent sessions) **refuted or reversed three of
+> its load-bearing claims.** They are corrected here rather than quietly left standing, because a
+> wrong report is worse than no report.
+>
+> ### R1. ⛔ §8 PRIORITY 0 — "flag spots sharing an identical shore normal" — IS STATISTICALLY VOID
+> I put it at the top of the queue on the strength of Padang Padang and Bingin both returning
+> **316.5°**. A **permutation test returned p = 1.000** — identical normals occur exactly as often as
+> chance in this catalogue, so "two spots share a bearing" carries **no signal at all**. The Bali
+> observation was a real coincidence, not a detector. ⇒ **Do not build the discriminator I proposed.**
+> ★ The lesson is mine to keep: I promoted a vivid n=2 anecdote to priority zero without asking what
+> its base rate was. A striking coincidence is not evidence until you know how often coincidence
+> happens.
+>
+> ### R2. ⛔⛔ THE `swell_exposure` STORY REVERSED — THE FLOOR IS TOO **GENEROUS**, NOT TOO HARSH
+> The whole session (and §2c) treated the 0.10 floor as an over-punishment. **The science says the
+> opposite.** A real sea is not one ray but a directional SPECTRUM, `cos^{2s}(φ/2)`, with s≈70 for
+> swell and s≈10 for windsea. Integrating the actual energy flux at Δθ = 100° gives **0.013 for
+> swell against our flat 0.100** ⇒ **the spots sitting ~37° past the cutoff are CORRECTLY floored,
+> and the floor is NOT the ceiling.** ⇒ **Do not soften it.** (`2d17dc41`)
+> ⚠️ Related and also measured: **the two directional factors disagree by 3.5×**, and **the owner-
+> anchor A/B is BLIND — a 47% height cut moves all five anchors by 0.0**, so it cannot validate any
+> height or exposure change.
+>
+> ### R3. ⚠️ §1a WAS HALF THE ANSWER — I VERIFIED THE OTHER HALF MYSELF
+> §1a's constructive proof stands: the engine really does return **97.3 "epic"** with all nine
+> multipliers at 1.0. But I concluded "the composition is sound; **the inputs never land in the
+> window**" — and that is only half true. Executed at HEAD:
+> ```
+> GOOD_T = 70.0 · CAP_UNCONFIRMED = 69.9  ⇒  cap < threshold
+> raw 100.0, confirmed=None -> gated 69.9 -> level 'fair_good'
+> ```
+> **Even a perfect 100 displays as `fair_good` when unconfirmed.** And BOTH supplies of `confirmed`
+> measure zero (cross-model 0/979; user reports 0). So **P(display ≥ good) = 0 EXACTLY — it is
+> ARITHMETIC, not a data shortfall.** My 97.3 read `epic` only because a what-if is deliberately
+> ungated. ⇒ Fixing the inputs alone changes nothing on screen; the cap sits 0.1 below the word it
+> withholds. **Two sequential projects, and this report implied one.**
+> ⚠️ Also refuted since: ledger #1's *"the gate self-resolves once the conjunction is fixed"* — the
+> withheld count stays FLAT as scores lift (12 → 118 → 154), and **at k=1.5, 52% is still withheld.**
+>
+> **What still stands:** the §0 meta-finding, §2a (`coarse_fill`), §2b (the sim's breaker — with the
+> caching detail corrected by `77f66211`: failures were cached **60× the breaker's TTL** and the
+> HEALTHY leg cleared it, so health went UP while the answer stayed MISSING), §5 (the skill gap),
+> and every §7 fix. See `AUDIT-OF-THE-AUDIT-2026-08-03` — an external review scored 5/5 where this
+> report's own fan-out scored 0/17.
+
 **Method:** 12 parallel survey agents (2.65 M tokens, 813 tool uses, 22 min) over docs/handoffs,
 backend chain, frontend chain, the sim, database, ERA5 lane, flags/wiring, tests/CI, live API,
 external best practice, accuracy levers, perf/memory — then **every critical/high finding sent to an
