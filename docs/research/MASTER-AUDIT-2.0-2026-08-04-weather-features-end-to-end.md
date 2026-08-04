@@ -255,9 +255,21 @@ Driven on the local harness (real Render data). **No console errors.**
    gestures, +20 uploads, nothing released. Memory grew only 2.7 MB so each texture is small, but no
    release was observed. Worth a longer-session watch. *(Caveat: rAF was throttled in a hidden tab;
    a visible tab may recycle differently.)*
-2. ⚠️ **a11y, minor but real:** both forecast wheels have **empty `aria-valuetext`**, so a screen
-   reader announces a bare "6" with no unit; and **two sliders carry the identical label** "Forecast
-   timeline wheel" (desktop + mobile layouts both in the DOM, both `tabindex=0`).
+2. ✅⛔ **a11y — one half was real and is FIXED, the other half was MY MEASUREMENT ERROR.**
+   * **REAL, fixed `e9b76900`:** the wheel served `aria-valuetext=""`, so a screen reader announced
+     a bare number with no unit. The JSX declared `aria-valuenow` but not `aria-valuetext`, which
+     only the imperative `setAria()` set — and that never runs at mount. Verified live: "Now" /
+     "+6 hours" / "+1 hour".
+   * ⛔ **REFUTED — "two sliders carry the identical label".** `MapWeatherControls` does mount twice
+     (`isDesktop` true/false) so the DOM really holds two wheels, but the hidden one is **not
+     rendered and not focusable**, and the ACCESSIBILITY TREE exposes exactly **ONE** slider.
+     Measured: hidden wheel `getClientRects()==0`, `offsetParent==null`, `focus()` does not land;
+     `read_page` lists a single `slider "Forecast timeline wheel"`.
+     ★★ **THE LESSON: `querySelectorAll` sees DOM nodes regardless of rendering, so it cannot judge
+     accessibility — and the a11y tree is not authoritative either (see item 3: it falsely reported
+     12 anonymous buttons the same day). THE ARBITER IS BEHAVIOURAL — client rects plus whether
+     `focus()` actually lands.** Believing this would have cost a risky refactor of MapPage's
+     dual-mount layout to fix a defect that does not exist.
 3. ✅ **Correction to my own earlier read:** `read_page`'s accessibility tree showed 12 unnamed
    buttons in the weather controls. **That was the misleading instrument** — DOM inspection shows all
    nine layer toggles carry text labels *and* `aria-pressed`. 0 of 63 buttons are truly anonymous.
@@ -315,7 +327,8 @@ cross-tab, a primary source, or reading the served artifact.
 4. ⭐ **Let the ERA5 campaign finish (§5)** — now hourly-supervised. Add the wedged-process liveness
    check. It unblocks percentile levels, empirical exposure, and the learned nearshore transform.
 5. **Promote `dev` to `main` (§10)** once 1-3 land.
-6. Minor: scrubber `aria-valuetext`; duplicate slider labels; the leaked-password toggle; a longer
+6. Minor: ~~scrubber `aria-valuetext`~~ ✅`e9b76900` · ~~duplicate slider labels~~ ⛔REFUTED, not a
+   defect (the a11y tree exposes one slider) · the leaked-password toggle; a longer
    texture-lifecycle watch in a visible tab.
 
 ---
