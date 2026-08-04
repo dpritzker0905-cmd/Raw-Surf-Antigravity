@@ -404,11 +404,65 @@ def _stalled_minutes(pid):
         return None
 
 
+def peer_from_marker():
+    """A live peer campaign inferred from the progress marker, or None.
+
+    ⭐⭐ WHY THIS EXISTS, AND IT IS A REGRESSION THE S4U FIX INTRODUCED. Once the scheduled task runs
+    `LogonType: S4U` it lands in session 0, and an unelevated `psutil` then raises `AccessDenied` on
+    that process's `cmdline()` — MEASURED 2026-08-04: `_another_instance_pid()` returned None while
+    the campaign was demonstrably running (task State: Running, log writing every few seconds).
+    **The session fix that stopped the campaign being killed also blinded the guard that stops two
+    campaigns running at once.** `MultipleInstances: IgnoreNew` still protects the SCHEDULED path,
+    but a manual run would no longer be blocked — the exact double-CDS-load collision the guard was
+    built for.
+    ★ The marker already carries the pid, so identity does not need process introspection at all.
+    """
+    try:
+        raw = json.loads(_progress_path().read_text(encoding="utf-8"))
+        pid = int(raw.get("pid", -1))
+        if pid <= 0 or pid == os.getpid():
+            return None
+        import psutil
+        return pid if psutil.pid_exists(pid) else None
+    except Exception:                            # noqa: BLE001 - missing/corrupt marker = no peer
+        return None
+
+
+def _marker_predates(pid, raw_ts):
+    """True when `pid` STARTED BEFORE its marker was written — i.e. the marker really describes this
+    process and not a recycled pid that happens to reuse the number.
+
+    ⛔ REFUSES (False) when the start time cannot be read. Detection may be permissive because the
+    cost of standing down needlessly is one skipped run; REAPING may not, because the cost of a
+    wrong kill is terminating an unrelated process.
+    """
+    try:
+        import psutil
+        from datetime import datetime as _dt
+        started = psutil.Process(pid).create_time()
+        ts = _dt.fromisoformat(str(raw_ts))
+        if ts.tzinfo is None:
+            ts = ts.replace(tzinfo=timezone.utc)
+        return started <= ts.timestamp() + 1.0
+    except Exception:                            # noqa: BLE001
+        return False
+
+
 def _reap_if_wedged(pid, stall_minutes=None):
     """Kill `pid` only when its OWN progress marker proves it has stalled. Returns True if killed."""
     limit = STALL_MINUTES if stall_minutes is None else stall_minutes
     idle = _stalled_minutes(pid)
     if idle is None or idle < limit:
+        return False
+    # ⛔ A stale marker is not enough to justify a kill: the pid may have died and been RECYCLED,
+    # and terminating an unrelated process is far worse than leaving a wedge one more hour.
+    try:
+        _raw = json.loads(_progress_path().read_text(encoding="utf-8"))
+    except Exception:                            # noqa: BLE001
+        return False
+    if not _marker_predates(pid, _raw.get("ts")):
+        print(f"  pid {pid} looks stalled ({idle:.0f} min) but its start time cannot be shown to "
+              f"predate the marker — refusing to kill a possibly-recycled pid.", flush=True)
         return False
     try:
         import psutil
@@ -429,7 +483,15 @@ def peer_to_respect(other):
     a guard that is merely *referenced* by the caller has been green in this repo while unable to
     reach the surface it guarded. `main` is one line -- `other = peer_to_respect(other)` -- so
     exercising this function exercises what actually runs.
+
+    ⭐ TWO INDEPENDENT WAYS TO SEE A PEER, because neither covers both cases:
+      * the cmdline scan finds a peer in THIS session (a manual run) but goes blind on an S4U
+        scheduled run (`psutil.AccessDenied`, measured);
+      * the progress marker finds an S4U peer by pid, but only once that peer has written one.
+    Taking whichever answers means the S4U fix cannot silently disarm the collision guard.
     """
+    if not other:
+        other = peer_from_marker()
     if other and _reap_if_wedged(other):
         return None
     return other
@@ -595,6 +657,12 @@ def main():
           + (f"  (of {n_remaining} still needing work; --limit {args.limit} caps THIS run — "
              f"{n_remaining - len(spots)} deferred to the next)"
              if args.limit and n_remaining > len(spots) else ""))
+
+    # ⭐ CLAIM THE MARKER BEFORE THE FIRST SPOT. `peer_from_marker` is how an S4U run is seen at all
+    # (its cmdline is unreadable), and a peer that has completed nothing yet would otherwise be
+    # invisible for its first 5-50 minutes — precisely the window in which a second run is most
+    # likely to be started by hand.
+    _mark_progress(0, len(spots), "starting")
 
     end_date = datetime.now(timezone.utc).strftime("%Y-%m-%d")
     client = _cds()

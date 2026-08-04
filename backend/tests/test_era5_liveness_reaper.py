@@ -105,6 +105,14 @@ def test_a_stalled_run_is_reaped_and_the_caller_may_proceed(marker, monkeypatch)
         def __init__(self, pid):
             self.pid = pid
 
+        def create_time(self):
+            # ⚠️ ADDED 2026-08-04 when the reaper gained a PID-RECYCLING check: a kill now also
+            # requires the target to have STARTED BEFORE its marker was written. This fake had no
+            # start time at all, so the guard correctly refused — the fake was an incomplete model
+            # of a process, not the guard being wrong. A far-past start time is what a genuinely
+            # wedged peer looks like. `test_era5_peer_from_marker.py` owns the recycled case.
+            return 0.0
+
         def kill(self):
             killed.append(self.pid)
 
