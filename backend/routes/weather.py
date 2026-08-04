@@ -330,6 +330,16 @@ class SpotRatingItem(BaseModel):
     # can still be scored against a coarse 0.25° bearing that is median 22.3° off, changing the
     # LEVEL on 45.8% of evaluations. Optional so an older precomputed frame simply omits it.
     geometry_readiness: Optional[str] = None
+    # CROSS-MODEL SPREAD for this spot-hour: {n_models, spread, median, min, max, agreement}.
+    # The precompute already scored GFS/ICON/EURO to decide `confirmed` and then discarded the
+    # disagreement; this publishes it, which is what operational practice does with an ensemble
+    # (spread quantifies uncertainty; you do not clip the mean and stay silent about it).
+    # ⛔ NOT the same quantity as `confidence` above — that grades the PIN. This grades the FORECAST,
+    # and its vocabulary is deliberately different (tight|moderate|wide) so the two cannot be read
+    # as one. None when fewer than two models covered the hour: a lone lane has no spread, and
+    # publishing 0.0 there would read as unanimity.
+    # Optional so an older precomputed frame simply omits it (same contract as geometry_readiness).
+    model_agreement: Optional[dict] = None
     # WHICH MODEL RUN produced this score. `valid_time` says which HOUR the score describes and
     # nothing about which FORECAST of that hour — and the gap is routinely large, because the point
     # resolver serves REGIONAL products on independent ingest cadences. Measured live 2026-07-31 at
