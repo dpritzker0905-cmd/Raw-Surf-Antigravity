@@ -92,6 +92,76 @@ def describe(height_m, period_s) -> Optional[str]:
             f"limit - this pair cannot occur, so the point is not authoritative")
 
 
+# ── ONE QUANTITY, TWO CHAINS: do the size and the quality agree about the swell reaching this break?
+# MEASURED 2026-08-04 (MASTER-AUDIT-2.0 section 2). "How much of the swell is aimed at this coast" is
+# reduced TWICE with floors 5.95x apart:
+#     quality  surf_rating.swell_exposure             = 0.10 + 0.90*max(0, cos dtheta)   floor 0.100
+#     height   surf_transform._height_exposure_factor = 0.55 + 0.45*exposure             floor 0.595
+# The height factor's own docstring says height scales as sqrt(energy), so the energy IT implies is
+# `factor**2` = 0.354 at the floor against the quality chain's 0.100 — a 3.54x disagreement. The
+# visible result, on 4 of 4 world-class spots sampled: one payload reporting "5.3 ft Head High" AND
+# "3.3/100 very_poor", publishing `swell_alignment_pct: 10` while its own height used 59.5%.
+#
+# ⛔ THIS DOES NOT FIX THE DISAGREEMENT — reconciling the floors is a two-sided change gated on the
+# ERA5 record, and height is currently correct BY CANCELLATION
+# (HEIGHT-ACCURACY-two-errors-that-cancel-2026-07-30). What it does is STOP HIDING IT, which is step
+# 1 of the audit's own sequencing and the only step not blocked. A number that contradicts its
+# neighbour should say so; this repo's recurring defect is a number that lies about its own origin.
+#
+# ⚠️ 1.5 is not tuned to a dataset, it is a plain reading of "materially different": above it the two
+# chains differ by more than 50% in implied energy. Measured across dtheta it fires from about 75 deg
+# (1.47 at 75, 2.23 at 85, 3.54 at 90+), i.e. exactly the off-angle population where the size and the
+# quality tell a user opposite stories.
+DIRECTIONAL_CONFLICT_MIN = 1.5
+
+
+def directional_energy_disagreement(swell_from_deg, shore_normal_deg) -> Optional[float]:
+    """`height_factor**2 / quality_exposure` — 1.0 when the two chains agree, None when unknowable.
+
+    Returns None if either bearing is missing (the engine fails OPEN to 1.0 there, so there is no
+    disagreement to report) or if the quality factor is zero.
+    """
+    if swell_from_deg is None or shore_normal_deg is None:
+        return None
+    try:
+        from services.weather_pipeline.surf_rating import swell_exposure
+        from services.weather_pipeline.surf_transform import _height_exposure_factor
+        q = swell_exposure(swell_from_deg, shore_normal_deg)
+        h = _height_exposure_factor(swell_from_deg, shore_normal_deg)
+        if not q or q <= 0:
+            return None
+        return (h * h) / q
+    except Exception as e:                          # noqa: BLE001 - never break a rating
+        logger.debug("[wave_physics] directional disagreement unavailable: %r", e)
+        return None
+
+
+def directional_conflict(swell_from_deg, shore_normal_deg) -> Optional[dict]:
+    """A payload block naming the size/quality contradiction, or None when there is nothing to say.
+
+    ⭐ ABSENT WHEN IT DOES NOT BIND, mirroring `display_adjustment`: a field that is always present
+    says nothing, and a caveat on every spot is a caveat nobody reads.
+    """
+    ratio = directional_energy_disagreement(swell_from_deg, shore_normal_deg)
+    if ratio is None or ratio < DIRECTIONAL_CONFLICT_MIN:
+        return None
+    from services.weather_pipeline.surf_rating import swell_exposure
+    from services.weather_pipeline.surf_transform import _height_exposure_factor
+    q = swell_exposure(swell_from_deg, shore_normal_deg)
+    h = _height_exposure_factor(swell_from_deg, shore_normal_deg)
+    return {
+        "reason": "size_and_quality_disagree_on_swell_exposure",
+        "quality_exposure": round(q, 3),
+        "height_exposure_factor": round(h, 3),
+        "height_implied_energy": round(h * h, 3),
+        "energy_disagreement": round(ratio, 2),
+        "means": (f"the SIZE shown assumes about {round(h * h * 100)}% of the swell's energy reaches "
+                  f"this break, while the QUALITY score assumes {round(q * 100)}%. Both come from the "
+                  f"same swell angle, so at least one is wrong; the size is the more generous of the "
+                  f"two and is the likelier overestimate. Treat the height as an upper bound here."),
+    }
+
+
 def stamp_point_validity(response: Any, domain: str, layer: str) -> Any:
     """Mark a marine point whose (H, T) pair is physically impossible as NOT authoritative.
 

@@ -26,6 +26,7 @@ from typing import Any, Dict, Optional
 
 from services.conditions_labels import get_conditions_label
 from services.weather_pipeline import sim_explain
+from services.weather_pipeline import wave_physics
 from services.weather_pipeline.surf_point import estimate_surf_at, resolve_surf_geometry
 # The PRODUCTION rating engine is authoritative (CLAUDE.md). The sim delegates to it rather than
 # carrying a second formula — a divergent copy is exactly how this file's ancestor came to rate a
@@ -388,6 +389,15 @@ def calculate_surf_rating(
         "shore_normal_deg": shore_normal,
         "shore_normal_source": geo.shore_normal_src if geo is not None else "catalog_fallback",
     }
+    # ★ NAME THE SIZE/QUALITY CONTRADICTION, on the same principle as `display_adjustment` below:
+    #   ABSENT unless it binds. The size and the quality reduce ONE physical quantity — how much of
+    #   the swell is aimed at this coast — through factors whose floors are 5.95x apart, so an
+    #   off-angle spot can report "5.3 ft Head High" and "3.3/100 very_poor" in one payload with
+    #   nothing saying they disagree. Reconciling them is gated on the ERA5 record; saying so is not.
+    _conflict = wave_physics.directional_conflict(swell_dir, shore_normal)
+    if _conflict is not None:
+        out["directional_conflict"] = _conflict
+
     # ★ NAME THE RAW->DISPLAY STEP, and reconcile it numerically. A cap that is applied silently
     #   turns the explanation into a liar; a cap that says so is just a second, honest fact.
     #   ABSENT when the gate did not bind — a field that is always present says nothing.
