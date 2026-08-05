@@ -19,9 +19,10 @@ Falsifiers, stated up front:
   If it were not, every "verified live" line would be about a different build.
 * the frontend claims are measured on the **local dev harness** (`:3011`), because production does
   not have that code (§4). Dev-build FPS/perf claims: none made.
-* ⏳ the **full backend suite has not finished** at the time of writing. Targeted suites are green;
-  the last full run (31 min) found exactly one failure and it was mine, so this is the one
-  outstanding instrument.
+* ✅ **the full backend suite has since FINISHED: 2,325 passed / 2,928 skipped / 0 failed (30:04).**
+  That is the instrument that caught my undeclared flag last time (2,295 passed / **1 failed**), so
+  its verdict is the one that mattered. The +30 passes match the tests added this session exactly
+  (4 two-regimes + 13 behavioural parity + 7 alert quality + 3 ranking + 3 gate-asymmetry).
 
 ---
 
@@ -179,8 +180,8 @@ initially misattributed. It is the top queue item.
 
 ## §5 WHAT I DID NOT DO
 
-* **The full backend suite had not finished** when this was written. It is the instrument that found
-  my undeclared flag; its result belongs in the next handoff, not in a claim here.
+* ~~The full backend suite had not finished~~ — **it did: 2,325 passed / 0 failed.** No regression
+  from any of the 19 commits, and the skip count is unchanged at 2,928.
 * **The orphan lane** (244 tests that run nowhere) is reverted, not solved.
 * **ERA5 sample banking** — refuted, not implemented: `samples` holds only scalar breaking heights,
   so it is not the training set the plan assumes.

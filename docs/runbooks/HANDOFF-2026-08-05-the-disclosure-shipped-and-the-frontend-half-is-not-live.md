@@ -117,8 +117,9 @@ fixes it" as a property of the system; it was a property of my fixture.
 * ERA5 campaign healthy — 76/150 this batch, 70 banked, log fresh.
 * `loc_ratchet` exit 0. ESLint gate green at baseline. `alerts.py` is at **784/800** — the next
   addition there needs its rationale moved to `docs/`, not deleted.
-* ⏳ **The full backend suite had not finished when this was written.** It is the instrument that
-  caught my undeclared flag last time; check it before trusting a clean bill.
+* ✅ **Full backend suite: 2,325 passed / 2,928 skipped / 0 FAILED (30:04).** The instrument that
+  caught the undeclared flag last time now reports green. +30 passes over the previous run, matching
+  the tests added this session exactly. Skip count unchanged at 2,928 — nothing was silenced.
 * Memory index is **21.2 KB** against a 17 KB compaction mark. The next reduction has to retire a
   whole topic, not shave prose.
 * Working tree carries another session's untracked `backend/scripts/geometry_backfill.{json,sql}` —
