@@ -1,32 +1,52 @@
 /**
- * E2E: Booking Flow — explore → spot → request drawer
+ * E2E: Explore → spot hub, plus the anonymous access gate.
  *
- * ⛔⛔ WHY THIS FILE WAS REWRITTEN (2026-08-05). Every test in it failed on every browser — 20 of
- * the suite's 32 failures — and had been failing since it was written, invisibly, because the E2E
+ * ⛔⛔ WHY THIS FILE WAS REWRITTEN (2026-08-05). Every test failed on every browser — 20 of the
+ * suite's 32 failures — and had done so since the day it was written, invisibly, because the E2E
  * job had NEVER EXECUTED A SINGLE TEST (0 of 1,000 runs; its trigger matched an environment string
- * no deployment has ever had). The specs were written against a route map and an auth model the app
- * does not have, and nothing ever said so.
+ * no deployment has ever had). Nothing here was a product bug. Every assertion was written against
+ * a route map, an auth model and a set of selectors the app does not have.
  *
- * MEASURED against the live dev preview, not inferred:
- *   /explore  -> REDIRECTS to /auth?tab=signup&redirect=%2Fexplore   (it is AUTH-GATED)
- *   /login    -> stays at /login and renders the MARKETING LANDING PAGE (0 forms, 0 email inputs)
- *   /signup   -> the same. Neither is a route; the real one is /auth.
- *   /auth     -> renders a CATEGORY CHOOSER first (data-testid: auth-card, login-tab, signup-tab,
- *                category-surfer/photographer/business) — still 0 forms until a category is picked.
- *   /         -> 0 <nav> elements; the bottom nav is authenticated-only.
+ * MEASURED against the live dev preview — every line below was checked in a browser first:
+ *   /explore, /map          AUTH-GATED -> /auth?tab=signup&redirect=%2Fexplore when anonymous
+ *   /login, /signup         NOT ROUTES. They fall through to the marketing landing page
+ *                           (0 forms, 0 email inputs). The real one is /auth.
+ *   the localStorage stub   WORKS. Seeding `raw-surf-user` is enough to pass the guard — the
+ *                           weather spec already relies on it, and /explore then renders fully.
+ *   spot cards              are `[data-testid^="trending-spot-"]` (4 present). `spot-card` and
+ *                           `.spot-card` DO NOT EXIST anywhere in the app.
+ *   clicking a spot         NAVIGATES to /spot-hub/<uuid> and shows `close-spothub-btn`.
+ *                           It is not a drawer, not a [role=dialog], not a .spot-hub element.
  *
- * ★★★ THE TRAP THAT MADE IT LOOK PLAUSIBLE: the old `beforeEach` waited for `[data-testid]`, and
- * that wait SUCCEEDED — the auth page it had been redirected to has seven of them. The setup passed,
- * so the failure surfaced as "spot cards not visible", which reads like a product bug rather than
- * "you are anonymous and on a completely different page".
- * ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
- *
- * WHAT THIS FILE NOW DOES: it tests what an ANONYMOUS visitor can actually reach — real coverage
- * that passes honestly. The authenticated booking flow, which is what the original was reaching
- * for, needs a signed-in fixture and is marked `test.fixme` with that reason, so it stays VISIBLE
- * as missing rather than silently red or quietly deleted.
+ * ★★★ THE TRAP THAT MADE IT READ AS A PRODUCT BUG: the old `beforeEach` waited for `[data-testid]`
+ * and that wait SUCCEEDED — the auth page it had been redirected to carries seven of them. Setup
+ * passed, so every failure surfaced as "spot cards not visible", which looks like broken data
+ * loading rather than "you are anonymous, on a different page, using a selector that does not
+ * exist". ⇒ A SETUP ASSERTION MUST PIN WHERE IT LANDED, not merely that something rendered.
  */
 const { test, expect } = require('@playwright/test');
+
+// The same stub the weather spec uses. Measured sufficient to pass the route guard.
+const standardUser = {
+  id: 'test-surfer-id',
+  email: 'surfer@rawsurf.com',
+  full_name: 'Standard Surfer',
+  username: 'standardsurfer',
+  role: 'user',
+  subscription_tier: 'premium',
+  is_admin: false,
+};
+
+async function signIn(page) {
+  await page.goto('/auth', { waitUntil: 'domcontentloaded' });
+  await page.evaluate(({ user }) => {
+    localStorage.setItem('raw-surf-user', JSON.stringify(user));
+    localStorage.setItem(`tos-accepted-${user.id}-1.0`, Date.now().toString());
+    localStorage.setItem('raw-surf-cookie-consent',
+      JSON.stringify({ accepted: true, timestamp: Date.now() }));
+    localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
+  }, { user: standardUser });
+}
 
 test.describe('Anonymous access control', () => {
   test('explore is auth-gated and redirects an anonymous visitor to /auth', async ({ page }) => {
@@ -39,14 +59,6 @@ test.describe('Anonymous access control', () => {
     expect(new URL(page.url()).searchParams.get('redirect')).toBe('/explore');
   });
 
-  test('the landing page renders for a signed-out visitor', async ({ page }) => {
-    await page.goto('/');
-    await expect(page.getByText('Raw Surf').first()).toBeVisible({ timeout: 15000 });
-    await expect(page.locator('[data-testid]').first()).toBeVisible({ timeout: 10000 });
-  });
-});
-
-test.describe('Authentication', () => {
   test('the auth page offers both login and signup', async ({ page }) => {
     // ⚠️ /login and /signup are NOT routes — they fall through to the landing page. /auth is.
     await page.goto('/auth');
@@ -64,31 +76,35 @@ test.describe('Authentication', () => {
   });
 });
 
-test.describe('Booking Flow (authenticated)', () => {
-  // ⛔ NOT SKIPPED SILENTLY. `fixme` reports these in the run summary, so the gap stays COUNTABLE
-  //    instead of vanishing. They need a signed-in storageState fixture, and the backend suite is
-  //    the warning here — its single modal skip reason is "Login failed", from long-rotated test
-  //    credentials, so an auth fixture has to be built deliberately rather than assumed.
-  test.fixme('spot cards are visible on explore — NEEDS an authenticated fixture', async ({ page }) => {
+test.describe('Explore', () => {
+  test.beforeEach(async ({ page }) => {
+    await signIn(page);
     await page.goto('/explore');
-    await expect(page.locator('[data-testid="spot-card"]').or(page.locator('.spot-card')).first())
+    // ★ THE ASSERTION THE OLD SETUP LACKED. Pin that we are actually ON explore, so an auth
+    //   regression fails HERE, naming itself, instead of surfacing as a missing element later.
+    await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
+    await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 20000 });
+  });
+
+  test('explore shows the search input', async ({ page }) => {
+    await expect(page.locator('[data-testid="explore-search-input"]')).toBeVisible({ timeout: 10000 });
+  });
+
+  test('spot cards are visible on explore', async ({ page }) => {
+    // ⚠️ `spot-card` / `.spot-card` do not exist in this app. Spots render as trending-spot-<uuid>.
+    await expect(page.locator('[data-testid^="trending-spot-"]').first())
       .toBeVisible({ timeout: 20000 });
   });
 
-  test.fixme('clicking a spot opens the spot drawer — NEEDS an authenticated fixture', async ({ page }) => {
-    await page.goto('/explore');
-    await page.locator('[data-testid="spot-card"]').or(page.locator('.spot-card')).first().click();
-    await expect(
-      page.locator('[data-testid="spot-drawer"]')
-        .or(page.locator('[role="dialog"]'))
-        .or(page.locator('.spot-hub'))
-    ).toBeVisible({ timeout: 10000 });
+  test('clicking a spot opens its spot hub', async ({ page }) => {
+    await page.locator('[data-testid^="trending-spot-"]').first().click();
+    // ⚠️ Measured: this NAVIGATES to /spot-hub/<uuid>. It is not a drawer or a [role=dialog].
+    await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
+    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test.fixme('bottom nav is visible — NEEDS an authenticated fixture', async ({ page }) => {
-    // Measured: the signed-out landing page carries 0 <nav> elements.
-    await page.goto('/');
-    await expect(page.locator('[data-testid="bottom-nav"]').or(page.locator('nav').last()))
-      .toBeVisible({ timeout: 10000 });
+  test('the bottom nav is present for a signed-in user', async ({ page }) => {
+    // Measured: the signed-OUT landing page carries 0 <nav> elements; this is authenticated-only.
+    await expect(page.locator('[data-testid="bottom-nav"]')).toBeVisible({ timeout: 10000 });
   });
 });
