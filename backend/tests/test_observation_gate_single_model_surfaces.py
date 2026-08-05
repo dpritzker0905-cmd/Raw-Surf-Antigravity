@@ -153,3 +153,85 @@ def test_gate_helper_agrees_with_the_primitive_every_surface_already_uses():
 def test_haversine_is_sane():
     assert rc._haversine_km(0.0, 0.0, 0.0, 0.0) == pytest.approx(0.0)
     assert rc._haversine_km(0.0, 0.0, 0.0, 1.0) == pytest.approx(111.19, abs=0.5)
+
+
+# ── ⛔ THE DECISION THIS FILE RECORDS IS NOW ENFORCED, NOT JUST DESCRIBED ────────────────────────
+#
+# A 2026-08-05 audit measured the flag asymmetry and called it a defect:
+#
+#     spot_ratings / routes.weather / grid_resolver_surf   read RATING_OBS_GATE
+#     spot_conditions / sim_rating                         do NOT — they cap unconditionally
+#
+# and proposed "gate both call sites the way the other three are gated". THAT WOULD RE-OPEN THE
+# DEFECT IN THIS FILE'S HEADER. `RATING_OBS_GATE` defaults to "0" in code and is unset outside
+# Render, so wrapping the hub and the sim in it restores the measured Moss Landing split (map 83.9
+# 'good' vs ungated 95.9 'epic') in every lane where the flag is off — including the local lane the
+# sim actually runs in.
+#
+# The asymmetry is the DESIGN: the kill switch un-gates the three GLYPH lanes; the two surfaces that
+# answer "what will the app SHOW" always show what the app shows. It is safe because a confirmation
+# MISS caps at 69.9, which is what the map already displays — the failure mode points toward
+# agreement (999 spot-hours: gate binds 66, raw >= 70 is 66, an identical count).
+#
+# ⇒ These two tests exist so the "consistency fix" fails loudly instead of shipping.
+
+_UNCONDITIONAL_GATE_SURFACES = [
+    ("services/weather_pipeline/spot_conditions.py", "the spot HUB"),
+    ("services/weather_pipeline/sim_rating.py", "the weather SIM"),
+]
+
+
+@pytest.mark.parametrize("relpath,label", _UNCONDITIONAL_GATE_SURFACES)
+def test_the_hub_and_sim_gate_UNCONDITIONALLY_and_must_not_read_the_flag(relpath, label):
+    """If this goes red, someone 'made the flag consistent'. Read the header before changing it."""
+    import os
+
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    src = open(os.path.join(backend_dir, relpath), encoding="utf-8").read()
+
+    # SETUP ASSERTION: the surface must still CALL the gate, or this test guards nothing.
+    # ⚠️ AST, not `"gate_single_model_surface" in src`. A substring check is satisfied by the
+    # `from ... import gate_single_model_surface` line alone, so it cannot tell IMPORTED from
+    # CALLED — mutation-tested 2026-08-05: replacing the call with a stub left the substring
+    # version GREEN. A presence check needs a needle that only the real thing produces.
+    import ast
+
+    called = any(
+        isinstance(n, ast.Call)
+        and (n.func.attr if isinstance(n.func, ast.Attribute) else getattr(n.func, "id", None))
+        == "gate_single_model_surface"
+        for n in ast.walk(ast.parse(src))
+    )
+    assert called, (
+        f"{label} imports the observation gate but no longer CALLS it — the defect in this file's "
+        f"header (map 83.9 'good' vs ungated 95.9 'epic') is back."
+    )
+
+    # The flag may only appear in PROSE here, never in a live `os.environ` read that could gate it.
+    for line in src.splitlines():
+        stripped = line.strip()
+        if stripped.startswith("#") or "RATING_OBS_GATE" not in line:
+            continue
+        assert "environ" not in line, (
+            f"{label} now READS RATING_OBS_GATE at {relpath}: {stripped[:90]!r}\n"
+            f"That re-opens the Moss Landing split whenever the flag is off — and it defaults to "
+            f"'0' and is unset outside Render. The asymmetry is deliberate; see this file's header."
+        )
+
+
+def test_the_three_GLYPH_lanes_still_DO_read_the_flag__THE_CONTROL():
+    """Without this, the test above would pass on a codebase where NOBODY reads the flag — i.e.
+    where the kill switch had silently stopped existing. It pins the other half of the contract."""
+    import os
+
+    backend_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    for relpath in ("services/weather_pipeline/spot_ratings.py",
+                    "routes/weather.py",
+                    "services/weather_pipeline/grid_resolver_surf.py"):
+        src = open(os.path.join(backend_dir, relpath), encoding="utf-8").read()
+        reads = [ln.strip() for ln in src.splitlines()
+                 if "RATING_OBS_GATE" in ln and "environ" in ln and not ln.strip().startswith("#")]
+        assert reads, (
+            f"{relpath} no longer reads RATING_OBS_GATE — the kill switch now controls NOTHING, "
+            f"and the asymmetry test above has become vacuous."
+        )

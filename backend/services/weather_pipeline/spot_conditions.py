@@ -399,6 +399,18 @@ async def resolve_spot_conditions_impl(
         # on the map while the ungated lanes said 95.9 'epic'.
         # ⚠️ A POST-`rating_score` STEP — invisible to test_rating_composition_parity's AST guard,
         # which inspects the rating CALL's arguments (#14). Its POST-step registry watches this.
+        # ⛔⛔ DELIBERATELY **NOT** WRAPPED IN `RATING_OBS_GATE` — DO NOT "MAKE IT CONSISTENT".
+        # Three surfaces (spot_ratings, routes/weather, grid_resolver_surf) read that flag; this one
+        # and `sim_rating` do not, and a 2026-08-05 audit flagged the asymmetry as a defect and
+        # proposed gating both. THAT CHANGE WOULD RE-OPEN THE DEFECT ABOVE. The flag defaults to
+        # "0" in code and is unset outside Render, so gating here restores exactly the Moss Landing
+        # split (83.9 'good' on the map vs 95.9 'epic' here) in every lane where it is off.
+        # ★ WHY IT IS SAFE TO CAP UNCONDITIONALLY, measured over 999 spot-hours (2026-07-31):
+        #   `gate BINDS on 66/999` and `raw >= 70 on 66/999` — an IDENTICAL count. A surface that
+        #   cannot find a confirmation caps at 69.9, which is precisely what the map already shows,
+        #   so a lookup MISS lands on the SAME verdict. The failure mode points toward AGREEMENT.
+        # ⇒ The kill switch un-gates the three GLYPH lanes only, and that is the intended contract.
+        #   Pinned by test_observation_gate_single_model_surfaces.py so this cannot be "tidied".
         from services.weather_pipeline.rating_confirmation import gate_single_model_surface
         _gated, _glevel, _confirm, _raw = gate_single_model_surface(
             score, lat, lng, current_dt)

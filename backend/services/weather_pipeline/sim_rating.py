@@ -312,6 +312,14 @@ def calculate_surf_rating(
     # ⚠️ Needs a `valid_time` to find the confirmation the precompute derived; without one there is
     # nothing to join on, so the sim stays ungated rather than capping on an invented miss — a
     # what-if with no hour is not a forecast the app would ever have shown.
+    # ⛔⛔ DELIBERATELY **NOT** WRAPPED IN `RATING_OBS_GATE` — DO NOT "MAKE IT CONSISTENT" with the
+    # three glyph lanes that do read it. Gating here would restore the measured Moss Landing split
+    # (map 83.9 'good' vs ungated 95.9 'epic') in every lane where the flag is off — and it defaults
+    # to "0" in code and is unset outside Render, i.e. in exactly the local lane the sim runs in.
+    # Owner decision 2026-07-31: the hub and the sim answer "what will the app SHOW", not "what does
+    # the model say". Safe because a confirmation MISS caps at 69.9, which is what the map already
+    # shows (999 spot-hours: gate binds 66, raw>=70 is 66 — an identical count).
+    # Pinned by test_observation_gate_single_model_surfaces.py.
     quality_raw, quality_confirmed = round(float(quality_score), 1) if quality_score is not None else None, None
     if valid_time is not None:
         from services.weather_pipeline.rating_confirmation import gate_single_model_surface
