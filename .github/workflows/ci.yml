@@ -407,7 +407,8 @@ jobs:
                      tests/test_resolve_spot_geometry.py tests/test_simulation.py \
                      tests/test_forecast_skill.py tests/test_forecast_skill_per_model.py tests/test_product_run_age_census.py \
                      tests/test_validate_nearshore_transform.py \
-                     tests/test_calibration_census.py                      tests/test_sweep_orphaned_l2.py tests/test_map_spots_to_ndbc_buoys.py 2>/dev/null \
+                     tests/test_calibration_census.py                      tests/test_sweep_orphaned_l2.py tests/test_map_spots_to_ndbc_buoys.py \
+                     tests/test_era5_*.py 2>/dev/null \
                  | sort -u \
                  | grep -vE 'test_(weather_sim_mcp|weather_sim_mcp_server_startup)\.py$')
           echo "$FILES" | sed 's/^/  guard: /'
@@ -593,7 +594,20 @@ jobs:
           "tests/test_provenance_*.py","tests/test_observation_gate_*.py","tests/test_run_provenance.py",
           "tests/test_resolve_spot_geometry.py","tests/test_simulation.py","tests/test_forecast_skill.py","tests/test_forecast_skill_per_model.py",
           "tests/test_product_run_age_census.py","tests/test_validate_nearshore_transform.py",
-          "tests/test_calibration_census.py",
+          "tests/test_calibration_census.py","tests/test_era5_*.py",
+          # ADOPTED 2026-08-05. The FIVE ERA5 campaign guards matched no lane selector and ran
+          # NOWHERE — same cause as the two below: they import from `scripts.`, which the chain
+          # lane's `services.<mod>` regex cannot see, and no composition pattern covered the name.
+          #   test_era5_campaign_instance_guard.py  11 · test_era5_liveness_reaper.py     13
+          #   test_era5_interrupt_shield.py          8 · test_era5_peer_from_marker.py     8
+          #   test_era5_scope_selection.py           6                          TOTAL 46 defs / 63 tests
+          # These guard the campaign that is the CRITICAL PATH for the size reference, the level
+          # ladder and the empirical exposure work — and every one of its recorded failure modes
+          # (self-blocking instance guard, wedged-not-dead process, Ctrl-C from another session,
+          # resume-scope drift) is covered by exactly these files. Measured 2026-08-05: 63 passed
+          # in 2.2 s, so they are cheap as well as load-bearing.
+          # ⚠️ The pattern is added to BOTH this list and the `ls` glob above; they must stay in
+          # sync or the two lanes double-count.
           # ADOPTED 2026-08-02 (audit v6 §12.2). Both matched NO lane selector and ran NOWHERE — they
           # import from `scripts.`, which the chain lane's `services.<mod>` regex cannot see, and no
           # composition pattern covered their names.
