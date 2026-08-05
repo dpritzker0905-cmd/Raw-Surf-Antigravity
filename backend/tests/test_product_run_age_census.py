@@ -59,6 +59,50 @@ def test_tiers_get_different_thresholds_from_the_same_age():
     assert _row(rows, "GFS", "marine", "global_coarse")["verdict"] == "CRITICAL"
 
 
+def test_global_mid_is_not_judged_against_the_four_hourly_cron():
+    """⛔ THE 21%-FALSE-PAGE FIX, pinned. `global_mid` is the MID-RES tier and is not ingested on
+    every forecast-ingest cycle, but `tier_of` bucketed every `global*` region into the 4-hourly
+    `global` tier — so it was judged against a cadence it has never been on.
+
+    MEASURED 2026-08-05: the cron itself is healthy (median gap 225.4 min vs a 240 min nominal over
+    368 h, n=92, max gap 6.86 h, ZERO gaps above 8 h), and 100% of CRITICAL rows across the last ten
+    failed monitor runs were `global_mid` at 13.4-22.3 h — never a regional lane, never
+    `global_coarse`. On one of those runs the lane refreshed 14 minutes after the census sampled it.
+
+    ★ The point is NOT that the alarm was annoying. A monitor paging on 21 of 100 runs stops being
+      read, which is the same deaf spot that let a 12 h outage on 07-13 be found by a USER first.
+    """
+    rows = prac.census([
+        _p("EURO", "wind", "wind", "global_mid", 16.1),      # the observed-normal band
+        _p("GFS", "marine", "waves", "global_mid", 22.3),    # the worst observed while healthy
+        _p("GFS", "marine", "waves", "global_coarse", 16.1),  # CONTROL: same age, tight tier
+    ], NOW)
+    assert _row(rows, "EURO", "wind", "global_mid")["verdict"] == "ok"
+    assert _row(rows, "GFS", "marine", "global_mid")["verdict"] == "ok"
+    # ★ THE CONTROL. If this also went quiet the change would be "relax everything until green".
+    assert _row(rows, "GFS", "marine", "global_coarse")["verdict"] == "CRITICAL"
+
+
+def test_a_genuinely_dead_mid_res_lane_still_pages():
+    """The other half of the same change: widening the band must not blind it. A mid-res lane that
+    has actually stopped is still caught — the alarm is retuned, not removed."""
+    rows = prac.census([
+        _p("EURO", "wind", "wind", "global_mid", 25.0),   # past anything observed while healthy
+        _p("GFS", "marine", "waves", "global_mid", 40.0),  # dead
+    ], NOW)
+    assert _row(rows, "EURO", "wind", "global_mid")["verdict"] == "warn"
+    assert _row(rows, "GFS", "marine", "global_mid")["verdict"] == "CRITICAL"
+
+
+def test_an_unknown_global_variant_falls_into_the_TIGHT_tier():
+    """⚠️ Fail loudly, not silently. A future `global_mid_v2` must NOT inherit the forgiving mid-res
+    bound by prefix — an unrecognised global region gets the strict 4-hourly tier, so a new lane
+    announces itself by paging rather than by being quietly unmonitored."""
+    assert prac.tier_of("global_mid", "GFS", "marine") == "global_mid"
+    assert prac.tier_of("global_mid_v2", "GFS", "marine") == "global"
+    assert prac.tier_of("global_coarse", "GFS", "marine") == "global"
+
+
 def test_icon_and_euro_marine_are_held_to_the_flagship_cadence():
     """They use get_all_pilot_regions() — every region every cycle — so the rotation allowance would
     hide a real 30 h stall. --strict drops the allowance."""

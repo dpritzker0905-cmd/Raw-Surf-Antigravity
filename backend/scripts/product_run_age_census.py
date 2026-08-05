@@ -49,10 +49,38 @@ NO_ROTATION_LANES = {("ICON", "marine"), ("EURO", "marine")}
 # (warn_h, critical_h) per tier. Roughly 2x and 3x the expected cadence: one missed cycle is noise,
 # two is a signal, three is a defect.
 THRESHOLDS = {
-    "global":    (8.0, 12.0),    # 4 h cadence
+    "global":    (8.0, 12.0),    # 4 h cadence  (global_coarse — measured 2-4 h, never trips)
+    "global_mid": (24.0, 36.0),  # ~12 h cadence — MEASURED, see below
     "flagship":  (16.0, 24.0),   # 8 h cadence
     "worldwide": (36.0, 72.0),   # ~32 h cadence
 }
+
+# ⛔⛔ WHY global_mid HAS ITS OWN TIER (measured 2026-08-05, after it paged at 21% of runs).
+# `tier_of` bucketed every `global*` region into the 4-hourly `global` tier because that is
+# forecast-ingest.yml's cron ('15 */4'). The MID-RES tier is not ingested on every cycle — it is the
+# expensive one — so it was being judged against a cadence it has never been on.
+#
+# THE EVIDENCE, all measured, none inferred:
+#   1. The cron is HEALTHY. forecast-ingest scheduled runs over 368 h (n=92): median gap 225.4 min
+#      against a 240 min nominal = 106% of nominal, max gap 6.86 h, ZERO gaps above 8 h. A missed
+#      cron cannot produce a 16 h lane.
+#   2. 100% of CRITICAL rows across the last 10 failed monitor runs were `global_mid` — never a
+#      regional lane, never `global_coarse`:
+#           EURO/wind/wind        @ global_mid   13.4  14.1  15.6  16.1 h
+#           GFS/marine/waves      @ global_mid   20.1  21.3  22.3 h
+#           GFS/marine/wind_waves @ global_mid   20.1  21.3  22.3 h
+#   3. It recovers unaided. On the 13:38 run that paged at 16.1 h, the lane refreshed at 13:52 —
+#      FOURTEEN MINUTES after the census sampled it. At the time of writing it is 3.0 h old.
+#   4. The same commit (1bf99cf1) produced both a success and a failure two hours apart, so the
+#      outcome is a function of sampling time, not of code.
+#
+# ⚠️ THIS IS NOT "RELAX THE THRESHOLD UNTIL IT IS GREEN." The cost of the mismatch is that a monitor
+#    paging on 21 of 100 runs stops being read — which is precisely the deaf spot this file's own
+#    07-13 note was written about, where a USER found a 12 h outage before any monitor did. A tier
+#    that matches the real cadence still catches a genuinely dead mid-res lane inside ~1.5 days.
+# ⚠️ OPEN, AND AN OWNER QUESTION, NOT A MONITORING ONE: is a 12-24 h mid-res refresh acceptable for
+#    the product? If it should be faster, the fix is ingest capacity, not this table. This change
+#    makes the alarm honest about what is actually happening; it does not endorse the cadence.
 
 
 def parse_t(s):
@@ -68,7 +96,10 @@ def parse_t(s):
 def tier_of(region_id, model, domain):
     r = region_id or ""
     if r.startswith("global"):
-        return "global"
+        # ⚠️ mid-res is NOT on the 4-hourly cron — see the THRESHOLDS note above. Matched on the
+        # region id rather than a substring so a future `global_mid_v2` fails loudly into `global`
+        # (tight) instead of silently inheriting the forgiving bound.
+        return "global_mid" if r == "global_mid" else "global"
     if r in FLAGSHIP_REGIONS:
         return "flagship"
     if r in WORLDWIDE_REGIONS:
