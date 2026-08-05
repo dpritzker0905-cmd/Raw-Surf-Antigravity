@@ -103,8 +103,29 @@ test.describe('Explore', () => {
     await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 10000 });
   });
 
-  test('the bottom nav is present for a signed-in user', async ({ page }) => {
-    // Measured: the signed-OUT landing page carries 0 <nav> elements; this is authenticated-only.
-    await expect(page.locator('[data-testid="bottom-nav"]')).toBeVisible({ timeout: 10000 });
+  test('navigation is present, and it is the RIGHT nav for the viewport', async ({ page, isMobile }) => {
+    // ⛔ I BROKE THIS MYSELF AND THE OLD NAME IS WHY. The original was `bottom nav is visible on
+    //    mobile`; I renamed it to "for a signed-in user" and dropped the qualifier, because I had
+    //    measured `bottom-nav` visible in ONE browser pane at ONE viewport and generalised from it.
+    //    It then failed on Desktop Chrome / Firefox / Safari and passed on Mobile Safari — the
+    //    element is in the DOM on desktop but hidden, because the bottom nav is a MOBILE pattern.
+    // ★ A bound measured on a narrow range is a bound on that range only. The old test name
+    //   encoded a real constraint and deleting it deleted the knowledge.
+    // ⇒ Now it pins the actual responsive contract on BOTH form factors, which is what
+    //   CLAUDE.md's desktop-AND-mobile mandate asks for anyway.
+    // MEASURED on both form factors before this was written — and my FIRST correction was also
+    // wrong: `top-nav` is hidden on desktop too, so asserting it would have failed just as loudly.
+    //   375x812  mobile :  bottom-nav VISIBLE · nav-explore hidden
+    //   1280x800 desktop:  bottom-nav hidden  · nav-explore VISIBLE  (a SIDEBAR: nav-home/explore/
+    //                      map/create/messages/profile/settings/logout)
+    // ⚠️ The browser pane defaulted to 630 px wide, where BOTH are visible — which is precisely how
+    //    the original bad measurement happened. Assert at a real desktop width or not at all.
+    if (isMobile) {
+      await expect(page.locator('[data-testid="bottom-nav"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="nav-explore"]')).toBeHidden();
+    } else {
+      await expect(page.locator('[data-testid="nav-explore"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="bottom-nav"]')).toBeHidden();
+    }
   });
 });
