@@ -22,23 +22,24 @@ evidence. Everything I measured myself carries the command or the payload it cam
   docstring. It is falsified if `swell_exposure` or `_height_exposure_factor` change.
 * the browser findings (§5) come from a **local dev build on `:3011`**, not production. Dev-build FPS
   is not production FPS and I make no production performance claim.
-* ⛔ **The live-site half of this audit could not be completed**: the production backend has been
-  unreachable since ~00:20Z (§1). Every production-payload number here was captured BEFORE that, and
-  is timestamped.
+* ⚠️ **The live-site half was interrupted** by a 30-minute production outage (§1, now resolved).
+  Production-payload numbers captured during the window are timestamped; the completeness critic
+  read the live L2 blob at 23:09Z, and `/spot-ratings` was re-verified serving normally at 00:51Z.
 
-⚠️ **One instrument of mine produced a false finding and I caught it — see §6.** It is the most
-important methodological item in this report.
+⚠️ **TWO instruments of mine produced false findings today** — a canvas recorder (§6) and a causal
+deduction about the outage (§1). Both are written up in full. They are the most instructive items
+in this report, and neither was caught by anything going red.
 
 ---
 
-## §1 ⛔⛔ LIVE INCIDENT — THE BACKEND IS DOWN, AND MY PROMOTION IS IN THE WINDOW
+## §1 ✅ RESOLVED INCIDENT — A 30-MIN OUTAGE, AND MY FIRST EXPLANATION OF IT WAS WRONG
 
 ```
 23:44:26Z   keep-warm workflow SUCCESS  -> backend UP (pre-promotion commit)
 00:03:13Z   30dd6fcc pushed to dev
 ~00:14Z     dev -> main promoted (123 commits, clean fast-forward)
 00:20Z+     backend DOWN: 7 probes, up to 120 s, HTTP 000, ZERO bytes
-00:31Z      still down
+00:50:07Z   RECOVERED (HTTP 200) — see the resolution below
 ```
 
 **What is up:** `rawsurf.netlify.app` 200 in 0.48 s · `dev--rawsurf.netlify.app` 200 in 0.22 s · DNS
