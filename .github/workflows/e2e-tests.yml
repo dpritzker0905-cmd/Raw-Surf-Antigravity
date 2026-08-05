@@ -1,7 +1,25 @@
+# ⛔⛔ THIS JOB EXECUTED NOTHING FOR ITS ENTIRE LIFE — 0 of 1,000 measured runs (2026-08-05).
+# It gated on `contains(deployment.environment, 'deploy-preview')`. Measured: **0 of 6,482**
+# deployments in this repo's history contain that string. The real names are `Preview – <project>`
+# (en-dash), and they are emitted by **vercel[bot]**, not Netlify — Netlify creates no GitHub
+# deployment at all.
+#
+# ⛔ AND FIXING THE STRING WOULD HAVE CHANGED NOTHING. The condition also requires
+# `state == 'success'`, and the Vercel integration fails on EVERY deployment: 8 of 8 recent
+# production builds and 6 of 6 recent preview builds are `failure`. There is no Vercel event that
+# can ever satisfy this job.
+#
+# ⇒ So the trigger now hangs off the target that is actually healthy: the Netlify `dev` preview,
+# whose service worker reports `BUILD_VERSION = <dev tip>`. A `push` alone would RACE the Netlify
+# build, so the job WAITS for the deployed artifact to match the commit under test, using the same
+# one-request instrument that exposed the 77-day-stale production frontend.
+# ★ That wait is itself the guard: if the frontend never deploys, this job FAILS instead of
+#   quietly testing a stale bundle.
 name: E2E Tests
 
 on:
-  deployment_status:
+  push:
+    branches: [dev]
   workflow_dispatch:
     inputs:
       base_url:
@@ -9,13 +27,45 @@ on:
         default: 'https://dev--rawsurf.netlify.app'
         required: false
 
+concurrency:
+  group: e2e-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    if: github.event_name == 'workflow_dispatch' || (github.event.deployment_status.state == 'success' && contains(github.event.deployment.environment, 'deploy-preview'))
-    timeout-minutes: 15
+    timeout-minutes: 25
     steps:
       - uses: actions/checkout@v5
+
+      - name: Wait for the Netlify dev preview to serve THIS commit
+        if: github.event_name == 'push'
+        env:
+          SITE: https://dev--rawsurf.netlify.app
+        run: |
+          # `update-sw-version.js` stamps `git rev-parse --short HEAD`, whose length is ADAPTIVE
+          # (7, 8, 9...). Comparing against a fixed --short=N would never match and this job would
+          # fail forever. So: PREFIX-match the served value against the full SHA.
+          full="$(git rev-parse HEAD)"
+          echo "waiting for $SITE to serve a BUILD_VERSION that prefixes $full"
+          for i in $(seq 1 60); do
+            got="$(curl -fsS --max-time 20 "$SITE/service-worker.js" 2>/dev/null \
+                   | grep -m1 '^const BUILD_VERSION' \
+                   | sed -E "s/.*'([^']+)'.*/\1/")" || got=""
+            echo "  attempt $i: serving '${got:-<unreachable>}'"
+            case "$got" in
+              "") ;;                                   # unreachable / no stamp yet -> keep waiting
+              *)
+                if [ "${#got}" -ge 7 ] && [ "${full#$got}" != "$full" ]; then
+                  echo "deployed build $got matches the commit under test"; exit 0
+                fi
+                ;;
+            esac
+            sleep 20
+          done
+          echo "::error::$SITE never served $want after 20 minutes."
+          echo "::error::The frontend did not deploy. E2E is NOT run rather than run against a stale bundle."
+          exit 1
 
       - uses: actions/setup-node@v5
         with:
@@ -32,7 +82,7 @@ jobs:
       - name: Run E2E tests
         working-directory: frontend
         env:
-          E2E_BASE_URL: ${{ github.event.inputs.base_url || github.event.deployment_status.target_url || 'https://dev--rawsurf.netlify.app' }}
+          E2E_BASE_URL: ${{ github.event.inputs.base_url || 'https://dev--rawsurf.netlify.app' }}
         run: npx playwright test --reporter=html
 
       - name: Upload test results

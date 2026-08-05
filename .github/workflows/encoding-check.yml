@@ -1,10 +1,25 @@
+# ⛔ THIS GUARD RAN 0 TIMES IN ITS ENTIRE LIFE (measured 2026-08-05: `gh run list` -> 0 runs).
+# It triggered on `pull_request` only, and this repo pushes DIRECTLY to `dev`; promotions to `main`
+# are fast-forwards. There has never been a pull request for it to run on, so an encoding guard has
+# been protecting nothing while the repo carries a live cp1252/UTF-8 landmine.
+# ⇒ Trigger on push to the branches that actually receive commits. `pull_request` is kept for the
+#   day the flow changes.
+# ⚠️ The `paths:` filter is DELIBERATE and this job must NEVER become a required status check —
+#   a required check that a path filter skips reports MISSING and blocks the branch forever
+#   (measured on `loc-check`). Keep it advisory.
 name: Encoding Guard
 
 on:
+  push:
+    branches: [dev, main]
+    paths:
+      - 'frontend/src/**/*.js'
+      - 'frontend/src/**/*.jsx'
   pull_request:
     paths:
       - 'frontend/src/**/*.js'
       - 'frontend/src/**/*.jsx'
+  workflow_dispatch: {}
 
 jobs:
   check-encoding:
@@ -14,7 +29,7 @@ jobs:
 
       - name: Check for garbled UTF-8 sequences
         run: |
-          echo "🔍 Scanning for garbled multi-byte UTF-8 corruption..."
+          echo "Scanning for garbled multi-byte UTF-8 corruption..."
           GARBLED=$(grep -rlP 'Ã[ƒ†]|Ã¯Â¿|ÃƒÆ' frontend/src/ --include="*.js" --include="*.jsx" || true)
           if [ -n "$GARBLED" ]; then
             echo "❌ Garbled UTF-8 detected in the following files:"
