@@ -21,7 +21,7 @@ import { buildTruthTag } from './weatherTruthTracker';
 // ONE expression, not a second copy (audit v7 §2a): wind carried the IDENTICAL split as marine —
 // viewportKey normalises longitude at :97, the URL below sent the raw bounds. A duplicated rule
 // only diverges on a boundary, and this one's boundary is the antimeridian.
-import { normalizeRequestBbox } from './marineGridSeries';
+import { normalizeRequestBbox } from './marineBboxGeometry';
 
 // pageKey (model_viewportKey_pN) -> { ts, frames: Map<hourOffset, windData>, hours: number[] }
 const _seriesCache = new Map();

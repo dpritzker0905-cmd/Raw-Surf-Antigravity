@@ -169,14 +169,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
         __sourceModel: model,
         __provider: json.provider || 'backend-weather-service',
         __gridProvider: json.provider || 'backend-weather-service',
-      // ⛔⛔ THE ORIGIN, NOT THE DISPATCH KEY (2026-08-03). `json.provider` is 'open-meteo' for
-      // GFS, ICON and EURO alike — it names the ROUTE, not the data. The backend has always
-      // served `upstream_provider` beside it (noaa | dwd | copernicus | ecmwf | gfs_estimated_
-      // fallback) and the frontend dropped it here, so the render path could not say what it
-      // painted. Measured against NDBC buoys the same day, GFS scored on the SAME sites:
-      //     EURO/copernicus MAE 0.159 (3.2x better) · EURO/ecmwf 0.339 (WORSE than GFS 0.266)
-      // A 2.8x accuracy spread hid behind one label. Third instance of this class, after
-      // `limiter` dropped at the Pydantic boundary and the geometry provenance envelope.
+      // THE ORIGIN, NOT THE DISPATCH KEY (2026-08-03) -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
       __upstreamProvider: json.upstream_provider || null,
         __componentLayer: layer,
         __gridSupportsLayer: false,
@@ -287,14 +280,7 @@ export function mapNormalizedGridToWebGL(json, snappedBounds, hourOffset, layer 
       __sourceModel: model,
       __provider: json.provider || 'backend-weather-service',
       __gridProvider: json.provider || 'backend-weather-service',
-      // ⛔⛔ THE ORIGIN, NOT THE DISPATCH KEY (2026-08-03). `json.provider` is 'open-meteo' for
-      // GFS, ICON and EURO alike — it names the ROUTE, not the data. The backend has always
-      // served `upstream_provider` beside it (noaa | dwd | copernicus | ecmwf | gfs_estimated_
-      // fallback) and the frontend dropped it here, so the render path could not say what it
-      // painted. Measured against NDBC buoys the same day, GFS scored on the SAME sites:
-      //     EURO/copernicus MAE 0.159 (3.2x better) · EURO/ecmwf 0.339 (WORSE than GFS 0.266)
-      // A 2.8x accuracy spread hid behind one label. Third instance of this class, after
-      // `limiter` dropped at the Pydantic boundary and the geometry provenance envelope.
+      // THE ORIGIN, NOT THE DISPATCH KEY - same block as above -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
       __upstreamProvider: json.upstream_provider || null,
       __componentLayer: layer,
       __gridSupportsLayer: renderable,
@@ -642,16 +628,7 @@ export async function fetchBackendMarineGridIconExtended(bounds, hourOffset, sig
         status: 'ok'
       };
     } else {
-      // hourOffset > 240
-      // BOUNDARY CONTINUITY (2026-07-06, "the heatmap changes colors dramatically at the
-      // native→extended handoff"): the ≤240 branch is ANCHORED (icon168 + GFS trend — continuous
-      // by construction), but this branch was a RAW 0.6/0.4 GFS/EURO mix — a level jump at the
-      // 240 boundary wherever the mix's climatology differs from the anchored value. The locked
-      // 14-day contract keeps this mix as the far-tail mechanism, so the fix is ADDITIVE bias
-      // correction: est(t) = mix(t) + [trend(240) − mix(240)]·decay(t), decaying to the pure mix
-      // by hour 288. Offsets apply to height/period (the colormap drivers) per cell per sublayer;
-      // the boundary anchors ride the SAME cached @168 anchors the ≤240 branch uses plus one
-      // cache-hot GFS/EURO fetch @240. Kill: __RAW_DISABLE_ICON_TAIL_CONTINUITY__.
+      // hourOffset > 240 blend -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
       const [gfsTargetResult, euroTargetResult, icon168Result, gfs168Result, gfs240Result, euro240Result] = await Promise.allSettled([
         fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'GFS'),
         fetchBackendMarineGridRecur(bounds, hourOffset, signal, snappedBounds, layer, 'EURO'),

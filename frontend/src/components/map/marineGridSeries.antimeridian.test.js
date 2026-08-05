@@ -18,10 +18,11 @@ jest.mock('../../lib/apiClient', () => ({ API_BASE: '' }));
 jest.mock('./backendWeatherServiceClient', () => ({ getSurfModeFlag: () => false }));
 jest.mock('./weatherTruthTracker', () => ({ buildTruthTag: () => null, recordTruthStage: () => {} }));
 
-import {
-  ensureMarineSeries, normalizeRequestBbox, bboxContains, GLOBAL_REQUEST_BBOX,
-  _resetMarineSeriesForTest,
-} from './marineGridSeries';
+import { ensureMarineSeries, _resetMarineSeriesForTest } from './marineGridSeries';
+// The bbox geometry moved to its own module on 2026-08-04 (marineGridSeries crossed the 800-LOC
+// ratchet). This suite follows it: it is the guard for exactly these functions, and a guard that
+// stays pointed at the old home would test a re-export instead of the implementation.
+import { normalizeRequestBbox, bboxContains, GLOBAL_REQUEST_BBOX } from './marineBboxGeometry';
 
 // The owner's own viewport, taken from the console log of the reported gesture.
 const CLIENT_WRAPPED = { west: -199.3617, south: -27.5277, east: -16.0320, north: 53.3496 };

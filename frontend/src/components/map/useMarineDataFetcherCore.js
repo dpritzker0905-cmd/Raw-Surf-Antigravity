@@ -7,11 +7,7 @@ import { updateDeprecationDiag } from './forecastSamplers';
 import { isInCooldown, clearCooldown } from './marineControllerUtils';
 import { _marineDataSignature } from './useMarineOrchestratorDiag';
 import { recordMarineEvent } from './marineForensics';   // __RAW_FORENSIC__ ring buffer
-// THE CONSUMER. Imported for its side effect: registers __RAW_RING_REPORT__() / __RAW_RING_TICK__()
-// on window, so the rings this app has always written finally have a reader. It shipped in
-// 96dc9165 with ZERO call sites — a consumer nobody calls is the exact disease it was built to
-// cure. `ringReaderTick` is rate-limited to once a minute and gates on the CLOCK BEFORE walking
-// any ring, so it is safe from any path; it logs only on FAILURE and never writes to a ring.
+// the ring reader's call site - see marineRingReader.js header -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
 import { ringReaderTick } from './marineRingReader';
 import {
   DISPLAY_EURO_WAVES_MAX_HOURS,
@@ -265,18 +261,7 @@ export function useMarineDataFetcherCore({
       const isRetry = source === 'cooldown_retry' || source === 'delayed_retry' || source === 'swr_revalidation' || source === 'clamp_resharpen';
       const hasValidData = marineData && marineData.grid && marineData.grid.vectors && marineData.grid.vectors.length > 0;
       const isCorrectLayer = marineData?.grid?.__componentLayer === layer;
-      // FLAVOR-MISMATCH BYPASS (2026-07-15, visual-verified on the live map: the rating band NEVER
-      // loaded on toggle without a pan — surf ON fired 0 fetches for 8s). The surf/swell toggle's
-      // manual re-fetch was dedup-skipped: locks.lastHash can equal the current surf-hash while the
-      // RESIDENT grid is still the opposite flavor, so the hash dedup below wrongly skips the re-fetch.
-      // When the committed grid's flavor (ratingMode) doesn't match the desired surf mode, the resident
-      // data is simply the WRONG flavor and must be re-fetched regardless of viewport. Terminating:
-      // once the correct flavor commits, the mismatch clears. NOT scoped to 'manual': the surf
-      // toggle's own manual fetch can be blocked by other in-flight/lock guards, so the reliable
-      // re-drive is the periodic backstop/SWR — which must ALSO see the mismatch to re-fetch the
-      // right flavor. Bounded because it only fires while the resident flavor is wrong AND a re-drive
-      // is scheduled; at a genuinely zoomed-out coarse view the backstop is idle (coarse is adequate
-      // there), so this does not spin (measured: 0 idle fetches at z3.2 + surf-on).
+      // FLAVOR-MISMATCH BYPASS (2026-07-15) -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
       const _flavorMismatch = !!(marineData?.grid?.ratingMode) !== getSurfModeFlag();
       let bypassDedupe = !hasValidData || !isCorrectLayer || _flavorMismatch || !!(marineData?.stale || marineData?.grid?.stale);
 
@@ -319,11 +304,7 @@ export function useMarineDataFetcherCore({
           });
           return;
         }
-        // THE READER'S CALL SITE. Placed on the marine fetch path — frequent enough that a real
-        // session exercises it, and the tick itself gates on a 60 s clock BEFORE walking any ring,
-        // so the cost here is one comparison. It logs only when a check FAILS and only when the
-        // failing set changes, because the defect it detects is a ring drowned by a loud writer and
-        // a noisy reader would recreate exactly that.
+        // the ring reader's call site - see marineRingReader.js header -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
         try { ringReaderTick(typeof window !== 'undefined' ? window : null); } catch (e) { /* never fatal */ }
         const activeSource = locks.activeSource || 'unknown';
         const isHighPriority = (src) => src === 'manual' || src.includes('timeline') || src.includes('scrub');

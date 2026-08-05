@@ -560,23 +560,7 @@ function WebGLMarineLayerInner({ mapInstance, active, data, revision, onAddedCha
     return () => { activeFetch = false; };
   }, [mapInstance]);
 
-  // ── High-zoom land-mask refinement ──────────────────────────────────────────────
-  // Bug: the wave heatmap bleeds over land at z12+ because the engine masks land with the 50m
-  // GeoJSON, which is too coarse to follow barrier islands / thin coastline. When a marine layer is
-  // zoomed past the threshold we lazily swap in the 10m mask and re-encode; below the threshold we
-  // revert to 50m so the global mask render stays cheap (it iterates ALL land features). The 10m
-  // swap re-uploads because geojsonSig (land_<featureCount>) differs → no duplicate-upload skip.
-  // Isolated from the fetch/commit pipeline — worst case is a coarser mask, never a wedge.
-  // Kill switch: window.__MARINE_HIRES_MASK__ === false.
-  // Lowered 11→9 (2026-06-29): waves bled over barrier islands/thin coast at "somewhat close" zooms (z9-z11)
-  // where the coarse 50m mask still simplifies the coastline. Lowered 9→8 (2026-07-02): the user reported crests
-  // "partially over land, in a grid" at z8.39 — below the old threshold the 50m mask still simplified the FL
-  // barrier islands while the regional 13×13 tile was (correctly) resident. The regional mask canvas is now
-  // 2048×1024 (WebGLMarineMaskRenderer), fine enough for the 10m polygons to pay off from z8. Kill switch
-  // unchanged: window.__MARINE_HIRES_MASK__=false.
-  // HYSTERESIS (2026-07-06, rapid-zoom churn): enter hires at z≥8, exit below z7.3 — a single
-  // threshold fired a full land_mask_res_swap re-upload per gesture when zoom cycling straddled
-  // z8 (see desiredMaskRes in maskSmoothing.js).
+  // High-zoom land-mask refinement -- rationale moved to docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md
   useEffect(() => {
     if (!mapInstance) return;
 

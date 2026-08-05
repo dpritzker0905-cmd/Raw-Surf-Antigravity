@@ -36,6 +36,16 @@ _RATING_FLAGS = {
     # one missing from a writing lane (2026-08-02 lesson).
     "RATING_LIMITER":              ("1", "Publish the binding factor (`limiter`) on spot ratings — "
                                          "explanation only, never changes a score", "Render env"),
+    # DISCLOSURE, not physics — same class as RATING_LIMITER above, and declared for the same reason.
+    # ⚠️ I ADDED THIS FLAG IN THREE SURFACES AND DID NOT DECLARE IT (2026-08-04). The full suite caught
+    # it here, nothing else did: an undeclared switch is invisible to the admin panel AND to every
+    # lane guard in test_flag_lane_parity, which is exactly how a flag comes to be on in one lane and
+    # off in another. Pulling this hides the caveat; it changes no score, because nothing in the
+    # rating chain branches on it.
+    "RATING_DIRECTIONAL_CONFLICT": ("1", "Publish `directional_conflict` when the height chain and "
+                                         "the quality chain disagree about the same swell (>=3.54x "
+                                         "past 75.7 deg off-normal) — disclosure only, never changes "
+                                         "a score", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
     # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band

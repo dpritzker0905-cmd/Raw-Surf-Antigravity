@@ -8,11 +8,12 @@ import {
   ensureMarineSeries,
   getMarineSeriesFrame,
   prewarmMarineSeries,
-  padRegionalBbox,
-  SERIES_BBOX_PAD_DEG,
   coarseRevalDelayMs,
   _resetMarineSeriesForTest,
 } from '../components/map/marineGridSeries';
+// Moved to their own module 2026-08-04 (the 800-LOC ratchet); this suite is their guard, so it
+// follows the implementation rather than testing a re-export.
+import { padRegionalBbox, SERIES_BBOX_PAD_DEG } from '../components/map/marineBboxGeometry';
 
 const bounds = { west: -81.7, south: 27.8, east: -79.6, north: 28.8 };
 
