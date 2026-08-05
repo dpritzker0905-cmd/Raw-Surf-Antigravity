@@ -77,7 +77,14 @@ jobs:
 
       - name: Install Playwright browsers
         working-directory: frontend
-        run: npx playwright install --with-deps chromium webkit
+        # ⛔ WAS `chromium webkit`, and it was wrong the whole time — invisibly, because this job
+        # had never executed a single test. playwright.config.js defines FOUR projects: Mobile
+        # Safari (webkit), Desktop Chrome (chromium), Desktop **Firefox**, Desktop Safari (webkit).
+        # Firefox was never installed, so on the job's first real run every Desktop Firefox test
+        # died with `browserType.launch: Executable doesn't exist` — 33 occurrences in the log.
+        # ★ Install from the CONFIG rather than a hand-kept list, so adding a project to
+        #   playwright.config.js can never again silently outrun the installer.
+        run: npx playwright install --with-deps
 
       - name: Run E2E tests
         working-directory: frontend
