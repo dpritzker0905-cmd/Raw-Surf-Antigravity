@@ -311,3 +311,80 @@ def test_the_baseline_sources_are_reported():
 
     out = sim_compare.scan([FULL_SPOT, COARSE_SPOT], baseline_at, HOUR)
     assert out["scanned"]["baseline_sources"] == ["live_forecast", "simulated_override"]
+
+
+# ── ⛔⛔ THE DEFAULT HOUR MUST NOT GATE — IT DESTROYED THE RANKING (2026-08-05) ──────────────────
+#
+# `find_best_spot(near=...)` defaults `valid_time=""`. `_parse_valid_time` returns `""` for that,
+# `weather_sim_mcp` passes it to `scan` VERBATIM — deliberately, because "" means "the hour the app
+# is serving now" to the BASELINE producer, and naming an explicit hour would change which frame is
+# requested (see scan's own docstring).
+#
+# But `scan` then forwarded the same "" to `calculate_surf_rating`, which gates on
+# `if valid_time is not None` — and "" IS NOT None. So the observation gate fired with NO hour to
+# join a confirmation on: exactly the "invented miss" sim_rating's comment says to avoid ("a what-if
+# with no hour is not a forecast the app would ever have shown").
+#
+# MEASURED, Mavericks 3.5 m / 16 s / 225 deg — a sea that scores >= 70 so the cap CAN bind:
+#     valid_time=None -> 95.5      valid_time="" -> 69.9      valid_time=<hour> -> 69.9
+#
+# ⇒ Every spot scoring >= 70 collapsed onto 69.9 and the RANKING this tool exists to produce was
+#   destroyed precisely on the days it matters. Fixed with `valid_time or None` at the rating call.
+#
+# ★ INVISIBLE ON A FLAT DAY. A live `find_best_spot` near Mavericks the same hour returned 4.4-25.0
+#   with nothing capped — because the cap can only bind at >= 70. That observation tests the
+#   CONDITIONS, not the mechanism. These tests force a >= 70 sea so the mechanism is what is under
+#   test.
+
+_GOOD_SEA = {"swell_height_m": 3.5, "swell_period_sec": 16.0, "swell_direction_deg": 225.0,
+             "wind_speed_knots": 4.0, "wind_direction_deg": 225.0}
+
+
+def _scan_with(hour):
+    return sim_compare.scan([dict(FULL_SPOT), dict(COARSE_SPOT)],
+                            _baseline({"Full Geometry Reef": _GOOD_SEA,
+                                       "Coarse Bearing Beach": dict(_GOOD_SEA, wind_speed_knots=9.0)}),
+                            hour, top=5, light_hour=HOUR)
+
+
+def test_the_DEFAULT_hour_does_not_cap_the_ranking():
+    """`find_best_spot` with no valid_time must rank on real scores, not on a wall of 69.9."""
+    rows = _scan_with("")["series"]
+
+    # SETUP ASSERTION: the seas above must actually clear 70, or this test proves nothing.
+    assert rows and max(r["quality_raw"] for r in rows) >= 70.0, (
+        f"fixture no longer produces a >=70 sea (raws={[r['quality_raw'] for r in rows]}) — "
+        f"the cap cannot bind, so this test would pass without testing anything."
+    )
+
+    for r in rows:
+        assert r["quality_rating"] == pytest.approx(r["quality_raw"]), (
+            f"{r['spot']}: rating {r['quality_rating']} != raw {r['quality_raw']} — the observation "
+            f"gate fired on the DEFAULT hour. There is no hour to join a confirmation on, so this "
+            f"is a cap on an invented miss."
+        )
+
+
+def test_the_default_hour_keeps_the_spots_DISTINGUISHABLE():
+    """The user-visible property: a ranking tool whose entries all read 69.9 has no ranking."""
+    rows = _scan_with("")["series"]
+    ratings = [r["quality_rating"] for r in rows]
+    assert len(set(ratings)) == len(ratings), (
+        f"two spots share a rating {ratings} — if that value is 69.9 the cap flattened them and "
+        f"`find_best_spot` is contradicting its own ordering."
+    )
+    assert 69.9 not in ratings
+
+
+def test_an_EXPLICIT_hour_still_gates__THE_CONTROL():
+    """Without this, the two tests above would pass on a codebase where the gate had stopped
+    working ENTIRELY — a much larger defect wearing the same green tick. A real hour means a real
+    confirmation lookup, and an unconfirmed >=70 must still cap."""
+    rows = _scan_with(HOUR)["series"]
+    assert rows and max(r["quality_raw"] for r in rows) >= 70.0, "fixture no longer clears 70"
+    capped = [r for r in rows if r["quality_rating"] == pytest.approx(69.9)]
+    assert capped, (
+        f"an explicit hour no longer caps an unconfirmed >=70 score "
+        f"(ratings={[r['quality_rating'] for r in rows]}) — the observation gate is not running, "
+        f"so the tests above are vacuous."
+    )

@@ -188,7 +188,25 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
             spot, baseline["swell_height_m"], baseline["swell_period_sec"],
             baseline["swell_direction_deg"], baseline["wind_speed_knots"],
             baseline["wind_direction_deg"], partitions=baseline.get("partitions"),
-            valid_time=valid_time, allow_reference_lookup=True,
+            # ⛔ `or None` IS LOad-BEARING — DO NOT SIMPLIFY TO `valid_time=valid_time`.
+            # `""` is deliberate for the BASELINE producer above (line ~167): it means "the hour the
+            # app is serving now", and naming an explicit hour there would change which frame is
+            # requested. But `calculate_surf_rating` gates on `if valid_time is not None`, and `""`
+            # IS NOT None — so forwarding it verbatim fires the observation gate with no hour to
+            # join a confirmation on. That is precisely the "invented miss" sim_rating's own comment
+            # says it must avoid: "a what-if with no hour is not a forecast the app would ever have
+            # shown."
+            # MEASURED 2026-08-05, Mavericks 3.5 m / 16 s / 225 deg (a sea that scores >= 70):
+            #     valid_time=None  -> 95.5      (ungated, the documented intent)
+            #     valid_time=""    -> 69.9      (CAPPED at CAP_UNCONFIRMED)
+            #     valid_time=hour  -> 69.9      (correct — a real hour, a real lookup)
+            # `find_best_spot` defaults to "", so every spot scoring >= 70 collapsed onto 69.9 and
+            # the RANKING this tool exists to produce was destroyed exactly on the days it matters.
+            # ★ Invisible on a flat day: a live call the same hour returned 4.4-25.0 with nothing
+            #   capped, because the cap can only bind at >= 70. Conditions, not the mechanism.
+            # ⇒ Same fix already applied at weather_sim_mcp.py:296 (`valid_time=hour or None`);
+            #   this call site was missed.
+            valid_time=valid_time or None, allow_reference_lookup=True,
             served_reference_size_m=sim_forecast.served_reference(prov))
         verdict, normal, normal_src = _readiness(spot)
         readiness_census[verdict] = readiness_census.get(verdict, 0) + 1
