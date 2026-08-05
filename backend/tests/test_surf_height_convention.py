@@ -29,7 +29,7 @@ from services.weather_pipeline.surf_transform import estimate_surf    # noqa: E4
 # ── THE PURE CONVERSION ─────────────────────────────────────────────────────────────────────────
 
 def test_off_is_a_no_op(monkeypatch):
-    monkeypatch.delenv("SURF_HEIGHT_H110", raising=False)
+    monkeypatch.setenv("SURF_HEIGHT_H110", "0")   # explicit: the DEFAULT is now ON (2026-08-05)
     for regime in ("shelf", "shoaling", "breaking", "open_ocean", "calm", "unknown"):
         assert SHC.to_surf_convention(1.234, regime) == 1.234
 
@@ -55,7 +55,7 @@ def test_it_never_raises_on_junk(monkeypatch):
 
 def test_describe_says_which_statistic_is_live(monkeypatch):
     """A height must be able to say what statistic it is — the provenance lesson."""
-    monkeypatch.delenv("SURF_HEIGHT_H110", raising=False)
+    monkeypatch.setenv("SURF_HEIGHT_H110", "0")   # explicit: the DEFAULT is now ON (2026-08-05)
     assert SHC.describe()["surf_height_statistic"] == "Hs"
     assert SHC.describe()["factor_applied"] == 1.0
     monkeypatch.setenv("SURF_HEIGHT_H110", "1")
@@ -72,7 +72,7 @@ CASES = [(1.0, 9.0, 25.0, 90.0), (1.5, 12.0, 40.0, 30.0), (0.5, 7.0, 20.0, 80.0)
 @pytest.mark.parametrize("hs,tp,depth,width", CASES)
 def test_the_transform_is_byte_identical_when_off(monkeypatch, hs, tp, depth, width):
     """Property 1. Not 'close' — identical."""
-    monkeypatch.delenv("SURF_HEIGHT_H110", raising=False)
+    monkeypatch.setenv("SURF_HEIGHT_H110", "0")   # explicit: the DEFAULT is now ON (2026-08-05)
     a = estimate_surf(hs, tp, depth, coastal=True, shelf_width_km=width)
     monkeypatch.setenv("SURF_HEIGHT_H110", "0")
     b = estimate_surf(hs, tp, depth, coastal=True, shelf_width_km=width)
@@ -81,7 +81,7 @@ def test_the_transform_is_byte_identical_when_off(monkeypatch, hs, tp, depth, wi
 
 @pytest.mark.parametrize("hs,tp,depth,width", CASES)
 def test_the_transform_scales_by_the_rayleigh_factor_when_on(monkeypatch, hs, tp, depth, width):
-    monkeypatch.delenv("SURF_HEIGHT_H110", raising=False)
+    monkeypatch.setenv("SURF_HEIGHT_H110", "0")   # explicit: the DEFAULT is now ON (2026-08-05)
     off_h, off_regime = estimate_surf(hs, tp, depth, coastal=True, shelf_width_km=width)
     monkeypatch.setenv("SURF_HEIGHT_H110", "1")
     on_h, on_regime = estimate_surf(hs, tp, depth, coastal=True, shelf_width_km=width)
@@ -119,6 +119,32 @@ def test_the_conversion_is_at_the_single_shared_function():
     src = inspect.getsource(surf_transform.estimate_surf)
     assert "to_surf_convention" in src, (
         "the convention has moved out of estimate_surf — every caller must share it")
+
+
+def test_the_DEFAULT_is_on_and_its_partner_is_on_with_it(monkeypatch):
+    """⛔⛔ THE PAIR, PINNED. `SURF_HEIGHT_H110` flipped to DEFAULT ON on 2026-08-05, and that is
+    only safe because refraction shipped in the same commit.
+
+        no refraction (Kr assumed 1.0, measured 0.797)  ->  +25.5% too HIGH
+        emitting Hs where the standard is H1/10 (x1.27) ->  -21.3% too LOW
+        net (1/0.797) / 1.27 = 0.988                    ->  -1.2%
+
+    If someone re-defaults H110 to off, or neutralises Kr to 1.0, the height is wrong by ~21-25% in
+    one direction or the other. This test fails on EITHER half moving alone.
+    """
+    monkeypatch.delenv("SURF_HEIGHT_H110", raising=False)
+    monkeypatch.delenv("SURF_REFRACTION_KR", raising=False)
+    importlib.reload(SHC)
+    from services.weather_pipeline import surf_transform as ST
+    importlib.reload(ST)
+
+    assert SHC.enabled() is True, "SURF_HEIGHT_H110 must DEFAULT ON — see the pair above"
+    assert ST.REFRACTION_KR == pytest.approx(0.797), (
+        "the refraction partner must ship with it; 1.0 reinstates the +25.5% landmine")
+    # and the product of the two must land within ~2% of neutral, which is the whole argument
+    net = SHC.H110_OVER_HS * ST.REFRACTION_KR
+    assert net == pytest.approx(1.0, abs=0.02), (
+        f"the pair must nearly cancel; got {net:.4f}. One half has moved without the other.")
 
 
 # ── The coupling that makes this flag dangerous on its own ─────────────────────────────────────

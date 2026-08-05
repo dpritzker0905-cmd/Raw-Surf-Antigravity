@@ -20,11 +20,12 @@ from services.weather_pipeline import science_registry as SR
 
 
 # The debt as measured 2026-08-05. This set may SHRINK, never grow.
-KNOWN_OUT_OF_RANGE = {
-    "GAMMA_MIN",          # 0.62 vs Carini spilling floor 0.63 -- rounding-scale, clamp floor only
-    "GAMMA_MAX",          # 1.05 vs field plunging max 0.81
-    "GAMMA_MAX_STEEP",    # 1.25 vs field plunging max 0.81 -- the big one, owner decision pending
-}
+# ✅ EMPTIED THE SAME DAY IT WAS CREATED. All three gammas were brought inside their own source's
+# observed range by the height-pair commit: GAMMA_MIN 0.62 -> 0.63, GAMMA_MAX 1.05 -> 0.81,
+# GAMMA_MAX_STEEP 1.25 -> 0.81, i.e. exactly Carini et al. (2021)'s field-observed envelope
+# (spilling 0.63-0.71, plunging 0.73-0.81). The ratchet did its job: it named the debt, the debt was
+# paid, and the empty set now means ANY new out-of-range constant fails immediately.
+KNOWN_OUT_OF_RANGE = set()
 
 # registry name -> (module, attribute) for constants that ARE a live module-level value.
 # A constant absent here must be status=UNVALIDATED (i.e. an explicitly declared gap).
@@ -34,6 +35,7 @@ WIRED = {
     "GAMMA_MAX": ("services.weather_pipeline.surf_transform", "GAMMA_MAX"),
     "GAMMA_MAX_STEEP": ("services.weather_pipeline.surf_transform", "GAMMA_MAX_STEEP"),
     "H110_OVER_HS": ("services.weather_pipeline.surf_height_convention", "H110_OVER_HS"),
+    "REFRACTION_KR": ("services.weather_pipeline.surf_transform", "REFRACTION_KR"),
 }
 
 
@@ -135,5 +137,14 @@ def test_breaker_type_boundaries_match_the_registered_thresholds_BEHAVIOURALLY()
 
 
 def test_gamma_ordering_is_physical():
-    """min < reference < max < steep-max. A retune that crosses these is a sign error, not a tune."""
-    assert SR.value("GAMMA_MIN") < SR.value("GAMMA") < SR.value("GAMMA_MAX") < SR.value("GAMMA_MAX_STEEP")
+    """min < reference, and both ceilings at or below the field maximum.
+
+    ⚠️ The steep ceiling is `<=`, not `<`, and that is the POINT. Before 2026-08-05 a slope-aware
+    ceiling of 1.25 sat strictly above the flat one of 1.05, encoding "a steep reef breaks taller
+    without limit". Field observation says otherwise: 0.81 is the highest individual-wave breaker
+    index Carini et al. (2021) recorded in 1,600+ waves, and a steep reef cannot exceed it. So the
+    two ceilings CONVERGE. Asserting `<` here would forbid the corrected physics.
+    """
+    assert SR.value("GAMMA_MIN") < SR.value("GAMMA")
+    assert SR.value("GAMMA") <= SR.value("GAMMA_MAX") <= SR.value("GAMMA_MAX_STEEP")
+    assert SR.value("GAMMA_MAX_STEEP") <= 0.81, "no ceiling may exceed the field-observed maximum"

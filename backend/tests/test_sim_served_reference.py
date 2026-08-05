@@ -42,7 +42,14 @@ SEA = dict(swell_h=1.6414, swell_p=7.78, swell_dir=271.11,
 
 GLOBAL_CURVE_SCORE = 54.6      # reference None — what the misconfigured sim answered
 SPOT_REFERENCE_M = 1.86        # the per-SPOT climatology the glyph graded with
-SPOT_REFERENCE_SCORE = 31.8    # what that reference reproduces (served glyph: 31.9)
+# ⚠️ 31.8 -> 32.2 on 2026-08-05, and the reason is worth keeping: the HEIGHT PAIR shipped
+# (gamma ceiling 1.25 -> 0.81 + REFRACTION_KR 0.797 + SURF_HEIGHT_H110 default ON), which moves the
+# served height by a measured median +1.2%. GLOBAL_CURVE_SCORE did NOT move, because the global
+# curve is saturated at this sea while the spot-reference curve is still on its slope — that
+# asymmetry is the point of the pair of assertions below, not an inconsistency.
+# ★ The PROPERTY under test is unchanged and still asserted: the served reference reaches the score,
+#   and the gap stays above 20 (now 54.6 - 32.2 = 22.4).
+SPOT_REFERENCE_SCORE = 32.2    # what that reference reproduces (served glyph was 31.9 pre-pair)
 
 
 def _score(**kw):

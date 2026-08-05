@@ -179,14 +179,34 @@ def test_breaker_index_slope():
     assert st.breaker_index(10.5, slope=None) == pytest.approx(0.78, abs=1e-9)
     # FLAT shelf proxy (Florida-class: ~25 m / 90 km ≈ 0.0003): b(m) → 0.78, legacy-equivalent.
     assert st.breaker_index(10.5, slope=0.0003) == pytest.approx(0.78, abs=0.005)
-    # STEEP shelf proxy (volcanic reef coast: ~100 m / 3 km ≈ 0.033): cap raised meaningfully.
+    # STEEP shelf proxy (volcanic reef coast: ~100 m / 3 km ≈ 0.033): cap raised toward the ceiling.
+    # ⚠️ WAS `assert steep > 0.90`. Corrected 2026-08-05: the ceiling is now Carini et al. (2021)'s
+    # FIELD-observed individual-wave maximum, 0.81, because the breaking branch returns `gamma*depth`
+    # UN-converted — an already-maximum-wave statistic. 0.90 was reachable only under the old
+    # laboratory ceiling of 1.25, which sat 54% above anything that study measured in 1,600+ waves.
+    # The property that matters is unchanged and still asserted: a steep slope raises the cap above
+    # the flat-shelf value, monotonically, bounded.
     steep = st.breaker_index(10.5, slope=0.033)
-    assert steep > 0.90
+    assert steep > st.breaker_index(10.5, slope=0.0003), "a steep slope must still raise the cap"
+    assert steep == pytest.approx(st.GAMMA_MAX_STEEP, abs=1e-9), (
+        "a 0.033 slope saturates the field ceiling; if this stops holding the envelope moved")
     # Monotonic in slope; bounded by the widened steep ceiling.
     assert st.breaker_index(10.5, slope=0.1) >= steep
     assert st.breaker_index(20.0, slope=1.0) <= st.GAMMA_MAX_STEEP + 1e-9
-    # Period term still applies on the slope path (long-period breaks taller).
-    assert st.breaker_index(14.0, slope=0.033) > st.breaker_index(8.0, slope=0.033)
+    # Period term still applies on the slope path (long-period breaks taller) — but ONLY below the
+    # field ceiling. ⚠️ Corrected 2026-08-05: at Tp >= ~11.6 s the period term alone reaches 0.81
+    # (0.78 + (Tp-10.5)*0.027), so 14 s and 8 s BOTH clamp there on a steep slope and the old
+    # `14 > 8` assertion compares two saturated values. Test the property where it is observable.
+    # ★ THE THRESHOLD, worth knowing: Weggel's centre b(m) = 1.56/(1+e^(-19.5m)) crosses the 0.81
+    #   ceiling at m ~= 0.0039. Above that the SLOPE alone saturates gamma and the period term is
+    #   inert; at m = 0.033 the centre is 1.022, so every period clamps. Live slope distribution
+    #   (701 spots, 2026-08-04): p50 0.0017, p90 0.046 — so a substantial minority of spots now sit
+    #   permanently on the ceiling. That is the ceiling binding, not a defect, but it does mean the
+    #   slope-aware machinery is doing less work than its name suggests. Test the period term where
+    #   it is observable: a genuinely flat shelf.
+    assert st.breaker_index(11.0, slope=0.002) > st.breaker_index(6.0, slope=0.002)
+    assert st.breaker_index(14.0, slope=0.033) == pytest.approx(st.GAMMA_MAX_STEEP, abs=1e-9), (
+        "long-period swell must sit ON the field ceiling, not above it")
     # Kill switch restores the flat center even with a steep slope.
     import os
     os.environ["SURF_V3_SLOPE_GAMMA"] = "0"
@@ -198,11 +218,26 @@ def test_breaker_index_slope():
 
 def test_estimate_surf_steep_shelf_breaks_taller():
     """The user-visible v3.2 effect: at the same shallow depth, a STEEP-shelf break (reef-class)
-    is allowed a taller depth-limited wave than a wide-flat-shelf beach break."""
-    flat, rf = st.estimate_surf(5.0, 12.0, 2.0, coastal=True, shelf_width_km=90.0)   # FL-class
-    steep, rs = st.estimate_surf(5.0, 12.0, 2.0, coastal=True, shelf_width_km=2.0)   # reef-class
+    is allowed a taller depth-limited wave than a wide-flat-shelf beach break.
+
+    ⚠️ CORRECTED 2026-08-05. At Tp = 12 s the period term alone already reaches the field ceiling
+    (0.81), so flat and steep BOTH clamp there and the effect is invisible — the old assertion was
+    comparing two saturated values and would have passed for the wrong reason had either moved.
+    The effect is real and still asserted, at a SHORT period where the ceiling does not bind.
+    ★ This is the honest consequence of lowering the ceiling from a laboratory 1.25 to Carini et
+      al. (2021)'s field-observed 0.81: the slope lever now only operates on short-period seas,
+      which is precisely the regime the field data separates (spilling 0.63-0.71 / plunging
+      0.73-0.81). It is not a regression; it is the ceiling doing its job.
+    """
+    flat, rf = st.estimate_surf(5.0, 7.0, 2.0, coastal=True, shelf_width_km=90.0)   # FL-class
+    steep, rs = st.estimate_surf(5.0, 7.0, 2.0, coastal=True, shelf_width_km=2.0)   # reef-class
     assert rf == 'breaking' and rs == 'breaking'
     assert steep > flat
+
+    # and at long period both correctly sit ON the ceiling rather than above it
+    lf, _ = st.estimate_surf(5.0, 14.0, 2.0, coastal=True, shelf_width_km=90.0)
+    ls, _ = st.estimate_surf(5.0, 14.0, 2.0, coastal=True, shelf_width_km=2.0)
+    assert lf == pytest.approx(ls), "long-period: both paths clamp to the field ceiling"
 
 
 def test_estimate_surf_wider_shelf_reduces_more():

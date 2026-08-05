@@ -16,7 +16,16 @@ from services.weather_pipeline.surf_magnets import magnet_factor_at
 
 # FL-class shelf cell (audit inputs): wide shallow shelf
 FL = dict(Hs=0.35, Tp=7.4, depth=15.0, width=90.0)
-V3_OFF = {"SURF_V3_KOMAR": "0", "SURF_V3_SHELF_RECAL": "0", "SURF_V3_EXPOSURE": "0", "SURF_V3_MAGNETS": "0"}
+# ⛔ THE "RESTORE LEGACY" SET. Its contract is that setting ALL of it yields the EXACT v2 chain
+# (Kf * Ks * Hs), byte-for-byte — which is what makes every later correction reversible.
+# ★ 2026-08-05: the height pair was added and this test caught the omission immediately. Applying
+#   `SURF_HEIGHT_H110` (x1.27) and `SURF_REFRACTION_KR` (x0.797) unconditionally left the "legacy"
+#   path multiplied by 1.27 * 0.797 = 1.0122 — measured here as 0.148828 vs 0.147036. A correction
+#   that cannot be switched off is not a correction, it is a fork. Both now belong to the set.
+# ⚠️ NOT named SURF_V3_* because they are not v3 — but they ARE part of "restore legacy", and this
+#   set is defined by that PROPERTY, not by the naming convention.
+V3_OFF = {"SURF_V3_KOMAR": "0", "SURF_V3_SHELF_RECAL": "0", "SURF_V3_EXPOSURE": "0",
+          "SURF_V3_MAGNETS": "0", "SURF_HEIGHT_H110": "0", "SURF_REFRACTION_KR": "1.0"}
 
 
 def _set(monkeypatch, env):

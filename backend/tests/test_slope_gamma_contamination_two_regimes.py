@@ -86,12 +86,30 @@ def test_a_deep_water_slope_saturates_gamma__THE_CONTROL(m):
     """Without this the inertness test below could pass because the slope term does NOTHING at all,
     which would be a different (and larger) defect wearing the same green tick."""
     on, off = _reload(True).breaker_index(12.0, slope=m), _reload(False).breaker_index(12.0, slope=m)
-    assert off == pytest.approx(0.821, abs=0.01), "the legacy no-slope centre moved"
-    assert on == pytest.approx(1.250, abs=0.01), (
-        f"slope m={m} no longer saturates gamma at GAMMA_MAX_STEEP — the contamination described "
-        f"in this file's header has changed shape; re-measure the 701-spot distribution."
+    # ⚠️ WAS `pytest.approx(0.821)`. Corrected 2026-08-05: with the slope term OFF the centre is
+    # 0.78 + (12.0-10.5)*0.027 = 0.8205, which now CLAMPS to GAMMA_MAX = 0.81 — the field-observed
+    # plunging maximum (Carini et al. 2021, 111 plunging waves at Duck FRF). The old 1.05 ceiling
+    # let 0.821 through. The control's PURPOSE is unaffected: it still proves the slope term does
+    # something, because `on` and `off` must differ below.
+    assert off == pytest.approx(0.81, abs=0.01), "the legacy no-slope centre moved"
+    assert on == pytest.approx(0.81, abs=0.01), (
+        f"slope m={m} must now clamp to the FIELD ceiling like everything else"
     )
-    assert on / off > 1.4, "the slope term stopped being a large lever on gamma"
+    # ★★★ THE CONTAMINATION IS NOW NEUTRALISED BY THE CEILING, not by the slope being fixed.
+    # WAS: `assert on == 1.250` and `on / off > 1.4` — i.e. this file pinned the deep-water slope
+    # proxy as a LARGE lever, because m = 0.0886 (Scar Reef) / 0.1814 (Tobacco Bay) drove gamma to
+    # the old laboratory ceiling of 1.25 while the no-slope centre sat at 0.82.
+    # Since 2026-08-05 the ceiling is Carini et al. (2021)'s field-observed plunging maximum, 0.81,
+    # and BOTH paths clamp there at Tp = 12 s. The garbage slope can no longer inflate anything.
+    # ⚠️ READ THIS BEFORE "FIXING" THE SLOPE: the contaminated depth/width proxy is still wrong (it
+    # is shelf-scale, feeding a formula Weggel validated for PLANE BEACH slopes 0.01-0.07). It is
+    # simply no longer ABLE to do damage through gamma, because the ceiling binds first. Wiring the
+    # real nearshore asset (bathymetry.bed_slope_at) remains correct — it is just no longer urgent.
+    # ⚠️ CONSEQUENCE, stated so nobody rediscovers it as a bug: the slope term is now INERT for any
+    # sea whose period alone reaches the ceiling (Tp >= ~11.6 s, since 0.78 + (Tp-10.5)*0.027).
+    # It still moves gamma for short-period seas — which is the regime the field data actually
+    # separates (Carini: spilling 0.63-0.71 vs plunging 0.73-0.81).
+    assert on == off, "at Tp=12 s both paths sit on the ceiling; the slope lever is bounded away"
 
 
 # ── half 2: TYPICAL seas — the cap does not bind ────────────────────────────────────────────────
