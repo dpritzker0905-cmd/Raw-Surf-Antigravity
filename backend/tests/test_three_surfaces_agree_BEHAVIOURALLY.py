@@ -35,12 +35,18 @@ cannot see that, because the argument sets match.
     sim-only `wind_spd * KT_TO_MS * 1.35`   -> 12 of 13 RED   ✅ caught
     sim-only `break_depth_m=None`           -> 13 of 13 GREEN  ⛔ NOT caught
 
-⛔ THIS TEST IS STRUCTURALLY BLIND TO `break_depth_m`, AND THAT IS NOT A FLAW IN THE TEST. That
-argument feeds the depth-limited cap, and the cap almost never binds: measured separately over
-9 spots x 5 seas, a 1.523x swing in the breaker index moved the served height in 1 of 45 cases by
-0.3% (see test_slope_gamma_is_contaminated_but_inert.py). A factor that does not change the output
-cannot be caught by comparing outputs. Adding sea states will not fix it — there are essentially
-none where the cap binds.
+⛔ THIS TEST IS BLIND TO `break_depth_m` AT THE SEAS IT USES, and the reason is measured, not
+assumed. That argument feeds the depth-limited cap, which does not bind in the everyday regime:
+over 9 spots x 5 seas a 1.523x swing in the breaker index moved the served height in 1 of 45 cases,
+by 0.3%. A factor that does not change the output cannot be caught by comparing outputs.
+
+⚠️ CORRECTED BY SELF-AUDIT 2026-08-05 — an earlier version of this paragraph said "adding sea
+states will not fix it, there are essentially none where the cap binds". THAT IS FALSE. On a wider
+range (10 spots x 54 seas, Hs to 18 m) the cap binds in 33 of 540 pairs, worst +75.4% at Pipeline.
+The blind spot is a property of THIS FILE'S SEAS (all <= 3.5 m), not of the physics. Raising them
+into the big-wave regime WOULD close it — at the cost of pinning a number that is itself driven by
+a contaminated slope input. Left as is deliberately, and pinned instead by
+test_slope_gamma_contamination_two_regimes.py, which covers both regimes explicitly.
 
 ⇒ THE TWO GUARDS ARE COMPLEMENTARY, AND BOTH ARE REQUIRED:
     test_the_registry_matches_what_the_code_actually_passes  catches a factor being DROPPED,
