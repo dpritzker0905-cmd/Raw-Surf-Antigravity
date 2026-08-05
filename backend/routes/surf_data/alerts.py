@@ -18,6 +18,34 @@ from models import (
     PhotographerRequest, PhotographerRequestStatusEnum, RoleEnum
 )
 
+
+def surf_alert_body(wave_height_ft, wave_period, rating=None, rating_level=None) -> str:
+    """The text of a surf-alert push, stating the QUALITY alongside the size.
+
+    ⛔⛔ THIS USED TO BE `f"Waves are {h}ft @ {p}s - perfect conditions!"` — a claim made on HEIGHT
+    ALONE, with the quality sitting unread in the very same dict. `resolve_spot_conditions` runs the
+    mandated chain and writes `rating` / `rating_level` into `current_conditions`; the alert loop
+    read only the height and the period, then asserted the day was perfect.
+
+    CLAUDE.md, verbatim: "A size without a quality is also incomplete: a blown-out 6 ft and a
+    groomed 6 ft must not render identically." They rendered IDENTICALLY here — byte-for-byte the
+    same push, both claiming perfection — and the mandate names alerts explicitly. A notification is
+    worse than a screen for this: the user acts on it without looking.
+
+    ★ PURE, and module-level, so it is testable without a database or a running route. The defect
+      lived inside an async DB loop, which is a large part of why nothing tested it.
+    ⚠️ Quality ABSENT is stated, never guessed. A missing rating says so rather than falling back to
+      the old unconditional claim.
+    """
+    head = f"Waves are {wave_height_ft:.1f}ft @ {wave_period}s"
+    level = (rating_level or "").replace("_", " ").strip()
+    if level and rating is not None:
+        return f"{head} — conditions {level} ({rating:.0f}/100)."
+    if level:
+        return f"{head} — conditions {level}."
+    return f"{head}. Quality unavailable for this hour."
+
+
 # Weather pipeline point resolution
 from services.weather_pipeline.point_resolution import PointResolutionService
 from services.weather_pipeline.sampler import PointSampler
@@ -310,28 +338,52 @@ async def check_and_trigger_alerts(db: AsyncSession = Depends(get_db)):
                 if matches:
                     alert.trigger_count += 1
                     alert.last_triggered = datetime.now(timezone.utc)
-                    
+
+                    # ⛔⛔ THIS NOTIFICATION USED TO SAY "perfect conditions!" ON HEIGHT ALONE, WITH
+                    # THE QUALITY SITTING UNREAD IN THE SAME DICT. `resolve_spot_conditions` runs the
+                    # mandated chain and writes `rating` / `rating_level` (gated) into
+                    # `current_conditions`; this block read only `wave_height_ft` and `wave_period`
+                    # and then asserted the day was perfect.
+                    # ⇒ CLAUDE.md, verbatim: "A size without a quality is also incomplete: a
+                    #   blown-out 6 ft and a groomed 6 ft must not render identically." They rendered
+                    #   IDENTICALLY here — the same push notification, both claiming perfection — and
+                    #   a notification is worse than a screen, because the user acts on it without
+                    #   looking. The mandate names alerts explicitly among the surfaces it binds.
+                    # ⚠️ WHEN IT FIRES IS DELIBERATELY UNCHANGED. The user asked to be told at a
+                    #   height range and that is still exactly what triggers; silently adding a
+                    #   quality threshold would drop alerts they asked for. Only the CLAIM is fixed.
+                    #   A quality floor is a product decision and needs a column on the alert.
+                    rating = current.get("rating")
+                    rating_level = current.get("rating_level")
+                    body = surf_alert_body(wave_height_ft, wave_period, rating, rating_level)
+
                     notification = Notification(
                         user_id=alert.user_id,
                         type="surf_alert",
-                        title=f"🌊 {alert.spot.name} is firing!",
-                        body=f"Waves are {wave_height_ft:.1f}ft @ {wave_period}s - perfect conditions!",
+                        title=f"🌊 {alert.spot.name} — {wave_height_ft:.1f}ft",
+                        body=body,
                         data=json.dumps({
                             "spot_id": alert.spot_id,
                             "wave_height_ft": wave_height_ft,
                             "wave_period": wave_period,
+                            # Carried so a client can colour or filter on quality without a second
+                            # request — the same reason the glyph payload carries `level`.
+                            "rating": rating,
+                            "rating_level": rating_level,
                             "alert_id": alert.id,
                             "type": "surf_alert"
                         })
                     )
                     db.add(notification)
-                    
+
                     triggered.append({
                         "alert_id": alert.id,
                         "user_id": alert.user_id,
                         "spot_name": alert.spot.name,
                         "wave_height_ft": round(wave_height_ft, 1),
-                        "wave_period": wave_period
+                        "wave_period": wave_period,
+                        "rating": rating,
+                        "rating_level": rating_level
                     })
         except Exception as e:
             logger.error(f"Error checking alert {alert.id}: {str(e)}")
