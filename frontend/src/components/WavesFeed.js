@@ -214,7 +214,7 @@ const WaveCard = ({
         </button>
         
         {/* Comments */}
-        <button aria-label="div"
+        <button
           onClick={(e) => { e.stopPropagation(); onComment(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-comment-btn"
@@ -226,7 +226,7 @@ const WaveCard = ({
         </button>
         
         {/* Share */}
-        <button aria-label="div"
+        <button
           onClick={(e) => { e.stopPropagation(); onShare(wave); }}
           className="flex flex-col items-center gap-1"
           data-testid="wave-share-btn"

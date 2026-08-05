@@ -613,7 +613,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
 
         {/* Controls */}
         <div className="absolute bottom-0 left-0 right-0 h-40 bg-gradient-to-t from-black/95 via-black/50 to-transparent flex items-center justify-center gap-12 pb-6 z-20 pointer-events-auto">
-          <Button aria-label="div"
+          <Button
             onClick={takePhoto}
             disabled={isRecording}
             variant="ghost"
@@ -634,7 +634,7 @@ export default function WebcamCaptureModal({ isOpen, onClose, onCapture, maxLeng
             </button>
           </div>
 
-          <Button aria-label="div" disabled variant="ghost" className="flex flex-col items-center gap-2 hover:bg-transparent opacity-0 pointer-events-none">
+          <Button disabled variant="ghost" className="flex flex-col items-center gap-2 hover:bg-transparent opacity-0 pointer-events-none">
             <div className="w-12 h-12 rounded-full border-2 border-transparent" />
             <span className="text-transparent font-medium text-xs">Blank</span>
           </Button>

@@ -351,7 +351,7 @@ export var RequestProModal = ({
             ) : onDemandPhotographers.length > 0 ? (
               <div className="space-y-1.5">
                 {/* Auto-match pill */}
-                <button aria-label="div"
+                <button
                   onClick={() => setSelectedPro(null)}
                   className={`w-full px-3 py-2.5 rounded-xl flex items-center gap-3 transition-all ${
                     selectedPro === null

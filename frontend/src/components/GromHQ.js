@@ -645,7 +645,7 @@ export const GromHQ = () => {
               { icon: <ShieldAlert className="w-5 h-5 text-red-400" />, color: 'bg-red-500/20', arrow: 'text-red-400', title: 'Safety Settings', desc: 'Manage privacy and content filters', onClick: () => navigate('/settings') },
               { icon: <ShoppingBag className="w-5 h-5 text-purple-400" />, color: 'bg-purple-500/20', arrow: 'text-purple-400', title: 'Gear Hub', desc: 'Buy gear for your Grom', onClick: () => navigate('/gear-hub') },
             ].map((action) => (
-              <Button aria-label="div" key={action.title} variant="outline" className={`w-full justify-start h-auto py-4 ${borderColor}`} onClick={action.onClick}>
+              <Button key={action.title} variant="outline" className={`w-full justify-start h-auto py-4 ${borderColor}`} onClick={action.onClick}>
                 <div className={`w-10 h-10 rounded-full ${action.color} flex items-center justify-center mr-3`}>{action.icon}</div>
                 <div className="text-left flex-1">
                   <div className={`font-semibold ${textPrimary}`}>{action.title}</div>

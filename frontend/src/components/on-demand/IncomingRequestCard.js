@@ -70,7 +70,7 @@ const IncomingRequestCard = ({
         <div className="flex items-center justify-between mb-4">
           <div className="flex items-center gap-3">
             {/* Clickable Selfie/Avatar */}
-            <button aria-label="div" 
+            <button 
               onClick={() => request.requester_selfie && setShowSelfieModal(true)}
               className="relative group"
             >

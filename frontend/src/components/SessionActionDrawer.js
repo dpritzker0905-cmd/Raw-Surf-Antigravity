@@ -215,7 +215,7 @@ export const SessionActionDrawer = ({
         {/* Action Buttons */}
         <div className="space-y-2 flex-1 overflow-y-auto">
           {/* Invite Crew */}
-          <button aria-label="div"
+          <button
             onClick={() => {
               onClose();
               onOpenCrewHub?.(booking);
@@ -236,7 +236,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* The Crew - View/Manage Crew Lineup with surfboard visualization */}
-          <button aria-label="div"
+          <button
             onClick={() => {
               onClose();
               onOpenCrewView?.(booking);
@@ -263,7 +263,7 @@ export const SessionActionDrawer = ({
 
           {/* Split Payment - Only show if there are crew members */}
           {booking.current_participants > 1 && (
-            <button aria-label="div"
+            <button
               onClick={() => setActiveAction('split')}
               className={`w-full p-4 rounded-lg border ${actionCardClass} flex items-center justify-between transition-colors`}
               data-testid="action-split-payment"
@@ -321,7 +321,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* Modify Session */}
-          <button aria-label="div"
+          <button
             onClick={() => {
               onClose();
               onOpenModify?.(booking);
@@ -342,7 +342,7 @@ export const SessionActionDrawer = ({
           </button>
 
           {/* Cancel Session */}
-          <button aria-label="div"
+          <button
             onClick={() => setActiveAction('cancel')}
             className={`w-full p-4 rounded-lg border border-red-500/30 bg-red-500/5 hover:bg-red-500/10 flex items-center justify-between transition-colors`}
             data-testid="action-cancel"

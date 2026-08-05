@@ -301,7 +301,7 @@ export const SurferGallery = () => {
         
         {/* Pending Selections Banner */}
         {pendingSelections > 0 && (
-          <button aria-label="div"
+          <button
             data-testid="pending-selections-banner"
             onClick={() => setShowSelectionQueue(true)}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-green-500/20 to-emerald-500/20 
@@ -328,7 +328,7 @@ export const SurferGallery = () => {
         
         {/* AI Match Queue Banner - TICKET-007 */}
         {claimQueue.length > 0 && activeTab !== 'claims' && (
-          <button aria-label="div"
+          <button
             data-testid="ai-match-banner"
             onClick={() => setActiveTab('claims')}
             className="w-full mb-6 p-4 rounded-xl bg-gradient-to-r from-purple-500/20 to-cyan-500/20 

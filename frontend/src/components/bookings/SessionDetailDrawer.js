@@ -324,7 +324,7 @@ const SessionDetailDrawer = ({
             {/* --- Gallery Link ----------------------------------------- */}
             {session.gallery_id && (
               <div className="px-5 mb-4">
-                <button aria-label="div"
+                <button
                   onClick={() => onNavigateToGallery?.(session.gallery_id)}
                   className={`w-full flex items-center justify-between p-4 rounded-2xl transition-all group ${
                     isLight

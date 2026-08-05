@@ -127,7 +127,7 @@ var RequestProCrewPanel = ({
                         </div>
                       )}
                       {friendSearchResults.map(friend => (
-                        <button aria-label="div"
+                        <button
                           key={friend.id}
                           onClick={() => addCrewMember(friend)}
                           className="w-full p-3 flex items-center gap-3 text-left hover:bg-zinc-700 transition-colors"

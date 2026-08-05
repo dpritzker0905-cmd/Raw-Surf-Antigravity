@@ -460,7 +460,7 @@ const ConditionsModal = ({
                       <Camera className="w-6 h-6 text-black" />
                     </Button>
                   ) : (
-                    <Button aria-label="span"
+                    <Button
                       onClick={toggleVideoRecording}
                       className={`w-14 h-14 rounded-full ${isRecording ? 'bg-red-500 hover:bg-red-600' : 'bg-red-500 hover:bg-red-600'}`}
                       data-testid="record-video-btn"
@@ -492,7 +492,7 @@ const ConditionsModal = ({
             ) : (
               <div className="grid grid-cols-2 gap-3">
                 {/* Capture Photo */}
-                <button aria-label="div"
+                <button
                   onClick={() => startCamera('photo')}
                   className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-cyan-500/50 rounded-xl transition-all"
                   data-testid="start-photo-capture"
@@ -505,7 +505,7 @@ const ConditionsModal = ({
                 </button>
                 
                 {/* Capture Video */}
-                <button aria-label="div"
+                <button
                   onClick={() => startCamera('video')}
                   className="flex flex-col items-center justify-center gap-2 p-4 bg-card hover:bg-muted border border-border hover:border-purple-500/50 rounded-xl transition-all"
                   data-testid="start-video-capture"

@@ -403,7 +403,7 @@ const CrewSplitSection = ({
                     isLight ? 'border-gray-200 bg-white' : 'border-zinc-700 bg-zinc-900'
                   } max-h-48 overflow-y-auto shadow-xl`}>
                     {searchResults.map((result) => (
-                      <button aria-label="div"
+                      <button
                         key={result.id}
                         onClick={() => addMember(result)}
                         className={`w-full flex items-center gap-3 p-3 hover:${
@@ -435,7 +435,7 @@ const CrewSplitSection = ({
               <Label className={textSecondary}>Quick Add</Label>
               <div className="flex flex-wrap gap-2">
                 {suggestions.map((person) => (
-                  <button aria-label="div"
+                  <button
                     key={person.id}
                     onClick={() => addMember(person)}
                     className={`flex items-center gap-2 px-3 py-2 rounded-full ${cardBg} hover:ring-2 ring-cyan-500/50 transition-all`}

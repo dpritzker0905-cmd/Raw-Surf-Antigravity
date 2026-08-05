@@ -71,14 +71,33 @@ module.exports = [
       // PROMOTED — these rules block builds to prevent a11y regressions:
       "jsx-a11y/anchor-has-content": "error",
       "jsx-a11y/anchor-is-valid": "error",
-      "jsx-a11y/label-has-associated-control": "off",
+      // ⛔⛔ THESE FIVE WERE "off", AND THAT IS WHY THE a11y GATE WAS GREEN (measured 2026-08-05).
+      // CLAUDE.md's accessibility mandate names its #1 prohibition as "real <button>/<input>, never
+      // a bare div-with-onClick" — and the four rules that police exactly that were switched off,
+      // with ZERO jsx-a11y entries in eslint_baseline.json. So CI passed while:
+      //     label-has-associated-control          195
+      //     click-events-have-key-events          194
+      //     no-static-element-interactions        185
+      //     control-has-associated-label          149
+      //     no-noninteractive-element-interactions 52
+      //                                     TOTAL 775   (1015 files, measured with the repo's own eslint)
+      // ★ WARN, NOT ERROR, DELIBERATELY. 775 open violations as `error` is a gate that is red on
+      //   day one, and a gate born red gets disabled — this file's own history records that exact
+      //   reasoning for `continue-on-error` in ci.yml. As warnings they are RATCHETED by
+      //   scripts/check_eslint.js: recorded in the baseline, shrink-only, so the debt can never
+      //   grow again. Promote a rule to "error" the day its count reaches zero.
+      // ⛔ Do NOT "fix" a count by re-running --write-baseline; that launders debt into allowance.
+      "jsx-a11y/label-has-associated-control": "warn",
+      "jsx-a11y/click-events-have-key-events": "warn",
+      "jsx-a11y/control-has-associated-label": "warn",
       "jsx-a11y/role-has-required-aria-props": "error",
       "jsx-a11y/role-supports-aria-props": "error",
       // v29: ALL remaining warns promoted to error for full regression blocking
       "jsx-a11y/interactive-supports-focus": "error",
       "jsx-a11y/no-access-key": "error",
-      "jsx-a11y/no-noninteractive-element-interactions": "off",
-      "jsx-a11y/no-static-element-interactions": "off",
+      // See the block above: "off" is what made this gate green over 775 violations. Ratcheted now.
+      "jsx-a11y/no-noninteractive-element-interactions": "warn",
+      "jsx-a11y/no-static-element-interactions": "warn",
       "jsx-a11y/scope": "error",
       "jsx-a11y/tabindex-no-positive": "error",
     },

@@ -428,7 +428,7 @@ export const LinkSessionModal = ({
                     </div>
                   ) : (
                   recentSessions.filter(s => s.is_available).map((session) => (
-                    <button aria-label="div"
+                    <button
                       key={`${session.session_type}-${session.id}`}
                       onClick={() => handleLinkSession(session)}
                       disabled={linkingSession}

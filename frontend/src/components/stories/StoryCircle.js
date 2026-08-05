@@ -26,7 +26,7 @@ export const StoryCircle = ({ authorGroup, onClick, isConnecting = false }) => {
   const connectingClass = isConnecting ? 'animate-[pulse_0.4s_ease-in-out_infinite] scale-105' : '';
 
   return (
-    <button aria-label="div"
+    <button
       onClick={onClick}
       disabled={isConnecting}
       className={`flex-shrink-0 flex flex-col items-center w-16 group relative ${connectingClass}`}

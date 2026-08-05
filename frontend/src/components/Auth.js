@@ -359,7 +359,7 @@ export const Auth = () => {
                 {Object.entries(ROLE_CONFIG).map(([key, config]) => {
                   const Icon = config.icon;
                   return (
-                    <button aria-label="div"
+                    <button
                       key={key}
                       onClick={() => handleCategorySelect(key)}
                       className="w-full flex items-start gap-4 p-4 bg-zinc-800 hover:bg-zinc-700 rounded-lg border border-zinc-700 hover:border-zinc-600 transition-all text-left"

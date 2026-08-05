@@ -53,7 +53,7 @@ export const PostSessionSummary = ({
   return (
     <div className="mb-6 overflow-hidden rounded-xl border border-emerald-500/30 bg-gradient-to-r from-emerald-900/20 via-zinc-900/80 to-cyan-900/20">
       {/* Header */}
-      <button aria-label="div"
+      <button
         aria-expanded={collapsed} onClick={() => setCollapsed(!collapsed)}
         className="w-full flex items-center justify-between p-4 hover:bg-white/5 transition-colors"
       >

@@ -70,7 +70,7 @@ export default function PermissionDeniedModal({ onRetry, onDismiss }) {
       {isIOS ? (
         <div className="w-full max-w-sm space-y-3 mb-8">
           {/* Step 1 */}
-          <button aria-label="div"
+          <button
             onClick={handleOpenSettings}
             className="w-full flex items-center gap-4 p-4 rounded-xl bg-white/5 border border-white/10 hover:bg-white/10 transition-colors text-left group"
           >

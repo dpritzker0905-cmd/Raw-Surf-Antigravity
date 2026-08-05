@@ -597,7 +597,7 @@ export const PublicPhotographerGallery = () => {
             <Button variant="outline" onClick={() => setShowPurchaseModal(false)} className={borderColor}>
               Cancel
             </Button>
-            <Button aria-label="div" 
+            <Button 
               onClick={handlePurchase}
               disabled={purchaseLoading}
               className="bg-gradient-to-r from-emerald-500 to-yellow-500 text-black font-semibold"

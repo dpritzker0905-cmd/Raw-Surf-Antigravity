@@ -16,7 +16,7 @@ const DispatchSelfieSection = ({
 }) => {
   if (!captainSelfieUploaded) {
     return (
-      <button aria-label="div"
+      <button
         onClick={onShowSelfieModal}
         className={`w-full flex items-center gap-3 p-4 rounded-2xl border-2 border-dashed transition-all ${
           isLight

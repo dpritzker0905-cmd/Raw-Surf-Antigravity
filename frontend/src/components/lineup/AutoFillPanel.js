@@ -63,7 +63,7 @@ const AutoFillPanel = ({
           {/* Individual suggestions */}
           <div className="grid grid-cols-2 gap-2">
             {allSuggestions.slice(0, 4).map((person) => (
-              <button aria-label="div"
+              <button
                 key={person.user_id}
                 onClick={() => onInvite(person)}
                 disabled={inviting === person.user_id}

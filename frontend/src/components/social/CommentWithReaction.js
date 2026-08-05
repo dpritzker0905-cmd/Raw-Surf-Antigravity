@@ -354,7 +354,7 @@ const CommentWithReaction = ({
       
       {/* View/Hide Replies Toggle */}
       {replyCount > 0 && !showReplies && (
-        <button aria-label="span"
+        <button
           onClick={() => setShowReplies(true)}
           className={`mt-2 ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
         >
@@ -367,7 +367,7 @@ const CommentWithReaction = ({
       {showReplies && localReplies.length > 0 && (
         <div className="mt-2 space-y-2">
           {localReplies.length > 0 && (
-            <button aria-label="span"
+            <button
               onClick={() => setShowReplies(false)}
               className={`ml-6 text-xs ${textSecondaryClass} hover:opacity-80 flex items-center gap-1`}
             >

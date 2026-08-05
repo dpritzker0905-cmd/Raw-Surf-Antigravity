@@ -165,7 +165,7 @@ export const CreateStoryModal = ({ isOpen, onClose, onCreated }) => {
               />
               
               {!selectedFile ? (
-                <button aria-label="div"
+                <button
                   onClick={() => fileInputRef.current?.click()}
                   className="w-full aspect-video rounded-lg border-2 border-dashed border-zinc-600 flex flex-col items-center justify-center gap-3 hover:border-yellow-400 transition-colors bg-zinc-800/50"
                 >

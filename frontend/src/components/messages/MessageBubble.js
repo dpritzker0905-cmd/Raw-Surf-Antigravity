@@ -247,7 +247,7 @@ const MessageBubble = ({ message, onReact, _onReply, onNavigateProfile }) => {
     >
       {/* Sender avatar - only for incoming messages, Instagram-style */}
       {!message.is_mine && (
-        <button aria-label="span"
+        <button
           onClick={() => onNavigateProfile && message.sender_id && onNavigateProfile(message.sender_id)}
           className="flex-shrink-0 w-7 h-7 rounded-full overflow-hidden bg-muted ring-1 ring-border hover:ring-cyan-400/60 hover:scale-105 transition-all self-end mb-1 cursor-pointer"
           title={`View ${message.sender_name || 'profile'}`}

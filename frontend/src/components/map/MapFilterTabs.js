@@ -92,7 +92,7 @@ export var MapFilterTabs = ({
         {showResults && searchResults.length > 0 && (
           <div className="absolute top-full mt-1 left-0 right-0 bg-zinc-800/95 backdrop-blur-md border border-zinc-700 rounded-lg shadow-xl z-50 max-h-[300px] overflow-y-auto">
             {searchResults.map((spot) => (
-              <button aria-label="div"
+              <button
                 key={spot.id}
                 onClick={() => handleSpotClick(spot)}
                 className="w-full flex items-center gap-3 px-4 py-3 hover:bg-zinc-700/50 transition-colors text-left border-b border-zinc-700/50 last:border-b-0"

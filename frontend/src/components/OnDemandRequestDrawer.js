@@ -236,7 +236,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
               <p className={`text-sm font-medium ${textPrimary}`}>Payment Method</p>
               
               {localCredits > 0 && (
-                <button aria-label="div"
+                <button
                   onClick={() => setPaymentMethod('credits')}
                   className={`w-full p-4 rounded-xl border-2 flex items-center justify-between ${
                     paymentMethod === 'credits' 
@@ -259,7 +259,7 @@ export const OnDemandRequestDrawer = ({ photographer, isOpen, onClose, onSuccess
                 </button>
               )}
               
-              <button aria-label="div"
+              <button
                 onClick={() => setPaymentMethod('card')}
                 className={`w-full p-4 rounded-xl border-2 flex items-center justify-between ${
                   paymentMethod === 'card' 

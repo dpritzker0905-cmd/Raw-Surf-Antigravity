@@ -257,7 +257,7 @@ const PhotographerHubContent = ({
     </div>
 
     {/* 3. Other Shooters Nearby */}
-    <button aria-label="div"
+    <button
       onClick={() => {
         navigate('/map?filter=photographers');
         onClose?.();
@@ -283,7 +283,7 @@ const PhotographerHubContent = ({
     </button>
 
     {/* 4. Scheduled Sessions (Today's Agenda Only) */}
-    <button aria-label="div"
+    <button
       onClick={() => {
         navigate('/photographer/bookings?view=today');
         onClose?.();

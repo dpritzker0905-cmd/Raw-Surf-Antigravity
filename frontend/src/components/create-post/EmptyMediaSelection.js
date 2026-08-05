@@ -20,7 +20,7 @@ export const EmptyMediaSelection = ({
         
         <div className="flex justify-center gap-4 mb-4">
           {/* Photo Button */}
-          <button aria-label="div"
+          <button
             onClick={() => photoInputRef.current?.click()}
             className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-blue-500 transition-all active:scale-95"
             data-testid="photo-select-btn"
@@ -33,7 +33,7 @@ export const EmptyMediaSelection = ({
           </button>
 
           {/* Video Button */}
-          <button aria-label="div"
+          <button
             onClick={() => videoInputRef.current?.click()}
             className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-purple-500 transition-all active:scale-95"
             data-testid="video-select-btn"
@@ -46,7 +46,7 @@ export const EmptyMediaSelection = ({
           </button>
           
           {/* Wave (Short Video) Button */}
-          <button aria-label="div"
+          <button
             onClick={() => setShowCreateWaveModal(true)}
             className="flex flex-col items-center gap-3 p-5 rounded-2xl bg-muted hover:bg-accent border-2 border-transparent hover:border-cyan-500 transition-all active:scale-95"
             data-testid="wave-select-btn"

@@ -100,7 +100,7 @@ export default function OutgoingCallModal({
       </p>
 
       {/* Cancel button */}
-      <button aria-label="div"
+      <button
         onClick={handleCancel}
         className="group flex flex-col items-center gap-2"
         data-testid="cancel-call-btn"

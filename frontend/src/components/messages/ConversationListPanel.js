@@ -171,7 +171,7 @@ const ConversationListPanel = ({
           ) : (
             <div className="space-y-1">
               {crewChats.map((chat) => (
-                <button aria-label="div"
+                <button
                   key={chat.id}
                   onClick={() => navigate(`/bookings/${chat.id}/chat`)}
                   className="w-full flex items-center gap-3 px-4 py-3 hover:bg-muted/50 transition-colors border-b border-border/50"

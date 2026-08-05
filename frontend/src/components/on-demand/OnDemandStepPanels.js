@@ -121,7 +121,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
                       {suggestions.length > 0 ? (
                         <div className="flex flex-wrap gap-2">
                           {suggestions.map((person) => (
-                            <button aria-label="div"
+                            <button
                               key={person.id}
                               onClick={() => handleSelectFriend(person)}
                               className={`flex items-center gap-2 px-3 py-2 rounded-full ${
@@ -182,7 +182,7 @@ export const CrewStepPanel = ({ booking, crewMembers, handleRemoveCrewMember, ha
                             </div>
                           )}
                           {friendSearchResults.map((friend) => (
-                            <button aria-label="div"
+                            <button
                               key={friend.id}
                               onClick={() => handleSelectFriend(friend)}
                               className={`w-full p-3 flex items-center gap-3 text-left transition-colors ${isLight ? 'hover:bg-gray-50' : 'hover:bg-zinc-700'}`}
@@ -476,7 +476,7 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
               <p className={`text-sm font-medium ${textPrimary}`}>Payment Method</p>
               
               {localCredits > 0 && (
-                <button aria-label="div"
+                <button
                   onClick={() => setPaymentMethod('credits')}
                   className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
                     paymentMethod === 'credits' 
@@ -497,7 +497,7 @@ export const CrewPaymentStepPanel = ({ booking, crewMembers, getFullUrl: getFull
                 </button>
               )}
               
-              <button aria-label="div"
+              <button
                 onClick={() => setPaymentMethod('card')}
                 className={`w-full p-4 rounded-xl border-2 flex items-center gap-4 transition-all ${
                   paymentMethod === 'card' 

@@ -87,7 +87,7 @@ export const SessionRosterCard = ({
       background: 'linear-gradient(135deg, rgba(6,182,212,0.06), rgba(59,130,246,0.04))',
       border: '1px solid rgba(6,182,212,0.15)'
     }}>
-      <button aria-label="div" aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
+      <button aria-expanded={expanded} onClick={() => setExpanded(!expanded)}
         className="w-full flex items-center justify-between px-4 py-3 hover:bg-white/5 transition-colors">
         <div className="flex items-center gap-2.5">
           <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: `${sessionLabel.color}20` }}>
@@ -194,7 +194,7 @@ const SurferPanel = ({ surfer, galleryId, photographerId, onRosterUpdate }) => {
         border: `1px solid ${isComplete ? 'rgba(16,185,129,0.2)' : 'rgba(255,255,255,0.08)'}`
       }}>
         {/* Header */}
-        <button aria-label="div" onClick={togglePanel} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
+        <button onClick={togglePanel} className="w-full flex items-center gap-3 p-3 hover:bg-white/5 transition-colors">
           <div className="relative flex-shrink-0">
             {displayPhoto ? (
               <img loading="lazy" decoding="async" src={displayPhoto} alt={full_name}
@@ -428,7 +428,7 @@ const TaggedItemThumb = ({ item, onUntag, isUntagging }) => {
         )}
       </div>
       {/* Untag overlay */}
-      <button aria-label="div" onClick={e => { e.stopPropagation(); onUntag(); }} disabled={isUntagging}
+      <button onClick={e => { e.stopPropagation(); onUntag(); }} disabled={isUntagging}
         className="absolute inset-0 rounded-lg bg-red-500/70 opacity-0 group-hover:opacity-100 transition-opacity flex flex-col items-center justify-center cursor-pointer gap-0.5"
         title={`Untag ${isVideo ? 'video' : 'photo'}`}>
         {isUntagging ? (

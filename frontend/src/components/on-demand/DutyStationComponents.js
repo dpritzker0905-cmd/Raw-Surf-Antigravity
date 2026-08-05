@@ -528,7 +528,7 @@ const QuickActions = ({ mode, onClose, nearbyShooters }) => {
   
   return (
     <div className="space-y-2">
-      <button aria-label="div"
+      <button
         onClick={() => {
           navigate('/map?view=photographers');
           onClose?.();
@@ -549,7 +549,7 @@ const QuickActions = ({ mode, onClose, nearbyShooters }) => {
         <ChevronRight className="w-4 h-4 text-muted-foreground" />
       </button>
       
-      <button aria-label="div"
+      <button
         onClick={() => {
           navigate(mode === 'live' ? '/photographer/sessions' : '/photographer/on-demand-settings');
           onClose?.();

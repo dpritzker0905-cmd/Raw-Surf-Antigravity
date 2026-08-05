@@ -15,7 +15,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
   return (
     <div className="space-y-3">
       {/* ============ LIVE SESSIONS - Direct Link ============ */}
-      <button aria-label="div"
+      <button
         onClick={() => {
           navigate('/bookings?tab=live_now');
           onClose?.();
@@ -41,7 +41,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
       </button>
 
       {/* ============ REQUEST A PRO / ON-DEMAND - Direct Link ============ */}
-      <button aria-label="div"
+      <button
         onClick={() => {
           navigate('/bookings?tab=on_demand');
           onClose?.();
@@ -60,7 +60,7 @@ const SurferHubContent = ({ onClose, navigate, liveCount, upcomingBookings, aiMa
       </button>
 
       {/* ============ MY BOOKINGS ============ */}
-      <button aria-label="div"
+      <button
         onClick={() => {
           navigate('/bookings?tab=scheduled');
           onClose?.();

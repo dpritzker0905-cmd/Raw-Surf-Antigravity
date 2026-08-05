@@ -103,7 +103,7 @@ export default function IncomingCallModal({
       {/* Accept / Reject buttons */}
       <div className="flex items-center gap-16">
         {/* Reject */}
-        <button aria-label="div" 
+        <button 
           onClick={handleReject} 
           className="group flex flex-col items-center gap-2"
           data-testid="reject-call-btn"
@@ -115,7 +115,7 @@ export default function IncomingCallModal({
         </button>
 
         {/* Accept */}
-        <button aria-label="div" 
+        <button 
           onClick={handleAccept} 
           className="group flex flex-col items-center gap-2"
           data-testid="accept-call-btn"

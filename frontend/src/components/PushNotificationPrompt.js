@@ -154,7 +154,7 @@ const PushNotificationPrompt = () => {
             >
               Not now
             </button>
-            <button aria-label="span"
+            <button
               onClick={handleEnable}
               disabled={subscribing}
               className="flex-[2] px-4 py-2 text-xs font-bold rounded-xl text-white bg-gradient-to-r from-cyan-500 to-blue-600 hover:from-cyan-400 hover:to-blue-500 shadow-lg shadow-cyan-500/25 transition-all active:scale-[0.97] disabled:opacity-70 flex items-center justify-center gap-1.5"

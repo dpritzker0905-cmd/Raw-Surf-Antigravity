@@ -165,7 +165,7 @@ export const StokedDashboard = () => {
           {/* PRO SURFER OPTIONS */}
           {isPro && (
             <>
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-emerald-500/30 hover:bg-emerald-500/10"
                 onClick={() => navigate('/wallet')}
@@ -180,7 +180,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-emerald-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-pink-500/30 hover:bg-pink-500/10"
                 onClick={() => navigate('/impact')}
@@ -195,7 +195,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-pink-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -215,7 +215,7 @@ export const StokedDashboard = () => {
           {/* COMP SURFER OPTIONS */}
           {isCompSurfer && (
             <>
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-purple-500/30 hover:bg-purple-500/10"
                 onClick={() => navigate('/explore')}
@@ -230,7 +230,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-purple-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -250,7 +250,7 @@ export const StokedDashboard = () => {
           {/* GROM OPTIONS */}
           {isGrom && (
             <>
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -265,7 +265,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-cyan-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-green-500/30 hover:bg-green-500/10"
                 onClick={() => navigate('/map')}
@@ -280,7 +280,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-green-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10"
                 onClick={() => navigate('/explore')}
@@ -300,7 +300,7 @@ export const StokedDashboard = () => {
           {/* DEFAULT OPTIONS (fallback for regular Surfer if they somehow see this) */}
           {!isPro && !isCompSurfer && !isGrom && (
             <>
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-cyan-500/30 hover:bg-cyan-500/10"
                 onClick={() => navigate('/gear-hub')}
@@ -315,7 +315,7 @@ export const StokedDashboard = () => {
                 <ArrowRight className="w-5 h-5 text-cyan-400" />
               </Button>
               
-              <Button aria-label="div" 
+              <Button 
                 variant="outline" 
                 className="w-full justify-start h-auto py-4 border-yellow-500/30 hover:bg-yellow-500/10"
                 onClick={() => navigate('/map')}
