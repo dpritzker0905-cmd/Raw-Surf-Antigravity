@@ -74,7 +74,21 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
   const cx = Math.round(fx);
   const cy = Math.round(fy);
 
+  // ⛔⛔ THIS WAS `if (sp > best) best = sp` — a pure MAXIMUM over the whole ±2 window, i.e. the
+  // BEST score anywhere in a 1.0° × 1.0° box. Measured live 2026-08-05 at zoom 9 over Florida:
+  // the marine grid is 0.25° cells, so ±2 cells is **111.3 km × 98.3 km**. Off Cocoa Beach that
+  // reaches past Daytona — different breaks, genuinely different conditions — and the glyph showed
+  // the best of them.
+  // ★ THE ±2 SEARCH IS RIGHT; THE REDUCER WAS NOT. The docstring above states the purpose exactly:
+  //   find the adjacent RATED cell when a coastal spot's own cell is land-masked (unrated packs 0).
+  //   "Nearest rated" serves that; "highest rated in 111 km" is a different question nobody asked.
+  // ⚠️ THIS IS NOT A RARE PATH. The endpoint is primary and spreads over the grid, but beyond the
+  //   precompute bound it is deliberately SKIPPED and every glyph falls back here — observed live
+  //   the same day: `gridFallbackCount: 2 / eligibleSpots: 2`, source `grid_fallback`.
+  // Ties (equidistant rated cells) resolve to the first in scan order — deterministic, and the
+  // alternative (averaging) would invent a score no cell holds.
   let best = 0;
+  let bestD2 = Infinity;
   for (let dy = -2; dy <= 2; dy++) {
     for (let dx = -2; dx <= 2; dx++) {
       const x = cx + dx;
@@ -82,7 +96,9 @@ export function sampleRatingScoreFromGrid(grid, lat, lng) {
       if (x < 0 || y < 0 || x >= grid.cols || y >= grid.rows) continue;
       const v = grid.vectors[y * grid.cols + x];
       const sp = v && typeof v.speed === 'number' ? v.speed : 0;
-      if (sp > best) best = sp;
+      if (sp <= 0.05) continue;                 // unrated / land-masked / open ocean
+      const d2 = dx * dx + dy * dy;             // squared distance in cells — no sqrt needed
+      if (d2 < bestD2) { bestD2 = d2; best = sp; }
     }
   }
   if (best <= 0.05) return null;                // no rated cell near this spot

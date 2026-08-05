@@ -30,6 +30,40 @@ describe('sampleRatingScoreFromGrid', () => {
     expect(sampleRatingScoreFromGrid(grid, -5, 2)).toBeNull();
   });
 
+  // ── ⛔ NEAREST RATED CELL, NOT THE BEST ONE IN THE WINDOW (2026-08-05) ────────────────────────
+  // The reducer was `if (sp > best) best = sp` — a pure MAX over the whole +-2 box. Measured live
+  // at zoom 9 over Florida the marine grid is 0.25 deg cells, so that box is 1.0 x 1.0 degrees =
+  // 111.3 km x 98.3 km: off Cocoa Beach it reaches past Daytona, and the glyph showed the best
+  // break in it. The +-2 SEARCH is right (its documented job is to find the adjacent rated cell
+  // when a coastal spot's own cell is land-masked); the REDUCER was answering a question nobody
+  // asked.
+  // ⚠️ NOT A RARE PATH: beyond the precompute bound the endpoint is deliberately skipped and every
+  //    glyph falls back to this sampler — observed live, gridFallbackCount 2 of 2 eligible spots.
+  // ★ ALL 22 PRE-EXISTING TESTS PASSED BOTH BEFORE AND AFTER THE FIX. Not one of them placed two
+  //   rated cells at different distances, so none could tell MAX from NEAREST. These can.
+  it('takes the NEAREST rated cell, not the highest one in the window', () => {
+    // cell (2,2) is the spot. A poor cell adjacent at (3,2); an epic cell two away at (4,2).
+    // MAX would return 95; NEAREST must return 30.
+    const g = makeGrid({ cols: 5, rows: 5, west: 0, south: 0, east: 4, north: 4,
+                         cells: [[3, 2, 3.0], [4, 2, 9.5]] });
+    expect(sampleRatingScoreFromGrid(g, 2, 2)).toBe(30);
+  });
+
+  it('still reaches a distant rated cell when nothing nearer is rated', () => {
+    // The land-mask case the +-2 search exists for: only (4,2) is rated, two cells away.
+    const g = makeGrid({ cols: 5, rows: 5, west: 0, south: 0, east: 4, north: 4,
+                         cells: [[4, 2, 9.5]] });
+    expect(sampleRatingScoreFromGrid(g, 2, 2)).toBe(95);
+  });
+
+  it('prefers a diagonal neighbour over a farther orthogonal one', () => {
+    // (3,3) is diagonal at d2=2; (4,2) is orthogonal-ish at d2=4. Nearest wins on true distance,
+    // not on scan order — a max-based or first-found reducer would disagree.
+    const g = makeGrid({ cols: 5, rows: 5, west: 0, south: 0, east: 4, north: 4,
+                         cells: [[3, 3, 4.0], [4, 2, 9.0]] });
+    expect(sampleRatingScoreFromGrid(g, 2, 2)).toBe(40);
+  });
+
   it('clamps the score to 100', () => {
     const hot = makeGrid({ cols: 3, rows: 3, west: 0, south: 0, east: 2, north: 2, cells: [[1, 1, 15.0]] });
     expect(sampleRatingScoreFromGrid(hot, 1, 1)).toBe(100);
