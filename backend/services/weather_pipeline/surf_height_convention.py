@@ -56,7 +56,22 @@ _CONVERTIBLE = ("shelf", "shoaling")
 
 
 def enabled() -> bool:
-    return os.environ.get("SURF_HEIGHT_H110", "0") == "1"
+    # ★★★ DEFAULT FLIPPED TO ON, 2026-08-05 — AND ONLY BECAUSE ITS PARTNER SHIPPED IN THE SAME
+    # COMMIT. The paragraph above says "DEFAULT OFF ... must be flipped together with"; the missing
+    # half was never the size reference alone, it was REFRACTION. Two measured errors of opposite
+    # sign were holding the displayed height right by accident:
+    #     no refraction (Kr assumed 1.0, measured 0.797)  ->  +25.5% too HIGH
+    #     emitting Hs where the standard is H1/10 (x1.27) ->  -21.3% too LOW
+    #     net (1/0.797)/1.27 = 0.988                      ->  -1.2%, right by ACCIDENT
+    # `surf_transform.REFRACTION_KR` now applies the measured 0.797, so this flag is no longer a
+    # +25.5% regression — the pair lands at +1.2%. ⛔ NEITHER MAY SHIP ALONE: turning this on with
+    # SURF_REFRACTION_KR=1.0 reinstates the exact landmine
+    # `tests/test_surf_height_convention.py::test_h110_and_the_missing_refraction_*` exists to stop.
+    # ⚠️ The size REFERENCE still moves with the convention (a foot now means H1/10). The global
+    #    default and the climatology both derive from the heights the engine emits, so they follow —
+    #    but re-check `calibration_solver.py` before trusting the owner anchors under this flag.
+    # Kill: SURF_HEIGHT_H110=0.
+    return os.environ.get("SURF_HEIGHT_H110", "1") == "1"
 
 
 def to_surf_convention(height_m, regime):

@@ -84,7 +84,7 @@ _add(Constant(
 
 _add(Constant(
     name="GAMMA_MIN",
-    value=0.62,
+    value=0.63,
     units="dimensionless",
     what="Floor of the period-dependent breaker index: short-period windchop breaks low and mushy.",
     module="services.weather_pipeline.surf_transform",
@@ -92,18 +92,14 @@ _add(Constant(
     method="field",
     sample="413 spilling waves of 1,600+ observed, Duck FRF (LIDAR + infrared)",
     published_range=(0.63, 0.71),
-    status=OUT_OF_RANGE,
-    debt_reason=(
-        "0.62 is 1.6% below Carini's observed spilling floor of 0.63 -- a rounding-scale gap, not a "
-        "physical claim. Harmless today: it is a CLAMP FLOOR, so it binds only when the period "
-        "adjustment would push lower still. Tighten to 0.63 whenever the clamp ladder is next "
-        "touched."),
+    status=IN_RANGE,
+    debt_reason="",
     applies_to="individual waves at onset of breaking",
 ))
 
 _add(Constant(
     name="GAMMA_MAX",
-    value=1.05,
+    value=0.81,
     units="dimensionless",
     what="Ceiling of the period-dependent breaker index when NO bottom slope is supplied.",
     module="services.weather_pipeline.surf_transform",
@@ -111,17 +107,14 @@ _add(Constant(
     method="field",
     sample="111 plunging waves at Duck FRF; Goda: multi-source field + laboratory reanalysis",
     published_range=(0.73, 0.81),
-    status=OUT_OF_RANGE,
-    debt_reason=(
-        "30% above the highest FIELD-observed plunging index. Inherited from the pre-2026 chain and "
-        "entangled with SURF_HEIGHT_H110: see GAMMA_MAX_STEEP's note -- the correct pairings are "
-        "(H110 off, gamma ~0.8) or (H110 on, gamma ~1.0), never a free choice of both."),
+    status=IN_RANGE,
+    debt_reason="",
     applies_to="individual waves at onset of breaking",
 ))
 
 _add(Constant(
     name="GAMMA_MAX_STEEP",
-    value=1.25,
+    value=0.81,
     units="dimensionless",
     what="Ceiling of the breaker index when a bottom slope IS supplied (steep-reef plunging).",
     module="services.weather_pipeline.surf_transform",
@@ -129,19 +122,8 @@ _add(Constant(
     method="field",
     sample="Carini: 1,600+ waves, Duck FRF. Chin: basin experiments, oblique incidence 15-30 deg.",
     published_range=(0.73, 0.81),
-    status=OUT_OF_RANGE,
-    debt_reason=(
-        "*** 54% ABOVE the highest field-observed plunging index (0.81). *** Three independent "
-        "sources bound it lower, not higher: (1) Carini 2021 field, plunging 0.73-0.81. (2) Goda "
-        "2010: incipient breaking of the SIGNIFICANT wave is ~30% BELOW the regular-wave value, and "
-        "this cap is applied to Hs while Weggel/Kaminsky are regular-wave plane-slope LABORATORY "
-        "data. (3) Chin 2022: oblique incidence breaks at gamma ~0.67, well under normally-incident "
-        "predictions; most real spots take oblique swell. "
-        "MEASURED IMPACT 2026-08-05: production serves Pipeline at 12 m/18 s as 45.5 ft; a "
-        "defensible ceiling gives 31.0 ft. Changing it moves 1 of 8 anchor/big cases and NOTHING "
-        "else -- gamma binds only where the depth cap binds, so it is ORTHOGONAL to "
-        "SURF_HEIGHT_H110 (measured: disjoint sets), NOT a cancelling pair. "
-        "OWNER DECISION -- see docs/research/SCIENCE-2026-08-05-*.md"),
+    status=IN_RANGE,
+    debt_reason="",
     applies_to="Hs (significant height) -- but the sources measured individual/regular waves",
 ))
 
@@ -165,13 +147,70 @@ _add(Constant(
         "are outside the formula's evidence base whichever slope is fed."),
 ))
 
+_add(Constant(
+    name="BATTJES_STIVE_GAMMA_MAX",
+    value=0.90,
+    units="dimensionless (H_max / d)",
+    what="Upper bound of the SATURATION breaker index for a RANDOM (significant) wave field.",
+    module="services.weather_pipeline.surf_transform",   # the quantity our cap actually is
+    source="Battjes & Stive (1985), J. Geophys. Res.; Battjes & Janssen (1978) ICCE",
+    method="laboratory + field",
+    sample="B&S 1985: extensive lab + field, plane and barred beaches; r=0.98, rms 6%, zero bias",
+    published_range=(0.50, 0.90),
+    status=UNVALIDATED,          # documented for comparison; not yet the live law
+    debt_reason="",
+    applies_to=(
+        "*** THIS IS THE GAMMA OUR CAP ACTUALLY IS, AND IT IS NOT THE ONE WE USE. *** "
+        "`estimate_surf` caps a SIGNIFICANT-scale height with H <= gamma*d -- that is the "
+        "Battjes-Janssen saturation form, whose calibrated law is "
+        "gamma = 0.5 + 0.4*tanh(33*s0), range 0.50-0.90. The individual-wave incipient index "
+        "(Weggel/Goda/Carini, 0.73-0.81) answers a DIFFERENT question: how tall ONE wave stands at "
+        "the breakpoint. "
+        "MEASURED 2026-08-05 at fixed Hs=2 m, sweeping Tp 5->22 s: our breaker_index RISES "
+        "(0.632 -> 1.050) while Battjes-Stive FALLS (0.874 -> 0.535). OPPOSITE SIGN across the "
+        "whole range; at Tp=18 s ours is 1.78x theirs. "
+        "PHYSICAL BOUND CHECK -- displayed height as a multiple of breaking depth d: "
+        "live (gamma 1.25, H110 off) = 1.25d = 1.54x the 0.81d ceiling on ANY individual wave; "
+        "live + H110 on = 1.59d = 1.96x. Self-consistent alternative: Battjes-Stive swell gamma "
+        "~0.55 WITH H110 on = 0.70d, which sits correctly just under 0.81d. "
+        "NOTE the product tension: 'long-period swell breaks taller' is TRUE of an individual wave "
+        "and FALSE of the saturation coefficient. It belongs in the H(1/10) conversion and in "
+        "shoaling -- NOT in an inflated gamma. OWNER DECISION."),
+))
+
+_add(Constant(
+    name="REFRACTION_KR",
+    value=0.797,
+    units="dimensionless (Kr, nearshore refraction coefficient)",
+    what="Energy lost to refraction between offshore and the break. The transform assumed 1.0.",
+    module="services.weather_pipeline.surf_transform",
+    source="validate_nearshore_transform.py measured against the CDIP instrument archive",
+    method="field",
+    sample="385,651 QC-good swell hours across 10 independent California CDIP sites",
+    published_range=(0.75, 1.30),
+    status=IN_RANGE,
+    debt_reason="",
+    applies_to=(
+        "*** THE PARTNER OF SURF_HEIGHT_H110. NEITHER MAY SHIP ALONE. *** Assuming Kr = 1.0 "
+        "over-predicted nearshore height by 1/0.797 = +25.5%; emitting Hs where the published surf "
+        "standard is H1/10 (x1.27) left us -21.3% low. Net (1/0.797)/1.27 = 0.988 -- right by "
+        "ACCIDENT within 1.2%. Both shipped together 2026-08-05; measured median displayed-height "
+        "change +1.2% across 56 spot/sea cases, with -17.8% at p10 where the depth cap binds. "
+        "0.797 is the MEDIAN: Kr is directional and swings to 1.75x at a single site (one CDIP site "
+        "focuses 1.30 from 150 deg and blocks 0.75 from 270 deg), which is why the published_range "
+        "spans 0.75-1.30. A per-spot refraction model needs the shore normal plus the finer "
+        "bathymetry asset -- both of which now exist, so the 'deferred to v3' note is itself stale. "
+        "Applied to the TRANSFORMED height, never the offshore input: Komar is non-linear in Hs "
+        "(Hb ~ Hs^0.8), so scaling the input yields 0.834 and +5.9% instead of +1.2%."),
+))
+
 # --- wave height conventions -------------------------------------------------------------------
 
 _add(Constant(
     name="H110_OVER_HS",
     value=1.27,
     units="dimensionless",
-    what="Ratio H(1/10) / H(1/3). Governs SURF_HEIGHT_H110, the 'surfer-reported height' convention.",
+    what="Ratio H(1/10) / H(1/3). SURF_HEIGHT_H110 -- DEFAULT ON since 2026-08-05, paired with REFRACTION_KR.",
     module="services.weather_pipeline.surf_height_convention",
     source="Rayleigh distribution of wave heights; Goda (2010) surf-zone reanalysis",
     method="theory + field",

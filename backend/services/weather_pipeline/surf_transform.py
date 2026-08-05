@@ -45,10 +45,43 @@ from services.weather_pipeline.surf_height_convention import to_surf_convention
 G = 9.81            # gravitational acceleration (m/s^2)
 GAMMA = 0.78        # reference depth-limited breaking index (solitary-wave / McCowan limit); used when the
                     # period is unknown and as the centre of the period-dependent breaker_index() below.
-GAMMA_MIN = 0.62    # short-period windchop breaks low + mushy (spilling)
-GAMMA_MAX = 1.05    # long-period groundswell breaks tall + violent (plunging)
-GAMMA_MAX_STEEP = 1.25  # slope-aware ceiling (v3.2): steep-reef plunging γ_b reaches ~1.1-1.2 in the
-                        # incipient-breaking literature (Weggel 1972 b(m)→1.19 at m=0.1; Kaminsky 1994)
+# ★★★ 2026-08-05: THE ENVELOPE IS NOW CARINI'S OBSERVED ONE, NOT A LABORATORY EXTRAPOLATION.
+# The breaking branch below returns `gamma * depth` UN-converted, i.e. it is already a MAXIMUM-WAVE
+# statistic. So the right reference is the FIELD-observed individual-wave breaker index, and Carini
+# et al. (2021, JGR) measured it wave-by-wave at the USACE Duck FRF with LIDAR + infrared over
+# 1,600+ breaking waves: spilling 0.63-0.71, plunging 0.73-0.81. These constants are that envelope.
+#   WAS: GAMMA_MIN 0.62 / GAMMA_MAX 1.05 / GAMMA_MAX_STEEP 1.25.
+#   1.25 was 54% ABOVE the highest value that study ever observed, reached from Weggel (1972)'s
+#   b(m) -- a REGULAR-WAVE, PLANE-SLOPE LABORATORY fit -- extrapolated past its own validity range
+#   (Camenen & Larson 2007: Weggel-class formulas are validated 0.01 < m <= 0.07 and "typically not
+#   satisfactory" above m > 0.1). Goda (2010) adds that incipient breaking of the SIGNIFICANT wave
+#   sits ~30% BELOW the regular-wave value, and Chin (2022) that oblique incidence breaks near 0.67.
+#   Every independent line of evidence bounds this LOWER, none higher.
+# MEASURED IMPACT: production served Pipeline at 12 m/18 s as 45.5 ft; this returns 29.5 ft.
+# ⛔ gamma is NOT the partner of SURF_HEIGHT_H110 -- measured 2026-08-05, they act on DISJOINT sets
+#    (gamma only where the cap BINDS, the convention only where it does not). H110's partner is
+#    refraction; see SURF_REFRACTION_KR below.
+# Kill: SURF_GAMMA_FIELD_CEILING=0 restores the pre-2026-08-05 laboratory ceilings.
+GAMMA_MIN = 0.63    # short-period windchop breaks low + mushy (spilling) — Carini spilling floor
+GAMMA_MAX = 0.81    # long-period groundswell breaks tall + violent (plunging) — Carini plunging max
+GAMMA_MAX_STEEP = 0.81  # a steep reef cannot exceed the field-observed individual-wave maximum
+_GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY = 0.62, 1.05, 1.25
+
+# ★★★ REFRACTION — the ACTUAL partner of SURF_HEIGHT_H110, and the reason neither shipped alone.
+# `validate_nearshore_transform.py` measured Kr = 0.797 against CDIP instruments (385,651 QC-good
+# swell hours, 10 independent California sites). The transform assumed Kr = 1.0, so it over-predicted
+# nearshore height by 1/0.797 = +25.5%; emitting Hs where the published surf standard is H1/10
+# (x1.27) left us -21.3% low. Net (1/0.797)/1.27 = 0.988 — right by ACCIDENT, within 1.2%.
+#   ⇒ Flipping H110 alone lands +25.5% HIGH. Correcting Kr alone lands -21.3% LOW. BOTH OR NEITHER.
+# ⚠️ Kr multiplies the TRANSFORMED height, never the offshore input: Komar is non-linear in Hs
+#    (Hb ∝ Hs^0.8), so scaling the input by 0.797 yields 0.834 and a +5.9% net instead of +1.2%.
+#    Measured 2026-08-05 — that error was made and caught before this shipped.
+# ⚠️⚠️ 0.797 is a MEDIAN. Kr is directional and swings to 1.75x at a single site (one CDIP site
+#    focuses 1.30 from 150 deg and blocks 0.75 from 270 deg). This constant is strictly better than
+#    the implicit 1.0 it replaces; it is NOT a per-spot refraction model. That needs the shore normal
+#    plus the finer bathymetry asset, both of which now exist.
+# Kill: SURF_REFRACTION_KR=1.0 restores the pre-2026-08-05 no-refraction behaviour.
+REFRACTION_KR = 0.797
 DEEP_RATIO = 0.5    # d/L0 > 0.5 == deep water (shoaling negligible) — standard linear-theory cutoff
 
 
@@ -79,6 +112,11 @@ def breaker_index(Tp_s, slope=None):
     Bounds widen to GAMMA_MAX_STEEP only when a slope is supplied. Kill: SURF_V3_SLOPE_GAMMA=0."""
     if Tp_s is None or Tp_s <= 0:
         return GAMMA
+    # Kill switch: restore the pre-2026-08-05 LABORATORY ceilings (see the constants above).
+    if os.environ.get("SURF_GAMMA_FIELD_CEILING", "1") == "0":
+        g_min, g_max, g_steep = _GAMMA_MIN_LEGACY, _GAMMA_MAX_LEGACY, _GAMMA_MAX_STEEP_LEGACY
+    else:
+        g_min, g_max, g_steep = GAMMA_MIN, GAMMA_MAX, GAMMA_MAX_STEEP
     period_adj = (Tp_s - 10.5) * 0.027
     if (slope is not None and slope > 0
             and os.environ.get("SURF_V3_SLOPE_GAMMA", "1") != "0"):
@@ -86,8 +124,8 @@ def breaker_index(Tp_s, slope=None):
             center = 1.56 / (1.0 + math.exp(-19.5 * float(slope)))
         except OverflowError:
             center = 1.56
-        return _clamp(center + period_adj, GAMMA_MIN, GAMMA_MAX_STEEP)
-    return _clamp(0.78 + period_adj, GAMMA_MIN, GAMMA_MAX)
+        return _clamp(center + period_adj, g_min, g_steep)
+    return _clamp(0.78 + period_adj, g_min, g_max)
 
 
 def wavenumber(period_s: float, depth_m: float):
@@ -420,6 +458,16 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     else:
         H = shoaling_coefficient(Tp_s, depth_m) * Hs_surviving   # legacy v2 chain
     H *= _height_exposure_factor(swell_from_deg, shore_normal_deg)
+    # ★ REFRACTION (2026-08-05). Applied to the TRANSFORMED height, BEFORE the depth cap: a refracted
+    # wave carries less energy to the break, so it may no longer reach the cap at all. Applying it to
+    # the offshore input instead would be wrong AND smaller than intended — Komar is non-linear.
+    # Paired with SURF_HEIGHT_H110; see REFRACTION_KR above. Kill: SURF_REFRACTION_KR=1.0.
+    try:
+        _kr = float(os.environ.get("SURF_REFRACTION_KR", REFRACTION_KR))
+    except (TypeError, ValueError):
+        _kr = REFRACTION_KR
+    if _kr > 0:
+        H *= _kr
     if magnet_factor and magnet_factor != 1.0 and _v3("SURF_V3_MAGNETS"):
         H *= float(magnet_factor)                  # per-spot wave-magnet focusing (surf_magnets.py)
     if H >= cap:

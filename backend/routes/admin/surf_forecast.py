@@ -159,6 +159,19 @@ _RATING_FLAGS = {
     "SURF_REGIONAL_PREFER":        ("1", "Surf regional-tile preference for the coastal band", "Render env"),
     "EURO_MARINE_MID_RES_INGEST":  ("1", "EURO mid-tier ingest (ECMWF wave stream) — the EURO band's data", "pilots workflow env"),
     "EURO_MARINE_MID_ECMWF":       ("1", "EURO mid source: ECMWF free wave stream (0 = legacy CMEMS)", "pilots workflow env"),
+    # ── 2026-08-05: THE HEIGHT PAIR. These two and SURF_HEIGHT_H110 move TOGETHER. ──────────────
+    "SURF_GAMMA_FIELD_CEILING":    ("1", "Breaker-index ceiling from FIELD observation (Carini 2021 "
+                                         "Duck FRF: spilling 0.63-0.71, plunging 0.73-0.81). "
+                                         "0 = the pre-2026-08-05 laboratory ceilings 1.05/1.25, "
+                                         "which sat 54% above anything ever measured in the field",
+                                    "Render env"),
+    "SURF_REFRACTION_KR":          ("0.797", "Nearshore refraction coefficient, measured against "
+                                             "CDIP instruments (385,651 QC-good swell hours, 10 CA "
+                                             "sites). The transform previously assumed 1.0 and so "
+                                             "over-predicted by +25.5%. ⛔ PARTNER OF "
+                                             "SURF_HEIGHT_H110 — setting this to 1.0 while H110 is "
+                                             "on reinstates that +25.5%",
+                                    "Render env"),
 }
 
 
