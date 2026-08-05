@@ -370,6 +370,22 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     # ~25 m / 90 km ≈ 0.0003) keeps the legacy 0.78-centred cap byte-identical; a steep shelf
     # (volcanic reef coast: ~100 m / 3 km ≈ 0.03) raises γ_b toward the plunging-reef range —
     # "Pipeline breaks taller than a beach break in the same depth". Kill: SURF_V3_SLOPE_GAMMA=0.
+    # ⚠️ THE SLOPE PROXY INHERITS THE SAME CONTAMINATION THE CAP BELOW WAS FIXED FOR, and it is
+    # measured but currently INERT — see test_slope_gamma_is_contaminated_but_inert.py.
+    # `depth_m` is a ~139 km MEDIAN. At island and deep-water spots that is not a shelf depth at
+    # all, so depth/width is not a shelf slope. Measured 2026-08-05 over 701 live spots:
+    #     slope m: p50 0.0017 · p90 0.046 · p99 0.080 · max 0.181
+    #     m > 0.03 ("volcanic reef" per the note above): 111/701 = 15.8%
+    #     gamma SATURATED at GAMMA_MAX_STEEP (1.25): 29/701 = 4.1%
+    #     worst: Tobacco Bay depth=4250 m / width=23.4 km -> m=0.181, an 18% "grade"
+    # A 4,250 m shelf does not exist; that is open ocean, and 0.181 is a cliff, not a shelf.
+    # ★ WHY IT IS NOT BEING CHANGED HERE: the effect on the SERVED number is ~zero, because the
+    #   depth-limited cap almost never binds. A/B through the kill switch over 9 spots x 5 seas:
+    #   gamma moves 0.821 -> 1.250 (1.523x, control verified) and the served height changes in
+    #   1 of 45 cases, by 0.3%. Sensitivity x uncertainty => Jacobian ~ 0 today.
+    # ⇒ Do not "fix" this in isolation. It becomes real the moment anything makes the cap bind
+    #   more often (a larger jack limit, a shallower break depth, a steeper shoaling term) — and
+    #   the pinning test above goes red when that happens, which is the point.
     _slope_proxy = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
     # ★ THE CAP USES THE NEARSHORE DEPTH, NOT THE SHELF DEPTH. `depth_m` is a ~139 km median — the
     # right answer for cross-shelf friction above, and nonsense here: measured 2026-07-27 across 395
