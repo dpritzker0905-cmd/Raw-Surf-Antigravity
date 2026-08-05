@@ -3,9 +3,10 @@
 
 > **Headline:** `dev` was promoted to `main` (123 commits) after I fixed the two things blocking it —
 > a red LOC gate and **a flag I shipped this morning and never declared**, which only the full
-> 31-minute backend suite caught. Within ~6 minutes of the promotion the **Render backend went down
-> and is still down**; I cannot rule myself out and the owner is checking the dashboard. The audit
-> below ran regardless, because every finding in it is reproducible from source.
+> 31-minute backend suite caught. A **30-minute production outage** overlapped the promotion;
+> ✅ **it is resolved, and the promotion did not cause it** — Render deploys from `dev`, and a slow
+> deploy of a *dev* push was the cause. **My first causal deduction was wrong and §1 records exactly
+> how** — it is the second instrument error I made today and the more instructive one.
 
 ---
 
@@ -54,7 +55,56 @@ resolves to `216.24.57.7`.
 | a failed build took the service down | **mechanically wrong** | Render keeps the last successful deploy live when a build fails — a build failure cannot cause a total outage |
 | free-tier cold start | **ruled out** | a single 120 s request returned **zero bytes** |
 
-### ⭐ A deduction that narrows it sharply — Render is almost certainly on `main`
+### ✅ RESOLVED 00:50:07Z — AND MY DEDUCTION BELOW WAS WRONG. READ THIS FIRST.
+
+**The backend recovered at 00:50:07Z. The promotion did NOT cause the outage.** The deployed SHA
+settles it:
+
+```
+/api/health -> version 2.0.0-stage-6f-v1-b7571ba5...   uptime 113 s at 00:50:45Z
+```
+
+`b7571ba5` is the commit I pushed to **`dev`** at ~00:47Z — not `30dd6fcc` from `main`.
+**⇒ Render auto-deploys from `dev`.**
+
+**The disproof was in my own evidence the whole time, and I read past it:**
+
+```
+54e8a7f8 pushed to dev   23:36:30Z
+serve box BOOTED         23:41:26Z   (critic: uptime 898 s at 23:56:24Z)
+                         -> 4 min 56 s after a DEV push
+```
+
+**Corrected timeline**
+
+| time | event |
+|---|---|
+| 23:36:30Z | `54e8a7f8` → dev, deploy fires |
+| 23:41:26Z | box boots on `54e8a7f8` (~5 min deploy) |
+| 00:03:13Z | `30dd6fcc` → **dev**, deploy fires — **this is what took it down** |
+| 00:11:53Z | `dev`→`main` promotion (coincidental; `main` runs no CI) |
+| ~00:20–00:50Z | outage — the `30dd6fcc` dev deploy ran long (30+ min vs the usual ~5) |
+| 00:47Z | `b7571ba5` → dev, superseding deploy |
+| 00:50:07Z | healthy on `b7571ba5`; `/spot-ratings` serving `precomputed` normally |
+
+⛔⛔ **THE ERROR, NAMED: I used an HOURLY probe to rule out a ~5-MINUTE event.** My deduction was
+*"eight dev pushes today didn't disturb it, because `keep-warm` succeeded at 23:44Z"* — but a
+5-minute deploy gap is invisible to an hourly sample almost every time. **A low-frequency probe
+cannot establish the absence of a high-frequency event**, and I built a confident causal story on
+exactly that. Worse, the uptime figure that refutes it was sitting in the evidence I had already
+gathered.
+
+★ The one thing that did hold: the outage was still worth stopping everything for, and the
+*remediation* advice was right for the wrong reason — **do not re-promote blind** remains correct,
+because §7.8 (a push to `main` runs zero checks) is independently true.
+
+⚠️ **The real finding here is a slow-deploy risk, not a promotion risk:** the same dev push path took
+~5 min at 23:36Z and 30+ min at 00:03Z. Every dev push is a production outage of unbounded length,
+with `keep-warm` too coarse to see it. That deserves a deploy-health check, not a branch policy.
+
+---
+
+### ⛔ SUPERSEDED — the deduction that was wrong (kept for the record)
 
 `render.yaml` carries **no `branch:` and no `autoDeploy:` key**, so the deploy branch lives in the
 Render dashboard, which I cannot see. But the day's own history answers it:
