@@ -50,6 +50,20 @@ export function mapSpotRatingsResponse(spots) {
       // client-side fallback fetch.
       tide: sp.tide || null,
       why: sp.why || null,
+      // ⛔ THE FOURTH POINT WHITELIST, and it was guarded by nothing until 2026-08-05.
+      // `SpotRatingItem` declares 20 fields and this mapper emitted 10 — everything else was
+      // dropped here, one layer downstream of the three whitelists
+      // `pointFieldWhitelistParity.test.js` already watches. Same defect class, eighth-plus
+      // repetition: a field computed correctly on the backend and discarded before render.
+      // ★ `directional_conflict` says the SIZE and the QUALITY disagree about the same swell (up
+      //   to 3.54x past 75.73 deg off-normal, >=15.4% of served spots). It shipped to the payload
+      //   the same day this mapper was found dropping it, so the caveat reached the wire and died
+      //   one line short of the glyph. Absent (null) unless it binds.
+      // ⚠️ Carried, NOT rendered — no component reads it yet, exactly like `model_agreement`.
+      //   Making a surfer SEE it is a product decision; making it REACHABLE is not.
+      directionalConflict: sp.directional_conflict || null,
+      modelAgreement: sp.model_agreement || null,
+      geometryReadiness: sp.geometry_readiness || null,
       source: 'endpoint',
     };
   }
