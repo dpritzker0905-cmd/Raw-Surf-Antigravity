@@ -8,6 +8,36 @@
 
 ---
 
+## ✅ SHIPPED 2026-08-05 (`6d1cd4ef`, `c9f75eac`) — AND THE PAIR WAS REFRACTION, NOT γ
+
+```
+GAMMA_MIN 0.62 -> 0.63    GAMMA_MAX 1.05 -> 0.81    GAMMA_MAX_STEEP 1.25 -> 0.81
+REFRACTION_KR = 0.797 (new)         SURF_HEIGHT_H110 default OFF -> ON
+kill: SURF_GAMMA_FIELD_CEILING=0 · SURF_REFRACTION_KR=1.0 · SURF_HEIGHT_H110=0
+```
+
+⭐⭐⭐ **"Pair γ with H110" was measured first and it FAILS.** γ and H110 act on **disjoint** sets —
+the breaking branch returns `γ·d` *un-converted*, so γ bites only where the depth cap binds and the
+convention only where it does not. Pairing them applies both: **median +27%**, Hossegor 8 m/18 s
+31.9 → 40.5 ft, Uluwatu 12 m/18 s → 59.2 ft.
+
+**H110's real partner is REFRACTION**, and it had already been measured:
+Kr assumed 1.0 vs **measured 0.797** (CDIP, 385,651 QC-good swell hours, 10 CA sites) ⇒ +25.5% high;
+Hs where the standard is H1/10 ⇒ −21.3% low; net `(1/0.797)/1.27 = 0.988`.
+
+**Measured on the shipped pair, 56 spot/sea cases: median +1.2%** — exactly the arithmetic —
+**p10 −17.8%**, **Pipeline 12 m/18 s 45.5 → 29.5 ft.** Control: legacy-restore reproduces 45.52 ft.
+
+⚠️ **Kr multiplies the TRANSFORMED height, never the offshore input** — Komar is non-linear
+(`Hb ∝ Hs^0.8`), so scaling the input yields 0.834 and +5.9% instead of +1.2%.
+⚠️ **CONSEQUENCE:** Weggel's centre crosses 0.81 at **m ≈ 0.0039**, so above that the slope alone
+saturates γ and the period term is inert ⇒ **the deep-water slope contamination is neutralised BY
+THE CEILING.** Wiring `bed_slope_at` stays correct but is no longer urgent.
+⚠️ **NOT FIXED:** the mid-range still reads high (Trestles 1.5 m/14 s → 8.1 ft) — the separate,
+uncancelled **input-compression** error of §2 in the height-accuracy study. Still open.
+
+---
+
 ## Q3 — THE BREAKER INDEX: what slope does Weggel actually need, and what is γ allowed to be?
 
 ### What we implement
