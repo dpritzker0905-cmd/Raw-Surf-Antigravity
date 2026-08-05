@@ -4,8 +4,11 @@
 name: Lighthouse CI
 
 on:
+  # `main` added 2026-08-05 with ci.yml — the promotion is a fast-forward push, so it ran no checks.
+  # No `paths:` filter here either, so this job always runs and is safe as a required check
+  # (measured: 20 of the last 20 runs succeeded).
   push:
-    branches: [dev]
+    branches: [dev, main]
   pull_request:
     branches: [dev, main]
 

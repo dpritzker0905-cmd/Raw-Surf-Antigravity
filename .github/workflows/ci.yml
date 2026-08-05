@@ -3,8 +3,17 @@
 name: CI
 
 on:
+  # ⛔ `main` WAS MISSING HERE UNTIL 2026-08-05, AND IT MATTERED. `pull_request` already listed
+  # `[dev, main]` — but the promotion flow is a fast-forward PUSH, not a PR, so every promotion ran
+  # ZERO checks. Measured that day: `git rev-list --count origin/main..origin/dev` = 122 commits
+  # landed on `main` with no CI, no LOC gate and no Lighthouse, and `branches/main/protection`
+  # returned 404 (neither branch protected).
+  # ★ THIS FILE HAS NO `paths:` FILTER, deliberately — every job below runs on every push, which is
+  #   what makes them safe to list as REQUIRED status checks. A required check that a path filter
+  #   skips is reported MISSING, not passing, and blocks the branch permanently. `loc-check.yml`
+  #   HAS such a filter and is therefore NOT required — see its header.
   push:
-    branches: [dev]
+    branches: [dev, main]
   pull_request:
     branches: [dev, main]
 

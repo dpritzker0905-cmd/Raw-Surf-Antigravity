@@ -12,8 +12,15 @@ name: LOC Governance Check
 #   * the 13 grandfathered files in .github/loc-baseline.json may only SHRINK
 
 on:
+  # `main` added 2026-08-05 so a promotion gets this signal too.
+  # ⛔ NOT A REQUIRED STATUS CHECK, and it cannot become one while the `paths:` filter below exists:
+  # a docs-only commit does not match the filter, the job never runs, and GitHub reports a required
+  # check that never ran as MISSING — which blocks the branch permanently rather than passing it.
+  # Measured 2026-08-05: commit 3c98e5e6 (docs only) carries NO "File Size Governance" check-run.
+  # ★ Backend LOC is still gated on every push regardless, by ci.yml's `backend-file-size-check`,
+  #   which has no path filter. It is the FRONTEND ratchet that rides on this filtered job.
   push:
-    branches: [dev]
+    branches: [dev, main]
     paths:
       - 'backend/**/*.py'
       # ⚠️ MUST match loc_ratchet.SCOPES. Extending the scanner to .ts/.tsx without extending this
