@@ -34,8 +34,16 @@ jobs:
       - uses: actions/checkout@v5
 
       - uses: actions/setup-python@v6
+      # ⚠️ 3.12 TO MATCH PRODUCTION, WHICH THIS LANE FEEDS. The server runs 3.12 (measured:
+      # /api/health `runtime.python`), and this lane was 3.11 — so the artifacts were written by one
+      # numeric stack (numpy 2.4.6) and read by another (2.5.1).
+      # ★ CLEARED BY AN ARTIFACT-LEVEL CHECK, NOT BY THE JOB GOING GREEN: the composition and the
+      #   numpy-backed ocean_access helpers were driven on FIXED inputs under both interpreters and
+      #   produced BYTE-IDENTICAL output (6064 B, sha256 2fd2d006f740...), with a mutation control
+      #   on each side proving the harness could detect a difference at all.
+      #   Re-run it before any future interpreter move: workflow `artifact-interpreter-parity`.
         with:
-          python-version: '3.11'
+          python-version: '3.12'
           cache: pip
 
       - name: Install build deps
