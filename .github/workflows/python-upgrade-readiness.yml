@@ -1,0 +1,130 @@
+name: Python upgrade readiness
+
+# What actually blocks moving to a newer Python? Run this BEFORE changing any `python-version`.
+#
+# ⚠️ IT REPORTS THE WHOLE BLOCKER SET, NOT THE FIRST FAILURE. Every step is continue-on-error on
+# purpose: fixing one term of a multi-term problem and declaring the upgrade ready is how a move
+# gets attempted twice. The `baseline` leg is the control — anything failing there is failing for
+# reasons that have nothing to do with the candidate interpreter.
+#
+# ★ WRITTEN AFTER A FALSE BLOCKER. A DeprecationWarning on 3.12 —
+#     passlib/utils/__init__.py: 'crypt' is deprecated and slated for removal in Python 3.13
+#   was recorded as "passlib blocks 3.13" and carried into a handoff without ever being executed.
+#   passlib 1.7.4 guards that import with try/except ImportError, so it does not block anything;
+#   confirmed by running it on 3.14.4, where `crypt` does not exist at all.
+#   ⇒ A warning announces a POSSIBILITY. This workflow is how you turn one into a fact.
+#   ⇒ The standing guard for that specific property lives in
+#     backend/tests/test_password_hashing_py313.py, which simulates the removal on ANY interpreter,
+#     so it does not need this workflow to stay true.
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Interpreter currently in use (the control)'
+        required: false
+        default: '3.12'
+      candidate:
+        description: 'Interpreter being considered'
+        required: false
+        default: '3.13'
+
+permissions:
+  contents: read
+
+jobs:
+  readiness:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    strategy:
+      fail-fast: false
+      matrix:
+        python:
+          - ${{ inputs.baseline || '3.12' }}
+          - ${{ inputs.candidate || '3.13' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      # Several pins are binary wheels. No cp3XX wheel is a harder blocker than any import error,
+      # and it has to be found before anything else is interpreted.
+      - name: "1. Does the pinned stack install at all?"
+        id: install
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+
+      - name: "1b. Install outcome and what got resolved"
+        continue-on-error: true
+        run: |
+          echo "install outcome = ${{ steps.install.outcome }}"
+          python -c "import sys; print('python', sys.version.split()[0])"
+          pip freeze --all 2>/dev/null | grep -iE '^(passlib|bcrypt|pydantic|psycopg2-binary|numpy|cryptography|sqlalchemy|greenlet|pygrib|netCDF4)==' || true
+
+      - name: "2. Removed-stdlib imports the pinned stack still reaches for"
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          # Modules removed or scheduled for removal around 3.12-3.13. Reported, not asserted: a
+          # missing one only matters if something actually imports it unguarded.
+          for mod in ("crypt", "cgi", "cgitb", "telnetlib", "imghdr", "sndhdr", "nntplib", "pipes",
+                      "distutils", "asynchat", "asyncore", "audioop"):
+              try:
+                  __import__(mod); print(f"  {mod:<12} present")
+              except BaseException as e:
+                  print(f"  {mod:<12} ABSENT ({type(e).__name__})")
+          PY
+
+      - name: "3. Do the security-critical imports and password hashing survive?"
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        run: |
+          python - <<'PY'
+          import traceback
+          for mod in ("passlib", "passlib.utils", "passlib.context", "passlib.handlers.bcrypt", "bcrypt", "jose"):
+              try:
+                  __import__(mod); print(f"  import {mod:<26} OK")
+              except BaseException as e:
+                  print(f"  import {mod:<26} {type(e).__name__}: {e}")
+          try:
+              from passlib.context import CryptContext
+              import bcrypt
+              ctx = CryptContext(schemes=["bcrypt"], deprecated="auto")
+              # The anti-lockout check: a hash produced by the implementation as it stood must still
+              # verify. Same frozen fixture as tests/test_password_hashing_py313.py.
+              FROZEN = "$2b$12$qOc2aZVxWW6pNmrz.J1qe.PKE9BgEDI.99bVu5GZXhAyy/gHmtumq"
+              print("  frozen hash verifies      ", ctx.verify("correct horse battery staple", FROZEN))
+              h = ctx.hash("correct horse battery staple")
+              print("  hash/verify roundtrip     ", ctx.verify("correct horse battery staple", h))
+              print("  raw bcrypt cross-verifies ", bcrypt.checkpw(b"correct horse battery staple", h.encode()))
+          except BaseException:
+              print("  PASSWORD HASHING FAILED:"); traceback.print_exc()
+          PY
+
+      - name: "4. Does the app import?"
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import traceback
+          try:
+              from server import app
+              print("  from server import app  OK")
+          except BaseException:
+              print("  from server import app  FAILED"); traceback.print_exc()
+          PY
+
+      - name: "5. The estate suite — the full failure list"
+        if: steps.install.outcome == 'success'
+        continue-on-error: true
+        working-directory: backend
+        run: |
+          python scripts/ci_test_lanes.py --lane estate > /tmp/f.txt
+          python -m pytest $(tr '\n' ' ' < /tmp/f.txt) -q --timeout=120 2>&1 | tail -40
