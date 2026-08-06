@@ -142,3 +142,77 @@ def test_no_surface_is_silently_missing_from_the_registry():
         f"these files call calculate_surf_rating but are in neither SURFACES nor EXEMPT: "
         f"{sorted(unregistered)}. Add them — a surface that joins the sim without joining this "
         f"registry is exactly how sim_compare ended up ranking on a different curve.")
+
+
+# ── EVERY SURFACE THAT RENDERS A HEIGHT MUST ALSO RENDER ITS CAVEAT ─────────────────────────────
+#
+# ★★★ SAME SHAPE AS THE GUARD ABOVE, AND I SHIPPED THIS DEFECT TOO — TWICE.
+# `d9e1ffd3` taught `sim_window` to publish `directional_conflict`, the warning that the SIZE and
+# the QUALITY disagree about how much swell energy reaches the break and that the HEIGHT is the
+# likelier overestimate. That commit's own message said "CHECK EVERY CONSUMER OF A DISCLOSURE, NOT
+# JUST ITS PRODUCER" — and it reached ONE of four consumers. Measured 2026-08-06:
+#
+#     sim_rating.py    PRODUCER
+#     sim_window.py    published (d9e1ffd3)
+#     sim_compare.py   DROPPED  <- the ranking that answers "which break should I drive to"
+#     sim_briefing.py  DROPPED  <- the daily summary line
+#     weather_sim_mcp  DROPPED  <- the what-if delta, which MOVES a height that is already a bound
+#
+# ⛔ AND `exposure_floored` IS NOT COVERAGE FOR IT. `sim_compare` already carried that flag, which
+# is exactly why the gap looked handled: two disclosures with DIFFERENT trigger predicates are not
+# substitutes. `exposure_floored` fires on quality exposure <= 0.1005; the conflict fires when the
+# two exposures DISAGREE — measured, the flag fired on the LOSER while the WINNER's 1.75x
+# disagreement went unsaid.
+#
+# ⇒ The fix is not a fourth patch, it is THIS INSTRUMENT: enumerate the renderers rather than trust
+#   that whoever added a disclosure found them all.
+
+# Modules that put a breaking height in front of a caller. Add one here when it starts rendering
+# `breaking_height_ft` — that is the point of the guard.
+HEIGHT_RENDERERS = [
+    "services/weather_pipeline/sim_compare.py",
+    "services/weather_pipeline/sim_window.py",
+    "services/weather_pipeline/sim_briefing.py",
+    "weather_sim_mcp.py",
+]
+
+# ⚠️ NAMED, WITH THE REASON — never achieved by quietly shortening the list above.
+DISCLOSURE_EXEMPT = {
+    # The PRODUCER, not a renderer: it computes `directional_conflict` for everyone else.
+    "services/weather_pipeline/sim_rating.py": "produces the disclosure rather than rendering it",
+}
+
+
+def _src(path):
+    with open(os.path.join(BACKEND, path), encoding="utf-8") as fh:
+        return fh.read()
+
+
+@pytest.mark.parametrize("path", HEIGHT_RENDERERS)
+def test_every_surface_that_renders_a_height_also_renders_the_conflict(path):
+    src = _src(path)
+    assert "breaking_height_ft" in src, \
+        f"{path} no longer renders a height — update HEIGHT_RENDERERS or DISCLOSURE_EXEMPT"
+    assert "directional_conflict" in src, (
+        f"{path} renders `breaking_height_ft` but never mentions `directional_conflict`. That "
+        f"height can be a known upper bound and this surface would not say so — the exact defect "
+        f"d9e1ffd3 fixed in ONE of four consumers.")
+
+
+def test_the_disclosure_guard_can_actually_fail():
+    """A guard that cannot fail is decoration. Feed it a module that renders a height and says
+    nothing, and it must reject — the pre-fix state of three of the four surfaces above."""
+    pre_fix = 'row = {"breaking_height_ft": calc["breaking_height_ft"]}\n'
+    assert "breaking_height_ft" in pre_fix
+    assert "directional_conflict" not in pre_fix, \
+        "the negative fixture must NOT contain the needle, or this test proves nothing"
+
+
+def test_every_disclosure_exemption_still_names_a_real_file_that_still_produces_it():
+    """An exemption that outlives its reason is invisible. `sim_rating` is exempt because it is the
+    PRODUCER — if it ever stops producing, the exemption is a lie and every renderer is unguarded."""
+    for path, reason in DISCLOSURE_EXEMPT.items():
+        full = os.path.join(BACKEND, path)
+        assert os.path.exists(full), f"exemption names a file that no longer exists: {path}"
+        assert "directional_conflict" in _src(path), \
+            f"{path} is exempt as the PRODUCER ({reason}) but no longer produces the disclosure"

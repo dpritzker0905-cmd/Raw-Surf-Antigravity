@@ -461,3 +461,20 @@ def geometry_payload(spot: Dict[str, Any]) -> Dict[str, Any]:
         "nearshore": geo.nearshore,
         "magnet_factor": geo.magnet_factor,
     }
+
+
+def conflict_delta(before_calc, after_calc):
+    """The `directional_conflict` transition between two rated states, or None if neither has one.
+
+    Lives with the PRODUCER so the shape has one owner: the what-if delta in `weather_sim_mcp` is
+    the only caller today, and a second renderer must not invent its own layout.
+    ⭐ BOTH SIDES ON PURPOSE — a what-if can CREATE or CLEAR the conflict by changing the swell
+    direction, and reporting only the resolved state hides exactly that transition. The ~200-char
+    `means` prose is carried ONCE rather than on both halves.
+    Full rationale: docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md (08-06)."""
+    before = (before_calc or {}).get("directional_conflict") or None
+    after = (after_calc or {}).get("directional_conflict") or None
+    if not before and not after:
+        return None
+    strip = lambda c: {k: v for k, v in c.items() if k != "means"} if c else None   # noqa: E731
+    return {"from": strip(before), "to": strip(after), "means": (after or before).get("means")}

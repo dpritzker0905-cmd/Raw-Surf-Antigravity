@@ -50,10 +50,22 @@ def summary_line(label: str, spot: Dict[str, Any], baseline: Dict[str, float], s
     # `conditions_label` is the SIZE ladder — this line used to print it inside "Quality: …",
     # reporting e.g. "Quality: 56.4/100 (Triple Overhead+)" and mixing the two vocabularies the rest
     # of the module works to keep apart. Size and verdict are now named separately.
+    # ⛔ AND NAME THE UPPER BOUND. This line quotes a HEIGHT, and when `directional_conflict` fires
+    # the size and the quality disagree about how much swell energy reaches the break — the size
+    # being the more generous of the two. `sim_window` (`d9e1ffd3`) and `sim_compare` both say so
+    # now; this briefing was the third consumer and said nothing, so a reader skimming the daily
+    # summary got the generous number with no marker at all.
+    # ⚠️ ASCII only: this string is printed to consoles, and an emoji here crashed the sim_window
+    # probe on cp1252.
+    conflict = calc.get("directional_conflict") or {}
+    ratio = conflict.get("energy_disagreement") if conflict else None
+    bound = (f" | HEIGHT IS AN UPPER BOUND ({ratio}x size/quality exposure disagreement)"
+             if ratio else " | HEIGHT IS AN UPPER BOUND (size/quality exposure disagree)") \
+        if conflict else ""
     return (f" - {label}: Breaking at {calc['breaking_height_ft']} ft "
             f"({calc['conditions_label']}) | Quality: {calc['quality_rating']}/100 "
             f"({calc['quality_label']}) | Wind: {round(baseline['wind_speed_knots'], 1)} kts "
-            f"{calc['wind_class']} | [{source}]")
+            f"{calc['wind_class']}{bound} | [{source}]")
 
 
 def forecasts_summary(overrides: Dict[str, Dict[str, float]],

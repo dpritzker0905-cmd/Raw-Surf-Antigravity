@@ -149,3 +149,34 @@ _moved from `frontend/src/components/map/backendWeatherServiceClientHelpers.js` 
 
 ---
 
+
+---
+
+## 2026-08-06 — `weather_sim_mcp.py`: why the what-if delta carries `directional_conflict` BOTH SIDES
+
+Moved here because adding it in-file put `weather_sim_mcp.py` at **810/800 LOC** and the ratchet
+blocked the commit. The rule this repo already learned applies: **both LOC regressions were ~90%
+rationale, so move the rationale to docs — never delete it.**
+
+**THE DELTA QUOTES A HEIGHT, SO IT INHERITS THE HEIGHT'S CAVEAT.** When `directional_conflict`
+fires, the size and the quality disagree about how much swell energy reaches the break, and the SIZE
+is the likelier overestimate. So a what-if reporting `breaking_height_ft: 3.4 -> 5.1` is moving a
+number that is **already an upper bound**, and saying nothing about it.
+
+**WHY BOTH SIDES AND NOT JUST THE RESOLVED STATE.** A what-if can **create or clear** the conflict
+by changing the swell direction — that is precisely the transition a caller most needs to see, and
+reporting only the "to" state hides it. Hence `{"from": …, "to": …, "means": …}`, with the ~200-char
+prose carried once rather than on both halves.
+
+**THE WIDER FINDING.** `d9e1ffd3` published this disclosure on `sim_window` and its own commit
+message said *"check every consumer of a disclosure, not just its producer"* — it then reached
+**one of four** renderers. `sim_compare` (the ranking), `sim_briefing` (the daily summary) and this
+delta all dropped it. ⛔ And `exposure_floored` is **not** coverage for it: two disclosures with
+different trigger predicates are not substitutes — that flag fires on quality exposure ≤ 0.1005,
+the conflict fires when the two exposures **disagree**, and measured, the flag fired on the LOSER
+while the WINNER's 1.75× disagreement went unsaid.
+
+⇒ The durable fix is the enumeration guard in
+`tests/test_sim_every_surface_reads_the_served_curve.py`: any module containing
+`breaking_height_ft` must also contain `directional_conflict`, with `sim_rating` named exempt as
+the producer and an exemption test that fails if it ever stops producing.

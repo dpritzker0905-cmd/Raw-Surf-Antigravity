@@ -12,8 +12,8 @@ from utils.sqlite_helpers import get_sqlite_connection
 # test can enumerate all three — this file was at 789 of the 800-line ratchet. Re-exported below
 # because the suite and `_warm_hot_path` read these names off this module.
 from services.weather_pipeline.sim_rating import (      # noqa: F401  (re-exported)
-    _GEOMETRY_CACHE, _sim_flag, calculate_surf_rating, geometry_payload as _geometry_payload,
-    reference_size_for, shore_normal_for, spot_geometry,
+    _GEOMETRY_CACHE, _sim_flag, calculate_surf_rating, conflict_delta,
+    geometry_payload as _geometry_payload, reference_size_for, shore_normal_for, spot_geometry,
 )
 # The app's own /api/weather/point, so every catalog spot has a real forecast instead of the three
 # hand-tuned ones. Imported at module scope: it pulls urllib/ssl, and a C extension loaded lazily
@@ -580,6 +580,11 @@ def simulate_weather_change(
                         "worse" if calc["quality_rating"] < base_calc["quality_rating"] else
                         "same rating"),
         }
+        # ⛔ The delta quotes a HEIGHT, so it inherits that height's caveat — BOTH sides, because a
+        # what-if can create or clear the conflict. Shape owned by the producer; rationale in
+        # docs/runbooks/RATIONALE-2026-08-04-moved-for-the-loc-ratchet.md (08-06 section).
+        if (_cd := conflict_delta(base_calc, calc)):
+            baseline_delta["directional_conflict"] = _cd
         if _whatif_parts is None and _baseline_partitions(baseline) is not None:
             baseline_delta["composition"] = (
                 "total_field on BOTH sides: the what-if changed the swell, so the forecast's "
