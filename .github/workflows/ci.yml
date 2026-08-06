@@ -791,16 +791,26 @@ jobs:
               'tests/test_trevec_index_gc.py': 'module-level importorskip on pyarrow/lance, undeclared by design',
           }
 
-          # ⚠️ CORRECTED 2026-08-06 FROM THE GATE'S OWN RUN, which is exactly why it shipped
-          # provisional. I had set 250 off a LOCAL 266; CI's real figure was 244 passed, so the
-          # floor was ABOVE the achievable number and would have failed even with zero test
-          # failures. A local count is not this gate's count — Windows, fastmcp present, and a
-          # populated dev environment all inflate it.
-          # 235 sits below the post-quarantine floor: CI's 244 minus what the two quarantined files
-          # contributed (test_debug_consciousness 1 of 6 passed; test_websocket_endpoints_auth up to
-          # 5 of 10), i.e. 238-243. ⇒ SET THIS EXACTLY from the first GREEN run of this lane on
-          # origin/dev — that reading is the only one that counts.
-          MIN_PASSED = 235
+          # ✅ SET FROM THE GATE'S OWN FIRST GREEN RUN — run 31066816129 on origin/dev @ 1e00bbcc:
+          #     "estate: 242 files selected, 240 produced results, 238 passed, 0 silent."
+          # It reconciles exactly: 242 selected - 2 named MAY_BE_EMPTY = 240 producing results.
+          #
+          # ⚠️ THE TWO EARLIER VALUES ARE KEPT BECAUSE THE MISTAKE IS THE INSTRUCTIVE PART.
+          #   250 — set off a LOCAL 266. CI's real figure with the same file set was 244, so the
+          #         floor sat ABOVE the achievable number and would have failed the lane with zero
+          #         test failures. A local count is not this gate's count: different OS, fastmcp
+          #         present, a populated dev DB and hand-installed packages all inflate it.
+          #   235 — deliberately below the predicted post-quarantine range (238-243) while the true
+          #         figure was unknown. Ship a floor PROVISIONAL, then set it from the gate itself.
+          #
+          # 236 sits two below the observed 238: tight enough that a mass-skip or a deleted module
+          # is red, loose enough that ordinary churn in a 242-file heterogeneous estate does not
+          # pin CI to a total. Raise it when the estate grows — it is shrink-only, and lowering it
+          # is a deliberate act that must appear in a diff.
+          # ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is
+          #   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane
+          #   legitimately shrinks it and must not be red.
+          MIN_PASSED = 236
 
           try:
               root = ET.parse('estate.xml').getroot()
