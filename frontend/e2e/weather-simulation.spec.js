@@ -333,6 +333,19 @@ test.describe('Standard Surfer Map Controls', () => {
     // Worst case here is ~20 s load + 3 x 35 s = 125 s, so 180 s carries real headroom.
     test.setTimeout(180000);
 
+    // ⚠️ THIS TEST IS WEBGL-DEPENDENT END TO END. `#marine-canvas-layer` is a WebGL overlay canvas
+    // (not a MapLibre layer), and everything asserted below it — the canvas, the marine projection
+    // diag, the Copernicus grid diag — only exists once that context is created. On CI 31066966918
+    // it failed on Desktop Firefox with `element(s) not found` after 30 s while Desktop Chrome
+    // PASSED (the control), and the runner log carried "Failed to create WebGL context" x6:
+    // headless Firefox on the GitHub runner has no WebGL, Chrome falls back to SwiftShader, Safari
+    // has it. The app is not at fault and neither is the assertion.
+    //
+    // ★ PROBE THE CAPABILITY, DO NOT NAME THE BROWSER. A `browserName === 'firefox'` skip would go
+    // on lying the day the runner image gains WebGL, and would hide a real regression on any
+    // browser that HAS it. This asks the page the same question the app asks.
+    // The probe runs after the load gate below, where a page context exists.
+
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
 
     // Wait for the map page to load (wait for map right controls or general map container)
@@ -343,6 +356,18 @@ test.describe('Standard Surfer Map Controls', () => {
     // like. 45 s is well inside the per-test budgets set below.
     const rightControls = page.locator('[data-testid="featured-photographers-btn"]');
     await expect(rightControls).toBeVisible({ timeout: 45000 });
+
+    // The WebGL capability probe promised above. Asks the page exactly what the marine engine asks.
+    const hasWebGL = await page.evaluate(() => {
+      try {
+        const c = document.createElement('canvas');
+        return !!(c.getContext('webgl2') || c.getContext('webgl'));
+      } catch (e) {
+        return false;
+      }
+    });
+    test.skip(!hasWebGL, 'no WebGL context on this runner — the marine overlay cannot render, so '
+                       + 'every assertion below would measure the runner, not the app');
 
     const isMobile = await page.evaluate(() => window.innerWidth < 768);
 
