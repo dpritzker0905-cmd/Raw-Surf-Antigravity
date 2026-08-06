@@ -175,3 +175,84 @@ def test_every_frame_carries_the_same_fields_the_single_hour_answer_does():
         for field in ("valid_time", "breaking_height_ft", "quality_rating", "quality_label",
                       "conditions_label", "wind_class", "size_verdict"):
             assert field in row, f"{field} missing from a scanned frame"
+
+
+# ── the ranking must be able to explain itself ──────────────────────────────────────────────────
+#
+# Measured 2026-08-06 at Pipeline: 08-06T02Z scored 2.2 and 08-07T11Z scored 7.2 at the SAME
+# 3.5 ft, ~11 kt and a similar period. The driver was swell direction — 73.8 deg against a 325 deg
+# shore normal, 10% alignment — and NOT ONE published field carried direction, alignment or the
+# limiting factor. `calc` knew all three; the row dropped them. A reader with the source could not
+# attribute a 3x score difference from the payload, which is this house's "a divergence count is
+# not a finding, an attribution is" showing up on the product surface.
+
+def _oblique(**over):
+    """135 deg against this spot's 225.1 shore normal: 10% alignment, and the size/quality
+    exposure disagreement fires at 3.54x. Measured, not assumed."""
+    return _flat_baseline(swell_direction_deg=135.0, **over)
+
+
+def test_a_frame_publishes_WHY_it_ranked_where_it_did():
+    def baseline_at(spot, hour):
+        return _oblique(), "live_forecast", {}
+
+    out = sim_window.scan(SPOT, baseline_at, sim_window.plan_hours(6, 3, now=NOW), top=3)
+    row = out["series"][0]
+    assert row["swell_alignment_pct"] == 10.0, "alignment is the driver and must be published"
+    assert row["limiting_factor"] == "swell_exposure"
+
+
+def test_a_frame_whose_size_and_quality_DISAGREE_says_so_on_the_frame():
+    """⛔ THE DISCLOSURE THAT REACHED EVERY SURFACE BUT THIS ONE. routes/weather.py,
+    spot_conditions, spot_ratings, point_surf_augment and admin/surf_forecast all publish
+    `directional_conflict`; the window scan — the one view a surfer uses to PICK an hour — dropped
+    it, so the height it recommends never said it was an upper bound."""
+    def baseline_at(spot, hour):
+        return _oblique(), "live_forecast", {}
+
+    out = sim_window.scan(SPOT, baseline_at, sim_window.plan_hours(6, 3, now=NOW), top=3)
+    conflict = out["series"][0]["directional_conflict"]
+    assert conflict["energy_disagreement"] == 3.54
+    assert conflict["quality_exposure"] < conflict["height_exposure_factor"], \
+        "the SIZE is the more generous of the two — that asymmetry is the whole warning"
+    assert "means" not in conflict, "the prose is hoisted to `note`, never repeated per frame"
+
+
+def test_the_conflict_PROSE_is_carried_ONCE_not_per_frame():
+    """At hours_ahead=168/step=1 the series runs to 168 frames; repeating a ~200-char explanation
+    on each would add ~34 KB to a payload whose own docstring budgets frames."""
+    def baseline_at(spot, hour):
+        return _oblique(), "live_forecast", {}
+
+    out = sim_window.scan(SPOT, baseline_at, sim_window.plan_hours(24, 3, now=NOW), top=3)
+    assert out["scanned"]["directional_conflict_frames"] == len(out["series"])
+    assert out["note"].count("upper bound") == 1
+    assert "of 9 frames disagree about swell exposure" in out["note"]
+
+
+def test_the_SUMMARY_names_the_upper_bound():
+    """One sentence deep, not one field deep — the same lesson the daylight defect taught. A caller
+    who reads only the summary must not take a known-generous height as settled."""
+    def baseline_at(spot, hour):
+        return _oblique(), "live_forecast", {}
+
+    out = sim_window.scan(SPOT, baseline_at, sim_window.plan_hours(6, 3, now=NOW), top=3)
+    summary = sim_window.summarize(out["best_windows"])
+    assert "upper bound" in summary
+    assert "3.54x" in summary
+    assert all(ord(c) < 128 for c in summary.replace("—", "-")), \
+        "ASCII only apart from the pre-existing em dash: a caller may print this to a cp1252 console"
+
+
+def test_an_ALIGNED_swell_carries_no_conflict_and_no_caveat():
+    """The control. A gate that fires on everything says nothing — 225.1 deg is dead-on this
+    spot's shore normal (100% alignment) and must produce neither the frame block nor the caveat."""
+    def baseline_at(spot, hour):
+        return _flat_baseline(), "live_forecast", {}
+
+    out = sim_window.scan(SPOT, baseline_at, sim_window.plan_hours(6, 3, now=NOW), top=3)
+    assert out["series"][0]["swell_alignment_pct"] == 100.0
+    assert "directional_conflict" not in out["series"][0]
+    assert out["scanned"].get("directional_conflict_frames") is None
+    assert "upper bound" not in (sim_window.summarize(out["best_windows"]) or "")
+    assert "upper bound" not in (out.get("note") or "")

@@ -78,6 +78,9 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
     series: List[Dict[str, Any]] = []
     unresolved: List[str] = []
     sources = set()
+    # The conflict PROSE is identical wherever it fires, so it is captured once and hoisted into
+    # `note` rather than repeated on every frame. See the per-frame block below for why.
+    conflict_means: Optional[str] = None
     for hour in hours:
         baseline, source, provenance = baseline_at(spot, hour)
         if baseline is None:
@@ -126,6 +129,39 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
             "swell_period_sec": round(float(baseline["swell_period_sec"]), 1),
             "size_verdict": calc["size_verdict"],
         }
+        # ⭐ WHY THE RANKING RANKED THIS WAY. `calc` already knows, and this row used to throw it
+        # away — so two frames could differ 3x in score with every published field near-identical
+        # and nothing in the payload able to say why. Measured 2026-08-06 at Pipeline: 08-06T02Z
+        # scored 2.2 and 08-07T11Z scored 7.2 at the SAME 3.5 ft, ~11 kt and similar period. The
+        # driver was swell direction (73.8 deg against a 325 deg shore normal -> 10% alignment),
+        # and NO field in the series carried direction or alignment. That is this house's
+        # "a divergence count is not a finding, an attribution is" applied to the product surface.
+        # ⚠️ Two fields, not the whole `why` block: the series can run to 168 frames at
+        # hours_ahead=168/step=1, and the per-multiplier detail belongs to get_weather_forecast's
+        # single-hour answer. `limiting_factor` is the NAME only; its prose is stable and hoisted.
+        alignment = calc.get("swell_alignment_pct")
+        if alignment is not None:
+            row["swell_alignment_pct"] = alignment
+        limiting = (calc.get("why") or {}).get("limiting_factor") or {}
+        if limiting.get("factor"):
+            row["limiting_factor"] = limiting["factor"]
+
+        # ⛔⛔ THE DISCLOSURE THAT WAS REACHING EVERY SURFACE BUT THIS ONE. When the size and the
+        # quality disagree about how much swell energy reaches the break, `sim_rating` emits
+        # `directional_conflict` and says the height is the likelier overestimate. Five surfaces
+        # publish it (routes/weather.py, spot_conditions, spot_ratings, point_surf_augment,
+        # admin/surf_forecast) — the window scan dropped it, so the one view a surfer uses to pick
+        # an hour was the one view that never warned the height was an upper bound.
+        # ⚠️ NUMBERS PER FRAME, PROSE ONCE. `means` is ~200 chars and identical across frames; at
+        # 168 frames repeating it would add ~34 KB to a payload the tool docstring already budgets.
+        # It is hoisted into `note` below instead, so nothing is lost and nothing is repeated.
+        conflict = calc.get("directional_conflict")
+        if conflict:
+            row["directional_conflict"] = {
+                k: v for k, v in conflict.items() if k != "means"
+            }
+            if conflict_means is None and conflict.get("means"):
+                conflict_means = conflict["means"]
         # ⚠️ ANNOTATION ONLY — `quality_rating` above is untouched by daylight. See sim_daylight's
         # docstring: darkness is a property of the observer, not of the swell, and the sim's score
         # must stay byte-identical to the one the map and the hub show for the same spot-hour.
@@ -171,6 +207,13 @@ def scan(spot: Dict[str, Any], baseline_at: Callable[[Dict[str, Any], str], Any]
         out["scanned"]["unresolved_hours"] = unresolved
         notes.append(f"{len(unresolved)} of {len(hours)} frames had no forecast and were "
                      f"EXCLUDED from the ranking, not scored as flat.")
+    if conflict_means:
+        # Hoisted, not repeated: the prose is identical on every frame that carries the conflict,
+        # and the per-frame numbers are already in `directional_conflict` on those rows.
+        conflicted = [r for r in series if r.get("directional_conflict")]
+        out["scanned"]["directional_conflict_frames"] = len(conflicted)
+        notes.append(f"{len(conflicted)} of {len(series)} frames disagree about swell exposure "
+                     f"between the size and the quality: {conflict_means}")
     if not series:
         # Overwrites rather than appends: with nothing ranked, the other notes describe an answer
         # that does not exist.
@@ -191,7 +234,23 @@ def summarize(best: List[Dict[str, Any]]) -> Optional[str]:
     # a summary that read like an ordinary recommendation would be the original defect all over
     # again — one sentence deep instead of one field deep.
     light = sim_daylight.describe(b.get("light"))
+    # ⭐ AND NAME THE UPPER BOUND, for exactly the reason the light is named. A summary that reads
+    # like an ordinary recommendation while the winning frame's own row says the size and the
+    # quality disagree about swell exposure is the daylight defect again — one sentence deep
+    # instead of one field deep. The height is the more generous of the two and the likelier
+    # overestimate, so a caller who reads only this line must not take it as settled.
+    # ⚠️ ASCII ONLY IN THE RETURNED STRING. My own probe crashed printing this line —
+    # UnicodeEncodeError, cp1252 — because the first draft opened the caveat with an emoji. Comments
+    # can carry them; a value that a caller may print to a Windows console cannot.
+    conflict = b.get("directional_conflict") or {}
+    caveat = ""
+    if conflict:
+        ratio = conflict.get("energy_disagreement")
+        caveat = (f" NOTE: treat that height as an upper bound - the size and the quality disagree "
+                  f"about swell exposure by {ratio}x.") if ratio else \
+                 " NOTE: treat that height as an upper bound - the size and the quality disagree " \
+                 "about swell exposure."
     return (f"Best in range: {b['valid_time']} — {b['breaking_height_ft']} ft "
             f"({b['conditions_label']}), quality {b['quality_rating']}/100 "
             f"({b['quality_label']}), {b['wind_speed_knots']} kt {b['wind_class']}"
-            f"{', ' + light if light else ''}.")
+            f"{', ' + light if light else ''}.{caveat}")
