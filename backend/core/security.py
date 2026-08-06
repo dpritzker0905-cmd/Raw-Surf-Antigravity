@@ -25,6 +25,67 @@ from jose import JWTError, jwt
 
 logger = logging.getLogger(__name__)
 
+# ── Development identity shortcuts ────────────────────────────────────────────
+# Env vars that mean "this process is a real deployment", whatever else is unset. Render sets
+# RENDER on every service; the rest cover the usual PaaS targets so a future move cannot silently
+# re-open this.
+_DEPLOYMENT_MARKERS = (
+    "RENDER", "DYNO", "K_SERVICE", "FLY_APP_NAME", "WEBSITE_INSTANCE_ID",
+    "KUBERNETES_SERVICE_HOST", "AWS_EXECUTION_ENV", "VERCEL",
+)
+# Env vars that positively assert "this is a local or test process".
+_LOCAL_ENV_VALUES = frozenset({"development", "dev", "local", "test", "testing"})
+_warned_refusal = False
+
+
+def dev_identity_allowed() -> bool:
+    """
+    Whether the hardcoded development identities may stand in for a real one.
+
+    ⛔ THIS FAILS CLOSED, AND THE PREVIOUS VERSION FAILED OPEN IN PRODUCTION.
+    Measured against the live backend on 2026-08-06: neither ENV nor IS_PROD is set on Render, so
+    the old test — `ENV != "production" and IS_PROD != "true"` — was TRUE in production. On
+    https://raw-surf-antigravity.onrender.com, with no credentials at all:
+        GET /api/streak/dev-mock-user-id                              -> 401
+        ... with `Authorization: Bearer not-a-real-token-xyz`         -> 401   (control)
+        ... with `Authorization: Bearer dev-mock-user-token`          -> 200
+    The same condition guards the mock-profile seeding in server.py, so production also holds a
+    seeded `dev-mock-user-id` with is_admin=True and withdrawable credits. The token string is
+    hardcoded in the public frontend bundle (contexts/AuthContext.js).
+
+    ★ THE DEFECT WAS THE DIRECTION OF THE TEST. It asked "have we been TOLD this is production?"
+      when the only safe question is "have we been TOLD this is NOT production?". An environment
+      that says nothing must be treated as production — absence of a signal is not a signal.
+
+    To use the shortcut locally set any one of: TESTING=1 (the test suite already does),
+    ENV=development, NODE_ENV=development, or ALLOW_DEV_MOCK_AUTH=true.
+    """
+    global _warned_refusal
+
+    if os.getenv("ENV") == "production" or os.getenv("IS_PROD") == "true":
+        return False
+    deployed = [m for m in _DEPLOYMENT_MARKERS if os.environ.get(m)]
+    if deployed:
+        return False
+
+    if os.getenv("ALLOW_DEV_MOCK_AUTH") == "true" or os.getenv("TESTING"):
+        return True
+    for var in ("ENV", "ENVIRONMENT", "NODE_ENV"):
+        if (os.environ.get(var) or "").strip().lower() in _LOCAL_ENV_VALUES:
+            return True
+
+    # Refused by the fail-closed default. Say so ONCE and name the fix, so a local developer is
+    # never left guessing why a mock login stopped working.
+    if not _warned_refusal:
+        _warned_refusal = True
+        logger.warning(
+            "[security] dev identity shortcut REFUSED: no environment variable asserts this is a "
+            "local/test process. This is the safe default. For local development set one of "
+            "TESTING=1, ENV=development, NODE_ENV=development or ALLOW_DEV_MOCK_AUTH=true."
+        )
+    return False
+
+
 # ── Config ────────────────────────────────────────────────────────────────────
 # SECRET_KEY must be set in production Render env vars.
 # Generate one with: python -c "import secrets; print(secrets.token_hex(32))"
@@ -97,9 +158,8 @@ async def get_current_user_id(
     """
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
-        if token == "dev-mock-user-token":
-            if os.getenv("ENV") != "production" and os.getenv("IS_PROD") != "true":
-                return "dev-mock-user-id"
+        if token == "dev-mock-user-token" and dev_identity_allowed():
+            return "dev-mock-user-id"
         payload = verify_token(token)
         sub = payload.get("sub")
         if not sub:
@@ -145,9 +205,8 @@ def get_user_id_from_jwt_or_query(
     # Try JWT first
     if authorization and authorization.startswith("Bearer "):
         token = authorization.split(" ", 1)[1]
-        if token == "dev-mock-user-token":
-            if os.getenv("ENV") != "production" and os.getenv("IS_PROD") != "true":
-                return "dev-mock-user-id"
+        if token == "dev-mock-user-token" and dev_identity_allowed():
+            return "dev-mock-user-id"
         payload = verify_token(token)
         sub = payload.get("sub")
         if sub:

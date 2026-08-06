@@ -8,7 +8,7 @@ import asyncio
 import os
 
 from websocket_manager import ws_manager
-from core.security import verify_token
+from core.security import verify_token, dev_identity_allowed
 
 logger = logging.getLogger(__name__)
 router = APIRouter(tags=["websocket"])
@@ -60,7 +60,16 @@ async def verify_websocket_auth(websocket: WebSocket, expected_user_id: str) -> 
     """
     token = websocket.query_params.get("token")
     if not token:
-        if expected_user_id in ("dev-mock-user-id", "test-surfer-id", "admin-user-id") or os.getenv("BYPASS_WS_AUTH") == "true":
+        # ⛔ THIS LIST IS MATCHED AGAINST THE URL PATH PARAMETER, NOT AN AUTHENTICATED IDENTITY, so
+        # ungated it lets anyone open a private room by simply naming one of these ids in the URL.
+        # Measured against the live backend 2026-08-06, BEFORE this gate: all 12 combinations of
+        # {dev-mock-user-id, test-surfer-id, admin-user-id} x {earnings, user, presence, call}
+        # OPENED with no token, while the control id `not-a-bypass-id-999` was refused 403 on all
+        # four. `presence` additionally marks that user ONLINE and broadcasts it to everyone else.
+        # ⇒ `dev_identity_allowed()` fails CLOSED; see its docstring for why the old
+        #   "is it production?" phrasing was the wrong question.
+        if (expected_user_id in ("dev-mock-user-id", "test-surfer-id", "admin-user-id")
+                and dev_identity_allowed()) or os.getenv("BYPASS_WS_AUTH") == "true":
             logger.info(f"WebSocket auth bypassed for development/testing user: {expected_user_id}")
             return True
         logger.warning(f"WebSocket auth failed: missing token query param for user_id {expected_user_id}")

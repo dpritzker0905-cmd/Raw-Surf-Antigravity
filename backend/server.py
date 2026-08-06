@@ -218,9 +218,17 @@ async def seed_mock_user():
     from sqlalchemy import select
     from datetime import datetime, timezone
 
-    # Strict environment safeguard: do not seed in production
-    if os.getenv("ENV") == "production" or os.getenv("IS_PROD") == "true":
-        logger.info("[DB Seeding] Production environment detected. Skipping mock dev user seeding.")
+    # Strict environment safeguard: do not seed in production.
+    # ⛔ THIS GUARD WAS NOT STRICT — IT FAILED OPEN, AND IT SEEDED PRODUCTION. Neither ENV nor
+    # IS_PROD is set on Render (measured 2026-08-06), so `ENV == "production" or IS_PROD == "true"`
+    # was FALSE there and this ran, creating a live `dev-mock-user-id` profile with is_admin=True,
+    # premium tier and 100.0 withdrawable credits — reachable by a token string that ships in the
+    # public frontend bundle. Now shares the fail-CLOSED test used by the auth shortcut itself, so
+    # the two can never disagree again.
+    from core.security import dev_identity_allowed
+
+    if not dev_identity_allowed():
+        logger.info("[DB Seeding] Not a local/test environment. Skipping mock dev user seeding.")
         return
 
     logger.info("[DB Seeding] Checking for mock dev user profile...")
