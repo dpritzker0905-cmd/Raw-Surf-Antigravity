@@ -44,18 +44,37 @@ test.beforeEach(async ({ page }) => {
   page.on('console', msg => console.log(`[PAGE CONSOLE] [${msg.type()}] ${msg.text()}`));
   page.on('pageerror', err => console.log(`[PAGE ERROR] ${err.stack || err.message}`));
 
-  // Intercept and mock external requests to prevent navigation timeouts under sandbox network restrictions
+  // Intercept and mock external requests to prevent navigation timeouts under sandbox network
+  // restrictions.
+  //
+  // ⚠️ THIS ALLOWLIST IS THE SUITE'S OWN BACKEND KILL SWITCH. The frontend calls the API directly
+  // at REACT_APP_BACKEND_URL (netlify.toml -> https://raw-surf-antigravity.onrender.com), NOT
+  // through the site origin. With only the site listed, every backend call fell through to the
+  // terminal `else` and was fulfilled with a SYNTHETIC 404 by this very handler — which is the
+  // literal source of `renderDecision: "fallback_legacy", reason: "Backend grid returned HTTP
+  // 404"`. The 404 was manufactured here; the backend never sent it. Measured 2026-08-06: the
+  // identical click sequence run WITHOUT this handler returns 200 on 8 of 8 /api/weather requests
+  // and reaches renderable=true / clip_to_coverage.
+  //
+  // Both origins are read from env because both are real inputs: the e2e workflow accepts a
+  // `base_url`, and hardcoding either host silently 404s the whole app for any other target.
+  const allowedOrigins = [
+    process.env.E2E_BASE_URL || 'https://dev--rawsurf.netlify.app',
+    process.env.REACT_APP_BACKEND_URL || 'https://raw-surf-antigravity.onrender.com',
+    'https://dev--rawsurf.netlify.app',
+    'http://dev--rawsurf.netlify.app',
+    'http://localhost',
+    'https://localhost',
+    'http://127.0.0.1',
+    'https://127.0.0.1',
+    'http://[::1]',
+    'https://[::1]',
+  ];
+
   await page.route('**/*', route => {
     const url = route.request().url();
     if (
-      url.startsWith('http://localhost') ||
-      url.startsWith('https://localhost') ||
-      url.startsWith('http://127.0.0.1') ||
-      url.startsWith('https://127.0.0.1') ||
-      url.startsWith('http://[::1]') ||
-      url.startsWith('https://[::1]') ||
-      url.startsWith('https://dev--rawsurf.netlify.app') ||
-      url.startsWith('http://dev--rawsurf.netlify.app') ||
+      allowedOrigins.some(origin => url.startsWith(origin)) ||
       url.startsWith('data:') ||
       url.startsWith('blob:')
     ) {
@@ -123,6 +142,15 @@ test.describe('Admin Console Operations', () => {
       localStorage.setItem('raw-surf-cookie-consent', JSON.stringify({ accepted: true, timestamp: Date.now() }));
       localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
     }, { user: adminUser });
+
+    // Seeding the user makes /auth redirect itself to /feed. Let that land HERE, or it is still
+    // in flight when the test calls goto('/admin') and interrupts it — observed on Mobile Safari
+    // 2026-08-06: "Navigation to .../admin is interrupted by another navigation to .../feed".
+    // Only observable once the backend is actually reachable (see the allowlist note above);
+    // while every API call was being 404'd by our own route handler the redirect never fired.
+    // Tolerant by design: if a build stops redirecting there is nothing to await, and the wait
+    // expiring changes nothing about what the test then asserts.
+    await page.waitForURL(/\/(feed|explore)(\/|$|\?)/, { timeout: 10000 }).catch(() => {});
   });
 
   test('admin simulation engine executes weather swell spike scenario', async ({ page }) => {
@@ -204,9 +232,19 @@ test.describe('Standard Surfer Map Controls', () => {
       localStorage.setItem('rs-push-prompt-dismissed', Date.now().toString());
       localStorage.setItem('force_marine_fallback', 'true');
     }, { user: standardUser });
+
+    // Same /auth -> /feed redirect race as the admin block above; settle it before the test's own
+    // goto('/map') so an in-flight redirect cannot interrupt it.
+    await page.waitForURL(/\/(feed|explore)(\/|$|\?)/, { timeout: 10000 }).catch(() => {});
   });
 
   test('standard surfer map controls model selection, layer toggle, and timeline scrubbing', async ({ page }) => {
+    // Playwright's default per-test budget is 30 s (no `timeout` in playwright.config.js). This
+    // test loads /map (8-20 s measured) and then activates a layer, which is a marine cache MISS
+    // at a measured 18-35 s — so the default cannot cover a cold run and the budget itself was a
+    // ceiling, independent of any assertion.
+    test.setTimeout(120000);
+
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
 
     // Wait for the map page to load (wait for map right controls or general map container)
@@ -252,24 +290,44 @@ test.describe('Standard Surfer Map Controls', () => {
     await pauseBtn.evaluate(el => el.click());
     await expect(playBtn).toBeVisible();
 
-    // 5. Scrub the timeline slider (target the visible one)
-    const scrubber = page.locator('input[aria-label="Timeline scrubber"]').filter({ visible: true });
+    // 5. Scrub the timeline (target the visible one).
+    //
+    // ⚠️ Until 2026-08-06 this asserted `input[aria-label="Timeline scrubber"]` and failed 12/12
+    // (4 projects x 3 attempts) — because that control CANNOT render. MapWeatherControls picks the
+    // widget with `useWheel = !shouldUseClassicScrubber(window)`, and that predicate is exactly
+    // `window.__RAW_CLASSIC_SCRUBBER__ === true` (ForecastWheel.js) — a kill-switch nothing sets.
+    // The classic <input> is the disabled fallback; ForecastWheel is what ships.
+    // Measured at the artifact (dev--rawsurf, 2026-08-06), desktop 1280 AND mobile 375, after the
+    // layer is active: `input[aria-label="Timeline scrubber"]` = 0 nodes;
+    // `[role="slider"][aria-label="Forecast timeline wheel"]` = 2 in DOM, exactly 1 visible.
+    //
+    // Driving it by keyboard is deliberate: it is the a11y contract CLAUDE.md mandates for this
+    // widget (role="slider", Arrow +/-1 h, PageUp/PageDown +/-1 day, Home = now).
+    const scrubber = page
+      .locator('[role="slider"][aria-label="Forecast timeline wheel"]')
+      .filter({ visible: true });
     await expect(scrubber).toBeVisible();
+    await expect(scrubber).toHaveAttribute('aria-valuenow', '0');
 
-    // Use native React setter override to change range input value and trigger handlers
-    await scrubber.evaluate(el => {
-      const prototype = Object.getPrototypeOf(el);
-      const valueSetter = Object.getOwnPropertyDescriptor(prototype, 'value').set;
-      valueSetter.call(el, '24');
-      el.dispatchEvent(new Event('input', { bubbles: true }));
-      el.dispatchEvent(new Event('change', { bubbles: true }));
-    });
+    // PageUp = +1 day. NOT PageDown: that is -1 day, which clamps at "Now" and changes nothing —
+    // measured live, aria-valuenow stayed "0". `press()` focuses and keys in one action, so a
+    // re-render cannot steal focus between the two.
+    await scrubber.press('PageUp');
 
-    // Check time readout updates from "Live"
+    // The widget's own contract moved (0 -> 24), and the readout followed it off "Live".
+    await expect(scrubber).not.toHaveAttribute('aria-valuenow', '0');
     await expect(timeReadout).not.toHaveText('Live');
   });
 
   test('surfer switches models GFS vs Copernicus and validates telemetry & wave animation canvas', async ({ page }) => {
+    // ⚠️ THE REAL CEILING. This test does a page load plus THREE marine cache misses in sequence
+    // (activate Waves, switch to GFS, switch to EURO) — each a measured 18-35 s — inside
+    // Playwright's 30 s default per-test budget. It could not pass at any inner timeout value;
+    // raising the gates to 45 s alone just moved the failure to the outer budget (observed
+    // 2026-08-06: "Test timeout of 30000ms exceeded" landing inside the new catch block).
+    // Worst case here is ~20 s load + 3 x 35 s = 125 s, so 180 s carries real headroom.
+    test.setTimeout(180000);
+
     await page.goto('/map', { waitUntil: 'domcontentloaded' });
 
     // Wait for the map page to load (wait for map right controls or general map container)
@@ -290,9 +348,12 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(wavesBtn).toBeVisible();
     await wavesBtn.evaluate(el => el.click());
 
-    // Verify wave canvas overlays deck.gl and is visible
+    // Verify wave canvas overlays deck.gl and is visible.
+    // Budget: activating a layer is a marine cache MISS, measured 2026-08-03 at 13-43 MB and
+    // 18-35 s (a HIT is 1.3-3 MB). The old 10 s was below the miss floor, so this failed cold on
+    // 3 of 12 attempts and the remaining 9 died at the telemetry gate below.
     const waveCanvas = page.locator('#marine-canvas-layer');
-    await expect(waveCanvas).toBeVisible({ timeout: 10000 });
+    await expect(waveCanvas).toBeVisible({ timeout: 30000 });
 
     if (isMobile) {
       // Re-open the bottom sheet weather layers menu because selecting the layer closed it
@@ -306,12 +367,42 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(gfsBtn).toBeVisible();
     await gfsBtn.evaluate(el => el.click());
 
-    // Wait for GFS telemetry synchronization in window.__MARINE_PROJECTION_DIAG__
-    await page.waitForFunction(() => {
-      const diag = window.__MARINE_PROJECTION_DIAG__;
-      return diag && diag.activeModel === 'GFS' && 
-             (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
-    }, null, { timeout: 15000 });
+    // Wait for GFS telemetry synchronization in window.__MARINE_PROJECTION_DIAG__.
+    //
+    // Switching the model requests a product this session has never fetched, so it is a marine
+    // cache MISS by construction — 18-35 s measured (see the canvas budget above). The old 15 s
+    // sat under that floor and timed out on 9 of 12 attempts.
+    //
+    // The bare timeout was also undiagnosable: this gate ANDs three terms and reported none of
+    // them, so a failure could not tell "the model never switched" from "it switched but never
+    // became renderable". Measured at the artifact 2026-08-06 the gate DOES pass
+    // (activeModel=GFS, renderable=true, renderDecision=clip_to_coverage), so on the next failure
+    // we need the term values, not another guess.
+    try {
+      await page.waitForFunction(() => {
+        const diag = window.__MARINE_PROJECTION_DIAG__;
+        return diag && diag.activeModel === 'GFS' &&
+               (diag.renderable === true || diag.renderDecision === 'render' || diag.renderDecision === 'clip_to_coverage');
+      }, null, { timeout: 45000 });
+    } catch (err) {
+      const seen = await page.evaluate(() => {
+        const d = window.__MARINE_PROJECTION_DIAG__;
+        if (!d) return { diagPresent: false };
+        return {
+          diagPresent: true,
+          activeModel: d.activeModel,
+          renderable: d.renderable,
+          renderDecision: d.renderDecision,
+          status: d.status,
+          reason: d.reason,
+          outsideCoverageReason: d.outsideCoverageReason,
+          productId: d.productId,
+        };
+      });
+      throw new Error(
+        `GFS telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
+      );
+    }
 
     // Assert GFS telemetry is fully synchronized
     const gfsDiag = await page.evaluate(() => window.__MARINE_PROJECTION_DIAG__);
@@ -324,16 +415,42 @@ test.describe('Standard Surfer Map Controls', () => {
     await expect(euroBtn).toBeVisible();
     await euroBtn.evaluate(el => el.click());
 
-    // Wait for Copernicus (EURO) telemetry synchronization
-    await page.waitForFunction(() => {
-      const marineDiag = window.__MARINE_PROJECTION_DIAG__;
-      const copernicusDiag = window.__COPERNICUS_GRID_DIAG__;
-      return marineDiag && marineDiag.activeModel === 'EURO' && 
-             copernicusDiag && 
-             (copernicusDiag.provider === 'copernicus' || copernicusDiag.provider === 'backend-weather-service' || copernicusDiag.provider === 'open-meteo' || copernicusDiag.provider === 'estimated') &&
-             (!copernicusDiag.fallbackReason || copernicusDiag.fallbackReason === null) &&
-             (copernicusDiag.renderable === true || copernicusDiag.skipped === false || (copernicusDiag.nonzeroCount !== undefined && copernicusDiag.nonzeroCount > 0));
-    }, null, { timeout: 15000 });
+    // Wait for Copernicus (EURO) telemetry synchronization.
+    //
+    // Another model switch, so another marine cache MISS — same 18-35 s budget as the GFS gate.
+    // This gate ANDs FIVE terms and reported none of them on timeout. Measured at the artifact
+    // 2026-08-06 all five pass: activeModel=EURO, diag present, provider=open-meteo,
+    // fallbackReason=null, renderable=true.
+    // ⚠️ `skipped` and `nonzeroCount` are NOT keys of __COPERNICUS_GRID_DIAG__ (measured), so the
+    // last two clauses of the renderable term are dead — only `renderable === true` can satisfy it.
+    try {
+      await page.waitForFunction(() => {
+        const marineDiag = window.__MARINE_PROJECTION_DIAG__;
+        const copernicusDiag = window.__COPERNICUS_GRID_DIAG__;
+        return marineDiag && marineDiag.activeModel === 'EURO' &&
+               copernicusDiag &&
+               (copernicusDiag.provider === 'copernicus' || copernicusDiag.provider === 'backend-weather-service' || copernicusDiag.provider === 'open-meteo' || copernicusDiag.provider === 'estimated') &&
+               (!copernicusDiag.fallbackReason || copernicusDiag.fallbackReason === null) &&
+               (copernicusDiag.renderable === true || copernicusDiag.skipped === false || (copernicusDiag.nonzeroCount !== undefined && copernicusDiag.nonzeroCount > 0));
+      }, null, { timeout: 45000 });
+    } catch (err) {
+      const seen = await page.evaluate(() => {
+        const m = window.__MARINE_PROJECTION_DIAG__;
+        const c = window.__COPERNICUS_GRID_DIAG__;
+        return {
+          term1_activeModel: m ? m.activeModel : '<no marine diag>',
+          term2_copernicusDiagPresent: !!c,
+          term3_provider: c ? c.provider : null,
+          term4_fallbackReason: c ? c.fallbackReason : null,
+          term5_renderable: c ? c.renderable : null,
+          gridMode: c ? c.gridMode : null,
+          is_estimated: c ? c.is_estimated : null,
+        };
+      });
+      throw new Error(
+        `EURO/Copernicus telemetry gate never satisfied. Terms actually seen: ${JSON.stringify(seen)}\n${err.message}`
+      );
+    }
 
     // Assert Copernicus/EURO telemetry is fully synchronized and valid
     const finalDiag = await page.evaluate(() => {
@@ -345,9 +462,14 @@ test.describe('Standard Surfer Map Controls', () => {
 
     expect(finalDiag.marine.activeModel).toBe('EURO');
     expect(finalDiag.copernicus.fallbackReason || null).toBeNull();
-    const isCopernicusRenderable = finalDiag.copernicus.renderable === true || 
-                                   finalDiag.copernicus.skipped === false || 
-                                   (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.nonzeroCount > 0);
+    // ⚠️ The last clause read `finalDiag.nonzeroCount` while its own guard read
+    // `finalDiag.copernicus.nonzeroCount` — an undefined that could never be > 0, so the clause
+    // was dead code masquerading as a fallback. (It stays inert either way: `nonzeroCount` is not
+    // a key of __COPERNICUS_GRID_DIAG__ at all, measured 2026-08-06. Corrected so it reads what it
+    // guards rather than silently never firing.)
+    const isCopernicusRenderable = finalDiag.copernicus.renderable === true ||
+                                   finalDiag.copernicus.skipped === false ||
+                                   (finalDiag.copernicus.nonzeroCount !== undefined && finalDiag.copernicus.nonzeroCount > 0);
     expect(isCopernicusRenderable).toBe(true);
     expect(['copernicus', 'backend-weather-service', 'open-meteo', 'estimated']).toContain(finalDiag.copernicus.provider);
   });
