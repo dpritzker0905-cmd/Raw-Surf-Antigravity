@@ -60,6 +60,49 @@ def is_test_environment() -> bool:
     )
 
 
+def http_session(kill_env: str = "FETCH_HTTP_SESSION"):
+    """A connection-POOLED stand-in for the bare ``requests`` module, for the byte-range fetchers.
+
+    THE DEFECT (measured 2026-08-06, MASTER-AUDIT-9.0 §1.3). Not one of the six GRIB fetchers used a
+    ``requests.Session``: every ``requests.get``/``.head`` was a module-level call, so each one paid a
+    fresh TCP connect + TLS handshake. Measured against the real upstream (nomads.ncep.noaa.gov,
+    n=6 after DNS warm)::
+
+        bare requests.head   480.6 ms/call
+        pooled Session.head  134.1 ms/call      -> 346.5 ms saved per call (3.6x)
+
+    A NOAA wave step makes 4 calls (one ``.idx`` GET + three coalesced range GETs) = ~1.39 s/step, and
+    a 14-day run is ``range(0, 337, 3)`` = 113 steps => **~157 s of pure handshake per run**, against a
+    ``NOAA_FETCH_BUDGET_S`` of 2400 with only 27% headroom (the 2026-08-02 lane loss was upstream
+    merely SLOWING into that margin).
+
+    ★ WHY THIS IS A ONE-LINE CHANGE AT EACH SITE. Every fetcher already INJECTS its HTTP client into
+    the helpers that use it — ``_pick_cycle(requests, ...)``, ``_fetch_message_bytes(requests, ...)``,
+    ``_download_grib(requests, ...)``, ``_download_decode(requests, pygrib, ...)``. A ``Session``
+    exposes the identical ``.get``/``.head`` interface, so it drops into that seam with no signature
+    change anywhere. The seam was already there; nothing was using it.
+
+    ⚠️ ``requests`` is imported INSIDE this function on purpose — this module's contract is that it
+    stays importable on machines without the GRIB stack (see the module docstring), and a top-level
+    ``import requests`` would quietly break that for the unit tests.
+
+    Kill switch: ``FETCH_HTTP_SESSION=0`` returns the bare module, restoring per-call connections
+    byte-for-byte. Callers are short-lived subprocesses, so the pool is reclaimed at process exit.
+    """
+    import requests
+    if os.environ.get(kill_env, "1") == "0":
+        return requests
+    # ⚠️ A SUBSTITUTED MODULE IS ALREADY A CLIENT — caught by `test_icon_wind_multi_bbox_fetch.py`
+    # on this change's first run. The fetcher tests install a double with
+    # `monkeypatch.setitem(sys.modules, "requests", fake)`, and it exposes `.get`/`.head` and nothing
+    # else. Calling `.Session()` on that raises — and the tempting "fix", reaching past it to the real
+    # module, would be far worse: the suite would make LIVE NETWORK CALLS to NOMADS and DWD while
+    # looking green. No `Session` factory means "I am the client", so hand it straight back.
+    if not hasattr(requests, "Session"):
+        return requests
+    return requests.Session()
+
+
 # ─────────────────────────────── grid ───────────────────────────────
 def coarse_axis(lo: float, hi: float, step: float) -> List[float]:
     """Axis ``lo..hi`` INCLUSIVE of both endpoints, rounded to 4dp — matching

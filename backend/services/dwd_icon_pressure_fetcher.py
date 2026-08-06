@@ -101,7 +101,13 @@ def _pick_cycle(requests, now, max_f):
 
 def fetch_global_coarse(payload):
     """Return (points, steps_ok, steps_failed, times) for the coarse global MSL-pressure grid via DWD ICON."""
-    import requests
+    # POOLED, not the module: same .get/.head, one handshake instead of one per call (~346 ms/call
+    # measured vs NOMADS). See _fetch_common.http_session. Kill: FETCH_HTTP_SESSION=0.
+    try:
+        from _fetch_common import http_session           # script-by-path
+    except ImportError:
+        from services._fetch_common import http_session  # package context
+    requests = http_session()
     import pygrib
     import gc
 

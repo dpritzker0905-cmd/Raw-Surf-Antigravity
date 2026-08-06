@@ -446,8 +446,20 @@ async def get_spot_ratings(
     pre, pre_source, pre_served = None, "precomputed", None
     try:
         from services.weather_pipeline.spot_ratings import select_precomputed_laddered
+        # ⛔ OFF THE EVENT LOOP (2026-08-06, MASTER-AUDIT-9.0 §5.1). This loader is a synchronous
+        # `requests.get(timeout=10)` to Supabase Storage behind a 300 s TTL, so calling it bare here
+        # ran a blocking socket read on the loop: measured against this handler, **0 of ~50 possible
+        # co-tenant ticks** fired while it ran — every other request on the worker stalled for the
+        # whole round trip, up to the full 10 s on a bad one, once per TTL per process.
+        # ★ Its two siblings in this file were ALREADY offloaded (/buoy-calibration:581,
+        # /report-calibration:593). Those are diagnostic endpoints; this one is the map-glyph path
+        # hit on every viewport pan — the highest-traffic of the three was the one missed.
+        # Only the READ crosses the thread boundary: `select_precomputed_laddered` is PURE in-memory
+        # frame selection. Guard: tests/test_event_loop_offload_guard.py bans the SHAPE, because
+        # `14c9caf6` already fixed event-loop blocking in this file and the class came back anyway.
+        _l2_obj = await asyncio.to_thread(load_spot_ratings_l2_cached)
         pre, pre_source, pre_served = select_precomputed_laddered(
-            load_spot_ratings_l2_cached(), (w, s, e, n), model, valid_time)
+            _l2_obj, (w, s, e, n), model, valid_time)
     except Exception as _pe:
         logger.debug(f"[spot-ratings] precomputed read failed: {_pe}")
         pre = None

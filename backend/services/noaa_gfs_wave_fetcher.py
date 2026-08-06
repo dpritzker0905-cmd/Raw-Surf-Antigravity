@@ -227,7 +227,14 @@ def fetch_global_coarse(payload):
     The legacy single-`bbox` path is unchanged (plain list of points).
     """
     import numpy as np
-    import requests
+    # POOLED, not the module: same .get/.head, one handshake instead of one per call (~346 ms/call
+    # measured vs NOMADS; ~157 s per 113-step run). See _fetch_common.http_session for the numbers
+    # and the seam. Kill: FETCH_HTTP_SESSION=0.
+    try:
+        from _fetch_common import http_session           # script-by-path
+    except ImportError:
+        from services._fetch_common import http_session  # package context
+    requests = http_session()
     import pygrib
     import gc
 
