@@ -791,18 +791,21 @@ jobs:
               'tests/test_trevec_index_gc.py': 'module-level importorskip on pyarrow/lance, undeclared by design',
           }
 
-          # ✅ SET FROM THE GATE'S OWN RUN, AGAIN — this lane replayed in full on ubuntu-latest with
-          # tests/test_websocket_endpoints_auth.py released from the estate quarantine (CI run
-          # 31072786555):
-          #     "estate: 243 files selected, 241 produced results, 249 passed, 0 silent."
-          # It reconciles exactly against the 238 below: +10 from the released file's 10 cases, and
-          # +1 from a new case in tests/test_websocket_auth.py (which was never quarantined — it is
-          # the unit-level sibling). 243 selected - 2 named MAY_BE_EMPTY = 241 producing results.
-          # ★ And the lane got FASTER, not slower: 29.06 s against 624.76 s, because 600 s of the
-          #   old figure was five unauthorized-websocket cases sitting on a handshake the server
-          #   never answered. Releasing a quarantine is not always a cost.
+          # ✅ SET FROM THE GATE'S OWN RUN, AGAIN — this lane's reading on the PR that added
+          # tests/test_dev_identity_gate.py (CI run 31100797143):
+          #     "estate: 244 files selected, 242 produced results, 277 passed, 0 silent."
+          # Reconciles exactly against the 249 below: +28 from the new file's 28 cases.
+          # 244 selected - 2 named MAY_BE_EMPTY = 242 producing results.
+          # ★ THE FLOOR WAS SHIPPED PROVISIONAL AT 249's VALUE AND RAISED FROM THE READING, which
+          #   is the discipline the 250 entry below exists to enforce. Predicting 275 would have
+          #   been right this time; that is luck, not method.
           #
           # ⚠️ THE EARLIER VALUES ARE KEPT BECAUSE THE MISTAKE IS THE INSTRUCTIVE PART.
+          #   249 — the reading with tests/test_websocket_endpoints_auth.py released from the estate
+          #         quarantine (run 31072786555): "243 files selected, 241 produced results, 249
+          #         passed, 0 silent." That release made the lane FASTER, not slower — 29.06 s
+          #         against 624.76 s — because 600 s of the old figure was five unauthorized-
+          #         websocket cases sitting on a handshake the server never answered.
           #   238 — the first green reading, with both files quarantined (run 31066816129 @ 1e00bbcc).
           #   250 — set off a LOCAL 266. CI's real figure with the same file set was 244, so the
           #         floor sat ABOVE the achievable number and would have failed the lane with zero
@@ -811,14 +814,14 @@ jobs:
           #   235 — deliberately below the predicted post-quarantine range (238-243) while the true
           #         figure was unknown. Ship a floor PROVISIONAL, then set it from the gate itself.
           #
-          # 247 sits two below the observed 249: tight enough that a mass-skip or a deleted module
-          # is red, loose enough that ordinary churn in a 243-file heterogeneous estate does not
+          # 275 sits two below the observed 277: tight enough that a mass-skip or a deleted module
+          # is red, loose enough that ordinary churn in a 244-file heterogeneous estate does not
           # pin CI to a total. Raise it when the estate grows — it is shrink-only, and lowering it
           # is a deliberate act that must appear in a diff.
           # ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is
           #   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane
           #   legitimately shrinks it and must not be red.
-          MIN_PASSED = 247
+          MIN_PASSED = 275
 
           try:
               root = ET.parse('estate.xml').getroot()
