@@ -92,6 +92,19 @@ def http_session(kill_env: str = "FETCH_HTTP_SESSION"):
     import requests
     if os.environ.get(kill_env, "1") == "0":
         return requests
+    # ⛔⛔ UNDER TEST, NEVER POOL — this shipped as a real regression on 2026-08-06 and is the whole
+    # reason this branch exists. `test_noaa_fetch_soft_deadline.py:95` stubs the wire by patching
+    # `get` ON THE REAL MODULE (`monkeypatch.setattr(__import__("requests"), "get", ...)`), not by
+    # substituting sys.modules. A Session built from that module does NOT carry the patched `.get`,
+    # so all five salvage tests started making LIVE DNS calls to `https://stub/` — the exact
+    # "tests hit the network while looking green" failure this helper's own docstring warns about,
+    # reintroduced through a second stubbing mechanism I had not enumerated.
+    # Returning the module under test honours BOTH mechanisms (module substitution and attribute
+    # patching) and costs nothing: connection reuse across a 4-call stub loop is worth zero.
+    # ⚠️ `is_test_environment()` is production-safe by construction — NODE_ENV/ENV=production or
+    # IS_PROD=true is never test, so the serve/ingest boxes still pool.
+    if is_test_environment():
+        return requests
     # ⚠️ A SUBSTITUTED MODULE IS ALREADY A CLIENT — caught by `test_icon_wind_multi_bbox_fetch.py`
     # on this change's first run. The fetcher tests install a double with
     # `monkeypatch.setitem(sys.modules, "requests", fake)`, and it exposes `.get`/`.head` and nothing

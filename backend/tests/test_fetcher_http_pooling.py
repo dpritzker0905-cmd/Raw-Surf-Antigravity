@@ -109,7 +109,12 @@ def test_http_session_returns_a_pooled_client_and_honours_its_kill_switch(monkey
     """The helper itself: pooled by default, bare module when killed, both usable as a client."""
     from services._fetch_common import http_session
 
+    import services._fetch_common as fc
+
     monkeypatch.delenv("FETCH_HTTP_SESSION", raising=False)
+    # http_session() deliberately returns the bare module under pytest (see its docstring — a real
+    # 2026-08-06 regression), so the pooling branch can only be asserted with that predicate off.
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)
     pooled = http_session()
     assert type(pooled).__name__ == "Session", f"expected a Session, got {type(pooled).__name__}"
     assert hasattr(pooled, "get") and hasattr(pooled, "head")
@@ -142,8 +147,11 @@ def test_http_session_honours_a_substituted_requests_module(monkeypatch):
         def head(self, url, **kw):  # pragma: no cover - interface shape only
             raise AssertionError("not called")
 
+    import services._fetch_common as fc
+
     fake = _FakeRequestsModule()
     monkeypatch.delenv("FETCH_HTTP_SESSION", raising=False)
+    monkeypatch.setattr(fc, "is_test_environment", lambda: False)   # exercise the pooling branch
     monkeypatch.setitem(sys.modules, "requests", fake)
 
     client = http_session()
