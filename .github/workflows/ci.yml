@@ -242,10 +242,21 @@ jobs:
     steps:
       - uses: actions/checkout@v5
 
+      # ⚠️ 3.12 BECAUSE THAT IS WHAT PRODUCTION ACTUALLY RUNS - MEASURED, NOT DECLARED.
+      # /api/health now reports it: {"python":"3.12","deps_digest":"1fbddd64165a","deps_count":137}.
+      # This lane was 3.11 while the server was 3.12, and the gap was not cosmetic: installing the
+      # SAME requirements files on both (CI run 31103393912) gave 150 distributions on 3.11 against
+      # 146 on 3.12, differing in numpy 2.4.6 vs 2.5.1 and zarr 3.1.6 vs 3.3.0 - the numeric core of
+      # the forecast path. A green run on 3.11 was not evidence about the stack production serves.
+      # ⛔ THE REST OF .github/workflows IS STILL 3.11, INCLUDING forecast-ingest, precompute,
+      #   l2-orphan-sweep AND forecast-calibration-census, WHICH WRITE THE ARTIFACTS THIS SERVER
+      #   READS. Producer and consumer therefore still disagree on zarr and numpy. Aligning those is
+      #   a separate change: they are scheduled production jobs and need artifact-level verification
+      #   (write on both, compare bytes), not a find-and-replace.
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: Install backend dependencies
         working-directory: backend
@@ -268,7 +279,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: "🔍 Check file sizes (max 800 LOC)"
         working-directory: backend
@@ -284,7 +295,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: "🔍 Check for circular imports"
         working-directory: backend
@@ -304,7 +315,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       - name: "🔐 BOLA route guard (no new bare-user_id routes)"
         working-directory: backend
@@ -332,7 +343,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       # requirements.txt is what Render installs and carries no test deps at all. requirements-dev
       # is the declared test set — pytest/pytest-asyncio (conftest imports pytest_asyncio, pyproject
@@ -567,7 +578,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
       - name: Install backend dependencies
         working-directory: backend
         run: |
@@ -741,7 +752,7 @@ jobs:
       - name: Set up Python
         uses: actions/setup-python@v6
         with:
-          python-version: '3.11'
+          python-version: '3.12'
 
       # Same two-step install, same reason as the lanes above: requirements.txt pins httpx==0.27.2
       # and every fastmcp release needs >=0.28.1, so resolving both files together is
