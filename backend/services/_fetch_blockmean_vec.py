@@ -116,6 +116,115 @@ def scalar_block_batch(x_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
     return _finalize(out, interior, rs, cs, scalar_fn)
 
 
+def multi_dir_conf_batch(pairs, fallback_dir_arr, rs, cs, half, wrap_cols, scalar_fn,
+                         total_h_arr=None, ramp_lo=0.35, ramp_hi=0.65):
+    """Batch `energy_mean_direction_block_multi_conf` -> (directions, confidences, conf_present).
+
+    ⭐ THREE ARRAYS, NOT TWO, BECAUSE THE SCALAR RETURNS `None` FOR THE CONFIDENCE — not NaN, not 0.0
+    — in the point-sample fallback, meaning "no blockwise evidence either way". Folding that into NaN
+    would make "not sampled" indistinguishable from "computed and undefined", which is the exact
+    conflation this repo's refusal rules exist to prevent. `conf_present` is False there and the
+    caller writes `None`.
+
+    ⚠️ THE BRANCH ORDER IS LOAD-BEARING AND IS NOT `if/elif`. In the scalar, the mixed branch can be
+    ENTERED and then DECLINED (when the two unit vectors cancel to mx == my == 0), and control falls
+    through to the partition-only return — it does not fall to the total-only one. Reproduced exactly:
+
+        MIXED       = have_partition & have_total & (mx != 0 | my != 0)
+        TOTAL_ONLY  = have_total & ~have_partition
+        PARTITION   = have_partition & ~MIXED          <- catches the declined-mix case
+        FALLBACK    = ~have_partition & ~have_total
+
+    ⚠️ MEASURED BRANCH FREQUENCY over 3,000 random blocks: mixed 63.1%, partition-only 36.9%,
+    **total-only 0%, fallback 0%**. The two rare branches are unreachable from random data, so the
+    parity suite PLANTS them. A test that only sampled randomly would cover half the function and
+    look complete.
+
+    `total_h_arr=None` disables tier 2 entirely — the callers' NOAA_COARSE_DIR_TOTAL_FIELD=0
+    kill-switch path.
+    """
+    rs = np.asarray(rs, dtype=np.intp)
+    cs = np.asarray(cs, dtype=np.intp)
+    nrows, ncols = fallback_dir_arr.shape
+    n = rs.shape[0]
+    out_d = np.empty(n, dtype=float)
+    out_c = np.empty(n, dtype=float)
+    out_p = np.zeros(n, dtype=bool)
+    interior = _interior_mask(rs, cs, nrows, ncols, half, wrap_cols)
+
+    if interior.any():
+        ri, ci = rs[interior], cs[interior]
+        m = ri.shape[0]
+        s = np.zeros(m); co = np.zeros(m); e_sum_p = np.zeros(m)
+        any_ok = np.zeros(m, dtype=bool)
+        for dir_arr, h_arr in pairs:
+            d = _gather(dir_arr, ri, ci, half, ncols, wrap_cols)
+            h = _gather(h_arr, ri, ci, half, ncols, wrap_cols)
+            ok = np.isfinite(d) & np.isfinite(h) & (h > 0.0)
+            any_ok |= ok.any(axis=(1, 2))
+            e = np.where(ok, h * h, 0.0)
+            rad = np.deg2rad(np.where(ok, d, 0.0))
+            s += (e * np.sin(rad)).sum(axis=(1, 2))
+            co += (e * np.cos(rad)).sum(axis=(1, 2))
+            e_sum_p += e.sum(axis=(1, 2))
+
+        w = np.zeros(m); r_d = np.zeros(m); ds = np.zeros(m); dco = np.zeros(m)
+        if total_h_arr is not None:
+            dt = _gather(fallback_dir_arr, ri, ci, half, ncols, wrap_cols)
+            ht = _gather(total_h_arr, ri, ci, half, ncols, wrap_cols)
+            okt = np.isfinite(dt) & np.isfinite(ht) & (ht > 0.0)
+            et = np.where(okt, ht * ht, 0.0)
+            radt = np.deg2rad(np.where(okt, dt, 0.0))
+            ds = (et * np.sin(radt)).sum(axis=(1, 2))
+            dco = (et * np.cos(radt)).sum(axis=(1, 2))
+            e_sum = et.sum(axis=(1, 2))
+            live = okt.any(axis=(1, 2)) & (e_sum > 0.0)
+            with np.errstate(invalid="ignore", divide="ignore"):
+                r_d = np.where(live, np.hypot(ds, dco) / np.where(e_sum > 0.0, e_sum, 1.0), 0.0)
+            w = np.clip((r_d - ramp_lo) / (ramp_hi - ramp_lo), 0.0, 1.0)
+            w = np.where(live, w, 0.0)
+            ds = np.where(live, ds, 0.0)
+            dco = np.where(live, dco, 0.0)
+
+        with np.errstate(invalid="ignore", divide="ignore"):
+            r_p = np.where(e_sum_p > 0.0, np.hypot(s, co) / np.where(e_sum_p > 0.0, e_sum_p, 1.0), 0.0)
+
+        have_p = any_ok & ~((s == 0.0) & (co == 0.0))
+        have_t = (w > 0.0) & ~((ds == 0.0) & (dco == 0.0))
+
+        pm = np.hypot(s, co); pm = np.where(pm == 0.0, 1.0, pm)
+        tm = np.hypot(ds, dco); tm = np.where(tm == 0.0, 1.0, tm)
+        mx = (1.0 - w) * (s / pm) + w * (ds / tm)
+        my = (1.0 - w) * (co / pm) + w * (dco / tm)
+
+        use_mixed = have_p & have_t & ((mx != 0.0) | (my != 0.0))
+        use_total = have_t & ~have_p
+        use_part = have_p & ~use_mixed              # includes the ENTERED-then-DECLINED mix
+
+        d_mixed = np.rad2deg(np.arctan2(mx, my)) % 360.0
+        c_mixed = np.clip(((1.0 - w) * r_p + w * r_d) * np.hypot(mx, my), 0.0, 1.0)
+        d_total = np.rad2deg(np.arctan2(ds, dco)) % 360.0
+        d_part = np.rad2deg(np.arctan2(s, co)) % 360.0
+        pt = fallback_dir_arr[ri, ci]
+
+        dirs = np.where(use_mixed, d_mixed,
+                        np.where(use_total, d_total,
+                                 np.where(use_part, d_part, pt)))
+        confs = np.where(use_mixed, c_mixed,
+                         np.where(use_total, np.clip(r_d, 0.0, 1.0),
+                                  np.where(use_part, np.clip(r_p, 0.0, 1.0), 0.0)))
+        out_d[interior] = dirs
+        out_c[interior] = confs
+        out_p[interior] = use_mixed | use_total | use_part
+
+    for i in np.nonzero(~interior)[0]:
+        dv, cv = scalar_fn(int(rs[i]), int(cs[i]))
+        out_d[i] = dv
+        out_p[i] = cv is not None
+        out_c[i] = float(cv) if cv is not None else 0.0
+    return out_d, out_c, out_p
+
+
 def partition_dir_conf_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
     """Batch `energy_mean_direction_block_partition_conf` -> (directions, confidences).
 

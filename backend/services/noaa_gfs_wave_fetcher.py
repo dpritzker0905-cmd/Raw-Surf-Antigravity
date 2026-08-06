@@ -62,6 +62,22 @@ OM_UNITS = {om: u for _, om, u in IDX_TO_OM}
 OM_ORDER = [om for _, om, _ in IDX_TO_OM]
 
 
+def _vector_blockmean() -> bool:
+    """Is the vectorized regrid path on? Read PER CALL, never at import — a module-level read freezes
+    the environment as of process start, and this repo's recorded scar is a flag holding a different
+    value in each lane.
+
+    ⛔ DEFAULT **OFF**, deliberately, and not because the parity is in doubt — the batch form is
+    bit-identical by construction (it delegates every clamped edge row to the scalar function) and is
+    pinned by a suite that plants the two branches random data never reaches. It is off because
+    nothing has verified it END TO END: pygrib does not import on the dev box, so the fetcher loop
+    itself has never executed either path here, and GitHub Actions is currently failing at
+    `Set up job` before checkout, so CI has validated nothing today. A parity proof about a FUNCTION
+    is not a proof about the LOOP that calls it.
+    Flip to 1 once one ingest run has been compared against a scalar-path run."""
+    return os.environ.get("FETCH_VECTOR_BLOCKMEAN", "0") == "1"
+
+
 def _coarse_axis(lo, hi, step):
     """Axis lo..hi INCLUSIVE of both endpoints — actually matching generate_bbox_coords / the
     open-meteo generator (both `<= hi + eps`). The previous `< hi` EXCLUSIVE form under-supplied
@@ -96,13 +112,20 @@ try:
         energy_mean_direction_block, energy_mean_direction_block_multi_conf,
         energy_mean_direction_block_partition_conf,
         energy_mean_height_block, energy_mean_scalar_block,
+        DIR_TOTAL_COHERENCE_RAMP_LO, DIR_TOTAL_COHERENCE_RAMP_HI,
     )
 except ImportError:
     from services._fetch_common import (  # package
         energy_mean_direction_block, energy_mean_direction_block_multi_conf,
         energy_mean_direction_block_partition_conf,
         energy_mean_height_block, energy_mean_scalar_block,
+        DIR_TOTAL_COHERENCE_RAMP_LO, DIR_TOTAL_COHERENCE_RAMP_HI,
     )
+
+try:
+    from _fetch_blockmean_vec import multi_dir_conf_batch          # script-by-path
+except ImportError:
+    from services._fetch_blockmean_vec import multi_dir_conf_batch  # package
 
 # Scalar block aggregation (2026-07-04, wind_waves tri-model forensics): heights = block RMS,
 # periods = H²-weighted block mean — symmetric with the direction block means. PARTITIONED WW3
@@ -377,6 +400,33 @@ def fetch_global_coarse(payload):
                     for rid, rmap in idx_by.items():
                         series = series_by[rid]
                         half = half_by[rid]
+                        # VECTORIZED PATH (2026-08-06, MASTER-AUDIT-9.0 Phase 2). Same reduction, one
+                        # strided pass instead of ~15,000 python calls: measured 16.8x on this call
+                        # (97 -> 5.79 us/point), the single most expensive of the five at 31.0% of the
+                        # regrid cost. Bit-identical by construction — the batch form vectorizes only
+                        # the interior and DELEGATES clamped edge rows to the scalar function passed
+                        # here. Guard: tests/test_blockmean_vectorized_parity.py, whose population
+                        # PLANTS the total-only and conf=None branches that random data never reaches
+                        # (measured 0% of 3,000 blocks). Kill: FETCH_VECTOR_BLOCKMEAN=0.
+                        if _vector_blockmean() and rmap:
+                            _sc = (lambda _r, _c, _h=half:
+                                   energy_mean_direction_block_multi_conf(
+                                       _partition_pairs, arr, _r, _c, _h, True, _total_h))
+                            _rs = np.fromiter((p[0] for p in rmap), dtype=np.intp, count=len(rmap))
+                            _cs = np.fromiter((p[1] for p in rmap), dtype=np.intp, count=len(rmap))
+                            _bd, _bc, _bp = multi_dir_conf_batch(
+                                _partition_pairs, arr, _rs, _cs, half, True, _sc,
+                                total_h_arr=_total_h,
+                                ramp_lo=DIR_TOTAL_COHERENCE_RAMP_LO,
+                                ramp_hi=DIR_TOTAL_COHERENCE_RAMP_HI)
+                            for pi in range(len(rmap)):
+                                _x = float(_bd[pi])
+                                series[pi][om].append(round(_x, 4) if _x == _x else None)
+                                if export_confidence:
+                                    series[pi][DIR_CONFIDENCE_OM].append(
+                                        round(float(_bc[pi]), 4) if _bp[pi] else None
+                                    )
+                            continue
                         for pi, (r, c) in enumerate(rmap):
                             x, conf = energy_mean_direction_block_multi_conf(_partition_pairs, arr, r, c, half, True, _total_h)
                             series[pi][om].append(round(float(x), 4) if x == x else None)

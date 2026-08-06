@@ -152,6 +152,103 @@ def test_partition_confidence_actually_varies(fields, points):
         "above is not exercising the R x coverage computation")
 
 
+@pytest.fixture(scope="module")
+def multi_fields():
+    """Fields for the two-tier total-sea reduction, with the RARE branches planted.
+
+    ⚠️ MEASURED over 3,000 random blocks: mixed 63.1%, partition-only 36.9%, **total-only 0%,
+    point-sample fallback 0%**. Random data reaches half the function. These plants are the only
+    reason the parity assertions below mean anything for the other half.
+    """
+    rng = np.random.default_rng(41)
+
+    def field(lo, hi):
+        a = rng.uniform(lo, hi, size=(NROWS, NCOLS)).astype(float)
+        a[rng.uniform(size=a.shape) < 0.30] = np.nan
+        return a
+
+    hs = [field(0.0, 6.0) for _ in range(3)]
+    ds = [field(0.0, 360.0) for _ in range(3)]
+    th, td = field(0.0, 8.0), field(0.0, 360.0)
+
+    # PLANT 1 -> total-only: every partition empty, total field coherent (r_d > ramp_lo)
+    for a in hs:
+        a[30:40, 40:50] = 0.0
+    th[30:40, 40:50] = 3.0
+    td[30:40, 40:50] = 42.0                      # one bearing => r_d = 1.0 => w = 1.0
+
+    # PLANT 2 -> point-sample fallback (conf is None): partitions empty AND total empty
+    for a in hs:
+        a[100:110, 140:150] = 0.0
+    th[100:110, 140:150] = 0.0
+
+    return list(zip(ds, hs)), td, th
+
+
+def test_multi_dir_conf_batch_is_identical_including_the_planted_rare_branches(multi_fields):
+    """All three outputs must match: direction, confidence, AND whether a confidence exists at all."""
+    from services._fetch_common import energy_mean_direction_block_multi_conf as SC
+    from services._fetch_blockmean_vec import multi_dir_conf_batch
+
+    pairs, td, th = multi_fields
+    rng = np.random.default_rng(42)
+    rs = list(rng.integers(0, NROWS, size=600))
+    cs = list(rng.integers(0, NCOLS, size=600))
+    for r, c in ((35, 45), (36, 46), (105, 145), (106, 146)):    # the two planted branches
+        rs.append(r); cs.append(c)
+    for r in (0, 1, NROWS - 2, NROWS - 1):                        # clamping edges
+        for c in (0, 1, NCOLS - 1):                               # wrapping columns
+            rs.append(r); cs.append(c)
+    rs = np.array(rs, dtype=np.intp); cs = np.array(cs, dtype=np.intp)
+
+    ref = [SC(pairs, td, int(r), int(c), HALF, True, th) for r, c in zip(rs, cs)]
+    ref_d = np.array([a for a, _ in ref])
+    ref_present = np.array([b is not None for _, b in ref])
+    ref_c = np.array([float(b) if b is not None else 0.0 for _, b in ref])
+
+    got_d, got_c, got_p = multi_dir_conf_batch(
+        pairs, td, rs, cs, HALF, True,
+        lambda r, c: SC(pairs, td, r, c, HALF, True, th), total_h_arr=th)
+
+    assert np.array_equal(ref_present, np.asarray(got_p)), (
+        "conf_present disagrees — one form returns a confidence where the other returns None, "
+        "which is the 'not sampled' vs 'computed' conflation this split exists to prevent")
+    _assert_identical("multi(direction)", ref_d, np.asarray(got_d), len(rs))
+    _assert_identical("multi(confidence)", ref_c, np.asarray(got_c), len(rs))
+
+
+def test_multi_dir_conf_batch_honours_the_tier2_kill_switch(multi_fields):
+    """total_h_arr=None is the NOAA_COARSE_DIR_TOTAL_FIELD=0 path — tier 2 must vanish entirely."""
+    from services._fetch_common import energy_mean_direction_block_multi_conf as SC
+    from services._fetch_blockmean_vec import multi_dir_conf_batch
+
+    pairs, td, _th = multi_fields
+    rng = np.random.default_rng(43)
+    rs = rng.integers(0, NROWS, size=400).astype(np.intp)
+    cs = rng.integers(0, NCOLS, size=400).astype(np.intp)
+    ref = [SC(pairs, td, int(r), int(c), HALF, True, None) for r, c in zip(rs, cs)]
+    ref_d = np.array([a for a, _ in ref])
+    got_d, _c, _p = multi_dir_conf_batch(
+        pairs, td, rs, cs, HALF, True,
+        lambda r, c: SC(pairs, td, r, c, HALF, True, None), total_h_arr=None)
+    _assert_identical("multi(kill-switch)", ref_d, np.asarray(got_d), len(rs))
+
+
+def test_the_planted_rare_branches_are_genuinely_reached(multi_fields):
+    """MUTATION CONTROL. Without this, the plants could silently stop working and the parity test
+    above would keep passing while covering only the 2 branches random data reaches."""
+    from services._fetch_common import energy_mean_direction_block_multi_conf as SC
+
+    pairs, td, th = multi_fields
+    _d_total, c_total = SC(pairs, td, 35, 45, HALF, True, th)
+    assert c_total is not None, "PLANT 1 no longer reaches the total-only branch"
+
+    _d_fb, c_fb = SC(pairs, td, 105, 145, HALF, True, th)
+    assert c_fb is None, (
+        "PLANT 2 no longer reaches the point-sample fallback — the conf=None path, the only one "
+        "that distinguishes 'no blockwise evidence' from a computed zero, is untested")
+
+
 def test_the_exact_zero_resultant_branch_is_unreachable_in_practice(fields):
     """A FINDING ABOUT THE ORIGINAL, recorded so nobody deletes the branch on coverage data.
 
