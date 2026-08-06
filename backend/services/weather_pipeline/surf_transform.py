@@ -432,6 +432,36 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     #   literature puts gamma near 1.0-1.2) — reached from a number that is not a slope. That is the
     #   "right by cancellation" shape this repo keeps hitting; do not patch it blind.
     #   Both regimes are pinned by test_slope_gamma_contamination_two_regimes.py.
+    #
+    # ⚠️⚠️ EVERYTHING ABOVE THIS LINE WAS MEASURED AT GAMMA_MAX_STEEP = 1.25. IT IS NOW 0.81, AND
+    # THE NUMBERS DID NOT SURVIVE THE CHANGE. Re-censused 2026-08-06, n=178 active catalogue spots
+    # (offline, dev.db + the bundled bathymetry):
+    #     proxy slope m: p50 0.0027 · p90 0.0651 · p99 0.1327 · max 0.1433
+    #     gamma SATURATED at the ceiling, by period:
+    #         Tp  5.0 s -> 30.9%    Tp  8.0 s -> 40.4%
+    #         Tp 10.5 s -> 47.2%    Tp 14.0 s -> 100.0%
+    # The note above records "SATURATED at 1.25: 29/701 = 4.1%". At 0.81 that is 4.1% -> 100% for
+    # groundswell — a ~10x change in how often this cap binds, and it was never re-measured when the
+    # ceiling moved. ★ A CENSUS IS PINNED TO THE CONSTANT IT WAS TAKEN UNDER; changing the constant
+    # invalidates the census, not just the conclusion.
+    #
+    # ⇒ THE "+75.4% AT PIPELINE" CONCERN ABOVE IS VOID UNDER THIS CEILING. Swapping the proxy for
+    #   the real ETOPO bed slope now moves gamma by (same census):
+    #         Tp 14.0 s -> 0.0% of spots move at all     (every spot already at the ceiling)
+    #         Tp 10.5 s -> 50.6% move, median 1.05%, max  3.7%
+    #         Tp  8.0 s -> 61.8% move, median 1.78%, max 11.8%
+    #         Tp  5.0 s -> 71.9% move, median 2.87%, max 21.8%
+    #   Pipeline specifically moves 0.0% at every period tested: proxy 0.0983 and bed 0.0301 BOTH
+    #   saturate 0.81. The blocker on wiring the finer asset was the 75% big-wave swing; that swing
+    #   was a property of the 1.25 ceiling and is gone.
+    #
+    # ⚠️ BUT THE INTERESTING CONSEQUENCE IS THE OTHER DIRECTION, AND IT IS AN OWNER QUESTION, NOT A
+    #   QUIET EDIT: at Tp >= 14 s gamma is now pinned at 0.81 for 100% of spots, so THE SLOPE TERM NO
+    #   LONGER DISTINGUISHES ANYTHING AT GROUNDSWELL PERIODS. The whole point of v3.2 — "Pipeline
+    #   breaks taller than a beach break in the same depth" — does not apply to the swell that
+    #   matters most. That may be correct (0.81 is Carini's field-observed individual-wave maximum,
+    #   so saturating there is defensible), but it is a calibration decision and needs the primary
+    #   source plus a size A/B, exactly as the ceiling change itself did. Do not "fix" it here.
     _slope_proxy = (depth_m / (shelf_width_km * 1000.0)) if (shelf_width_km and shelf_width_km > 0) else None
     # ★ THE CAP USES THE NEARSHORE DEPTH, NOT THE SHELF DEPTH. `depth_m` is a ~139 km median — the
     # right answer for cross-shelf friction above, and nonsense here: measured 2026-07-27 across 395
