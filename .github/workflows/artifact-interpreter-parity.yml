@@ -1,0 +1,121 @@
+name: Artifact interpreter parity
+
+# Does changing the Python interpreter change the artifacts the forecast lanes WRITE?
+#
+# ⚠️ RUN THIS BEFORE MOVING ANY LANE TO A NEW PYTHON. It is kept dispatchable rather than deleted
+# with the branch that first used it, because the question recurs on every interpreter bump and the
+# expensive part is the harness, not the run.
+#
+# It exists because the obvious experiment is the wrong one: running precompute_ci.py twice needs
+# the production Supabase service key, WRITES production artifacts from a test, and reads different
+# inputs each time — so any difference would be input noise rather than the interpreter. The harness
+# drives the same composition on FIXED inputs, no network, no upload, so a difference is
+# attributable to exactly one variable.
+#
+# ★ THE `--mutate` STEP IS THE CONTROL AND IT RUNS ON BOTH SIDES. It perturbs one input; the digest
+#   MUST change. Without it, "the digests match" is indistinguishable from "the harness computed
+#   nothing" — and the harness's own refusal path (exit 2 when a section cannot run) guards the same
+#   failure from the other direction.
+#
+# Measured 2026-08-06 with the defaults below: 3.11.15/numpy 2.4.6 and 3.12.13/numpy 2.5.1 produced
+# BYTE-IDENTICAL artifacts (6064 B, sha256 2fd2d006f740...), which is what cleared the ingest lanes
+# to move to 3.12. A local 3.14.4/numpy 2.4.4 run matched too.
+on:
+  workflow_dispatch:
+    inputs:
+      baseline:
+        description: 'Interpreter to compare FROM'
+        required: false
+        default: '3.11'
+      candidate:
+        description: 'Interpreter to compare TO'
+        required: false
+        default: '3.12'
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    strategy:
+      fail-fast: false
+      matrix:
+        python:
+          - ${{ inputs.baseline || '3.11' }}
+          - ${{ inputs.candidate || '3.12' }}
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python ${{ matrix.python }}
+        uses: actions/setup-python@v6
+        with:
+          python-version: ${{ matrix.python }}
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: |
+          pip install -q -r requirements.txt
+          pip install -q -r requirements-dev.txt
+
+      - name: "Which numeric stack did this interpreter get?"
+        working-directory: backend
+        run: |
+          python -c "import sys, numpy; print('python', sys.version.split()[0], '| numpy', numpy.__version__)"
+          pip freeze --all | grep -iE '^(numpy|xarray|netcdf4|pygrib|h5netcdf|copernicusmarine)==' || true
+
+      # Exit 2 here means a section could not run; the job fails rather than emitting a digest
+      # computed over nothing.
+      - name: "The artifact under ${{ matrix.python }}"
+        working-directory: backend
+        run: python scripts/artifact_interpreter_parity.py --emit "/tmp/artifact.json"
+
+      - name: "CONTROL — a perturbed input must change the digest on this interpreter too"
+        working-directory: backend
+        run: |
+          BASE=$(python scripts/artifact_interpreter_parity.py | awk '/^sha256/{print $2}')
+          MUT=$(python scripts/artifact_interpreter_parity.py --mutate | awk '/^sha256/{print $2}')
+          echo "baseline $BASE"
+          echo "mutated  $MUT"
+          if [ "$BASE" = "$MUT" ]; then
+            echo "::error::The harness is insensitive on ${{ matrix.python }} — a perturbed input"\
+                 "produced the SAME digest, so a match between interpreters would prove nothing."
+            exit 1
+          fi
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: artifact-${{ matrix.python }}
+          path: /tmp/artifact.json
+
+  compare:
+    needs: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: /tmp/artifacts
+
+      # ★ A real gate, not a report for someone to eyeball. If the interpreters disagree the diff is
+      #   printed and the job goes red, because that is a finding about production data and not a
+      #   note in a log nobody opens.
+      - name: "Compare the artifacts byte-for-byte"
+        run: |
+          cd /tmp/artifacts
+          ls -R
+          FILES=$(find . -name artifact.json | sort)
+          COUNT=$(echo "$FILES" | wc -l)
+          if [ "$COUNT" -ne 2 ]; then
+            echo "::error::expected 2 artifacts, found $COUNT — cannot compare"; exit 1
+          fi
+          A=$(echo "$FILES" | sed -n 1p); B=$(echo "$FILES" | sed -n 2p)
+          echo "A = $A  ($(wc -c < "$A") bytes, sha $(sha256sum "$A" | cut -c1-16))"
+          echo "B = $B  ($(wc -c < "$B") bytes, sha $(sha256sum "$B" | cut -c1-16))"
+          if cmp -s "$A" "$B"; then
+            echo "BYTE-FOR-BYTE IDENTICAL — the interpreter does not change the artifact."
+          else
+            echo "::error::The interpreters produce DIFFERENT artifacts. Diff follows."
+            diff <(python3 -m json.tool "$A") <(python3 -m json.tool "$B") | head -60 || true
+            exit 1
+          fi
