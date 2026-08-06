@@ -62,7 +62,7 @@ class _Grbs:
         pass
 
 
-def _run(monkeypatch, vector_flag):
+def _run(monkeypatch, vector_flag, part_conf="1"):
     import services.noaa_gfs_wave_fetcher as fetcher
 
     monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _Grbs()))
@@ -70,6 +70,12 @@ def _run(monkeypatch, vector_flag):
     monkeypatch.setenv("NOAA_COARSE_DIR_BLOCKMEAN", "1")
     monkeypatch.setenv("NOAA_COARSE_SCALAR_BLOCKMEAN", "1")
     monkeypatch.setenv("NOAA_COARSE_DIR_CONFIDENCE", "1")
+    # ⚠️ `part_conf` selects WHICH direction reduction the loop reaches. With it ON (the default),
+    # the 3 partition directions take `partition_dir_conf_batch` and `direction_block_batch` is
+    # UNREACHABLE — measured, not assumed: instrumenting a default-flag run counted
+    # multi 9 / partition 27 / height 36 / scalar 36 / direction **0**. Turning it off is the only
+    # way the plain direction reduction is exercised at all.
+    monkeypatch.setenv("NOAA_PARTITION_DIR_CONFIDENCE", part_conf)
     monkeypatch.setenv("FETCH_VECTOR_BLOCKMEAN", vector_flag)
     monkeypatch.setattr(fetcher, "_pick_cycle",
                         lambda _rq, now, _mf: (now.replace(minute=0, second=0, microsecond=0),
@@ -116,9 +122,74 @@ def test_the_vector_flag_changes_nothing_about_the_output(monkeypatch):
                     assert x == y, f"point {i}/{var}[{j}]: {x!r} != {y!r}"
 
 
-def test_the_harness_actually_exercises_both_batch_branches():
+def test_the_vector_flag_changes_nothing_with_partition_confidence_off(monkeypatch):
+    """The NOAA_PARTITION_DIR_CONFIDENCE=0 lane, which is the ONLY route to direction_block_batch.
+
+    Under default flags that reduction is unreachable (measured: 0 calls), so without this case the
+    suite would ship a wired-but-never-executed code path — the 'guard that cannot reach its subject'
+    shape this repo keeps rediscovering.
+    """
+    with monkeypatch.context() as m:
+        off_points, off_ok, _f, _t = _run(m, "0", part_conf="0")
+    with monkeypatch.context() as m:
+        on_points, on_ok, _f2, _t2 = _run(m, "1", part_conf="0")
+
+    assert off_ok > 0 and off_ok == on_ok
+    for i, (a, b) in enumerate(zip(off_points, on_points)):
+        for var, av in a["hourly"].items():
+            bv = b["hourly"][var]
+            for j, (x, y) in enumerate(zip(av, bv)):
+                assert (x is None) == (y is None), f"point {i}/{var}[{j}]: None mismatch"
+                if x is not None:
+                    assert x == y, f"point {i}/{var}[{j}]: {x!r} != {y!r}"
+
+
+def test_every_wired_batch_reduction_is_actually_reached(monkeypatch):
+    """COVERAGE ASSERTION. A shadow test that compares two paths proves nothing about a reduction
+    neither path invokes — and four of the five were only confirmed reached by COUNTING them.
+    This refuses if a wired batch form stops being called, rather than passing quietly."""
+    import services._fetch_blockmean_vec as V
+
+    names = ("multi_dir_conf_batch", "partition_dir_conf_batch", "direction_block_batch",
+             "height_block_batch", "scalar_block_batch")
+    calls = {n: 0 for n in names}
+
+    def wrap(orig, n):
+        def inner(*a, **k):
+            calls[n] += 1
+            return orig(*a, **k)
+        return inner
+
+    for part_conf in ("1", "0"):
+        with monkeypatch.context() as m:
+            for n in names:
+                m.setattr(V, n, wrap(getattr(V, n), n))
+                # the fetcher imported them by value, so rebind there too
+                import services.noaa_gfs_wave_fetcher as F
+                if hasattr(F, n):
+                    m.setattr(F, n, getattr(V, n))
+            _run(m, "1", part_conf=part_conf)
+
+    never = [n for n, c in calls.items() if c == 0]
+    assert not never, (
+        f"these batch reductions are wired but never executed by either lane: {never}. "
+        "Either the wiring is unreachable or this suite stopped covering it — both are worse than "
+        f"a failing test. Call counts: {calls}")
     """MUTATION CONTROL: if the stub grid had no interior, the shadow test would compare the
     delegated-scalar path against itself and prove nothing about the vectorization."""
+    from services._fetch_blockmean_vec import _interior_mask
+
+    rs = np.arange(NLAT, dtype=np.intp)
+    cs = np.full(NLAT, 5, dtype=np.intp)
+    interior = _interior_mask(rs, cs, NLAT, NLON, 2, True)
+    assert interior.any(), "no interior rows — the vectorized branch is never taken"
+    assert not interior.all(), "no clamped rows — the delegation branch is never taken"
+
+
+def test_the_harness_actually_exercises_both_batch_branches():
+    """MUTATION CONTROL on the FIXTURE, not the code: if the stub grid had no interior, every shadow
+    comparison above would be running the delegated-scalar path against itself and proving nothing
+    about the vectorization; if it had no clamped rows, the delegation would never be tested."""
     from services._fetch_blockmean_vec import _interior_mask
 
     rs = np.arange(NLAT, dtype=np.intp)
