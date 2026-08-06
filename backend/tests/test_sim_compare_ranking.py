@@ -388,3 +388,67 @@ def test_an_EXPLICIT_hour_still_gates__THE_CONTROL():
         f"(ratings={[r['quality_rating'] for r in rows]}) — the observation gate is not running, "
         f"so the tests above are vacuous."
     )
+
+
+# ── the disclosure that reached the window scan and not this one ────────────────────────────────
+#
+# `d9e1ffd3` taught `sim_window` to publish `directional_conflict` — the warning that the SIZE and
+# the QUALITY disagree about how much swell energy reaches the break, and that the HEIGHT is the
+# likelier overestimate. This ranking still dropped it, so the view that answers "which break should
+# I drive to" recommended a spot without saying its height was an upper bound.
+#
+# ★★★ AND `exposure_floored` IS NOT COVERAGE FOR IT. Two disclosures with DIFFERENT trigger
+# predicates are not substitutes: `exposure_floored` fires on quality exposure <= 0.1005, while
+# `directional_conflict` fires when the two exposures DISAGREE.
+#
+# Fixture directions are MEASURED against the real scan, not assumed:
+#   225 deg -> 100% aligned, exposure 1.0,  no conflict   <- the control
+#   135 deg ->  10% aligned, exposure 0.10, conflict 3.54
+
+def _conflicted(name):
+    return {name: _sea(swell_direction_deg=135.0)}
+
+
+def test_a_ranked_spot_whose_size_and_quality_DISAGREE_says_so_on_the_row():
+    out = sim_compare.scan([FULL_SPOT], _baseline(_conflicted("Full Geometry Reef")), HOUR, top=1)
+    conflict = out["series"][0]["directional_conflict"]
+    assert conflict["energy_disagreement"] == 3.54
+    assert conflict["quality_exposure"] < conflict["height_exposure_factor"], \
+        "the SIZE being the more generous of the two is the whole warning"
+    assert "means" not in conflict, "prose is hoisted to `note`, never repeated per spot"
+
+
+def test_the_conflict_prose_is_hoisted_ONCE_with_a_count():
+    out = sim_compare.scan([FULL_SPOT], _baseline(_conflicted("Full Geometry Reef")), HOUR, top=1)
+    assert out["scanned"]["directional_conflict_spots"] == 1
+    assert out["note"].count("upper bound") == 1
+    assert "disagree about swell exposure" in out["note"]
+
+
+def test_the_SUMMARY_names_the_WINNER_upper_bound():
+    """⛔ THE MEASURED GAP: `exposure_floored` fired on the LOSER while the WINNER's disagreement
+    went unsaid. A caller who reads only this line must not take a known-generous height as settled."""
+    out = sim_compare.scan([FULL_SPOT], _baseline(_conflicted("Full Geometry Reef")), HOUR, top=1)
+    line = sim_compare.summarize(out["best_spots"])
+    assert "upper bound" in line
+    assert "3.54x" in line
+
+
+def test_a_DEGRADED_and_CONFLICTED_winner_keeps_BOTH_caveats():
+    """The reason the bound is APPENDED rather than folded into `caveat`: an `elif` would have made
+    a spot that is both coarse-bearing and conflicted report only one of the two."""
+    out = sim_compare.scan([COARSE_SPOT], _baseline(_conflicted("Coarse Bearing Beach")), HOUR, top=1)
+    line = sim_compare.summarize(out["best_spots"])
+    assert "coarse bearing" in line, "the geometry caveat must survive"
+    assert "upper bound" in line, "and the conflict caveat must be there too"
+
+
+def test_an_ALIGNED_swell_carries_no_conflict_no_counter_and_no_caveat():
+    """The control. 225 deg is dead-on this fixture's shore normal (100% alignment); a gate that
+    fires on everything says nothing."""
+    out = sim_compare.scan([FULL_SPOT], _baseline(), HOUR, top=1)
+    assert out["series"][0]["swell_alignment_pct"] == 100.0
+    assert "directional_conflict" not in out["series"][0]
+    assert out["scanned"].get("directional_conflict_spots") is None
+    assert "upper bound" not in (sim_compare.summarize(out["best_spots"]) or "")
+    assert "upper bound" not in (out.get("note") or "")

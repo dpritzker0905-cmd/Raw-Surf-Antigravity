@@ -160,6 +160,9 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
     supplies one; an unreadable stamp simply drops the annotation (`sim_daylight.annotate`)."""
     series: List[Dict[str, Any]] = []
     unresolved: List[str] = []
+    # The conflict PROSE is identical wherever it fires, so it is captured once and hoisted into
+    # `note` rather than repeated on every ranked spot. Same treatment as `sim_window`.
+    conflict_means: Optional[str] = None
     sources = set()
     readiness_census = {"full": 0, "degraded": 0, "blind": 0}
 
@@ -254,6 +257,22 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
                 if float(m["value"]) <= 0.1005:
                     row["exposure_floored"] = True
                 break
+        # ⛔⛔ AND THE DISCLOSURE THAT `exposure_floored` DOES NOT COVER. When the size and the
+        # quality disagree about how much swell energy reaches the break, `sim_rating` emits
+        # `directional_conflict` and says the HEIGHT is the likelier overestimate. Five production
+        # surfaces publish it; `sim_window` was fixed in `d9e1ffd3` — and THIS ranking still dropped
+        # it, so the view that answers "which break should I drive to" recommended a spot without
+        # saying its height was an upper bound.
+        # ★★★ TWO DISCLOSURES WITH DIFFERENT TRIGGER PREDICATES ARE NOT COVERAGE FOR EACH OTHER.
+        # `exposure_floored` fires on quality exposure <= 0.1005; `directional_conflict` fires when
+        # the two exposures DISAGREE. A spot can carry a 1.75x disagreement and never be floored —
+        # measured, the flag fired on the LOSER while the WINNER's conflict went unsaid.
+        # ⚠️ Numbers per row, prose ONCE (hoisted below): `means` is ~200 chars and identical.
+        conflict = calc.get("directional_conflict")
+        if conflict:
+            row["directional_conflict"] = {k: v for k, v in conflict.items() if k != "means"}
+            if conflict_means is None and conflict.get("means"):
+                conflict_means = conflict["means"]
         row.update(sim_daylight.annotate(spot.get("latitude"), spot.get("longitude"),
                                          light_hour if light_hour is not None else valid_time))
         series.append(row)
@@ -336,6 +355,13 @@ def scan(spots: List[Dict[str, Any]], baseline_at: Callable[[Dict[str, Any], str
         out["scanned"]["unresolved_spots"] = unresolved
         notes.append(f"{len(unresolved)} of {len(spots)} spots had no forecast and were EXCLUDED "
                      f"from the ranking, not scored as flat.")
+    if conflict_means:
+        # Hoisted, not repeated: the prose is identical on every spot that carries the conflict, and
+        # the per-spot numbers are already in `directional_conflict` on those rows.
+        conflicted = [r for r in series if r.get("directional_conflict")]
+        out["scanned"]["directional_conflict_spots"] = len(conflicted)
+        notes.append(f"{len(conflicted)} of {len(series)} ranked spots disagree about swell "
+                     f"exposure between the size and the quality: {conflict_means}")
     if not series:
         notes = ["No spot in this radius resolved a forecast, so there is nothing to rank. "
                  "Check get_weather_forecast(spot_name) for the reason."]
@@ -359,8 +385,22 @@ def summarize(best: List[Dict[str, Any]], centre_label: str = "") -> Optional[st
                  "tell which way any of them faces"
     elif b.get("geometry_readiness") == "degraded":
         caveat = " (coarse bearing — median 22.3° off)"
+    # ⛔ AND NAME THE WINNER'S UPPER BOUND. This is APPENDED, never folded into `caveat` above: a
+    # spot can be BOTH degraded AND conflicted, and an elif would silently drop one of them.
+    # The gap this closes was measured: `exposure_floored` fired on the LOSER while the WINNER's
+    # 1.75x size/quality disagreement went unsaid — so the one line a caller reads recommended a
+    # break without mentioning its height is the more generous of two disagreeing numbers.
+    # ⚠️ ASCII in the returned string apart from the em dash already there (cp1252 consoles).
+    conflict = b.get("directional_conflict") or {}
+    ratio = conflict.get("energy_disagreement") if conflict else None
+    bound = ""
+    if conflict:
+        bound = (f" NOTE: treat that height as an upper bound - the size and the quality disagree "
+                 f"about swell exposure by {ratio}x." if ratio else
+                 " NOTE: treat that height as an upper bound - the size and the quality disagree "
+                 "about swell exposure.")
     dist = f", {b['distance_km']} km away" if b.get("distance_km") is not None else ""
     return (f"Best{where}: {b['spot']}{dist} — {b['breaking_height_ft']} ft "
             f"({b['conditions_label']}), quality {b['quality_rating']}/100 ({b['quality_label']}), "
             f"{b['wind_speed_knots']} kt {b['wind_class']}"
-            f"{', ' + light if light else ''}{caveat}.")
+            f"{', ' + light if light else ''}{caveat}.{bound}")
