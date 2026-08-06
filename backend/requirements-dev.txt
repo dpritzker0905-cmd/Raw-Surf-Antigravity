@@ -44,6 +44,19 @@ pytest==9.0.3
 pytest-asyncio==1.3.0
 aiosqlite==0.22.1
 
+# pytest-timeout   `backend-estate-coverage` passes --timeout=120 so a hung test names ITSELF in
+#                  the report instead of burning the job's 20 minutes anonymously (timeout-minutes
+#                  is only the backstop, and a job killed by it names nothing).
+# ⚠️ ADDED 2026-08-06 AFTER IT FAILED IN CI, and the failure is this file's own warning coming true:
+# I verified `import pytest_timeout` succeeded on MY machine and never checked it was DECLARED.
+# It had been installed there by hand — "a state indistinguishable from 'the tests pass' right up
+# until someone checks out the repo clean", exactly as the header says. CI said:
+#     __main__.py: error: unrecognized arguments: --timeout=120
+# ⇒ A local import check answers "is it present here", never "will the runner have it".
+# ★ The estate gate behaved correctly under this: it found no parseable estate.xml and REFUSED,
+#   rather than reporting a green lane that had run nothing.
+pytest-timeout==2.4.0
+
 # ── CAMPAIGN / OFFLINE TOOLING (not production, not the test suite) ─────────────────────────────
 # ⛔ DELIBERATELY NOT IN requirements.txt. The serve box is a 1-CPU / 2 GiB instance that has been
 # OOM-killed at 1,579 MB, and it never runs a climatology campaign — the campaign is an operator
