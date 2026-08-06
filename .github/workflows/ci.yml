@@ -821,7 +821,7 @@ jobs:
           # ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is
           #   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane
           #   legitimately shrinks it and must not be red.
-          MIN_PASSED = 275
+          MIN_PASSED = 285
 
           try:
               root = ET.parse('estate.xml').getroot()
