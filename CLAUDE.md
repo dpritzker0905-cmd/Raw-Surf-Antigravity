@@ -42,7 +42,22 @@
   - **Private chat media:** New writes use opaque refs plus member-authorized signed URLs and fail closed if private storage is unavailable. Production cutover completed on 2026-07-25: 36 direct-message legacy URLs were backfilled to opaque refs, and `chat_media`/`crew_chat` were made private. Do not change the remaining legacy local-media routes without an authenticated browser-delivery compatibility design.
   - **Generic uploads:** Public delivery is restricted to the explicit `avatars`, `conditions`, `gallery`, `general`, `stories`, and `user-gallery` bucket allowlist. Production bucket provisioning completed on 2026-07-25; private chat buckets are excluded from that contract.
   - **WebGL & marine:** The global-grid cache guard is caller-aware: normal close-zoom reuse rejects world grids, while the 429 cooldown fallback may reuse a covering one. Focused tests pass. Deactivation-retain still lacks a reactivation regression test.
-  - **Codebase Indexing Note:** `trevec` is active and synchronized for code discovery. `weather_sim_mcp.py` simulation logic is height-blind (calculates `quality_score` from wind/swell alignment/period, ignoring `swell_h`); treat production `surf_rating.py` as authoritative.
+  - **Codebase Indexing Note:** `trevec` is active and synchronized for code discovery.
+    ⚠️ **CORRECTED 2026-08-06 — the "height-blind sim" note that stood here was STALE and is now
+    REFUTED BY EXECUTION.** It described the private physics copy that `0cae5d74` deleted on
+    2026-07-26. The sim's rating now lives in `services/weather_pipeline/sim_rating.py`, and
+    `calculate_surf_rating` delegates BOTH halves to production — `surf_point.resolve_surf_geometry`
+    + `estimate_surf_at` for the breaking height, then `surf_rating` for the 0-100 — which is the
+    ONE FORECAST COMPOSITION chain this file mandates above. Measured at HEAD, Pipeline, everything
+    held constant except swell height (14 s, 315°, 5 kt):
+      `0.5 m → 3.3 ft / 69.7 fair_good` · `1 m → 5.8 ft / 86.5 epic` · `4 m → 17.6 ft / 86.5 epic`
+      · `8 m → 30.6 ft / 57.0 fair_good` · `12 m → 29.5 ft / 61.2 fair_good`
+    Four distinct quality values across a 24× height range, so `swell_h` reaches the score at both
+    ends. The 12 m case reproducing **29.5 ft** is the control: it is the exact post-fix figure
+    recorded for the shipped γ/refraction pair, confirming the sim reads the live chain and that the
+    height saturates at the depth-limited ceiling rather than growing without bound.
+    ★ **Still true, and now literal:** treat `surf_rating.py` as authoritative — the sim imports it
+    rather than reimplementing it. **Do not re-derive either half for a sim surface.**
 
 <!-- trevec:rules:start -->
 
