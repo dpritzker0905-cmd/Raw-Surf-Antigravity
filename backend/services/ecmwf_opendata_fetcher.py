@@ -101,6 +101,93 @@ def _step_list(max_hours):
     return [s for s in steps if s <= max_hours]
 
 
+# ── THE WAVE ENSEMBLE (`waef`) ──────────────────────────────────────────────────────────────────
+#
+# A deterministic forecast is a point; an ensemble is a DISTRIBUTION, and the spread is what turns a
+# forecast into a confidence — which is what the observation gate has always actually wanted. This
+# is the same stream, the same `.index` byte-range mechanism and the same pygrib decode this module
+# already performs; only `type`, `stream` and `number` differ.
+#
+# ⭐ PRICED BEFORE WIRING (2026-08-06), from the stream's own `.index` — not estimated:
+#     whole step, 13 params x 50 members ......... 501 MB   <- never fetch whole; the box OOMs at 1,579 MB
+#     swh, all 50 members, range-requested ....... 40.7 MB / step
+#     swh, 10 members ............................  8.1 MB / step   <- the default below
+# 50 members are CONFIRMED present (numbers 1..50) and the messages are real ensemble members
+# (product template 1). A spread estimate does not need all 50, and the 1-CPU box is the binding
+# constraint, exactly as it was for the period bands above.
+#
+# ⭐ MAGNITUDES SANITY-CHECKED WITHOUT DECODING A POINT: Section 5's (R, E, D, bits) fixes the
+# ENCODABLE RANGE, and it lands where physics says — swh 0.0044..16.00 m, mwp 1.32..33.32 s,
+# h1417 0.0011..8.00 m, with a bitmap carrying 665,628 sea points of 1,038,240.
+# ⛔ TWO DECODE TRAPS, either of which yields PLAUSIBLE-BUT-WRONG METRES (and one of which is the
+# likeliest cause of the retracted v4 figures):
+#   1. packing is template 5.42 (CCSDS/AEC), NOT simple packing — pygrib handles it, a hand-rolled
+#      reader assuming 5.0 does not;
+#   2. GRIB2 signed ints are SIGN-MAGNITUDE, not two's complement: read as two's complement the
+#      binary scale E comes out -32756 instead of -12, a scale error of 2^32744.
+#
+# ⚠️ DEFAULT OFF, and the flag gates the REQUEST. With it off, `retrieve_spec` returns exactly the
+# kwargs this module sent before it existed — pinned by test, because "byte-identical when off" is
+# the only thing that makes a new lane safe to add to a working fetcher.
+ENSEMBLE_STREAM = "waef"
+ENSEMBLE_MEMBERS_DEFAULT = 10
+ENSEMBLE_MEMBERS_MAX = 50
+
+
+def wave_ensemble_enabled():
+    """Whether to request the wave ENSEMBLE instead of the deterministic wave stream.
+
+    Read PER CALL, never at import — same reason as `period_bands_enabled`: a module-level read
+    freezes the environment as of process start, and this repo's recorded scar is a flag holding a
+    different value in each lane. Kill: unset or '0'."""
+    return os.environ.get("ECMWF_WAVE_ENSEMBLE", "0") == "1"
+
+
+def wave_ensemble_members():
+    """How many perturbed members to request, clamped to [2, 50].
+
+    ⛔ THE FLOOR IS 2, NOT 1, AND IT IS NOT COSMETIC: a spread computed from one member is 0.0, and
+    0.0 reads as UNANIMITY — the most confident answer the scale can express — when it actually
+    means 'not sampled'. Refusing below 2 is the same rule `spread_from_members` enforces."""
+    try:
+        n = int(os.environ.get("ECMWF_WAVE_ENSEMBLE_MEMBERS", ENSEMBLE_MEMBERS_DEFAULT))
+    except (TypeError, ValueError):
+        n = ENSEMBLE_MEMBERS_DEFAULT
+    return max(2, min(ENSEMBLE_MEMBERS_MAX, n))
+
+
+def retrieve_spec(layer, params, steps):
+    """PURE: the exact kwargs for `client.retrieve`, so the DECISION is testable without a network.
+
+    The ensemble differs from the deterministic request in three fields and nothing else:
+    `type` fc -> pf (perturbed forecast), `stream` wave -> waef, and `number` (the member list).
+    Extracted rather than inlined because a request built inside an I/O call can only be asserted
+    about by reading source, and this repo has been bitten by exactly that."""
+    spec = {"type": "fc", "stream": LAYER_STREAM[layer], "levtype": "sfc",
+            "param": list(params), "step": list(steps)}
+    if layer == "waves" and wave_ensemble_enabled():
+        spec["type"] = "pf"
+        spec["stream"] = ENSEMBLE_STREAM
+        spec["number"] = list(range(1, wave_ensemble_members() + 1))
+    return spec
+
+
+def spread_from_members(values):
+    """PURE: (mean, sd, n) across ensemble members at one point, or None when it cannot be answered.
+
+    ⛔ REFUSES below 2 finite members rather than returning 0.0. A single member yields sd 0.0, which
+    is indistinguishable from perfect agreement — the check would then be unable to tell 'not
+    sampled' from 'unanimous', which is the house rule for any check (standing rule 27)."""
+    finite = [float(v) for v in (values or [])
+              if v is not None and float(v) == float(v) and abs(float(v)) != float("inf")]
+    if len(finite) < 2:
+        return None
+    n = len(finite)
+    mean = sum(finite) / n
+    var = sum((v - mean) ** 2 for v in finite) / n     # population sd across the members present
+    return (mean, var ** 0.5, n)
+
+
 def fetch_global_coarse(payload):
     """Return (points, steps_ok, steps_failed, times) for the coarse global EURO wind/pressure grid via ECMWF Open Data."""
     import numpy as np
@@ -142,8 +229,10 @@ def fetch_global_coarse(payload):
 
     def _retrieve(steps):
         # date/time omitted -> client resolves the latest available cycle automatically.
-        return client.retrieve(type="fc", stream=LAYER_STREAM[layer], levtype="sfc",
-                               param=params, step=steps, target=str(target))
+        # The request is built by `retrieve_spec` so the DECISION (deterministic vs ensemble) is a
+        # pure function a test can pin, rather than something only readable in source. With
+        # ECMWF_WAVE_ENSEMBLE off this is byte-identical to the previous inline call.
+        return client.retrieve(target=str(target), **retrieve_spec(layer, params, steps))
 
     steps_full = _step_list(max_hours)
     result = None
