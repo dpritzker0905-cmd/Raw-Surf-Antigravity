@@ -8,6 +8,9 @@ import platform
 platform._wmi = None
 
 import os
+import sys
+from pathlib import Path
+
 import pytest
 import pytest_asyncio
 from httpx import AsyncClient, ASGITransport
@@ -262,3 +265,48 @@ def hermetic_om_wind(monkeypatch):
         monkeypatch.setattr(scheduler.om_provider, "fetch_grid", _fake_fetch_grid)
         return pts
     return _apply
+
+
+# ── Environment parity banner ─────────────────────────────────────────────────
+# ⚠️ "IT PASSES LOCALLY" HAS BEEN MISTAKEN FOR EVIDENCE ABOUT CI THREE TIMES IN ONE STRETCH: an
+# undeclared pytest-timeout, two files that passed here and failed on the runner, and a MIN_PASSED
+# floor set from a local count when CI's real figure was 22 lower. requirements-dev.txt's own header
+# describes the same trap ("a state indistinguishable from 'the tests pass' right up until someone
+# checks out the repo clean").
+#
+# ★ This prints NOTHING when the environment matches what the repo declares, so it cannot become one
+#   more diagnostic nobody reads. It speaks only when a result from this interpreter is not evidence
+#   about CI — which is exactly the moment the wrong inference gets made.
+# ⇒ It is an instrument, never a gate: it cannot fail a run, and any error inside it is swallowed.
+#   Run `python scripts/check_env_parity.py --verbose` for the full table.
+#
+# ⚠️ THIS WAS FIRST WRITTEN AS `pytest_report_header` AND THAT REACHED NOBODY. `-q` suppresses the
+# header, and `-q` is what backend-estate-coverage passes and what anyone types by habit — so the
+# instrument was invisible in precisely the mode that matters. Caught by running it, which is the
+# only reason it is not still broken. `pytest_terminal_summary` survives `-q` AND lands next to the
+# pass/fail line, which is where "it passed, so it works" actually gets thought.
+def pytest_terminal_summary(terminalreporter, exitstatus, config):
+    try:
+        sys.path.insert(0, str(Path(__file__).resolve().parent.parent / "scripts"))
+        import check_env_parity as parity
+
+        try:
+            reading = parity.summarize()
+        except parity.Refused as exc:
+            terminalreporter.write_line(f"env parity UNKNOWN - refusing to report: {exc}", yellow=True)
+            return
+        # Reported even on a perfectly provisioned box: CI testing a different interpreter than
+        # production is a defect about the repo, not about this machine.
+        chain = parity.chain_line(reading)
+        if chain:
+            terminalreporter.write_line(chain, yellow=True)
+        if reading["matches"]:
+            return
+        terminalreporter.write_line(parity.one_line(reading), yellow=True, bold=True)
+        terminalreporter.write_line(
+            "  => a result from this interpreter is evidence about THIS environment, not about CI"
+            " or production. Detail: python scripts/check_env_parity.py --verbose"
+        )
+    except Exception:
+        # Never let the instrument break the suite it is describing.
+        return

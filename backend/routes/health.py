@@ -6,12 +6,59 @@ from fastapi import APIRouter, Depends
 from sqlalchemy.ext.asyncio import AsyncSession
 from sqlalchemy import text
 from datetime import datetime, timezone
+import hashlib
 import logging
 import os
+import sys
 import time
 import psutil
 
 from database import get_db
+
+# ── Runtime fingerprint ───────────────────────────────────────────────────────
+# ⚠️ WHAT PRODUCTION ACTUALLY RUNS WAS NOT MEASURABLE UNTIL THIS EXISTED. Measured 2026-08-06:
+# ci.yml sets up python 3.11, render.yaml declares PYTHON_VERSION 3.12.0, and the workstation the
+# tests are written on is 3.14 — three interpreters, and NOTHING reported which one production
+# uses, so every statement about it was a reading of a config file rather than of the server.
+# render.yaml is a Blueprint and this service may not be Blueprint-synced (see its own RATING_TIDE
+# comment), so the declared value is intent, not fact.
+#
+# ★ THIS IS THE SAME LESSON AS `RENDER=true`: that variable had been sitting in this very payload
+#   the whole time and would have shown, in one curl, that the "is this production?" guards in
+#   core/security.py were answering "no" in production. The environment was observable; nobody had
+#   made the specific thing observable. Cheap self-report beats an inference from a config file.
+#
+# `deps_digest` is a DIGEST rather than a version list on purpose: it makes drift detectable — the
+# 7 unpinned lines in requirements.txt re-resolve on every deploy — without publishing an exact
+# dependency inventory on a public endpoint for someone to match against CVEs. Python is reported
+# as major.minor only, for the same reason: it answers the parity question and no more.
+_runtime_cache = None
+
+
+def _runtime_fingerprint() -> dict:
+    """Cheap, cached, and safe to serve publicly. Computed once per process."""
+    global _runtime_cache
+    if _runtime_cache is None:
+        digest = "unknown"
+        count = None
+        try:
+            from importlib import metadata
+
+            names = sorted(
+                f"{d.metadata['Name']}=={d.version}"
+                for d in metadata.distributions()
+                if d.metadata and d.metadata.get("Name")
+            )
+            count = len(names)
+            digest = hashlib.sha256("\n".join(names).encode()).hexdigest()[:12]
+        except Exception as e:  # never let a fingerprint break the health check
+            logger.warning(f"[health] could not fingerprint dependencies: {e}")
+        _runtime_cache = {
+            "python": f"{sys.version_info.major}.{sys.version_info.minor}",
+            "deps_digest": digest,
+            "deps_count": count,
+        }
+    return _runtime_cache
 
 logger = logging.getLogger(__name__)
 
@@ -95,6 +142,7 @@ async def health_check(
         "uptime": uptime,
         "uptime_seconds": round(uptime_seconds, 1),
         "environment": os.environ.get("RENDER", "local"),
+        "runtime": _runtime_fingerprint(),
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
         "database": {},
