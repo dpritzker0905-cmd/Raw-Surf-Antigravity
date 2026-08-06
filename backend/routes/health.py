@@ -115,10 +115,37 @@ async def health_check(
     # ⚠️ `resource` is Unix-only — absent on the Windows dev box, so the import is guarded and the
     # block simply reports nulls there. ⚠️ `ru_maxrss` is KILOBYTES on Linux (what Render runs) and
     # BYTES on macOS/BSD; the platform check below is not cosmetic.
-    memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None, "peak_pct_of_limit": None}
+    # ⛔ AND THE LIMIT MUST BE MEASURED, NOT ASSUMED (2026-08-06). `APP_MEMORY_LIMIT_MB` defaults to
+    # 512.0 and `render.yaml` never sets it — yet this process was observed running STABLY at 891 MB
+    # (peak 897.5, flat over 8 minutes), which a 512 MB container cannot do. So the constant does not
+    # describe the box, and everything reasoned from it was reasoned from a wrong denominator: the
+    # 2026-07-24 memory lever was sized as "16 concurrent 15k-vector parses on a 512 MB box", and
+    # `/admin/system/health` has been reporting ~174% of "limit" as a permanent steady state.
+    # The container's own cgroup knows the real number, so ask it and fall back to the env var only
+    # when it cannot be read. `limit_source` is published so a reader can tell a MEASURED limit from
+    # an ASSUMED one — the same refusal discipline as peak_rss_mb being None rather than 0.0.
+    memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None,
+              "peak_pct_of_limit": None, "limit_source": None}
     try:
-        limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
+        limit_mb, limit_source = None, None
+        for path, scale in (("/sys/fs/cgroup/memory.max", 1),                       # cgroup v2
+                            ("/sys/fs/cgroup/memory/memory.limit_in_bytes", 1)):    # cgroup v1
+            try:
+                with open(path) as fh:
+                    raw = fh.read().strip()
+                if raw and raw != "max":
+                    val = int(raw) / (1024 * 1024)
+                    # v1 reports a sentinel near 2^63 when unlimited; ignore anything absurd.
+                    if 16.0 < val < 1024.0 * 1024.0:
+                        limit_mb, limit_source = val, "cgroup"
+                        break
+            except (OSError, ValueError):
+                continue
+        if limit_mb is None:
+            limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
+            limit_source = "env" if "APP_MEMORY_LIMIT_MB" in os.environ else "default_assumed"
         memory["limit_mb"] = round(limit_mb, 1)
+        memory["limit_source"] = limit_source
         memory["rss_mb"] = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
         try:
             import resource  # noqa: PLC0415 - Unix-only, deliberately lazy

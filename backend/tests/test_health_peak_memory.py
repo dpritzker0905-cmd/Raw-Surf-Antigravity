@@ -28,9 +28,26 @@ os.environ.setdefault("DATABASE_URL", "sqlite+aiosqlite:///:memory:")
 def _memory_block():
     """Recompute exactly what routes/health.py does, without needing the DB session the route takes."""
     import psutil
-    memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None, "peak_pct_of_limit": None}
-    limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
+    memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None,
+              "peak_pct_of_limit": None, "limit_source": None}
+    limit_mb, limit_source = None, None
+    for path, _scale in (("/sys/fs/cgroup/memory.max", 1),
+                         ("/sys/fs/cgroup/memory/memory.limit_in_bytes", 1)):
+        try:
+            with open(path) as fh:
+                raw = fh.read().strip()
+            if raw and raw != "max":
+                val = int(raw) / (1024 * 1024)
+                if 16.0 < val < 1024.0 * 1024.0:
+                    limit_mb, limit_source = val, "cgroup"
+                    break
+        except (OSError, ValueError):
+            continue
+    if limit_mb is None:
+        limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
+        limit_source = "env" if "APP_MEMORY_LIMIT_MB" in os.environ else "default_assumed"
     memory["limit_mb"] = round(limit_mb, 1)
+    memory["limit_source"] = limit_source
     memory["rss_mb"] = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
     try:
         import resource
@@ -92,3 +109,30 @@ def test_windows_degrades_to_nulls_rather_than_lying():
         assert m["peak_rss_mb"] is None and m["peak_pct_of_limit"] is None, (
             "on a platform without `resource` the peak must be None, not a fabricated 0.0")
         assert m["rss_mb"] is not None, "current RSS is available everywhere and should still report"
+
+
+def test_the_limit_says_whether_it_was_measured_or_assumed():
+    """A limit nobody measured is the reason a 13-day-old memory lever was sized wrong.
+
+    `APP_MEMORY_LIMIT_MB` defaults to 512.0 and render.yaml never sets it, yet production was
+    observed running STABLY at 891 MB (peak 897.5, flat over 8 minutes) — which a 512 MB container
+    cannot do. So the constant did not describe the box, and `/admin/system/health` reported ~174%
+    of "limit" as a permanent steady state. `limit_source` exists so a reader can tell a MEASURED
+    limit (`cgroup`) from an ASSUMED one (`default_assumed`) instead of trusting a number that may
+    be fiction.
+    """
+    m = _memory_block()
+    assert m["limit_source"] in ("cgroup", "env", "default_assumed"), m["limit_source"]
+    if m["limit_source"] == "default_assumed":
+        assert m["limit_mb"] == 512.0
+    assert m["limit_mb"] > 16.0, "a sub-16 MB limit is a parse error, not a container"
+
+
+def test_a_measured_limit_is_consistent_with_current_usage():
+    """If the limit is MEASURED, the process cannot be sitting far above it — that combination means
+    the reading is wrong, because the kernel would have killed it."""
+    m = _memory_block()
+    if m["limit_source"] == "cgroup" and m["rss_mb"]:
+        assert m["rss_mb"] < m["limit_mb"] * 1.05, (
+            f"rss {m['rss_mb']} MB exceeds a MEASURED cgroup limit of {m['limit_mb']} MB — "
+            "impossible unless the limit parse is wrong (check cgroup v1 vs v2 units)")
