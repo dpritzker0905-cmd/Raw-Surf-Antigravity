@@ -680,7 +680,21 @@ jobs:
           # would notice"). 504→515 reconciles to exactly those 11.
           # From the gate's OWN run on origin/dev @ 03d7841b: "collected 515 tests across 67 files
           # -> 515 passed, 0 skipped, 0 failed, 0 errors".
-          MIN_FILES, MIN_PASSED = 67, 519
+          # ⬆ 67→82 / 519→697 on 2026-08-06, from the gate's OWN run on origin/dev @ db990131:
+          # "82 files -> 699 passed, 0 skipped, 0 failed, 0 errors". Cross-checked against a local
+          # `ci_test_lanes.py --lane chain`, which also reports 82 — the counts agree, so this is
+          # not the local-inflation trap the estate lane's block records (a local 266 once set a
+          # floor above CI's achievable 244).
+          # ⚠️ THE FLOOR WAS STALE BY 15 FILES, NOT BY THE 4 ADDED TODAY. Only
+          # test_event_loop_offload_guard / test_fetcher_http_pooling /
+          # test_blockmean_vectorized_parity / test_vector_blockmean_loop_shadow are this session's;
+          # the other 11 accumulated earlier without the floor moving. For that whole period **15
+          # files could have stopped being collected and this gate would have stayed green** — the
+          # exact failure its own 2026-08-02 note describes ("for a day the gate would have stayed
+          # green if both of them stopped being collected"), recurring at 7x the size.
+          # ⇒ RAISE THIS IN THE SAME COMMIT THAT ADDS THE FILES. A floor that lags is a floor that
+          # is not measuring anything.
+          MIN_FILES, MIN_PASSED = 82, 697
           try:
               root = ET.parse('chain.xml').getroot()
           except Exception as e:
