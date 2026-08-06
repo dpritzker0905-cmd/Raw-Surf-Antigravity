@@ -803,15 +803,17 @@ jobs:
           }
 
           # ✅ SET FROM THE GATE'S OWN RUN, AGAIN — this lane's reading on the PR that added
-          # tests/test_dev_identity_gate.py (CI run 31100797143):
-          #     "estate: 244 files selected, 242 produced results, 277 passed, 0 silent."
-          # Reconciles exactly against the 249 below: +28 from the new file's 28 cases.
-          # 244 selected - 2 named MAY_BE_EMPTY = 242 producing results.
-          # ★ THE FLOOR WAS SHIPPED PROVISIONAL AT 249's VALUE AND RAISED FROM THE READING, which
-          #   is the discipline the 250 entry below exists to enforce. Predicting 275 would have
-          #   been right this time; that is luck, not method.
+          # tests/test_password_hashing_py313.py:
+          #     "estate: 246 files selected, 244 produced results, 297 passed, 0 silent."
+          # Reconciles exactly against the 287 below: +10 from that file's 10 cases.
+          # 246 selected - 2 named MAY_BE_EMPTY = 244 producing results.
+          # ★ THE FLOOR IS SHIPPED PROVISIONAL AND RAISED FROM THE READING, every time — that is the
+          #   discipline the 250 entry below exists to enforce.
           #
           # ⚠️ THE EARLIER VALUES ARE KEPT BECAUSE THE MISTAKE IS THE INSTRUCTIVE PART.
+          #   287 — the reading with tests/test_env_parity_instrument.py added; the floor was 285.
+          #   277 — the reading with tests/test_dev_identity_gate.py added (run 31100797143);
+          #         the floor was 275.
           #   249 — the reading with tests/test_websocket_endpoints_auth.py released from the estate
           #         quarantine (run 31072786555): "243 files selected, 241 produced results, 249
           #         passed, 0 silent." That release made the lane FASTER, not slower — 29.06 s
@@ -825,14 +827,18 @@ jobs:
           #   235 — deliberately below the predicted post-quarantine range (238-243) while the true
           #         figure was unknown. Ship a floor PROVISIONAL, then set it from the gate itself.
           #
-          # 275 sits two below the observed 277: tight enough that a mass-skip or a deleted module
-          # is red, loose enough that ordinary churn in a 244-file heterogeneous estate does not
+          # 295 sits two below the observed 297: tight enough that a mass-skip or a deleted module
+          # is red, loose enough that ordinary churn in a 246-file heterogeneous estate does not
           # pin CI to a total. Raise it when the estate grows — it is shrink-only, and lowering it
           # is a deliberate act that must appear in a diff.
+          # ⚠️ KEEP THIS PROSE IN STEP WITH THE NUMBER. Two floors ago the value was bumped with a
+          #   sed while these lines still described the previous reading, so the comment said "275
+          #   sits two below 277" above `MIN_PASSED = 285` — a stale explanation is worse than none,
+          #   because the next reader trusts it.
           # ★ A file COUNT floor is deliberately absent: the per-file "silent" check below is
           #   strictly stronger, and the estate is a COMPLEMENT, so moving a file into another lane
           #   legitimately shrinks it and must not be red.
-          MIN_PASSED = 285
+          MIN_PASSED = 295
 
           try:
               root = ET.parse('estate.xml').getroot()
