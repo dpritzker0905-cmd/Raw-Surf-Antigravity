@@ -34,36 +34,18 @@ mux-python==3.5.0
 openai==1.51.0
 
 
-# ⚠️ THESE SEVEN WERE THE ONLY `>=` LINES IN THIS FILE, AND THEY ARE THE FORECAST PATH.
-# render.yaml's buildCommand is `pip install -r requirements.txt`, so a `>=` here re-resolves on
-# EVERY production deploy: a new copernicusmarine or xarray could change forecast behaviour with no
-# commit, no review and no CI signal, in the subsystem this repo calls a regression graveyard.
-# How far they had drifted from their own floors, measured 2026-08-06: `xarray>=2024.1.0` was
-# resolving to **2026.7.0** — two and a half years past the declared minimum, and it moved again
-# between two installs hours apart (2026.4.0 -> 2026.7.0).
-#
-# ★ PINNED TO WHAT WAS ALREADY BEING INSTALLED, so this changes nothing about what runs today — it
-#   only stops it changing by itself tomorrow. Verified on BOTH interpreters in one run (CI run
-#   31103393912): ci.yml's 3.11 and render.yaml's declared 3.12 resolve all seven IDENTICALLY, so
-#   these pins are interpreter-independent and both installs succeeded.
-# ⚠️ THE SAME RUN FOUND WHAT PINNING HERE DOES *NOT* FIX: 3.11 installs 150 distributions and 3.12
-#   installs 146, differing in **numpy 2.4.6 vs 2.5.1** and **zarr 3.1.6 vs 3.3.0** — the numeric
-#   core of the forecast path, swapped silently by the interpreter choice. Those are transitive and
-#   are NOT pinned here on purpose: doing so before production's ACTUAL interpreter is measured
-#   would be pinning to a guess, and a bad pin fails the Render build outright. `/api/health` now
-#   reports `runtime.python`; pin them once that says what production really runs.
-piexif==1.1.3
+piexif>=1.1.3
 
 # Copernicus Marine Service (EURO wave data)
-copernicusmarine==2.4.1
-xarray==2026.7.0
-netCDF4==1.7.4
-h5netcdf==1.8.1
+copernicusmarine>=2.0.0
+xarray>=2024.1.0
+netCDF4>=1.6.5
+h5netcdf>=1.3.0
 
 # NOAA GFS-Wave direct (GFS marine off open-meteo) — GRIB2 decode.
 # pygrib manylinux wheels bundle the ecCodes binary, so no apt step is needed on Render.
-pygrib==2.1.8
+pygrib>=2.1.5
 
 # ECMWF Open Data direct (EURO wind + pressure off open-meteo) — free IFS 0.25° GRIB (10u/10v/msl).
 # Pure-Python client (resolves the latest cycle + byte-range .index downloads); pygrib decodes the GRIB.
-ecmwf-opendata==0.3.34
+ecmwf-opendata>=0.3.3

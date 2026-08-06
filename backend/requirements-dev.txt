@@ -72,6 +72,4 @@ pytest-timeout==2.4.0
 #            that confusion is why this lane was twice reported as "not wired in" while complete.
 #            ⚠️ xarray / netCDF4 / h5netcdf are already in requirements.txt (the EURO marine lane
 #            uses them in production); only the CDS client is exclusive to this campaign.
-# Pinned 2026-08-06 from the resolution both interpreters agree on (CI run 31103393912);
-# see requirements.txt for why a `>=` here is a production-deploy risk, not a preference.
-cdsapi==0.7.7
+cdsapi>=0.7.0
