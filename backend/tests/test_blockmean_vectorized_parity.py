@@ -115,6 +115,43 @@ def test_non_wrapping_grids_are_also_identical(fields, points):
     _assert_identical("height_block(wrap=False)", ref, np.asarray(got), len(rs))
 
 
+def test_partition_dir_conf_batch_is_identical(fields, points):
+    """Both outputs must match: the direction AND the R x coverage confidence.
+
+    ⚠️ The confidence is the half that can regress silently — a batch form that dropped the coverage
+    term would return byte-identical DIRECTIONS and still restore the measured defect where a block
+    carrying the train in 1 of 64 subcells reports R = 1.00.
+    """
+    from services._fetch_common import energy_mean_direction_block_partition_conf
+    from services._fetch_blockmean_vec import partition_dir_conf_batch
+
+    h, d, _p = fields
+    rs, cs = points
+    ref = [energy_mean_direction_block_partition_conf(d, h, int(r), int(c), HALF, True)
+           for r, c in zip(rs, cs)]
+    ref_d = np.array([a for a, _ in ref])
+    ref_c = np.array([b for _, b in ref])
+    got_d, got_c = partition_dir_conf_batch(
+        d, h, rs, cs, HALF, True,
+        lambda r, c: energy_mean_direction_block_partition_conf(d, h, r, c, HALF, True))
+    _assert_identical("partition_dir(direction)", ref_d, np.asarray(got_d), len(rs))
+    _assert_identical("partition_dir(confidence)", ref_c, np.asarray(got_c), len(rs))
+
+
+def test_partition_confidence_actually_varies(fields, points):
+    """MUTATION CONTROL: if every confidence were 1.0 (or 0.0), the test above would pass while
+    proving nothing about the coverage term it exists to protect."""
+    from services._fetch_common import energy_mean_direction_block_partition_conf
+
+    h, d, _p = fields
+    rs, cs = points
+    confs = np.array([energy_mean_direction_block_partition_conf(d, h, int(r), int(c), HALF, True)[1]
+                      for r, c in zip(rs[:400], cs[:400])])
+    assert confs.min() < 0.9 < confs.max(), (
+        f"confidence range [{confs.min():.3f}, {confs.max():.3f}] is degenerate — the parity test "
+        "above is not exercising the R x coverage computation")
+
+
 def test_the_exact_zero_resultant_branch_is_unreachable_in_practice(fields):
     """A FINDING ABOUT THE ORIGINAL, recorded so nobody deletes the branch on coverage data.
 

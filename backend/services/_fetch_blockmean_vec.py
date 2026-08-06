@@ -116,6 +116,52 @@ def scalar_block_batch(x_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
     return _finalize(out, interior, rs, cs, scalar_fn)
 
 
+def partition_dir_conf_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
+    """Batch `energy_mean_direction_block_partition_conf` -> (directions, confidences).
+
+    ⚠️ THE CONFIDENCE IS `R x coverage`, AND THE COVERAGE TERM IS THE WHOLE POINT. R alone measures
+    agreement AMONG CONTRIBUTORS, so a block where 1 of 64 subcells carries the train yields R = 1.00
+    — a perfectly confident bearing for a partition that exists in 2% of the water (measured live on
+    the served 2 deg products, 2026-07-31). `coverage = ok / finite` collapses to 1 on a fully
+    populated block and to ~0 exactly where the layer is claiming a train it does not have.
+    Dropping it would restore a measured, user-visible defect while every direction stayed identical.
+    """
+    rs = np.asarray(rs, dtype=np.intp)
+    cs = np.asarray(cs, dtype=np.intp)
+    nrows, ncols = dir_arr.shape
+    n = rs.shape[0]
+    out_d = np.empty(n, dtype=float)
+    out_c = np.empty(n, dtype=float)
+    interior = _interior_mask(rs, cs, nrows, ncols, half, wrap_cols)
+    if interior.any():
+        ri, ci = rs[interior], cs[interior]
+        d = _gather(dir_arr, ri, ci, half, ncols, wrap_cols)
+        h = _gather(h_arr, ri, ci, half, ncols, wrap_cols)
+        finite = np.isfinite(d) & np.isfinite(h)
+        ok = finite & (h > 0.0)
+        e = np.where(ok, h * h, 0.0)
+        rad = np.deg2rad(np.where(ok, d, 0.0))
+        s = (e * np.sin(rad)).sum(axis=(1, 2))
+        co = (e * np.cos(rad)).sum(axis=(1, 2))
+        tot_e = e.sum(axis=(1, 2))
+        n_finite = finite.sum(axis=(1, 2))
+        n_ok = ok.sum(axis=(1, 2))
+
+        usable = ok.any(axis=(1, 2)) & ~((s == 0.0) & (co == 0.0)) & (tot_e > 0.0)
+        with np.errstate(invalid="ignore", divide="ignore"):
+            resultant = np.hypot(s, co) / np.where(tot_e > 0.0, tot_e, 1.0)
+            coverage = np.where(n_finite > 0, n_ok / np.maximum(n_finite, 1), 0.0)
+            direction = np.rad2deg(np.arctan2(s, co)) % 360.0
+        pt = dir_arr[ri, ci]
+        out_d[interior] = np.where(usable, direction, pt)
+        out_c[interior] = np.where(usable, np.clip(resultant * coverage, 0.0, 1.0), 0.0)
+
+    for i in np.nonzero(~interior)[0]:
+        dv, cv = scalar_fn(int(rs[i]), int(cs[i]))
+        out_d[i], out_c[i] = dv, cv
+    return out_d, out_c
+
+
 def direction_block_batch(dir_arr, h_arr, rs, cs, half, wrap_cols, scalar_fn):
     """Batch `energy_mean_direction_block`: energy-weighted CIRCULAR mean, degrees in [0, 360).
 
