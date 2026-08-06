@@ -88,15 +88,35 @@ FASTMCP_EXCLUDED = (
 # ⚠️ ESTATE QUARANTINE — files that FAIL ON THE RUNNER while passing locally. Named here with the
 # evidence, never achieved by narrowing a selector, and each is asserted below to still exist.
 #
-# ⛔ THIS IS NOT "THEY WERE ALWAYS BROKEN, SO IGNORE THEM". Both files ran in NO CI lane before
+# ⛔ THIS IS NOT "THEY WERE ALWAYS BROKEN, SO IGNORE THEM". These files ran in NO CI lane before
 # 2026-08-06, so their first-ever cloud execution is what produced these results. Quarantining
 # preserves the status quo (they still run nowhere) while making that fact visible instead of
 # implicit — a permanently red lane teaches everyone to ignore CI, which costs more than it buys.
 #
-# ★★★ AND THE LOCAL/CI GAP IS THE LESSON: both files PASSED on my workstation minutes earlier
-# (`test_debug_consciousness` 6 passed in 1.38 s; `test_websocket_endpoints_auth` 10 passed in
-# 7.26 s). A local probe measures the local environment, never the runner — the same mistake that
-# shipped an undeclared pytest-timeout one commit earlier.
+# ★★★ AND THE LOCAL/CI GAP IS THE LESSON: both original entries PASSED on my workstation minutes
+# earlier (`test_debug_consciousness` 6 passed in 1.38 s; `test_websocket_endpoints_auth` 10 passed
+# in 7.26 s). A local probe measures the local environment, never the runner — the same mistake
+# that shipped an undeclared pytest-timeout one commit earlier.
+#
+# ✅ RELEASED 2026-08-06 — `tests/test_websocket_endpoints_auth.py`, and the release is what the
+# quarantine was FOR. The one unknown it recorded ("did the sibling `_authorized` cases pass on
+# that runner?") was measured by re-running the file alone on ubuntu-latest with `-v`
+# (CI run 31070627589): **5 failed, 5 passed** — every `_authorized` param PASSED while every
+# `_unauthorized` param timed out. That eliminated the app-startup/env reading and left the
+# rejection path.
+#   · Root cause: `verify_websocket_auth` raised HTTPException from a WEBSOCKET route. Under the
+#     versions requirements.txt actually resolves (starlette 0.37.2 / fastapi 0.110.1) that is
+#     swallowed by starlette's websocket exception plumbing and the app returns having sent NO
+#     ASGI message at all — no accept, no close, no denial response. Driving the ASGI app directly
+#     showed `NOTHING SENT` for all three unauthorized variants, while a public route accepted, an
+#     unknown route closed with 1000, and an authorized connect accepted.
+#   · Fixed by closing the handshake explicitly (1008), which does not depend on any exception
+#     handler being registered for the websocket scope.
+# ★ THE LOCAL/CI GAP HAD A CAUSE WORTH KEEPING: the workstation runs starlette 1.0.0, which turns
+#   that same HTTPException into a websocket DENIAL RESPONSE. The test's `pytest.raises(Exception)`
+#   was therefore satisfied locally by a completely different mechanism than the one under test —
+#   `starlette` is unpinned (fastapi 0.110.1 allows >=0.37.2,<0.38), so local and CI were never
+#   running the same code.
 ESTATE_QUARANTINE = {
     # 5 of 6 fail on the runner, all rooted in a missing local artifact. The clearest one says so
     # outright: assert 'Root Cause Summary' in {'error': 'Event Bus DB not found.', ...}; the rest
@@ -105,22 +125,6 @@ ESTATE_QUARANTINE = {
     # ⇒ FOLLOW-UP, and the right fix is not a quarantine: a test whose PRECONDITION is absent must
     #   SKIP, not fail (standing rule 27). Give it a module-level guard on the Event Bus DB.
     "tests/test_debug_consciousness.py": "needs a local Event Bus DB that a fresh checkout lacks",
-
-    # ⚠️⚠️ SECURITY-ADJACENT AND GENUINELY UNRESOLVED — do not let this quarantine bury it.
-    # All 5 `test_private_websocket_endpoint_unauthorized` params TIME OUT at 120 s on the runner
-    # (CI run 31065337094; the 5 timeouts were 600 s of that job's 624.8 s). The test asserts an
-    # unauthorized WS connect raises; a timeout means it neither raised nor closed — the client sat
-    # in receive_json() on a connection that was never rejected.
-    # `verify_websocket_auth` (routes/live/websocket.py:19) raises HTTPException, but this is a
-    # WEBSOCKET route, where an HTTPException is not an HTTP response.
-    # ⛔ WHAT IS NOT KNOWN: whether the sibling `..._authorized` tests passed on that runner. `-q`
-    #   names only failures, so the log cannot answer it, and the arithmetic (600 s of 624.8 s in
-    #   timeouts) only shows everything else was fast. Until that is measured, BOTH readings stay
-    #   open: an unauthorized connection left hanging (a real defect, and a cheap way to exhaust
-    #   connections) OR an app-startup/env difference on the runner.
-    # ⇒ FOLLOW-UP: re-run this ONE file on a runner with -v to see the authorized cases, before
-    #   touching the endpoint.
-    "tests/test_websocket_endpoints_auth.py": "5 unauthorized-WS cases time out at 120 s on the runner; see note",
 }
 
 # Written ONCE and used by both import forms — `from services.<mod>` and `from services import

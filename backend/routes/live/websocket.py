@@ -16,11 +16,47 @@ router = APIRouter(tags=["websocket"])
 INTERNAL_TOKEN = os.getenv("INTERNAL_BROADCAST_TOKEN", "super_secret_internal_token_123")
 
 
+async def reject_websocket(websocket: WebSocket, reason: str) -> None:
+    """
+    Answer an unauthorised handshake with a close frame.
+
+    The socket is NEVER accepted first: an unauthenticated connection must not reach an accepted
+    state even briefly. Closing while the connection is still CONNECTING is the ASGI way to refuse
+    a handshake, and the server turns it into an HTTP 403 on the upgrade request.
+    """
+    try:
+        await websocket.close(code=status.WS_1008_POLICY_VIOLATION, reason=reason)
+    except Exception as e:
+        # The peer can vanish between the failed auth and the close. Nothing to do, but never let
+        # this become the exception that leaves the handshake unanswered all over again.
+        logger.debug(f"WebSocket reject close failed (peer likely gone): {e}")
+
+
 async def verify_websocket_auth(websocket: WebSocket, expected_user_id: str) -> bool:
     """
-    Helper function to authenticate WebSocket handshakes via query parameter tokens.
-    Uses core/security 'verify_token' and compares decoded 'sub' with expected_user_id.
-    Raises HTTPException(401/403) if unauthorized.
+    Authenticate a WebSocket handshake via the `token` query parameter.
+
+    Uses core/security 'verify_token' and compares the decoded 'sub' with expected_user_id.
+
+    Returns True when the caller may proceed. Returns False *having already closed the socket*
+    when it may not — callers MUST `return` immediately on False and must not accept.
+
+    ⛔ THIS FUNCTION MUST NOT RAISE HTTPException, AND NEITHER MUST ANY WEBSOCKET ROUTE.
+    Measured on a Linux runner 2026-08-06 (CI runs 31070627589 / 31071044451) under the versions
+    requirements.txt actually resolves — starlette 0.37.2, fastapi 0.110.1 — an HTTPException
+    raised from a websocket route is swallowed by starlette's websocket exception plumbing and
+    the app returns having sent NO ASGI message at all: no accept, no close, no denial response.
+    The handshake is simply never answered.
+      · Controls in that same run: a public route accepted, an unknown route closed with 1000, an
+        authorised connect accepted. ONLY the rejection path went silent, so this is the auth
+        path and not the environment.
+      · A real uvicorn server does catch it — "ASGI callable returned without sending handshake"
+        — and answers HTTP 500. So production refuses the connection, but by accident, via the
+        server's safety net, reporting a SERVER error for what is a CLIENT auth failure.
+      · An ASGI consumer without that net hangs forever: starlette's own TestClient sat in
+        WebSocketTestSession.__enter__ until the 120 s pytest-timeout, 5 params at a time.
+    ★ Closing explicitly is version-independent and does not depend on any exception handler
+      being registered for the websocket scope. Do not "simplify" this back into a raise.
     """
     token = websocket.query_params.get("token")
     if not token:
@@ -28,29 +64,27 @@ async def verify_websocket_auth(websocket: WebSocket, expected_user_id: str) -> 
             logger.info(f"WebSocket auth bypassed for development/testing user: {expected_user_id}")
             return True
         logger.warning(f"WebSocket auth failed: missing token query param for user_id {expected_user_id}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication token required"
-        )
-    
+        await reject_websocket(websocket, "Authentication token required")
+        return False
+
     try:
         payload = verify_token(token)
         sub = payload.get("sub")
-        if not sub or sub != expected_user_id:
-            logger.warning(f"WebSocket auth failed: token subject {sub} does not match expected {expected_user_id}")
-            raise HTTPException(
-                status_code=status.HTTP_403_FORBIDDEN,
-                detail="Access forbidden"
-            )
-        return True
     except HTTPException as e:
-        raise e
+        logger.warning(f"WebSocket auth failed: token rejected for {expected_user_id}: {e.detail}")
+        await reject_websocket(websocket, "Authentication failed")
+        return False
     except Exception as e:
         logger.error(f"WebSocket auth unexpected error: {e}")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication failed"
-        )
+        await reject_websocket(websocket, "Authentication failed")
+        return False
+
+    if not sub or sub != expected_user_id:
+        logger.warning(f"WebSocket auth failed: token subject {sub} does not match expected {expected_user_id}")
+        await reject_websocket(websocket, "Access forbidden")
+        return False
+
+    return True
 
 
 @router.websocket("/ws/conditions")
@@ -152,7 +186,8 @@ async def websocket_earnings(websocket: WebSocket, user_id: str):
     WebSocket endpoint for real-time earnings updates
     User receives notifications when they earn credits from sales/donations
     """
-    await verify_websocket_auth(websocket, user_id)
+    if not await verify_websocket_auth(websocket, user_id):
+        return
     room = f"earnings_{user_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -228,7 +263,8 @@ async def websocket_user(websocket: WebSocket, user_id: str):
     WebSocket endpoint for user-specific notifications
     Used for personal notifications like "Your crew member left"
     """
-    await verify_websocket_auth(websocket, user_id)
+    if not await verify_websocket_auth(websocket, user_id):
+        return
     room = f"user_{user_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -264,7 +300,8 @@ async def websocket_photographer_activity(websocket: WebSocket, photographer_id:
     - Purchase their photos
     - Request edits
     """
-    await verify_websocket_auth(websocket, photographer_id)
+    if not await verify_websocket_auth(websocket, photographer_id):
+        return
     room = f"photographer_activity_{photographer_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -306,7 +343,8 @@ async def websocket_call(websocket: WebSocket, user_id: str):
     Each user connects to their own room: call_{user_id}
     Messages are forwarded to the target user's room.
     """
-    await verify_websocket_auth(websocket, user_id)
+    if not await verify_websocket_auth(websocket, user_id):
+        return
     room = f"call_{user_id}"
     await ws_manager.connect(websocket, room=room)
     
@@ -386,7 +424,8 @@ async def websocket_presence(websocket: WebSocket, user_id: str):
     Client can request online user list at any time.
     On disconnect, user is marked offline.
     """
-    await verify_websocket_auth(websocket, user_id)
+    if not await verify_websocket_auth(websocket, user_id):
+        return
     room = f"presence_{user_id}"
     await ws_manager.connect(websocket, room=room)
     ws_manager.mark_online(user_id)
