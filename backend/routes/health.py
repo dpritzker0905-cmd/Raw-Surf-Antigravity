@@ -102,6 +102,36 @@ async def health_check(
         logger.error(f"Health check weather diagnostics failed: {e}")
         weather_readiness = {"error": str(e)}
 
+    # ── PEAK memory, not just current (2026-08-06) ────────────────────────────────────────────────
+    # WHY A HIGH-WATER MARK AND NOT ANOTHER GAUGE. The 2026-07-24 restart-under-load was diagnosed as
+    # a TRANSIENT spike — "up to 16 concurrent 15,023-vector product parses (~15-20 MB each)" on a
+    # 512 MB box — and that handoff closed with the lever OPEN because it "needs live A/B on Render,
+    # which cannot be done from the dev box". `/admin/system/health` already reports RSS, but a
+    # point-in-time poll cannot see a spike that lasts seconds: you have to be sampling at the exact
+    # moment. `ru_maxrss` is the kernel's own high-water mark since process start — monotonic, free
+    # to read, and it CANNOT miss the spike, because it records it whether or not anyone was looking.
+    # That turns "we believe transients approach 512 MB" into a number, which is the precondition for
+    # ever verifying a fix (thread-pool cap, columnar products, or neither).
+    # ⚠️ `resource` is Unix-only — absent on the Windows dev box, so the import is guarded and the
+    # block simply reports nulls there. ⚠️ `ru_maxrss` is KILOBYTES on Linux (what Render runs) and
+    # BYTES on macOS/BSD; the platform check below is not cosmetic.
+    memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None, "peak_pct_of_limit": None}
+    try:
+        limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
+        memory["limit_mb"] = round(limit_mb, 1)
+        memory["rss_mb"] = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
+        try:
+            import resource  # noqa: PLC0415 - Unix-only, deliberately lazy
+            raw = resource.getrusage(resource.RUSAGE_SELF).ru_maxrss
+            peak_mb = raw / (1024 * 1024) if sys.platform == "darwin" else raw / 1024
+            memory["peak_rss_mb"] = round(peak_mb, 1)
+            if limit_mb > 0:
+                memory["peak_pct_of_limit"] = round(100.0 * peak_mb / limit_mb, 1)
+        except ImportError:
+            pass                      # Windows dev box: current RSS only, peak stays None
+    except Exception as e:            # an instrument must never break the thing it observes
+        logger.warning(f"[health] memory probe failed: {e}")
+
     # Process Uptime
     try:
         p = psutil.Process(os.getpid())
@@ -143,6 +173,7 @@ async def health_check(
         "uptime_seconds": round(uptime_seconds, 1),
         "environment": os.environ.get("RENDER", "local"),
         "runtime": _runtime_fingerprint(),
+        "memory": memory,
         "timestamp": datetime.now(timezone.utc).isoformat(),
         "copernicus_credentials_present": bool(copernicus_user and copernicus_password),
         "database": {},
