@@ -1,0 +1,491 @@
+# MASTER AUDIT 10.0 — 2026-08-07 · SOTA architecture audit & safe upgrade assessment
+
+**Read-only.** No functional code was altered; `git diff --stat` against `c0c61bda` is empty apart
+from the two `forecast_cache` JSONs and the two untracked `geometry_backfill` files that were dirty
+at session start. Every number below was produced by execution at HEAD `c0c61bda`, either against
+the live production backend (`raw-surf-antigravity.onrender.com`, serving
+`2.0.0-stage-6f-v1-c0c61bda…`) or with `~/AppData/Local/Python/bin/python3.exe`.
+
+Predecessors: `MASTER-AUDIT-9.0` (2026-08-06, same brief) · `HANDOFF-2026-08-07` (the session that
+shipped the ensemble). **9.0's §6 plan is now fully resolved, shipped, or overturned — this audit
+replaces it.**
+
+---
+
+## §0 THE HEADLINE — THE CAPABILITY THAT SHIPPED LAST NIGHT REACHES NOBODY, AND THE PHYSICS THREAD THE LAST THREE AUDITS ORGANISED AROUND BINDS ON 0.145% OF SERVED HOURS
+
+### 0a. The brief's three SOTA vectors, priced for the second time
+
+| brief's vector | verdict | the measurement |
+|---|---|---|
+| JAX / neural emulator | ⛔ **CLOSED, on stronger evidence than 9.0** | 9.0 timed only the height half. Timing **both** mandated halves at HEAD — `resolve_surf_geometry` 0.0139 ms warm + `estimate_surf_at` 10.97 µs + `compute_surf_rating` 8.03 µs = **19.01 µs/spot-hour** — the entire global forecast is **2.50 s of CPU** (779 × 168 h), 4.96 s at 1,547 spots. There is nothing to accelerate. |
+| Zarr / cloud-optimised ingestion | ⚠️ **STILL THE WRONG TOOL, and the real cost moved** | GRIB2 already streams by HTTP Range off `.idx`. 9.0 put the remaining cost in the product store's representation; the 08-07 session **closed that on measurement** (box is 2048 MB, plateau ~891 MB = 43%). What replaces it is not a format problem at all — see §1.1. |
+| GCN / nested nearshore grids | ⛔ **NOW REFUTED BY A DENOMINATOR, not merely "premature"** | At the **median served spot-hour the depth grids do not enter the number at all**: replacing both shelf depth and break depth with an absurd 4000 m leaves the served height **bit-identical on 54.32%** of coastal served spot-hours (and 100.00% — 24,372 of 24,372 — on the `Kf==1.0 ∧ regime≠breaking` subset). A finer bathymetry improves an input that is multiplied by zero more than half the time. |
+
+★ Same lesson as 8.0 and 9.0, third consecutive audit: **price the upgrade against the thing it
+would replace.** What is new is that this time the *incumbent* physics thread failed the same test.
+
+### 0b. The two findings that change what should be worked on
+
+**1 — `forecast_confidence` reaches 0 of 1,103 served spots. Three gates in series, all closed.**
+The 08-07 session shipped `decode → reduce → emit → point → rating → hub → screen` and recorded the
+last link as done. Measured, the last three links are each independently blocked:
+
+| # | gate | measured |
+|---|---|---|
+| **ROOT** | `sampler.py:154` — `speed_spread` is set at **1 of 10** `NormalizedPointDetail` sites in `sampler.py` (**1 of 24** backend-wide), the `exact_match` branch. `_find_surrounding_brackets` (`sampler.py:441-451`) returns a degenerate bracket only via `val <= coords[0]` / `val >= coords[-1]`; the bounds check at `sampler.py:69` has already clamped the point inside that interval, so those collapse to `==`. `exact_match` therefore needs the point at *both* axis extrema — one of the **4 grid corners**. | `exact_match` fired on **0 of 1,103** production-served spot_ids across 4 real ingested products; **0 of 35** independent live `/api/weather/point` probes, incl. 5 placed exactly on 0.25° nodes; **2 of 13** exact nodes on a synthetic axis collapse, and both are the endpoints. Resolution-independent: 0.00% at 0.25/0.5/1/2/10°. Corner control fires correctly. |
+| latent 1 | `routes/weather.py:312` — `SpotRatingItem` declares 20 fields, not `forecast_confidence`; pydantic `extra='ignore'` strips it. | Of the **18** keys `rate_one_spot` emits, **exactly one** is dropped, and it is this one. Every sibling orthogonal axis (`geometry_readiness`, `directional_conflict`, `limiter`, `limiter_f`) *is* declared — the pattern was followed 4 times and missed on the 5th. |
+| latent 2 | `routes/surf_data/conditions.py:119` — `GET /conditions/{spot_id}` rebuilds `current` from a hand-written **8-key dict literal**. `SpotConditions.js:140` fetches exactly this endpoint and both render sites gate on `current.forecast_confidence`. | AST: `current` has 8 keys, `forecast_confidence` absent; control `wave_height_ft` present and does render. |
+
+⚠️ **Ordering matters and an adversarial pass corrected us on it.** The two wire gaps are *latent*,
+not today's cause — **pydantic cannot strip a key that was never emitted**, and the root gate means
+`_fc` is always `None`. So: fixing the sampler alone still shows nothing (two walls behind it);
+fixing either wall alone changes nothing. **Root first, then both walls, or the fix reads as a
+no-op.**
+
+★ This settles `HANDOFF-2026-08-07 §10`'s first action item — *"load a EURO spot hub in a browser and
+look"*. **Looking would have shown nothing, and would have been misread as "no ensemble at this spot
+yet."** The handoff's own caveat (*"it will look uneven — by design"*) was a claim about code priced
+without a denominator; measured, the denominator is zero.
+
+**2 — The nearshore thread is optimising a term that almost never binds, while the highest-value
+absent term is already sitting in the repo.**
+
+Over **227,088 real served spot-hours** (250 sampled `shore_normals.json` coords × 912 h of real
+Open-Meteo marine, through `resolve_surf_geometry` + `estimate_surf_at`):
+
+| term | reach on served spot-hours |
+|---|---|
+| depth-limited breaking cap (γ, `GAMMA_MAX_STEEP`, Weggel slope, the 12.96 MB bed-slope asset, matrix items F/F′) | **0.145%** (329 of 227,088; 4 of 249 spots) |
+| the slope→γ term specifically (`SURF_V3_SLOPE_GAMMA` A/B) | **0.09%** |
+| wave setup (absent) | 0.145% |
+| **tide (absent — input already in `tide.py:tide_state_at`, unwired to the height)** | **1.694%, median 45.6% height change, max 60.6%** |
+
+**Tide is 19× the reach of the entire slope/γ thread**, needs no new data source, and is signed
+(only lowering the cap binds: −1.5 m → 1.694%, +1.5 m → 0.145%).
+
+**3 — And one live product defect that outranks both.** `surf_transform.py:401`:
+`if not coastal: return float(Hs_m), 'open_ocean'` returns the **offshore significant height
+byte-identically**, and no per-spot surface branches on that regime. Measured: `coastal=False` at
+**18 of 1,386** geometry-resolved coordinates — the entire Barbados list (Soup Bowl, South Point,
+Freights, Brandons, Cattlewash, Tropicana), the Maldives, Fernando de Noronha. Through the hub's own
+`spot_conditions._breaking_ft`: **Soup Bowl at Hs 2.0 m → 6.6 ft, "Overhead", identical to the
+offshore number**; control Pipeline (coastal) → 9.9 ft.
+
+⛔ **That is CLAUDE.md's first binding rule failing in production** — *"NEVER report marine
+`point.speed` as the surf height"* — at destination spots people fly to. All 18 carry
+`shore_normal_src='etopo'`, a 463 m fit at that exact coordinate, so **the geometry struct asserts a
+shoreline and no shoreline simultaneously.**
+
+### 0c. How this audit was verified, and what verification killed
+
+Six independent read-only dimensions, then an adversarial pass instructed to **refute** the
+highest-severity findings and to default to refuted when it could not independently confirm. It
+earned its cost — **2 of the first 4 findings put to it were struck down or cut**, and one of those
+corrections reordered the whole remediation sequence:
+
+| finding | verdict | what changed |
+|---|---|---|
+| sampler `exact_match` gate | ✅ **CONFIRMED**, independent method + data source | sharpened to 1 of 24 backend sites, with the bounds-clamp reasoning made exact |
+| `/conditions` 8-key literal | ✅ **CONFIRMED by executing the real handler** (not AST) | control `wave_height_ft`=5.3 survived; `/conditions/batch` drops it too |
+| `SpotRatingItem` drop = HIGH | ⛔ **SEVERITY REFUTED** | *"Pydantic cannot strip a key that was never emitted."* Demoted to **latent**, and this is what put the sampler first in Phase 1 |
+| `39.0 m` break depth is unbounded | ⛔ **REFUTED by a control the finder never ran** | 13.0% of already-shipped depths exceed it; it is the 87th percentile |
+
+★ **Neither refutation came from re-reading the code — both came from a denominator.** That is the
+same instrument that killed five proposals in the 08-07 session, and it is the reason this audit
+promotes tide over γ and demotes its own second-loudest finding.
+
+---
+
+## SECTION 1 — CORE SYSTEM ARCHITECTURE GAPS
+
+### 1.1 ⛔ CRITICAL — every GRIB product is `json.load`-ed on the serving event loop, nine lines below a correct offload
+
+`_fetch_common.py:737`. `run_fetcher_subprocess` correctly offloads the subprocess via
+`run_in_executor` (L728) and then does `with open(out) as f: data = json.load(f)` (L737-738)
+directly on the loop. `AsyncIOScheduler` runs these jobs **inside the single uvicorn worker that
+serves all API traffic** — `uvicorn server:app` carries no `--workers`, so there is exactly one
+event loop.
+
+Measured on the real payload built at documented `global_mid` scale (14,940 points × 16 series keys
+× 113 valid times = 27,011,520 scalars, 235.3 MB on disk — built, not extrapolated):
+
+```
+trial 1:  json.load = 7.271 s
+trial 2:  json.load = 7.089 s
+```
+
+**Denominator: the repo's own production figure for the hot map endpoint is `/spot-ratings` 264 ms
+warm. A single `global_mid` ingest stalls every in-flight request by ~7 s.**
+
+★ This is the exact class the 08-07 session fixed one instance of (`6dd720eb`, the L2 read — measured
+0 of ~100 co-tenant ticks). **A fix applied at the site of the incident is not a fix applied to the
+class**, for the fourth recorded time in this repo.
+
+### 1.2 ⛔ CRITICAL — the ensemble reaches zero served spots (three gates, §0b)
+
+Full detail in §0b. Root: `sampler.py:154`. Note the contract in `schemas.py:144-148` states
+*"Populated ONLY where a single vector is the source (exact match / **NEAREST**)"* — but the three
+`nearest_*` branches (`sampler.py:352, 375, 407`) and `nearest_scalar_fallback` do **not** set it.
+**The documented contract is wider than the implementation, which makes the fix well-scoped and
+low-risk:** those branches are single-vector reads with semantics identical to `exact_match`.
+
+### 1.3 ⛔ HIGH — 18 catalogued spots publish the offshore height as the surf height
+
+§0b item 3. `surf_transform.py:401` / `surf_point.resolve_surf_geometry:75`.
+
+### 1.4 ⛔ HIGH — the minimum-coverage floor cannot fire on the failure mode it was written for
+
+`noaa_gfs_wave_fetcher.py:564`. The floor is `if truncated_at is not None:` — and `truncated_at` is
+set **only** by the soft-deadline break (L362). When steps fail from upstream 429/503/short-range or
+malformed GRIB, `truncated_at` stays `None` and the floor is never evaluated. Worse, when it *is*
+evaluated, `covered_h = (len(times)-1)*3` counts **failed** steps, because the except branch appends
+to `times` too (L538).
+
+Proven by driving the real `fetch_global_coarse` with a `sys.modules` stub:
+
+```
+CASE A (control) all 113 steps succeed      -> 0.0% null,  horizon claims 336 h
+CASE B upstream 503s every step but the 1st -> 99.1% NULL, horizon claims 336 h, floor never ran
+```
+
+**A 99.1%-null product ships claiming a 336 h horizon and, carrying a newer run stamp, supersedes a
+healthy one.** The floor's own comment states exactly this stake.
+
+### 1.5 ⛔ HIGH — the wire-contract guard is structurally blind to the idiom this repo uses for "absent unless it binds"
+
+`tests/test_spot_rating_wire_contract.py:131`. `_producer_return_keys()` collects
+`{k.value for k in sub.value.keys if isinstance(k, ast.Constant)}`. **A `**` entry in an `ast.Dict`
+has `key = None`** — so the guard cannot see any key added by dict-unpacking, and `**({...} if x else {})`
+is precisely how this repo expresses an absent-unless-binding field. Run verbatim it sees **17 keys,
+`forecast_confidence` not among them**; its setup floor `len(produced) >= 10` has 7 keys of slack and
+never fires.
+
+**This is why three independent breaks shipped green.** The guard built to catch exactly this defect
+could not see the field.
+
+### 1.6 ⛔ HIGH — the frontend confidence suite tests a copy of the component, not the component
+
+`frontend/src/components/SpotConditions.confidence.test.js`. It imports only
+`@testing-library/react` and `../utils/themeTokens`; it **re-declares** `CONFIDENCE_TEXT`,
+`confidenceDot` and `confidenceLabel` locally and renders its own `<Dot>`. Absence check:
+`git ls-files frontend/src | grep test | xargs grep -ln SpotConditions` returns **nothing** — no
+frontend test anywhere imports the shipped component. **Deleting the confidence block from
+`SpotConditions.js` would leave the suite green.**
+
+### 1.7 ⛔ HIGH — an untracked overlay silently corrupts the *measuring* lane by a full rating level
+
+`services/weather_pipeline/data/shore_normals_overlay.json` — written 2026-07-31 23:22 as a side
+effect of the geometry backfill's `persist_overlay()`, gitignored (`.gitignore:347`), never
+committed, and **read by `shore_normal_asset` on the serving path**.
+
+```
+WITH the local overlay -> break_depth_m = 39.0 / 11.4 / 3.8 / 11.0 / 10.0
+CONTROL, empty overlay -> break_depth_m = None at ALL FIVE   <- what production has
+end-to-end (5 coords x 4 swells): height identical in 20/20; at the big-swell cell the
+RATING differs by 32.6 points and one full level
+```
+
+⚠️ **This repo's entire method is local measurement.** A defect in the measuring lane is worse than
+one in the measured lane — a rule this repo has already recorded. *(It does not affect this audit's
+numbers: none of the 5 coordinates is among those quoted, and the Pipeline control below replicates
+its recorded anchor exactly.)*
+
+### 1.8 ⚠️ MEDIUM — the ICON/weather lane has been stale for 11.6 h with a green fetcher and a red pager, unreported
+
+Live, measured this session:
+
+```
+/api/health/data           status=warn
+  8 lanes           age 1.8 - 2.4 h   ok
+  ICON/weather      age 11.6 h        ALERT: lags freshest by 9.7h
+manifest last update 02:00:28Z; ICON/weather newest run_time 2026-08-06T15:57:43Z (61 products)
+```
+
+Yet that lane's own SUMMARY at 01:38:07Z reported `steps_ok=61 steps_failed=0 … wrote=yes`, and 61
+`Atomic save complete` lines followed. The Data Health Monitor has failed **every run since 08-06
+16:30Z** (4 consecutive), through a 30-commit session, and appears in no handoff.
+
+⚠️ **MECHANISM NOT ESTABLISHED — stated as a gap, not guessed.** The main ingest (00:55→02:20Z) and
+the pilots (00:48→02:04Z) overlap and both publish the shared L2 manifest;
+`manifest_written_by: designated:gh-run-31135928399` names the *pilots* run as last writer at 02:00Z.
+That is a plausible last-writer-wins mechanism but it does **not** explain why `GFS/weather` (01:37Z,
+also a global-only main-ingest lane) survived. **Next measurement: log the manifest's per-lane
+`run_time` immediately before and after each publish.**
+
+★ The class is real regardless: **the lane SUMMARY grades the FETCH; nothing grades the PUBLISH.**
+
+### 1.9 ⚠️ MEDIUM — the ensemble's second retrieve ignores the deterministic retrieve's own salvage
+
+`ecmwf_opendata_fetcher.py:408`. The deterministic path retries with `[s for s in steps_full if s <= 144]`
+on failure (L330); the ensemble unconditionally passes `ensemble_spec(steps_full)`.
+
+```
+06/18 cycle, full retrieve raises:
+  deterministic ACTUALLY requests : 49 steps, max 144 h
+  ensemble      ACTUALLY requests : 65 steps, max 240 h   <- 16 steps just proven unavailable
+```
+
+Scope is bounded and stated: only the **global** EURO wave lane (`forecast_days=10`);
+`fetch_euro_marine_waves_regions` defaults to `forecast_days=2` (all steps ≤144) and is immune. The
+failure is swallowed by `except Exception` writing one stderr line, so **a broken ensemble fetch is
+indistinguishable from a product that simply has no ensemble** — which, given §1.2, is every product.
+
+### 1.10 ⚠️ MEDIUM — one unguarded `asyncio.gather` at 8.3× its siblings' cap on the same 1-CPU box
+
+`routes/explore_discover/explore.py:477`. AST scan: 5 splat `asyncio.gather` sites; four pair with a
+semaphore, this one does not. Width 50 vs the siblings' documented 6 — `weather.py:306-308` states
+the reason verbatim: *"Concurrency is bounded for the 1-CPU serve box."*
+
+### 1.11 ℹ️ LOW — `geometry_backfill.sql` is 30 statements, not the 413 the queue records
+
+⚠️ **This entry was cut down by adversarial verification; the reduced version is what survives.**
+
+`grep -c '^UPDATE'` = **30** (18 `not_coastal_placement` + 12 fit outcomes), all 30 carrying the
+idempotency guard, against `"queue": 413` in the sibling JSON. **413 is the queue size, not the
+statement count** — `HANDOFF-2026-08-07 §6` item 6 records it as "413 statements". That is the whole
+finding: a documentation correction to a known queue item.
+
+⛔ **REFUTED — what does *not* survive.** The first pass flagged `break_depth_m = 39.0` as an
+unbounded "nearshore break depth". A control it never ran kills that: in the **git-tracked**
+`shore_normals.json`, **141 of 1,087 already-shipped break depths (13.0%) are ≥ 39.0 m** — 39.0 sits
+at the **87th percentile** (p50 11.10, p90 55.50, max 1004.00). It is ordinary for this asset, not an
+outlier, and the "no `_MAX_TRUSTWORTHY_DEPTH_M`" observation is a re-report of 9.0 §3.4's already-
+recorded *"max = 1004 m is not a break depth"*.
+
+★ **The class, worth more than the finding:** an alarming-looking value in a generated artifact is
+not a defect until it is compared against the distribution already shipping. **The cheapest
+discriminator was a percentile.**
+
+**Recommendation: delete both files anyway** — untracked, 7.3% complete, generated before 4 commits
+of geometry change (incl. `a9bd6e35`, which split `BEARING_RADIUS_KM` from `MATCH_RADIUS_KM`), and
+`needs_geometry_refresh` has **no scheduled consumer** (referenced only by its own definition and
+this script). The generator is committed and can regenerate at HEAD. This is housekeeping, not risk.
+
+### 1.12 ℹ️ THE CLASS BEHIND §1.2's latent gates — 351 of 353 route response models silently drop undeclared keys
+
+AST over `backend/routes/`: **353** pydantic `BaseModel`s, **2** declare an `extra` policy. Pydantic
+v2's default is `extra='ignore'`, so every one of the other 351 discards producer keys it does not
+declare, with no error and no log line.
+
+⚠️ **Stated as a mechanism, not an exposure** — per this repo's own rule. Only one instance is known
+to bind (§1.2 latent 1). The value of the count is that it says **the fix is a contract-test pattern,
+not a one-line field addition** — which is what `test_spot_rating_wire_contract.py` already exists to
+be, and which §1.5 shows cannot currently see the idiom.
+
+---
+
+## SECTION 2 — COMPETITIVE ADVANTAGES & STRENGTHS (preserve these through any upgrade)
+
+### 2.1 ★★★★ The composition chain is fast, correct, singular, and it replicates — **do not touch it**
+
+| stage | measured at HEAD |
+|---|---|
+| `resolve_surf_geometry` cold | 190.96 ms once |
+| `resolve_surf_geometry` warm | **0.0139 ms** |
+| `estimate_surf_at`, geometry reused | **10.97 µs** |
+| `compute_surf_rating` | **8.03 µs** |
+| **full composition per spot-hour** | **19.01 µs** |
+| **779 served spots × 168 h** | **2.50 s of CPU, total** |
+
+**Control:** Pipeline at 12 m / 18 s / 315° returns **29.50 ft** — matching the recorded post-fix
+anchor exactly (legacy-restore would give 45.52 ft). The shipped γ 0.81 + `REFRACTION_KR` 0.797 pair
+has not drifted.
+
+### 2.2 ★★★★ The vectorized regrid holds under an *independent* adversarial differential
+
+Not the author's parity suite — 8,400 block reductions per function across 60 random grids, NaN
+fractions 0/0.1/0.35/0.8/0.98, planted antipodal cancellation, planted all-NaN and zero-height
+blocks, forced edge+interior point sets, wrap and non-wrap, `half=1..3`:
+
+```
+NaN-classification mismatches : 0
+conf_present mismatches       : 0     (the None-vs-0.0 confidence contract holds)
+max |vec - scalar| : height 8.882e-16 · dir 1.137e-13 deg · multi_d 6.359e-13 deg
+```
+
+The scalar oracle is retained (`FETCH_VECTOR_BLOCKMEAN=0`) and the flag is read **per call**
+(`noaa_gfs_wave_fetcher.py:65`), not at import — so it is genuinely flippable at runtime.
+
+### 2.3 ★★★★ The highest prior-probability defect in the new code is **not** present
+
+The obvious way to get the ensemble wrong is to divide an **offshore** standard deviation by a
+**breaking** mean — inflating the percentage by a geometry factor this repo has measured at −18.7% to
++92.7%. Both call sites pair the spread with the offshore height:
+`spot_ratings.py:103` (`offshore_h = marine.point.speed`) and `spot_conditions.py:449`. No breaking
+height reaches either ratio. **This was designed correctly and deserves to be said.**
+
+### 2.4 ★★★ Refusal semantics are real, not decorative — under adversarial controls
+
+```
+spread_from_members: []->None  None->None  [1.5]->None  [1.5, nan]->None
+                     [1.0,2.0,inf] -> (1.5, 0.5, 2)     <- inf dropped, n honestly reported as 2
+```
+
+Likewise `wave_physics.steepness()` returns `None` never `0.0`, and the 299 missing break depths are
+a **deliberate refusal** below `_MIN_TRUSTWORTHY_DEPTH_M = 3.0`, not a gap.
+⚠️ One asymmetry to note: two identical finite members yield `(1.5, 0.0, 2)`, which grades `high` at
+0% relative spread — defensible, but the member **count** is computed and then discarded at emit, so
+a consumer cannot tell an n=2 spread from an n=5 one.
+
+### 2.5 ★★★ ONE FORECAST COMPOSITION genuinely holds, and 9.0's censuses replicate exactly
+
+Every surface reaches the height through `surf_point.estimate_surf_at`; the sim is a consumer, not a
+second implementation. And all three of 9.0's nearshore censuses replicate at HEAD by execution:
+bed slope p50 0.0074 / p90 0.1348 / <0.01 = 57.7% / >0.07 = 18.5%; break depth 1087 with, **299 null
+= 21.6%**; readiness **full 1074 / degraded 312 / blind 0**. *(A census that replicates is worth
+recording — it means the 9.0 numbers can still be quoted.)*
+
+### 2.6 ★★★ `science_registry.py` — constants that carry provenance **and** their own contradiction
+
+Every constant declares `value`, `units`, `source` and a validity range. It also **documents its own
+strongest self-contradiction** (the `BATTJES_STIVE_GAMMA_MAX` entry) rather than hiding it. This is
+what made §3.1's correction possible at all.
+
+### 2.7 ★★★ The shore normal is the strongest geometry input **and** already sub-kilometre
+
+It binds on 100% of served spot-hours and is a 463 m ETOPO-2022 fit (99.6% `etopo` inside the asset).
+The brief's "does bathymetry match sub-km capabilities" question is answered: **the input that
+matters already is sub-km; the ones that are coarse are the ones that barely bind.**
+
+### 2.8 ★★ Tests were strengthened, not weakened, in the audited range
+
+`test_websocket_endpoints_auth.py` moved from `pytest.raises((WebSocketDisconnect, Exception))`
+(which is just `Exception`) to pinning `excinfo.value.code == 1008`; `MockWebSocket` gained
+`close()`/`accept()` so "accepted then closed" is now distinguishable from "never accepted".
+`test_ecmwf_period_bands_decode.py` correctly moved from `last_params` to `all_params`. There is no
+third live site of the 512 MB memory-limit assumption.
+
+---
+
+## SECTION 3 — REGRESSION RISK MATRIX
+
+| # | proposed change | regression risk | automated guardrail required **before** merge |
+|---|---|---|---|
+| **A** | `to_thread` the product `json.load` (§1.1) — 3 edits: `_fetch_common.py:737`, `noaa_marine_service`, sibling | **LOW** | Assert a co-tenant coroutine still ticks while a stubbed multi-second product read runs. Today that test fails. Same shape as the guard `6dd720eb` already added — **extend `test_event_loop_offload_guard.py` to ban the shape file-wide rather than at one site.** |
+| **B** | Carry `speed_spread` on the three `nearest_*` sampler branches (§1.2 root) | **LOW** | An **executing** test: build a product whose vectors carry `speed_spread`, sample a real off-node spot coordinate through `PointSampler.sample_point`, assert `point.speed_spread is not None`, with the corner case as control. **0 of 40 tests in the arc do this today.** |
+| **C** | Declare `forecast_confidence` on `SpotRatingItem`; add it to `/conditions`'s `current` (§1.2 latent) | **LOW** | Fix `_producer_return_keys` first (row D) — otherwise the guard still cannot see the field it is guarding. |
+| **D** | Teach the wire-contract guard to see `**` unpack keys (§1.5) | **LOW** | `zip(keys, values)`; when `k is None`, `ast.walk` the value for nested `ast.Dict` and union their constant keys. Raise the setup floor from 10 to 17. Control: the guard must **fail at HEAD** before the row-C fix lands. |
+| **E** | Make the coverage floor unconditional and count `steps_ok*3` (§1.4) | **MEDIUM** | Keep the two-case harness as a permanent test: all-succeed (control, must pass) and 503-every-step-but-one (must now refuse). Assert the refusal does **not** supersede the previous healthy product. |
+| **F** | Import the real component in the frontend confidence test (§1.6) | **LOW** | Export `confidenceDot`/`confidenceLabel`/`CONFIDENCE_TEXT` and render real `<SpotConditions>` with a mocked client; assert the three theme dot classes are mutually distinct **through the component**. |
+| **G** | Fix `coastal` for the 18 open-ocean spots (§0b.3) | **MEDIUM** | Owner-anchor harness **plus** a served-height delta census — the harness is blind to directional change. Assert Soup Bowl's breaking height ≠ its offshore height, with Pipeline as the unchanged control. **This moves served values: it is a correction, but it is a visible one.** |
+| **H** | Wire tide into the depth cap (§0b.2) | **HIGH** | Behind a default-off flag. Offset **`_cap_depth` only**, never `depth_m` (a ~139 km median where a metre is meaningless). Guardrail: assert ≥98.3% of served spot-hours are bit-identical with the flag on and water level 0.0, and that the movers are exactly the cap-binding set. |
+| **I** | Delete `shore_normals_overlay.json` (§1.7) and `geometry_backfill.{sql,json}` (§1.11) | **LOW** | A test that fails when an untracked, gitignored file on the `SHORE_NORMAL_*` overlay path is non-empty — so a local scratch overlay can never silently join a measurement run again. ⚠️ **Do NOT add a `_MAX_TRUSTWORTHY_DEPTH_M` guard on the strength of the 39.0 m value** — §1.11 shows 13.0% of shipped depths already exceed it; such a guard would refuse data that is currently served. |
+| **J** | Thread the salvaged step list to `ensemble_spec` (§1.9) | **LOW** | Fetcher test whose fake raises on the first deterministic retrieve; assert the member request's step list equals the salvaged list and the SUMMARY distinguishes "skipped" from "absent". |
+| **K** | Semaphore on `explore.py:477` (§1.10) | **LOW** | Match the sibling default so one box-wide number governs both. |
+| **L** | Rebuild the bed slope at surf-zone resolution (9.0 row F′) | **N/A — DEPRIORITISED** | ⛔ **Reprioritised down by §3.1: it can change at most 0.09% of served spot-hours, and 9.0's proposed distribution guardrail would have been written against the wrong population entirely.** |
+| **M** | γ / `REFRACTION_KR` / `SURF_HEIGHT_H110` | **CRITICAL** | ⛔ Do not touch. Legacy-restore control must give Pipeline **45.52 ft**; shipped gives **29.50 ft** (re-verified this session). Separate ERA5-gated workstream. |
+| **N** | JAX / GPU / neural emulator | **N/A — DO NOT BUILD** | 2.50 s of CPU for the entire global forecast, both halves. |
+
+### 3.1 ⚠️ A CORRECTION TO MASTER-AUDIT-9.0 §3.2/§3.3 — it censused a slope the served chain never passes
+
+`estimate_surf` feeds `breaker_index` a **live proxy**, `_slope_proxy = depth_m/(shelf_width_km*1000)`
+(`surf_transform.py:465`) — **never** `bathymetry.bed_slope_at`. The 12.96 MB asset reaches
+`breaker_index` at **zero call sites**.
+
+| population | p50 | p90 | above `WEGGEL_SLOPE_VALIDITY_HI = 0.07` |
+|---|---|---|---|
+| **live proxy (what the formula actually receives)** | **0.0029** | 0.0709 | **10.1%** |
+| bed-slope asset (what 9.0 censused) | 0.0074 | 0.1348 | 18.5% |
+
+Paired n=1272, log-corr 0.789, proxy/bed ratio p10 0.08 / p50 0.36 / p90 3.01 — **an order of
+magnitude apart in both directions.** So "18.5% out of validity" describes a quantity that is not the
+one being fed to the Weggel-class formula; the real figure is 10.1%. **And 9.0's proposed F′
+guardrail — "assert the rebuilt population is ≥X% inside 0.01–0.07" — would have passed while the
+live input stayed out of range.**
+
+---
+
+## SECTION 4 — INCREMENTAL "ZERO-REGRESSION" UPGRADE PATH
+
+Ordered by **(measured reach × confidence) ÷ (risk × cost)**. Every phase is independently shippable
+and revertible. Nothing here touches a physics constant.
+⚠️ **Every push to `dev` is a production backend deploy (5–30+ min) — batch each phase into one push.**
+
+### PHASE 0 — the event-loop stall, and delete the two stale artifacts (~1–2 h) · **START HERE**
+
+Row **A** (the 7.09 s `json.load` — the single largest measured latency defect at HEAD) and row **I**
+(delete `geometry_backfill.{sql,json}` + the untracked overlay). A is behaviour-preserving by
+construction; I removes a live corruption of the measuring lane. **Do I first** — every measurement
+in Phase 1+ is taken on this workstation.
+
+### PHASE 1 — make the ensemble reach a screen (~1 day) · rows **D → B → C → F**
+
+**In that order, and the order is the point.** D first, because the guard must be able to see the
+field before it can protect it (and must fail at HEAD to prove it). Then B (the root), then C (both
+latent wire gaps together), then F (make the frontend test exercise the real component).
+
+★ Only after all four does *"load a EURO spot hub and look"* become a meaningful action. Until then a
+browser check returns a false negative.
+
+**Then, and only then, the two open calibration questions become answerable:** the 15%/35% thresholds
+are still `"calibrated": false`, and `forecast_skill.py` accruing paired leads is what would make them
+defensible.
+
+### PHASE 2 — the data-integrity guards that are currently unable to fire (~1–2 days) · rows **E, J, K**
+
+E is the highest-value of the three: a 99.1%-null product that ships claiming a 336 h horizon and
+supersedes a healthy one is a silent whole-lane data loss. J and K are small and go in the same push.
+
+### PHASE 3 — the 18 open-ocean spots (~1 day, owner-visible) · row **G**
+
+Bounded, enumerable, and it is CLAUDE.md's first binding rule failing in production. **This changes
+served values at 18 spots** — it is a correction, not a regression, but it should ship with the delta
+census attached and the owner told.
+
+### PHASE 4 — tide into the depth cap (~3–5 days, flagged) · row **H**
+
+The highest-reach absent nearshore term at **1.694% of served spot-hours, median 45.6%** — 19× the
+slope/γ thread — with its input already in the repo. Default off, `_cap_depth` only, ≥98.3%
+bit-identity assertion as the guardrail.
+
+### PHASE 5 — resolve the ICON/weather publish gap (~1 day of measurement first) · §1.8
+
+⚠️ **Do not fix before measuring.** Log the manifest's per-lane `run_time` immediately before and
+after each publish for one cycle; that single instrument distinguishes the last-writer-wins
+hypothesis from every alternative. **The paging monitor has been correctly red for 11 h — the alert
+is working; the response to it is what failed.**
+
+### ⛔ EXPLICITLY NOT ON THIS PATH
+
+- **JAX / PyTorch / neural emulation** — 2.50 s of CPU, both halves (§2.1).
+- **GCN / nested nearshore grids / Zarr for products** — the depth grids are multiplied by zero on
+  54.32% of coastal served spot-hours (§0a); the OOM they would have served was closed on 08-07.
+- **Rebuilding the bed slope; flipping `RATING_BREAKER_TYPE`** — ≤0.09% reach (row L, §3.1).
+- **Any change to γ, `REFRACTION_KR`, `SURF_HEIGHT_H110`** — row M.
+- **Propagating the soft-deadline salvage** — closed 08-07; the six lanes run at 3.3–36.1% of kill.
+
+### OWNER-GATED — unchanged, and none of them moved this session
+
+| # | item | what it needs |
+|---|---|---|
+| 1 | Production frontend frozen at `3bd38a83` (2026-05-20); 6 of 6 `/api/*` 404 in prod | one Netlify dashboard screen |
+| 2 | Vercel fails 8/8 prod + 6/6 preview | disconnect the integration |
+| 3 | `RATING_LOCAL_SIZE` | a product decision (rarity axis, never a score multiplier) |
+| 4 | Seeded `dev-mock-user-id` profile (`is_admin=True`, 100 credits) still a row in the production DB | owner action |
+
+---
+
+## §5 WHAT THIS AUDIT DID NOT COVER — stated so it is not over-quoted
+
+- **The nearshore denominators are a 250-coordinate sample of `shore_normals.json`'s 1,386**
+  (seed 20260807, 249 usable), not the 779–1,005 actually-served spots — local `.env` points at the
+  wrong Supabase project. Quote it as that or not at all.
+- **One season, one window.** 2026-07-07 → 08-13, 912 h/coord, boreal summer: served Hs p50 0.84 m,
+  p90 1.76 m, max 6.60 m; wind p50 6.4 kt, p99 18.9, max 32.4. **The 0.145% cap-binding rate is
+  conditional on sea size** (Hs<1.5 m → 0.00%; Hs 2–3 m → 2.38%; Hs>4 m → 1.92%) and would rise in a
+  winter window. It would not rise by the ~19× needed to overtake tide.
+- **The 1,103-spot reach denominator is from 9 viewport requests** to `/spot-ratings`, which is a
+  viewport sample by construction.
+- **All local timings are Windows / py3.14.4 / numpy 2.4.4**; production is Linux / py3.12. Ratios
+  transfer; absolute seconds do not. The live figures (`/api/health`, `/api/health/data`,
+  `/api/weather/point`, `/spot-ratings`) are production and carry no such caveat.
+- **§1.8's mechanism is not established** — deliberately. See the named next measurement.
+- **No post-flip EURO ingest had run at audit time.** `b648098d` deployed 02:52Z; the newest EURO
+  marine product was built 01:46Z, 66 min earlier, and correctly carries no spread. The first
+  post-flip cycles are the 03:45Z pilots and the 04:15Z main ingest. **Nothing in §1.2 depends on
+  that** — all three gates are upstream of any product.
+- **Frontend / WebGL / shader path** beyond the confidence component — out of scope.
+- **The two unpriced GRIB lanes** (`dwd_gwam`, `ecmwf_opendata` block reductions) were still being
+  benchmarked when this was written; 9.0's note that they are structurally identical to the 17.4×
+  NOAA lane remains a **hypothesis**.
