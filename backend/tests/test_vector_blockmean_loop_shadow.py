@@ -12,9 +12,25 @@ off and once with it on, and asserts the two payloads are IDENTICAL — the shad
 flag's own docstring says must pass before the default flips.
 
 ⚠️ The stub grid is deliberately 12x24, not the 4x8 the soft-deadline suite uses, so that BOTH
-branches of the batch form are exercised: rows 2..9 are interior (vectorized) and rows 0,1,10,11 are
-clamped (delegated to the scalar function). A grid too small to have an interior would pass this
-test while testing only the delegation.
+branches of the batch form CAN be exercised. But a grid with an interior is not the same thing as a
+RUN that enters it, and until 2026-08-07 this suite only had the former.
+
+⛔⛔ WHAT WENT WRONG, KEPT BECAUSE THE FIX IS ONLY LEGIBLE NEXT TO IT (MASTER-AUDIT-10.0 row O).
+The loop derives `half = max(1, round(resolution / 0.25 / 2))`, so the 30 deg payload runs at
+**half=60** — and no row of a 12-row grid satisfies `r - 60 >= 0`. Instrumenting the real run:
+
+    points through the batch form : 31,128
+    INTERIOR (vectorized)         :      18   (0.06%)   <- and all 18 came from a fixture control's
+    DELEGATED (scalar)            : 31,110   (99.94%)      own direct half=2 call, not the loop
+
+Production is the exact complement: **100.0% interior** at all three shipped resolutions (coarse
+half=20, global_mid half=4, pilot half=1). So the guard for a flag that is ON in production covered
+0% of the path producing 100% of production's regridded values, and the shadow comparison was the
+scalar path against itself.
+
+★ The fixture control that should have caught it asserted on a HARD-CODED half=2 — a proxy for its
+subject rather than its subject. Both are fixed: `_INTERIOR_RES` gives the loop a small `half`, and
+`test_the_loop_actually_REACHES_the_vectorized_branch` instruments the run instead of the fixture.
 """
 import sys
 import types
@@ -62,7 +78,35 @@ class _Grbs:
         pass
 
 
-def _run(monkeypatch, vector_flag, part_conf="1"):
+def _interior_spy(monkeypatch):
+    """Count how many points take the VECTORIZED branch vs the delegated scalar one.
+
+    ⚠️ THIS EXISTS BECAUSE THE SUITE'S OWN DOCSTRING WAS WRONG (MASTER-AUDIT-10.0 row O). It claimed
+    "rows 2..9 are interior (vectorized)" — true at half=2, and the fetch loop derives
+    `half = round(resolution / 0.25 / 2)`, so the 30 deg payload below runs at **half=60** against a
+    12-row grid, where `rs - 60 >= 0` can never hold. Measured on the real run: **18 of 31,128
+    points interior (0.06%)**, and all 18 came from a direct half=2 call, not the fetch loop.
+    Production is the exact complement — **100.0% interior** at all three shipped resolutions
+    (coarse half=20, global_mid half=4, pilot half=1).
+    ⇒ The guard covered 0% of the path that produces 100% of production's regridded values.
+    """
+    import numpy as np
+
+    import services._fetch_blockmean_vec as V
+    orig = V._interior_mask
+    stats = {"points": 0, "interior": 0}
+
+    def _spy(rs, cs, nrows, ncols, half, wrap_cols):
+        m = orig(rs, cs, nrows, ncols, half, wrap_cols)
+        stats["points"] += int(np.size(m))
+        stats["interior"] += int(np.count_nonzero(m))
+        return m
+
+    monkeypatch.setattr(V, "_interior_mask", _spy)
+    return stats
+
+
+def _run(monkeypatch, vector_flag, part_conf="1", resolution=30.0, bbox=None):
     import services.noaa_gfs_wave_fetcher as fetcher
 
     monkeypatch.setitem(sys.modules, "pygrib", types.SimpleNamespace(open=lambda _p: _Grbs()))
@@ -87,13 +131,72 @@ def _run(monkeypatch, vector_flag, part_conf="1"):
         return types.SimpleNamespace(status_code=206, content=b"\x00" * 8)
 
     monkeypatch.setattr(__import__("requests"), "get", _get)
-    payload = {"bbox": {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0},
-               "resolution": 30.0, "forecast_days": 1, "output_path": ""}
+    payload = {"bbox": bbox or {"west": -180.0, "south": -80.0, "east": 180.0, "north": 85.0},
+               "resolution": resolution, "forecast_days": 1, "output_path": ""}
     return fetcher.fetch_global_coarse(payload)
 
 
+# `half = max(1, round(resolution / 0.25 / 2))` (noaa_gfs_wave_fetcher:312). At 30 deg that is 60,
+# which cannot be interior on a 12-row grid; at 1 deg it is 2, which matches this fixture's
+# documented "rows 2..9 are interior" and is the same branch production always takes. The bbox is
+# narrowed so the fine resolution stays cheap — coverage of the branch is the point, not point count.
+_INTERIOR_RES = 1.0
+_INTERIOR_BBOX = {"west": -20.0, "south": -20.0, "east": 20.0, "north": 20.0}
+
+
+def test_the_loop_actually_REACHES_the_vectorized_branch(monkeypatch):
+    """⭐ THE COVERAGE ASSERTION THIS SUITE WAS MISSING, AND THE REASON IT PASSED WHILE TESTING
+    ONLY DELEGATION. See `_interior_spy` for the measurement.
+
+    A shadow comparison of two paths proves nothing about a branch NEITHER path enters. At the 30 deg
+    payload both the flag-on and flag-off runs delegate 100% of points to the scalar function, so the
+    two payloads agree trivially — the vectorized gather is never executed at all, while in
+    production it executes for every point.
+    """
+    stats = _interior_spy(monkeypatch)
+    points, ok, _f, _t = _run(monkeypatch, "1", resolution=_INTERIOR_RES, bbox=_INTERIOR_BBOX)
+
+    assert ok > 0 and points, "SETUP BROKEN: the harness decoded nothing"
+    assert stats["points"] > 0, "SETUP BROKEN: the batch form was never called"
+    pct = 100.0 * stats["interior"] / stats["points"]
+    assert stats["interior"] > 0, (
+        f"the fetch loop entered the batch form {stats['points']} times and took the VECTORIZED "
+        f"branch ZERO times — every point was delegated to the scalar function, so this suite is "
+        f"shadow-comparing the scalar path against itself. Production is 100% interior at all three "
+        f"shipped resolutions. (half = round(resolution/0.25/2); this case must keep half small "
+        f"enough for a {NLAT}-row grid to have an interior.)")
+    assert pct > 25.0, (
+        f"only {pct:.2f}% of points took the vectorized branch — too thin to call this covered")
+
+
+def test_the_vector_flag_changes_nothing_at_the_INTERIOR_resolution(monkeypatch):
+    """The shadow comparison that actually exercises the gather. The 30 deg case below is kept as
+    the DELEGATION control; this one is the vectorized one, and until row O they were the same test."""
+    with monkeypatch.context() as m:
+        off_points, off_ok, off_failed, off_times = _run(
+            m, "0", resolution=_INTERIOR_RES, bbox=_INTERIOR_BBOX)
+    with monkeypatch.context() as m:
+        on_points, on_ok, on_failed, on_times = _run(
+            m, "1", resolution=_INTERIOR_RES, bbox=_INTERIOR_BBOX)
+
+    assert off_ok > 0 and (off_ok, off_failed, off_times) == (on_ok, on_failed, on_times)
+    assert len(off_points) == len(on_points) and len(off_points) > 0
+    for i, (a, b) in enumerate(zip(off_points, on_points)):
+        assert a.keys() == b.keys(), f"point {i}: key sets differ"
+        for k in a:
+            assert a[k] == b[k], (
+                f"point {i} field {k!r} differs between the scalar and vectorized paths at the "
+                f"INTERIOR resolution — this is the branch production always takes")
+
+
 def test_the_vector_flag_changes_nothing_about_the_output(monkeypatch):
-    """THE SHADOW COMPARISON: same stubbed inputs, both paths, byte-identical payloads."""
+    """THE SHADOW COMPARISON: same stubbed inputs, both paths, byte-identical payloads.
+
+    ⚠️ At the 30 deg payload this is the DELEGATION control — half=60 on a 12-row grid means every
+    point goes to the scalar function. Kept deliberately: the clamped path is real in production at
+    grid edges, and `_finalize` calling the original scalar function is what makes the result
+    identical rather than merely close. The vectorized branch is covered by the two tests above.
+    """
     with monkeypatch.context() as m:
         off_points, off_ok, off_failed, off_times = _run(m, "0")
     with monkeypatch.context() as m:
@@ -175,25 +278,51 @@ def test_every_wired_batch_reduction_is_actually_reached(monkeypatch):
         f"these batch reductions are wired but never executed by either lane: {never}. "
         "Either the wiring is unreachable or this suite stopped covering it — both are worse than "
         f"a failing test. Call counts: {calls}")
-    """MUTATION CONTROL: if the stub grid had no interior, the shadow test would compare the
-    delegated-scalar path against itself and prove nothing about the vectorization."""
-    from services._fetch_blockmean_vec import _interior_mask
+    # ⚠️ An orphaned copy of the fixture control used to sit here — a bare string literal (a
+    # docstring in statement position, i.e. a no-op) followed by a duplicate of the half=2 check
+    # that `test_the_harness_actually_exercises_both_batch_branches` already owns. It ran twice,
+    # produced 9 interior points each time, and those 18 were the ONLY interior points in the whole
+    # suite (MASTER-AUDIT-10.0 row O). Removed: a coverage-counting test should not also carry an
+    # unrelated assertion, and duplicated rationale is how the stale claim survived review.
 
-    rs = np.arange(NLAT, dtype=np.intp)
-    cs = np.full(NLAT, 5, dtype=np.intp)
-    interior = _interior_mask(rs, cs, NLAT, NLON, 2, True)
-    assert interior.any(), "no interior rows — the vectorized branch is never taken"
-    assert not interior.all(), "no clamped rows — the delegation branch is never taken"
+
+def _half_for(resolution):
+    """The `half` the fetch loop will actually derive — noaa_gfs_wave_fetcher.py:312."""
+    return max(1, int(round(resolution / 0.25 / 2.0)))
 
 
 def test_the_harness_actually_exercises_both_batch_branches():
-    """MUTATION CONTROL on the FIXTURE, not the code: if the stub grid had no interior, every shadow
-    comparison above would be running the delegated-scalar path against itself and proving nothing
-    about the vectorization; if it had no clamped rows, the delegation would never be tested."""
+    """MUTATION CONTROL on the FIXTURE — and it is only a control if it uses the `half` the LOOP
+    uses.
+
+    ⛔ THIS IS THE ASSERTION THAT LET row O SHIP. It previously called
+    `_interior_mask(rs, cs, NLAT, NLON, 2, True)` with a HARD-CODED half=2, and asserted that the
+    stub GRID has an interior at that half. True — and irrelevant, because the fetch loop derives
+    `half = round(resolution / 0.25 / 2)`, which at the 30 deg payload is **60**, and no row of a
+    12-row grid is interior at half=60.
+
+    ★★★ So the control answered "could this grid have an interior at SOME half?" when the question
+    was "did the run take the interior branch?" — a proxy for its subject rather than its subject.
+    Measured: the only interior points in the whole suite were the 9 this call itself produced,
+    twice over. `test_the_loop_actually_REACHES_the_vectorized_branch` now asserts the real thing by
+    instrumenting the run; this stays as the cheap fixture-shape check, corrected to derive `half`.
+    """
     from services._fetch_blockmean_vec import _interior_mask
 
     rs = np.arange(NLAT, dtype=np.intp)
     cs = np.full(NLAT, 5, dtype=np.intp)
-    interior = _interior_mask(rs, cs, NLAT, NLON, 2, True)
-    assert interior.any(), "no interior rows — the vectorized branch is never taken"
-    assert not interior.all(), "no clamped rows — the delegation branch is never taken"
+
+    half_interior = _half_for(_INTERIOR_RES)
+    interior = _interior_mask(rs, cs, NLAT, NLON, half_interior, True)
+    assert interior.any(), (
+        f"the interior-resolution case ({_INTERIOR_RES} deg -> half={half_interior}) has NO interior "
+        f"row on a {NLAT}-row grid, so the vectorized branch is never taken")
+    assert not interior.all(), (
+        f"half={half_interior} leaves no clamped rows — the delegation branch is never tested")
+
+    # And the 30 deg case is the DELEGATION control by construction: assert it really does delegate,
+    # so nobody "tidies" the two cases back into one and silently loses the interior coverage again.
+    half_delegating = _half_for(30.0)
+    assert not _interior_mask(rs, cs, NLAT, NLON, half_delegating, True).any(), (
+        f"the 30 deg payload (half={half_delegating}) now HAS an interior on a {NLAT}-row grid — it "
+        f"was the pure-delegation control, so re-derive which case covers which branch")

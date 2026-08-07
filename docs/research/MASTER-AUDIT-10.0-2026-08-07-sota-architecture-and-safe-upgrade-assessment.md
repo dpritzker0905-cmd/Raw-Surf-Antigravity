@@ -636,6 +636,39 @@ The audit is read-only; these landed after it, each with a guard that was **made
 | **G** | the 18 open-ocean spots — `coastal` promoted by fitted shore-normal evidence | mutation: **5 of 7 guards die** with the promotion removed, naming Soup Bowl, Kandooma and Noronha |
 | **E** | the coverage floor made unconditional **and** given a metric that responds | mutation: fixing **only the gate** kills the identical 5 guards — both halves were required |
 | **H** | tide reaches the depth-limited cap (physics only, `SURF_TIDE_DEPTH` default **OFF**) | **5,544 cells byte-identical** flag-on vs flag-off; 3 mutations, one of which found a hole in my own suite |
+| **O** | the vectorization loop guard now enters the branch it guards | coverage **0.06% → 92.11%** interior, measured by instrumenting the real run; **zero production lines changed** |
+
+**Row O — the guard was blind, and its own control was the reason.**
+`half = max(1, round(resolution / 0.25 / 2))`, so the suite's 30° payload ran at **half=60** against a
+12-row stub grid, where `r − 60 ≥ 0` can never hold. Instrumenting the real pytest run:
+
+```
+points through the batch form : 31,128
+INTERIOR (vectorized)         :      18   (0.06%)   <- ALL 18 from a fixture control's own
+DELEGATED (scalar)            : 31,110   (99.94%)      direct half=2 call, not the fetch loop
+PRODUCTION, same function     :          100.0% interior at all three shipped resolutions
+                                         (coarse half=20, global_mid half=4, pilot half=1)
+```
+
+**The guard for a flag that is ON in production covered 0% of the path producing 100% of
+production's regridded values**, and its "shadow comparison" was the scalar path against itself.
+
+★★★ **THE ROOT WAS THE CONTROL, NOT THE FIXTURE.** `test_the_harness_actually_exercises_both_batch_
+branches` called `_interior_mask(..., half=2)` **hard-coded** and asserted the *grid* has an interior
+at that half — true, and irrelevant. It answered *"could this grid have an interior at some half?"*
+when the question was *"did the run take the interior branch?"* ⇒ **a guard that asserts on a proxy
+for its subject instead of its subject.** The 18 interior points in the entire suite were the 9 that
+control produced, twice — because an **orphaned duplicate** of it (a bare string literal in statement
+position plus a repeat of the assertions) had been appended to a different test.
+
+Fixed: the control now **derives `half` from the resolution** and additionally pins that the 30° case
+still delegates; a new test **instruments the run** rather than the fixture; the duplicate is removed;
+the module docstring's false claim is corrected. Mutation: reverting `_INTERIOR_RES` to 30° fails,
+quoting *"entered the batch form 7,776 times and took the VECTORIZED branch ZERO times."*
+
+⚠️ **No production code changed.** The vectorization math was already correct — §2.2's independent
+differential (8,400 reductions, max |diff| 8.9e-16) is what establishes that. This fixes the *wiring*
+guard, which is the prerequisite for row Q (~291 s/run, mid-res lanes only).
 
 **Row E — the Jacobian lens pointed at an INSTRUMENT rather than at physics.** The floor was both
 **gated off** (only the soft deadline set `truncated_at`) *and* **blind** (`covered_h` counted
