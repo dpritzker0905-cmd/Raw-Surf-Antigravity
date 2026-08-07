@@ -733,6 +733,61 @@ spots) and row H (tide) are untouched.
 
 ---
 
+## §5d ✅ VERIFIED LIVE — the first post-flip ingest ran, and the chain works end to end
+
+Ingest `31151965864`, 05:51Z, at **`a6b443ec`** — the first cycle carrying both the ensemble flag and
+this session's fixes. It succeeded, and it settles three items that were blocked all session.
+
+**1. The EURO wave cost, finally measured on the Render box, not a CI runner:**
+```
+[ECMWF EURO-Waves] steps_ok=65 steps_failed=0  elapsed=485.7s   vs the 1800 s kill = 27% used
+```
+Comfortable. The 08-07 handoff's projection was ~569 s for the lane; the real figure is lower.
+
+**2. The ensemble reaches served products.**
+
+| product | run_time | vectors carrying `speed_spread` |
+|---|---|---|
+| `euro_marine_waves_global_mid` | 05:32Z | **798 of 924 (86.4%)** |
+| `euro_marine_waves_florida_east_coast` | 06:19Z | **149 of 221 (67%)** |
+| `euro_marine_waves_us_west_coast_socal` | 06:19Z | **96 of 153 (63%)** |
+
+Spread at +7 d: min 0.020, **p50 0.164**, p90 0.517, max 1.253 m — matching the recorded CI figure
+(p50 0.167 m at +120 h). ⚠️ `iberia_west` and `hawaii` are still the **pre-flip 01:46Z** tiles; they
+refresh on the pilots cadence (03/11/19Z), so a European spot carries nothing until then.
+
+**3. ⭐ THE ROW-B FIX IS WORKING IN PRODUCTION, AND THE PREDICTED REACH HELD.** Six real spots inside
+spread-carrying tiles:
+```
+Fort Pierce FL      nearest_ocean_fallback   spread=0.0468   <- the path fixed in 57c657f9
+Sebastian Inlet FL  bilinear_ocean_masked    spread=None
+Deerfield Bch FL    bilinear_ocean_masked    spread=None
+Trestles CA         bilinear_ocean_masked    spread=None
+Blacks CA           bilinear                 spread=None
+Huntington CA       bilinear_ocean_masked    spread=None
+```
+**1 of 6 = 16.7%**, inside the **4.8–20%** band predicted from the pre-fix census. Before the fix it
+was **0 of 1,103**. The remaining ~83% is bilinear, which refuses **by design** — that is the owner
+decision named in §5b, and it is now the only thing between here and full coverage.
+
+⚠️ **A SEVENTH SAMPLER PATH SURFACED THAT THE AUDIT NEVER ENUMERATED: `direct_point_api`.** Where no
+regional tile covers the requested valid_time, the resolver bypasses the grid entirely and queries
+upstream per-point — so it can never carry spread regardless of what the product holds. Measured at
+Peniche: `bilinear_ocean_masked` at +1 d, **`direct_point_api` at +3 d and beyond**. Any future reach
+number must count it as a third category, not fold it into "interpolated".
+
+### ✅ AND ICON/weather RECOVERED — which is itself the natural experiment §1.8a needed
+
+Same cycle: ICON/weather went **14.2 h → 0.7 h, status `critical` → `ok`**, and
+`manifest_written_by` is now `designated:gh-run-31151965864` — **the main ingest itself**, because the
+pilots run (03/11/19Z) did not overlap this time. The 01:38Z write was lost when the pilots were the
+last writer; the 06:0xZ write survived when they were not. **That is direct support for the
+shared-manifest lost-update mechanism** — obtained for free, without the instrument. ⚠️ It still does
+not explain why the 01:18Z `GFS/marine` write survived the same clobber, so the instrument in §1.8a
+is still what closes it. And the defect will recur on the next overlapping cycle.
+
+---
+
 ## §5c WHAT THIS AUDIT DID NOT COVER — stated so it is not over-quoted
 
 - **The nearshore denominators are a 250-coordinate sample of `shore_normals.json`'s 1,386**
