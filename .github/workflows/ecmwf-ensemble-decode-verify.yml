@@ -187,5 +187,33 @@ jobs:
               sys.exit(1)
           print(f"wave_height non-null {len(vals)}/{len(h.get('wave_height', []))} "
                 f"min={min(vals)} max={max(vals)}")
-          print("::notice::C PASSED. Ensemble decode verified end to end on real GRIB.")
+
+          # ── D: DOES THE SPREAD ACTUALLY REACH THE PAYLOAD? ──────────────────────────────────────
+          # Added after the emission shipped. Until now this job proved the DECODE and stopped: it
+          # would have passed unchanged while the spread was computed, reduced, and then dropped
+          # before anyone could read it — the "true but reaches nobody" shape, certified green.
+          sp = h.get("wave_height_spread")
+          if sp is None:
+              print("::error::D FAILED — no `wave_height_spread` series in the payload. The ensemble "
+                    "is being reduced and then discarded; every consumer still sees a point forecast.")
+              sys.exit(1)
+          if len(sp) != len(h["wave_height"]):
+              print(f"::error::D FAILED — spread series is {len(sp)} long, heights are "
+                    f"{len(h['wave_height'])}; the two would misalign in time")
+              sys.exit(1)
+          live = [v for v in sp if v is not None]
+          if not live:
+              print("::error::D FAILED — the spread series exists but is entirely None; it is "
+                    "carrying absence, not a distribution")
+              sys.exit(1)
+          print(f"spread non-null {len(live)}/{len(sp)}  min={min(live)} max={max(live)}")
+
+          # ⚠️ SMALL IS EXPECTED HERE AND IS NOT A FAILURE: this fetch is forecast_days=1, so every
+          # step is a short lead where members have barely diverged. Check B already measured the
+          # growth (p50 0.0000 at +0 h -> 0.1595 at +120 h). D is a TRANSPORT check; asserting a
+          # magnitude here would re-test B against the wrong data and fail for a physical reason.
+          if all(v == 0.0 for v in live):
+              print("::notice::all spreads round to 0.0 at these short leads — expected; B is the "
+                    "magnitude check, D is the transport check.")
+          print("::notice::C+D PASSED. Decode AND emission verified end to end on real GRIB.")
           PY
