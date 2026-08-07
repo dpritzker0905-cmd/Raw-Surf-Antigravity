@@ -64,6 +64,16 @@ class _Msg:
         a = rng.uniform(0.0, 8.0 if k % 3 else 360.0, size=(NLAT, NLON))
         a[rng.uniform(size=a.shape) < 0.25] = np.nan      # land/ice mask -> exercises the fallbacks
         a[3, 5] = 0.0                                     # a zero-energy cell
+        # ⭐ A FULLY-MASKED BAND — a whole CONTINENT, not scattered pixels. Measured 2026-08-07: the
+        # random mask alone produced all-NaN windows on **0 of 3,456** (P = 2.3e-10 for an interior
+        # 16-cell window at p=0.25), while **12-37% of production's blocks are fully land-masked**.
+        # So the single most common real fallback — "this block is entirely land" — was untested
+        # here, and `multi_dir_conf_batch` had never seen an all-NaN block in ANY suite: the parity
+        # suite reaches its conf=None path via ZEROS, never via NaN.
+        # ✅ The shipped path is CLEAN on it — 41,472 oracle comparisons and 555,489 served values,
+        # 0 differences, with mutation controls confirming the comparison would fire. This band keeps
+        # it that way rather than fixing anything.
+        a[4:10, :] = np.nan
         self.values = a
 
     def latlons(self):
