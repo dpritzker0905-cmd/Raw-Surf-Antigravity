@@ -136,12 +136,18 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
   figure is about branch *reachability*, and reachability × a zero-spread source = zero delivery.
 * ⚠️ **The spot hub block is a VISIBLE change.** It renders only under `?model=EURO` or a stored
   active model of EURO, so most users will not see it yet.
-* ✅ **The E2E backend gate passed its first real CI run** (`31208159146`) — and it cost **0 s**
-  (`started_at == completed_at == 18:45:35Z`), because placing it after the installs meant the
-  Render deploy had already finished. That is the design working, not the gate being skipped: the
-  same step exits 1 when the SHA does not match, verified directly against production.
-  ⚠️ **What is NOT yet known is whether the suite now PASSES** — the gate removes the race; it does
-  not prove the tests were only ever failing because of it.
+* ✅ **THE E2E SUITE IS GREEN — `31208159146`: 46 passed, 1 flaky, 0 failed (6.7 m).** First success
+  after 15 of 26 runs failing since 08-06. The backend gate cost **0 s**
+  (`started_at == completed_at == 18:45:35Z`): placing it after the installs meant the Render deploy
+  had already finished. That is the design working, not the gate being skipped — the same step exits
+  1 when the SHA does not match, verified directly against production.
+  ⚠️ **ONE FLAKY REMAINS** — `weather-simulation … toggle and timeline scrubbing`, Desktop Chrome.
+  **The gate removed the deploy race; it did not make the suite deterministic.** Do not read one
+  green run as proof the whole class is closed — n=1, and this session already recorded a
+  predecessor over-reading exactly that.
+* ⚠️ **`concurrency: cancel-in-progress: true` means ANY push cancels the E2E run in flight.**
+  Several "cancelled" runs in the history are just rapid pushes, not failures. If you want the
+  result, wait for it before pushing again.
 * ⚠️ **`timeout-minutes` went 25 → 50.** If the frontend and backend waits ever both run long, the
   job now burns up to ~45 min before failing. That is deliberate — at 25 it would have died on a
   generic timeout instead of printing which deploy failed — but it is a real cost.
