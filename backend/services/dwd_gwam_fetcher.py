@@ -84,9 +84,28 @@ PERIOD_TO_HEIGHT = {
 try:
     from _fetch_common import (energy_mean_direction_block, energy_mean_direction_block_multi_conf,
                                energy_mean_height_block, energy_mean_scalar_block)      # script-by-path
+    from _fetch_blockmean_vec import (direction_block_batch, height_block_batch,
+                                      multi_dir_conf_batch, scalar_block_batch)
 except ImportError:
     from services._fetch_common import (energy_mean_direction_block, energy_mean_direction_block_multi_conf,
                                         energy_mean_height_block, energy_mean_scalar_block)  # package context
+    from services._fetch_blockmean_vec import (direction_block_batch, height_block_batch,
+                                               multi_dir_conf_batch, scalar_block_batch)
+
+
+def _vector_blockmean() -> bool:
+    """Same switch, same semantics, same oracle as the NOAA lane (noaa_gfs_wave_fetcher:65).
+
+    MEASURED at HEAD on this lane's real variable mix (3 height + 3 scalar + 2 direction +
+    1 multi_conf), 721x1440 native, 30% NaN, both paths warmed:
+        global_mid  half=4  14,940 pts x 57 steps -> 10.10x, ~90.1 s saved per run, 24.2 MB peak
+        pilot       half=1     609 pts x 17 steps -> 76.26x, ~1.0 s
+        coarse      half=20    612 pts x 57 steps ->  1.13x, ~0.9 s
+    ⚠️ The audit's "coarse LOSES 0.8x" did not replicate -- coarse is a small win -- so there is no
+    resolution gate here. ⛔ But the coarse saving is ~1 s: this is worth having on global_mid and is
+    noise elsewhere. Read PER CALL, not at import, so it stays flippable at runtime.
+    Kill: FETCH_VECTOR_BLOCKMEAN=0 restores the per-point loop, which is retained, not deleted."""
+    return os.environ.get("FETCH_VECTOR_BLOCKMEAN", "1") != "0"
 
 # §0B-a render-confidence export for the TOTAL direction (parity with the NOAA coarse fetcher,
 # wired 2026-07-15): the FE fades crest rendering below ~0.65 confidence, but only when the field
@@ -251,6 +270,60 @@ def fetch_global_coarse(payload):
                     _conf_here = export_confidence and om == "wave_direction"
                     for rid, im in idx_by.items():
                         series = series_by[rid]
+                        # ── VECTORIZED PATH (FETCH_VECTOR_BLOCKMEAN) ──────────────────────────────
+                        # The branch is chosen per-VARIABLE above (`h_arr`, `is_height`, `p_h_arr`,
+                        # `_conf_here` are all loop-invariant here), so it hoists out of the point
+                        # loop exactly as it does in the NOAA lane. Each batch form vectorizes only
+                        # the INTERIOR points and DELEGATES clamped edge rows to the scalar function
+                        # handed to it — which is what makes the result identical rather than close.
+                        # The scalar loop below is the permanent oracle, not dead code.
+                        if _vector_blockmean() and im:
+                            _rs = np.fromiter((p[0] for p in im), dtype=np.intp, count=len(im))
+                            _cs = np.fromiter((p[1] for p in im), dtype=np.intp, count=len(im))
+                            _vals = _confs = _present = None
+                            if h_arr is not None and _conf_here:
+                                _vals, _confs, _present = multi_dir_conf_batch(
+                                    [(arr, h_arr)], arr, _rs, _cs, half, True,
+                                    lambda _r, _c, _h=half: energy_mean_direction_block_multi_conf(
+                                        [(arr, h_arr)], arr, _r, _c, _h, True))
+                            elif h_arr is not None:
+                                _vals = direction_block_batch(
+                                    arr, h_arr, _rs, _cs, half, True,
+                                    lambda _r, _c, _h=half: energy_mean_direction_block(
+                                        arr, h_arr, _r, _c, _h, True))
+                            elif is_height:
+                                _vals = height_block_batch(
+                                    arr, _rs, _cs, half, True,
+                                    lambda _r, _c, _h=half: energy_mean_height_block(
+                                        arr, _r, _c, _h, True))
+                            elif p_h_arr is not None:
+                                _vals = scalar_block_batch(
+                                    arr, p_h_arr, _rs, _cs, half, True,
+                                    lambda _r, _c, _h=half: energy_mean_scalar_block(
+                                        arr, p_h_arr, _r, _c, _h, True))
+                            if _vals is not None:
+                                for pi in range(len(im)):
+                                    _x = float(_vals[pi])
+                                    if _confs is not None:
+                                        # ⭐ `conf_present` carries the scalar's `None` — "no
+                                        # blockwise evidence" — which NaN cannot represent. Folding
+                                        # it to NaN would make "not sampled" look like "computed and
+                                        # undefined", the conflation the refusal rules exist to stop.
+                                        _cv = float(_confs[pi])
+                                        series[pi][DIR_CONFIDENCE_OM].append(
+                                            round(_cv, 4) if bool(_present[pi]) else None)
+                                    # ⛔ PASS THE RAW VALUE — `_sanitize_om` owns the NaN test.
+                                    # This line originally read `_x if _x == _x else None`, a
+                                    # "defensive" NaN->None normalisation, and THAT was the bug:
+                                    # `_sanitize_om`'s guard is `if x != x`, and `None != None` is
+                                    # **False**, so None slipped past it into `float(None)` ->
+                                    # TypeError -> the enclosing `except` nulled the ENTIRE variable
+                                    # for that forecast hour. Measured: 53,136 differing cells, ALL
+                                    # of them num->None, zero None->num, zero numeric.
+                                    # ★ The conversion was the defect. The scalar path below passes
+                                    # the raw value for exactly this reason.
+                                    series[pi][om].append(_sanitize_om(om, _x))
+                                continue
                         for pi, (r, c) in enumerate(im):
                             if h_arr is not None and _conf_here:
                                 x, conf = energy_mean_direction_block_multi_conf([(arr, h_arr)], arr, r, c, half, True)
