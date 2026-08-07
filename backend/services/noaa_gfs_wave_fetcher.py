@@ -561,14 +561,52 @@ def fetch_global_coarse(payload):
     # whole 2 days, refusing every partial on principle and quietly disabling this path for the
     # short passes. Half the request, or 120 h, whichever is SMALLER -> 14 d judged at 120 h (the
     # bar that matters for global_mid), a 5 d pilot pass at 60 h, a 2 d quick pass at 24 h.
-    if truncated_at is not None:
-        floor_h = min(float(os.environ.get("NOAA_FETCH_MIN_HOURS", "120")), float(max_f) * 0.5)
-        covered_h = (len(times) - 1) * 3 if times else 0
-        if covered_h < floor_h:
-            sys.stderr.write(
-                f"[noaa_gfs_wave_fetcher] REFUSING partial result: covered {covered_h}h < floor "
-                f"{floor_h:.0f}h — keeping the previous run rather than pruning it to a stub\n")
-            return ({} if multi else []), steps_ok, steps_failed, None
+    # ⛔⛔ TWO INDEPENDENT DEFECTS LIVED HERE UNTIL 2026-08-07 (MASTER-AUDIT-10.0 §1.4 / row E), and
+    # fixing either one alone leaves the floor useless.
+    #
+    #  (1) IT WAS GATED `if truncated_at is not None`, and `truncated_at` is set ONLY by the
+    #      soft-deadline break above. So the floor could fire only on the SLOW failure and never on
+    #      the BROKEN one — upstream 429/503, short-range publication, malformed GRIB. Those raise
+    #      per-step, are caught, and leave `truncated_at` None.
+    #  (2) IT MEASURED THE WRONG QUANTITY. `covered_h = (len(times) - 1) * 3` counts `times`, and
+    #      the per-step `except` branch appends to `times` too (it appends None values to keep the
+    #      alignment invariant). So a run in which EVERY step failed still measured a full 336 h.
+    #
+    # MEASURED by driving the real loop with a stubbed wire, deadline deliberately never binding:
+    #     ok_steps  failed  covered_h(old)   null_frac
+    #        113       0         336            0.0%
+    #         60      53         336           46.9%
+    #         20      93         336           82.3%
+    #          1     112         336           99.1%   <- shipped, claiming a 336 h horizon
+    #   d(covered_h)/d(steps_failed) = +0.000   at every rate
+    #   d(null%)    /d(steps_failed) = +0.885
+    # ★★★ AN INSTRUMENT WHOSE DERIVATIVE W.R.T. ITS OWN SUBJECT IS ZERO CANNOT DETECT IT. That is
+    # why (2) is not optional: with only (1) fixed the floor would compute 336 >= 120 and pass a
+    # 99.1%-null product every time.
+    #
+    # ⚠️ WHY `steps_ok` AND NOT `len(times)`: it counts only steps that actually decoded. In the
+    # pure-truncation case (steps_failed == 0) `steps_ok == len(times)`, so this is BYTE-IDENTICAL
+    # to the previous behaviour on the path the soft-deadline tests already pin — the change can
+    # only ever be MORE conservative, never less.
+    #
+    # ⚠️⚠️ THIS FLOOR EXISTS IN 1 OF 9 FETCHERS, AND THAT IS DELIBERATELY NOT BEING "FIXED" HERE.
+    # Six siblings (`dwd_gwam`, `dwd_icon_wind`, `dwd_icon_pressure`, `noaa_gfs_wind`,
+    # `noaa_gfs_pressure`, `ecmwf_opendata`) also track `steps_failed`, so they can also ship a
+    # partially-null product. That is a claim about CODE. Whether it is an EXPOSURE needs a
+    # denominator nobody has measured: each lane's observed upstream failure rate, and whether its
+    # prune rule actually replaces a healthy longer product the way GFS's "plain newest-run" one
+    # does (copernicus_validator.py:389). ★ The 2026-08-06 session lost five builds to exactly this
+    # error, and the 08-07 audit closed a salvage propagation on it — the six unsalvaged lanes ran
+    # at 3.3-36.1% of their kill. PRICE IT WITH A PAIRED MEASUREMENT BEFORE COPYING THIS.
+    floor_h = min(float(os.environ.get("NOAA_FETCH_MIN_HOURS", "120")), float(max_f) * 0.5)
+    covered_h = max(0, steps_ok - 1) * 3
+    if covered_h < floor_h:
+        sys.stderr.write(
+            f"[noaa_gfs_wave_fetcher] REFUSING partial result: covered {covered_h}h < floor "
+            f"{floor_h:.0f}h (steps_ok={steps_ok} steps_failed={steps_failed} "
+            f"truncated_at={truncated_at}) — keeping the previous run rather than pruning it to a "
+            f"stub\n")
+        return ({} if multi else []), steps_ok, steps_failed, None
 
     by_region = {}
     for rid, (la_axis, lo_axis) in axes.items():
