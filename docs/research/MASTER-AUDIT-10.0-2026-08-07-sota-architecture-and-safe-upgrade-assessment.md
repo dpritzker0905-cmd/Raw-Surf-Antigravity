@@ -668,7 +668,47 @@ quoting *"entered the batch form 7,776 times and took the VECTORIZED branch ZERO
 
 ⚠️ **No production code changed.** The vectorization math was already correct — §2.2's independent
 differential (8,400 reductions, max |diff| 8.9e-16) is what establishes that. This fixes the *wiring*
-guard, which is the prerequisite for row Q (~291 s/run, mid-res lanes only).
+guard, which is the prerequisite for row Q.
+
+### 5b.1 ⚠️ ROW Q RE-PRICED BEFORE BUILDING — and two of its premises do not replicate
+
+Measured at HEAD on the **real per-lane variable mix** (not one reduction), 721×1440 native, 30% NaN,
+both paths warmed, min-of-2, with `tracemalloc` on the gather:
+
+| lane | half | npts | steps | speedup | **saved s/run** | peak MB |
+|---|---|---|---|---|---|---|
+| NOAA coarse | 20 | 612 | 113 | 1.10× | 1.5 | 24.5 |
+| **NOAA global_mid** *(already wired)* | 4 | 14,940 | 113 | **12.51×** | **264.8** | 24.2 |
+| GWAM coarse | 20 | 612 | 57 | 1.13× | 0.9 | 24.5 |
+| **GWAM global_mid** | 4 | 14,940 | 57 | **10.10×** | **90.1** | 24.2 |
+| GWAM pilot | 1 | 609 | 17 | 76.26× | 1.0 | 0.1 |
+| EURO coarse | 20 | 612 | 65 | 1.16× | 0.7 | 24.5 |
+| **EURO global_mid** | 4 | 14,940 | 65 | **9.26×** | **53.5** | 24.2 |
+
+**1. The INCREMENTAL win is ~146 s/run, not 291 s.** The 412.5 s total includes NOAA's 264.8 s, which
+is **already realised** — NOAA is the one lane already wired. Row Q's actual scope (GWAM + EURO) is
+**≈146 s/run**, about half what was recorded.
+
+**2. "Coarse loses (0.8×, −2.6 s)" does not replicate.** Coarse measures **1.10–1.16×** on every lane
+— a small but positive win. ⇒ **The "mid-res only" gate the audit prescribed is unnecessary**, and
+the design question it implied (gate on `half`? on point count?) dissolves: wire both fetchers
+wholesale. *(The original 0.8× may have been a different reduction subset; `multi_dir_conf` is not in
+this mix and its 80 MB transient is unre-measured.)*
+
+**3. Memory is a non-issue at these sizes** — 24.2–24.5 MB peak for height+scalar, not the 80–191 MB
+feared. ⚠️ `multi_dir_conf` was **not** measured here; price it before wiring that one.
+
+⛔ **AND THE DENOMINATOR SAYS THIS IS NOT URGENT.** GWAM runs at **23%** of its 1800 s kill (414 s
+observed) and EURO at **27%** (485.7 s, measured live this session). 146 s takes them to ~18% and
+~24%. **The saving is real; the risk it removes is approximately zero**, because neither lane has
+ever been near its ceiling. This is an efficiency item, not a reliability one — which is exactly the
+distinction that killed five builds on 08-06, applied to a change I was about to make myself.
+
+**Recommended scope when it is picked up:** wire `dwd_gwam_fetcher` first (90.1 s, and its four
+reductions sit in one point loop at lines 256–265, the same shape NOAA already solves at 467–486),
+then `ecmwf_opendata_fetcher` (53.5 s). ⛔ **Each needs its own loop-shadow guard with the row-O
+coverage assertion** — a wiring change protected by a guard that never enters the branch is strictly
+worse than no change.
 
 **Row E — the Jacobian lens pointed at an INSTRUMENT rather than at physics.** The floor was both
 **gated off** (only the soft deadline set `truncated_at`) *and* **blind** (`covered_h` counted
