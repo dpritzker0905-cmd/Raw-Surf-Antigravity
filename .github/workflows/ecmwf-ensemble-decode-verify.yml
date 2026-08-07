@@ -90,7 +90,18 @@ jobs:
           # ── B: are the members actually different? ──────────────────────────────────────────────
           key0 = sorted(groups, key=str)[0]
           per_member = {k: v.ravel() for k, v in groups[key0].items()}
-          sample = {k: list(v[:4000]) for k, v in per_member.items()}
+          # ⚠️ SAMPLE WHERE THERE IS WATER. The first attempt took the first 4000 raveled cells and
+          # the check refused: "no point had >=2 finite members". That was the SAMPLING, not the
+          # decode — a 0.25 deg global wave grid is stored from the north pole down, so the leading
+          # rows are Arctic ice/land and every member is NaN there. Select indices that carry data in
+          # the lowest-numbered member, then compare all members at exactly those indices.
+          m0 = per_member[min(per_member)]
+          wet = np.flatnonzero(np.isfinite(m0))
+          print(f"   finite cells in member {min(per_member)}: {wet.size} of {m0.size}")
+          if wet.size == 0:
+              print("::error::the lowest member is entirely NaN — nothing to compare"); sys.exit(1)
+          take = wet[:: max(1, wet.size // 4000)][:4000]
+          sample = {k: [float(v[i]) for i in take] for k, v in per_member.items()}
           means, sds, counts = reduce_member_values(sample)
           finite_sd = [s for s in sds if s is not None and s == s]
           if not finite_sd:
