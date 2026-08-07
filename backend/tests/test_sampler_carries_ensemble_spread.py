@@ -104,25 +104,101 @@ def test_the_corner_control_fires__PROVES_THE_FIXTURE_CARRIES_SPREAD():
         "SETUP BROKEN: the fixture's vectors do not carry speed_spread at all")
 
 
-def test_the_NEAREST_branches_carry_the_spread():
-    """The contract at schemas.py:145 says `exact match / NEAREST`. Only the first half was true."""
+def _masked(prod, cells):
+    """Land-mask the NAMED grid nodes, refusing if any of them is not in the fixture.
+
+    ⭐ The refusal is the point. Masking by a lat/lng RANGE (what this file did originally) silently
+    masks whatever happens to fall inside it, so a fixture drift changes which branch is reached
+    without changing the test's result — which is precisely how 2 of the 3 branches below went
+    unguarded while the suite stayed green.
+    """
+    want = {(round(la, 4), round(ln, 4)) for la, ln in cells}
+    hit = 0
+    for v in prod.grid.vectors:
+        if (round(v.lat, 4), round(v.lng, 4)) in want:
+            v.is_valid = False
+            hit += 1
+    assert hit == len(want), f"SETUP BROKEN: masked {hit} of {len(want)} named nodes"
+    return prod
+
+
+def _warns(resp):
+    return list(getattr(resp, "warnings", None) or [])
+
+
+# ── THE THREE SINGLE-VECTOR `nearest_*` SITES, ONE TEST EACH ─────────────────────────────────────
+# ⛔⛔ TWO OF THEM PUBLISH THE SAME `interpolation_method` STRING. `nearest_ocean_fallback` is
+# emitted by BOTH the zero-weight-sum site and the one-valid-corner site, so asserting on
+# `interpolation_method` alone CANNOT tell which branch ran — a test aimed at one can pass while
+# only the other executes. What discriminates them is the warning each appends: only the
+# zero-weight-sum site says "sum of ocean weights is zero". Every test below pins that, and the
+# mutation matrix in the commit message confirms each mutation kills only its own test.
+
+def test_the_ONE_VALID_CORNER_fallback_carries_the_spread():
+    """Site 2 of 3 — `len(valid_ocean_corners) == 1`. UNGUARDED until this test.
+
+    A coastline cutting a grid cell so that exactly one of its four corners is ocean. Mask three of
+    the four corners bracketing (39.36, -9.38): lat 39.25/39.50 x lng -9.50/-9.25.
+    """
+    prod = _masked(_product(), [(39.25, -9.50), (39.25, -9.25), (39.50, -9.50)])
+    resp = _sample(prod, 39.36, -9.38)
+    pt = _detail(resp)
+    assert pt is not None and pt.interpolation_method == "nearest_ocean_fallback", (
+        f"SETUP BROKEN: expected the one-valid-corner fallback, got "
+        f"{getattr(pt, 'interpolation_method', None)}")
+    assert not any("sum of ocean weights is zero" in w for w in _warns(resp)), (
+        "SETUP BROKEN: this fixture routed to the SIBLING zero-weight-sum site, which shares the "
+        "same interpolation_method — the one-valid-corner branch is still unexercised")
+    assert pt.speed_spread == SPREAD, (
+        "the one-valid-corner `nearest_ocean_fallback` reads exactly ONE vector and dropped its "
+        "`speed_spread`. schemas.py:145 promises the spread on every single-vector path.")
+
+
+def test_the_ZERO_WEIGHT_SUM_fallback_carries_the_spread():
+    """Site 3 of 3 — `len(valid_ocean_corners) >= 2` but the weights sum to ZERO. UNGUARDED until
+    this test, and the harder of the two to reach.
+
+    `w21 = (1-t)*u` and `w22 = t*u`, so a point sitting EXACTLY on an interior grid latitude makes
+    `u == 0` and zeroes both northern weights. Mask the two southern corners and the two survivors
+    both carry weight 0 — two valid ocean corners whose weights sum to nothing. Real shape: a spot
+    on a grid parallel with land immediately south of it.
+    """
+    prod = _masked(_product(), [(39.25, -9.50), (39.25, -9.25)])
+    resp = _sample(prod, 39.25, -9.38)   # lat EXACTLY on the 39.25 grid line => u == 0
+    pt = _detail(resp)
+    assert pt is not None and pt.interpolation_method == "nearest_ocean_fallback", (
+        f"SETUP BROKEN: expected the zero-weight-sum fallback, got "
+        f"{getattr(pt, 'interpolation_method', None)}")
+    assert any("sum of ocean weights is zero" in w for w in _warns(resp)), (
+        "SETUP BROKEN: the zero-weight-sum branch did not run — its sibling shares the same "
+        "interpolation_method, so without this warning check the assertion below proves nothing")
+    assert pt.speed_spread == SPREAD, (
+        "the zero-weight-sum `nearest_ocean_fallback` reads exactly ONE vector and dropped its "
+        "`speed_spread`. schemas.py:145 promises the spread on every single-vector path.")
+
+
+def test_the_COARSE_MASKED_nearest_branch_carries_the_spread():
+    """Site 1 of 3 — `nearest_ocean_coarse_masked`, zero valid corners within ~1.5 cells.
+
+    ⚠️ RENAMED. This was `test_the_NEAREST_branches_carry_the_spread` — plural — and it reached
+    exactly ONE branch. The name is why nobody noticed the other two were unguarded, and its
+    `pytest.skip` on a routing miss meant a fixture drift would have retired it silently rather
+    than failed. Both are now assertions.
+    """
     prod = _product()
-    # Land-mask every corner around the target so the bilinear path must fall back to nearest-ocean.
     for v in prod.grid.vectors:
         if 38.9 <= v.lat <= 39.6 and -9.6 <= v.lng <= -8.9:
             v.is_valid = False
     resp = _sample(prod, 39.36, -9.38)
     pt = _detail(resp)
-    if pt is None or pt.interpolation_method not in (
-            "nearest_ocean_fallback", "nearest_ocean_coarse_masked"):
-        pytest.skip(f"fixture did not route to a nearest_* branch "
-                    f"(got {getattr(pt, 'interpolation_method', None)})")
+    assert pt is not None and pt.interpolation_method == "nearest_ocean_coarse_masked", (
+        f"SETUP BROKEN: expected the coarse-masked fallback, got "
+        f"{getattr(pt, 'interpolation_method', None)}")
     assert pt.speed_spread == SPREAD, (
-        f"`{pt.interpolation_method}` reads exactly ONE `nearest` vector and dropped its "
-        f"`speed_spread`. schemas.py:145 promises the spread on every single-vector path; before "
-        f"MASTER-AUDIT-10.0 §1.2 only `exact_match` honoured it, and `exact_match` is reachable "
-        f"only at the grid's four corners — so the ensemble reached 0 of 1,103 served spots."
-    )
+        "`nearest_ocean_coarse_masked` reads exactly ONE `nearest` vector and dropped its "
+        "`speed_spread`. schemas.py:145 promises the spread on every single-vector path; before "
+        "MASTER-AUDIT-10.0 §1.2 only `exact_match` honoured it, and `exact_match` is reachable "
+        "only at the grid's four corners — so the ensemble reached 0 of 1,103 served spots.")
 
 
 def test_the_bilinear_path_still_refuses__DELIBERATE_None():
@@ -139,10 +215,21 @@ def test_the_bilinear_path_still_refuses__DELIBERATE_None():
 
 def test_a_deterministic_product_yields_no_spread_anywhere__THE_CONTROL():
     """MUTATION CONTROL. If the vectors carry no spread, every path must report None — otherwise the
-    assertions above could be passing on a fixture artefact rather than on carried data."""
+    assertions above could be passing on a fixture artefact rather than on carried data.
+
+    Covers the plain points AND both newly-guarded `nearest_*` shapes, so each new assertion above
+    has its own paired negative.
+    """
     prod = _product(spread_on=False)
-    for lat, lng in [(39.36, -9.38), (38.0, -11.0), (39.25, -9.25)]:
-        pt = _detail(_sample(prod, lat, lng))
+    cases = [(prod, 39.36, -9.38), (prod, 38.0, -11.0), (prod, 39.25, -9.25)]
+    # the one-valid-corner shape, deterministic
+    cases.append((_masked(_product(spread_on=False),
+                          [(39.25, -9.50), (39.25, -9.25), (39.50, -9.50)]), 39.36, -9.38))
+    # the zero-weight-sum shape, deterministic
+    cases.append((_masked(_product(spread_on=False),
+                          [(39.25, -9.50), (39.25, -9.25)]), 39.25, -9.38))
+    for p, lat, lng in cases:
+        pt = _detail(_sample(p, lat, lng))
         if pt is None:
             continue
         assert pt.speed_spread is None, (
