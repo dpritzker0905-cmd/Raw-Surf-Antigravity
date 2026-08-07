@@ -607,6 +607,39 @@ The audit is read-only; these landed after it, each with a guard that was **made
 | **C** | `forecast_confidence` declared on `SpotRatingItem`; added to `/conditions`'s `current` | mutation: renaming the key fails the new route test |
 | **A** | `json.load` moved off the event loop at **3** GRIB-product sites (`_fetch_common`, `noaa_marine_service`, `copernicus_marine_service`) | AST scan of `json.load` inside `async def` without a thread boundary: **54 → 52**, and none of the three files remains |
 | **I** | the three stale untracked artifacts retired to scratchpad | `resolve_surf_geometry` at the five overlay coordinates now returns what production returns |
+| **G** | the 18 open-ocean spots — `coastal` promoted by fitted shore-normal evidence | mutation: **5 of 7 guards die** with the promotion removed, naming Soup Bowl, Kandooma and Noronha |
+
+**Row G, measured in full — the mechanism, and the Jacobian that identifies it.**
+`is_coastal` asks a **0.25° (~28 km)** mask whether any land sits within ±3 cells (~83 km). Measured:
+**all 18 have land = 0 of 49 cells** — a small island does not fill a 28 km cell. Every one of the 18
+carries `shore_normal_src='etopo'` with **`match_km = 0.00`**, a 463 m fit *at* the coordinate. **The
+fine asset finds a shoreline at 0 km while the coarse mask finds none within 83 km, and the coarser
+instrument was winning.**
+
+★★★ **The forensic marker is the Jacobian, and it is why the guard asserts on it rather than on
+values.** Before: `dFt/dHs` = **exactly 3.28084 ft/m, constant** — the metres→feet conversion, i.e.
+the identity function, i.e. no transform ran. After: **4.676 → 3.190, decreasing** — shoaling
+saturating toward a depth cap, and identical to the coastal control. A Jacobian assertion is
+**scale-free**, so it survives the ERA5-gated constants moving; a hard-coded "6.6 ft" would not.
+
+| census over all 1,386 asset coords | result |
+|---|---|
+| `coastal` promoted | **18 (1.30%)**, all `False → True`, all `etopo`, **0 demotions** |
+| served height Δ | **+17.0% to +92.3%**, median **+45.8%**, **126 of 126 cells up, 0 down** |
+| served score Δ | **+0 to +8.4**, level moves on **25%** of sampled conditions, all upward |
+| the other **1,368** coords | **bit-identical in both height and score** |
+| Pipeline anchor | **29.50 ft** — unmoved |
+
+⚠️ **All 18 serve the same value afterwards** (9.56 ft at Hs 2.0 / Tp 12 on the normal) despite break
+depths from **11.1 m to 352.0 m** — and a coastal control produces the identical number. That is not
+the fix ignoring geometry; it is **§1.13 measured from another angle**: with the swell on the normal
+and a deep shelf the chain reduces to Komar(Hs,Tp) × Kr and the depth grids do not enter.
+
+⚠️ **The flag-lane parity guard caught an omission I made** — a rating surface may not read an
+undeclared science switch. `SURF_COASTAL_FROM_SHORE_NORMAL` is now in `_RATING_FLAGS`; nothing else
+caught it. ⚠️ `nearshore` is deliberately left alone: same mask at `radius_cells=1`, also false at
+these 18, but `schemas.surf_nearshore` has **zero consumers** — no frontend reference, no backend
+branch — so promoting it would change a value nothing reads.
 
 ⚠️ **REACH AFTER ROW B, WITH ITS DENOMINATOR — necessary, NOT sufficient.** `forecast_confidence`
 goes from **0% → 20.0%** on the EURO/Iberia frame (n=30 live probes) and **0% → 4.8%** on GFS

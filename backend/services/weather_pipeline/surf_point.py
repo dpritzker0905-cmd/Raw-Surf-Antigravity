@@ -140,6 +140,45 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
     except Exception:
         nearshore = None
 
+    # ⭐⭐⭐ A FITTED PER-COORDINATE SHORELINE IS POSITIVE EVIDENCE OF A SHORELINE.
+    # `is_coastal` asks a 0.25° (~28 km) land mask whether ANY land sits within ±3 cells (±0.75°,
+    # ~83 km). A small island does not fill a 28 km cell, so the mask answers "no land" — and
+    # `estimate_surf` then takes `if not coastal: return float(Hs_m), 'open_ocean'`, publishing the
+    # OFFSHORE significant height under the surf label. That is CLAUDE.md's first binding rule
+    # inverted, and it was live at 18 destination spots (MASTER-AUDIT-10.0 §0b.3 / row G).
+    #
+    # MEASURED at HEAD over all 1,386 asset coordinates:
+    #   • 18 coords (1.30%) had coastal=False, and ALL 18 carry shore_normal_src='etopo'
+    #     with match_km = 0.00 — a 463 m fit AT the coordinate. So the fine asset finds a shoreline
+    #     at 0 km while the coarse mask finds none within 83 km. The structs disagree about whether
+    #     land exists, and the COARSER instrument was winning.
+    #   • every one of the 18 has land = 0 of 49 cells in the mask's own window — i.e. the mask is
+    #     not wrong about its own grid, it is under-resolved for the question being asked.
+    #   • the JACOBIAN is the fingerprint: dFt/dHs was **exactly 3.28 ft/m and CONSTANT** at those
+    #     spots — that is the metres→feet conversion, i.e. the identity function, i.e. no transform
+    #     ran at all. A coastal control (Pipeline) gives 4.68 → 3.19 ft/m, DECREASING, which is what
+    #     shoaling saturating toward a depth cap actually looks like.
+    #
+    # ⚠️ SCOPE IS BOUNDED BY CONSTRUCTION: this can only promote a coordinate that is already
+    # coastal=False AND carries an asset/override bearing. Measured blast radius: exactly the 18,
+    # and 0 spots resolve to `etopo:borrowed` in that set today — so including borrowed widens the
+    # predicate without changing any served value now, and closes the same hole for a future spot
+    # whose shoreline is fitted 1-3 km away rather than at 0 km.
+    # ⛔ It does NOT touch `is_coastal` itself: that function has other callers and its 0.25°
+    # contract is correct for what it is — under-resolved for THIS question, not wrong.
+    # ⚠️ `nearshore` (two lines above) is deliberately left alone. It is the same mask at
+    # radius_cells=1 and it is also False at these 18, but it is published only as
+    # `schemas.surf_nearshore` and, measured 2026-08-07, that field has **zero consumers**: no
+    # frontend reference and no backend branch. Promoting it would be an unmeasured change to a
+    # value nothing reads. (It is a small instance of the repo's own "true but reaches nobody"
+    # class — recorded here rather than silently "fixed".)
+    # Kill: SURF_COASTAL_FROM_SHORE_NORMAL=0 restores the pre-fix geometry exactly.
+    if (not coastal and os.environ.get("SURF_COASTAL_FROM_SHORE_NORMAL", "1") != "0"
+            and (src.startswith("etopo") or src.startswith("override"))):
+        logger.debug(f"[Surf] coastal promoted by shore-normal evidence at ({lat},{lng}): "
+                     f"src={src} match_km={match_km} — the 0.25 deg mask cannot resolve this coast")
+        coastal = True
+
     return SurfGeometry(depth_m=depth, shelf_width_km=width, coastal=coastal,
                         shore_normal_deg=normal, shore_normal_src=src,
                         magnet_factor=magnet, magnet_name=magnet_name,

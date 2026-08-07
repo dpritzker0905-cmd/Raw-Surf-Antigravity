@@ -46,6 +46,18 @@ _RATING_FLAGS = {
                                          "the quality chain disagree about the same swell (>=3.54x "
                                          "past 75.7 deg off-normal) — disclosure only, never changes "
                                          "a score", "Render env"),
+    # ⭐ GEOMETRY, and it DOES move served values — unlike the two disclosure flags above. Declared in
+    # the same commit that added it, because this suite is the only thing that catches an omission
+    # (it caught this one). `is_coastal` asks a 0.25 deg (~28 km) land mask whether ANY land sits
+    # within ~83 km; a small island does not fill a 28 km cell, so the mask said "no land" and
+    # `estimate_surf` short-circuited to `open_ocean`, returning the OFFSHORE Hs verbatim under the
+    # surf label. Pulling this restores that defect exactly — it is a kill switch, not a tuning knob.
+    # MEASURED 2026-08-07 over all 1,386 asset coords: promotes 18 (1.30%), heights +17.0% to +92.3%
+    # (median +45.8%), scores +0 to +8.4, level moves on 25% of sampled conditions, ALL upward, and
+    # the other 1,368 are bit-identical in both height and score.
+    "SURF_COASTAL_FROM_SHORE_NORMAL": ("1", "Treat a fitted 463 m shore normal as evidence of a "
+                                            "coastline when the 0.25 deg land mask cannot resolve "
+                                            "the island (small-island surf; 18 spots)", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
     # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band
