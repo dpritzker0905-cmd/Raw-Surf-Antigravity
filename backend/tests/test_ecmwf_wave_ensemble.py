@@ -109,7 +109,7 @@ def _legacy_flag_on_switches_three_fields(monkeypatch):
     ("10", 10),
     ("50", 50),
     ("999", ENSEMBLE_MEMBERS_MAX),  # priced ceiling: 50 members of swh is 40.7 MB/step
-    ("not-a-number", 10),           # malformed -> the priced default, never a crash
+    ("not-a-number", 5),           # malformed -> the priced default, never a crash
 ])
 def test_member_count_is_CLAMPED_and_never_below_two(monkeypatch, requested, expected_n):
     """⛔ THE FLOOR OF 2 IS THE POINT. One member yields sd 0.0, and 0.0 reads as UNANIMITY — the

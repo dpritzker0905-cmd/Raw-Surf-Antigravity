@@ -77,6 +77,11 @@ def _install(monkeypatch, msgs):
     monkeypatch.setitem(sys.modules, "pygrib", fake_pygrib)
 
     class _FakeClient:
+        # ⚠️ EVERY call, not just the last. The fetcher now issues TWO retrieves when the ensemble
+        # is on (deterministic + members), so a single `last_params` slot silently describes only
+        # the second one.
+        all_params = []
+
         def __init__(self, *a, **k):
             pass
 
@@ -84,6 +89,7 @@ def _install(monkeypatch, msgs):
             # ASSERT THE SETUP LANDED: the decode is only meaningful if the REQUEST carried the
             # bands. Without this the test could pass on a request that never asked for them.
             _FakeClient.last_params = list(kw.get("param") or [])
+            _FakeClient.all_params = _FakeClient.all_params + [list(kw.get("param") or [])]
             open(kw["target"], "wb").write(b"GRIB-stub")
             return None
 
@@ -126,9 +132,15 @@ def test_flag_on_decodes_and_emits_every_band(monkeypatch):
     client = _install(monkeypatch, msgs)
 
     points, ok, failed, times = f.fetch_global_coarse(_payload())
-    # THE SETUP CONTROL: the request must actually have asked for the bands.
-    assert set(f.WAVE_PERIOD_BAND_PARAMS).issubset(set(client.last_params)), \
-        f"the request never carried the bands: {client.last_params}"
+    # THE SETUP CONTROL: some request must actually have asked for the bands.
+    # ⚠️ ACROSS ALL RETRIEVES, not the last one. With ECMWF_WAVE_ENSEMBLE defaulting ON the fetcher
+    # issues TWO requests — the deterministic one (which carries the bands) and a member request for
+    # `swh` alone — so `last_params` records the ensemble and this control reported "the request
+    # never carried the bands" for a run in which it plainly did. "The last request" stopped being a
+    # well-defined thing the moment a second one existed.
+    requested = {p for call in client.all_params for p in call}
+    assert set(f.WAVE_PERIOD_BAND_PARAMS).issubset(requested), \
+        f"no request carried the bands: {client.all_params}"
 
     hourly = points[0]["hourly"]
     units = points[0].get("hourly_units") or points[0].get("units") or {}

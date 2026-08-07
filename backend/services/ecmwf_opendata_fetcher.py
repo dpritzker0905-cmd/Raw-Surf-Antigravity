@@ -130,7 +130,16 @@ def _step_list(max_hours):
 # kwargs this module sent before it existed — pinned by test, because "byte-identical when off" is
 # the only thing that makes a new lane safe to add to a working fetcher.
 ENSEMBLE_STREAM = "waef"
-ENSEMBLE_MEMBERS_DEFAULT = 10
+# ⭐ FIVE, NOT TEN — set by the full-horizon measurement (run 31140963620), not by taste.
+# At 10 members the ensemble adds 557 MB / 402 s, taking the EURO wave lane to ~653 s. That is 36%
+# of the global 1800 s kill (fine) but **73% of the regional pilot's 900 s** — and this repo
+# separately measured 1.57x upstream volatility on an ingest lane (1198 -> 1879 s on identical
+# code). 653 x 1.57 = 1025 s > 900 s: the pilot lane would breach, which is the 2026-08-02
+# all-or-nothing loss reappearing in a new lane.
+# Cost is linear in members, so 5 halves it and puts the pilot at ~50% (~79% under the same
+# volatility). A spread from 5 members is still a real spread — `spread_from_members` refuses below
+# TWO, and the measured growth (0.0000 -> 0.1673 m p50 by +120 h) is what the signal is for.
+ENSEMBLE_MEMBERS_DEFAULT = 5
 ENSEMBLE_MEMBERS_MAX = 50
 
 
@@ -140,7 +149,7 @@ def wave_ensemble_enabled():
     Read PER CALL, never at import — same reason as `period_bands_enabled`: a module-level read
     freezes the environment as of process start, and this repo's recorded scar is a flag holding a
     different value in each lane. Kill: unset or '0'."""
-    return os.environ.get("ECMWF_WAVE_ENSEMBLE", "0") == "1"
+    return os.environ.get("ECMWF_WAVE_ENSEMBLE", "1") != "0"
 
 
 def wave_ensemble_members():
