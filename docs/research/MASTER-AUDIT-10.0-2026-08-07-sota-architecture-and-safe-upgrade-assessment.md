@@ -710,6 +710,30 @@ then `ecmwf_opendata_fetcher` (53.5 s). ⛔ **Each needs its own loop-shadow gua
 coverage assertion** — a wiring change protected by a guard that never enters the branch is strictly
 worse than no change.
 
+### 5b.2 ⛔ GWAM WIRING ATTEMPTED AND REVERTED — the guard caught a real divergence
+
+The wiring was written (hoisted per-variable, all four reductions, scalar retained as the delegate)
+together with a `test_gwam_vector_blockmean_loop_shadow.py` carrying row O's coverage assertion from
+the start. It reached **4 passed**, and mutation 1 (disabling the vectorized branch) correctly killed
+the coverage test while the shadow test still passed — the exact failure mode row O exposed,
+reproduced deliberately in a second lane.
+
+**Then mutation 2 — dropping `conf_present`, i.e. serving a refusal as a value — SURVIVED.** Applying
+row H's lesson (*a surviving mutation may mean the mutation was unreachable*), the fixture was
+measured: **15,129 confidence values, 0 of them None.** The refusal case never occurred, so nothing
+could detect its loss. Adding a fully-masked band to make it reachable then produced the real result:
+
+⛔ **With an all-NaN block present, the scalar and vectorized GWAM paths DIVERGE** — the shadow
+comparison fails on *correct* code, not just under mutation. That is precisely what the guard exists
+to prevent, and it means the wiring is not yet identical on the point-sample fallback.
+
+**Reverted.** `services/dwd_gwam_fetcher.py` is untouched at HEAD; the guard is preserved at
+`scratchpad/gwam_guard_KEEP.py`. ★ The result is worth more than the 90 s would have been: **the NOAA
+lane's guard has the same blind spot** — its fixture uses a 25% random mask with no fully-masked
+block, so whether NOAA's shipped vectorization diverges on all-NaN blocks is **untested and
+unknown**. That is the first thing to measure when this is resumed, and it is a live question about
+code already ON in production, not a hypothetical about code not yet written.
+
 **Row E — the Jacobian lens pointed at an INSTRUMENT rather than at physics.** The floor was both
 **gated off** (only the soft deadline set `truncated_at`) *and* **blind** (`covered_h` counted
 `times`, which the failure branch also appends to). Measured on the real loop with the deadline
