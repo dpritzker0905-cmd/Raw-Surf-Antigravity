@@ -349,6 +349,17 @@ class PointSampler:
                         v=nearest.v,
                         period=nearest.period,
                         gust=getattr(nearest, "gust", None),
+                        # ⭐ SINGLE-VECTOR READ ⇒ CARRIES THE SPREAD. `schemas.py:145` states the
+                        # contract as "exact match / NEAREST", and this branch reads exactly one
+                        # `nearest` vector — the same situation as `exact_match`, so the spread it
+                        # publishes is a measured per-cell sd, not an invented one.
+                        # ⛔ The BILINEAR paths still leave it None on purpose: averaging standard
+                        # deviations across neighbouring cells is a different quantity.
+                        # ⚠️ Until MASTER-AUDIT-10.0 §1.2 this was the implementation half of a
+                        # contract that only the docstring kept: `exact_match` is reachable ONLY at a
+                        # product grid's four CORNERS (`_find_surrounding_brackets` collapses only at
+                        # an axis endpoint), so the spread reached 0 of 1,103 served spots.
+                        speed_spread=getattr(nearest, "speed_spread", None),
                         interpolation_method="nearest_ocean_fallback"
                     )
                     warnings.append("Bilinear corners contain land/masked cells and sum of ocean weights is zero; fallback to nearest ocean neighbor.")
@@ -372,6 +383,8 @@ class PointSampler:
                     v=nearest.v,
                     period=nearest.period,
                     gust=getattr(nearest, "gust", None),
+                    # Single-vector read — see the note on the sibling `nearest_ocean_fallback` above.
+                    speed_spread=getattr(nearest, "speed_spread", None),
                     interpolation_method="nearest_ocean_fallback"
                 )
                 warnings.append("Bilinear corners contain land/masked cells; fallback to nearest ocean neighbor.")
@@ -404,6 +417,8 @@ class PointSampler:
                         v=nearest.v,
                         period=nearest.period,
                         gust=getattr(nearest, "gust", None),
+                        # Single-vector read — see the note on `nearest_ocean_fallback` above.
+                        speed_spread=getattr(nearest, "speed_spread", None),
                         interpolation_method="nearest_ocean_coarse_masked"
                     )
                     warnings.append(

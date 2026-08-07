@@ -376,6 +376,21 @@ class SpotRatingItem(BaseModel):
     # A FIELD IS NOT SHIPPED UNTIL A TEST ASSERTS IT SURVIVES SERIALISATION
     # (`test_directional_conflict_reaches_the_wire.py` asserts exactly that, through this model).
     directional_conflict: Optional[dict] = None
+    # A THIRD, ORTHOGONAL CONFIDENCE: {level, spread_m, relative_spread, calibrated, means} — how much
+    # the ECMWF-WAEF members disagree about the SEA. `confidence` above grades the PIN,
+    # `geometry_readiness` grades the INPUTS, this grades the FORECAST. ABSENT (not null) on every
+    # deterministic product, mirroring `directional_conflict`.
+    # ⛔ NOT A TERM IN `score`, by design and by test — uncertainty is not quality; a high-spread 6 ft
+    # is the same wave as a low-spread 6 ft, forecast less confidently.
+    # ⚠️ DECLARED HERE FOR THE FOURTH RECORDED TIME IN THIS CLASS. `rate_one_spot` has emitted this
+    # since `0bc64f9b` and it was dropped at this boundary from then until MASTER-AUDIT-10.0 §1.2
+    # measured it — the same defect as `limiter` (6da4c16e) and the geometry envelope (e8b38e42).
+    # ★ WHY THE CHOKEPOINT GUARD DID NOT CATCH IT THIS TIME: the producer adds it via
+    # `**({"forecast_confidence": _fc} if _fc else {})`, and a `**` entry in an `ast.Dict` has
+    # `key = None`, so `_producer_return_keys` could not see it at all. Fixed in the same commit as
+    # this line — the guard now recurses into `**` values, and it FAILED at HEAD naming this field
+    # before this declaration was added. That failure is the evidence this line is load-bearing.
+    forecast_confidence: Optional[dict] = None
 
 
 class SpotRatingsResponse(BaseModel):

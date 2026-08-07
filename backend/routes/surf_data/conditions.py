@@ -124,7 +124,20 @@ async def get_spot_conditions(
                     "swell_direction": current.get("swell_direction"),
                     "swell_period": current.get("wave_period"),
                     "label": current["label"],
-                    "updated_at": current["updated_at"]
+                    "updated_at": current["updated_at"],
+                    # ⛔ THIS DICT IS A WHITELIST, AND THAT IS THE DEFECT CLASS IT BELONGS TO.
+                    # Everything the producer (`spot_conditions.resolve_spot_conditions`) attaches
+                    # beyond the eight names above is dropped here, silently. `forecast_confidence`
+                    # was attached at `spot_conditions.py:452` in `0998af5d` and the SpotConditions.js
+                    # block written to render it — and it could never arrive, because this literal
+                    # never listed it. Measured in MASTER-AUDIT-10.0 §1.2 by executing this handler:
+                    # producer emitted 9 keys, response `current` carried 8; control wave_height_ft
+                    # survived. ★ A hand-listed response whitelist is a second wire boundary with the
+                    # same failure mode as an undeclared Pydantic field — if you add a field to the
+                    # producer for this surface, it must be added HERE too.
+                    # Absent-unless-it-binds, mirroring the producer's own contract.
+                    **({"forecast_confidence": current["forecast_confidence"]}
+                       if current.get("forecast_confidence") else {}),
                 },
                 "forecast": forecast
             }

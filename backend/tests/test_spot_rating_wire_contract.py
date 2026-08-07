@@ -25,6 +25,7 @@ PROVENANCE_FIELDS = [
     "run_time", "wind_run_time",     # which model RUN produced it
     "confirmed", "raw_score",        # the observation gate's audit trail
     "directional_conflict",          # the size and the quality disagree about the same swell
+    "forecast_confidence",           # 10.0 §1.2 — how much the ensemble members disagree
 ]
 
 
@@ -38,7 +39,12 @@ def _item(**over):
                 directional_conflict={"reason": "size_and_quality_disagree_on_swell_exposure",
                                       "quality_exposure": 0.1, "height_exposure_factor": 0.595,
                                       "height_implied_energy": 0.354, "energy_disagreement": 3.54,
-                                      "means": "the SIZE shown assumes about 35% ..."})
+                                      "means": "the SIZE shown assumes about 35% ..."},
+                forecast_confidence={"level": "moderate", "spread_m": 0.31,
+                                     "relative_spread": 0.22, "calibrated": False,
+                                     "basis": "ecmwf_waef_member_spread",
+                                     "means": "members differ by about 22% of wave height; "
+                                              "this does not change the rating"})
     base.update(over)
     return base
 
@@ -117,20 +123,51 @@ def _producer_return_keys():
     Static (ast) rather than called: `rate_one_spot` is async and needs a live resolver, a DB spot
     row and a marine point. Parsing the return literal needs none of that and cannot be fooled by a
     mock that happily returns whatever it is asked for.
+
+    ⭐⭐⭐ `**` UNPACK KEYS ARE COUNTED, AND THAT OMISSION IS WHY THIS GUARD ONCE SHIPPED BLIND
+    (MASTER-AUDIT-10.0 §1.5). In `ast.Dict`, a `**x` entry stores `key = None` — so the original
+    `{k.value for k in keys if isinstance(k, ast.Constant)}` could not see ANY key added by
+    dict-unpacking. That matters here more than anywhere, because `**({"f": v} if v else {})` is
+    precisely how this repo expresses "absent unless it binds" — the idiom used by
+    `forecast_confidence` (`spot_ratings.py:272`), which was returned by the producer, undeclared on
+    the model, and invisible to this extractor at the same time.
+
+    ⚠️ The docstring below already NAMED `**spread` as a restructuring that should force a
+    re-derivation, and the `>= 10` floor was supposed to detect it — but there are 17 literal keys,
+    so the floor had seven keys of slack and could never fire. **A floor that cannot be reached is
+    not a guard.** The floor is now pinned just under the real count.
     """
     import ast
     import inspect
 
     from services.weather_pipeline import spot_ratings
 
+    def _keys_of(dict_node):
+        """Constant string keys of an ast.Dict, INCLUDING those inside `**` unpacked sub-dicts."""
+        found = set()
+        for key, value in zip(dict_node.keys, dict_node.values):
+            if key is None:
+                # `**something` — recurse into the value for any nested dict literal. Covers both
+                # `**{"f": v}` and the conditional form `**({"f": v} if v else {})`.
+                for inner in ast.walk(value):
+                    if isinstance(inner, ast.Dict):
+                        found |= _keys_of(inner)
+            elif isinstance(key, ast.Constant) and isinstance(key.value, str):
+                found.add(key.value)
+        return found
+
     tree = ast.parse(inspect.getsource(spot_ratings))
     for node in ast.walk(tree):
         if isinstance(node, ast.AsyncFunctionDef) and node.name == "rate_one_spot":
             for sub in ast.walk(node):
                 if isinstance(sub, ast.Return) and isinstance(sub.value, ast.Dict):
-                    return {k.value for k in sub.value.keys
-                            if isinstance(k, ast.Constant) and isinstance(k.value, str)}
+                    return _keys_of(sub.value)
     return set()
+
+
+# The real count at the time this floor was set. A floor far below the true count (the old `>= 10`
+# against 17 literal keys) cannot detect the restructuring it exists to detect — see §1.5.
+_PRODUCER_KEY_FLOOR = 17
 
 
 # The keys `rate_one_spot` ITSELF must return. A subset of PROVENANCE_FIELDS: `confirmed` and
@@ -148,7 +185,7 @@ def test_every_key_the_producer_returns_is_declared_on_the_model():
 
     # SETUP ASSERTION: a parse that found nothing would pass this test having tested nothing —
     # the 'green and ran nowhere' failure mode. Pin a floor and a known member.
-    assert len(produced) >= 10, (
+    assert len(produced) >= _PRODUCER_KEY_FLOOR, (
         f"SETUP BROKEN: parsed only {len(produced)} keys from rate_one_spot's return literal "
         f"({sorted(produced)}). The function was probably restructured (multiple returns, a dict "
         f"built incrementally, or **spread) — re-derive this extractor rather than trusting it."
@@ -183,7 +220,8 @@ def test_the_producer_still_returns_each_contracted_field(field):
     Measured: mutant M2 survived the first version of this suite. This assertion is what kills it.
     """
     produced = _producer_return_keys()
-    assert len(produced) >= 10, f"SETUP BROKEN: parsed only {len(produced)} keys — see the note above"
+    assert len(produced) >= _PRODUCER_KEY_FLOOR, (
+        f"SETUP BROKEN: parsed only {len(produced)} keys — see the note above")
     assert field in produced, (
         f"`rate_one_spot` no longer returns '{field}'. The model still declares it, so it will "
         f"serialise as null on every spot and nothing else in this suite will notice."
