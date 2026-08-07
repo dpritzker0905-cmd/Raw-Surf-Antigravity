@@ -369,9 +369,14 @@ def _height_exposure_factor(swell_from_deg, shore_normal_deg) -> float:
     return 0.55 + 0.45 * exposure
 
 
+# Shallowest water a wave may be said to break in. Engages only when a tidal offset would drive the
+# cap to <= 0 (retained break depths bottom out at 3.0 m) — arithmetically reachable, not defensive.
+_MIN_CAP_DEPTH_M = 0.3
+
+
 def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
                   swell_from_deg=None, shore_normal_deg=None, magnet_factor: float = 1.0,
-                  break_depth_m=None):
+                  break_depth_m=None, water_level_m: float = 0.0):
     """SURF (breaking) height estimate in metres + regime, from offshore Hs/Tp, the representative shelf depth,
     the shelf WIDTH, and whether the point is near a coast. Worldwide — every input comes from the global
     bathymetry, so the same physics applies on any coast.
@@ -472,6 +477,14 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
     _cap_depth = depth_m
     if break_depth_m is not None and break_depth_m > 0 and os.environ.get("SURF_BREAK_DEPTH", "1") != "0":
         _cap_depth = float(break_depth_m)
+    # ── TIDE moves the BREAKING DEPTH and nothing else. ⛔ NEVER `depth_m` (a ~139 km shelf median
+    # feeding friction — a metre of tide there is noise pretending to be signal). Datum: MSL both sides.
+    # ⚠️ THE FLOOR IS MANDATORY, NOT DEFENSIVE: break depths bottom out at 3.0 m, so a spring low past
+    # -3 m drives the cap negative and `min(H, cap)` returns a NEGATIVE height. Default 0.0 + flag OFF
+    # ⇒ byte-identical until enabled. Jacobians, reach, and the mutation that holed the first guard:
+    # MASTER-AUDIT-10.0 row H + tests/test_tide_moves_the_breaking_cap.py. Enable: SURF_TIDE_DEPTH=1.
+    if water_level_m and os.environ.get("SURF_TIDE_DEPTH", "0") != "0":
+        _cap_depth = max(_MIN_CAP_DEPTH_M, _cap_depth + float(water_level_m))
     cap = breaker_index(Tp_s, slope=_slope_proxy) * _cap_depth  # period+slope: long-period/steep breaks taller
     if _v3("SURF_V3_KOMAR"):
         # v3: the surviving swell shoals up to the Komar & Gaughan breaker height at the (sub-grid)
@@ -514,7 +527,8 @@ def estimate_surf(Hs_m, Tp_s, depth_m, coastal: bool = True, shelf_width_km: flo
 
 
 def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_width_km: float = 0.0,
-                              shore_normal_deg=None, magnet_factor: float = 1.0, break_depth_m=None):
+                              shore_normal_deg=None, magnet_factor: float = 1.0, break_depth_m=None,
+                              water_level_m: float = 0.0):
     """SPECTRAL surf estimate: transform EACH swell train on its own, then recombine energetically.
 
     ``partitions`` is a list of {h, tp, dir, kind} (kind 'swell'|'windsea'; every key None-safe) —
@@ -556,9 +570,12 @@ def estimate_surf_partitioned(partitions, depth_m, coastal: bool = True, shelf_w
         h, tp = p.get("h"), p.get("tp")
         if h is None or tp is None or h <= 0 or tp <= 0:
             continue
+        # ⚠️ `water_level_m` MUST be threaded here: every partition breaks in the SAME water at the
+        # same hour, and dropping it here would be a second forecast path (the sim's twice-shipped defect).
         hp, regime = estimate_surf(h, tp, depth_m, coastal=coastal, shelf_width_km=shelf_width_km,
                                    swell_from_deg=p.get("dir"), shore_normal_deg=shore_normal_deg,
-                                   magnet_factor=magnet_factor, break_depth_m=break_depth_m)
+                                   magnet_factor=magnet_factor, break_depth_m=break_depth_m,
+                                   water_level_m=water_level_m)
         if hp is None or hp <= 0:
             continue
         energy += float(hp) * float(hp)

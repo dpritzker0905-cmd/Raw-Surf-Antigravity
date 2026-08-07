@@ -190,7 +190,8 @@ def resolve_surf_geometry(lat: float, lng: float) -> SurfGeometry:
 
 
 def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
-                     geometry: Optional[SurfGeometry] = None, partitions=None):
+                     geometry: Optional[SurfGeometry] = None, partitions=None,
+                     water_level_m: float = 0.0):
     """Breaking surf height (m) + regime at a coordinate, from offshore Hs/Tp/direction.
 
     The full production chain. Pass a pre-resolved ``geometry`` to avoid repeating the lookups when
@@ -212,9 +213,17 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
             shore_normal_deg=g.shore_normal_deg,
             magnet_factor=g.magnet_factor,
             break_depth_m=g.break_depth_m,
+            water_level_m=water_level_m,
         )
         if h is not None:
             return h, regime
+    # ★ TIDE, when supplied, reaches the depth-limited cap and nothing else — see the block in
+    # `surf_transform.estimate_surf`. Default 0.0 and `SURF_TIDE_DEPTH` default OFF, so every
+    # existing caller is byte-identical. ⚠️ NO SERVING-PATH CALLER SUPPLIES IT YET: this is the
+    # physics half only, and the wiring (feeding `tide.tide_state_at`'s `height_m` from
+    # `rate_one_spot` / `spot_conditions`) is a separate, separately-priced step. Said plainly here
+    # so a reader cannot mistake an available parameter for a live one — this repo has shipped
+    # "wired but never executed" twice.
     return estimate_surf(
         Hs_m, Tp_s, g.depth_m,
         coastal=g.coastal,
@@ -223,4 +232,5 @@ def estimate_surf_at(lat: float, lng: float, Hs_m, Tp_s, swell_from_deg=None,
         shore_normal_deg=g.shore_normal_deg,
         magnet_factor=g.magnet_factor,
         break_depth_m=g.break_depth_m,
+        water_level_m=water_level_m,
     )

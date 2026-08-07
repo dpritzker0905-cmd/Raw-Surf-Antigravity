@@ -58,6 +58,15 @@ _RATING_FLAGS = {
     "SURF_COASTAL_FROM_SHORE_NORMAL": ("1", "Treat a fitted 463 m shore normal as evidence of a "
                                             "coastline when the 0.25 deg land mask cannot resolve "
                                             "the island (small-island surf; 18 spots)", "Render env"),
+    # ⚠️ DEFAULT OFF, and it is the only flag here that is off. Wiring tide into the depth-limited
+    # cap is the highest-REACH absent nearshore term (MASTER-AUDIT-10.0 row H: 1.694% of served
+    # spot-hours, median 45.6% height change — 19x the whole slope/gamma thread) and it is rated
+    # HIGH regression risk, so the physics ships dark and is enabled deliberately, after a served
+    # delta census. ⚠️ NO SERVING CALLER SUPPLIES A WATER LEVEL YET — turning this on alone changes
+    # nothing; it gates the term, it does not feed it.
+    "SURF_TIDE_DEPTH":             ("0", "Let the tide (sea_level_height_msl) move the depth-limited "
+                                         "breaking cap — binds only where a shallow break meets surf "
+                                         "big enough to feel bottom", "Render env"),
     "SURF_RATING":                 ("1", "Rating overlay (vs raw surf-height band) on surf=1 grids", "Render env"),
     "SURF_TRANSFORM":              ("1", "Whole surf/rating band transform on marine grids", "Render env"),
     # ⚠️⚠️ THE DOCUMENTED KILL SWITCH DOES NOT KILL THE HUB. `SURF_TRANSFORM=0` gates the map band

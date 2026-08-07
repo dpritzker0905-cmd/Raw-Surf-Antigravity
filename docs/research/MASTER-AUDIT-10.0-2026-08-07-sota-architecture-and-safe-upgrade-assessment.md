@@ -608,6 +608,59 @@ The audit is read-only; these landed after it, each with a guard that was **made
 | **A** | `json.load` moved off the event loop at **3** GRIB-product sites (`_fetch_common`, `noaa_marine_service`, `copernicus_marine_service`) | AST scan of `json.load` inside `async def` without a thread boundary: **54 → 52**, and none of the three files remains |
 | **I** | the three stale untracked artifacts retired to scratchpad | `resolve_surf_geometry` at the five overlay coordinates now returns what production returns |
 | **G** | the 18 open-ocean spots — `coastal` promoted by fitted shore-normal evidence | mutation: **5 of 7 guards die** with the promotion removed, naming Soup Bowl, Kandooma and Noronha |
+| **E** | the coverage floor made unconditional **and** given a metric that responds | mutation: fixing **only the gate** kills the identical 5 guards — both halves were required |
+| **H** | tide reaches the depth-limited cap (physics only, `SURF_TIDE_DEPTH` default **OFF**) | **5,544 cells byte-identical** flag-on vs flag-off; 3 mutations, one of which found a hole in my own suite |
+
+**Row E — the Jacobian lens pointed at an INSTRUMENT rather than at physics.** The floor was both
+**gated off** (only the soft deadline set `truncated_at`) *and* **blind** (`covered_h` counted
+`times`, which the failure branch also appends to). Measured on the real loop with the deadline
+deliberately never binding:
+
+```
+ok_steps  failed   covered_h(old)   null_frac      d(covered_h)/d(steps_failed) = +0.000
+   113       0          336            0.0%        d(null%)    /d(steps_failed) = +0.885
+     1     112          336           99.1%   <- shipped, claiming a 336 h horizon
+```
+
+★★★ **An instrument whose derivative with respect to its own subject is zero cannot detect it** —
+and this was *proven*, not asserted: **mutation 2, fixing only the gate, kills the identical five
+guards**, because the floor then computes 336 ≥ 120 and waves everything through. After: 20/5/1
+ok-steps refuse; 60 (177 h of ladder) still ships, so the 08-02 salvage is preserved.
+⚠️ **The floor exists in 1 of 9 fetchers and was deliberately NOT propagated** — six siblings can
+also ship partial products, but that is a claim about code; the exposure needs each lane's observed
+failure rate and prune semantics, and neither is measured.
+
+**Row H — tide, the highest-reach absent term, shipped dark.**
+Datum: `sea_level_height_msl` is signed metres about MSL and ETOPO break depths are MSL-referenced,
+so `cap = γ·(d + η)` is consistent. The term is **sharply selective**, which is the evidence it is
+modelled rather than fudged — measured `dFt/dη`:
+
+| case | sensitivity |
+|---|---|
+| 2 m / 12 s on a **3.5 m** reef | **+1.416 ft/m** |
+| 4 m / 16 s on a **3.5 m** reef | **+2.657 ft/m** |
+| 6 m / 18 s at Pipeline's **11.1 m** | **0.000 — inert** |
+| 2 m / 12 s at the **p90 55.5 m** | **0.000 — inert** |
+
+Reach is asymmetric because only *lowering* the cap can newly bind: η −1.5 m moves **6.80%** of
+sampled cells (median −34.7%), η +1.5 m moves **2.77%** (median +44.4%). ⚠️ That frame is 462 asset
+coords × 5 conditions weighted toward bigger surf — **not** the served distribution the 1.694% came
+from. The floor is **mandatory, not defensive**: retained break depths bottom out at exactly 3.0 m,
+so a spring low past −3 m drives the cap negative and `min(H, cap)` returns a negative height.
+
+⭐⭐⭐ **MUTATION TESTING FOUND A HOLE IN MY OWN GUARD, AND THE FIRST MUTATION TAUGHT MORE THAN IT
+CAUGHT.** A leak of the offset into `depth_m` (the shelf-friction median) passed all ten tests. The
+first attempt to reproduce it was a **no-op** — `shelf_dissipation` consumes `depth_m` ~86 lines
+earlier, so a leak at the cap block is unreachable; only one placed *before* that call binds, which
+is exactly the edit a future author would make. Discriminating case, found by measurement: shelf
+20 m / width 150 km, where Kf is neither saturated nor floored (leak −0.1705 ft, correct code
+0.0000). ⇒ ★★★ **A MUTATION THAT SURVIVES MAY MEAN YOUR TEST IS WEAK — OR THAT YOUR MUTATION WAS
+NOT REACHABLE. CHECK WHICH BEFORE TRUSTING EITHER.**
+
+⚠️ **NO SERVING CALLER SUPPLIES A WATER LEVEL YET.** The physics is in and proven; the wiring
+(feeding `tide.tide_state_at`'s `height_m` from `rate_one_spot` / `spot_conditions`) is a separate,
+separately-priced step. A test records that state **by execution** and will fail the moment someone
+wires it — which is exactly when the served delta census in row H must be run.
 
 **Row G, measured in full — the mechanism, and the Jacobian that identifies it.**
 `is_coastal` asks a **0.25° (~28 km)** mask whether any land sits within ±3 cells (~83 km). Measured:
