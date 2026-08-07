@@ -238,7 +238,12 @@ async def resolve_spot_conditions_impl(
             waves_data[dt] = {
                 "wave_height": res.point.speed,
                 "wave_direction": res.point.direction,
-                "wave_period": res.point.period
+                "wave_period": res.point.period,
+                # ENSEMBLE SPREAD, carried off the sampled vector. None on every deterministic
+                # product — which is all of them until ECMWF_WAVE_ENSEMBLE is on — and None on the
+                # interpolated sampler paths by design (averaging standard deviations across
+                # neighbouring cells is a different quantity from the spread at a point).
+                "wave_height_spread": getattr(res.point, "speed_spread", None),
             }
         else:
             cache_misses = True
@@ -276,7 +281,11 @@ async def resolve_spot_conditions_impl(
                             waves_data[dt] = {
                                 "wave_height": wave_height,
                                 "wave_direction": wave_dir,
-                                "wave_period": wave_per
+                                "wave_period": wave_per,
+                                # EXPLICITLY None, not omitted: this is the open-meteo point
+                                # fallback, which has no ensemble at all. Writing the key means the
+                                # lookup below cannot silently differ between the two lanes.
+                                "wave_height_spread": None,
                             }
                         # Parse swell fallback
                         if dt not in swell_data:
@@ -333,7 +342,8 @@ async def resolve_spot_conditions_impl(
             logger.debug(f"[spot-conditions] size reference unavailable for {spot_id}: {e}")
 
     # Construct current conditions response dict
-    current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0, "wave_period": 0.0})
+    current_waves = waves_data.get(current_dt, {"wave_height": 0.0, "wave_direction": 0.0,
+                                                "wave_period": 0.0, "wave_height_spread": None})
     current_swell = swell_data.get(current_dt, {"swell_height": 0.0, "swell_direction": 0.0})
 
     offshore_m = current_waves["wave_height"] or 0.0
@@ -421,6 +431,27 @@ async def resolve_spot_conditions_impl(
         current_conditions["rating_confirmed"] = _confirm
         current_conditions["rating"] = score
         current_conditions["rating_level"] = level
+        # ── HOW SURE ARE WE? (2026-08-07) ─────────────────────────────────────────────────────
+        # A third confidence, orthogonal to the score and to `geometry_readiness`: how much the
+        # ensemble members disagree about the SEA. The hub is a surface a surfer READS — the same
+        # argument that moved the observation gate and the directional_conflict disclosure here —
+        # so a forecast five days out should not look as certain as one from this morning.
+        # ⛔ IT DOES NOT TOUCH `rating`. Uncertainty is not quality: a high-spread 6 ft is the same
+        # wave as a low-spread 6 ft, forecast less confidently. Same verdict the repo reached on
+        # RATING_LOCAL_SIZE — a separate axis, never a multiplier.
+        # ⚠️ Paired with the OFFSHORE height (`wave_height` here IS `point.speed`, the offshore
+        # significant height), never the breaking one, or the ratio inflates by the transform.
+        # ★ Calls the SAME `forecast_spread.describe` that `rate_one_spot` calls — mirrored, not
+        # re-derived, per the ONE FORECAST COMPOSITION rule. Absent unless it binds.
+        # Kill: FORECAST_SPREAD_CONFIDENCE=0.
+        try:
+            from services.weather_pipeline.forecast_spread import describe as _spread_describe
+            _fc = _spread_describe(current_waves.get("wave_height_spread"),
+                                   current_waves.get("wave_height"))
+            if _fc:
+                current_conditions["forecast_confidence"] = _fc
+        except Exception as _fe:   # a confidence must never break the conditions it qualifies
+            logger.debug(f"[spot-conditions] forecast spread unavailable: {_fe}")
         # ── WHEN THE SIZE AND THE QUALITY DISAGREE, SAY SO (MASTER-AUDIT-2.0 §2) ──────────────
         # The hub shows a breaking height AND this score, and off-angle they are computed from the
         # same bearing with floors 5.95x apart (quality `swell_exposure` -> 0.100, height
