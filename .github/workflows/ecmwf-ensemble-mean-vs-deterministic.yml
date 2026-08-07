@@ -1,0 +1,139 @@
+name: ECMWF ensemble mean vs deterministic (what flipping the flag actually changes)
+
+# THE QUESTION NOBODY HAS ASKED YET.
+#
+# `ECMWF_WAVE_ENSEMBLE=1` does not ADD data — `retrieve_spec` OVERWRITES `type` (fc -> pf) and
+# `stream` (wave -> waef). So with the flag on the deterministic IFS run is not fetched at all, and
+# the served EURO wave height becomes the MEAN OF 10 PERTURBED MEMBERS.
+#
+# That is a forecast change, not a feature addition, and it has a known direction: an ensemble mean
+# is smoother than any single member and DAMPS EXTREMES. For surf the tail is the part that matters
+# — a mean that shaves 15% off the big days would quietly downgrade every large EURO swell while
+# every test in the repo stayed green, because every test asserts the decode, not the value.
+#
+# This measures the difference before the flag is flipped:
+#   1. BIAS + SPREAD of (mean - deterministic) over real ocean cells;
+#   2. THE TAIL specifically — the same comparison restricted to the largest deterministic heights,
+#      because a bias that is negligible at 1 m and severe at 6 m is exactly what a global median
+#      would hide;
+#   3. COST — bytes and wall time, against the ECMWF lane's 1800 s subprocess kill.
+#
+# It asserts nothing about the answer. It produces the number the decision needs.
+
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: "Members to average (production default is 10)"
+        required: false
+        default: "10"
+      step:
+        description: "Forecast step in hours (tail behaviour matters most at long leads)"
+        required: false
+        default: "120"
+
+concurrency:
+  group: ecmwf-ensemble-mean-vs-deterministic
+  cancel-in-progress: true
+
+jobs:
+  compare:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: "⚖️  Deterministic vs ensemble mean, on the same cells"
+        working-directory: backend
+        env:
+          MEMBERS: ${{ github.event.inputs.members || '10' }}
+          STEP: ${{ github.event.inputs.step || '120' }}
+        run: |
+          python - <<'PY'
+          import os, sys, time, tempfile, pathlib
+          import numpy as np, pygrib
+          from ecmwf.opendata import Client
+          from services.ecmwf_opendata_fetcher import retrieve_spec, reduce_member_values
+
+          members = int(os.environ["MEMBERS"]); step = int(os.environ["STEP"])
+          tmpd = pathlib.Path(tempfile.mkdtemp())
+
+          def fetch(tag, ensemble):
+              os.environ["ECMWF_WAVE_ENSEMBLE"] = "1" if ensemble else "0"
+              os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"] = str(members)
+              spec = retrieve_spec("waves", ("swh",), [step])
+              t = tmpd / f"{tag}.grib2"
+              t0 = time.time()
+              Client(source="ecmwf").retrieve(target=str(t), **spec)
+              dt = time.time() - t0
+              mb = t.stat().st_size / 1e6
+              print(f"  {tag:14s} {mb:7.2f} MB in {dt:6.1f}s   spec={spec}")
+              return t, mb, dt
+
+          det_p, det_mb, det_s = fetch("deterministic", False)
+          ens_p, ens_mb, ens_s = fetch("ensemble", True)
+
+          g = pygrib.open(str(det_p)); dm = g.read(); g.close()
+          if len(dm) != 1:
+              print(f"::error::expected 1 deterministic message, got {len(dm)}"); sys.exit(1)
+          det = np.ma.filled(np.ma.asarray(dm[0].values, dtype=float), np.nan).ravel()
+
+          g = pygrib.open(str(ens_p)); em = g.read(); g.close()
+          per_member = {int(getattr(m, "perturbationNumber")):
+                        np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan).ravel()
+                        for m in em}
+          print(f"\n  deterministic cells {det.size} | ensemble members {len(per_member)}")
+          if len(per_member) != members:
+              print(f"::error::got {len(per_member)} members, expected {members}"); sys.exit(1)
+
+          wet = np.flatnonzero(np.isfinite(det))
+          take = wet[:: max(1, wet.size // 20000)][:20000]
+          if take.size == 0:
+              print("::error::no finite deterministic cells — nothing to compare"); sys.exit(1)
+          sample = {k: [float(v[i]) for i in take] for k, v in per_member.items()}
+          means, _sds, counts = reduce_member_values(sample)
+          d = np.array([det[i] for i in take])
+          m = np.array(means)
+          ok = np.isfinite(d) & np.isfinite(m) & (np.array(counts) >= 2)
+          d, m = d[ok], m[ok]
+          if d.size == 0:
+              print("::error::no cell had both a deterministic value and >=2 members"); sys.exit(1)
+
+          diff = m - d
+          rel = np.where(d > 0.05, diff / np.maximum(d, 1e-9), np.nan)
+          print(f"\n  compared {d.size} ocean cells at +{step} h, {members} members")
+          print(f"  deterministic  p50={np.median(d):.3f}  p90={np.percentile(d,90):.3f}  max={d.max():.3f} m")
+          print(f"  ensemble mean  p50={np.median(m):.3f}  p90={np.percentile(m,90):.3f}  max={m.max():.3f} m")
+          print(f"\n  (mean - deterministic):")
+          print(f"    bias   {np.mean(diff):+.4f} m      median {np.median(diff):+.4f} m")
+          print(f"    p10 {np.percentile(diff,10):+.3f}   p90 {np.percentile(diff,90):+.3f}   "
+                f"max|d| {np.abs(diff).max():.3f} m")
+          rf = rel[np.isfinite(rel)]
+          if rf.size:
+              print(f"    relative: median {100*np.median(rf):+.1f}%   p10 {100*np.percentile(rf,10):+.1f}%"
+                    f"   p90 {100*np.percentile(rf,90):+.1f}%")
+
+          # ── THE TAIL: a bias that is nothing at 1 m and severe at 6 m is what a median hides ──
+          print("\n  BY DETERMINISTIC HEIGHT BAND (the surf-relevant view):")
+          print(f"    {'band':>12s} {'n':>7s} {'det p50':>9s} {'mean p50':>9s} {'bias':>9s} {'rel':>8s}")
+          for lo, hi in ((0, 1), (1, 2), (2, 3), (3, 4), (4, 6), (6, 99)):
+              sel = (d >= lo) & (d < hi)
+              if sel.sum() < 20:
+                  continue
+              b = float(np.mean(diff[sel]))
+              r = 100.0 * b / float(np.median(d[sel]))
+              print(f"    {lo:>4.0f}-{hi:<7.0f} {sel.sum():>7d} {np.median(d[sel]):>9.3f} "
+                    f"{np.median(m[sel]):>9.3f} {b:>+9.4f} {r:>+7.1f}%")
+
+          print(f"\n  COST: deterministic {det_mb:.2f} MB / {det_s:.1f}s  ->  "
+                f"ensemble {ens_mb:.2f} MB / {ens_s:.1f}s  "
+                f"({ens_mb/max(det_mb,1e-9):.1f}x bytes, {ens_s/max(det_s,1e-9):.1f}x time)")
+          print("::notice::Comparison complete — read the band table before flipping the flag.")
+          PY
