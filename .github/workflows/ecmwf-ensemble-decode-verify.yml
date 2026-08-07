@@ -58,7 +58,16 @@ jobs:
           from services.ecmwf_opendata_fetcher import retrieve_spec, reduce_member_values
 
           want = int(os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"])
-          spec = retrieve_spec("waves", ("swh",), [0, 3])       # 2 steps, so vt actually varies
+          # ⚠️ SHORT LEADS CANNOT TEST THIS. The first passing run sampled steps [0, 3] and reported
+          # 100% of points non-zero with sd p50=0.0000, p90=0.0001, max=0.0008 m — sub-millimetre.
+          # That is not a defect: ensemble members start from near-identical analyses and DIVERGE with
+          # lead time, so at +0/+3 h there is physically almost nothing to measure. The check passed
+          # on "are they different at all" while the magnitude said the ensemble was uninformative.
+          # Sampling a SHORT and a LONG lead together turns that into the real question: does the
+          # spread actually GROW? A flat spread at +120 h would mean the ensemble is not worth its
+          # bytes, whatever the decode does.
+          SHORT, LONG = 0, 120
+          spec = retrieve_spec("waves", ("swh",), [SHORT, LONG])
           print(f"spec: {spec}")
           tmp = pathlib.Path(tempfile.mkdtemp()) / "waef.grib2"
           Client(source="ecmwf").retrieve(target=str(tmp), **spec)
@@ -88,7 +97,10 @@ jobs:
           print(f"\nA PASSED: every group carries exactly {want} distinct members.")
 
           # ── B: are the members actually different? ──────────────────────────────────────────────
-          key0 = sorted(groups, key=str)[0]
+          # compare the EARLIEST and LATEST valid times we fetched
+          ordered = sorted(groups, key=lambda k: k[1])
+          key_short, key_long = ordered[0], ordered[-1]
+          key0 = key_long
           per_member = {k: v.ravel() for k, v in groups[key0].items()}
           # ⚠️ SAMPLE WHERE THERE IS WATER. The first attempt took the first 4000 raveled cells and
           # the check refused: "no point had >=2 finite members". That was the SAMPLING, not the
@@ -116,7 +128,23 @@ jobs:
               print("::error::B FAILED — the members are near-identical, so the ensemble carries no "
                     "information even though the decode is correct")
               sys.exit(1)
-          print("B PASSED: the members genuinely disagree, so the spread is informative.")
+          # ── the growth test: short lead vs long lead, same points ────────────────────────────
+          pm_s = {k: v.ravel() for k, v in groups[key_short].items()}
+          sample_s = {k: [float(v[i]) for i in take] for k, v in pm_s.items()}
+          _m, sds_s, _c = reduce_member_values(sample_s)
+          fs = np.array([s for s in sds_s if s is not None and s == s])
+          print("\n   spread GROWTH, identical points:")
+          print(f"     {key_short[1]} (short lead)  p50={np.median(fs):.4f}  p90={np.percentile(fs,90):.4f} m")
+          print(f"     {key_long[1]} (long lead)   p50={np.median(arr):.4f}  p90={np.percentile(arr,90):.4f} m")
+          if np.median(arr) <= np.median(fs):
+              print("::error::B FAILED - the spread does not grow with lead time. Either the members "
+                    "are not really perturbed or the wrong steps were compared; an ensemble whose "
+                    "spread is flat in lead time carries no forecast information.")
+              sys.exit(1)
+          if np.percentile(arr, 90) < 0.05:
+              print(f"::warning::spread at the long lead is small (p90={np.percentile(arr,90):.4f} m). "
+                    "The decode is correct, but weigh whether this ensemble earns its bytes.")
+          print("B PASSED: spread is non-degenerate AND grows with lead time.")
           PY
 
       - name: "C  The real fetcher, flag ON: shape preserved and N members reduced"
