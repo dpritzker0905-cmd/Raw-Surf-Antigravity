@@ -18,7 +18,7 @@ replaces it.**
 
 | brief's vector | verdict | the measurement |
 |---|---|---|
-| JAX / neural emulator | ⛔ **CLOSED, on stronger evidence than 9.0** | 9.0 timed only the height half. Timing **both** mandated halves at HEAD — `resolve_surf_geometry` 0.0139 ms warm + `estimate_surf_at` 10.97 µs + `compute_surf_rating` 8.03 µs = **19.01 µs/spot-hour** — the entire global forecast is **2.50 s of CPU** (779 × 168 h), 4.96 s at 1,547 spots. There is nothing to accelerate. |
+| JAX / neural emulator | ⛔ **CLOSED, on stronger evidence than 9.0 — and 9.0's number was understated 3.2×** | 9.0 timed only the height half. Timing **both** mandated halves at HEAD: `estimate_surf_at` 10.97 µs + `compute_surf_rating` 10.24 µs + `rating_factors` 8.88 µs. Two independent runs — a direct one (19.01 µs/spot-hour → **2.50 s**) and a drift-cancelling interleaved one that also counts the **duplicate** `rating_factors` evaluation (ratio 2.79× the height half → **3.94 s**). **Take 3.94 s as the honest ceiling.** 9.0's 1.24 s was wrong by 3.2× and its **conclusion survives untouched**: 4 s of CPU for the entire global forecast. Nothing to accelerate. |
 | Zarr / cloud-optimised ingestion | ⚠️ **STILL THE WRONG TOOL, and the real cost moved** | GRIB2 already streams by HTTP Range off `.idx`. 9.0 put the remaining cost in the product store's representation; the 08-07 session **closed that on measurement** (box is 2048 MB, plateau ~891 MB = 43%). What replaces it is not a format problem at all — see §1.1. |
 | GCN / nested nearshore grids | ⛔ **NOW REFUTED BY A DENOMINATOR, not merely "premature"** | At the **median served spot-hour the depth grids do not enter the number at all**: replacing both shelf depth and break depth with an absurd 4000 m leaves the served height **bit-identical on 54.32%** of coastal served spot-hours (and 100.00% — 24,372 of 24,372 — on the `Kf==1.0 ∧ regime≠breaking` subset). A finer bathymetry improves an input that is multiplied by zero more than half the time. |
 
@@ -262,7 +262,76 @@ of geometry change (incl. `a9bd6e35`, which split `BEARING_RADIUS_KM` from `MATC
 `needs_geometry_refresh` has **no scheduled consumer** (referenced only by its own definition and
 this script). The generator is committed and can regenerate at HEAD. This is housekeeping, not risk.
 
-### 1.12 ℹ️ THE CLASS BEHIND §1.2's latent gates — 351 of 353 route response models silently drop undeclared keys
+### 1.12 ⛔ HIGH — the loop guard for the vectorization that shipped yesterday executes **zero** interior points
+
+`tests/test_vector_blockmean_loop_shadow.py:91`. Instrumented `_interior_mask` during the real
+pytest run:
+
+```
+calls 434 | points through the batch forms 31,128 | INTERIOR 18 (0.06%) | DELEGATED 31,110 (99.94%)
+   ...and all 18 interior points come from the control's own direct half=2 call, not the fetch loop
+_interior_mask(12, 24, half=60) -> interior 0 / 12
+CONTROL - production is the exact complement:
+   global coarse res 10, half 20 -> 612/612 = 100.0% interior
+```
+
+**The guard covers 0% of the code path that produces 100% of production's regridded values**, across
+all three real resolutions. Its unique claim — *"the real `fetch_global_coarse`, both flag states,
+byte-identical payloads"* — is true only of the delegated branch. This is the third instrument in
+this repo found to test nothing, and it is guarding the flag flipped `bafb5903`.
+
+⚠️ Note this does **not** impeach §2.2: the independent differential (8,400 reductions, interior
+points forced) is what establishes the math is right. It impeaches the *wiring* guard, not the math.
+
+### 1.13 ⛔ HIGH — `rating_transform_grid` is a per-cell physics loop inside the request, on the event loop
+
+`grid_resolver_surf.py:100`. Measured directly at each size (cold, never-seen coordinates — not
+extrapolated):
+
+```
+   841 cells  0.218 s      5,041 cells  0.499 s
+19,881 cells  3.977 s     80,089 cells 18.313 s        warm re-run of the same coords: 0.403 s
+```
+
+Attribution over 20,164 fresh coordinates — **the cost is 100% cold bathymetry lookup, not math**:
+`is_coastal` 151.0 µs cold vs 0.92 warm (163×), `shelf_depth_at` 217.6 vs 0.58 (**375×**),
+`shelf_width_km` 212.6 vs 0.34 (**624×**), `shore_normal_at` 147.9 vs 0.26 (**574×**).
+
+**Denominator: 2.912 s is 14.6% of `GRID_SERIES_DEADLINE_S` (20 s), consumed before a byte is
+serialised, and 1.42 s of it is a synchronous blocking call inside an `async def`** — §1.1's class
+again, at a third site.
+
+★ **This is the first genuinely CPU-adjacent serving-path hot loop any audit here has found — and it
+still is not physics.** It is cold-cache geometry I/O. The fix is warming or bulk-vectorising the
+bathymetry lookups, not accelerating an equation.
+
+### 1.14 ⚠️ MEDIUM — `FETCH_VECTOR_BLOCKMEAN` buys nothing on the lane it is enabled for, and the win is in the lanes it is not
+
+The asked measurement, both previously-unpriced lanes, at real native grid dimensions
+(721×1440, 30% NaN, both paths warmed, min-of-5):
+
+| lane / resolution | speedup | Δ per run |
+|---|---|---|
+| NOAA global **coarse** (half=20, 612 pts) | **0.99×** (5 trials: 1.00/0.92/1.04/0.98/0.99) | none, +80 MB transient peak |
+| `dwd_gwam` global coarse (half=20, 57 steps) | **0.8×** | **−2.6 s** |
+| `dwd_gwam` **global_mid** (half=4, 14,940 pts) | **10.6×** | **+198.1 s** |
+| `dwd_gwam` pilot (half=1, 609 pts) | **47.4×** | +2.1 s |
+| `ecmwf_opendata` (mid-res) | — | remainder of **~291 s/run total** |
+
+⛔ **And it kills the tempting version of the change: 11 of the 14 call sites are in the coarse
+lanes, where wiring it returns −2.6 s.** The entire ~291 s available is in the **mid-res** lanes.
+
+### 1.15 ℹ️ LOW — "bit-identical by construction" is false, and the parity guard sits on its own noise floor
+
+40 fresh seeds of the parity suite's own fixture shape: bit-identical rate ranges **41.4%
+(`partition_conf`) to 79.9% (`direction_block`)**, not 100%. `multi_dir` exceeds the suite's
+`TOL = 1e-12` on **3 of 40 seeds (7.5%)**, max observed 1.08e-12.
+
+**No served value is at risk** — the 4-dp payload quantum is 5e-5, eight orders above the largest
+observed difference. The cost is a 7.5%-per-reseed false-failure rate on the only guard covering the
+batch math, plus a documented claim a successor would reasonably rely on.
+
+### 1.16 ℹ️ THE CLASS BEHIND §1.2's latent gates — 351 of 353 route response models silently drop undeclared keys
 
 AST over `backend/routes/`: **353** pydantic `BaseModel`s, **2** declare an `extra` policy. Pydantic
 v2's default is `extra='ignore'`, so every one of the other 351 discards producer keys it does not
@@ -285,8 +354,15 @@ be, and which §1.5 shows cannot currently see the idiom.
 | `resolve_surf_geometry` warm | **0.0139 ms** |
 | `estimate_surf_at`, geometry reused | **10.97 µs** |
 | `compute_surf_rating` | **8.03 µs** |
-| **full composition per spot-hour** | **19.01 µs** |
-| **779 served spots × 168 h** | **2.50 s of CPU, total** |
+| `rating_factors` (**evaluated twice per spot**) | 8.88 µs |
+| **full composition per spot-hour** | 19.01 µs direct · 2.79× the height half interleaved |
+| **779 served spots × 168 h** | **2.50 – 3.94 s of CPU, total** |
+
+⚠️ **Two of our own numbers disagree, and the gap is informative rather than an error.** The direct
+run (2.50 s) counts each stage once; the interleaved run (3.94 s) also counts the **duplicate
+`rating_factors`** — 1.16 s, **29% of the whole chain's CPU**, recomputing nine factors the call one
+line above already produced (`spot_ratings.py:186`). Quote **3.94 s** as the ceiling. It changes
+nothing about the conclusion and it is the only known avoidable waste in the chain.
 
 **Control:** Pipeline at 12 m / 18 s / 315° returns **29.50 ft** — matching the recorded post-fix
 anchor exactly (legacy-restore would give 45.52 ft). The shipped γ 0.81 + `REFRACTION_KR` 0.797 pair
@@ -375,7 +451,11 @@ third live site of the 512 MB memory-limit assumption.
 | **K** | Semaphore on `explore.py:477` (§1.10) | **LOW** | Match the sibling default so one box-wide number governs both. |
 | **L** | Rebuild the bed slope at surf-zone resolution (9.0 row F′) | **N/A — DEPRIORITISED** | ⛔ **Reprioritised down by §3.1: it can change at most 0.09% of served spot-hours, and 9.0's proposed distribution guardrail would have been written against the wrong population entirely.** |
 | **M** | γ / `REFRACTION_KR` / `SURF_HEIGHT_H110` | **CRITICAL** | ⛔ Do not touch. Legacy-restore control must give Pipeline **45.52 ft**; shipped gives **29.50 ft** (re-verified this session). Separate ERA5-gated workstream. |
-| **N** | JAX / GPU / neural emulator | **N/A — DO NOT BUILD** | 2.50 s of CPU for the entire global forecast, both halves. |
+| **O** | Make the vectorization loop guard exercise interior points (§1.12) | **LOW** | Assert `_interior_mask` yields >0 interior points during the fetch-loop test — i.e. instrument the guard's own coverage. It must **fail at HEAD** (18 of 31,128 = 0.06%, none from the loop). Raise the parity `TOL` off its noise floor (§1.15) or reduce the claim from "bit-identical" to a stated bound. |
+| **P** | Warm / bulk-vectorise the bathymetry lookups behind `rating_transform_grid` (§1.13) | **MEDIUM** | Product-hash equality against the current per-cell path over ≥20,000 fresh coordinates, plus an assertion that the cold 80,089-cell case lands under a stated fraction of `GRID_SERIES_DEADLINE_S`. Offload the synchronous 1.42 s call as part of row A. |
+| **Q** | Extend `FETCH_VECTOR_BLOCKMEAN` to the **mid-res** `dwd_gwam` / `ecmwf_opendata` lanes (§1.14) | **MEDIUM** | ~**291 s/run**, all of it in mid-res. ⛔ **Do not wire the coarse lanes** (11 of 14 call sites) — measured −2.6 s and +80 MB transient. Same differential-vs-oracle guard as the NOAA lane, with row O's interior-point coverage fixed first or the guard repeats the same blindness. |
+| **R** | Drop the duplicate `rating_factors` evaluation (§2.1) | **MEDIUM** | 29% of chain CPU, but the chain is 4 s — **this is a tidiness item, not a performance one.** Guardrail: byte-identical served scores across the full spot set. Do not ship it as a "speedup". |
+| **N** | JAX / GPU / neural emulator | **N/A — DO NOT BUILD** | 3.94 s of CPU for the entire global forecast, both halves, duplicate included. |
 
 ### 3.1 ⚠️ A CORRECTION TO MASTER-AUDIT-9.0 §3.2/§3.3 — it censused a slope the served chain never passes
 
@@ -439,6 +519,13 @@ The highest-reach absent nearshore term at **1.694% of served spot-hours, median
 slope/γ thread — with its input already in the repo. Default off, `_cap_depth` only, ≥98.3%
 bit-identity assertion as the guardrail.
 
+### PHASE 4b — the ingest speedup that is actually available (~2–3 days) · rows **O → Q**
+
+**O before Q, and that ordering is the whole lesson of §1.12:** the guard that is supposed to protect
+this change currently exercises 0.06% of the path, none of it from the fetch loop. Fix the guard's
+coverage (it must fail at HEAD), *then* extend the flag — and only to the **mid-res** lanes, for
+~**291 s/run**. Wiring the coarse lanes, where 11 of the 14 call sites live, measured **−2.6 s**.
+
 ### PHASE 5 — resolve the ICON/weather publish gap (~1 day of measurement first) · §1.8
 
 ⚠️ **Do not fix before measuring.** Log the manifest's per-lane `run_time` immediately before and
@@ -486,6 +573,13 @@ is working; the response to it is what failed.**
   post-flip cycles are the 03:45Z pilots and the 04:15Z main ingest. **Nothing in §1.2 depends on
   that** — all three gates are upstream of any product.
 - **Frontend / WebGL / shader path** beyond the confidence component — out of scope.
-- **The two unpriced GRIB lanes** (`dwd_gwam`, `ecmwf_opendata` block reductions) were still being
-  benchmarked when this was written; 9.0's note that they are structurally identical to the 17.4×
-  NOAA lane remains a **hypothesis**.
+- **The two previously-unpriced GRIB lanes are now priced** (§1.14) — and 9.0's hypothesis that they
+  carry the same win was **half right in a way that matters**: 10.6–47.4× in the mid-res lanes,
+  **0.8× in the coarse ones**, which is where most of the call sites are. Benchmarks are synthetic
+  arrays at real native dimensions, not live GRIB pulls.
+- **§1.13's `rating_transform_grid` timings are local**, and cold-cache behaviour is exactly the
+  quantity most sensitive to machine and filesystem. The 163–624× cold/warm *ratios* are the robust
+  part; the absolute 18.3 s at 80,089 cells is not.
+- **The physics-performance dimension's timings were taken on a loaded box** — an isolated run
+  reported `compute_surf_rating` at 103 µs where the next said 11 µs, which is why it used
+  interleaved drift-cancelling blocks. Ratios are trustworthy; single absolute readings are not.
