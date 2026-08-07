@@ -1,0 +1,104 @@
+name: ECMWF ensemble key probe (what distinguishes a member?)
+
+# WHY THIS RUNS BEFORE ANY DECODE IS WRITTEN.
+#
+# `3a95f9a1` wired the waef ensemble REQUEST and the spread REDUCER, both pure and tested, and said
+# plainly what it did not do: the decode loop is keyed `by[rid][kind][vt]` with no member axis, so
+# all 50 members share a shortName and a validDate and each ASSIGNMENT overwrites the last. Flipping
+# `ECMWF_WAVE_ENSEMBLE=1` today would serve whichever member decoded last AS IF IT WERE
+# DETERMINISTIC — wrong data, not more data.
+#
+# Fixing that requires knowing HOW a member identifies itself on the decoded message. Grepping the
+# repo for `perturbationNumber` / `number` / `ensembleMember` returns NOTHING: there is no precedent,
+# no test, and no code that has ever read it. `ecmwf.opendata` and `pygrib` do not import on the dev
+# workstation, so the answer cannot be obtained there.
+#
+# ⛔ AND GUESSING IS SPECIFICALLY WHAT BURNED THIS LANE BEFORE. The ensemble commit records two decode
+# traps found only by reading real bytes — packing is template 5.42 (CCSDS/AEC), not simple packing;
+# and GRIB2 signed ints are SIGN-MAGNITUDE, so a mis-read binary scale gives 2^32744 instead of 2^-12
+# — with the note "my own first parser fell for this". A third guess about the member key would be
+# the same mistake in a new place.
+#
+# So: fetch ONE step, THREE members, ONE parameter, and report what the messages actually carry.
+# It asserts nothing about the answer; it produces the fact the decode will be written against.
+
+on:
+  workflow_dispatch:
+
+concurrency:
+  group: ecmwf-ensemble-key-probe
+  cancel-in-progress: true
+
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: "🔬 Fetch 3 members of one step and report how they identify themselves"
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import sys, tempfile, pathlib
+          import pygrib
+          from ecmwf.opendata import Client
+          from services.ecmwf_opendata_fetcher import retrieve_spec
+
+          # Build the request through the PRODUCTION function, so the probe cannot drift from
+          # what the fetcher would actually ask for.
+          import os
+          os.environ["ECMWF_WAVE_ENSEMBLE"] = "1"
+          os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"] = "3"
+          spec = retrieve_spec("waves", ("swh",), [0])
+          print(f"request spec: {spec}")
+
+          tmp = pathlib.Path(tempfile.mkdtemp()) / "waef.grib2"
+          Client(source="ecmwf").retrieve(target=str(tmp), **spec)
+          print(f"downloaded {tmp.stat().st_size/1e6:.2f} MB")
+
+          CANDIDATES = ("perturbationNumber", "number", "ensembleMember", "localDefinitionNumber",
+                        "typeOfEnsembleForecast", "productDefinitionTemplateNumber", "dataType",
+                        "stream", "shortName", "validDate", "forecastTime")
+
+          grbs = pygrib.open(str(tmp))
+          msgs = grbs.read()
+          print(f"\n{len(msgs)} messages decoded\n")
+          seen = {}
+          for i, m in enumerate(msgs):
+              row = {}
+              for k in CANDIDATES:
+                  try:
+                      row[k] = getattr(m, k)
+                  except Exception:
+                      try:
+                          row[k] = m[k]
+                      except Exception:
+                          row[k] = "<absent>"
+              print(f"  msg {i}: " + "  ".join(f"{k}={row[k]!r}" for k in CANDIDATES))
+              for k, v in row.items():
+                  seen.setdefault(k, set()).add(repr(v))
+
+          print("\nWHICH KEY ACTUALLY VARIES ACROSS MEMBERS (the usable discriminator):")
+          for k, vals in seen.items():
+              verdict = "VARIES  <-- candidate" if len(vals) > 1 else "constant"
+              print(f"  {k:34s} {len(vals)} distinct  {verdict}")
+
+          # A member axis is only usable if exactly the member key varies while shortName/validDate
+          # stay constant — that combination is what proves the overwrite and names the fix.
+          varying = [k for k, v in seen.items() if len(v) > 1]
+          print(f"\nvarying keys: {varying}")
+          if not varying:
+              print("::warning::nothing varied — either only one member came back, or the "
+                    "discriminator is not among the candidates probed")
+          grbs.close()
+          PY
