@@ -117,6 +117,39 @@ by a suite going green.**
 
 ---
 
+## §4b THE ADVERSARIAL AUDIT OF THIS SESSION — what it found
+
+An independent agent re-derived every claim in §1 and hunted for defects in the 16 commits.
+
+**✅ THE CODE HOLDS.** Independently reproduced:
+- `8790194a` — 18 of 1,386, **zero demotions**, other 1,368 bit-identical, Jacobian 3.28084 → 3.97606;
+  and the **map band is untouched** (`surf_transform_grid` injects `is_coastal` directly, not via
+  `resolve_surf_geometry`) — a scope check I had not made.
+- `5032a31f` — a complete fetch is **never** refused: 18 of 18 cases across forecast_days 1–20,
+  region counts 1/2/5, `NOAA_FETCH_MIN_HOURS` 0–1000.
+- `d15f1ce2` GWAM — **84 flag-off-vs-on cases → 0 differing values**, including all-NaN, all-zero,
+  antipodal-cancelling, single-row, single-point, multi-`bboxes`, polar-clamped, and every
+  `DWD_GWAM_*` flag combination; **plus the `half` gap my guard leaves** (it only ever runs half=2;
+  production runs 1/4/20/60) swept over halves 1–60 × NaN 0–95%, **128 combinations, 0 mismatches**.
+  Harness proven non-vacuous AND sensitive — planting +0.5 in each batch form is detected.
+- `bda6c477` provably dark; `ebc2b5b4` sound.
+
+**⛔ THREE DEFECTS, ALL IN THE GUARDS AND THE RECORD:**
+
+1. ⛔⛔ **I committed a production data artifact without inspecting it.** `57c657f9` swept in
+   `backend/uploads/forecast_cache/{marine,wind}_global.json` via `git add -A backend/` — a list of
+   40 fetched forecast points, **all 40 changed**, generated on a workstation whose `.env` points at
+   the **wrong Supabase project**. I then told the user those files "aren't mine", which was true of
+   the working-tree modification and false of the commit. **Reverted in `fd042554`.**
+   ⇒ ★ **`git add -A <dir>` is not a review.**
+2. ⛔ **Two of the three `nearest_*` sampler branches `57c657f9` fixed have NO guard** —
+   mutation-demonstrated. `test_sampler_carries_ensemble_spread.py` exercises one. This is exactly
+   the partial-coverage failure this session spent its time finding in other people's tests.
+   **UNFIXED — highest-value remaining test debt.**
+3. ⛔ `35cd504d` raised a bound that cannot reach the binding one — self-corrected in `707271ed`.
+
+---
+
 ## §5 WHAT A SUCCESSOR SHOULD DISTRUST
 
 * ⚠️ **`forecast_confidence` reaches ~5–20% of spots, not "most".** The majority sampler path is
@@ -140,6 +173,9 @@ by a suite going green.**
 
 ## §6 THE QUEUE AFTER THIS SESSION
 
+0. ⛔ **Guard the two unguarded `nearest_*` sampler branches** (§4b.2). `speed_spread` is carried on
+   three branches and tested on one; the audit demonstrated the gap by mutation. Cheapest real debt
+   on the board, and it is my own.
 1. **The E2E ordering fix** — gate the job on the **backend** being up, not just the frontend.
    `on: push: [dev]` starts the run and the Render redeploy simultaneously; the backend booted **140 s
    after** the run began. `707271ed` raises the budgets to match the app's own 60 s client; the
