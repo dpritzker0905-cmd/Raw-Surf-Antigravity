@@ -67,15 +67,30 @@ def _vector_blockmean() -> bool:
     the environment as of process start, and this repo's recorded scar is a flag holding a different
     value in each lane.
 
-    ⛔ DEFAULT **OFF**, deliberately, and not because the parity is in doubt — the batch form is
-    bit-identical by construction (it delegates every clamped edge row to the scalar function) and is
-    pinned by a suite that plants the two branches random data never reaches. It is off because
-    nothing has verified it END TO END: pygrib does not import on the dev box, so the fetcher loop
-    itself has never executed either path here, and GitHub Actions is currently failing at
-    `Set up job` before checkout, so CI has validated nothing today. A parity proof about a FUNCTION
-    is not a proof about the LOOP that calls it.
-    Flip to 1 once one ingest run has been compared against a scalar-path run."""
-    return os.environ.get("FETCH_VECTOR_BLOCKMEAN", "0") == "1"
+    ✅ DEFAULT **ON** since 2026-08-07, on three layers of evidence — the third of which is the one
+    that actually licenses it, because a parity proof about a FUNCTION is not a proof about the LOOP
+    that calls it, and neither is a proof about REAL DATA:
+
+      1. FUNCTIONS — `tests/test_blockmean_vectorized_parity.py`: bit-identical against the scalar
+         oracle over a population that PLANTS the branches random data never reaches (clamped row
+         edges, wrapping columns, all-NaN and zero-energy blocks, the total-only and conf=None
+         branches measured at 0% of 3,000 random blocks).
+      2. THE LOOP — `tests/test_vector_blockmean_loop_shadow.py`: the real `fetch_global_coarse`,
+         run once per flag state against a stubbed decoder, byte-identical payloads; plus a coverage
+         assertion that COUNTS every batch reduction, which is how `direction_block_batch` was caught
+         being wired but never executed.
+      3. REAL GRIB — `.github/workflows/vector-blockmean-parity.yml`, run 31133454231 on
+         **python 3.12.13 / pygrib 2.1.8 / numpy 2.5.1** (production's interpreter), fetching NOAA's
+         actual byte-range GRIB2 twice, once per flag state:
+             SUMMARY both runs: points=15 steps_ok=17 steps_failed=0 timesteps=17
+             **compared 4080 values across 15 points (0 null on both sides) -> IDENTICAL**
+         Zero nulls matters: every compared value was a real number, not a payload of Nones that
+         would match trivially.
+
+    Read PER CALL, never at import — a module-level read freezes the environment as of process start,
+    and this repo's recorded scar is a flag holding a different value in each lane.
+    Kill: FETCH_VECTOR_BLOCKMEAN=0 restores the per-point loop, which is retained, not deleted."""
+    return os.environ.get("FETCH_VECTOR_BLOCKMEAN", "1") != "0"
 
 
 def _coarse_axis(lo, hi, step):
