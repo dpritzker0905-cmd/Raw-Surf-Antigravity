@@ -206,12 +206,38 @@ Yet that lane's own SUMMARY at 01:38:07Z reported `steps_ok=61 steps_failed=0 �
 `Atomic save complete` lines followed. The Data Health Monitor has failed **every run since 08-06
 16:30Z** (4 consecutive), through a 30-commit session, and appears in no handoff.
 
-⚠️ **MECHANISM NOT ESTABLISHED — stated as a gap, not guessed.** The main ingest (00:55→02:20Z) and
-the pilots (00:48→02:04Z) overlap and both publish the shared L2 manifest;
-`manifest_written_by: designated:gh-run-31135928399` names the *pilots* run as last writer at 02:00Z.
-That is a plausible last-writer-wins mechanism but it does **not** explain why `GFS/weather` (01:37Z,
-also a global-only main-ingest lane) survived. **Next measurement: log the manifest's per-lane
-`run_time` immediately before and after each publish.**
+### 1.8a FORENSICS — narrowed to a lost update on a shared manifest, but NOT closed
+
+Established by execution against the two run logs, in order:
+
+```
+00:48Z  pilots run 31135928399 starts; reads the manifest at 00:50Z
+00:55Z  main ingest 31136310361 starts
+01:18Z  main writes GFS/marine global_mid          -> SURVIVED in the served manifest
+01:38Z  main writes ICON/weather: "Ingested 61 ICON Pressure global coarse grid files"  -> LOST
+01:40Z  main uploads its manifest (its LAST upload, i.e. the write WAS published)
+02:00Z  PILOTS uploads (six uploads 01:59:40-02:00:26) — LAST WRITER, and the served one
+02:20Z  main ingest ends
+```
+
+**What is now fact, not inference:** the save succeeded (`Ingested 61`, `count > 0`, so
+`prune_superseded_products` also ran); the main ingest *did* publish a manifest 2m47s later; the
+**pilots run does not ingest ICON Pressure at all** (its lanes are GWAM, EURO-Waves, GFS-Wind,
+ICON-Wind, EURO-Wind and regional GFS-Wave); and `manifest_written_by` names the pilots run.
+⇒ **Two overlapping workflows read-modify-write one shared L2 manifest, and the last writer wins.**
+
+⚠️ **AND THE OBVIOUS RACE STORY IS REFUTED BY ITS OWN CONTROL.** If the pilots simply overwrote with
+a view read at 00:50Z, the main ingest's **01:18Z GFS/marine** write would have been lost too — and
+it survived. So something lane-specific is also at work, and every simple version of "the pilots
+clobbered it" fails that control. **I am not naming a mechanism I cannot discriminate.**
+
+**The decisive instrument, unchanged:** log the manifest's per-lane `run_time` immediately before and
+after each publish, in both workflows, for one cycle. That separates "the upload never contained the
+lane" from "a later upload dropped it" in a single run — and no amount of further log archaeology
+will, because neither workflow currently records what it published.
+
+⚠️ **Do not fix before that measurement.** A serialisation lock or a merge-on-write both look
+obvious and would each be a guess at which of two failure shapes is real.
 
 ★ The class is real regardless: **the lane SUMMARY grades the FETCH; nothing grades the PUBLISH.**
 
