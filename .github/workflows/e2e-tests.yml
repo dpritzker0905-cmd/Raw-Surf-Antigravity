@@ -34,7 +34,13 @@ concurrency:
 jobs:
   e2e:
     runs-on: ubuntu-latest
-    timeout-minutes: 25
+    # ⭐ CHECK THE ENCLOSING BOUND BEFORE ADDING AN INNER WAIT. Worst case is now frontend wait 20 +
+    # installs ~2 + backend wait 15 + tests ~8 = ~45 min. At the old 25 the job would have died with a
+    # generic job timeout INSTEAD of the specific "the backend did not deploy" error below — the wait
+    # would have been added and its diagnostic thrown away. Typical run is ~10 min; both deploys are
+    # triggered by the same push and run in parallel (measured 2026-08-07: backend current ~2 min
+    # after push, and the installs are spent while it finishes).
+    timeout-minutes: 50
     steps:
       - uses: actions/checkout@v5
 
@@ -63,7 +69,7 @@ jobs:
             esac
             sleep 20
           done
-          echo "::error::$SITE never served $want after 20 minutes."
+          echo "::error::$SITE never served a build matching $full after 20 minutes."
           echo "::error::The frontend did not deploy. E2E is NOT run rather than run against a stale bundle."
           exit 1
 
@@ -85,6 +91,47 @@ jobs:
         # ★ Install from the CONFIG rather than a hand-kept list, so adding a project to
         #   playwright.config.js can never again silently outrun the installer.
         run: npx playwright install --with-deps
+
+      # ⛔⛔ THE OTHER HALF OF THE RACE — the half that was actually failing the suite.
+      # `on: push: [dev]` starts this run AND the Render backend redeploy at the same instant, and
+      # until now the job gated ONLY on the Netlify frontend. Trace forensics (run 31197681499):
+      # the backend booted 140 s AFTER the run began; of 112 requests exactly 2 never completed, and
+      # they were the last two (`/api/conditions/batch`, `/api/explore/spot-details/<uuid>`). The
+      # spot hub therefore sat in its loading skeleton and `close-spothub-btn` was never rendered.
+      # ⚠️ RAISING TIMEOUTS COULD NOT FIX THIS and twice did not: the tests were not slow, they were
+      # talking to a backend that was still booting. Ordering was always the root.
+      #
+      # This gate is placed AFTER the installs deliberately — `npm ci` + browser download is ~1-2 min
+      # of deploy time earned for free — and immediately before the tests, because "the backend is
+      # current" matters at the moment the tests START, not five minutes earlier.
+      #
+      # Measured 2026-08-07: a push to `dev` redeploys Render every time, completing ~2 min after the
+      # push (`f85fdeda` -> `7a002e8b`, observed by polling `/api/health`). 20 min of headroom is ~10x
+      # that, because Render deploys have been observed to run long.
+      # ★ Like the frontend wait above, FAILING here is the point: a clear "the backend never
+      #   deployed" beats 15 rotating browser timeouts that look like flaky tests. `retries: 2` in
+      #   playwright.config.js is what turned that race into an alternating failed/flaky signal —
+      #   3 attempts vs a probabilistic timeout gives "failed" at 3/3 over and "flaky" at 1-2/3.
+      - name: Wait for the Render backend to serve THIS commit
+        if: github.event_name == 'push'
+        env:
+          API: https://raw-surf-antigravity.onrender.com
+        run: |
+          full="$(git rev-parse HEAD)"
+          echo "waiting for $API/api/health to report $full"
+          for i in $(seq 1 60); do
+            # /api/health embeds the deployed SHA as `"version":"<...>-<40-hex>"`.
+            got="$(curl -fsS --max-time 25 "$API/api/health" 2>/dev/null \
+                   | sed -nE 's/.*"version":"[^"]*[-]([0-9a-f]{40})".*/\1/p')" || got=""
+            if [ "$got" = "$full" ]; then
+              echo "backend is serving the commit under test after ~$(( (i-1) * 15 ))s"; exit 0
+            fi
+            echo "  attempt $i: backend serving '${got:-<unreachable>}'"
+            sleep 15
+          done
+          echo "::error::$API never reported $full after 15 minutes."
+          echo "::error::The backend did not deploy. E2E is NOT run against a backend that is still booting."
+          exit 1
 
       - name: Run E2E tests
         working-directory: frontend
