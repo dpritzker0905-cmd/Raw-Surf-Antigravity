@@ -127,3 +127,90 @@ def test_identical_members_give_zero_spread_which_is_a_REAL_answer_at_n_ge_2():
     member means nothing. Same number, different claim; only the n distinguishes them."""
     got = spread_from_members([1.5, 1.5, 1.5])
     assert got == (1.5, 0.0, 3)
+
+
+# ── THE DECODE HALF (2026-08-07) ────────────────────────────────────────────────────────────────
+# `3a95f9a1` wired the REQUEST and the REDUCER and said plainly that the decode had no member axis:
+# `by[rid][kind][vt] = vals` ASSIGNS, and every member shares a shortName and a validDate, so member
+# 50 overwrote 1..49 and was served as if deterministic. These pin the fix.
+#
+# ⭐ TWO FACTS BELOW WERE MEASURED, NOT ASSUMED — key probe run 31134428972, 3 members of one step:
+#     perturbationNumber / number  VARIED 1..3     <- the discriminators
+#     ensembleMember               <absent>        <- the name one would naturally guess. Wrong.
+#     shortName / validDate        CONSTANT        <- this IS the overwrite, proven
+#     arrival order                msg0=member2, msg1=member1, msg2=member3   <- OUT OF ORDER
+
+def test_members_arriving_out_of_order_are_not_mislabelled():
+    """The probe measured msg 0 carrying member 2. Keying by the member id must make arrival
+    order irrelevant — a positional decode would silently attribute one member's sea to another."""
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+
+    in_order = {1: [1.0, 10.0], 2: [2.0, 20.0], 3: [3.0, 30.0]}
+    shuffled = {2: [2.0, 20.0], 3: [3.0, 30.0], 1: [1.0, 10.0]}
+    assert reduce_member_values(in_order) == reduce_member_values(shuffled), (
+        "the reduction depends on insertion order — with messages arriving out of order that is a "
+        "silent mislabelling, not a rounding difference")
+
+
+def test_the_mean_is_the_per_point_mean_across_members():
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+    means, sds, counts = reduce_member_values({1: [1.0, 4.0], 2: [3.0, 8.0]})
+    assert means == [2.0, 6.0]
+    assert counts == [2, 2]
+    assert sds[0] == pytest.approx(1.0) and sds[1] == pytest.approx(2.0)
+
+
+def test_the_spread_refuses_below_two_members_but_the_mean_does_not():
+    """⭐ DIFFERENT QUESTIONS, DIFFERENT REFUSAL THRESHOLDS.
+
+    A mean is answerable from one finite member — it is still the best estimate available. A SPREAD
+    is not: one member yields sd 0.0, which reads as perfect agreement, the most confident answer the
+    scale can express, when it means 'not sampled'. Collapsing the two would reintroduce exactly the
+    conflation `spread_from_members` was written to refuse.
+    """
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+    means, sds, counts = reduce_member_values({1: [5.0], 2: [float("nan")]})
+    assert means == [5.0], "the mean should still be answerable from the one finite member"
+    assert sds == [None], "sd from a single member must be None, never 0.0"
+    assert counts == [1]
+
+
+def test_a_point_no_member_saw_is_nan_and_never_zero():
+    """0.0 would claim a calm sea where there was no observation."""
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+    means, sds, counts = reduce_member_values({1: [float("nan")], 2: [None]})
+    assert means[0] != means[0], f"expected NaN for an unobserved point, got {means[0]!r}"
+    assert sds == [None] and counts == [0]
+
+
+def test_ragged_member_series_do_not_crash_or_silently_truncate():
+    """Members are separate downloads; one arriving short must not shorten every other member."""
+    from services.ecmwf_opendata_fetcher import reduce_member_values
+    means, _sds, counts = reduce_member_values({1: [1.0, 2.0, 3.0], 2: [1.0]})
+    assert len(means) == 3, "the reduction truncated to the shortest member"
+    assert counts == [2, 1, 1]
+
+
+def test_the_decode_accumulates_by_member_instead_of_assigning():
+    """STRUCTURAL: the defect was a bare assignment. Pin that the ensemble branch accumulates into a
+    member-keyed dict, so it cannot regress to `by[rid][kind][vt] = vals` under the flag."""
+    import ast, os as _os
+    p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                      "services", "ecmwf_opendata_fetcher.py")
+    src = open(p, encoding="utf-8").read()
+    assert "ens.setdefault(rid, {}).setdefault(kind, {}).setdefault(vt, {})[member] = vals" in src, (
+        "the member-keyed accumulation is gone — with the flag on, members overwrite each other again")
+    tree = ast.parse(src)
+    assert any(isinstance(n, ast.FunctionDef) and n.name == "reduce_member_values"
+               for n in ast.walk(tree)), "reduce_member_values was removed"
+
+
+def test_the_member_id_is_read_from_the_MEASURED_keys():
+    """`ensembleMember` was measured <absent>; reading it would yield None for every message and
+    skip the whole ensemble. Pin that the code reads the keys that actually carry the number."""
+    import os as _os
+    p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
+                      "services", "ecmwf_opendata_fetcher.py")
+    src = open(p, encoding="utf-8").read()
+    assert '("perturbationNumber", "number")' in src, (
+        "the member discriminator is no longer the pair measured present on real messages")

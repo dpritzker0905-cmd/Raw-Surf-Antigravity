@@ -188,6 +188,54 @@ def spread_from_members(values):
     return (mean, var ** 0.5, n)
 
 
+def reduce_member_values(per_member):
+    """PURE: {member_number: [v0, v1, ...]} -> (means, sds, counts), one entry per POINT.
+
+    This is the piece `3a95f9a1` deliberately left unbuilt. The decode keys `by[rid][kind][vt]`, and
+    every ensemble member shares a shortName and a validDate — MEASURED, not assumed, by
+    `.github/workflows/ecmwf-ensemble-key-probe.yml` (run 31134428972): across 3 members of one step,
+    `shortName` and `validDate` were CONSTANT while `perturbationNumber`/`number` varied 1..3. So the
+    existing assignment collapses all members into one slot and the last one wins.
+
+    ⛔ THE MESSAGES ARRIVE OUT OF ORDER — the same probe read msg 0 -> member 2, msg 1 -> member 1,
+    msg 2 -> member 3. Any decode that appended positionally, or trusted arrival order to match the
+    requested `number` list, would silently mislabel members. That is why the input here is a DICT
+    KEYED BY MEMBER and never a list.
+
+    ⭐ THE MEAN AND THE SPREAD HAVE DIFFERENT REFUSAL THRESHOLDS, and conflating them would be the
+    familiar error in a new place:
+      * the MEAN is answerable from ONE finite member — it is still the best estimate available;
+      * the SPREAD is NOT. One member yields sd 0.0, which reads as perfect agreement — the most
+        confident answer the scale can express — when it actually means 'not sampled'.
+    So `sds[i]` is None below two finite members while `means[i]` is still a number, and `counts[i]`
+    always says how many members actually contributed. A caller that wants to gate on confidence has
+    the count; a caller that wants the value has the mean.
+
+    Points with no finite member at all yield mean NaN (the existing no-data signature), sd None,
+    count 0 — never 0.0, which would claim a calm sea where there was no observation.
+    """
+    if not per_member:
+        return [], [], []
+    n_pts = max(len(v) for v in per_member.values())
+    means, sds, counts = [], [], []
+    for i in range(n_pts):
+        vals = []
+        for _member, series in sorted(per_member.items()):     # sorted => deterministic, order-proof
+            if i < len(series):
+                v = series[i]
+                if v is not None and v == v and abs(float(v)) != float("inf"):
+                    vals.append(float(v))
+        counts.append(len(vals))
+        if not vals:
+            means.append(float("nan"))
+            sds.append(None)
+            continue
+        means.append(sum(vals) / len(vals))
+        stat = spread_from_members(vals)                       # refuses below 2 — reused, not re-derived
+        sds.append(stat[1] if stat is not None else None)
+    return means, sds, counts
+
+
 def fetch_global_coarse(payload):
     """Return (points, steps_ok, steps_failed, times) for the coarse global EURO wind/pressure grid via ECMWF Open Data."""
     import numpy as np
@@ -265,6 +313,12 @@ def fetch_global_coarse(payload):
     # per-region, per-kind {vt: vals}
     by = {rid: {k: {} for k in ("u", "v", "p", "h", "pk", "mp", "d") + want_bands}
           for rid in regions}
+    # Per-member accumulator, used ONLY when the ensemble is on: rid -> kind -> vt -> {member: vals}.
+    # Kept separate from `by` so the deterministic path and `_assemble` below are byte-for-byte
+    # untouched when the flag is off.
+    ens = {}
+    spread = {}    # rid -> kind -> vt -> (sds, counts); populated only in ensemble mode
+    ensemble_on = (layer == "waves") and wave_ensemble_enabled()
     idx_by = None    # rid -> [(r, c), ...]
     try:
         grbs = pygrib.open(str(target))
@@ -287,15 +341,59 @@ def fetch_global_coarse(payload):
             kind = (sn if sn in want_bands else
                     "u" if sn in want_u else "v" if sn in want_v else "p" if sn in want_p else
                     "h" if sn in want_h else "pk" if sn in want_pk else "mp" if sn in want_mp else "d")
+            # ── WHICH MEMBER IS THIS? ──────────────────────────────────────────────────────────────
+            # Only meaningful with the ensemble on. `perturbationNumber` is the GRIB2 standard key
+            # and `number` is pygrib's alias for it; BOTH were measured varying 1..3 across members
+            # while shortName and validDate stayed constant (key probe, run 31134428972). Note
+            # `ensembleMember` — the name one would naturally reach for — came back <absent>, which
+            # is precisely why this was probed instead of guessed.
+            member = None
+            if ensemble_on:
+                for _key in ("perturbationNumber", "number"):
+                    try:
+                        member = int(getattr(m, _key))
+                        break
+                    except Exception:
+                        continue
+                if member is None:
+                    # Refuse to guess. Without a member id every message would land in one slot and
+                    # overwrite the last — the exact defect this branch exists to remove.
+                    sys.stderr.write("[ecmwf_opendata_fetcher] ensemble on but no member id on a "
+                                     f"{sn} message; skipping it rather than overwriting\n")
+                    del arr
+                    continue
             for rid, im in idx_by.items():
                 if kind == "h" and scalar_blockmean:
                     # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
                     # survive (see the ECMWF_WAVE_SCALAR_BLOCKMEAN note); everything else point-samples.
-                    by[rid][kind][vt] = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
+                    vals = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
                 else:
-                    by[rid][kind][vt] = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
+                    vals = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
+                if member is None:
+                    by[rid][kind][vt] = vals
+                else:
+                    # ⚠️ ACCUMULATE, never assign — keyed by the member id and NOT by arrival order,
+                    # because the probe measured messages arriving out of order (msg 0 -> member 2).
+                    ens.setdefault(rid, {}).setdefault(kind, {}).setdefault(vt, {})[member] = vals
             del arr
         grbs.close()
+
+        # ── REDUCE THE MEMBERS ────────────────────────────────────────────────────────────────────
+        # Collapse {member: vals} to a per-point mean, and keep the spread alongside. `by` therefore
+        # carries the same SHAPE it always did (a list of point values per vt), so `_assemble` and
+        # every consumer downstream are unchanged — the ensemble changes what the number IS, not
+        # what the payload looks like.
+        for rid, kinds in ens.items():
+            for kind, vts in kinds.items():
+                for vt, per_member in vts.items():
+                    means, sds, counts = reduce_member_values(per_member)
+                    by[rid][kind][vt] = means
+                    spread.setdefault(rid, {}).setdefault(kind, {})[vt] = (sds, counts)
+        if ens:
+            _n_members = max((len(pm) for ks in ens.values() for vs in ks.values()
+                              for pm in vs.values()), default=0)
+            sys.stderr.write(f"[ecmwf_opendata_fetcher] ensemble reduced: {_n_members} members "
+                             f"per (kind, valid_time)\n")
     finally:
         try:
             if target.exists():
