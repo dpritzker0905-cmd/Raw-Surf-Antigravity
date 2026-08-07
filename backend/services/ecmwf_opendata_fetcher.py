@@ -159,17 +159,45 @@ def wave_ensemble_members():
 def retrieve_spec(layer, params, steps):
     """PURE: the exact kwargs for `client.retrieve`, so the DECISION is testable without a network.
 
-    The ensemble differs from the deterministic request in three fields and nothing else:
-    `type` fc -> pf (perturbed forecast), `stream` wave -> waef, and `number` (the member list).
-    Extracted rather than inlined because a request built inside an I/O call can only be asserted
-    about by reading source, and this repo has been bitten by exactly that."""
-    spec = {"type": "fc", "stream": LAYER_STREAM[layer], "levtype": "sfc",
+    ⛔ THIS IS ALWAYS THE DETERMINISTIC REQUEST, INCLUDING WHEN THE ENSEMBLE IS ON — and that is the
+    correction this function exists in its current form to record.
+
+    It used to OVERWRITE `type` (fc -> pf) and `stream` (wave -> waef) under the flag, so switching
+    the ensemble on meant the deterministic IFS run was never fetched and the served EURO wave height
+    silently became the MEAN OF THE MEMBERS. Measured before flipping (run 31138214907, +120 h,
+    20,000 ocean cells, 10 members) — the global bias is +0.0009 m, which a median-only check would
+    have called identical and waved through. BY HEIGHT BAND it is not identical at all:
+
+        0-1 m  +10.5%      3-4 m   +0.4%
+        1-2 m   +1.7%      4-6 m   -0.5%
+        2-3 m   +0.2%      6 m+    -3.3%      max 12.15 m -> 10.12 m  (-16.6%)
+
+    That is the textbook ensemble-mean smoothing signature — high at the small end, LOW at the tail —
+    and the tail is the half of the distribution surf cares about. Flipping it would have shaved the
+    biggest EURO swells while every test stayed green, because every test asserts the DECODE, not the
+    VALUE.
+
+    ⇒ THE VALUE AND THE UNCERTAINTY DO NOT HAVE TO COME FROM THE SAME FETCH. The deterministic run
+    stays the served height; `ensemble_spec` below fetches the members separately, for spread ONLY.
+    """
+    return {"type": "fc", "stream": LAYER_STREAM[layer], "levtype": "sfc",
             "param": list(params), "step": list(steps)}
-    if layer == "waves" and wave_ensemble_enabled():
-        spec["type"] = "pf"
-        spec["stream"] = ENSEMBLE_STREAM
-        spec["number"] = list(range(1, wave_ensemble_members() + 1))
-    return spec
+
+
+# The ensemble is fetched for ONE parameter. Spread on the HEIGHT is the whole product; every extra
+# param multiplies by the member count. Measured: production `layer_params("waves")` is 4 params, so
+# requesting them all at 10 members is 40 messages/step (~34 MB) against 8.58 MB for swh alone — a
+# 4x cost for three fields nothing consumes.
+ENSEMBLE_SPREAD_PARAMS = ("swh",)
+
+
+def ensemble_spec(steps):
+    """PURE: the kwargs for the SEPARATE member fetch. Differs from the deterministic request in
+    exactly three fields — `type` fc->pf, `stream` wave->waef, plus `number` — and narrows `param`
+    to the height, for the cost reason above."""
+    return {"type": "pf", "stream": ENSEMBLE_STREAM, "levtype": "sfc",
+            "param": list(ENSEMBLE_SPREAD_PARAMS), "step": list(steps),
+            "number": list(range(1, wave_ensemble_members() + 1))}
 
 
 def spread_from_members(values):
@@ -347,21 +375,9 @@ def fetch_global_coarse(payload):
             # while shortName and validDate stayed constant (key probe, run 31134428972). Note
             # `ensembleMember` — the name one would naturally reach for — came back <absent>, which
             # is precisely why this was probed instead of guessed.
+            # The deterministic pass carries no members — the ensemble is fetched and decoded
+            # separately below, so nothing here can overwrite a member with another.
             member = None
-            if ensemble_on:
-                for _key in ("perturbationNumber", "number"):
-                    try:
-                        member = int(getattr(m, _key))
-                        break
-                    except Exception:
-                        continue
-                if member is None:
-                    # Refuse to guess. Without a member id every message would land in one slot and
-                    # overwrite the last — the exact defect this branch exists to remove.
-                    sys.stderr.write("[ecmwf_opendata_fetcher] ensemble on but no member id on a "
-                                     f"{sn} message; skipping it rather than overwriting\n")
-                    del arr
-                    continue
             for rid, im in idx_by.items():
                 if kind == "h" and scalar_blockmean:
                     # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
@@ -378,6 +394,43 @@ def fetch_global_coarse(payload):
             del arr
         grbs.close()
 
+        # ── SECOND FETCH: the members, for SPREAD ONLY ────────────────────────────────────────────
+        # A separate request into a separate file, `swh` alone. The deterministic decode above is
+        # already complete and untouched here, so a failure costs the confidence signal and NOTHING
+        # else — the forecast still ships. That asymmetry is deliberate: an uncertainty estimate must
+        # never be able to take down the value it qualifies.
+        if ensemble_on:
+            ens_target = tmp / f"ecmwf_waef_{uuid.uuid4().hex}.grib2"
+            try:
+                client.retrieve(target=str(ens_target), **ensemble_spec(steps_full))
+                egrbs = pygrib.open(str(ens_target))
+                for em in egrbs:
+                    if (em.shortName or "").lower() not in want_h:
+                        continue
+                    try:
+                        emember = int(getattr(em, "perturbationNumber"))
+                    except Exception:
+                        continue          # no member id -> skip, never overwrite another member
+                    earr = np.ma.filled(np.ma.asarray(em.values, dtype=float), np.nan)
+                    evt = em.validDate
+                    for rid, im in idx_by.items():
+                        if scalar_blockmean:
+                            evals = [energy_mean_height_block(earr, r, c, _half, True) for (r, c) in im]
+                        else:
+                            evals = [earr[r, c] for (r, c) in im]
+                        ens.setdefault(rid, {}).setdefault("h", {}).setdefault(evt, {})[emember] = evals
+                    del earr
+                egrbs.close()
+            except Exception as _ee:
+                sys.stderr.write("[ecmwf_opendata_fetcher] ensemble fetch skipped "
+                                 f"({type(_ee).__name__}: {_ee}); serving without spread\n")
+            finally:
+                try:
+                    if ens_target.exists():
+                        ens_target.unlink()
+                except Exception:
+                    pass
+
         # ── REDUCE THE MEMBERS ────────────────────────────────────────────────────────────────────
         # Collapse {member: vals} to a per-point mean, and keep the spread alongside. `by` therefore
         # carries the same SHAPE it always did (a list of point values per vt), so `_assemble` and
@@ -386,8 +439,15 @@ def fetch_global_coarse(payload):
         for rid, kinds in ens.items():
             for kind, vts in kinds.items():
                 for vt, per_member in vts.items():
-                    means, sds, counts = reduce_member_values(per_member)
-                    by[rid][kind][vt] = means
+                    _means, sds, counts = reduce_member_values(per_member)
+                    # ⛔ THE MEAN IS DELIBERATELY DISCARDED. It used to overwrite by[rid][kind][vt],
+                    # i.e. the served height became the ensemble mean. Measured before that ever
+                    # shipped (run 31138214907, +120 h, 20,000 cells, 10 members): global bias
+                    # +0.0009 m — which reads as "identical" — but BY HEIGHT BAND the mean runs
+                    # +10.5% at 0-1 m and -3.3% at 6 m+, with the sample max falling 12.15 -> 10.12 m
+                    # (-16.6%). Ensemble-mean smoothing, biting hardest on exactly the big days this
+                    # app exists to forecast. The deterministic run stays the VALUE; the members
+                    # contribute UNCERTAINTY only.
                     spread.setdefault(rid, {}).setdefault(kind, {})[vt] = (sds, counts)
         if ens:
             _n_members = max((len(pm) for ks in ens.values() for vs in ks.values()

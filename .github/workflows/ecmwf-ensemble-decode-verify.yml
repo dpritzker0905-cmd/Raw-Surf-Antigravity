@@ -55,7 +55,7 @@ jobs:
           import os, sys, tempfile, pathlib, collections
           import numpy as np, pygrib
           from ecmwf.opendata import Client
-          from services.ecmwf_opendata_fetcher import retrieve_spec, reduce_member_values
+          from services.ecmwf_opendata_fetcher import ensemble_spec, reduce_member_values
 
           want = int(os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"])
           # ⚠️ SHORT LEADS CANNOT TEST THIS. The first passing run sampled steps [0, 3] and reported
@@ -67,7 +67,11 @@ jobs:
           # spread actually GROW? A flat spread at +120 h would mean the ensemble is not worth its
           # bytes, whatever the decode does.
           SHORT, LONG = 0, 120
-          spec = retrieve_spec("waves", ("swh",), [SHORT, LONG])
+          # ⚠️ `ensemble_spec`, NOT `retrieve_spec`. Since the value/uncertainty decoupling,
+          # retrieve_spec is ALWAYS the deterministic request — calling it here would fetch one
+          # message and check A would fail claiming the members had collapsed, when in fact this
+          # job had simply asked for the wrong stream.
+          spec = ensemble_spec([SHORT, LONG])
           print(f"spec: {spec}")
           tmp = pathlib.Path(tempfile.mkdtemp()) / "waef.grib2"
           Client(source="ecmwf").retrieve(target=str(tmp), **spec)
@@ -146,6 +150,46 @@ jobs:
                     "The decode is correct, but weigh whether this ensemble earns its bytes.")
           print("B PASSED: spread is non-degenerate AND grows with lead time.")
           PY
+
+      - name: "E  Flag ON vs OFF: the served VALUE must be byte-identical"
+        working-directory: backend
+        run: |
+          set -o pipefail
+          BBOX='{"bbox":{"west":-30.0,"south":30.0,"east":10.0,"north":60.0},"resolution":10.0,"forecast_days":1,"layer":"waves"'
+          ECMWF_WAVE_ENSEMBLE=0 python services/ecmwf_opendata_fetcher.py "$BBOX,\"output_path\":\"/tmp/det.json\"}"
+          ECMWF_WAVE_ENSEMBLE=1 ECMWF_WAVE_ENSEMBLE_MEMBERS=5             python services/ecmwf_opendata_fetcher.py "$BBOX,\"output_path\":\"/tmp/ens.json\"}"
+          python - <<'PY2'
+          import json, sys
+          det = json.load(open("/tmp/det.json")); ens = json.load(open("/tmp/ens.json"))
+          def pts(o):
+              return [p for r in o["regions"].values() for p in r] if isinstance(o, dict) and o.get("__multi_region__") else o
+          a, b = pts(det), pts(ens)
+          if not a or len(a) != len(b):
+              print(f"::error::point counts differ: {len(a)} vs {len(b)}"); sys.exit(1)
+          diffs, compared = [], 0
+          for i, (pa, pb) in enumerate(zip(a, b)):
+              for var, av in pa["hourly"].items():
+                  bv = pb["hourly"].get(var)
+                  if bv is None:
+                      diffs.append(f"point {i}: `{var}` missing with the flag on"); continue
+                  for j, (x, y) in enumerate(zip(av, bv)):
+                      compared += 1
+                      if x != y:
+                          diffs.append(f"point {i}/{var}[{j}]: {x!r} != {y!r}")
+          print(f"compared {compared} deterministic values across {len(a)} points")
+          if compared == 0:
+              print("::error::nothing compared"); sys.exit(1)
+          if diffs:
+              print(f"::error::E FAILED — the flag CHANGED THE SERVED FORECAST ({len(diffs)} values):")
+              for d in diffs[:20]: print("   " + d)
+              sys.exit(1)
+          extra = set(b[0]["hourly"]) - set(a[0]["hourly"])
+          print(f"variables added by the flag: {sorted(extra)}")
+          if extra != {"wave_height_spread"}:
+              print(f"::error::expected exactly wave_height_spread to be added, got {sorted(extra)}")
+              sys.exit(1)
+          print("::notice::E PASSED. The flag adds spread and changes NOTHING else.")
+          PY2
 
       - name: "C  The real fetcher, flag ON: shape preserved and N members reduced"
         working-directory: backend

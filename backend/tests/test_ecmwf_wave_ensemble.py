@@ -56,7 +56,37 @@ def test_the_flag_cannot_reach_a_NON_WAVE_layer(monkeypatch, layer, stream):
 
 # ── the ensemble request ────────────────────────────────────────────────────────────────────────
 
-def test_the_flag_ON_switches_exactly_THREE_fields_and_no_others(monkeypatch):
+def test_retrieve_spec_stays_DETERMINISTIC_even_with_the_flag_on(monkeypatch):
+    """⛔ THE SAFETY PROPERTY, and the correction this suite exists to record.
+
+    `retrieve_spec` used to OVERWRITE type/stream under the flag, so turning the ensemble on meant
+    the deterministic IFS run was never fetched and the served height became the MEAN of the members.
+    Measured before it shipped (run 31138214907, +120 h, 20,000 cells): global bias +0.0009 m — which
+    reads as identical — but BY HEIGHT BAND +10.5% at 0-1 m and **-3.3% at 6 m+**, sample max
+    12.15 -> 10.12 m (-16.6%). Ensemble-mean smoothing, worst exactly where surf matters.
+    The value and the uncertainty now come from SEPARATE fetches, and this pins that.
+    """
+    from services.ecmwf_opendata_fetcher import retrieve_spec
+    monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE", "1")
+    spec = retrieve_spec("waves", WAVE_PARAMS, STEPS)
+    assert spec["type"] == "fc", "the flag is switching the served forecast to the ensemble again"
+    assert spec["stream"] == "wave"
+    assert "number" not in spec
+
+
+def test_ensemble_spec_is_the_member_request_and_asks_for_swh_ONLY(monkeypatch):
+    """Every extra param multiplies by the member count. Production `layer_params("waves")` is 4
+    params, so requesting them all at 10 members is 40 messages/step (~34 MB) against 8.58 MB for
+    swh alone — a 4x cost for three fields nothing consumes."""
+    from services.ecmwf_opendata_fetcher import ensemble_spec
+    monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE_MEMBERS", "10")
+    spec = ensemble_spec(STEPS)
+    assert spec["type"] == "pf" and spec["stream"] == "waef"
+    assert spec["number"] == list(range(1, 11))
+    assert spec["param"] == ["swh"], f"the member fetch asks for {spec['param']} — cost is per-param"
+
+
+def _legacy_flag_on_switches_three_fields(monkeypatch):
     """type fc->pf, stream wave->waef, plus `number`. Anything else changing means the ensemble
     request has drifted away from the deterministic one it must otherwise mirror."""
     monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE", "1")
@@ -89,6 +119,13 @@ def test_member_count_is_CLAMPED_and_never_below_two(monkeypatch, requested, exp
 
 
 def test_members_are_a_CONTIGUOUS_run_starting_at_1(monkeypatch):
+    from services.ecmwf_opendata_fetcher import ensemble_spec
+    monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE", "1")
+    monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE_MEMBERS", "4")
+    assert ensemble_spec(STEPS)["number"] == [1, 2, 3, 4]
+
+
+def _legacy_contiguous(monkeypatch):
     """ECMWF numbers perturbed members 1..50; 0 is the control and lives on a different type."""
     monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE", "1")
     monkeypatch.setenv("ECMWF_WAVE_ENSEMBLE_MEMBERS", "4")
@@ -212,8 +249,8 @@ def test_the_member_id_is_read_from_the_MEASURED_keys():
     p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
                       "services", "ecmwf_opendata_fetcher.py")
     src = open(p, encoding="utf-8").read()
-    assert '("perturbationNumber", "number")' in src, (
-        "the member discriminator is no longer the pair measured present on real messages")
+    assert 'perturbationNumber' in src, (
+        "the member discriminator is no longer the key measured present on real messages")
 
 
 # ── THE SPREAD REACHES THE PAYLOAD (2026-08-07) ─────────────────────────────────────────────────
