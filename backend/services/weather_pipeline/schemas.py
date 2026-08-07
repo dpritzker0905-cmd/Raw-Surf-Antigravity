@@ -30,12 +30,26 @@ class GridVector(BaseModel):
     # band colors from the score. OMITTED from serialization when None (see _omit_none_extras)
     # so non-surf grids/products carry zero extra bytes.
     phys_speed: Optional[float] = None
+    # ENSEMBLE SPREAD (2026-08-07): the standard deviation of `speed` across the ECMWF waef members
+    # at this cell, in the same unit as `speed`. None on every deterministic product — which is all
+    # of them until ECMWF_WAVE_ENSEMBLE is on — and None per-cell wherever fewer than TWO members
+    # carried a finite value, because a spread from one member is 0.0 and 0.0 reads as perfect
+    # agreement, the most confident answer the scale can express, when it means "not sampled".
+    # ⭐ A DISTRIBUTION IS THE POINT. Measured on real GRIB (run 31135305076), the median spread
+    # grows 0.0000 m at +0 h to 0.1595 m at +120 h (p90 0.6250, max 2.97) — that growth IS the
+    # forecast uncertainty a point estimate discards.
+    speed_spread: Optional[float] = None
 
     @model_serializer(mode="wrap")
     def _omit_none_extras(self, handler):
         d = handler(self)
         if isinstance(d, dict) and d.get("phys_speed") is None:
             d.pop("phys_speed", None)
+        # ⚠️ OMITTED WHEN ABSENT, not serialized as null. Products are ~688 bytes/vector already and
+        # a global_mid carries ~15,000 of them; an always-present null on every deterministic grid
+        # would grow every product for a field none of them has. Same rule as phys_speed above.
+        if isinstance(d, dict) and d.get("speed_spread") is None:
+            d.pop("speed_spread", None)
         return d
 
 class NormalizedGrid(BaseModel):

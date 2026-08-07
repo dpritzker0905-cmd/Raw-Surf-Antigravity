@@ -437,11 +437,24 @@ def fetch_global_coarse(payload):
             hgt = [[] for _ in range(n_pts)]
             per = [[] for _ in range(n_pts)]
             drc = [[] for _ in range(n_pts)]
+            # ENSEMBLE SPREAD, emitted only when the ensemble actually produced one. `spread` is
+            # populated by the member reduction above and is empty otherwise, so with the flag off
+            # this list stays empty and the payload is byte-identical to the deterministic one.
+            spd_h = [[] for _ in range(n_pts)] if spread.get(rid, {}).get("h") else None
             for vt in times_dt:
                 h_vals = b["h"][vt]; d_vals = b["d"][vt]
+                sd_vals = (spread.get(rid, {}).get("h", {}).get(vt) or (None, None))[0]
                 pk_vals = b["pk"].get(vt); mp_vals = b["mp"].get(vt)
                 for pi in range(n_pts):
                     hgt[pi].append(sanitize_height_m(h_vals[pi]))   # NaN (land mask) -> None inside
+                    if spd_h is not None:
+                        # ⚠️ NOT sanitize_height_m: a spread is a DISPERSION, not a height, and its
+                        # valid range is different (0 is legitimate; the height sanitiser's floor
+                        # would be wrong here). None passes straight through — it already means
+                        # "fewer than two members had a value", which must not become 0.0.
+                        _sd = sd_vals[pi] if sd_vals is not None and pi < len(sd_vals) else None
+                        spd_h[pi].append(round(float(_sd), 4)
+                                         if _sd is not None and _sd == _sd else None)
                     drc[pi].append(sanitize_direction_deg(d_vals[pi]))
                     pv = pk_vals[pi] if pk_vals is not None else float("nan")
                     if pv != pv and mp_vals is not None:  # peak missing -> mean
@@ -462,11 +475,18 @@ def fetch_global_coarse(payload):
             units = {"time": "iso8601", "wave_height": "m", "wave_period": "s", "wave_direction": "°"}
             units.update({f"wave_band_{bp}": "m" for bp in want_bands})
 
-            def hourly_of(pi, _bands=bands):
+            def hourly_of(pi, _bands=bands, _spd=spd_h):
                 out = {"time": times, "wave_height": hgt[pi], "wave_period": per[pi],
                        "wave_direction": drc[pi]}
                 for bp, series in _bands.items():
                     out[f"wave_band_{bp}"] = series[pi]
+                # ⭐ THE SPREAD REACHES THE PAYLOAD. Computing it and keeping it in a local was the
+                # "true but reaches nobody" shape — the whole reason the literature says to run an
+                # ensemble is the distribution, and a distribution nobody is served is a point
+                # forecast with extra steps. Absent entirely (not null) when the ensemble is off, so
+                # the deterministic payload is byte-identical.
+                if _spd is not None:
+                    out["wave_height_spread"] = _spd[pi]
                 return out
         else:
             ser = [[] for _ in range(n_pts)]

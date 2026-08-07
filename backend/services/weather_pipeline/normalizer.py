@@ -294,6 +294,9 @@ class WeatherNormalizer:
             # §0B-a render-confidence: coarse NOAA products export the direction estimator's
             # resultant length as an extra series; absent everywhere else (stays None).
             conf_list = pt_hourly.get(f"{d_key}_confidence", []) if d_key else []
+            # ENSEMBLE SPREAD, carried the same way dir_confidence is. Absent on every deterministic
+            # product, so this resolves to [] and every vector gets None -> omitted at serialization.
+            spread_list = pt_hourly.get("wave_height_spread", [])
 
             # ⛔ RATIO FABRICATION, OFF BY DEFAULT (2026-07-30, user-reported live). This branch used
             # to INVENT a partition wherever a point's payload lacked the real variables: swell_2 =
@@ -340,6 +343,7 @@ class WeatherNormalizer:
             period = period_list[time_idx] if (p_key and time_idx < len(period_list)) else None
             gust = gust_list[time_idx] if (gust_key and time_idx < len(gust_list)) else None
             dir_confidence = conf_list[time_idx] if time_idx < len(conf_list) else None
+            speed_spread = spread_list[time_idx] if time_idx < len(spread_list) else None
 
             # Dominant-swell animation channel: replace the TOTAL direction with the dominant
             # swell partition's direction when that partition is energy-dominant. speed (height)
@@ -420,7 +424,8 @@ class WeatherNormalizer:
                     gust=round(gust, 4) if gust is not None else None,
                     value=round(speed, 4) if is_scalar else None,
                     is_valid=True,
-                    dir_confidence=round(dir_confidence, 4) if dir_confidence is not None else None
+                    dir_confidence=round(dir_confidence, 4) if dir_confidence is not None else None,
+                    speed_spread=round(speed_spread, 4) if speed_spread is not None else None
                 )
             
             grid_data[(lat, lng)] = vector

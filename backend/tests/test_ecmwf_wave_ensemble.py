@@ -214,3 +214,63 @@ def test_the_member_id_is_read_from_the_MEASURED_keys():
     src = open(p, encoding="utf-8").read()
     assert '("perturbationNumber", "number")' in src, (
         "the member discriminator is no longer the pair measured present on real messages")
+
+
+# ── THE SPREAD REACHES THE PAYLOAD (2026-08-07) ─────────────────────────────────────────────────
+# Computing the spread and keeping it in a local was the "true but reaches nobody" shape: the whole
+# reason the literature says to run an ensemble is the DISTRIBUTION, and a distribution nobody is
+# served is a point forecast with extra steps. These pin that it travels — and, just as importantly,
+# that it costs nothing when the ensemble is off.
+
+def test_the_grid_vector_carries_a_spread_field():
+    from services.weather_pipeline.schemas import GridVector
+    assert "speed_spread" in GridVector.model_fields, (
+        "GridVector has no speed_spread — the ensemble's only real product cannot reach a consumer")
+    assert GridVector.model_fields["speed_spread"].default is None
+
+
+def test_a_deterministic_vector_serializes_WITHOUT_the_spread_key():
+    """⚠️ ZERO BYTES WHEN ABSENT, not `null`.
+
+    Products are ~688 bytes/vector and a global_mid carries ~15,000 of them. An always-present null
+    on every deterministic grid would grow EVERY product for a field none of them has — the audit's
+    own §1.2 finding about representation cost. Same rule `phys_speed` already follows.
+    """
+    from services.weather_pipeline.schemas import GridVector
+    v = GridVector(lat=0.0, lng=0.0, speed=1.0, direction=90.0)
+    dumped = v.model_dump()
+    assert "speed_spread" not in dumped, (
+        "a deterministic vector serializes a null speed_spread — that is a per-vector byte cost "
+        "across every product for a value that does not exist")
+
+
+def test_a_spread_bearing_vector_does_serialize_it():
+    from services.weather_pipeline.schemas import GridVector
+    v = GridVector(lat=0.0, lng=0.0, speed=1.0, direction=90.0, speed_spread=0.1595)
+    assert v.model_dump()["speed_spread"] == 0.1595
+
+
+def test_the_normalizer_reads_the_spread_series_the_fetcher_emits():
+    """The producer's key and the consumer's key must be the SAME STRING.
+
+    This repo's recorded defect class is a value that is produced and then read under a different
+    name, so the two halves are asserted against each other rather than each against a literal.
+    """
+    import os as _os
+    root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    fetcher = open(_os.path.join(root, "services", "ecmwf_opendata_fetcher.py"), encoding="utf-8").read()
+    norm = open(_os.path.join(root, "services", "weather_pipeline", "normalizer.py"), encoding="utf-8").read()
+    assert 'out["wave_height_spread"]' in fetcher, "the fetcher no longer emits the spread series"
+    assert 'pt_hourly.get("wave_height_spread"' in norm, "the normalizer no longer reads it"
+    assert "speed_spread=round(speed_spread, 4)" in norm, (
+        "the normalizer reads the series but never passes it to the vector — produced, parsed, "
+        "and dropped one line before it would have reached anyone")
+
+
+def test_spread_of_none_never_becomes_zero_in_the_vector():
+    """0.0 spread reads as unanimity — the most confident answer the scale can express. A point
+    where fewer than two members had a value must stay None all the way to the vector."""
+    from services.weather_pipeline.schemas import GridVector
+    v = GridVector(lat=0.0, lng=0.0, speed=1.0, direction=90.0, speed_spread=None)
+    assert v.speed_spread is None
+    assert v.model_dump().get("speed_spread", "absent") == "absent"
