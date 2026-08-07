@@ -235,8 +235,14 @@ def test_the_decode_accumulates_by_member_instead_of_assigning():
     p = _os.path.join(_os.path.dirname(_os.path.dirname(_os.path.abspath(__file__))),
                       "services", "ecmwf_opendata_fetcher.py")
     src = open(p, encoding="utf-8").read()
-    assert "ens.setdefault(rid, {}).setdefault(kind, {}).setdefault(vt, {})[member] = vals" in src, (
+    # The accumulation lives in the SEPARATE ensemble fetch since the value/uncertainty decoupling —
+    # keyed by `emember` (perturbationNumber) so arrival order cannot mislabel a member.
+    assert 'setdefault(evt, {})[emember] = evals' in src, (
         "the member-keyed accumulation is gone — with the flag on, members overwrite each other again")
+    # And the deterministic loop must NOT accumulate: it is one message per (kind, valid_time), so a
+    # member branch there would be dead code pretending to be live.
+    assert "by[rid][kind][vt] = vals" in src, (
+        "the deterministic assignment is gone — the served value is no longer written directly")
     tree = ast.parse(src)
     assert any(isinstance(n, ast.FunctionDef) and n.name == "reduce_member_values"
                for n in ast.walk(tree)), "reduce_member_values was removed"

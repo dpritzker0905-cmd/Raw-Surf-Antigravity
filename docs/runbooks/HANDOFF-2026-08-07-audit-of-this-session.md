@@ -104,10 +104,7 @@ None was caught by a suite going green.**
 
 ## §5 WHAT A SUCCESSOR SHOULD DISTRUST
 
-* ⚠️ **`ECMWF_WAVE_ENSEMBLE` is still default OFF, and the remaining gate is COST, not correctness.**
-  Value-safety is proven (check E). Unmeasured: the **full-horizon** download. A 10-day run is ~65
-  steps × 8.58 MB ≈ **560 MB** for the member fetch. My verify used `forecast_days=1`. **Measure that
-  before flipping**, and note members are a dial — 5 members halves it.
+* ⚠️ **`ECMWF_WAVE_ENSEMBLE` is still default OFF — now for a MEASURED reason, see §7.**
 * ⚠️ **Nothing renders `forecast_confidence` in production**, because no forecast carries an ensemble.
   The UI is built and unit-tested but **has never been seen in a browser**, and cannot be until the
   flag flips.
@@ -138,3 +135,78 @@ None was caught by a suite going green.**
    values at Tp ≤ 10.5 s.
 5. **Phase 5 as a performance play** (13× decode, 5.6× wire) — no longer urgent.
 6. `geometry_backfill.sql`: 413 statements, generated 08-01, `moved: 0`, never applied. Apply or delete.
+
+
+---
+
+## §7 THE FULL-HORIZON COST — measured (run 31140963620), and it changes the answer
+
+The last open gate. Measured at the **production horizon**: `_step_list(240)` = **65 steps**,
+10 members, 650 member-messages — all 65 valid-times carried all 10.
+
+| | bytes | wall time |
+|---|---|---|
+| deterministic lane (4 params) | 240.3 MB | 229.9 s |
+| **ensemble adds** | **557.2 MB** | **380.9 s download + 20.5 s decode + 0.3 s reduce = 402 s** |
+| peak RSS of the whole ensemble pass | | **118 MB** |
+
+**Against the real bounds:**
+
+```
+lane today 251s  +  ensemble 402s  =  ~653s
+  vs global kill 1800s -> 36% used   OK
+  vs pilot  kill  900s -> 73% used   TIGHT
+box 2048 MB, plateau 891 MB, this pass peaked 118 MB -> 1039 MB headroom
+```
+
+⭐⭐ **THE EXTRAPOLATION WAS RIGHT ON BYTES AND WRONG ON THE THING THAT DECIDES IT.** I predicted
+~558 MB and got 557.2 — but I predicted the download at ~124 s from an observed 4.5 MB/s, and it took
+**380.9 s** (~1.46 MB/s sustained). **3.1× slower.** Bytes were the easy half; a byte estimate would
+have said "comfortable everywhere" and hidden the pilot-lane problem entirely.
+
+⭐ **Two worries that measurement dissolved:** memory is a non-issue (**118 MB peak**, not the
+accumulation I feared — the streaming decode works), and decode is cheap (20.5 s for 650 messages,
+the part a byte extrapolation prices at zero).
+
+### ⛔ THE VERDICT: DO NOT FLIP AT 10 MEMBERS
+
+The **global** lane is comfortable at 36%. The **regional pilot** passes `timeout_s=900` and lands at
+**73%** — and this session separately measured **1.57× upstream volatility** on an ingest lane
+(1198 → 1879 s on identical code). 653 s × 1.57 = **1025 s > 900 s**. The pilot lane would breach,
+which is the 2026-08-02 all-or-nothing loss reappearing in a new lane.
+
+⚠️ **That 1.57× was measured on the NOAA lane, not ECMWF — it is an assumption applied across
+upstreams, not a measurement of this one.** It is the best volatility figure available and it is
+directionally the right caution, but do not quote it as an ECMWF number.
+
+**Options, in order of preference:**
+1. **5 members** — cost is linear in members: ~279 MB, ~190 s download, total ≈ 460 s. Pilot 51%,
+   and 51% × 1.57 = 80% — inside budget. Spread from 5 members is still a real spread (the reducer
+   refuses below 2).
+2. **Ensemble on the GLOBAL lane only** — the pilots are regional high-res passes and a global
+   uncertainty field arguably does not belong there. This is a design refinement, not built.
+3. 10 members everywhere — **not supported by this measurement**.
+
+---
+
+## §8 THE DEEPER PASS — auditing the audit
+
+Re-examining my own work after writing §1–§6 turned up four things the first pass missed:
+
+1. ⛔ **I left DEAD CODE that looked live.** After the decoupling, `member` was unconditionally
+   `None` in the deterministic loop, so its `else: ens.setdefault(...)` branch was unreachable —
+   with a comment above it explaining member-keyed accumulation that no longer happened there.
+   Dead code carrying a live-sounding rationale is worse than no comment. Removed; the structural
+   test that caught it was repinned to the accumulation's real location.
+2. ⛔ **`MASTER-AUDIT-9.0` was never committed.** The document the whole session's plan came from sat
+   **untracked** for the entire session. Every commit referencing it pointed at a file that existed
+   only on my disk.
+3. ✅ **CI is green on the last three commits** (`9404a952`, `96085946`, `d9d01dfd`) — the gate has
+   now independently validated the session's work, which it had not when §1 was written.
+4. ✅ **The E2E failure is provably not mine.** It failed on `d9d01dfd`, a commit that changed
+   **only a workflow YAML** — and passed on `96085946`, which is *after* the frontend change. Three
+   Desktop Safari specs, matching the recorded flake. This upgrades §5's "implausible" to "excluded
+   by construction".
+
+★ **The first audit was written from what I remembered doing. The second was written from what the
+repository could be made to say.** Items 1 and 2 were invisible to the first method.

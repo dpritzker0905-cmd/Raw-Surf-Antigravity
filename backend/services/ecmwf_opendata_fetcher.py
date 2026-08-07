@@ -373,11 +373,6 @@ def fetch_global_coarse(payload):
             # Only meaningful with the ensemble on. `perturbationNumber` is the GRIB2 standard key
             # and `number` is pygrib's alias for it; BOTH were measured varying 1..3 across members
             # while shortName and validDate stayed constant (key probe, run 31134428972). Note
-            # `ensembleMember` — the name one would naturally reach for — came back <absent>, which
-            # is precisely why this was probed instead of guessed.
-            # The deterministic pass carries no members — the ensemble is fetched and decoded
-            # separately below, so nothing here can overwrite a member with another.
-            member = None
             for rid, im in idx_by.items():
                 if kind == "h" and scalar_blockmean:
                     # block-mean the wave height so enclosed-sea cells whose centre lands on masked land
@@ -385,12 +380,11 @@ def fetch_global_coarse(payload):
                     vals = [energy_mean_height_block(arr, r, c, _half, True) for (r, c) in im]
                 else:
                     vals = [arr[r, c] for (r, c) in im]  # ~n_pts sampled values (tiny)
-                if member is None:
-                    by[rid][kind][vt] = vals
-                else:
-                    # ⚠️ ACCUMULATE, never assign — keyed by the member id and NOT by arrival order,
-                    # because the probe measured messages arriving out of order (msg 0 -> member 2).
-                    ens.setdefault(rid, {}).setdefault(kind, {}).setdefault(vt, {})[member] = vals
+                # A plain assignment is CORRECT here: this is the deterministic stream, one message
+                # per (kind, valid_time). The members are fetched separately below and accumulate
+                # into `ens` keyed by perturbationNumber — which is what stops them overwriting each
+                # other, and is why no member branch belongs in this loop.
+                by[rid][kind][vt] = vals
             del arr
         grbs.close()
 
