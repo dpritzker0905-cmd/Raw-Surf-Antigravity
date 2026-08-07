@@ -734,8 +734,28 @@ async def run_fetcher_subprocess(
         if not out.exists():
             logger.error(f"[{log_tag}] fetcher produced no output file")
             return None
-        with open(out) as f:
-            data = json.load(f)
+        # ⛔ OFF THE EVENT LOOP (MASTER-AUDIT-10.0 §1.1). The subprocess above is correctly
+        # offloaded via `run_in_executor` — and this read, nine lines later, was not. These fetchers
+        # run under `AsyncIOScheduler` INSIDE the single uvicorn worker that serves all API traffic
+        # (`uvicorn server:app` carries no `--workers`, so there is exactly one event loop), so a
+        # blocking parse here stalls every in-flight request for its full duration.
+        # MEASURED on the real payload at documented `global_mid` scale — 14,940 points x 16 series
+        # keys x 113 valid times = 27,011,520 scalars, 235.3 MB on disk, BUILT not extrapolated:
+        #     json.load = 7.271 s / 7.089 s   vs   /spot-ratings 264 ms warm in production
+        # ★ Same class as the L2 read `6dd720eb` fixed at `routes/weather.py:460` (measured there at
+        # 0 of ~100 co-tenant ticks served). A fix applied at the site of the incident is not a fix
+        # applied to the class — this is the fourth site of that class found in this repo.
+        def _read_json_file(path):
+            """open + parse, together — BOTH must cross the thread boundary.
+
+            Offloading only `json.load` and leaving `open()` on the loop would move the smaller half:
+            the parse dominates, but a cold 235 MB read is not free either, and splitting them is the
+            kind of partial fix that reads as done.
+            """
+            with open(path) as fh:
+                return json.load(fh)
+
+        data = await asyncio.to_thread(_read_json_file, out)
         return data if data else None
     except subprocess.TimeoutExpired:
         logger.error(f"[{log_tag}] fetcher subprocess timed out (>{timeout}s)")

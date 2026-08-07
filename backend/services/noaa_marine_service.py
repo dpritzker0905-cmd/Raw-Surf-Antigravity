@@ -110,8 +110,16 @@ async def fetch_gfs_marine_global_coarse(
         if not out.exists():
             logger.error("[NOAA GFS-Wave] fetcher produced no output file")
             return None
-        with open(out) as f:
-            data = json.load(f)
+        # ⛔ OFF THE EVENT LOOP — see the note at `_fetch_common.run_fetcher_subprocess`
+        # (MASTER-AUDIT-10.0 §1.1). This is the GFS-Wave `global_mid` lane, i.e. the exact product
+        # the 7.09 s figure was measured on: 14,940 points x 16 series keys x 113 valid times,
+        # 235.3 MB. These fetchers run under AsyncIOScheduler in the single uvicorn worker that
+        # serves all API traffic, so this parse stalled every in-flight request for its duration.
+        def _read_json_file(path):
+            with open(path) as fh:
+                return json.load(fh)
+
+        data = await asyncio.to_thread(_read_json_file, out)
         return data if data else None
     except subprocess.TimeoutExpired:
         # Reaching HERE means the soft deadline did not fire (disabled, or the process wedged inside

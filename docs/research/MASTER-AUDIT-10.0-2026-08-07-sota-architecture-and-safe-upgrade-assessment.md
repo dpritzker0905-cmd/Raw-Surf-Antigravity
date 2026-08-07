@@ -424,7 +424,28 @@ It binds on 100% of served spot-hours and is a 463 m ETOPO-2022 fit (99.6% `etop
 The brief's "does bathymetry match sub-km capabilities" question is answered: **the input that
 matters already is sub-km; the ones that are coarse are the ones that barely bind.**
 
-### 2.8 ★★ Tests were strengthened, not weakened, in the audited range
+### 2.8 ★★★ The pooling fix landed in **6 of 6** eligible fetchers — and a naive scan says otherwise
+
+This audit went looking for the repo's signature defect (a fix landing in 5 of 7) and **did not find
+it**. Each of the six byte-range GRIB fetchers has exactly one `http_session()` call and **zero**
+module-level `import requests`.
+
+⚠️ **A scope-blind AST scan reports 4 "bare" `requests.get/head` calls per fetcher and is wrong.**
+The name `requests` is **rebound** to the pooled session (`requests = http_session()`,
+`noaa_gfs_wave_fetcher.py:281`) and threaded through as a parameter
+(`def _pick_cycle(requests, ...)`). A scope-aware scan resolving the binding at each call site found
+**BARE = 0 in all six**. `ecmwf_opendata` and `copernicus` make zero `requests.*` calls at all (they
+use client libraries), so six is the whole eligible set.
+
+★ **Worth recording as a method note: a rebound name defeats grep AND a naive AST scan.** Had this
+audit trusted either, it would have reported a fix as half-landed when it was complete.
+
+Likewise, **9.0 §1.1 is genuinely fixed** — a full AST scan of every `async def` in `routes/` and
+`services/` found zero un-offloaded `requests.*` / `time.sleep` / `subprocess.*` on any serving path,
+and `weather.py` alone now carries 10 `to_thread` wraps. §1.1 above is a **different site**, not a
+re-report.
+
+### 2.9 ★★ Tests were strengthened, not weakened, in the audited range
 
 `test_websocket_endpoints_auth.py` moved from `pytest.raises((WebSocketDisconnect, Exception))`
 (which is just `Exception`) to pinning `excinfo.value.code == 1008`; `MockWebSocket` gained
@@ -553,7 +574,54 @@ is working; the response to it is what failed.**
 
 ---
 
-## §5 WHAT THIS AUDIT DID NOT COVER — stated so it is not over-quoted
+## §5a ⛔ LIVE ESCALATION DURING THIS SESSION — ICON/weather crossed the critical bound
+
+A monitor armed at the start of this audit watched `/api/health/data` every 2 minutes. Over the
+session the ICON/weather lane aged from **11.6 h → 12.1 h**, and at 12.0 h the pipeline status went
+**`warn` → `critical`**:
+
+```
+03:2xZ  EURO/marine 2.4h | ICON/weather 11.6h | status=warn
+...
+04:0xZ  EURO/marine 2.9h | ICON/weather 12.1h | status=critical
+```
+
+This is §1.8 progressing in real time, not a new finding. It is **not caused by anything in this
+session** — the lane has been stale since 2026-08-06 ~16:00Z and the Data Health Monitor has failed
+every run since 16:30Z. But it now clears the repo's own paging bound, and the next ingest cycle is
+the thing to watch.
+
+★ **The alert worked. Every part of the response to it failed** — four consecutive red runs across a
+30-commit session, in a repo whose own rule is that a stale blocker is invisible.
+
+---
+
+## §5b WHAT WAS FIXED IMMEDIATELY AFTER THIS AUDIT (same session, separate commits)
+
+The audit is read-only; these landed after it, each with a guard that was **made to fail first**.
+
+| row | what | evidence it is load-bearing |
+|---|---|---|
+| **D** | `_producer_return_keys` now recurses into `**` unpack values; floor 10 → 17 | the guard **failed at HEAD** naming `forecast_confidence` before any declaration was added |
+| **B** | `speed_spread` carried on the three `nearest_*` sampler branches | mutation: setting it back to `None` fails the new test, naming `nearest_ocean_coarse_masked` |
+| **C** | `forecast_confidence` declared on `SpotRatingItem`; added to `/conditions`'s `current` | mutation: renaming the key fails the new route test |
+| **A** | `json.load` moved off the event loop at **3** GRIB-product sites (`_fetch_common`, `noaa_marine_service`, `copernicus_marine_service`) | AST scan of `json.load` inside `async def` without a thread boundary: **54 → 52**, and none of the three files remains |
+| **I** | the three stale untracked artifacts retired to scratchpad | `resolve_surf_geometry` at the five overlay coordinates now returns what production returns |
+
+⚠️ **REACH AFTER ROW B, WITH ITS DENOMINATOR — necessary, NOT sufficient.** `forecast_confidence`
+goes from **0% → 20.0%** on the EURO/Iberia frame (n=30 live probes) and **0% → 4.8%** on GFS
+`global_coarse` (n=1,103 served spot_ids). The majority path is **bilinear**, which refuses by
+design. Carrying a bound there (max-over-corners, under its own field name) is an **owner decision**,
+not a bug fix, and it is the single highest-leverage remaining item on this capability.
+
+⚠️ **NOT fixed, and named rather than guessed:** the three `wind_ingestion.py` fallback-cache
+`json.load` sites are the same class, but they are a colder path and **their payload size was never
+measured** — so they are recorded, not fixed. Row E (the coverage floor), row G (the 18 open-ocean
+spots) and row H (tide) are untouched.
+
+---
+
+## §5c WHAT THIS AUDIT DID NOT COVER — stated so it is not over-quoted
 
 - **The nearshore denominators are a 250-coordinate sample of `shore_normals.json`'s 1,386**
   (seed 20260807, 249 usable), not the 779–1,005 actually-served spots — local `.env` points at the

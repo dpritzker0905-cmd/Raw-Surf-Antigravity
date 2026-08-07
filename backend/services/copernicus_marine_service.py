@@ -318,8 +318,14 @@ async def fetch_euro_marine_global_coarse(
         if result.returncode != 0:
             logger.error(f"[Copernicus Global] fetcher failed (exit {result.returncode}): {result.stderr.strip()[-600:]}")
             return None
-        with open(out) as f:
-            data = json.load(f)
+        # ⛔ OFF THE EVENT LOOP — same class and same shape as the GFS-Wave lane; see the note at
+        # `_fetch_common.run_fetcher_subprocess` (MASTER-AUDIT-10.0 §1.1). Copernicus Global is the
+        # longest-running lane in the pilots pass (1,158.8 s observed), so its product is not small.
+        def _read_json_file(path):
+            with open(path) as fh:
+                return json.load(fh)
+
+        data = await asyncio.to_thread(_read_json_file, out)
         return data if data else None
     except subprocess.TimeoutExpired:
         logger.error("[Copernicus Global] fetcher subprocess timed out (>2400s)")
