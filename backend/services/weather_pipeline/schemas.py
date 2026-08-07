@@ -142,6 +142,11 @@ class NormalizedPointDetail(BaseModel):
     period: Optional[float] = None
     gust: Optional[float] = None
     value: Optional[float] = None
+    # ENSEMBLE SPREAD carried from the sampled GridVector. Populated ONLY where a single vector is
+    # the source (exact match / nearest); the interpolated paths leave it None ON PURPOSE — averaging
+    # standard deviations across neighbouring cells is a DIFFERENT quantity from the spread at a
+    # point, and inventing it would publish a number nothing measured.
+    speed_spread: Optional[float] = None
     interpolation_method: str
     # ── ECMWF PERIOD BANDS (M4, 2026-08-02) ────────────────────────────────────────────────────
     # {'h1012': 1.2, 'h1214': 0.8, ...} — significant height per >=10 s period band, keyed by the

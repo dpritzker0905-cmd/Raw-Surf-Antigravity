@@ -72,6 +72,7 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     Returns the rating dict — the SAME shape the endpoint serves and the precompute persists."""
     lat, lng = spot["latitude"], spot["longitude"]
     surf_h = period = swell_from = shore_normal = wind_ms = wind_from = None
+    offshore_h = spread_m = None
     geometry_readiness = None
     partitions = None
     run_time = wind_run_time = None
@@ -98,6 +99,11 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
             # is on). Read off the response, NEVER re-resolved here — one sea state for the height
             # and the rating, or the two can disagree about the same hour.
             partitions = getattr(marine, "partitions", None)
+            # ENSEMBLE SPREAD on the OFFSHORE Hs (marine `point.speed` IS the offshore significant
+            # height — the repo's loudest landmine). Paired with that same offshore height below,
+            # never with the breaking height, or the ratio inflates by whatever the transform did.
+            offshore_h = getattr(marine.point, "speed", None)
+            spread_m = getattr(marine.point, "speed_spread", None)
     except Exception as e:
         logger.debug(f"[spot-ratings] marine resolve failed for {spot.get('id')}: {e}")
     try:
@@ -198,6 +204,12 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
     if partitions:
         from services.weather_pipeline.surf_rating import dominant_swell_period
         why_period = dominant_swell_period(partitions) or period
+    _fc = None
+    try:
+        from services.weather_pipeline.forecast_spread import describe as _spread_describe
+        _fc = _spread_describe(spread_m, offshore_h)
+    except Exception as e:   # a confidence must never break the rating it qualifies
+        logger.debug(f"[spot-ratings] forecast spread unavailable for {spot.get('id')}: {e}")
     why = rating_why(level, surf_h, why_period, wind_ms, wind_from, shore_normal)
     if why and tide_state and best_tide:
         why += f", {tide_state.get('trend', '')} tide".rstrip()
@@ -249,6 +261,15 @@ async def rate_one_spot(resolver, spot, model, valid_time, reference_size_m=None
         # correctly-placed, verified pin can still be scored on a coarse 0.25° bearing that is
         # median 22.3° off — and until now nothing distinguished the two.
         "geometry_readiness": geometry_readiness,
+        # ★ A THIRD, ORTHOGONAL CONFIDENCE — and deliberately not a term in `score`.
+        # `confidence` grades the PIN, `geometry_readiness` grades the INPUTS, this grades the
+        # FORECAST: how much the ensemble members disagree about the sea. ABSENT (not null) on every
+        # deterministic product, which is all of them until ECMWF_WAVE_ENSEMBLE is on.
+        # ⛔ It does NOT move the rating. Uncertainty is not quality — a high-spread 6 ft is the same
+        # wave as a low-spread 6 ft, forecast less confidently, and folding it into the 0-100 would
+        # make a groomed swell score lower merely for being five days out. Same verdict the repo
+        # reached on RATING_LOCAL_SIZE: a separate axis, not a multiplier.
+        **({"forecast_confidence": _fc} if _fc else {}),
         # WHICH FORECAST, not just which hour. Interned per frame before upload — see
         # `intern_frame_runs`; a raw ISO pair on every spot costs +23% on an object every client
         # downloads. The live path keeps them inline (nothing to intern, one request).

@@ -151,6 +151,7 @@ class PointSampler:
                     period=vec.period,
                     gust=getattr(vec, "gust", None),
                     value=getattr(vec, "value", None),
+                    speed_spread=getattr(vec, "speed_spread", None),
                     interpolation_method="exact_match"
                 )
                 return self._build_success_response(product, is_estimated, estimate_basis, detail, warnings)
