@@ -1,0 +1,152 @@
+name: ECMWF ensemble decode verify (real GRIB)
+
+# WHAT THIS DECIDES. `ECMWF_WAVE_ENSEMBLE` is default OFF. The decode was just made member-aware
+# (`b50f45fe`) against facts measured by the key probe — but that probe read THREE members of ONE
+# step, and every test since is against pure inputs. Nothing has decoded a real MULTI-MEMBER,
+# MULTI-STEP fetch end to end. This is the gate the flag flip needs, and it is the same shape that
+# licensed FETCH_VECTOR_BLOCKMEAN: prove it where the data is real.
+#
+# It asks three things the unit tests structurally cannot:
+#   A. do N distinct members really land per (shortName, validDate) at N > 3 and across steps?
+#      — the direct proof the overwrite is gone, at a scale the probe did not reach;
+#   B. do the members actually DIFFER? A perfectly-reduced ensemble of identical members would
+#      produce spread 0.0 everywhere and be worthless — and would pass every parity test;
+#   C. does the real fetcher, with the flag ON, report reducing N members and still emit the same
+#      payload SHAPE (same variables, same series lengths) as the deterministic path?
+#
+# ⚠️ (B) IS THE ONE THAT CANNOT BE FAKED BY A GREEN TEST. "The decode works" and "the ensemble is
+# informative" are different claims; only a measured non-degenerate spread supports the second.
+
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: "Ensemble members to request (>=2; small keeps the download honest)"
+        required: false
+        default: "5"
+
+concurrency:
+  group: ecmwf-ensemble-decode-verify
+  cancel-in-progress: true
+
+jobs:
+  verify:
+    runs-on: ubuntu-latest
+    timeout-minutes: 25
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: "A+B  Do N members land, and do they differ?"
+        working-directory: backend
+        env:
+          ECMWF_WAVE_ENSEMBLE: "1"
+          ECMWF_WAVE_ENSEMBLE_MEMBERS: ${{ github.event.inputs.members || '5' }}
+        run: |
+          python - <<'PY'
+          import os, sys, tempfile, pathlib, collections
+          import numpy as np, pygrib
+          from ecmwf.opendata import Client
+          from services.ecmwf_opendata_fetcher import retrieve_spec, reduce_member_values
+
+          want = int(os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"])
+          spec = retrieve_spec("waves", ("swh",), [0, 3])       # 2 steps, so vt actually varies
+          print(f"spec: {spec}")
+          tmp = pathlib.Path(tempfile.mkdtemp()) / "waef.grib2"
+          Client(source="ecmwf").retrieve(target=str(tmp), **spec)
+          print(f"downloaded {tmp.stat().st_size/1e6:.2f} MB for {want} members x 2 steps")
+
+          grbs = pygrib.open(str(tmp)); msgs = grbs.read()
+          groups = collections.defaultdict(dict)
+          for m in msgs:
+              member = int(getattr(m, "perturbationNumber"))
+              key = ((m.shortName or "").lower(), m.validDate)
+              groups[key][member] = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
+          grbs.close()
+
+          print(f"\n{len(msgs)} messages -> {len(groups)} (shortName, validDate) groups")
+          bad = []
+          for key, per_member in sorted(groups.items(), key=lambda kv: str(kv[0])):
+              n = len(per_member)
+              print(f"  {key[0]:6s} {key[1]}  members={n}  numbers={sorted(per_member)}")
+              if n != want:
+                  bad.append(f"{key}: {n} members, expected {want}")
+          if not groups:
+              print("::error::no groups decoded — this job proved nothing"); sys.exit(1)
+          if bad:
+              print("::error::A FAILED — the decode would still be overwriting:")
+              for b in bad: print("   " + b)
+              sys.exit(1)
+          print(f"\nA PASSED: every group carries exactly {want} distinct members.")
+
+          # ── B: are the members actually different? ──────────────────────────────────────────────
+          key0 = sorted(groups, key=str)[0]
+          per_member = {k: v.ravel() for k, v in groups[key0].items()}
+          sample = {k: list(v[:4000]) for k, v in per_member.items()}
+          means, sds, counts = reduce_member_values(sample)
+          finite_sd = [s for s in sds if s is not None and s == s]
+          if not finite_sd:
+              print("::error::B FAILED — no point had >=2 finite members; spread is unanswerable")
+              sys.exit(1)
+          nz = [s for s in finite_sd if s > 0.0]
+          arr = np.array(finite_sd)
+          print(f"\nB spread over {len(finite_sd)} points of {key0[0]}@{key0[1]}:")
+          print(f"   non-zero {len(nz)}/{len(finite_sd)} = {100*len(nz)/len(finite_sd):.1f}%")
+          print(f"   sd  p50={np.median(arr):.4f}  p90={np.percentile(arr,90):.4f}  max={arr.max():.4f} m")
+          if len(nz) < 0.10 * len(finite_sd):
+              print("::error::B FAILED — the members are near-identical, so the ensemble carries no "
+                    "information even though the decode is correct")
+              sys.exit(1)
+          print("B PASSED: the members genuinely disagree, so the spread is informative.")
+          PY
+
+      - name: "C  The real fetcher, flag ON: shape preserved and N members reduced"
+        working-directory: backend
+        env:
+          ECMWF_WAVE_ENSEMBLE: "1"
+          ECMWF_WAVE_ENSEMBLE_MEMBERS: ${{ github.event.inputs.members || '5' }}
+        run: |
+          set -o pipefail
+          python services/ecmwf_opendata_fetcher.py \
+            '{"bbox":{"west":-30.0,"south":30.0,"east":10.0,"north":60.0},"resolution":10.0,"forecast_days":1,"layer":"waves","output_path":"/tmp/ens.json"}' \
+            2>&1 | tee /tmp/ens.err
+          python - <<'PY'
+          import json, os, re, sys
+          want = int(os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"])
+          err = open("/tmp/ens.err").read()
+          m = re.search(r"ensemble reduced: (\d+) members", err)
+          if not m:
+              print("::error::the fetcher never reported reducing members — the ensemble branch did "
+                    "not run, so the flag is inert rather than working")
+              sys.exit(1)
+          got = int(m.group(1))
+          print(f"fetcher reported: {got} members reduced (requested {want})")
+          if got != want:
+              print(f"::error::reduced {got} members, expected {want}"); sys.exit(1)
+
+          pts = json.load(open("/tmp/ens.json"))
+          if isinstance(pts, dict) and pts.get("__multi_region__"):
+              pts = [p for r in pts["regions"].values() for p in r]
+          if not pts:
+              print("::error::no points emitted"); sys.exit(1)
+          h = pts[0]["hourly"]
+          lens = {k: len(v) for k, v in h.items()}
+          print(f"points={len(pts)} variables={sorted(h)} series_len={sorted(set(lens.values()))}")
+          if len(set(lens.values())) != 1:
+              print(f"::error::ragged series — the time axis desynced: {lens}"); sys.exit(1)
+          vals = [v for v in h.get("wave_height", []) if v is not None]
+          if not vals:
+              print("::error::wave_height is entirely null — the reduction produced no usable value")
+              sys.exit(1)
+          print(f"wave_height non-null {len(vals)}/{len(h.get('wave_height', []))} "
+                f"min={min(vals)} max={max(vals)}")
+          print("::notice::C PASSED. Ensemble decode verified end to end on real GRIB.")
+          PY
