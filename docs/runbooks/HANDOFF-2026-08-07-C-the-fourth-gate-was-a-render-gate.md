@@ -1,9 +1,10 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**4 commits, `f85fdeda` → `15a22720`, all pushed.** Predecessor:
+**6 commits, `f85fdeda` → `3c25228e`+, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
-spine of this session: items **0, 1** and audit row **F** are closed, and item **2**'s
-premise turned out to be wrong in a way that mattered.
+spine of this session: items **0, 1, 2** and audit row **F** are closed — and in three of
+the four cases the *premise* recorded in the predecessor turned out to be wrong in a way
+that mattered.
 
 ---
 
@@ -14,9 +15,13 @@ fourth, and it was the one every document pointed at.** The spot hub receives
 `forecast_confidence` in its payload and renders nothing, because the only frontend file that
 mentions the field is mounted exclusively by the *map's spot drawer*.
 
-★ **The method that produced all three findings, stated once:** ask *what fraction of the real
-input distribution did this check actually see* — and then answer it with a **denominator**, not a
-count. Every finding below is a ratio that a count had rounded to "fine".
+★ **The method, stated once:** ask *what fraction of the real input distribution did this check
+actually see* — and answer it with a **denominator**, not a count. Every finding below is a ratio,
+or a discriminator, that a count had rounded to "fine".
+
+★★ **And the session's second lesson, from the ICON/weather lane: when a control REFUTES your race,
+ask what differs BETWEEN the surviving and the lost cases** — the audit stopped at "mechanism not
+established" because it was looking for a race that treats every lane alike.
 
 ---
 
@@ -28,6 +33,7 @@ count. Every finding below is a ratio that a count had rounded to "fine".
 | 2 | `d42c635c` | **The frontend confidence suite tested a COPY** (audit row F, the matrix's last open row) | old suite vs component with the block **deleted** → **14 passed, rc=0** |
 | 3 | `7a002e8b` | **The spot hub had the field and no consumer** | payload PRESENT on both endpoints, rendered page contains "confidence" **zero times** |
 | 4 | `15a22720` | **E2E gated on the backend being current**, not just the frontend (queue item 1) | both gate paths executed live; redeploy measured at ~2 min |
+| 5 | `3c25228e` | **The ICON/weather lane loss was a key collision inside the anti-clobber merge** (queue item 2) | reproduced through the real function with 3 discriminating controls |
 
 ---
 
@@ -86,6 +92,52 @@ sampler all three were investigating.
 
 ---
 
+### 4. The lost lane was a collision inside the merge that PREVENTS collisions
+
+AUDIT 10.0 §1.8a narrowed ICON/weather to "last writer wins", then **refuted its own story with a
+control it could not explain** — the core run's 01:18Z GFS/marine write survived the same overlap —
+and stopped at "mechanism not established", prescribing a log instrument for the next cycle.
+
+The mechanism, reproducible in minutes rather than a cycle:
+
+1. `_build_product_filename` keys a product by **`valid_time`, never `run_time`**, and
+   `product_id = filename` ⇒ two runs collide on one key **by construction**.
+2. `reconcile_manifest_products_for_upload` folded in a remote entry only when the key was
+   **absent** locally. Its own docstring named the accepted risk: *"for keys both sides hold, OUR
+   copy wins even if theirs is newer."* True for slices you **touched**; false for slices you merely
+   **restored**.
+3. The pilots run (`INGEST_PILOTS='only'`) never re-ingests the globals ⇒ "until their next
+   registration" is **never**, and the lane ages until it pages.
+
+| case | ICON/weather |
+|---|---|
+| pilots hold a **stale restored copy** | 01:38Z → **00:00Z — LOST** (`folded=0`) |
+| pilots re-ingest the lane | 01:41Z — safe |
+| pilots hold **no** copy | folded in, 01:38Z — safe |
+
+⇒ ★★★ **The audit was looking for a race that treats all lanes alike. The discriminator was WHICH
+LANES THE SECOND WRITER OWNS.** When a control refutes your race, ask what differs *between* the
+surviving and lost cases — not whether the race happened.
+
+**THE DENOMINATOR — this was not a rare window.** Over the last 40 runs of each workflow,
+**21 of 40 core runs (52%) overlapped a pilots run**, by 21–100 min (median core 107 min, pilots
+122 min). And the measurement corroborates the incident independently: the 08-07 **00:55–02:21**
+core run overlapped the **00:48–02:04** pilots run — exactly the window of the 01:38Z ICON/weather
+write and the 01:41Z pilots publish.
+
+⚠️ ★★ **THE CRON IS NOT THE SCHEDULE, and reading it would have understated this.** The declared
+crons are `15 */4` (core) and `45 3,11,19` (pilots), which look nearly disjoint. Observed starts are
+06:43 / 14:35 / 21:34 — GitHub queueing drifts them by hours. **Measure run history, never the cron
+expression, when you need an overlap rate.**
+
+⚠️ **Be precise about what was lost.** Both runs write the same filename, so the L2 **object** was
+fresh; what reverted was the entry's `run_time` **metadata**. Not cosmetic — `data_health` derives
+each lane's `age_h` from exactly that field, so the metadata is what crossed the paging bound.
+Whether any grid object was also stale is **not** claimed here.
+
+★ **The fix's own WARNING log is the instrument**, and it is better than the prescribed before/after
+dump: it fires only when the defect would have occurred, and names the key and both run_times.
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -141,10 +193,11 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
   (`started_at == completed_at == 18:45:35Z`): placing it after the installs meant the Render deploy
   had already finished. That is the design working, not the gate being skipped — the same step exits
   1 when the SHA does not match, verified directly against production.
-  ⚠️ **ONE FLAKY REMAINS** — `weather-simulation … toggle and timeline scrubbing`, Desktop Chrome.
-  **The gate removed the deploy race; it did not make the suite deterministic.** Do not read one
-  green run as proof the whole class is closed — n=1, and this session already recorded a
-  predecessor over-reading exactly that.
+  ⚠️ **FLAKINESS IS NOT GONE, AND THE SECOND RUN IS THE EVIDENCE.** Two runs with the gate:
+  `31208159146` → 46 passed / **1 flaky** / 0 failed (6.7 m); `3c25228e` → 45 passed / **2 flaky** /
+  0 failed (7.3 m). Both green, and the flaky count went **up**. **The gate removed the deploy race;
+  it did not make the suite deterministic.** Do not read green runs as proof the class is closed —
+  this session already recorded a predecessor over-reading exactly that from n=1.
 * ⚠️ **`concurrency: cancel-in-progress: true` means ANY push cancels the E2E run in flight.**
   Several "cancelled" runs in the history are just rapid pushes, not failures. If you want the
   result, wait for it before pushing again.
@@ -161,11 +214,13 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
    its own field name would take reach from ~15% toward complete.
 1. **The confidence thresholds are still `"calibrated": false`.** 15%/35% is legibility, not skill.
    `forecast_skill.py` accruing paired leads is what would make them defensible.
-2. **The ICON/weather instrument** — log the manifest's per-lane `run_time` immediately before and
-   after each publish, in BOTH workflows, for one cycle. Nothing else discriminates the two shapes.
-   ⚠️ The lane is currently healthy (recovered; Data Health Monitor green again after 4 consecutive
-   red runs) — **it will recur on the next overlapping cycle**, so the instrument must land before
-   then or the evidence is lost again.
+2. ~~The ICON/weather instrument~~ — **CLOSED by `3c25228e`**, and not the way the audit expected:
+   the mechanism was found by reproduction rather than by logging a cycle. ⚠️ **The live proof is
+   still outstanding** — the fix is verified by unit reproduction and mutation, but no *overlapping*
+   core+pilots cycle has run against it yet. Watch `/api/health/data` after the next 03/11/19Z
+   pilots run that overlaps a core ingest; the WARNING line `KEPT THE NEWER REMOTE RUN` in that
+   run's log is the confirmation, and its **absence** on an overlapping cycle means the collision
+   did not occur and the case is still open.
 3. **Row Q, `ecmwf_opendata` half** (~53.5 s/run) — the GWAM half is done and its guard is the
    template.
 4. **Tide wiring** (row H) — feed `tide_state_at`'s `height_m` from `rate_one_spot` /
