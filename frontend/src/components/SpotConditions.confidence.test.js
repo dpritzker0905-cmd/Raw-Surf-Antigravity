@@ -1,42 +1,85 @@
 /**
  * FORECAST CONFIDENCE ON THE SPOT HUB — three themes, both layouts, no colour-only meaning.
  *
- * These are the three project mandates applied to one block, and each has a recorded failure behind
- * it that this file is trying not to repeat:
+ * ⚠️⚠️ WHAT THIS FILE USED TO BE, AND WHY IT WAS WORTHLESS (MASTER-AUDIT-10.0 §1.6, row F).
+ * It imported nothing from `SpotConditions.js`. It re-declared its own `CONFIDENCE_TEXT`,
+ * `confidenceDot` and `confidenceLabel`, and its "render" tests rendered a LOCAL `<Dot>`
+ * re-implementation. Every assertion passed against a COPY. Deleting the entire confidence block
+ * from the shipped component would have left this suite green — and the audit's absence check
+ * (`git ls-files frontend/src | grep test | xargs grep -ln SpotConditions`) returned nothing, so no
+ * frontend test anywhere bound to the real component.
  *
- *   THREE THEMES / ALL DEVICES — every surface must work in light, dark AND beach, and a component
- *   with separate layouts must have the change in BOTH. The dot colour here is chosen by a helper
- *   that names all three modes; a test asserts beach is not silently falling through to dark, which
- *   is exactly what would happen if `t.isBeach` were ever dropped from the theme tokens.
+ * ★ THE FIX IS THE IMPORT. The helpers are now exported from the component and imported here, and
+ * the render tests mount the REAL `<SpotConditions>` with a mocked API client. A test that
+ * re-implements its subject measures the test author, not the code.
+ *
+ * The three mandates this block has to satisfy, each with a recorded failure behind it:
+ *
+ *   THREE THEMES / ALL DEVICES — light, dark AND beach, and a component with separate layouts must
+ *   carry the change in BOTH. Asserted through the mounted component, per layout, per theme.
  *
  *   ACCESSIBILITY — information is NEVER conveyed by colour alone. The LEVEL WORD carries the
- *   signal; the dot is decorative and aria-hidden. A screen-reader user must receive the same
- *   information, so the aria-label carries the whole sentence.
+ *   signal; the dot is decorative and aria-hidden; the aria-label carries the whole sentence.
  *
- *   ABSENT MEANS NO ENSEMBLE, NOT LOW CONFIDENCE. Every deterministic forecast has no spread. If
- *   absence rendered as "Low", the UI would libel every GFS and ICON forecast in the system — which
- *   today is ALL of them, since ECMWF_WAVE_ENSEMBLE is default off.
+ *   ABSENT MEANS NO ENSEMBLE, NOT LOW CONFIDENCE. A deterministic forecast has no spread. If
+ *   absence rendered as "Low" the UI would libel every forecast that carries no ensemble.
+ *   ⚠️ CORRECTED 2026-08-07: this file used to say that was "ALL of them, since ECMWF_WAVE_ENSEMBLE
+ *   is default off". The flag has been ON since `b648098d` and the spread reaches ~15% of sampled
+ *   EURO spots, so absence is now the MAJORITY case rather than the only case.
  */
-import { render, screen } from '@testing-library/react';
+import React from 'react';
+import { render, screen, within } from '@testing-library/react';
 import { getThemeTokens } from '../utils/themeTokens';
 
-// The presentation helpers are exercised directly: they hold the decisions (which word, which
-// colour, what a screen reader hears) and they are what a future edit would break.
-const CONFIDENCE_TEXT = { high: 'High', moderate: 'Moderate', low: 'Low' };
+// ⭐ THE WHOLE POINT OF THE FILE: bind to the shipped component, not to a copy of it.
+import SpotConditions, {
+  CONFIDENCE_TEXT,
+  confidenceDot,
+  confidenceLabel,
+} from './SpotConditions';
 
-const confidenceDot = (level, isLight, isBeach) => {
-  if (level === 'high') return isLight ? 'bg-emerald-600' : isBeach ? 'bg-emerald-700' : 'bg-emerald-400';
-  if (level === 'low') return isLight ? 'bg-rose-600' : isBeach ? 'bg-rose-700' : 'bg-rose-400';
-  return isLight ? 'bg-amber-600' : isBeach ? 'bg-amber-700' : 'bg-amber-400';
-};
+let mockTheme = 'dark';
 
-const confidenceLabel = (fc) => {
-  const word = CONFIDENCE_TEXT[fc?.level] || 'Unknown';
-  const pct = fc?.relative_spread != null ? Math.round(fc.relative_spread * 100) : null;
-  return pct == null
-    ? `Forecast confidence: ${word}`
-    : `Forecast confidence: ${word}. Ensemble members differ by about ${pct}% of the forecast wave height. This describes confidence in the forecast, not surf quality, and does not change the rating.`;
-};
+jest.mock('../lib/apiClient', () => ({
+  __esModule: true,
+  default: { get: jest.fn(), post: jest.fn() },
+}));
+jest.mock('../contexts/AuthContext', () => ({ useAuth: () => ({ user: null }) }));
+jest.mock('../contexts/ThemeContext', () => ({ useTheme: () => ({ theme: mockTheme }) }));
+jest.mock('sonner', () => ({ toast: { success: jest.fn(), error: jest.fn() } }));
+jest.mock('../utils/logger', () => ({
+  __esModule: true,
+  default: { error: jest.fn(), warn: jest.fn(), info: jest.fn(), debug: jest.fn() },
+}));
+
+import apiClient from '../lib/apiClient';
+
+const FC_MODERATE = { level: 'moderate', spread_m: 0.31, relative_spread: 0.25, calibrated: false };
+
+/** Route the component's four fetches; `forecast_confidence` is what varies. */
+function mockApi(forecastConfidence) {
+  apiClient.get.mockImplementation((url) => {
+    if (url.startsWith('/conditions/')) {
+      return Promise.resolve({
+        data: {
+          current: {
+            wave_height_ft: 4.2,
+            wave_period: 12,
+            wind_speed: 8,
+            wind_direction: 290,
+            ...(forecastConfidence ? { forecast_confidence: forecastConfidence } : {}),
+          },
+        },
+      });
+    }
+    return Promise.resolve({ data: {} });
+  });
+}
+
+beforeEach(() => {
+  mockTheme = 'dark';
+  jest.clearAllMocks();
+});
 
 describe('theme tokens expose all three modes', () => {
   // ⚠️ THE FALL-THROUGH THIS CATCHES: if `isBeach` were dropped from the tokens it would be
@@ -65,9 +108,6 @@ describe('the confidence dot is theme-aware in all three modes', () => {
     const light = confidenceDot(level, true, false);
     const beach = confidenceDot(level, false, true);
     const dark = confidenceDot(level, false, false);
-    expect(light).toBeTruthy();
-    expect(beach).toBeTruthy();
-    expect(dark).toBeTruthy();
     // If beach ever collapsed into dark, this is the assertion that fails.
     expect(new Set([light, beach, dark]).size).toBe(3);
   });
@@ -110,29 +150,79 @@ describe('meaning is never carried by colour alone', () => {
   });
 });
 
-describe('the block renders in both layouts and only when it applies', () => {
-  const Dot = ({ fc, isLight, isBeach }) =>
-    fc ? (
-      <span role="note" aria-label={confidenceLabel(fc)} data-testid="forecast-confidence">
-        <span className={confidenceDot(fc.level, isLight, isBeach)} aria-hidden="true" />
-        <span>{CONFIDENCE_TEXT[fc.level]}</span>
-      </span>
-    ) : null;
+// ── THROUGH THE REAL COMPONENT ───────────────────────────────────────────────────────────────────
+// Everything above still exercises helpers in isolation; a helper can be perfect and never be
+// called. These mount the shipped component, so deleting the block fails them.
 
-  it('is ABSENT when the forecast carries no ensemble (every spot today)', () => {
-    render(<Dot fc={null} isLight={false} isBeach={false} />);
+describe('the shipped component renders the block in both layouts', () => {
+  it('EXPANDED: renders the level word, the sentence, and hides the dot from assistive tech',
+    async () => {
+      mockApi(FC_MODERATE);
+      render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+      const node = await screen.findByTestId('forecast-confidence');
+      expect(node).toHaveAttribute('aria-label', confidenceLabel(FC_MODERATE));
+      expect(within(node).getByTestId('forecast-confidence-level')).toHaveTextContent('Moderate');
+      expect(node.querySelector('[aria-hidden="true"]')).toBeTruthy();
+      // `calibrated: false` is stated, not hidden — it is legibility, not validated skill.
+      expect(node).toHaveTextContent('uncalibrated');
+    });
+
+  it('COMPACT: the sibling layout carries the SAME signal', async () => {
+    mockApi(FC_MODERATE);
+    render(<SpotConditions spotId="spot-1" spotName="Peniche" compact />);
+    const node = await screen.findByTestId('forecast-confidence-compact');
+    expect(node).toHaveAttribute('aria-label', confidenceLabel(FC_MODERATE));
+    // The dot alone would be colour-only meaning; sr-only text is what makes it accessible.
+    expect(node).toHaveTextContent('Moderate');
+    expect(node.querySelector('[aria-hidden="true"]')).toBeTruthy();
+  });
+
+  it('ABSENT means no ensemble — the block does not render, and never says "Low"', async () => {
+    mockApi(null);
+    render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+    // ⭐ THE ANCHOR IS THE CONTROL. "Swell" sits inside the same `{current ? ...}` grid as the
+    // confidence block and immediately before it, so its presence proves the grid rendered and the
+    // block WOULD have appeared had the payload carried one. Waiting on something outside that
+    // gate would make this assertion pass even if the component had failed to render at all.
+    await screen.findByText('Swell');
     expect(screen.queryByTestId('forecast-confidence')).toBeNull();
-    // Critically: absence must not render as "Low".
     expect(screen.queryByText('Low')).toBeNull();
   });
 
-  it('exposes the level to assistive tech, with the dot hidden from it', () => {
-    const { container } = render(
-      <Dot fc={{ level: 'moderate', relative_spread: 0.25 }} isLight={false} isBeach={false} />
-    );
-    const node = screen.getByTestId('forecast-confidence');
-    expect(node).toHaveAttribute('aria-label', expect.stringContaining('Moderate'));
-    expect(screen.getByText('Moderate')).toBeInTheDocument();
-    expect(container.querySelector('[aria-hidden="true"]')).toBeTruthy();
+  it('...and the SAME anchor shows the block WITH an ensemble — the paired positive', async () => {
+    mockApi(FC_MODERATE);
+    render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+    await screen.findByText('Swell');
+    expect(screen.queryByTestId('forecast-confidence')).not.toBeNull();
   });
+
+  it.each([
+    ['light', 'light'],
+    ['dark', 'dark'],
+    ['beach', 'beach'],
+  ])('THREE THEMES: %s produces its own dot class through the component', async (theme) => {
+    mockTheme = theme;
+    mockApi(FC_MODERATE);
+    const { unmount } = render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+    const node = await screen.findByTestId('forecast-confidence');
+    const dot = node.querySelector('[aria-hidden="true"]');
+    const t = getThemeTokens(theme);
+    expect(dot.className).toContain(confidenceDot(FC_MODERATE.level, t.isLight, t.isBeach));
+    unmount();
+  });
+
+  it('the three themes are MUTUALLY DISTINCT as actually rendered, not just as computed',
+    async () => {
+      const seen = [];
+      for (const theme of ['light', 'dark', 'beach']) {
+        mockTheme = theme;
+        mockApi(FC_MODERATE);
+        const { unmount } = render(<SpotConditions spotId="spot-1" spotName="Peniche" />);
+        const node = await screen.findByTestId('forecast-confidence');
+        seen.push(node.querySelector('[aria-hidden="true"]').className);
+        unmount();
+      }
+      // ⭐ This is the assertion the old file could not make: it compared a helper against itself.
+      expect(new Set(seen).size).toBe(3);
+    });
 });

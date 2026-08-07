@@ -70,9 +70,13 @@ const conditionColors = {
 // screen-reader user gets exactly the same information as everyone else.
 // ⛔ THREE THEMES: every class comes from the shared theme tokens or from a pair that names all
 // three modes, so light / dark / beach are covered by construction rather than by inspection.
-const CONFIDENCE_TEXT = { high: 'High', moderate: 'Moderate', low: 'Low' };
+// ⚠️ EXPORTED FOR TESTING (2026-08-07). `SpotConditions.confidence.test.js` previously re-declared
+// copies of these three and asserted against the copies, so deleting the whole confidence block
+// below would have left the suite green. Exporting them is what lets the test bind to the real
+// thing. Do not re-inline them without moving the tests to the component's rendered output.
+export const CONFIDENCE_TEXT = { high: 'High', moderate: 'Moderate', low: 'Low' };
 
-const confidenceDot = (level, isLight, isBeach) => {
+export const confidenceDot = (level, isLight, isBeach) => {
   if (level === 'high') return isLight ? 'bg-emerald-600' : isBeach ? 'bg-emerald-700' : 'bg-emerald-400';
   if (level === 'low') return isLight ? 'bg-rose-600' : isBeach ? 'bg-rose-700' : 'bg-rose-400';
   return isLight ? 'bg-amber-600' : isBeach ? 'bg-amber-700' : 'bg-amber-400';
@@ -80,7 +84,7 @@ const confidenceDot = (level, isLight, isBeach) => {
 
 // One sentence a surfer can act on. `calibrated:false` is stated rather than hidden — this is a
 // legibility signal, not validated skill, and the UI should not imply otherwise.
-const confidenceLabel = (fc) => {
+export const confidenceLabel = (fc) => {
   const word = CONFIDENCE_TEXT[fc?.level] || 'Unknown';
   const pct = fc?.relative_spread != null ? Math.round(fc.relative_spread * 100) : null;
   return pct == null
