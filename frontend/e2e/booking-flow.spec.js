@@ -54,7 +54,7 @@ test.describe('Anonymous access control', () => {
     // ★ Assert the LANDING, not merely that something rendered. The absence of this assertion is
     //   exactly what turned an auth redirect into a phantom "spot cards missing" failure.
     await expect(page).toHaveURL(/\/auth/, { timeout: 15000 });
-    await expect(page.locator('[data-testid="auth-card"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="auth-card"]')).toBeVisible({ timeout: 60000 });
     // the redirect must carry the intended destination, or login drops the user on the floor
     expect(new URL(page.url()).searchParams.get('redirect')).toBe('/explore');
   });
@@ -83,24 +83,42 @@ test.describe('Explore', () => {
     // ★ THE ASSERTION THE OLD SETUP LACKED. Pin that we are actually ON explore, so an auth
     //   regression fails HERE, naming itself, instead of surfacing as a missing element later.
     await expect(page).toHaveURL(/\/explore/, { timeout: 15000 });
-    await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 20000 });
+    await expect(page.locator('[data-testid="explore-page"]')).toBeVisible({ timeout: 60000 });
   });
 
   test('explore shows the search input', async ({ page }) => {
-    await expect(page.locator('[data-testid="explore-search-input"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="explore-search-input"]')).toBeVisible({ timeout: 60000 });
   });
 
   test('spot cards are visible on explore', async ({ page }) => {
     // ⚠️ `spot-card` / `.spot-card` do not exist in this app. Spots render as trending-spot-<uuid>.
     await expect(page.locator('[data-testid^="trending-spot-"]').first())
-      .toBeVisible({ timeout: 20000 });
+      .toBeVisible({ timeout: 60000 });
   });
 
+  // ⏱ THE ASSERTION TIMEOUTS IN THIS FILE ARE 60 s, MATCHING apiClient.js:30's OWN DECLARED BUDGET
+  // ("60s -- handles Render free-tier cold starts"). They were 10-20 s, which contradicted it.
+  //
+  // TRACE FORENSICS, run 31197681499 (`close-spothub-btn` not found):
+  //   click trending-spot -> OK · toHaveURL(/\/spot-hub\//) -> PASSED · toBeVisible -> FAILED at 10.0 s
+  //   final URL: /spot-hub/45453233-…  full app shell present, inner `main` EMPTY
+  //   SpotHub.js:235 renders a skeleton with no testids while `loading`; the `!spot` branch (:257)
+  //   would have printed "Spot Not Found", which is ABSENT -> it was STILL LOADING, not errored.
+  //   0-trace.network: of 112 requests exactly 2 never completed (status -1) — and they are the last
+  //   two: /api/conditions/batch and /api/explore/spot-details/<uuid>.
+  // WHY SLOW: `on: push: [dev]` starts this run AND the Render redeploy at the same time, and the job
+  // gates only on the Netlify frontend. Measured: the backend booted 140 s AFTER the run began and
+  // the failing request landed 257 s after boot, siblings running 5-13x slower than warm.
+  //
+  // ⚠️ RAISING THE PER-TEST TIMEOUT (playwright.config.js 30 s -> 90 s) DID NOT AND COULD NOT HELP —
+  // the binding constraint was this per-ASSERTION budget, which the enclosing timeout never reaches.
+  // ⛔ The real fix is ordering: gate the e2e job on the backend being up, not just the frontend.
+  // Until then these budgets must not be tighter than the client the app itself ships.
   test('clicking a spot opens its spot hub', async ({ page }) => {
     await page.locator('[data-testid^="trending-spot-"]').first().click();
     // ⚠️ Measured: this NAVIGATES to /spot-hub/<uuid>. It is not a drawer or a [role=dialog].
     await expect(page).toHaveURL(/\/spot-hub\//, { timeout: 15000 });
-    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 10000 });
+    await expect(page.locator('[data-testid="close-spothub-btn"]')).toBeVisible({ timeout: 60000 });
   });
 
   test('navigation is present, and it is the RIGHT nav for the viewport', async ({ page, isMobile }) => {
@@ -121,10 +139,10 @@ test.describe('Explore', () => {
     // ⚠️ The browser pane defaulted to 630 px wide, where BOTH are visible — which is precisely how
     //    the original bad measurement happened. Assert at a real desktop width or not at all.
     if (isMobile) {
-      await expect(page.locator('[data-testid="bottom-nav"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="bottom-nav"]')).toBeVisible({ timeout: 60000 });
       await expect(page.locator('[data-testid="nav-explore"]')).toBeHidden();
     } else {
-      await expect(page.locator('[data-testid="nav-explore"]')).toBeVisible({ timeout: 10000 });
+      await expect(page.locator('[data-testid="nav-explore"]')).toBeVisible({ timeout: 60000 });
       await expect(page.locator('[data-testid="bottom-nav"]')).toBeHidden();
     }
   });
