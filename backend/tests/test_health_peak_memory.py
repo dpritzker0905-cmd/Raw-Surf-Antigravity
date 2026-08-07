@@ -30,22 +30,8 @@ def _memory_block():
     import psutil
     memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None,
               "peak_pct_of_limit": None, "limit_source": None}
-    limit_mb, limit_source = None, None
-    for path, _scale in (("/sys/fs/cgroup/memory.max", 1),
-                         ("/sys/fs/cgroup/memory/memory.limit_in_bytes", 1)):
-        try:
-            with open(path) as fh:
-                raw = fh.read().strip()
-            if raw and raw != "max":
-                val = int(raw) / (1024 * 1024)
-                if 16.0 < val < 1024.0 * 1024.0:
-                    limit_mb, limit_source = val, "cgroup"
-                    break
-        except (OSError, ValueError):
-            continue
-    if limit_mb is None:
-        limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
-        limit_source = "env" if "APP_MEMORY_LIMIT_MB" in os.environ else "default_assumed"
+    from core.runtime_limits import container_memory_limit_mb
+    limit_mb, limit_source = container_memory_limit_mb()
     memory["limit_mb"] = round(limit_mb, 1)
     memory["limit_source"] = limit_source
     memory["rss_mb"] = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)
@@ -136,3 +122,35 @@ def test_a_measured_limit_is_consistent_with_current_usage():
         assert m["rss_mb"] < m["limit_mb"] * 1.05, (
             f"rss {m['rss_mb']} MB exceeds a MEASURED cgroup limit of {m['limit_mb']} MB — "
             "impossible unless the limit parse is wrong (check cgroup v1 vs v2 units)")
+
+
+def test_the_percent_is_not_clamped():
+    """The clamp is what hid this for months.
+
+    `/admin/system/health` computed `min(used / limit * 100, 100.0)`. With the fictional 512 MB
+    limit and a real ~891 MB plateau that returned a pinned **100.0%** — so the Memory health
+    component read "critical" permanently, on a box at 43% of its actual 2048 MB. A gauge that
+    cannot exceed its maximum can never tell you its maximum is wrong.
+    """
+    from core.runtime_limits import memory_used_percent
+    over = memory_used_percent(891 * 1024 * 1024, limit_mb=512.0)
+    assert over > 100.0, (
+        f"expected an over-limit reading to exceed 100% (got {over}) — if this clamps again, a wrong "
+        "limit becomes permanently invisible, which is exactly how 512-vs-2048 survived")
+    assert abs(over - 174.0) < 1.0, f"891 MB of a 512 MB limit should be ~174%, got {over}"
+    assert abs(memory_used_percent(891 * 1024 * 1024, limit_mb=2048.0) - 43.5) < 1.0
+
+
+def test_the_shared_helper_is_used_by_both_callers():
+    """A fix applied at one call site is not a fix applied to the class — recorded four times in this
+    repo now. Both memory readers must resolve the ceiling through the same helper."""
+    import ast, os as _os
+    root = _os.path.dirname(_os.path.dirname(_os.path.abspath(__file__)))
+    for rel in ("routes/health.py", "routes/admin/system.py"):
+        src = open(_os.path.join(root, rel), encoding="utf-8").read()
+        tree = ast.parse(src)
+        used = any(isinstance(n, ast.Call) and isinstance(n.func, ast.Name)
+                   and n.func.id == "container_memory_limit_mb" for n in ast.walk(tree))
+        assert used, f"{rel} does not call container_memory_limit_mb() — it is guessing again"
+        assert "'APP_MEMORY_LIMIT_MB', '512.0'" not in src and '"APP_MEMORY_LIMIT_MB", "512.0"' not in src, (
+            f"{rel} still hardcodes the 512 MB assumption inline")

@@ -127,23 +127,8 @@ async def health_check(
     memory = {"rss_mb": None, "peak_rss_mb": None, "limit_mb": None,
               "peak_pct_of_limit": None, "limit_source": None}
     try:
-        limit_mb, limit_source = None, None
-        for path, scale in (("/sys/fs/cgroup/memory.max", 1),                       # cgroup v2
-                            ("/sys/fs/cgroup/memory/memory.limit_in_bytes", 1)):    # cgroup v1
-            try:
-                with open(path) as fh:
-                    raw = fh.read().strip()
-                if raw and raw != "max":
-                    val = int(raw) / (1024 * 1024)
-                    # v1 reports a sentinel near 2^63 when unlimited; ignore anything absurd.
-                    if 16.0 < val < 1024.0 * 1024.0:
-                        limit_mb, limit_source = val, "cgroup"
-                        break
-            except (OSError, ValueError):
-                continue
-        if limit_mb is None:
-            limit_mb = float(os.environ.get("APP_MEMORY_LIMIT_MB", "512.0"))
-            limit_source = "env" if "APP_MEMORY_LIMIT_MB" in os.environ else "default_assumed"
+        from core.runtime_limits import container_memory_limit_mb
+        limit_mb, limit_source = container_memory_limit_mb()
         memory["limit_mb"] = round(limit_mb, 1)
         memory["limit_source"] = limit_source
         memory["rss_mb"] = round(psutil.Process(os.getpid()).memory_info().rss / (1024 * 1024), 1)

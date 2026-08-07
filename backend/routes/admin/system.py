@@ -161,9 +161,16 @@ async def get_system_health(
     except Exception:
         pass
 
-    APP_MEMORY_LIMIT_MB = float(os.environ.get('APP_MEMORY_LIMIT_MB', '512.0'))
+    # ⛔ MEASURED, NOT ASSUMED (2026-08-06). This read `APP_MEMORY_LIMIT_MB` defaulting to 512.0
+    # while the real container is 2048 MB (its own cgroup), so with production plateauing at ~891 MB
+    # the old expression — `min(used / 512MB, 100.0)` — returned a CLAMPED 100.0% permanently. This
+    # dashboard has been reporting "memory completely full" on a box at 43% utilisation.
+    # The clamp is gone on purpose: a reading above 100% means the LIMIT is wrong, which is the one
+    # thing worth seeing, and a gauge that cannot exceed its maximum can never tell you so.
+    from core.runtime_limits import container_memory_limit_mb, memory_used_percent
+    APP_MEMORY_LIMIT_MB, app_memory_limit_source = container_memory_limit_mb()
     app_limit_bytes = int(APP_MEMORY_LIMIT_MB * 1024 * 1024)
-    app_memory_percent = min(round((app_used_bytes / app_limit_bytes) * 100, 1), 100.0)
+    app_memory_percent = memory_used_percent(app_used_bytes, APP_MEMORY_LIMIT_MB)
     
     # App storage metrics (Supabase + DB + local)
     try:
@@ -245,6 +252,9 @@ async def get_system_health(
             "memory_percent": app_memory_percent,
             "memory_used_gb": round(app_used_bytes / (1024**3), 3),
             "memory_total_gb": round(app_limit_bytes / (1024**3), 2),
+            # Say where the ceiling came from: "cgroup" is measured, "default_assumed" is a guess.
+            # Publishing this is what would have surfaced the 512-vs-2048 error years earlier.
+            "memory_limit_source": app_memory_limit_source,
             "storage_percent": storage_percent,
             "storage_used_gb": storage_metrics["total_used_gb"],
             "storage_limit_gb": round(total_limit_gb, 2),
