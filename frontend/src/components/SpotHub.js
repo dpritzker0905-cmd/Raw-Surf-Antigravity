@@ -32,6 +32,9 @@ import { ScheduledBookingDrawer } from './ScheduledBookingDrawer';
 
 import useSpotHubActions from '../hooks/useSpotHubActions';
 import { getThemeTokens } from '../utils/themeTokens';
+// ⭐ REUSED, NOT RE-DERIVED. The spot drawer already renders forecast confidence through these
+// exact helpers; importing them is what stops this surface drifting into a second vocabulary.
+import { CONFIDENCE_TEXT, confidenceDot, confidenceLabel } from './SpotConditions';
 import { SpotCardSkeleton, AlertCardSkeleton } from './ui/SkeletonVariants';
 
 
@@ -94,6 +97,9 @@ const SpotHub = () => {
   const { theme } = useTheme();
   const t = getThemeTokens(theme);
   const isLight = t.isLight;
+  // ⚠️ BEACH IS A THIRD THEME, NOT A DARK VARIANT. This file read only `isLight`, so any
+  // three-way class pair added here would have silently rendered beach as dark.
+  const isBeach = t.isBeach;
   const textPrimary = t.textPrimary;
   const textSecondary = t.textSecondary;
   const cardBg = t.glassBg;
@@ -417,6 +423,47 @@ const SpotHub = () => {
               <p className={`text-[10px] ${textSecondary}`}>Swell</p>
             </div>
           </div>
+
+          {/* ── FORECAST CONFIDENCE ────────────────────────────────────────────────────────────
+              ⛔⛔ THIS SURFACE HAD THE DATA AND NO CONSUMER. `/explore/spot-details` has been
+              serving `current_conditions.forecast_confidence` since the ensemble shipped, and this
+              card dropped it on the floor — measured 2026-08-07 at ANCÃO: the payload carried
+              `level: high, relative_spread: 0.092` while the rendered hub contained no occurrence
+              of the word "confidence" at all. Three handoffs prescribed "load a EURO spot hub and
+              look" as the way to verify the ensemble; that check could only ever have failed here.
+              ⇒ A CAPABILITY REACHES A SCREEN ONLY WHERE SOMETHING RENDERS IT. Data arriving in a
+              payload is not reach.
+              Absent means NO ENSEMBLE, never "low confidence" — a deterministic forecast has no
+              spread, and today that is still the majority of spots.
+              Accessibility: the LEVEL WORD carries the signal, the dot is aria-hidden decoration,
+              and the aria-label carries the whole sentence — never colour alone. */}
+          {currentConditions.forecast_confidence && (
+            <div
+              className={`mt-2 pt-2 border-t ${isLight ? 'border-gray-200' : 'border-white/10'} flex items-start gap-2`}
+              role="note"
+              aria-label={confidenceLabel(currentConditions.forecast_confidence)}
+              data-testid="spothub-forecast-confidence"
+            >
+              <span
+                className={`mt-1 w-2 h-2 rounded-full shrink-0 ${confidenceDot(currentConditions.forecast_confidence.level, isLight, isBeach)}`}
+                aria-hidden="true"
+              />
+              <div className="min-w-0">
+                <p className={`text-xs font-medium ${textPrimary}`}>
+                  Forecast confidence:{' '}
+                  <span data-testid="spothub-forecast-confidence-level">
+                    {CONFIDENCE_TEXT[currentConditions.forecast_confidence.level] || 'Unknown'}
+                  </span>
+                </p>
+                <p className={`text-[10px] ${textSecondary} break-words`}>
+                  {currentConditions.forecast_confidence.relative_spread != null
+                    ? `Members differ by ~${Math.round(currentConditions.forecast_confidence.relative_spread * 100)}% of wave height`
+                    : 'Ensemble spread available'}
+                  {currentConditions.forecast_confidence.calibrated === false ? ' (uncalibrated)' : ''}
+                </p>
+              </div>
+            </div>
+          )}
         </div>
       )}
 
