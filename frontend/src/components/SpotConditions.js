@@ -59,6 +59,35 @@ const conditionColors = {
   "Triple Overhead+": "bg-red-500"
 };
 
+// ── FORECAST CONFIDENCE (2026-08-07) ───────────────────────────────────────────────────────────
+// How much the ECMWF ensemble members disagree about the sea. Backend contract:
+// `current.forecast_confidence = { level, spread_m, relative_spread, calibrated, means }`, ABSENT
+// unless it binds — so `null` here means "this forecast carries no ensemble", NEVER "low
+// confidence". Rendering absence as low would libel every GFS and ICON forecast in the system.
+//
+// ⛔ ACCESSIBILITY MANDATE: information is NEVER conveyed by colour alone. The LEVEL WORD is the
+// signal ("High"/"Moderate"/"Low"); the dot is decoration and is aria-hidden. A colour-blind or
+// screen-reader user gets exactly the same information as everyone else.
+// ⛔ THREE THEMES: every class comes from the shared theme tokens or from a pair that names all
+// three modes, so light / dark / beach are covered by construction rather than by inspection.
+const CONFIDENCE_TEXT = { high: 'High', moderate: 'Moderate', low: 'Low' };
+
+const confidenceDot = (level, isLight, isBeach) => {
+  if (level === 'high') return isLight ? 'bg-emerald-600' : isBeach ? 'bg-emerald-700' : 'bg-emerald-400';
+  if (level === 'low') return isLight ? 'bg-rose-600' : isBeach ? 'bg-rose-700' : 'bg-rose-400';
+  return isLight ? 'bg-amber-600' : isBeach ? 'bg-amber-700' : 'bg-amber-400';
+};
+
+// One sentence a surfer can act on. `calibrated:false` is stated rather than hidden — this is a
+// legibility signal, not validated skill, and the UI should not imply otherwise.
+const confidenceLabel = (fc) => {
+  const word = CONFIDENCE_TEXT[fc?.level] || 'Unknown';
+  const pct = fc?.relative_spread != null ? Math.round(fc.relative_spread * 100) : null;
+  return pct == null
+    ? `Forecast confidence: ${word}`
+    : `Forecast confidence: ${word}. Ensemble members differ by about ${pct}% of the forecast wave height. This describes confidence in the forecast, not surf quality, and does not change the rating.`;
+};
+
 export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const { user } = useAuth();
   const { theme } = useTheme();
@@ -73,6 +102,7 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
   const cellBgFaded = t.cellBgFaded;
   const hoverBg = t.hoverBg;
   const isLight = t.isLight;
+  const isBeach = t.isBeach;   // BEACH MODE is a first-class theme here, not a dark-mode variant
   const [conditions, setConditions] = useState(null);
   const [tideData, setTideData] = useState(null);
   const [reports, setReports] = useState(null);
@@ -193,6 +223,26 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
         <Badge className={`text-[10px] ${conditionColors[label] || 'bg-gray-500'}`}>
           {label}
         </Badge>
+        {/* MIRRORED INTO THE COMPACT LAYOUT — the three-themes/all-devices mandate is explicit that
+            a component with separate layouts must have the change in BOTH, and this repo's recorded
+            defect is a signal that reaches one surface and not its sibling. Abbreviated to a dot +
+            screen-reader text so a dense card stays readable, with the SAME aria vocabulary. */}
+        {conditions?.current?.forecast_confidence && (
+          <span
+            className="inline-flex items-center"
+            role="note"
+            aria-label={confidenceLabel(conditions.current.forecast_confidence)}
+            data-testid="forecast-confidence-compact"
+          >
+            <span
+              className={`w-2 h-2 rounded-full ${confidenceDot(conditions.current.forecast_confidence.level, isLight, isBeach)}`}
+              aria-hidden="true"
+            />
+            <span className="sr-only">
+              {confidenceLabel(conditions.current.forecast_confidence)}
+            </span>
+          </span>
+        )}
       </div>
     );
   }
@@ -228,6 +278,35 @@ export const SpotConditions = ({ spotId, spotName, compact = false }) => {
               <p className={`text-3xl font-bold ${tPrimary}`}>{current.swell_height_ft || 0}<span className="text-lg">ft</span></p>
               <p className={`text-xs ${tSecondary}`}>Swell</p>
             </div>
+
+            {/* Forecast confidence — absent unless the forecast carries an ensemble */}
+            {current.forecast_confidence && (
+              <div
+                className={`${cellBg} rounded-lg p-3 col-span-2 flex items-start gap-2`}
+                role="note"
+                aria-label={confidenceLabel(current.forecast_confidence)}
+                data-testid="forecast-confidence"
+              >
+                <span
+                  className={`mt-1 w-2 h-2 rounded-full shrink-0 ${confidenceDot(current.forecast_confidence.level, isLight, isBeach)}`}
+                  aria-hidden="true"
+                />
+                <div className="min-w-0">
+                  <p className={`text-sm font-medium ${tPrimary}`}>
+                    Forecast confidence:{' '}
+                    <span data-testid="forecast-confidence-level">
+                      {CONFIDENCE_TEXT[current.forecast_confidence.level] || 'Unknown'}
+                    </span>
+                  </p>
+                  <p className={`text-xs ${tSecondary} break-words`}>
+                    {current.forecast_confidence.relative_spread != null
+                      ? `Members differ by ~${Math.round(current.forecast_confidence.relative_spread * 100)}% of wave height`
+                      : 'Ensemble spread available'}
+                    {current.forecast_confidence.calibrated === false ? ' (uncalibrated)' : ''}
+                  </p>
+                </div>
+              </div>
+            )}
 
             {/* Direction */}
             <div className="flex items-center gap-3 col-span-2">
