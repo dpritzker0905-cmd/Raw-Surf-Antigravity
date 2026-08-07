@@ -1,0 +1,137 @@
+name: Vector blockmean parity (real GRIB)
+
+# WHY THIS EXISTS. `FETCH_VECTOR_BLOCKMEAN` gates a measured 17.4x on the regrid block reductions
+# (510.8 s -> ~29.4 s per 113-step run), on the heaviest lane in the system. It ships DEFAULT OFF,
+# and its own docstring names the reason: everything proving it is evidence about the FUNCTIONS
+# (tests/test_blockmean_vectorized_parity.py) and about the LOOP against a stubbed decoder
+# (tests/test_vector_blockmean_loop_shadow.py). Neither has ever seen real GRIB, because pygrib does
+# not import on the dev workstation.
+#
+# So the flag cannot be flipped on the strength of anything runnable locally. This job supplies the
+# missing evidence the only place it exists: Linux, with pygrib installed, against NOAA's actual
+# byte-range GRIB2 — running the SAME fetch twice, once per flag state, and diffing the payloads.
+#
+# ⚠️ IT REFUSES RATHER THAN GUESSES. The two runs fetch independently, so NOAA's cycle can roll
+# between them; a differing `times` axis would then look like a parity failure when it is a data
+# change. The comparison therefore checks the time axis FIRST and exits INCONCLUSIVE (not failure)
+# when the cycle moved — a check that cannot tell "not sampled" from "broken" must refuse.
+#
+# Deliberately small: a 2-day, 10-degree, single-region fetch is ~17 steps, which exercises every
+# reduction (all 12 variables, both the vectorized interior and the clamped edge rows) in a couple
+# of minutes instead of the ~30 the global_mid pass takes.
+
+on:
+  workflow_dispatch:
+    inputs:
+      forecast_days:
+        description: "Forecast days to fetch (2 is enough to cover every variable)"
+        required: false
+        default: "2"
+
+concurrency:
+  group: vector-blockmean-parity
+  cancel-in-progress: true
+
+jobs:
+  parity:
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v5
+
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'          # the interpreter production actually runs
+
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: Confirm pygrib actually imports
+        working-directory: backend
+        run: |
+          python - <<'PY'
+          import pygrib, numpy
+          print(f"pygrib {pygrib.__version__ if hasattr(pygrib,'__version__') else 'ok'} | numpy {numpy.__version__}")
+          PY
+
+      - name: Fetch with the SCALAR path (FETCH_VECTOR_BLOCKMEAN=0)
+        working-directory: backend
+        env:
+          FETCH_VECTOR_BLOCKMEAN: "0"
+        run: |
+          python services/noaa_gfs_wave_fetcher.py \
+            '{"bbox":{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0},"resolution":10.0,"forecast_days":'"${{ github.event.inputs.forecast_days || '2' }}"',"output_path":"/tmp/scalar.json"}'
+
+      - name: Fetch with the VECTORIZED path (FETCH_VECTOR_BLOCKMEAN=1)
+        working-directory: backend
+        env:
+          FETCH_VECTOR_BLOCKMEAN: "1"
+        run: |
+          python services/noaa_gfs_wave_fetcher.py \
+            '{"bbox":{"west":-80.0,"south":20.0,"east":-40.0,"north":40.0},"resolution":10.0,"forecast_days":'"${{ github.event.inputs.forecast_days || '2' }}"',"output_path":"/tmp/vector.json"}'
+
+      - name: "🔬 Diff the two payloads — the evidence the flag flip needs"
+        run: |
+          python - <<'PY'
+          import json, sys
+
+          scalar = json.load(open("/tmp/scalar.json"))
+          vector = json.load(open("/tmp/vector.json"))
+
+          def points(o):
+              return o["regions"] if isinstance(o, dict) and o.get("__multi_region__") else o
+
+          a, b = points(scalar), points(vector)
+          if isinstance(a, dict):
+              a = [p for r in a.values() for p in r]
+              b = [p for r in b.values() for p in r]
+
+          if not a:
+              print("::error::the scalar run produced no points — this job proved nothing")
+              sys.exit(1)
+
+          # ── REFUSE if the cycle rolled between the two fetches ────────────────────────────────
+          ta = a[0]["hourly"].get("time"); tb = b[0]["hourly"].get("time")
+          if ta != tb:
+              print("::notice::INCONCLUSIVE — NOAA's cycle rolled between the two fetches, so the "
+                    "two payloads describe different hours. This is NOT a parity failure. Re-run.")
+              print(f"  scalar first/last: {ta[0]} .. {ta[-1]}")
+              print(f"  vector first/last: {tb[0]} .. {tb[-1]}")
+              sys.exit(0)
+
+          if len(a) != len(b):
+              print(f"::error::point count differs: scalar {len(a)} vs vector {len(b)}")
+              sys.exit(1)
+
+          diffs, compared, nulls = [], 0, 0
+          for i, (pa, pb) in enumerate(zip(a, b)):
+              ha, hb = pa["hourly"], pb["hourly"]
+              if ha.keys() != hb.keys():
+                  diffs.append(f"point {i}: variable sets differ")
+                  continue
+              for var in ha:
+                  if var == "time":
+                      continue
+                  for j, (x, y) in enumerate(zip(ha[var], hb[var])):
+                      compared += 1
+                      if x is None or y is None:
+                          nulls += 1
+                          if (x is None) != (y is None):
+                              diffs.append(f"point {i}/{var}[{j}]: None mismatch {x!r} vs {y!r}")
+                          continue
+                      if x != y:
+                          diffs.append(f"point {i}/{var}[{j}]: {x!r} != {y!r}")
+
+          print(f"compared {compared} values across {len(a)} points ({nulls} null on both sides)")
+          if compared == 0:
+              print("::error::nothing was compared — the payloads carry no hourly values")
+              sys.exit(1)
+          if diffs:
+              print(f"::error::VECTORIZED PATH DIFFERS on real GRIB — {len(diffs)} value(s)")
+              for d in diffs[:25]:
+                  print("  " + d)
+              sys.exit(1)
+          print("::notice::IDENTICAL on real GRIB. FETCH_VECTOR_BLOCKMEAN=1 is safe to default on.")
+          PY
