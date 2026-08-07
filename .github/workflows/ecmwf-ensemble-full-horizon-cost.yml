@@ -1,0 +1,146 @@
+name: ECMWF ensemble FULL-HORIZON cost (the last gate before the flag)
+
+# THE ONE THING STANDING BETWEEN THE ENSEMBLE AND PRODUCTION.
+#
+# Correctness is settled: run 31140187963 proved the flag adds `wave_height_spread` and leaves 720
+# deterministic values byte-identical. What is NOT measured is the cost at the horizon production
+# actually requests. Every ensemble measurement so far used 1-2 steps; production is
+# `_step_list(240)` = **65 steps**, and 65 x 8.58 MB extrapolates to ~558 MB per cycle.
+#
+# ⛔ AN EXTRAPOLATION IS NOT A MEASUREMENT, and this repo has been bitten by exactly that twice today
+# (a 212 s figure that was really 490 s; two speedup baselines inflated by 1.8x). The extrapolation
+# also cannot answer the two questions that actually decide this:
+#
+#   * TIME — the lane runs under a 1800 s subprocess kill (ecmwf_wave_service timeout_s), and the
+#     REGIONAL pilot passes a tighter 900 s. A download that fits in bandwidth but not in the budget
+#     is the 2026-08-02 all-or-nothing loss in a new lane.
+#   * PEAK MEMORY — the serve box is 2048 MB (measured from cgroup this session) and plateaus at
+#     ~891 MB, so ~1.15 GB of headroom. 650 decoded messages, one global 0.25 deg field each, must
+#     not accumulate. `ru_maxrss` is the kernel's high-water mark and cannot miss a transient.
+#
+# It measures all three at the FULL horizon, and at a reduced member count too, because members are
+# a linear dial and the decision may well be "yes, at 5".
+
+on:
+  workflow_dispatch:
+    inputs:
+      members:
+        description: "Members (production default 10; 5 halves the cost)"
+        required: false
+        default: "10"
+      forecast_days:
+        description: "10 = the production horizon (65 steps)"
+        required: false
+        default: "10"
+
+concurrency:
+  group: ecmwf-ensemble-full-horizon-cost
+  cancel-in-progress: true
+
+jobs:
+  cost:
+    runs-on: ubuntu-latest
+    timeout-minutes: 45
+    steps:
+      - uses: actions/checkout@v5
+      - name: Set up Python
+        uses: actions/setup-python@v6
+        with:
+          python-version: '3.12'
+      - name: Install backend dependencies
+        working-directory: backend
+        run: pip install -q -r requirements.txt
+
+      - name: "📏 Full-horizon: bytes, wall time, and peak RSS"
+        working-directory: backend
+        env:
+          MEMBERS: ${{ github.event.inputs.members || '10' }}
+          DAYS: ${{ github.event.inputs.forecast_days || '10' }}
+        run: |
+          python - <<'PY'
+          import os, sys, time, resource, tempfile, pathlib, collections
+          import numpy as np, pygrib
+          from ecmwf.opendata import Client
+          from services.ecmwf_opendata_fetcher import (
+              ensemble_spec, retrieve_spec, _step_list, layer_params, reduce_member_values)
+
+          members = int(os.environ["MEMBERS"]); days = int(os.environ["DAYS"])
+          os.environ["ECMWF_WAVE_ENSEMBLE_MEMBERS"] = str(members)
+          steps = _step_list(min(days * 24, 240))
+          print(f"horizon: {days} d -> {len(steps)} steps, {members} members "
+                f"({len(steps) * members} member-messages expected)")
+
+          def peak_mb():
+              return resource.getrusage(resource.RUSAGE_SELF).ru_maxrss / 1024
+
+          tmpd = pathlib.Path(tempfile.mkdtemp())
+          client = Client(source="ecmwf")
+
+          # ── the DETERMINISTIC lane, as the baseline this is added to ──────────────────────────
+          det_t = tmpd / "det.grib2"
+          t0 = time.time()
+          client.retrieve(target=str(det_t), **retrieve_spec("waves", layer_params("waves"), steps))
+          det_s = time.time() - t0
+          det_mb = det_t.stat().st_size / 1e6
+          print(f"\n  deterministic  {det_mb:8.1f} MB  {det_s:7.1f}s   (params={layer_params('waves')})")
+
+          # ── the ENSEMBLE lane ─────────────────────────────────────────────────────────────────
+          ens_t = tmpd / "ens.grib2"
+          t0 = time.time()
+          client.retrieve(target=str(ens_t), **ensemble_spec(steps))
+          ens_dl = time.time() - t0
+          ens_mb = ens_t.stat().st_size / 1e6
+          print(f"  ensemble dl    {ens_mb:8.1f} MB  {ens_dl:7.1f}s   "
+                f"({ens_mb/max(det_mb,1e-9):.1f}x the deterministic bytes)")
+          print(f"  peak RSS after download: {peak_mb():.1f} MB")
+
+          # ── DECODE, the part an extrapolation cannot price ────────────────────────────────────
+          t0 = time.time()
+          g = pygrib.open(str(ens_t))
+          groups = collections.defaultdict(dict)
+          n_msg = 0
+          for m in g:
+              if (m.shortName or "").lower() != "swh":
+                  continue
+              n_msg += 1
+              arr = np.ma.filled(np.ma.asarray(m.values, dtype=float), np.nan)
+              # mimic the fetcher: sample a coarse point set rather than keep the global field
+              groups[m.validDate][int(m.perturbationNumber)] = arr[::40, ::40].ravel()
+              del arr
+          g.close()
+          ens_decode = time.time() - t0
+          print(f"  ensemble decode {n_msg:7d} msgs {ens_decode:7.1f}s   peak RSS {peak_mb():.1f} MB")
+
+          t0 = time.time()
+          reduced = 0
+          for vt, per_member in groups.items():
+              _m, sds, _c = reduce_member_values({k: list(v) for k, v in per_member.items()})
+              reduced += 1
+          red_s = time.time() - t0
+          print(f"  reduce         {reduced:7d} valid-times {red_s:7.1f}s   peak RSS {peak_mb():.1f} MB")
+
+          total = ens_dl + ens_decode + red_s
+          print("\n" + "=" * 74)
+          print(f"  ADDED COST OF THE ENSEMBLE: {ens_mb:.0f} MB, {total:.0f}s, peak RSS {peak_mb():.0f} MB")
+          print(f"  valid-times decoded: {len(groups)} (expected {len(steps)})")
+          bad = {vt: len(pm) for vt, pm in groups.items() if len(pm) != members}
+          if bad:
+              print(f"::warning::{len(bad)} valid-times did not carry {members} members: "
+                    f"{dict(list(bad.items())[:5])}")
+
+          # ── the verdicts, against the REAL bounds ─────────────────────────────────────────────
+          HARD, PILOT = 1800.0, 900.0
+          observed_lane = 251.0     # ECMWF EURO-Waves elapsed, measured 2026-08-06 pilots run
+          projected = observed_lane + total
+          print("=" * 74)
+          print(f"  lane today {observed_lane:.0f}s  +  ensemble {total:.0f}s  =  ~{projected:.0f}s")
+          print(f"    vs global kill  {HARD:.0f}s -> {100*projected/HARD:.0f}% used"
+                f"  ({'OK' if projected < 0.7*HARD else 'TIGHT' if projected < HARD else 'BREACH'})")
+          print(f"    vs pilot kill   {PILOT:.0f}s -> {100*projected/PILOT:.0f}% used"
+                f"  ({'OK' if projected < 0.7*PILOT else 'TIGHT' if projected < PILOT else 'BREACH'})")
+          BOX, PLATEAU = 2048.0, 891.0
+          print(f"  box {BOX:.0f} MB, plateau {PLATEAU:.0f} MB, this process peaked {peak_mb():.0f} MB")
+          print(f"    headroom if the ingest ran beside the serve plateau: "
+                f"{BOX - PLATEAU - peak_mb():.0f} MB")
+          print("::notice::Cost measured. Read the two kill-budget lines before flipping.")
+          PY
