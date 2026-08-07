@@ -62,6 +62,22 @@ def _apply_florida_region_defaults(product) -> None:
             product.coverage_mode = "regional_tile"
 
 
+def raw_run_time_newer(raw: dict, mine) -> bool:
+    """True if a RAW remote manifest entry's run_time is strictly newer than ours.
+
+    Read straight off the raw dict so the common non-colliding path never pays full model
+    validation (the manifest carries ~15k entries). Returns False on ANYTHING unparseable — an
+    unreadable timestamp must never displace a known-good local entry.
+    """
+    try:
+        rt = raw.get("run_time")
+        theirs = rt if isinstance(rt, datetime) else datetime.fromisoformat(str(rt).replace("Z", "+00:00"))
+        theirs = theirs if theirs.tzinfo else theirs.replace(tzinfo=timezone.utc)
+        return theirs > (mine if mine.tzinfo else mine.replace(tzinfo=timezone.utc))
+    except Exception:
+        return False
+
+
 def _build_product_filename(product) -> str:
     """Consistent on-disk filename preventing collisions across regions/estimates."""
     time_str = product.valid_time.strftime("%Y%m%dT%H%M%SZ")

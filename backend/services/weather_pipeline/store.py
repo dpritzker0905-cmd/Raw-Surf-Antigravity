@@ -183,17 +183,32 @@ def reconcile_manifest_products_for_upload(manifest, exclude_keys=None) -> int:
         if not remote_products:
             return 0
         from services.weather_pipeline.schemas import ManifestProduct
-        ours_keys = {(p.product_id or p.filename) for p in manifest.products if (p.product_id or p.filename)}
-        skip = ours_keys | set(exclude_keys or ())
-        folded = []
+        from services.weather_pipeline.store_helpers import raw_run_time_newer as _raw_run_time_newer
+        ours = {(p.product_id or p.filename): p for p in manifest.products if (p.product_id or p.filename)}
+        excl = set(exclude_keys or ())
+        prefer_newer = os.environ.get("MANIFEST_MERGE_PREFER_NEWER", "1") != "0"
+        folded, refreshed = [], []
         for raw in remote_products:
             pid = raw.get("product_id") or raw.get("filename")
-            if not pid or pid in skip:
+            if not pid or pid in excl:
                 continue
+            mine = ours.get(pid)
+            if mine is not None and not (prefer_newer and _raw_run_time_newer(raw, mine.run_time)):
+                continue  # key collision, ours is current (or the guard is off) — pre-fix behaviour
             try:
-                folded.append(ManifestProduct.model_validate(raw))
+                item = ManifestProduct.model_validate(raw)
             except Exception:
                 continue
+            if mine is None:
+                folded.append(item)
+            else:
+                ours[pid] = item
+                refreshed.append((pid, mine.run_time, item.run_time))
+        if refreshed:
+            manifest.products = [ours.get(p.product_id or p.filename, p) for p in manifest.products]
+            logger.warning(f"[Product Store] Manifest reconciliation KEPT THE NEWER REMOTE RUN for "
+                           f"{len(refreshed)} entries a stale restored copy would have reverted: "
+                           f"{[(k, w.isoformat(), n.isoformat()) for k, w, n in refreshed[:3]]}")
         if folded:
             manifest.products = manifest.products + folded
             logger.info(f"[Product Store] Manifest reconciliation folded in {len(folded)} "
