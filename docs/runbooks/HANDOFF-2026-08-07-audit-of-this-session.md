@@ -104,7 +104,8 @@ None was caught by a suite going green.**
 
 ## §5 WHAT A SUCCESSOR SHOULD DISTRUST
 
-* ⚠️ **`ECMWF_WAVE_ENSEMBLE` is still default OFF — now for a MEASURED reason, see §7.**
+* ✅ **`ECMWF_WAVE_ENSEMBLE` is now ON at 5 members** (`b648098d`) — see §9 for what that cost and
+  what it corrected.
 * ⚠️ **Nothing renders `forecast_confidence` in production**, because no forecast carries an ensemble.
   The UI is built and unit-tested but **has never been seen in a browser**, and cannot be until the
   flag flips.
@@ -210,3 +211,82 @@ Re-examining my own work after writing §1–§6 turned up four things the first
 
 ★ **The first audit was written from what I remembered doing. The second was written from what the
 repository could be made to say.** Items 1 and 2 were invisible to the first method.
+
+
+---
+
+## §9 FINAL PASS — the flag is ON, and the last audit corrected itself
+
+**`ECMWF_WAVE_ENSEMBLE` defaults ON at 5 members (`b648098d`).** The EURO wave forecast now ships a
+distribution, not a point.
+
+### The number that decided it, measured not derived
+
+| members | bytes | time | lane total | pilot budget |
+|---|---|---|---|---|
+| 10 | 557.2 MB | 402 s | ~653 s | 73% **TIGHT** |
+| **5** | **278.7 MB** | **318 s** | **~569 s** | **63% OK** |
+
+⭐⭐ **THE TIME DID NOT HALVE WHEN THE BYTES DID.** 557 → 279 MB is exactly linear; 381 → 307 s is only
+19% off. Fitting both points gives **~234 s of fixed per-step request overhead** (65 steps) plus
+**~3.79 MB/s** of transfer. Halving would have projected ~190 s; the truth is 307 s. **Third
+extrapolation to miss in this session** — and the reason the 5-member case was measured rather than
+derived from the 10-member one.
+
+### ⚠️ §7'S PILOT WARNING WAS WRONG, AND I FOUND IT BY READING THE CONFIG
+
+§7 said the 900 s regional pilot would sit at 73% and breach under volatility. That applied the
+**ten-day** cost to a lane whose signature is `forecast_days: int = 2`
+(`ecmwf_wave_service.fetch_euro_marine_waves_regions`). The pilot fetches **17 steps, not 65**:
+
+```
+GLOBAL lane  10 d, 65 steps -> 279 MB / 318 s -> 569 s of 1800 s = 32%
+PILOT  lane   2 d, 17 steps ->  73 MB /  80 s added to its own elapsed, against 900 s
+```
+
+★ **I reasoned from a budget without reading the horizon it applies to.** The correction cost one
+`sed`. This is the same shape as the 512-vs-2048 memory limit earlier in the session: a bound quoted
+confidently, never checked against the thing it bounds.
+
+### A test failure that was a real finding
+
+The period-bands control asserted on `client.last_params`. With the ensemble on there are now **two**
+retrieves — deterministic (carrying the bands), then members (`swh` alone) — so `last_params`
+described the ensemble and the control reported *"the request never carried the bands"* for a run in
+which it plainly did. Fixed to record **every** call.
+
+⚠️ **"The last request" stopped being a well-defined thing the moment a second one existed.** Any
+other code or test inspecting a most-recent-call slot on this fetcher should be re-read with that in
+mind; I checked the tests, not every consumer.
+
+### What is live now, and what still is not
+
+**Live:** the deterministic value (unchanged — check E, 720 values byte-identical), plus
+`wave_height_spread` on EURO wave products, flowing to `GridVector.speed_spread` →
+`NormalizedPointDetail` → `rate_one_spot` and the spot hub as `forecast_confidence`.
+
+**Not yet:**
+* ⚠️ **Nobody has seen it in a browser.** The UI renders only when a forecast carries an ensemble.
+  That is now true in production, so **this is finally verifiable — and it has not been verified.**
+  First thing for the next session: load a EURO spot hub and look.
+* ⚠️ **The thresholds remain uncalibrated** (`"calibrated": false` in the payload). 15%/35% relative
+  spread is legibility, not skill.
+* ⚠️ **The next ingest cycle is the real test.** Every cost figure here is from a CI runner, not the
+  Render box. Watch the EURO wave lane's SUMMARY line and its elapsed; `ECMWF_WAVE_ENSEMBLE=0`
+  reverts instantly if it misbehaves.
+* ⚠️ **Only the `exact_match` sampler path carries the spread** — interpolated paths leave it None on
+  purpose, so hub confidence appears for some spots and not others. That is by design, not a bug,
+  but it will look uneven.
+
+---
+
+## §10 THE ONE-LINE SUMMARY FOR THE NEXT SESSION
+
+Ship state is good and CI is green. **Do these three, in order:** (1) look at a EURO spot hub in a
+browser — the confidence UI has never been seen; (2) watch the first ingest cycle's EURO wave elapsed
+against 1800 s; (3) if either misbehaves, `ECMWF_WAVE_ENSEMBLE=0`.
+
+★ **The method that worked all session, stated once:** every proposal was priced before it was built,
+and **five of them died to their own measurement** — a salvage propagation, a geometry backfill, a
+columnar rewrite, an ensemble-mean swap, and a tight-pilot warning. Nothing here was caught by a
+suite going green; everything was caught by a count, a control, or two of my own numbers disagreeing.
