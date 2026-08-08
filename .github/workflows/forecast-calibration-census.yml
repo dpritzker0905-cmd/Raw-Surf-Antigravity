@@ -97,14 +97,34 @@ jobs:
         id: shape
         working-directory: backend
         run: |
+          # ⚠️ `|| rc=$?` IS LOAD-BEARING, NOT DEFENSIVE. local_size_gonogo.py RETURNS 1 on NO-GO
+          # (scripts/local_size_gonogo.py:296) and 2 on a crash. Under Actions' default `bash -e`
+          # plus `set -o pipefail` the pipeline's non-zero status aborted the step ON THIS LINE, so
+          # the `if` below — and the whole operator-facing `::error::` — was unreachable dead code.
+          # Measured on run 31263397122: the only annotations were the sibling census's warning and
+          # a bare "Process completed with exit code 1". The gate fired correctly and its
+          # explanation reached nobody.
           set -o pipefail
-          python3 scripts/local_size_gonogo.py 2>&1 | tee gonogo.txt | tail -40
+          rc=0
+          python3 scripts/local_size_gonogo.py 2>&1 | tee gonogo.txt | tail -40 || rc=$?
           if grep -q "VERDICT: SANE" gonogo.txt; then
             echo "exemplars: SANE"
+          elif [ "$rc" -ge 2 ]; then
+            # The script distinguishes "I could not answer" from "the answer is no". Keep them apart:
+            # a crash is an operator condition, a NO-GO is a calibration finding.
+            echo "::error::The go/no-go script itself failed (exit $rc) — this is NOT a calibration"\
+                 "verdict. Read backend/gonogo.txt in the run artifact before believing anything."
+            exit 1
           else
             echo "::error::The size climatology FAILED its named exemplars — a small-wave coast is"\
                  "no longer coming out with a small reference, or a big-wave coast with a large one."\
-                 "Every rating is graded against this. Do not wait for a user report."
+                 "Every rating is graded against this. Do not wait for a user report."\
+                 "⚠️ BEFORE WIDENING ANY BOUND: the exemplar bounds in local_size_preview.py were"\
+                 "written 2026-07-29 against REF_PERCENTILE=0.80, which e3aedb06 lowered to 0.50 the"\
+                 "next day, AND the ERA5 deepening campaign is replacing each spot's sample"\
+                 "population one spot at a time (~139k samples vs ~72/day live), so a backfilled"\
+                 "spot STEPS then FREEZES while an un-backfilled one keeps drifting. Check which"\
+                 "the failing exemplar is before treating this as a regression."
             exit 1
           fi
 
