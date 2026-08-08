@@ -1,6 +1,6 @@
 # HANDOFF — 2026-08-07 (C) · THE FOURTH GATE WAS A RENDER GATE
 
-**11 commits, `f85fdeda` → `98c803d0`+, all pushed.** Predecessor:
+**13 commits, `f85fdeda` → `ed407221`+, all pushed.** Predecessor:
 `HANDOFF-2026-08-07-B-audit-10-and-the-queue-it-cleared.md`. That handoff's §6 queue is the
 spine of this session: items **0, 1, 2, 4** and audit row **F** are closed — and in **four of
 the five** cases the *premise* recorded in the predecessor turned out to be wrong in a way
@@ -253,6 +253,46 @@ already at 87% of its kill; trading a 6.9–14.7% native-authority gap for a hig
 the **whole cycle** is an owner call. The commit is instrumentation only — the abort now names
 *which* abort it is, with the arithmetic, so the decision has numbers.
 
+### 8. The E2E map gate was an application bug, and the snapshot is what proved it
+
+Three attempts had treated `weather-simulation.spec.js:358` as test timing and raised the bound
+(15 s → 45 s). **Playwright's `error-context.md` settled it in minutes**: at failure the page was
+authenticated, on `/map`, not redirected and not erroring — sitting on its own splash.
+
+```
+- main:
+  - heading "Loading Waves"
+  - paragraph: Finding surf spots near you...
+```
+
+⇒ ★★★ **A timeout tells you when the test gave up; the snapshot tells you what it was looking at.**
+
+**The defect:** `useMapData.loadMapData` cleared `loading` only after `Promise.all([fetchSurfSpots,
+fetchLivePhotographers, fetchFeaturedPhotographers])`, and `MapPage` renders a **full-screen**
+`<WaveLoader />` while `loading` is true. A slow *photographers* call therefore hid the entire map —
+every control — for up to `apiClient`'s 60 s timeout, while the splash claimed to be "finding surf
+spots". Now gated on the spots only; overlays stay in flight and are still awaited.
+
+**And the bound was on the wrong side of the app's own budget:** the gate was 45 s while `apiClient`
+declares `timeout: 60000`. ⇒ ★★★ **A bound underneath the thing it bounds can only ever be wrong** —
+which is exactly why raising it twice never helped. Now 65 s (app budget + slack), inside the 180 s
+per-test allowance.
+
+| measured 2026-08-07 | |
+|---|---|
+| `/surf-spots` | 0.85–3.08 s |
+| `/live-photographers` | 0.68–1.08 s |
+| `/photographers/featured` | 0.82–1.09 s |
+| isolated `/map` → control visible | 1.9–3.1 s, **6 of 6** |
+| both map specs in sequence, locally | pass (49 s) |
+
+So none of the three is slow *normally*. The defect is that **any one stalling blocks a map that
+already has everything it needs** — a 3× larger stall surface than necessary.
+
+⚠️ **This is not proof the flake is gone.** It failed once locally, then passed 6/6 and 2/2 — never
+a deterministic reproduction. The fix narrows the surface and corrects a structurally-too-low bound.
+**Judge it on flaky counts over several runs.**
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -346,12 +386,13 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
 
 ## §6 THE QUEUE AFTER THIS SESSION
 
-0. ⛔ **THE E2E MAP-LOAD GATE — now the top engineering item.** `weather-simulation.spec.js:358`
-   times out on `featured-photographers-btn` in **8 of the last 9 runs** (sometimes flaky, sometimes
-   exhausting all 3 retries into a hard failure), including on a **docs-only** commit. It is a 45 s
-   timing gate on a lazily-chunked route, already raised once from 15 s. **Do not raise it again** —
-   replace it with a real readiness signal. Until then every E2E verdict is noise, which is worse
-   than red.
+0. ~~The E2E map-load gate~~ — **ROOT FOUND AND FIXED IN THE APP, `ed407221`** (§2.8). It was never a
+   test-timing problem: the map's full-screen splash was gated on `Promise.all` of the spots fetch
+   **and both photographer overlays**, so a slow decoration hid the whole map for up to 60 s.
+   ⚠️ **NOT PROVEN TO END THE FLAKE** — never reproduced deterministically. **Judge it on the flaky
+   COUNTS of the next several runs, not on one green badge** (that is the mistake §5 records me
+   making). If it persists, the next instrument is `frontend/e2e/_diag_maploader.mjs`, which ships
+   with the fix.
 0b. **Bilinear spread** (owner decision) — still the highest-leverage item on the ensemble
    capability. The majority sampler path refuses by design; carrying a max-over-corners bound under
    its own field name would take reach from ~15% toward complete.
