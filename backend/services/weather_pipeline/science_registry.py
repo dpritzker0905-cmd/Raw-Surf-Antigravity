@@ -21,7 +21,14 @@ HOW TO USE IT
 * Reading a constant for science:  `science_registry.value("GAMMA_MAX_STEEP")`
 * Explaining a number to a user / the sim:  `science_registry.provenance("GAMMA_MAX_STEEP")`
 * Adding a constant: add a `Constant(...)` below. The guard FAILS if a module defines a science
-  constant that is not registered -- that is deliberate. Register it, with a real source.
+  constant that is not registered -- that is deliberate.
+  ⚠️⚠️ THAT SENTENCE WAS PROSE UNTIL 2026-08-08, AND PROSE IS THE THING THIS FILE EXISTS TO REPLACE.
+  No scan existed: `test_science_registry.py` walks the registry OUTWARD to its modules, and nothing
+  walked a module INWARD. Proven by planting two unregistered constants here -- one of them
+  `9.99` -- and watching the suite stay green at 9 passed. It is now implemented by
+  `tests/test_science_registry_coverage.py` as a shrink-only ratchet over the declared forecast
+  chain, frozen at the measured debt: **42 unregistered against 11 registered**, 32 of them real
+  unsourced calibration. Register new constants here; grandfather them there only with a reason. Register it, with a real source.
 
 CONVENTIONS
 -----------
