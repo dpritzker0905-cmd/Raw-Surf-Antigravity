@@ -40,7 +40,7 @@ prose rather than code.
 | 10 | At Mavericks that reinstates the block comment's **own stated failure case, verbatim**: 24.7 ft → `good` (71.7), 31 ft → `poor_fair` (40.8), against a tier-2 control of 97.5 `epic` | executed `compute_surf_rating` |
 | 11 | **Reach of #10 today is ZERO** — `oversize` was the binding limiter on **0 of 338** served spots | 10 viewports, `valid_time` 2026-08-08T15:00Z |
 | 12 | The science registry's coverage contract is **not implemented** | mutation: two unregistered constants planted in `surf_transform.py`, one physically absurd (`9.99`) → **9 passed, green** |
-| 13 | **36 science-shaped constants unregistered vs 11 registered** in 7 chain modules — including `REF_PERCENTILE`, `OVERSIZE_START_MULT`, `OVERSIZE_FLOOR_MULT` | AST scan |
+| 13 | **42 constants unregistered vs 11 registered** across 6 chain modules — including `REF_PERCENTILE`, `OVERSIZE_START_MULT`, `OVERSIZE_FLOOR_MULT` | AST scan. ⚠️ I first reported **36 across 7 modules**, from a scan that filtered candidates by a plumbing-name regex and included `local_size_preview.py`. The 42 is the unfiltered count over the declared chain and supersedes it — see §8 |
 
 ---
 
@@ -137,13 +137,10 @@ different populations *and* different percentiles. Widening hides both.
    They are not the same quantity until the campaign finishes. Options: re-derive the bounds against
    the post-ERA5 population once the campaign completes; or state them as a scale-free *contrast*
    (Pipeline/Florida) rather than absolutes. **Both need the campaign finished first.**
-1. ⭐ **Implement the science registry's stated coverage contract.** Its docstring says "the guard
-   FAILS if a module defines a science constant that is not registered"; `WIRED` is a hand-kept list
-   of 6 and **nothing scans**. Proven by mutation (§1 #12). The debt is **36 constants across 7 chain
-   modules** (list regenerable by the scan) — shippable as a grandfather ratchet exactly like the
-   existing `KNOWN_OUT_OF_RANGE` one: name the debt, freeze it, fail any NEW addition.
-   ★ This is the structural fix for the whole session: **every finding here is a threshold that
-   outlived the calibration of its input.**
+1. ✅ **DONE — the science registry's coverage contract is implemented** (`d12d363c`). See §8.
+   ⇒ What remains is the debt it froze: **32 unsourced calibration constants**. The ripest is
+   `SHELF_KF_FLOOR` — its own comment already names Ardhuin, so it needs a published range, not
+   research. Registering entries makes the ratchet shrink; nothing forces the order.
 2. ⛔ **OWNER — `OVERSIZE_START_MULT = 3.5` vs the p50 input.** Reach today is 0 of 338 served spots,
    so this is a **winter** item, not an incident. Re-run the reach census in December; if `oversize`
    starts binding at big-wave spots, the multiplier needs re-deriving against p50 (or tier 1 needs to
@@ -187,3 +184,81 @@ different populations *and* different percentiles. Widening hides both.
 - One refuter reported that the drifting spot blob **does** reach the map band indirectly, via the
   observation gate in `apply_surf_overlay` — I did not independently re-derive that, so it is
   recorded here as unverified rather than as a finding.
+
+---
+
+## §8 THE REGISTRY COVERAGE RATCHET — built (`d12d363c`)
+
+`science_registry.py`'s docstring claimed a guard that did not exist. It now exists, in
+`backend/tests/test_science_registry_coverage.py`, as a shrink-only ratchet over a declared
+forecast chain.
+
+### The debt it froze
+
+| module | numeric constants | registered | unregistered |
+|---|---:|---:|---:|
+| `surf_transform.py` | 13 | 5 | 8 |
+| **`surf_rating.py`** | **24** | **0** | **24** |
+| `spot_size_climatology.py` | 9 | 0 | 9 |
+| `wave_physics.py` | 1 | 0 | 1 |
+| `surf_height_convention.py` | 1 | 1 | 0 |
+| `surf_point.py` | 0 | – | 0 |
+| **total** | **48** | **6** | **42** |
+
+Categorised: **32 DEBT** (unsourced calibration), 7 STRUCTURAL, 3 EXACT. The registry holds 11
+constants overall, spanning only **3 modules**.
+
+### The design trap, and why the chain list is declared
+
+The obvious implementation scopes the scan to *the modules the registry mentions*. That is circular
+— and here it is catastrophic rather than merely inelegant: `surf_rating.py` has **zero** registered
+constants and **24** unregistered ones, so a coverage-derived scope puts the worst-covered module
+permanently out of reach. Two tests pin both directions:
+
+* `test_no_registry_module_falls_out_of_scope` — a module the registry names can never leave the scan
+* `test_scope_is_not_derived_from_coverage` — `surf_rating.py` must stay in it
+
+★ **Deriving a guard's scope from what it already covers makes the uncovered case unreachable by
+construction.** Same family as a surface list naming a producer file, and a fixture that could not
+enter the branch it guarded.
+
+### Two defects the tests found in themselves
+
+1. **A name is not unique across the chain.** `_HMIN_RIDEABLE_M` is defined in *both* `surf_rating`
+   and `spot_size_climatology`. The first draft keyed the grandfather set by name, and the only way
+   to hold both entries was a **trailing space** on one. `test_the_grandfather_set_is_shrink_only`
+   caught that on its first run. Now keyed by `(module, name)` — and the frozen DEBT count is **32,
+   not 31**, because the two copies are separate constants kept equal by a comment rather than code.
+2. **A count where a name was needed.** `test_scope_is_not_derived_from_coverage` first asserted
+   "at least one chain module has zero registered constants". *Four* modules satisfy that, so
+   dropping `surf_rating` left it green. A mutation revealed it; it now names the module.
+
+### Mutation matrix
+
+Byte-exact I/O, every mutant `ast.parse`-checked, restores `sha256`-identical.
+
+| mutation | verdict | tests killed |
+|---|---|---|
+| **plant 2 unregistered constants (the original experiment)** | **KILLED** | exactly its own |
+| drop `surf_rating` from the chain | KILLED | 4 — circularity guard first |
+| blind the AST walk | KILLED | 4 — refusal semantics |
+| accept any name, not just UPPER_CASE | KILLED | exactly its own |
+| plant a STALE grandfather entry | KILLED | 2 |
+
+⭐ **The control is the headline.** The same planted-constants experiment re-run against the *old*
+guard alone still returns `rc=0, failed=none` — the green that hid the gap. It now fails.
+
+⚠️ **The stale-entry mutation was rewritten after its first version survived killing nothing.**
+Disabling the "no longer exists" arm cannot fail when no entry is stale; the mutation had to *plant*
+the stale entry to be reachable. **A surviving mutation can mean the test is weak OR that the
+mutation could never fire — check which.**
+
+### Stated limits
+
+* **Function-local constants are out of scope** — module level only. A real gap, named so a
+  successor closes it deliberately rather than discovering it.
+* **Derived values are out of scope** (`_OVERSIZE_TAPER_SPAN = FLOOR / START`) — they cannot drift
+  independently of their inputs, so registering them would double-count.
+* **Categories are documentation, not enforcement.** Misfiling one as STRUCTURAL rather than DEBT
+  misdescribes the debt; it does not weaken the ratchet, which is the frozen set.
+* The chain is **6 modules**. Ingestion, sampling and the marine fetchers are *not* scanned.
