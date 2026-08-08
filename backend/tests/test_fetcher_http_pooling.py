@@ -60,6 +60,41 @@ def test_the_fetcher_list_is_not_stale():
         f"{missing}. Update POOLED_FETCHERS deliberately — do not delete entries to make it pass.")
 
 
+def _requests_call_count(fname):
+    """How many `requests.<attr>(...)` calls a module makes, by AST — not by substring."""
+    return sum(1 for n in ast.walk(_tree(fname))
+               if isinstance(n, ast.Call) and isinstance(n.func, ast.Attribute)
+               and getattr(n.func.value, "id", "") == "requests")
+
+
+def test_NO_fetcher_escapes_the_pooling_contract():
+    """⭐⭐⭐ THE STALENESS CHECK ABOVE IS ONE-DIRECTIONAL, AND THAT IS THE GAP.
+
+    It refuses when a LISTED fetcher disappears. It cannot notice the opposite and likelier drift:
+    a NEW `*_fetcher.py` landing outside the list, or an EXEMPT one starting to use `requests`.
+    Either way the suite keeps passing while guarding a shrinking fraction of the real set — the
+    exact shape recorded in this repo as "the salvage that reached 1 of 7 GRIB fetchers".
+
+    ★ SO THE EXEMPTION IS VERIFIED, NOT DECLARED. Every `*_fetcher.py` on disk must be either in
+    POOLED_FETCHERS or provably free of `requests.*` calls. That needs no second list to maintain:
+    the day an exempt fetcher reaches for `requests`, this fails and names it.
+
+    Measured 2026-08-07 — 9 fetchers on disk, 6 pooled, 3 exempt with 0 `requests.*` calls each
+    (`copernicus_fetcher`, `copernicus_global_fetcher`, `ecmwf_opendata_fetcher` — all use client
+    libraries). No live defect; this closes the direction the guard could not see.
+    """
+    on_disk = sorted(f for f in os.listdir(_SERVICES) if f.endswith("_fetcher.py"))
+    assert len(on_disk) >= len(POOLED_FETCHERS), "no fetchers found — the scan path is wrong"
+
+    escapees = {f: _requests_call_count(f) for f in on_disk
+                if f not in POOLED_FETCHERS and _requests_call_count(f) > 0}
+    assert not escapees, (
+        "These fetchers speak HTTP through the bare `requests` module but are NOT in "
+        f"POOLED_FETCHERS, so every pooling assertion in this file skips them: {escapees}\n"
+        "Add them to POOLED_FETCHERS (and give them `http_session()`), or establish why they are "
+        "exempt — but an exemption has to be true, not just declared.")
+
+
 @pytest.mark.parametrize("fname", POOLED_FETCHERS)
 def test_fetcher_uses_a_pooled_client_not_the_bare_module(fname):
     """The client that reaches .get/.head must come from `http_session()`, never `import requests`."""
