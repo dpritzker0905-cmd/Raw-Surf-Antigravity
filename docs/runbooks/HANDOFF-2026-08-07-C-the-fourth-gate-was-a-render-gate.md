@@ -36,6 +36,7 @@ established" because it was looking for a race that treats every lane alike.
 | 4 | `15a22720` | **E2E gated on the backend being current**, not just the frontend (queue item 1) | both gate paths executed live; redeploy measured at ~2 min |
 | 5 | `3c25228e` | **The ICON/weather lane loss was a key collision inside the anti-clobber merge** (queue item 2) | reproduced through the real function with 3 discriminating controls |
 | 6 | `bd4d67e5` | **Tide η wired into the served height** (queue item 4, row H) — at the ONE site that produces it | 0 of 172 served spots move at real η; control fires at η=−6 m |
+| 7 | `1399f880` | **7 blocking calls on the event loop** (row P) — and the class guard was scoped to ONE file | 0 of ~426 co-tenant ticks bare vs 64% offloaded |
 
 ---
 
@@ -169,6 +170,56 @@ nothing on every precomputed point. Flip cost is bounded: `tide_norm_at` is TTL-
 (0.1°) for 3 h with a 2,000-entry cap, `augment_with_surf` is the POINT path (not the map grid), and
 the ratings precompute already prewarms — ~1,100 spots collapse to far fewer cells.
 
+### 6. Row P: the measurement moved the fix, and the class guard read one file
+
+The audit prescribed *"warm or bulk-vectorise the bathymetry lookups behind
+`rating_transform_grid` — 18.3 s at 80,089 cells"*. One premise held, two did not.
+
+**Held:** 99.1% of the cold cost is the four lookups, not physics — 14.087 s vs 0.130 s of math
+over 19,600 fresh coords at HEAD, cold/warm ratios 180–505×.
+
+**Did not:** 80,089 cells is ~11× anything the endpoint serves. Probed live:
+
+| bbox | cells | note |
+|---|---|---|
+| WORLD | 15,023 | height band |
+| hemisphere | **7,081** | largest RATED |
+| N-Atlantic | 1,749 | |
+| regional / city | 110 / 81 | |
+
+And `lru_cache(maxsize=200_000)` makes "cold" per-**coordinate**, so a lattice warms once and
+stays warm at ~4.8 µs/cell. **The remaining cost is a cold-start tax, not a hot loop** — vectorising
+would optimise the amortised case.
+
+⭐⭐⭐ **What the measurement actually condemned is the thread.** `rating_transform_grid` runs inside
+`async def apply_surf_overlay` with no offload, on a single-worker box:
+
+```
+7,081 cells, bare on the loop   4.27 s  ->  co-tenant ticks   0 of ~426  (0%)
+7,081 cells, await to_thread    1.27 s  ->  co-tenant ticks  81 of ~126 (64%)
+warm (0.10 s), bare             0.10 s  ->  co-tenant ticks   0 of ~10   (0%)
+```
+
+⚠️ **The stall is proportional to DURATION, not grid size** — no frame is small enough to make a
+bare call safe, which is why the guard bans the shape rather than gating on a cell count.
+
+⭐⭐⭐ **And the class guard could not see it, because it read one file.**
+`test_event_loop_offload_guard.py` was written for this exact class and ships the line *"a fix
+applied at the site of an incident is not a fix applied to the class"* — while scanning only
+`routes/weather.py`. Widened to `routes/` + `services/weather_pipeline/`, it found **7 instances
+across 3 files** (map overlay ×4, the single injection point ×1, admin ×4) plus a **fourth loader**
+of the identical shape the 3-name surface list never covered.
+
+⚠️ **One fix was nearly a silent regression.** The point-lane site was
+`a or reference_for(loader(), ...)` — the loader ran *only* when `a` was falsy. Hoisting it to
+offload it would make every point that already had a per-coordinate reference start paying a
+possible 10 s cache-miss round trip. Preserved explicitly with `if not a:`.
+
+⭐ **That regression was caught by a test I then had to replace.** It asserted on a *source
+substring* and failed on a restructure that changed no behaviour — the `"x" in src` shape, conceded
+in its own docstring. It now executes the lane and pins both precedence **and** the short-circuit,
+which the scan could never see; mutation-verified in both directions.
+
 ## §3 SEEN IN A BROWSER — the item §7 recorded as never done
 
 Local dev server against the live backend, real production payload, after adding the block:
@@ -260,7 +311,13 @@ rendered **beach as dark**, silently — so `isBeach` is now read and the guard 
    (Hs p50 0.58 m) where the cap never binds. **Re-run the census in a bigger sea** (the script
    pattern: real η per spot from `/spot-ratings`, offshore Hs/Tp from `/weather/point`, geometry
    local) and require a positive control at η = −6 m before believing any 0%.
-5. **Row P** — `rating_transform_grid` is 18.3 s at 80,089 cells cold, 100% cold bathymetry lookup.
+5. ~~Row P~~ — **CLOSED by `1399f880`, but not as prescribed** (see §2.6). The bathymetry
+   vectorisation is **not** worth building: production's largest rated frame is 7,081 cells, and
+   `lru_cache` makes the warm path ~4.8 µs/cell. What was real is the event-loop stall, now fixed at
+   7 sites. ⚠️ **What remains un-priced:** the cold-start tax itself. After a deploy the first
+   viewport in each region pays ~1.5–4 s of lookups. Prewarming the lattice for served regions is a
+   possible follow-up, but it must be priced against how often the worker actually restarts — I did
+   not measure that.
 6. **The drawer's own confidence block has browser evidence only through the hub's twin.** The
    drawer path (map → click spot → REPORT mode) was never opened in a browser this session; the map
    is canvas-based with no DOM markers, so it needs a pixel click after panning.
